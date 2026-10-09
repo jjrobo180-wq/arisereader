@@ -3,6 +3,8 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Apple, CalendarDays, Check, Droplets, Newspaper, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, UserPlus, Vote, Wallet } from "lucide-react";
 import { MEMBER_COLORS, TOGGLEABLE, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
+import TodoNotifications from "./TodoNotifications";
+import { SharedLinks } from "./ShareLink";
 
 const EMOJI = ["🙂", "😎", "🦄", "🦖", "🐱", "🐶", "🌟", "⚽", "🎨", "🎮", "🌸", "🚀", "👑", "🐻", "🦊", "🐢"];
 export const SECTION_INFO: Record<FamilySection, { label: string; detail: string; icon: ReactNode }> = {
@@ -78,6 +80,10 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
           <Toggle on={family.chorePointsCount} label="Chore stars count toward rewards" onChange={(v) => setFamily((f) => ({ ...f, chorePointsCount: v }))} />
         </div>
       </Panel>
+    </div>
+    <div className="grid gap-6 xl:grid-cols-2">
+      <TodoNotifications />
+      <SharedLinks say={say} />
     </div>
 
     {editing && <Modal title={family.members.some((m) => m.id === editing.id) ? `Edit ${editing.name || "person"}` : "Add a person"} onClose={() => setEditing(null)}>

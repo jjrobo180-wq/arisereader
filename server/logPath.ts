@@ -2,7 +2,7 @@
 // a live-quiz link and a share link each carry a code that works like a password, and the logs are
 // kept (and read) by more people than the links were sent to.
 
-const SECRET_AFTER = ["/api/meeting-poll/", "/api/integrity/live/", "/api/fyp/share/", "/meet/"];
+const SECRET_AFTER = ["/api/meeting-poll/", "/api/integrity/live/", "/api/fyp/share/", "/meet/", "/api/todo-share/", "/share/", "/api/arise-todo/shares/"];
 
 /** The path to write in a log line, with the secret part of a private link replaced by ":token". */
 export function loggablePath(path: string): string {

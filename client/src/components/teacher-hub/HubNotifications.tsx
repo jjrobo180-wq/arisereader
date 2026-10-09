@@ -47,7 +47,9 @@ export default function HubNotifications({ token }: { token: string | null }) {
       if (Notification.permission === "denied") return live && setPhase("blocked");
       try {
         const sub = await currentSubscription();
-        if (live) setPhase(sub && Notification.permission === "granted" ? "on" : "off");
+        // The same phone may get A.R.I.S.E. To-Do reminders; ask whether Hub ones are on.
+        const on = !!sub && Notification.permission === "granted" && !!(await api(token, "/api/push/status", { endpoint: sub.endpoint }).catch(() => ({ hub: true }))).hub;
+        if (live) setPhase(on ? "on" : "off");
       } catch { if (live) setPhase("off"); }
     })();
     return () => { live = false; };
@@ -76,8 +78,8 @@ export default function HubNotifications({ token }: { token: string | null }) {
     try {
       const sub = await currentSubscription();
       if (sub) {
-        await api(token, "/api/push/unsubscribe", { endpoint: sub.endpoint }).catch(() => {});
-        await sub.unsubscribe();
+        const result = await api(token, "/api/push/unsubscribe", { endpoint: sub.endpoint, app: "hub" }).catch(() => ({}));
+        if (!result.stillUsed) await sub.unsubscribe(); // keep it when To-Do reminders still use it
       }
       setPhase("off");
     } finally { setBusy(false); }

@@ -43,6 +43,7 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
 import { registerAriseTodoRoutes } from "./ariseTodo";
+import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerAppleHealthRoutes } from "./appleHealth";
 import { registerTodoNewsRoutes } from "./todoNews";
@@ -1208,6 +1209,16 @@ export async function registerRoutes(
     "todo_required", "A.R.I.S.E. To-Do is an add-on for parents ($10 a month) and comes with Teacher Hub for teachers.",
   ));
   registerAriseTodoRoutes(app, authMiddleware);
+  // Share links from To-Do (a poll to vote in, a list, the calendar, bills, a trip...) that family open without an account.
+  const todoOwnerAllowed = async (id: number) => {
+    const owner: any = await storage.getUser(id);
+    if (!owner) return false;
+    return owner.isAdmin || (owner.role !== "parent" && owner.role !== "teacher") ? true : (await plans.todoStatus(owner)).access;
+  };
+  registerTodoShareRoutes(app, authMiddleware, {
+    db: { from: (table: string) => getAdminSupabase().from(table) }, appUrl: APP_URL, ownerAllowed: todoOwnerAllowed,
+    ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
+  });
   registerFoodLookupRoutes(app, authMiddleware);
   registerAppleHealthRoutes(app, authMiddleware);
   registerTodoNewsRoutes(app, authMiddleware);
@@ -1266,7 +1277,7 @@ export async function registerRoutes(
   // Reminders from the Apple Reminders app (an iPhone Shortcut sends them), one way into the Hub.
   registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
   // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
-  registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
+  registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }), todoAllowed: todoOwnerAllowed });
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
   // Study Squad: the study hall, its tables and study sets (kept in the settings table).

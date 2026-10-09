@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { MEMBER_COLORS, addDays, billDue, eventsOn, fromDay, toDay, type FamilyEvent, type EventRepeat } from "@shared/familyHub";
 import { Avatar, Label, MemberPicker, Modal, PageHead, Panel, Toggle, clock12, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, type SectionProps } from "./ui";
+import { ShareButton } from "./ShareLink";
 
 export type CalendarTask = { id: string; title: string; due: string; time: string; assignee: string; done: boolean };
 type Item = { key: string; kind: "event" | "task" | "bill" | "trip" | "hub"; title: string; time: string; color: string; event?: FamilyEvent; members: string[]; hub?: HubItem };
@@ -113,7 +114,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
 
   return <div className="space-y-6">
     <PageHead eyebrow="Calendar" title="Family calendar" blurb="Everyone's practices, appointments and plans in one place. Switch calendars and people on or off to see just what you need."
-      action={<button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button>} />
+      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="calendar" title="Family calendar" say={say} /><button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button></div>} />
 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Panel className="self-start" title={first.toLocaleDateString(undefined, { month: "long", year: "numeric" })}

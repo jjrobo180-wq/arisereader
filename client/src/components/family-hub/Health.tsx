@@ -12,6 +12,7 @@ import {
   ACTIVITIES, COMMON_FOODS, healthPeople, goalsFromPlan, makePlan, DIET_STYLES, DEFAULT_WEIGHT_LB, caloriesLeft, dayTotals, entryTotals, exerciseCalories, goalsFor, latestWeight, macroGrams, recentFoods, setDay,
 } from "@shared/familyHealth";
 import { Bar, Label, Modal, PageHead, Panel, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
+import { ShareButton } from "./ShareLink";
 
 const MEAL_LABEL: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snacks: "Snacks" };
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -53,7 +54,7 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
   return <div className="space-y-6">
     <PageHead eyebrow="Food & fitness" title={kid ? `${member.name}'s healthy habits` : "Food & fitness"}
       blurb={kid ? "Fruits and veggies, water and moving every day. No calorie counting for kids, just good habits." : "Log meals and workouts and see what's left of today's calories, like MyFitnessPal for the whole family."}
-      action={!needsIntake && <button onClick={() => setEditGoals(true)} className={plain + " min-h-11"}><Settings2 size={16} /> Goals</button>} />
+      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target={`health:${member.id}`} title={kid ? `${member.name}'s healthy habits` : `${member.name}'s food & fitness`} say={say} label={solo ? "Share link" : `Share ${member.name}'s`} />{!needsIntake && <button onClick={() => setEditGoals(true)} className={plain + " min-h-11"}><Settings2 size={16} /> Goals</button>}</div>} />
 
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap gap-2">{!solo && people.map((m) => <button key={m.id} onClick={() => setWho(m.id)} aria-pressed={m.id === member.id}

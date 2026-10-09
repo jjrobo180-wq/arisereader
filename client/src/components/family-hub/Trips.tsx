@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { ArrowLeft, Check, Luggage, MapPin, Pencil, Plane, Plus, Trash2, Wallet } from "lucide-react";
 import { addDays, daysBetween, money, type PackItem, type Trip, type TripStop } from "@shared/familyHub";
 import { Avatar, Bar, Empty, Label, Modal, PageHead, Panel, clock12, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, soft, type SectionProps } from "./ui";
+import { ShareButton } from "./ShareLink";
 
 const BASICS = ["Clothes", "Pajamas", "Toothbrush", "Shoes", "Jacket", "Phone charger"];
 const SHARED = ["Snacks", "First-aid kit", "Sunscreen", "Medications", "Tickets & IDs"];
@@ -73,7 +74,7 @@ export default function Trips({ family, setFamily, today, makeId, say }: Section
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0"><p className="text-xs font-black uppercase tracking-[.2em] text-white/70">{countdown(trip)}</p><h1 className="mt-1 text-3xl font-black">{trip.name}</h1>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-white/85">{trip.destination && <span className="inline-flex items-center gap-1.5"><MapPin size={15} />{trip.destination}</span>}<span>{trip.start ? `${shortDate(trip.start)}${trip.end && trip.end !== trip.start ? ` – ${shortDate(trip.end)}` : ""}` : "No dates yet"}</span></p></div>
-          <button onClick={() => setEditing({ ...trip })} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white/15 px-3 text-sm font-bold hover:bg-white/25"><Pencil size={15} /> Edit trip</button>
+          <div className="flex flex-wrap items-center gap-2"><span className="rounded-xl bg-white"><ShareButton target={`trip:${trip.id}`} title={trip.name} say={say} label="Share trip" /></span><button onClick={() => setEditing({ ...trip })} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white/15 px-3 text-sm font-bold hover:bg-white/25"><Pencil size={15} /> Edit trip</button></div>
         </div>
         {trip.notes && <p className="mt-4 whitespace-pre-wrap text-sm text-white/85">{trip.notes}</p>}
       </section>
@@ -137,7 +138,7 @@ export default function Trips({ family, setFamily, today, makeId, say }: Section
 
   return <div className="space-y-6">
     <PageHead eyebrow="Trips" title="Trip planner" blurb="Plan vacations and weekend getaways: dates, a day-by-day plan, a budget and a packing list for every person."
-      action={<button onClick={() => setEditing(blankTrip(makeId()))} className={primary + " min-h-11 px-5"}><Plus size={18} /> Plan a trip</button>} />
+      action={<div className="flex flex-wrap items-center gap-2">{upcoming.length > 0 && <ShareButton target="trips" title="Our trips" say={say} />}<button onClick={() => setEditing(blankTrip(makeId()))} className={primary + " min-h-11 px-5"}><Plus size={18} /> Plan a trip</button></div>} />
     {upcoming.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{upcoming.map(tripCard)}</div>
       : <Panel><Empty icon={<Plane size={26} />} title="No trips planned" action={<button onClick={() => setEditing(blankTrip(makeId()))} className={soft}><Plus size={16} /> Plan a trip</button>}>Road trip, beach week or a visit to grandma's. Start with a name and dates.</Empty></Panel>}
     {past.length > 0 && <Panel eyebrow="Memories" title="Past trips"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{past.map(tripCard)}</div></Panel>}

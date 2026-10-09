@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { AlertCircle, Check, ChevronLeft, ChevronRight, CircleDollarSign, Pencil, PiggyBank, Plus, Receipt, Repeat2, ShoppingCart, Trash2, Wallet } from "lucide-react";
 import { billDue, billState, fromDay, money, monthSummary, spentIn, toDay, type Bill, type Expense } from "@shared/familyHub";
 import { Bar, Empty, Label, Modal, PageHead, Panel, Stat, Toggle, confirmed, danger, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
+import { ShareButton } from "./ShareLink";
 
 const blankBill = (id: string): Bill => ({ id, name: "", amount: 0, dueDay: 1, category: "", autopay: false, paid: [] });
 const STATE_STYLE = { paid: "bg-emerald-50 text-emerald-700", late: "bg-rose-50 text-rose-600", soon: "bg-amber-50 text-amber-700", later: "bg-slate-50 text-slate-500" };
@@ -66,7 +67,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     {late.length > 0 && <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700" role="alert"><AlertCircle size={17} /> {late.length === 1 ? `${late[0].name} is` : `${late.length} bills are`} past due and not marked paid.</div>}
 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <Panel eyebrow={label} title="Bills" right={<button onClick={() => setBill(blankBill(makeId()))} className={soft}><Plus size={16} /> Add bill</button>}>
+      <Panel eyebrow={label} title="Bills" right={<div className="flex flex-wrap items-center gap-1.5"><ShareButton target="bills" title="Our bills" say={say} compact /><button onClick={() => setBill(blankBill(makeId()))} className={soft}><Plus size={16} /> Add bill</button></div>}>
         {bills.length ? <><ul className="divide-y divide-slate-100">{bills.map((b) => {
           const state = billState(b, month, refDay);
           return <li key={b.id} className="flex items-center gap-3 py-3">

@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Check, CheckCircle2, Minus, Pencil, Plus, Target, Trash2, Trophy, X } from "lucide-react";
 import { daysBetween, type Goal, type GoalCategory } from "@shared/familyHub";
 import { Avatar, Bar, Empty, Label, MemberPicker, Modal, PageHead, Panel, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, soft, type SectionProps } from "./ui";
+import { ShareButton } from "./ShareLink";
 
 const CATS: Record<GoalCategory, { label: string; emoji: string; color: string }> = {
   personal: { label: "Personal", emoji: "🌱", color: "#7566e8" }, health: { label: "Health", emoji: "💪", color: "#36b6a5" },
@@ -71,7 +72,7 @@ export default function Goals({ family, setFamily, today, makeId, say }: Section
 
   return <div className="space-y-6">
     <PageHead eyebrow="Goals" title="Goals" blurb="Big or small, yours or the whole family's. Break them into steps or track a number, and watch the bar fill up."
-      action={<button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New goal</button>} />
+      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="goals" title="Our goals" say={say} /><button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New goal</button></div>} />
     {family.goals.length > 0 && <div className="flex flex-wrap gap-1.5">
       <button onClick={() => setFilter("")} aria-pressed={!filter} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${!filter ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>All</button>
       {(Object.keys(CATS) as GoalCategory[]).filter((k) => family.goals.some((g) => g.category === k)).map((k) => <button key={k} onClick={() => setFilter(filter === k ? "" : k)} aria-pressed={filter === k} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${filter === k ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>{CATS[k].emoji} {CATS[k].label}</button>)}

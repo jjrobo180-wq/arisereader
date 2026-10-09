@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Repeat2, Sparkles, Star, Trash2, Trophy } from "lucide-react";
 import { addDays, choreDoneOn, choreDueOn, choreOwner, toggleChore, weekStart, type Chore } from "@shared/familyHub";
 import { Avatar, Empty, Label, MemberPicker, MemberTag, Modal, PageHead, Panel, confirmed, danger, inputClass, memberOf, plain, primary, shortDate, soft, type SectionProps } from "./ui";
+import { ShareButton } from "./ShareLink";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const IDEAS = ["Make bed", "Feed the pet", "Take out trash", "Unload dishwasher", "Tidy bedroom", "Fold laundry", "Set the table", "Water plants"];
@@ -51,7 +52,7 @@ export default function Chores({ family, setFamily, today, makeId, say }: Sectio
 
   return <div className="space-y-6">
     <PageHead eyebrow="Chores" title="Chore chart" blurb="Give everyone their jobs, rotate the ones nobody wants, and let kids check things off to earn stars."
-      action={<button onClick={() => setDraft(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New chore</button>} />
+      action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="chores" title="Chore chart" say={say} /><button onClick={() => setDraft(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New chore</button></div>} />
 
     {family.members.length > 0 && <div className="flex flex-wrap gap-2">
       <button onClick={() => setWho("")} aria-pressed={!who} className={`min-h-10 rounded-xl px-4 text-xs font-bold ring-1 ${!who ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>Everyone</button>
