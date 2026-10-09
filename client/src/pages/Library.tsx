@@ -1,3 +1,4 @@
+import BannerTap from "@/components/BannerTap";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -6,14 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2 } from "lucide-react";
+import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2, Users, Calculator, Landmark } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
+import AddonsCard from "@/components/AddonsCard";
+import ReadGamesRow from "@/components/ReadGamesRow";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
 import BookAccessLinks from "@/components/BookAccessLinks";
+import ExtraCreditTag from "@/components/ExtraCreditTag";
 import { EngagementHub } from "@/components/EngagementHub";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
 import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
@@ -129,7 +133,7 @@ interface QuizResult {
 }
 
 // Module-level cache — survives component unmount/remount during navigation
-let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; quizCount?: number; studentBanner?: { text: string; bgColor: string; textColor: string; active: boolean } } = {
+let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; quizCount?: number; studentBanner?: { text: string; bgColor: string; textColor: string; active: boolean; link?: string } } = {
   books: [],
   results: [],
   announcement: "",
@@ -161,8 +165,8 @@ export default function Library() {
   const [messageText, setMessageText] = useState("");
   const [sendingMsg, setSendingMsg] = useState(false);
   const [announcement, setAnnouncement] = useState(libraryCache.announcement);
-  const [studentBanner, setStudentBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>(libraryCache.studentBanner);
-  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | undefined>();
+  const [studentBanner, setStudentBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean; link?: string } | undefined>(libraryCache.studentBanner);
+  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean; link?: string } | undefined>();
   const [iAriseBookIds, setIAriseBookIds] = useState<number[]>([]);
   // library ids for the newer Read on Arise books, so their Read buttons open the reader
   const [, setReadsIdsReady] = useState(0);
@@ -1353,6 +1357,21 @@ export default function Library() {
                             <GraduationCap className="mb-1.5 h-4 w-4 text-amber-500" /><span className="flex items-center gap-1.5 text-xs font-black">Study Squad<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </button>
                         )}
+                        {!user?.is_eye_gaze_user && (
+                          <a href="/math/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <Calculator className="mb-1.5 h-4 w-4 text-cyan-500" /><span className="block text-xs font-black">Arise Math</span>
+                          </a>
+                        )}
+                        {!user?.is_eye_gaze_user && (
+                          <a href="/history/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <Landmark className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Arise History</span>
+                          </a>
+                        )}
+                        {!user?.is_eye_gaze_user && (
+                          <a href="/social/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <Users className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Arise Social<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
+                          </a>
+                        )}
                         <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Brain className="mb-1.5 h-4 w-4 text-violet-500" /><span className="block text-xs font-black">Growth Check</span>
                         </button>
@@ -1374,6 +1393,7 @@ export default function Library() {
                     <div className="space-y-1">
                       {user?.isAdmin && <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Admin</button>}
                       {user?.role === 'teacher' && <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Teacher Dashboard</button>}
+                      <a href="/social/" className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Users className="mr-2 inline h-4 w-4" /> Arise Social</a>
                       <button onClick={() => { if (realUser?.isAdmin) { startAdminPreview("regular"); navigate("/profile"); } else { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); } setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><User className="mr-2 inline h-4 w-4" /> Account</button>
                     </div>
                   )}
@@ -1411,7 +1431,7 @@ export default function Library() {
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
-          <div className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1 }}>
+          <BannerTap link={studentBanner.link} cueColor={studentBanner.textColor} className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1, borderStyle: "solid" }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: studentBanner.bgColor + '40' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={studentBanner.textColor} strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -1420,10 +1440,10 @@ export default function Library() {
             <div className="flex-1">
               <p className="text-sm" style={{ color: studentBanner.textColor }}>{studentBanner.text}</p>
             </div>
-          </div>
+          </BannerTap>
         )}
         {(user?.role === 'teacher' || user?.isAdmin) && teacherBanner && teacherBanner.active && teacherBanner.text && (
-          <div className="mb-3 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3" style={{ backgroundColor: teacherBanner.bgColor + '20', borderColor: teacherBanner.bgColor, borderWidth: 1 }}>
+          <BannerTap link={teacherBanner.link} cueColor={teacherBanner.textColor} className="mb-3 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3" style={{ backgroundColor: teacherBanner.bgColor + '20', borderColor: teacherBanner.bgColor, borderWidth: 1, borderStyle: "solid" }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: teacherBanner.bgColor + '40' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke={teacherBanner.textColor} strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -1432,7 +1452,7 @@ export default function Library() {
             <div className="flex-1">
               <p className="text-sm" style={{ color: teacherBanner.textColor }}>{teacherBanner.text}</p>
             </div>
-          </div>
+          </BannerTap>
         )}
 
         {/* Announcement banner */}
@@ -1517,41 +1537,16 @@ export default function Library() {
           </div>
         )}
 
-        {/* Read on Arise: books and articles readable right on the site */}
+        {/* Read on Arise (books and articles readable right on the site) and, for students, Games beside it */}
         {!(user?.role === "student" && user?.is_eye_gaze_user) && (
-          <button
-            type="button"
-            onClick={() => navigate("/reads")}
-            data-tour="reads"
-            className="group mb-4 flex w-full items-center gap-4 overflow-hidden rounded-2xl bg-white px-4 py-3 text-left text-[#17143b] shadow-lg ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-xl"
-          >
-            <span className="relative hidden h-16 w-28 shrink-0 sm:block" aria-hidden="true">
-              {READABLE_BOOKS.filter(b=>[21,7,24].includes(b.bookId)).map((b,i)=><img key={b.bookId} src={`${API_BASE}/api/book-cover/${b.bookId}`} alt="" className="absolute top-0 h-16 w-11 rounded-md object-cover shadow-md ring-2 ring-white" style={{left:i*30,transform:`rotate(${(i-1)*6}deg)`}}/>)}
-            </span>
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#17143b] text-white sm:hidden"><BookOpen className="h-6 w-6" /></span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2 text-lg font-black leading-tight">Read on Arise<span className="rounded-full bg-[#7048e8] px-2 py-0.5 text-[10px] font-black text-white">NEW</span></span>
-              <span className="block text-xs font-bold text-[#5d5a7a] sm:text-sm">{READABLE_BOOKS.length} full books, {POEMS.length} poems, iARISE lessons + {NEWS_ARTICLES.length} articles you can read right here · then take the quiz</span>
-            </span>
-            <span className="hidden rounded-full bg-[#17143b] px-4 py-2 text-xs font-black text-white sm:inline">START READING</span>
-          </button>
+          <ReadGamesRow
+            games={user?.role === "student"}
+            covers={READABLE_BOOKS.filter((b) => [21, 7, 24].includes(b.bookId)).map((b) => `${API_BASE}/api/book-cover/${b.bookId}`)}
+            books={READABLE_BOOKS.length} poems={POEMS.length} articles={NEWS_ARTICLES.length}
+            onReads={() => navigate("/reads")} onGames={() => navigate("/games")}
+          />
         )}
-        {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <button
-            type="button"
-            onClick={() => navigate("/games")}
-            className="club-entry-glow mb-4 flex w-full items-center justify-between rounded-2xl border border-indigo-300/30 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-4 py-3 text-left text-white shadow-lg transition hover:brightness-110"
-          >
-            <span className="flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15"><Gamepad2 className="h-6 w-6" /></span>
-              <span>
-                <span className="flex items-center gap-2 text-base font-black">Games<span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950 shadow-[0_0_16px_rgba(253,224,71,.45)]">NEW</span></span>
-                <span className="block text-xs font-bold text-white/75">All game worlds + multiplayer games · 10 minutes daily · Pass quizzes for more time</span>
-              </span>
-            </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">PLAY GAMES</span>
-          </button>
-        )}
+        {user?.role === "student" && !user?.is_eye_gaze_user && <div className="mb-5"><AddonsCard showTodo={false} /></div>}
                 <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
           onReadingLevelUp={() => navigate("/reading-level-up")}
@@ -2018,6 +2013,7 @@ export default function Library() {
                         >
                           <div className="h-1.5 w-full" style={{ background: accent }} />
                           <div className="relative aspect-[2/3] overflow-hidden bg-black/30">
+                            {!isDone && <ExtraCreditTag />}
                             {book.coverUrl ? (
                               <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
                             ) : (
@@ -2129,6 +2125,7 @@ export default function Library() {
                     const isDone=completedIds.has(book.id);
                     return <Card key={book.id} className="group w-[160px] flex-shrink-0 cursor-pointer overflow-hidden border-orange-400/20 bg-[#160d20] text-white transition-all duration-200 hover:-translate-y-1 hover:border-orange-300/50 hover:shadow-[0_12px_40px_rgba(249,115,22,.16)] sm:w-[180px]" style={{scrollSnapAlign:"start"}} onClick={()=>navigate(`/quiz/${book.id}`)}>
                       <div className="relative aspect-[2/3] overflow-hidden bg-[#261337]">
+                        {!isDone&&<ExtraCreditTag/>}
                         {book.coverUrl?<img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy"/>:<div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-950 to-orange-950 p-4 text-center"><span className="font-black">{book.title}</span></div>}
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#100716] to-transparent"/>
                         {isDone&&<div className="absolute right-2 top-2 rounded-full bg-emerald-500 px-2 py-1 text-xs font-black text-white shadow">✓ Done</div>}
@@ -2180,6 +2177,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2254,6 +2252,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2299,6 +2298,7 @@ export default function Library() {
                         onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {existingQuiz && !isDone && <ExtraCreditTag />}
                           {sbook.coverUrl ? (
                             <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2360,6 +2360,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2405,6 +2406,7 @@ export default function Library() {
                         onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {existingQuiz && !isDone && <ExtraCreditTag />}
                           {sbook.coverUrl ? (
                             <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2463,6 +2465,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2518,6 +2521,7 @@ export default function Library() {
                       data-testid={`card-book-${book.id}`}
                     >
                       <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                        {!isDone && <ExtraCreditTag />}
                         {book.coverUrl ? (
                           <img
                             src={`${API_BASE}/api/book-cover/${book.id}`}
@@ -2624,6 +2628,7 @@ export default function Library() {
                     onClick={() => navigate(`/quiz/${book.id}`)}
                   >
                     <div className="aspect-[2/3] relative overflow-hidden bg-muted">
+                      {!isDone && <ExtraCreditTag />}
                       {book.coverUrl ? (
                         <img
                           src={`${API_BASE}/api/book-cover/${book.id}`}

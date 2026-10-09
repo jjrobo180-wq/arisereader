@@ -700,3 +700,43 @@ test("after paying, the buyer is sent back to the page they started from, not to
   assert.equal((await call(52, "POST", "/api/billing/portal", { kind: "teacher", returnTo: `${site}/` }, { Origin: site })).status, 200);
   assert.equal(calls.filter((c) => c.url.includes("billing_portal")).at(-1)!.form.get("return_url"), `${site}/#/billing`);
 });
+
+// ─── A teacher's free first month ─────────────────────────────────────────────
+test("a new teacher gets 30 days free: teacher tools open at once, then lock 30 days later", async (t) => {
+  const signedUp = NOW - 2 * DAY;
+  USERS[55] = { id: 55, displayName: "Ms. Brand New", role: "teacher", createdAt: new Date(signedUp).toISOString(), school_id: 3, email: "brandnew@school.org" };
+  USERS[15] = { id: 15, displayName: "Gus", role: "student", createdAt: new Date(signedUp).toISOString(), teacherId: 55, school_id: 3 };
+  t.after(() => { delete USERS[55]; delete USERS[15]; });
+  const { call, plans, clock } = await setup(t);
+  const ends = new Date(Date.parse("2026-12-13T18:00:00.000Z")).toISOString();
+
+  assert.equal((await call(55, "GET", "/api/teacher/students")).status, 200, "past the Premium lock");
+  const plan = (await call(55, "GET", "/api/plan")).body;
+  assert.deepEqual([plan.premium, plan.via, plan.seats, plan.endsAt, plan.freeMonthEndsAt], [true, "free-month", null, ends, ends]);
+  assert.deepEqual([plan.hub.access, plan.hub.via, plan.hub.seats, plan.hub.endsAt], [true, "free-month", null, ends]);
+  // no student limit while it is free, and the class gets the Premium extras
+  assert.equal((await plans.seatCheck(USERS[55])).ok, true);
+  assert.equal((await call(15, "POST", "/api/student/iarise-quiz", {})).status, 200);
+  // a teacher whose month is already over is still locked, and is told when it ended
+  assert.equal((await call(50, "GET", "/api/teacher/students")).status, 402);
+  const old = (await call(50, "GET", "/api/plan")).body;
+  assert.deepEqual([old.premium, old.hub.access, old.freeMonthEndsAt], [false, false, "2026-11-09T02:36:00.000Z"]);
+  // students and parents have no free month of their own
+  assert.equal((await call(11, "GET", "/api/plan")).body.freeMonthEndsAt, undefined);
+
+  clock.now = Date.parse(ends) + 60_000;
+  plans.forget();
+  const locked = await call(55, "GET", "/api/teacher/students");
+  assert.deepEqual([locked.status, locked.body.code], [402, "premium_required"]);
+  const after = (await call(55, "GET", "/api/plan")).body;
+  assert.deepEqual([after.premium, after.via, after.hub.access], [false, null, false]);
+  assert.equal((await call(15, "POST", "/api/student/iarise-quiz", {})).status, 402);
+  // the plan page still opens, so they can pay
+  assert.equal((await call(55, "GET", "/api/plan")).status, 200);
+});
+
+test("the admin's plan list says when the free month began and when it ends for older accounts", async (t) => {
+  const { call } = await setup(t);
+  const list = (await call(1, "GET", "/api/admin/plans")).body;
+  assert.deepEqual(list.freeMonth, { from: "2026-10-09T02:36:00.000Z", existingUntil: "2026-11-09T02:36:00.000Z" });
+});

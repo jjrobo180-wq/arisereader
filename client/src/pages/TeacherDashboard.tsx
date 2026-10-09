@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy } from "lucide-react";
+import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy, PenLine } from "lucide-react";
+import AddonsCard from "@/components/AddonsCard";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/NotificationBell";
 import { printParentInvites } from "@/lib/parentInvites";
+import ParentEmailInvite from "@/components/ParentEmailInvite";
+import BannerTap from "@/components/BannerTap";
+import FamilyEmailInvite from "@/components/FamilyEmailInvite";
 import NoProctorReview from "@/components/NoProctorReview";
+import ComprehensionReview from "@/components/ComprehensionReview";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import { PrizeManager } from "@/components/prizes/PrizeManager";
 
@@ -33,7 +38,7 @@ type BookRequest = { id: number; bookTitle: string; studentName: string; message
 type ParentConnection = { id: number; displayName: string; username: string; code: string; signupUrl: string; parents: Array<{ id: number; displayName: string; username: string; email?: string | null; accountApproved: boolean }> };
 type ClubClosingSchedule = { enabled: boolean; start: string; end: string; days: number[]; timeZone?: string; closedNow?: boolean; adminOverrideClosedNow?: boolean; adminSchedule?: { enabled: boolean; start: string; end: string; days: number[] } };
 
-type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "camera-quizzes" | "grade-changes" | "growth-check" | "club-controls" | "prizes";
+type Tab = "students" | "all-students" | "pending" | "book-requests" | "parents" | "proctor" | "camera-quizzes" | "comprehension" | "grade-changes" | "growth-check" | "club-controls" | "prizes";
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
@@ -42,7 +47,7 @@ export default function TeacherDashboard() {
     // Other pages can open a specific tab by setting this key before navigating here.
     let requested: string | null = null;
     try { requested = sessionStorage.getItem("teacher_dashboard_tab"); sessionStorage.removeItem("teacher_dashboard_tab"); } catch {}
-    const valid: Tab[] = ["students", "all-students", "pending", "book-requests", "parents", "proctor", "camera-quizzes", "grade-changes", "growth-check", "club-controls"];
+    const valid: Tab[] = ["students", "all-students", "pending", "book-requests", "parents", "proctor", "camera-quizzes", "comprehension", "grade-changes", "growth-check", "club-controls"];
     return valid.includes(requested as Tab) ? (requested as Tab) : "students";
   });
   const [students, setStudents] = useState<Student[]>([]);
@@ -50,9 +55,11 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [proctorPassword, setProctorPassword] = useState("");
-  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean } | null>(null);
+  const [teacherBanner, setTeacherBanner] = useState<{ text: string; bgColor: string; textColor: string; active: boolean; link?: string } | null>(null);
   const [gradeChangeRequests, setGradeChangeRequests] = useState<any[]>([]);
   const [growthCheckData, setGrowthCheckData] = useState<any[]>([]);
+  // Written reading comprehension answers waiting for a grade.
+  const [comprehensionPending, setComprehensionPending] = useState(0);
 
   // All Students tab state
   const [allStudents, setAllStudents] = useState<AllStudent[]>([]);
@@ -224,6 +231,10 @@ export default function TeacherDashboard() {
           .then(data => { if (data?.teacherBanner) setTeacherBanner(data.teacherBanner); })
           .catch(() => {});
         fetchGradeChangeRequests(token);
+        fetch(`${API_BASE}/api/comprehension/review?limit=1`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data) setComprehensionPending(Number(data.pending) || 0); })
+          .catch(() => {});
         fetch(`${API_BASE}/api/teacher/growth-check/overview`, { headers: { Authorization: `Bearer ${token}` } })
           .then(r => r.ok ? r.json() : null)
           .then(data => { if (data?.attempts) setGrowthCheckData(data.attempts); })
@@ -425,6 +436,7 @@ export default function TeacherDashboard() {
           Your plan
         </button>}
       </div>
+      <div style={{ marginBottom: 18 }}><AddonsCard compact returnPath="/billing" /></div>
       <div style={{ marginBottom: 18 }}><PlayTimeManager /></div>
       <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections">
         <TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton>
@@ -434,6 +446,7 @@ export default function TeacherDashboard() {
         <TabButton active={tab === "parents"} onClick={() => setTab("parents")} icon={<Users size={19} />}>Parents</TabButton>
         <TabButton active={tab === "proctor"} onClick={() => setTab("proctor")} icon={<KeyRound size={19} />}>Proctor</TabButton>
         <TabButton active={tab === "camera-quizzes"} onClick={() => setTab("camera-quizzes")} icon={<Camera size={19} />}>Camera Quizzes</TabButton>
+        <TabButton active={tab === "comprehension"} onClick={() => setTab("comprehension")} icon={<PenLine size={19} />}>Reading Comprehension{comprehensionPending ? ` (${comprehensionPending})` : ""}</TabButton>
         <TabButton active={tab === "grade-changes"} onClick={() => setTab("grade-changes")} icon={<GraduationCap size={19} />}>Grade Changes{gradeChangeRequests.length ? ` (${gradeChangeRequests.length})` : ""}</TabButton>
         <TabButton active={tab === "growth-check"} onClick={() => setTab("growth-check")} icon={<Brain size={19} />}>Growth Check</TabButton>
         <TabButton active={tab === "club-controls"} onClick={() => setTab("club-controls")} icon={<Gamepad2 size={19} />}>Club Controls</TabButton>
@@ -636,6 +649,7 @@ export default function TeacherDashboard() {
             <p style={styles.proctorDesc}>Give families their private code or signup link, print letters, and see which parent/guardian accounts are already connected to your students.</p>
             <button style={styles.primaryBtn} onClick={() => printLetters()}>Print parent letters for my students</button>
           </div>
+          <div style={{ marginBottom: 18 }}><FamilyEmailInvite /></div>
           {parentConnectionsLoading ? <p style={styles.muted}>Loading parent connections...</p> : (
             <div style={styles.grid}>
               {parentConnections.length ? parentConnections.map((student) => (
@@ -651,6 +665,7 @@ export default function TeacherDashboard() {
                     <ActionButton onClick={() => void copyText(student.signupUrl, "Signup link")} icon={<Copy size={16}/>}>Copy Link</ActionButton>
                     <ActionButton onClick={() => window.open(student.signupUrl, "_blank", "noopener,noreferrer")} icon={<ExternalLink size={16}/>}>Open Signup</ActionButton>
                   </div>
+                  <div style={{marginTop:16}}><ParentEmailInvite studentId={student.id} studentName={student.displayName} /></div>
                   <div style={{marginTop:16,borderTop:"1px solid rgba(255,255,255,.09)",paddingTop:12}}>
                     <p style={styles.label}>Linked parent / guardian accounts</p>
                     {student.parents.length ? student.parents.map((parent) => <div key={parent.id} style={{...styles.rewardItem,marginTop:8}}><div><strong>{parent.displayName}</strong><p style={styles.quizMeta}>@{parent.username}{parent.email ? " · " + parent.email : ""}</p></div><span style={parent.accountApproved?styles.activeBadge:styles.inactiveBadge}>{parent.accountApproved?"Active":"Pending"}</span></div>) : <p style={styles.quizMeta}>No parent account is linked yet.</p>}
@@ -669,13 +684,14 @@ export default function TeacherDashboard() {
       {tab === "pending" && (loading ? <p style={styles.muted}>Loading...</p> : <div style={styles.pendingList}>{pending.length ? pending.map((student) => <article key={student.id} style={styles.pendingCard} data-testid={`card-pending-student-${student.id}`}><div><h2 style={styles.studentName}>{name(student)}</h2><p style={styles.username}>@{student.username}</p></div><button onClick={() => void approve(student.id)} style={styles.approveButton} data-testid={`button-approve-student-${student.id}`}><Check size={18} /> Approve</button></article>) : <div style={styles.empty}>No pending students</div>}</div>)}
 
       {/* === PROCTOR TAB === */}
-      {tab === "proctor" && <div style={{ maxWidth: 600, margin: "0 auto" }}>{teacherBanner && teacherBanner.active && teacherBanner.text ? <div style={{ ...styles.bannerCard, background: teacherBanner.bgColor, color: teacherBanner.textColor }}>{teacherBanner.text}</div> : null}<div style={styles.proctorCard}><h2 style={styles.proctorTitle}><KeyRound size={22} /> Proctor Password</h2><p style={styles.proctorDesc}>Students use this password to enter proctor mode. Share it only when proctoring a quiz.</p><div style={styles.proctorDisplay}><code style={styles.proctorCode}>{proctorPassword || "Not set"}</code><button onClick={() => { if (proctorPassword) navigator.clipboard?.writeText(proctorPassword).catch(() => {}); }} style={styles.copyBtn}>Copy</button></div></div></div>}
+      {tab === "proctor" && <div style={{ maxWidth: 600, margin: "0 auto" }}>{teacherBanner && teacherBanner.active && teacherBanner.text ? <BannerTap link={teacherBanner.link} style={{ ...styles.bannerCard, display: "flex", gap: 12, alignItems: "flex-start", background: teacherBanner.bgColor, color: teacherBanner.textColor }}><span style={{ minWidth: 0 }}>{teacherBanner.text}</span></BannerTap> : null}<div style={styles.proctorCard}><h2 style={styles.proctorTitle}><KeyRound size={22} /> Proctor Password</h2><p style={styles.proctorDesc}>Students use this password to enter proctor mode. Share it only when proctoring a quiz.</p><p style={styles.proctorDesc}>At the end of every book quiz, students can also write about the book for up to 10 extra points, with your code or on their own with the camera on. You grade those under <button type="button" onClick={() => setTab("comprehension")} style={{ background: "none", border: 0, padding: 0, color: "inherit", font: "inherit", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>Reading Comprehension</button>.</p><div style={styles.proctorDisplay}><code style={styles.proctorCode}>{proctorPassword || "Not set"}</code><button onClick={() => { if (proctorPassword) navigator.clipboard?.writeText(proctorPassword).catch(() => {}); }} style={styles.copyBtn}>Copy</button></div></div></div>}
 
       {/* === GRADE CHANGES TAB === */}
       {tab === "grade-changes" && <div style={styles.pendingList}>{gradeChangeRequests.length ? gradeChangeRequests.map((req) => <div key={req.id} style={styles.pendingCard}><div><h2 style={styles.studentName}>{req.studentName}</h2><p style={styles.username}>Current: Grade {req.currentGrade} → Requested: Grade {req.requestedGrade}</p></div><div style={{ display: "flex", gap: 8 }}><button onClick={() => void handleGradeChange(req.id, "approve")} style={styles.approveButton}><Check size={16} /> Approve</button><button onClick={() => void handleGradeChange(req.id, "deny")} style={styles.rejectBtn}><X size={16} /> Deny</button></div></div>) : <div style={styles.empty}>No grade change requests</div>}</div>}
 
       {/* === CLUB A.R.I.S.E. CONTROLS === */}
       {tab === "camera-quizzes" && <div style={{ maxWidth: 1000, margin: "0 auto" }}><NoProctorReview title="Camera quizzes from your students" /></div>}
+      {tab === "comprehension" && <div style={{ maxWidth: 1000, margin: "0 auto" }}><ComprehensionReview title="Reading comprehension from your students" onPendingChange={setComprehensionPending} /></div>}
       {tab === "club-controls" && (
         <div>
           <div style={{ ...styles.proctorCard, marginBottom: 18 }}>

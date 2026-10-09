@@ -68,6 +68,8 @@ function lazyPage(loader: () => Promise<{ default: ComponentType<any> }>) {
 }
 const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
 const Games = lazyPage(() => import("./pages/Games"));
+const MeetingPoll = lazyPage(() => import("./pages/MeetingPoll"));
+const TodoShare = lazyPage(() => import("./pages/TodoShare"));
 const AriseCity = lazyPage(() => import("./pages/AriseCity"));
 const SmashRoom = lazyPage(() => import("./pages/play/SmashRoom"));
 const BuildZone = lazyPage(() => import("./pages/play/BuildZone"));
@@ -88,6 +90,8 @@ const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
+const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
+import TodoGate from "@/components/TodoGate";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -99,6 +103,7 @@ const Tutorial = lazyPage(() => import("./pages/Tutorial"));
 const LeaderboardPage = lazyPage(() => import("./pages/LeaderboardPage"));
 const StudentProgress = lazyPage(() => import("./pages/StudentProgress"));
 const Competition = lazyPage(() => import("./pages/Competition"));
+const TimedCompetition = lazyPage(() => import("./pages/TimedCompetition"));
 const Polls = lazyPage(() => import("./pages/Polls"));
 const CoursePage = lazyPage(() => import("./pages/CoursePage"));
 const ReadingAssessment = lazyPage(() => import("./pages/ReadingAssessment"));
@@ -307,17 +312,26 @@ function AppRoutes() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch>
+      <Route path="/to-do">
+        <TodoGate><AriseTodo /></TodoGate>
+      </Route>
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
       </Route>
       <Route path="/register">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/register-independent">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+      </Route>
+      <Route path="/meet/:token">
+        <MeetingPoll />
+      </Route>
+      <Route path="/share/:token">
+        <TodoShare />
       </Route>
       <Route path="/teacher-signup">
         <TeacherSignup />
@@ -333,6 +347,9 @@ function AppRoutes() {
       </Route>
       <Route path="/teacher-hub">
         <TeacherHub />
+      </Route>
+      <Route path="/hub">
+        <Redirect to="/teacher-hub" replace />
       </Route>
       <Route path="/teacher-scenes">
         {user && (user.role === "teacher" || user.isAdmin)
@@ -384,6 +401,10 @@ function AppRoutes() {
           : user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent'
             ? <ProtectedRoute><StudentProgress /></ProtectedRoute>
             : <LeaderboardPage />}
+      </Route>
+      {/* A short competition with its own leaderboard: www.arisereader.com/#/fall-break */}
+      <Route path="/fall-break">
+        <TimedCompetition slug="fall-break" />
       </Route>
       <Route path="/competition">
         {isEyeGazeStudent ? <Redirect to="/eye-gaze-games" replace /> : <Competition />}
@@ -630,7 +651,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-const FULLSCREEN_GAME_ROUTES = ["/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren"];
+const FULLSCREEN_GAME_ROUTES = ["/to-do", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren"];
 function useFullscreenGameRoute() {
   const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
   const [inGame, setInGame] = useState(read);
@@ -642,35 +663,11 @@ function useFullscreenGameRoute() {
   return inGame;
 }
 
-// The site-wide way into the Teacher Hub: a real button in a footer strip at the bottom of every page.
-function TeacherHubFooterButton() {
-  const read = () => window.location.hash.replace(/^#/, "").split("?")[0];
-  const [path, setPath] = useState(read);
-  useEffect(() => {
-    const update = () => setPath(read());
-    window.addEventListener("hashchange", update);
-    return () => window.removeEventListener("hashchange", update);
-  }, []);
-  if (path.startsWith("/teacher-hub")) return null;
-  return (
-    <footer className="w-full border-t border-slate-200 bg-white/90 px-4 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto flex max-w-3xl justify-center">
-        <a
-          href="#/teacher-hub"
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 active:scale-[.98] sm:w-auto"
-        >
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z" /><path d="M6 12v5c3 2 9 2 12 0v-5" /></svg>
-          Teacher Hub
-        </a>
-      </div>
-    </footer>
-  );
-}
 
 function AppInner() {
   const { user, realUser, adminPreviewMode } = useAuth();
   const inGame = useFullscreenGameRoute();
-  const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
+  const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && user.role !== 'todo';
   const isEyeGazeStudent = !!isStudent && !!user?.is_eye_gaze_user;
   const isDemoStudent = !!isStudent && (
     !!user?.username?.startsWith('sample') || user?.username === 'tutorial-eye'
@@ -694,7 +691,6 @@ function AppInner() {
           <EyeGazeCelebrations />
         </EyeGazeSiteShell>
       </Router>
-      {!inGame && <TeacherHubFooterButton />}
     </>
   );
 }

@@ -4,21 +4,36 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 
-export type PlanView = { kind: "teacher" | "school"; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; paidOnline: boolean; canManage: boolean; /** A school that is always Premium at no charge. */ free?: boolean };
+export type PlanView = { kind: import("@shared/plans").PlanKind; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; paidOnline: boolean; canManage: boolean; /** A school that is always Premium at no charge. */ free?: boolean };
 export type PlanInfo = {
   /** Has the site admin turned plan rules on? */
   enforced: boolean;
   premium: boolean;
-  via: "rules-off" | "admin" | "demo" | "teacher-plan" | "school-plan" | "class" | "grandfathered" | null;
+  via: "rules-off" | "admin" | "demo" | "teacher-plan" | "school-plan" | "class" | "grandfathered" | "free-month" | null;
   seats: number | null;
   endsAt: string | null;
   /** Can Premium be bought online right now? */
   payment: boolean;
   prices: { teacherMonthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolYearlyCents: number; schoolStudentCap: number };
+  /** Teachers only: when their 30-day free trial ends, or ended. */
+  freeMonthEndsAt?: string;
   /** Teachers only. */
   students?: number;
   teacherPlan?: PlanView | null;
   school?: { id: number; name: string; students: number; plan: PlanView | null } | null;
+  /** Teacher Hub, the add-on. Teachers and the admin only. */
+  hub?: HubInfo;
+};
+export type HubInfo = {
+  access: boolean;
+  via: "admin" | "hub-teacher-plan" | "hub-school-plan" | "free-month" | null;
+  seats: number | null;
+  endsAt: string | null;
+  /** Students in the teacher's Hub caseload. */
+  students: number;
+  teacherPlan: PlanView | null;
+  schoolPlan: PlanView | null;
+  prices: { monthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolYearlyCents: number; schoolStudentCap: number };
 };
 
 // A failed load is remembered too (as null), so a page doesn't wait on it again and again.

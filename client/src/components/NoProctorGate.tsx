@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, Clock3, KeyRound, ClipboardX, ShieldCheck, Users, RotateCcw } from "lucide-react";
+import { ArrowLeft, Camera, Clock3, KeyRound, ClipboardX, ShieldCheck, Users, RotateCcw, PenLine } from "lucide-react";
+import { COMPREHENSION } from "@shared/comprehension";
 import { API_BASE } from "@/lib/queryClient";
 import { CAMERA_CONSTRAINTS, cameraErrorMessage, canUseCamera } from "@/lib/noProctorMonitor";
 import "./noproctor.css";
@@ -115,6 +116,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
         {view === "choose" && (
           <>
             <h1>How do you want to take this quiz?</h1>
+            <p className="np-bonus"><b>NEW!</b> Either way, you can write about the book at the end for up to {COMPREHENSION.bonusPoints} extra points.</p>
             <div className="np-options">
               <button type="button" className="np-option" onClick={() => setView("code")}>
                 <span className="np-option-icon"><KeyRound /></span>
@@ -174,6 +176,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
                 <li><ShieldCheck /><span>Stay on this screen until you turn the quiz in. Leaving once gets a warning. Leaving again turns the quiz in with the answers you have.</span></li>
                 <li><ClipboardX /><span>Copy and paste are turned off.</span></li>
                 <li><Users /><span>Your teacher, your parent and the site admin can see the pictures. They're deleted after 30 days.</span></li>
+                <li><PenLine /><span>At the end you can write about the book for up to {COMPREHENSION.bonusPoints} extra points.</span></li>
               </ul>
             </div>
             {error && <p className="np-error" role="alert">{error}</p>}

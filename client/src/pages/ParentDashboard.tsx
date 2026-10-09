@@ -10,6 +10,7 @@ import {
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
 import NoProctorReview from "@/components/NoProctorReview";
+import AddonsCard from "@/components/AddonsCard";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import { PrizeManager } from "@/components/prizes/PrizeManager";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
@@ -291,6 +292,9 @@ export default function ParentDashboard() {
             <p className="text-[10px] font-black uppercase tracking-[.2em] arise-gradient-text">A.R.I.S.E. Family</p>
             <h1 className="text-lg font-black text-foreground">Parent Portal</h1>
           </div>
+          <Button variant="outline" size="sm" asChild>
+            <a href="/social/"><Users className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">Arise Social</span></a>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowLink(v => !v)}>
             <UserPlus className="w-4 h-4 mr-1" /> Add child
           </Button>
@@ -627,6 +631,9 @@ export default function ParentDashboard() {
             )}
           </>
         )}
+
+        {/* Optional add-ons go last, so the free parent tools above are what a parent meets first. */}
+        <AddonsCard returnPath="/billing" />
       </main>
     </div>
   );

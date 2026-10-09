@@ -4,7 +4,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   PLANS, usd, blocksFor, seatsFor, teacherMonthlyCents, clampBlocks, grantLive, grandfathered, isDemoAccount,
-  entitlementFor, parentCanLink, isFreeSchoolName, type PlanGrant,
+  entitlementFor, parentCanLink, isFreeSchoolName, monthAfter, freeMonthEnd, inFreeMonth, hubAccessFor, type PlanGrant,
+  APP_IDS, appAccessFor, todoAccessFor, socialAccessFor,
 } from "../shared/plans";
 
 const DAY = 86_400_000;
@@ -157,4 +158,104 @@ test("an always-free school has no student limit and no end date", () => {
   // and the students in that teacher's class come along
   const student = { id: 20, role: "student", createdAt: LATE, teacherId: 60, schoolId: 7 };
   assert.equal(entitlementFor(student, { ...on, classTeacher: teacher, classTeacherSchoolGrant: free }).via, "class");
+});
+
+// ─── A teacher's free first month ─────────────────────────────────────────────
+const FREE_FROM = Date.parse(PLANS.freeMonthFrom);
+
+test("one month later is the same day and time next month, or the month's last day", () => {
+  const at = (iso: string) => new Date(monthAfter(Date.parse(iso))).toISOString();
+  assert.equal(at("2026-10-09T02:36:00.000Z"), "2026-11-09T02:36:00.000Z");
+  assert.equal(at("2026-12-20T16:00:00.000Z"), "2027-01-20T16:00:00.000Z");
+  assert.equal(at("2027-01-31T10:00:00.000Z"), "2027-02-28T10:00:00.000Z");
+  assert.equal(at("2028-01-30T10:00:00.000Z"), "2028-02-29T10:00:00.000Z", "leap year");
+  assert.equal(at("2027-03-31T10:00:00.000Z"), "2027-04-30T10:00:00.000Z");
+});
+
+test("the free trial starts now for accounts that already exist, and at sign-up for new ones: 30 days", () => {
+  assert.equal(PLANS.freeMonthFrom, "2026-10-09T02:36:00.000Z", "8:36 pm on October 8, 2026, Mountain time");
+  // accounts from before the start, and accounts with no date on record
+  for (const made of [EARLY, LATE, null, undefined, "", "not a date"]) assert.equal(freeMonthEnd(made), "2026-11-09T02:36:00.000Z", String(made));
+  // a teacher who signed up after the free time began but before it became a 30-day trial keeps a full month
+  assert.equal(freeMonthEnd("2026-10-09T10:00:00.000Z"), "2026-11-09T10:00:00.000Z");
+  // a new account: 30 days from sign-up
+  assert.equal(PLANS.classTrialFrom, "2026-10-09T16:00:00.000Z", "10 am on October 9, 2026, Mountain time");
+  assert.equal(freeMonthEnd("2026-10-20T15:00:00.000Z"), "2026-11-19T15:00:00.000Z");
+  assert.equal(freeMonthEnd(new Date("2027-03-02T09:30:00.000Z")), "2027-04-01T09:30:00.000Z");
+
+  assert.equal(inFreeMonth(LATE, FREE_FROM), true, "the moment it starts");
+  assert.equal(inFreeMonth(LATE, FREE_FROM - 1), false, "not before it starts");
+  assert.equal(inFreeMonth(LATE, Date.parse("2026-11-09T02:35:59.000Z")), true);
+  assert.equal(inFreeMonth(LATE, Date.parse("2026-11-09T02:36:00.000Z")), false, "over");
+  assert.equal(inFreeMonth("2027-03-02T09:30:00.000Z", Date.parse("2027-03-02T09:31:00.000Z")), true, "a teacher who signed up a minute ago");
+  assert.equal(inFreeMonth("2027-03-02T09:30:00.000Z", Date.parse("2027-04-01T09:29:00.000Z")), true, "day 30");
+  assert.equal(inFreeMonth("2027-03-02T09:30:00.000Z", Date.parse("2027-04-01T09:30:00.000Z")), false, "30 days on");
+});
+
+test("in the free month a teacher has Premium and Teacher Hub, and their class gets the extras", () => {
+  const during = { enforced: true, now: FREE_FROM + 5 * DAY };
+  const teacher = { id: 50, role: "teacher", createdAt: LATE };
+  const e = entitlementFor(teacher, during);
+  assert.deepEqual([e.premium, e.via, e.seats, e.endsAt], [true, "free-month", null, "2026-11-09T02:36:00.000Z"]);
+  const h = hubAccessFor(teacher, { now: during.now });
+  assert.deepEqual([h.access, h.via, h.seats, h.endsAt], [true, "free-month", null, "2026-11-09T02:36:00.000Z"]);
+
+  // a student the teacher approved rides along; one who only picked the teacher does not
+  const student = { id: 10, role: "student", createdAt: LATE, teacherId: 50 };
+  assert.equal(entitlementFor(student, { ...during, classTeacher: teacher }).via, "class");
+  assert.equal(entitlementFor({ ...student, approvedByTeacher: false }, { ...during, classTeacher: teacher }).premium, false);
+  // parents and students without a teacher get nothing from it
+  assert.equal(entitlementFor({ id: 80, role: "parent", createdAt: LATE }, during).premium, false);
+  assert.equal(entitlementFor({ id: 11, role: "student", createdAt: LATE }, during).premium, false);
+  assert.equal(hubAccessFor({ id: 10, role: "student", createdAt: LATE }, { now: during.now }).access, false);
+
+  // when the month is over, the teacher needs a plan again
+  const after = { enforced: true, now: Date.parse("2026-11-09T02:36:00.000Z") };
+  assert.equal(entitlementFor(teacher, after).premium, false);
+  assert.equal(hubAccessFor(teacher, { now: after.now }).access, false);
+  assert.equal(entitlementFor(student, { ...after, classTeacher: teacher }).premium, false);
+});
+
+test("a plan or the free year counts before the free month", () => {
+  const during = { enforced: true, now: FREE_FROM + 5 * DAY };
+  // signed up before October 1: the free year for Premium, the free month for Teacher Hub
+  const early = { id: 51, role: "teacher", createdAt: EARLY };
+  assert.equal(entitlementFor(early, during).via, "grandfathered");
+  assert.equal(hubAccessFor(early, { now: during.now }).via, "free-month");
+  // a paying teacher keeps their plan and its student limit
+  const late = { id: 50, role: "teacher", createdAt: LATE };
+  const own = grant({ endsAt: new Date(during.now + 20 * DAY).toISOString() });
+  assert.deepEqual([entitlementFor(late, { ...during, teacherGrant: own }).via, entitlementFor(late, { ...during, teacherGrant: own }).seats], ["teacher-plan", 100]);
+  const hub = grant({ kind: "hub_teacher", seats: 200, endsAt: new Date(during.now + 20 * DAY).toISOString() });
+  assert.deepEqual([hubAccessFor(late, { now: during.now, teacherGrant: hub }).via, hubAccessFor(late, { now: during.now, teacherGrant: hub }).seats], ["hub-teacher-plan", 200]);
+  // a teacher who joins next school year still gets a month
+  const next = { id: 61, role: "teacher", createdAt: "2027-09-01T15:00:00.000Z" };
+  assert.equal(entitlementFor(next, { enforced: true, now: Date.parse("2027-09-15T15:00:00.000Z") }).via, "free-month");
+  assert.equal(entitlementFor(next, { enforced: true, now: Date.parse("2027-10-02T15:00:00.000Z") }).premium, false);
+});
+
+test("the admin has every program free, always: no plan, no trial, nothing that runs out", () => {
+  // Long after every free month, free year and 30-day trial has ended, with plan rules on.
+  const later = Date.parse("2030-01-15T18:00:00Z");
+  const lapsed = grant({ status: "canceled", endsAt: new Date(NOW - 400 * DAY).toISOString() });
+  for (const role of ["admin", "teacher", "parent", "student", undefined]) {
+    for (const flag of role === "admin" ? [true, false] : [true]) {
+      const admin = { id: 1, role, isAdmin: flag, createdAt: LATE };
+      const who = `role ${role}, isAdmin ${flag}`;
+      const reader = entitlementFor(admin, { enforced: true, now: later, teacherGrant: lapsed, schoolGrant: lapsed });
+      assert.deepEqual([reader.premium, reader.via, reader.endsAt], [true, "admin", null], `Reader, ${who}`);
+      const hub = hubAccessFor(admin, { now: later, teacherGrant: lapsed, schoolGrant: lapsed });
+      assert.deepEqual([hub.access, hub.via, hub.endsAt], [true, "admin", null], `Teacher Hub, ${who}`);
+      const todo = todoAccessFor(admin, { now: later, todoGrant: lapsed, hub: null });
+      assert.deepEqual([todo.access, todo.via, todo.endsAt, todo.trialEndsAt], [true, "admin", null, null], `To-Do, ${who}`);
+      for (const app of APP_IDS) {
+        const a = appAccessFor(admin, app, { now: later, ownGrant: lapsed, socialGrant: lapsed });
+        assert.deepEqual([a.access, a.via, a.endsAt, a.trialEndsAt], [true, "admin", null, null], `${app}, ${who}`);
+      }
+      assert.equal(socialAccessFor(admin, lapsed, later), true, `Arise Social (old plan check), ${who}`);
+    }
+  }
+  // The same account without the admin flag is back to the ordinary rules.
+  assert.equal(entitlementFor({ id: 2, role: "teacher", createdAt: LATE }, { enforced: true, now: later }).premium, false);
+  assert.equal(hubAccessFor({ id: 2, role: "teacher", createdAt: LATE }, { now: later }).access, false);
 });

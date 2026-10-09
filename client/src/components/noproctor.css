@@ -149,6 +149,29 @@
   line-height: 1.4;
 }
 
+/* "NEW! … extra points" under the question: writing about the book works either way. */
+.np-bonus {
+  margin: -4px 0 14px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: hsl(142 70% 45% / 0.14);
+  color: hsl(142 70% 76%);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.np-bonus b {
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: hsl(142 70% 50%);
+  color: hsl(150 80% 10%);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .np-option-icon {
   width: 42px;
   height: 42px;

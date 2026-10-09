@@ -1,5 +1,7 @@
 // Pure logic for the Read on Arise library quizzes (see readsSync.ts), over a small storage interface so it can be tested.
 import { READS_QUIZZES, type ReadsQuiz } from "../shared/readsQuizzes";
+// A.R.I.S.E. points go 5 to 30 in fives; the list's older, smaller values are stepped up to match.
+import { convertedPoints } from "../shared/bookPoints";
 
 export const READS_BOOKS_KEY = "reads_book_ids";
 
@@ -31,7 +33,7 @@ export async function syncReadsBooks(store: ReadsStore, quizzes: ReadsQuiz[] = R
       map[q.key] = Number(existing.id); changed = true; continue;
     }
     const created = await store.createBookWithQuestions(
-      { title: q.title, author: q.author, ageGroup: q.ageGroup, coverUrl: coverFor(q.key), description: q.description, pointsValue: q.points, readUrl: null, skipAR: true },
+      { title: q.title, author: q.author, ageGroup: q.ageGroup, coverUrl: coverFor(q.key), description: q.description, pointsValue: convertedPoints(q.points) ?? q.points, readUrl: null, keepPoints: true },
       q.questions.map((x) => ({ question: x.question, options: x.options, correct: x.correct })),
     );
     map[q.key] = Number(created.id); changed = true;

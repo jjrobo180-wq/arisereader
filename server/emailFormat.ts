@@ -6,6 +6,8 @@
 // the site controls: a whole HTML page instead of a loose fragment, and a footer
 // that names the site and says why the email was sent.
 
+import { PICTURE_LINE, inviteBrandHtml, inviteInlineHtml } from "../shared/inviteRich";
+
 /** Where the site lives. Links in emails use APP_URL when it is set, and this when it is not. */
 export const DEFAULT_SITE_URL = "https://www.arisereader.com";
 
@@ -59,4 +61,252 @@ export function parentInviteEmail(studentName: string, signupUrl: string, code: 
   <p style="color:#94a3b8;font-size:14px;">Student link code: <strong style="color:#ffffff;letter-spacing:.08em;">${code}</strong></p>
   <p style="color:#94a3b8;font-size:13px;margin-top:24px;">If you don't know ${studentName}, you can ignore this email.</p>
 </div>`;
+}
+
+const esc = (value: unknown) => escapeHtml(String(value ?? ""));
+
+/** What every invitation can carry besides its own words: prize and competition lines, and a note in the sender's own words. */
+export type InviteExtras = { prizes?: string[]; note?: string };
+
+/** "Prizes and competitions" for the dark emails the site sends. "" when there is nothing to list. */
+function prizesHtml(prizes: string[] | undefined, h2: string, li: string): string {
+  const lines = (prizes || []).filter(Boolean);
+  if (!lines.length) return "";
+  return `
+  <h2 style="${h2}">🏆 Prizes and competitions</h2>
+  <ul style="margin:0;padding-left:22px;">
+    ${lines.map((line) => `<li style="${li}">${inviteInlineHtml(line, "#c4b5fd")}</li>`).join("\n    ")}
+  </ul>
+`;
+}
+
+/** The sender's own note, set apart, for the dark emails. "" when there is none. */
+function noteHtml(note: string | undefined, sender: string): string {
+  const words = String(note || "").trim();
+  if (!words) return "";
+  return `
+  <div style="margin:0 0 16px;padding:12px 14px;border-left:4px solid #a78bfa;background-color:#1a1730;border-radius:8px;">
+    <div style="margin:0 0 4px;font-size:13px;font-weight:bold;color:#c4b5fd;">A note from ${sender}</div>
+    <div style="line-height:1.6;color:#e2e8f0;font-size:16px;">${words.split("\n").map((line) => inviteInlineHtml(line, "#c4b5fd")).join("<br>")}</div>
+  </div>
+`;
+}
+
+/** The same two parts for the plain-words version. */
+const noteText = (note: string | undefined): string[] => (String(note || "").trim() ? [String(note).trim(), ""] : []);
+const prizesText = (prizes: string[] | undefined): string[] => { const lines = (prizes || []).filter(Boolean); return lines.length ? ["🏆 PRIZES AND COMPETITIONS", ...lines.map((line) => `- ${line}`), ""] : []; };
+
+/**
+ * The email a teacher (or the admin) sends to a student's parent or guardian who has no account yet:
+ * what A.R.I.S.E. Reader is, what a parent account does, and how to sign up with the student's code.
+ * Every value is escaped here, so plain text is what to pass in.
+ */
+export function parentProgramEmail(info: { studentName: string; senderName: string; signupUrl: string; code: string; siteUrl?: string; maxChildren?: number } & InviteExtras): string {
+  const student = esc(info.studentName || "your child");
+  // The full name once, so there is no doubt which child; the first name after that, the way a person would write it.
+  const first = esc(String(info.studentName || "").trim().split(/\s+/)[0] || "your child");
+  const sender = esc(info.senderName || "Your child's teacher");
+  const url = esc(info.signupUrl);
+  const site = esc(siteHost(info.siteUrl || DEFAULT_SITE_URL));
+  const h2 = "margin:28px 0 10px;color:#f8fafc;font-size:18px;";
+  const p = "margin:0 0 12px;line-height:1.6;color:#cbd5e1;font-size:16px;";
+  const li = "margin:0 0 8px;line-height:1.55;color:#cbd5e1;font-size:16px;";
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
+  ${inviteBrandHtml(info.siteUrl || DEFAULT_SITE_URL, "dark")}
+  <h2 style="margin:24px 0 10px;color:#f8fafc;font-size:22px;">You're invited to follow ${student}'s reading</h2>
+  <p style="${p}">${sender} uses A.R.I.S.E. Reader with ${student} and asked us to send you this. ${first} already has a student account. To follow along you will need a free parent account, and this email explains how to make one.</p>
+${noteHtml(info.note, sender)}
+  <h2 style="${h2}">What it is</h2>
+  <ul style="margin:0;padding-left:22px;">
+    <li style="${li}">${first} picks a book and reads it.</li>
+    <li style="${li}">Then comes a short quiz on the book. A score of 70% or higher earns that book's points.</li>
+    <li style="${li}">Points add up, so ${first} can see the reading pay off and keep going.</li>
+  </ul>
+${prizesHtml(info.prizes, h2, li)}
+  <h2 style="${h2}">What a parent account does</h2>
+  <ul style="margin:0;padding-left:22px;">
+    <li style="${li}">See ${first}'s quiz history and reading growth.</li>
+    <li style="${li}">Get a private Parent Proctor Code, so ${first} can take quizzes and reading tests at home with you.</li>
+    <li style="${li}">Use parent controls for games and access.</li>
+    <li style="${li}">It is free${info.maxChildren ? `, and one parent account can follow up to ${Number(info.maxChildren)} children` : ""}.</li>
+  </ul>
+
+  <h2 style="${h2}">How to sign up (about two minutes)</h2>
+  <ol style="margin:0;padding-left:22px;">
+    <li style="${li}">Tap the button below. ${first}'s code is already filled in.</li>
+    <li style="${li}">Type your name, and choose a username and a password.</li>
+    <li style="${li}">Log in. You are connected to ${first} right away.</li>
+  </ol>
+  <p style="margin:22px 0;"><a href="${url}" style="display:inline-block;background-color:#7c3aed;background-image:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:#ffffff;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px;">Create your free parent account</a></p>
+  <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">${first}'s parent code: <strong style="color:#ffffff;letter-spacing:.08em;">${esc(info.code)}</strong></p>
+  <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">If the button does not work, go to ${site}/#/parent-signup and type the code.</p>
+  <p style="margin:0;color:#94a3b8;font-size:14px;">Already have a parent account? Log in and enter the code on your dashboard to add ${first}.</p>
+  <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through A.R.I.S.E. Reader. If you don't know ${student}, you can ignore this email.</p>
+</div>`;
+}
+
+/**
+ * The email for a family whose child has no account yet: what A.R.I.S.E. Reader is, what the family
+ * gets, and how to sign up (the child first, then the parent with the child's code).
+ * Every value is escaped here, so plain text is what to pass in.
+ */
+export function familyInviteEmail(info: {
+  senderName: string; childName?: string;
+  /** Where a student signs up with a school and teacher, on their own, and where a parent signs up. */
+  registerUrl: string; independentUrl: string; parentSignupUrl: string;
+  /** The sender's school and name as they appear on the student sign-up page, when the sender is a teacher there. */
+  schoolName?: string; teacherName?: string;
+  maxChildren?: number;
+  /** The site's own address, for the logo. */
+  siteUrl?: string;
+} & InviteExtras): string {
+  const sender = esc(info.senderName || "A teacher");
+  const named = String(info.childName || "").trim();
+  // The full name once, then the first name, the way a person would write it.
+  const first = named.split(/\s+/)[0] || "";
+  const full = named ? esc(named) : "your child";
+  const child = first ? esc(first) : "your child";
+  const Child = first ? esc(first) : "Your child";
+  const h2 = "margin:28px 0 10px;color:#f8fafc;font-size:18px;";
+  const p = "margin:0 0 12px;line-height:1.6;color:#cbd5e1;font-size:16px;";
+  const li = "margin:0 0 8px;line-height:1.55;color:#cbd5e1;font-size:16px;";
+  const link = "color:#c4b5fd;";
+  const strong = (text: string) => `<strong style="color:#ffffff;">${esc(text)}</strong>`;
+  const unlisted = ` If the teacher is not in the list, tap "My teacher isn't listed" and type the name.`;
+  const pick = (info.schoolName && info.teacherName
+    ? `On that page, choose ${strong(info.schoolName)} as the school, pick the grade, then choose ${strong(info.teacherName)} as the teacher.`
+    : info.teacherName
+      ? `On that page, choose the school and the grade, then ${strong(info.teacherName)} as the teacher.`
+      : "On that page, choose the school, the grade and the teacher.") + unlisted;
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;background-color:#0b0a16;color:#f8fafc;padding:32px;border-radius:20px;">
+  ${inviteBrandHtml(info.siteUrl || DEFAULT_SITE_URL, "dark")}
+  <h2 style="margin:24px 0 10px;color:#f8fafc;font-size:22px;">Your family is invited to read with us</h2>
+  <p style="${p}">${sender} invited you and ${full} to join A.R.I.S.E. Reader, a reading site for students and their families. It is free. ${Child} will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.</p>
+${noteHtml(info.note, sender)}
+  <h2 style="${h2}">What it is</h2>
+  <ul style="margin:0;padding-left:22px;">
+    <li style="${li}">${Child} picks a book and reads it.</li>
+    <li style="${li}">Then comes a short quiz on the book. A score of 70% or higher earns that book's points.</li>
+    <li style="${li}">Points add up, so the reading pays off and there is a reason to pick up the next book.</li>
+  </ul>
+${prizesHtml(info.prizes, h2, li)}
+  <h2 style="${h2}">What you get as a parent</h2>
+  <ul style="margin:0;padding-left:22px;">
+    <li style="${li}">See ${child}'s quiz history and reading growth.</li>
+    <li style="${li}">Get a private Parent Proctor Code, so quizzes and reading tests can be taken at home with you.</li>
+    <li style="${li}">Use parent controls for games and access.</li>
+    ${info.maxChildren ? `<li style="${li}">One parent account can follow up to ${Number(info.maxChildren)} children.</li>` : ""}
+  </ul>
+
+  <h2 style="${h2}">How to sign up</h2>
+  <ol style="margin:0;padding-left:22px;">
+    <li style="${li}"><strong style="color:#ffffff;">${Child} makes a student account.</strong> ${pick}</li>
+    <li style="${li}"><strong style="color:#ffffff;">${Child} logs in and opens Profile.</strong> Under "Parent Sign-Up Letter", tap "Print / View My Parent Code". That is your code.</li>
+    <li style="${li}"><strong style="color:#ffffff;">You make your parent account</strong> with that code, and you are connected right away.</li>
+  </ol>
+  <p style="margin:22px 0 10px;"><a href="${esc(info.registerUrl)}" style="display:inline-block;background-color:#7c3aed;background-image:linear-gradient(90deg,#7c3aed,#c026d3,#06b6d4);color:#ffffff;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px;">Step 1: Create the student account</a></p>
+  <p style="margin:0 0 8px;color:#94a3b8;font-size:14px;">Step 3, once you have the code: <a href="${esc(info.parentSignupUrl)}" style="${link}">create your parent account</a>.</p>
+  <p style="margin:0;color:#94a3b8;font-size:14px;">Not with a school on the site? ${Child} can sign up as an <a href="${esc(info.independentUrl)}" style="${link}">independent reader</a> and skip choosing a school.</p>
+  <p style="color:#94a3b8;font-size:13px;margin-top:24px;">${sender} sent this through A.R.I.S.E. Reader. If you don't know ${sender}, you can ignore this email.</p>
+</div>`;
+}
+
+// ─── The same two invitations as plain text, to paste into your own email ───
+// A teacher sends these from their own address, so they are written as the teacher ("I use...").
+
+/** One line of text: no line breaks or odd characters from a name. */
+const oneLine = (value: unknown) => String(value ?? "").replace(/[\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim();
+
+export type InviteText = { subject: string; text: string };
+
+/** The invitation for the parent of a student who has an account, as text. */
+export function parentProgramText(info: { studentName: string; senderName: string; signupUrl: string; code: string; siteUrl?: string; maxChildren?: number } & InviteExtras): InviteText {
+  const student = oneLine(info.studentName) || "your child";
+  const first = oneLine(info.studentName).split(" ")[0] || "your child";
+  const site = siteHost(info.siteUrl || DEFAULT_SITE_URL);
+  const text = [
+    "Hello,",
+    "",
+    `I use A.R.I.S.E. Reader with ${student}, and I'd like to invite you to follow along. It is a reading site for students and their families. ${first} already has a student account. You will need a free parent account, which takes about two minutes to make.`,
+    "",
+    ...noteText(info.note),
+    PICTURE_LINE,
+    "",
+    "WHAT IT IS",
+    `- ${first} picks a book and reads it.`,
+    "- Then comes a short quiz on the book. A score of 70% or higher earns that book's points.",
+    `- Points add up, so ${first} can see the reading pay off and keep going.`,
+    "",
+    ...prizesText(info.prizes),
+    "WHAT A PARENT ACCOUNT DOES",
+    `- See ${first}'s quiz history and reading growth.`,
+    `- Get a private Parent Proctor Code, so ${first} can take quizzes and reading tests at home with you.`,
+    "- Use parent controls for games and access.",
+    `- It is free${info.maxChildren ? `, and one parent account can follow up to ${Number(info.maxChildren)} children` : ""}.`,
+    "",
+    "HOW TO SIGN UP (ABOUT TWO MINUTES)",
+    `1. Open this link. ${first}'s code is already filled in:`,
+    `   ${oneLine(info.signupUrl)}`,
+    "2. Type your name, and choose a username and a password.",
+    `3. Log in. You are connected to ${first} right away.`,
+    "",
+    `${first}'s parent code: ${oneLine(info.code)}`,
+    `If the link does not work, go to ${site}/#/parent-signup and type the code.`,
+    `Already have a parent account? Log in and enter the code on your dashboard to add ${first}.`,
+    "",
+    "Thank you,",
+    oneLine(info.senderName) || "Your child's teacher",
+  ].join("\n");
+  return { subject: `Follow ${student}'s reading on A.R.I.S.E. Reader`, text };
+}
+
+/** The invitation for a family whose child has no account yet, as text. */
+export function familyInviteText(info: {
+  senderName: string; childName?: string; registerUrl: string; independentUrl: string; parentSignupUrl: string;
+  schoolName?: string; teacherName?: string; maxChildren?: number;
+} & InviteExtras): InviteText {
+  const named = oneLine(info.childName);
+  const first = named.split(" ")[0] || "";
+  const full = named || "your child", child = first || "your child", Child = first || "Your child";
+  const school = oneLine(info.schoolName), teacher = oneLine(info.teacherName);
+  // Written by the teacher, so the teacher to pick is "me".
+  const pick = school && teacher
+    ? `On that page, choose ${school} as the school, pick the grade, then choose me (${teacher}) as the teacher.`
+    : teacher
+      ? `On that page, choose the school and the grade, then me (${teacher}) as the teacher.`
+      : "On that page, choose the school, the grade and the teacher.";
+  const text = [
+    "Hello,",
+    "",
+    `I'd like to invite you and ${full} to join A.R.I.S.E. Reader, a reading site for students and their families. It is free. ${Child} will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.`,
+    "",
+    ...noteText(info.note),
+    PICTURE_LINE,
+    "",
+    "WHAT IT IS",
+    `- ${Child} picks a book and reads it.`,
+    "- Then comes a short quiz on the book. A score of 70% or higher earns that book's points.",
+    "- Points add up, so the reading pays off and there is a reason to pick up the next book.",
+    "",
+    ...prizesText(info.prizes),
+    "WHAT YOU GET AS A PARENT",
+    `- See ${child}'s quiz history and reading growth.`,
+    "- Get a private Parent Proctor Code, so quizzes and reading tests can be taken at home with you.",
+    "- Use parent controls for games and access.",
+    ...(info.maxChildren ? [`- One parent account can follow up to ${Number(info.maxChildren)} children.`] : []),
+    "",
+    "HOW TO SIGN UP",
+    `1. ${Child} makes a student account here:`,
+    `   ${oneLine(info.registerUrl)}`,
+    `   ${pick} If the teacher is not in the list, tap "My teacher isn't listed" and type the name.`,
+    `2. ${Child} logs in and opens Profile. Under "Parent Sign-Up Letter", tap "Print / View My Parent Code". That is your code.`,
+    "3. You make your parent account with that code here:",
+    `   ${oneLine(info.parentSignupUrl)}`,
+    "",
+    `Not with a school on the site? ${Child} can sign up as an independent reader instead: ${oneLine(info.independentUrl)}`,
+    "",
+    "Thank you,",
+    oneLine(info.senderName) || "A teacher",
+  ].join("\n");
+  return { subject: "Your family is invited to A.R.I.S.E. Reader", text };
 }

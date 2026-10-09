@@ -8,6 +8,14 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
+import { registerTimedCompetitionRoutes } from "./timedCompetition";
+import { registerHubInboxRoutes } from "./hubInbox";
+import { withBannerLink } from "../shared/banners";
+import { INVITE_PRIZES_KEY, invitePrizeLines, readInvitePrizes } from "../shared/invitePrizes";
+import { registerFamilyEmailRoutes } from "./familyEmails";
+import { monthStanding, type ChildProgress } from "../shared/familyEmails";
+import { schoolYearMonth } from "../shared/schoolMonth";
+import { competitionWindow } from "../shared/timedCompetitions";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
@@ -31,10 +39,28 @@ import { registerReadsRoutes } from "./readsSync";
 import { registerBuildWorldRoutes } from "./buildWorld";
 import { registerChessArenaRoutes } from "./chessArena";
 import { registerQuizIntegrityRoutes } from "./quizIntegrity";
+import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
-import { registerTeacherHubRoutes } from "./teacherHub";
+import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
+import { registerAriseTodoRoutes } from "./ariseTodo";
+import { registerTodoShareRoutes } from "./todoShare";
+import { registerFoodLookupRoutes } from "./foodLookup";
+import { registerAppleHealthRoutes } from "./appleHealth";
+import { registerTodoNewsRoutes } from "./todoNews";
+import { registerTeacherHubImportRoutes } from "./teacherHubImport";
+import { notifyUser, registerPushRoutes } from "./pushNotifications";
+import { registerMeetingPollRoutes } from "./meetingPoll";
+import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
+import { registerAriseMathRoutes } from "./ariseMath";
+import { registerAriseHistoryRoutes } from "./ariseHistory";
+import { registerAppleReminderRoutes } from "./appleReminders";
+import { registerHubSetupRoutes } from "./hubSetup";
+import { createTextService, textConfigFromEnv } from "./textMessages";
+import { configFromEnv, createMailboxService, createSupabaseMailboxStore, registerMailboxRoutes, secretKey } from "./teacherMailbox";
 import { matchEarnsCoins } from "./arcadeMatches";
-import { lookupARBook, verifyAndSaveARBook, syncUnverifiedARBooks } from "./arBookfinder";
+import { adminBookPoints, isSetByAdmin, keepSwitching, registerBookPointsRoutes, rememberAdminPoints, supabaseBookPointsStore } from "./bookPoints";
+import { lookupPages } from "./bookPages";
+import { ARISE_POINTS, cleanBookPoints, cleanPages, pointsForBook } from "../shared/bookPoints";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
@@ -42,9 +68,10 @@ import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
+import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
 import bcrypt from "bcryptjs";
-import { randomBytes, randomUUID } from "node:crypto";
-import { raw } from "express";
+import { hkdfSync, randomBytes, randomUUID } from "node:crypto";
+import { raw, text as expressText } from "express";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -72,12 +99,12 @@ async function readUnlistedSignups(): Promise<UnlistedSignup[]> {
   try { const parsed = JSON.parse(stored); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
 }
 
-function arPassingScore(total: number): number {
+function quizPassingScore(total: number): number {
   return Math.ceil(total * 0.70);
 }
 
-function arPointsForScore(bookPoints: number, score: number, total: number): number {
-  if (!total || score < arPassingScore(total)) return 0;
+function quizPointsForScore(bookPoints: number, score: number, total: number): number {
+  if (!total || score < quizPassingScore(total)) return 0;
   return Number(bookPoints || 0);
 }
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
@@ -186,7 +213,7 @@ Rules:
       return { error: "AI generated invalid questions" };
     }
 
-    // AR points are assigned from verified AR Bookfinder metadata when the book quiz is saved.
+    // Points are not guessed here: the book gets its A.R.I.S.E. points when the quiz is saved (shared/bookPoints.ts).
     const pointsValue = 0;
 
     // Validate and clean up questions
@@ -746,7 +773,7 @@ function emailConfigured(): boolean {
 // Sends through Resend. A request that times out, is rate limited or hits a Resend outage is tried
 // again (up to three tries); the idempotency key keeps a retry from sending the same email twice.
 // Every email goes out as a complete page with the site's footer (server/emailFormat.ts).
-async function sendEmail(to: string | string[], subject: string, html: string): Promise<{ sent: boolean; error?: string }> {
+async function sendEmail(to: string | string[], subject: string, html: string, options: { replyTo?: string; fromName?: string } = {}): Promise<{ sent: boolean; error?: string }> {
   const hasProxy = PROXY_URL && PROXY_TOKEN;
   if (!emailConfigured()) {
     return { sent: false, error: "No email API key configured" };
@@ -760,7 +787,11 @@ async function sendEmail(to: string | string[], subject: string, html: string): 
   } else {
     headers["Authorization"] = `Bearer ${RESEND_API_KEY}`;
   }
-  const body = JSON.stringify({ from: EMAIL_FROM, to: recipients, subject, html: emailDocument(subject, html, APP_URL) });
+  // A teacher's name can go in front of the site's own address, but mail can't truly come "from" their address: their email provider would mark it as fake.
+  const fromAddress = /<([^>]+)>/.exec(EMAIL_FROM)?.[1] || EMAIL_FROM;
+  const fromName = String(options.fromName || "").replace(/["<>@\r\n]/g, "").trim().slice(0, 60);
+  const from = fromName ? `"${fromName} via A.R.I.S.E. Reader" <${fromAddress}>` : EMAIL_FROM;
+  const body = JSON.stringify({ from, to: recipients, subject, html: emailDocument(subject, html, APP_URL), ...(options.replyTo ? { reply_to: options.replyTo } : {}) });
   let lastError = "";
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -937,7 +968,7 @@ const proctorFails = createAttemptLimiter({ max: 8, windowMs: 15 * 60_000 });
 const parentInviteSends = createAttemptLimiter({ max: PARENT_INVITES_PER_DAY, windowMs: 24 * 60 * 60_000 });
 
 // Simple auth middleware
-async function authMiddleware(req: any, res: any, next: any) {
+export async function authMiddleware(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) {
     return res.status(401).json({ message: "Not authenticated" });
@@ -977,7 +1008,6 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  registerTeacherHubRoutes(app, authMiddleware);
   // Picking a school at sign-up: search the US school list, or (teachers) type one that is missing.
   // Its one route is public, so it can sit in front of the plan check.
   const schoolPicker = registerSchoolPickerRoutes(app, {
@@ -1145,6 +1175,11 @@ export async function registerRoutes(
     // students only: a parent account carries its child's teacher too, and must not use up a place
     countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").length,
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
+    countHubStudents: (teacherId) => countHubStudents(teacherId),
+    // a parent can pay for a linked child's Arise Social
+    parentChildIds: (parentId) => getParentStudentIds(parentId),
+    studentParentIds: (studentId) => getStudentParentIds(studentId),
+    teacherStudentIds: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").map((u: any) => Number(u.id)),
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     schools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
     // a school someone added at sign-up is never free just because of what it is called
@@ -1153,6 +1188,96 @@ export async function registerRoutes(
     envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
   });
+  // Private To-Do accounts and cross-device task syncing (for anyone, not just teachers).
+  // Paid add-ons (shared/plans.ts): a request without the add-on gets 402 and the page shows how to get it.
+  // An admin, or an admin previewing the site as a student, always gets in.
+  const addonGate = (open: (method: string, path: string) => boolean, allowed: (user: any) => Promise<boolean>, code: string, message: string) =>
+    (req: any, res: any, next: any) => {
+      const path = String(req.originalUrl || req.url || "").split("?")[0];
+      if (open(String(req.method || "GET"), path)) return next();
+      authMiddleware(req, res, async () => {
+        try {
+          if (req.adminPreview || req.realUser?.isAdmin || req.user?.isAdmin || (await allowed(req.user))) return next();
+          res.status(402).json({ message, code });
+        } catch { next(); }
+      }).catch(next);
+    };
+  // A.R.I.S.E. To-Do: $10 a month for parents after their 30 free days; teachers get it with Teacher Hub.
+  app.use("/api/arise-todo", addonGate(
+    (method, path) => method === "POST" && path === "/api/arise-todo/register",
+    async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
+    "todo_required", "A.R.I.S.E. To-Do is an add-on for parents ($10 a month) and comes with Teacher Hub for teachers.",
+  ));
+  registerAriseTodoRoutes(app, authMiddleware);
+  // Share links from To-Do (a poll to vote in, a list, the calendar, bills, a trip...) that family open without an account.
+  const todoOwnerAllowed = async (id: number) => {
+    const owner: any = await storage.getUser(id);
+    if (!owner) return false;
+    return owner.isAdmin || (owner.role !== "parent" && owner.role !== "teacher") ? true : (await plans.todoStatus(owner)).access;
+  };
+  registerTodoShareRoutes(app, authMiddleware, {
+    db: { from: (table: string) => getAdminSupabase().from(table) }, appUrl: APP_URL, ownerAllowed: todoOwnerAllowed,
+    ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
+  });
+  registerFoodLookupRoutes(app, authMiddleware);
+  registerAppleHealthRoutes(app, authMiddleware);
+  registerTodoNewsRoutes(app, authMiddleware);
+  // Teacher Hub, the paid add-on: only teachers with a Teacher Hub plan can open it.
+  registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
+  // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
+  registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
+  // Asking everyone for a time that works for an IEP or re-evaluation meeting.
+  // A teacher can connect their own Gmail or Outlook so those emails come from their real address.
+  const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });
+  // Tells the site owner when the database is missing something the Hub needs (and what to paste to fix it).
+  registerHubSetupRoutes(app, authMiddleware, { gate: hubGate });
+  // Teacher Hub: work emails forwarded to a teacher's private address land in their Hub, flagged and on the to-do list.
+  registerHubInboxRoutes(app, authMiddleware, {
+    gate: hubGate,
+    getSetting: (key) => storage.getSetting(key),
+    saveSetting: (key, value) => storage.upsertSetting(key, value),
+    accountEmail: async (teacherId) => (await storage.getUser(teacherId))?.email || null,
+    fetchReceived: async (emailId, apiKey) => {
+      // Reading received email needs a Resend key with "Full access". Try the key saved in the Hub setup
+      // first, then the site's own email key, then the email proxy, and report why each one failed.
+      const path = `/emails/receiving/${encodeURIComponent(emailId)}`;
+      const routes: { name: string; url: string; headers: Record<string, string> }[] = [];
+      if (apiKey) routes.push({ name: "setup key", url: `https://api.resend.com${path}`, headers: { Authorization: `Bearer ${apiKey}` } });
+      if (RESEND_API_KEY && RESEND_API_KEY !== apiKey) routes.push({ name: "site key", url: `https://api.resend.com${path}`, headers: { Authorization: `Bearer ${RESEND_API_KEY}` } });
+      if (PROXY_URL && PROXY_TOKEN) routes.push({ name: "proxy", url: `${PROXY_URL}${path}`, headers: { "x-api-key": PROXY_TOKEN } });
+      if (!routes.length) throw new Error("no Resend API key on the site");
+      const reasons: string[] = [];
+      for (const route of routes) {
+        try {
+          const response = await fetch(route.url, { headers: route.headers, signal: AbortSignal.timeout(15000) });
+          if (response.ok) return await response.json();
+          const text = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 120);
+          reasons.push(`${route.name} ${response.status}${text ? ` ${text}` : ""}`);
+        } catch (error: any) { reasons.push(`${route.name} ${error?.message || "failed"}`); }
+      }
+      console.error(`[hub-inbox] could not fetch email ${emailId}: ${reasons.join("; ")}`);
+      throw new Error(reasons.join("; "));
+    },
+    now: () => Date.now(),
+  });
+  let mailbox: ReturnType<typeof createMailboxService> | undefined;
+  try {
+    mailbox = createMailboxService({ store: createSupabaseMailboxStore(), config: configFromEnv(), appUrl: APP_URL, key: secretKey() });
+    registerMailboxRoutes(app, authMiddleware, { gate: hubGate, service: mailbox, appUrl: APP_URL });
+  } catch (error: any) {
+    console.warn("[mailbox] connecting a teacher's own mailbox is off:", error?.message);
+  }
+  const textConfig = textConfigFromEnv();
+  registerMeetingPollRoutes(app, authMiddleware, {
+    gate: hubGate, sendEmail, appUrl: APP_URL, mailbox,
+    teacher: {
+      contact: async (id) => { const u: any = await storage.getUser(id); const email = String(u?.email || "").trim(); return email ? { email, name: String(u?.displayName || u?.username || "") } : null; },
+      notify: (id, message) => notifyUser(id, message),
+    }, text: textConfig ? createTextService(textConfig) : undefined });
+  // Reminders from the Apple Reminders app (an iPhone Shortcut sends them), one way into the Hub.
+  registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
+  // Notifications for the Home Screen app (Web Push): Teacher Hub reminders.
+  registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }), todoAllowed: todoOwnerAllowed });
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
   // Study Squad: the study hall, its tables and study sets (kept in the settings table).
@@ -1251,7 +1376,7 @@ export async function registerRoutes(
     },
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     passedQuizTimes: async (studentId) => (await storage.getUserAttempts(studentId))
-      .filter((a: any) => a && a.score >= arPassingScore(a.totalQuestions || 10))
+      .filter((a: any) => a && a.score >= quizPassingScore(a.totalQuestions || 10))
       .map((a: any) => Date.parse(a.completedAt)),
     notify: async (studentId, text) => { await storage.createMessage(studentId, "system", text); },
   });
@@ -1265,6 +1390,60 @@ export async function registerRoutes(
     try { const raw = await storage.getSetting("user_grades"); const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; }
     catch { return {}; }
   };
+  // Arise Social (/social/): career discovery for students, with their parents and teachers.
+  // It uses the regular accounts; see server/ariseSocial.ts and migrations/arise_social.sql.
+  const toSocialUser = (u: any): SocialUser | null => u ? ({
+    id: Number(u.id), role: u.isAdmin ? "admin" : u.role === "teacher" ? "teacher" : u.role === "parent" ? "parent" : "student",
+    displayName: String(u.displayName || u.username || ""), teacherId: u.teacherId ? Number(u.teacherId) : null,
+    schoolId: u.school_id ? Number(u.school_id) : null, approvedByTeacher: u.approvedByTeacher !== false, archived: !!u.archivedAt,
+  }) : null;
+  registerAriseSocialRoutes(app, authMiddleware, {
+    // Arise Social is a $5/month add-on for each account (shared/plans.ts). An admin previewing as a student gets in.
+    access: {
+      self: async (req: any) => !!(req.adminPreview || req.realUser?.isAdmin) || plans.socialAccess(req.user),
+      user: async (id) => plans.socialAccess(await storage.getUser(id)),
+    },
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      parentsOf: (studentId) => getStudentParentIds(studentId),
+      notify: (id, message) => notifyUser(id, message),
+    },
+  });
+  // Arise Math (/math/): math practice with points, a class leaderboard, assignments and live review.
+  // Same accounts as Arise Social; see server/ariseMath.ts and migrations/arise_math.sql.
+  // Arise Math and Arise History each need their own access: a teacher's class add-on for that app,
+  // a family's Learning Bundle, or the 30-day free trial. The catalog and "who am I" stay open so
+  // each page can show its free-trial countdown or how to keep it.
+  for (const [base, which, name] of [["/api/math", "math", "Arise Math"], ["/api/history", "history", "Arise History"]] as const) {
+    app.use(base, addonGate(
+      (method, path) => method === "GET" && (path === `${base}/catalog` || path === `${base}/me`),
+      (user) => plans.appAccess(user, which),
+      "bundle_required", `${name} needs a class add-on from your teacher or a family Learning Bundle. Start it from your plan page.`,
+    ));
+  }
+  registerAriseMathRoutes(app, authMiddleware, {
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      notify: (id, message) => notifyUser(id, message),
+    },
+  });
+  // Arise History (/history/): History Reads and quizzes with points, a class leaderboard, assignments and live review.
+  // Same accounts as Arise Math; see server/ariseHistory.ts and migrations/arise_history.sql.
+  registerAriseHistoryRoutes(app, authMiddleware, {
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      notify: (id, message) => notifyUser(id, message),
+    },
+  });
   /** What anyone may see about a teacher on the public sign-up pages. */
   const publicTeacher = (t: any) => ({ id: t.id, display_name: t.display_name, displayName: t.display_name, role: t.role, school_id: t.school_id });
   /** The signed-in session for a public route, if the request carries one. */
@@ -1442,6 +1621,21 @@ export async function registerRoutes(
     getTeacherStudentIds: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map((student: any) => Number(student.id)),
     getParentStudentIds,
     setAttemptPoints: (attemptId, points) => storage.setAttemptPoints(attemptId, points),
+  });
+  // Reading comprehension: written answers sent at the end of a book quiz, graded by the
+  // student's teacher for up to 10 extra points. See server/comprehension.ts.
+  const comprehension = registerComprehensionRoutes(app, authMiddleware, {
+    db: getAdminSupabase,
+    getTeacherStudentIds: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map((student: any) => Number(student.id)),
+    clearPointCaches: () => {
+      clearCache("allUsers"); clearCache("leaderboard"); clearCache("monthlyLeaderboard"); clearCache("advisoryLeaderboard"); clearCache("session_");
+    },
+    messageStudent: (studentId, text) => storage.createMessage(studentId, "teacher", text),
+    adminIds: async () => {
+      const { data, error } = await supabase.from("users").select("id").eq("is_admin", true).is("archived_at", null);
+      if (error) throw new Error(error.message);
+      return (data || []).map((row: any) => Number(row.id)).filter((id: number) => id > 0);
+    },
   });
   // Seed data on startup
   await seedData();
@@ -1984,7 +2178,7 @@ export async function registerRoutes(
 
       // Track login count for students (for leaderboard popup)
       let loginCount = 0;
-      if (!user.isAdmin && user.role !== 'teacher' && user.role !== 'parent') {
+      if (!user.isAdmin && user.role === 'student') {
         const rawCounts = await storage.getSetting('login_counts');
         let counts: Record<string, number> = {};
         if (rawCounts) { try { counts = JSON.parse(rawCounts); } catch {} }
@@ -2051,33 +2245,6 @@ export async function registerRoutes(
     const withPoints = allBooks.filter((b: any) => b.pointsValue > 0);
     const mamba = allBooks.find((b: any) => b.title && b.title.includes('Mamba'));
     res.json({ totalBooks: allBooks.length, withPoints: withPoints.length, mambaFound: !!mamba, mambaId: mamba?.id });
-  });
-
-  // Two farm animal models are hosted on a site that browsers may not load from other sites
-  // (it sends no CORS header), so the server fetches them once and serves them itself.
-  const FARM_MODELS: Record<string, string> = {
-    cow: "https://static.poly.pizza/382b3d4a-a7c9-4c03-9858-3df630d90047.glb",
-    horse: "https://static.poly.pizza/d37dbc87-ca61-4b2c-a2da-d2f0c4240bef.glb",
-  };
-  const farmModelCache = new Map<string, Buffer>();
-  app.get("/api/farm-models/:name", async (req, res) => {
-    const name = String(req.params.name || "");
-    const url = FARM_MODELS[name];
-    if (!url) return res.status(404).end();
-    try {
-      let bytes = farmModelCache.get(name);
-      if (!bytes) {
-        const upstream = await fetch(url, { headers: { "User-Agent": "ARISEReader/1.0 (https://www.arisereader.com)" }, signal: AbortSignal.timeout(20000) });
-        if (!upstream.ok) return res.status(502).end();
-        bytes = Buffer.from(await upstream.arrayBuffer());
-        if (bytes.length < 25_000_000) farmModelCache.set(name, bytes);
-      }
-      res.setHeader("Content-Type", "model/gltf-binary");
-      res.setHeader("Cache-Control", "public, max-age=604800, immutable");
-      res.send(bytes);
-    } catch {
-      res.status(502).end();
-    }
   });
 
   app.get("/api/book-cover/:id", async (req, res) => {
@@ -2404,24 +2571,6 @@ export async function registerRoutes(
     res.json(books);
   });
 
-  // Public quiz endpoint for tutorial (no auth, no attempt tracking, strips correct answers)
-  app.get("/api/tutorial/books/:id/quiz", async (req, res) => {
-    const bookId = parseInt(req.params.id);
-    const book = await storage.getBook(bookId);
-    if (!book) return res.status(404).json({ message: "Book not found" });
-    const allQuestions = await storage.getQuestionsByBook(bookId);
-    const safeQuestions = allQuestions.map(q => ({
-      id: q.id,
-      questionText: q.questionText,
-      optionA: q.optionA,
-      optionB: q.optionB,
-      optionC: q.optionC,
-      optionD: q.optionD,
-      questionOrder: q.questionOrder,
-    }));
-    res.json({ book, questions: safeQuestions });
-  });
-
   app.get("/api/books/:id", authMiddleware, async (req, res) => {
     const id = parseInt(req.params.id);
     const book = await storage.getBook(id);
@@ -2533,7 +2682,7 @@ export async function registerRoutes(
     }
 
     if (req.adminPreview || sampleAccount) {
-      const passingScore = arPassingScore(allQuestions.length);
+      const passingScore = quizPassingScore(allQuestions.length);
       const passed = score >= passingScore;
       return res.json({
         score,
@@ -2582,6 +2731,15 @@ export async function registerRoutes(
         console.error("[no-proctor] finish", error?.message);
       }
     }
+    // Written comprehension answers: with a proctor code or a camera quiz (not previews or sample accounts).
+    const comprehensionSent = await comprehension.saveFromQuiz({
+      student: req.user,
+      bookId,
+      bookTitle: book?.title || "",
+      attemptId: attempt.id ?? null,
+      proctor: verifiedProctor,
+      raw: req.body.comprehension,
+    });
     void alertQuizTaken("quiz_completed", req.user, {
       title: book?.title || "a book",
       score,
@@ -2602,6 +2760,7 @@ export async function registerRoutes(
       studentName: req.user.displayName,
       attemptId: attempt.id,
       integrity,
+      comprehension: comprehensionSent,
     });
   });
 
@@ -2614,7 +2773,7 @@ export async function registerRoutes(
 
     const quizResults = regularAttempts.map(a => {
       const book = bookMap.get(a.bookId);
-      const passingScore = arPassingScore(a.totalQuestions || 10);
+      const passingScore = quizPassingScore(a.totalQuestions || 10);
       const passed = a.score >= passingScore;
       return {
         bookId: a.bookId,
@@ -3300,7 +3459,7 @@ export async function registerRoutes(
 
       const passedQuizzes = attempts.filter((a: any) => {
         const total = a.totalQuestions || 10;
-        return a.score >= arPassingScore(total);
+        return a.score >= quizPassingScore(total);
       }).length;
 
       const badgeDefs = [
@@ -3606,7 +3765,7 @@ export async function registerRoutes(
 
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = arPassingScore(a.totalQuestions || 10);
+        const passingScore = quizPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -3769,6 +3928,24 @@ export async function registerRoutes(
     clearCache("advisoryLeaderboard");
     clearCache("session_");
     res.status(201).json(data);
+  });
+
+  // Admin: take back points that were added by hand (for example, added twice or to the wrong student).
+  app.delete("/api/admin/students/:id/manual-points/:awardId", authMiddleware, adminMiddleware, async (req, res) => {
+    const studentId = Number(req.params.id), awardId = Number(req.params.awardId);
+    if (!Number.isSafeInteger(studentId) || studentId < 1 || !Number.isSafeInteger(awardId) || awardId < 1) return res.status(400).json({ message: "Invalid award." });
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Manual points are not configured on the server." });
+    // The award must be this student's, so one student's page can never remove another's points.
+    const { data, error } = await getAdminSupabase().from("manual_point_awards")
+      .delete().eq("id", awardId).eq("student_id", studentId).select("id, points");
+    if (error) return res.status(500).json({ message: "Could not remove the points." });
+    if (!data || data.length === 0) return res.status(404).json({ message: "Those points were already removed." });
+    clearCache("allUsers");
+    clearCache("leaderboard");
+    clearCache("monthlyLeaderboard");
+    clearCache("advisoryLeaderboard");
+    clearCache("session_");
+    res.json({ removed: data[0].id, points: Number(data[0].points || 0) });
   });
 
   app.get("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req, res) => {
@@ -4996,18 +5173,35 @@ export async function registerRoutes(
     return res.json({ band: "K-2" });
   });
 
+  // Book points the admin sets by hand (server/bookPoints.ts).
+  const bookPointsStore = supabaseBookPointsStore(supabase);
+  const clearPointCaches = () => { for (const key of ["allBooks", "allUsers", "leaderboard", "monthlyLeaderboard", "advisoryLeaderboard", "eye_gaze_leaderboard", "session_"]) clearCache(key); };
+  // The one-time switch of the library to A.R.I.S.E.'s own points. It is kept going
+  // until it has finished, even across restarts, and does nothing after that.
+  const startBookPointsSwitch = keepSwitching(bookPointsStore, (summary) => {
+    clearPointCaches();
+    console.log("[book-points] library switched to A.R.I.S.E. points", JSON.stringify(summary));
+  });
+  registerBookPointsRoutes(app, authMiddleware, adminMiddleware, {
+    store: bookPointsStore,
+    clearCaches: clearPointCaches,
+    startSwitch: startBookPointsSwitch,
+  });
+
   // Admin: Get ALL books (including those without quizzes) for management
   app.get("/api/admin/books", authMiddleware, adminMiddleware, async (_req, res) => {
     try {
       const allBooks = await storage.getAllBooks();
-      res.json(allBooks);
+      // Says which books' points the admin set, so the Library can show it.
+      const byAdmin = await adminBookPoints(bookPointsStore).catch(() => ({} as Record<string, number>));
+      res.json(allBooks.map((b: any) => ({ ...b, pointsSetByAdmin: String(b.id) in byAdmin })));
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
   });
 
   app.post("/api/admin/books", authMiddleware, adminMiddleware, async (req, res) => {
-    const { title, author, coverUrl, description, questions: quizQuestions, pointsValue, readUrl, gradeBand } = req.body;
+    const { title, author, coverUrl, description, questions: quizQuestions, pointsValue, pages, readUrl, gradeBand } = req.body;
     if (!title || !author) {
       return res.status(400).json({ message: "Title and author are required" });
     }
@@ -5023,10 +5217,22 @@ export async function registerRoutes(
       }
     }
     const derivedAgeGroup = gradeBand || "Custom";
+    // Points picked on the form are what the book is worth. Left on "Automatic" (nothing
+    // picked), the site works them out from the grade band and the page count.
+    const automatic = pointsValue === undefined || pointsValue === null || pointsValue === "" || pointsValue === 0 || pointsValue === "auto";
+    const chosenPoints = automatic ? null : cleanBookPoints(pointsValue);
+    if (!automatic && chosenPoints === null) {
+      return res.status(400).json({ message: `Points must be one of ${ARISE_POINTS.join(", ")}, or Automatic.` });
+    }
     const book = await storage.createBookWithQuestions(
-      { title, author, ageGroup: derivedAgeGroup, coverUrl, description, pointsValue: 0, readUrl: readUrl || null },
+      { title, author, ageGroup: derivedAgeGroup, gradeBand, pages: cleanPages(pages), coverUrl, description, pointsValue: chosenPoints ?? 0, pointsSetByAdmin: chosenPoints !== null, readUrl: readUrl || null },
       quizQuestions
     );
+    if (chosenPoints !== null) {
+      // Remembered, so the Library shows it as the admin's own choice.
+      try { await rememberAdminPoints(bookPointsStore, book.id, chosenPoints); }
+      catch (e: any) { console.error("[book-points] could not remember chosen points", e?.message); }
+    }
     // Save grade band if provided
     if (gradeBand && ["K-2", "3-5", "6-8", "9-12"].includes(gradeBand)) {
       try {
@@ -5037,7 +5243,7 @@ export async function registerRoutes(
         await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
       } catch {}
     }
-    res.status(201).json({ message: "Quiz created successfully", bookId: book.id });
+    res.status(201).json({ message: "Quiz created successfully", bookId: book.id, pointsValue: book.pointsValue });
   });
 
   // Admin: update book cover
@@ -5376,16 +5582,17 @@ export async function registerRoutes(
       const userAttempts = await storage.getUserAttempts(userId);
       const completedIds = new Set(userAttempts.map(a => a.bookId));
 
-      // Map grade level to pointsValue ranges
-      // Level 2-3 = 10pts, Level 4-5 = 20pts, Level 6+ = 30pts
-      const matchPoints = currentLevel >= 6 ? 30 : currentLevel >= 4 ? 20 : 10;
-      const growPoints = nextLevel >= 6 ? 30 : nextLevel >= 4 ? 20 : 10;
+      // Map grade level to the books' points (A.R.I.S.E. points go 5 to 30 in fives)
+      // Level 2-3 = 5 or 10 pts, Level 4-5 = 15 or 20 pts, Level 6+ = 25 or 30 pts
+      const pointsAtLevel = (level: number) => level >= 6 ? [25, 30] : level >= 4 ? [15, 20] : [5, 10];
+      const matchPoints = pointsAtLevel(currentLevel);
+      const growPoints = pointsAtLevel(nextLevel);
 
       // SECTION 1: Match My Level — books at current reading level + matching favorite topics
-      let matchLevelBooks = allBooks.filter(b => b.pointsValue === matchPoints && !completedIds.has(b.id));
+      let matchLevelBooks = allBooks.filter(b => matchPoints.includes(Number(b.pointsValue)) && !completedIds.has(b.id));
 
       // SECTION 2: Grow My Score — books at next level up + matching favorite topics
-      let growScoreBooks = allBooks.filter(b => b.pointsValue === growPoints && !completedIds.has(b.id));
+      let growScoreBooks = allBooks.filter(b => growPoints.includes(Number(b.pointsValue)) && !completedIds.has(b.id));
 
       // If favorite topics exist, prioritize books that match
       if (topics.length > 0) {
@@ -5903,7 +6110,7 @@ export async function registerRoutes(
           coverUrl: pending.cover_url,
           description: `Quiz for "${pending.book_title}" by ${pending.author}`,
           pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
-          skipAR: pending.quiz_type === 'iarise',
+          keepPoints: pending.quiz_type === 'iarise',
           readUrl: null,
         }, questions);
 
@@ -6023,10 +6230,14 @@ export async function registerRoutes(
       const { error: insertError } = await supabase.from('questions').insert(questionRows);
       if (insertError) throw new Error(insertError.message);
 
-      // Refresh verified AR metadata instead of assigning AI-guessed points.
+      // A book that had no quiz had no points. Now that it has one, give it its
+      // A.R.I.S.E. points; a book that already has points keeps them.
       const refreshedBook = await storage.getBook(bookId);
-      if (refreshedBook) {
-        await verifyAndSaveARBook(bookId, refreshedBook.title, refreshedBook.author);
+      if (refreshedBook && !(Number(refreshedBook.pointsValue) > 0) && !(await isSetByAdmin(bookPointsStore, bookId))) {
+        let bands: Record<string, string> = {};
+        try { bands = JSON.parse((await storage.getSetting('book_grade_bands')) || "{}") || {}; } catch {}
+        const pages = await lookupPages(refreshedBook.title, refreshedBook.author);
+        await bookPointsStore.setBookPoints(bookId, pointsForBook({ band: bands[String(bookId)] || refreshedBook.ageGroup, pages }));
       }
 
       // Clear cache
@@ -6335,11 +6546,11 @@ export async function registerRoutes(
     const newScore = hasManualScore
       ? Math.max(0, Math.min(total, Math.round(parsedManualScore)))
       : calculatedScore;
-    const passingScore = arPassingScore(total);
+    const passingScore = quizPassingScore(total);
     const passed = newScore >= passingScore;
     const { data: book } = await supabase.from("books").select("points_value").eq("id", review.book_id).single();
     const bookPoints = Number(book?.points_value ?? 0);
-    const newPoints = arPointsForScore(bookPoints, newScore, total);
+    const newPoints = quizPointsForScore(bookPoints, newScore, total);
     const oldPoints = Number(attempt.points_earned || 0);
     const pointDiff = Math.round((newPoints - oldPoints) * 10) / 10;
     // Update the attempt
@@ -8518,8 +8729,8 @@ Important:
   // Admin: Update login banner
   app.put("/api/admin/banners/login", authMiddleware, adminMiddleware, async (req, res) => {
     try {
-      const { text, bgColor, textColor, active } = req.body;
-      const banner = { text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false };
+      const { text, bgColor, textColor, active, link } = req.body;
+      const banner = withBannerLink({ text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false }, link);
       await storage.upsertSetting('login_banner', JSON.stringify(banner));
       res.json({ success: true, banner });
     } catch (error: any) {
@@ -8581,8 +8792,8 @@ Important:
   // Admin: Update student banner
   app.put("/api/admin/banners/student", authMiddleware, adminMiddleware, async (req, res) => {
     try {
-      const { text, bgColor, textColor, active } = req.body;
-      const banner = { text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false };
+      const { text, bgColor, textColor, active, link } = req.body;
+      const banner = withBannerLink({ text: text || '', bgColor: bgColor || '#f59e0b', textColor: textColor || '#1a1a1a', active: active !== false }, link);
       await storage.upsertSetting('student_banner', JSON.stringify(banner));
       res.json({ success: true, banner });
     } catch (error: any) {
@@ -8593,8 +8804,8 @@ Important:
   // Admin: Update teacher banner
   app.put("/api/admin/banners/teacher", authMiddleware, adminMiddleware, async (req, res) => {
     try {
-      const { text, bgColor, textColor, active } = req.body;
-      const banner = { text: text || '', bgColor: bgColor || '#3b82f6', textColor: textColor || '#ffffff', active: active !== false };
+      const { text, bgColor, textColor, active, link } = req.body;
+      const banner = withBannerLink({ text: text || '', bgColor: bgColor || '#3b82f6', textColor: textColor || '#ffffff', active: active !== false }, link);
       await storage.upsertSetting('teacher_banner', JSON.stringify(banner));
       res.json({ success: true, banner });
     } catch (error: any) {
@@ -9513,6 +9724,144 @@ Important:
     }
   });
 
+  // A short competition's own leaderboard (the Fall Break Competition): only points earned between its start and its end.
+  registerTimedCompetitionRoutes(app, {
+    now: () => Date.now(),
+    loadRows: async (competition) => {
+      const { startMs, endMs } = competitionWindow(competition);
+      const from = new Date(startMs).toISOString(), to = new Date(endMs).toISOString();
+      // Supabase hands back 1,000 rows at a time, so a busy competition is read in pages.
+      const all = async (page: (lo: number, hi: number) => PromiseLike<any>) => {
+        const out: any[] = [];
+        for (let lo = 0; ; lo += 1000) {
+          const { data, error } = await page(lo, lo + 999);
+          if (error) throw new Error(error.message);
+          out.push(...(data || []));
+          if (!data || data.length < 1000) return out;
+        }
+      };
+      const [quizzes, eyeGaze, customEyeGaze, awards] = await Promise.all([
+        all((lo, hi) => supabase.from("attempts").select("user_id, book_id, points_earned, score, total, completed_at").gte("completed_at", from).lt("completed_at", to).order("id").range(lo, hi)),
+        all((lo, hi) => supabase.from("eye_gaze_attempts").select("user_id, score, total, completed_at").gte("completed_at", from).lt("completed_at", to).order("id").range(lo, hi)),
+        all((lo, hi) => supabase.from("custom_eye_gaze_attempts").select("user_id, score, total, completed_at").eq("status", "completed").gte("completed_at", from).lt("completed_at", to).order("id").range(lo, hi)),
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+          ? all((lo, hi) => getAdminSupabase().from("manual_point_awards").select("student_id, points, earned_on, created_at").gte("earned_on", competition.start.date).lte("earned_on", competition.end.date).order("id").range(lo, hi))
+          : Promise.resolve([] as any[]),
+      ]);
+      return {
+        quizzes: quizzes.map((a: any) => ({ userId: Number(a.user_id), at: a.completed_at, points: a.points_earned, score: a.score, total: a.total, bookId: a.book_id })),
+        eyeGaze: [...eyeGaze, ...customEyeGaze].map((a: any) => ({ userId: Number(a.user_id), at: a.completed_at, score: a.score, total: a.total })),
+        awards: awards.map((a: any) => ({ userId: Number(a.student_id), points: a.points, earnedOn: a.earned_on, at: a.created_at })),
+      };
+    },
+    loadStudents: async (ids) => {
+      if (!ids.length) return [];
+      const { data, error } = await supabase.from("users").select("id, username, display_name, role, is_admin, archived_at, is_eye_gaze_user").in("id", ids);
+      if (error) throw new Error(error.message);
+      return (data || []).map((u: any) => ({ id: Number(u.id), username: u.username, displayName: u.display_name, role: u.role, isAdmin: !!u.is_admin, archived: !!u.archived_at, isEyeGazeUser: !!u.is_eye_gaze_user }));
+    },
+  });
+
+  // Automatic family emails: a weekly progress update to each connected parent, and a friendly nudge when a
+  // child hasn't passed a quiz in a while. The admin turns them on and off; they start off.
+  const familyEmailKey = (() => {
+    const source = process.env.MAILBOX_ENCRYPTION_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    if (!source) { console.warn("[family-email] no server secret: stop links will only work until the server restarts"); return randomBytes(32); }
+    return Buffer.from(hkdfSync("sha256", source, "arise-family-email", "family-email-stop-v1", 32));
+  })();
+  registerFamilyEmailRoutes(app, authMiddleware, {
+    getSetting: (key) => storage.getSetting(key),
+    saveSetting: (key, value) => storage.upsertSetting(key, value),
+    families: async () => {
+      const links = await readParentStudentLinks();
+      const parentIds = Object.keys(links).map(Number).filter((id) => Number.isSafeInteger(id) && id > 0);
+      if (!parentIds.length) return [];
+      const childIds = Array.from(new Set(parentIds.flatMap((id) => normalizeLinkedIds(links[String(id)]))));
+      const { data, error } = await supabase.from("users").select("id, username, display_name, role, email, is_admin, archived_at").in("id", [...parentIds, ...childIds]);
+      if (error) throw new Error(error.message);
+      const byId = new Map((data || []).map((u: any) => [Number(u.id), u]));
+      const isChild = (u: any) => !!u && !u.archived_at && !u.is_admin && (!u.role || u.role === "student") && !isSampleAccount(u);
+      return parentIds.flatMap((parentId) => {
+        const parent: any = byId.get(parentId);
+        if (!parent || parent.archived_at || parent.role !== "parent" || !String(parent.email || "").includes("@")) return [];
+        const children = normalizeLinkedIds(links[String(parentId)]).map((id) => byId.get(id)).filter(isChild).map((u: any) => ({ id: Number(u.id), name: String(u.display_name || u.username || "Your child") }));
+        return [{ parentId, parentName: String(parent.display_name || ""), email: String(parent.email).trim(), children }];
+      });
+    },
+    progress: async (children, nowMs) => {
+      const ids = children.map((c) => c.id);
+      const out = new Map<number, ChildProgress>();
+      if (!ids.length) return out;
+      const weekAgo = nowMs - 7 * 24 * 60 * 60 * 1000;
+      const passed = (a: any) => Number(a.total) > 0 && Number(a.score) >= Math.ceil(Number(a.total) * 0.7);
+      // Every passed quiz these children have, for "this week" and for when they last passed one.
+      const [books, eye, custom] = await Promise.all([
+        supabase.from("attempts").select("user_id, book_id, points_earned, score, total, completed_at").in("user_id", ids).gt("book_id", 0).limit(20000),
+        supabase.from("eye_gaze_attempts").select("user_id, score, total, completed_at").in("user_id", ids).limit(20000),
+        supabase.from("custom_eye_gaze_attempts").select("user_id, score, total, completed_at").eq("status", "completed").in("user_id", ids).limit(20000),
+      ]);
+      for (const r of [books, eye, custom]) if (r.error) throw new Error(r.error.message);
+      const quizzes = [
+        ...(books.data || []).filter(passed).map((a: any) => ({ id: Number(a.user_id), at: Date.parse(a.completed_at), points: Number(a.points_earned) || 0, bookId: Number(a.book_id) })),
+        ...[...(eye.data || []), ...(custom.data || [])].filter(passed).map((a: any) => ({ id: Number(a.user_id), at: Date.parse(a.completed_at), points: 10, bookId: 0 })),
+      ].filter((q) => Number.isFinite(q.at));
+      const weekBookIds = Array.from(new Set(quizzes.filter((q) => q.at >= weekAgo && q.bookId > 0).map((q) => q.bookId)));
+      const titles = new Map<number, string>();
+      if (weekBookIds.length) {
+        const { data } = await supabase.from("books").select("id, title").in("id", weekBookIds);
+        for (const b of data || []) titles.set(Number((b as any).id), String((b as any).title || ""));
+      }
+      const all = new Map((await storage.getLeaderboard()).map((e: any) => [Number(e.id), Number(e.totalPoints) || 0]));
+      const month = (await storage.getMonthlyLeaderboard(schoolYearMonth(nowMs))).map((e: any) => ({ id: Number(e.id), totalPoints: Number(e.totalPoints) || 0 }));
+      let grades: Record<string, string> = {};
+      try { grades = JSON.parse((await storage.getSetting("user_grades")) || "{}"); } catch { /* no grades */ }
+      const bandOf = (id: number) => (grades[String(id)] ? gradeToBand(String(grades[String(id)])) : null);
+      for (const c of children) {
+        const mine = quizzes.filter((q) => q.id === c.id);
+        const week = mine.filter((q) => q.at >= weekAgo);
+        out.set(c.id, {
+          childId: c.id, name: c.name,
+          weekPassed: week.length,
+          weekPoints: Math.round(week.reduce((n, q) => n + q.points, 0) * 10) / 10,
+          weekBooks: Array.from(new Set(week.map((q) => titles.get(q.bookId) || "").filter(Boolean))),
+          totalPoints: all.get(c.id) ?? 0,
+          lastPassedAt: mine.length ? Math.max(...mine.map((q) => q.at)) : null,
+          ...monthStanding(month, c.id, bandOf),
+        });
+      }
+      return out;
+    },
+    prizes: async (nowMs) => invitePrizeLines(readInvitePrizes(await storage.getSetting(INVITE_PRIZES_KEY)), nowMs, APP_URL),
+    emailConfigured,
+    sendEmail: (to, subject, html) => sendEmail(to, subject, html),
+    siteUrl: APP_URL,
+    signKey: familyEmailKey,
+    now: () => Date.now(),
+  });
+
+  // A teacher or the admin emails a student's parent (who needs no account yet) about the program and how to sign up.
+  registerParentInviteEmailRoutes(app, authMiddleware, {
+    getStudent: (id) => storage.getUser(id),
+    getSetting: (key) => storage.getSetting(key),
+    saveSetting: (key, value) => storage.upsertSetting(key, value),
+    parentCode: (studentId) => getOrCreateParentInvite(studentId),
+    linkedParentEmails: async (studentId) => {
+      const emails: string[] = [];
+      for (const parentId of await getStudentParentIds(studentId)) {
+        const parent = await storage.getUser(parentId);
+        if (parent?.role === "parent" && parent.email) emails.push(String(parent.email));
+      }
+      return emails;
+    },
+    invitePrizes: async () => readInvitePrizes(await storage.getSetting(INVITE_PRIZES_KEY)),
+    parentAccountEmails: async () => (await storage.getAllUsers()).filter((u: any) => u.role === "parent" && u.email).map((u: any) => String(u.email)),
+    schoolName: async (schoolId) => (await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || null,
+    emailConfigured,
+    sendEmail,
+    siteUrl: APP_URL,
+    now: () => Date.now(),
+  });
+
   // Print-only parent invites. Teachers can print their roster; admins can print all students.
   app.post('/api/parent-invites/print', authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
@@ -10002,7 +10351,7 @@ Important:
           ageGroup: pending.age_group, coverUrl: pending.cover_url,
           description: `Quiz for "${pending.book_title}" by ${pending.author}`,
           pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
-          skipAR: pending.quiz_type === 'iarise', readUrl: null,
+          keepPoints: pending.quiz_type === 'iarise', readUrl: null,
         }, questions);
         try {
           const rawBands = await storage.getSetting('book_grade_bands');
@@ -10174,7 +10523,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = arPassingScore(a.totalQuestions || 10);
+        const passingScore = quizPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -10264,7 +10613,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const passed = attempts
         .filter(a => {
-          const passingScore = arPassingScore(a.totalQuestions || 10);
+          const passingScore = quizPassingScore(a.totalQuestions || 10);
           return a.score >= passingScore;
         })
         .map(a => {
@@ -10472,7 +10821,7 @@ Important:
       const bookMap = new Map(books.map(b => [b.id, b]));
       const quizResults = attempts.map(a => {
         const book = bookMap.get(a.bookId);
-        const passingScore = arPassingScore(a.totalQuestions || 10);
+        const passingScore = quizPassingScore(a.totalQuestions || 10);
         const passed = a.score >= passingScore;
         return {
           bookId: a.bookId,
@@ -10831,6 +11180,7 @@ Important:
       // keeps one row from blocking another (review requests point at attempts).
       const tables = [
         { table: "quiz_review_requests", column: "user_id" },
+        { table: "comprehension_responses", column: "student_id" },
         { table: "manual_point_awards", column: "student_id" },
         { table: "attempts", column: "user_id" },
         { table: "live_players", column: "user_id" },
@@ -11246,7 +11596,9 @@ Important:
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getCustomEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-      const staff = isStaffViewer(req) || Number(quiz.creator_user_id) === Number(req.user.id);
+      // A quiz's maker may see its answers, except the public sample logins (anyone can use them).
+      const maker = Number(quiz.creator_user_id) === Number(req.user.id) && !isDemoStudent(req.user);
+      const staff = isStaffViewer(req) || maker;
       if (!staff && !(await customQuizVisibleTo(req.user, quiz))) return res.status(404).json({ message: "Quiz not found" });
       const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
       const completed = await storage.hasUserCompletedCustomQuiz(req.user.id, quizId);
@@ -12550,12 +12902,6 @@ Important:
             pointsValue: 10,
             readUrl: null,
           }, pick.questions);
-          // If Bookfinder couldn't verify official points, fall back to 10 so the
-          // quiz still appears in the Library (it hides 0-point books).
-          if (!(Number(book.pointsValue ?? book.points_value) > 0)) {
-            await supabase.from("books").update({ points_value: 10 }).eq("id", book.id);
-            try { clearCache("allBooks"); } catch {}
-          }
           console.log(`Created Hispanic Heritage pick: ${pick.title}`);
         }
         saved.push({ bookId: book.id, teacher: pick.teacher });
@@ -12906,83 +13252,9 @@ Important:
     }
   });
 
-  // AR Bookfinder catalog alignment status + controlled manual batch.
-  app.get("/api/admin/ar-sync-status", authMiddleware, adminMiddleware, async (_req: any, res: any) => {
-    try {
-      const { data, error } = await supabase.from("books").select("ar_match_status");
-      if (error) throw new Error(error.message);
-      const counts: Record<string, number> = { exact: 0, formula: 0, not_found: 0, ambiguous: 0, error: 0, unverified: 0 };
-      for (const row of data || []) {
-        const key = row.ar_match_status || "unverified";
-        counts[key] = (counts[key] || 0) + 1;
-      }
-      res.json({ total: (data || []).length, counts });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  app.post("/api/admin/ar-sync", authMiddleware, adminMiddleware, async (req: any, res: any) => {
-    try {
-      const limit = Math.max(1, Math.min(Number(req.body?.limit || 10), 50));
-      const result = await syncUnverifiedARBooks({ limit, delayMs: 800 });
-      clearCache("allBooks");
-      res.json(result);
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
-  // Existing catalog alignment runs in small, sequential batches after startup.
-  // It is resume-safe because completed statuses are not queried again.
-  const runBackgroundARAlignment = async () => {
-    try {
-      let batches = 0;
-      while (batches < 150) {
-        const result = await syncUnverifiedARBooks({ limit: 12, delayMs: 850 });
-        console.log("[AR catalog sync]", JSON.stringify(result));
-        clearCache("allBooks");
-        if (!result.processed) break;
-        // If Bookfinder is unavailable for an entire batch, stop instead of hammering it.
-        if (result.errors === result.processed) {
-          console.error("[AR catalog sync] Bookfinder unavailable; stopping this run safely.");
-          break;
-        }
-        batches++;
-        await new Promise(resolve => setTimeout(resolve, 2500));
-      }
-    } catch (e: any) {
-      console.error("[AR catalog sync] stopped:", e?.message || e);
-    }
-  };
-  if (process.env.AR_AUTO_SYNC === "1") {
-    setTimeout(() => void runBackgroundARAlignment(), 7000);
-  } else {
-    console.log("[AR catalog sync] automatic migration paused pending Bookfinder smoke verification.");
-  }
-
-  // Temporary startup smoke check: lookup only, does not modify any book row.
-  setTimeout(() => {
-    void lookupARBook("Frindle", "Andrew Clements")
-      .then(async result => {
-        console.log("[AR smoke test Frindle]", JSON.stringify(result));
-        await storage.upsertSetting("ar_bookfinder_smoke_result", JSON.stringify({
-          checkedAt: new Date().toISOString(),
-          title: "Frindle",
-          author: "Andrew Clements",
-          result,
-        }));
-      })
-      .catch(async error => {
-        console.error("[AR smoke test Frindle] failed:", error?.message || error);
-        await storage.upsertSetting("ar_bookfinder_smoke_result", JSON.stringify({
-          checkedAt: new Date().toISOString(),
-          title: "Frindle",
-          author: "Andrew Clements",
-          error: error?.message || String(error),
-        }));
-      });
-  }, 3000);
+  // The one-time switch of the library to A.R.I.S.E.'s own points (server/bookPoints.ts).
+  // It runs in the background shortly after start-up and does nothing once it has finished.
+  setTimeout(startBookPointsSwitch, 7000);
 
   return httpServer;
 }

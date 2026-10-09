@@ -90,3 +90,57 @@ export async function printMyParentInvite(): Promise<void> {
     throw error;
   }
 }
+
+/** One address a student's parent invitation was emailed to: the latest send, and how many in all. */
+export type SentParentInvite = { email: string; sentAt: string; byName: string; times: number; /** For a family new to the site: the child's name, if one was given. */ child?: string };
+
+async function inviteRequest(path: string, init: RequestInit = {}): Promise<any> {
+  const token = tokenFromCookie();
+  if (!token) throw new Error('Log in again to do that.');
+  const response = await fetch(`${API_BASE}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, cache: 'no-store' });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'That did not work. Please try again.');
+  return data;
+}
+
+/** Who has been emailed an invitation for this student. */
+export async function loadParentInviteEmails(studentId: number): Promise<{ invites: SentParentInvite[]; emailReady: boolean }> {
+  const data = await inviteRequest(`/api/parent-invites/emails/${studentId}`);
+  return { invites: Array.isArray(data.invites) ? data.invites : [], emailReady: data.emailReady !== false };
+}
+
+/** Emails this student's parent the program, what a parent account does, and how to sign up. They need no account first. */
+export async function sendParentInviteEmail(studentId: number, email: string, note = ''): Promise<{ message: string; invites: SentParentInvite[] }> {
+  const data = await inviteRequest('/api/parent-invites/email', { method: 'POST', body: JSON.stringify({ studentId, email, note }) });
+  return { message: data.message || 'Invitation sent.', invites: Array.isArray(data.invites) ? data.invites : [] };
+}
+
+/** The families new to the site that were emailed an invitation (a teacher sees their own, the admin sees all). */
+export async function loadFamilyInviteEmails(): Promise<{ invites: SentParentInvite[]; emailReady: boolean }> {
+  const data = await inviteRequest('/api/parent-invites/family-emails');
+  return { invites: Array.isArray(data.invites) ? data.invites : [], emailReady: data.emailReady !== false };
+}
+
+/** Emails a parent whose child has no account yet: what the program is and how the child, then the parent, signs up. */
+export async function sendFamilyInviteEmail(email: string, childName: string, note = ''): Promise<{ message: string; invites: SentParentInvite[] }> {
+  const data = await inviteRequest('/api/parent-invites/family-email', { method: 'POST', body: JSON.stringify({ email, childName, note }) });
+  return { message: data.message || 'Invitation sent.', invites: Array.isArray(data.invites) ? data.invites : [] };
+}
+
+/** The invitation as words to paste into your own email: a student's (with their code and link), or the new-family one. Nothing is sent. */
+export async function loadInviteTemplate(input: { studentId?: number; childName?: string; note?: string }): Promise<{ subject: string; text: string }> {
+  const data = await inviteRequest('/api/parent-invites/template', { method: 'POST', body: JSON.stringify(input) });
+  if (typeof data.subject !== 'string' || typeof data.text !== 'string') throw new Error('The message could not be written. Please try again.');
+  return { subject: data.subject, text: data.text };
+}
+
+/** The prize lines invitations mention (admin only): the saved ones, the built-in ones, and the competitions that add themselves while they are on. */
+export type InvitePrizes = { lines: string[]; defaults: string[]; automatic: string[] };
+const asPrizes = (data: any): InvitePrizes => ({ lines: Array.isArray(data.lines) ? data.lines : [], defaults: Array.isArray(data.defaults) ? data.defaults : [], automatic: Array.isArray(data.automatic) ? data.automatic : [] });
+export async function loadInvitePrizes(): Promise<InvitePrizes> {
+  return asPrizes(await inviteRequest('/api/parent-invites/prizes'));
+}
+export async function saveInvitePrizes(lines: string[]): Promise<InvitePrizes & { message: string }> {
+  const data = await inviteRequest('/api/parent-invites/prizes', { method: 'PUT', body: JSON.stringify({ lines }) });
+  return { ...asPrizes(data), message: data.message || 'Saved.' };
+}

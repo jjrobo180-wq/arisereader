@@ -66,7 +66,7 @@ import { syncNewsBooks, NEWS_BOOKS_KEY } from "../server/ariseNewsSync";
 
 function fakeStore() {
   const settings = new Map<string, string>();
-  const books: { id: number; title: string; author: string; pointsValue: number; skipAR: boolean; coverUrl: string; questions: any[] }[] = [];
+  const books: { id: number; title: string; author: string; pointsValue: number; keepPoints: boolean; coverUrl: string; questions: any[] }[] = [];
   return {
     settings, books,
     async getSetting(k: string) { return settings.get(k) || ""; },
@@ -82,7 +82,7 @@ test("news stories become 5-point library quizzes exactly once", async () => {
   assert.equal(store.books.length, NEWS_ARTICLES.length);
   for (const b of store.books) {
     assert.equal(b.pointsValue, 5);
-    assert.equal(b.skipAR, true); // never looked up in AR, so the 5 points stick
+    assert.equal(b.keepPoints, true); // the site's own articles keep their 5 points
     assert.match(b.coverUrl, /^\/covers\/news\/[a-z0-9-]+\.svg$/);
     assert.equal(b.questions.length, 5);
   }

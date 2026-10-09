@@ -1,7 +1,8 @@
 import "dotenv/config";
 import express, { Response, NextFunction } from 'express';
 import type { Request } from 'express';
-import { registerRoutes } from "./routes";
+import { authMiddleware, registerRoutes } from "./routes";
+import { loggablePath } from "./logPath";
 import { registerHomeWorldRoutes } from "./homeWorld";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
@@ -33,6 +34,19 @@ app.use("/api/eye-gaze/my-world/upload", express.raw({
   type: ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"],
   limit: "20mb",
 }));
+
+// Teacher Hub: a workspace with a full caseload and connected calendars is bigger than the usual
+// request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.
+app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
+// To-Do workspaces can exceed the default 100 KB JSON request size.
+app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
+// A meal photo for the food diary's calorie estimate (shrunk on the phone first).
+app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
+// Apple Health apps can send a couple of months of readings in one post.
+app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
+// An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make
+// the server read 24 MB just to turn them away.
+app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));
 
 // No-proctor quizzes: camera snapshots arrive as raw JPEG, and the page sends
 // its last events with sendBeacon (plain text) while it is closing.
@@ -68,7 +82,7 @@ app.use((req, res, next) => {
     // parent connection codes, proctor credentials, or quiz results.
     // Paintball, racing and study rooms sync many times a second; only log their failures.
     if (path.startsWith("/api") && ((!path.startsWith("/api/paintball/") && !path.startsWith("/api/racing/rooms/") && path !== "/api/study/sync") || res.statusCode >= 400)) {
-      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
+      log(`${req.method} ${loggablePath(path)} ${res.statusCode} in ${duration}ms`);
     }
   });
   next();

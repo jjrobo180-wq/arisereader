@@ -3,6 +3,21 @@ import App from "./App";
 import "./index.css";
 import "./login-mobile-fix.css";
 
+// arisereader.com/hub (or /teacher-hub) goes straight to the Teacher Hub sign-in.
+{
+  const path = window.location.pathname.replace(/\/+$/, "").toLowerCase();
+  if (path === "/hub" || path === "/teacher-hub") {
+    window.history.replaceState(null, "", "/" + window.location.search + "#/teacher-hub");
+  } else if (path === "/to-do" || path === "/todo" || path === "/arise-todo") {
+    window.history.replaceState(null, "", "/" + window.location.search + "#/to-do");
+  }
+}
+
+// The service worker is what lets the Home Screen app show notifications.
+if ("serviceWorker" in navigator && window.location.protocol === "https:") {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+}
+
 if (!window.location.hash) {
   window.location.hash = "#/";
 }

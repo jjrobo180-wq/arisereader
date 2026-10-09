@@ -20,12 +20,17 @@ import TheaterAdmin from "@/components/TheaterAdmin";
 import UnlistedSignupsCard from "@/components/UnlistedSignupsCard";
 import SchoolUsListMatch from "@/components/SchoolUsListMatch";
 import NoProctorReview from "@/components/NoProctorReview";
+import ComprehensionReview from "@/components/ComprehensionReview";
 import ArchivedProfilesCard from "@/components/ArchivedProfilesCard";
 import AdminPlans from "@/components/AdminPlans";
 import PlayTimeManager from "@/components/PlayTimeManager";
 import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
 import AlertSettingsCard from "@/components/admin/AlertSettings";
+import AdminPrograms from "@/components/admin/AdminPrograms";
+import BookPointsDialog from "@/components/admin/BookPointsDialog";
+import BookPointsSwitch from "@/components/admin/BookPointsSwitch";
+import { ARISE_POINTS, cleanPages, pointsForBook } from "@shared/bookPoints";
 // charts are only downloaded when the Stats tab is opened
 const AdminStats = lazy(() => import("@/components/admin/AdminStats"));
 import {
@@ -34,6 +39,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { refreshNotifications } from "@/lib/notifications";
 import { printParentInvites } from "@/lib/parentInvites";
+import ParentEmailInvite from "@/components/ParentEmailInvite";
+import type { SiteBanner } from "@shared/banners";
+import FamilyEmailInvite from "@/components/FamilyEmailInvite";
+import InvitePrizesEditor from "@/components/InvitePrizesEditor";
+import FamilyEmailSettings from "@/components/FamilyEmailSettings";
 import { cn } from "@/lib/utils";
 import {
   Users, KeyRound, Send, Trophy, BookOpen, Eye, PlusCircle, ImagePlus, Mail, Inbox, X, ClipboardPaste, Copy, LogOut,
@@ -41,6 +51,7 @@ import {
   RotateCcw, Brain, Trash2, BarChart3, Gift, Check, ShieldCheck, Clock3, Archive, Printer, LayoutDashboard, ListTodo,
   GraduationCap, Library, Settings, BellRing, Megaphone, Gamepad2, Sparkles, MoreVertical, UserPlus, PartyPopper,
   TrendingUp, School, SlidersHorizontal, Camera,
+  ClipboardList,
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -105,6 +116,8 @@ interface BookItem {
   ageGroup: string;
   coverUrl: string | null;
   pointsValue?: number;
+  /** True when the admin chose this book's points; otherwise the site worked them out. */
+  pointsSetByAdmin?: boolean;
   readUrl?: string | null;
 }
 
@@ -137,7 +150,7 @@ interface QuestionForm {
 
 type AdminTab = "overview" | "stats" | "todo" | "inbox" | "people" | "library" | "schools" | "settings";
 type PeopleTab = "students" | "teachers" | "parents" | "archived";
-type SettingsSection = "alerts" | "banners" | "club" | "ai" | "extras" | "security";
+type SettingsSection = "programs" | "alerts" | "banners" | "family-emails" | "club" | "ai" | "extras" | "security";
 const ADMIN_TABS: AdminTab[] = ["overview", "stats", "todo", "inbox", "people", "library", "schools", "settings"];
 const TAB_STORAGE = "arise_admin_tab";
 
@@ -200,6 +213,8 @@ export default function Admin() {
   const [coverBook, setCoverBook] = useState<BookItem | null>(null);
   const [coverUrl, setCoverUrl] = useState("");
   const [coverSuccess, setCoverSuccess] = useState("");
+  // The book whose points are being set in the Library.
+  const [pointsBook, setPointsBook] = useState<BookItem | null>(null);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
   const bellActionRef = useRef(-1);
   const [inboxOpen, setInboxOpen] = useState<{ userId: number; nonce: number } | null>(null);
@@ -224,9 +239,9 @@ export default function Admin() {
   const [showAdminSortMenu, setShowAdminSortMenu] = useState(false);
   const [announcementText, setAnnouncementText] = useState("");
   const [announcementMsg, setAnnouncementMsg] = useState("");
-  const [studentBanner, setStudentBanner] = useState({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true });
-  const [teacherBanner, setTeacherBanner] = useState({ text: "", bgColor: "#3b82f6", textColor: "#ffffff", active: true });
-  const [loginBanner, setLoginBanner] = useState({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true });
+  const [studentBanner, setStudentBanner] = useState<SiteBanner>({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true, link: "" });
+  const [teacherBanner, setTeacherBanner] = useState<SiteBanner>({ text: "", bgColor: "#3b82f6", textColor: "#ffffff", active: true, link: "" });
+  const [loginBanner, setLoginBanner] = useState<SiteBanner>({ text: "", bgColor: "#f59e0b", textColor: "#1a1a1a", active: true, link: "" });
   const [bannerMsg, setBannerMsg] = useState("");
   const [donationSettings, setDonationSettings] = useState({ goalAmount: 1000, currentAmount: 0, title: "Support Our Readers", description: "Help us keep A.R.I.S.E Reader free for students", donateUrl: "", milestonesText: "", active: false });
   const [donationMsg, setDonationMsg] = useState("");
@@ -271,7 +286,9 @@ export default function Admin() {
     author: "",
     coverUrl: "",
     description: "",
-    pointsValue: 20,
+    // 0 means Automatic: the site works the points out from the grade band and the pages.
+    pointsValue: 0,
+    pages: "",
     readUrl: "",
   });
   const [quizGradeBand, setQuizGradeBand] = useState("");
@@ -606,7 +623,8 @@ export default function Admin() {
       author: req.author || "",
       coverUrl: "",
       description: "",
-      pointsValue: 20,
+      pointsValue: 0,
+      pages: "",
       readUrl: "",
     });
     setQuestions(Array.from({ length: 10 }, () => ({ question: "", options: ["", "", "", ""], correct: "A" })));
@@ -1662,6 +1680,31 @@ export default function Admin() {
     finally { setManualSaving(false); }
   };
 
+  // takes back points that were added by hand
+  const removeManualPoints = async (award: { id: number; points: number; reason: string }) => {
+    if (!pointsStudent || manualSaving) return;
+    const authToken = token || getTokenFromCookie();
+    if (!authToken) return;
+    if (!window.confirm(`Remove ${award.points} points from ${pointsStudent.displayName} (${award.reason})?`)) return;
+    setManualSaving(true);
+    setManualError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${pointsStudent.id}/manual-points/${award.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      // already gone counts as removed
+      if (!res.ok && res.status !== 404) throw new Error(data.message || "Could not remove the points.");
+      setManualHistory(prev => prev.filter(a => a.id !== award.id));
+      setActivityKey(k => k + 1);
+      refreshOpenDetail();
+      await fetchStudents();
+      fetchAdminLeaderboard();
+    } catch (error: any) { setManualError(error.message || "Could not remove the points."); }
+    finally { setManualSaving(false); }
+  };
+
   // keeps the open student's totals and quiz list current after adding points
   const refreshOpenDetail = async () => {
     if (!detailStudent) return;
@@ -2238,7 +2281,8 @@ Generate exactly 10 questions.`;
         headers: { Authorization: `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           ...quizForm,
-          pointsValue: quizForm.pointsValue || 10,
+          pointsValue: quizForm.pointsValue || null,
+          pages: quizForm.pages.trim() || null,
           readUrl: quizForm.readUrl || null,
           gradeBand: quizGradeBand || null,
           questions: questions.map(q => ({
@@ -2265,7 +2309,7 @@ Generate exactly 10 questions.`;
         setTimeout(() => {
           setShowAddQuiz(false);
           setQuizSuccess("");
-          setQuizForm({ title: "", author: "", coverUrl: "", description: "", pointsValue: 20, readUrl: "" });
+          setQuizForm({ title: "", author: "", coverUrl: "", description: "", pointsValue: 0, pages: "", readUrl: "" });
           setQuestions(Array.from({ length: 10 }, () => ({ question: "", options: ["", "", "", ""], correct: "A" })));
         }, 2000);
         fetchBooks();
@@ -2994,6 +3038,9 @@ Generate exactly 10 questions.`;
       <div id="camera-quizzes" className="min-w-0 scroll-mt-32 lg:scroll-mt-20">
         <NoProctorReview />
       </div>
+      <div id="reading-comprehension" className="min-w-0 scroll-mt-32 lg:scroll-mt-20">
+        <ComprehensionReview title="Reading comprehension (all students)" />
+      </div>
     </div>
   );
 
@@ -3027,6 +3074,7 @@ Generate exactly 10 questions.`;
         title={`Students (${students.length})`}
         actions={<Button variant="outline" size="sm" onClick={() => printParentInvites().catch(e => window.alert(e.message))}><Printer className="h-4 w-4" />Print all parent letters</Button>}
       >
+        <div className="mb-4 space-y-2"><FamilyEmailInvite /><InvitePrizesEditor /></div>
         <div className="mb-4 space-y-2">
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
@@ -3350,6 +3398,7 @@ Generate exactly 10 questions.`;
         title={`Books & covers (${books.length})`}
         actions={<Button size="sm" onClick={() => setShowAddQuiz(true)}><PlusCircle className="h-4 w-4" />Add a quiz</Button>}
       >
+        <BookPointsSwitch token={token || getTokenFromCookie()} onChanged={fetchBooks} />
         {/* Book search + sort */}
         <div className="mb-4 flex gap-2">
           <div className="flex-1 relative">
@@ -3425,9 +3474,16 @@ Generate exactly 10 questions.`;
                       )}
                     </div>
                     <p className="text-xs font-medium text-center line-clamp-2">{b.title}</p>
+                    <button
+                      type="button" onClick={() => setPointsBook(b)} data-testid="book-points-open"
+                      aria-label={`${b.pointsValue ?? 0} points for ${b.title}. Change the points.`}
+                      className="min-h-9 rounded-lg px-2 text-xs font-semibold text-primary underline decoration-primary/40 underline-offset-4 hover:bg-muted/40"
+                    >
+                      {b.pointsValue ?? 0} pts{b.pointsSetByAdmin ? " · set by you" : ""}
+                    </button>
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setCoverBook(b); setCoverUrl(b.coverUrl || ""); setCoverSuccess(""); }}>
                       <ImagePlus className="w-3 h-3 mr-1" />
-                      Update
+                      Cover
                     </Button>
                   </div>
                 ))}
@@ -3676,7 +3732,7 @@ Generate exactly 10 questions.`;
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-black sm:text-2xl">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Notifications, banners, Club hours and the rest of the site's switches.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Your Arise programs, notifications, banners, Club hours and the rest of the site's switches.</p>
       </div>
       <SegmentedTabs
         ariaLabel="Settings"
@@ -3684,14 +3740,17 @@ Generate exactly 10 questions.`;
         value={settingsSection}
         onChange={setSettingsSection}
         options={[
+          { value: "programs", label: "Arise programs", icon: ShieldCheck },
           { value: "alerts", label: "Notifications", icon: BellRing },
           { value: "banners", label: "Banners", icon: Megaphone },
+          { value: "family-emails", label: "Family emails", icon: Mail },
           { value: "club", label: "Club & play time", icon: Gamepad2 },
           { value: "ai", label: "AI quizzes", icon: Brain },
           { value: "extras", label: "Competition & extras", icon: Trophy },
           { value: "security", label: "Proctor password", icon: KeyRound },
         ]}
       />
+      {settingsSection === "programs" && <AdminPrograms token={token || getTokenFromCookie()} />}
       {settingsSection === "alerts" && <AlertSettingsCard token={token || getTokenFromCookie()} />}
       {settingsSection === "banners" && (
         <AdminSection id="banners" icon={Megaphone} tone="amber" title="Announcement & banners" description="Messages shown across the site.">
@@ -3726,6 +3785,7 @@ Generate exactly 10 questions.`;
                 onChange={(e) => setStudentBanner({ ...studentBanner, text: e.target.value })}
                 className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
               />
+              <Input value={studentBanner.link || ""} onChange={(e) => setStudentBanner({ ...studentBanner, link: e.target.value })} placeholder="Opens when tapped (optional): /fall-break" aria-label="Page to open when this banner is tapped" maxLength={200} className="bg-muted/30 border-border text-foreground text-sm" data-testid="studentBanner-link" />
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="text-xs text-muted-foreground">Bg:</label>
@@ -3750,6 +3810,7 @@ Generate exactly 10 questions.`;
                 onChange={(e) => setTeacherBanner({ ...teacherBanner, text: e.target.value })}
                 className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[60px]"
               />
+              <Input value={teacherBanner.link || ""} onChange={(e) => setTeacherBanner({ ...teacherBanner, link: e.target.value })} placeholder="Opens when tapped (optional): /fall-break" aria-label="Page to open when this banner is tapped" maxLength={200} className="bg-muted/30 border-border text-foreground text-sm" data-testid="teacherBanner-link" />
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="text-xs text-muted-foreground">Bg:</label>
@@ -3784,6 +3845,7 @@ Generate exactly 10 questions.`;
                 placeholder="e.g. Site maintenance tonight at 9 PM. Expect brief downtime."
                 className="bg-muted/30 border-border text-foreground"
               />
+              <Input value={loginBanner.link || ""} onChange={(e) => setLoginBanner({ ...loginBanner, link: e.target.value })} placeholder="Opens when tapped (optional): /fall-break" aria-label="Page to open when this banner is tapped" maxLength={200} className="bg-muted/30 border-border text-foreground text-sm" data-testid="loginBanner-link" />
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">BG</span>
@@ -3801,6 +3863,11 @@ Generate exactly 10 questions.`;
               </div>
             </div>
           </div>
+        </AdminSection>
+      )}
+      {settingsSection === "family-emails" && (
+        <AdminSection id="family-emails" icon={Mail} tone="violet" title="Automatic family emails" description="Weekly progress updates and friendly reading reminders to parents. You turn them on and off.">
+          <FamilyEmailSettings />
         </AdminSection>
       )}
       {settingsSection === "club" && (
@@ -4185,6 +4252,10 @@ Generate exactly 10 questions.`;
             </span>
           </button>
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
+            <button type="button" onClick={() => navigate("/teacher-hub")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Teacher Hub" title="Your Teacher Hub" data-testid="button-admin-teacher-hub">
+              <ClipboardList className="h-5 w-5 text-teal-400" />
+              <span className="hidden text-sm font-semibold sm:inline">Teacher Hub</span>
+            </button>
             <button type="button" onClick={() => navigate("/leaderboard")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Leaderboard" title="Leaderboard" data-testid="button-admin-leaderboard">
               <Trophy className="h-5 w-5 text-amber-400" />
               <span className="hidden text-sm font-semibold sm:inline">Leaderboard</span>
@@ -4203,6 +4274,7 @@ Generate exactly 10 questions.`;
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[220px]">
                 <DropdownMenuLabel className="text-xs text-muted-foreground">{user?.displayName || "Admin"}</DropdownMenuLabel>
+                <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/teacher-hub")}><ClipboardList className="h-4 w-4" />My Teacher Hub</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/progress")}><Brain className="h-4 w-4" />Student progress</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => navigate("/polls")}><BarChart3 className="h-4 w-4" />Polls</DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -4636,7 +4708,10 @@ Generate exactly 10 questions.`;
           <div className="max-h-40 overflow-y-auto text-sm space-y-1">
             <p className="font-medium">Recent manual awards</p>
             {manualHistory.length === 0 ? <p className="text-muted-foreground">No manual awards recorded.</p> : manualHistory.map(a => (
-              <p key={a.id}>{a.earned_on}: +{a.points} points — {a.reason}</p>
+              <div key={a.id} className="flex items-center justify-between gap-2">
+                <p className="min-w-0 break-words">{a.earned_on}: +{a.points} points — {a.reason}</p>
+                <Button type="button" size="sm" variant="ghost" className="h-8 shrink-0 text-destructive" disabled={manualSaving} onClick={() => removeManualPoints(a)} data-testid="manual-points-remove">Remove</Button>
+              </div>
             ))}
           </div>
         </DialogContent>
@@ -4677,6 +4752,7 @@ Generate exactly 10 questions.`;
               </Button>
             </div>
           )}
+          {detailStudent && <ParentEmailInvite studentId={detailStudent.id} studentName={detailStudent.displayName} />}
           {detailLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -4919,6 +4995,8 @@ Generate exactly 10 questions.`;
         </DialogContent>
       </Dialog>
 
+      <BookPointsDialog book={pointsBook} token={token || getTokenFromCookie()} onClose={() => setPointsBook(null)} onSaved={fetchBooks} />
+
       <Dialog open={!!coverBook} onOpenChange={(open) => { if (!open) { setCoverBook(null); setCoverUrl(""); setCoverSuccess(""); } }}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
@@ -5022,13 +5100,23 @@ Generate exactly 10 questions.`;
                   <Input id="q-author" value={quizForm.author} onChange={(e) => setQuizForm({ ...quizForm, author: e.target.value })} placeholder="Author" />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="q-points">Points Value *</Label>
+                  <Label htmlFor="q-pages">Pages</Label>
+                  <Input id="q-pages" type="number" inputMode="numeric" min="1" step="1" value={quizForm.pages} onChange={(e) => setQuizForm({ ...quizForm, pages: e.target.value })} placeholder="Leave blank to look it up" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="q-points">Points</Label>
                   <select id="q-points" value={quizForm.pointsValue} onChange={(e) => setQuizForm({ ...quizForm, pointsValue: parseInt(e.target.value) })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value={10}>10 pts (Easy)</option>
-                    <option value={20}>20 pts (Medium)</option>
-                    <option value={30}>30 pts (Hard)</option>
+                    <option value={0}>Automatic</option>
+                    {ARISE_POINTS.map((points) => <option key={points} value={points}>{points} points</option>)}
                   </select>
                 </div>
+                <p className="text-xs text-muted-foreground sm:col-span-2" data-testid="q-points-note">
+                  {quizForm.pointsValue
+                    ? `Students who pass earn ${quizForm.pointsValue} points. You can change it later in the Library.`
+                    : cleanPages(quizForm.pages) !== null
+                      ? `Automatic: ${pointsForBook({ band: quizGradeBand, pages: quizForm.pages })} points, from ${cleanPages(quizForm.pages)} pages${quizGradeBand ? ` and grades ${quizGradeBand}` : ""}. You can change it later in the Library.`
+                      : "Automatic: A.R.I.S.E. works the points out (5 to 30) from the book's length and grade band. With Pages blank it looks the page count up, and goes by the grade band if it can't find one."}
+                </p>
               </div>
               {/* Grade Band Suggestion */}
               <div className="space-y-2 p-3 rounded-xl bg-muted/20 border border-border">

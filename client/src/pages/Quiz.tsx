@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { speakCharacterAI, stopSpeaking as stopAiSpeaking } from "@/lib/tts";
 import NoProctorGate, { type CameraSession } from "@/components/NoProctorGate";
+import ComprehensionQuestions, { ComprehensionPreview } from "@/components/ComprehensionQuestions";
+import { COMPREHENSION, EMPTY_ANSWERS, comprehensionState, type ComprehensionAnswers } from "@shared/comprehension";
 import { AutoTurnInNote, CameraBubble, CameraOffDialog, LeaveWarning, OnYourOwnStrip, StopDialog, TurningIn } from "@/components/NoProctorParts";
 import { CAMERA_CONSTRAINTS, NoProctorMonitor, cameraErrorMessage, canUseCamera, type MonitorEvent } from "@/lib/noProctorMonitor";
 
@@ -42,8 +44,15 @@ interface Book {
 /** Per question: when it was first answered (ms after the start) and how many times the answer changed. */
 type AnswerTimes = Record<string, { first: number; changes: number }>;
 /** A no-proctor try saved on this device, so a reload or an accidental close can pick it up again. */
-type SavedTry = { token: string; userId: number; answers: Record<string, string>; answerTimes: AnswerTimes; leaves: number };
-type ResumeInfo = { token: string; leaves: number; startedAt: number; snapshotEveryMs: number; leavesBeforeTurnIn: number; answers: Record<string, string>; answerTimes: AnswerTimes };
+type SavedTry = { token: string; userId: number; answers: Record<string, string>; answerTimes: AnswerTimes; leaves: number; comprehension?: ComprehensionAnswers };
+type ResumeInfo = { token: string; leaves: number; startedAt: number; snapshotEveryMs: number; leavesBeforeTurnIn: number; answers: Record<string, string>; answerTimes: AnswerTimes; comprehension?: ComprehensionAnswers };
+
+/** Written answers saved with a camera try, so a reload keeps them. */
+function savedWriting(raw: unknown): ComprehensionAnswers | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  return { retell: String(r.retell ?? ""), problem: String(r.problem ?? ""), lesson: String(r.lesson ?? "") };
+}
 
 function readSavedTry(key: string, userId: number | undefined): SavedTry | null {
   try {
@@ -55,6 +64,7 @@ function readSavedTry(key: string, userId: number | undefined): SavedTry | null 
       answers: saved.answers && typeof saved.answers === "object" ? saved.answers : {},
       answerTimes: saved.answerTimes && typeof saved.answerTimes === "object" ? saved.answerTimes : {},
       leaves: Number(saved.leaves) || 0,
+      comprehension: savedWriting(saved.comprehension),
     };
   } catch {
     return null;
@@ -84,6 +94,8 @@ export default function Quiz() {
   const [proctorLoading, setProctorLoading] = useState(false);
   const [proctorSessionToken, setProctorSessionToken] = useState("");
   const [proctorIdentity, setProctorIdentity] = useState<{ type: "parent" | "teacher"; name: string } | null>(null);
+  // Written comprehension answers at the end (with a proctor code or on a camera quiz).
+  const [comprehension, setComprehension] = useState<ComprehensionAnswers>(EMPTY_ANSWERS);
   const [showReviewRequest, setShowReviewRequest] = useState(false);
   const [reviewReason, setReviewReason] = useState("");
   const [speakingQId, setSpeakingQId] = useState<number | null>(null);
@@ -104,6 +116,7 @@ export default function Quiz() {
   const monitorRef = useRef<NoProctorMonitor | null>(null);
   const answersRef = useRef<Record<string, string>>({});
   const answerTimesRef = useRef<AnswerTimes>({});
+  const comprehensionRef = useRef<ComprehensionAnswers>(EMPTY_ANSWERS);
   const clockStartRef = useRef(0);
   const submittedRef = useRef(false);
   const pendingTurnInRef = useRef<{ body: string; auto: boolean; events: MonitorEvent[] } | null>(null);
@@ -225,6 +238,7 @@ export default function Quiz() {
             leavesBeforeTurnIn: Number(data.leavesBeforeTurnIn) || 2,
             answers: saved.answers,
             answerTimes: saved.answerTimes,
+            comprehension: saved.comprehension,
           });
         } else if (data || res.status === 404) {
           clearSavedTry(savedKey);
@@ -247,6 +261,7 @@ export default function Quiz() {
       answers: answersRef.current,
       answerTimes: answerTimesRef.current,
       leaves: monitorRef.current?.leaves ?? 0,
+      comprehension: comprehensionRef.current,
       ...patch,
     });
   };
@@ -268,6 +283,12 @@ export default function Quiz() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers]);
 
+  useEffect(() => {
+    comprehensionRef.current = comprehension;
+    saveTry();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comprehension]);
+
   // What happens when the student leaves the quiz and comes back. Kept in refs so
   // the monitor (created once) always calls the current version.
   const onLeaveRef = useRef<(leaves: number) => void>(() => {});
@@ -285,7 +306,9 @@ export default function Quiz() {
   const startCameraQuiz = (session: CameraSession) => {
     const restored = session.resumed && resume?.token === session.token ? resume : null;
     const startAnswers = restored?.answers ?? {};
+    const startWriting = restored?.comprehension ?? EMPTY_ANSWERS;
     answersRef.current = startAnswers;
+    comprehensionRef.current = startWriting;
     answerTimesRef.current = restored?.answerTimes ?? {};
     clockStartRef.current = session.startedAt;
     submittedRef.current = false;
@@ -304,10 +327,11 @@ export default function Quiz() {
     monitor.start(session.resumed ? "resumed" : "start");
     if (session.resumed) monitor.note("resumed");
     setAnswers(startAnswers);
+    setComprehension(startWriting);
     setLeaves(session.leaves);
     setCamera(session);
     if (user?.id && !monitor.preview) {
-      writeSavedTry(savedKey, { token: session.token, userId: user.id, answers: startAnswers, answerTimes: answerTimesRef.current, leaves: session.leaves });
+      writeSavedTry(savedKey, { token: session.token, userId: user.id, answers: startAnswers, answerTimes: answerTimesRef.current, leaves: session.leaves, comprehension: startWriting });
     }
   };
 
@@ -387,7 +411,7 @@ export default function Quiz() {
    * Turns in a no-proctor quiz: by the student (auto = false), or automatically
    * after the second leave. `from` is a saved try being turned in after a reload.
    */
-  const turnIn = (auto: boolean, from?: { token: string; answers: Record<string, string>; answerTimes: AnswerTimes }) => {
+  const turnIn = (auto: boolean, from?: { token: string; answers: Record<string, string>; answerTimes: AnswerTimes; comprehension?: ComprehensionAnswers }) => {
     const sessionToken = from?.token ?? camera?.token;
     if (submittedRef.current || !sessionToken) return;
     submittedRef.current = true;
@@ -396,6 +420,8 @@ export default function Quiz() {
     if (!auto) monitor?.snap("end");
     // Built right away (this can run while the page is closing); the queued log goes along.
     const events = monitor?.drain() ?? [];
+    // Written answers go along only when all three are done (an automatic turn-in may cut them short).
+    const writing = from?.comprehension ?? comprehensionRef.current;
     pendingTurnInRef.current = {
       auto,
       events,
@@ -405,6 +431,7 @@ export default function Quiz() {
         autoSubmitted: auto,
         answerTimes: from?.answerTimes ?? answerTimesRef.current,
         integrityEvents: events,
+        ...(comprehensionState(writing) === "ready" ? { comprehension: writing } : {}),
       }),
     };
     return deliverTurnIn();
@@ -413,7 +440,7 @@ export default function Quiz() {
   // A saved try that already used up its leaves (the page was closed a second time) is turned in.
   useEffect(() => {
     if (resume && resume.leaves >= resume.leavesBeforeTurnIn && !result && !alreadyTaken) {
-      void turnIn(true, { token: resume.token, answers: resume.answers, answerTimes: resume.answerTimes });
+      void turnIn(true, { token: resume.token, answers: resume.answers, answerTimes: resume.answerTimes, comprehension: resume.comprehension });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resume]);
@@ -510,6 +537,9 @@ export default function Quiz() {
   };
 
   const allAnswered = questions.every(q => answers[String(q.id)]);
+  // With a proctor code or on a camera quiz (not for previews or sample accounts).
+  const offerComprehension = proctorVerified || !!camera;
+  const writing = offerComprehension ? comprehensionState(comprehension) : "empty";
 
   const handleSubmit = async () => {
     if (!token || !id) return;
@@ -518,7 +548,7 @@ export default function Quiz() {
       const res = await fetch(`${API_BASE}/api/books/${id}/quiz`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ answers, proctorSessionToken }),
+        body: JSON.stringify({ answers, proctorSessionToken, ...(writing === "ready" ? { comprehension } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -567,6 +597,7 @@ export default function Quiz() {
               </Card>
             ))}
           </div>
+          <ComprehensionPreview />
           <Button variant="ghost" className="mt-4" onClick={() => navigate("/library")}>
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Library
@@ -663,6 +694,7 @@ export default function Quiz() {
             <h2 className="text-2xl font-bold mb-2">{passed ? "Passed!" : "Not Passed"}</h2>
             <p className="text-muted-foreground mb-6">{book?.title}</p>
             {(turnedInAuto || result.integrity?.autoSubmitted) && <AutoTurnInNote />}
+            {result.comprehension && <ComprehensionSent status={result.comprehension} />}
             <div className={`rounded-2xl p-6 mb-6 ${
               passed ? "bg-primary text-white" : "bg-muted text-muted-foreground"
             }`}>
@@ -926,17 +958,24 @@ export default function Quiz() {
           ))}
         </div>
 
+        {offerComprehension && (
+          <ComprehensionQuestions value={comprehension} onChange={setComprehension} startNumber={questions.length + 1} />
+        )}
+
         {/* Submit (extra room at the bottom so the camera picture doesn't cover it) */}
         <div className={camera ? "mt-6 pb-48" : "mt-6 pb-12"}>
           {submitError && <p className="text-sm text-red-400 mb-3 text-center" role="alert">{submitError}</p>}
+          {writing === "incomplete" && allAnswered && (
+            <p className="text-sm text-amber-500 mb-3 text-center" role="status">Finish all 3 written answers, or clear them to skip the extra points.</p>
+          )}
           <Button
             onClick={camera ? () => void turnIn(false) : handleSubmit}
-            disabled={!allAnswered || submitting}
+            disabled={!allAnswered || submitting || writing === "incomplete"}
             className="w-full"
             size="lg"
             data-testid="button-submit-quiz"
           >
-            {submitting ? "Submitting..." : allAnswered ? "Submit Quiz" : `Answer all questions (${Object.keys(answers).length}/${questions.length})`}
+            {submitting ? "Submitting..." : !allAnswered ? `Answer all questions (${Object.keys(answers).length}/${questions.length})` : writing === "incomplete" ? "Finish the written answers" : writing === "ready" ? "Submit Quiz and written answers" : "Submit Quiz"}
           </Button>
         </div>
       </main>
@@ -950,6 +989,25 @@ export default function Quiz() {
       )}
       {confirmStop && !autoTurnIn && <StopDialog onKeepGoing={() => setConfirmStop(false)} onStop={stopCameraQuiz} />}
       {autoTurnIn && <TurningIn failed={autoTurnIn === "failed"} onRetry={() => void deliverTurnIn()} />}
+    </div>
+  );
+}
+
+/** On the result screen: what happened to the written comprehension answers. */
+function ComprehensionSent({ status }: { status: string }) {
+  const sent = status === "sent";
+  const text = sent
+    ? `Your written answers were sent to your teacher. They can give you up to ${COMPREHENSION.bonusPoints} extra points, and you'll get a message when they're graded.`
+    : status === "already graded"
+      ? "Your teacher already graded your written answers for this book."
+      : status === "failed"
+        ? "Your quiz is saved, but your written answers could not be sent. Tell your teacher."
+        : "";
+  if (!text) return null;
+  return (
+    <div className={`mb-6 rounded-xl border p-3 text-left text-sm ${sent ? "border-emerald-500/40 bg-emerald-500/10" : "border-amber-500/40 bg-amber-500/10"}`} role="status" data-testid="comprehension-status">
+      <p className="font-semibold">Reading comprehension</p>
+      <p className="mt-0.5 text-muted-foreground">{text}</p>
     </div>
   );
 }

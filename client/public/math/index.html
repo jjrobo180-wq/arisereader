@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Arise Math: K–12 math quizzes with picture models, step-by-step hints, points, a class leaderboard and certificates. Teachers assign practice and run live review games; parents follow along. Part of A.R.I.S.E. Reader.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://www.arisereader.com/math/">
+<link rel="icon" href="/favicon.ico">
+<title>Arise Math</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<style>
+/* Layout: Arise family shell (matches Arise Social) — profile card left · work center · class rail right; icon nav on top, tab bar on phones.
+   Indigo for actions, sunrise gradient on covers and the quiz header, sun gold for points. */
+:root{
+  --bg:#f2f1f6; --card:#ffffff; --card-2:#f6f5fa; --line:#e4e2ec; --line-2:#cfccdc;
+  --fg:#1a1828; --muted:#64617a; --faint:#8d8aa3;
+  --primary:#3f3bd6; --primary-ink:#ffffff; --primary-soft:#ebeaff; --primary-text:#3431c4;
+  --sun:#f29a14; --coral:#ef5a45; --leaf:#1e9e62; --sky:#1f8fd6;
+  --build:#f29a14; --serve:#5867f0; --teach:#8b5cf6; --heal:#ef5a45; --help:#e0559d;
+  --create:#12a594; --tech:#1f8fd6; --nature:#2f9e57; --fly:#c9a20c;
+  --cover-a:#2b2a8f; --cover-b:#6d4fd8; --cover-c:#f29a14;
+  --gold:#d9a41c; --silver:#9ea3b5; --bronze:#c27a45;
+  --shadow:0 0 0 1px rgba(26,24,40,.06), 0 2px 4px rgba(26,24,40,.05);
+  --shadow-lg:0 24px 60px rgba(26,24,40,.22);
+  --font:"Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0b0a16; --card:#15142a; --card-2:#1c1b35; --line:#2a2846; --line-2:#3a3760;
+  --fg:#eeedf7; --muted:#a19eba; --faint:#7b789a;
+  --primary:#8e8bff; --primary-ink:#0b0a16; --primary-soft:#24224b; --primary-text:#aeacff;
+  --sun:#ffb23f; --coral:#ff7466; --leaf:#45c985; --sky:#5cc0f5;
+  --build:#ffb23f; --serve:#8b97ff; --teach:#b39bff; --heal:#ff7a6e; --help:#f58ac0;
+  --create:#3fcdbf; --tech:#5cc0f5; --nature:#56d48d; --fly:#ecd257;
+  --gold:#f0c24a; --silver:#b9bdcc; --bronze:#e0956a;
+  --shadow:0 0 0 1px rgba(255,255,255,.05); --shadow-lg:0 24px 60px rgba(0,0,0,.55); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0b0a16; --card:#15142a; --card-2:#1c1b35; --line:#2a2846; --line-2:#3a3760;
+  --fg:#eeedf7; --muted:#a19eba; --faint:#7b789a;
+  --primary:#8e8bff; --primary-ink:#0b0a16; --primary-soft:#24224b; --primary-text:#aeacff;
+  --sun:#ffb23f; --coral:#ff7466; --leaf:#45c985; --sky:#5cc0f5;
+  --build:#ffb23f; --serve:#8b97ff; --teach:#b39bff; --heal:#ff7a6e; --help:#f58ac0;
+  --create:#3fcdbf; --tech:#5cc0f5; --nature:#56d48d; --fly:#ecd257;
+  --gold:#f0c24a; --silver:#b9bdcc; --bronze:#e0956a;
+  --shadow:0 0 0 1px rgba(255,255,255,.05); --shadow-lg:0 24px 60px rgba(0,0,0,.55); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body.big{font-size:16.5px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance;letter-spacing:-.015em}
+h1{font-size:clamp(1.4rem,3vw,1.7rem);font-weight:800}
+h2{font-size:1.15rem;font-weight:700}
+h3{font-size:.98rem;font-weight:700}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--primary-text)}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:10px}
+.muted{color:var(--muted)} .small{font-size:.82rem}
+.eyebrow{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.tnum{font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- top bar ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--card);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:12px;height:56px}
+.logo{width:36px;height:36px;flex:none;border-radius:9px;display:block}
+.wordmark{font-weight:800;font-size:1.05rem;letter-spacing:-.02em;white-space:nowrap}
+.wordmark b{color:var(--primary-text);font-weight:800}
+.ptsbadge{display:flex;align-items:center;gap:6px;background:color-mix(in oklab,var(--sun) 16%,var(--card));color:color-mix(in oklab,var(--sun) 55%,var(--fg));border-radius:999px;padding:4px 12px;font-weight:800;font-size:.82rem;white-space:nowrap}
+.ptsbadge svg{width:15px;height:15px}
+.topnav{display:flex;margin-left:auto;height:100%}
+.topnav button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:78px;padding:0 6px;color:var(--muted);font-size:.72rem;font-weight:600;position:relative;height:100%}
+.topnav button svg{width:22px;height:22px}
+.topnav button:hover,.topnav button[aria-current="page"]{color:var(--fg)}
+.topnav button[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px;background:var(--fg)}
+.topnav .dot{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;height:16px;border-radius:999px;background:var(--coral);color:#fff;font-size:.62rem;display:grid;place-items:center;padding:0 4px;font-weight:800}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;gap:22px;max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:22px 48px}
+.left,.rail{display:flex;flex-direction:column;gap:12px;align-self:start;position:sticky;top:calc(env(safe-area-inset-top,0px) + 72px)}
+main{min-width:0;display:flex;flex-direction:column;gap:12px}
+.bottom{display:none}
+@media (max-width:1100px){ .app{grid-template-columns:220px minmax(0,1fr)} .rail{display:none} .topnav button{min-width:64px} }
+@media (max-width:780px){
+  .app{grid-template-columns:minmax(0,1fr);padding-block:12px 100px}
+  .left,.topnav{display:none}
+  .ptsbadge{margin-left:auto}
+  .bottom{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around}
+  .bottom button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.64rem;font-weight:600;color:var(--muted);padding:4px 2px;min-width:0;flex:1;position:relative}
+  .bottom button svg{width:22px;height:22px}
+  .bottom button[aria-current="page"]{color:var(--fg)}
+  .bottom .dot{position:absolute;top:2px;left:calc(50% + 6px);width:8px;height:8px;border-radius:50%;background:var(--coral)}
+}
+
+/* ---------- primitives ---------- */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;min-width:0}
+.card.flush{padding:0;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:12px}
+.grid{display:grid;gap:12px}
+.two{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.divider{height:1px;background:var(--line);margin:0 -16px}
+.btn{border-radius:999px;padding:6px 16px;font-weight:700;font-size:.86rem;background:transparent;color:var(--muted);border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-height:34px}
+.btn:hover{background:var(--card-2);color:var(--fg);border-color:var(--fg)}
+.btn.primary{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.outline{color:var(--primary-text);border-color:var(--primary)}
+.btn.outline:hover{background:var(--primary-soft)}
+.btn.lg{min-height:48px;padding:10px 24px;font-size:1rem}
+.btn.sm{padding:4px 12px;min-height:30px;font-size:.8rem}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn svg{width:16px;height:16px}
+.btn[aria-pressed="true"]{background:var(--primary-soft);color:var(--primary-text);border-color:var(--primary)}
+.btn.glass{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35);color:#fff}
+.btn.glass:hover{background:rgba(255,255,255,.26);color:#fff;border-color:#fff}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 12px;font-size:.8rem;font-weight:600;background:transparent;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+button.chip:hover{background:var(--card-2);color:var(--fg)}
+.chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--card)}
+.chip.cl{border:0;background:color-mix(in oklab,var(--c) 14%,var(--card));color:color-mix(in oklab,var(--c) 70%,var(--fg))}
+.pill-ok{border:0;background:color-mix(in oklab,var(--leaf) 16%,var(--card));color:color-mix(in oklab,var(--leaf) 75%,var(--fg))}
+.pill-warn{border:0;background:color-mix(in oklab,var(--coral) 16%,var(--card));color:color-mix(in oklab,var(--coral) 75%,var(--fg))}
+.pill-wait{border:0;background:color-mix(in oklab,var(--sun) 18%,var(--card));color:color-mix(in oklab,var(--sun) 55%,var(--fg))}
+.av{border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;background:var(--c);width:44px;height:44px;font-size:.9rem}
+.av.xs{width:26px;height:26px;font-size:.6rem}
+.av.sm{width:34px;height:34px;font-size:.74rem}
+.av.lg{width:72px;height:72px;font-size:1.4rem;border:3px solid var(--card)}
+.av.ring{box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--sun)}
+.bar{height:8px;border-radius:999px;background:var(--card-2);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:var(--primary)}
+.bar.sun>i{background:var(--sun)} .bar.leaf>i{background:var(--leaf)}
+.cover{height:64px;background:
+  radial-gradient(34px 34px at 93% 125%, color-mix(in oklab,var(--cover-c) 95%,#fff) 0 60%, transparent 62%),
+  linear-gradient(115deg,var(--cover-a) 0%,var(--cover-b) 55%,var(--cover-c) 120%)}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+input[type=text],input[type=date],input[type=number],select{background:var(--card);border:1px solid var(--line-2);border-radius:12px;padding:9px 12px;width:100%;min-width:0}
+input:focus,select:focus{outline:2px solid var(--primary);outline-offset:-1px;border-color:transparent}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:.8rem;color:var(--muted);min-width:0}
+.toggle{width:44px;height:26px;border-radius:99px;border:0;background:var(--line-2);position:relative;flex:none}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.toggle[aria-pressed="true"]{background:var(--leaf)}
+.toggle[aria-pressed="true"]::after{left:21px}
+.setting{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}
+.setting:first-child{padding-top:0} .setting:last-child{border-bottom:0;padding-bottom:0}
+.setting b{display:block;font-size:.9rem} .setting span{font-size:.8rem;color:var(--muted)}
+.setting select{width:auto}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.statgrid div{background:var(--card-2);border-radius:12px;padding:10px 12px}
+.statgrid b{display:block;font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+.statgrid span{font-size:.74rem;color:var(--muted);font-weight:600}
+.table-wrap{overflow-x:auto;margin:0 -16px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.86rem}
+th,td{text-align:left;padding:10px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.72rem;font-weight:700;color:var(--muted);background:var(--card-2)}
+tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--card-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- left profile card ---------- */
+.mini{text-align:center}
+.mini .av.lg{margin:-36px auto 0}
+.mini .who{padding:8px 16px 14px}
+.mini .who b{display:block;font-size:1.05rem}
+.mini .who > span{display:block;font-size:.8rem;color:var(--muted);margin-top:2px}
+.mini .kv{display:flex;justify-content:space-between;padding:8px 16px;font-size:.8rem;font-weight:600;color:var(--muted);width:100%;border:0;background:transparent}
+.mini .kv b{color:var(--primary-text);font-variant-numeric:tabular-nums}
+.mini button.kv:hover{background:var(--card-2)}
+.mini-goal{padding:10px 16px 14px;text-align:left;border-top:1px solid var(--line)}
+.mini-goal .row{justify-content:space-between;font-size:.8rem;font-weight:600;margin-bottom:6px}
+
+/* ---------- practice ---------- */
+.qcards{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.qcard{display:flex;flex-direction:column;gap:10px}
+.op{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:1.3rem;background:color-mix(in oklab,var(--c) 15%,var(--card));color:color-mix(in oklab,var(--c) 80%,var(--fg));flex:none}
+.op.sm{width:32px;height:32px;font-size:1rem;border-radius:9px}
+.qcard .meta{font-size:.76rem;color:var(--muted)}
+.qcard .foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto}
+.assign{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.assign:last-child{border-bottom:0;padding-bottom:0}
+.assign:first-of-type{padding-top:0}
+.assign b{display:block;font-size:.92rem}
+.join{display:flex;gap:8px;align-items:center}
+.join input{max-width:150px;letter-spacing:.1em;font-weight:700;text-align:center}
+
+/* ---------- quiz runner ---------- */
+.run-head{height:auto;padding:14px clamp(16px,4vw,28px) 16px;color:#fff;display:flex;flex-direction:column;gap:10px}
+.run-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.run-pts{font-weight:800;background:rgba(255,255,255,.18);padding:4px 12px;border-radius:999px;font-size:.86rem}
+.run-title b{display:block;font-size:1.15rem;font-weight:800}
+.run-title span{font-size:.82rem;opacity:.85}
+.pips{display:flex;gap:6px}
+.pips i{flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.28)}
+.pips i.cur{background:#fff}
+.pips i.first{background:#7ff0b4} .pips i.solved{background:#ffd27a} .pips i.missed{background:#ff9d92}
+.run-body{padding:20px clamp(16px,4vw,28px) 24px;display:flex;flex-direction:column;gap:16px}
+.ask{color:var(--muted);font-size:1.02rem;max-width:62ch}
+.prompt{font-weight:800;font-size:clamp(2rem,6.5vw,3.1rem);line-height:1.15;letter-spacing:-.02em;font-variant-numeric:tabular-nums;display:flex;align-items:center;flex-wrap:wrap;gap:.2em .35em;min-width:0}
+.prompt.long{font-size:clamp(1.35rem,4.4vw,2.05rem)}
+body.big .prompt{font-size:clamp(2.4rem,8vw,3.7rem)} body.big .prompt.long{font-size:clamp(1.6rem,5.4vw,2.5rem)}
+.fr{display:inline-flex;flex-direction:column;align-items:center;font-size:.78em;line-height:1.05;vertical-align:middle}
+.fr span:first-child{border-bottom:.08em solid currentColor;padding:0 .18em}
+.blank{display:inline-grid;place-items:center;min-width:1.3em;height:1.3em;border:2px dashed var(--line-2);border-radius:12px;color:var(--faint);font-size:.75em}
+.viz-wrap{overflow-x:auto}
+.viz{display:block;max-width:100%;height:auto}
+.cell{fill:var(--card);stroke:var(--fg);stroke-width:1.5}
+.dot.d1{fill:var(--primary)} .dot.d2{fill:var(--sun)} .dot.gone{fill:var(--line-2)}
+.vx{stroke:var(--coral);stroke-width:2.5;stroke-linecap:round;fill:none}
+.rod{fill:var(--primary)} .rodline{stroke:var(--card);stroke-width:1} .unit{fill:var(--sun)}
+.seg-r{fill:var(--card);stroke:var(--fg);stroke-width:1.5} .seg-r.fill{fill:var(--primary)}
+.lab{fill:var(--fg);font:700 13px var(--font)} .lab.sm{font-size:10px;fill:var(--muted);font-weight:600}
+.axis{stroke:var(--fg);stroke-width:1.5} .gridl{stroke:var(--line);stroke-width:1} .tick{stroke:var(--fg);stroke-width:1.2}
+.pt{fill:var(--sun);stroke:var(--fg);stroke-width:1.5} .ln{stroke:var(--primary);stroke-width:2;stroke-dasharray:6 5;fill:none}
+.beam{stroke:var(--fg);stroke-width:4;stroke-linecap:round} .pan{fill:color-mix(in oklab,var(--sun) 20%,var(--card));stroke:var(--fg);stroke-width:1.5} .fulcrum{fill:var(--fg)}
+.hund{fill:var(--card);stroke:var(--line);stroke-width:1} .hund.fill{fill:var(--primary);stroke:var(--card)}
+.answer{display:flex;flex-wrap:wrap;gap:10px}
+.answer input{flex:1 1 170px;max-width:300px;font-weight:800;font-size:1.7rem;padding:8px 16px;border:2px solid var(--line-2);border-radius:14px;font-variant-numeric:tabular-nums}
+.answer input.is-bad{border-color:var(--coral);animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.keypad{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;max-width:430px}
+.keypad button{min-height:46px;font-weight:800;font-size:1.15rem;background:var(--card-2);border:1px solid var(--line);border-radius:12px}
+.keypad button:active{background:var(--primary-soft)}
+.keypad .wide{font-size:.82rem}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;max-width:520px}
+.choices button{min-height:76px;font-weight:800;font-size:1.9rem;background:var(--card-2);border:2px solid var(--line);border-radius:16px;font-variant-numeric:tabular-nums}
+.choices button:hover:not(:disabled){border-color:var(--primary)}
+.choices button.is-good{background:color-mix(in oklab,var(--leaf) 18%,var(--card));border-color:var(--leaf);opacity:1}
+.choices button.is-bad{background:color-mix(in oklab,var(--coral) 14%,var(--card));border-color:var(--coral)}
+.choices button:disabled{cursor:default}
+.choices button:disabled:not(.is-good){opacity:.5}
+.feedback{font-weight:700;font-size:1rem}
+.feedback.good{color:var(--leaf)} .feedback.bad{color:var(--coral)}
+.hints{display:flex;flex-direction:column;gap:10px;align-items:flex-start;border-top:1px dashed var(--line-2);padding-top:14px}
+.steps{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:6px;max-width:62ch;font-size:1rem}
+.steps li::marker{color:var(--primary-text);font-weight:800}
+.result-score{font-size:clamp(2.6rem,9vw,4rem);font-weight:800;letter-spacing:-.03em;line-height:1}
+.qlist{display:flex;flex-direction:column}
+.qlist div{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.9rem;align-items:baseline}
+.qlist div:last-child{border-bottom:0}
+.mk{font-weight:800;text-align:center} .mk.first{color:var(--leaf)} .mk.solved{color:var(--sun)} .mk.missed{color:var(--coral)}
+
+/* ---------- leaderboard ---------- */
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end;padding:8px 0 4px}
+.pod{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-width:0}
+.pod b{font-size:.88rem;overflow-wrap:anywhere}
+.pod .blk{width:100%;border-radius:12px 12px 4px 4px;display:grid;place-items:center;font-weight:800;color:#fff;font-size:1.3rem}
+.pod.p1 .blk{height:84px;background:var(--gold)} .pod.p2 .blk{height:62px;background:var(--silver)} .pod.p3 .blk{height:46px;background:var(--bronze)}
+.pod .pts{font-size:.78rem;color:var(--muted);font-weight:700}
+.lb{display:flex;flex-direction:column}
+.lbrow{display:grid;grid-template-columns:30px auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-radius:12px}
+.lbrow + .lbrow{margin-top:2px}
+.lbrow .rk{font-weight:800;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.lbrow .nm{font-weight:700;font-size:.92rem;min-width:0}
+.lbrow .nm small{display:block;font-weight:500;color:var(--muted);font-size:.74rem}
+.lbrow .sc{font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
+.lbrow .sc small{display:block;font-weight:600;color:var(--muted);font-size:.7rem}
+.lbrow.me{background:var(--primary-soft)} .lbrow.me .rk{color:var(--primary-text)}
+.awards{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.award{display:flex;gap:10px;align-items:center;background:var(--card-2);border-radius:12px;padding:10px 12px}
+.award b{display:block;font-size:.86rem} .award span{font-size:.74rem;color:var(--muted)}
+.ico{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none;background:color-mix(in oklab,var(--c) 16%,var(--card));color:color-mix(in oklab,var(--c) 80%,var(--fg))}
+.ico svg{width:19px;height:19px}
+
+/* ---------- rewards ---------- */
+.hero{color:#fff;height:auto;padding:18px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.hero .big{font-size:2.4rem;font-weight:800;letter-spacing:-.02em;line-height:1}
+.hero span{opacity:.88;font-size:.86rem}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.badge{border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;border:1px solid var(--line);font-size:.78rem;font-weight:700;padding:12px 8px;line-height:1.25}
+.badge small{font-weight:500;color:var(--muted);font-size:.7rem}
+.badge.locked{border-style:dashed;border-color:var(--line-2);color:var(--faint)}
+.badge.locked .ico{background:var(--card-2);color:var(--faint)}
+.styles{display:flex;gap:12px;flex-wrap:wrap}
+.style{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;font-size:.74rem;font-weight:700;color:var(--muted);padding:4px}
+.style[aria-pressed="true"]{color:var(--fg)}
+.style[aria-pressed="true"] .av{outline:3px solid var(--primary);outline-offset:3px}
+.style:disabled{cursor:not-allowed}
+.style:disabled .av{filter:grayscale(1);opacity:.4}
+.certrow{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.certrow:last-child{border-bottom:0;padding-bottom:0} .certrow:first-child{padding-top:0}
+.certrow b{display:block;font-size:.9rem} .certrow span{font-size:.78rem;color:var(--muted)}
+.certrow > div:nth-child(2){flex:1;min-width:0}
+
+/* ---------- games ---------- */
+.gate{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:12px;background:var(--card-2)}
+.gate svg{width:22px;height:22px;flex:none}
+.gate.open svg{color:var(--leaf)} .gate.closed svg{color:var(--coral)}
+.target{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.target .t{font-size:2.6rem;font-weight:800;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{min-height:68px;border-radius:16px;border:2px solid var(--line);background:var(--card-2);font-weight:800;font-size:1.5rem;font-variant-numeric:tabular-nums;transition:transform .1s}
+.tile:hover{border-color:var(--primary)}
+.tile[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink);border-color:var(--primary);transform:scale(1.04)}
+.tile.pop{animation:pop .3s}
+.tile.no{animation:shake .3s;border-color:var(--coral)}
+@keyframes pop{50%{transform:scale(1.12)}}
+
+/* ---------- teacher ---------- */
+.heat{width:46px;height:26px;border-radius:7px;display:inline-grid;place-items:center;font-size:.72rem;font-weight:800;background:color-mix(in oklab,var(--leaf) var(--p),var(--card-2));color:var(--fg)}
+.heat.low{background:color-mix(in oklab,var(--coral) 30%,var(--card-2))}
+.warnrow{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);width:100%;border-left:0;border-right:0;border-top:0;background:transparent;text-align:left}
+.warnrow:last-child{border-bottom:0}
+.warnrow b{display:block;font-size:.88rem} .warnrow span{font-size:.76rem;color:var(--muted)}
+.warnrow > div{flex:1;min-width:0}
+.code{font-size:clamp(2rem,7vw,3rem);font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.lobby{display:flex;flex-wrap:wrap;gap:6px}
+.lobby .chip{animation:pop .3s}
+.lq{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.lopt{border-radius:14px;padding:12px;color:#fff;font-weight:800;font-size:1.5rem;display:flex;flex-direction:column;gap:8px;background:var(--c);position:relative;min-height:84px}
+.lopt .cnt{font-size:.78rem;font-weight:700;opacity:.9}
+.lopt.dim{opacity:.35}
+.lopt .lbar{height:6px;border-radius:99px;background:rgba(255,255,255,.3);overflow:hidden;margin-top:auto}
+.lopt .lbar i{display:block;height:100%;background:#fff}
+.timer{font-weight:800;font-size:1.4rem;font-variant-numeric:tabular-nums}
+
+/* ---------- modal / cert / toast ---------- */
+.scrim{position:fixed;inset:0;background:rgba(10,9,20,.6);z-index:60;display:grid;place-items:center;padding:16px}
+.modal{background:var(--card);border-radius:18px;max-width:600px;width:100%;max-height:min(88vh,860px);overflow:auto;box-shadow:var(--shadow-lg);position:relative}
+.modal-body{padding:20px 22px 24px;display:flex;flex-direction:column;gap:16px}
+.x{position:absolute;top:12px;right:12px;border:0;background:rgba(255,255,255,.9);border-radius:50%;width:36px;height:36px;display:grid;place-items:center;color:#1a1828;z-index:2}
+.x svg{width:18px;height:18px}
+.cert{padding:14px;background:linear-gradient(115deg,var(--cover-a),var(--cover-b) 60%,var(--cover-c))}
+.cert-in{background:var(--card);border-radius:10px;padding:28px 22px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;border:2px solid color-mix(in oklab,var(--sun) 50%,var(--card))}
+.cert-in h2{font-size:1.5rem;font-weight:800}
+.cert-name{font-size:1.9rem;font-weight:800;letter-spacing:-.02em;color:var(--primary-text);border-bottom:2px solid var(--line);padding:0 18px 4px}
+.cert-foot{display:flex;justify-content:space-between;gap:24px;width:100%;max-width:380px;margin-top:14px;font-size:.86rem}
+.cert-foot div{display:flex;flex-direction:column;border-top:1.5px solid var(--fg);padding-top:4px;flex:1}
+.cert-foot small{color:var(--muted);font-size:.7rem}
+.toast{position:fixed;left:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:12px 18px;border-radius:12px;font-weight:600;font-size:.86rem;z-index:80;box-shadow:var(--shadow-lg);max-width:calc(100% - 32px)}
+@media (max-width:780px){.toast{bottom:calc(80px + env(safe-area-inset-bottom,0px))}}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:90;width:100%;height:100%}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+
+/* ---------- signed-in chrome ---------- */
+.me-wrap{position:relative;display:flex;align-items:center;gap:10px;margin-left:12px}
+.me-btn{display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:transparent;font-size:.72rem;font-weight:600;color:var(--muted);padding:0 4px}
+.menu{position:absolute;right:0;top:calc(100% + 10px);background:var(--card);border-radius:14px;box-shadow:var(--shadow-lg);min-width:240px;padding:8px;display:flex;flex-direction:column;z-index:50}
+.menu .who{padding:8px 10px 10px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.menu .who b{display:block} .menu .who span{font-size:.8rem;color:var(--muted)}
+.menu a,.menu button{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:10px;border:0;background:transparent;text-align:left;font-weight:600;font-size:.88rem;color:var(--fg);text-decoration:none}
+.menu a:hover,.menu button:hover{background:var(--card-2)}
+.menu svg{width:18px;height:18px}
+.top-actions{display:flex;gap:8px;margin-left:auto}
+.app.solo{grid-template-columns:minmax(0,1fr);max-width:980px}
+.app.solo .left,.app.solo .rail{display:none}
+@media (max-width:780px){ .me-wrap{margin-left:auto} }
+
+/* ---------- landing + messages ---------- */
+.land-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;align-items:center;padding:24px}
+@media (max-width:780px){.land-hero{grid-template-columns:minmax(0,1fr)}}
+.land-hero h1{font-size:clamp(1.8rem,5vw,2.6rem);margin-top:8px}
+.land-hero h1 em{font-style:normal;color:var(--primary-text)}
+.lead{color:var(--muted);font-size:1.02rem;margin-top:10px;max-width:56ch}
+.land-art{border-radius:16px;overflow:hidden;background:var(--card-2)}
+.land-art .inner{padding:16px}
+.join-col{display:flex;flex-direction:column;gap:8px;margin-top:20px;max-width:420px}
+.points4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.points4 b{display:flex;gap:8px;align-items:center;font-size:.92rem;margin-bottom:4px}
+.points4 b svg{width:18px;height:18px;color:var(--leaf)}
+.center{max-width:520px;margin:48px auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.center .ico{width:56px;height:56px}
+.center .ico svg{width:26px;height:26px}
+.loading{padding:28px;text-align:center;color:var(--muted)}
+.bandpick{display:flex;gap:4px;flex-wrap:wrap}
+.bandpick button{border:1px solid var(--line-2);background:transparent;border-radius:999px;padding:4px 12px;font-weight:700;font-size:.8rem;color:var(--muted)}
+.bandpick button[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--card)}
+.live-play .prompt{font-size:clamp(1.6rem,6vw,2.6rem)}
+.lq button.lopt{border:0;text-align:left;cursor:pointer}
+.lq button.lopt:disabled{cursor:default}
+.lopt.mine{outline:3px solid var(--fg);outline-offset:2px}
+
+.link{background:none;border:0;color:var(--primary-text);text-decoration:underline;text-underline-offset:3px;font-weight:600;font-size:inherit}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <a href="/math/" aria-label="Arise Math home" style="display:flex"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
+    <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2a8f"/><stop offset="1" stop-color="#6d4fd8"/></linearGradient>
+    <linearGradient id="sg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef5a45"/><stop offset="1" stop-color="#ffb23f"/></linearGradient></defs>
+    <rect width="40" height="40" rx="9" fill="url(#lg)"/><path d="M9 28a11 11 0 0 1 22 0z" fill="url(#sg)"/><path d="M7 31h26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M20 9v6M17 12h6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+  </svg></a>
+  <span class="wordmark">Arise <b>Math</b></span>
+  <nav class="topnav" id="nav" aria-label="Sections"></nav>
+  <div id="me" class="me-wrap"></div>
+</div></header>
+
+<div class="app" id="app">
+  <aside class="left" id="left"></aside>
+  <main id="main"><div class="loading">Loading Arise Math…</div></main>
+  <aside class="rail" id="rail"></aside>
+</div>
+<nav class="bottom" id="bottom" aria-label="Sections"></nav>
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+/* ================= ICONS ================= */
+const I = {
+  practice:'<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>',
+  trophy:'<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4"/><path d="M17 6h3a3 3 0 0 1-3 4"/>',
+  gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v9h14v-9"/><path d="M12 8v13"/><path d="M12 8c-1.5-3.5-6-4-6-1.2C6 9 12 8 12 8s6 1 6-1.2C18 4 13.5 4.5 12 8z"/>',
+  game:'<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3"/><path d="M5.5 12.5h3"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="13.5" r="1"/>',
+  me:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  class:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M14 15.3c.6-.2 1.3-.3 2-.3 3.3 0 6 2 6 5"/>',
+  assign:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11h6"/><path d="M9 15h4"/>',
+  live:'<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8"/><path d="M18.4 5.6a9 9 0 0 1 0 12.8"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  check:'<path d="M5 12l5 5 9-10"/>',
+  x:'<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  unlock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  flame:'<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-6 1 1 1.5 2 2 2 0-2 0-4 1-6z"/>',
+  speaker:'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/>',
+  eye:'<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/>',
+  award:'<circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 21l5-3 5 3-1.5-7"/>',
+  bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  shield:'<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/>',
+  up:'<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>',
+  plus:'<path d="M12 5v14"/><path d="M5 12h14"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  school:'<path d="M3 9l9-5 9 5-9 5z"/><path d="M7 11v5c0 1.5 2.5 3 5 3s5-1.5 5-3v-5"/>',
+  book:'<path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/>',
+  heart:'<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11.4 8.8 11.4s8.8-6 8.8-11.4z"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'
+};
+const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cc = k => `var(--${k})`;
+const range = (a,b) => { const r=[]; for(let i=a;i<=b;i++) r.push(i); return r; };
+const N = n => n<0 ? '−'+Math.abs(n) : String(n);
+const fmtV = v => { v=Number(v); return Number.isInteger(v) ? N(v) : Number.isInteger(v*2) ? (v<0?'−':'')+Math.abs(v*2)+'/2' : N(v); };
+
+/* ================= SIGN-IN + API ================= */
+function sessionToken(){
+  try {
+    const raw = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('arise_session='));
+    if (!raw) return null;
+    const bin = atob(raw.slice('arise_session='.length));
+    let data; try { data = JSON.parse(decodeURIComponent(escape(bin))); } catch { data = JSON.parse(bin); }
+    return data && data.token ? String(data.token) : null;
+  } catch { return null; }
+}
+class ApiError extends Error { constructor(msg, code, body){ super(msg); this.code = code; this.body = body; } }
+async function apiAt(fullPath, opts = {}){
+  const headers = { 'Content-Type':'application/json' };
+  const t = sessionToken(); if (t) headers.Authorization = `Bearer ${t}`;
+  let res;
+  try { res = await fetch(fullPath, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store', keepalive: !!opts.keepalive }); }
+  catch { throw new ApiError('Can’t reach Arise Math. Check your connection and try again.', 0); }
+  let body = null; try { body = await res.json(); } catch {}
+  if (!res.ok) throw new ApiError(body?.message || 'Something went wrong. Please try again.', res.status, body);
+  return body;
+}
+const api = (path, opts) => apiAt('/api/math' + path, opts);
+/** Sends people to the main site to sign up or sign in, and back here afterwards. */
+function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/math/'); } catch {} location.href = path; }
+const store = { get(k){ try { return JSON.parse(sessionStorage.getItem(k)||'null'); } catch { return null; } }, set(k,v){ try { v==null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const keep = { get(k, d){ try { return JSON.parse(localStorage.getItem(k)||'null') ?? d; } catch { return d; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+/* ================= STATE ================= */
+let CAT = null, ME = null;
+const S = { tab:null, menu:false, board:null, period:'week', assign:null, cls:null, children:null, childId:null, live:undefined, run:null, result:null, lplay:null, err:{}, drafts:keep.get('arise_math_drafts', []) };
+let GAME = null, gameTimer = null, beatTimer = null, playAccess = null, playErr = null;
+const canSpeak = 'speechSynthesis' in window;
+const role = () => ME?.user.role || 'guest';
+const isStaff = () => role()==='teacher' || role()==='admin';
+const P = () => ME?.profile;
+const SK = id => (CAT && CAT.skills[id]) || { name:'Teacher question', std:'', glyph:'?', c:'help' };
+const bandLabel = b => CAT?.bands[b]?.label || '';
+const myBand = () => ME?.band || 'g35';
+
+/* ================= SHARED UI ================= */
+const avColor = name => { const cs=['primary','coral','teach','tech','nature','help','create','serve']; let h=0; for(const ch of String(name)) h=(h*31+ch.charCodeAt(0))%997; return cs[h%cs.length]; };
+const initials = n => String(n).split(/\s+/).filter(Boolean).map(w=>w[0]).join('').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || '?';
+const STYLE_BG = { primary:'var(--primary)', coral:'var(--coral)', create:'var(--create)', sunrise:'linear-gradient(135deg,var(--coral),var(--sun))', galaxy:'linear-gradient(135deg,var(--cover-a),var(--cover-b))', gold:'linear-gradient(135deg,#b8860b,#f2d36b)' };
+function av(name, size, style){
+  const bg = style ? STYLE_BG[style] || STYLE_BG.primary : cc(avColor(name));
+  return `<div class="av ${size||''} ${style==='galaxy'||style==='gold'?'ring':''}" style="--c:${cc(avColor(name))};background:${bg}">${esc(initials(name))}</div>`;
+}
+const ico = (k,c) => `<div class="ico" style="--c:${cc(c)}">${svg(k)}</div>`;
+const op = (id, size) => { const s=SK(id); return `<div class="op ${size||''}" style="--c:${cc(id==='mixed'?'primary':s.c)}">${id==='mixed'?svg('bolt','style="width:20px;height:20px"'):s.glyph}</div>`; };
+const fmtDue = iso => new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'});
+const plus = days => { const d=new Date(Date.now()+days*864e5); return d.toLocaleDateString('en-CA'); };
+const levelName = pts => CAT.levels[Math.min(Math.floor(pts/CAT.levelPoints), CAT.levels.length-1)];
+const lastTxt = d => d==null ? 'Not yet' : d===0 ? 'Today' : d===1 ? 'Yesterday' : `${d} days ago`;
+function toast(msg){ const r=document.getElementById('toastRoot'); r.innerHTML=`<div class="toast" role="status">${esc(msg)}</div>`; clearTimeout(toast._t); toast._t=setTimeout(()=>{ r.innerHTML=''; },2800); }
+function toastQueue(list){ list.forEach((m,i)=>setTimeout(()=>toast(m), i*2200)); }
+const loadingCard = what => `<div class="card loading">Loading ${esc(what)}…</div>`;
+const errCard = (msg, act) => `<div class="card stack" style="gap:10px"><p>${esc(msg)}</p><div><button class="btn" data-act="${act}">Try again</button></div></div>`;
+function centerMessage(title, body, extra=''){
+  document.getElementById('app').className='app solo';
+  document.getElementById('nav').innerHTML=''; document.getElementById('bottom').innerHTML='';
+  document.getElementById('main').innerHTML=`<div class="center">${ico('info','primary')}<h1>${esc(title)}</h1><p class="muted">${body}</p>${extra}</div>`;
+}
+
+/* ================= NAV ================= */
+const TABS = {
+  student: [['practice','Practice','practice'],['board','Leaderboard','trophy'],['rewards','Rewards','gift'],['games','Games','game'],['me','Me','me']],
+  teacher: [['class','My Class','class'],['assign','Assign','assign'],['live','Live Review','live'],['board','Leaderboard','trophy'],['play','Play Time','clock']],
+  parent: [['family','Home','home'],['play','Play Time','clock']],
+};
+const tabs = () => ME ? TABS[isStaff() ? 'teacher' : role()] || [] : [];
+function badgeFor(id){
+  if (id==='practice' && S.assign) return S.assign.filter(a=>a.myScore==null).length;
+  if (id==='class' && S.cls) return S.cls.totals.check;
+  return 0;
+}
+function roleLine(){
+  const u = ME.user;
+  if (u.role==='student') return `${u.grade?`Grade ${u.grade}`:'Student'}${u.teacherName?` · ${u.teacherName}’s class`:''}`;
+  return u.role==='teacher' ? 'Teacher' : u.role==='parent' ? 'Parent' : 'Admin';
+}
+function renderChrome(){
+  const t = tabs();
+  if (t.length && !t.find(x=>x[0]===S.tab)) S.tab = t[0][0];
+  document.getElementById('nav').innerHTML = t.map(([id,l,ic])=>{const n=badgeFor(id);return `<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${n?`<span class="dot">${n}</span>`:''}</button>`}).join('');
+  document.getElementById('bottom').innerHTML = t.map(([id,l,ic])=>`<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${badgeFor(id)?'<i class="dot"></i>':''}</button>`).join('');
+  const me = document.getElementById('me');
+  if (!ME) { me.innerHTML = `<div class="top-actions"><button class="btn" data-act="signin">Log in</button><button class="btn primary" data-act="join">Join now</button></div>`; return; }
+  const pts = role()==='student' ? `<span class="ptsbadge" title="Math points">${svg('star')}<span class="tnum">${P().points}</span></span>` : '';
+  me.innerHTML = `${pts}<button class="me-btn" data-act="menu" aria-expanded="${S.menu}">${av(ME.user.name,'xs',role()==='student'?P().avatar:null)}<span>Me</span></button>${S.menu?`<div class="menu" role="menu"><div class="who"><b>${esc(ME.user.name)}</b><span>${esc(roleLine())}</span></div>${role()==='student'?`<button data-act="tab" data-v="me">${svg('me')}My skills and settings</button>`:''}<a href="/">${svg('book')}Open A.R.I.S.E. Reader</a><a href="/history/">${svg('book')}Open Arise History</a></div>`:''}`;
+  document.body.classList.toggle('big', role()==='student' && !!P().a11y.big);
+}
+
+/* ================= LEFT + RAIL ================= */
+function kidCard(name, sub, p, rank, style){
+  const into = p.points % CAT.levelPoints;
+  return `<div class="card flush mini"><div class="cover"></div>${av(name,'lg',style)}
+    <div class="who"><b>${esc(name)}</b><span>${esc(sub)}</span></div>
+    <div class="divider" style="margin:0"></div>
+    <div class="kv" style="padding-top:12px"><span>Math points</span><b>${p.points}</b></div>
+    <div class="kv"><span>Class rank this week</span><b>${rank?'#'+rank:'–'}</b></div>
+    <div class="kv"><span>Day streak</span><b>${p.streak}</b></div>
+    <div class="kv" style="padding-bottom:12px"><span>Level ${p.level+1} · ${esc(levelName(p.points))}</span><b>${into}/${CAT.levelPoints}</b></div>
+    <div class="mini-goal"><div class="row"><span>Today’s goal</span><span class="tnum muted">${p.day_solved}/${CAT.dailyGoal} problems</span></div><div class="bar sun"><i style="width:${Math.min(100,p.day_solved/CAT.dailyGoal*100)}%"></i></div></div></div>`;
+}
+function leftHTML(){
+  if (role()==='student') return kidCard(ME.user.name, roleLine(), P(), ME.rank, P().avatar);
+  if (isStaff()){
+    const t = S.cls?.totals;
+    return `<div class="card flush mini"><div class="cover"></div>${av(ME.user.name,'lg')}
+      <div class="who"><b>${esc(ME.user.name)}</b><span>${role()==='admin'?'Admin':'Teacher'}${S.cls?` · Grades ${bandLabel(S.cls.settings.band)}`:''}</span></div>
+      <div class="divider" style="margin:0"></div>
+      <div class="kv" style="padding-top:12px"><span>Students</span><b>${t?t.students:'–'}</b></div>
+      <div class="kv"><span>Quizzes this week</span><b>${t?t.weekQuizzes:'–'}</b></div>
+      <button class="kv" data-act="tab" data-v="class" style="padding-bottom:14px"><span>Need a check-in</span><b>${t?t.check:'–'}</b></button></div>`;
+  }
+  const k = currentChild();
+  if (!k) return `<div class="eyebrow" style="padding:0 4px">${esc(ME.user.name)}’s family</div>`;
+  return `<div class="eyebrow" style="padding:0 4px">${esc(ME.user.name)}’s family</div>${kidCard(k.name, `${k.grade?`Grade ${k.grade}`:'Student'}${k.teacherName?` · ${k.teacherName}’s class`:''}`, k.profile, k.rank, k.profile.avatar)}`;
+}
+function railHTML(){
+  if (role()==='student'){
+    const rows = S.board?.board;
+    const lb = rows ? (()=>{ const me=rows.find(r=>r.me), show=rows.slice(0,3).concat(me&&me.rank>3?[me]:[]);
+      return `<div class="card"><div class="card-h"><h3>This week</h3><button class="btn sm" data-act="tab" data-v="board">See all</button></div><div class="lb">${show.map(r=>`<div class="lbrow ${r.me?'me':''}"><span class="rk">${r.rank}</span>${av(r.name,'xs',r.avatar)}<span class="nm">${esc(r.me?'You':r.name)}</span><span class="sc">${r.points}</span></div>`).join('')}</div></div>`; })() : '';
+    return lb + `<div class="card stack" style="gap:8px"><h3>Next certificate</h3><p class="small muted">Get every answer right on any quiz to earn a Perfect Score certificate and ${CAT.points.perfectBonus} bonus points.</p></div>`;
+  }
+  if (isStaff()){
+    const warn = (S.cls?.students||[]).filter(s=>s.status==='check');
+    return `<div class="card"><div class="card-h"><h3>Needs a check-in</h3><span class="chip pill-warn">${warn.length}</span></div>
+      ${warn.map(s=>`<button class="warnrow" data-act="student" data-v="${s.id}">${av(s.name,'sm')}<div><b>${esc(s.name)}</b><span>${esc(s.reason)}</span></div></button>`).join('') || '<p class="small muted">Nobody needs a check-in right now.</p>'}</div>
+      <div class="card stack" style="gap:10px"><h3>Live review</h3><p class="small muted">Put five questions on the board. Your class answers from their own devices.</p><button class="btn primary" data-act="tab" data-v="live">${svg('live')}${S.live?'Back to the game':'Start a game'}</button></div>`;
+  }
+  return `<div class="card stack" style="gap:10px"><h3>Play time</h3><p class="small muted">The Arise Math game room uses the same A.R.I.S.E. play timer and limits you already set.</p><a class="btn" href="/parent-dashboard">${svg('clock')}Open play time settings</a></div>`;
+}
+
+/* ================= SIGNED-OUT LANDING ================= */
+function landingHTML(){
+  const band = 'g35';
+  return `<section class="card land-hero"><div>
+      <span class="eyebrow">From A.R.I.S.E. Reader · Grades K–12</span>
+      <h1>Math that feels like <em>leveling up.</em></h1>
+      <p class="lead">Arise Math gives every student quizzes matched to their grade, with pictures that show the idea and hints that walk through each step. Points count on a class leaderboard, perfect scores earn certificates, and practice unlocks the game room. Teachers assign practice and run live review games. Parents follow along.</p>
+      <div class="join-col">
+        <button class="btn primary lg" data-act="join">${svg('plus')}Sign up as a student</button>
+        <button class="btn outline" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button>
+        <button class="btn outline" data-act="go" data-v="/teacher-signup">${svg('school')}I’m a teacher</button>
+        <p class="muted small">Arise Math uses your A.R.I.S.E. Reader account. Already have one? <a href="/" data-act="signin">Log in</a>.</p>
+        <p class="muted small">Teachers: 30 days free, then $12 a month for your class.</p>
+      </div></div>
+    <div class="land-art"><div class="cover"></div><div class="inner"><h3>Skills for every grade</h3><div class="stack" style="gap:10px;margin-top:12px">
+      ${['k2','g35','g68','g912'].map(b=>`<div><span class="eyebrow">Grades ${bandLabel(b)}</span><div class="row" style="gap:6px;margin-top:4px">${CAT.bands[b].skills.map(id=>`<span class="chip cl" style="--c:${cc(SK(id).c)}">${esc(SK(id).name)}</span>`).join('')}</div></div>`).join('')}
+    </div></div></div></section>
+    <div class="points4">${[['Built on hints, not guesses','Every question has a picture model and step-by-step hints. Missed answers show the full solution.'],['Points that mean practice','First-try answers earn the most. Points show on a class leaderboard with first names and last initials only.'],['Teachers in charge','Assign skills or your own questions, see who needs a check-in, and run live review games.'],['Reading still comes first','The game room uses the same A.R.I.S.E. play timer, so teachers’ and parents’ limits apply.']].map(([t,d])=>`<div class="card"><b>${svg('check')}${t}</b><p class="muted small">${d}</p></div>`).join('')}</div>`;
+}
+
+/* ================= STUDENT: PRACTICE ================= */
+function practiceHTML(){
+  if (S.lplay) return livePlayHTML();
+  if (S.run) return runnerHTML();
+  if (S.result) return resultsHTML();
+  const b = myBand(), T = ME.user.teacherName;
+  const asg = S.assign;
+  const asgHTML = !ME.user.hasClass ? `<p class="small muted">Join a teacher’s class on A.R.I.S.E. Reader to get assignments from them.</p>`
+    : asg==null ? '<p class="small muted">Loading…</p>'
+    : asg.length ? asg.map(a=>`<div class="assign">${op(a.skill==='custom'?'custom':a.skill)}<div><b>${esc(a.title)}</b><span class="small muted">${a.n} questions · Due ${fmtDue(a.due)}</span></div>
+        ${a.myScore!=null?`<span class="chip pill-ok">${svg('check','style="width:14px;height:14px"')}${a.myScore}/${a.myOf}</span>`:`<button class="btn primary sm" data-act="start" data-type="assign" data-v="${a.id}">Start</button>`}</div>`).join('')
+    : `<p class="small muted">Nothing assigned right now.</p>`;
+  const cards = CAT.bands[b].skills.map(id=>{ const s=SK(id), m=P().mastery[id], st=m&&m.t?Math.round(100*m.r/m.t):null, best=P().best[id];
+    return `<div class="card qcard"><div class="row" style="flex-wrap:nowrap">${op(id)}<div style="min-width:0"><h3>${esc(s.name)}</h3><span class="meta">CCSS ${esc(s.std)}</span></div></div>
+      <div><div class="row between small" style="margin-bottom:4px"><span class="muted">Strength</span><b class="tnum">${st==null?'New':st+'%'}</b></div><div class="bar leaf"><i style="width:${st||0}%"></i></div></div>
+      <div class="foot"><span class="meta">${best!=null?`Best ${best}/5`:'Not tried yet'}</span><button class="btn primary sm" data-act="start" data-type="skill" data-v="${id}">Start quiz</button></div></div>`; }).join('');
+  return `<div class="card"><div class="card-h" style="margin-bottom:6px"><h1>Math quizzes</h1>
+      <div class="bandpick" role="group" aria-label="Grade band">${['k2','g35','g68','g912'].map(x=>`<button data-act="band" data-v="${x}" aria-pressed="${x===b}">${bandLabel(x)}</button>`).join('')}</div></div>
+      <p class="muted">Five questions per quiz. Earn ${CAT.points.firstTry} points for a first-try answer, ${CAT.points.withHelp} with help, and ${CAT.points.perfectBonus} bonus points for a perfect score.</p></div>
+    <div class="card"><div class="card-h"><h2>${T?`Assigned by ${esc(T)}`:'Assignments'}</h2></div>${asgHTML}</div>
+    <div class="grid qcards">${cards}
+      <div class="card qcard"><div class="row" style="flex-wrap:nowrap">${op('mixed')}<div><h3>Mixed review</h3><span class="meta">All three skills</span></div></div>
+        <p class="small muted">Weighted toward the skills you find hardest.</p><div class="foot"><span></span><button class="btn outline sm" data-act="start" data-type="mixed">Start quiz</button></div></div></div>
+    ${ME.user.hasClass?`<div class="card"><div class="card-h"><h2>Join a live game</h2></div><div class="join"><label class="sr" for="joinCode">Game code</label><input type="text" id="joinCode" inputmode="numeric" placeholder="Game code" maxlength="7" autocomplete="off"><button class="btn primary" data-act="joinlive">Join</button></div>
+      <p class="small muted" style="margin-top:8px">${esc(T||'Your teacher')} shows the code on the board.</p></div>`:''}`;
+}
+
+/* ================= QUIZ RUNNER ================= */
+function answerHTML(it){
+  const useChoices = it.kind==='choice' || !!P().a11y.choices;
+  if (useChoices){
+    const names={'<':'less than','=':'equal to','>':'greater than'};
+    const right = c => it.done && it.answer!=null && (it.kind==='choice' ? c.v===it.answer : Number(c.v)===Number(it.answer));
+    return `<div class="choices">${it.choices.map(c=>{ const bad=it.wrong.includes(c.v), good=right(c);
+      return `<button type="button" data-act="pick" data-v="${esc(c.v)}" class="${good?'is-good':bad?'is-bad':''}" ${it.done||bad?'disabled':''} aria-label="${esc(names[c.label]||c.label)}">${esc(c.label)}</button>`; }).join('')}</div>`;
+  }
+  const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
+  return `<form class="answer" id="ansForm" autocomplete="off"><label for="ans" class="sr">Your answer</label><input id="ans" inputmode="none" placeholder="?" spellcheck="false" class="${S.run.bad?'is-bad':''}" ${it.done?'disabled':''} value="${it.done&&it.answer!=null?esc(fmtV(it.answer)):''}"><button class="btn primary lg" type="submit" ${it.done||S.run.busy?'disabled':''}>Check</button></form>
+    ${it.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="key" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
+}
+function runnerHTML(){
+  const s = S.run.session, it = s.item, sk = SK(it.skill);
+  const pips = range(0,s.n-1).map(i=>`<i class="${s.results[i]||(i===s.i?'cur':'')}"></i>`).join('');
+  const shown = it.steps.length;
+  return `<div class="card flush">
+    <div class="cover run-head"><div class="run-top"><button class="btn sm glass" data-act="quit">${svg('x')}Leave quiz</button><span class="run-pts tnum">${s.points} pts</span></div>
+      <div class="run-title"><b>${esc(s.title)}</b><span>Question ${s.i+1} of ${s.n}</span></div><div class="pips">${pips}</div></div>
+    <div class="run-body">
+      <div class="row between"><div class="row" style="gap:8px"><span class="chip cl" style="--c:${cc(sk.c)}">${esc(sk.name)}</span><span class="small muted">${sk.std?'CCSS '+esc(sk.std):''}</span></div>
+        <div class="row" style="gap:6px">${canSpeak?`<button class="btn sm" data-act="speak">${svg('speaker')}Read aloud</button>`:''}${it.kind==='num'?`<button class="btn sm" data-act="a11y" data-v="choices" aria-pressed="${!!P().a11y.choices}">${svg('eye')}Picture choices</button>`:''}</div></div>
+      <p class="ask">${esc(it.ask)}</p>
+      <div class="prompt ${it.long?'long':''}">${it.prompt}</div>
+      ${it.viz?`<div class="viz-wrap">${it.viz}</div>`:''}
+      ${answerHTML(it)}
+      ${S.run.fb?`<p class="feedback ${S.run.fb.c}" role="status">${esc(S.run.fb.t)}</p>`:''}
+      ${it.done?`<div><button class="btn primary lg" data-act="next" id="nextBtn" ${S.run.busy?'disabled':''}>${s.i+1<s.n?'Next question':'See my score'}</button></div>`:''}
+      <div class="hints"><button class="btn" data-act="hint" ${shown>=it.stepsTotal||S.run.busy?'disabled':''}>${shown>=it.stepsTotal?'All steps shown':shown?`Next step (${shown+1} of ${it.stepsTotal})`:'Show a hint'}</button>
+        ${shown?`<ol class="steps">${it.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`:''}</div>
+    </div></div>`;
+}
+function resultsHTML(){
+  const { result:r, session:s } = S.result, first = ME.user.name.split(' ')[0];
+  return `<div class="card flush"><div class="cover run-head"><div class="run-title"><b>Quiz complete</b><span>${esc(s.title)}</span></div></div>
+    <div class="run-body">
+      <div class="row" style="gap:24px;align-items:flex-end"><div><div class="result-score tnum">${r.score}/${r.of}</div><span class="muted small">correct</span></div>
+        <div><div class="result-score tnum" style="color:var(--sun)">+${r.points}</div><span class="muted small">points${r.perfect?` · includes ${CAT.points.perfectBonus} bonus`:''}</span></div></div>
+      <p>${r.perfect?`Every answer right, ${esc(first)}. That earns a certificate.`:r.score>=r.of-1?`Strong work, ${esc(first)}. One more and it’s perfect.`:`Good practice, ${esc(first)}. Hints are there whenever you need them.`}${r.rank?` You’re <b>#${r.rank}</b> in ${esc(ME.user.teacherName)}’s class this week.`:''}</p>
+      ${r.cert?`<button class="btn outline" data-act="cert" data-v="0">${svg('award')}View my certificate</button>`:''}
+      <div class="qlist">${s.results.map((x,i)=>`<div><span class="mk ${x}">${x==='missed'?'✗':'✓'}</span><span>Question ${i+1}</span><span class="small muted">${x==='first'?'First try':x==='solved'?'With help':'Missed'}</span></div>`).join('')}</div>
+      <div class="row"><button class="btn primary" data-act="home">Pick another quiz</button><button class="btn" data-act="tab" data-v="board">${svg('trophy')}Leaderboard</button><button class="btn" data-act="tab" data-v="games">${svg('game')}Game room</button></div>
+    </div></div>`;
+}
+function speakText(t){ if(!canSpeak) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(String(t).replace(/<[^>]+>/g,' ').replace(/−/g,' minus ').replace(/×/g,' times ').replace(/÷/g,' divided by ').replace(/\?/g,' what ').replace(/x²/g,'x squared ').replace(/=/g,' equals ').replace(/</g,' is less than ').replace(/>/g,' is greater than ')); u.rate=.92; speechSynthesis.speak(u); }catch(e){} }
+const plainOf = it => { const d=document.createElement('div'); d.innerHTML=it.prompt; d.querySelectorAll('.fr').forEach(f=>{ const [a,b]=f.children; f.textContent=` ${a.textContent} over ${b.textContent} `; }); return d.textContent; };
+function speakAuto(){ if (P()?.a11y.read && S.run) speakText(S.run.session.item.ask+'. '+plainOf(S.run.session.item)); }
+
+async function startQuiz(type, v){
+  try {
+    const r = await api('/quizzes', { method:'POST', body:{ type, skill: type==='skill'?v:undefined, assignmentId: type==='assign'?v:undefined, band: myBand() } });
+    S.run = { session:r.session, fb:null, bad:false }; S.result=null; S.tab='practice'; store.set('arise_math_run', r.session.id);
+    render(); window.scrollTo({top:0}); speakAuto();
+  } catch(e){ toast(e.message); }
+}
+async function quizCall(path, body){
+  if (!S.run || S.run.busy) return null;
+  S.run.busy = true;
+  try { return await api(`/quizzes/${S.run.session.id}${path}`, { method:'POST', body }); }
+  catch(e){ S.run.fb = { t:e.message, c:'bad' }; if (e.code===404){ S.run=null; store.set('arise_math_run', null); toast('That quiz has ended.'); } return null; }
+  finally { if (S.run) S.run.busy = false; render(); }
+}
+async function submitAnswer(value){
+  if (!S.run || S.run.session.item.done) return;
+  const r = await quizCall('/answer', { value });
+  if (!r) return;
+  const it = r.session.item;
+  S.run.session = r.session; S.run.bad = !r.correct && !it.done;
+  if (r.correct) { S.run.fb = { t: it.result==='first' ? `Correct on the first try. +${r.gained} points` : `Correct. +${r.gained} points`, c:'good' }; ME.profile.points += r.gained; }
+  else if (!it.done) S.run.fb = { t:'Not quite. Try once more, or open a hint.', c:'bad' };
+  else S.run.fb = { t:`The answer is ${it.kind==='choice'?it.answer:fmtV(it.answer)}. Read the steps, then keep going.`, c:'bad' };
+  render();
+  if (it.done) setTimeout(()=>{ const b=document.getElementById('nextBtn'); if(b) b.focus({preventScroll:true}); },30);
+}
+async function nextQuestion(){
+  const r = await quizCall('/next');
+  if (!r) return;
+  if (!r.result){ S.run = { session:r.session, fb:null, bad:false }; render(); speakAuto(); return; }
+  store.set('arise_math_run', null);
+  S.run = null; S.result = { result:r.result, session:r.session }; ME.profile = r.profile; ME.rank = r.result.rank;
+  render(); window.scrollTo({top:0});
+  const msgs = [];
+  if (r.result.rank && (!r.result.rankBefore || r.result.rank < r.result.rankBefore)) msgs.push(`You’re #${r.result.rank} in ${ME.user.teacherName}’s class this week.`);
+  r.result.newAchievements.forEach(a=>msgs.push(`Achievement unlocked: ${CAT.achievements.find(x=>x.id===a)?.name||a}`));
+  if (msgs.length) toastQueue(msgs);
+  if (r.result.perfect) confetti();
+  refreshMe(); S.board=null; S.assign=null; loadFor('practice');
+}
+
+/* ================= STUDENT: LIVE PLAY ================= */
+const LIVE_COLORS=['primary','coral','create','sun'];
+function livePlayHTML(){
+  const g = S.lplay.game;
+  if (!g) return loadingCard('the live game');
+  const head = `<div class="row between"><span class="eyebrow">Live review · ${esc(ME.user.teacherName||'')}</span><button class="btn sm" data-act="leavelive">Leave game</button></div>`;
+  if (g.phase==='lobby') return `<div class="card stack live-play" style="text-align:center;align-items:center">${head}<h1>You’re in!</h1><p class="muted">Waiting for ${esc(ME.user.teacherName||'your teacher')} to start. ${g.players} player${g.players===1?'':'s'} so far.</p></div>`;
+  if (g.phase==='done'||g.phase==='ended') return `<div class="card stack live-play" style="text-align:center;align-items:center">${head}<h1>Game over</h1><div class="result-score tnum">${g.myScore}/${g.total}</div><p class="muted">${g.phase==='done'&&g.myRank?`You finished #${g.myRank} of ${g.players}.`:'Thanks for playing!'}</p><button class="btn primary" data-act="leavelive">Back to practice</button></div>`;
+  const q = g.question, rev = g.phase==='reveal';
+  const right = c => q.answer!=null && (q.kind==='choice' ? c.v===q.answer : Number(c.v)===Number(q.answer));
+  return `<div class="card stack live-play">${head}
+    <div class="row between"><span class="small muted">Question ${g.qi} of ${g.total}</span><span class="timer" id="ltimer">${rev?'Time':liveLeft(g)+'s'}</span></div>
+    <p class="muted">${esc(q.ask)}</p><div class="prompt ${q.long?'long':''}">${q.prompt}</div>
+    <div class="lq">${q.choices.map((c,i)=>`<button class="lopt ${rev&&!right(c)?'dim':''} ${g.myAnswer===c.v?'mine':''}" style="--c:${cc(LIVE_COLORS[i%4])}" data-act="liveanswer" data-v="${esc(c.v)}" ${g.myAnswer!=null||rev?'disabled':''}><span>${esc(c.label)}</span>${rev&&right(c)?'<span class="cnt">Correct answer</span>':''}</button>`).join('')}</div>
+    <p class="feedback ${rev?(g.myRight?'good':'bad'):''}" role="status">${rev ? (g.myAnswer==null?'Time ran out on that one.':g.myRight?'You got it!':'Not this time.') : g.myAnswer!=null ? 'Answer locked in. Watch the board.' : 'Tap your answer.'}</p>
+    <span class="small muted tnum">Your score: ${g.myScore}</span></div>`;
+}
+let liveOffset = 0;
+const liveLeft = g => g.endsAt ? Math.max(0, Math.ceil((Date.parse(g.endsAt) - (Date.now()+liveOffset))/1000)) : 0;
+
+/* ================= LEADERBOARD ================= */
+function boardHTML(){
+  const B = S.board;
+  if (S.err.board) return errCard(S.err.board, 'retry-board');
+  if (!B) return loadingCard('the leaderboard');
+  const staff = isStaff();
+  const settings = staff && S.cls ? `<div class="card"><div class="card-h"><h2>Leaderboard settings</h2></div>
+      <div class="setting"><div><b>Show to students</b><span>Turn off to keep points private for a while. Points still count.</span></div><button class="toggle" data-act="bshow" aria-pressed="${S.cls.settings.boardShow}" aria-label="Show to students"></button></div>
+      <div class="setting"><div><b>Rank by</b><span>Effort ranks by quizzes finished, so steady practice wins.</span></div><select id="bsetBy" aria-label="Rank by"><option value="points" ${S.cls.settings.boardBy==='points'?'selected':''}>Points</option><option value="effort" ${S.cls.settings.boardBy==='effort'?'selected':''}>Effort (quizzes)</option></select></div></div>` : '';
+  if (!B.board) return `<div class="card"><h1>Leaderboard</h1><p class="muted" style="margin-top:6px">${esc(B.reason)}</p></div>`;
+  const rows = B.board, by = B.by, label = r => staff ? r.name : r.me ? 'You' : r.name, val = r => by==='effort' ? `${r.quizzes}` : `${r.points}`, unit = by==='effort' ? 'quizzes' : 'points';
+  if (!rows.length) return settings + `<div class="card"><h1>Leaderboard</h1><p class="muted" style="margin-top:6px">${staff?'Students show up here once they join your class on A.R.I.S.E. Reader.':'Nobody is on the board yet.'}</p></div>`;
+  const pod = [rows[1],rows[0],rows[2]].map((r,i)=>r?`<div class="pod p${[2,1,3][i]}">${av(r.name,'',r.avatar)}<b>${esc(label(r))}</b><span class="pts tnum">${val(r)} ${unit}</span><div class="blk">${[2,1,3][i]}</div></div>`:'<div></div>').join('');
+  const A = B.awards, award = (a, icon, c, text) => a ? `<div class="award">${ico(icon,c)}<div><b>${esc(a.name)}</b><span>${text(a.value)}</span></div></div>` : '';
+  const awards = [award(A.streak,'flame','coral',v=>`Longest streak · ${v} days`), award(A.quizzes,'check','primary',v=>`Most quizzes · ${v} this week`), award(A.firstTry,'target','leaf',v=>`Most first-try answers · ${v} this week`)].join('');
+  return settings + `<div class="card"><div class="card-h"><div><h1>Leaderboard</h1><span class="small muted">${staff?'Your class':esc(ME.user.teacherName)+'’s class'} · first names and last initials only</span></div>
+      <div class="row" style="gap:6px"><button class="chip" data-act="period" data-v="week" aria-pressed="${S.period==='week'}">This week</button><button class="chip" data-act="period" data-v="all" aria-pressed="${S.period==='all'}">All time</button></div></div>
+      <div class="podium">${pod}</div></div>
+    <div class="card"><div class="lb">${rows.map(r=>`<div class="lbrow ${r.me?'me':''}"><span class="rk">${r.rank}</span>${av(r.name,'sm',r.avatar)}<span class="nm">${esc(label(r))}<small>${r.streak?`${r.streak}-day streak`:'No streak yet'}</small></span><span class="sc">${val(r)}<small>${unit}</small></span></div>`).join('')}</div></div>
+    ${awards?`<div class="card"><div class="card-h"><h2>Effort awards this week</h2></div><div class="grid awards">${awards}</div></div>`:''}`;
+}
+
+/* ================= STUDENT: REWARDS ================= */
+function rewardsHTML(){
+  const p = P(), got = ME.achievements || [], M = CAT.milestones, next = M.find(m=>m>p.solved) || M[M.length-1], prev = M.filter(m=>m<=p.solved).pop() || 0;
+  return `<div class="card flush"><div class="cover hero">${av(ME.user.name,'lg',p.avatar)}<div><div class="big tnum">${p.points}</div><span>math points · Level ${p.level+1} ${esc(levelName(p.points))} · ${CAT.levelPoints - p.points%CAT.levelPoints} to the next level</span></div></div></div>
+    <div class="card"><div class="card-h"><h2>Avatar style</h2><span class="small muted">Unlock new looks as your points grow</span></div>
+      <div class="styles">${CAT.styles.map(st=>{ const ok=p.points>=st.at; return `<button class="style" data-act="style" data-v="${st.id}" aria-pressed="${p.avatar===st.id}" ${ok?'':'disabled'}>${av(ME.user.name,'',st.id)}<span>${st.label}</span><span class="small muted" style="font-weight:600">${ok?(st.at?'Unlocked':'Free'):st.at+' pts'}</span></button>`; }).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Achievements</h2><span class="small muted tnum">${got.length} of ${CAT.achievements.length}</span></div>
+      <div class="badges">${CAT.achievements.map(a=>{ const ok=got.includes(a.id); return `<div class="badge ${ok?'':'locked'}">${ico(ok?a.ic:'lock',a.c)}<span>${esc(a.name)}</span><small>${esc(a.d)}</small></div>`; }).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Certificates</h2><span class="small muted tnum">${p.certs.length}</span></div>
+      ${p.certs.length ? p.certs.map((c,i)=>`<div class="certrow">${ico('award','sun')}<div><b>${esc(c.t)}</b><span>${esc(c.r)} · ${esc(c.d)}</span></div><button class="btn sm" data-act="cert" data-v="${i}">View</button></div>`).join('') : '<p class="small muted">Get every answer right on a quiz to earn your first one.</p>'}</div>
+    <div class="card"><div class="card-h"><h2>Milestones</h2><span class="small muted tnum">${p.solved} problems solved</span></div>
+      <div class="row between small" style="margin-bottom:6px"><span>${prev} solved</span><b>Next: ${next}</b></div><div class="bar sun"><i style="width:${Math.min(100,(p.solved-prev)/Math.max(1,next-prev)*100)}%"></i></div>
+      <div class="row" style="margin-top:12px;gap:6px">${M.map(m=>`<span class="chip ${p.solved>=m?'pill-ok':''}">${p.solved>=m?svg('check','style="width:13px;height:13px"'):''}${m}</span>`).join('')}</div></div>`;
+}
+
+/* ================= STUDENT: GAMES (on the A.R.I.S.E. play timer) ================= */
+const sessionId = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+async function heartbeat(){
+  try { const a = await apiAt('/api/club-play/heartbeat', { method:'POST', body:{ sessionId } }); playAccess = a; playErr = null; liveOffset = a.serverNow - Date.now(); return a; }
+  catch(e){ playErr = e.message; return null; }
+}
+function leavePlay(){ clearInterval(beatTimer); beatTimer=null; apiAt('/api/club-play/leave', { method:'POST', body:{ sessionId }, keepalive:true }).catch(()=>{}); }
+const playLeft = a => a ? Math.max(0, Math.ceil((a.expiresAt - (Date.now()+liveOffset))/1000)) : 0;
+const canPlay = a => !!a && a.allowed && (a.unlimitedThisWeek || (playLeft(a) > 0 && a.leaseUntil > Date.now()+liveOffset));
+function closedWhy(a){
+  if (!a) return playErr || 'Checking your play time…';
+  if (a.closedByAdmin) return 'Games are closed right now. Come back when the game room reopens.';
+  if (a.closedByTeacher) return 'Your teacher has closed games for the class right now.';
+  if (a.locked) return 'Your teacher has paused games.';
+  return a.weeklyUnlimitedOnPass ? 'Today’s play time is used up. Pass a book quiz on A.R.I.S.E. Reader to unlock unlimited play for the rest of this week.' : 'Today’s play time is used up.';
+}
+function tilesFor(band){
+  const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1)), pick=a=>a[Math.floor(Math.random()*a.length)];
+  let T, pair;
+  if (band==='k2'){ T=10; pair=()=>{ const a=rnd(1,9); return [a,T-a]; }; }
+  else if (band==='g35'){ T=pick([20,50,100]); pair=()=>{ const a=T===20?rnd(1,19):5*rnd(1,T/5-1); return [a,T-a]; }; }
+  else if (band==='g68'){ T=pick([-6,-3,0,4,7]); pair=()=>{ const a=rnd(-15,15); return [a,T-a]; }; }
+  else { T=pick([1,1.5,2]); pair=()=>{ const a=rnd(1,T*4-1)/4; return [a,+(T-a).toFixed(2)]; }; }
+  const tiles=[]; for(let i=0;i<6;i++) tiles.push(...pair());
+  for(let i=tiles.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tiles[i],tiles[j]]=[tiles[j],tiles[i]]; }
+  return { T, pair, tiles: tiles.map(v=>({ v, id:'t'+Math.random().toString(36).slice(2) })) };
+}
+async function startGame(){
+  const a = await heartbeat();
+  if (!canPlay(a)) { render(); return; }
+  const t = tilesFor(myBand());
+  GAME = { T:t.T, pair:t.pair, tiles:t.tiles, sel:null, score:0, end:Date.now()+60000, over:false, flash:null };
+  clearInterval(beatTimer); beatTimer = setInterval(async ()=>{ const x = await heartbeat(); if (GAME && !GAME.over && x && !canPlay(x)) endGame('Play time is up for now.'); }, 8000);
+  clearInterval(gameTimer);
+  gameTimer = setInterval(()=>{ if(!GAME) return clearInterval(gameTimer); const left=Math.max(0,Math.ceil((GAME.end-Date.now())/1000)); const el=document.getElementById('gTime'); if(el) el.textContent=left+'s'; if(left<=0) endGame(); },250);
+  render();
+}
+function endGame(msg){
+  if (!GAME || GAME.over) return;
+  clearInterval(gameTimer); GAME.over = true; leavePlay();
+  toast(msg || `Round over: ${GAME.score} pairs`);
+  if (S.tab==='games') render();
+}
+function tapTile(id){
+  if (!GAME||GAME.over) return;
+  const t=GAME.tiles.find(x=>x.id===id); if(!t) return;
+  if (GAME.sel===null){ GAME.sel=id; GAME.flash=null; return render(); }
+  if (GAME.sel===id){ GAME.sel=null; return render(); }
+  const a=GAME.tiles.find(x=>x.id===GAME.sel);
+  if (Math.abs(a.v+t.v-GAME.T)<1e-9){ GAME.score++; const [p,q]=GAME.pair(); const ia=GAME.tiles.indexOf(a), ib=GAME.tiles.indexOf(t); GAME.tiles[ia]={v:p,id:'n'+Math.random()}; GAME.tiles[ib]={v:q,id:'n'+Math.random()}; GAME.flash={ok:[GAME.tiles[ia].id,GAME.tiles[ib].id]}; }
+  else GAME.flash={no:[a.id,t.id]};
+  GAME.sel=null; render();
+}
+const fmtG = v => N(+Number(v).toFixed(2));
+function gamesHTML(){
+  const a = playAccess, open = canPlay(a) || !a;
+  const left = a ? (a.unlimitedThisWeek ? 'Unlimited this week' : `${Math.floor(playLeft(a)/60)}:${String(playLeft(a)%60).padStart(2,'0')} left today`) : 'Uses your A.R.I.S.E. play time';
+  const status = !a && playErr
+    ? `<div class="gate closed">${svg('lock')}<div><b>The game room isn’t available</b><div class="small muted">${esc(playErr)}</div></div></div>`
+    : a && !canPlay(a) && !(GAME && !GAME.over)
+    ? `<div class="gate closed">${svg('lock')}<div><b>The game room is closed</b><div class="small muted">${esc(closedWhy(a))}</div>${!a.closedByAdmin&&!a.closedByTeacher&&!a.locked?(a.timeRequestStatus==='pending'?'<div class="small" style="margin-top:6px">Your request for more time is waiting for a grown-up.</div>':`<button class="btn sm" style="margin-top:8px" data-act="moretime">${svg('clock')}Ask for 10 more minutes</button>`):''}</div></div>`
+    : `<div class="gate open">${svg('unlock')}<div><b>${esc(left)}</b><div class="small muted">Games share the daily play timer with the rest of A.R.I.S.E. Your teacher’s and family’s limits apply here too.</div></div></div>`;
+  let body;
+  if (GAME && !GAME.over){
+    const s = Math.max(0,Math.ceil((GAME.end-Date.now())/1000));
+    body = `<div class="card stack"><div class="target"><div><span class="eyebrow">Make the target</span><div class="t">${fmtG(GAME.T)}</div></div><div style="text-align:right"><div class="timer" id="gTime">${s}s</div><span class="small muted tnum">${GAME.score} pairs</span></div></div>
+      <div class="tiles">${GAME.tiles.map(t=>`<button class="tile ${GAME.flash?.ok?.includes(t.id)?'pop':''} ${GAME.flash?.no?.includes(t.id)?'no':''}" data-act="tile" data-v="${t.id}" aria-pressed="${GAME.sel===t.id}">${fmtG(t.v)}</button>`).join('')}</div>
+      <p class="small muted">Tap two numbers that add up to ${fmtG(GAME.T)}.</p></div>`;
+  } else {
+    body = `<div class="card stack">${GAME&&GAME.over?`<div><span class="eyebrow">Last round</span><div class="result-score tnum">${GAME.score} pairs</div></div>`:''}
+      <div class="row" style="flex-wrap:nowrap;align-items:flex-start">${ico('target','primary')}<div><h2>Target Pop</h2><p class="small muted">Find pairs that add up to the target before the 60-second timer runs out. Games are a reward, so they don’t add leaderboard points.</p></div></div>
+      <div><button class="btn primary lg" data-act="game" ${open?'':'disabled'}>${svg('game')}${GAME&&GAME.over?'Play again':'Play a round'}</button></div></div>`;
+  }
+  return `<div class="card"><h1>Game room</h1><p class="muted" style="margin-top:4px">Quizzes come first. Games open with the play time your teacher and family allow.</p></div>${status}${body}`;
+}
+
+/* ================= STUDENT: ME ================= */
+function meHTML(){
+  const p = P(), b = myBand();
+  return `<div class="card"><div class="card-h"><h1>My skills</h1><div class="bandpick" role="group" aria-label="Grade band">${['k2','g35','g68','g912'].map(x=>`<button data-act="band" data-v="${x}" aria-pressed="${x===b}">${bandLabel(x)}</button>`).join('')}</div></div>
+      <div class="stack">${CAT.bands[b].skills.map(id=>{ const m=p.mastery[id], st=m&&m.t?Math.round(100*m.r/m.t):null; return `<div class="row" style="flex-wrap:nowrap;align-items:flex-start">${op(id,'sm')}<div style="flex:1;min-width:0"><div class="row between"><b>${esc(SK(id).name)}</b><b class="tnum">${st==null?'New':st+'%'}</b></div><div class="bar leaf" style="margin:6px 0 4px"><i style="width:${st||0}%"></i></div><span class="small muted">CCSS ${esc(SK(id).std)} · ${m?m.t:0} problems tried</span></div></div>`; }).join('')}</div>
+      ${p.band?`<p class="small muted" style="margin-top:12px">You picked grades ${bandLabel(b)}. <button class="link" style="padding:0" data-act="band" data-v="">Go back to my grade</button></p>`:''}</div>
+    <div class="card"><div class="card-h"><h2>Recent quizzes</h2></div>${p.history.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Quiz</th><th class="num">Score</th><th class="num">Points</th></tr></thead><tbody>
+      ${p.history.slice(0,10).map(h=>`<tr><td>${esc(h.d)}</td><td>${esc(h.title)}</td><td class="num">${h.score}/${h.of}</td><td class="num">+${h.pts}</td></tr>`).join('')}</tbody></table></div>`:'<p class="small muted">Your quizzes will show up here.</p>'}</div>
+    <div class="card"><div class="card-h"><h2>Ways to answer</h2></div>
+      <div class="setting"><div><b>Picture choices</b><span>Tap one of four big answers instead of typing.</span></div><button class="toggle" data-act="a11y" data-v="choices" aria-pressed="${!!p.a11y.choices}" aria-label="Picture choices"></button></div>
+      ${canSpeak?`<div class="setting"><div><b>Read questions aloud</b><span>Hear each question as it appears.</span></div><button class="toggle" data-act="a11y" data-v="read" aria-pressed="${!!p.a11y.read}" aria-label="Read questions aloud"></button></div>`:''}
+      <div class="setting"><div><b>Larger text</b><span>Bigger numbers and buttons everywhere.</span></div><button class="toggle" data-act="a11y" data-v="big" aria-pressed="${!!p.a11y.big}" aria-label="Larger text"></button></div></div>`;
+}
+
+/* ================= TEACHER: CLASS ================= */
+function classHTML(){
+  if (S.err.cls) return errCard(S.err.cls, 'retry-class');
+  const C = S.cls; if (!C) return loadingCard('your class');
+  const b = C.settings.band, skills = CAT.bands[b].skills;
+  const head = `<div class="card"><div class="card-h" style="margin-bottom:12px"><div><h1>My Class</h1><span class="small muted">${C.totals.students} student${C.totals.students===1?'':'s'} · practicing grades ${bandLabel(b)}</span></div>
+      <div class="bandpick" role="group" aria-label="Class grade band">${['k2','g35','g68','g912'].map(x=>`<button data-act="classband" data-v="${x}" aria-pressed="${x===b}">${bandLabel(x)}</button>`).join('')}</div></div>
+      <div class="statgrid"><div><b>${C.totals.accuracy==null?'–':C.totals.accuracy+'%'}</b><span>Average first-try accuracy</span></div><div><b>${C.totals.weekQuizzes}</b><span>Quizzes this week</span></div><div><b>${C.totals.check}</b><span>Need a check-in</span></div><div><b>${S.assign?S.assign.length:'–'}</b><span>Assignments</span></div></div></div>`;
+  if (!C.students.length) return head + `<div class="card"><p class="muted">Students show up here once they join your class on A.R.I.S.E. Reader and you approve them.</p></div>`;
+  const pill = s => s.status==='check' ? '<span class="chip pill-warn">Check in</span>' : s.status==='new' ? '<span class="chip">Not started</span>' : '<span class="chip pill-ok">On track</span>';
+  return head + `<div class="card"><div class="card-h"><h2>Students</h2><span class="small muted">Tap a student for details</span></div><div class="table-wrap"><table><thead><tr><th>Student</th><th class="num">Points</th><th class="num">Quizzes</th><th class="num">Accuracy</th><th>Last practice</th><th>Status</th></tr></thead><tbody>
+      ${C.students.map(s=>`<tr class="click" data-act="student" data-v="${s.id}"><td><div class="row" style="flex-wrap:nowrap;gap:8px">${av(s.name,'xs',s.avatar)}<b>${esc(s.name)}</b></div></td><td class="num">${s.points}</td><td class="num">${s.quizzes}</td><td class="num">${s.accuracy==null?'–':s.accuracy+'%'}</td><td>${lastTxt(s.daysAway)}</td><td>${pill(s)}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>Skill strength</h2><span class="small muted">First-try accuracy by skill</span></div><div class="table-wrap"><table><thead><tr><th>Student</th>${skills.map(id=>`<th>${esc(SK(id).name)}</th>`).join('')}</tr></thead><tbody>
+      ${C.students.map(s=>`<tr><td>${esc(s.name)}</td>${s.skills.map(v=>`<td>${v==null?'<span class="small muted">–</span>':`<span class="heat ${v<50?'low':''}" style="--p:${Math.max(8,v-35)}%">${v}%</span>`}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+}
+async function studentModal(id){
+  openModal(`<div class="modal-body"><div class="loading">Loading…</div></div>`);
+  let st; try { st = (await api(`/students/${id}`)).student; } catch(e){ openModal(`<div class="modal-body"><p>${esc(e.message)}</p></div>`); return; }
+  const skills = CAT.bands[S.cls?.settings.band || 'g35'].skills;
+  openModal(`<div class="cover" style="height:72px"></div><div class="modal-body" style="padding-top:0">
+    <div style="margin-top:-36px">${av(st.name,'lg',st.avatar)}</div>
+    <div><h2>${esc(st.name)}</h2><span class="small muted">Last math practice: ${lastTxt(st.daysAway)}</span></div>
+    ${st.status==='check'?`<div class="gate closed">${svg('shield')}<div><b>Suggested check-in</b><div class="small muted">${esc(st.reason)}. Try assigning a hint-friendly review.</div></div></div>`:''}
+    <div class="statgrid"><div><b>${st.points}</b><span>Points</span></div><div><b>${st.quizzes}</b><span>Quizzes</span></div><div><b>${st.accuracy==null?'–':st.accuracy+'%'}</b><span>Accuracy</span></div><div><b>${st.streak}</b><span>Day streak</span></div></div>
+    <div class="stack" style="gap:10px">${skills.map((id,i)=>`<div><div class="row between small"><b>${esc(SK(id).name)}</b><span class="tnum">${st.skills[i]==null?'Not tried':st.skills[i]+'%'}</span></div><div class="bar leaf"><i style="width:${st.skills[i]||0}%"></i></div></div>`).join('')}</div>
+    ${st.history.length?`<div><h3 style="margin-bottom:6px">Recent quizzes</h3><div class="qlist">${st.history.slice(0,6).map(h=>`<div><span class="mk ${h.score===h.of?'first':'solved'}">${h.score===h.of?'★':'✓'}</span><span>${esc(h.title)} <span class="muted small">${esc(h.d)}</span></span><span class="small tnum">${h.score}/${h.of}</span></div>`).join('')}</div></div>`:''}
+    <div><h3 style="margin-bottom:8px">Send a certificate</h3><div class="row">${CAT.certTitles.map(t=>`<button class="btn outline sm" data-act="award" data-v="${t}" data-id="${st.id}">${svg('award')}${t}</button>`).join('')}</div></div>
+  </div>`);
+}
+
+/* ================= TEACHER: ASSIGN ================= */
+function assignHTML(){
+  const asg = S.assign, d = S.drafts, b = S.cls?.settings.band || 'g35';
+  return `<div class="card"><h1>Assign practice</h1><p class="muted" style="margin-top:4px">Assignments show up first on each student’s Practice page, and they get a notification.</p></div>
+    <div class="card stack"><h2>New assignment</h2><div class="grid two">
+      <label class="f">Skill<select id="aSkill">${CAT.bands[b].skills.map(id=>`<option value="${id}">${esc(SK(id).name)} (${esc(SK(id).std)})</option>`).join('')}<option value="mixed">Mixed review</option>${d.length?`<option value="custom">My questions (${d.length})</option>`:''}</select></label>
+      <label class="f">Questions<select id="aN"><option>5</option><option>10</option></select></label>
+      <label class="f">Due<input type="date" id="aDue" value="${plus(2)}" min="${plus(0)}"></label></div>
+      <div><button class="btn primary" data-act="assign">${svg('plus')}Assign to class</button></div></div>
+    <div class="card"><div class="card-h"><h2>Assigned</h2><span class="small muted tnum">${asg?asg.length:''}</span></div>
+      ${asg==null?'<p class="small muted">Loading…</p>':asg.length?asg.map(a=>`<div class="assign">${op(a.skill)}<div><b>${esc(a.title)}</b><span class="small muted">${a.n} questions · Due ${fmtDue(a.due)} · ${a.done} of ${a.classSize} finished</span></div><button class="btn sm" data-act="unassign" data-v="${a.id}">Remove</button></div>`).join(''):'<p class="small muted">Nothing assigned yet.</p>'}</div>
+    <div class="card stack"><h2>Write your own questions</h2><p class="small muted">Questions from your lesson. Students answer with a number; fractions like 3/4 work too. Pick “My questions” above to send them.</p>
+      <div class="grid two"><label class="f">Question<input type="text" id="cQ" maxlength="140" placeholder="A bus holds 48 kids. How many buses for 192 kids?"></label><label class="f">Answer<input type="text" id="cA" maxlength="12" placeholder="4"></label></div>
+      <label class="f">Hint (optional)<input type="text" id="cH" maxlength="160" placeholder="Divide the kids by the seats on one bus."></label>
+      <div><button class="btn outline" data-act="addq">${svg('plus')}Add question</button></div>
+      ${d.length?`<div class="qlist">${d.map((q,i)=>`<div><span class="mk">${i+1}</span><span>${esc(q.q)} <span class="muted">→ ${esc(q.a)}</span></span><button class="btn sm" data-act="delq" data-v="${i}">Remove</button></div>`).join('')}</div>`:''}</div>`;
+}
+const parseNum = s => { s=String(s).trim().replace(/[−–—]/g,'-').replace(/\s+/g,''); if(/^-?\d+(\.\d+)?\/-?\d+(\.\d+)?$/.test(s)){ const [a,b]=s.split('/').map(Number); return b?a/b:NaN; } return /^-?(\d+\.?\d*|\.\d+)$/.test(s)?Number(s):NaN; };
+
+/* ================= TEACHER: LIVE REVIEW ================= */
+function liveHTML(){
+  const g = S.live;
+  if (S.err.live) return errCard(S.err.live, 'retry-live');
+  if (g===undefined) return loadingCard('live review');
+  if (!g || g.phase==='ended') return `<div class="card stack"><h1>Live review</h1><p class="muted">Put a question on the board and your whole class answers at once from their own devices. Five questions from your class’s grade band (${bandLabel(S.cls?.settings.band||'g35')}), ${CAT.live.seconds} seconds each.</p>
+    <div><button class="btn primary lg" data-act="livestart">${svg('live')}Start a live game</button></div></div>`;
+  if (g.phase==='lobby') return `<div class="card stack" style="text-align:center;align-items:center"><span class="eyebrow">Students: open Arise Math, then enter this code</span><div class="code">${g.code.slice(0,3)} ${g.code.slice(3)}</div>
+    <p class="muted tnum">${g.players.length} joined</p><div class="lobby" style="justify-content:center">${g.players.map(p=>`<span class="chip">${esc(p.name)}</span>`).join('')}</div>
+    <div class="row" style="justify-content:center"><button class="btn primary lg" data-act="livenext" ${g.players.length?'':'disabled'}>Start question 1</button><button class="btn" data-act="liveend">End game</button></div></div>`;
+  if (g.phase==='done'){ const top=g.players.slice(0,3);
+    return `<div class="card stack"><h1>Game over</h1><div class="podium">${[top[1],top[0],top[2]].map((t,i)=>t?`<div class="pod p${[2,1,3][i]}">${av(t.name)}<b>${esc(t.name)}</b><span class="pts">${t.score} correct</span><div class="blk">${[2,1,3][i]}</div></div>`:'<div></div>').join('')}</div>
+      <div class="row"><button class="btn primary" data-act="livestart">Play again</button><button class="btn" data-act="liveend">Close</button></div></div>`; }
+  const q = g.question, rev = g.phase==='reveal', total = g.answered;
+  const right = c => q.answer!=null && (q.kind==='choice' ? c.v===q.answer : Number(c.v)===Number(q.answer));
+  return `<div class="card stack"><div class="row between"><span class="eyebrow">Question ${g.qi} of ${g.total} · ${esc(SK(q.skill).name)} · code ${g.code}</span><span class="timer" id="ltimer">${rev?'Time':liveLeft(g)+'s'}</span></div>
+    <p class="muted">${esc(q.ask)}</p><div class="prompt ${q.long?'long':''}">${q.prompt}</div>
+    <div class="lq">${q.choices.map((c,i)=>`<div class="lopt ${rev&&!right(c)?'dim':''}" style="--c:${cc(LIVE_COLORS[i%4])}"><span>${esc(c.label)}</span><span class="cnt tnum">${rev?`${g.counts[i]} answered${right(c)?' · correct':''}`:''}</span><div class="lbar"><i style="width:${rev&&total?g.counts[i]/total*100:0}%"></i></div></div>`).join('')}</div>
+    <div class="row between"><span class="small muted tnum">${total} of ${g.players.length} answered</span><div class="row"><button class="btn" data-act="liveend">End game</button><button class="btn primary" data-act="livenext">${rev?(g.qi>=g.total?'Show winners':'Next question'):'Reveal answer'}</button></div></div></div>`;
+}
+
+/* ================= PLAY TIME (teachers, parents) ================= */
+function playHTML(){
+  const link = isStaff() ? '/teacher-dashboard' : '/parent-dashboard';
+  return `<div class="card stack"><h1>Play time</h1>
+    <p class="muted">The Arise Math game room runs on the same A.R.I.S.E. play timer as the rest of the site. The daily minutes, closing hours, pauses and extra-time requests you already manage on A.R.I.S.E. Reader apply here too, so there’s nothing separate to set up.</p>
+    <p class="muted">Students earn the game room by practicing, and passing a book quiz still unlocks unlimited play for the week, so reading stays first.</p>
+    <div><a class="btn primary" href="${link}">${svg('clock')}Open play time settings</a></div></div>`;
+}
+
+/* ================= PARENT: FAMILY ================= */
+function currentChild(){ const kids=S.children||[]; return kids.find(k=>k.id===S.childId) || kids[0] || null; }
+function familyHTML(){
+  if (S.err.children) return errCard(S.err.children, 'retry-children');
+  if (!S.children) return loadingCard('your family');
+  if (!S.children.length) return `<div class="card stack"><h1>Arise Math</h1><p class="muted">Link your child’s A.R.I.S.E. Reader account from your parent dashboard, and their math progress will show up here.</p><div><a class="btn primary" href="/parent-dashboard">Open parent dashboard</a></div></div>`;
+  const k = currentChild(), p = k.profile, first = k.firstName;
+  const kids = S.children.length>1 ? `<div class="bandpick" role="group" aria-label="Choose a child">${S.children.map(c=>`<button data-act="child" data-v="${c.id}" aria-pressed="${c.id===k.id}">${esc(c.firstName)}</button>`).join('')}</div>` : '';
+  const weakest = k.skills.filter(s=>s.strength!=null).sort((a,b)=>a.strength-b.strength)[0];
+  return `<div class="card"><div class="card-h" style="margin-bottom:12px"><div><h1>${esc(first)}’s math</h1><span class="small muted">${k.grade?`Grade ${esc(k.grade)}`:'Student'}${k.teacherName?` · ${esc(k.teacherName)}’s class`:''} · practicing grades ${bandLabel(k.band)}</span></div>${kids}</div>
+      <div class="statgrid"><div><b>${p.points}</b><span>Math points</span></div><div><b>${p.week_quizzes}</b><span>Quizzes this week</span></div><div><b>${k.accuracy==null?'–':k.accuracy+'%'}</b><span>First-try accuracy</span></div><div><b>${p.streak}</b><span>Day streak</span></div><div><b>${k.rank?`#${k.rank}`:'–'}</b><span>${k.hasClass?`Class rank of ${k.classSize}`:'No class yet'}</span></div></div></div>
+    <div class="card"><div class="card-h"><h2>Recent quizzes</h2></div>${p.history.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Quiz</th><th class="num">Score</th><th class="num">Points</th></tr></thead><tbody>
+      ${p.history.slice(0,8).map(h=>`<tr><td>${esc(h.d)}</td><td>${esc(h.title)}</td><td class="num">${h.score}/${h.of}</td><td class="num">+${h.pts}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted">${esc(first)} hasn’t taken a math quiz yet.</p>`}</div>
+    <div class="grid two"><div class="card"><div class="card-h"><h2>Skills</h2></div><div class="stack" style="gap:10px">${k.skills.map(s=>`<div><div class="row between small"><b>${esc(SK(s.id).name)}</b><span class="tnum">${s.strength==null?'Not started':s.strength+'%'}</span></div><div class="bar leaf"><i style="width:${s.strength||0}%"></i></div></div>`).join('')}</div></div>
+      <div class="card"><div class="card-h"><h2>Certificates</h2><span class="small muted tnum">${p.certs.length}</span></div>${p.certs.length?p.certs.slice(0,4).map((c,i)=>`<div class="certrow">${ico('award','sun')}<div><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div><button class="btn sm" data-act="cert" data-v="${i}">View</button></div>`).join(''):'<p class="small muted">Perfect quizzes and teacher awards show up here.</p>'}</div></div>
+    <div class="card"><div class="card-h"><h2>Talk about it at dinner</h2></div><p class="muted">${weakest?`${esc(first)} is working hardest on <b>${esc(SK(weakest.id).name.toLowerCase())}</b>. Ask them to teach you one problem and explain each step out loud.`:`Ask ${esc(first)} to show you their first math quiz and explain one answer.`}</p></div>`;
+}
+
+/* ================= MODALS ================= */
+function openModal(html){
+  document.getElementById('modalRoot').innerHTML=`<div class="scrim" data-act="close"><div class="modal" role="dialog" aria-modal="true"><button class="x" data-act="close" aria-label="Close">${svg('x')}</button>${html}</div></div>`;
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function certModal(i){
+  const kid = role()==='parent' ? currentChild() : null;
+  const c = (kid ? kid.profile : P()).certs[i]; if (!c) return;
+  const name = kid ? kid.name : ME.user.name;
+  openModal(`<div class="cert"><div class="cert-in">
+    <svg viewBox="0 0 40 40" width="48" height="48" aria-hidden="true"><rect width="40" height="40" rx="9" fill="url(#lg)"/><path d="M9 28a11 11 0 0 1 22 0z" fill="url(#sg)"/><path d="M7 31h26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <span class="eyebrow">Arise Math · A.R.I.S.E. Reader</span><h2>Certificate of Achievement</h2><p class="muted">This certifies that</p>
+    <div class="cert-name">${esc(name)}</div><p>earned <b>${esc(c.t)}</b></p><p class="small muted">${esc(c.r)}</p>
+    <div class="cert-foot"><div><b>${esc(c.by)}</b><small>${c.by==='Arise Math'?'Awarded by':'Teacher'}</small></div><div><b>${esc(c.d)}</b><small>Date</small></div></div></div></div>`);
+}
+
+/* ================= CONFETTI ================= */
+function confetti(){
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv=document.getElementById('confetti'), ctx=cv.getContext('2d'); cv.width=innerWidth; cv.height=innerHeight;
+  const cols=['#3f3bd6','#f29a14','#ef5a45','#12a594','#8b5cf6','#ffb23f'];
+  const ps=range(1,140).map(()=>({x:innerWidth/2+(Math.random()-.5)*200,y:innerHeight*.35,vx:(Math.random()-.5)*12,vy:-Math.random()*12-4,s:4+Math.random()*5,c:cols[Math.floor(Math.random()*cols.length)],r:Math.random()*6}));
+  let f=0; (function loop(){ ctx.clearRect(0,0,cv.width,cv.height); ps.forEach(p=>{ p.vy+=.35; p.x+=p.vx; p.y+=p.vy; p.r+=.1; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); ctx.restore(); }); if(++f<120) requestAnimationFrame(loop); else ctx.clearRect(0,0,cv.width,cv.height); })();
+}
+
+/* ================= DATA ================= */
+async function refreshMe(){ try { ME = await api('/me'); render(); } catch {} }
+async function loadFor(tab){
+  const r = role();
+  try {
+    if (r==='student'){
+      if (tab==='practice' && ME.user.hasClass && S.assign==null){ S.assign = (await api('/assignments')).assignments; }
+      if ((tab==='board' || tab==='practice') && S.board==null){ S.board = await api('/board?period='+S.period); }
+    } else if (isStaff()){
+      if (S.cls==null){ S.cls = await api('/class'); }
+      if (tab==='assign' || tab==='class'){ if (S.assign==null) S.assign = (await api('/assignments')).assignments; }
+      if (tab==='board'){ S.board = await api('/board?period='+S.period); }
+      if (tab==='live' && S.live===undefined){ S.live = (await api('/live/current')).game; }
+    } else if (r==='parent'){
+      if (S.children==null) S.children = (await api('/children')).children;
+    }
+    S.err = {};
+  } catch(e){
+    if (e.body?.setup) return centerMessage('Almost ready', 'Arise Math is still being set up. Please check back soon.');
+    if (tab==='practice'){ if (S.assign==null) S.assign = []; toast(e.message); }
+    else S.err[{board:'board', class:'cls', assign:'cls', live:'live', family:'children', play:'cls'}[tab] || 'board'] = e.message;
+  }
+  if (ME) render();
+}
+let polling = false;
+setInterval(async ()=>{
+  if (polling || !ME) return;
+  polling = true;
+  try {
+    if (role()==='student' && S.lplay && S.tab==='practice'){ const g=(await api(`/live/${S.lplay.id}/play`)).game; liveOffset = g.serverNow - Date.now(); S.lplay.game = g; render(); }
+    else if (isStaff() && S.tab==='live' && S.live && ['lobby','q','reveal'].includes(S.live.phase)){ const g=(await api(`/live/${S.live.id}`)).game; liveOffset = g.serverNow - Date.now(); S.live = g; render(); }
+  } catch(e){ if (e.code===404 && S.lplay){ S.lplay=null; render(); } }
+  finally { polling = false; }
+}, 1500);
+setInterval(()=>{ const el=document.getElementById('ltimer'); const g = S.lplay?.game || S.live; if (el && g && g.phase==='q') el.textContent = liveLeft(g)+'s'; }, 500);
+
+/* ================= RENDER ================= */
+function mainHTML(){
+  if (!ME) return landingHTML();
+  const r = role();
+  if (r==='student'){
+    if (S.tab==='practice') return practiceHTML();
+    if (S.tab==='board') return boardHTML();
+    if (S.tab==='rewards') return rewardsHTML();
+    if (S.tab==='games') return gamesHTML();
+    return meHTML();
+  }
+  if (isStaff()){
+    if (S.tab==='class') return classHTML();
+    if (S.tab==='assign') return assignHTML();
+    if (S.tab==='live') return liveHTML();
+    if (S.tab==='board') return boardHTML();
+    return playHTML();
+  }
+  if (S.tab==='family') return familyHTML();
+  return playHTML();
+}
+function render(){
+  document.getElementById('app').className = ME ? 'app' : 'app solo';
+  renderChrome();
+  document.getElementById('left').innerHTML = ME ? leftHTML() : '';
+  document.getElementById('main').innerHTML = mainHTML();
+  document.getElementById('rail').innerHTML = ME ? railHTML() : '';
+  const inp = document.getElementById('ans');
+  if (inp && !inp.disabled && window.matchMedia('(pointer:fine)').matches) inp.focus({preventScroll:true});
+}
+
+/* ================= EVENTS ================= */
+async function saveMe(body){
+  try { const r = await api('/me', { method:'PUT', body }); ME.profile = r.profile; ME.band = r.band; render(); }
+  catch(e){ toast(e.message); }
+}
+document.addEventListener('click', async e=>{
+  const el = e.target.closest('[data-act]');
+  if (S.menu && !e.target.closest('.menu') && !(el && el.dataset.act==='menu')) { S.menu=false; renderChrome(); }
+  if (!el) return;
+  const act = el.dataset.act, v = el.dataset.v;
+  if (act==='close'){ if (e.target===el || el.classList.contains('x')) closeModal(); return; }
+  if (el.tagName==='A' && act) e.preventDefault();
+  switch(act){
+    case 'signin': return goSignIn('/');
+    case 'join': return goSignIn('/register');
+    case 'go': return goSignIn(v);
+    case 'menu': S.menu=!S.menu; return renderChrome();
+    case 'tab':
+      if (S.tab==='games' && v!=='games' && GAME && !GAME.over) endGame('Round ended.');
+      S.tab=v; S.menu=false; if (v==='practice' && S.result) S.result=null;
+      render(); window.scrollTo({top:0}); return loadFor(v);
+    case 'home': S.result=null; return render();
+    case 'band': { if (S.run) return; return saveMe({ band: v || null }).then(()=>{ S.board=null; }); }
+    case 'start': return startQuiz(el.dataset.type, v);
+    case 'quit': S.run=null; store.set('arise_math_run', null); return render();
+    case 'pick': return submitAnswer(v);
+    case 'key': { const inp=document.getElementById('ans'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
+    case 'hint': { const r = await quizCall('/hint'); if (r){ S.run.session=r.session; S.run.bad=false; render(); } return; }
+    case 'next': return nextQuestion();
+    case 'speak': return speakText(S.run.session.item.ask+'. '+plainOf(S.run.session.item));
+    case 'a11y': return saveMe({ a11y:{ ...P().a11y, [v]: !P().a11y[v] } });
+    case 'style': return saveMe({ avatar:v });
+    case 'cert': return certModal(+v);
+    case 'period': S.period=v; S.board=null; render(); return loadFor('board');
+    case 'retry-board': S.err={}; S.board=null; render(); return loadFor('board');
+    case 'retry-class': S.err={}; S.cls=null; render(); return loadFor('class');
+    case 'retry-live': S.err={}; S.live=undefined; render(); return loadFor('live');
+    case 'retry-children': S.err={}; S.children=null; render(); return loadFor('family');
+    case 'game': return startGame();
+    case 'tile': return tapTile(v);
+    case 'moretime': try { const r = await apiAt('/api/club-play/request-more-time', { method:'POST', body:{ minutes:10 } }); toast(r.message || 'Request sent.'); if (playAccess) playAccess.timeRequestStatus='pending'; render(); } catch(err){ toast(err.message); } return;
+    case 'joinlive': {
+      const code=(document.getElementById('joinCode').value||'').replace(/\D/g,'');
+      if (code.length!==6) return toast('The code has 6 numbers. Check the board.');
+      try { const r = await api('/live/join', { method:'POST', body:{ code } }); S.lplay={ id:r.gameId, game:null }; render(); const g=(await api(`/live/${r.gameId}/play`)).game; liveOffset=g.serverNow-Date.now(); S.lplay.game=g; render(); refreshMe(); }
+      catch(err){ toast(err.message); }
+      return; }
+    case 'liveanswer': try { await api(`/live/${S.lplay.id}/answer`, { method:'POST', body:{ value:v } }); S.lplay.game = { ...S.lplay.game, myAnswer:v }; render(); } catch(err){ toast(err.message); } return;
+    case 'leavelive': S.lplay=null; return render();
+    case 'student': return studentModal(v);
+    case 'award': try { await api(`/students/${el.dataset.id}/certificate`, { method:'POST', body:{ title:v } }); closeModal(); toast(`${v} certificate sent.`); } catch(err){ toast(err.message); } return;
+    case 'classband': try { await api('/class/settings', { method:'PUT', body:{ band:v } }); S.cls=null; render(); return loadFor('class'); } catch(err){ return toast(err.message); }
+    case 'bshow': try { await api('/class/settings', { method:'PUT', body:{ boardShow: !S.cls.settings.boardShow } }); S.cls.settings.boardShow=!S.cls.settings.boardShow; S.board=null; render(); return loadFor('board'); } catch(err){ return toast(err.message); }
+    case 'assign': {
+      const skill=document.getElementById('aSkill').value, n=+document.getElementById('aN').value, due=document.getElementById('aDue').value;
+      try {
+        await api('/assignments', { method:'POST', body:{ skill, n, due, questions: skill==='custom' ? S.drafts : undefined } });
+        if (skill==='custom'){ S.drafts=[]; keep.set('arise_math_drafts', []); }
+        toast('Assigned. Your students will see it on their Practice page.'); S.assign=null; render(); return loadFor('assign');
+      } catch(err){ return toast(err.message); } }
+    case 'unassign': try { await api(`/assignments/${v}`, { method:'DELETE' }); S.assign=S.assign.filter(a=>a.id!==v); render(); } catch(err){ toast(err.message); } return;
+    case 'addq': {
+      const q=document.getElementById('cQ').value.trim(), a=document.getElementById('cA').value.trim(), h=document.getElementById('cH').value.trim();
+      if (!q) return toast('Write the question first.');
+      if (Number.isNaN(parseNum(a))) return toast('The answer needs to be a number, like 12 or 3/4.');
+      if (S.drafts.length>=CAT.limits.customPerAssignment) return toast(`That’s the most questions for one assignment (${CAT.limits.customPerAssignment}).`);
+      S.drafts.push({ q, a, h }); keep.set('arise_math_drafts', S.drafts); return render(); }
+    case 'delq': S.drafts.splice(+v,1); keep.set('arise_math_drafts', S.drafts); return render();
+    case 'livestart': try { S.live = (await api('/live', { method:'POST' })).game; render(); } catch(err){ toast(err.message); } return;
+    case 'livenext': try { S.live = (await api(`/live/${S.live.id}/next`, { method:'POST' })).game; liveOffset = S.live.serverNow - Date.now(); render(); } catch(err){ toast(err.message); } return;
+    case 'liveend': try { if (S.live) await api(`/live/${S.live.id}`, { method:'DELETE' }); } catch {} S.live=null; return render();
+    case 'child': S.childId=+v; return render();
+  }
+});
+document.addEventListener('submit', e=>{ if (e.target.id==='ansForm'){ e.preventDefault(); submitAnswer(document.getElementById('ans').value); } });
+document.addEventListener('change', async e=>{
+  if (e.target.id==='bsetBy'){ try { await api('/class/settings', { method:'PUT', body:{ boardBy:e.target.value } }); S.cls.settings.boardBy=e.target.value; S.board=null; render(); loadFor('board'); } catch(err){ toast(err.message); } }
+});
+document.addEventListener('keydown', e=>{
+  if (e.key==='Escape'){ if (document.getElementById('modalRoot').innerHTML) closeModal(); if (S.menu){ S.menu=false; renderChrome(); } return; }
+  if (e.key==='Enter' && e.target.id==='joinCode'){ e.preventDefault(); document.querySelector('[data-act="joinlive"]')?.click(); return; }
+  if (!S.run || S.tab!=='practice') return;
+  const it = S.run.session.item;
+  if (it.done && e.key==='Enter' && document.activeElement?.id!=='nextBtn'){ e.preventDefault(); nextQuestion(); return; }
+  if (it.kind==='choice' && !it.done && ['<','=','>'].includes(e.key) && !it.wrong.includes(e.key)) submitAnswer(e.key);
+});
+window.addEventListener('pagehide', ()=>{ if (GAME && !GAME.over) leavePlay(); });
+
+/* ================= START ================= */
+(async function start(){
+  try { CAT = await api('/catalog'); }
+  catch(e){ return centerMessage('Arise Math can’t load right now', esc(e.message || 'Please try again in a minute.'), '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>'); }
+  if (!sessionToken()) return render();
+  try { ME = await api('/me'); }
+  catch(e){
+    if (e.code===401){ ME=null; return render(); }
+    if (e.body?.setup) return centerMessage('Almost ready', 'Arise Math is still being set up. Please check back soon.');
+    if (e.code===402) return centerMessage('Arise Math is part of Teacher Premium', esc(e.message), '<a class="btn primary" style="margin-top:16px" href="/pricing">See plans</a>');
+    return centerMessage('Arise Math can’t load right now', esc(e.message), '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>');
+  }
+  S.tab = tabs()[0]?.[0];
+  const open = store.get('arise_math_run');
+  if (open && role()==='student'){
+    try { const r = await api(`/quizzes/${open}`); if (r.session.status==='open') S.run = { session:r.session, fb:null, bad:false }; else store.set('arise_math_run', null); }
+    catch { store.set('arise_math_run', null); }
+  }
+  render();
+  loadFor(S.tab);
+  if (isStaff() && S.tab!=='class') loadFor('class');
+})();
+</script>
+<script src="/addons/addon-bar.js" defer></script>
+</body>
+</html>
