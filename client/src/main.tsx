@@ -8,6 +8,8 @@ import "./login-mobile-fix.css";
   const path = window.location.pathname.replace(/\/+$/, "").toLowerCase();
   if (path === "/hub" || path === "/teacher-hub") {
     window.history.replaceState(null, "", "/" + window.location.search + "#/teacher-hub");
+  } else if (path === "/to-do" || path === "/todo" || path === "/arise-todo") {
+    window.history.replaceState(null, "", "/" + window.location.search + "#/to-do");
   }
 }
 
