@@ -1,0 +1,1229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Arise Math: K–12 math quizzes with points, leaderboards, certificates and a game room, plus teacher and parent views, built like A.R.I.S.E. Reader.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.ico">
+<title>Arise Math</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<style>
+/* Layout: Arise family shell (matches Arise Social) — profile card left · work center · class rail right; icon nav on top, tab bar on phones.
+   Indigo for actions, sunrise gradient on covers and the quiz header, sun gold for points. */
+:root{
+  --bg:#f2f1f6; --card:#ffffff; --card-2:#f6f5fa; --line:#e4e2ec; --line-2:#cfccdc;
+  --fg:#1a1828; --muted:#64617a; --faint:#8d8aa3;
+  --primary:#3f3bd6; --primary-ink:#ffffff; --primary-soft:#ebeaff; --primary-text:#3431c4;
+  --sun:#f29a14; --coral:#ef5a45; --leaf:#1e9e62; --sky:#1f8fd6;
+  --build:#f29a14; --serve:#5867f0; --teach:#8b5cf6; --heal:#ef5a45; --help:#e0559d;
+  --create:#12a594; --tech:#1f8fd6; --nature:#2f9e57; --fly:#c9a20c;
+  --cover-a:#2b2a8f; --cover-b:#6d4fd8; --cover-c:#f29a14;
+  --gold:#d9a41c; --silver:#9ea3b5; --bronze:#c27a45;
+  --shadow:0 0 0 1px rgba(26,24,40,.06), 0 2px 4px rgba(26,24,40,.05);
+  --shadow-lg:0 24px 60px rgba(26,24,40,.22);
+  --font:"Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0b0a16; --card:#15142a; --card-2:#1c1b35; --line:#2a2846; --line-2:#3a3760;
+  --fg:#eeedf7; --muted:#a19eba; --faint:#7b789a;
+  --primary:#8e8bff; --primary-ink:#0b0a16; --primary-soft:#24224b; --primary-text:#aeacff;
+  --sun:#ffb23f; --coral:#ff7466; --leaf:#45c985; --sky:#5cc0f5;
+  --build:#ffb23f; --serve:#8b97ff; --teach:#b39bff; --heal:#ff7a6e; --help:#f58ac0;
+  --create:#3fcdbf; --tech:#5cc0f5; --nature:#56d48d; --fly:#ecd257;
+  --gold:#f0c24a; --silver:#b9bdcc; --bronze:#e0956a;
+  --shadow:0 0 0 1px rgba(255,255,255,.05); --shadow-lg:0 24px 60px rgba(0,0,0,.55); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0b0a16; --card:#15142a; --card-2:#1c1b35; --line:#2a2846; --line-2:#3a3760;
+  --fg:#eeedf7; --muted:#a19eba; --faint:#7b789a;
+  --primary:#8e8bff; --primary-ink:#0b0a16; --primary-soft:#24224b; --primary-text:#aeacff;
+  --sun:#ffb23f; --coral:#ff7466; --leaf:#45c985; --sky:#5cc0f5;
+  --build:#ffb23f; --serve:#8b97ff; --teach:#b39bff; --heal:#ff7a6e; --help:#f58ac0;
+  --create:#3fcdbf; --tech:#5cc0f5; --nature:#56d48d; --fly:#ecd257;
+  --gold:#f0c24a; --silver:#b9bdcc; --bronze:#e0956a;
+  --shadow:0 0 0 1px rgba(255,255,255,.05); --shadow-lg:0 24px 60px rgba(0,0,0,.55); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body.big{font-size:16.5px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance;letter-spacing:-.015em}
+h1{font-size:clamp(1.4rem,3vw,1.7rem);font-weight:800}
+h2{font-size:1.15rem;font-weight:700}
+h3{font-size:.98rem;font-weight:700}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--primary-text)}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:10px}
+.muted{color:var(--muted)} .small{font-size:.82rem}
+.eyebrow{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.tnum{font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- demo strip + top bar ---------- */
+.demo{background:var(--fg);color:var(--bg)}
+.demo-in{max-width:1180px;margin:0 auto;padding:6px 16px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:.76rem;font-weight:600}
+.demo-in > span:first-child{opacity:.75;margin-right:auto}
+.demo .ctl{display:flex;align-items:center;gap:6px}
+.seg{display:flex;gap:2px;background:color-mix(in oklab,var(--bg) 14%,transparent);border-radius:999px;padding:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:inherit;opacity:.75;padding:3px 10px;border-radius:999px;font-weight:700;font-size:.74rem}
+.seg button[aria-pressed="true"]{background:var(--bg);color:var(--fg);opacity:1}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--card);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:12px;height:56px}
+.logo{width:36px;height:36px;flex:none;border-radius:9px;display:block}
+.wordmark{font-weight:800;font-size:1.05rem;letter-spacing:-.02em;white-space:nowrap}
+.wordmark b{color:var(--primary-text);font-weight:800}
+.ptsbadge{display:flex;align-items:center;gap:6px;background:color-mix(in oklab,var(--sun) 16%,var(--card));color:color-mix(in oklab,var(--sun) 55%,var(--fg));border-radius:999px;padding:4px 12px;font-weight:800;font-size:.82rem;white-space:nowrap}
+.ptsbadge svg{width:15px;height:15px}
+.topnav{display:flex;margin-left:auto;height:100%}
+.topnav button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:78px;padding:0 6px;color:var(--muted);font-size:.72rem;font-weight:600;position:relative;height:100%}
+.topnav button svg{width:22px;height:22px}
+.topnav button:hover,.topnav button[aria-current="page"]{color:var(--fg)}
+.topnav button[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px;background:var(--fg)}
+.topnav .dot{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;height:16px;border-radius:999px;background:var(--coral);color:#fff;font-size:.62rem;display:grid;place-items:center;padding:0 4px;font-weight:800}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;gap:22px;max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:22px 48px}
+.left,.rail{display:flex;flex-direction:column;gap:12px;align-self:start;position:sticky;top:calc(env(safe-area-inset-top,0px) + 72px)}
+main{min-width:0;display:flex;flex-direction:column;gap:12px}
+.bottom{display:none}
+@media (max-width:1100px){ .app{grid-template-columns:220px minmax(0,1fr)} .rail{display:none} .topnav button{min-width:64px} }
+@media (max-width:780px){
+  .app{grid-template-columns:minmax(0,1fr);padding-block:12px 100px}
+  .left,.topnav{display:none}
+  .ptsbadge{margin-left:auto}
+  .bottom{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around}
+  .bottom button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.64rem;font-weight:600;color:var(--muted);padding:4px 2px;min-width:0;flex:1;position:relative}
+  .bottom button svg{width:22px;height:22px}
+  .bottom button[aria-current="page"]{color:var(--fg)}
+  .bottom .dot{position:absolute;top:2px;left:calc(50% + 6px);width:8px;height:8px;border-radius:50%;background:var(--coral)}
+}
+
+/* ---------- primitives ---------- */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;min-width:0}
+.card.flush{padding:0;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:12px}
+.grid{display:grid;gap:12px}
+.two{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.divider{height:1px;background:var(--line);margin:0 -16px}
+.btn{border-radius:999px;padding:6px 16px;font-weight:700;font-size:.86rem;background:transparent;color:var(--muted);border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-height:34px}
+.btn:hover{background:var(--card-2);color:var(--fg);border-color:var(--fg)}
+.btn.primary{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.outline{color:var(--primary-text);border-color:var(--primary)}
+.btn.outline:hover{background:var(--primary-soft)}
+.btn.lg{min-height:48px;padding:10px 24px;font-size:1rem}
+.btn.sm{padding:4px 12px;min-height:30px;font-size:.8rem}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn svg{width:16px;height:16px}
+.btn[aria-pressed="true"]{background:var(--primary-soft);color:var(--primary-text);border-color:var(--primary)}
+.btn.glass{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35);color:#fff}
+.btn.glass:hover{background:rgba(255,255,255,.26);color:#fff;border-color:#fff}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 12px;font-size:.8rem;font-weight:600;background:transparent;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+button.chip:hover{background:var(--card-2);color:var(--fg)}
+.chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--card)}
+.chip.cl{border:0;background:color-mix(in oklab,var(--c) 14%,var(--card));color:color-mix(in oklab,var(--c) 70%,var(--fg))}
+.pill-ok{border:0;background:color-mix(in oklab,var(--leaf) 16%,var(--card));color:color-mix(in oklab,var(--leaf) 75%,var(--fg))}
+.pill-warn{border:0;background:color-mix(in oklab,var(--coral) 16%,var(--card));color:color-mix(in oklab,var(--coral) 75%,var(--fg))}
+.pill-wait{border:0;background:color-mix(in oklab,var(--sun) 18%,var(--card));color:color-mix(in oklab,var(--sun) 55%,var(--fg))}
+.av{border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;background:var(--c);width:44px;height:44px;font-size:.9rem}
+.av.xs{width:26px;height:26px;font-size:.6rem}
+.av.sm{width:34px;height:34px;font-size:.74rem}
+.av.lg{width:72px;height:72px;font-size:1.4rem;border:3px solid var(--card)}
+.av.ring{box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--sun)}
+.bar{height:8px;border-radius:999px;background:var(--card-2);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:var(--primary)}
+.bar.sun>i{background:var(--sun)} .bar.leaf>i{background:var(--leaf)}
+.cover{height:64px;background:
+  radial-gradient(34px 34px at 93% 125%, color-mix(in oklab,var(--cover-c) 95%,#fff) 0 60%, transparent 62%),
+  linear-gradient(115deg,var(--cover-a) 0%,var(--cover-b) 55%,var(--cover-c) 120%)}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+input[type=text],input[type=date],input[type=number],select{background:var(--card);border:1px solid var(--line-2);border-radius:12px;padding:9px 12px;width:100%;min-width:0}
+input:focus,select:focus{outline:2px solid var(--primary);outline-offset:-1px;border-color:transparent}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:.8rem;color:var(--muted);min-width:0}
+.toggle{width:44px;height:26px;border-radius:99px;border:0;background:var(--line-2);position:relative;flex:none}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.toggle[aria-pressed="true"]{background:var(--leaf)}
+.toggle[aria-pressed="true"]::after{left:21px}
+.setting{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}
+.setting:first-child{padding-top:0} .setting:last-child{border-bottom:0;padding-bottom:0}
+.setting b{display:block;font-size:.9rem} .setting span{font-size:.8rem;color:var(--muted)}
+.setting select{width:auto}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.statgrid div{background:var(--card-2);border-radius:12px;padding:10px 12px}
+.statgrid b{display:block;font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+.statgrid span{font-size:.74rem;color:var(--muted);font-weight:600}
+.table-wrap{overflow-x:auto;margin:0 -16px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.86rem}
+th,td{text-align:left;padding:10px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.72rem;font-weight:700;color:var(--muted);background:var(--card-2)}
+tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--card-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- left profile card ---------- */
+.mini{text-align:center}
+.mini .av.lg{margin:-36px auto 0}
+.mini .who{padding:8px 16px 14px}
+.mini .who b{display:block;font-size:1.05rem}
+.mini .who > span{display:block;font-size:.8rem;color:var(--muted);margin-top:2px}
+.mini .kv{display:flex;justify-content:space-between;padding:8px 16px;font-size:.8rem;font-weight:600;color:var(--muted);width:100%;border:0;background:transparent}
+.mini .kv b{color:var(--primary-text);font-variant-numeric:tabular-nums}
+.mini button.kv:hover{background:var(--card-2)}
+.mini-goal{padding:10px 16px 14px;text-align:left;border-top:1px solid var(--line)}
+.mini-goal .row{justify-content:space-between;font-size:.8rem;font-weight:600;margin-bottom:6px}
+
+/* ---------- practice ---------- */
+.qcards{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.qcard{display:flex;flex-direction:column;gap:10px}
+.op{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:1.3rem;background:color-mix(in oklab,var(--c) 15%,var(--card));color:color-mix(in oklab,var(--c) 80%,var(--fg));flex:none}
+.op.sm{width:32px;height:32px;font-size:1rem;border-radius:9px}
+.qcard .meta{font-size:.76rem;color:var(--muted)}
+.qcard .foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto}
+.assign{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.assign:last-child{border-bottom:0;padding-bottom:0}
+.assign:first-of-type{padding-top:0}
+.assign b{display:block;font-size:.92rem}
+.join{display:flex;gap:8px;align-items:center}
+.join input{max-width:150px;letter-spacing:.1em;font-weight:700;text-align:center}
+
+/* ---------- quiz runner ---------- */
+.run-head{height:auto;padding:14px clamp(16px,4vw,28px) 16px;color:#fff;display:flex;flex-direction:column;gap:10px}
+.run-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.run-pts{font-weight:800;background:rgba(255,255,255,.18);padding:4px 12px;border-radius:999px;font-size:.86rem}
+.run-title b{display:block;font-size:1.15rem;font-weight:800}
+.run-title span{font-size:.82rem;opacity:.85}
+.pips{display:flex;gap:6px}
+.pips i{flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.28)}
+.pips i.cur{background:#fff}
+.pips i.first{background:#7ff0b4} .pips i.solved{background:#ffd27a} .pips i.missed{background:#ff9d92}
+.run-body{padding:20px clamp(16px,4vw,28px) 24px;display:flex;flex-direction:column;gap:16px}
+.ask{color:var(--muted);font-size:1.02rem;max-width:62ch}
+.prompt{font-weight:800;font-size:clamp(2rem,6.5vw,3.1rem);line-height:1.15;letter-spacing:-.02em;font-variant-numeric:tabular-nums;display:flex;align-items:center;flex-wrap:wrap;gap:.2em .35em;min-width:0}
+.prompt.long{font-size:clamp(1.35rem,4.4vw,2.05rem)}
+body.big .prompt{font-size:clamp(2.4rem,8vw,3.7rem)} body.big .prompt.long{font-size:clamp(1.6rem,5.4vw,2.5rem)}
+.fr{display:inline-flex;flex-direction:column;align-items:center;font-size:.78em;line-height:1.05;vertical-align:middle}
+.fr span:first-child{border-bottom:.08em solid currentColor;padding:0 .18em}
+.blank{display:inline-grid;place-items:center;min-width:1.3em;height:1.3em;border:2px dashed var(--line-2);border-radius:12px;color:var(--faint);font-size:.75em}
+.viz-wrap{overflow-x:auto}
+.viz{display:block;max-width:100%;height:auto}
+.cell{fill:var(--card);stroke:var(--fg);stroke-width:1.5}
+.dot.d1{fill:var(--primary)} .dot.d2{fill:var(--sun)} .dot.gone{fill:var(--line-2)}
+.vx{stroke:var(--coral);stroke-width:2.5;stroke-linecap:round;fill:none}
+.rod{fill:var(--primary)} .rodline{stroke:var(--card);stroke-width:1} .unit{fill:var(--sun)}
+.seg-r{fill:var(--card);stroke:var(--fg);stroke-width:1.5} .seg-r.fill{fill:var(--primary)}
+.lab{fill:var(--fg);font:700 13px var(--font)} .lab.sm{font-size:10px;fill:var(--muted);font-weight:600}
+.axis{stroke:var(--fg);stroke-width:1.5} .gridl{stroke:var(--line);stroke-width:1} .tick{stroke:var(--fg);stroke-width:1.2}
+.pt{fill:var(--sun);stroke:var(--fg);stroke-width:1.5} .ln{stroke:var(--primary);stroke-width:2;stroke-dasharray:6 5;fill:none}
+.beam{stroke:var(--fg);stroke-width:4;stroke-linecap:round} .pan{fill:color-mix(in oklab,var(--sun) 20%,var(--card));stroke:var(--fg);stroke-width:1.5} .fulcrum{fill:var(--fg)}
+.hund{fill:var(--card);stroke:var(--line);stroke-width:1} .hund.fill{fill:var(--primary);stroke:var(--card)}
+.answer{display:flex;flex-wrap:wrap;gap:10px}
+.answer input{flex:1 1 170px;max-width:300px;font-weight:800;font-size:1.7rem;padding:8px 16px;border:2px solid var(--line-2);border-radius:14px;font-variant-numeric:tabular-nums}
+.answer input.is-bad{border-color:var(--coral);animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.keypad{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;max-width:430px}
+.keypad button{min-height:46px;font-weight:800;font-size:1.15rem;background:var(--card-2);border:1px solid var(--line);border-radius:12px}
+.keypad button:active{background:var(--primary-soft)}
+.keypad .wide{font-size:.82rem}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;max-width:520px}
+.choices button{min-height:76px;font-weight:800;font-size:1.9rem;background:var(--card-2);border:2px solid var(--line);border-radius:16px;font-variant-numeric:tabular-nums}
+.choices button:hover:not(:disabled){border-color:var(--primary)}
+.choices button.is-good{background:color-mix(in oklab,var(--leaf) 18%,var(--card));border-color:var(--leaf);opacity:1}
+.choices button.is-bad{background:color-mix(in oklab,var(--coral) 14%,var(--card));border-color:var(--coral)}
+.choices button:disabled{cursor:default}
+.choices button:disabled:not(.is-good){opacity:.5}
+.feedback{font-weight:700;font-size:1rem}
+.feedback.good{color:var(--leaf)} .feedback.bad{color:var(--coral)}
+.hints{display:flex;flex-direction:column;gap:10px;align-items:flex-start;border-top:1px dashed var(--line-2);padding-top:14px}
+.steps{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:6px;max-width:62ch;font-size:1rem}
+.steps li::marker{color:var(--primary-text);font-weight:800}
+.result-score{font-size:clamp(2.6rem,9vw,4rem);font-weight:800;letter-spacing:-.03em;line-height:1}
+.qlist{display:flex;flex-direction:column}
+.qlist div{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.9rem;align-items:baseline}
+.qlist div:last-child{border-bottom:0}
+.mk{font-weight:800;text-align:center} .mk.first{color:var(--leaf)} .mk.solved{color:var(--sun)} .mk.missed{color:var(--coral)}
+
+/* ---------- leaderboard ---------- */
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end;padding:8px 0 4px}
+.pod{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-width:0}
+.pod b{font-size:.88rem;overflow-wrap:anywhere}
+.pod .blk{width:100%;border-radius:12px 12px 4px 4px;display:grid;place-items:center;font-weight:800;color:#fff;font-size:1.3rem}
+.pod.p1 .blk{height:84px;background:var(--gold)} .pod.p2 .blk{height:62px;background:var(--silver)} .pod.p3 .blk{height:46px;background:var(--bronze)}
+.pod .pts{font-size:.78rem;color:var(--muted);font-weight:700}
+.lb{display:flex;flex-direction:column}
+.lbrow{display:grid;grid-template-columns:30px auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-radius:12px}
+.lbrow + .lbrow{margin-top:2px}
+.lbrow .rk{font-weight:800;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.lbrow .nm{font-weight:700;font-size:.92rem;min-width:0}
+.lbrow .nm small{display:block;font-weight:500;color:var(--muted);font-size:.74rem}
+.lbrow .sc{font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
+.lbrow .sc small{display:block;font-weight:600;color:var(--muted);font-size:.7rem}
+.lbrow.me{background:var(--primary-soft)} .lbrow.me .rk{color:var(--primary-text)}
+.awards{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.award{display:flex;gap:10px;align-items:center;background:var(--card-2);border-radius:12px;padding:10px 12px}
+.award b{display:block;font-size:.86rem} .award span{font-size:.74rem;color:var(--muted)}
+.ico{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none;background:color-mix(in oklab,var(--c) 16%,var(--card));color:color-mix(in oklab,var(--c) 80%,var(--fg))}
+.ico svg{width:19px;height:19px}
+
+/* ---------- rewards ---------- */
+.hero{color:#fff;height:auto;padding:18px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.hero .big{font-size:2.4rem;font-weight:800;letter-spacing:-.02em;line-height:1}
+.hero span{opacity:.88;font-size:.86rem}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.badge{border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;border:1px solid var(--line);font-size:.78rem;font-weight:700;padding:12px 8px;line-height:1.25}
+.badge small{font-weight:500;color:var(--muted);font-size:.7rem}
+.badge.locked{border-style:dashed;border-color:var(--line-2);color:var(--faint)}
+.badge.locked .ico{background:var(--card-2);color:var(--faint)}
+.styles{display:flex;gap:12px;flex-wrap:wrap}
+.style{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;font-size:.74rem;font-weight:700;color:var(--muted);padding:4px}
+.style[aria-pressed="true"]{color:var(--fg)}
+.style[aria-pressed="true"] .av{outline:3px solid var(--primary);outline-offset:3px}
+.style:disabled{cursor:not-allowed}
+.style:disabled .av{filter:grayscale(1);opacity:.4}
+.certrow{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.certrow:last-child{border-bottom:0;padding-bottom:0} .certrow:first-child{padding-top:0}
+.certrow b{display:block;font-size:.9rem} .certrow span{font-size:.78rem;color:var(--muted)}
+.certrow > div:nth-child(2){flex:1;min-width:0}
+
+/* ---------- games ---------- */
+.gate{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:12px;background:var(--card-2)}
+.gate svg{width:22px;height:22px;flex:none}
+.gate.open svg{color:var(--leaf)} .gate.closed svg{color:var(--coral)}
+.target{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.target .t{font-size:2.6rem;font-weight:800;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{min-height:68px;border-radius:16px;border:2px solid var(--line);background:var(--card-2);font-weight:800;font-size:1.5rem;font-variant-numeric:tabular-nums;transition:transform .1s}
+.tile:hover{border-color:var(--primary)}
+.tile[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink);border-color:var(--primary);transform:scale(1.04)}
+.tile.pop{animation:pop .3s}
+.tile.no{animation:shake .3s;border-color:var(--coral)}
+@keyframes pop{50%{transform:scale(1.12)}}
+
+/* ---------- teacher ---------- */
+.heat{width:46px;height:26px;border-radius:7px;display:inline-grid;place-items:center;font-size:.72rem;font-weight:800;background:color-mix(in oklab,var(--leaf) var(--p),var(--card-2));color:var(--fg)}
+.heat.low{background:color-mix(in oklab,var(--coral) 30%,var(--card-2))}
+.warnrow{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);width:100%;border-left:0;border-right:0;border-top:0;background:transparent;text-align:left}
+.warnrow:last-child{border-bottom:0}
+.warnrow b{display:block;font-size:.88rem} .warnrow span{font-size:.76rem;color:var(--muted)}
+.warnrow > div{flex:1;min-width:0}
+.code{font-size:clamp(2rem,7vw,3rem);font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.lobby{display:flex;flex-wrap:wrap;gap:6px}
+.lobby .chip{animation:pop .3s}
+.lq{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.lopt{border-radius:14px;padding:12px;color:#fff;font-weight:800;font-size:1.5rem;display:flex;flex-direction:column;gap:8px;background:var(--c);position:relative;min-height:84px}
+.lopt .cnt{font-size:.78rem;font-weight:700;opacity:.9}
+.lopt.dim{opacity:.35}
+.lopt .lbar{height:6px;border-radius:99px;background:rgba(255,255,255,.3);overflow:hidden;margin-top:auto}
+.lopt .lbar i{display:block;height:100%;background:#fff}
+.timer{font-weight:800;font-size:1.4rem;font-variant-numeric:tabular-nums}
+
+/* ---------- modal / cert / toast ---------- */
+.scrim{position:fixed;inset:0;background:rgba(10,9,20,.6);z-index:60;display:grid;place-items:center;padding:16px}
+.modal{background:var(--card);border-radius:18px;max-width:600px;width:100%;max-height:min(88vh,860px);overflow:auto;box-shadow:var(--shadow-lg);position:relative}
+.modal-body{padding:20px 22px 24px;display:flex;flex-direction:column;gap:16px}
+.x{position:absolute;top:12px;right:12px;border:0;background:rgba(255,255,255,.9);border-radius:50%;width:36px;height:36px;display:grid;place-items:center;color:#1a1828;z-index:2}
+.x svg{width:18px;height:18px}
+.cert{padding:14px;background:linear-gradient(115deg,var(--cover-a),var(--cover-b) 60%,var(--cover-c))}
+.cert-in{background:var(--card);border-radius:10px;padding:28px 22px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;border:2px solid color-mix(in oklab,var(--sun) 50%,var(--card))}
+.cert-in h2{font-size:1.5rem;font-weight:800}
+.cert-name{font-size:1.9rem;font-weight:800;letter-spacing:-.02em;color:var(--primary-text);border-bottom:2px solid var(--line);padding:0 18px 4px}
+.cert-foot{display:flex;justify-content:space-between;gap:24px;width:100%;max-width:380px;margin-top:14px;font-size:.86rem}
+.cert-foot div{display:flex;flex-direction:column;border-top:1.5px solid var(--fg);padding-top:4px;flex:1}
+.cert-foot small{color:var(--muted);font-size:.7rem}
+.toast{position:fixed;left:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:12px 18px;border-radius:12px;font-weight:600;font-size:.86rem;z-index:80;box-shadow:var(--shadow-lg);max-width:calc(100% - 32px)}
+@media (max-width:780px){.toast{bottom:calc(80px + env(safe-area-inset-bottom,0px))}}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:90;width:100%;height:100%}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+</style>
+</head>
+<body>
+<div class="demo"><div class="demo-in">
+  <span>Arise Math preview · built like <a href="/" style="color:inherit">A.R.I.S.E. Reader</a> · demo class</span>
+  <div class="ctl">View as <div class="seg" id="roleSeg" role="group" aria-label="View as"></div></div>
+  <div class="ctl">Grades <div class="seg" id="bandSeg" role="group" aria-label="Grade band"></div></div>
+</div></div>
+<header class="top"><div class="top-in">
+  <svg class="logo" viewBox="0 0 40 40" aria-label="Arise Math">
+    <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2a8f"/><stop offset="1" stop-color="#6d4fd8"/></linearGradient>
+    <linearGradient id="sg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef5a45"/><stop offset="1" stop-color="#ffb23f"/></linearGradient></defs>
+    <rect width="40" height="40" rx="9" fill="url(#lg)"/><path d="M9 28a11 11 0 0 1 22 0z" fill="url(#sg)"/><path d="M7 31h26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M20 9v6M17 12h6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+  </svg>
+  <span class="wordmark">Arise <b>Math</b></span>
+  <nav class="topnav" id="nav" aria-label="Sections"></nav>
+  <div id="ptsTop"></div>
+</div></header>
+
+<div class="app">
+  <aside class="left" id="left"></aside>
+  <main id="main"></main>
+  <aside class="rail" id="rail"></aside>
+</div>
+<nav class="bottom" id="bottom" aria-label="Sections"></nav>
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+/* ================= ICONS ================= */
+const I = {
+  practice:'<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>',
+  trophy:'<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4"/><path d="M17 6h3a3 3 0 0 1-3 4"/>',
+  gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v9h14v-9"/><path d="M12 8v13"/><path d="M12 8c-1.5-3.5-6-4-6-1.2C6 9 12 8 12 8s6 1 6-1.2C18 4 13.5 4.5 12 8z"/>',
+  game:'<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3"/><path d="M5.5 12.5h3"/><circle cx="16" cy="11.5" r="1"/><circle cx="18" cy="13.5" r="1"/>',
+  me:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  class:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M14 15.3c.6-.2 1.3-.3 2-.3 3.3 0 6 2 6 5"/>',
+  assign:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11h6"/><path d="M9 15h4"/>',
+  live:'<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8"/><path d="M18.4 5.6a9 9 0 0 1 0 12.8"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  check:'<path d="M5 12l5 5 9-10"/>',
+  x:'<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  unlock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  flame:'<path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-6 1 1 1.5 2 2 2 0-2 0-4 1-6z"/>',
+  speaker:'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/>',
+  eye:'<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/>',
+  award:'<circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 21l5-3 5 3-1.5-7"/>',
+  bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  shield:'<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/>',
+  key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l3 3"/>',
+  up:'<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>',
+  plus:'<path d="M12 5v14"/><path d="M5 12h14"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  school:'<path d="M3 9l9-5 9 5-9 5z"/><path d="M7 11v5c0 1.5 2.5 3 5 3s5-1.5 5-3v-5"/>'
+};
+const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= MATH HELPERS ================= */
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const N = n => n<0 ? '−'+Math.abs(n) : String(n);
+const P = n => n<0 ? '('+N(n)+')' : String(n);
+const sgn = n => n<0 ? '− '+Math.abs(n) : '+ '+n;
+const gcd = (a,b) => b ? gcd(b, a%b) : Math.abs(a);
+const lcm = (a,b) => a/gcd(a,b)*b;
+const frac = (n,d) => `<span class="fr"><span>${n}</span><span>${d}</span></span>`;
+const coefX = a => a===1 ? 'x' : a===-1 ? '−x' : N(a)+'x';
+const range = (a,b) => { const r=[]; for(let i=a;i<=b;i++) r.push(i); return r; };
+const fmtV = v => Number.isInteger(v) ? N(v) : Number.isInteger(v*2) ? (v<0?'−':'')+Math.abs(v*2)+'/2' : N(v);
+
+/* ================= VISUAL MODELS ================= */
+function tenFrames(groups, cross){
+  cross=cross||0; const c=32, gap=18, W=c*10+gap, H=c*2;
+  let s=`<svg class="viz" viewBox="-2 -2 ${W+4} ${H+4}" style="width:${W*1.1}px" role="img" aria-label="Two ten frames">`;
+  for(let f=0;f<2;f++){ const ox=f*(c*5+gap); for(let r=0;r<2;r++) for(let k=0;k<5;k++) s+=`<rect class="cell" x="${ox+k*c}" y="${r*c}" width="${c}" height="${c}"/>`; }
+  const dots=[]; groups.forEach(g=>{ for(let i=0;i<g.n;i++) dots.push(g.cls); });
+  dots.forEach((cls,i)=>{ const f=Math.floor(i/10), k=i%10, r=Math.floor(k/5), col=k%5, cx=f*(c*5+gap)+col*c+c/2, cy=r*c+c/2, gone=i>=dots.length-cross;
+    s+=`<circle class="dot ${gone?'gone':cls}" cx="${cx}" cy="${cy}" r="${c*.32}"/>`;
+    if(gone) s+=`<path class="vx" d="M${cx-7} ${cy-7}L${cx+7} ${cy+7}M${cx+7} ${cy-7}L${cx-7} ${cy+7}"/>`; });
+  return s+'</svg>';
+}
+function dotArray(r,c){ const sp=24, W=c*sp, H=r*sp;
+  let s=`<svg class="viz" viewBox="0 0 ${W} ${H}" style="width:${W*1.15}px" role="img" aria-label="${r} rows of ${c} dots">`;
+  for(let i=0;i<r;i++) for(let j=0;j<c;j++) s+=`<circle class="dot ${i%2?'d2':'d1'}" cx="${j*sp+12}" cy="${i*sp+12}" r="8"/>`;
+  return s+'</svg>'; }
+function baseTen(n){ const T=Math.floor(n/10), O=n%10, u=14, g=22, H=u*10, ox=T*g+16, W=ox+2*(u+4);
+  let s=`<svg class="viz" viewBox="0 0 ${W} ${H}" style="width:${W*1.1}px" role="img" aria-label="Base ten blocks">`;
+  for(let i=0;i<T;i++){ const x=i*g; s+=`<rect class="rod" x="${x}" y="0" width="${u}" height="${H}" rx="2"/>`; for(let k=1;k<10;k++) s+=`<line class="rodline" x1="${x}" x2="${x+u}" y1="${k*u}" y2="${k*u}"/>`; }
+  for(let i=0;i<O;i++){ const col=i%2, row=Math.floor(i/2); s+=`<rect class="unit" x="${ox+col*(u+4)}" y="${H-u-row*(u+4)}" width="${u}" height="${u}" rx="2"/>`; }
+  return s+'</svg>'; }
+function fractionBars(n1,d1,n2,d2){ const x0=56, w=300;
+  let s=`<svg class="viz" viewBox="0 0 ${x0+w+4} 96" style="width:420px" role="img" aria-label="Fraction bars">`;
+  [[n1,d1,8],[n2,d2,54]].forEach(([n,d,y])=>{ s+=`<text class="lab" x="0" y="${y+22}">${n}/${d}</text>`; for(let i=0;i<d;i++) s+=`<rect class="seg-r ${i<n?'fill':''}" x="${x0+i*w/d}" y="${y}" width="${w/d}" height="34"/>`; });
+  return s+'</svg>'; }
+function numberLine(a, lo, hi){ const W=380, pad=14, span=hi-lo, px=(W-2*pad)/span, X=v=>pad+(v-lo)*px;
+  let s=`<svg class="viz" viewBox="0 0 ${W} 74" style="width:520px" role="img" aria-label="Number line">`;
+  s+=`<line class="axis" x1="4" x2="${W-4}" y1="38" y2="38"/>`;
+  for(let v=lo; v<=hi; v++){ const major=v===0||v%5===0; s+=`<line class="tick" x1="${X(v)}" x2="${X(v)}" y1="${major?30:33}" y2="${major?46:43}"/>`; if(span<=20||major) s+=`<text class="lab sm" x="${X(v)}" y="62" text-anchor="middle">${N(v)}</text>`; }
+  s+=`<circle class="pt" cx="${X(a)}" cy="38" r="7"/><text class="lab sm" x="${X(a)}" y="18" text-anchor="middle">start</text>`;
+  return s+'</svg>'; }
+function coordPlane(x1,y1,x2,y2){ const s0=18, R=6, M=30, size=2*R*s0, X=v=>M+(v+R)*s0, Y=v=>M+(R-v)*s0, W=size+2*M;
+  let s=`<svg class="viz" viewBox="0 0 ${W} ${W}" style="width:${W*1.15}px" role="img" aria-label="Coordinate plane">`;
+  s+=`<defs><clipPath id="cp"><rect x="${X(-R)}" y="${Y(R)}" width="${size}" height="${size}"/></clipPath></defs>`;
+  for(let v=-R; v<=R; v++) s+=`<line class="gridl" x1="${X(v)}" x2="${X(v)}" y1="${Y(R)}" y2="${Y(-R)}"/><line class="gridl" y1="${Y(v)}" y2="${Y(v)}" x1="${X(-R)}" x2="${X(R)}"/>`;
+  s+=`<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${Y(R)}" y2="${Y(-R)}"/><line class="axis" y1="${Y(0)}" y2="${Y(0)}" x1="${X(-R)}" x2="${X(R)}"/>`;
+  const m=(y2-y1)/(x2-x1); s+=`<line class="ln" clip-path="url(#cp)" x1="${X(-R-1)}" y1="${Y(y1+m*(-R-1-x1))}" x2="${X(R+1)}" y2="${Y(y1+m*(R+1-x1))}"/>`;
+  [[x1,y1],[x2,y2]].forEach(([x,y])=>{ const rt=x<3; s+=`<circle class="pt" cx="${X(x)}" cy="${Y(y)}" r="6"/><text class="lab sm" style="font-size:11px;fill:var(--fg)" x="${X(x)+(rt?10:-10)}" y="${Y(y)-9}" text-anchor="${rt?'start':'end'}">(${N(x)}, ${N(y)})</text>`; });
+  return s+'</svg>'; }
+function balance(left, right){
+  return `<svg class="viz" viewBox="0 0 360 150" style="width:440px" role="img" aria-label="Balance scale"><path class="fulcrum" d="M180 50 L158 136 H202 Z"/><line class="beam" x1="40" x2="320" y1="46" y2="46"/><path d="M40 46 L24 78 M40 46 L156 78 M320 46 L204 78 M320 46 L336 78" stroke="var(--muted)" stroke-width="1.5"/><rect class="pan" x="14" y="78" width="152" height="46" rx="10"/><rect class="pan" x="194" y="78" width="152" height="46" rx="10"/><text class="lab" style="font-size:20px" x="90" y="108" text-anchor="middle">${left}</text><text class="lab" style="font-size:20px" x="270" y="108" text-anchor="middle">${right}</text></svg>`; }
+function hundredGrid(p){ const c=15, W=c*10;
+  let s=`<svg class="viz" viewBox="0 0 ${W} ${W}" style="width:${W*1.2}px" role="img" aria-label="${p} of 100 squares shaded">`;
+  for(let i=0;i<100;i++) s+=`<rect class="hund ${i<p?'fill':''}" x="${(i%10)*c}" y="${Math.floor(i/10)*c}" width="${c}" height="${c}"/>`;
+  return s+'</svg>'; }
+
+/* ================= SKILLS ================= */
+const SKILLS = {
+  add20:{name:'Add within 20', std:'1.OA.C.6', glyph:'+', c:'build', gen(){ const a=rnd(3,9), b=rnd(2,9), s=a+b, need=10-a;
+    return {ask:'How many dots in all?', prompt:`${a} + ${b} = <span class="blank">?</span>`, plain:`${a} + ${b}`, viz:tenFrames([{n:a,cls:'d1'},{n:b,cls:'d2'}]), answer:s,
+      steps: s>10 ? [`${a} needs ${need} more to make 10.`, `Split ${b} into ${need} and ${b-need}.`, `${a} + ${need} = 10.`, `10 + ${b-need} = ${s}.`] : [`Start at ${a}.`, `Count on ${b}: ${range(a+1,s).join(', ')}.`, `You land on ${s}.`]}; }},
+  sub20:{name:'Subtract within 20', std:'1.OA.C.6', glyph:'−', c:'heal', gen(){ const b=rnd(3,9), s=rnd(11,18), a=s-b;
+    return {ask:'Cross out the dots that are taken away. How many are left?', prompt:`${s} − ${b} = <span class="blank">?</span>`, plain:`${s} − ${b}`, viz:tenFrames([{n:s,cls:'d1'}], b), answer:a,
+      steps:[`Think addition: ${b} + ? = ${s}.`, `${b} + ${10-b} = 10.`, `10 + ${s-10} = ${s}.`, `${10-b} + ${s-10} = ${a}, so ${s} − ${b} = ${a}.`]}; }},
+  tens:{name:'Tens and ones', std:'1.NBT.B.2', glyph:'10', c:'teach', gen(){ const n=rnd(21,98), T=Math.floor(n/10), O=n%10;
+    return {ask:`How many tens are in ${n}?`, prompt:`${n} = <span class="blank">?</span> tens + ${O} ones`, plain:`${n} = ? tens`, long:true, viz:baseTen(n), answer:T,
+      steps:[`Each tall rod is 1 ten. Count the rods: ${T}.`, `The ${O} small cubes are ones.`, `${n} = ${T} tens and ${O} ones.`]}; }},
+  mult:{name:'Multiplication facts', std:'3.OA.C.7', glyph:'×', c:'serve', gen(){ const a=rnd(2,9), b=rnd(3,10), p=a*b;
+    return {ask:`${a} rows of ${b}. How many in all?`, prompt:`${a} × ${b} = <span class="blank">?</span>`, plain:`${a} × ${b}`, viz:dotArray(a,b), answer:p,
+      steps: b>5 ? [`Split ${b} into 5 and ${b-5}.`, `${a} × 5 = ${a*5}.`, `${a} × ${b-5} = ${a*(b-5)}.`, `${a*5} + ${a*(b-5)} = ${p}.`] : [`Skip count by ${a}, ${b} times.`, `${range(1,b).map(i=>i*a).join(', ')}.`, `${a} × ${b} = ${p}.`]}; }},
+  div:{name:'Division facts', std:'3.OA.C.7', glyph:'÷', c:'create', gen(){ const a=rnd(2,9), q=rnd(2,10), n=a*q;
+    return {ask:`Share ${n} equally into ${a} rows. How many in each row?`, prompt:`${n} ÷ ${a} = <span class="blank">?</span>`, plain:`${n} ÷ ${a}`, viz:dotArray(a,q), answer:q,
+      steps:[`Think multiplication: ${a} × ? = ${n}.`, `Skip count by ${a}: ${range(1,q).map(i=>i*a).join(', ')}.`, `That took ${q} jumps, so ${n} ÷ ${a} = ${q}.`]}; }},
+  frac:{name:'Compare fractions', std:'4.NF.A.2', glyph:'½', c:'teach', gen(){ const D=[2,3,4,5,6,8,10,12]; let n1,d1,n2,d2;
+    if(Math.random()<.18){ d1=pick([2,3,4,6]); const k=pick([2,3].filter(k=>d1*k<=12)); n1=rnd(1,d1-1); d2=d1*k; n2=n1*k; }
+    else { do{ d1=pick(D); d2=pick(D); n1=rnd(1,d1-1); n2=rnd(1,d2-1); } while(n1*d2===n2*d1); }
+    if(Math.random()<.5){ [n1,d1,n2,d2]=[n2,d2,n1,d1]; }
+    const L=lcm(d1,d2), a1=n1*L/d1, a2=n2*L/d2, sym=a1>a2?'>':a1<a2?'<':'=';
+    return {ask:'Which symbol makes this true?', prompt:`${frac(n1,d1)} <span class="blank">?</span> ${frac(n2,d2)}`, plain:`${n1}/${d1} ? ${n2}/${d2}`, viz:fractionBars(n1,d1,n2,d2), kind:'choice', answer:sym, choices:['<','=','>'],
+      steps:[`Rename both with a common denominator: ${L}.`, `${frac(n1,d1)} = ${frac(a1,L)}`, `${frac(n2,d2)} = ${frac(a2,L)}`, `${a1} ${sym} ${a2}, so ${frac(n1,d1)} ${sym} ${frac(n2,d2)}.`]}; }},
+  int:{name:'Add and subtract integers', std:'7.NS.A.1', glyph:'±', c:'tech', gen(){ let a,b; do{ a=rnd(-12,12); b=rnd(-9,9); }while(!a||!b);
+    const op=pick(['+','−']), r=op==='+'?a+b:a-b, eff=op==='+'?b:-b, steps=[];
+    if(op!=='+') steps.push(`Subtracting ${P(b)} is the same as adding ${P(-b)}.`);
+    steps.push(`Start at ${N(a)} on the number line.`, `Adding ${P(eff)} moves ${Math.abs(eff)} to the ${eff>0?'right':'left'}.`, `You land on ${N(r)}.`);
+    return {ask:'Use the number line if it helps.', prompt:`${N(a)} ${op} ${P(b)} = <span class="blank">?</span>`, plain:`${N(a)} ${op} ${P(b)}`, viz:numberLine(a, Math.min(a,r,0)-1, Math.max(a,r,0)+1), answer:r, steps}; }},
+  pct:{name:'Percent of a number', std:'6.RP.A.3c', glyph:'%', c:'help', gen(){ const p=pick([10,20,25,30,40,50,60,75,5,15]), W=20*rnd(1,10), r=p*W/100; let steps;
+    if(p%10===0) steps=[`10% of ${W} is ${W/10}.`, `${p}% is ${p/10} groups of 10%.`, `${p/10} × ${W/10} = ${r}.`];
+    else if(p===25||p===75) steps=[`${p}% is the same as ${p===25?frac(1,4):frac(3,4)}.`, `${W} ÷ 4 = ${W/4}.`, p===75?`3 × ${W/4} = ${r}.`:`So 25% of ${W} is ${r}.`];
+    else steps=[`10% of ${W} is ${W/10}.`, `5% is half of that: ${W/20}.`, p===15?`10% + 5% = ${W/10} + ${W/20} = ${r}.`:`So 5% of ${W} is ${r}.`];
+    return {ask:`The grid shows ${p} out of 100.`, prompt:`${p}% of ${W} = <span class="blank">?</span>`, plain:`${p}% of ${W}`, viz:hundredGrid(p), answer:r, steps}; }},
+  eq2:{name:'Two-step equations', std:'7.EE.B.4a', glyph:'x', c:'serve', gen(){ const x=rnd(-5,12), a=rnd(2,9); let b; do{ b=rnd(-15,20); }while(!b);
+    const c=a*x+b, left=`${a}x ${sgn(b)}`;
+    return {ask:'Solve for x. Keep both sides balanced.', prompt:`${left} = ${N(c)}`, plain:`${left} = ${N(c)}`, viz:balance(left,N(c)), answer:x,
+      steps:[`Undo the ${sgn(b)}: ${b>0?'subtract':'add'} ${Math.abs(b)} on both sides.`, `${a}x = ${N(c-b)}`, `Divide both sides by ${a}.`, `x = ${N(x)}`, `Check: ${a} · ${P(x)} ${sgn(b)} = ${N(c)} ✓`]}; }},
+  slope:{name:'Slope from two points', std:'8.F.B.4', glyph:'m', c:'fly', gen(){ let m,dx,x1,y1,y2;
+    do{ m=pick([-3,-2,-1,1,2,3,.5,-.5]); dx=Number.isInteger(m)?rnd(1,3):pick([2,4]); x1=rnd(-5,5-dx); y1=rnd(-5,5); y2=y1+m*dx; }while(Math.abs(y2)>5);
+    let A=[x1,y1], B=[x1+dx,y2]; if(Math.random()<.5) [A,B]=[B,A];
+    const dy=B[1]-A[1], ddx=B[0]-A[0];
+    return {ask:'Find the slope of the line through these points. Fractions like 1/2 are fine.', long:true, prompt:`(${N(A[0])}, ${N(A[1])}) and (${N(B[0])}, ${N(B[1])})`, plain:`slope through (${N(A[0])}, ${N(A[1])}) and (${N(B[0])}, ${N(B[1])})`, viz:coordPlane(A[0],A[1],B[0],B[1]), answer:m,
+      steps:['Slope = change in y ÷ change in x.', `Change in y: ${N(B[1])} − ${P(A[1])} = ${N(dy)}.`, `Change in x: ${N(B[0])} − ${P(A[0])} = ${N(ddx)}.`, `${N(dy)} ÷ ${N(ddx)} = ${fmtV(m)}.`]}; }},
+  linear:{name:'Multi-step equations', std:'HSA-REI.B.3', glyph:'=', c:'nature', gen(){ const x=rnd(-5,9), a=rnd(2,6), b=rnd(1,6); let d; do{ d=rnd(1,a+3); }while(d===a);
+    const e=a*(x-b)-d*x, right=coefX(d)+(e?' '+sgn(e):''), k=a-d;
+    const steps=[`Distribute the ${a}: ${a}x − ${a*b} = ${right}.`, `Subtract ${coefX(d)} from both sides: ${coefX(k)} − ${a*b} = ${N(e)}.`, `Add ${a*b} to both sides: ${coefX(k)} = ${N(e+a*b)}.`, k!==1?`Divide both sides by ${N(k)}: x = ${N(x)}.`:`So x = ${N(x)}.`];
+    return {ask:'Solve for x.', long:true, prompt:`${a}(x − ${b}) = ${right}`, plain:`${a}(x − ${b}) = ${right}`, viz:'', answer:x, steps}; }},
+  quad:{name:'Quadratics by factoring', std:'HSA-REI.B.4b', glyph:'x²', c:'coral', gen(){ let r1,r2; do{ r1=rnd(-7,7); r2=rnd(-7,7); }while(!r1||!r2||r1===r2);
+    const B=-(r1+r2), C=r1*r2, p=-r1, q=-r2, big=Math.max(r1,r2);
+    const eq=`x²${B===0?'':` ${B<0?'−':'+'} ${Math.abs(B)===1?'':Math.abs(B)}x`} ${sgn(C)} = 0`;
+    return {ask:'Solve by factoring. Enter the larger solution.', long:true, prompt:eq, plain:eq, viz:'', answer:big,
+      steps:[`Find two numbers that multiply to ${N(C)} and add to ${N(B)}.`, `${N(p)} and ${N(q)} work: ${N(p)} × ${P(q)} = ${N(C)} and ${N(p)} + ${P(q)} = ${N(B)}.`, `Factor: (x ${sgn(p)})(x ${sgn(q)}) = 0.`, `So x = ${N(r1)} or x = ${N(r2)}.`, `The larger solution is ${N(big)}.`]}; }}
+};
+const CUSTOM_META = {name:'Teacher question', std:'Custom', glyph:'?', c:'help'};
+const SK = id => SKILLS[id] || CUSTOM_META;
+
+/* ================= PEOPLE ================= */
+const BANDS = {
+  k2:  {label:'K–2',  kid:{name:'Ava M.',   grade:'Grade 1'},  school:'Maple Elementary', teacher:'Mr. Okafor',  parent:'Dana M.',   skills:['add20','sub20','tens'],
+        mates:['Leo P.','Mia T.','Noah K.','Zoe A.','Eli B.','Lily H.','Sam W.','Ruby C.']},
+  g35: {label:'3–5',  kid:{name:'Mateo R.', grade:'Grade 4'},  school:'Maple Elementary', teacher:'Ms. Chen',    parent:'Luis R.',   skills:['mult','div','frac'],
+        mates:['Aria L.','Ben O.','Chloe N.','Diego F.','Emma S.','Finn J.','Grace Y.','Henry D.']},
+  g68: {label:'6–8',  kid:{name:'Jaylen W.',grade:'Grade 7'},  school:'Lincoln Middle',   teacher:'Ms. Rivera',  parent:'Keisha W.', skills:['int','pct','eq2'],
+        mates:['Amira H.','Caleb V.','Dani P.','Ethan G.','Imani B.','Kai T.','Lucia M.','Owen R.']},
+  g912:{label:'9–12', kid:{name:'Priya S.', grade:'Grade 11'}, school:'Eastview High',    teacher:'Mr. Delgado', parent:'Anand S.',  skills:['slope','linear','quad'],
+        mates:['Andre C.','Bella K.','Carlos D.','Hana N.','Isaiah F.','Jade L.','Marcus E.','Nora Z.']}
+};
+const BAND_KEYS = ['k2','g35','g68','g912'];
+const hash = s => { let h=2166136261; for(const ch of s){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; };
+const seeded = seed => () => { seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+function mates(){
+  return B().mates.map((name,i)=>{ const r=seeded(hash(name+S.band));
+    const m={name, wk:30+Math.floor(r()*130), all:180+Math.floor(r()*560), quizzes:5+Math.floor(r()*18), qw:1+Math.floor(r()*5), streak:Math.floor(r()*9), acc:62+Math.floor(r()*34), last:Math.floor(r()*3), up:Math.floor(r()*45), sk:[r(),r(),r()].map(x=>Math.round(45+x*55))};
+    if(i===2){ m.acc=48; m.sk=[52,38,41]; }
+    if(i===6){ m.last=7; m.wk=0; m.qw=0; m.streak=0; }
+    return m; });
+}
+
+/* ================= STATE ================= */
+const TODAY = new Date().toDateString();
+const YEST = new Date(Date.now()-864e5).toDateString();
+const KEY = 'arise-math-v2';
+const plus3 = () => { const d=new Date(Date.now()+2*864e5); return d.toISOString().slice(0,10); };
+const fresh = () => ({
+  role:'kid', band:'g35', tab:'practice', points:420, week:85, qWeek:3, streak:4, lastActive:YEST,
+  day:{date:TODAY, solved:0, quizzes:0, gameMin:0}, solved:86, quizzes:14,
+  mastery:{mult:{r:9,t:11}, div:{r:5,t:8}, frac:{r:3,t:7}},
+  best:{mult:5, div:4, frac:3},
+  history:[{d:'Oct 7', title:'Multiplication facts', score:4, of:5, pts:45},{d:'Oct 6', title:'Compare fractions', score:3, of:5, pts:30},{d:'Oct 2', title:'Multiplication facts', score:5, of:5, pts:70},{d:'Oct 1', title:'Division facts', score:4, of:5, pts:40}],
+  certs:[{t:'Perfect Score', r:'Multiplication facts quiz, 5 of 5', d:'Oct 2, 2026', by:'Arise Math'},{t:'Hard Worker', r:'Finished 10 quizzes in September', d:'Sep 30, 2026', by:'@teacher'}],
+  flags:{solo:true, live:false}, avatar:'primary',
+  a11y:{choices:false, read:false, big:false},
+  tplay:{on:true, min:20, close:'none', quizFirst:true},
+  pplay:{on:true, min:30, close:'20:30', quizFirst:false},
+  proctor:{on:false, code:'4826'},
+  board:{show:true, by:'points', period:'week'},
+  assign:{k2:[{id:'k2-1',skill:'add20',n:5,due:plus3()}], g35:[{id:'g35-1',skill:'frac',n:5,due:plus3()}], g68:[{id:'g68-1',skill:'eq2',n:5,due:plus3()}], g912:[{id:'g912-1',skill:'quad',n:5,due:plus3()}]},
+  custom:{k2:[],g35:[],g68:[],g912:[]}, done:{}
+});
+let S;
+try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)||'{}')); } catch(e){ S = fresh(); }
+if (S.day.date !== TODAY) S.day = {date:TODAY, solved:0, quizzes:0, gameMin:0};
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+const B = () => BANDS[S.band];
+const teacherName = by => by==='@teacher' ? B().teacher : by;
+const LEVELS = ['First Light','Sunrise','Morning','Climbing','High Sun','Summit','Skyward'];
+const level = () => Math.floor(S.points/150);
+const DAILY = 15;
+let RUN=null, GAME=null, LIVE=null, liveTimer=null, gameTimer=null;
+const canSpeak = 'speechSynthesis' in window;
+
+/* ================= DERIVED ================= */
+function kidAcc(){ let r=0,t=0; Object.values(S.mastery).forEach(m=>{r+=m.r;t+=m.t;}); return t?Math.round(100*r/t):0; }
+function strength(id){ const m=S.mastery[id]; return m&&m.t ? Math.round(100*m.r/m.t) : null; }
+function boardRows(period, by){
+  period=period||S.board.period; by=by||S.board.by;
+  const rows = mates().map(m=>({name:m.name, pts:period==='week'?m.wk:m.all, q:period==='week'?m.qw:m.quizzes, streak:m.streak, me:false}));
+  rows.push({name:B().kid.name, pts:period==='week'?S.week:S.points, q:period==='week'?S.qWeek:S.quizzes, streak:S.streak, me:true});
+  const key = by==='points'?'pts':'q';
+  rows.sort((a,b)=>b[key]-a[key] || b.pts-a.pts);
+  rows.forEach((r,i)=>r.rank=i+1);
+  return rows;
+}
+const myRank = () => boardRows('week','points').find(r=>r.me).rank;
+const ACH = [
+  {id:'first', name:'First Quiz', d:'Finish a quiz', ic:'check', c:'leaf', test:()=>S.quizzes>=1},
+  {id:'perfect', name:'Perfect Score', d:'Every answer right', ic:'star', c:'sun', test:()=>S.certs.some(c=>c.t==='Perfect Score')},
+  {id:'solo', name:'Solo Climber', d:'A quiz with no hints', ic:'up', c:'primary', test:()=>S.flags.solo},
+  {id:'hundred', name:'100 Problems', d:'Solve 100 problems', ic:'target', c:'teach', test:()=>S.solved>=100},
+  {id:'streak5', name:'5-Day Streak', d:'Practice 5 days in a row', ic:'flame', c:'coral', test:()=>S.streak>=5},
+  {id:'rounded', name:'Well Rounded', d:'Try every skill in your band', ic:'bolt', c:'create', test:()=>B().skills.every(id=>S.mastery[id]&&S.mastery[id].t>0)},
+  {id:'podium', name:'On the Podium', d:'Top 3 this week', ic:'trophy', c:'fly', test:()=>myRank()<=3},
+  {id:'live', name:'Live Player', d:'Join a live review game', ic:'live', c:'sky', test:()=>S.flags.live}
+];
+const earned = () => ACH.filter(a=>a.test()).map(a=>a.id);
+const STYLES = [
+  {id:'primary', label:'Indigo', at:0, bg:'var(--primary)'},
+  {id:'coral', label:'Coral', at:0, bg:'var(--coral)'},
+  {id:'create', label:'Teal', at:0, bg:'var(--create)'},
+  {id:'sunrise', label:'Sunrise', at:300, bg:'linear-gradient(135deg,var(--coral),var(--sun))'},
+  {id:'galaxy', label:'Galaxy', at:600, bg:'linear-gradient(135deg,var(--cover-a),var(--cover-b))', ring:true},
+  {id:'gold', label:'Gold', at:1000, bg:'linear-gradient(135deg,#b8860b,#f2d36b)', ring:true}
+];
+const MILESTONES = [25,50,100,250,500];
+
+/* play-time gate: the stricter of school and home settings wins */
+function gate(){
+  const t=S.tplay, p=S.pplay, T=B().teacher, Pn=B().parent;
+  const min = Math.min(t.min, p.min), left = Math.max(0, min - S.day.gameMin);
+  const closes = [t.close,p.close].filter(x=>x!=='none').sort()[0] || 'none';
+  const now = new Date(), hm = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  let why=null;
+  if(!t.on) why=`${T} turned off the game room.`;
+  else if(!p.on) why=`${Pn} turned off the game room at home.`;
+  else if(closes!=='none' && hm>=closes) why=`The game room closed at ${fmtHM(closes)}.`;
+  else if(left<=0) why=`You used all ${min} minutes of game time today.`;
+  else if((t.quizFirst||p.quizFirst) && S.day.quizzes<1) why=`Finish one quiz today to open the game room.`;
+  return {open:!why, why, left, min, closes};
+}
+function fmtHM(hm){ if(hm==='none') return 'No set time'; const [h,m]=hm.split(':').map(Number); return `${((h+11)%12)+1}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; }
+
+/* ================= SHARED UI ================= */
+const cc = k => `var(--${k})`;
+const avColor = name => { const cs=['primary','coral','teach','tech','nature','help','create','serve']; let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))%997; return cs[h%cs.length]; };
+const initials = n => n.split(/\s+/).filter(Boolean).map(w=>w[0]).join('').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase();
+function av(name, size, isMe){
+  let bg=cc(avColor(name)), ring=false;
+  if(isMe){ const st=STYLES.find(s=>s.id===S.avatar)||STYLES[0]; bg=st.bg; ring=!!st.ring; }
+  return `<div class="av ${size||''} ${ring?'ring':''}" style="--c:${cc(avColor(name))};background:${bg}">${esc(initials(name))}</div>`;
+}
+const ico = (k,c) => `<div class="ico" style="--c:${cc(c)}">${svg(k)}</div>`;
+const op = (id, size) => { const s=SK(id); return `<div class="op ${size||''}" style="--c:${cc(s.c)}">${s.glyph}</div>`; };
+const fmtDue = iso => { const d=new Date(iso+'T12:00:00'); return d.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'}); };
+const dstr = () => new Date().toLocaleDateString('en-US',{month:'short', day:'numeric'});
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=msg; const root=document.getElementById('toastRoot'); root.innerHTML=''; root.appendChild(t); clearTimeout(toast._t); toast._t=setTimeout(()=>{ t.remove(); }, 2600); }
+function toastQueue(list){ list.forEach((m,i)=>setTimeout(()=>toast(m), i*2000)); }
+
+/* ================= NAV ================= */
+const TABS = {
+  kid: [['practice','Practice','practice'],['board','Leaderboard','trophy'],['rewards','Rewards','gift'],['games','Games','game'],['me','Me','me']],
+  teacher: [['class','My Class','class'],['assign','Assign','assign'],['live','Live Review','live'],['board','Leaderboard','trophy'],['play','Play Time','clock']],
+  parent: [['family','Home','home'],['board','Leaderboard','trophy'],['play','Play Time','clock']]
+};
+function badgeFor(id){
+  if(id==='practice') return S.assign[S.band].filter(a=>S.done[a.id]===undefined).length;
+  if(id==='class') return mates().filter(m=>m.acc<60||m.last>=5).length;
+  return 0;
+}
+function renderChrome(){
+  const roles=[['kid','Student'],['parent','Parent'],['teacher','Teacher']];
+  document.getElementById('roleSeg').innerHTML = roles.map(([k,l])=>`<button data-act="role" data-v="${k}" aria-pressed="${S.role===k}">${l}</button>`).join('');
+  document.getElementById('bandSeg').innerHTML = BAND_KEYS.map(k=>`<button data-act="band" data-v="${k}" aria-pressed="${S.band===k}">${BANDS[k].label}</button>`).join('');
+  const t = TABS[S.role]; if(!t.find(x=>x[0]===S.tab)) S.tab=t[0][0];
+  document.getElementById('nav').innerHTML = t.map(([id,l,ic])=>{const n=badgeFor(id); return `<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${n?`<span class="dot">${n}</span>`:''}</button>`;}).join('');
+  document.getElementById('bottom').innerHTML = t.map(([id,l,ic])=>`<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${badgeFor(id)?'<i class="dot"></i>':''}</button>`).join('');
+  document.getElementById('ptsTop').innerHTML = S.role==='kid' ? `<span class="ptsbadge" title="Points">${svg('star')}<span class="tnum">${S.points}</span></span>` : '';
+  document.body.classList.toggle('big', !!S.a11y.big);
+}
+
+/* ================= LEFT + RAIL ================= */
+function kidCard(){
+  const k=B().kid, into=S.points%150, lv=level();
+  return `<div class="card flush mini"><div class="cover"></div>${av(k.name,'lg',true)}
+    <div class="who"><b>${esc(k.name)}</b><span>${k.grade} · ${esc(B().school)}</span></div>
+    <div class="divider" style="margin:0"></div>
+    <button class="kv" data-act="tab" data-v="rewards" style="padding-top:12px"><span>Points</span><b>${S.points}</b></button>
+    <button class="kv" data-act="tab" data-v="board"><span>Class rank this week</span><b>#${myRank()}</b></button>
+    <div class="kv"><span>Day streak</span><b>${S.streak}</b></div>
+    <div class="kv" style="padding-bottom:12px"><span>Level ${lv+1} · ${LEVELS[Math.min(lv,LEVELS.length-1)]}</span><b>${into}/150</b></div>
+    <div class="mini-goal"><div class="row"><span>Today’s goal</span><span class="tnum muted">${S.day.solved}/${DAILY} problems</span></div><div class="bar sun"><i style="width:${Math.min(100,S.day.solved/DAILY*100)}%"></i></div></div></div>`;
+}
+function leftHTML(){
+  if(S.role==='teacher'){
+    const ms=mates(), warn=ms.filter(m=>m.acc<60||m.last>=5).length, qw=ms.reduce((a,m)=>a+m.qw,0)+S.qWeek;
+    return `<div class="card flush mini"><div class="cover"></div>${av(B().teacher,'lg')}
+      <div class="who"><b>${esc(B().teacher)}</b><span>Teacher · ${esc(B().school)} · Grades ${B().label}</span></div>
+      <div class="divider" style="margin:0"></div>
+      <div class="kv" style="padding-top:12px"><span>Students</span><b>${ms.length+1}</b></div>
+      <div class="kv"><span>Quizzes this week</span><b>${qw}</b></div>
+      <button class="kv" data-act="tab" data-v="class" style="padding-bottom:14px"><span>Need a check-in</span><b>${warn}</b></button></div>`;
+  }
+  if(S.role==='parent'){
+    return `<div class="eyebrow" style="padding:0 4px">${esc(B().parent)}’s family</div>${kidCard()}
+      <div class="card stack" style="gap:8px"><div class="row" style="gap:8px">${ico('school','primary')}<div><b style="font-size:.88rem">Linked to school</b><div class="small muted">${esc(B().teacher)}’s class · ${esc(B().school)}</div></div></div></div>`;
+  }
+  return kidCard();
+}
+function gameCard(){
+  const g=gate();
+  return `<div class="card stack" style="gap:10px"><div class="card-h" style="margin:0"><h3>Game time</h3><span class="chip ${g.open?'pill-ok':'pill-warn'}">${g.open?'Open':'Closed'}</span></div>
+    <div class="bar leaf"><i style="width:${g.min?g.left/g.min*100:0}%"></i></div>
+    <span class="small muted tnum">${g.left} of ${g.min} min left today · Closes ${g.closes==='none'?'whenever':'at '+fmtHM(g.closes)}</span>
+    ${g.open?'':`<span class="small">${esc(g.why)}</span>`}</div>`;
+}
+function railHTML(){
+  if(S.role==='kid'){
+    const rows=boardRows('week','points'), me=rows.find(r=>r.me), top=rows.slice(0,3), show=top.concat(me.rank>3?[me]:[]);
+    const lb = S.board.show ? `<div class="card"><div class="card-h"><h3>This week</h3><button class="btn sm" data-act="tab" data-v="board">See all</button></div>
+      <div class="lb">${show.map(r=>`<div class="lbrow ${r.me?'me':''}"><span class="rk">${r.rank}</span>${av(r.name,'xs',r.me)}<span class="nm">${esc(r.me?'You':r.name)}</span><span class="sc">${r.pts}</span></div>`).join('')}</div></div>` : '';
+    return lb + gameCard() + `<div class="card stack" style="gap:8px"><h3>Next certificate</h3><p class="small muted">Get every answer right on any quiz to earn a Perfect Score certificate and 20 bonus points.</p></div>`;
+  }
+  if(S.role==='teacher'){
+    const warn=mates().filter(m=>m.acc<60||m.last>=5);
+    return `<div class="card"><div class="card-h"><h3>Needs a check-in</h3><span class="chip pill-warn">${warn.length}</span></div>
+      ${warn.map(m=>`<button class="warnrow" data-act="student" data-v="${esc(m.name)}">${av(m.name,'sm')}<div><b>${esc(m.name)}</b><span>${m.last>=5?`No practice in ${m.last} days`:`${m.acc}% accuracy this week`}</span></div></button>`).join('') || '<p class="small muted">Everyone is on track.</p>'}</div>
+      <div class="card stack" style="gap:10px"><h3>Live review</h3><p class="small muted">Run a 5-question game the whole class plays at once from their own devices.</p><button class="btn primary" data-act="tab" data-v="live">${svg('live')}${LIVE?'Back to the game':'Start a game'}</button></div>`;
+  }
+  return `<div class="card stack" style="gap:10px"><div class="card-h" style="margin:0"><h3>Proctor code</h3><span class="chip ${S.proctor.on?'pill-ok':''}">${S.proctor.on?'On':'Off'}</span></div>
+      <div class="code" style="font-size:1.8rem">${S.proctor.code}</div><p class="small muted">${S.proctor.on?`${esc(B().kid.name.split(' ')[0])} needs this code to start a quiz at home.`:'Turn it on in Play Time to supervise quizzes at home.'}</p></div>` + gameCard();
+}
+
+/* ================= STUDENT: PRACTICE ================= */
+function practiceHTML(){
+  const T=B().teacher, asg=S.assign[S.band];
+  const asgHTML = asg.length ? asg.map(a=>{ const done=S.done[a.id];
+    return `<div class="assign">${op(a.skill)}<div><b>${esc(a.title||SK(a.skill).name)}</b><span class="small muted">${a.n} questions · Due ${fmtDue(a.due)}</span></div>
+      ${done!==undefined?`<span class="chip pill-ok">${svg('check','style="width:14px;height:14px"')}${done}/${a.n}</span>`:`<button class="btn primary sm" data-act="start" data-type="assign" data-v="${a.id}">Start</button>`}</div>`; }).join('')
+    : `<p class="small muted">Nothing assigned right now.</p>`;
+  const cards = B().skills.map(id=>{ const s=SKILLS[id], st=strength(id), best=S.best[id];
+    return `<div class="card qcard"><div class="row" style="flex-wrap:nowrap">${op(id)}<div style="min-width:0"><h3>${s.name}</h3><span class="meta">CCSS ${s.std}</span></div></div>
+      <div><div class="row between small" style="margin-bottom:4px"><span class="muted">Strength</span><b class="tnum">${st===null?'New':st+'%'}</b></div><div class="bar leaf"><i style="width:${st||0}%"></i></div></div>
+      <div class="foot"><span class="meta">${best!==undefined?`Best ${best}/5`:'Not tried yet'}</span><button class="btn primary sm" data-act="start" data-type="skill" data-v="${id}">Start quiz</button></div></div>`; }).join('');
+  return `<div class="card"><div class="card-h" style="margin-bottom:4px"><h1>Math quizzes</h1><span class="chip">Grades ${B().label}</span></div>
+      <p class="muted">Five questions per quiz. Earn 10 points for a first-try answer, 5 with a hint, and 20 bonus points for a perfect score.</p></div>
+    <div class="card"><div class="card-h"><h2>Assigned by ${esc(T)}</h2></div>${asgHTML}</div>
+    <div class="grid qcards">${cards}
+      <div class="card qcard"><div class="row" style="flex-wrap:nowrap"><div class="op" style="--c:var(--primary)">${svg('bolt','style="width:22px;height:22px"')}</div><div><h3>Mixed review</h3><span class="meta">All three skills</span></div></div>
+        <p class="small muted">Weighted toward the skills you find hardest.</p><div class="foot"><span></span><button class="btn outline sm" data-act="start" data-type="mixed">Start quiz</button></div></div></div>
+    <div class="card"><div class="card-h"><h2>Join a live game</h2></div><div class="join"><label class="sr" for="joinCode">Game code</label><input type="text" id="joinCode" inputmode="numeric" placeholder="Game code" maxlength="7"><button class="btn primary" data-act="join">Join</button></div>
+      <p class="small muted" style="margin-top:8px">Your teacher shows the code on the board.</p></div>`;
+}
+
+/* ================= QUIZ RUNNER ================= */
+function choicesFor(a){
+  const neg = S.band==='g68'||S.band==='g912', step = Number.isInteger(a)?1:0.5;
+  let c=[a+step,a-step,a+2*step,a-2*step,a+10,a-10,-a,a*2].filter(v=>v!==a&&(neg||v>=0));
+  c=[...new Set(c)]; return shuffle(shuffle(c).slice(0,3).concat([a]));
+}
+function startQuiz(type, v, skipProctor){
+  if(S.role==='kid' && S.proctor.on && !skipProctor){ return proctorModal(type, v); }
+  let title, n=5, skill=null, assign=null;
+  if(type==='skill'){ skill=v; title=SKILLS[v].name; }
+  else if(type==='assign'){ assign=S.assign[S.band].find(a=>a.id===v); n=assign.n; title=assign.title||SK(assign.skill).name; if(assign.skill!=='mixed' && assign.skill!=='custom') skill=assign.skill; }
+  else title='Mixed review';
+  RUN={type, skill, assign, title, n, i:0, results:[], pts:0, hintsAny:false, phase:'q', rankBefore:myRank(), achBefore:earned()};
+  RUN.item=makeItem(); S.tab='practice'; render(); window.scrollTo({top:0}); speakAuto();
+}
+function makeItem(){
+  let id=RUN.skill, p;
+  if(RUN.assign && RUN.assign.skill==='custom' && S.custom[S.band].length){
+    const list=S.custom[S.band]; const q=list[RUN.i % list.length];
+    id='custom'; p={ask:'Your teacher wrote this question.', prompt:esc(q.q), plain:q.q, long:q.q.length>14, viz:'', answer:q.a, steps:q.h?[esc(q.h), `The answer is ${fmtV(q.a)}.`]:[`The answer is ${fmtV(q.a)}.`]};
+  } else {
+    if(!id){ const ids=B().skills, w=ids.map(k=>{ const m=S.mastery[k]; return !m||!m.t?1.5:1.6-m.r/m.t; }); let t=Math.random()*w.reduce((a,b)=>a+b,0); id=ids[0]; for(let k=0;k<ids.length;k++){ t-=w[k]; if(t<=0){ id=ids[k]; break; } } }
+    p=SKILLS[id].gen();
+  }
+  const it=Object.assign({skill:id, kind:'num', tries:0, hints:0, done:false, wrong:[], fb:null, inputBad:false}, p);
+  it.orig=it.kind;
+  if(it.kind==='num' && S.a11y.choices){ it.kind='nchoice'; it.choices=choicesFor(it.answer); }
+  return it;
+}
+function answerHTML(it){
+  if(it.kind==='choice'||it.kind==='nchoice'){
+    const names={'<':'less than','=':'equal to','>':'greater than'};
+    return `<div class="choices">${it.choices.map(c=>{ const val=String(c), lab=it.kind==='choice'?c:fmtV(c), good=it.done&&sameAns(it,val), bad=it.wrong.includes(val);
+      return `<button type="button" data-act="pick" data-v="${esc(val)}" class="${good?'is-good':bad?'is-bad':''}" ${it.done||bad?'disabled':''} aria-label="${esc(names[c]||lab)}">${lab}</button>`; }).join('')}</div>`;
+  }
+  const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
+  return `<form class="answer" id="ansForm" autocomplete="off"><label for="ans" class="sr">Your answer</label><input id="ans" inputmode="none" placeholder="?" spellcheck="false" class="${it.inputBad?'is-bad':''}" ${it.done?'disabled':''} value="${it.done?esc(fmtV(it.answer)):''}"><button class="btn primary lg" type="submit" ${it.done?'disabled':''}>Check</button></form>
+    ${it.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="key" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
+}
+function runnerHTML(){
+  if(RUN.phase==='done') return resultsHTML();
+  const it=RUN.item, sk=SK(it.skill);
+  const pips=range(0,RUN.n-1).map(i=>`<i class="${RUN.results[i]||(i===RUN.i?'cur':'')}"></i>`).join('');
+  const shown=it.done?it.steps.length:Math.min(it.hints,it.steps.length);
+  return `<div class="card flush">
+    <div class="cover run-head"><div class="run-top"><button class="btn sm glass" data-act="quit">${svg('x')}Leave quiz</button><span class="run-pts tnum">${RUN.pts} pts</span></div>
+      <div class="run-title"><b>${esc(RUN.title)}</b><span>Question ${RUN.i+1} of ${RUN.n}</span></div><div class="pips">${pips}</div></div>
+    <div class="run-body">
+      <div class="row between"><div class="row" style="gap:8px"><span class="chip cl" style="--c:${cc(sk.c)}">${sk.name}</span><span class="small muted">${sk.std==='Custom'?'':'CCSS '+sk.std}</span></div>
+        <div class="row" style="gap:6px">${canSpeak?`<button class="btn sm" data-act="speak">${svg('speaker')}Read aloud</button>`:''}${it.orig==='num'?`<button class="btn sm" data-act="a11y" data-v="choices" aria-pressed="${S.a11y.choices}">${svg('eye')}Picture choices</button>`:''}</div></div>
+      <p class="ask">${esc(it.ask)}</p>
+      <div class="prompt ${it.long?'long':''}">${it.prompt}</div>
+      ${it.viz?`<div class="viz-wrap">${it.viz}</div>`:''}
+      ${answerHTML(it)}
+      ${it.fb?`<p class="feedback ${it.fb.c}" role="status">${it.fb.t}</p>`:''}
+      ${it.done?`<div><button class="btn primary lg" data-act="next" id="nextBtn">${RUN.i+1<RUN.n?'Next question':'See my score'}</button></div>`:''}
+      <div class="hints"><button class="btn" data-act="hint" ${shown>=it.steps.length?'disabled':''}>${shown>=it.steps.length?'All steps shown':shown?`Next step (${shown+1} of ${it.steps.length})`:'Show a hint'}</button>
+        ${shown?`<ol class="steps">${it.steps.slice(0,shown).map(s=>`<li>${s}</li>`).join('')}</ol>`:''}</div>
+    </div></div>`;
+}
+function parseAns(s){
+  s=String(s).trim().replace(/[−–—]/g,'-').replace(/\s+/g,'').replace(/^x=/i,'');
+  if(!s) return NaN;
+  if(/^-?\d+(\.\d+)?\/-?\d+(\.\d+)?$/.test(s)){ const [a,b]=s.split('/').map(Number); return b?a/b:NaN; }
+  if(/^-?(\d+\.?\d*|\.\d+)$/.test(s)) return Number(s);
+  return NaN;
+}
+function sameAns(it, val){ return it.kind==='choice' ? val===it.answer : Math.abs(Number(val)-it.answer)<1e-9; }
+function submitAnswer(val){
+  const it=RUN&&RUN.item; if(!it||it.done) return;
+  let ok;
+  if(it.kind==='num'){ const v=parseAns(val); if(isNaN(v)){ it.fb={t:'Type a number, like 12, −3, or 3/4.', c:'bad'}; render(); return; } ok=Math.abs(v-it.answer)<1e-9; }
+  else ok=sameAns(it,val);
+  it.tries++;
+  const m=S.mastery[it.skill]||(S.mastery[it.skill]={r:0,t:0});
+  if(ok){
+    const first=it.tries===1&&it.hints===0, gain=first?10:5;
+    RUN.pts+=gain; S.points+=gain; S.week+=gain; S.solved++; S.day.solved++;
+    if(it.skill!=='custom'){ m.t++; m.r+=first?1:.5; }
+    RUN.results[RUN.i]=first?'first':'solved'; it.done=true; it.inputBad=false;
+    it.fb={t:first?`Correct on the first try. +${gain} points`:`Correct. +${gain} points`, c:'good'};
+  } else if(it.tries===1){
+    it.inputBad=true; if(it.kind!=='num') it.wrong.push(val);
+    it.fb={t:'Not quite. Try once more, or open a hint.', c:'bad'};
+  } else {
+    if(it.skill!=='custom') m.t++;
+    RUN.results[RUN.i]='missed'; it.done=true; it.inputBad=false; if(it.kind!=='num') it.wrong.push(val);
+    it.fb={t:`The answer is ${it.kind==='choice'?it.answer:fmtV(it.answer)}. Read the steps, then keep going.`, c:'bad'};
+  }
+  if(it.hints) RUN.hintsAny=true;
+  save(); render();
+  if(it.done) setTimeout(()=>{ const b=document.getElementById('nextBtn'); if(b) b.focus({preventScroll:true}); },30);
+}
+function nextQuestion(){
+  if(RUN.i+1<RUN.n){ RUN.i++; RUN.item=makeItem(); render(); speakAuto(); return; }
+  finishQuiz();
+}
+function finishQuiz(){
+  const score=RUN.results.filter(r=>r!=='missed').length, perfect=score===RUN.n, allFirst=RUN.results.every(r=>r==='first');
+  if(perfect){ RUN.pts+=20; S.points+=20; S.week+=20; }
+  if(S.lastActive!==TODAY){ S.streak = S.lastActive===YEST ? S.streak+1 : 1; S.lastActive=TODAY; }
+  S.quizzes++; S.qWeek++; S.day.quizzes++;
+  if(allFirst && !RUN.hintsAny) S.flags.solo=true;
+  if(RUN.skill && (S.best[RUN.skill]===undefined || score>S.best[RUN.skill]) && RUN.n===5) S.best[RUN.skill]=score;
+  if(RUN.assign) S.done[RUN.assign.id]=score;
+  S.history.unshift({d:dstr(), title:RUN.title, score, of:RUN.n, pts:RUN.pts}); S.history=S.history.slice(0,30);
+  let cert=null;
+  if(perfect){ cert={t:'Perfect Score', r:`${RUN.title} quiz, ${score} of ${RUN.n}`, d:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}), by:'Arise Math'}; S.certs.unshift(cert); }
+  RUN.phase='done'; RUN.score=score; RUN.cert=cert; RUN.rankAfter=myRank();
+  save(); render(); window.scrollTo({top:0});
+  const msgs=[];
+  if(RUN.rankAfter<RUN.rankBefore) msgs.push(`You moved up to #${RUN.rankAfter} in ${B().teacher}’s class this week.`);
+  earned().filter(a=>!RUN.achBefore.includes(a)).forEach(a=>msgs.push(`Achievement unlocked: ${ACH.find(x=>x.id===a).name}`));
+  if(msgs.length) toastQueue(msgs);
+  if(perfect) confetti();
+}
+function resultsHTML(){
+  const r=RUN, kid=B().kid.name.split(' ')[0];
+  return `<div class="card flush"><div class="cover run-head"><div class="run-title"><b>Quiz complete</b><span>${esc(r.title)}</span></div></div>
+    <div class="run-body">
+      <div class="row" style="gap:24px;align-items:flex-end"><div><div class="result-score tnum">${r.score}/${r.n}</div><span class="muted small">correct</span></div>
+        <div><div class="result-score tnum" style="color:var(--sun)">+${r.pts}</div><span class="muted small">points${r.score===r.n?' · includes 20 bonus':''}</span></div></div>
+      <p>${r.score===r.n?`Every answer right, ${esc(kid)}. That earns a certificate.`:r.score>=r.n-1?`Strong work, ${esc(kid)}. One more and it’s perfect.`:`Good practice, ${esc(kid)}. Hints are there whenever you need them.`} You’re <b>#${r.rankAfter}</b> in ${esc(B().teacher)}’s class this week.</p>
+      ${r.cert?`<button class="btn outline" data-act="cert" data-v="0">${svg('award')}View my certificate</button>`:''}
+      <div class="qlist">${r.results.map((x,i)=>`<div><span class="mk ${x}">${x==='missed'?'✗':'✓'}</span><span>Question ${i+1}</span><span class="small muted">${x==='first'?'First try':x==='solved'?'With help':'Missed'}</span></div>`).join('')}</div>
+      <div class="row"><button class="btn primary" data-act="home">Pick another quiz</button><button class="btn" data-act="tab" data-v="board">${svg('trophy')}Leaderboard</button>${gate().open?`<button class="btn" data-act="tab" data-v="games">${svg('game')}Game room</button>`:''}</div>
+    </div></div>`;
+}
+function speakText(t){ if(!canSpeak) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t.replace(/−/g,' minus ').replace(/×/g,' times ').replace(/÷/g,' divided by ').replace(/\?/g,' what ').replace(/x²/g,'x squared ').replace(/=/g,' equals ').replace(/</g,' is less than ').replace(/>/g,' is greater than ')); u.rate=.92; speechSynthesis.speak(u); }catch(e){} }
+function speakAuto(){ if(S.a11y.read && RUN && RUN.item && RUN.phase==='q') speakText(RUN.item.ask+'. '+RUN.item.plain); }
+
+/* ================= STUDENT: LEADERBOARD ================= */
+function boardHTML(){
+  const T=B().teacher, rows=boardRows(), by=S.board.by, per=S.board.period;
+  if(S.role==='kid' && !S.board.show) return `<div class="card"><h1>Leaderboard</h1><p class="muted" style="margin-top:6px">${esc(T)} turned the leaderboard off for now. Your points still count, and you can see them in Rewards.</p></div>`;
+  const pod=[rows[1],rows[0],rows[2]].map((r,i)=>r?`<div class="pod p${[2,1,3][i]}">${av(r.name,'',r.me)}<b>${esc(r.me&&S.role==='kid'?'You':r.name)}</b><span class="pts tnum">${by==='points'?r.pts+' pts':r.q+' quizzes'}</span><div class="blk">${[2,1,3][i]}</div></div>`:'').join('');
+  const ms=mates(), meRow={name:B().kid.name, streak:S.streak, up:0, qw:S.qWeek};
+  const longest=[...ms,meRow].sort((a,b)=>b.streak-a.streak)[0], most=[...ms,meRow].sort((a,b)=>b.qw-a.qw)[0], imp=ms.slice().sort((a,b)=>b.up-a.up)[0];
+  const settings = S.role==='teacher' ? `<div class="card"><div class="card-h"><h2>Leaderboard settings</h2></div>
+      <div class="setting"><div><b>Show to students</b><span>Turn off to keep points private during testing weeks.</span></div><button class="toggle" data-act="bset" data-v="show" aria-pressed="${S.board.show}" aria-label="Show to students"></button></div>
+      <div class="setting"><div><b>Rank by</b><span>Effort ranks by quizzes finished, so steady practice wins.</span></div><select id="bsetBy" aria-label="Rank by"><option value="points" ${by==='points'?'selected':''}>Points</option><option value="effort" ${by==='effort'?'selected':''}>Effort (quizzes)</option></select></div></div>` : '';
+  return settings + `<div class="card"><div class="card-h"><div><h1>Leaderboard</h1><span class="small muted">${esc(T)}’s class · first names and last initials only</span></div>
+      <div class="row" style="gap:6px"><button class="chip" data-act="period" data-v="week" aria-pressed="${per==='week'}">This week</button><button class="chip" data-act="period" data-v="all" aria-pressed="${per==='all'}">All time</button></div></div>
+      <div class="podium">${pod}</div></div>
+    <div class="card"><div class="lb">${rows.map(r=>`<div class="lbrow ${r.me?'me':''}"><span class="rk">${r.rank}</span>${av(r.name,'sm',r.me)}<span class="nm">${esc(r.me&&S.role==='kid'?'You':r.name)}<small>${r.streak?`${r.streak}-day streak`:'No streak yet'}</small></span><span class="sc">${by==='points'?r.pts:r.q}<small>${by==='points'?'points':'quizzes'}</small></span></div>`).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Effort awards this week</h2></div><div class="grid awards">
+      <div class="award">${ico('up','leaf')}<div><b>${esc(imp.name)}</b><span>Most improved · +${imp.up}% accuracy</span></div></div>
+      <div class="award">${ico('flame','coral')}<div><b>${esc(longest.name)}</b><span>Longest streak · ${longest.streak} days</span></div></div>
+      <div class="award">${ico('check','primary')}<div><b>${esc(most.name)}</b><span>Most quizzes · ${most.qw} this week</span></div></div></div></div>`;
+}
+
+/* ================= STUDENT: REWARDS ================= */
+function rewardsHTML(){
+  const lv=level(), got=earned(), next=MILESTONES.find(m=>m>S.solved)||MILESTONES[MILESTONES.length-1], prev=MILESTONES.filter(m=>m<=S.solved).pop()||0;
+  return `<div class="card flush"><div class="cover hero">${av(B().kid.name,'lg',true)}<div><div class="big tnum">${S.points}</div><span>points · Level ${lv+1} ${LEVELS[Math.min(lv,LEVELS.length-1)]} · ${150-S.points%150} to the next level</span></div></div></div>
+    <div class="card"><div class="card-h"><h2>Avatar style</h2><span class="small muted">Unlock new looks as your points grow</span></div>
+      <div class="styles">${STYLES.map(st=>{ const ok=S.points>=st.at; return `<button class="style" data-act="style" data-v="${st.id}" aria-pressed="${S.avatar===st.id}" ${ok?'':'disabled'}><div class="av ${st.ring?'ring':''}" style="background:${st.bg}">${esc(initials(B().kid.name))}</div><span>${st.label}</span><span class="small muted" style="font-weight:600">${ok?(st.at?'Unlocked':'Free'):st.at+' pts'}</span></button>`; }).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Achievements</h2><span class="small muted tnum">${got.length} of ${ACH.length}</span></div>
+      <div class="badges">${ACH.map(a=>{ const ok=got.includes(a.id); return `<div class="badge ${ok?'':'locked'}">${ico(ok?a.ic:'lock',a.c)}<span>${a.name}</span><small>${a.d}</small></div>`; }).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Certificates</h2><span class="small muted tnum">${S.certs.length}</span></div>
+      ${S.certs.map((c,i)=>`<div class="certrow">${ico('award','sun')}<div><b>${esc(c.t)}</b><span>${esc(c.r)} · ${esc(c.d)}</span></div><button class="btn sm" data-act="cert" data-v="${i}">View</button></div>`).join('')}</div>
+    <div class="card"><div class="card-h"><h2>Milestones</h2><span class="small muted tnum">${S.solved} problems solved</span></div>
+      <div class="row between small" style="margin-bottom:6px"><span>${prev} solved</span><b>Next: ${next}</b></div><div class="bar sun"><i style="width:${Math.min(100,(S.solved-prev)/(next-prev)*100)}%"></i></div>
+      <div class="row" style="margin-top:12px;gap:6px">${MILESTONES.map(m=>`<span class="chip ${S.solved>=m?'pill-ok':''}">${S.solved>=m?svg('check','style="width:13px;height:13px"'):''}${m}</span>`).join('')}</div></div>`;
+}
+
+/* ================= STUDENT: GAMES ================= */
+function gameTilesFor(){
+  const b=S.band; let T, pair;
+  if(b==='k2'){ T=10; pair=()=>{ const a=rnd(1,9); return [a,T-a]; }; }
+  else if(b==='g35'){ T=pick([20,50,100]); pair=()=>{ const a=T===20?rnd(1,19):5*rnd(1,T/5-1); return [a,T-a]; }; }
+  else if(b==='g68'){ T=pick([-6,-3,0,4,7]); pair=()=>{ const a=rnd(-15,15); return [a,T-a]; }; }
+  else { T=pick([1,1.5,2]); pair=()=>{ const a=rnd(1,T*4-1)/4; return [a,+(T-a).toFixed(2)]; }; }
+  let tiles=[]; for(let i=0;i<6;i++) tiles.push(...pair());
+  return {T, pair, tiles:shuffle(tiles).map((v,i)=>({v,id:i+'-'+Math.random()}))};
+}
+function startGame(){
+  const g=gate(); if(!g.open){ toast(g.why); return; }
+  S.day.gameMin+=1; save();
+  const t=gameTilesFor(); GAME={T:t.T, pair:t.pair, tiles:t.tiles, sel:null, score:0, end:Date.now()+60000, over:false, flash:null};
+  clearInterval(gameTimer);
+  gameTimer=setInterval(()=>{ if(!GAME) return clearInterval(gameTimer); const left=Math.max(0,Math.ceil((GAME.end-Date.now())/1000)); const el=document.getElementById('gTime'); if(el) el.textContent=left+'s';
+    if(left<=0){ clearInterval(gameTimer); GAME.over=true; toast(`Round over: ${GAME.score} pairs`); if(S.tab==='games') render(); } },250);
+  render();
+}
+function tapTile(id){
+  if(!GAME||GAME.over) return;
+  const t=GAME.tiles.find(x=>x.id===id); if(!t) return;
+  if(GAME.sel===null){ GAME.sel=id; GAME.flash=null; render(); return; }
+  if(GAME.sel===id){ GAME.sel=null; render(); return; }
+  const a=GAME.tiles.find(x=>x.id===GAME.sel);
+  if(Math.abs(a.v+t.v-GAME.T)<1e-9){
+    GAME.score++; const [p,q]=GAME.pair(); const ia=GAME.tiles.indexOf(a), it=GAME.tiles.indexOf(t);
+    GAME.tiles[ia]={v:p,id:'n'+Math.random()}; GAME.tiles[it]={v:q,id:'n'+Math.random()};
+    GAME.flash={ok:[GAME.tiles[ia].id,GAME.tiles[it].id]};
+  } else GAME.flash={no:[a.id,t.id]};
+  GAME.sel=null; render();
+}
+const fmtG = v => N(+v.toFixed(2));
+function gamesHTML(){
+  const g=gate(), T=B().teacher, Pn=B().parent;
+  const status=`<div class="gate ${g.open?'open':'closed'}">${svg(g.open?'unlock':'lock')}<div><b>${g.open?`Game room is open · ${g.left} min left today`:'Game room is closed'}</b><div class="small muted">${g.open?`Each round uses 1 minute. Set by ${esc(T)} at school and ${esc(Pn)} at home.`:esc(g.why)}</div></div></div>`;
+  let body;
+  if(GAME && !GAME.over){
+    const left=Math.max(0,Math.ceil((GAME.end-Date.now())/1000));
+    body=`<div class="card stack"><div class="target"><div><span class="eyebrow">Make the target</span><div class="t">${fmtG(GAME.T)}</div></div><div style="text-align:right"><div class="timer" id="gTime">${left}s</div><span class="small muted tnum">${GAME.score} pairs</span></div></div>
+      <div class="tiles">${GAME.tiles.map(t=>`<button class="tile ${GAME.flash&&GAME.flash.ok&&GAME.flash.ok.includes(t.id)?'pop':''} ${GAME.flash&&GAME.flash.no&&GAME.flash.no.includes(t.id)?'no':''}" data-act="tile" data-v="${t.id}" aria-pressed="${GAME.sel===t.id}">${fmtG(t.v)}</button>`).join('')}</div>
+      <p class="small muted">Tap two numbers that add up to ${fmtG(GAME.T)}.</p></div>`;
+  } else {
+    body=`<div class="card stack">${GAME&&GAME.over?`<div><span class="eyebrow">Last round</span><div class="result-score tnum">${GAME.score} pairs</div></div>`:''}
+      <div class="row" style="flex-wrap:nowrap;align-items:flex-start">${ico('target','primary')}<div><h2>Target Pop</h2><p class="small muted">Find pairs that add up to the target before the 60-second timer runs out. Games are a reward, so they don’t add leaderboard points.</p></div></div>
+      <div><button class="btn primary lg" data-act="game" ${g.open?'':'disabled'}>${svg('game')}${GAME&&GAME.over?'Play again':'Play a round'}</button></div></div>`;
+  }
+  return `<div class="card"><h1>Game room</h1><p class="muted" style="margin-top:4px">Quizzes come first. Games open with the time your teacher and family allow.</p></div>${status}${body}`;
+}
+
+/* ================= STUDENT: ME ================= */
+function meHTML(){
+  return `<div class="card"><div class="card-h"><h1>My skills</h1><span class="chip">Grades ${B().label}</span></div>
+      <div class="stack">${B().skills.map(id=>{ const st=strength(id), m=S.mastery[id]; return `<div class="row" style="flex-wrap:nowrap;align-items:flex-start">${op(id,'sm')}<div style="flex:1;min-width:0"><div class="row between"><b>${SKILLS[id].name}</b><b class="tnum">${st===null?'New':st+'%'}</b></div><div class="bar leaf" style="margin:6px 0 4px"><i style="width:${st||0}%"></i></div><span class="small muted">CCSS ${SKILLS[id].std} · ${m?m.t:0} problems tried</span></div></div>`; }).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Recent quizzes</h2></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Quiz</th><th class="num">Score</th><th class="num">Points</th></tr></thead><tbody>
+      ${S.history.slice(0,8).map(h=>`<tr><td>${esc(h.d)}</td><td>${esc(h.title)}</td><td class="num">${h.score}/${h.of}</td><td class="num">+${h.pts}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>Ways to answer</h2></div>
+      <div class="setting"><div><b>Picture choices</b><span>Tap one of four big answers instead of typing.</span></div><button class="toggle" data-act="a11y" data-v="choices" aria-pressed="${S.a11y.choices}" aria-label="Picture choices"></button></div>
+      ${canSpeak?`<div class="setting"><div><b>Read questions aloud</b><span>Hear each question as it appears.</span></div><button class="toggle" data-act="a11y" data-v="read" aria-pressed="${S.a11y.read}" aria-label="Read questions aloud"></button></div>`:''}
+      <div class="setting"><div><b>Larger text</b><span>Bigger numbers and buttons everywhere.</span></div><button class="toggle" data-act="a11y" data-v="big" aria-pressed="${S.a11y.big}" aria-label="Larger text"></button></div></div>`;
+}
+
+/* ================= TEACHER: CLASS ================= */
+function rosterRows(){
+  const kid={name:B().kid.name, all:S.points, wk:S.week, quizzes:S.quizzes, qw:S.qWeek, acc:kidAcc(), last:S.day.solved||S.lastActive===TODAY?0:1, streak:S.streak, sk:B().skills.map(id=>strength(id)??0), me:true};
+  return [kid,...mates()];
+}
+const lastTxt = n => n===0?'Today':n===1?'Yesterday':`${n} days ago`;
+function classHTML(){
+  const rows=rosterRows(), warn=rows.filter(r=>r.acc<60||r.last>=5), avgAcc=Math.round(rows.reduce((a,r)=>a+r.acc,0)/rows.length), qw=rows.reduce((a,r)=>a+r.qw,0);
+  return `<div class="card"><div class="card-h" style="margin-bottom:12px"><div><h1>My Class</h1><span class="small muted">${esc(B().school)} · Grades ${B().label} · ${rows.length} students</span></div></div>
+      <div class="statgrid"><div><b>${avgAcc}%</b><span>Average accuracy</span></div><div><b>${qw}</b><span>Quizzes this week</span></div><div><b>${warn.length}</b><span>Need a check-in</span></div><div><b>${S.assign[S.band].length}</b><span>Active assignments</span></div></div></div>
+    <div class="card"><div class="card-h"><h2>Students</h2><span class="small muted">Tap a student for their profile</span></div><div class="table-wrap"><table><thead><tr><th>Student</th><th class="num">Points</th><th class="num">Quizzes</th><th class="num">Accuracy</th><th>Last active</th><th>Status</th></tr></thead><tbody>
+      ${rows.map(r=>{ const flag=r.acc<60||r.last>=5; return `<tr class="click" data-act="student" data-v="${esc(r.name)}"><td><div class="row" style="flex-wrap:nowrap;gap:8px">${av(r.name,'xs',r.me)}<b>${esc(r.name)}</b></div></td><td class="num">${r.all}</td><td class="num">${r.quizzes}</td><td class="num">${r.acc}%</td><td>${lastTxt(r.last)}</td><td><span class="chip ${flag?'pill-warn':'pill-ok'}">${flag?'Check in':'On track'}</span></td></tr>`; }).join('')}</tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>Skill strength</h2><span class="small muted">First-try accuracy by skill</span></div><div class="table-wrap"><table><thead><tr><th>Student</th>${B().skills.map(id=>`<th>${SKILLS[id].name}</th>`).join('')}</tr></thead><tbody>
+      ${rows.map(r=>`<tr><td>${esc(r.name)}</td>${r.sk.map(v=>`<td><span class="heat ${v<50?'low':''}" style="--p:${Math.max(8,v-35)}%">${v}%</span></td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+}
+function studentModal(name){
+  const r=rosterRows().find(x=>x.name===name); if(!r) return;
+  const flag=r.acc<60||r.last>=5;
+  openModal(`<div class="cover" style="height:72px"></div><div class="modal-body" style="padding-top:0">
+    <div style="margin-top:-36px">${av(r.name,'lg',r.me)}</div>
+    <div><h2>${esc(r.name)}</h2><span class="small muted">${B().kid.grade} · ${esc(B().school)}</span></div>
+    ${flag?`<div class="gate closed">${svg('shield')}<div><b>Suggested check-in</b><div class="small muted">${r.last>=5?`No practice in ${r.last} days.`:`Accuracy is ${r.acc}% this week. Try assigning a hint-friendly review.`}</div></div></div>`:''}
+    <div class="statgrid"><div><b>${r.all}</b><span>Points</span></div><div><b>${r.quizzes}</b><span>Quiz attempts</span></div><div><b>${r.acc}%</b><span>Accuracy</span></div><div><b>${r.streak}</b><span>Day streak</span></div></div>
+    <div class="stack" style="gap:10px">${B().skills.map((id,i)=>`<div><div class="row between small"><b>${SKILLS[id].name}</b><span class="tnum">${r.sk[i]}%</span></div><div class="bar leaf"><i style="width:${r.sk[i]}%"></i></div></div>`).join('')}</div>
+    <div><h3 style="margin-bottom:8px">Award a certificate</h3><div class="row">${['Math Star','Most Improved','Hard Worker'].map(t=>`<button class="btn outline sm" data-act="award" data-v="${t}" data-name="${esc(r.name)}">${svg('award')}${t}</button>`).join('')}</div></div>
+  </div>`);
+}
+
+/* ================= TEACHER: ASSIGN ================= */
+function assignHTML(){
+  const asg=S.assign[S.band], cus=S.custom[S.band];
+  return `<div class="card"><h1>Assign practice</h1><p class="muted" style="margin-top:4px">Assignments show up first on each student’s Practice page.</p></div>
+    <div class="card stack"><h2>New assignment</h2><div class="grid two">
+      <label class="f">Skill<select id="aSkill">${B().skills.map(id=>`<option value="${id}">${SKILLS[id].name} (${SKILLS[id].std})</option>`).join('')}<option value="mixed">Mixed review</option>${cus.length?`<option value="custom">My questions (${cus.length})</option>`:''}</select></label>
+      <label class="f">Questions<select id="aN"><option>5</option><option>10</option></select></label>
+      <label class="f">Due<input type="date" id="aDue" value="${plus3()}"></label></div>
+      <div><button class="btn primary" data-act="assign">${svg('plus')}Assign to class</button></div></div>
+    <div class="card"><div class="card-h"><h2>Active</h2><span class="small muted tnum">${asg.length}</span></div>
+      ${asg.map(a=>{ const doneN=Math.min(8,3+(hash(a.id)%5))+(S.done[a.id]!==undefined?1:0); return `<div class="assign">${op(a.skill)}<div><b>${esc(a.title||SK(a.skill).name)}</b><span class="small muted">${a.n} questions · Due ${fmtDue(a.due)} · ${doneN} of ${B().mates.length+1} finished</span></div><button class="btn sm" data-act="unassign" data-v="${a.id}">Remove</button></div>`; }).join('') || '<p class="small muted">No active assignments.</p>'}</div>
+    <div class="card stack"><h2>Write your own questions</h2><p class="small muted">Add questions from your lesson. Students answer with a number; fractions like 3/4 work too.</p>
+      <div class="grid two"><label class="f">Question<input type="text" id="cQ" maxlength="80" placeholder="A bus holds 48 kids. How many buses for 192 kids?"></label><label class="f">Answer<input type="text" id="cA" maxlength="12" placeholder="4"></label></div>
+      <label class="f">Hint (optional)<input type="text" id="cH" maxlength="120" placeholder="Divide the kids by the seats on one bus."></label>
+      <div><button class="btn outline" data-act="addq">${svg('plus')}Add question</button></div>
+      ${cus.length?`<div class="qlist">${cus.map((q,i)=>`<div><span class="mk">${i+1}</span><span>${esc(q.q)} <span class="muted">→ ${esc(fmtV(q.a))}</span></span><button class="btn sm" data-act="delq" data-v="${i}">Remove</button></div>`).join('')}</div>`:''}</div>`;
+}
+
+/* ================= TEACHER: LIVE REVIEW ================= */
+const LIVE_COLORS=['primary','coral','create','sun'];
+function liveQuestion(){
+  const id=pick(B().skills), p=SKILLS[id].gen();
+  return Object.assign({skill:id}, p, {opts: p.kind==='choice'? p.choices.map(String) : choicesFor(p.answer).map(String)});
+}
+function startLive(){
+  LIVE={code:`${rnd(100,999)} ${rnd(100,999)}`, phase:'lobby', joined:[], qi:0, q:null, t:20, resp:{}, scores:{}};
+  clearInterval(liveTimer); liveTimer=setInterval(liveTick,1000); render();
+}
+function liveTick(){
+  if(!LIVE) return clearInterval(liveTimer);
+  const ms=mates();
+  if(LIVE.phase==='lobby'){ const nxt=ms.filter(m=>!LIVE.joined.includes(m.name)); if(nxt.length) LIVE.joined.push(nxt[0].name); }
+  else if(LIVE.phase==='q'){
+    LIVE.t--; const q=LIVE.q, right=String(q.kind==='choice'?q.answer:q.answer);
+    ms.filter(m=>LIVE.joined.includes(m.name)&&!LIVE.resp[m.name]).forEach(m=>{ if(Math.random()<.35){ const ok=Math.random()<m.acc/100; LIVE.resp[m.name]= ok? q.opts.find(o=>sameAns(q.kind==='choice'?q:{kind:'nchoice',answer:q.answer},o)) : pick(q.opts.filter(o=>!sameAns(q.kind==='choice'?q:{kind:'nchoice',answer:q.answer},o))); if(ok) LIVE.scores[m.name]=(LIVE.scores[m.name]||0)+1; } });
+    if(LIVE.t<=0 || Object.keys(LIVE.resp).length>=LIVE.joined.length) LIVE.phase='reveal';
+  }
+  if(S.role==='teacher' && S.tab==='live') render();
+}
+function liveNext(){
+  if(LIVE.phase==='lobby'||LIVE.phase==='reveal'){
+    if(LIVE.phase==='reveal' && LIVE.qi>=5){ LIVE.phase='done'; clearInterval(liveTimer); render(); return; }
+    LIVE.qi++; LIVE.q=liveQuestion(); LIVE.t=20; LIVE.resp={}; LIVE.phase='q';
+  } else if(LIVE.phase==='q') LIVE.phase='reveal';
+  render();
+}
+function liveHTML(){
+  if(!LIVE) return `<div class="card stack"><h1>Live review</h1><p class="muted">Put a question on the board and the whole class answers at once from their own devices. Five questions from this band’s skills, 20 seconds each.</p>
+    <div><button class="btn primary lg" data-act="live">${svg('live')}Start a live game</button></div></div>`;
+  if(LIVE.phase==='lobby') return `<div class="card stack" style="text-align:center;align-items:center"><span class="eyebrow">Join on Arise Math with code</span><div class="code">${LIVE.code}</div>
+    <p class="muted tnum">${LIVE.joined.length} of ${B().mates.length} joined</p><div class="lobby" style="justify-content:center">${LIVE.joined.map(n=>`<span class="chip">${esc(n)}</span>`).join('')}</div>
+    <div class="row" style="justify-content:center"><button class="btn primary lg" data-act="livenext" ${LIVE.joined.length?'':'disabled'}>Start question 1</button><button class="btn" data-act="liveend">End game</button></div>
+    <p class="small muted">Demo tip: switch to Student and enter this code on the Practice page.</p></div>`;
+  if(LIVE.phase==='done'){ const top=Object.entries(LIVE.scores).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    return `<div class="card stack"><h1>Game over</h1><div class="podium">${[top[1],top[0],top[2]].map((t,i)=>t?`<div class="pod p${[2,1,3][i]}">${av(t[0])}<b>${esc(t[0])}</b><span class="pts">${t[1]} correct</span><div class="blk">${[2,1,3][i]}</div></div>`:'<div></div>').join('')}</div>
+      <div class="row"><button class="btn primary" data-act="live">Play again</button><button class="btn" data-act="liveend">Close</button></div></div>`; }
+  const q=LIVE.q, counts=q.opts.map(o=>Object.values(LIVE.resp).filter(v=>v===o).length), total=Object.keys(LIVE.resp).length, rev=LIVE.phase==='reveal';
+  const isRight=o=>sameAns(q.kind==='choice'?q:{kind:'nchoice',answer:q.answer},o);
+  return `<div class="card stack"><div class="row between"><span class="eyebrow">Question ${LIVE.qi} of 5 · ${SKILLS[q.skill].name}</span><span class="timer">${rev?'Time':LIVE.t+'s'}</span></div>
+    <p class="muted">${esc(q.ask)}</p><div class="prompt ${q.long?'long':''}">${q.prompt}</div>
+    <div class="lq">${q.opts.map((o,i)=>`<div class="lopt ${rev&&!isRight(o)?'dim':''}" style="--c:${cc(LIVE_COLORS[i%4])}"><span>${q.kind==='choice'?o:fmtV(Number(o))}</span><span class="cnt tnum">${counts[i]} answered${rev&&isRight(o)?' · correct':''}</span><div class="lbar"><i style="width:${total?counts[i]/total*100:0}%"></i></div></div>`).join('')}</div>
+    <div class="row between"><span class="small muted tnum">${total} of ${LIVE.joined.length} answered</span><button class="btn primary" data-act="livenext">${rev?(LIVE.qi>=5?'Show winners':'Next question'):'Reveal answer'}</button></div></div>`;
+}
+
+/* ================= TEACHER/PARENT: PLAY TIME ================= */
+function playHTML(){
+  const isT=S.role==='teacher', p=isT?S.tplay:S.pplay, who=isT?'school':'home', kid=B().kid.name.split(' ')[0], g=gate();
+  const closes=['none','15:30','18:00','19:00','20:00','20:30','21:00'];
+  return `<div class="card"><h1>Play time</h1><p class="muted" style="margin-top:4px">Games are a reward for practice. When school and home settings differ, ${esc(kid)} gets the stricter one.</p></div>
+    <div class="card"><div class="card-h"><h2>${isT?'School settings':'Home settings'}</h2></div>
+      <div class="setting"><div><b>Game room</b><span>Allow games at ${who}.</span></div><button class="toggle" data-act="pset" data-v="on" aria-pressed="${p.on}" aria-label="Game room on"></button></div>
+      <div class="setting"><div><b>Daily game time</b><span class="tnum">${p.min} minutes</span></div><input type="range" id="pMin" min="0" max="60" step="5" value="${p.min}" aria-label="Daily game time" style="max-width:180px"></div>
+      <div class="setting"><div><b>Game room closes at</b><span>Games lock after this time each day.</span></div><select id="pClose" aria-label="Closing time">${closes.map(c=>`<option value="${c}" ${p.close===c?'selected':''}>${fmtHM(c)}</option>`).join('')}</select></div>
+      <div class="setting"><div><b>Finish a quiz first</b><span>Games open only after one quiz each day.</span></div><button class="toggle" data-act="pset" data-v="quizFirst" aria-pressed="${p.quizFirst}" aria-label="Finish a quiz first"></button></div></div>
+    ${isT?'':`<div class="card"><div class="card-h"><h2>Proctor code</h2></div>
+      <div class="setting"><div><b>Quizzes at home need my code</b><span>You enter the code on ${esc(kid)}’s device before a quiz starts.</span></div><button class="toggle" data-act="proctor" aria-pressed="${S.proctor.on}" aria-label="Require proctor code"></button></div>
+      <div class="row" style="margin-top:12px"><span class="code" style="font-size:1.8rem">${S.proctor.code}</span><button class="btn sm" data-act="newcode">New code</button></div></div>`}
+    <div class="card"><div class="card-h"><h2>What ${esc(kid)} sees right now</h2></div><div class="gate ${g.open?'open':'closed'}">${svg(g.open?'unlock':'lock')}<div><b>${g.open?`Open · ${g.left} of ${g.min} min left today`:'Closed'}</b><div class="small muted">${g.open?`Closes ${g.closes==='none'?'with no set time':'at '+fmtHM(g.closes)}.`:esc(g.why)}</div></div></div></div>`;
+}
+
+/* ================= PARENT: FAMILY ================= */
+function familyHTML(){
+  const kid=B().kid.name.split(' ')[0], wk=S.history.slice(0,6);
+  return `<div class="card"><div class="card-h" style="margin-bottom:12px"><div><h1>${esc(kid)}’s math</h1><span class="small muted">${B().kid.grade} · ${esc(B().teacher)}’s class</span></div><button class="btn sm" data-act="tab" data-v="play">${svg('clock')}Play time</button></div>
+      <div class="statgrid"><div><b>${S.points}</b><span>Points</span></div><div><b>${S.qWeek}</b><span>Quizzes this week</span></div><div><b>${kidAcc()}%</b><span>Accuracy</span></div><div><b>${S.streak}</b><span>Day streak</span></div><div><b>#${myRank()}</b><span>Class rank</span></div></div></div>
+    <div class="card"><div class="card-h"><h2>Recent quizzes</h2></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Quiz</th><th class="num">Score</th><th class="num">Points</th></tr></thead><tbody>
+      ${wk.map(h=>`<tr><td>${esc(h.d)}</td><td>${esc(h.title)}</td><td class="num">${h.score}/${h.of}</td><td class="num">+${h.pts}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="grid two"><div class="card"><div class="card-h"><h2>Skills</h2></div><div class="stack" style="gap:10px">${B().skills.map(id=>{ const st=strength(id); return `<div><div class="row between small"><b>${SKILLS[id].name}</b><span class="tnum">${st===null?'Not started':st+'%'}</span></div><div class="bar leaf"><i style="width:${st||0}%"></i></div></div>`; }).join('')}</div></div>
+      <div class="card"><div class="card-h"><h2>Certificates</h2><span class="small muted tnum">${S.certs.length}</span></div>${S.certs.slice(0,4).map((c,i)=>`<div class="certrow">${ico('award','sun')}<div><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div><button class="btn sm" data-act="cert" data-v="${i}">View</button></div>`).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Talk about it at dinner</h2></div><p class="muted">${(()=>{ const ids=B().skills.filter(id=>strength(id)!==null).sort((a,b)=>strength(a)-strength(b)); return ids.length?`${esc(kid)} is working hardest on <b>${SKILLS[ids[0]].name.toLowerCase()}</b>. Ask them to teach you one problem and explain each step out loud.`:`Ask ${esc(kid)} to show you their first quiz and explain one answer.`; })()}</p></div>`;
+}
+
+/* ================= MODALS ================= */
+function openModal(html){
+  document.getElementById('modalRoot').innerHTML=`<div class="scrim" data-act="close"><div class="modal" role="dialog" aria-modal="true"><button class="x" data-act="close" aria-label="Close">${svg('x')}</button>${html}</div></div>`;
+  const f=document.querySelector('.modal input, .modal button:not(.x)'); if(f) f.focus();
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function certModal(i){
+  const c=S.certs[i]; if(!c) return;
+  openModal(`<div class="cert"><div class="cert-in">
+    <svg viewBox="0 0 40 40" width="48" height="48" aria-hidden="true"><rect width="40" height="40" rx="9" fill="url(#lg)"/><path d="M9 28a11 11 0 0 1 22 0z" fill="url(#sg)"/><path d="M7 31h26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <span class="eyebrow">Arise Math · ${esc(B().school)}</span><h2>Certificate of Achievement</h2><p class="muted">This certifies that</p>
+    <div class="cert-name">${esc(B().kid.name)}</div><p>earned <b>${esc(c.t)}</b></p><p class="small muted">${esc(c.r)}</p>
+    <div class="cert-foot"><div><b>${esc(teacherName(c.by))}</b><small>${c.by==='Arise Math'?'Awarded by':'Teacher'}</small></div><div><b>${esc(c.d)}</b><small>Date</small></div></div></div></div>`);
+}
+let pendingQuiz=null;
+function proctorModal(type,v){
+  pendingQuiz=[type,v];
+  openModal(`<div class="cover" style="height:56px"></div><div class="modal-body"><h2>Ask a grown-up for the code</h2><p class="muted">${esc(B().parent)} turned on proctor codes for quizzes at home.</p>
+    <div class="join"><label class="sr" for="pIn">Proctor code</label><input type="text" id="pIn" inputmode="numeric" maxlength="4" placeholder="0000"><button class="btn primary" data-act="proctorgo">Start quiz</button></div>
+    <p class="small muted" id="pErr">Demo tip: the code is on the Parent view.</p></div>`);
+}
+
+/* ================= CONFETTI ================= */
+function confetti(){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv=document.getElementById('confetti'), ctx=cv.getContext('2d'); cv.width=innerWidth; cv.height=innerHeight;
+  const cols=['#3f3bd6','#f29a14','#ef5a45','#12a594','#8b5cf6','#ffb23f'];
+  const ps=range(1,140).map(()=>({x:innerWidth/2+(Math.random()-.5)*200, y:innerHeight*.35, vx:(Math.random()-.5)*12, vy:-Math.random()*12-4, s:4+Math.random()*5, c:pick(cols), r:Math.random()*6}));
+  let f=0; (function loop(){ ctx.clearRect(0,0,cv.width,cv.height); ps.forEach(p=>{ p.vy+=.35; p.x+=p.vx; p.y+=p.vy; p.r+=.1; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); ctx.restore(); }); if(++f<120) requestAnimationFrame(loop); else ctx.clearRect(0,0,cv.width,cv.height); })();
+}
+
+/* ================= RENDER ================= */
+function mainHTML(){
+  if(S.role==='kid'){
+    if(S.tab==='practice') return RUN?runnerHTML():practiceHTML();
+    if(S.tab==='board') return boardHTML();
+    if(S.tab==='rewards') return rewardsHTML();
+    if(S.tab==='games') return gamesHTML();
+    return meHTML();
+  }
+  if(S.role==='teacher'){
+    if(S.tab==='class') return classHTML();
+    if(S.tab==='assign') return assignHTML();
+    if(S.tab==='live') return liveHTML();
+    if(S.tab==='board') return boardHTML();
+    return playHTML();
+  }
+  if(S.tab==='family') return familyHTML();
+  if(S.tab==='board') return boardHTML();
+  return playHTML();
+}
+function render(){
+  renderChrome();
+  document.getElementById('left').innerHTML=leftHTML();
+  document.getElementById('main').innerHTML=mainHTML();
+  document.getElementById('rail').innerHTML=railHTML();
+  const inp=document.getElementById('ans');
+  if(inp && !inp.disabled && window.matchMedia('(pointer:fine)').matches) inp.focus({preventScroll:true});
+}
+
+/* ================= EVENTS ================= */
+document.addEventListener('click', e=>{
+  const el=e.target.closest('[data-act]'); if(!el) return;
+  const act=el.dataset.act, v=el.dataset.v;
+  if(act==='close'){ if(e.target===el || el.classList.contains('x')) closeModal(); return; }
+  switch(act){
+    case 'role': S.role=v; RUN=null; GAME=null; S.tab=TABS[v][0][0]; break;
+    case 'band': S.band=v; RUN=null; GAME=null; if(LIVE){ LIVE=null; clearInterval(liveTimer); } break;
+    case 'tab': if(S.tab==='games'&&v!=='games'&&GAME&&!GAME.over){ clearInterval(gameTimer); GAME=null; } S.tab=v; if(v==='practice'&&RUN&&RUN.phase==='done') RUN=null; window.scrollTo({top:0}); break;
+    case 'home': RUN=null; break;
+    case 'start': startQuiz(el.dataset.type, v); return;
+    case 'quit': RUN=null; break;
+    case 'pick': submitAnswer(v); return;
+    case 'key': { const inp=document.getElementById('ans'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
+    case 'hint': RUN.item.hints++; RUN.item.inputBad=false; RUN.hintsAny=true; break;
+    case 'next': nextQuestion(); return;
+    case 'speak': speakText(RUN.item.ask+'. '+RUN.item.plain); return;
+    case 'a11y': {
+      S.a11y[v]=!S.a11y[v];
+      if(v==='choices' && RUN && RUN.item && !RUN.item.done && RUN.item.orig==='num'){ const it=RUN.item; if(S.a11y.choices){ it.kind='nchoice'; it.choices=choicesFor(it.answer); } else { it.kind='num'; it.wrong=[]; } }
+      break; }
+    case 'cert': certModal(+v); return;
+    case 'style': S.avatar=v; break;
+    case 'period': S.board.period=v; break;
+    case 'bset': S.board[v]=!S.board[v]; break;
+    case 'game': startGame(); return;
+    case 'tile': tapTile(v); return;
+    case 'join': { const c=(document.getElementById('joinCode').value||'').replace(/\D/g,'');
+      if(LIVE && c && c===LIVE.code.replace(/\D/g,'')){ S.flags.live=true; save(); toast(`You’re in ${B().teacher}’s live game. Watch the board.`); render(); }
+      else toast('That code doesn’t match a live game. Check the code on the board.'); return; }
+    case 'student': studentModal(v); return;
+    case 'award': { const nm=el.dataset.name; if(nm===B().kid.name){ S.certs.unshift({t:v, r:`Awarded by ${B().teacher}`, d:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}), by:'@teacher'}); save(); }
+      closeModal(); toast(`${v} certificate sent to ${nm}.`); render(); return; }
+    case 'assign': { const sk=document.getElementById('aSkill').value, n=+document.getElementById('aN').value, due=document.getElementById('aDue').value||plus3();
+      S.assign[S.band].unshift({id:S.band+'-'+Date.now(), skill:sk, n, due, title: sk==='custom'?'Questions from class':sk==='mixed'?'Mixed review':null}); save(); toast('Assigned. Students see it on their Practice page.'); break; }
+    case 'unassign': S.assign[S.band]=S.assign[S.band].filter(a=>a.id!==v); break;
+    case 'addq': { const q=document.getElementById('cQ').value.trim(), a=parseAns(document.getElementById('cA').value), h=document.getElementById('cH').value.trim();
+      if(!q){ toast('Write the question first.'); return; } if(isNaN(a)){ toast('The answer needs to be a number, like 12 or 3/4.'); return; }
+      S.custom[S.band].push({q,a,h}); save(); toast('Question added. Assign “My questions” to send it.'); break; }
+    case 'delq': S.custom[S.band].splice(+v,1); break;
+    case 'live': startLive(); return;
+    case 'livenext': liveNext(); return;
+    case 'liveend': LIVE=null; clearInterval(liveTimer); break;
+    case 'pset': { const p=S.role==='teacher'?S.tplay:S.pplay; p[v]=!p[v]; break; }
+    case 'proctor': S.proctor.on=!S.proctor.on; break;
+    case 'newcode': S.proctor.code=String(rnd(1000,9999)); toast(`New proctor code: ${S.proctor.code}`); break;
+    case 'proctorgo': { const c=(document.getElementById('pIn').value||'').trim();
+      if(c===S.proctor.code){ closeModal(); const [t,val]=pendingQuiz; startQuiz(t,val,true); }
+      else { const er=document.getElementById('pErr'); er.textContent='That code didn’t match. Ask your grown-up to check it.'; er.style.color='var(--coral)'; }
+      return; }
+    default: return;
+  }
+  save(); render();
+});
+document.addEventListener('submit', e=>{ if(e.target.id==='ansForm'){ e.preventDefault(); submitAnswer(document.getElementById('ans').value); } });
+document.addEventListener('change', e=>{
+  const id=e.target.id;
+  if(id==='bsetBy'){ S.board.by=e.target.value; save(); render(); }
+  if(id==='pClose'){ (S.role==='teacher'?S.tplay:S.pplay).close=e.target.value; save(); render(); }
+  if(id==='pMin'){ (S.role==='teacher'?S.tplay:S.pplay).min=+e.target.value; save(); render(); }
+});
+document.addEventListener('input', e=>{ if(e.target.id==='pMin'){ const s=e.target.closest('.setting').querySelector('span'); s.textContent=e.target.value+' minutes'; } });
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && document.getElementById('modalRoot').innerHTML){ closeModal(); return; }
+  if(e.key==='Enter' && e.target.id==='pIn'){ e.preventDefault(); document.querySelector('[data-act="proctorgo"]').click(); return; }
+  if(e.key==='Enter' && e.target.id==='joinCode'){ e.preventDefault(); document.querySelector('[data-act="join"]').click(); return; }
+  if(!RUN||RUN.phase!=='q'||S.role!=='kid'||S.tab!=='practice') return;
+  const it=RUN.item;
+  if(it.done && e.key==='Enter' && document.activeElement && document.activeElement.id!=='nextBtn'){ e.preventDefault(); nextQuestion(); return; }
+  if(it.kind==='choice' && !it.done && ['<','=','>'].includes(e.key) && !it.wrong.includes(e.key)) submitAnswer(e.key);
+});
+
+render();
+</script>
+</body>
+</html>
