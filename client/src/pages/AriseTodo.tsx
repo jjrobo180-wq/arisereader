@@ -22,6 +22,7 @@ import Notes from "@/components/family-hub/Notes";
 import Health from "@/components/family-hub/Health";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar } from "@/components/family-hub/ui";
+import HubSwitch from "@/components/HubSwitch";
 import "./todoNight.css";
 
 type Priority = "low" | "normal" | "high";
@@ -418,6 +419,7 @@ export default function AriseTodo() {
           </header>}
 
           <div className={`flex flex-wrap items-center gap-3 text-sm ${shown === "tasks" ? "" : "mb-6 justify-end"}`}>
+            {(user.role === "teacher" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
             <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 font-bold text-slate-600 ring-1 ring-slate-200"><Users size={15} /> {user.displayName || user.username}</span>
             <span role="status" className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={15} /> : <RefreshCw size={15} />}{saveStatus}</span>
             <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-3 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:text-violet-700">{night ? <Sun size={15} /> : <Moon size={15} />}<span className="hidden sm:inline">{night ? "Day mode" : "Night mode"}</span></button>

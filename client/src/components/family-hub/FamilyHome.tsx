@@ -102,7 +102,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
               <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{m.name}</span>
                 <span className="text-[11px] text-slate-500">{m.kind === "kid" ? `${t.fruitVeg}/${g.fruitVeg} fruits & veggies · ${t.water}/${g.water} water` : !family.health.profiles[m.id] ? "Set up a calorie plan" : t.items ? `${t.food.calories.toLocaleString()} eaten · ${t.water}/${g.water} water` : "Nothing logged yet"}</span></span>
               {m.kind === "kid" ? <Apple size={16} className={t.fruitVeg >= g.fruitVeg ? "text-emerald-500" : "text-slate-300"} />
-                : <span className={`text-right text-xs font-black ${left < 0 ? "text-rose-600" : "text-slate-700"}`}>{Math.abs(left).toLocaleString()}<span className="block text-[10px] font-bold text-slate-400">{left < 0 ? "over" : "cal left"}</span></span>}
+                : !family.health.profiles[m.id] ? null : <span className={`text-right text-xs font-black ${left < 0 ? "text-rose-600" : "text-slate-700"}`}>{Math.abs(left).toLocaleString()}<span className="block text-[10px] font-bold text-slate-400">{left < 0 ? "over" : "cal left"}</span></span>}
             </li>;
           })}</ul>
         </Panel>}

@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CheckCircle2,
   CheckSquare,
+  CheckCheck,
   ClipboardCheck,
   Clock3,
   GraduationCap,
@@ -75,6 +76,7 @@ import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
+import HubSwitch from "@/components/HubSwitch";
 
 // Today where the teacher is (not in London: an evening in Denver is already tomorrow there).
 const TODAY = () => localDay();
@@ -487,6 +489,7 @@ function TeacherHubPage() {
             <div className="truncate text-lg font-bold tracking-tight sm:text-xl">Teacher Hub</div>
           </a>
           <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden sm:contents"><HubSwitch current="hub" night={night} /></span>
             <SaveBadge view={view} />
             <HubPollBell token={token} userId={user?.id} enabled={canUseHub && loaded && !loadError && !needsPlan} onOpenMeetings={() => setTab("iep")} />
             <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
@@ -499,6 +502,7 @@ function TeacherHubPage() {
               <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" data-testid="hub-more"><MoreHorizontal className="h-5 w-5" /></button>
               {more && (
                 <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl" data-testid="hub-more-menu">
+                  <a role="menuitem" href="#/to-do" onClick={() => setMore(false)} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><CheckCheck className="h-4 w-4" />Switch to To-Do</a>
                   <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{night ? "Day mode" : "Night mode"}</button>
                   <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize tabs</button>
                   <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" />Sign out</button>
