@@ -61,7 +61,7 @@ export function groupTabs(groupId: HubGroupId, visible: Partial<Record<HubTab, b
 
 /** The groups in the menu: those with at least one tab showing, in the teacher's chosen order
  *  (Home always first, whatever order is passed). */
-export function visibleGroups(visible: Partial<Record<HubTab, boolean>>, order?: readonly HubGroupId[]) {
+export function visibleGroups(visible: Partial<Record<HubTab, boolean>>, order?: readonly string[]) {
   const ids = order?.length ? ["home", ...cleanGroupOrder(order)] : HUB_GROUPS.map((g) => g.id);
   return ids
     .map((id) => HUB_GROUPS.find((g) => g.id === id))
