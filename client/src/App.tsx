@@ -317,13 +317,13 @@ function AppRoutes() {
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
       </Route>
       <Route path="/register">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/register-independent">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/teacher-dashboard" replace /> : user.role === 'parent' ? <Redirect to="/parent-dashboard" replace /> : user.role === "todo" ? <Redirect to="/to-do" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
@@ -662,7 +662,7 @@ function useFullscreenGameRoute() {
 function AppInner() {
   const { user, realUser, adminPreviewMode } = useAuth();
   const inGame = useFullscreenGameRoute();
-  const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent';
+  const isStudent = user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && user.role !== 'todo';
   const isEyeGazeStudent = !!isStudent && !!user?.is_eye_gaze_user;
   const isDemoStudent = !!isStudent && (
     !!user?.username?.startsWith('sample') || user?.username === 'tutorial-eye'
