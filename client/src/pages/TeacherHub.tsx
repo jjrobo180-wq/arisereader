@@ -36,6 +36,7 @@ import {
   Users,
   WandSparkles,
   X,
+  MoreHorizontal,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { PLANS, usd } from "@shared/plans";
@@ -256,6 +257,17 @@ function TeacherHubPage() {
   // Coming back from connecting a mailbox lands on the meetings tab, where the polls are.
   const [tab, setTab] = useState<HubTab>(() => (/[?&]mailbox=/.test(window.location.search) ? "iep" : "overview"));
   const [customize, setCustomize] = useState(false);
+  // On a phone the header keeps the essentials, and the rest sits under "More".
+  const [more, setMore] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!more) return;
+    const close = (e: Event) => { if (!moreRef.current?.contains(e.target as Node)) setMore(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMore(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
+  }, [more]);
   // Night mode: the choice is remembered on this phone or computer.
   const [night, setNight] = useState(() => { try { return localStorage.getItem("arise-hub-night") === "1"; } catch { return false; } });
   function toggleNight() {
@@ -469,20 +481,30 @@ function TeacherHubPage() {
   return (
     <div className={`min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 md:px-6">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 sm:gap-4 md:px-6">
           <a href={user.isAdmin ? "#/admin" : "#/teacher-dashboard"} className="min-w-0 rounded-xl" aria-label={user.isAdmin ? "Back to admin" : "Back to your dashboard"} title={user.isAdmin ? "Back to admin" : "Back to your dashboard"}>
             <div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">A.R.I.S.E.</div>
-            <div className="truncate text-xl font-bold tracking-tight">Teacher Hub</div>
+            <div className="truncate text-lg font-bold tracking-tight sm:text-xl">Teacher Hub</div>
           </a>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <SaveBadge view={view} />
             <HubPollBell token={token} userId={user?.id} enabled={canUseHub && loaded && !loadError && !needsPlan} onOpenMeetings={() => setTab("iep")} />
-            <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
+            <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
             <button type="button" onClick={() => setAdding({})} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:px-4" data-testid="hub-add-with-ai">
-              <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
+              <WandSparkles className="h-4 w-4" /> <span className="max-[359px]:sr-only">Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
-            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize tabs and your data" aria-expanded={customize} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"><Settings2 className="h-4 w-4" /> <span className="hidden sm:inline">Customize tabs</span></button>
-            <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"><LogOut className="h-4 w-4" /></button>
+            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize tabs and your data" aria-expanded={customize} className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize tabs</span></button>
+            <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><LogOut className="h-4 w-4" /></button>
+            <div ref={moreRef} className="relative sm:hidden">
+              <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" data-testid="hub-more"><MoreHorizontal className="h-5 w-5" /></button>
+              {more && (
+                <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl" data-testid="hub-more-menu">
+                  <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{night ? "Day mode" : "Night mode"}</button>
+                  <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize tabs</button>
+                  <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" />Sign out</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -569,7 +591,7 @@ function TeacherHubPage() {
               <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={user.displayName.split(" ")[0]}
                 stats={[{ label: "Students", value: workspace.students.length }, { label: "Open tasks", value: workspace.tasks.filter((t) => !t.done).length }, { label: "Meetings", value: workspace.meetings.filter((m) => !m.done).length }]} />
 
-              <Card title="Add things fast">
+              <Card title="Add things fast" collapseKey="home-add">
                 <p className="mb-4 text-sm text-slate-600">Skip the typing. AI reads what you give it and sorts it into your Hub, and you check it before anything is saved.</p>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   <QuickAdd icon={<WandSparkles className="h-5 w-5" />} title="Paste or ask" detail="A list, notes, an email, or “plan my week”" onClick={() => setAdding({})} />
@@ -579,23 +601,23 @@ function TeacherHubPage() {
                 </div>
               </Card>
 
-              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" onReminderAdded={reminderAdded} agendaToday />
+              <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" onReminderAdded={reminderAdded} agendaToday collapseKey="home-calendar" />
 
-              <div className="grid gap-4 xl:grid-cols-3">
-                <Card title="Upcoming IEP / reevaluation meetings">
+              <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-2">
+                <Card title="Upcoming IEP / reevaluation meetings" collapseKey="home-meetings">
                   {upcomingMeetings.length ? (
                     <div className="space-y-2">
                       {upcomingMeetings.map((m) => (
-                        <button key={m.id} onClick={() => setTab("iep")} className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-3 py-3 text-left hover:bg-slate-100">
-                          <div><div className="font-medium">{m.student || "Student"}</div><div className="text-xs text-slate-500">{m.type}</div></div>
-                          <div className="text-sm font-semibold text-slate-700">{m.date ? friendlyDate(m.date, TODAY()) : "No date"}{m.time ? ` · ${clock12(m.time)}` : ""}</div>
+                        <button key={m.id} onClick={() => setTab("iep")} className="flex w-full items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-3 text-left hover:bg-slate-100">
+                          <div className="min-w-0 flex-1"><div className="break-words font-medium">{m.student || "Student"}</div><div className="text-xs text-slate-500">{m.type}</div></div>
+                          <div className="max-w-[50%] text-right text-sm font-semibold text-slate-700">{m.date ? friendlyDate(m.date, TODAY()) : "No date"}{m.time ? ` · ${clock12(m.time)}` : ""}</div>
                         </button>
                       ))}
                     </div>
                   ) : <Empty>No upcoming meetings yet.</Empty>}
                 </Card>
 
-                <Card title="To do" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
+                <Card title="To do" collapseKey="home-todo" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
                   <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, { title, dueDate: "", recurring: "", priority: false }, id) })); setHomeQuick(""); }} className="mb-3 flex gap-2" data-testid="home-task-add">
                     <Field placeholder="Add a to-do and press Enter" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
                     <PrimaryButton type="submit" disabled={!homeQuick.trim()}>Add</PrimaryButton>
@@ -611,7 +633,7 @@ function TeacherHubPage() {
 
               <HubNotifications token={token} />
 
-              <Card title="Workspace profile">
+              <Card title="Workspace profile" collapseKey="home-profile">
                 <div className="grid gap-3 md:grid-cols-3">
                   <Field placeholder="School" value={workspace.profile.school} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, school: e.target.value } }))} />
                   <Field placeholder="Grade / band" value={workspace.profile.gradeBand} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, gradeBand: e.target.value } }))} />
@@ -659,16 +681,16 @@ function TeacherHubPage() {
 function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdit, onDelete }: { task: Task; today: string; workspace: Workspace; setWorkspace: SectionProps["setWorkspace"]; makeId: () => string; onToggle: (task: Task) => void; onEdit: (task: Task) => void; onDelete: (task: Task) => void }) {
   const email = task.emailId ? workspace.emails.find((e) => e.id === task.emailId) : undefined;
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 p-3" data-testid="task-row">
+    <li className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-slate-200 p-3 sm:gap-y-2" data-testid="task-row">
       <input type="checkbox" className="h-6 w-6 shrink-0" aria-label={`Done: ${task.title}`} checked={task.done} onChange={() => onToggle(task)} />
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onEdit(task)} aria-label={`Edit ${task.title}`} data-testid="task-edit">
-        <div className={task.done ? "break-words text-slate-400 line-through" : "break-words font-medium"}>{email?.unread && !task.done && <NewChip />}{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
+        <div className={task.done ? "text-slate-400 line-through [overflow-wrap:anywhere]" : "font-medium [overflow-wrap:anywhere]"}>{email?.unread && !task.done && <NewChip />}{task.priority === "high" && <Flag className="mr-1 inline h-4 w-4 text-red-500" aria-label="Important" />}{task.title}</div>
         {email?.message && !task.done ? (
           <>
-            <p className="mt-0.5 break-words text-xs font-medium text-slate-600" data-testid="task-email-from">{[email.from && `From ${email.from}`, email.sent && `Sent ${email.sent}`].filter(Boolean).join(" · ")}</p>
-            <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap break-words text-xs text-slate-500" data-testid="task-email-message">{email.message.replace(/<https?:\/\/[^\s<>]+>/g, "").replace(/\n{2,}/g, "\n").trim()}</p>
+            <p className="mt-0.5 text-xs font-medium text-slate-600 [overflow-wrap:anywhere]" data-testid="task-email-from">{[email.from && `From ${email.from}`, email.sent && `Sent ${email.sent}`].filter(Boolean).join(" · ")}</p>
+            <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-slate-500 [overflow-wrap:anywhere] sm:line-clamp-3" data-testid="task-email-message">{email.message.replace(/<https?:\/\/[^\s<>]+>/g, "").replace(/\n{2,}/g, "\n").trim()}</p>
           </>
-        ) : task.notes && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500" data-testid="task-notes">{task.notes}</p>}
+        ) : task.notes && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-slate-500 [overflow-wrap:anywhere]" data-testid="task-notes">{task.notes}</p>}
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
           {!task.done && <DueChip date={task.dueDate} today={today} />}
           {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}</span>}
@@ -679,13 +701,17 @@ function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdi
           <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
         </div>
       </button>
-      <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
-      <button type="button" aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(task)}><Trash2 className="h-4 w-4" /></button>
-      {email && (
-        <div className="basis-full pl-9">
-          <button type="button" onClick={() => openHubEmail(email.id)} aria-label={`Open the email: ${email.subject || task.title}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-800 hover:bg-teal-100" data-testid="task-open-email"><Mail className="h-4 w-4" />Open the email</button>
-        </div>
-      )}
+      {/* On a phone these sit on their own line under the to-do, so the words get the full width. */}
+      <div className={email ? "flex basis-full items-center gap-3 pl-9 sm:contents" : "contents"}>
+        {email && (
+          <div className="min-w-0 sm:order-last sm:basis-full sm:pl-9">
+            <button type="button" onClick={() => openHubEmail(email.id)} aria-label={`Open the email: ${email.subject || task.title}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-800 hover:bg-teal-100" data-testid="task-open-email"><Mail className="h-4 w-4" />Open the email</button>
+          </div>
+        )}
+        <span className="ml-auto sm:hidden" aria-hidden="true" />
+        <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="task" refId={task.id} title={task.title} makeId={makeId} />
+        <button type="button" aria-label={`Delete ${task.title}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(task)}><Trash2 className="h-4 w-4" /></button>
+      </div>
     </li>
   );
 }

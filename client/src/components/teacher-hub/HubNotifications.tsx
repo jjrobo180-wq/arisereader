@@ -91,7 +91,7 @@ export default function HubNotifications({ token }: { token: string | null }) {
   }
 
   return (
-    <Card title="Phone app and notifications">
+    <Card title="Phone app and notifications" collapseKey="home-notifications">
       <div className="space-y-3 text-sm text-slate-600">
         {phase === "checking" && <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Checking…</div>}
 

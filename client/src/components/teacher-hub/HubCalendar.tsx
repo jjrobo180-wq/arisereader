@@ -329,7 +329,7 @@ function EventRow({ event, now, names, workspace, setWorkspace, makeId, onDelete
  * `onReminderAdded` is told when the pop-up put something in Reminders & to-dos, which this screen does not show.
  * `agendaToday` (Home) makes Agenda the agenda for today only; Week and Month still show what is ahead.
  */
-export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = "Calendar", onReminderAdded, agendaToday = false }: { workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; title?: string; onReminderAdded?: (items: QuickItems) => void; agendaToday?: boolean }) {
+export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = "Calendar", onReminderAdded, agendaToday = false, collapseKey }: { collapseKey?: string; workspace: Workspace; setWorkspace: SetWorkspace; token: string | null; makeId: () => string; title?: string; onReminderAdded?: (items: QuickItems) => void; agendaToday?: boolean }) {
   const now = useNow();
   const today = now.date;
   const [view, setViewState] = useState<View>(readView);
@@ -432,7 +432,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
     : (() => { const w = weekOf(anchor); return `${shortDay(w[0])} – ${shortDay(w[6])}`; })();
 
   return (
-      <Card title={title} right={<PrimaryButton onClick={() => setAdding({ date: view === "month" && picked ? picked : oneDay && agendaDay > today ? agendaDay : undefined })}><Plus className="h-4 w-4" /> Add event</PrimaryButton>}>
+      <Card title={title} collapseKey={collapseKey} right={<PrimaryButton onClick={() => setAdding({ date: view === "month" && picked ? picked : oneDay && agendaDay > today ? agendaDay : undefined })}><Plus className="h-4 w-4" /> Add event</PrimaryButton>}>
         <div role="tablist" aria-label="Calendar view" className="mb-4 flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1" data-testid="calendar-views">
           {VIEWS.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={view === key} onClick={() => setView(key)}
