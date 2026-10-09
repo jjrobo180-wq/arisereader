@@ -16,7 +16,7 @@ type Addons = {
   role: string; payment: boolean; trialDays: number;
   prices: { familyBundleCents: number; teacherBundleCents: number; teacherSeats: number; todoCents: number; hubCents: number };
   bundle: Access; todo: Access;
-  premium?: boolean; students?: number; hub?: { access: boolean; via: string | null; endsAt: string | null };
+  premium?: boolean; premiumVia?: string | null; premiumEndsAt?: string | null; students?: number; hub?: { access: boolean; via: string | null; endsAt: string | null };
   children?: { id: number; name: string; coveredByClass: boolean }[];
   refund?: { cents: number; toCard: boolean; at: string } | null;
 };
@@ -58,6 +58,19 @@ function TrialMeter({ endsAt, total, label }: { endsAt: string; total: number; l
       <p className="mt-1.5 text-xs text-muted-foreground">Free until {day(endsAt)}. No card needed.</p>
     </div>
   );
+}
+
+const longDay = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "");
+
+/** What this person already has for free, said before any price is shown. */
+function freeLine(data: Addons): string {
+  if (data.role === "parent") return "Your parent account is always free: your child's progress, game limits and the proctor code never cost anything.";
+  if (data.role !== "teacher") return "";
+  const until = data.premiumEndsAt ? `, until ${longDay(data.premiumEndsAt)}` : "";
+  if (data.premiumVia === "grandfathered") return `Reading with your class is free for you this school year${until}.`;
+  if (data.premiumVia === "free-month") return `Your first month of teacher tools is free${until}.`;
+  if (data.premiumVia === "teacher-plan" || data.premiumVia === "school-plan") return "Reading with your class is already covered by your plan.";
+  return "";
 }
 
 const REASON: Record<string, string> = {
@@ -176,6 +189,12 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
 
   return (
     <section className="rounded-[1.6rem] border border-white/10 bg-gradient-to-br from-[#1b1638] via-[#151326] to-[#10202a] p-5 sm:p-6" aria-label="Add-ons" data-testid="addons-card">
+      {(role === "parent" || role === "teacher") && (
+        <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3" data-testid="addons-optional">
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">Optional add-ons</p>
+          <p className="mt-1 text-sm font-bold text-foreground">{[freeLine(data), "Everything below is an extra you can add or skip, and is paid separately."].filter(Boolean).join(" ")}</p>
+        </div>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-300">Learning Bundle</p>

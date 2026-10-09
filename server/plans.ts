@@ -960,7 +960,12 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         todo: await addonView(user, "todo_family", await todoStatus(user)),
       };
       if (user.role === "teacher" && !user.isAdmin) {
-        body.premium = (await entitlement(user)).premium;
+        const reading = await entitlement(user);
+        body.premium = reading.premium;
+        // Why the teacher's reading plan is on (a free year, a free month, a plan) and until when,
+        // so the card can say the add-ons are a separate thing.
+        body.premiumVia = reading.via;
+        body.premiumEndsAt = reading.endsAt;
         body.students = await deps.countTeacherStudents(user.id);
         body.hub = await hubAccess(user);
       }
