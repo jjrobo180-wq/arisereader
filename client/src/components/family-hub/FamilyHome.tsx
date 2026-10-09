@@ -105,7 +105,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
         </Panel>}
 
         {pinned.length > 0 && <Panel eyebrow="Pinned" title="Notes" right={<StickyNote size={17} className="text-violet-500" />}>
-          <div className="space-y-2">{pinned.map((n) => <button key={n.id} onClick={() => go("notes")} className="block w-full rounded-xl p-3 text-left" style={{ background: n.color }}>
+          <div className="space-y-2">{pinned.map((n) => <button key={n.id} onClick={() => go("notes")} className="note-card block w-full rounded-xl p-3 text-left" style={{ background: n.color }}>
             {n.title && <p className="truncate text-sm font-black">{n.title}</p>}{n.body && <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-xs text-slate-600">{n.body}</p>}
           </button>)}</div>
         </Panel>}

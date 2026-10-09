@@ -85,8 +85,8 @@ export function MemberPicker({ members, value, onChange, multi, allowNone, noneL
     {members.map((m) => {
       const on = value.includes(m.id);
       return <button key={m.id} type="button" aria-pressed={on} onClick={() => onChange(multi ? (on ? value.filter((v) => v !== m.id) : [...value, m.id]) : on && allowNone ? [] : [m.id])}
-        className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2.5 pr-3 text-xs font-bold ring-1 transition"
-        style={on ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : { background: "#fff", color: "#475569", boxShadow: "0 0 0 1px #e2e8f0" }}>
+        className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2.5 pr-3 text-xs font-bold ring-1 transition bg-white text-slate-600 ring-slate-200"
+        style={on ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}>
         <span className="text-base leading-none">{m.emoji || "🙂"}</span>{m.name}
       </button>;
     })}
@@ -96,7 +96,7 @@ export function MemberPicker({ members, value, onChange, multi, allowNone, noneL
 export function Toggle({ on, onChange, label }: { on: boolean; onChange: (on: boolean) => void; label: string }) {
   return <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
     className={`relative h-7 w-12 shrink-0 rounded-full transition ${on ? "bg-emerald-500" : "bg-slate-300"}`}>
-    <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? "left-6" : "left-1"}`} />
+    <span className={`toggle-knob absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? "left-6" : "left-1"}`} />
   </button>;
 }
 

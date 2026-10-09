@@ -75,7 +75,7 @@ export default function Polls({ family, setFamily, today, makeId, say }: Section
       </div>
       {isOpen && family.members.length > 0 && <div className="px-4 pb-2">
         <p className="mb-1.5 text-[11px] font-bold text-slate-500">Who's voting?</p>
-        <div className="flex flex-wrap gap-1.5">{family.members.map((m) => <button key={m.id} onClick={() => setVoter((v) => ({ ...v, [p.id]: m.id }))} aria-pressed={current === m.id} className="relative inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2 pr-2.5 text-xs font-bold ring-1" style={current === m.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : { background: "#fff", color: "#475569", boxShadow: "0 0 0 1px #e2e8f0" }}>
+        <div className="flex flex-wrap gap-1.5">{family.members.map((m) => <button key={m.id} onClick={() => setVoter((v) => ({ ...v, [p.id]: m.id }))} aria-pressed={current === m.id} className="relative inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2 pr-2.5 text-xs font-bold ring-1 bg-white text-slate-600 ring-slate-200" style={current === m.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}>
           <span>{m.emoji || "🙂"}</span>{m.name}{p.votes[m.id] && <Check size={12} />}
         </button>)}</div>
       </div>}
