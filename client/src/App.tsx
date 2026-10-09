@@ -89,6 +89,7 @@ const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
+const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -309,6 +310,9 @@ function AppRoutes() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch>
+      <Route path="/to-do">
+        <AriseTodo />
+      </Route>
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
@@ -642,7 +646,7 @@ function AppRoutes() {
 }
 
 // Full-screen games need the whole screen: site tabs, banners and popups would cover their controls.
-const FULLSCREEN_GAME_ROUTES = ["/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren"];
+const FULLSCREEN_GAME_ROUTES = ["/to-do", "/games", "/study", "/paintball-arena", "/aurora-rally", "/skybound-sprint", "/twinlight-run", "/chime-of-aoren"];
 function useFullscreenGameRoute() {
   const read = () => FULLSCREEN_GAME_ROUTES.includes(window.location.hash.replace(/^#/, "").split("?")[0]);
   const [inGame, setInGame] = useState(read);
