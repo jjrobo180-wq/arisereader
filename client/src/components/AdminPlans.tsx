@@ -80,7 +80,7 @@ export default function AdminPlans() {
     const freeNames = (data.freeSchools || []).filter((f) => f.free).map((f) => f.name).join(", ");
     const noPayment = turnOn && !data.stripe.keySet ? "Online payment is not set up yet, so a new teacher would have no way to pay. Set the Stripe key first, or switch Premium on by hand for each teacher.\n\n" : "";
     const question = turnOn
-      ? noPayment + "Turn plan rules ON?\n\n" + (freeNames ? `Teachers at ${freeNames} always have Premium at no charge.\n\n` : "") + "Other teachers who signed up on or after October 1, 2026 will need Premium to use their account. Students on Free lose AI study sets and lessons from their own topics. Parents can follow up to 5 children.\n\nTeachers and school students who signed up before October 1, 2026 keep everything until July 1, 2027."
+      ? noPayment + "Turn plan rules ON?\n\n" + (freeNames ? `Teachers at ${freeNames} always have Premium at no charge.\n\n` : "") + "Other teachers who signed up on or after October 1, 2026 will need Premium to use their account once their free first month is over. Students on Free lose AI study sets and lessons from their own topics. Parents can follow up to 5 children.\n\nTeachers and school students who signed up before October 1, 2026 keep everything until July 1, 2027."
       : "Turn plan rules OFF?\n\nEverything opens up for everyone again. Paid plans keep running and keep being charged.";
     if (!window.confirm(question)) return;
     await post("rules", "/api/admin/plans/enforce", { enforced: turnOn }, turnOn ? "Plan rules are on." : "Plan rules are off.");
@@ -135,7 +135,7 @@ export default function AdminPlans() {
               </div>
               <p className="text-sm text-muted-foreground">
                 {data.enforced
-                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
+                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Every teacher's first month is free, with Teacher Hub included. Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
                   : "Nothing is locked for anyone. Turn the rules on when you are ready for the Free and Premium plans to apply."}
               </p>
             </div>
@@ -245,7 +245,7 @@ export default function AdminPlans() {
             <div className="space-y-3 pt-4 border-t border-border">
               <Label className="text-sm font-medium">Online payment (Stripe)</Label>
               <p className="text-sm text-muted-foreground">
-                Premium and Teacher Hub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.yearlyCents)} a year for a school. Teacher Hub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
+                Premium and Teacher Hub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.yearlyCents)} a year for a school. Apart from a teacher's free first month, Teacher Hub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
               </p>
               <div className="space-y-1 text-sm">
                 <div className={data.stripe.keySet ? "text-green-400" : "text-muted-foreground"}>

@@ -1,17 +1,20 @@
 // Plans and pricing. Public: anyone can open it without an account.
 // Free is for students and their parents; Premium is for teachers and schools.
 // Teacher Hub is a separate paid add-on for teachers and schools.
+// A teacher's first month of both is free.
 // Every price and limit on this page comes from shared/plans.ts.
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
-import { PLANS, usd } from "@shared/plans";
+import { PLANS, freeMonthEnd, usd } from "@shared/plans";
 import "./pricing.css";
 
 const T = PLANS.teacher, S = PLANS.school, H = PLANS.hub;
 const block = T.studentsPerBlock.toLocaleString("en-US");
 const schoolCap = S.studentCap.toLocaleString("en-US");
 const kids = PLANS.parentMaxChildren;
+// The site keeps Mountain time, so the free month's dates read the same for everyone.
+const mountainDay = (isoDate: string) => new Date(isoDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/Denver" });
 
 const Yes = ({ label = "Included" }: { label?: string }) => (
   <svg className="pr-yes" role="img" aria-label={label} viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
@@ -132,6 +135,8 @@ const QUESTIONS: [string, string][] = [
     "No. There is no cap on books or quizzes. The only limit on Free is game time: 10 minutes a day, or unlimited for the rest of the week once they pass a book quiz."],
   ["Who gives the prizes?",
     "Parents, teachers and schools do. A.R.I.S.E. doesn't hand out prizes on any plan. On Free, a parent can add their own prize for their child. On Premium, a teacher or school can also add prizes for a class or the whole school, and they show up right in the leaderboards and competitions."],
+  ["Is there a free month for teachers?",
+    `Yes. Every teacher's first month is free: the teacher account with Arise Math, and Teacher Hub. It starts the day you make your teacher account, and no card is needed. Teachers who already had an account on ${mountainDay(PLANS.freeMonthFrom)} have theirs until ${mountainDay(freeMonthEnd(null))}.`],
   ["How much is Premium?",
     `A teacher pays ${usd(T.monthlyCents)} a month for up to ${block} students, plus ${usd(T.monthlyCents)} a month for each extra ${block}. A school pays ${usd(S.yearlyCents)} a year for up to ${schoolCap} students, and every teacher gets their own account. A school's year is a full 12 months, so summer reading clubs and competitions are covered.`],
   ["My school already uses A.R.I.S.E. What changes for us?",
@@ -139,7 +144,7 @@ const QUESTIONS: [string, string][] = [
   ["What is Teacher Hub?",
     `A separate add-on: a private workspace for caseloads, IEP timelines, lessons, notes, attendance, grades, parent contact and schedules. It is ${usd(H.monthlyCents)} a month for up to ${H.studentsPerBlock.toLocaleString("en-US")} students, plus ${usd(H.monthlyCents)} a month for each extra ${H.studentsPerBlock.toLocaleString("en-US")}, or ${usd(H.schoolYearlyCents)} a year for a whole school of up to ${H.schoolStudentCap.toLocaleString("en-US")} students.`],
   ["Is Teacher Hub included with Premium or a free school?",
-    "No. Teacher Hub is always paid on its own. It isn't part of Premium, the free 2026–27 school year, or any school that has Premium at no charge."],
+    "No. After a teacher's free first month, Teacher Hub is paid on its own. It isn't part of Premium, the free 2026–27 school year, or any school that has Premium at no charge."],
 ];
 
 function Price({ who, detail, amount, per, premium }: { who: string; detail: ReactNode; amount: string; per: string; premium?: boolean }) {
@@ -210,7 +215,7 @@ export default function Pricing() {
               <Price premium who="One teacher" detail={`Up to ${block} students. Add ${usd(T.monthlyCents)} a month for each extra ${block} students.`} amount={usd(T.monthlyCents)} per="a month" />
               <Price premium who="Whole school" detail={`Up to ${schoolCap} students, and every teacher gets their own account. Runs a full 12 months, so summer reading clubs and competitions are covered.`} amount={usd(S.yearlyCents)} per="a year" />
             </div>
-            <p className="pr-about">The tools to run reading in a classroom, on top of everything in Free. Parents of the class get their accounts free too.</p>
+            <p className="pr-about">The tools to run reading in a classroom, on top of everything in Free. Parents of the class get their accounts free too. A teacher's first month is free.</p>
             <button type="button" className="pr-pill pr-wide" onClick={getPremium} data-testid="pricing-get-premium">Get Premium</button>
             <div className="pr-group premium"><h3>For the teacher</h3><List items={PREMIUM_TEACHER} /></div>
             <div className="pr-group premium"><h3>For their students and parents</h3><List items={PREMIUM_FAMILIES} /></div>
@@ -224,11 +229,11 @@ export default function Pricing() {
             <Price who="One teacher" detail={`Up to ${H.studentsPerBlock.toLocaleString("en-US")} students. Add ${usd(H.monthlyCents)} a month for each extra ${H.studentsPerBlock.toLocaleString("en-US")} students.`} amount={usd(H.monthlyCents)} per="a month" />
             <Price who="Whole school" detail={`Up to ${H.schoolStudentCap.toLocaleString("en-US")} students, and every teacher gets their own Hub. Runs a full 12 months.`} amount={usd(H.schoolYearlyCents)} per="a year" />
           </div>
-          <p className="pr-about">A private workspace for everything a teacher keeps track of, in one place. Sold on its own, with or without Premium.</p>
+          <p className="pr-about">A private workspace for everything a teacher keeps track of, in one place. Sold on its own, with or without Premium. A teacher's first month is free.</p>
           <button type="button" className="pr-pill pr-pill-ghost pr-wide" onClick={getHub} data-testid="pricing-get-hub">Get Teacher Hub</button>
           <div className="pr-group hub"><h3>In the Hub</h3><List items={HUB_WORKSPACE} /></div>
           <div className="pr-group hub"><h3>How it works</h3><List items={HUB_HOW} /></div>
-          <div className="pr-note hub"><b>Always a paid add-on</b><span>Teacher Hub isn't included with Premium, the free 2026–27 school year, or a school that has Premium at no charge.</span></div>
+          <div className="pr-note hub"><b>A paid add-on after your free month</b><span>Past a teacher's first month, Teacher Hub isn't included with Premium, the free 2026–27 school year, or a school that has Premium at no charge.</span></div>
         </article>
       </section>
 
