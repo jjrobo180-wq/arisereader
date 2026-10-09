@@ -2169,33 +2169,6 @@ export async function registerRoutes(
     res.json({ totalBooks: allBooks.length, withPoints: withPoints.length, mambaFound: !!mamba, mambaId: mamba?.id });
   });
 
-  // Two farm animal models are hosted on a site that browsers may not load from other sites
-  // (it sends no CORS header), so the server fetches them once and serves them itself.
-  const FARM_MODELS: Record<string, string> = {
-    cow: "https://static.poly.pizza/382b3d4a-a7c9-4c03-9858-3df630d90047.glb",
-    horse: "https://static.poly.pizza/d37dbc87-ca61-4b2c-a2da-d2f0c4240bef.glb",
-  };
-  const farmModelCache = new Map<string, Buffer>();
-  app.get("/api/farm-models/:name", async (req, res) => {
-    const name = String(req.params.name || "");
-    const url = FARM_MODELS[name];
-    if (!url) return res.status(404).end();
-    try {
-      let bytes = farmModelCache.get(name);
-      if (!bytes) {
-        const upstream = await fetch(url, { headers: { "User-Agent": "ARISEReader/1.0 (https://www.arisereader.com)" }, signal: AbortSignal.timeout(20000) });
-        if (!upstream.ok) return res.status(502).end();
-        bytes = Buffer.from(await upstream.arrayBuffer());
-        if (bytes.length < 25_000_000) farmModelCache.set(name, bytes);
-      }
-      res.setHeader("Content-Type", "model/gltf-binary");
-      res.setHeader("Cache-Control", "public, max-age=604800, immutable");
-      res.send(bytes);
-    } catch {
-      res.status(502).end();
-    }
-  });
-
   app.get("/api/book-cover/:id", async (req, res) => {
     try {
       const bookId = Number(req.params.id);
@@ -2518,24 +2491,6 @@ export async function registerRoutes(
   app.get("/api/tutorial/books", async (_req, res) => {
     const books = await storage.getAllBooks();
     res.json(books);
-  });
-
-  // Public quiz endpoint for tutorial (no auth, no attempt tracking, strips correct answers)
-  app.get("/api/tutorial/books/:id/quiz", async (req, res) => {
-    const bookId = parseInt(req.params.id);
-    const book = await storage.getBook(bookId);
-    if (!book) return res.status(404).json({ message: "Book not found" });
-    const allQuestions = await storage.getQuestionsByBook(bookId);
-    const safeQuestions = allQuestions.map(q => ({
-      id: q.id,
-      questionText: q.questionText,
-      optionA: q.optionA,
-      optionB: q.optionB,
-      optionC: q.optionC,
-      optionD: q.optionD,
-      questionOrder: q.questionOrder,
-    }));
-    res.json({ book, questions: safeQuestions });
   });
 
   app.get("/api/books/:id", authMiddleware, async (req, res) => {
@@ -11486,7 +11441,9 @@ Important:
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getCustomEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-      const staff = isStaffViewer(req) || Number(quiz.creator_user_id) === Number(req.user.id);
+      // A quiz's maker may see its answers, except the public sample logins (anyone can use them).
+      const maker = Number(quiz.creator_user_id) === Number(req.user.id) && !isDemoStudent(req.user);
+      const staff = isStaffViewer(req) || maker;
       if (!staff && !(await customQuizVisibleTo(req.user, quiz))) return res.status(404).json({ message: "Quiz not found" });
       const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
       const completed = await storage.hasUserCompletedCustomQuiz(req.user.id, quizId);
