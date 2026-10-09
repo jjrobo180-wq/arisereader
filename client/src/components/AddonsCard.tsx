@@ -2,10 +2,12 @@
 // It shows each person what they have, a live countdown of their 30-day free trial, and the right
 // way to keep it: parents buy for the family, teachers add a class plan on top of Premium, and
 // students are told to ask a grown-up. Prices and rules live in shared/plans.ts.
-// `compact` is the quiet version for a page that isn't about plans: one line with links to
-// the apps, where things stand, and the way to the plan page.
+// `compact` is the quiet version for a page that isn't about plans: every add-on together
+// as one group of buttons (Teacher Hub and To-Do for teachers, then the three apps), with
+// where the free trial stands and the way to the plan page. Its buttons don't wait on the
+// add-ons request, so a teacher can always reach them.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BookOpen, Calculator, CheckCircle2, Clock3, Landmark, Users } from "lucide-react";
+import { BookOpen, Calculator, CheckCircle2, CheckSquare, ClipboardList, Clock3, Landmark, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 
@@ -109,6 +111,44 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     setBusy("");
   };
 
+  if (compact) {
+    if (!user) return null;
+    const teacher = user.role === "teacher" || !!user.isAdmin;
+    const tiles = [
+      ...(teacher ? [{ href: "/#/teacher-hub", label: "Teacher Hub", icon: ClipboardList, tone: "text-teal-300", testId: "button-teacher-hub" }] : []),
+      ...(user.role !== "student" ? [{ href: "/#/to-do", label: "To-Do", icon: CheckSquare, tone: "text-emerald-400", testId: "button-teacher-todo" }] : []),
+      { href: "/history/", label: "Arise History", icon: Landmark, tone: "text-amber-400", testId: "button-teacher-history" },
+      { href: "/math/", label: "Arise Math", icon: Calculator, tone: "text-cyan-400", testId: "button-teacher-math" },
+      { href: "/social/", label: "Arise Social", icon: Users, tone: "text-violet-400", testId: "button-teacher-social" },
+    ];
+    const bundle = data?.bundle;
+    const days = bundle?.trialDaysLeft;
+    const status = !bundle ? ""
+      : bundle.via === "trial" && days != null ? `Free trial: ${days} day${days === 1 ? "" : "s"} left`
+      : !bundle.access ? "Free trial ended" : "";
+    return (
+      <section className="rounded-2xl border border-white/10 bg-white/[.03] p-3 sm:p-4" aria-label="Add-ons" data-testid="addons-group">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-1">
+          <h2 className="text-[11px] font-black uppercase tracking-[.2em] text-muted-foreground">Add-ons</h2>
+          <p className="text-xs text-muted-foreground">
+            {status}
+            {!user.isAdmin && <>{status && " · "}<a href="/#/billing" className="font-bold text-violet-300 underline-offset-4 hover:underline">Prices</a></>}
+          </p>
+        </div>
+        <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {tiles.map((t, i) => (
+            <a key={t.href} href={t.href} data-testid={t.testId}
+              className={`flex min-h-12 items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-bold text-foreground hover:bg-white/10 ${i === 0 && tiles.length % 2 ? "col-span-2 sm:col-span-1" : ""}`}>
+              <t.icon className={`h-5 w-5 shrink-0 ${t.tone}`} />
+              <span className="truncate">{t.label}</span>
+            </a>
+          ))}
+        </div>
+        {note && <p className="mt-3 px-1 text-sm text-muted-foreground" role="status">{note}</p>}
+      </section>
+    );
+  }
+
   if (!user || !data) return null;
   const role = data.role;
   const b = data.bundle, t = data.todo;
@@ -121,28 +161,6 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     { href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator, tone: "text-cyan-400" },
     { href: "/social/", label: "Arise Social", sub: "Explore every career", icon: Users, tone: "text-violet-400" },
   ];
-
-  if (compact) {
-    const days = b.trialDaysLeft;
-    const status = b.via === "trial" && days != null ? `Free trial: ${days} day${days === 1 ? "" : "s"} left`
-      : b.access && b.via && REASON[b.via] ? REASON[b.via]
-      : !b.access ? "Free trial ended" : "";
-    const link = "inline-flex min-h-9 items-center rounded-md px-1.5 font-semibold underline-offset-4 hover:text-foreground hover:underline";
-    return (
-      <section className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-xl border border-white/10 bg-white/[.03] px-4 py-1 text-sm text-muted-foreground" aria-label="Add-ons" data-testid="addons-strip">
-        <span className="text-[11px] font-bold uppercase tracking-[.16em]">Add-ons</span>
-        <span className="flex flex-wrap items-center">
-          {apps.map((a) => <a key={a.href} href={a.href} className={link}>{a.label}</a>)}
-          {showTodo && role !== "student" && <a href="/#/to-do" className={link}>To-Do</a>}
-        </span>
-        <span className="ml-auto flex flex-wrap items-center gap-x-2">
-          {status && <span>{status}</span>}
-          <a href="/#/billing" className={`${link} text-violet-300`}>Add-ons and prices</a>
-        </span>
-        {note && <p className="basis-full pb-1.5" role="status">{note}</p>}
-      </section>
-    );
-  }
 
   let bundleAction: ReactNode = null;
   const ownPlanLive = !!b.plan?.live;

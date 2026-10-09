@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy, ClipboardList, PenLine } from "lucide-react";
+import { ArrowLeft, Award, Camera, Check, GraduationCap, KeyRound, LogOut, Mail, UserRound, Users, Brain, Gift, Search, X, CheckCircle2, FileQuestion, Bell, BookOpen, Gamepad2, Lock, Unlock, Copy, ExternalLink, Clock3, Sparkles, ChevronRight, Trophy, PenLine } from "lucide-react";
 import AddonsCard from "@/components/AddonsCard";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
@@ -421,7 +421,6 @@ export default function TeacherDashboard() {
         </span>
         <ChevronRight size={22} style={{ flexShrink: 0, opacity: 0.75 }} />
       </button>
-      {!user.isAdmin && <div style={{ marginBottom: 18 }}><AddonsCard compact returnPath="/billing" /></div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 18 }}>
         <button onClick={() => navigate("/live-quiz")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0 }}>Host a live quiz</button>
         <button onClick={() => navigate("/study")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "#173b33" }} data-testid="button-teacher-study">
@@ -433,16 +432,11 @@ export default function TeacherDashboard() {
         <button onClick={() => navigate("/teacher-scenes")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(90deg,#0891b2 0%,#7c3aed 52%,#d946ef 100%)" }} data-testid="button-teacher-scenes">
           <BookOpen size={18} /> Scenes
         </button>
-        <button onClick={() => navigate("/teacher-hub")} style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "#0f172a", justifyContent: "center" }} data-testid="button-teacher-hub">
-          <ClipboardList size={18} /> Teacher Hub <span style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(94,234,212,.55)", color: "#99f6e4", fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase" }}>Add-on</span>
-        </button>
-        <a href="/social/" style={{ ...styles.primaryBtn, width: "100%", marginTop: 0, background: "linear-gradient(115deg,#2b2a8f 0%,#6d4fd8 60%,#ef8a3a 120%)", justifyContent: "center", textDecoration: "none", boxSizing: "border-box" }} data-testid="button-teacher-social">
-          <Users size={18} /> Arise Social <span style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(255,214,138,.6)", color: "#ffe2a8", fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase" }}>Add-on</span>
-        </a>
         {!user.isAdmin && <button onClick={() => navigate("/billing")} style={{ ...styles.subtleButton, width: "100%", justifyContent: "center" }} data-testid="button-teacher-plan">
           Your plan
         </button>}
       </div>
+      <div style={{ marginBottom: 18 }}><AddonsCard compact returnPath="/billing" /></div>
       <div style={{ marginBottom: 18 }}><PlayTimeManager /></div>
       <div style={styles.tabs} role="tablist" aria-label="Teacher dashboard sections">
         <TabButton active={tab === "students"} onClick={() => setTab("students")} icon={<Users size={19} />}>My Students</TabButton>
