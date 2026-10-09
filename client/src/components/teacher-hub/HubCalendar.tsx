@@ -574,11 +574,11 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
         {view === "free" && (
           <div className="space-y-3" data-testid="free-view">
             <p className="text-sm text-slate-600">Worked out from your calendar: the gaps in your day with everything on it taken out. Nothing to set up.</p>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-              <span>My day runs</span>
-              <Field type="time" value={dayHours.from} onChange={(e) => changeDay({ from: e.target.value })} aria-label="Day starts" className="!w-32" />
-              <span>to</span>
-              <Field type="time" value={dayHours.to} onChange={(e) => changeDay({ to: e.target.value })} aria-label="Day ends" className="!w-32" />
+            <div className="flex flex-nowrap items-center gap-1.5 text-sm text-slate-600 sm:gap-2">
+              <span className="shrink-0">My day runs</span>
+              <Field type="time" value={dayHours.from} onChange={(e) => changeDay({ from: e.target.value })} aria-label="Day starts" className="!w-auto min-w-0 flex-1 !px-2 sm:!px-3 sm:max-w-[8rem]" />
+              <span className="shrink-0">to</span>
+              <Field type="time" value={dayHours.to} onChange={(e) => changeDay({ to: e.target.value })} aria-label="Day ends" className="!w-auto min-w-0 flex-1 !px-2 sm:!px-3 sm:max-w-[8rem]" />
             </div>
             {(() => {
               const workday: FreeWindow[] = [0, 1, 2, 3, 4, 5, 6].map((day) => ({ day, start: dayHours.from, end: dayHours.to }));

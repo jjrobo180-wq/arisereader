@@ -364,6 +364,18 @@ function TeacherHubPage() {
   // Which menu item is being dragged. Must stay with the other hooks: anything
   // below the early returns changes the hook count between renders and React throws.
   const [draggingGroup, setDraggingGroup] = useState<HubGroupId | null>(null);
+  // The group's categories dropdown (replaces a second row of sub-tabs). Hooks stay up here:
+  // anything below the early returns changes the hook count between renders and React throws.
+  const [subMenu, setSubMenu] = useState(false);
+  const subRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!subMenu) return;
+    const close = (e: Event) => { if (!subRef.current?.contains(e.target as Node)) setSubMenu(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setSubMenu(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
+  }, [subMenu]);
   useEffect(() => { setLastInGroup((prev) => (prev[groupOf(tab).id] === tab ? prev : { ...prev, [groupOf(tab).id]: tab })); }, [tab]);
 
   const canUseHub = !!user && (user.role === "teacher" || user.isAdmin);
@@ -708,13 +720,24 @@ function TeacherHubPage() {
           )}
 
           {subTabs.length > 1 && (
-            <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={group.label} data-testid="hub-subtabs">
-              {subTabs.map((t) => (
-                <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} data-testid={`hub-subtab-${t}`}
-                  className={`flex min-h-11 flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition ${tab === t ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}>
-                  {tabIcon(t)} {SUB_LABELS[t] ?? t}
-                </button>
-              ))}
+            <div ref={subRef} className="relative" data-testid="hub-subtabs">
+              <button type="button" onClick={() => setSubMenu((v) => !v)} aria-haspopup="menu" aria-expanded={subMenu} aria-label={`${group.label} categories`} data-testid="hub-subtabs-button"
+                className="flex min-h-11 w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 sm:px-4">
+                {tabIcon(tab)}
+                <span className="min-w-0 flex-1 truncate">{SUB_LABELS[tab] ?? group.label}</span>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${subMenu ? "rotate-180" : ""}`} />
+              </button>
+              {subMenu && (
+                <div role="menu" aria-label={group.label} data-testid="hub-subtabs-menu"
+                  className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                  {subTabs.map((t) => (
+                    <button key={t} type="button" role="menuitem" aria-current={tab === t ? "page" : undefined} onClick={() => { setTab(t); setSubMenu(false); }} data-testid={`hub-subtab-${t}`}
+                      className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${tab === t ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-50"}`}>
+                      {tabIcon(t)} {SUB_LABELS[t] ?? t}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
