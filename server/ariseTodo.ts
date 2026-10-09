@@ -9,7 +9,8 @@ import { HUB_CONFLICT } from "../shared/hubSave";
 import { cleanFamily } from "../shared/familyHub";
 
 const TABLE = "arise_todo_workspaces";
-const MAX_BYTES = 2_000_000;
+// Room for the Family Hub, including about a year of food and fitness logs.
+const MAX_BYTES = 5_000_000;
 const signupLimits = createAttemptLimiter({ max: 8, windowMs: 60 * 60_000 });
 
 function validDate(value: unknown): boolean {

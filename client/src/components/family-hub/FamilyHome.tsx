@@ -1,7 +1,8 @@
 // Family Hub home: today across every switched-on part of the hub.
-import { CalendarDays, Check, ChevronRight, ListTodo, Plane, Receipt, Sparkles, Star, StickyNote, Sun, UserPlus, Vote } from "lucide-react";
+import { Apple, CalendarDays, Check, ChevronRight, ListTodo, Plane, Receipt, Sparkles, Star, StickyNote, Sun, UserPlus, Vote } from "lucide-react";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { pollIsOpen } from "./Polls";
+import { caloriesLeft, dayTotals, goalsFor } from "@shared/familyHealth";
 import type { CalendarTask } from "./FamilyCalendar";
 import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type SectionProps } from "./ui";
 
@@ -91,6 +92,20 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           <p className="mt-1 text-sm text-white/80">{daysBetween(today, trip.start) > 0 ? `${daysBetween(today, trip.start)} day${daysBetween(today, trip.start) === 1 ? "" : "s"} to go` : "Happening now"} · {shortDate(trip.start, { month: "short", day: "numeric" })}</p>
           {trip.packing.length > 0 && <div className="mt-3"><div className="h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white" style={{ width: `${(trip.packing.filter((p) => p.packed).length / trip.packing.length) * 100}%` }} /></div><p className="mt-1 text-[11px] text-white/70">{trip.packing.filter((p) => p.packed).length} of {trip.packing.length} packed</p></div>}
         </button>}
+
+        {on("health") && family.members.length > 0 && <Panel eyebrow="Food & fitness" title="Today" right={<button onClick={() => go("health")} className="text-xs font-bold text-violet-600">Diary</button>}>
+          <ul className="space-y-2.5">{family.members.map((m) => {
+            const t = dayTotals(family.health, m.id, today);
+            const g = goalsFor(family.health, m);
+            const left = caloriesLeft(g.calories, t);
+            return <li key={m.id} className="flex items-center gap-3"><Avatar member={m} />
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{m.name}</span>
+                <span className="text-[11px] text-slate-500">{m.kind === "kid" ? `${t.fruitVeg}/${g.fruitVeg} fruits & veggies · ${t.water}/${g.water} water` : t.items ? `${t.food.calories.toLocaleString()} eaten · ${t.water}/${g.water} water` : "Nothing logged yet"}</span></span>
+              {m.kind === "kid" ? <Apple size={16} className={t.fruitVeg >= g.fruitVeg ? "text-emerald-500" : "text-slate-300"} />
+                : <span className={`text-right text-xs font-black ${left < 0 ? "text-rose-600" : "text-slate-700"}`}>{Math.abs(left).toLocaleString()}<span className="block text-[10px] font-bold text-slate-400">{left < 0 ? "over" : "cal left"}</span></span>}
+            </li>;
+          })}</ul>
+        </Panel>}
 
         {on("behavior") && kids.length > 0 && <Panel eyebrow="Stars" title="Kids' stars" right={<button onClick={() => go("behavior")} className="text-xs font-bold text-violet-600">Tracker</button>}>
           <ul className="space-y-2.5">{kids.map((k) => <li key={k.id} className="flex items-center gap-3"><Avatar member={k} /><span className="min-w-0 flex-1 truncate text-sm font-bold">{k.name}</span><span className="inline-flex items-center gap-1 text-sm font-black text-amber-600"><Star size={15} className="fill-amber-400 text-amber-400" />{starBalance(family, k.id).balance}</span></li>)}</ul>

@@ -67,3 +67,8 @@
 .todo-night .note-card .text-slate-800, .todo-night .note-card .text-slate-700, .todo-night .note-card .text-slate-600 { color: #1e1b33; }
 .todo-night .note-card .text-slate-400 { color: #6b6890; }
 .todo-night .toggle-knob { background-color: #ffffff; }
+
+/* Food & fitness */
+.todo-night .text-slate-100 { color: #26244a; }
+.todo-night .hover\:border-sky-300:hover { border-color: #38bdf8; }
+.todo-night .text-sky-500 { color: #7dd3fc; }

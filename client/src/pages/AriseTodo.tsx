@@ -8,7 +8,7 @@ import {
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
-  CalendarRange, Smile, Vote, Plane, Wallet, StickyNote, Settings2, Moon,
+  CalendarRange, Smile, Vote, Plane, Wallet, StickyNote, Settings2, Moon, Apple,
 } from "lucide-react";
 import { cleanFamily, emptyFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
@@ -19,6 +19,7 @@ import Polls from "@/components/family-hub/Polls";
 import Trips from "@/components/family-hub/Trips";
 import Money from "@/components/family-hub/Money";
 import Notes from "@/components/family-hub/Notes";
+import Health from "@/components/family-hub/Health";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar } from "@/components/family-hub/ui";
 import "./todoNight.css";
@@ -120,10 +121,10 @@ const mergeTodo = (cloud: Data, old: Data): Data => {
 const upgrade = (value: Data | Record<string, unknown>): Data =>
   (value as Data).version === 2 && (value as Data).family ? value as Data : validate(value);
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile,
+  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
 };
-const SECTION_ORDER: FamilySection[] = ["home", "tasks", "chores", "calendar", "behavior", "polls", "trips", "money", "notes", "family"];
+const SECTION_ORDER: FamilySection[] = ["home", "tasks", "chores", "calendar", "behavior", "health", "polls", "trips", "money", "notes", "family"];
 const SECTION_KEY = "arise-todo-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
@@ -206,7 +207,7 @@ export default function AriseTodo() {
   const importOldTasks = () => {
     if (!legacy) return;
     const candidate = mergeTodo(data, legacy);
-    if (candidate.tasks.length > 5000 || candidate.lists.length > 100 || new TextEncoder().encode(JSON.stringify(candidate)).length > 2_000_000) {
+    if (candidate.tasks.length > 5000 || candidate.lists.length > 100 || new TextEncoder().encode(JSON.stringify(candidate)).length > 5_000_000) {
       setMessage("Your old tasks exceed cloud storage limits. Please export a backup first."); return;
     }
     setData(candidate);
@@ -326,7 +327,7 @@ export default function AriseTodo() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (file.size > 2_000_000) { setMessage("File too large. Choose a To-Do backup under 2 MB."); return; }
+    if (file.size > 5_000_000) { setMessage("File too large. Choose a To-Do backup under 5 MB."); return; }
     try {
       const restored = validate(JSON.parse(await file.text()));
       if (!window.confirm(`Restore ${restored.tasks.length} tasks and ${restored.lists.length} lists? This replaces the tasks saved in your account across devices. Export a backup first if needed.`)) return;
@@ -358,6 +359,7 @@ export default function AriseTodo() {
     : shown === "chores" ? <Chores {...common} />
     : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "behavior" ? <Behavior {...common} />
+    : shown === "health" ? <Health {...common} />
     : shown === "polls" ? <Polls {...common} />
     : shown === "trips" ? <Trips {...common} />
     : shown === "money" ? <Money {...common} />
