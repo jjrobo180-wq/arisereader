@@ -1,6 +1,6 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Apple, CalendarDays, Check, ChevronDown, ChevronUp, Droplets, Pill, Newspaper, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, UserPlus, Vote, Wallet } from "lucide-react";
+import { Apple, CalendarDays, Check, Droplets, Pill, Newspaper, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, UserPlus, Vote, Wallet } from "lucide-react";
 import { MEMBER_COLORS, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
@@ -67,24 +67,11 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
       </Panel>
 
       <Panel eyebrow="Switches" title="Turn features on or off">
-        <p className="mb-3 text-sm text-slate-500">Hiding a feature keeps everything saved in it. Turn it back on any time. Use the arrows to put your favorites at the top of the menu.</p>
-        <ul className="divide-y divide-slate-100">{orderedToggleable(family).map((s, i, order) => {
+        <p className="mb-3 text-sm text-slate-500">Hiding a feature keeps everything saved in it. Turn it back on any time. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
+        <ul className="divide-y divide-slate-100">{orderedToggleable(family).map((s) => {
           const info = SECTION_INFO[s];
           const on = family.sections[s] !== false;
-          const move = (dir: -1 | 1) => setFamily((f) => {
-            const current = orderedToggleable(f);
-            const at = current.indexOf(s);
-            const to = at + dir;
-            if (at < 0 || to < 0 || to >= current.length) return f;
-            const next = [...current];
-            [next[at], next[to]] = [next[to], next[at]];
-            return { ...f, sectionOrder: next };
-          });
           return <li key={s} className="flex items-center gap-3 py-3">
-            <span className="flex flex-col">
-              <button type="button" onClick={() => move(-1)} disabled={i === 0} aria-label={`Move ${info.label} up`} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp size={14} /></button>
-              <button type="button" onClick={() => move(1)} disabled={i === order.length - 1} aria-label={`Move ${info.label} down`} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown size={14} /></button>
-            </span>
             <span className={`rounded-xl p-2 ${on ? "bg-violet-50 text-violet-600" : "bg-slate-100 text-slate-400"}`}>{info.icon}</span>
             <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{info.label}</span><span className="text-xs text-slate-500">{info.detail}</span></span>
             <Toggle on={on} label={`Show ${info.label}`} onChange={(v) => setFamily((f) => ({ ...f, sections: { ...f.sections, [s]: v } }))} />

@@ -9,8 +9,9 @@ import {
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
   CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
+  ChevronUp, ChevronDown,
 } from "lucide-react";
-import { cleanFamily, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, type Family, type FamilySection } from "@shared/familyHub";
+import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -197,6 +198,7 @@ export default function AriseTodo() {
     const first: FamilySection = user?.role === "parent" ? "reader" : "home";
     try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
+  const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
   // Going back to the old parent dashboard address while LifeHub is open lands on the Reader tab.
   useEffect(() => {
     try { if (sessionStorage.getItem("lifehub_tab") === "reader") { sessionStorage.removeItem("lifehub_tab"); setSectionState("reader"); } } catch { /* fine */ }
@@ -405,6 +407,24 @@ export default function AriseTodo() {
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
   const sections = sectionOrderFor(family).filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
+  // Home, Reader, Tasks, Notifications and Family & settings stay put.
+  const moveSectionBy = (id: FamilySection, dir: -1 | 1) => setFamily((f) => {
+    const current = cleanSectionOrder(f.sectionOrder);
+    const at = current.indexOf(id);
+    const to = at + dir;
+    if (at < 0 || to < 0 || to >= current.length) return f;
+    const next = [...current];
+    [next[at], next[to]] = [next[to], next[at]];
+    return { ...f, sectionOrder: next };
+  });
+  const moveSectionTo = (id: FamilySection, beforeId: FamilySection | null) => setFamily((f) => {
+    const current = cleanSectionOrder(f.sectionOrder).filter((s) => s !== id);
+    const at = beforeId && (TOGGLEABLE as readonly FamilySection[]).includes(beforeId) ? current.indexOf(beforeId) : current.length;
+    if (at < 0) return f;
+    current.splice(at, 0, id);
+    return { ...f, sectionOrder: current };
+  });
   const trial = useLifeHubTrial();
   const shown: FamilySection = sections.includes(section) ? section : "home";
   // Doses still to take today show on the Pills tab.
@@ -449,7 +469,37 @@ export default function AriseTodo() {
           <div className="flex items-center gap-2 lg:hidden"><button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`flex h-10 w-10 items-center justify-center rounded-xl ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600"}`} aria-label="Notification settings"><Bell size={20} /></button><button onClick={openAdd} className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf]" aria-label="Add task"><Plus /></button></div>
         </div>
         <nav aria-label="Family Hub" className="flex gap-1 overflow-x-auto px-4 pb-3 [scrollbar-width:none] lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 [&::-webkit-scrollbar]:hidden">
-          {sections.map(id => { const Icon = SECTION_ICONS[id]; return <button key={id} onClick={() => setSection(id)} aria-current={shown === id ? "page" : undefined} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-[18px] w-[18px]" /><span className="whitespace-nowrap">{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}</button>; })}
+          {sections.map((id, i) => {
+            const Icon = SECTION_ICONS[id];
+            const movable = (TOGGLEABLE as readonly FamilySection[]).includes(id);
+            const toggleableShown = sections.filter((s) => (TOGGLEABLE as readonly FamilySection[]).includes(s));
+            const posInToggleable = toggleableShown.indexOf(id);
+            return (
+              <div
+                key={id}
+                draggable={movable}
+                onDragStart={movable ? (e) => { setDraggingSection(id); e.dataTransfer.effectAllowed = "move"; } : undefined}
+                onDragEnd={movable ? () => setDraggingSection(null) : undefined}
+                onDragOver={movable && draggingSection && draggingSection !== id ? (e) => e.preventDefault() : undefined}
+                onDrop={movable && draggingSection && draggingSection !== id ? (e) => { e.preventDefault(); moveSectionTo(draggingSection, id); setDraggingSection(null); } : undefined}
+                className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition lg:w-full ${draggingSection === id ? "opacity-40" : ""}`}
+              >
+                <button
+                  onClick={() => setSection(id)}
+                  aria-current={shown === id ? "page" : undefined}
+                  className={`flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
+                >
+                  <Icon className="h-[18px] w-[18px]" /><span className="whitespace-nowrap">{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
+                </button>
+                {movable && (
+                  <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 lg:flex">
+                    <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveSectionBy(id, 1)} disabled={posInToggleable >= toggleableShown.length - 1} aria-label={`Move ${SECTION_INFO[id].label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </nav>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
