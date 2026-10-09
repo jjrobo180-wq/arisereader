@@ -1,7 +1,8 @@
 // Plans and pricing. Public: anyone can open it without an account.
-// Free is for students and their parents; Premium is for teachers and schools.
-// Teacher Hub is a separate paid add-on for teachers and schools.
-// A teacher's first month of both is free.
+// Free is for students and their parents; Class is for teachers and schools
+// (the plan the rest of the code calls Premium). The add-ons (Teacher Hub, the
+// Learning Bundle and A.R.I.S.E. To-Do) are listed inside the Class card.
+// A teacher's first month of Class and Teacher Hub is free.
 // Every price and limit on this page comes from shared/plans.ts.
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
@@ -88,19 +89,34 @@ const BUNDLE_APPS: Item[] = [
 const BUNDLE_HOW: Item[] = [
   `30 days free for every student, parent and teacher. No card needed.`,
   `Families: ${usd(BU.familyMonthlyCents)} a month covers the parent and every linked child`,
-  `Teachers: ${usd(BU.teacherMonthlyCents)} a month on top of Premium for a class of up to ${BU.teacherSeats} students`,
+  `Teachers: ${usd(BU.teacherMonthlyCents)} a month on top of Class for a class of up to ${BU.teacherSeats} students`,
   "When a teacher's class plan covers every child in a family that's paying, the family's plan stops and the unused days are refunded to their card",
 ];
-const TODO_HOW: Item[] = [
-  "Lists, chores, the family calendar, polls, trips, money and notes",
-  `Parents: 30 days free, then ${usd(TD.familyMonthlyCents)} a month`,
-  "Teachers: included with Teacher Hub, one subscription for both",
-];
+const hubBlock = H.studentsPerBlock.toLocaleString("en-US");
 const HUB_HOW: Item[] = [
+  `One teacher: ${usd(H.monthlyCents)} a month for up to ${hubBlock} students, plus ${usd(H.monthlyCents)} a month for each extra ${hubBlock}`,
+  `Whole school: ${usd(H.schoolYearlyCents)} a year for up to ${H.schoolStudentCap.toLocaleString("en-US")} students. Every teacher gets their own Hub, for a full 12 months.`,
   "Private to each teacher, and saved to their account on any device",
   "Works on a phone, tablet or computer",
   "Tabs you don't use can be hidden",
-  "Sold on its own: it works with or without Premium",
+  "Sold on its own: it works with or without Class",
+];
+
+// The add-ons, listed inside the Class card. `more` opens under "What's included".
+type Addon = { id: string; name: string; about: string; amount: string; per: string; more: [string, Item[]][] };
+const ADDONS: Addon[] = [
+  { id: "hub", name: "Teacher Hub",
+    about: `A private workspace for caseloads, IEP timelines, lessons, notes, attendance and grades. A.R.I.S.E. To-Do comes with it, and a teacher's first month is free. A whole school is ${usd(H.schoolYearlyCents)} a year.`,
+    amount: usd(H.monthlyCents), per: "a month per teacher",
+    more: [["In the Hub", HUB_WORKSPACE], ["How it works", HUB_HOW]] },
+  { id: "bundle", name: "Learning Bundle",
+    about: `Arise History, Arise Math and Arise Social for a class of up to ${BU.teacherSeats} students, on top of Class. Everyone gets 30 days free first. A family can get it on its own for ${usd(BU.familyMonthlyCents)} a month.`,
+    amount: usd(BU.teacherMonthlyCents), per: "a month per class",
+    more: [["In the bundle", BUNDLE_APPS], ["How it works", BUNDLE_HOW]] },
+  { id: "todo", name: "A.R.I.S.E. To-Do",
+    about: `Lists, chores, the family calendar, polls, trips, money and notes. Teachers get it with Teacher Hub: one subscription for both. Families get 30 days free, then it's ${usd(TD.familyMonthlyCents)} a month.`,
+    amount: "Included", per: "with Teacher Hub",
+    more: [] },
 ];
 
 type Cell = boolean | string;
@@ -146,28 +162,28 @@ const QUESTIONS: [string, string][] = [
     `No. Reading, quizzes, the leaderboard, the games and the parent account are free for every family, with or without a school. One parent profile can follow up to ${kids} children. Reader Coins are earned by reading and are never sold.`],
   ["What does a parent account do?",
     `It shows your child's quizzes, scores and points, gives you a proctor code for quizzes at home, and lets you set game limits. It is free, and one profile can follow up to ${kids} children.`],
-  ["Who is Premium for?",
+  ["Who is Class for?",
     "Teachers and schools. It adds the classroom tools on top of what every student and parent already gets for free."],
   ["Does Free limit how much a student can read?",
     "No. There is no cap on books or quizzes. The only limit on Free is game time: 10 minutes a day, or unlimited for the rest of the week once they pass a book quiz."],
   ["Who gives the prizes?",
-    "Parents, teachers and schools do. A.R.I.S.E. doesn't hand out prizes on any plan. On Free, a parent can add their own prize for their child. On Premium, a teacher or school can also add prizes for a class or the whole school, and they show up right in the leaderboards and competitions."],
+    "Parents, teachers and schools do. A.R.I.S.E. doesn't hand out prizes on any plan. On Free, a parent can add their own prize for their child. On Class, a teacher or school can also add prizes for a class or the whole school, and they show up right in the leaderboards and competitions."],
   ["Is there a free month for teachers?",
     `Yes. Every teacher's first month is free: the teacher account and Teacher Hub (with A.R.I.S.E. To-Do). It starts the day you make your teacher account, and no card is needed. Teachers who already had an account on ${mountainDay(PLANS.freeMonthFrom)} have theirs until ${mountainDay(freeMonthEnd(null))}.`],
-  ["How much is Premium?",
+  ["How much is Class?",
     `A teacher pays ${usd(T.monthlyCents)} a month for up to ${block} students, plus ${usd(T.monthlyCents)} a month for each extra ${block}. A school pays ${usd(S.yearlyCents)} a year for up to ${schoolCap} students, and every teacher gets their own account. A school's year is a full 12 months, so summer reading clubs and competitions are covered.`],
   ["My school already uses A.R.I.S.E. What changes for us?",
     "Nothing this school year. Teachers and students at any school who signed up before October 1, 2026 keep everything they have today, free, for the full 2026–27 school year."],
   ["What is Teacher Hub?",
     `A separate add-on: a private workspace for caseloads, IEP timelines, lessons, notes, attendance, grades, parent contact and schedules. It is ${usd(H.monthlyCents)} a month for up to ${H.studentsPerBlock.toLocaleString("en-US")} students, plus ${usd(H.monthlyCents)} a month for each extra ${H.studentsPerBlock.toLocaleString("en-US")}, or ${usd(H.schoolYearlyCents)} a year for a whole school of up to ${H.schoolStudentCap.toLocaleString("en-US")} students.`],
   ["What is the Learning Bundle?",
-    `Arise History, Arise Math and Arise Social together. Every student, parent and teacher gets 30 days free, no card needed, with a countdown on their page. After that, a family pays ${usd(BU.familyMonthlyCents)} a month for the parent and every linked child, or a teacher adds it for their class for ${usd(BU.teacherMonthlyCents)} a month on top of Premium (up to ${BU.teacherSeats} students).`],
+    `Arise History, Arise Math and Arise Social together. Every student, parent and teacher gets 30 days free, no card needed, with a countdown on their page. After that, a family pays ${usd(BU.familyMonthlyCents)} a month for the parent and every linked child, or a teacher adds it for their class for ${usd(BU.teacherMonthlyCents)} a month on top of Class (up to ${BU.teacherSeats} students).`],
   ["We pay for the bundle and our child's teacher added it too. Do we keep paying?",
     "No. A teacher's class plan takes over. Once every child you've linked is in a class that has it, your family plan stops and we refund the unused part of the month to your card."],
   ["What does A.R.I.S.E. To-Do cost?",
     `Parents get 30 days free, then it's ${usd(TD.familyMonthlyCents)} a month. Teachers get it with Teacher Hub: one subscription for both.`],
-  ["Is Teacher Hub included with Premium or a free school?",
-    "No. After a teacher's free first month, Teacher Hub is paid on its own. It isn't part of Premium, the free 2026–27 school year, or any school that has Premium at no charge."],
+  ["Is Teacher Hub included with Class or a free school?",
+    "No. After a teacher's free first month, Teacher Hub is paid on its own. It isn't part of Class, the free 2026–27 school year, or any school that has Class at no charge."],
 ];
 
 function Price({ who, detail, amount, per, premium }: { who: string; detail: ReactNode; amount: string; per: string; premium?: boolean }) {
@@ -184,10 +200,10 @@ export default function Pricing() {
   const [, navigate] = useLocation();
   // Signed-in readers go home; everyone else lands on the account choices.
   const startFree = () => navigate(user ? "/" : "/?tab=create");
-  // A teacher goes to their plan page, where Premium is bought. Anyone else starts by making a teacher account.
-  const getPremium = () => navigate(user?.isAdmin ? "/admin" : user?.role === "teacher" ? "/billing" : "/teacher-signup");
-  // Teacher Hub is bought on the plan page too.
-  const getHub = () => navigate(user?.isAdmin ? "/teacher-hub" : user?.role === "teacher" ? "/billing" : "/teacher-signup");
+  // A teacher goes to their plan page, where Class is bought. Anyone else starts by making a teacher account.
+  const getClass = () => navigate(user?.isAdmin ? "/admin" : user?.role === "teacher" ? "/billing" : "/teacher-signup");
+  // The add-ons are bought on the plan page too.
+  const getAddon = () => navigate(user?.isAdmin ? "/teacher-hub" : user?.role === "teacher" ? "/billing" : "/teacher-signup");
   const toCompare = () => document.getElementById("pr-compare")?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
@@ -209,8 +225,8 @@ export default function Pricing() {
 
       <section className="pr-hero">
         <p className="pr-tag">Plans and pricing</p>
-        <h1>Free for students and parents. Premium for the classroom.</h1>
-        <p className="pr-lede">Students get free books, poems and kids' news to read right on the site, and quizzes for millions of books. They climb the leaderboard and play the games at no cost, and their parents follow along for free. Premium adds the teacher's side: live class games, control over game time for the class, and a clear view of every student's reading.</p>
+        <h1>Free for students and parents. Class for teachers and schools.</h1>
+        <p className="pr-lede">Students get free books, poems and kids' news to read right on the site, and quizzes for millions of books. They climb the leaderboard and play the games at no cost, and their parents follow along for free. Class adds the teacher's side: live class games, control over game time for the class, and a clear view of every student's reading.</p>
         <div className="pr-actions">
           <button type="button" className="pr-pill" onClick={startFree}>Start reading free</button>
           <button type="button" className="pr-pill pr-pill-ghost" onClick={toCompare}>Compare the plans</button>
@@ -232,65 +248,57 @@ export default function Pricing() {
         </article>
 
         <div className="pr-ring">
-          <article className="pr-card pr-card-premium">
-            <div className="pr-name premium"><h2>Premium</h2><p>For teachers and schools</p></div>
+          <article className="pr-card pr-card-premium" data-testid="pricing-class">
+            <div className="pr-name premium"><h2>Class</h2><p>For teachers &amp; schools</p></div>
             <div className="pr-prices">
               <Price premium who="One teacher" detail={`Up to ${block} students. Add ${usd(T.monthlyCents)} a month for each extra ${block} students.`} amount={usd(T.monthlyCents)} per="a month" />
               <Price premium who="Whole school" detail={`Up to ${schoolCap} students, and every teacher gets their own account. Runs a full 12 months, so summer reading clubs and competitions are covered.`} amount={usd(S.yearlyCents)} per="a year" />
             </div>
             <p className="pr-about">The tools to run reading in a classroom, on top of everything in Free. Parents of the class get their accounts free too. A teacher's first month is free.</p>
-            <button type="button" className="pr-pill pr-wide" onClick={getPremium} data-testid="pricing-get-premium">Get Premium</button>
+            <button type="button" className="pr-pill pr-wide" onClick={getClass} data-testid="pricing-get-premium">Get Class</button>
             <div className="pr-group premium"><h3>For the teacher</h3><List items={PREMIUM_TEACHER} /></div>
             <div className="pr-group premium"><h3>For their students and parents</h3><List items={PREMIUM_FAMILIES} /></div>
             <div className="pr-note premium"><b>Signed up before October 1, 2026?</b><span>Your school's teachers and students keep everything free for the full 2026–27 school year.</span></div>
+
+            <div className="pr-addons" data-testid="pricing-addons">
+              <div className="pr-addons-head">
+                <h3>Add-ons</h3>
+                <p>Optional extras for a teacher or school, paid separately from Class.</p>
+              </div>
+              <ul className="pr-addon-list">
+                {ADDONS.map((a) => (
+                  <li key={a.id} className="pr-addon" data-testid={`pricing-${a.id}`}>
+                    <div className="pr-addon-top">
+                      <b>{a.name}</b>
+                      <div className="pr-addon-amount"><b>{a.amount}</b><span>{a.per}</span></div>
+                    </div>
+                    <p>{a.about}</p>
+                    {a.more.length > 0 && (
+                      <details>
+                        <summary>What's included</summary>
+                        <div className="pr-addon-more">{a.more.map(([title, items]) => <div key={title} className="pr-group"><h4>{title}</h4><List items={items} /></div>)}</div>
+                      </details>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="pr-pill pr-pill-sm pr-pill-ghost" onClick={getAddon} data-testid="pricing-get-hub">Get an add-on</button>
+              <p className="pr-addons-foot">Add-ons aren't part of Class, the free 2026–27 school year, or a school that has Class at no charge.</p>
+            </div>
           </article>
         </div>
-
-        <article className="pr-card pr-card-hub">
-          <div className="pr-name hub"><h2>Teacher Hub</h2><p>Add-on for teachers and schools</p></div>
-          <div className="pr-prices">
-            <Price who="One teacher" detail={`Up to ${H.studentsPerBlock.toLocaleString("en-US")} students. Add ${usd(H.monthlyCents)} a month for each extra ${H.studentsPerBlock.toLocaleString("en-US")} students.`} amount={usd(H.monthlyCents)} per="a month" />
-            <Price who="Whole school" detail={`Up to ${H.schoolStudentCap.toLocaleString("en-US")} students, and every teacher gets their own Hub. Runs a full 12 months.`} amount={usd(H.schoolYearlyCents)} per="a year" />
-          </div>
-          <p className="pr-about">A private workspace for everything a teacher keeps track of, in one place. Sold on its own, with or without Premium. A teacher's first month is free.</p>
-          <button type="button" className="pr-pill pr-pill-ghost pr-wide" onClick={getHub} data-testid="pricing-get-hub">Get Teacher Hub</button>
-          <div className="pr-group hub"><h3>In the Hub</h3><List items={HUB_WORKSPACE} /></div>
-          <div className="pr-group hub"><h3>How it works</h3><List items={HUB_HOW} /></div>
-          <div className="pr-note hub"><b>A paid add-on after your free month</b><span>Past a teacher's first month, Teacher Hub isn't included with Premium, the free 2026–27 school year, or a school that has Premium at no charge. A.R.I.S.E. To-Do comes with it.</span></div>
-        </article>
-
-        <article className="pr-card pr-card-hub" data-testid="pricing-bundle">
-          <div className="pr-name hub"><h2>Learning Bundle</h2><p>Arise History, Arise Math and Arise Social</p></div>
-          <div className="pr-prices">
-            <Price who="A family" detail="The parent and every linked child. 30 days free first." amount={usd(BU.familyMonthlyCents)} per="a month" />
-            <Price who="A teacher's class" detail={`Up to ${BU.teacherSeats} students, added on top of Premium. 30 days free first.`} amount={usd(BU.teacherMonthlyCents)} per="a month" />
-          </div>
-          <p className="pr-about">Three more ways to learn next to reading. Every account starts with 30 days free, no card needed.</p>
-          <button type="button" className="pr-pill pr-pill-ghost pr-wide" onClick={startFree}>Start 30 days free</button>
-          <div className="pr-group hub"><h3>In the bundle</h3><List items={BUNDLE_APPS} /></div>
-          <div className="pr-group hub"><h3>How it works</h3><List items={BUNDLE_HOW} /></div>
-        </article>
-
-        <article className="pr-card pr-card-hub" data-testid="pricing-todo">
-          <div className="pr-name hub"><h2>A.R.I.S.E. To-Do</h2><p>For families, and teachers with Teacher Hub</p></div>
-          <div className="pr-prices">
-            <Price who="A family" detail="30 days free first. Teachers get it with Teacher Hub." amount={usd(TD.familyMonthlyCents)} per="a month" />
-          </div>
-          <p className="pr-about">The family's lists and calendar in one place, saved to your account on every device.</p>
-          <div className="pr-group hub"><h3>How it works</h3><List items={TODO_HOW} /></div>
-        </article>
       </section>
 
       <section id="pr-compare" className="pr-band">
         <div className="pr-inner">
           <div className="pr-head">
             <h2>Compare the plans</h2>
-            <p>Reading, playing and a parent's view are free. What Premium adds is the classroom. Prizes on either plan come from parents, teachers and schools, not from A.R.I.S.E.</p>
+            <p>Reading, playing and a parent's view are free. What Class adds is the classroom. Prizes on either plan come from parents, teachers and schools, not from A.R.I.S.E.</p>
           </div>
           <div className="pr-table">
             <table>
               <colgroup><col className="pr-col-what" /><col className="pr-col-plan" /><col className="pr-col-plan premium" /></colgroup>
-              <thead><tr><th scope="col" className="pr-th-what">What you get</th><th scope="col" className="pr-th-plan">Free</th><th scope="col" className="pr-th-plan">Premium</th></tr></thead>
+              <thead><tr><th scope="col" className="pr-th-what">What you get</th><th scope="col" className="pr-th-plan">Free</th><th scope="col" className="pr-th-plan">Class</th></tr></thead>
               {COMPARE.map((g) => (
                 <tbody key={g.group}>
                   <tr><th scope="colgroup" colSpan={3} className="pr-th-group">{g.group}</th></tr>
@@ -315,10 +323,10 @@ export default function Pricing() {
       </section>
 
       <section className="pr-band pr-close">
-        <h2>Start free today. Add Premium when your class is ready.</h2>
+        <h2>Start free today. Add the Class plan when you're ready.</h2>
         <div className="pr-actions">
           <button type="button" className="pr-pill" onClick={startFree}>Start reading free</button>
-          <button type="button" className="pr-pill pr-pill-ghost" onClick={getPremium}>Get Premium</button>
+          <button type="button" className="pr-pill pr-pill-ghost" onClick={getClass}>Get Class</button>
         </div>
       </section>
 

@@ -2,6 +2,8 @@
 // It shows each person what they have, a live countdown of their 30-day free trial, and the right
 // way to keep it: parents buy for the family, teachers add a class plan on top of Premium, and
 // students are told to ask a grown-up. Prices and rules live in shared/plans.ts.
+// `compact` is the quiet version for a page that isn't about plans: one line with links to
+// the apps, where things stand, and the way to the plan page.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BookOpen, Calculator, CheckCircle2, Clock3, Landmark, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -67,7 +69,7 @@ const REASON: Record<string, string> = {
   "todo-plan": "Included with your To-Do plan",
 };
 
-export default function AddonsCard({ returnPath = "/billing", showTodo = true }: { returnPath?: string; showTodo?: boolean }) {
+export default function AddonsCard({ returnPath = "/billing", showTodo = true, compact = false }: { returnPath?: string; showTodo?: boolean; compact?: boolean }) {
   const { user, token } = useAuth();
   const [data, setData] = useState<Addons | null>(null);
   const [busy, setBusy] = useState("");
@@ -119,6 +121,28 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true }:
     { href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator, tone: "text-cyan-400" },
     { href: "/social/", label: "Arise Social", sub: "Explore every career", icon: Users, tone: "text-violet-400" },
   ];
+
+  if (compact) {
+    const days = b.trialDaysLeft;
+    const status = b.via === "trial" && days != null ? `Free trial: ${days} day${days === 1 ? "" : "s"} left`
+      : b.access && b.via && REASON[b.via] ? REASON[b.via]
+      : !b.access ? "Free trial ended" : "";
+    const link = "inline-flex min-h-9 items-center rounded-md px-1.5 font-semibold underline-offset-4 hover:text-foreground hover:underline";
+    return (
+      <section className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-xl border border-white/10 bg-white/[.03] px-4 py-1 text-sm text-muted-foreground" aria-label="Add-ons" data-testid="addons-strip">
+        <span className="text-[11px] font-bold uppercase tracking-[.16em]">Add-ons</span>
+        <span className="flex flex-wrap items-center">
+          {apps.map((a) => <a key={a.href} href={a.href} className={link}>{a.label}</a>)}
+          {showTodo && role !== "student" && <a href="/#/to-do" className={link}>To-Do</a>}
+        </span>
+        <span className="ml-auto flex flex-wrap items-center gap-x-2">
+          {status && <span>{status}</span>}
+          <a href="/#/billing" className={`${link} text-violet-300`}>Add-ons and prices</a>
+        </span>
+        {note && <p className="basis-full pb-1.5" role="status">{note}</p>}
+      </section>
+    );
+  }
 
   let bundleAction: ReactNode = null;
   const ownPlanLive = !!b.plan?.live;
