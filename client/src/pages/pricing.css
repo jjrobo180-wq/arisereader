@@ -41,14 +41,12 @@
 .pr-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px; }
 
 /* Plan cards */
-/* Both cards have the same seven parts (name, prices, summary, button, two lists,
-   note). Subgrid lines those parts up across the cards, so the buttons and
-   the list headings sit level whatever the text length. The Class card has an
-   eighth part below them: its add-ons. */
+/* Both cards have the same eight parts (name, prices, add-ons, summary, button,
+   two lists, note). Subgrid lines those parts up across the cards, so the
+   buttons and the list headings sit level whatever the text length. */
 .pr-plans { position: relative; max-width: 1120px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px) clamp(56px, 8vw, 96px); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 20px; }
 .pr-plans > .pr-card, .pr-ring, .pr-ring > .pr-card { display: grid; grid-template-rows: subgrid; row-gap: 24px; }
-.pr-plans > .pr-card { grid-row: span 7; }
-.pr-ring { grid-row: span 8; }
+.pr-plans > .pr-card, .pr-ring { grid-row: span 8; }
 .pr-ring > .pr-card { grid-row: 1 / -1; }
 .pr-card { align-content: start; padding: clamp(24px, 3.2vw, 36px); border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1); background: #0e0d1a; }
 .pr-ring { padding: 2px; border-radius: 30px; background: linear-gradient(135deg, #7c3aed 0%, #c026d3 52%, #06b6d4 100%); box-shadow: 0 44px 96px -44px rgba(147, 72, 239, 0.75); }
@@ -79,27 +77,29 @@
 .pr-note b { font-size: 16px; font-weight: 800; }
 .pr-note span { font-size: 15px; line-height: 1.5; color: #cbd5e1; }
 
-/* Add-ons: a quiet list at the foot of the Class card. */
-.pr-addons { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
-.pr-addons-head { display: flex; flex-direction: column; gap: 4px; }
-.pr-addons-head h3 { font-size: 15px; font-weight: 800; color: #5eead4; }
-.pr-addons-head p, .pr-addons-foot { font-size: 14px; line-height: 1.5; color: #94a3b8; }
-.pr-addon-list { list-style: none; align-self: stretch; display: flex; flex-direction: column; }
-.pr-addon { display: flex; flex-direction: column; gap: 6px; padding: 16px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
-.pr-addon:first-child { padding-top: 0; border-top: 0; }
-.pr-addon:last-child { padding-bottom: 0; }
-.pr-addon-top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
-.pr-addon-top > b { flex: none; font-size: 16px; font-weight: 800; }
-.pr-addon > p { font-size: 14px; line-height: 1.5; color: #cbd5e1; }
-.pr-addon-amount { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 0 6px; text-align: right; }
-.pr-addon-amount b { font-size: 20px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.2; }
-.pr-addon-amount span { font-size: 13px; font-weight: 700; color: #94a3b8; }
-.pr-addon summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; border-radius: 8px; font-size: 14px; font-weight: 700; color: #5eead4; }
-.pr-addon summary:hover { color: #99f6e4; }
-.pr-addon-more { display: flex; flex-direction: column; gap: 18px; padding: 4px 0 6px; }
-.pr-addon-more .pr-group { gap: 10px; }
-.pr-addon-more h4 { font-size: 14px; font-weight: 800; color: #94a3b8; }
-.pr-addon-more .pr-list { gap: 10px; font-size: 15px; }
+/* Add-ons: a box of rows under the prices. Each row is the name, a few words and
+   the price; it opens to show the rest. */
+.pr-addons { align-self: start; padding: 14px 16px 12px; border-radius: 18px; border: 1px solid rgba(94, 234, 212, 0.28); background: rgba(0, 0, 0, 0.3); }
+.pr-addons > h3 { padding-bottom: 4px; font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #5eead4; }
+.pr-addon { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.pr-addon summary { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 0; border-radius: 8px; cursor: pointer; list-style: none; }
+.pr-addon summary::-webkit-details-marker { display: none; }
+.pr-addon summary::after { content: ""; flex: none; width: 8px; height: 8px; margin: -4px 3px 0 0; border-right: 2px solid #94a3b8; border-bottom: 2px solid #94a3b8; transform: rotate(45deg); transition: transform 0.15s ease; }
+.pr-addon[open] summary::after { margin-top: 4px; transform: rotate(-135deg); }
+.pr-addon summary:hover::after { border-color: #fff; }
+.pr-addon-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pr-addon-name b { font-size: 16px; font-weight: 800; }
+.pr-addon-name small { font-size: 13.5px; line-height: 1.4; color: #cbd5e1; }
+.pr-addon-amount { flex: none; display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.pr-addon-amount b { font-size: 20px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.15; }
+.pr-addon-amount small { font-size: 12.5px; font-weight: 700; color: #94a3b8; }
+.pr-addon-more { display: flex; flex-direction: column; gap: 12px; padding: 2px 0 16px; }
+.pr-addon-more p { font-size: 14.5px; line-height: 1.5; color: #cbd5e1; }
+.pr-addon-more .pr-list { gap: 9px; font-size: 14.5px; }
+.pr-addon-more .pr-tick { width: 18px; height: 18px; }
+.pr-addons-foot { padding-top: 10px; font-size: 13.5px; line-height: 1.5; color: #94a3b8; }
+.pr .pr-text { font-weight: 800; color: #5eead4; text-decoration: underline; text-underline-offset: 3px; }
+.pr .pr-text:hover { color: #99f6e4; }
 
 /* Bands below the cards */
 .pr-band { position: relative; border-top: 1px solid rgba(255, 255, 255, 0.1); padding: clamp(48px, 7vw, 80px) clamp(20px, 5vw, 40px); scroll-margin-top: 8px; }
@@ -137,7 +137,43 @@
 .pr-close h2 { max-width: 760px; font-size: clamp(30px, 4.4vw, 54px); font-weight: 900; letter-spacing: -0.035em; line-height: 1.08; text-wrap: balance; }
 .pr-foot { position: relative; border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 28px clamp(20px, 5vw, 40px) 40px; text-align: center; font-size: 15px; font-weight: 600; color: #94a3b8; }
 
+/* Phones: tighter cards, and the comparison table turns into stacked rows
+   (the feature, then Free and Class side by side) so nothing scrolls sideways. */
+@media (max-width: 640px) {
+  .pr { font-size: 16px; }
+  .pr-actions { align-self: stretch; }
+  .pr-actions .pr-pill { flex: 1 1 100%; }
+  .pr-plans { gap: 16px; }
+  .pr-plans > .pr-card, .pr-ring > .pr-card { row-gap: 20px; padding: 20px 18px; }
+  .pr-prices { grid-auto-rows: auto; }
+  .pr-price { padding: 12px 14px; }
+  .pr-price-amount b { font-size: 26px; }
+  .pr-about { font-size: 16px; }
+  .pr-list { gap: 11px; font-size: 15.5px; }
+  .pr-addons { padding: 12px 14px 10px; }
+
+  .pr-table { overflow: visible; border-radius: 20px; }
+  .pr-table table, .pr-table tbody { display: block; min-width: 0; }
+  .pr-table colgroup { display: none; }
+  .pr-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .pr-table tr { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+  .pr-table th, .pr-table td { border-top: 0; }
+  .pr-table th[scope="row"], .pr-table .pr-th-group { grid-column: 1 / -1; }
+  .pr-table th[scope="row"] { padding: 14px 16px 6px; }
+  .pr-table .pr-th-group { padding: 18px 16px 10px; }
+  .pr-table td { padding: 2px 16px 14px; font-size: 14px; line-height: 1.4; }
+  .pr-table td::before { content: attr(data-plan); display: block; margin-bottom: 4px; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; color: #94a3b8; }
+  .pr-table td[data-plan="Class"]::before { color: #c4b5fd; }
+  /* A plain yes or no sits on the same line as its plan name. */
+  .pr-table td:has(> svg) { display: flex; align-items: center; gap: 8px; }
+  .pr-table td:has(> svg)::before { margin-bottom: 0; }
+  .pr-yes, .pr-no { width: 20px; height: 20px; }
+
+  .pr-faq > div { padding: 18px; }
+  .pr-faq h3 { font-size: 17px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .pr-pill { transition: none; }
+  .pr-pill, .pr-addon summary::after { transition: none; }
   .pr-pill:hover { transform: none; }
 }
