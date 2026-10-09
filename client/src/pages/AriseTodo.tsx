@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import {
-  ArrowDownToLine, ArrowLeft, CalendarDays, Check, CheckCircle2, ChevronRight,
-  Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo, MoreHorizontal,
-  Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X, BriefcaseBusiness,
+  ArrowLeft, CalendarDays, Check, CheckCircle2,
+  Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
+  Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck
 } from "lucide-react";
 
@@ -158,6 +158,8 @@ export default function AriseTodo() {
         : [...previous.tasks, clean],
     }));
     setEditing(null);
+    if (selectedList !== "all" && selectedList !== clean.listId) setSelectedList(clean.listId);
+    if (view === "completed" || (view === "today" && (!clean.due || clean.due > currentDay)) || (view === "upcoming" && (!clean.due || clean.due <= currentDay))) setView("all");
     setMessage("Task saved");
   };
   const toggleDone = (task: Task) => {
@@ -221,7 +223,7 @@ export default function AriseTodo() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (file.size > 2_000_000) { setMessage("File too large. Choose a To-Do backup under 2 MB."); return; }
+    if (file.size > 16_000_000) { setMessage("File too large. Choose a To-Do backup under 16 MB."); return; }
     try {
       const restored = validate(JSON.parse(await file.text()));
       if (!window.confirm(`Restore ${restored.tasks.length} tasks and ${restored.lists.length} lists? This will replace tasks on this device.`)) return;
