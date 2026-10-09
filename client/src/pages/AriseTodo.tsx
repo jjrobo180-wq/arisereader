@@ -159,7 +159,8 @@ export default function AriseTodo() {
     rawSet(previous => typeof next === "function" ? next(upgrade(previous)) : next);
   }, [rawSet]);
   const setFamily = useCallback((update: (family: Family) => Family) => {
-    setData(previous => ({ ...previous, family: update(previous.family) }));
+    // Unchanged family (e.g. an Apple Health check with nothing new) is not saved again.
+    setData(previous => { const family = update(previous.family); return family === previous.family ? previous : { ...previous, family }; });
   }, [setData]);
   const [section, setSectionState] = useState<FamilySection>(() => {
     try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && SECTION_ORDER.includes(saved) ? saved : "home"; } catch { return "home"; }

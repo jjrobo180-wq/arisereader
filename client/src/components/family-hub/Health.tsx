@@ -5,9 +5,11 @@ import { Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flam
 import { useAuth } from "@/context/AuthContext";
 import { canScan, estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
 import type { FoundFood } from "@shared/foodLookup";
-import { MEALS, addDays, type FoodEntry, type HealthGoals, type Meal, type Member, type SavedFood } from "@shared/familyHub";
+import Intake, { profileToDraft } from "./Intake";
+import { AppleHealthPanel, useAppleHealth } from "./AppleHealth";
+import { MEALS, addDays, type FoodEntry, type HealthProfile, type HealthGoals, type Meal, type Member, type SavedFood } from "@shared/familyHub";
 import {
-  ACTIVITIES, COMMON_FOODS, healthPeople, DEFAULT_WEIGHT_LB, caloriesLeft, dayTotals, entryTotals, exerciseCalories, goalsFor, latestWeight, macroGrams, recentFoods, setDay,
+  ACTIVITIES, COMMON_FOODS, healthPeople, goalsFromPlan, makePlan, DIET_STYLES, DEFAULT_WEIGHT_LB, caloriesLeft, dayTotals, entryTotals, exerciseCalories, goalsFor, latestWeight, macroGrams, recentFoods, setDay,
 } from "@shared/familyHealth";
 import { Bar, Label, Modal, PageHead, Panel, inputClass, plain, primary, shortDate, soft, type SectionProps } from "./ui";
 
@@ -27,10 +29,14 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
   const health = family.health;
   const member = people.find((m) => m.id === who) || people[0];
   const solo = people.length === 1;
-  const setHealth = (fn: (h: typeof health) => typeof health) => setFamily((f) => ({ ...f, health: fn(f.health) }));
+  const [intake, setIntake] = useState(false);
+  const profile = health.profiles[member.id];
+  const setHealth = (fn: (h: typeof health) => typeof health) => setFamily((f) => { const h = fn(f.health); return h === f.health ? f : { ...f, health: h }; });
+  const apple = useAppleHealth(setHealth);
 
 
   const kid = member.kind === "kid";
+  const needsIntake = !kid && (!profile || intake);
   const goals = goalsFor(health, member);
   const totals = dayTotals(health, member.id, date);
   const dayFood = health.food.filter((f) => f.memberId === member.id && f.date === date);
@@ -47,19 +53,31 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
   return <div className="space-y-6">
     <PageHead eyebrow="Food & fitness" title={kid ? `${member.name}'s healthy habits` : "Food & fitness"}
       blurb={kid ? "Fruits and veggies, water and moving every day. No calorie counting for kids, just good habits." : "Log meals and workouts and see what's left of today's calories, like MyFitnessPal for the whole family."}
-      action={<button onClick={() => setEditGoals(true)} className={plain + " min-h-11"}><Settings2 size={16} /> Goals</button>} />
+      action={!needsIntake && <button onClick={() => setEditGoals(true)} className={plain + " min-h-11"}><Settings2 size={16} /> Goals</button>} />
 
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap gap-2">{!solo && people.map((m) => <button key={m.id} onClick={() => setWho(m.id)} aria-pressed={m.id === member.id}
         className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-2.5 pr-3 text-xs font-bold text-slate-600 ring-1 ring-slate-200"
         style={m.id === member.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span className="text-base leading-none">{m.emoji || "🙂"}</span>{m.name}</button>)}</div>
-      <div className="flex items-center gap-2">
+      {!needsIntake && <div className="flex items-center gap-2">
         <button onClick={() => setDate(addDays(date, -1))} className={plain} aria-label="Previous day"><ChevronLeft size={17} /></button>
         <button onClick={() => setDate(today)} className={plain + " min-w-[120px]"}>{dateLabel}</button>
         <button onClick={() => setDate(addDays(date, 1))} disabled={date >= today} className={plain} aria-label="Next day"><ChevronRight size={17} /></button>
-      </div>
+      </div>}
     </div>
 
+    {needsIntake ? <Intake key={member.id} member={member} today={today} start={profileToDraft(profile, latestWeight(health, member.id).latest?.weight)}
+      onCancel={profile ? () => setIntake(false) : undefined}
+      onSave={(p) => {
+        const plan = makePlan(p, today);
+        setHealth((h) => ({
+          ...h, profiles: { ...h.profiles, [member.id]: p }, goals: { ...h.goals, [member.id]: goalsFromPlan(p, plan, goalsFor(h, member)) },
+          weights: h.weights.some((w) => w.memberId === member.id && w.date === today) ? h.weights : [...h.weights, { id: makeId(), memberId: member.id, date: today, weight: p.weight }].slice(-3000),
+        }));
+        setIntake(false);
+        say(`Your plan is ready: ${plan.calories.toLocaleString()} calories a day`);
+      }} /> : <>
+    {!kid && profile && <PlanStrip profile={profile} goals={goals} today={today} latest={latestWeight(health, member.id).latest?.weight} onUpdate={() => setIntake(true)} />}
     {kid ? <KidDay member={member} goals={goals} totals={totals} onFruit={(n) => setHealth((h) => setDay(h, member.id, date, { fruitVeg: totals.fruitVeg + n }))} />
       : <Summary goals={goals} totals={totals} />}
 
@@ -95,7 +113,7 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
         <Panel eyebrow={dateLabel} title={kid ? "Active play" : "Exercise"} right={<button onClick={() => setMoving(true)} className={soft}><Plus size={16} /> {kid ? "Add activity" : "Add exercise"}</button>}>
           {dayMoves.length ? <ul className="space-y-1">{dayMoves.map((x) => <li key={x.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-50">
             <Dumbbell size={16} className="shrink-0 text-violet-500" />
-            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{x.name}</span><span className="text-[11px] text-slate-500">{x.minutes} min</span></span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{x.name}</span><span className="text-[11px] text-slate-500">{x.id.startsWith("apple:") ? "From Apple Health · includes watch workouts" : `${x.minutes} min`}</span></span>
             {!kid && <span className="text-sm font-bold text-emerald-600">{fmt(x.calories)} cal burned</span>}
             <button onClick={() => setHealth((h) => ({ ...h, exercise: h.exercise.filter((e) => e.id !== x.id) }))} className="rounded-lg p-1.5 text-slate-300 hover:text-rose-500" aria-label={`Remove ${x.name}`}><Trash2 size={14} /></button>
           </li>)}</ul> : <p className="text-sm text-slate-500">{kid ? "Bike rides, recess, dance parties: it all counts." : "Logged workouts add calories back to today's budget."}</p>}
@@ -122,6 +140,8 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
           </form>
         </Panel>}
 
+        {!kid && <AppleHealthPanel member={member} apple={apple} say={say} />}
+
         {!kid && <WeightPanel memberId={member.id} goalWeight={goals.goalWeight} draft={weightDraft} setDraft={setWeightDraft} today={today}
           list={latestWeight(health, member.id).list}
           onLog={(w) => { setHealth((h) => ({ ...h, weights: [...h.weights.filter((x) => !(x.memberId === member.id && x.date === today)), { id: makeId(), memberId: member.id, date: today, weight: w }].slice(-3000) })); setWeightDraft(""); say("Weight logged"); }}
@@ -130,6 +150,7 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
         {!kid && <WeekPanel days={Array.from({ length: 7 }, (_, i) => addDays(today, i - 6)).map((d) => ({ date: d, calories: dayTotals(health, member.id, d).food.calories }))} goal={goals.calories} today={today} />}
       </aside>
     </div>
+    </>}
 
     {adding && <AddFood meal={adding} kid={kid} memberId={member.id} saved={health.foods} recent={recentFoods(health, member.id)} onClose={() => setAdding(null)}
       onAdd={(meal, pick, servings, save) => {
@@ -149,6 +170,20 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
       }} />}
 
     {editGoals && <GoalsModal member={member} goals={goals} onClose={() => setEditGoals(false)} onSave={(g) => { setHealth((h) => ({ ...h, goals: { ...h.goals, [member.id]: g } })); setEditGoals(false); say("Goals saved"); }} />}
+  </div>;
+}
+
+function PlanStrip({ profile, goals, today, latest, onUpdate }: { profile: HealthProfile; goals: HealthGoals; today: string; latest?: number; onUpdate: () => void }) {
+  const plan = makePlan({ ...profile, weight: latest || profile.weight }, today);
+  const style = DIET_STYLES.find((d) => d.id === profile.diet)?.label || "Balanced";
+  const drift = latest && Math.abs(latest - profile.weight) >= 5;
+  const what = profile.goal === "maintain" ? "Maintain weight" : `${profile.goal === "lose" ? "Lose" : "Gain"} ${profile.rate} lb/week to ${profile.goalWeight} lb`;
+  return <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-violet-50 px-4 py-3 text-sm">
+    <span className="font-black text-violet-900">{what}</span>
+    {plan.goalDate && <span className="font-semibold text-violet-700">around {shortDate(plan.goalDate, { month: "short", day: "numeric", year: "numeric" })}</span>}
+    <span className="text-violet-700">{fmt(goals.calories)} cal · {style}</span>
+    {drift && <span className="font-semibold text-amber-700">You've changed {Math.round(Math.abs((latest as number) - profile.weight))} lb since your plan was made.</span>}
+    <button onClick={onUpdate} className="ml-auto text-xs font-bold text-violet-700 underline underline-offset-2">{drift ? "Update my plan" : "Change plan"}</button>
   </div>;
 }
 

@@ -1,6 +1,6 @@
 // Food & fitness for the A.R.I.S.E. To-Do Family Hub: a starter food list, activities,
 // goals and the daily math (calories remaining = goal − food + exercise).
-import type { DayEntry, FoodEntry, Health, HealthGoals, Member, SavedFood } from "./familyHub";
+import type { ActivityLevel, DayEntry, DietStyle, FoodEntry, Health, HealthGoals, HealthProfile, Member, SavedFood, Sex } from "./familyHub";
 
 /** Common foods with approximate nutrition per serving (rounded USDA-style values). */
 export const COMMON_FOODS: Omit<SavedFood, "id">[] = [
@@ -155,4 +155,83 @@ export function healthPeople(family: { members: Member[]; health: Health }, myNa
   const h = family.health;
   const used = !!h.goals[ME_ID] || [h.food, h.exercise, h.days, h.weights].some((list) => list.some((x) => x.memberId === ME_ID));
   return !family.members.length || used ? [me, ...family.members] : family.members;
+}
+
+/* ---------------- Intake: a personal calorie plan ----------------
+   Resting burn (BMR) uses the Mifflin-St Jeor equation; daily burn multiplies it by an activity
+   factor; a pound of body weight is counted as about 3,500 calories. Plans never go below
+   1,200 (women) / 1,500 (men) calories, lose at most about 1% of body weight a week, and
+   don't aim below a BMI of 18.5. */
+
+export const ACTIVITY_LEVELS: { id: ActivityLevel; label: string; detail: string; factor: number; steps: number }[] = [
+  { id: "sedentary", label: "Mostly sitting", detail: "Desk job, little exercise", factor: 1.2, steps: 6000 },
+  { id: "light", label: "Lightly active", detail: "On your feet some, or exercise 1–3 days a week", factor: 1.375, steps: 7500 },
+  { id: "moderate", label: "Active", detail: "On your feet a lot, or exercise 3–5 days a week", factor: 1.55, steps: 9000 },
+  { id: "active", label: "Very active", detail: "Physical job, or hard exercise 6–7 days a week", factor: 1.725, steps: 10000 },
+  { id: "very", label: "Athlete", detail: "Training twice a day, or a very physical job plus exercise", factor: 1.9, steps: 12000 },
+];
+export const DIET_STYLES: { id: DietStyle; label: string; detail: string; protein: number; carbs: number; fat: number }[] = [
+  { id: "balanced", label: "Balanced", detail: "A bit of everything (most people)", protein: 20, carbs: 50, fat: 30 },
+  { id: "highProtein", label: "High protein", detail: "Helps you feel full and keep muscle", protein: 30, carbs: 40, fat: 30 },
+  { id: "lowerCarb", label: "Lower carb", detail: "Fewer breads, pasta and sweets", protein: 30, carbs: 25, fat: 45 },
+  { id: "lowerFat", label: "Lower fat", detail: "Lighter on oils, butter and fried food", protein: 25, carbs: 55, fat: 20 },
+];
+export const LOSE_RATES = [0.5, 1, 1.5, 2];
+export const GAIN_RATES = [0.25, 0.5];
+export const CALORIE_FLOOR: Record<Sex, number> = { female: 1200, male: 1500 };
+
+export const ageFrom = (birthYear: number, today: string) => Number(today.slice(0, 4)) - birthYear;
+export const bmi = (pounds: number, inches: number) => (inches > 0 ? (703 * pounds) / (inches * inches) : 0);
+/** The lowest goal weight the plan will aim for (BMI 18.5), rounded up to a whole pound. */
+export const minGoalWeight = (inches: number) => Math.ceil((18.5 * inches * inches) / 703);
+/** Fastest weight loss allowed: about 1% of body weight a week, and never more than 2 lb. */
+export const maxLoseRate = (pounds: number) => Math.min(2, Math.floor((pounds * 0.01) * 4) / 4);
+
+export function bmr(p: Pick<HealthProfile, "sex" | "birthYear" | "heightIn" | "weight">, today: string) {
+  const kg = p.weight / 2.2046, cm = p.heightIn * 2.54;
+  return 10 * kg + 6.25 * cm - 5 * ageFrom(p.birthYear, today) + (p.sex === "male" ? 5 : -161);
+}
+
+export type Plan = {
+  bmr: number; tdee: number; calories: number; floored: boolean; dailyChange: number; rate: number;
+  weeks: number | null; goalDate: string | null; protein: number; carbs: number; fat: number; steps: number; water: number; bmi: number;
+};
+export function makePlan(p: HealthProfile, today: string): Plan {
+  const rest = bmr(p, today);
+  const level = ACTIVITY_LEVELS.find((a) => a.id === p.activity) ?? ACTIVITY_LEVELS[1];
+  const tdee = rest * level.factor;
+  const rate = p.goal === "lose" ? Math.min(p.rate, maxLoseRate(p.weight)) : p.goal === "gain" ? Math.min(p.rate, 0.5) : 0;
+  const dailyChange = (p.goal === "lose" ? -1 : 1) * (rate * 3500) / 7;
+  const raw = Math.round((tdee + (p.goal === "maintain" ? 0 : dailyChange)) / 10) * 10;
+  const calories = Math.max(raw, CALORIE_FLOOR[p.sex]);
+  const diet = DIET_STYLES.find((d) => d.id === p.diet) ?? DIET_STYLES[0];
+  const change = Math.abs(p.weight - p.goalWeight);
+  const actualRate = p.goal === "maintain" ? 0 : Math.abs((calories - tdee) * 7 / 3500);
+  const weeks = p.goal !== "maintain" && p.goalWeight > 0 && change > 0 && actualRate > 0 ? Math.ceil(change / actualRate) : null;
+  let goalDate: string | null = null;
+  if (weeks !== null) { const d = new Date(`${today}T12:00:00`); d.setDate(d.getDate() + weeks * 7); goalDate = d.toISOString().slice(0, 10); }
+  return {
+    bmr: Math.round(rest), tdee: Math.round(tdee), calories, floored: calories > raw, dailyChange: Math.round(calories - tdee), rate: Math.round(actualRate * 10) / 10,
+    weeks, goalDate,
+    protein: Math.round((calories * diet.protein) / 100 / 4), carbs: Math.round((calories * diet.carbs) / 100 / 4), fat: Math.round((calories * diet.fat) / 100 / 9),
+    steps: level.steps, water: Math.max(8, Math.round((p.weight / 2) / 8)), bmi: Math.round(bmi(p.weight, p.heightIn) * 10) / 10,
+  };
+}
+/** The diary goals that come from a plan (keeps the person's other goals, like fruit & veggies). */
+export function goalsFromPlan(p: HealthProfile, plan: Plan, previous: HealthGoals): HealthGoals {
+  const diet = DIET_STYLES.find((d) => d.id === p.diet) ?? DIET_STYLES[0];
+  return { ...previous, calories: plan.calories, proteinPct: diet.protein, carbsPct: diet.carbs, fatPct: diet.fat, steps: plan.steps, water: plan.water, goalWeight: p.goal === "maintain" ? 0 : p.goalWeight };
+}
+export type IntakeProblem = { field: "birthYear" | "heightIn" | "weight" | "goalWeight"; message: string };
+export function checkIntake(p: HealthProfile, today: string): IntakeProblem | null {
+  const age = ageFrom(p.birthYear, today);
+  if (!(age >= 18 && age <= 110)) return { field: "birthYear", message: age < 18 ? "Calorie plans are for adults 18 and over. For kids, add them as a kid in Family & settings: they get healthy habits instead of calories." : "Check the birth year." };
+  if (!(p.heightIn >= 48 && p.heightIn <= 90)) return { field: "heightIn", message: "Check your height." };
+  if (!(p.weight >= 70 && p.weight <= 700)) return { field: "weight", message: "Check your weight." };
+  if (p.goal === "lose") {
+    if (!(p.goalWeight > 0 && p.goalWeight < p.weight)) return { field: "goalWeight", message: "Your goal weight should be below your current weight." };
+    if (p.goalWeight < minGoalWeight(p.heightIn)) return { field: "goalWeight", message: `For your height, the plan won't aim below ${minGoalWeight(p.heightIn)} lb (a BMI of 18.5). A doctor can help if you think you need a lower goal.` };
+  }
+  if (p.goal === "gain" && !(p.goalWeight > p.weight && p.goalWeight <= 700)) return { field: "goalWeight", message: "Your goal weight should be above your current weight." };
+  return null;
 }

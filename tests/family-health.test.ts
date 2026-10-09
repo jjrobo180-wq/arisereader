@@ -9,7 +9,7 @@ const D = "2026-10-09";
 
 test("older family data gets an empty food & fitness diary", () => {
   const f = cleanFamily({ members: [adult] });
-  assert.deepEqual(f.health, { goals: {}, food: [], exercise: [], days: [], weights: [], foods: [] });
+  assert.deepEqual(f.health, { profiles: {}, goals: {}, food: [], exercise: [], days: [], weights: [], foods: [] });
   assert.deepEqual(emptyFamily().health, f.health);
 });
 
@@ -81,4 +81,31 @@ test("the food tracker works without adding family members", async () => {
   assert.deepEqual(healthPeople(family, "Jess").map((m) => m.id), ["a", "k"]);
   const logged = { members: [adult], health: cleanHealth({ food: [{ id: "1", memberId: ME_ID, date: D, meal: "lunch", name: "Soup", servings: 1, calories: 90 }] }) };
   assert.deepEqual(healthPeople(logged, "Jess").map((m) => m.id), [ME_ID, "a"]);
+});
+
+test("intake plan: Mifflin-St Jeor, pace, floors and goal date", async () => {
+  const { makePlan, checkIntake, maxLoseRate, minGoalWeight } = await import("../shared/familyHealth");
+  const base = { sex: "female" as const, birthYear: 1990, heightIn: 65, weight: 180, goal: "lose" as const, goalWeight: 150, rate: 1, activity: "light" as const, diet: "balanced" as const, createdAt: "" };
+  const plan = makePlan(base, "2026-10-09");
+  // 10*81.65 + 6.25*165.1 - 5*36 - 161 = 1507.4; ×1.375 = 2072.7; −500 = 1572.7 → 1570
+  assert.equal(plan.bmr, 1507);
+  assert.equal(plan.tdee, 2073);
+  assert.equal(plan.calories, 1570);
+  assert.equal(plan.floored, false);
+  assert.equal(plan.weeks, 30);
+  assert.equal(plan.goalDate, "2027-05-07");
+  assert.deepEqual([plan.protein, plan.carbs, plan.fat], [79, 196, 52]);
+  // 2 lb/week for a smaller person is capped at 1% of body weight and the 1,200 floor
+  const small = makePlan({ ...base, weight: 130, goalWeight: 120, heightIn: 62, rate: 2, activity: "sedentary" }, "2026-10-09");
+  assert.equal(maxLoseRate(130), 1.25);
+  assert.equal(small.calories, 1200);
+  assert.equal(small.floored, true);
+  assert.equal(makePlan({ ...base, goal: "maintain" }, "2026-10-09").calories, 2070);
+  assert.equal(makePlan({ ...base, sex: "male", goal: "gain", goalWeight: 190, rate: 2 }, "2026-10-09").rate, 0.5);
+  // safety checks
+  assert.equal(minGoalWeight(65), 112);
+  assert.match(checkIntake({ ...base, goalWeight: 100 }, "2026-10-09")!.message, /won't aim below 112 lb/);
+  assert.equal(checkIntake({ ...base, birthYear: 2012 }, "2026-10-09")?.field, "birthYear");
+  assert.equal(checkIntake({ ...base, goalWeight: 190 }, "2026-10-09")?.field, "goalWeight");
+  assert.equal(checkIntake(base, "2026-10-09"), null);
 });
