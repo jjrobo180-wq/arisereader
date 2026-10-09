@@ -18,7 +18,7 @@ const people: Record<number, SocialUser & { grade?: string }> = {
 };
 const links: Record<number, number[]> = { 21: [16] };
 
-function setup() {
+function setup(opts: { paid?: number[] } = {}) {
   const routes: Record<string, Function> = {};
   const add = (method: string) => (path: string, ...handlers: Function[]) => { routes[`${method} ${path}`] = handlers[handlers.length - 1]; };
   const app: any = { get: add("GET"), post: add("POST"), put: add("PUT"), delete: add("DELETE") };
@@ -27,6 +27,7 @@ function setup() {
   const store = createMemorySocialStore(() => clock);
   registerAriseSocialRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, {
     store, now: () => clock, random: () => 0,
+    ...(opts.paid ? { access: { self: async (req: any) => opts.paid!.includes(Number(req.user?.id)), user: async (id: number) => opts.paid!.includes(id) } } : {}),
     directory: {
       user: async (id) => people[id] ?? null,
       gradeOf: async (id) => people[id]?.grade ?? null,
@@ -189,4 +190,27 @@ test("helpers", () => {
   const p = awardXp(awardXp(emptyProfile(), 10, "2026-10-07"), 5, "2026-10-08");
   assert.equal(p.streak, 2);
   assert.equal(awardXp(p, 5, "2026-10-10").streak, 1);
+});
+
+test("without the add-on, everything but the catalog and \"who am I\" is locked", async () => {
+  const t = setup({ paid: [1, 11] });
+  const me = await t.as(12)("GET /api/social/me");
+  assert.equal(me.body.access, false);
+  for (const key of ["GET /api/social/feed", "POST /api/social/collect", "GET /api/social/events", "POST /api/social/posts"]) {
+    const r = await t.as(12)(key, { body: { careerId: "plumber", text: "hi" } });
+    assert.equal(r.code, 402, key);
+    assert.equal(r.body.code, "social_required");
+  }
+  assert.equal((await t.as(11)("GET /api/social/feed")).code, 200);
+  assert.equal((await t.as(11)("GET /api/social/me")).body.access, true);
+});
+
+test("a student whose teacher hasn't added Arise Social can't post, since nobody could approve it", async () => {
+  const t = setup({ paid: [1, 11, 13] });
+  const me = await t.as(11)("GET /api/social/me");
+  assert.equal(me.body.user.canPost, true);
+  const kenji = await t.as(13)("GET /api/social/me");
+  assert.equal(kenji.body.user.canPost, false);
+  assert.match(kenji.body.user.postBlock, /teacher hasn’t added Arise Social/);
+  assert.equal((await t.as(13)("POST /api/social/posts", { body: { text: "hi" } })).code, 403);
 });

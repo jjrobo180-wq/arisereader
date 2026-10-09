@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 
-export type PlanView = { kind: "teacher" | "school" | "hub_teacher" | "hub_school"; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; paidOnline: boolean; canManage: boolean; /** A school that is always Premium at no charge. */ free?: boolean };
+export type PlanView = { kind: "teacher" | "school" | "hub_teacher" | "hub_school" | "social"; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; paidOnline: boolean; canManage: boolean; /** A school that is always Premium at no charge. */ free?: boolean };
 export type PlanInfo = {
   /** Has the site admin turned plan rules on? */
   enforced: boolean;

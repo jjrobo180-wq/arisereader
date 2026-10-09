@@ -72,7 +72,14 @@ export type SocialDirectory = {
   notify?(userId: number, message: { title: string; body: string; url?: string }): Promise<unknown>;
 };
 
-export type SocialDeps = { store?: SocialStore; directory: SocialDirectory; now?: () => number; random?: () => number };
+export type SocialDeps = {
+  store?: SocialStore; directory: SocialDirectory; now?: () => number; random?: () => number;
+  /**
+   * Arise Social is a paid add-on (see shared/plans.ts). self: may the signed-in account use it?
+   * user: does this account have it (used to check a student's teacher)? Left out, everyone may.
+   */
+  access?: { self(req: any): Promise<boolean>; user(id: number): Promise<boolean> };
+};
 
 /* ------------------------------------------------------------------ stores */
 
@@ -282,11 +289,14 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       approvedByTeacher: raw.approvedByTeacher !== false, archived: !!raw.archivedAt, band: bandForGrade(grade), grade,
     };
   }
+  const hasAccess = (req: any) => (deps.access ? deps.access.self(req) : Promise.resolve(true));
+  const userHasAccess = (id: number) => (deps.access ? deps.access.user(id).catch(() => false) : Promise.resolve(true));
   /** Why a student can't post yet, or null when they can. */
-  function postBlock(v: SocialUser): string | null {
+  async function postBlock(v: SocialUser): Promise<string | null> {
     if (v.role !== "student") return null;
     if (!v.teacherId) return "Posting opens once you join a teacher’s class.";
     if (!v.approvedByTeacher) return "Posting opens once your teacher approves your account.";
+    if (!(await userHasAccess(v.teacherId))) return "Your teacher hasn’t added Arise Social yet, so nobody can approve posts. Ask them about it!";
     return null;
   }
   const handle = (fn: (req: any, res: any) => Promise<unknown>) => async (req: any, res: any) => {
@@ -298,6 +308,11 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     }
   };
   const noStore = (res: any) => res.set?.("Cache-Control", "no-store");
+  /** Every route but the catalog and "who am I" needs the add-on. */
+  const paid = (fn: (req: any, res: any) => Promise<unknown>) => handle(async (req, res) => {
+    if (!(await hasAccess(req))) return res.status(402).json({ message: "Arise Social is a paid add-on. Add it to keep going.", code: "social_required" });
+    return fn(req, res);
+  });
 
   /** Which classes' posts and events this person sees. */
   async function reach(v: SocialUser): Promise<{ teacherIds: number[]; schoolId: number | null }> {
@@ -349,10 +364,12 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     const v = await viewer(req);
     noStore(res);
     const teacher = v.role === "student" && v.teacherId ? await dir.user(v.teacherId) : null;
+    const block = await postBlock(v);
     const base = {
+      access: await hasAccess(req),
       user: {
         id: v.id, role: v.role, name: v.role === "student" ? studentName(v.displayName) : v.displayName, band: v.band, grade: v.grade,
-        schoolId: v.schoolId, teacherName: teacher ? teacher.displayName : null, canPost: v.role === "teacher" || (v.role === "student" && !postBlock(v)), postBlock: v.role === "admin" ? "Admins approve and remove posts; teachers and students post." : postBlock(v),
+        schoolId: v.schoolId, teacherName: teacher ? teacher.displayName : null, canPost: v.role === "teacher" || (v.role === "student" && !block), postBlock: v.role === "admin" ? "Admins approve and remove posts; teachers and students post." : block,
       },
       today: today(),
     };
@@ -361,7 +378,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
   }));
 
   /* ---------- feed */
-  app.get("/api/social/feed", auth, handle(async (req, res) => {
+  app.get("/api/social/feed", auth, paid(async (req, res) => {
     const v = await viewer(req);
     noStore(res);
     if (v.role === "parent") return res.json({ posts: [] });
@@ -375,10 +392,10 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     res.json({ posts: await present(v, rows) });
   }));
 
-  app.post("/api/social/posts", auth, handle(async (req, res) => {
+  app.post("/api/social/posts", auth, paid(async (req, res) => {
     const v = await viewer(req);
     if (v.role === "parent" || v.role === "admin") return res.status(403).json({ message: "Posting is for students and teachers." });
-    const block = postBlock(v);
+    const block = await postBlock(v);
     if (block) return res.status(403).json({ message: block });
     if (postsToday.retryAfter(String(v.id))) return res.status(429).json({ message: "That’s all the posts for today. Try again tomorrow." });
     const body = req.body || {};
@@ -410,7 +427,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     res.status(201).json({ post: (await present(v, [post]))[0] });
   }));
 
-  app.delete("/api/social/posts/:id", auth, handle(async (req, res) => {
+  app.delete("/api/social/posts/:id", auth, paid(async (req, res) => {
     const v = await viewer(req);
     const p = await store.getPost(String(req.params.id));
     if (!p || !(p.author_id === v.id || canModerate(v, p))) return res.status(404).json({ message: "Post not found." });
@@ -418,7 +435,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     res.json({ ok: true });
   }));
 
-  app.post("/api/social/posts/:id/react", auth, handle(async (req, res) => {
+  app.post("/api/social/posts/:id/react", auth, paid(async (req, res) => {
     const v = await viewer(req);
     if (v.role === "parent") return res.status(403).json({ message: "Reactions are for students and teachers." });
     const p = await store.getPost(String(req.params.id));
@@ -430,14 +447,14 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
   }));
 
   /* ---------- teacher approvals */
-  app.get("/api/social/approvals", auth, handle(async (req, res) => {
+  app.get("/api/social/approvals", auth, paid(async (req, res) => {
     const v = await viewer(req);
     if (v.role !== "teacher" && v.role !== "admin") return res.status(403).json({ message: "Teachers only." });
     noStore(res);
     res.json({ posts: await present(v, await store.pendingFor(v.role === "admin" ? "all" : [v.id])) });
   }));
 
-  app.post("/api/social/posts/:id/review", auth, handle(async (req, res) => {
+  app.post("/api/social/posts/:id/review", auth, paid(async (req, res) => {
     const v = await viewer(req);
     const p = await store.getPost(String(req.params.id));
     if (!p || !canModerate(v, p)) return res.status(404).json({ message: "Post not found." });
@@ -459,27 +476,27 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     res.json({ profile: await profileOut(v.id), ...(out.extra || {}) });
   }
 
-  app.post("/api/social/collect", auth, handle((req, res) => withProfile(req, res, (p) => {
+  app.post("/api/social/collect", auth, paid((req, res) => withProfile(req, res, (p) => {
     const id = String(req.body?.careerId || "");
     if (!careerById(id)) return { error: "Unknown career." };
     if (p.collected.includes(id)) return {};
     return { profile: awardXp({ ...p, collected: [...p.collected, id] }, XP.collect, today()), extra: { gained: XP.collect } };
   })));
 
-  app.post("/api/social/save", auth, handle((req, res) => withProfile(req, res, (p) => {
+  app.post("/api/social/save", auth, paid((req, res) => withProfile(req, res, (p) => {
     const id = String(req.body?.careerId || "");
     if (!careerById(id)) return { error: "Unknown career." };
     return { profile: { ...p, saved: p.saved.includes(id) ? p.saved.filter((x) => x !== id) : [...p.saved, id] } };
   })));
 
-  app.post("/api/social/spin", auth, handle((req, res) => withProfile(req, res, (p) => {
+  app.post("/api/social/spin", auth, paid((req, res) => withProfile(req, res, (p) => {
     const day = today();
     if (p.spun?.day === day) return { extra: { career: p.spun.career, already: true } };
     const career = CAREERS[Math.floor(random() * CAREERS.length) % CAREERS.length].id;
     return { profile: awardXp({ ...p, spun: { day, career } }, XP.spin, day), extra: { career, gained: XP.spin } };
   })));
 
-  app.post("/api/social/quests/:id/step", auth, handle((req, res) => withProfile(req, res, (p, v) => {
+  app.post("/api/social/quests/:id/step", auth, paid((req, res) => withProfile(req, res, (p, v) => {
     const q = questById(String(req.params.id));
     if (!q || !QUESTS[v.band].some((x) => x.id === q.id)) return { error: "That quest isn’t in your grade’s list." };
     if (p.quests[q.id] === "done") return {};
@@ -490,7 +507,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     return { profile: { ...p, quests: { ...p.quests, [q.id]: steps } } };
   })));
 
-  app.post("/api/social/quests/:id/complete", auth, handle((req, res) => withProfile(req, res, (p, v) => {
+  app.post("/api/social/quests/:id/complete", auth, paid((req, res) => withProfile(req, res, (p, v) => {
     const q = questById(String(req.params.id));
     if (!q || !QUESTS[v.band].some((x) => x.id === q.id)) return { error: "That quest isn’t in your grade’s list." };
     if (p.quests[q.id] === "done") return {};
@@ -499,7 +516,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     return { profile: awardXp({ ...p, quests: { ...p.quests, [q.id]: "done" } }, q.xp, today()), extra: { gained: q.xp } };
   })));
 
-  app.post("/api/social/roadmap", auth, handle((req, res) => withProfile(req, res, (p) => {
+  app.post("/api/social/roadmap", auth, paid((req, res) => withProfile(req, res, (p) => {
     const key = String(req.body?.key || "");
     const [g, i] = key.split("-").map(Number);
     const row = ROADMAP.find((r) => r.g === g);
@@ -518,7 +535,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     return { v, child } as const;
   }
 
-  app.get("/api/social/children", auth, handle(async (req, res) => {
+  app.get("/api/social/children", auth, paid(async (req, res) => {
     const v = await viewer(req);
     if (v.role !== "parent") return res.status(403).json({ message: "Parent accounts only." });
     noStore(res);
@@ -539,7 +556,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     res.json({ children: out });
   }));
 
-  app.put("/api/social/children/:id/settings", auth, handle(async (req, res) => {
+  app.put("/api/social/children/:id/settings", auth, paid(async (req, res) => {
     const r = await linkedChild(req, Number(req.params.id));
     if ("error" in r) return res.status(r.error).json({ message: r.error === 403 ? "Parent accounts only." : "That student is not linked to your account." });
     const scope = req.body?.postScope;
@@ -556,7 +573,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     };
   }
 
-  app.get("/api/social/events", auth, handle(async (req, res) => {
+  app.get("/api/social/events", auth, paid(async (req, res) => {
     const v = await viewer(req);
     noStore(res);
     if (v.role === "parent") return res.json({ events: [] }); // parents see each child's events in /children
@@ -567,7 +584,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     res.json({ events: events.map((e) => ({ ...eventOut(e, rs), host: hosts.get(e.host_id) || "Teacher", mine: e.host_id === v.id, myStatus: rs.find((x) => x.event_id === e.id && x.user_id === v.id)?.status ?? null })) });
   }));
 
-  app.post("/api/social/events", auth, handle(async (req, res) => {
+  app.post("/api/social/events", auth, paid(async (req, res) => {
     const v = await viewer(req);
     if (v.role !== "teacher") return res.status(403).json({ message: "Teachers host events." });
     if (eventsToday.retryAfter(String(v.id))) return res.status(429).json({ message: "That’s all the new events for today." });
@@ -584,7 +601,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     res.status(201).json({ event: { ...eventOut(e, []), host: v.displayName, mine: true, myStatus: null } });
   }));
 
-  app.delete("/api/social/events/:id", auth, handle(async (req, res) => {
+  app.delete("/api/social/events/:id", auth, paid(async (req, res) => {
     const v = await viewer(req);
     const e = await store.getEvent(String(req.params.id));
     if (!e || !(e.host_id === v.id || v.role === "admin")) return res.status(404).json({ message: "Event not found." });
@@ -593,7 +610,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
   }));
 
   /** body: { action: "join" | "leave" } for students; parents add { studentId, action: "approve" | "join" | "leave" }. */
-  app.post("/api/social/events/:id/rsvp", auth, handle(async (req, res) => {
+  app.post("/api/social/events/:id/rsvp", auth, paid(async (req, res) => {
     const e = await store.getEvent(String(req.params.id));
     if (!e) return res.status(404).json({ message: "Event not found." });
     const action = String(req.body?.action || "");
@@ -630,7 +647,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
   const parentsFor = (studentId: number) => dir.parentsOf(studentId).catch(() => [] as number[]);
 
   /* ---------- teacher's class view */
-  app.get("/api/social/class", auth, handle(async (req, res) => {
+  app.get("/api/social/class", auth, paid(async (req, res) => {
     const v = await viewer(req);
     if (v.role !== "teacher") return res.status(403).json({ message: "Teachers only." });
     noStore(res);

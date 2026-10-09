@@ -28,7 +28,7 @@ function cookieToken(): string | null {
 }
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "No end date");
 const select = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
-const KIND_LABEL: Record<PlanKind, string> = { school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Teacher Hub · School", hub_teacher: "Teacher Hub · Teacher" };
+const KIND_LABEL: Record<PlanKind, string> = { school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Teacher Hub · School", hub_teacher: "Teacher Hub · Teacher", social: "Arise Social · Account" };
 const isSchool = (k: PlanKind) => k === "school" || k === "hub_school";
 
 export default function AdminPlans() {
@@ -203,16 +203,21 @@ export default function AdminPlans() {
                     <option value="teacher">Premium: one teacher</option>
                     <option value="hub_school">Teacher Hub: a whole school (up to {PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)</option>
                     <option value="hub_teacher">Teacher Hub: one teacher</option>
+                    <option value="social">Arise Social: one account (student, parent or teacher)</option>
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">{isSchool(kind) ? "School" : "Teacher"}</Label>
+                  <Label className="text-xs">{isSchool(kind) ? "School" : kind === "social" ? "Account ID" : "Teacher"}</Label>
+                  {kind === "social" ? (
+                    <Input value={ownerId} onChange={(e) => setOwnerId(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="The account's ID number" />
+                  ) : (
                   <select className={select} value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
                     <option value="">Choose…</option>
                     {isSchool(kind)
                       ? schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)
                       : teachers.map((t) => <option key={t.id} value={t.id}>{t.displayName || t.username}</option>)}
                   </select>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">How long</Label>
@@ -223,7 +228,7 @@ export default function AdminPlans() {
                     <option value="0">No end date</option>
                   </select>
                 </div>
-                {!isSchool(kind) && (
+                {!isSchool(kind) && kind !== "social" && (
                   <div className="space-y-1">
                     <Label className="text-xs">Students covered</Label>
                     <select className={select} value={blocks} onChange={(e) => setBlocks(e.target.value)}>
@@ -233,7 +238,7 @@ export default function AdminPlans() {
                 )}
               </div>
               <Input value={grantNote} onChange={(e) => setGrantNote(e.target.value)} maxLength={120} placeholder="Note for yourself (optional), such as PO 1234" />
-              <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : kind.startsWith("hub_") ? "Switch Teacher Hub on" : "Switch Premium on"}</Button>
+              <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : kind.startsWith("hub_") ? "Switch Teacher Hub on" : kind === "social" ? "Switch Arise Social on" : "Switch Premium on"}</Button>
             </div>
 
             {/* Online payment */}

@@ -480,12 +480,32 @@ async function api(path, opts = {}){
   if (!res.ok) throw new ApiError(body?.message || 'Something went wrong. Please try again.', res.status, body);
   return body;
 }
+async function apiAt(fullPath, opts = {}){
+  const headers = { 'Content-Type':'application/json' };
+  const t = sessionToken(); if (t) headers.Authorization = `Bearer ${t}`;
+  let res;
+  try { res = await fetch(fullPath, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store' }); }
+  catch { throw new ApiError('Can’t reach Arise Social. Check your connection and try again.', 0); }
+  let body = null; try { body = await res.json(); } catch {}
+  if (!res.ok) throw new ApiError(body?.message || 'Something went wrong. Please try again.', res.status, body);
+  return body;
+}
+/** Opens Stripe's checkout page to add Arise Social for yourself, or (parents) for a child. */
+async function buySocial(forUserId){
+  const r = await apiAt('/api/billing/social-checkout', { method:'POST', body:{ forUserId: forUserId || undefined, returnTo: location.origin + '/social/' } });
+  location.href = r.url;
+}
+async function manageSocial(forUserId){
+  const r = await apiAt('/api/billing/social-portal', { method:'POST', body:{ forUserId: forUserId || undefined, returnTo: location.origin + '/social/' } });
+  location.href = r.url;
+}
 /** Sends people to the main site to sign up or sign in, and back here afterwards. */
 function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/social/'); } catch {} location.href = path; }
 
 /* ================= STATE ================= */
 let CAT = null;                 // catalog: careers, quests, roadmap...
 let ME = null;                  // /me response
+let PLAN = null;                // /api/social-plan: price and who has the add-on
 const S = { tab:'feed', filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
 const C = id => CAT.careers.find(c => c.id === id);
 const role = () => ME?.user.role || 'guest';
@@ -512,6 +532,7 @@ const fail = e => toast(e?.message || 'Something went wrong. Please try again.')
 /* ================= NAV ================= */
 function tabs(){
   const r = role();
+  if (ME && !ME.access) return [];
   if (r==='student') return [['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]).concat([['profile','Profile','passport']]);
   if (r==='teacher') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['events','Events','event'],['explore','Explore','explore']];
   if (r==='admin') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
@@ -527,7 +548,7 @@ function renderChrome(){
   document.getElementById('bottom').innerHTML = t.map(([id,l,ic])=>`<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${badgeFor(id)?'<i class="dot"></i>':''}</button>`).join('');
   const me = document.getElementById('me');
   if (!ME) me.innerHTML = `<div class="top-actions"><button class="btn ghost" data-act="signin">Log in</button><button class="btn primary" data-act="join">Join now</button></div>`;
-  else me.innerHTML = `<button class="me-btn" data-act="menu" aria-expanded="${S.menu}">${av(ME.user.name,'xs')}<span>Me</span></button>${S.menu?`<div class="menu" role="menu"><div class="who"><b>${esc(ME.user.name)}</b><span>${esc(roleLine())}</span></div>${role()==='student'?`<button data-act="tab" data-v="profile">${svg('passport')}My profile</button>`:''}<a href="/">${svg('book')}Open A.R.I.S.E. Reader</a></div>`:''}`;
+  else me.innerHTML = `<button class="me-btn" data-act="menu" aria-expanded="${S.menu}">${av(ME.user.name,'xs')}<span>Me</span></button>${S.menu?`<div class="menu" role="menu"><div class="who"><b>${esc(ME.user.name)}</b><span>${esc(roleLine())}</span></div>${role()==='student'?`<button data-act="tab" data-v="profile">${svg('passport')}My profile</button>`:''}${PLAN && PLAN.paidByYou ? `<button data-act="manage">${svg('star')}Manage Arise Social billing</button>` : ''}<a href="/">${svg('book')}Open A.R.I.S.E. Reader</a></div>`:''}`;
   document.body.style.paddingBottom = '';
 }
 function roleLine(){
@@ -544,14 +565,14 @@ function landingHTML(){
   return `<div class="landing">
     <section class="card land-hero">
       <div>
-        <span class="eyebrow">From A.R.I.S.E. Reader · Grades K–12</span>
+        <span class="eyebrow">From A.R.I.S.E. Reader · Grades K–12 · $5 a month add-on</span>
         <h1 style="margin-top:8px">Find work you’d <em>actually love.</em></h1>
         <p class="lead">Arise Social is where students explore every kind of career, from the trades and the military to teaching, health care, tech, and college paths. They try real-world quests, collect careers, and share wins with their class. Teachers approve every post, and parents follow along.</p>
         <div class="join" style="margin-top:20px;max-width:420px">
           <button class="btn primary" data-act="join">${svg('plus')}Sign up as a student</button>
           <button class="btn outline" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button>
           <button class="btn outline" data-act="go" data-v="/teacher-signup">${svg('teach')}I’m a teacher</button>
-          <p class="muted small" style="margin-top:4px">Already have an A.R.I.S.E. Reader account? <a href="/" data-act="signin">Log in</a> and you’re in.</p>
+          <p class="muted small" style="margin-top:4px">Arise Social is $5 a month for each student, parent, or teacher who uses it. Parents add it for their kids. Already have an A.R.I.S.E. Reader account? <a href="/" data-act="signin">Log in</a>.</p>
         </div>
       </div>
       <div class="land-art"><div class="cover tall"></div><div class="inner">${av('Jaylen W.','lg')}<h3 style="margin-top:8px">Your career profile</h3><p class="muted small">Collect careers, finish quests, and build a profile that grows with you from kindergarten to graduation.</p>
@@ -563,6 +584,40 @@ function landingHTML(){
     <div class="card"><div class="card-h"><div><h2>Look around first</h2><p class="muted small" style="margin-top:2px">Tap any career to see what the job is like and how to get started at every age.</p></div></div>
       <div class="grid careers">${sample.map(careerCard).join('')}</div></div>
   </div>`;
+}
+
+/* ================= JOIN (no add-on yet) ================= */
+const price = () => PLAN ? `$${(PLAN.monthlyCents/100).toFixed(PLAN.monthlyCents % 100 ? 2 : 0)}` : '$5';
+function childPlanRows(){
+  const kids = (PLAN && PLAN.children) || [];
+  if (!kids.length) return '';
+  return `<div class="stack" style="gap:8px;margin-top:6px">${kids.map(k=>`<div class="row" style="justify-content:space-between;flex-wrap:nowrap;padding:10px 12px;border-radius:12px;background:var(--card-2)"><div class="row" style="flex-wrap:nowrap;min-width:0">${av(k.name,'sm')}<b style="min-width:0">${esc(k.name)}</b></div>
+    ${k.access ? (k.paidByYou ? `<button class="btn sm" data-act="manage" data-id="${k.id}">Manage</button>` : `<span class="chip pill-ok">Has Arise Social</span>`)
+      : `<button class="btn primary sm" data-act="buy" data-id="${k.id}" ${PLAN.payment?'':'disabled'}>Add for ${price()}/mo</button>`}</div>`).join('')}</div>`;
+}
+function joinHTML(){
+  const r = role(), u = ME.user;
+  const perks = r==='teacher'
+    ? ['Approve your students’ posts before anyone sees them','Host events for your class or whole school','See what careers your class is exploring']
+    : r==='parent'
+      ? ['See the careers and quests your child is exploring','Approve events for younger kids','Choose who can see your child’s posts']
+      : ['Collect careers and build your career profile','Do real-world quests and earn XP','Share wins with your class'];
+  const payNote = PLAN && !PLAN.payment ? `<div class="notice" style="margin-top:14px">${svg('info')}<span>Online payment isn’t open yet. Please check back soon.</span></div>` : '';
+  let action;
+  if (r==='student') action = `<div class="notice" style="margin-top:16px">${svg('heart')}<div><b>Ask a parent or guardian to add it for you.</b><br><span class="muted">They can sign in at <b>arisereader.com/social</b> with their parent account and add Arise Social for you for ${price()} a month.</span></div></div>`;
+  else if (r==='teacher' || r==='parent') action = `<div class="stack" style="margin-top:18px;gap:10px;max-width:460px">
+      <button class="btn primary" style="justify-content:center;min-height:46px;font-size:.95rem" data-act="buy" ${PLAN && PLAN.payment?'':'disabled'}>${svg('plus')}Add Arise Social for ${r==='parent'?'me':'my account'} · ${price()}/month</button>
+      ${r==='parent'?`<h3 style="margin-top:10px">For your kids</h3><p class="muted small">Each child needs their own, ${price()} a month each.</p>${childPlanRows() || '<p class="muted small">No children are linked to your account yet. <a href="/parent-dashboard">Link a child</a>.</p>'}`:''}
+      <p class="muted small">Billed monthly through Stripe. Cancel anytime from the menu.</p></div>${payNote}`;
+  else action = `<p class="muted" style="margin-top:14px">This account can’t add Arise Social.</p>`;
+  return `<div class="landing" style="max-width:820px"><section class="card" style="padding:28px">
+    <span class="eyebrow">Arise Social · ${price()} a month</span>
+    <h1 style="margin-top:8px">Hi ${esc(u.name.split(' ')[0])}, Arise Social is an add-on.</h1>
+    <p class="muted" style="margin-top:8px;max-width:58ch">Every student, parent, and teacher who uses Arise Social has their own membership. Here’s what’s included for you:</p>
+    <div class="stack" style="margin-top:14px;gap:8px">${perks.map(t=>`<div class="row" style="flex-wrap:nowrap">${svg('check','style="width:18px;height:18px;color:var(--leaf);flex:none"')}<span>${t}</span></div>`).join('')}</div>
+    ${action}</section>
+    <div class="card"><div class="card-h"><div><h2>Look around first</h2><p class="muted small" style="margin-top:2px">Careers are free to browse.</p></div></div>
+      <div class="grid careers">${CAT.careers.slice(0,8).map(careerCard).join('')}</div></div></div>`;
 }
 
 /* ================= LEFT + RIGHT COLUMNS ================= */
@@ -816,6 +871,7 @@ function viewFamily(){
   ];
   const reqs = k.events.filter(e=>e.status==='requested');
   return `${kids.length>1?`<div class="kid-chips">${kids.map(c=>`<button class="chip ${c.id===k.id?'on':''}" data-act="child" data-id="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
+  ${(() => { const pk = (PLAN?.children||[]).find(c=>c.id===k.id); return pk && !pk.access ? `<div class="card stack" style="box-shadow:0 0 0 2px var(--primary)"><h3>${esc(k.firstName)} doesn’t have Arise Social yet</h3><p class="muted small">Add it so ${esc(k.firstName)} can collect careers, do quests, and share with their class.</p><div><button class="btn primary sm" data-act="buy" data-id="${k.id}" ${PLAN.payment?'':'disabled'}>Add for ${price()}/month</button></div></div>` : ''; })()}
   <div class="card"><span class="eyebrow">${esc(k.firstName)}’s progress</span><h1 style="margin-top:4px">${esc(k.firstName)} has explored ${p.collected.length} career${p.collected.length===1?'':'s'}${p.streak?` and has a ${p.streak}-day streak`:''}.</h1>
     <div class="statgrid"><div><b class="tnum">${p.xp}</b><span>Total XP</span></div><div><b class="tnum">${Object.values(p.quests).filter(q=>q==='done').length}</b><span>Quests done</span></div><div><b class="tnum">${p.daily_xp}</b><span>XP today</span></div><div><b>Level ${p.level+1}</b><span>${esc(p.levelName)}</span></div></div>
     ${k.hasClass?'':`<div class="notice" style="margin-top:14px">${svg('info')}<span>${esc(k.firstName)} isn’t in an approved class yet, so posting and events are closed for now. Everything else works.</span></div>`}</div>
@@ -859,6 +915,7 @@ function render(){
   const root = document.getElementById('root');
   if (!CAT) { root.innerHTML = `<div class="center-page"><div class="skeleton"></div></div>`; return; }
   if (!ME) { root.innerHTML = landingHTML(); document.getElementById('bottom').hidden = true; return; }
+  if (!ME.access) { document.getElementById('bottom').hidden = true; root.innerHTML = joinHTML(); return; }
   document.getElementById('bottom').hidden = false;
   root.innerHTML = `<div class="app"><aside class="left" id="left">${leftHTML()}</aside><main id="main">${(VIEWS[S.tab]||viewFeed)()}</main><aside class="rail" id="rail">${railHTML()}</aside></div>`;
 }
@@ -877,9 +934,10 @@ async function load(what){
     if (what==='events') { S.events = (await api('/events')).events; }
     if (what==='children') { S.children = (await api('/children')).children; if (!S.childId && S.children[0]) S.childId = S.children[0].id; }
     if (what==='class') { S.classInfo = await api('/class'); }
-  } catch (e) { if (e.code===401) return signedOut(); fail(e); }
+  } catch (e) { if (e.code===401) return signedOut(); if (e.code===402) { ME.access = false; await loadPlan(); return render(); } fail(e); }
   render();
 }
+async function loadPlan(){ try { PLAN = await apiAt('/api/social-plan'); } catch { PLAN = null; } }
 function loadForRole(){
   const r = role();
   if (r==='parent') return load('children');
@@ -908,6 +966,8 @@ document.addEventListener('click', async e=>{
       case 'signin': goSignIn('/'); break;
       case 'go': goSignIn(v); break;
       case 'menu': S.menu = !S.menu; renderChrome(); break;
+      case 'buy': el.disabled = true; await buySocial(id ? Number(id) : null).finally(()=>{ el.disabled = false; }); break;
+      case 'manage': await manageSocial(id ? Number(id) : null); break;
       case 'tab': S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') load('approvals'); break;
       case 'fc': S.filterC=v; renderMain(); break;
       case 'fp': S.filterP=v; renderMain(); break;
@@ -1013,9 +1073,17 @@ function burst(){
     if (e.body && e.body.setup) return centerMessage('Almost ready', 'Arise Social is still being set up. Please check back soon.');
     return centerMessage('Arise Social can’t load right now', e.message, '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>');
   }
+  const paid = new URLSearchParams(location.search).get('paid');
+  if (paid) {
+    history.replaceState(null, '', location.pathname);
+    try { await apiAt('/api/billing/confirm', { method:'POST', body:{ sessionId: paid } }); toast('Payment received. Welcome to Arise Social!'); }
+    catch (e) { toast(e.code===409 ? 'Your payment is still going through. This page will update in a minute.' : e.message); }
+    try { ME = await api('/me'); } catch {}
+  }
+  await loadPlan();
   S.tab = role()==='parent' ? 'family' : 'feed';
   render();
-  loadForRole();
+  if (ME.access) loadForRole();
 })();
 </script>
 

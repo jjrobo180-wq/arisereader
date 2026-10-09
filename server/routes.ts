@@ -1166,6 +1166,8 @@ export async function registerRoutes(
     countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").length,
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
     countHubStudents: (teacherId) => countHubStudents(teacherId),
+    // a parent can pay for a linked child's Arise Social
+    parentChildIds: (parentId) => getParentStudentIds(parentId),
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
     schools: async () => (await storage.getAllSchools()).map((s: any) => ({ id: Number(s.id), name: String(s.name || "") })),
     // a school someone added at sign-up is never free just because of what it is called
@@ -1350,6 +1352,11 @@ export async function registerRoutes(
     schoolId: u.school_id ? Number(u.school_id) : null, approvedByTeacher: u.approvedByTeacher !== false, archived: !!u.archivedAt,
   }) : null;
   registerAriseSocialRoutes(app, authMiddleware, {
+    // Arise Social is a $5/month add-on for each account (shared/plans.ts). An admin previewing as a student gets in.
+    access: {
+      self: async (req: any) => !!(req.adminPreview || req.realUser?.isAdmin) || plans.socialAccess(req.user),
+      user: async (id) => plans.socialAccess(await storage.getUser(id)),
+    },
     directory: {
       user: async (id) => toSocialUser(await storage.getUser(id)),
       gradeOf: async (id) => (await studentGrades())[String(id)] || null,
