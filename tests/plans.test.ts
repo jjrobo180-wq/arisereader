@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   PLANS, usd, blocksFor, seatsFor, teacherMonthlyCents, clampBlocks, grantLive, grandfathered, isDemoAccount,
   entitlementFor, parentCanLink, isFreeSchoolName, monthAfter, freeMonthEnd, inFreeMonth, hubAccessFor, type PlanGrant,
+  APP_IDS, appAccessFor, todoAccessFor, socialAccessFor,
 } from "../shared/plans";
 
 const DAY = 86_400_000;
@@ -231,4 +232,30 @@ test("a plan or the free year counts before the free month", () => {
   const next = { id: 61, role: "teacher", createdAt: "2027-09-01T15:00:00.000Z" };
   assert.equal(entitlementFor(next, { enforced: true, now: Date.parse("2027-09-15T15:00:00.000Z") }).via, "free-month");
   assert.equal(entitlementFor(next, { enforced: true, now: Date.parse("2027-10-02T15:00:00.000Z") }).premium, false);
+});
+
+test("the admin has every program free, always: no plan, no trial, nothing that runs out", () => {
+  // Long after every free month, free year and 30-day trial has ended, with plan rules on.
+  const later = Date.parse("2030-01-15T18:00:00Z");
+  const lapsed = grant({ status: "canceled", endsAt: new Date(NOW - 400 * DAY).toISOString() });
+  for (const role of ["admin", "teacher", "parent", "student", undefined]) {
+    for (const flag of role === "admin" ? [true, false] : [true]) {
+      const admin = { id: 1, role, isAdmin: flag, createdAt: LATE };
+      const who = `role ${role}, isAdmin ${flag}`;
+      const reader = entitlementFor(admin, { enforced: true, now: later, teacherGrant: lapsed, schoolGrant: lapsed });
+      assert.deepEqual([reader.premium, reader.via, reader.endsAt], [true, "admin", null], `Reader, ${who}`);
+      const hub = hubAccessFor(admin, { now: later, teacherGrant: lapsed, schoolGrant: lapsed });
+      assert.deepEqual([hub.access, hub.via, hub.endsAt], [true, "admin", null], `Teacher Hub, ${who}`);
+      const todo = todoAccessFor(admin, { now: later, todoGrant: lapsed, hub: null });
+      assert.deepEqual([todo.access, todo.via, todo.endsAt, todo.trialEndsAt], [true, "admin", null, null], `To-Do, ${who}`);
+      for (const app of APP_IDS) {
+        const a = appAccessFor(admin, app, { now: later, ownGrant: lapsed, socialGrant: lapsed });
+        assert.deepEqual([a.access, a.via, a.endsAt, a.trialEndsAt], [true, "admin", null, null], `${app}, ${who}`);
+      }
+      assert.equal(socialAccessFor(admin, lapsed, later), true, `Arise Social (old plan check), ${who}`);
+    }
+  }
+  // The same account without the admin flag is back to the ordinary rules.
+  assert.equal(entitlementFor({ id: 2, role: "teacher", createdAt: LATE }, { enforced: true, now: later }).premium, false);
+  assert.equal(hubAccessFor({ id: 2, role: "teacher", createdAt: LATE }, { now: later }).access, false);
 });

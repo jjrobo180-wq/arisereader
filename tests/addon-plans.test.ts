@@ -217,3 +217,18 @@ test("the add-on pages stay open to teachers without Class; the old checkout won
   assert.equal(await t.gate("/api/billing/addon-checkout", 50), true);
   assert.equal((await t.call("POST", "/api/billing/checkout", 50, { kind: "math_class" })).status, 400);
 });
+
+test("the admin settings page: every program is open to the admin, free, with plan rules on and trials over", async () => {
+  const t = setup({ clock: AFTER, enforced: true });
+  const r = await t.call("GET", "/api/admin/programs", 1);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.programs.map((p: any) => p.id), ["reader", "hub", "todo", "math", "history", "social"]);
+  for (const p of r.body.programs) assert.equal(p.access, true, p.name);
+  // The teacher gate never stops the admin, and the add-ons card says "admin", not a trial.
+  assert.equal(await t.gate("/api/teacher/anything", 1), true);
+  const card = await t.call("GET", "/api/addons", 1);
+  assert.deepEqual([card.body.bundle.via, card.body.bundle.trialDaysLeft, card.body.todo.via], ["admin", null, "admin"]);
+  // A teacher with no plan, after the trial, is the contrast: nothing is open.
+  const teacher = await Promise.all((["math", "history", "social"] as const).map((app) => t.plans.appStatus(USERS[52], app)));
+  assert.deepEqual(teacher.map((a) => a.access), [false, false, false]);
+});

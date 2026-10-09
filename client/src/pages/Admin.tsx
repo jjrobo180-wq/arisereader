@@ -27,6 +27,7 @@ import PlayTimeManager from "@/components/PlayTimeManager";
 import StudentActivity from "@/components/StudentActivity";
 import AdminInbox from "@/components/admin/AdminInbox";
 import AlertSettingsCard from "@/components/admin/AlertSettings";
+import AdminPrograms from "@/components/admin/AdminPrograms";
 import BookPointsDialog from "@/components/admin/BookPointsDialog";
 import BookPointsSwitch from "@/components/admin/BookPointsSwitch";
 import { ARISE_POINTS, cleanPages, pointsForBook } from "@shared/bookPoints";
@@ -149,7 +150,7 @@ interface QuestionForm {
 
 type AdminTab = "overview" | "stats" | "todo" | "inbox" | "people" | "library" | "schools" | "settings";
 type PeopleTab = "students" | "teachers" | "parents" | "archived";
-type SettingsSection = "alerts" | "banners" | "family-emails" | "club" | "ai" | "extras" | "security";
+type SettingsSection = "programs" | "alerts" | "banners" | "family-emails" | "club" | "ai" | "extras" | "security";
 const ADMIN_TABS: AdminTab[] = ["overview", "stats", "todo", "inbox", "people", "library", "schools", "settings"];
 const TAB_STORAGE = "arise_admin_tab";
 
@@ -3731,7 +3732,7 @@ Generate exactly 10 questions.`;
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-black sm:text-2xl">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Notifications, banners, Club hours and the rest of the site's switches.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Your Arise programs, notifications, banners, Club hours and the rest of the site's switches.</p>
       </div>
       <SegmentedTabs
         ariaLabel="Settings"
@@ -3739,6 +3740,7 @@ Generate exactly 10 questions.`;
         value={settingsSection}
         onChange={setSettingsSection}
         options={[
+          { value: "programs", label: "Arise programs", icon: ShieldCheck },
           { value: "alerts", label: "Notifications", icon: BellRing },
           { value: "banners", label: "Banners", icon: Megaphone },
           { value: "family-emails", label: "Family emails", icon: Mail },
@@ -3748,6 +3750,7 @@ Generate exactly 10 questions.`;
           { value: "security", label: "Proctor password", icon: KeyRound },
         ]}
       />
+      {settingsSection === "programs" && <AdminPrograms token={token || getTokenFromCookie()} />}
       {settingsSection === "alerts" && <AlertSettingsCard token={token || getTokenFromCookie()} />}
       {settingsSection === "banners" && (
         <AdminSection id="banners" icon={Megaphone} tone="amber" title="Announcement & banners" description="Messages shown across the site.">
