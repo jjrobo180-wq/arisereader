@@ -47,7 +47,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
 
     <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="space-y-4 sm:space-y-6">
-        <Panel eyebrow="Today" title="Agenda" right={<Sun size={18} className="text-amber-500" />}>
+        <Panel eyebrow="Today" title="Agenda" right={<Sun size={18} className="text-amber-500" />} collapseKey="home-agenda">
           {events.length || dueTasks.length ? <ul className="space-y-2">
             {events.map((e) => <li key={e.id}><button onClick={() => go("calendar")} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-violet-200">
               <span className="w-16 shrink-0 text-xs font-black text-violet-600">{e.time ? clock12(e.time) : "All day"}</span>
@@ -62,7 +62,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           </ul> : <p className="text-sm text-slate-500">A clear day. Nothing scheduled and no tasks due.</p>}
         </Panel>
 
-        {on("chores") && chores.length > 0 && <Panel eyebrow="Chores" title={choresLeft.length ? `${choresLeft.length} left today` : "All chores done! 🎉"} right={<button onClick={() => go("chores")} className="text-xs font-bold text-violet-600">Chore chart</button>}>
+        {on("chores") && chores.length > 0 && <Panel eyebrow="Chores" title={choresLeft.length ? `${choresLeft.length} left today` : "All chores done! 🎉"} right={<button onClick={() => go("chores")} className="text-xs font-bold text-violet-600">Chore chart</button>} collapseKey="home-chores">
           <div className="grid gap-2 sm:grid-cols-2">{chores.map((c) => {
             const done = !!choreDoneOn(family, c.id, today);
             const owner = memberOf(family, choreOwner(c, today));
@@ -74,7 +74,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           })}</div>
         </Panel>}
 
-        {polls.length > 0 && <Panel eyebrow="Vote" title="Open polls" right={<button onClick={() => go("polls")} className="text-xs font-bold text-violet-600">All polls</button>}>
+        {polls.length > 0 && <Panel eyebrow="Vote" title="Open polls" right={<button onClick={() => go("polls")} className="text-xs font-bold text-violet-600">All polls</button>} collapseKey="home-polls">
           <ul className="space-y-2">{polls.slice(0, 3).map((p) => {
             const t = tally(p);
             const waiting = family.members.filter((m) => !p.votes[m.id]);
@@ -98,19 +98,19 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
         {on("mood") && (() => {
           const me = { id: "me" };
           const todayMood = family.moods.find((m) => m.memberId === me.id && m.date === today);
-          return <Panel eyebrow="Mood" title={todayMood ? `Feeling ${MOODS[todayMood.mood - 1].label.toLowerCase()} today` : "How are you today?"} right={<button onClick={() => go("mood")} className="text-xs font-bold text-violet-600">Tracker</button>}>
+          return <Panel eyebrow="Mood" title={todayMood ? `Feeling ${MOODS[todayMood.mood - 1].label.toLowerCase()} today` : "How are you today?"} right={<button onClick={() => go("mood")} className="text-xs font-bold text-violet-600">Tracker</button>} collapseKey="home-mood">
             <div className="grid grid-cols-5 gap-1">{MOODS.map((m) => <button key={m.value} aria-pressed={todayMood?.mood === m.value} aria-label={m.label} title={m.label}
               onClick={() => { setFamily((f) => { const id = `${me.id}:${today}`; const old = f.moods.find((x) => x.id === id); return { ...f, moods: [...f.moods.filter((x) => x.id !== id), { id, memberId: me.id, date: today, tags: [], note: "", ...old, mood: m.value }] }; }); say(`Mood logged: ${m.label}`); }}
               className="rounded-xl py-2 text-2xl transition hover:bg-slate-50" style={todayMood?.mood === m.value ? { background: m.color + "22", boxShadow: `inset 0 0 0 2px ${m.color}` } : undefined}>{m.face}</button>)}</div>
           </Panel>;
         })()}
 
-        {on("goals") && family.goals.some((g) => !g.done) && <Panel eyebrow="Goals" title="In progress" right={<button onClick={() => go("goals")} className="text-xs font-bold text-violet-600">All goals</button>}>
+        {on("goals") && family.goals.some((g) => !g.done) && <Panel eyebrow="Goals" title="In progress" right={<button onClick={() => go("goals")} className="text-xs font-bold text-violet-600">All goals</button>} collapseKey="home-goals">
           <ul className="space-y-3">{family.goals.filter((g) => !g.done).slice(0, 4).map((g) => <li key={g.id}><button onClick={() => go("goals")} className="block w-full text-left">
             <div className="mb-1 flex justify-between gap-2 text-xs"><span className="truncate font-bold text-slate-700">{g.title}</span><span className="font-black text-violet-600">{Math.round(goalProgress(g) * 100)}%</span></div><Bar value={goalProgress(g)} max={1} /></button></li>)}</ul>
         </Panel>}
 
-        {on("health") && <Panel eyebrow="Food & fitness" title="Today" right={<button onClick={() => go("health")} className="text-xs font-bold text-violet-600">Diary</button>}>
+        {on("health") && <Panel eyebrow="Food & fitness" title="Today" right={<button onClick={() => go("health")} className="text-xs font-bold text-violet-600">Diary</button>} collapseKey="home-health">
           <ul className="space-y-2.5">{healthPeople(family, name).map((m) => {
             const t = dayTotals(family.health, m.id, today);
             const g = goalsFor(family.health, m);
@@ -124,11 +124,11 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           })}</ul>
         </Panel>}
 
-        {on("behavior") && kids.length > 0 && <Panel eyebrow="Stars" title="Kids' stars" right={<button onClick={() => go("behavior")} className="text-xs font-bold text-violet-600">Tracker</button>}>
+        {on("behavior") && kids.length > 0 && <Panel eyebrow="Stars" title="Kids' stars" right={<button onClick={() => go("behavior")} className="text-xs font-bold text-violet-600">Tracker</button>} collapseKey="home-stars">
           <ul className="space-y-2.5">{kids.map((k) => <li key={k.id} className="flex items-center gap-3"><Avatar member={k} /><span className="min-w-0 flex-1 truncate text-sm font-bold">{k.name}</span><span className="inline-flex items-center gap-1 text-sm font-black text-amber-600"><Star size={15} className="fill-amber-400 text-amber-400" />{starBalance(family, k.id).balance}</span></li>)}</ul>
         </Panel>}
 
-        {on("money") && <Panel eyebrow="Bills" title="Due soon" right={<button onClick={() => go("money")} className="text-xs font-bold text-violet-600">Money hub</button>}>
+        {on("money") && <Panel eyebrow="Bills" title="Due soon" right={<button onClick={() => go("money")} className="text-xs font-bold text-violet-600">Money hub</button>} collapseKey="home-bills">
           {bills.length ? <ul className="space-y-2">{bills.slice(0, 5).map(({ b, due, state }) => <li key={b.id + due} className="flex items-center gap-2 text-sm">
             <span className={`h-2 w-2 shrink-0 rounded-full ${state === "late" ? "bg-rose-500" : "bg-amber-400"}`} /><span className="min-w-0 flex-1 truncate font-semibold">{b.name}</span>
             <span className={`text-xs font-bold ${state === "late" ? "text-rose-600" : "text-slate-500"}`}>{state === "late" ? "Past due" : due === today ? "Today" : shortDate(due, { month: "short", day: "numeric" })}</span><span className="w-16 text-right text-xs font-black">{money(b.amount)}</span>
@@ -136,7 +136,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           {family.bills.length > 0 && <div className="mt-4 border-t border-slate-100 pt-3"><p className="mb-1.5 text-[11px] font-bold text-slate-500">Paid this month</p><Bar value={family.bills.filter((b) => b.paid.includes(month)).length} max={family.bills.length} color="#22c55e" /></div>}
         </Panel>}
 
-        {pinned.length > 0 && <Panel eyebrow="Pinned" title="Notes" right={<StickyNote size={17} className="text-violet-500" />}>
+        {pinned.length > 0 && <Panel eyebrow="Pinned" title="Notes" right={<StickyNote size={17} className="text-violet-500" />} collapseKey="home-notes">
           <div className="space-y-2">{pinned.map((n) => <button key={n.id} onClick={() => go("notes")} className="note-card block w-full rounded-xl p-3 text-left" style={{ background: n.color }}>
             {n.title && <p className="truncate text-sm font-black">{n.title}</p>}{n.body && <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-xs text-slate-600">{n.body}</p>}
           </button>)}</div>
