@@ -9,9 +9,8 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import AddonsCard from "@/components/AddonsCard";
 import { HubEndedNote, type HubTrial } from "@/components/HubTrialNote";
-import HubReaderScope from "@/components/HubReaderScope";
 
-const ParentDashboard = lazy(() => import("@/pages/ParentDashboard"));
+const Reader = lazy(() => import("@/components/family-hub/Reader"));
 
 type Todo = { access: boolean; via: string | null; trialEndsAt: string | null; trialDaysLeft: number | null };
 
@@ -24,6 +23,9 @@ export default function TodoGate({ children }: { children: ReactNode }) {
   const gated = !!user && !user.isAdmin && (user.role === "parent" || user.role === "teacher");
   const [todo, setTodo] = useState<Todo | null>(null);
   const [failed, setFailed] = useState(false);
+  // A short note after a save on the Reader-only page, like LifeHub's own.
+  const [note, setNote] = useState("");
+  useEffect(() => { if (!note) return; const t = window.setTimeout(() => setNote(""), 3500); return () => window.clearTimeout(t); }, [note]);
 
   useEffect(() => {
     if (!gated || !token) return;
@@ -49,7 +51,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
           {parent ? <>
             <HubEndedNote which="life" onUpgrade={() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" })} />
             <Suspense fallback={<div className="grid min-h-[40vh] place-items-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>}>
-              <HubReaderScope which="life"><ParentDashboard embedded /></HubReaderScope>
+              <Reader say={setNote} />
             </Suspense>
           </> : <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h1 className="text-xl font-black">LifeHub comes with Arise WorkHub</h1>
@@ -58,6 +60,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
           </section>}
           {!parent && <div className="rounded-2xl bg-[#0d0b1a] p-4 text-white"><AddonsCard returnPath="/billing" /></div>}
         </main>
+        {note && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{note}</div>}
       </div>
     );
   }
