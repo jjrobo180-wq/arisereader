@@ -88,7 +88,6 @@ const PaintballArena = lazyPage(() => import("./pages/PaintballArena"));
 const SkyboundSprint = lazyPage(() => import("./pages/SkyboundSprint"));
 const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
-const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
 import TodoGate from "@/components/TodoGate";
@@ -98,7 +97,6 @@ const Library = lazyPage(() => import("./pages/Library"));
 const Quiz = lazyPage(() => import("./pages/Quiz"));
 const ReadBook = lazyPage(() => import("./pages/ReadBook"));
 const Profile = lazyPage(() => import("./pages/Profile"));
-const Admin = lazyPage(() => import("./pages/Admin"));
 const Tutorial = lazyPage(() => import("./pages/Tutorial"));
 const LeaderboardPage = lazyPage(() => import("./pages/LeaderboardPage"));
 const StudentProgress = lazyPage(() => import("./pages/StudentProgress"));
@@ -134,7 +132,6 @@ const CustomEyeGazeQuiz = lazyPage(() => import("./pages/CustomEyeGazeQuiz"));
 const StudentProfileView = lazyPage(() => import("./pages/StudentProfileView"));
 const StudentMessages = lazyPage(() => import("./pages/StudentMessages"));
 const StudentCertificates = lazyPage(() => import("./pages/StudentCertificates"));
-const ParentDashboard = lazyPage(() => import("./pages/ParentDashboard"));
 const About = lazyPage(() => import("./pages/About"));
 const FypPage = lazyPage(() => import("./pages/FypPage"));
 const FypSharePage = lazyPage(() => import("./pages/FypSharePage"));
@@ -297,9 +294,10 @@ function AuthenticatedNavigationTracker() {
   return null;
 }
 
-/** Opens a hub on one of its tabs (the tab is passed through this tab's session storage). */
-function OpenHubTab({ to, storageKey, value }: { to: string; storageKey: string; value: string }) {
-  try { (storageKey === "arise-todo-section" ? localStorage : sessionStorage).setItem(storageKey, value); } catch { /* opens on its usual first tab */ }
+/** Opens a hub on one of its tabs (the tab is passed through this tab's session storage; the hub reads it
+ *  when it opens and whenever the address changes, so going back to an old address lands in the hub too). */
+function OpenHubTab({ to, storageKey, value }: { to: string; storageKey: "workhub_tab" | "lifehub_tab"; value: string }) {
+  try { sessionStorage.setItem(storageKey, value); } catch { /* opens on its usual first tab */ }
   return <Redirect to={to} replace />;
 }
 
@@ -328,13 +326,13 @@ function AppRoutes() {
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
+        {user ? (user.isAdmin ? <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
       </Route>
       <Route path="/register">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
+        {user ? (user.isAdmin ? <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
       </Route>
       <Route path="/register-independent">
-        {user ? (user.isAdmin ? <Redirect to="/admin" replace /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
+        {user ? (user.isAdmin ? <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" /> : user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register independent />}
       </Route>
       <Route path="/meet/:token">
         <MeetingPoll />
@@ -350,7 +348,7 @@ function AppRoutes() {
       </Route>
       {/* The parent portal and the teacher dashboard now live inside the hubs (Arise LifeHub and Arise WorkHub). */}
       <Route path="/parent-dashboard">
-        {user && user.role !== "parent" ? <ProtectedRoute><ParentDashboard /></ProtectedRoute> : <OpenHubTab to="/lifehub" storageKey="arise-todo-section" value="reader" />}
+        <OpenHubTab to="/lifehub" storageKey="lifehub_tab" value="reader" />
       </Route>
       <Route path="/teacher-dashboard">
         <OpenHubTab to="/workhub" storageKey="workhub_tab" value="reader" />
@@ -567,8 +565,9 @@ function AppRoutes() {
       <Route path="/profile">
         <ProtectedRoute><Profile /></ProtectedRoute>
       </Route>
+      {/* The admin console lives in Arise WorkHub's A.R.I.S.E. Reader group. */}
       <Route path="/admin">
-        <ProtectedRoute><Admin /></ProtectedRoute>
+        <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" />
       </Route>
       <Route path="/progress">
         <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate> : <GrowthCheck />}</ProtectedRoute>

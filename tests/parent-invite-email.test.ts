@@ -137,9 +137,9 @@ test("the list of who was invited is kept tidy", () => {
 });
 
 test("the box is on the admin's student details and the teacher's parent screen, and the routes need a sign-in", () => {
-  const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/pages/TeacherDashboard.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/ParentEmailInvite.tsx"), server = read("server/parentInviteEmails.ts");
+  const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/components/teacher-hub/HubReaderTools.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/ParentEmailInvite.tsx"), server = read("server/parentInviteEmails.ts");
   assert.ok(adminPage.includes("<ParentEmailInvite studentId={detailStudent.id} studentName={detailStudent.displayName} />"));
-  assert.ok(teacherPage.includes("<ParentEmailInvite studentId={student.id} studentName={student.displayName} />"));
+  assert.ok(teacherPage.includes('<HubParentInvite which="work" studentId={s.id} studentName={s.displayName} />'));
   assert.ok(routes.includes("registerParentInviteEmailRoutes(app, authMiddleware, {"));
   for (const part of ['app.get("/api/parent-invites/emails/:studentId", auth,', 'app.post("/api/parent-invites/email", auth,']) assert.ok(server.includes(part), part);
   for (const part of ['data-testid="parent-email-input"', "You can email a parent who hasn't signed up.", "Send invitation", "Send again"]) assert.ok(box.includes(part), part);
@@ -238,11 +238,11 @@ test("the child's name is tidied, shown as text, and the new-family list stays a
 });
 
 test("the new-family box is at the top of the admin's Students list and on the teacher's Parents screen", () => {
-  const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/pages/TeacherDashboard.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/FamilyEmailInvite.tsx"), server = read("server/parentInviteEmails.ts"), lib = read("client/src/lib/parentInvites.ts");
+  const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/components/teacher-hub/HubReaderTools.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/FamilyEmailInvite.tsx"), server = read("server/parentInviteEmails.ts"), lib = read("client/src/lib/parentInvites.ts");
   const students = adminPage.slice(adminPage.indexOf('id="students"'));
   assert.ok(students.indexOf("<FamilyEmailInvite />") > 0 && students.indexOf("<FamilyEmailInvite />") < students.indexOf('<div className="relative min-w-0 flex-1">'), "above the search box");
-  const parents = teacherPage.slice(teacherPage.indexOf('tab === "parents"'));
-  assert.ok(parents.indexOf("<FamilyEmailInvite />") > 0 && parents.indexOf("<FamilyEmailInvite />") < parents.indexOf("parentConnectionsLoading ?"));
+  const parents = teacherPage.slice(teacherPage.indexOf('tab === "readerParents"'));
+  assert.ok(parents.indexOf('<HubFamilyInvite which="work" />') > 0 && parents.indexOf('<HubFamilyInvite which="work" />') < parents.indexOf("Your students' families"), "above the list of students' families");
   for (const part of ['app.get("/api/parent-invites/family-emails", auth,', 'app.post("/api/parent-invites/family-email", auth,']) assert.ok(server.includes(part), part);
   for (const part of ["parentAccountEmails: async () =>", "schoolName: async (schoolId"]) assert.ok(routes.includes(part), part);
   for (const part of ["'/api/parent-invites/family-emails'", "'/api/parent-invites/family-email'", "JSON.stringify({ email, childName, note })"]) assert.ok(lib.includes(part), part);
