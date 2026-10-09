@@ -89,10 +89,10 @@ function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
   }
 }
 
-// Pages outside the app (Arise Social at /social/, Arise Math at /math/) send people here to sign in or sign up,
+// Pages outside the app (Arise Social at /social/, Arise Math at /math/, Arise History at /history/) send people here to sign in or sign up,
 // and ask to be taken back afterwards. Only known pages are allowed, so this can't be used to send someone elsewhere.
 const RETURN_KEY = "arise_return_to";
-const RETURN_PAGES = new Set(["/social/", "/math/"]);
+const RETURN_PAGES = new Set(["/social/", "/math/", "/history/"]);
 function returnIfAsked() {
   try {
     const to = sessionStorage.getItem(RETURN_KEY);
