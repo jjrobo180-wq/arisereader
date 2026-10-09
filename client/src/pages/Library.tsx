@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2, Users, Calculator, Landmark } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import AddonsCard from "@/components/AddonsCard";
+import ReadGamesRow from "@/components/ReadGamesRow";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
@@ -1536,40 +1537,14 @@ export default function Library() {
           </div>
         )}
 
-        {/* Read on Arise: books and articles readable right on the site */}
+        {/* Read on Arise (books and articles readable right on the site) and, for students, Games beside it */}
         {!(user?.role === "student" && user?.is_eye_gaze_user) && (
-          <button
-            type="button"
-            onClick={() => navigate("/reads")}
-            data-tour="reads"
-            className="group mb-4 flex w-full items-center gap-4 overflow-hidden rounded-2xl bg-white px-4 py-3 text-left text-[#17143b] shadow-lg ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-xl"
-          >
-            <span className="relative hidden h-16 w-28 shrink-0 sm:block" aria-hidden="true">
-              {READABLE_BOOKS.filter(b=>[21,7,24].includes(b.bookId)).map((b,i)=><img key={b.bookId} src={`${API_BASE}/api/book-cover/${b.bookId}`} alt="" className="absolute top-0 h-16 w-11 rounded-md object-cover shadow-md ring-2 ring-white" style={{left:i*30,transform:`rotate(${(i-1)*6}deg)`}}/>)}
-            </span>
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#17143b] text-white sm:hidden"><BookOpen className="h-6 w-6" /></span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2 text-lg font-black leading-tight">Read on Arise<span className="rounded-full bg-[#7048e8] px-2 py-0.5 text-[10px] font-black text-white">NEW</span></span>
-              <span className="block text-xs font-bold text-[#5d5a7a] sm:text-sm">{READABLE_BOOKS.length} full books, {POEMS.length} poems, iARISE lessons + {NEWS_ARTICLES.length} articles you can read right here · then take the quiz</span>
-            </span>
-            <span className="hidden rounded-full bg-[#17143b] px-4 py-2 text-xs font-black text-white sm:inline">START READING</span>
-          </button>
-        )}
-        {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <button
-            type="button"
-            onClick={() => navigate("/games")}
-            className="club-entry-glow mb-4 flex w-full items-center justify-between rounded-2xl border border-indigo-300/30 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-4 py-3 text-left text-white shadow-lg transition hover:brightness-110"
-          >
-            <span className="flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15"><Gamepad2 className="h-6 w-6" /></span>
-              <span>
-                <span className="flex items-center gap-2 text-base font-black">Games<span className="rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950 shadow-[0_0_16px_rgba(253,224,71,.45)]">NEW</span></span>
-                <span className="block text-xs font-bold text-white/75">All game worlds + multiplayer games · 10 minutes daily · Pass quizzes for more time</span>
-              </span>
-            </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">PLAY GAMES</span>
-          </button>
+          <ReadGamesRow
+            games={user?.role === "student"}
+            covers={READABLE_BOOKS.filter((b) => [21, 7, 24].includes(b.bookId)).map((b) => `${API_BASE}/api/book-cover/${b.bookId}`)}
+            books={READABLE_BOOKS.length} poems={POEMS.length} articles={NEWS_ARTICLES.length}
+            onReads={() => navigate("/reads")} onGames={() => navigate("/games")}
+          />
         )}
         {user?.role === "student" && !user?.is_eye_gaze_user && <div className="mb-5"><AddonsCard showTodo={false} /></div>}
                 <EngagementHub
