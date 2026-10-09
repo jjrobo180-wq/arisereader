@@ -44,7 +44,7 @@ test("after a trial: WorkHub and LifeHub keep only the A.R.I.S.E. Reader tools, 
   assert.match(hub, /if \(needsPlan\) return <ReaderOnly/);
   assert.match(hub, /<HubTrialNote trial=\{trial\} which="work"/);
   const gate = read("client/src/components/TodoGate.tsx");
-  assert.match(gate, /<ParentDashboard embedded \/>/);
+  assert.match(gate, /<Reader say=/);
   const life = read("client/src/pages/AriseTodo.tsx");
   assert.match(life, /<HubTrialNote trial=\{trial\} which="life"/);
 });
@@ -58,5 +58,9 @@ test("the teacher's Reader account is rebuilt from WorkHub parts, with every old
     "/api/teacher/growth-check/overview", "/reset-password", "/rewards", "/reassign"]) assert.ok(tools.includes(api), api);
   for (const piece of ["ComprehensionReview", "NoProctorReview", "PrizeManager", "PlayTimeManager", "FamilyEmailInvite", "ParentEmailInvite", "AddonsCard"]) assert.ok(tools.includes(`<${piece}`), piece);
   assert.doesNotMatch(read("client/src/pages/TeacherHub.tsx"), /<TeacherDashboard/);
-  assert.match(read("client/src/pages/AriseTodo.tsx"), /<HubReaderScope which="life" night=\{night\}><ParentDashboard embedded \/>/);
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /<Reader say=\{setMessage\} night=\{night\} \/>/);
+  const parent = read("client/src/components/family-hub/Reader.tsx");
+  assert.match(parent, /from "\.\/ui"/);
+  for (const api of ["/api/parent/students", "/api/parent/student-profile", "/api/parent/student-controls/", "/api/parent/link-code", "/api/parent/proctor-password", "/api/family/growth-check/student/"]) assert.ok(parent.includes(api), api);
+  for (const piece of ["NoProctorReview", "PlayTimeManager", "PrizeManager", "PrizeBoard", "AddonsCard", "generateCertificate", "saveFamilySettings"]) assert.ok(parent.includes(piece), piece);
 });

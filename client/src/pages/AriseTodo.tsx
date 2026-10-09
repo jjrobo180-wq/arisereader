@@ -31,11 +31,10 @@ import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar } from "@/components/family-hub/ui";
 import HubSwitch from "@/components/HubSwitch";
 import { HubTrialNote } from "@/components/HubTrialNote";
-import HubReaderScope from "@/components/HubReaderScope";
 import { useLifeHubTrial } from "@/components/TodoGate";
 
-// The parent portal (A.R.I.S.E. Reader for families) lives in LifeHub for parent accounts.
-const ParentDashboard = lazy(() => import("./ParentDashboard"));
+// The parents' A.R.I.S.E. Reader tab, built from LifeHub parts (loaded when opened).
+const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 
 type Priority = "low" | "normal" | "high";
@@ -412,7 +411,7 @@ export default function AriseTodo() {
     : shown === "mood" ? <Mood {...common} />
     : shown === "news" ? <News {...common} />
     : shown === "notifications" ? <NotificationSettings {...common} />
-    : shown === "reader" ? <Suspense fallback={<div className="grid min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><HubReaderScope which="life" night={night}><ParentDashboard embedded /></HubReaderScope></Suspense>
+    : shown === "reader" ? <Suspense fallback={<div className="grid min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "polls" ? <Polls {...common} />
     : shown === "trips" ? <Trips {...common} />
     : shown === "money" ? <Money {...common} />
