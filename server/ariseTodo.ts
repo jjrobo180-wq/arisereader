@@ -4,7 +4,7 @@ import type { Express, RequestHandler } from "express";
 import bcrypt from "bcryptjs";
 import { createAttemptLimiter, clientAddress, waitWords } from "./attemptLimiter";
 import { storage } from "./storage";
-import { supabase } from "./supabase";
+import { getAdminSupabase } from "./supabase";
 import { HUB_CONFLICT } from "../shared/hubSave";
 
 const TABLE = "arise_todo_workspaces";
@@ -52,7 +52,7 @@ function validateWorkspace(input: unknown): input is Record<string, any> {
 }
 
 async function readWorkspace(userId: number) {
-  const { data, error } = await supabase.from(TABLE).select("workspace, updated_at")
+  const { data, error } = await getAdminSupabase().from(TABLE).select("workspace, updated_at")
     .eq("user_id", userId).maybeSingle();
   if (error) throw error;
   return data ? { workspace: data.workspace, updatedAt: String(data.updated_at) } : null;
@@ -145,14 +145,14 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
       // The database protects concurrent writes with the same revision timestamp.
       const now = new Date(Math.max(Date.now(), Date.parse(previous?.updatedAt || "") + 1 || 0)).toISOString();
       if (!previous) {
-        const { data, error } = await supabase.from(TABLE)
+        const { data, error } = await getAdminSupabase().from(TABLE)
           .insert({ user_id: userId, workspace, updated_at: now })
           .select("updated_at").maybeSingle();
         if (error?.code === "23505") return conflict();
         if (error) throw error;
         return res.json({ success: true, updatedAt: String(data?.updated_at || now) });
       }
-      let update = supabase.from(TABLE).update({ workspace, updated_at: now }).eq("user_id", userId);
+      let update = getAdminSupabase().from(TABLE).update({ workspace, updated_at: now }).eq("user_id", userId);
       if (!overwrite) update = update.eq("updated_at", previous.updatedAt);
       const { data, error } = await update.select("updated_at").maybeSingle();
       if (error) throw error;
