@@ -6,6 +6,7 @@ import { createAttemptLimiter, clientAddress, waitWords } from "./attemptLimiter
 import { storage } from "./storage";
 import { getAdminSupabase } from "./supabase";
 import { HUB_CONFLICT } from "../shared/hubSave";
+import { cleanFamily } from "../shared/familyHub";
 
 const TABLE = "arise_todo_workspaces";
 const MAX_BYTES = 2_000_000;
@@ -20,7 +21,9 @@ function validDate(value: unknown): boolean {
 function validateWorkspace(input: unknown): input is Record<string, any> {
   if (!input || typeof input !== "object" || Array.isArray(input)) return false;
   const data = input as Record<string, any>;
-  if (data.version !== 1 || !Array.isArray(data.lists) || !Array.isArray(data.tasks)) return false;
+  // Version 2 adds the Family Hub (chores, calendar, polls, trips, money, notes...).
+  if ((data.version !== 1 && data.version !== 2) || !Array.isArray(data.lists) || !Array.isArray(data.tasks)) return false;
+  if (data.version === 2 && (!data.family || typeof data.family !== "object" || Array.isArray(data.family))) return false;
   if (!data.lists.length || data.lists.length > 100 || data.tasks.length > 5000) return false;
   const listIds = new Set<string>();
   for (const row of data.lists) {
@@ -125,6 +128,8 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
     res.set("Cache-Control", "no-store");
     const { workspace, baseUpdatedAt, overwrite } = req.body || {};
     if (!validateWorkspace(workspace)) return res.status(400).json({ message: "This To-Do workspace has invalid task or list data." });
+    // Family data is stored only in its cleaned, size-limited shape.
+    if (workspace.version === 2) workspace.family = cleanFamily(workspace.family);
     const bytes = Buffer.byteLength(JSON.stringify(workspace), "utf8");
     if (bytes > MAX_BYTES) return res.status(413).json({ message: "Your To-Do workspace has reached its space limit. Export a backup before removing old items." });
     if (baseUpdatedAt !== null && (typeof baseUpdatedAt !== "string" || !Number.isFinite(Date.parse(baseUpdatedAt)))) {

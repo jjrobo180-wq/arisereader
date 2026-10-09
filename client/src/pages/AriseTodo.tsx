@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
@@ -7,8 +7,20 @@ import {
   ArrowLeft, CalendarDays, Check, CheckCircle2,
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
-  Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle
+  Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
+  CalendarRange, Smile, Vote, Plane, Wallet, StickyNote, Settings2,
 } from "lucide-react";
+import { cleanFamily, emptyFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
+import FamilyHome from "@/components/family-hub/FamilyHome";
+import Chores from "@/components/family-hub/Chores";
+import Behavior from "@/components/family-hub/Behavior";
+import FamilyCalendar from "@/components/family-hub/FamilyCalendar";
+import Polls from "@/components/family-hub/Polls";
+import Trips from "@/components/family-hub/Trips";
+import Money from "@/components/family-hub/Money";
+import Notes from "@/components/family-hub/Notes";
+import Members, { SECTION_INFO } from "@/components/family-hub/Members";
+import { Avatar } from "@/components/family-hub/ui";
 
 type Priority = "low" | "normal" | "high";
 type Repeat = "none" | "daily" | "weekly" | "monthly";
@@ -19,7 +31,8 @@ type Task = {
   due: string; time: string; priority: Priority; repeat: Repeat;
   done: boolean; createdAt: string; completedAt?: string;
 };
-type Data = { version: 1; lists: List[]; tasks: Task[] };
+// Version 2 adds the Family Hub beside the lists and tasks. Version 1 workspaces open as version 2.
+type Data = { version: 2; lists: List[]; tasks: Task[]; family: Family };
 
 const STORE = "arise-todo-v1";
 const COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f"];
@@ -36,11 +49,11 @@ const uid = () => typeof crypto !== "undefined" && "randomUUID" in crypto
   ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const short = (value: unknown, max: number) => typeof value === "string" ? value.slice(0, max) : "";
 const isDate = (value: unknown) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value + "T12:00:00"));
-const fresh = (): Data => ({ version: 1, lists: DEFAULT_LISTS.map(list => ({ ...list })), tasks: [] });
+const fresh = (): Data => ({ version: 2, lists: DEFAULT_LISTS.map(list => ({ ...list })), tasks: [], family: emptyFamily() });
 const validate = (value: unknown): Data => {
   if (!value || typeof value !== "object") throw new Error("This is not an A.R.I.S.E. To-Do backup.");
   const raw = value as Record<string, unknown>;
-  if (raw.version !== 1 || !Array.isArray(raw.lists) || !Array.isArray(raw.tasks) || raw.tasks.length > 5000 || raw.lists.length > 100) {
+  if ((raw.version !== 1 && raw.version !== 2) || !Array.isArray(raw.lists) || !Array.isArray(raw.tasks) || raw.tasks.length > 5000 || raw.lists.length > 100) {
     throw new Error("This backup is not supported or is too large.");
   }
   const lists = raw.lists.filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
@@ -64,7 +77,7 @@ const validate = (value: unknown): Data => {
       createdAt: short(item.createdAt, 40) || new Date().toISOString(),
       completedAt: short(item.completedAt, 40) || undefined,
     })).filter(item => item.title);
-  return { version: 1, lists: uniqueLists, tasks: [...new Map(tasks.map(item => [item.id, item])).values()] };
+  return { version: 2, lists: uniqueLists, tasks: [...new Map(tasks.map(item => [item.id, item])).values()], family: cleanFamily(raw.family) };
 };
 const read = (): Data => {
   try {
@@ -100,8 +113,17 @@ const mergeTodo = (cloud: Data, old: Data): Data => {
     tasks.push(candidate);
     existing.set(candidate.id, JSON.stringify(candidate));
   }
-  return { version: 1, lists, tasks };
+  return { ...cloud, version: 2, lists, tasks };
 };
+/** The cloud may still hold a version 1 workspace (no family yet): open it as version 2. */
+const upgrade = (value: Data | Record<string, unknown>): Data =>
+  (value as Data).version === 2 && (value as Data).family ? value as Data : validate(value);
+const SECTION_ICONS: Record<FamilySection, typeof Home> = {
+  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile,
+  polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
+};
+const SECTION_ORDER: FamilySection[] = ["home", "tasks", "chores", "calendar", "behavior", "polls", "trips", "money", "notes", "family"];
+const SECTION_KEY = "arise-todo-section";
 const nextDate = (due: string, repeat: Repeat): string => {
   if (!isDate(due) || repeat === "none") return "";
   const date = new Date(`${due}T12:00:00`);
@@ -128,7 +150,23 @@ export default function AriseTodo() {
   const [, navigate] = useLocation();
   const { user, token, logout } = useAuth();
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
-  const { workspace: data, setWorkspace: setData } = sync;
+  const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
+  const rawSet = sync.setWorkspace;
+  const setData = useCallback((next: Data | ((previous: Data) => Data)) => {
+    rawSet(previous => typeof next === "function" ? next(upgrade(previous)) : next);
+  }, [rawSet]);
+  const setFamily = useCallback((update: (family: Family) => Family) => {
+    setData(previous => ({ ...previous, family: update(previous.family) }));
+  }, [setData]);
+  const [section, setSectionState] = useState<FamilySection>(() => {
+    try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && SECTION_ORDER.includes(saved) ? saved : "home"; } catch { return "home"; }
+  });
+  const setSection = (next: FamilySection) => {
+    setSectionState(next);
+    try { localStorage.setItem(SECTION_KEY, next); } catch {}
+    window.scrollTo({ top: 0 });
+  };
+  const [memberFilter, setMemberFilter] = useState("");
   const [legacy, setLegacy] = useState<Data | null>(() => {
     const old = read();
     return old.tasks.length || old.lists.some(list => !DEFAULT_LISTS.some(def => def.id === list.id && def.name === list.name)) ? old : null;
@@ -186,6 +224,7 @@ export default function AriseTodo() {
     if (view === "completed" ? !task.done : task.done) return false;
     if (view === "today" && (!task.due || task.due > currentDay)) return false;
     if (view === "upcoming" && (!task.due || task.due <= currentDay)) return false;
+    if (memberFilter && task.assignee.trim().toLowerCase() !== memberFilter.toLowerCase()) return false;
     const q = search.trim().toLowerCase();
     return !q || [task.title, task.notes, task.assignee].some(text => text.toLowerCase().includes(q));
   }).sort((a, b) => {
@@ -195,7 +234,7 @@ export default function AriseTodo() {
     if (b.due) return 1;
     const priority = { high: 0, normal: 1, low: 2 };
     return priority[a.priority] - priority[b.priority] || b.createdAt.localeCompare(a.createdAt);
-  }), [data.tasks, selectedList, view, search, currentDay]);
+  }), [data.tasks, selectedList, view, search, currentDay, memberFilter]);
 
   const saveTask = (event: FormEvent) => {
     event.preventDefault();
@@ -292,6 +331,26 @@ export default function AriseTodo() {
     { id: "completed", title: "Completed", icon: CheckCheck, count: completed },
   ];
 
+  const family = data.family;
+  const members = family.members;
+  const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
+  const sections = SECTION_ORDER.filter(id => isOn(id, family));
+  const shown: FamilySection = sections.includes(section) ? section : "home";
+  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : 0;
+  const makeId = uid;
+  const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
+  const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
+  const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} />
+    : shown === "chores" ? <Chores {...common} />
+    : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
+    : shown === "behavior" ? <Behavior {...common} />
+    : shown === "polls" ? <Polls {...common} />
+    : shown === "trips" ? <Trips {...common} />
+    : shown === "money" ? <Money {...common} />
+    : shown === "notes" ? <Notes {...common} />
+    : shown === "family" ? <Members {...common} />
+    : null;
+
   if (!user) return <AriseTodoSignIn />;
   if (!sync.loaded) return <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#f6f7fc] px-4 text-center text-slate-800">
     {sync.error ? <><CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved To-Do lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button></> : <><RefreshCw className="animate-spin text-violet-600" size={34} /><p className="text-sm font-semibold text-slate-600">Opening your tasks from your account…</p></>}
@@ -308,7 +367,12 @@ export default function AriseTodo() {
           </button>
           <button onClick={openAdd} className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf] lg:hidden" aria-label="Add task"><Plus /></button>
         </div>
-        <div className="flex gap-1 overflow-x-auto px-4 pb-4 lg:block lg:space-y-1 lg:px-3 lg:pb-0">
+        <nav aria-label="Family Hub" className="flex gap-1 overflow-x-auto px-4 pb-3 [scrollbar-width:none] lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 [&::-webkit-scrollbar]:hidden">
+          {sections.map(id => { const Icon = SECTION_ICONS[id]; return <button key={id} onClick={() => setSection(id)} aria-current={shown === id ? "page" : undefined} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-[18px] w-[18px]" /><span className="whitespace-nowrap">{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}</button>; })}
+        </nav>
+        {shown === "tasks" && <>
+        <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
+        <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0">
           {viewTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} onClick={() => setView(tab.id)} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${view === tab.id ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-[18px] w-[18px]" /><span>{tab.title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{tab.count}</span></button>; })}
         </div>
         <div className="hidden px-6 pb-3 pt-8 lg:flex lg:items-center lg:justify-between"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus size={18} /></button></div>
@@ -318,11 +382,12 @@ export default function AriseTodo() {
           <button onClick={() => setAddingList(true)} className="flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-bold text-slate-500 lg:hidden"><Plus size={14} /> List</button>
         </div>
         {addingList && <form onSubmit={createList} className="mx-4 mb-4 flex gap-2 lg:mx-5"><input className={inputClass + " min-w-0"} value={newListName} autoFocus maxLength={60} onChange={e => setNewListName(e.target.value)} placeholder="List name" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check size={18} /></button><button type="button" onClick={() => { setAddingList(false); setNewListName(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X size={18} /></button></form>}
+        </>}
         <div className="mt-auto hidden px-5 pb-7 pt-6 lg:block">
           <div className="rounded-2xl bg-[#f4f1ff] p-4">
             <div className="mb-2 inline-flex rounded-xl bg-white p-2 text-[#715fe3]"><Heart size={18} /></div>
             <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">Personal plans, work goals, and family errands in one simple space.</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Tasks, chores, calendars, plans and bills for the whole family in one simple space.</p>
           </div>
           <button onClick={() => navigate("/")} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> Back to A.R.I.S.E. Reader</button>
         </div>
@@ -330,12 +395,12 @@ export default function AriseTodo() {
 
       <main className="min-w-0 flex-1 px-4 pb-12 pt-6 sm:px-7 lg:px-9 lg:pt-10 xl:px-12">
         <div className="mx-auto max-w-[1250px]">
-          <header className="flex flex-wrap items-start justify-between gap-4">
+          {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
             <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
-          </header>
+          </header>}
 
-          <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
+          <div className={`flex flex-wrap items-center gap-3 text-sm ${shown === "tasks" ? "" : "mb-6 justify-end"}`}>
             <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 font-bold text-slate-600 ring-1 ring-slate-200"><Users size={15} /> {user.displayName || user.username}</span>
             <span role="status" className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={15} /> : <RefreshCw size={15} />}{saveStatus}</span>
             <button onClick={() => void signOut()} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold text-slate-500 hover:bg-white hover:text-rose-600"><LogOut size={15} /> Sign out</button>
@@ -358,7 +423,9 @@ export default function AriseTodo() {
             <div className="mt-3 flex flex-wrap gap-2"><button onClick={importOldTasks} className={buttonClass + " bg-indigo-700 text-white"}>Add old tasks to my account</button><button onClick={dismissLegacy} className={buttonClass + " bg-white text-indigo-700 ring-1 ring-indigo-200"}>Not now</button></div>
           </section>}
 
-          {message && <div role="status" className="mt-5 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm font-semibold text-violet-800">{message}</div>}
+          {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
+          {shown !== "tasks" && <div className="mt-2">{familyContent}</div>}
+          {shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
             {[
@@ -375,6 +442,10 @@ export default function AriseTodo() {
                 <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{selectedName}</p><h2 className="mt-1 text-xl font-black">{viewTabs.find(tab => tab.id === view)?.title}</h2></div>
                 <button onClick={openAdd} className={buttonClass + " bg-[#6e5ae0] text-white hover:bg-[#5948c8]"}><Plus size={17} /> Add task</button>
               </div>
+              {members.length > 0 && <div className="mt-5 flex flex-wrap gap-1.5" role="group" aria-label="Show tasks for">
+                <button onClick={() => setMemberFilter("")} aria-pressed={!memberFilter} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${!memberFilter ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>Everyone</button>
+                {members.map(m => <button key={m.id} onClick={() => setMemberFilter(memberFilter === m.name ? "" : m.name)} aria-pressed={memberFilter === m.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ring-1" style={memberFilter === m.name ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : { background: "#fff", color: "#475569", boxShadow: "0 0 0 1px #e2e8f0" }}><span>{m.emoji || "🙂"}</span>{m.name}<span className="opacity-70">{active.filter(t => t.assignee.trim().toLowerCase() === m.name.toLowerCase()).length}</span></button>)}
+              </div>}
               <div className="relative mt-5"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks, notes, or names" aria-label="Search tasks" className={inputClass + " pl-10"} /></div>
               <div className="mt-5 space-y-2">
                 {filtered.map(task => {
@@ -388,7 +459,9 @@ export default function AriseTodo() {
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
                         {list && <span className="rounded-lg bg-slate-50 px-2 py-1 text-slate-500"><span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: list.color }} />{list.name}</span>}
                         {task.due && <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 ${late ? "bg-rose-50 text-rose-600" : "bg-slate-50 text-slate-500"}`}><CalendarDays size={12} /> {late ? "Overdue · " : ""}{prettyDate(task.due)}{task.time ? ` · ${task.time}` : ""}</span>}
-                        {task.assignee && <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-blue-600"><Users size={12} /> {task.assignee}</span>}
+                        {task.assignee && (() => { const m = memberByName(task.assignee); return m
+                          ? <span className="inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5" style={{ background: m.color + "1f", color: m.color }}><Avatar member={m} size="sm" />{m.name}</span>
+                          : <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-blue-600"><Users size={12} /> {task.assignee}</span>; })()}
                         {task.priority === "high" && <span className="rounded-lg bg-orange-50 px-2 py-1 text-orange-600">High priority</span>}
                         {task.repeat !== "none" && <span className="inline-flex items-center gap-1 text-slate-400"><Repeat2 size={12} /> {task.repeat}</span>}
                       </div>
@@ -415,13 +488,14 @@ export default function AriseTodo() {
               </section>
               <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
                 <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-emerald-600" /><h3 className="text-sm font-extrabold">Your tasks, your account</h3></div>
-                <p className="mt-2 text-xs leading-5 text-slate-500">Everything is saved to your signed-in A.R.I.S.E. account and syncs between your devices. A safety copy stays in this browser if your connection drops. Assignments are still labels, not invitations to other people.</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">Everything is saved to your signed-in A.R.I.S.E. account and syncs between your devices. A safety copy stays in this browser if your connection drops. Family members are names on your account, not separate logins.</p>
                 <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importData(event)} aria-label="Restore To-Do backup" />
                 <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
               </section>
               <button onClick={() => navigate("/")} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> A.R.I.S.E. Reader</button>
             </aside>
           </div>
+          </>}
         </div>
       </main>
     </div>
@@ -438,9 +512,16 @@ export default function AriseTodo() {
             <label className="block text-xs font-bold text-slate-600">Due date<input type="date" className={inputClass + " mt-1.5"} value={editing.due} onChange={event => setEditing({ ...editing, due: event.target.value, repeat: event.target.value ? editing.repeat : "none" })} /></label>
             <label className="block text-xs font-bold text-slate-600">Time (optional)<input type="time" className={inputClass + " mt-1.5"} value={editing.time} onChange={event => setEditing({ ...editing, time: event.target.value })} /></label>
             <label className="block text-xs font-bold text-slate-600">Repeat<select className={inputClass + " mt-1.5"} disabled={!editing.due} value={editing.repeat} onChange={event => setEditing({ ...editing, repeat: event.target.value as Repeat })}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></label>
-            <label className="block text-xs font-bold text-slate-600">Assigned to / for<input className={inputClass + " mt-1.5"} maxLength={100} value={editing.assignee} onChange={event => setEditing({ ...editing, assignee: event.target.value })} placeholder="Me, partner, team member..." /></label>
           </div>
-          <p className="text-xs leading-5 text-slate-500">Names are for organizing on this device. Assigning a task does not send it to another person.</p>
+          <div>
+            <p className="text-xs font-bold text-slate-600">Assigned to</p>
+            {members.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => setEditing({ ...editing, assignee: "" })} aria-pressed={!editing.assignee} className={`min-h-10 rounded-xl px-3 text-xs font-bold ring-1 ${!editing.assignee ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>Nobody</button>
+              {members.map(m => { const on = editing.assignee.trim().toLowerCase() === m.name.toLowerCase(); return <button type="button" key={m.id} aria-pressed={on} onClick={() => setEditing({ ...editing, assignee: on ? "" : m.name })} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2.5 pr-3 text-xs font-bold ring-1" style={on ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : { background: "#fff", color: "#475569", boxShadow: "0 0 0 1px #e2e8f0" }}><span className="text-base leading-none">{m.emoji || "🙂"}</span>{m.name}</button>; })}
+            </div>}
+            <input className={inputClass + " mt-2"} maxLength={100} value={editing.assignee} onChange={event => setEditing({ ...editing, assignee: event.target.value })} placeholder={members.length ? "…or type any name" : "Me, partner, kid's name…"} aria-label="Assigned to" />
+            <p className="mt-1.5 text-xs leading-5 text-slate-500">{members.length ? "Tap a family member, or type someone else's name." : "Add your family in “Family & settings” to pick them with one tap."}</p>
+          </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
             <button type="submit" className={buttonClass + " flex-1 bg-[#6e5ce1] px-5 text-white hover:bg-[#5a48cb]"}><Check size={17} /> Save task</button>
             <button type="button" onClick={() => setEditing(null)} className={buttonClass + " border border-slate-200 bg-white text-slate-600"}>Cancel</button>
