@@ -8,7 +8,7 @@ export type HubGroupId = "home" | "calendar" | "caseload" | "progress" | "iep" |
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
   { id: "home", label: "Home", tabs: ["overview"] },
   // Arise WorkHub is the space for every A.R.I.S.E. program: the Reader's teacher tools come first.
-  { id: "arise", label: "A.R.I.S.E. Reader", tabs: ["reader", "arise", "admin"] },
+  { id: "arise", label: "A.R.I.S.E. Reader", tabs: ["reader", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "arise", "admin"] },
   { id: "calendar", label: "Calendar & Schedules", tabs: ["calendar", "schedules"] },
   { id: "caseload", label: "Caseload", tabs: ["caseload"] },
   { id: "iep", label: "IEP & Meetings", tabs: ["iep"] },
@@ -28,7 +28,8 @@ export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   lessons: "Lessons", gradebook: "Gradebook",
   behavior: "Behavior", attendance: "Attendance",
   parents: "Parents", email: "Email",
-  reader: "Teacher tools", arise: "Reading records", admin: "Admin console",
+  reader: "Overview", readerStudents: "Students", readerApprovals: "Approvals", readerParents: "Parents", readerQuizzes: "Quizzes & grading",
+  readerGames: "Game time", readerPrizes: "Prizes", arise: "Reading records", admin: "Admin console",
 };
 
 /** A group's name when only one of its tabs shows. */
@@ -39,7 +40,7 @@ export function groupOf(tab: HubTab) {
 }
 
 /** Home and the Reader's teacher tools always show; the admin console only when the page says so (admins). */
-export const ALWAYS_SHOWN: readonly HubTab[] = ["overview", "reader"];
+export const ALWAYS_SHOWN: readonly HubTab[] = ["overview", "reader", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"];
 const shown = (visible: Partial<Record<HubTab, boolean>>, tab: HubTab) => ALWAYS_SHOWN.includes(tab) || (tab === "admin" ? visible.admin === true : visible[tab] !== false);
 
 /** The tabs of a group the teacher has not hidden. */

@@ -1,11 +1,9 @@
-// Arise WorkHub's A.R.I.S.E. Reader group: every A.R.I.S.E. program in one place, the Reader's
-// teacher tools (approvals, students, quizzes, proctor, comprehension, growth check, prizes...)
-// and, for admins, the admin console. These are loaded only when opened.
+// Arise WorkHub's A.R.I.S.E. Reader group: links to every A.R.I.S.E. program and, for admins, the
+// admin console (loaded only when opened). The teacher's Reader tabs are in HubReaderTools.
 import { Suspense, lazy } from "react";
 import { BookOpen, Calculator, CheckCheck, Landmark, Users } from "lucide-react";
 import HubReaderScope from "@/components/HubReaderScope";
 
-const TeacherDashboard = lazy(() => import("@/pages/TeacherDashboard"));
 const Admin = lazy(() => import("@/pages/Admin"));
 
 const PROGRAMS = [
@@ -35,15 +33,6 @@ export function ProgramLinks({ hideLifeHub = false }: { hideLifeHub?: boolean })
       })}
     </div>
   </section>;
-}
-
-export function ReaderTab({ hideLifeHub, night = false }: { hideLifeHub?: boolean; night?: boolean }) {
-  return <>
-    <ProgramLinks hideLifeHub={hideLifeHub} />
-    <HubReaderScope which="work" night={night}>
-      <Suspense fallback={<Loading what="your Reader tools" />}><TeacherDashboard embedded night={night} /></Suspense>
-    </HubReaderScope>
-  </>;
 }
 
 export function AdminTab({ night = false }: { night?: boolean }) {
