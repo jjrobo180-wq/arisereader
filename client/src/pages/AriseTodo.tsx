@@ -1,0 +1,372 @@
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useLocation } from "wouter";
+import {
+  ArrowDownToLine, ArrowLeft, CalendarDays, Check, CheckCircle2, ChevronRight,
+  Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo, MoreHorizontal,
+  Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X, BriefcaseBusiness,
+  Sun, CalendarClock, CheckCheck, Download, ShieldCheck
+} from "lucide-react";
+
+type Priority = "low" | "normal" | "high";
+type Repeat = "none" | "daily" | "weekly" | "monthly";
+type View = "all" | "today" | "upcoming" | "completed";
+type List = { id: string; name: string; color: string };
+type Task = {
+  id: string; title: string; notes: string; listId: string; assignee: string;
+  due: string; time: string; priority: Priority; repeat: Repeat;
+  done: boolean; createdAt: string; completedAt?: string;
+};
+type Data = { version: 1; lists: List[]; tasks: Task[] };
+
+const STORE = "arise-todo-v1";
+const COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f"];
+const DEFAULT_LISTS: List[] = [
+  { id: "personal", name: "Personal", color: COLORS[0] },
+  { id: "work", name: "Work", color: COLORS[1] },
+  { id: "family", name: "Family", color: COLORS[2] },
+];
+const today = () => {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+};
+const uid = () => typeof crypto !== "undefined" && "randomUUID" in crypto
+  ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const short = (value: unknown, max: number) => typeof value === "string" ? value.slice(0, max) : "";
+const isDate = (value: unknown) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value + "T12:00:00"));
+const fresh = (): Data => ({ version: 1, lists: DEFAULT_LISTS.map(list => ({ ...list })), tasks: [] });
+const validate = (value: unknown): Data => {
+  if (!value || typeof value !== "object") throw new Error("This is not an A.R.I.S.E. To-Do backup.");
+  const raw = value as Record<string, unknown>;
+  if (raw.version !== 1 || !Array.isArray(raw.lists) || !Array.isArray(raw.tasks) || raw.tasks.length > 5000 || raw.lists.length > 100) {
+    throw new Error("This backup is not supported or is too large.");
+  }
+  const lists = raw.lists.filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+    .map(item => ({ id: short(item.id, 100), name: short(item.name, 60), color: short(item.color, 20) }))
+    .filter(item => item.id && item.name && /^#[0-9a-f]{6}$/i.test(item.color));
+  const uniqueLists = [...new Map(lists.map(item => [item.id, item])).values()];
+  if (!uniqueLists.length) throw new Error("This backup has no usable lists.");
+  const validIds = new Set(uniqueLists.map(item => item.id));
+  const tasks = raw.tasks.filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+    .map(item => ({
+      id: short(item.id, 100) || uid(),
+      title: short(item.title, 200).trim(),
+      notes: short(item.notes, 2000),
+      listId: validIds.has(short(item.listId, 100)) ? short(item.listId, 100) : uniqueLists[0].id,
+      assignee: short(item.assignee, 100),
+      due: isDate(item.due) ? String(item.due) : "",
+      time: typeof item.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(item.time) ? item.time : "",
+      priority: (["low", "normal", "high"].includes(String(item.priority)) ? item.priority : "normal") as Priority,
+      repeat: (["none", "daily", "weekly", "monthly"].includes(String(item.repeat)) ? item.repeat : "none") as Repeat,
+      done: item.done === true,
+      createdAt: short(item.createdAt, 40) || new Date().toISOString(),
+      completedAt: short(item.completedAt, 40) || undefined,
+    })).filter(item => item.title);
+  return { version: 1, lists: uniqueLists, tasks: [...new Map(tasks.map(item => [item.id, item])).values()] };
+};
+const read = (): Data => {
+  try {
+    const stored = localStorage.getItem(STORE);
+    return stored ? validate(JSON.parse(stored)) : fresh();
+  } catch { return fresh(); }
+};
+const nextDate = (due: string, repeat: Repeat): string => {
+  if (!isDate(due) || repeat === "none") return "";
+  const date = new Date(`${due}T12:00:00`);
+  if (repeat === "daily") date.setDate(date.getDate() + 1);
+  if (repeat === "weekly") date.setDate(date.getDate() + 7);
+  if (repeat === "monthly") {
+    const day = date.getDate();
+    date.setDate(1);
+    date.setMonth(date.getMonth() + 1);
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    date.setDate(Math.min(day, lastDay));
+  }
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+};
+const emptyTask = (listId: string): Task => ({
+  id: uid(), title: "", notes: "", listId, assignee: "", due: "", time: "",
+  priority: "normal", repeat: "none", done: false, createdAt: new Date().toISOString(),
+});
+const prettyDate = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const inputClass = "w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
+const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500";
+
+export default function AriseTodo() {
+  const [, navigate] = useLocation();
+  const [data, setData] = useState<Data>(read);
+  const [selectedList, setSelectedList] = useState("all");
+  const [view, setView] = useState<View>("all");
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<Task | null>(null);
+  const [newListName, setNewListName] = useState("");
+  const [addingList, setAddingList] = useState(false);
+  const [message, setMessage] = useState("");
+  const [storageError, setStorageError] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const currentDay = today();
+
+  useEffect(() => {
+    try { localStorage.setItem(STORE, JSON.stringify(data)); setStorageError(""); }
+    catch { setStorageError("This browser could not save changes. Export a backup to keep your tasks."); }
+  }, [data]);
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === STORE && event.newValue) {
+        try { setData(validate(JSON.parse(event.newValue))); } catch {}
+      }
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
+  useEffect(() => {
+    if (!message) return;
+    const timeout = window.setTimeout(() => setMessage(""), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [message]);
+
+  const active = data.tasks.filter(task => !task.done);
+  const countFor = (listId: string) => active.filter(task => task.listId === listId).length;
+  const overdue = active.filter(task => task.due && task.due < currentDay);
+  const dueToday = active.filter(task => task.due && task.due <= currentDay);
+  const upcoming = active.filter(task => task.due && task.due > currentDay)
+    .sort((a, b) => (a.due + a.time).localeCompare(b.due + b.time));
+  const completed = data.tasks.filter(task => task.done).length;
+  const filtered = useMemo(() => data.tasks.filter(task => {
+    if (selectedList !== "all" && task.listId !== selectedList) return false;
+    if (view === "completed" ? !task.done : task.done) return false;
+    if (view === "today" && (!task.due || task.due > currentDay)) return false;
+    if (view === "upcoming" && (!task.due || task.due <= currentDay)) return false;
+    const q = search.trim().toLowerCase();
+    return !q || [task.title, task.notes, task.assignee].some(text => text.toLowerCase().includes(q));
+  }).sort((a, b) => {
+    if (view === "completed") return (b.completedAt || "").localeCompare(a.completedAt || "");
+    if (a.due && b.due) return (a.due + a.time).localeCompare(b.due + b.time);
+    if (a.due) return -1;
+    if (b.due) return 1;
+    const priority = { high: 0, normal: 1, low: 2 };
+    return priority[a.priority] - priority[b.priority] || b.createdAt.localeCompare(a.createdAt);
+  }), [data.tasks, selectedList, view, search, currentDay]);
+
+  const saveTask = (event: FormEvent) => {
+    event.preventDefault();
+    if (!editing?.title.trim()) return;
+    const clean = { ...editing, title: editing.title.trim(), notes: editing.notes.trim(), assignee: editing.assignee.trim(), repeat: editing.due ? editing.repeat : "none" };
+    setData(previous => ({
+      ...previous,
+      tasks: previous.tasks.some(task => task.id === clean.id)
+        ? previous.tasks.map(task => task.id === clean.id ? clean : task)
+        : [...previous.tasks, clean],
+    }));
+    setEditing(null);
+    setMessage("Task saved");
+  };
+  const toggleDone = (task: Task) => {
+    setData(previous => {
+      const finished = !task.done;
+      const tasks = previous.tasks.map(row => row.id === task.id
+        ? { ...row, done: finished, completedAt: finished ? new Date().toISOString() : undefined }
+        : row);
+      if (finished && task.repeat !== "none" && task.due) {
+        const next = nextDate(task.due, task.repeat);
+        if (next) tasks.push({ ...task, id: uid(), due: next, done: false, completedAt: undefined, createdAt: new Date().toISOString() });
+      }
+      return { ...previous, tasks };
+    });
+    setMessage(task.done ? "Task reopened" : "Nice work! Task completed");
+  };
+  const removeTask = (task: Task) => {
+    if (!window.confirm(`Delete "${task.title}"?`)) return;
+    setData(previous => ({ ...previous, tasks: previous.tasks.filter(item => item.id !== task.id) }));
+    setEditing(null);
+    setMessage("Task deleted");
+  };
+  const createList = (event: FormEvent) => {
+    event.preventDefault();
+    const name = newListName.trim();
+    if (!name) return;
+    if (data.lists.some(list => list.name.toLowerCase() === name.toLowerCase())) { setMessage("That list already exists."); return; }
+    const id = uid();
+    setData(previous => ({ ...previous, lists: [...previous.lists, { id, name: name.slice(0, 60), color: COLORS[previous.lists.length % COLORS.length] }] }));
+    setSelectedList(id);
+    setView("all");
+    setNewListName("");
+    setAddingList(false);
+    setMessage("List created");
+  };
+  const removeList = (list: List) => {
+    if (data.lists.length === 1) { setMessage("Keep at least one list."); return; }
+    const destination = data.lists.find(other => other.id !== list.id)!;
+    if (!window.confirm(`Delete "${list.name}"? Its tasks will move to "${destination.name}".`)) return;
+    setData(previous => ({
+      ...previous, lists: previous.lists.filter(row => row.id !== list.id),
+      tasks: previous.tasks.map(task => task.listId === list.id ? { ...task, listId: destination.id } : task),
+    }));
+    setSelectedList(destination.id);
+    setMessage("List removed; tasks moved safely");
+  };
+  const exportData = () => {
+    const contents = JSON.stringify(data, null, 2);
+    const blob = new Blob([contents], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `arise-todo-backup-${currentDay}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setMessage("Backup downloaded");
+  };
+  const importData = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > 2_000_000) { setMessage("File too large. Choose a To-Do backup under 2 MB."); return; }
+    try {
+      const restored = validate(JSON.parse(await file.text()));
+      if (!window.confirm(`Restore ${restored.tasks.length} tasks and ${restored.lists.length} lists? This will replace tasks on this device.`)) return;
+      setData(restored);
+      setSelectedList("all");
+      setView("all");
+      setMessage("Backup restored");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "This file is not a valid backup."); }
+  };
+  const selectedName = data.lists.find(list => list.id === selectedList)?.name || "All lists";
+  const openAdd = () => setEditing(emptyTask(selectedList === "all" ? data.lists[0].id : selectedList));
+  const viewTabs: { id: View; title: string; icon: typeof Home; count: number }[] = [
+    { id: "all", title: "All tasks", icon: ListTodo, count: active.length },
+    { id: "today", title: "Today", icon: Sun, count: dueToday.length },
+    { id: "upcoming", title: "Upcoming", icon: CalendarClock, count: upcoming.length },
+    { id: "completed", title: "Completed", icon: CheckCheck, count: completed },
+  ];
+
+  return <div className="min-h-screen bg-[#f6f7fc] text-slate-900">
+    <div className="flex min-h-screen w-full flex-col lg:flex-row">
+      <aside className="w-full border-b border-[#e4e6f0] bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-72">
+        <div className="flex items-center justify-between gap-2 px-5 py-5 lg:px-6 lg:py-7">
+          <button onClick={() => navigate("/")} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to A.R.I.S.E. Reader">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#6d5ce7] text-white shadow-[0_5px_14px_#6d5ce72b]"><CheckCheck className="h-5 w-5" /></span>
+            <span className="min-w-0"><span className="block text-xs font-extrabold tracking-[.16em] text-[#7e76aa]">A.R.I.S.E.</span><span className="block text-xl font-black tracking-tight">To-Do<span className="text-[#7968e5]">.</span></span></span>
+          </button>
+          <button onClick={openAdd} className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf] lg:hidden" aria-label="Add task"><Plus /></button>
+        </div>
+        <div className="flex gap-1 overflow-x-auto px-4 pb-4 lg:block lg:space-y-1 lg:px-3 lg:pb-0">
+          {viewTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} onClick={() => setView(tab.id)} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${view === tab.id ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-[18px] w-[18px]" /><span>{tab.title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{tab.count}</span></button>; })}
+        </div>
+        <div className="hidden px-6 pb-3 pt-8 lg:flex lg:items-center lg:justify-between"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus size={18} /></button></div>
+        <div className="flex gap-2 overflow-x-auto px-4 pb-4 lg:block lg:space-y-0.5 lg:px-3">
+          <button onClick={() => setSelectedList("all")} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold lg:flex lg:min-h-10 lg:w-full lg:items-center lg:gap-3 ${selectedList === "all" ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><Circle size={12} className="hidden lg:block" />Everything</button>
+          {data.lists.map(list => <button key={list.id} onClick={() => setSelectedList(list.id)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold lg:min-h-10 lg:w-full ${selectedList === list.id ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: list.color }} /><span className="max-w-32 truncate">{list.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline">{countFor(list.id)}</span></button>)}
+          <button onClick={() => setAddingList(true)} className="flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-bold text-slate-500 lg:hidden"><Plus size={14} /> List</button>
+        </div>
+        {addingList && <form onSubmit={createList} className="mx-4 mb-4 flex gap-2 lg:mx-5"><input className={inputClass + " min-w-0"} value={newListName} autoFocus maxLength={60} onChange={e => setNewListName(e.target.value)} placeholder="List name" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check size={18} /></button><button type="button" onClick={() => { setAddingList(false); setNewListName(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X size={18} /></button></form>}
+        <div className="mt-auto hidden px-5 pb-7 pt-6 lg:block">
+          <div className="rounded-2xl bg-[#f4f1ff] p-4">
+            <div className="mb-2 inline-flex rounded-xl bg-white p-2 text-[#715fe3]"><Heart size={18} /></div>
+            <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Personal plans, work goals, and family errands in one simple space.</p>
+          </div>
+          <button onClick={() => navigate("/")} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> Back to A.R.I.S.E. Reader</button>
+        </div>
+      </aside>
+
+      <main className="min-w-0 flex-1 px-4 pb-12 pt-6 sm:px-7 lg:px-9 lg:pt-10 xl:px-12">
+        <div className="mx-auto max-w-[1250px]">
+          <header className="flex flex-wrap items-start justify-between gap-4">
+            <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
+            <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
+          </header>
+          {storageError && <div role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">{storageError}</div>}
+          {message && <div role="status" className="mt-5 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm font-semibold text-violet-800">{message}</div>}
+
+          <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              { label: "Open tasks", count: active.length, icon: ListTodo, tint: "text-violet-600", bg: "bg-violet-50" },
+              { label: "Due today", count: active.filter(task => task.due === currentDay).length, icon: Sun, tint: "text-amber-600", bg: "bg-amber-50" },
+              { label: "Overdue", count: overdue.length, icon: Clock3, tint: "text-rose-600", bg: "bg-rose-50" },
+              { label: "Completed", count: completed, icon: CheckCircle2, tint: "text-emerald-600", bg: "bg-emerald-50" },
+            ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 shadow-[0_3px_16px_#17152b08] sm:p-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">{stat.label}</span><span className={`rounded-xl p-2 ${stat.bg} ${stat.tint}`}><Icon size={17} /></span></div><p className="text-3xl font-black text-[#242238]">{stat.count}</p></div>; })}
+          </div>
+
+          <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{selectedName}</p><h2 className="mt-1 text-xl font-black">{viewTabs.find(tab => tab.id === view)?.title}</h2></div>
+                <button onClick={openAdd} className={buttonClass + " bg-[#6e5ae0] text-white hover:bg-[#5948c8]"}><Plus size={17} /> Add task</button>
+              </div>
+              <div className="relative mt-5"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks, notes, or names" aria-label="Search tasks" className={inputClass + " pl-10"} /></div>
+              <div className="mt-5 space-y-2">
+                {filtered.map(task => {
+                  const list = data.lists.find(row => row.id === task.listId);
+                  const late = !task.done && !!task.due && task.due < currentDay;
+                  return <div key={task.id} className="group flex min-w-0 items-start gap-3 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:p-4">
+                    <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={15} /></button>
+                    <button onClick={() => setEditing({ ...task })} className="min-w-0 flex-1 text-left">
+                      <p className={`break-words text-sm font-bold sm:text-base ${task.done ? "text-slate-400 line-through" : "text-slate-800"}`}>{task.title}</p>
+                      {task.notes && <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-slate-500">{task.notes}</p>}
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                        {list && <span className="rounded-lg bg-slate-50 px-2 py-1 text-slate-500"><span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: list.color }} />{list.name}</span>}
+                        {task.due && <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 ${late ? "bg-rose-50 text-rose-600" : "bg-slate-50 text-slate-500"}`}><CalendarDays size={12} /> {late ? "Overdue · " : ""}{prettyDate(task.due)}{task.time ? ` · ${task.time}` : ""}</span>}
+                        {task.assignee && <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-blue-600"><Users size={12} /> {task.assignee}</span>}
+                        {task.priority === "high" && <span className="rounded-lg bg-orange-50 px-2 py-1 text-orange-600">High priority</span>}
+                        {task.repeat !== "none" && <span className="inline-flex items-center gap-1 text-slate-400"><Repeat2 size={12} /> {task.repeat}</span>}
+                      </div>
+                    </button>
+                    <button onClick={() => setEditing({ ...task })} aria-label={`Edit ${task.title}`} className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Pencil size={16} /></button>
+                  </div>;
+                })}
+                {!filtered.length && <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center"><span className="rounded-2xl bg-violet-50 p-4 text-violet-600"><Sparkles size={26} /></span><p className="mt-4 text-lg font-extrabold">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : "A fresh start"}</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : "Add your first task and start planning your day."}</p><button onClick={openAdd} className={buttonClass + " mt-5 bg-violet-100 text-violet-700"}><Plus size={16} /> Add a task</button></div>}
+              </div>
+              {selectedList !== "all" && !DEFAULT_LISTS.some(list => list.id === selectedList) && <button onClick={() => { const list = data.lists.find(item => item.id === selectedList); if (list) removeList(list); }} className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-rose-500 hover:underline"><Trash2 size={14} /> Delete this custom list</button>}
+            </section>
+
+            <aside className="space-y-5">
+              <section className="rounded-[1.5rem] bg-[#292446] p-5 text-white shadow-[0_12px_24px_#2924461f]">
+                <div className="flex items-center gap-2 text-[#bcb2ff]"><Sparkles size={17} /><span className="text-[11px] font-extrabold uppercase tracking-[.14em]">Your progress</span></div>
+                <p className="mt-5 text-3xl font-black">{data.tasks.length ? Math.round(completed / data.tasks.length * 100) : 0}%</p>
+                <p className="mt-1 text-xs text-slate-300">of all tasks completed</p>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#a38cfa] transition-all" style={{ width: `${data.tasks.length ? completed / data.tasks.length * 100 : 0}%` }} /></div>
+                <p className="mt-4 text-xs font-medium leading-5 text-slate-300">Every little step counts. Keep going at your own pace.</p>
+              </section>
+              <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
+                <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold">Coming up next</h3><CalendarDays size={17} className="text-violet-500" /></div>
+                {upcoming.length ? <div className="mt-4 space-y-3">{upcoming.slice(0, 5).map(task => <button key={task.id} onClick={() => setEditing({ ...task })} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 pb-3 text-left last:border-b-0 last:pb-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{prettyDate(task.due)}</span></button>)}</div> : <p className="mt-3 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
+              </section>
+              <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
+                <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-emerald-600" /><h3 className="text-sm font-extrabold">Your data, your device</h3></div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">This version saves tasks in this browser only. It does not yet sync lists or assignments with other people or devices.</p>
+                <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={event => void importData(event)} aria-label="Restore To-Do backup" />
+                <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
+              </section>
+              <button onClick={() => navigate("/")} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> A.R.I.S.E. Reader</button>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    {editing && <div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[94dvh] w-full overflow-y-auto rounded-t-[1.5rem] bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-7">
+        <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">A.R.I.S.E. To-Do</p><h2 id="todo-modal-title" className="mt-1 text-xl font-black">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
+        <form onSubmit={saveTask} className="space-y-4">
+          <label className="block text-xs font-bold text-slate-600">Task name<input autoFocus required maxLength={200} value={editing.title} onChange={event => setEditing({ ...editing, title: event.target.value })} className={inputClass + " mt-1.5"} placeholder="What needs to get done?" /></label>
+          <label className="block text-xs font-bold text-slate-600">Notes (optional)<textarea rows={3} maxLength={2000} value={editing.notes} onChange={event => setEditing({ ...editing, notes: event.target.value })} className={inputClass + " mt-1.5 py-3"} placeholder="Add more details..." /></label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block text-xs font-bold text-slate-600">List<select className={inputClass + " mt-1.5"} value={editing.listId} onChange={event => setEditing({ ...editing, listId: event.target.value })}>{data.lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label>
+            <label className="block text-xs font-bold text-slate-600">Priority<select className={inputClass + " mt-1.5"} value={editing.priority} onChange={event => setEditing({ ...editing, priority: event.target.value as Priority })}><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
+            <label className="block text-xs font-bold text-slate-600">Due date<input type="date" className={inputClass + " mt-1.5"} value={editing.due} onChange={event => setEditing({ ...editing, due: event.target.value, repeat: event.target.value ? editing.repeat : "none" })} /></label>
+            <label className="block text-xs font-bold text-slate-600">Time (optional)<input type="time" className={inputClass + " mt-1.5"} value={editing.time} onChange={event => setEditing({ ...editing, time: event.target.value })} /></label>
+            <label className="block text-xs font-bold text-slate-600">Repeat<select className={inputClass + " mt-1.5"} disabled={!editing.due} value={editing.repeat} onChange={event => setEditing({ ...editing, repeat: event.target.value as Repeat })}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></label>
+            <label className="block text-xs font-bold text-slate-600">Assigned to / for<input className={inputClass + " mt-1.5"} maxLength={100} value={editing.assignee} onChange={event => setEditing({ ...editing, assignee: event.target.value })} placeholder="Me, partner, team member..." /></label>
+          </div>
+          <p className="text-xs leading-5 text-slate-500">Names are for organizing on this device. Assigning a task does not send it to another person.</p>
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+            <button type="submit" className={buttonClass + " flex-1 bg-[#6e5ce1] px-5 text-white hover:bg-[#5a48cb]"}><Check size={17} /> Save task</button>
+            <button type="button" onClick={() => setEditing(null)} className={buttonClass + " border border-slate-200 bg-white text-slate-600"}>Cancel</button>
+            {data.tasks.some(item => item.id === editing.id) && <button type="button" onClick={() => removeTask(editing)} title="Delete task" aria-label="Delete task" className={buttonClass + " border border-rose-100 bg-rose-50 text-rose-600"}><Trash2 size={17} /></button>}
+          </div>
+        </form>
+      </div>
+    </div>}
+  </div>;
+}
