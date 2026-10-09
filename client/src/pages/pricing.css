@@ -1,6 +1,6 @@
 /* Plans and pricing page. Same dark look as the For Teachers and For Parents
    pages: near-black ground, two soft glows, heavy Barlow, white pill buttons.
-   The one lit thing is the ring around the Premium card. */
+   The one lit thing is the ring around the Class card. */
 
 .pr {
   position: relative; overflow: hidden; min-height: 100vh;
@@ -9,7 +9,7 @@
   font-size: 17px; line-height: 1.55; font-weight: 500; -webkit-font-smoothing: antialiased;
 }
 :where(.pr) *, :where(.pr) *::before, :where(.pr) *::after { box-sizing: border-box; }
-:where(.pr) h1, :where(.pr) h2, :where(.pr) h3, :where(.pr) p, :where(.pr) ul { margin: 0; padding: 0; }
+:where(.pr) h1, :where(.pr) h2, :where(.pr) h3, :where(.pr) h4, :where(.pr) p, :where(.pr) ul { margin: 0; padding: 0; }
 :where(.pr) button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
 
 .pr-glow { position: absolute; border-radius: 50%; pointer-events: none; }
@@ -31,7 +31,7 @@
 .pr-pill-ghost { border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.05); color: #fff; }
 .pr-pill-ghost:hover { background: rgba(255, 255, 255, 0.1); transform: none; }
 .pr-wide { display: flex; width: 100%; padding: 0 24px; }
-.pr button:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
+.pr button:focus-visible, .pr summary:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
 
 /* Hero */
 .pr-hero { position: relative; max-width: 940px; margin: 0 auto; padding: clamp(44px, 7vw, 76px) clamp(20px, 5vw, 40px) clamp(40px, 6vw, 64px); display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
@@ -41,12 +41,14 @@
 .pr-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px; }
 
 /* Plan cards */
-/* Each card has the same seven parts (name, prices, summary, button, two lists,
+/* Both cards have the same seven parts (name, prices, summary, button, two lists,
    note). Subgrid lines those parts up across the cards, so the buttons and
-   the list headings sit level whatever the text length. */
-.pr-plans { position: relative; max-width: 1280px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px) clamp(56px, 8vw, 96px); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 20px; }
+   the list headings sit level whatever the text length. The Class card has an
+   eighth part below them: its add-ons. */
+.pr-plans { position: relative; max-width: 1120px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px) clamp(56px, 8vw, 96px); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 20px; }
 .pr-plans > .pr-card, .pr-ring, .pr-ring > .pr-card { display: grid; grid-template-rows: subgrid; row-gap: 24px; }
-.pr-plans > .pr-card, .pr-ring { grid-row: span 7; }
+.pr-plans > .pr-card { grid-row: span 7; }
+.pr-ring { grid-row: span 8; }
 .pr-ring > .pr-card { grid-row: 1 / -1; }
 .pr-card { align-content: start; padding: clamp(24px, 3.2vw, 36px); border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1); background: #0e0d1a; }
 .pr-ring { padding: 2px; border-radius: 30px; background: linear-gradient(135deg, #7c3aed 0%, #c026d3 52%, #06b6d4 100%); box-shadow: 0 44px 96px -44px rgba(147, 72, 239, 0.75); }
@@ -55,9 +57,6 @@
 .pr-name h2 { font-size: 30px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; }
 .pr-name p { font-size: 15px; font-weight: 700; color: #67e8f9; }
 .pr-name.premium p { color: #c4b5fd; }
-.pr-card-hub { border-color: rgba(94, 234, 212, 0.35); }
-.pr-name.hub p, .pr-group.hub h3 { color: #5eead4; }
-.pr-note.hub { border-color: rgba(94, 234, 212, 0.3); }
 .pr-prices { display: grid; grid-auto-rows: 1fr; gap: 10px; }
 .pr-price { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 14px 16px; border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.3); }
 .pr-price.premium { border-color: rgba(196, 181, 253, 0.3); }
@@ -79,6 +78,28 @@
 .pr-note.premium { border-color: rgba(196, 181, 253, 0.3); }
 .pr-note b { font-size: 16px; font-weight: 800; }
 .pr-note span { font-size: 15px; line-height: 1.5; color: #cbd5e1; }
+
+/* Add-ons: a quiet list at the foot of the Class card. */
+.pr-addons { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.pr-addons-head { display: flex; flex-direction: column; gap: 4px; }
+.pr-addons-head h3 { font-size: 15px; font-weight: 800; color: #5eead4; }
+.pr-addons-head p, .pr-addons-foot { font-size: 14px; line-height: 1.5; color: #94a3b8; }
+.pr-addon-list { list-style: none; align-self: stretch; display: flex; flex-direction: column; }
+.pr-addon { display: flex; flex-direction: column; gap: 6px; padding: 16px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.pr-addon:first-child { padding-top: 0; border-top: 0; }
+.pr-addon:last-child { padding-bottom: 0; }
+.pr-addon-top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.pr-addon-top > b { flex: none; font-size: 16px; font-weight: 800; }
+.pr-addon > p { font-size: 14px; line-height: 1.5; color: #cbd5e1; }
+.pr-addon-amount { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 0 6px; text-align: right; }
+.pr-addon-amount b { font-size: 20px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.2; }
+.pr-addon-amount span { font-size: 13px; font-weight: 700; color: #94a3b8; }
+.pr-addon summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; border-radius: 8px; font-size: 14px; font-weight: 700; color: #5eead4; }
+.pr-addon summary:hover { color: #99f6e4; }
+.pr-addon-more { display: flex; flex-direction: column; gap: 18px; padding: 4px 0 6px; }
+.pr-addon-more .pr-group { gap: 10px; }
+.pr-addon-more h4 { font-size: 14px; font-weight: 800; color: #94a3b8; }
+.pr-addon-more .pr-list { gap: 10px; font-size: 15px; }
 
 /* Bands below the cards */
 .pr-band { position: relative; border-top: 1px solid rgba(255, 255, 255, 0.1); padding: clamp(48px, 7vw, 80px) clamp(20px, 5vw, 40px); scroll-margin-top: 8px; }
