@@ -194,7 +194,18 @@ export function SegmentedTabs<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="-mx-1 flex min-w-0 gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <>
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(event) => onChange(event.target.value as T)}
+        className={cn(SELECT_CLASS, "sm:hidden")}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}{option.count ? ` (${option.count})` : ""}</option>
+        ))}
+      </select>
+    <div role="tablist" aria-label={ariaLabel} className="-mx-1 hidden min-w-0 gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:flex [&::-webkit-scrollbar]:hidden">
       {options.map((option) => {
         const active = option.value === value;
         const attrs = { [dataAttr]: option.value } as Record<string, string>;
@@ -218,6 +229,7 @@ export function SegmentedTabs<T extends string>({
         );
       })}
     </div>
+    </>
   );
 }
 

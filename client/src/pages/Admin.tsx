@@ -4289,8 +4289,27 @@ Generate exactly 10 questions.`;
           </div>
         </div>
         <nav aria-label="Admin sections" className="border-t border-border/60 lg:hidden">
-          <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {NAV.map((item) => navButton(item, "bar"))}
+          <div className="mx-auto max-w-7xl px-2 py-1.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" data-admin-nav-menu className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-border bg-card px-3 text-left text-sm font-semibold text-foreground">
+                  {(() => {
+                    const current = NAV.find((n) => n.id === tab) ?? NAV[0];
+                    return <><current.icon className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">{current.label}</span>{current.badge ? <CountBadge count={current.badge} /> : null}</>;
+                  })()}
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-[70vh] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto">
+                {NAV.map((item) => (
+                  <DropdownMenuItem key={item.id} data-admin-tab={item.id} className="gap-2 py-2" onSelect={() => { setTab(item.id); window.scrollTo({ top: 0 }); }}>
+                    <item.icon className="h-4 w-4" />
+                    <span className="min-w-0 flex-1">{item.label}</span>
+                    {item.badge ? <CountBadge count={item.badge} /> : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </nav>
       </header>
