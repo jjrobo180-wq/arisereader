@@ -4,8 +4,8 @@
 // schools, and their students get the Premium extras through them.
 // Teacher Hub is a separate add-on for teachers and schools, sold at the same
 // prices as Premium. It is not part of the free year or a free school.
-// Every teacher gets one free month of both: Premium (the teacher account, with
-// Arise Math) and Teacher Hub.
+// Every teacher gets a 30-day free trial of both: Premium (the teacher account,
+// called Class on the pricing page) and Teacher Hub.
 // This file is the single place the numbers live: the pricing page, the
 // server's plan checks and billing all read them from here.
 
@@ -39,16 +39,28 @@ export const PLANS = {
     monthlyCents: 500,
   },
   /**
-   * The Learning Bundle: Arise History, Arise Math and Arise Social together.
-   * A family pays $10 a month for the parent and every linked child. A teacher adds it
-   * on top of Premium for $50 a month, covering their class (up to 100 students).
-   * When a teacher's class plan covers every child in a family that is paying, the
-   * family's plan is cancelled and the unused part of the month refunded to their card.
+   * The Learning Bundle: Arise History, Arise Math and Arise Social together, for a family:
+   * $10 a month covers the parent and every linked child.
+   * (teacherMonthlyCents is the old all-three class plan, kept so plans bought before
+   * the apps were sold one by one keep working. It is no longer sold.)
    */
   bundle: {
     familyMonthlyCents: 1000,
     teacherMonthlyCents: 5000,
     teacherSeats: 100,
+  },
+  /**
+   * Class add-ons: a teacher adds each app for their class (up to 100 students), on top
+   * of Premium: Arise Math $12, Arise History $12 and Arise Social $7 a month.
+   * When class add-ons cover all three apps for every child in a family that is paying
+   * for the Learning Bundle, the family's plan is cancelled and the unused part of the
+   * month refunded to their card.
+   */
+  classApps: {
+    mathCents: 1200,
+    historyCents: 1200,
+    socialCents: 700,
+    seats: 100,
   },
   /** A.R.I.S.E. To-Do for parents: $10 a month. Teachers get it with Teacher Hub. */
   todo: {
@@ -74,12 +86,16 @@ export const PLANS = {
   /** A paid plan stays on this long past its end date, so a late renewal notice never locks a class out. */
   graceDays: 3,
   /**
-   * Every teacher's first month is free: Premium (the teacher account, with Arise
-   * Math) and Teacher Hub. The month starts when the account is made. For a
-   * teacher who already had an account when the free month began, it starts
-   * here instead: 8:36 pm on October 8, 2026, Mountain time.
+   * Every teacher's free trial: Premium (the teacher account) and Teacher Hub. It starts
+   * when the account is made. For a teacher who already had an account when the free
+   * time began, it starts here instead: 8:36 pm on October 8, 2026, Mountain time.
    */
   freeMonthFrom: "2026-10-09T02:36:00.000Z",
+  /**
+   * The free time became a 30-day trial at this moment (10 am on October 9, 2026, Mountain
+   * time). Teachers who signed up before then keep the full calendar month they were promised.
+   */
+  classTrialFrom: "2026-10-09T16:00:00.000Z",
 } as const;
 
 export const usd = (cents: number) => (cents % 100 === 0 ? `$${(cents / 100).toLocaleString("en-US")}` : `$${(cents / 100).toFixed(2)}`);
@@ -100,10 +116,20 @@ export function clampBlocks(blocks: unknown): number {
  * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
  * "hub_teacher" and "hub_school" are the Teacher Hub add-on.
  */
-export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family";
-export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family"];
-/** Plans bought for one person (or one family), not sized in blocks of students. */
-export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family";
+export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class";
+export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class"];
+/** The three apps in the Learning Bundle. */
+export type AppId = "math" | "history" | "social";
+export const APP_IDS: readonly AppId[] = ["math", "history", "social"];
+export const APP_NAMES: Record<AppId, string> = { math: "Arise Math", history: "Arise History", social: "Arise Social" };
+export const isAppId = (v: unknown): v is AppId => v === "math" || v === "history" || v === "social";
+/** The class add-on for one app. */
+export const classKindOf = (app: AppId): PlanKind => `${app}_class` as PlanKind;
+export const appOfClassKind = (kind: PlanKind): AppId | null => (kind === "math_class" ? "math" : kind === "history_class" ? "history" : kind === "social_class" ? "social" : null);
+export const isClassAppKind = (kind: PlanKind) => appOfClassKind(kind) !== null;
+export const classAppCents = (app: AppId) => (app === "math" ? PLANS.classApps.mathCents : app === "history" ? PLANS.classApps.historyCents : PLANS.classApps.socialCents);
+/** Plans bought for one person (or one family, or one teacher's class), not sized in blocks of students. */
+export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || isClassAppKind(kind);
 export const isPlanKind = (v: unknown): v is PlanKind => typeof v === "string" && (PLAN_KINDS as readonly string[]).includes(v);
 export const isSchoolKind = (kind: PlanKind) => kind === "school" || kind === "hub_school";
 export const isHubKind = (kind: PlanKind) => kind === "hub_teacher" || kind === "hub_school";
@@ -118,6 +144,8 @@ export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "y
   if (kind === "bundle_family") return { cents: PLANS.bundle.familyMonthlyCents, interval: "month", seats: () => 1 };
   if (kind === "bundle_teacher") return { cents: PLANS.bundle.teacherMonthlyCents, interval: "month", seats: () => PLANS.bundle.teacherSeats };
   if (kind === "todo_family") return { cents: PLANS.todo.familyMonthlyCents, interval: "month", seats: () => 1 };
+  const app = appOfClassKind(kind);
+  if (app) return { cents: classAppCents(app), interval: "month", seats: () => PLANS.classApps.seats };
   const t = kind === "hub_teacher" ? PLANS.hub : PLANS.teacher;
   return { cents: t.monthlyCents, interval: "month", seats: (blocks) => clampBlocks(blocks) * t.studentsPerBlock };
 }
@@ -184,14 +212,17 @@ export function monthAfter(ms: number): number {
 }
 
 /**
- * When a teacher's free month ends (ISO): one month after they made their account.
- * An account that was already there when the free month began, or has no sign-up
- * date on record, counts from `freeMonthFrom`.
+ * When a teacher's free trial ends (ISO): 30 days after they made their account.
+ * An account that was already there when the free time began, or has no sign-up date
+ * on record, counts from `freeMonthFrom`. Accounts made before `classTrialFrom` were
+ * promised a calendar month, and keep it.
  */
 export function freeMonthEnd(createdAt: unknown): string {
   const from = Date.parse(PLANS.freeMonthFrom);
   const t = signedUpAt(createdAt);
-  return new Date(monthAfter(Number.isFinite(t) && t > from ? t : from)).toISOString();
+  const start = Number.isFinite(t) && t > from ? t : from;
+  if (start < Date.parse(PLANS.classTrialFrom)) return new Date(monthAfter(start)).toISOString();
+  return new Date(start + PLANS.trialDays * 86_400_000).toISOString();
 }
 
 /** Is this teacher still in their free month? */
@@ -381,7 +412,7 @@ export const trialDaysLeft = (createdAt: unknown, now = Date.now()) => Math.max(
 export type AddonVia =
   | "admin" | "demo"
   | "family-plan"      // a parent's Learning Bundle (the parent, or a child of theirs)
-  | "class-plan"       // a teacher's Learning Bundle covering their class (the teacher, or a student in it)
+  | "class-plan"       // a teacher's class add-on for this app (the teacher, or a student in the class)
   | "social-plan"      // an Arise Social plan bought before the Learning Bundle existed
   | "child-in-class"   // a parent whose every linked child is covered by a class plan
   | "hub"              // To-Do for a teacher, through Teacher Hub
@@ -391,20 +422,28 @@ export type AddonAccess = { access: boolean; via: AddonVia | null; endsAt: strin
 
 export type BundleFacts = {
   now?: number;
-  /** The person's own Learning Bundle (bundle_family for a parent, bundle_teacher for a teacher). */
+  /** Parents: their family's Learning Bundle. Teachers: their class add-on for this app (or the old all-three class plan). */
   ownGrant?: PlanGrant | null;
   /** An old Arise Social plan of the person's own. */
   socialGrant?: PlanGrant | null;
   /** Students: the family plans of their linked parents. */
   parentGrants?: (PlanGrant | null)[];
-  /** Students: their teacher's class plan, if the teacher approved them into the class. */
+  /** Students: their teacher's class add-on for this app, if the teacher approved them into the class. */
   classGrant?: PlanGrant | null;
-  /** Parents: does a class plan cover every one of their linked children (at least one)? */
+  /** Parents: do class add-ons for this app cover every one of their linked children (at least one)? */
   allChildrenInClassPlans?: boolean;
 };
 
-/** Can this person use Arise History, Arise Math and Arise Social? */
-export function bundleAccessFor(person: PlanPerson | null | undefined, facts: BundleFacts): AddonAccess {
+/** Is this grant a class add-on covering this app: the app's own, or the old all-three class plan? */
+export function classGrantCovers(g: PlanGrant | null | undefined, app: AppId, now = Date.now()): boolean {
+  return !!g && (g.kind === classKindOf(app) || g.kind === "bundle_teacher") && grantLive(g, now);
+}
+
+/**
+ * Can this person use one of the apps (Arise Math, Arise History or Arise Social)?
+ * The facts are for that app: a teacher's class add-on is per app; a family's plan covers all three.
+ */
+export function appAccessFor(person: PlanPerson | null | undefined, app: AppId, facts: BundleFacts): AddonAccess {
   const none: AddonAccess = { access: false, via: null, endsAt: null, trialEndsAt: null };
   if (!person) return none;
   if (person.isAdmin || person.role === "admin") return { ...none, access: true, via: "admin" };
@@ -412,15 +451,15 @@ export function bundleAccessFor(person: PlanPerson | null | undefined, facts: Bu
   const now = facts.now ?? Date.now();
   const live = (g: PlanGrant | null | undefined, kind: PlanKind) => !!g && g.kind === kind && grantLive(g, now);
   const yes = (via: AddonVia, g?: PlanGrant | null): AddonAccess => ({ access: true, via, endsAt: g?.endsAt ?? null, trialEndsAt: null });
-  if (person.role === "teacher" && live(facts.ownGrant, "bundle_teacher")) return yes("class-plan", facts.ownGrant);
+  if (person.role === "teacher" && classGrantCovers(facts.ownGrant, app, now)) return yes("class-plan", facts.ownGrant);
   if (person.role === "parent" && live(facts.ownGrant, "bundle_family")) return yes("family-plan", facts.ownGrant);
   if (person.role !== "teacher" && person.role !== "parent") {
     const fam = (facts.parentGrants || []).find((g) => live(g, "bundle_family"));
     if (fam) return yes("family-plan", fam);
-    if (live(facts.classGrant, "bundle_teacher")) return yes("class-plan", facts.classGrant);
+    if (classGrantCovers(facts.classGrant, app, now)) return yes("class-plan", facts.classGrant);
   }
   if (person.role === "parent" && facts.allChildrenInClassPlans) return yes("child-in-class");
-  if (live(facts.socialGrant, "social")) return yes("social-plan", facts.socialGrant);
+  if (app === "social" && live(facts.socialGrant, "social")) return yes("social-plan", facts.socialGrant);
   if (inTrial(person.createdAt, now)) return { access: true, via: "trial", endsAt: trialEnd(person.createdAt), trialEndsAt: trialEnd(person.createdAt) };
   return { ...none, trialEndsAt: trialEnd(person.createdAt) };
 }

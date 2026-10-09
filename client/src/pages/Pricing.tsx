@@ -1,9 +1,9 @@
 // Plans and pricing. Public: anyone can open it without an account.
 // Free is for students and their parents; Class is for teachers and schools
 // (the plan the rest of the code calls Premium). Each card lists its add-ons right
-// under its prices: Teacher Hub, the Learning Bundle and A.R.I.S.E. To-Do for a
-// class, and the Learning Bundle and To-Do for a family.
-// A teacher's first month of Class and Teacher Hub is free.
+// under its prices: Teacher Hub, Arise Math, Arise History, Arise Social and
+// A.R.I.S.E. To-Do for a class, and the Learning Bundle and To-Do for a family.
+// Class and Teacher Hub start with a 30-day free trial, and so does every add-on.
 // Every price and limit on this page comes from shared/plans.ts.
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
@@ -11,11 +11,12 @@ import { useAuth } from "@/context/AuthContext";
 import { PLANS, freeMonthEnd, usd } from "@shared/plans";
 import "./pricing.css";
 
-const T = PLANS.teacher, S = PLANS.school, H = PLANS.hub, BU = PLANS.bundle, TD = PLANS.todo;
+const T = PLANS.teacher, S = PLANS.school, H = PLANS.hub, BU = PLANS.bundle, TD = PLANS.todo, CA = PLANS.classApps;
+const DAYS = PLANS.trialDays;
 const block = T.studentsPerBlock.toLocaleString("en-US");
 const schoolCap = S.studentCap.toLocaleString("en-US");
 const kids = PLANS.parentMaxChildren;
-// The site keeps Mountain time, so the free month's dates read the same for everyone.
+// The site keeps Mountain time, so the free trial's dates read the same for everyone.
 const mountainDay = (isoDate: string) => new Date(isoDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/Denver" });
 
 const Yes = ({ label = "Included" }: { label?: string }) => (
@@ -75,7 +76,7 @@ type Addon = { id: string; name: string; tag: string; amount: string; per: strin
 const CLASS_ADDONS: Addon[] = [
   { id: "hub", name: "Teacher Hub", tag: "Caseloads, IEP timelines, lessons and grades",
     amount: usd(H.monthlyCents), per: "a month",
-    detail: `One teacher: ${usd(H.monthlyCents)} a month for up to ${hubBlock} students, plus ${usd(H.monthlyCents)} for each extra ${hubBlock}. Whole school: ${usd(H.schoolYearlyCents)} a year for up to ${H.schoolStudentCap.toLocaleString("en-US")} students, a full 12 months. It works with or without Class, and a teacher's first month is free.`,
+    detail: `One teacher: ${usd(H.monthlyCents)} a month for up to ${hubBlock} students, plus ${usd(H.monthlyCents)} for each extra ${hubBlock}. Whole school: ${usd(H.schoolYearlyCents)} a year for up to ${H.schoolStudentCap.toLocaleString("en-US")} students, a full 12 months. It works with or without Class, and starts with a ${DAYS}-day free trial.`,
     items: [
       "Caseloads with accommodations, reading and math levels, and an IEP and meeting timeline",
       "Lesson plans, reminders and to-dos, plus check-ins, concerns and meeting notes for each student",
@@ -84,10 +85,18 @@ const CLASS_ADDONS: Addon[] = [
       "A calendar that connects to Google, Outlook or Apple, and an email organizer",
       "Private to each teacher, on a phone, tablet or computer",
     ] },
-  { id: "bundle", name: "Learning Bundle", tag: "Arise History, Arise Math and Arise Social",
-    amount: usd(BU.teacherMonthlyCents), per: "a month",
-    detail: `For a class of up to ${BU.teacherSeats} students, on top of Class. 30 days free first, no card needed. A family that was paying gets its unused days refunded once the class plan covers all of its children.`,
-    items: BUNDLE_APPS },
+  { id: "math", name: "Arise Math", tag: "Practice for every grade that levels up",
+    amount: usd(CA.mathCents), per: "a month",
+    detail: `For a class of up to ${CA.seats} students, on top of Class. ${DAYS} days free first, no card needed.`,
+    items: ["Quizzes and practice for every grade, with points on a class leaderboard", "Assignments, certificates and live review games for the class"] },
+  { id: "history", name: "Arise History", tag: "True stories, quizzes and points",
+    amount: usd(CA.historyCents), per: "a month",
+    detail: `For a class of up to ${CA.seats} students, on top of Class. ${DAYS} days free first, no card needed.`,
+    items: ["Short true stories with a quiz on each, and points on a class leaderboard", "Assignments, your own questions, certificates and live review games"] },
+  { id: "social", name: "Arise Social", tag: "Careers for every path, with the class",
+    amount: usd(CA.socialCents), per: "a month",
+    detail: `For a class of up to ${CA.seats} students, on top of Class. ${DAYS} days free first, no card needed. When a class has all three, families who were paying for the Learning Bundle get their unused days refunded.`,
+    items: ["Trades, the military, teaching, health care, tech and college paths, with quests and events", "You approve every student post, and there are no private messages"] },
   { id: "todo", name: "A.R.I.S.E. To-Do", tag: "Comes with Teacher Hub",
     amount: "Included", per: "",
     detail: "Lists, chores, the family calendar, polls, trips, money and notes. Teachers get it with Teacher Hub: one subscription for both.",
@@ -96,7 +105,7 @@ const CLASS_ADDONS: Addon[] = [
 const FAMILY_ADDONS: Addon[] = [
   { id: "family-bundle", name: "Learning Bundle", tag: "Arise History, Arise Math and Arise Social",
     amount: usd(BU.familyMonthlyCents), per: "a month",
-    detail: "One plan covers the parent and every linked child. 30 days free first, no card needed. If a teacher's class plan covers every child, the family's plan stops and the unused days are refunded to their card.",
+    detail: `One plan covers the parent and every linked child. ${DAYS} days free first, no card needed. If every child's teacher adds all three for the class, the family's plan stops and the unused days are refunded to their card.`,
     items: BUNDLE_APPS },
   { id: "family-todo", name: "A.R.I.S.E. To-Do", tag: "Lists, chores and the family calendar",
     amount: usd(TD.familyMonthlyCents), per: "a month",
@@ -153,22 +162,22 @@ const QUESTIONS: [string, string][] = [
     "No. There is no cap on books or quizzes. The only limit on Free is game time: 10 minutes a day, or unlimited for the rest of the week once they pass a book quiz."],
   ["Who gives the prizes?",
     "Parents, teachers and schools do. A.R.I.S.E. doesn't hand out prizes on any plan. On Free, a parent can add their own prize for their child. On Class, a teacher or school can also add prizes for a class or the whole school, and they show up right in the leaderboards and competitions."],
-  ["Is there a free month for teachers?",
-    `Yes. Every teacher's first month is free: the teacher account and Teacher Hub (with A.R.I.S.E. To-Do). It starts the day you make your teacher account, and no card is needed. Teachers who already had an account on ${mountainDay(PLANS.freeMonthFrom)} have theirs until ${mountainDay(freeMonthEnd(null))}.`],
+  ["Is there a free trial for teachers?",
+    `Yes. Every teacher gets ${DAYS} days free of the Class plan and Teacher Hub (with A.R.I.S.E. To-Do), plus ${DAYS} days of Arise Math, Arise History and Arise Social for the class. It starts the day you make your teacher account, no card is needed, and your dashboard counts down the days. Teachers who already had an account on ${mountainDay(PLANS.freeMonthFrom)} have theirs until ${mountainDay(freeMonthEnd(null))}.`],
   ["How much is Class?",
     `A teacher pays ${usd(T.monthlyCents)} a month for up to ${block} students, plus ${usd(T.monthlyCents)} a month for each extra ${block}. A school pays ${usd(S.yearlyCents)} a year for up to ${schoolCap} students, and every teacher gets their own account. A school's year is a full 12 months, so summer reading clubs and competitions are covered.`],
   ["My school already uses A.R.I.S.E. What changes for us?",
     "Nothing this school year. Teachers and students at any school who signed up before October 1, 2026 keep everything they have today, free, for the full 2026–27 school year."],
   ["What is Teacher Hub?",
     `A separate add-on: a private workspace for caseloads, IEP timelines, lessons, notes, attendance, grades, parent contact and schedules. It is ${usd(H.monthlyCents)} a month for up to ${H.studentsPerBlock.toLocaleString("en-US")} students, plus ${usd(H.monthlyCents)} a month for each extra ${H.studentsPerBlock.toLocaleString("en-US")}, or ${usd(H.schoolYearlyCents)} a year for a whole school of up to ${H.schoolStudentCap.toLocaleString("en-US")} students.`],
-  ["What is the Learning Bundle?",
-    `Arise History, Arise Math and Arise Social together. Every student, parent and teacher gets 30 days free, no card needed, with a countdown on their page. After that, a family pays ${usd(BU.familyMonthlyCents)} a month for the parent and every linked child, or a teacher adds it for their class for ${usd(BU.teacherMonthlyCents)} a month on top of Class (up to ${BU.teacherSeats} students).`],
-  ["We pay for the bundle and our child's teacher added it too. Do we keep paying?",
-    "No. A teacher's class plan takes over. Once every child you've linked is in a class that has it, your family plan stops and we refund the unused part of the month to your card."],
+  ["How much are Arise Math, Arise History and Arise Social?",
+    `Every student, parent and teacher gets ${DAYS} days free, no card needed, with a countdown on their page. After that, a teacher adds each one for their class (up to ${CA.seats} students) on top of Class: Arise Math ${usd(CA.mathCents)}, Arise History ${usd(CA.historyCents)} and Arise Social ${usd(CA.socialCents)} a month. A family gets all three together in the Learning Bundle for ${usd(BU.familyMonthlyCents)} a month, for the parent and every linked child.`],
+  ["We pay for the Learning Bundle and our child's teacher added the apps too. Do we keep paying?",
+    "No. Once every child you've linked is in a class that has all three (Math, History and Social), your family plan stops and we refund the unused part of the month to your card."],
   ["What does A.R.I.S.E. To-Do cost?",
-    `Parents get 30 days free, then it's ${usd(TD.familyMonthlyCents)} a month. Teachers get it with Teacher Hub: one subscription for both.`],
+    `Parents get ${DAYS} days free, then it's ${usd(TD.familyMonthlyCents)} a month. Teachers get it with Teacher Hub: one subscription for both.`],
   ["Is Teacher Hub included with Class or a free school?",
-    "No. After a teacher's free first month, Teacher Hub is paid on its own. It isn't part of Class, the free 2026–27 school year, or any school that has Class at no charge."],
+    `No. After a teacher's ${DAYS}-day free trial, Teacher Hub is paid on its own. It isn't part of Class, the free 2026–27 school year, or any school that has Class at no charge.`],
 ];
 
 function Price({ who, detail, amount, per, premium }: { who: string; detail: ReactNode; amount: string; per: string; premium?: boolean }) {
@@ -247,7 +256,7 @@ export default function Pricing() {
             <Price who="Parents" detail={`One parent profile can follow up to ${kids} children.`} amount="$0" per="always" />
           </div>
           <Addons title="Add-ons for families" addons={FAMILY_ADDONS} testId="pricing-family-addons"
-            foot={<>Optional. Every account starts with 30 days of both free, no card needed. <button type="button" className="pr-text" onClick={startFree}>Start free</button></>} />
+            foot={<>Optional. Every account starts with {DAYS} days of both free, no card needed. <button type="button" className="pr-text" onClick={startFree}>Start free</button></>} />
           <p className="pr-about">Free books, poems and kids' news to read right on the site, plus quizzes, the leaderboard and the games. No trial and no end date.</p>
           <button type="button" className="pr-pill pr-pill-ghost pr-wide" onClick={startFree} data-testid="pricing-start-free">Start reading free</button>
           <div className="pr-group"><h3>For students</h3><List items={FREE_STUDENTS} /></div>
@@ -264,7 +273,7 @@ export default function Pricing() {
             </div>
             <Addons title="Add-ons" addons={CLASS_ADDONS} testId="pricing-addons"
               foot={<>Not included with Class, the free 2026–27 school year or a no-charge school. <button type="button" className="pr-text" onClick={getAddon} data-testid="pricing-get-hub">Get an add-on</button></>} />
-            <p className="pr-about">The tools to run reading in a classroom, on top of everything in Free. Parents of the class get their accounts free too. A teacher's first month is free.</p>
+            <p className="pr-about">The tools to run reading in a classroom, on top of everything in Free. Parents of the class get their accounts free too. Starts with a {DAYS}-day free trial, no card needed.</p>
             <button type="button" className="pr-pill pr-wide" onClick={getClass} data-testid="pricing-get-premium">Get Class</button>
             <div className="pr-group premium"><h3>For the teacher</h3><List items={PREMIUM_TEACHER} /></div>
             <div className="pr-group premium"><h3>For their students and parents</h3><List items={PREMIUM_FAMILIES} /></div>

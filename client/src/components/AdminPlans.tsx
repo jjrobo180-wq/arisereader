@@ -28,7 +28,13 @@ function cookieToken(): string | null {
 }
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "No end date");
 const select = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
-const KIND_LABEL: Record<PlanKind, string> = { school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Teacher Hub · School", hub_teacher: "Teacher Hub · Teacher", social: "Arise Social · Account" };
+const KIND_LABEL: Record<PlanKind, string> = {
+  school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Teacher Hub · School", hub_teacher: "Teacher Hub · Teacher",
+  social: "Arise Social · Account (old)", bundle_family: "Learning Bundle · Family", bundle_teacher: "Learning Bundle · Class (old)",
+  todo_family: "To-Do · Family", math_class: "Arise Math · Class", history_class: "Arise History · Class", social_class: "Arise Social · Class",
+};
+/** Plans given to one parent account, picked by its ID. */
+const byAccountId = (k: PlanKind) => k === "social" || k === "bundle_family" || k === "todo_family";
 const isSchool = (k: PlanKind) => k === "school" || k === "hub_school";
 
 export default function AdminPlans() {
@@ -80,7 +86,7 @@ export default function AdminPlans() {
     const freeNames = (data.freeSchools || []).filter((f) => f.free).map((f) => f.name).join(", ");
     const noPayment = turnOn && !data.stripe.keySet ? "Online payment is not set up yet, so a new teacher would have no way to pay. Set the Stripe key first, or switch Premium on by hand for each teacher.\n\n" : "";
     const question = turnOn
-      ? noPayment + "Turn plan rules ON?\n\n" + (freeNames ? `Teachers at ${freeNames} always have Premium at no charge.\n\n` : "") + "Other teachers who signed up on or after October 1, 2026 will need Premium to use their account once their free first month is over. Students on Free lose AI study sets and lessons from their own topics. Parents can follow up to 5 children.\n\nTeachers and school students who signed up before October 1, 2026 keep everything until July 1, 2027."
+      ? noPayment + "Turn plan rules ON?\n\n" + (freeNames ? `Teachers at ${freeNames} always have Premium at no charge.\n\n` : "") + "Other teachers who signed up on or after October 1, 2026 will need Premium to use their account once their 30-day free trial is over. Students on Free lose AI study sets and lessons from their own topics. Parents can follow up to 5 children.\n\nTeachers and school students who signed up before October 1, 2026 keep everything until July 1, 2027."
       : "Turn plan rules OFF?\n\nEverything opens up for everyone again. Paid plans keep running and keep being charged.";
     if (!window.confirm(question)) return;
     await post("rules", "/api/admin/plans/enforce", { enforced: turnOn }, turnOn ? "Plan rules are on." : "Plan rules are off.");
@@ -135,7 +141,7 @@ export default function AdminPlans() {
               </div>
               <p className="text-sm text-muted-foreground">
                 {data.enforced
-                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Every teacher's first month is free, with Teacher Hub included. Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
+                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Every teacher gets a 30-day free trial, with Teacher Hub included. Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
                   : "Nothing is locked for anyone. Turn the rules on when you are ready for the Free and Premium plans to apply."}
               </p>
             </div>
@@ -203,12 +209,16 @@ export default function AdminPlans() {
                     <option value="teacher">Premium: one teacher</option>
                     <option value="hub_school">Teacher Hub: a whole school (up to {PLANS.hub.schoolStudentCap.toLocaleString("en-US")} students)</option>
                     <option value="hub_teacher">Teacher Hub: one teacher</option>
-                    <option value="social">Arise Social: one account (student, parent or teacher)</option>
+                    <option value="math_class">Arise Math: one teacher's class</option>
+                    <option value="history_class">Arise History: one teacher's class</option>
+                    <option value="social_class">Arise Social: one teacher's class</option>
+                    <option value="bundle_family">Learning Bundle: one family (parent account ID)</option>
+                    <option value="todo_family">A.R.I.S.E. To-Do: one family (parent account ID)</option>
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">{isSchool(kind) ? "School" : kind === "social" ? "Account ID" : "Teacher"}</Label>
-                  {kind === "social" ? (
+                  <Label className="text-xs">{isSchool(kind) ? "School" : byAccountId(kind) ? "Parent account ID" : "Teacher"}</Label>
+                  {byAccountId(kind) ? (
                     <Input value={ownerId} onChange={(e) => setOwnerId(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="The account's ID number" />
                   ) : (
                   <select className={select} value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
@@ -228,7 +238,7 @@ export default function AdminPlans() {
                     <option value="0">No end date</option>
                   </select>
                 </div>
-                {!isSchool(kind) && kind !== "social" && (
+                {(kind === "teacher" || kind === "hub_teacher") && (
                   <div className="space-y-1">
                     <Label className="text-xs">Students covered</Label>
                     <select className={select} value={blocks} onChange={(e) => setBlocks(e.target.value)}>
@@ -238,14 +248,14 @@ export default function AdminPlans() {
                 )}
               </div>
               <Input value={grantNote} onChange={(e) => setGrantNote(e.target.value)} maxLength={120} placeholder="Note for yourself (optional), such as PO 1234" />
-              <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : kind.startsWith("hub_") ? "Switch Teacher Hub on" : kind === "social" ? "Switch Arise Social on" : "Switch Premium on"}</Button>
+              <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : kind.startsWith("hub_") ? "Switch Teacher Hub on" : kind === "teacher" || kind === "school" ? "Switch Premium on" : `Switch ${KIND_LABEL[kind].split(" · ")[0]} on`}</Button>
             </div>
 
             {/* Online payment */}
             <div className="space-y-3 pt-4 border-t border-border">
               <Label className="text-sm font-medium">Online payment (Stripe)</Label>
               <p className="text-sm text-muted-foreground">
-                Premium and Teacher Hub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.yearlyCents)} a year for a school. Apart from a teacher's free first month, Teacher Hub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
+                Premium and Teacher Hub are sold separately, each at {usd(PLANS.teacher.monthlyCents)} a month per {PLANS.teacher.studentsPerBlock} students for a teacher, or {usd(PLANS.school.yearlyCents)} a year for a school. Apart from a teacher's 30-day free trial, Teacher Hub is never free, even at always-free schools or while plan rules are off. Payment stays closed until a Stripe secret key is set.
               </p>
               <div className="space-y-1 text-sm">
                 <div className={data.stripe.keySet ? "text-green-400" : "text-muted-foreground"}>

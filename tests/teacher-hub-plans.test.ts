@@ -198,13 +198,13 @@ test("every teacher who already had an account gets Teacher Hub free for a month
   assert.equal((await plans.hubAccess(USERS[50])).access, false);
 });
 
-test("a new teacher's free month of Teacher Hub starts the day they make their account", async () => {
+test("a new teacher's 30-day Teacher Hub trial starts the day they make their account", async () => {
   const signedUp = Date.parse("2026-12-20T16:00:00.000Z");
   USERS[70] = { id: 70, displayName: "Ms. Brand New", role: "teacher", createdAt: new Date(signedUp).toISOString(), school_id: 3 };
   try {
     const { plans, clock } = setup({ now: signedUp + 5 * 60_000 });
     const h = await plans.hubAccess(USERS[70]);
-    assert.deepEqual([h.access, h.via, h.endsAt], [true, "free-month", "2027-01-20T16:00:00.000Z"]);
+    assert.deepEqual([h.access, h.via, h.endsAt], [true, "free-month", "2027-01-19T16:00:00.000Z"], "30 days");
     assert.equal((await plans.hubAccess(USERS[50])).access, false, "an older teacher's month is already over");
     clock.now = signedUp + 20 * DAY;
     plans.forget();

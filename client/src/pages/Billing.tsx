@@ -62,12 +62,12 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "good", title: "Premium is free for you this school year", lines: [
         "You signed up before October 1, 2026, so you keep everything at no cost.",
         `Your free year runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
-        "The add-ons further down this page (Teacher Hub and the Learning Bundle) are optional and paid separately.",
+        "The add-ons further down this page (Teacher Hub, Arise Math, Arise History and Arise Social) are optional and paid separately.",
       ] };
     case "free-month":
-      return { tone: "good", title: "Your first month is free", lines: [
-        "Your teacher account, Arise Math and Teacher Hub are all open to you at no cost.",
-        `Your free month runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
+      return { tone: "good", title: "You're on a 30-day free trial", lines: [
+        "Your Class plan (the teacher account) and Teacher Hub are open to you at no cost, and so are Arise Math, Arise History and Arise Social for your class.",
+        `Your free trial runs until ${day(plan.endsAt)}. There is nothing to pay before then, and no card is needed.`,
       ] };
     case "rules-off":
       return { tone: "plain", title: "Plans haven't started yet", lines: ["Every teacher tool is open to you for now. You don't need to do anything."] };
@@ -77,8 +77,8 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
     default: {
       const ended = plan.freeMonthEndsAt && Date.parse(plan.freeMonthEndsAt) <= Date.now() ? day(plan.freeMonthEndsAt) : "";
       return { tone: "need", title: "Your teacher account needs Premium", lines: [
-        ...(ended ? [`Your free month ended on ${ended}.`] : []),
-        "Teacher tools are part of A.R.I.S.E. Premium: your dashboard, Arise Math, live class games, game controls and more.",
+        ...(ended ? [`Your free trial ended on ${ended}.`] : []),
+        "Teacher tools are part of the Class plan: your dashboard, live class games, game controls and more.",
         "Your students keep reading, taking quizzes and playing for free either way.",
       ] };
     }
@@ -207,7 +207,7 @@ export default function Billing() {
 
         {(freeYear || freeMonth) && plan && (
           <div className="bl-card">
-            <h2>When your free {freeMonth ? "month" : "year"} ends</h2>
+            <h2>When your free {freeMonth ? "trial" : "year"} ends</h2>
             <p>After {day(plan.endsAt)}, Premium is {usd(PLANS.teacher.monthlyCents)} a month for each {PLANS.teacher.studentsPerBlock} students, or {usd(PLANS.school.yearlyCents)} a year for a whole school of up to {count(PLANS.school.studentCap)} students. You'll be able to pay on this page when the time comes.</p>
           </div>
         )}
@@ -296,9 +296,9 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
 
       {hub.access ? (
         <div className="bl-status good">
-          <h2>{freeMonth ? "Teacher Hub is free for your first month" : hub.via === "hub-school-plan" ? "You have Teacher Hub through your school" : "You have Teacher Hub"}</h2>
+          <h2>{freeMonth ? "Teacher Hub is on your 30-day free trial" : hub.via === "hub-school-plan" ? "You have Teacher Hub through your school" : "You have Teacher Hub"}</h2>
           {freeMonth
-            ? <p>Your free month runs until {day(hub.endsAt)}, with no limit on the students in your caseload.</p>
+            ? <p>Your free trial runs until {day(hub.endsAt)}, with no limit on the students in your caseload. A.R.I.S.E. To-Do comes with it.</p>
             : hub.via === "hub-school-plan"
               ? <p>{plan.school?.name || "Your school"}'s plan covers up to {count(hub.seats ?? H.schoolStudentCap)} students, and every teacher there gets their own Hub.</p>
               : <p>Your plan covers up to {count(hub.seats ?? 0)} students in your caseload. You have {count(hub.students)}.</p>}
@@ -333,7 +333,7 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
               <small>Runs a full 12 months.</small>
             </div>
           </div>
-          <p className="bl-foot">After a teacher's free first month, Teacher Hub isn't included free with any A.R.I.S.E. plan or school. <button type="button" className="bl-text" onClick={pricing}>See what Teacher Hub includes</button></p>
+          <p className="bl-foot">After a teacher's 30-day free trial, Teacher Hub isn't included free with any A.R.I.S.E. plan or school. <button type="button" className="bl-text" onClick={pricing}>See what Teacher Hub includes</button></p>
         </>
       )}
 

@@ -171,20 +171,24 @@ test("one month later is the same day and time next month, or the month's last d
   assert.equal(at("2027-03-31T10:00:00.000Z"), "2027-04-30T10:00:00.000Z");
 });
 
-test("the free month starts now for accounts that already exist, and at sign-up for new ones", () => {
+test("the free trial starts now for accounts that already exist, and at sign-up for new ones: 30 days", () => {
   assert.equal(PLANS.freeMonthFrom, "2026-10-09T02:36:00.000Z", "8:36 pm on October 8, 2026, Mountain time");
   // accounts from before the start, and accounts with no date on record
   for (const made of [EARLY, LATE, null, undefined, "", "not a date"]) assert.equal(freeMonthEnd(made), "2026-11-09T02:36:00.000Z", String(made));
-  // a new account
-  assert.equal(freeMonthEnd("2026-10-20T15:00:00.000Z"), "2026-11-20T15:00:00.000Z");
-  assert.equal(freeMonthEnd(new Date("2027-03-02T09:30:00.000Z")), "2027-04-02T09:30:00.000Z");
+  // a teacher who signed up after the free time began but before it became a 30-day trial keeps a full month
+  assert.equal(freeMonthEnd("2026-10-09T10:00:00.000Z"), "2026-11-09T10:00:00.000Z");
+  // a new account: 30 days from sign-up
+  assert.equal(PLANS.classTrialFrom, "2026-10-09T16:00:00.000Z", "10 am on October 9, 2026, Mountain time");
+  assert.equal(freeMonthEnd("2026-10-20T15:00:00.000Z"), "2026-11-19T15:00:00.000Z");
+  assert.equal(freeMonthEnd(new Date("2027-03-02T09:30:00.000Z")), "2027-04-01T09:30:00.000Z");
 
   assert.equal(inFreeMonth(LATE, FREE_FROM), true, "the moment it starts");
   assert.equal(inFreeMonth(LATE, FREE_FROM - 1), false, "not before it starts");
   assert.equal(inFreeMonth(LATE, Date.parse("2026-11-09T02:35:59.000Z")), true);
   assert.equal(inFreeMonth(LATE, Date.parse("2026-11-09T02:36:00.000Z")), false, "over");
   assert.equal(inFreeMonth("2027-03-02T09:30:00.000Z", Date.parse("2027-03-02T09:31:00.000Z")), true, "a teacher who signed up a minute ago");
-  assert.equal(inFreeMonth("2027-03-02T09:30:00.000Z", Date.parse("2027-04-03T09:30:00.000Z")), false);
+  assert.equal(inFreeMonth("2027-03-02T09:30:00.000Z", Date.parse("2027-04-01T09:29:00.000Z")), true, "day 30");
+  assert.equal(inFreeMonth("2027-03-02T09:30:00.000Z", Date.parse("2027-04-01T09:30:00.000Z")), false, "30 days on");
 });
 
 test("in the free month a teacher has Premium and Teacher Hub, and their class gets the extras", () => {

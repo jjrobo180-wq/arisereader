@@ -23,8 +23,8 @@
 import type { Express, RequestHandler } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  PLANS, PLAN_KINDS, PREMIUM_REQUIRED, bundleAccessFor, clampBlocks, entitlementFor, freeMonthEnd, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
-  type AddonAccess,
+  APP_IDS, APP_NAMES, PLANS, PLAN_KINDS, PREMIUM_REQUIRED, appAccessFor, appOfClassKind, classAppCents, classGrantCovers, classKindOf, clampBlocks, isAppId, isClassAppKind, entitlementFor, freeMonthEnd, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
+  type AddonAccess, type AppId,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
 } from "../shared/plans";
@@ -812,47 +812,56 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const linkedChildren = async (parent: AnyUser): Promise<number[]> =>
     parent.role === "parent" && deps.parentChildIds ? (await deps.parentChildIds(parent.id)).map(posInt).filter(Boolean) : [];
-  /** The class plan covering this student, if their teacher approved them into a class that has one. */
-  const classPlanOf = async (student: AnyUser | null | undefined): Promise<PlanGrant | null> => {
-    if (!student || student.role !== "student" || student.approvedByTeacher === false || !posInt(student.teacherId)) return null;
-    const g = await current("bundle_teacher", Number(student.teacherId));
-    return grantLive(g, now()) ? g : null;
+  /** A teacher's class add-on for an app: the app's own, or the old all-three class plan. */
+  const teacherClassGrant = async (teacherId: number, app: AppId): Promise<PlanGrant | null> => {
+    const own = await current(classKindOf(app), teacherId);
+    if (classGrantCovers(own, app, now())) return own;
+    const old = await current("bundle_teacher", teacherId);
+    return classGrantCovers(old, app, now()) ? old : null;
   };
-  const childrenCoveredByClass = async (parent: AnyUser): Promise<boolean> => {
+  /** The class add-on covering this student for an app, if their teacher approved them into a class that has it. */
+  const classPlanOf = async (student: AnyUser | null | undefined, app: AppId): Promise<PlanGrant | null> => {
+    if (!student || student.role !== "student" || student.approvedByTeacher === false || !posInt(student.teacherId)) return null;
+    return teacherClassGrant(Number(student.teacherId), app);
+  };
+  /** Are all of this parent's linked children (at least one) covered by class add-ons for these apps? */
+  const childrenCoveredByClass = async (parent: AnyUser, apps: readonly AppId[] = APP_IDS): Promise<boolean> => {
     const ids = await linkedChildren(parent);
     if (!ids.length) return false;
-    for (const id of ids) if (!(await classPlanOf(await deps.getUser(id)))) return false;
+    for (const id of ids) {
+      const child = await deps.getUser(id);
+      for (const app of apps) if (!(await classPlanOf(child, app))) return false;
+    }
     return true;
   };
 
-  /** Learning Bundle access for this account, and why. Remembered briefly; a database hiccup lets the person in. */
-  const bundleStatus = async (user: AnyUser | null | undefined): Promise<AddonAccess> => {
+  /** Access to one app for this account, and why. Remembered briefly; a database hiccup lets the person in. */
+  const appStatus = async (user: AnyUser | null | undefined, app: AppId): Promise<AddonAccess> => {
     if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null, trialEndsAt: null };
-    const key = `b|${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
+    const key = `${app}|${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
     const hit = addonCache.get(key);
     if (hit && now() - hit.at < CACHE_MS) return hit.value;
     try {
-      const facts: Parameters<typeof bundleAccessFor>[1] = { now: now(), socialGrant: await current("social", user.id) };
-      if (user.role === "teacher") facts.ownGrant = await current("bundle_teacher", user.id);
+      const facts: Parameters<typeof appAccessFor>[2] = { now: now(), socialGrant: app === "social" ? await current("social", user.id) : null };
+      if (user.role === "teacher") facts.ownGrant = await teacherClassGrant(user.id, app);
       else if (user.role === "parent") {
         facts.ownGrant = await current("bundle_family", user.id);
-        facts.allChildrenInClassPlans = await childrenCoveredByClass(user);
+        facts.allChildrenInClassPlans = await childrenCoveredByClass(user, [app]);
       } else {
         const parents = deps.studentParentIds ? await deps.studentParentIds(user.id) : [];
         facts.parentGrants = await Promise.all(parents.map((p) => current("bundle_family", p)));
-        facts.classGrant = await classPlanOf(user);
+        facts.classGrant = await classPlanOf(user, app);
       }
-      const value = bundleAccessFor(person(user), facts);
+      const value = appAccessFor(person(user), app, facts);
       addonCache.set(key, { at: now(), value });
       return value;
     } catch (e: any) {
-      console.error("[plans] Learning Bundle check failed:", e?.message);
+      console.error(`[plans] ${app} check failed:`, e?.message);
       return { access: true, via: null, endsAt: null, trialEndsAt: null };
     }
   };
-  const bundleAccess = async (user: AnyUser | null | undefined) => (await bundleStatus(user)).access;
-  /** Arise Social is part of the Learning Bundle. */
-  const socialAccess = bundleAccess;
+  const appAccess = async (user: AnyUser | null | undefined, app: AppId) => (await appStatus(user, app)).access;
+  const socialAccess = (user: AnyUser | null | undefined) => appAccess(user, "social");
 
   const todoStatus = async (user: AnyUser | null | undefined): Promise<AddonAccess> => {
     if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null, trialEndsAt: null };
@@ -902,18 +911,18 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       await write(REFUND_KEY(grant.ownerId), JSON.stringify({ cents: refundedCents, toCard: refundedCents > 0, at: iso(now()), reason }));
     });
   };
-  /** Once every child in a paying family is covered by a class plan, refund the family. */
+  /** Once class add-ons cover all three apps for every child in a paying family, refund the family. */
   const creditFamilyIfCovered = async (parentId: number) => {
     const parent = await deps.getUser(parentId);
     if (!parent || parent.role !== "parent") return;
     const fam = await readGrant("bundle_family", parentId, true);
     if (!fam || fam.source !== "stripe" || !grantLive(fam, now())) return;
     if (!(await childrenCoveredByClass(parent))) return;
-    await refundFamilyPlan(fam, "Every child is now covered by their teacher's class plan.");
+    await refundFamilyPlan(fam, "Every child now has Arise Math, Arise History and Arise Social through their teacher's class.");
   };
-  /** Runs after a plan is saved. A teacher's new class plan may take over some families' plans. */
+  /** Runs after a plan is saved. A teacher's new class add-on may take over some families' plans. */
   const afterGrant = async (grant: PlanGrant) => {
-    if (grant.kind !== "bundle_teacher" || !grantLive(grant, now()) || !deps.teacherStudentIds || !deps.studentParentIds) return;
+    if (!(grant.kind === "bundle_teacher" || isClassAppKind(grant.kind)) || !grantLive(grant, now()) || !deps.teacherStudentIds || !deps.studentParentIds) return;
     try {
       forget();
       const parents = new Set<number>();
@@ -925,13 +934,18 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
 
   const productKind = (user: AnyUser, product: unknown): PlanKind => {
+    if (isAppId(product)) {
+      if (user.role === "teacher") return classKindOf(product);
+      if (user.role === "parent") throw new Refused("Families get Arise Math, Arise History and Arise Social together in the Learning Bundle.", 400);
+      throw new Refused("Ask a parent or your teacher to add it for you.", 403);
+    }
     if (product === "todo") {
       if (user.role === "teacher") throw new Refused("A.R.I.S.E. To-Do comes with Teacher Hub. Get Teacher Hub on your plan page.", 409);
       if (user.role !== "parent") throw new Refused("To-Do plans are for parent accounts.", 403);
       return "todo_family";
     }
     if (product === "bundle") {
-      if (user.role === "teacher") return "bundle_teacher";
+      if (user.role === "teacher") throw new Refused("Teachers add Arise Math, Arise History and Arise Social for their class one at a time.", 400);
       if (user.role === "parent") return "bundle_family";
       throw new Refused("Ask a parent or your teacher to add the Learning Bundle for you.", 403);
     }
@@ -951,12 +965,32 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const user: AnyUser = req.adminPreview && req.realUser ? req.realUser : req.user;
       if (user.role === "parent") await creditFamilyIfCovered(user.id).catch(() => {});
-      const bundleKind: PlanKind = user.role === "teacher" ? "bundle_teacher" : "bundle_family";
+      const apps: Record<string, any> = {};
+      for (const app of APP_IDS) {
+        const status = await appStatus(user, app);
+        apps[app] = await addonView(user, user.role === "teacher" ? classKindOf(app) : "bundle_family", status);
+        // A teacher who still has the old all-three class plan: it shows on every app.
+        if (user.role === "teacher" && !apps[app].plan?.live) {
+          const old = await readGrant("bundle_teacher", user.id);
+          if (grantLive(old, now())) apps[app] = { ...apps[app], plan: grantView(old), paidByYou: !!old && old.buyerId === user.id && !!old.stripeCustomerId, oldBundle: true };
+        }
+      }
+      // One summary for the three apps: the trial (the same for all three) and whether any of them is open.
+      const all = APP_IDS.map((a) => apps[a]);
+      const trialEndsAt = all.find((a) => a.trialEndsAt)?.trialEndsAt ?? null;
+      const bundle = user.role === "parent" || user.role === "student"
+        ? { ...apps.math, access: all.some((a) => a.access), via: all.every((a) => a.via === all[0].via) ? all[0].via : all.find((a) => a.via !== "trial")?.via ?? all[0].via }
+        : { access: all.some((a) => a.access), via: all.every((a) => a.via === "trial") ? "trial" : all.some((a) => a.access) ? "mixed" : null, endsAt: null, trialEndsAt,
+            trialDaysLeft: trialEndsAt ? Math.max(0, Math.ceil((Date.parse(trialEndsAt) - now()) / DAY)) : null, plan: null, paidByYou: false };
       const body: any = {
         role: user.isAdmin ? "admin" : user.role || "student",
         payment: !!(await stripeKey()), trialDays: PLANS.trialDays,
-        prices: { familyBundleCents: PLANS.bundle.familyMonthlyCents, teacherBundleCents: PLANS.bundle.teacherMonthlyCents, teacherSeats: PLANS.bundle.teacherSeats, todoCents: PLANS.todo.familyMonthlyCents, hubCents: PLANS.hub.monthlyCents },
-        bundle: await addonView(user, bundleKind, await bundleStatus(user)),
+        prices: {
+          familyBundleCents: PLANS.bundle.familyMonthlyCents, todoCents: PLANS.todo.familyMonthlyCents, hubCents: PLANS.hub.monthlyCents,
+          classSeats: PLANS.classApps.seats, classApps: Object.fromEntries(APP_IDS.map((a) => [a, classAppCents(a)])),
+        },
+        appNames: APP_NAMES,
+        apps, bundle,
         todo: await addonView(user, "todo_family", await todoStatus(user)),
       };
       if (user.role === "teacher" && !user.isAdmin) {
@@ -973,7 +1007,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const kids = [];
         for (const id of await linkedChildren(user)) {
           const child = await deps.getUser(id);
-          if (child && child.role === "student") kids.push({ id, name: firstAndInitial(child.displayName), coveredByClass: !!(await classPlanOf(child)) });
+          if (!child || child.role !== "student") continue;
+          const covered: AppId[] = [];
+          for (const app of APP_IDS) if (await classPlanOf(child, app)) covered.push(app);
+          kids.push({ id, name: firstAndInitial(child.displayName), coveredByClass: covered.length === APP_IDS.length, coveredApps: covered });
         }
         body.children = kids;
         body.refund = parse<any>(await read(REFUND_KEY(user.id)), null);
@@ -991,19 +1028,21 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
       const kind = productKind(buyer, req.body?.product);
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have this add-on. Use Manage billing to change it.", 409);
-      if (kind === "bundle_teacher") {
-        if (!(await entitlement(buyer)).premium) throw new Refused("The Learning Bundle for a class is added on top of A.R.I.S.E. Premium. Get Premium on your plan page first.", 409);
+      const app = appOfClassKind(kind);
+      if (app) {
+        if (classGrantCovers(await current("bundle_teacher", buyer.id), app, now())) throw new Refused(`Your class plan already includes ${APP_NAMES[app]}.`, 409);
+        if (!(await entitlement(buyer)).premium) throw new Refused(`${APP_NAMES[app]} for a class is added on top of the Class plan. Get the Class plan on your plan page first.`, 409);
         const students = await deps.countTeacherStudents(buyer.id);
-        if (students > PLANS.bundle.teacherSeats) throw new Refused(`The class plan covers up to ${PLANS.bundle.teacherSeats} students, and you have ${students}.`, 409);
+        if (students > PLANS.classApps.seats) throw new Refused(`A class add-on covers up to ${PLANS.classApps.seats} students, and you have ${students}.`, 409);
       }
-      if (kind === "bundle_family" && (await childrenCoveredByClass(buyer))) throw new Refused("Your children's teachers already cover the Learning Bundle for them, so there's nothing to buy.", 409);
+      if (kind === "bundle_family" && (await childrenCoveredByClass(buyer))) throw new Refused("Your children's teachers already cover Arise Math, Arise History and Arise Social for them, so there's nothing to buy.", 409);
       const pending = await readPending(kind, buyer.id);
       if (pending && now() - Date.parse(pending.at) < 2 * 60_000) throw new Refused("A payment page for this was just opened. Finish it there, or try again in two minutes.", 409);
       const metadata: Record<string, string> = { kind, ownerId: String(buyer.id), buyerId: String(buyer.id) };
       const email = typeof buyer.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email) ? buyer.email : undefined;
       let customer: string | undefined;
       for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
-      const name = kind === "bundle_teacher" ? `A.R.I.S.E. Learning Bundle for a class (History, Math, Social; up to ${PLANS.bundle.teacherSeats} students)`
+      const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
         : kind === "bundle_family" ? "A.R.I.S.E. Learning Bundle for a family (History, Math, Social)"
         : "A.R.I.S.E. To-Do for a family";
       const back = addonReturn(req);
@@ -1030,7 +1069,11 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     try {
       const buyer: AnyUser = req.user;
       const kind = productKind(buyer, req.body?.product);
-      const grant = await readGrant(kind, buyer.id);
+      let grant = await readGrant(kind, buyer.id);
+      if (isClassAppKind(kind) && !grantLive(grant, now())) {
+        const old = await readGrant("bundle_teacher", buyer.id);
+        if (grantLive(old, now())) grant = old;
+      }
       if (!grant?.stripeCustomerId) throw new Refused("There is no online payment to manage for this add-on.", 409);
       if (grant.buyerId !== buyer.id) throw new Refused("Only the person who paid for this can manage its billing.", 403);
       const session = await stripe("POST", "/billing_portal/sessions", { customer: grant.stripeCustomerId, return_url: addonReturn(req).back });
@@ -1164,7 +1207,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, hubAccess, socialAccess, bundleStatus, bundleAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
+  return { entitlement, hubAccess, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

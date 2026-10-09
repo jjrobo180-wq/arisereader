@@ -492,11 +492,11 @@ async function apiAt(fullPath, opts = {}){
 }
 /** Opens Stripe's checkout page to add Arise Social for yourself, or (parents) for a child. */
 async function buySocial(forUserId){
-  const r = await apiAt('/api/billing/addon-checkout', { method:'POST', body:{ product:'bundle', returnPath:'/social/' } });
+  const r = await apiAt('/api/billing/addon-checkout', { method:'POST', body:{ product: role()==='teacher' ? 'social' : 'bundle', returnPath:'/social/' } });
   location.href = r.url;
 }
 async function manageSocial(forUserId){
-  const r = await apiAt('/api/billing/addon-portal', { method:'POST', body:{ product:'bundle', returnPath:'/social/' } });
+  const r = await apiAt('/api/billing/addon-portal', { method:'POST', body:{ product: role()==='teacher' ? 'social' : 'bundle', returnPath:'/social/' } });
   location.href = r.url;
 }
 /** Sends people to the main site to sign up or sign in, and back here afterwards. */
@@ -548,7 +548,7 @@ function renderChrome(){
   document.getElementById('bottom').innerHTML = t.map(([id,l,ic])=>`<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${badgeFor(id)?'<i class="dot"></i>':''}</button>`).join('');
   const me = document.getElementById('me');
   if (!ME) me.innerHTML = `<div class="top-actions"><button class="btn ghost" data-act="signin">Log in</button><button class="btn primary" data-act="join">Join now</button></div>`;
-  else me.innerHTML = `<button class="me-btn" data-act="menu" aria-expanded="${S.menu}">${av(ME.user.name,'xs')}<span>Me</span></button>${S.menu?`<div class="menu" role="menu"><div class="who"><b>${esc(ME.user.name)}</b><span>${esc(roleLine())}</span></div>${role()==='student'?`<button data-act="tab" data-v="profile">${svg('passport')}My profile</button>`:''}${PLAN && PLAN.bundle && PLAN.bundle.paidByYou ? `<button data-act="manage">${svg('star')}Manage Learning Bundle billing</button>` : ''}<a href="/">${svg('book')}Open A.R.I.S.E. Reader</a></div>`:''}`;
+  else me.innerHTML = `<button class="me-btn" data-act="menu" aria-expanded="${S.menu}">${av(ME.user.name,'xs')}<span>Me</span></button>${S.menu?`<div class="menu" role="menu"><div class="who"><b>${esc(ME.user.name)}</b><span>${esc(roleLine())}</span></div>${role()==='student'?`<button data-act="tab" data-v="profile">${svg('passport')}My profile</button>`:''}${PLAN && PLAN.apps && ((role()==='teacher' && PLAN.apps.social.paidByYou) || (role()==='parent' && PLAN.bundle && PLAN.bundle.paidByYou)) ? `<button data-act="manage">${svg('star')}Manage billing</button>` : ''}<a href="/">${svg('book')}Open A.R.I.S.E. Reader</a></div>`:''}`;
   document.body.style.paddingBottom = '';
 }
 function roleLine(){
@@ -572,7 +572,7 @@ function landingHTML(){
           <button class="btn primary" data-act="join">${svg('plus')}Sign up as a student</button>
           <button class="btn outline" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button>
           <button class="btn outline" data-act="go" data-v="/teacher-signup">${svg('teach')}I’m a teacher</button>
-          <p class="muted small" style="margin-top:4px">Free for 30 days. Then it’s part of the Learning Bundle with Arise History and Arise Math: $10 a month for a whole family, or added by a teacher for their class. Already have an A.R.I.S.E. Reader account? <a href="/" data-act="signin">Log in</a>.</p>
+          <p class="muted small" style="margin-top:4px">Free for 30 days. Then a teacher adds it for their class for $7 a month, or a family gets it with Arise History and Arise Math in the $10 Learning Bundle. Already have an A.R.I.S.E. Reader account? <a href="/" data-act="signin">Log in</a>.</p>
         </div>
       </div>
       <div class="land-art"><div class="cover tall"></div><div class="inner">${av('Jaylen W.','lg')}<h3 style="margin-top:8px">Your career profile</h3><p class="muted small">Collect careers, finish quests, and build a profile that grows with you from kindergarten to graduation.</p>
@@ -591,9 +591,9 @@ function landingHTML(){
 function joinHTML(){
   const u = ME.user;
   return `<div class="landing" style="max-width:820px"><section class="card" style="padding:28px">
-    <span class="eyebrow">Learning Bundle · Arise History, Arise Math & Arise Social</span>
+    <span class="eyebrow">Arise Social · 30-day free trial</span>
     <h1 style="margin-top:8px">Hi ${esc(u.name.split(' ')[0])}, your free trial has ended.</h1>
-    <p class="muted" style="margin-top:8px;max-width:58ch">Arise Social comes with Arise History and Arise Math in the Learning Bundle: $10 a month for a whole family, or added for a whole class by a teacher.</p>
+    <p class="muted" style="margin-top:8px;max-width:58ch">A teacher can add Arise Social for the whole class for $7 a month, or a family can get it with Arise History and Arise Math in the $10 Learning Bundle.</p>
     <div class="row" style="margin-top:16px"><a class="btn outline" href="/">Back to A.R.I.S.E. Reader</a></div></section>
     <div class="card"><div class="card-h"><div><h2>Look around</h2><p class="muted small" style="margin-top:2px">Careers are free to browse.</p></div></div>
       <div class="grid careers">${CAT.careers.slice(0,8).map(careerCard).join('')}</div></div></div>`;

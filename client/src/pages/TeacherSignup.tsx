@@ -161,7 +161,7 @@ export default function TeacherSignup() {
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval. Your first month is free, with Teacher Hub and A.R.I.S.E. To-Do included, plus 30 free days of Arise History, Arise Math and Arise Social. No card is needed.</span>
+              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval. You get a 30-day free trial of the Class plan and Teacher Hub (with A.R.I.S.E. To-Do), plus 30 days of Arise Math, Arise History and Arise Social for your class. No card is needed.</span>
             </div>
             <Field id="teacher-display-name" label="Display Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="teacher-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />

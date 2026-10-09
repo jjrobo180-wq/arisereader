@@ -702,7 +702,7 @@ test("after paying, the buyer is sent back to the page they started from, not to
 });
 
 // ─── A teacher's free first month ─────────────────────────────────────────────
-test("a new teacher's first month is free: teacher tools open at once, then lock a month later", async (t) => {
+test("a new teacher gets 30 days free: teacher tools open at once, then lock 30 days later", async (t) => {
   const signedUp = NOW - 2 * DAY;
   USERS[55] = { id: 55, displayName: "Ms. Brand New", role: "teacher", createdAt: new Date(signedUp).toISOString(), school_id: 3, email: "brandnew@school.org" };
   USERS[15] = { id: 15, displayName: "Gus", role: "student", createdAt: new Date(signedUp).toISOString(), teacherId: 55, school_id: 3 };

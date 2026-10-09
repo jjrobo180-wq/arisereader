@@ -1403,13 +1403,14 @@ export async function registerRoutes(
   });
   // Arise Math (/math/): math practice with points, a class leaderboard, assignments and live review.
   // Same accounts as Arise Social; see server/ariseMath.ts and migrations/arise_math.sql.
-  // Arise History and Arise Math are in the Learning Bundle (with Arise Social). The catalog and
-  // "who am I" stay open so each page can show its free-trial countdown or how to get the bundle.
-  for (const base of ["/api/math", "/api/history"]) {
+  // Arise Math and Arise History each need their own access: a teacher's class add-on for that app,
+  // a family's Learning Bundle, or the 30-day free trial. The catalog and "who am I" stay open so
+  // each page can show its free-trial countdown or how to keep it.
+  for (const [base, which, name] of [["/api/math", "math", "Arise Math"], ["/api/history", "history", "Arise History"]] as const) {
     app.use(base, addonGate(
       (method, path) => method === "GET" && (path === `${base}/catalog` || path === `${base}/me`),
-      (user) => plans.bundleAccess(user),
-      "bundle_required", "Arise History, Arise Math and Arise Social are in the Learning Bundle. Start it from your plan page.",
+      (user) => plans.appAccess(user, which),
+      "bundle_required", `${name} needs a class add-on from your teacher or a family Learning Bundle. Start it from your plan page.`,
     ));
   }
   registerAriseMathRoutes(app, authMiddleware, {

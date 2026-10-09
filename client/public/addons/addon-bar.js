@@ -1,7 +1,8 @@
-// The Learning Bundle bar for Arise History (/history/), Arise Math (/math/) and Arise Social (/social/).
-// It shows the free-trial countdown, and when the trial is over, how to keep the bundle:
-// parents buy it for the family, teachers add it for their class on top of Premium, and students
-// are asked to get a parent or teacher. Prices and rules come from GET /api/addons (shared/plans.ts).
+// The add-on bar for Arise History (/history/), Arise Math (/math/) and Arise Social (/social/).
+// It shows the free-trial countdown, and when the trial is over, how to keep this app:
+// teachers add it for their class on top of the Class plan (Math $12, History $12, Social $7 a
+// month), parents get all three in the $10 Learning Bundle, and students are asked to get a parent
+// or teacher. Prices and rules come from GET /api/addons (shared/plans.ts).
 (function () {
   "use strict";
   if (window.__ariseAddonBar) return;
@@ -21,6 +22,8 @@
 
   var path = location.pathname;
   var PAGE = path.indexOf("/math") === 0 ? "/math/" : path.indexOf("/history") === 0 ? "/history/" : "/social/";
+  var APP = PAGE.replace(/\//g, "");
+  var NAMES = { math: "Arise Math", history: "Arise History", social: "Arise Social" };
   var DAY = 86400000;
 
   function call(url, body) {
@@ -66,21 +69,25 @@
     "@media (max-width:600px){.ab-pill{left:8px;right:8px;justify-content:space-between;bottom:calc(76px + env(safe-area-inset-bottom,0px))}}";
   document.head.appendChild(el("<style>" + css + "</style>"));
 
+  /** This page's app status (falls back to the summary for an older server). */
+  function mine(d) { return (d.apps && d.apps[APP]) || d.bundle; }
+  function classCents(d) { return d.prices.classApps ? d.prices.classApps[APP] : d.prices.teacherBundleCents; }
+
   function wall(d, closable) {
-    var b = d.bundle, role = d.role;
+    var b = mine(d), role = d.role, name = NAMES[APP];
     var apps = [["/history/", "Arise History", "True stories, quizzes and points"], ["/math/", "Arise Math", "Practice that levels up"], ["/social/", "Arise Social", "Explore every career with your class"]];
     var action = "";
-    if (role === "parent") action = '<button class="ab-btn" data-ab="buy" ' + (d.payment ? "" : "disabled") + ">" + (b.access ? "Keep it" : "Get it") + " for the whole family · " + money(d.prices.familyBundleCents) + "/month</button>" +
-      '<p class="ab-note">One plan covers you and every child you’ve linked. If a child’s teacher adds a class plan, we refund your unused days.</p>';
+    if (role === "parent") action = '<button class="ab-btn" data-ab="buy" ' + (d.payment ? "" : "disabled") + ">" + (b.access ? "Keep all three" : "Get all three") + " for the whole family · " + money(d.prices.familyBundleCents) + "/month</button>" +
+      '<p class="ab-note">The Learning Bundle covers you and every child you’ve linked: Arise History, Arise Math and Arise Social. If your children’s teachers add all three for their class, we refund your unused days.</p>';
     else if (role === "teacher") action = d.premium
-      ? '<button class="ab-btn" data-ab="buy" ' + (d.payment ? "" : "disabled") + ">" + (b.access ? "Keep it" : "Add it") + " for my class · " + money(d.prices.teacherBundleCents) + "/month</button>" +
-        '<p class="ab-note">Covers you and up to ' + d.prices.teacherSeats + " students, on top of Premium. Families paying for kids in your class are refunded their unused days.</p>"
-      : '<a class="ab-btn" href="/#/billing">Get Premium first, then add the bundle</a><p class="ab-note">The class plan is ' + money(d.prices.teacherBundleCents) + "/month on top of Premium.</p>";
-    else if (role === "student") action = '<p class="ab-note"><b style="color:#fff">Ask a parent</b> to add it for your family (' + money(d.prices.familyBundleCents) + '/month), or <b style="color:#fff">ask your teacher</b> to add it for your class.</p>';
+      ? '<button class="ab-btn" data-ab="buy" ' + (d.payment ? "" : "disabled") + ">" + (b.access ? "Keep " : "Add ") + name + " for my class · " + money(classCents(d)) + "/month</button>" +
+        '<p class="ab-note">Covers you and up to ' + (d.prices.classSeats || 100) + " students, on top of the Class plan. Each app is its own add-on: Arise Math " + money(d.prices.classApps.math) + ", Arise History " + money(d.prices.classApps.history) + ", Arise Social " + money(d.prices.classApps.social) + " a month.</p>"
+      : '<a class="ab-btn" href="/#/billing">Get the Class plan first</a><p class="ab-note">' + name + " for a class is " + money(classCents(d)) + "/month on top of the Class plan.</p>";
+    else if (role === "student") action = '<p class="ab-note"><b style="color:#fff">Ask your teacher</b> to add ' + name + ' for your class, or <b style="color:#fff">ask a parent</b> to add the Learning Bundle for your family (' + money(d.prices.familyBundleCents) + "/month).</p>";
     var meter = b.access && b.trialEndsAt ? '<div class="ab-meter">Free trial: <b data-ab="left">' + left(b.trialEndsAt) + "</b> left<div class=\"ab-bar\"><i style=\"width:" + Math.min(100, (Date.parse(b.trialEndsAt) - Date.now()) / (d.trialDays * DAY) * 100) + '%"></i></div><div class="ab-note" style="margin-top:6px">Free until ' + day(b.trialEndsAt) + ". No card needed.</div></div>" : "";
     var node = el('<div class="ab-wall" role="dialog" aria-modal="true" aria-label="Learning Bundle"><div class="ab-card">' +
-      '<div class="ab-eyebrow">Learning Bundle</div><h2>' + (b.access ? "Keep Arise History, Math & Social" : "Your free trial has ended") + "</h2>" +
-      "<p>" + (b.access ? "You’re on your free 30 days. Here’s how to keep going after." : "Arise History, Arise Math and Arise Social come together in the Learning Bundle.") + "</p>" + meter +
+      '<div class="ab-eyebrow">' + name + "</div><h2>" + (b.access ? "Keep " + name : "Your free trial has ended") + "</h2>" +
+      "<p>" + (b.access ? "You’re on your free 30 days. Here’s how to keep going after." : name + " needs " + (role === "parent" ? "the Learning Bundle." : role === "student" ? "your teacher or a parent to add it." : "its class add-on.")) + "</p>" + meter +
       '<div class="ab-apps">' + apps.map(function (a) { return '<a href="' + a[0] + '" class="' + (a[0] === PAGE ? "on" : "") + '">' + a[1] + "<span>" + a[2] + "</span></a>"; }).join("") + "</div>" +
       '<div class="ab-actions">' + action + (closable ? '<button class="ab-ghost" data-ab="close">Not now</button>' : '<a class="ab-ghost" href="/">Back to A.R.I.S.E. Reader</a>') +
       (!d.payment && (role === "parent" || role === "teacher") ? '<p class="ab-note">Online payment isn’t open yet. Please check back soon.</p>' : "") + "</div></div></div>");
@@ -90,7 +97,7 @@
       if (t.dataset.ab === "close") node.remove();
       if (t.dataset.ab === "buy") {
         t.disabled = true;
-        call("/api/billing/addon-checkout", { product: "bundle", returnPath: PAGE }).then(function (r) { location.href = r.url; }).catch(function (err) {
+        call("/api/billing/addon-checkout", { product: role === "teacher" ? APP : "bundle", returnPath: PAGE }).then(function (r) { location.href = r.url; }).catch(function (err) {
           t.disabled = false;
           var old = node.querySelector(".ab-err"); if (old) old.remove();
           t.parentNode.appendChild(el('<div class="ab-err" role="alert"></div>')).textContent = err.message;
@@ -102,7 +109,7 @@
   }
 
   function pill(d) {
-    var b = d.bundle;
+    var b = mine(d);
     var node = el('<div class="ab-pill" role="status"><span>Free trial · <b>' + left(b.trialEndsAt) + "</b> left</span>" + (d.role === "parent" || d.role === "teacher" || d.role === "student" ? '<button type="button">Keep it</button>' : "") + "</div>");
     var btn = node.querySelector("button");
     if (btn) btn.addEventListener("click", function () { wall(d, true); });
@@ -118,8 +125,8 @@
       return;
     }
     call("/api/addons").then(function (d) {
-      try { if (sessionStorage.getItem("arise_addon_paid")) { sessionStorage.removeItem("arise_addon_paid"); var t = document.body.appendChild(el('<div class="ab-toast" role="status">Payment received. The Learning Bundle is on.</div>')); setTimeout(function () { t.remove(); }, 4000); } } catch (e) {}
-      var b = d.bundle;
+      try { if (sessionStorage.getItem("arise_addon_paid")) { sessionStorage.removeItem("arise_addon_paid"); var t = document.body.appendChild(el('<div class="ab-toast" role="status">Payment received. Your add-on is on.</div>')); setTimeout(function () { t.remove(); }, 4000); } } catch (e) {}
+      var b = mine(d);
       if (!b || d.role === "admin") return;
       if (!b.access) wall(d, false);
       else if (b.via === "trial" && b.trialEndsAt) pill(d);

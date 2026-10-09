@@ -1,7 +1,8 @@
-// The add-ons card: the Learning Bundle (Arise History, Arise Math, Arise Social) and A.R.I.S.E. To-Do.
+// The add-ons card: Arise History, Arise Math, Arise Social and A.R.I.S.E. To-Do.
 // It shows each person what they have, a live countdown of their 30-day free trial, and the right
-// way to keep it: parents buy for the family, teachers add a class plan on top of Premium, and
-// students are told to ask a grown-up. Prices and rules live in shared/plans.ts.
+// way to keep it: parents buy the Learning Bundle (all three) for the family, teachers add each app
+// for their class on top of the Class plan, and students are told to ask a grown-up.
+// Prices and rules live in shared/plans.ts.
 // `compact` is the quiet version for a page that isn't about plans: every add-on together
 // as one group of buttons (Teacher Hub and To-Do for teachers, then the three apps), with
 // where the free trial stands and the way to the plan page. Its buttons don't wait on the
@@ -11,10 +12,12 @@ import { BookOpen, Calculator, CheckCircle2, CheckSquare, ClipboardList, Clock3,
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 
-type Access = { access: boolean; via: string | null; endsAt: string | null; trialEndsAt: string | null; trialDaysLeft: number | null; plan: { live: boolean; endsAt: string | null } | null; paidByYou: boolean };
+type Access = { access: boolean; via: string | null; endsAt: string | null; trialEndsAt: string | null; trialDaysLeft: number | null; plan: { live: boolean; endsAt: string | null } | null; paidByYou: boolean; oldBundle?: boolean };
+type AppId = "math" | "history" | "social";
 type Addons = {
   role: string; payment: boolean; trialDays: number;
-  prices: { familyBundleCents: number; teacherBundleCents: number; teacherSeats: number; todoCents: number; hubCents: number };
+  prices: { familyBundleCents: number; todoCents: number; hubCents: number; classSeats: number; classApps: Record<AppId, number> };
+  apps: Record<AppId, Access>;
   bundle: Access; todo: Access;
   premium?: boolean; premiumVia?: string | null; premiumEndsAt?: string | null; students?: number; hub?: { access: boolean; via: string | null; endsAt: string | null };
   children?: { id: number; name: string; coveredByClass: boolean }[];
@@ -68,14 +71,14 @@ function freeLine(data: Addons): string {
   if (data.role !== "teacher") return "";
   const until = data.premiumEndsAt ? `, until ${longDay(data.premiumEndsAt)}` : "";
   if (data.premiumVia === "grandfathered") return `Reading with your class is free for you this school year${until}.`;
-  if (data.premiumVia === "free-month") return `Your first month of teacher tools is free${until}.`;
+  if (data.premiumVia === "free-month") return `Your Class plan is on a 30-day free trial${until}.`;
   if (data.premiumVia === "teacher-plan" || data.premiumVia === "school-plan") return "Reading with your class is already covered by your plan.";
   return "";
 }
 
 const REASON: Record<string, string> = {
   "family-plan": "Included with your family’s plan",
-  "class-plan": "Included with your class plan",
+  "class-plan": "On for your class",
   "child-in-class": "Included through your children’s class plans",
   "social-plan": "Included with your Arise Social plan",
   admin: "Included for admins",
@@ -136,8 +139,13 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     ];
     const bundle = data?.bundle;
     const days = bundle?.trialDaysLeft;
-    const status = !bundle ? ""
-      : bundle.via === "trial" && days != null ? `Free trial: ${days} day${days === 1 ? "" : "s"} left`
+    const plural = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
+    // A teacher on the 30-day Class trial sees that countdown first.
+    const classDays = data?.role === "teacher" && data.premiumVia === "free-month" && data.premiumEndsAt
+      ? Math.max(0, Math.ceil((Date.parse(data.premiumEndsAt) - Date.now()) / 86_400_000)) : null;
+    const status = classDays != null ? `Free trial: ${plural(classDays)} left`
+      : !bundle ? ""
+      : bundle.via === "trial" && days != null ? `Free trial: ${plural(days)} left`
       : !bundle.access ? "Free trial ended" : "";
     return (
       <section className="rounded-2xl border border-white/10 bg-white/[.03] p-3 sm:p-4" aria-label="Add-ons" data-testid="addons-group">
@@ -169,10 +177,10 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
   const primary = `${btn} arise-gradient-button text-white`;
   const ghost = `${btn} border border-white/15 bg-white/5 hover:bg-white/10`;
 
-  const apps = [
-    { href: "/history/", label: "Arise History", sub: "True stories and quizzes", icon: Landmark, tone: "text-amber-400" },
-    { href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator, tone: "text-cyan-400" },
-    { href: "/social/", label: "Arise Social", sub: "Explore every career", icon: Users, tone: "text-violet-400" },
+  const apps: { id: AppId; href: string; label: string; sub: string; icon: typeof Landmark; tone: string }[] = [
+    { id: "history", href: "/history/", label: "Arise History", sub: "True stories and quizzes", icon: Landmark, tone: "text-amber-400" },
+    { id: "math", href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator, tone: "text-cyan-400" },
+    { id: "social", href: "/social/", label: "Arise Social", sub: "Explore every career", icon: Users, tone: "text-violet-400" },
   ];
 
   let bundleAction: ReactNode = null;
@@ -180,12 +188,28 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
   if (role === "parent") {
     if (b.paidByYou) bundleAction = <button type="button" className={ghost} disabled={!!busy} onClick={() => go("bm", "/api/billing/addon-portal", { product: "bundle", returnPath })}>Manage billing</button>;
     else if (!ownPlanLive && b.via !== "child-in-class") bundleAction = <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go("b", "/api/billing/addon-checkout", { product: "bundle", returnPath })} data-testid="addons-buy-bundle">{busy === "b" ? "Opening…" : `${b.via === "trial" ? "Keep it" : "Get it"} for the whole family · ${money(data.prices.familyBundleCents)}/month`}</button>;
-  } else if (role === "teacher") {
-    if (b.paidByYou) bundleAction = <button type="button" className={ghost} disabled={!!busy} onClick={() => go("bm", "/api/billing/addon-portal", { product: "bundle", returnPath })}>Manage billing</button>;
-    else if (!ownPlanLive) bundleAction = data.premium
-      ? <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go("b", "/api/billing/addon-checkout", { product: "bundle", returnPath })} data-testid="addons-buy-bundle">{busy === "b" ? "Opening…" : `${b.via === "trial" ? "Keep it" : "Add it"} for my class · ${money(data.prices.teacherBundleCents)}/month`}</button>
-      : <a className={ghost} href="/#/billing">Get Premium first, then add the bundle</a>;
   }
+  const classPremium = role === "teacher" && !!data.premium;
+  /** A teacher's row for one app: its price, whether it's on, and the button to add or manage it. */
+  const classRow = (id: AppId) => {
+    const a = data.apps[id], app = apps.find((x) => x.id === id)!;
+    const live = !!a.plan?.live;
+    let action: ReactNode;
+    if (a.paidByYou && live) action = <button type="button" className={ghost} disabled={!!busy} onClick={() => go(`m-${id}`, "/api/billing/addon-portal", { product: id, returnPath })}>Manage</button>;
+    else if (live) action = <span className="text-xs font-bold text-emerald-300">On</span>;
+    else if (!classPremium) action = <a className={ghost} href="/#/billing">Get the Class plan first</a>;
+    else action = <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go(id, "/api/billing/addon-checkout", { product: id, returnPath })} data-testid={`addons-buy-${id}`}>{busy === id ? "Opening…" : `${a.via === "trial" ? "Keep" : "Add"} · ${money(data.prices.classApps[id])}/mo`}</button>;
+    return (
+      <div key={id} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3" data-testid={`addons-class-${id}`}>
+        <app.icon className={`h-6 w-6 shrink-0 ${app.tone}`} />
+        <a href={app.href} className="min-w-0 flex-1 hover:underline">
+          <span className="block text-sm font-black">{app.label} <span className="font-bold text-muted-foreground">· {money(data.prices.classApps[id])}/month</span></span>
+          <span className="block text-xs text-muted-foreground">{live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${day(a.plan.endsAt)}` : ""}`) : a.via === "trial" ? "On during your free trial" : "Off"}</span>
+        </a>
+        {action}
+      </div>
+    );
+  };
 
   return (
     <section className="rounded-[1.6rem] border border-white/10 bg-gradient-to-br from-[#1b1638] via-[#151326] to-[#10202a] p-5 sm:p-6" aria-label="Add-ons" data-testid="addons-card">
@@ -197,16 +221,19 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-300">Learning Bundle</p>
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-300">{role === "teacher" ? "Class add-ons" : "Learning Bundle"}</p>
           <h2 className="mt-1 text-xl font-black">Arise History, Arise Math & Arise Social</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {role === "teacher" ? `For your whole class (up to ${data.prices.teacherSeats} students), added on top of Premium for ${money(data.prices.teacherBundleCents)}/month.`
-              : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher adds a class plan, we refund your unused days.`
+            {role === "teacher" ? `Add any of them for your whole class (up to ${data.prices.classSeats} students), on top of the Class plan. Each is its own monthly add-on.`
+              : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher adds all three for the class, we refund your unused days.`
               : "Three more ways to learn and earn points, right next to your reading."}
           </p>
         </div>
       </div>
 
+      {role === "teacher" ? (
+        <div className="mt-4 space-y-2">{(["math", "history", "social"] as AppId[]).map(classRow)}</div>
+      ) : (
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {apps.map((a) => (
           <a key={a.href} href={a.href} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10">
@@ -215,17 +242,19 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
           </a>
         ))}
       </div>
+      )}
 
       <div className="mt-4 space-y-3">
-        {b.via === "trial" && b.trialEndsAt && <TrialMeter endsAt={b.trialEndsAt} total={data.trialDays} label="Your free trial" />}
-        {b.access && b.via && b.via !== "trial" && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${day(b.endsAt)}` : ""}</p>}
-        {!b.access && <p className="text-sm font-bold text-amber-300">Your free trial has ended.</p>}
+        {role === "teacher" && data.premiumVia === "free-month" && data.premiumEndsAt && <TrialMeter endsAt={data.premiumEndsAt} total={data.trialDays} label="Class plan free trial" />}
+        {b.via === "trial" && b.trialEndsAt && <TrialMeter endsAt={b.trialEndsAt} total={data.trialDays} label={role === "teacher" ? "History, Math & Social free trial" : "Your free trial"} />}
+        {role !== "teacher" && b.access && b.via && b.via !== "trial" && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${day(b.endsAt)}` : ""}</p>}
+        {!b.access && <p className="text-sm font-bold text-amber-300">{role === "teacher" ? "Your free trial of History, Math and Social has ended. Add the ones your class uses." : "Your free trial has ended."}</p>}
         {role === "student" && (!b.access || b.via === "trial") && <p className="text-sm text-muted-foreground">To keep it after your trial, ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
-        {role === "teacher" && <p className="text-xs text-muted-foreground">Families who were paying for children in your class get their unused days refunded once your class plan covers all their kids. You have {data.students ?? 0} of {data.prices.teacherSeats} students.</p>}
+        {role === "teacher" && <p className="text-xs text-muted-foreground">Each add-on covers up to {data.prices.classSeats} students; you have {data.students ?? 0}. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three.</p>}
         {role === "parent" && !!data.children?.length && (
           <div className="flex flex-wrap gap-2">{data.children.map((k) => <span key={k.id} className={`rounded-full border px-3 py-1 text-xs font-bold ${k.coveredByClass ? "border-emerald-400/40 text-emerald-300" : "border-white/15 text-muted-foreground"}`}>{k.name}{k.coveredByClass ? " · covered by class" : ""}</span>)}</div>
         )}
-        {role === "parent" && data.refund && data.refund.cents > 0 && <p className="text-sm text-emerald-300">Your children’s teachers now cover the Learning Bundle, so we cancelled your plan and refunded {money(data.refund.cents)} to your card on {day(data.refund.at)}.</p>}
+        {role === "parent" && data.refund && data.refund.cents > 0 && <p className="text-sm text-emerald-300">Your children’s teachers now cover Arise History, Math and Social, so we cancelled your plan and refunded {money(data.refund.cents)} to your card on {day(data.refund.at)}.</p>}
         {bundleAction && <div className="flex flex-wrap gap-2">{bundleAction}</div>}
         {!data.payment && (role === "parent" || role === "teacher") && !ownPlanLive && <p className="text-xs text-muted-foreground">Online payment isn’t open yet. Your free days still count down.</p>}
       </div>
@@ -241,7 +270,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
           </div>
           <div className="mt-3 space-y-3">
             {t.via === "trial" && t.trialEndsAt && <TrialMeter endsAt={t.trialEndsAt} total={data.trialDays} label="To-Do free trial" />}
-            {role === "teacher" && data.hub?.via === "free-month" && data.hub.endsAt && <TrialMeter endsAt={data.hub.endsAt} total={30} label="Teacher Hub & To-Do free month" />}
+            {role === "teacher" && data.hub?.via === "free-month" && data.hub.endsAt && <TrialMeter endsAt={data.hub.endsAt} total={data.trialDays} label="Teacher Hub & To-Do free trial" />}
             {t.access && t.via && t.via !== "trial" && REASON[t.via] && !(role === "teacher" && data.hub?.via === "free-month") && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[t.via]}</p>}
             {!t.access && <p className="text-sm font-bold text-amber-300">{role === "teacher" ? "Get Teacher Hub to keep using To-Do." : "Your To-Do free trial has ended."}</p>}
             <div className="flex flex-wrap gap-2">

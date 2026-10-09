@@ -40,7 +40,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
     <>
       {todo.trialDaysLeft !== null && (
         <a href={user!.role === "parent" ? "/#/parent-dashboard" : "/#/billing"} className="block bg-amber-400 px-4 py-2 text-center text-sm font-black text-slate-950" data-testid="todo-trial-bar">
-          {user!.role === "teacher" ? "Teacher Hub & To-Do free month" : "To-Do free trial"}: {todo.trialDaysLeft} day{todo.trialDaysLeft === 1 ? "" : "s"} left · {user!.role === "parent" ? "$10/month to keep it" : "Included with Teacher Hub"}
+          {user!.role === "teacher" ? "Teacher Hub & To-Do free trial" : "To-Do free trial"}: {todo.trialDaysLeft} day{todo.trialDaysLeft === 1 ? "" : "s"} left · {user!.role === "parent" ? "$10/month to keep it" : "Included with Teacher Hub"}
         </a>
       )}
       {children}
