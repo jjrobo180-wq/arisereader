@@ -39,6 +39,16 @@ export function groupOf(tab: HubTab) {
   return HUB_GROUPS.find((g) => g.tabs.includes(tab)) ?? HUB_GROUPS[0];
 }
 
+/** A saved `groupOrder` (everything but Home, which always stays first) made safe to use: every
+ *  reorderable group appears exactly once, keeping the saved order where valid and appending
+ *  anything missing (a new group, or one dropped from a stale save) at the end. */
+const REORDERABLE: readonly HubGroupId[] = HUB_GROUPS.filter((g) => g.id !== "home").map((g) => g.id);
+export function cleanGroupOrder(v: unknown): HubGroupId[] {
+  const saved = Array.isArray(v) ? v.filter((id): id is HubGroupId => REORDERABLE.includes(id as HubGroupId)) : [];
+  const seen = new Set(saved);
+  return [...saved, ...REORDERABLE.filter((id) => !seen.has(id))];
+}
+
 /** Home and the Reader's teacher tools always show; the admin console only when the page says so (admins). */
 export const ALWAYS_SHOWN: readonly HubTab[] = ["overview", "reader", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"];
 const shown = (visible: Partial<Record<HubTab, boolean>>, tab: HubTab) => ALWAYS_SHOWN.includes(tab) || (tab === "admin" ? visible.admin === true : visible[tab] !== false);
@@ -49,9 +59,13 @@ export function groupTabs(groupId: HubGroupId, visible: Partial<Record<HubTab, b
   return g ? g.tabs.filter((t) => shown(visible, t)) : [];
 }
 
-/** The groups in the menu: those with at least one tab showing. */
-export function visibleGroups(visible: Partial<Record<HubTab, boolean>>) {
-  return HUB_GROUPS.filter((g) => groupTabs(g.id, visible).length > 0);
+/** The groups in the menu: those with at least one tab showing, in the teacher's chosen order
+ *  (Home always first, whatever order is passed). */
+export function visibleGroups(visible: Partial<Record<HubTab, boolean>>, order?: readonly HubGroupId[]) {
+  const ids = order?.length ? ["home", ...cleanGroupOrder(order)] : HUB_GROUPS.map((g) => g.id);
+  return ids
+    .map((id) => HUB_GROUPS.find((g) => g.id === id))
+    .filter((g): g is (typeof HUB_GROUPS)[number] => !!g && groupTabs(g.id, visible).length > 0);
 }
 
 /** Where tapping a group goes: the tab used last in it, if it still shows, else its first tab. */

@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   CheckSquare,
   CheckCheck,
+  ChevronDown,
+  ChevronUp,
   ClipboardCheck,
   Clock3,
   GraduationCap,
@@ -46,7 +48,7 @@ import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@s
 import { TASK_SORTS, arrangeTasks, clearDone, restoreTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
 import { cleanSenderName } from "@shared/hubMeetings";
 import { deadlineLabel, meetingDeadline } from "@shared/meetingDeadline";
-import { HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
+import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
 import "@/components/teacher-hub/hubNight.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import { HubModal } from "@/components/teacher-hub/HubModal";
@@ -559,7 +561,7 @@ function TeacherHubPage() {
 
   // The admin console shows for admins only.
   const visible = { ...workspace.visibleTabs, admin: !!user.isAdmin };
-  const menu = visibleGroups(visible);
+  const menu = visibleGroups(visible, workspace.groupOrder);
   const group = groupOf(tab);
   const subTabs = groupTabs(group.id, visible);
 
@@ -638,26 +640,45 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
-              <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu.</p>
+              <p className="mb-4 text-sm text-slate-600">Hide anything you do not use, or use the arrows to reorder the menu. Hiding a tab does not delete its records. Tabs that go together share one place in the menu.</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {HUB_GROUPS.filter((g) => g.id !== "home").map((g) => ({ ...g, tabs: g.tabs.filter((t) => !isReaderTab(t) && t !== "admin") })).filter((g) => g.tabs.length).map((g) => (
-                  <div key={g.id} className="rounded-xl border border-slate-200 p-2" data-testid={`customize-${g.id}`}>
-                    {g.tabs.length > 1 && <div className="flex items-center gap-2 px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{GROUP_ICON[g.id]}{g.label}</div>}
-                    {g.tabs.map((t) => (
-                      <label key={t} className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-lg px-1 text-sm">
-                        <span className="flex items-center gap-2">{g.tabs.length > 1 ? tabIcon(t) : GROUP_ICON[g.id]}{g.tabs.length > 1 ? SUB_LABELS[t] : g.label}</span>
-                        <input
-                          type="checkbox" className="h-5 w-5 shrink-0"
-                          checked={workspace.visibleTabs[t] !== false}
-                          onChange={(e) => setWorkspace((prev) => ({
-                            ...prev,
-                            visibleTabs: { ...prev.visibleTabs, [t]: e.target.checked },
-                          }))}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                ))}
+                {cleanGroupOrder(workspace.groupOrder).map((id) => HUB_GROUPS.find((g) => g.id === id)!)
+                  .map((g) => ({ ...g, tabs: g.tabs.filter((t) => !isReaderTab(t) && t !== "admin") })).filter((g) => g.tabs.length)
+                  .map((g, i, order) => {
+                    const move = (dir: -1 | 1) => setWorkspace((prev) => {
+                      const current = cleanGroupOrder(prev.groupOrder);
+                      const at = current.indexOf(g.id);
+                      const to = at + dir;
+                      if (at < 0 || to < 0 || to >= current.length) return prev;
+                      const next = [...current];
+                      [next[at], next[to]] = [next[to], next[at]];
+                      return { ...prev, groupOrder: next };
+                    });
+                    return (
+                      <div key={g.id} className="rounded-xl border border-slate-200 p-2" data-testid={`customize-${g.id}`}>
+                        <div className="flex items-center gap-1 px-1 pb-1">
+                          {g.tabs.length > 1 && <div className="flex min-w-0 flex-1 items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{GROUP_ICON[g.id]}<span className="truncate">{g.label}</span></div>}
+                          <span className="ml-auto flex shrink-0 gap-0.5">
+                            <button type="button" onClick={() => move(-1)} disabled={i === 0} aria-label={`Move ${g.label} up`} className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3.5 w-3.5" /></button>
+                            <button type="button" onClick={() => move(1)} disabled={i === order.length - 1} aria-label={`Move ${g.label} down`} className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3.5 w-3.5" /></button>
+                          </span>
+                        </div>
+                        {g.tabs.map((t) => (
+                          <label key={t} className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-lg px-1 text-sm">
+                            <span className="flex items-center gap-2">{g.tabs.length > 1 ? tabIcon(t) : GROUP_ICON[g.id]}{g.tabs.length > 1 ? SUB_LABELS[t] : g.label}</span>
+                            <input
+                              type="checkbox" className="h-5 w-5 shrink-0"
+                              checked={workspace.visibleTabs[t] !== false}
+                              onChange={(e) => setWorkspace((prev) => ({
+                                ...prev,
+                                visibleTabs: { ...prev.visibleTabs, [t]: e.target.checked },
+                              }))}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  })}
               </div>
               <HubDataPanel workspace={workspace} bytes={bytes} token={token} onAdopt={sync.adopt} />
             </Card>
