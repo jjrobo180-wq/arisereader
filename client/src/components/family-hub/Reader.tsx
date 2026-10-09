@@ -11,12 +11,10 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
-import NoProctorReview from "@/components/NoProctorReview";
-import AddonsCard from "@/components/AddonsCard";
-import PlayTimeManager from "@/components/PlayTimeManager";
-import { PrizeManager } from "@/components/prizes/PrizeManager";
-import { PrizeBoard } from "@/components/prizes/PrizeBoard";
-import HubReaderScope from "@/components/HubReaderScope";
+import HubAddons from "@/components/hub-pieces/HubAddons";
+import HubPlayTime from "@/components/hub-pieces/HubPlayTime";
+import HubCameraQuizzes from "@/components/hub-pieces/HubCameraQuizzes";
+import { HubPrizeBoard, HubPrizeManager } from "@/components/hub-pieces/HubPrizes";
 import { Empty, Label, Modal, PageHead, Panel, Toggle, inputClass, plain, primary, soft } from "./ui";
 
 type Child = { id: number; displayName: string; username: string; isEyeGazeUser: boolean; teacherId: number | null };
@@ -108,7 +106,6 @@ export default function Reader({ say, night = false }: { say: (message: string) 
   };
 
   const child = profile?.student;
-  const scoped = (node: ReactNode) => <HubReaderScope which="life" night={night}>{node}</HubReaderScope>;
 
   return <div className="space-y-6" data-testid="lifehub-reader">
     <PageHead eyebrow="A.R.I.S.E. Reader" title={child ? `${child.displayName}'s reading` : "Your readers"}
@@ -179,7 +176,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
                 </Panel>
               </aside>
             </div>
-            {scoped(<NoProctorReview studentId={child!.id} hideWhenEmpty title={`Camera quizzes · ${child!.displayName}`} />)}
+            <CameraPanel childId={child!.id} name={child!.displayName} />
           </>}
 
           {view === "controls" && <>
@@ -233,20 +230,26 @@ export default function Reader({ say, night = false }: { say: (message: string) 
               <LinkTile icon={<Home size={20} />} title="My World" detail="Familiar rooms, labels and I-Spy prompts" href="#/my-world" />
             </div>}
 
-            <Panel eyebrow="Every child" title="Play time">{scoped(<PlayTimeManager />)}</Panel>
+            <Panel eyebrow="Every child" title="Play time"><HubPlayTime which="life" /></Panel>
           </>}
 
           {view === "prizes" && <div className="grid gap-6 xl:grid-cols-2">
-            <Panel eyebrow="From you" title="Family prizes">{scoped(<PrizeManager token={token} role="parent" />)}</Panel>
-            <Panel eyebrow="From school">{scoped(<PrizeBoard token={token} studentId={child!.id} childName={child!.displayName} heading={`Up for ${child!.displayName} at school`} scopes={["class", "school"]} />)}</Panel>
+            <Panel eyebrow="From you" title="Family prizes"><HubPrizeManager which="life" token={token} role="parent" /></Panel>
+            <Panel eyebrow="From school" title={`Up for ${child!.displayName} at school`}><HubPrizeBoard which="life" token={token} studentId={child!.id} childName={child!.displayName} scopes={["class", "school"]} /></Panel>
           </div>}
         </>}
 
-      <div id="parent-plans" className="scroll-mt-4"><Panel eyebrow="Add-ons" title="Arise Math, History and Social">{scoped(<AddonsCard returnPath="/billing" />)}</Panel></div>
+      <div id="parent-plans" className="scroll-mt-4"><Panel eyebrow="Add-ons" title="Arise Math, History and Social"><HubAddons which="life" /></Panel></div>
     </>}
 
     {adding && <AddChild get={get} onClose={() => setAdding(false)} onAdded={async () => { setAdding(false); say("Child connected"); await loadFamily(); }} />}
   </div>;
+}
+
+/** The child's camera quizzes, in a LifeHub panel that only shows once there are some. */
+function CameraPanel({ childId, name }: { childId: number; name: string }) {
+  const [count, setCount] = useState<number | null>(null);
+  return <div hidden={count === 0}><Panel eyebrow={name} title="Camera quizzes"><HubCameraQuizzes which="life" studentId={childId} onCount={setCount} /></Panel></div>;
 }
 
 function ControlRow({ icon, title, detail, children }: { icon: ReactNode; title: string; detail: string; children: ReactNode }) {

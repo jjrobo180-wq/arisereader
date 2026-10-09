@@ -56,11 +56,34 @@ test("the teacher's Reader account is rebuilt from WorkHub parts, with every old
   for (const api of ["/api/teacher/students", "/api/teacher/pending-students", "/api/teacher-admin/all-students", "/api/teacher-admin/pending-quizzes", "/api/teacher-admin/book-requests",
     "/api/grade-change-requests", "/api/teacher/parent-connections", "/api/teacher/club-arise/controls", "/api/teacher/club-closing-hours", "/api/proctor-password",
     "/api/teacher/growth-check/overview", "/reset-password", "/rewards", "/reassign"]) assert.ok(tools.includes(api), api);
-  for (const piece of ["ComprehensionReview", "NoProctorReview", "PrizeManager", "PlayTimeManager", "FamilyEmailInvite", "ParentEmailInvite", "AddonsCard"]) assert.ok(tools.includes(`<${piece}`), piece);
+  for (const piece of ["HubComprehension", "HubCameraQuizzes", "HubPrizeManager", "HubPlayTime", "HubFamilyInvite", "HubParentInvite", "HubAddons"]) assert.ok(tools.includes(`<${piece}`), piece);
   assert.doesNotMatch(read("client/src/pages/TeacherHub.tsx"), /<TeacherDashboard/);
   assert.match(read("client/src/pages/AriseTodo.tsx"), /<Reader say=\{setMessage\} night=\{night\} \/>/);
   const parent = read("client/src/components/family-hub/Reader.tsx");
   assert.match(parent, /from "\.\/ui"/);
   for (const api of ["/api/parent/students", "/api/parent/student-profile", "/api/parent/student-controls/", "/api/parent/link-code", "/api/parent/proctor-password", "/api/family/growth-check/student/"]) assert.ok(parent.includes(api), api);
-  for (const piece of ["NoProctorReview", "PlayTimeManager", "PrizeManager", "PrizeBoard", "AddonsCard", "generateCertificate", "saveFamilySettings"]) assert.ok(parent.includes(piece), piece);
+  for (const piece of ["HubCameraQuizzes", "HubPlayTime", "HubPrizeManager", "HubPrizeBoard", "HubAddons", "generateCertificate", "saveFamilySettings"]) assert.ok(parent.includes(piece), piece);
+});
+
+test("inside the hubs, every Reader piece is the hub-built one (no site pieces dropped in)", () => {
+  const files = ["client/src/components/teacher-hub/HubReaderTools.tsx", "client/src/components/family-hub/Reader.tsx", "client/src/components/TodoGate.tsx"];
+  for (const f of files) {
+    const text = read(f);
+    for (const old of ["<AddonsCard", "<PlayTimeManager", "<PrizeManager", "<PrizeBoard", "<NoProctorReview", "<ComprehensionReview", "<FamilyEmailInvite", "<ParentEmailInvite", "<HubReaderScope", "<ParentDashboard", "<TeacherDashboard"]) {
+      assert.ok(!text.includes(old), `${f} still uses ${old}`);
+    }
+  }
+  // The pieces keep the same server calls as the site's own versions.
+  const calls: Record<string, string[]> = {
+    "HubAddons": ["/api/addons", "/api/billing/addon-checkout", "/api/billing/addon-portal", "/api/billing/confirm"],
+    "HubPlayTime": ["/api/play-time/manage", "/api/admin/play-time/default", "/grant", "/request-action"],
+    "HubPrizes": ["/api/prizes/mine", "/api/prizes", "/give", "/people"],
+    "HubComprehension": ["/api/comprehension/review", "/grade"],
+    "HubCameraQuizzes": ["/api/integrity/review", '"void"', '"restore"'],
+    "HubInvites": ["sendFamilyInviteEmail", "sendParentInviteEmail", "loadInviteTemplate"],
+  };
+  for (const [file, list] of Object.entries(calls)) {
+    const text = read(`client/src/components/hub-pieces/${file}.tsx`);
+    for (const c of list) assert.ok(text.includes(c), `${file}: ${c}`);
+  }
 });
