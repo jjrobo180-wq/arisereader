@@ -43,8 +43,17 @@ export type DayEntry = { id: string; memberId: string; date: string; water: numb
 export type WeightEntry = { id: string; memberId: string; date: string; weight: number };
 export type SavedFood = { id: string; name: string; serving: string; calories: number; protein: number; carbs: number; fat: number };
 export type HealthGoals = { calories: number; proteinPct: number; carbsPct: number; fatPct: number; water: number; steps: number; goalWeight: number; activeMinutes: number; fruitVeg: number };
-export type Health = { goals: Record<string, HealthGoals>; food: FoodEntry[]; exercise: ExerciseEntry[]; days: DayEntry[]; weights: WeightEntry[]; foods: SavedFood[] };
-export const emptyHealth = (): Health => ({ goals: {}, food: [], exercise: [], days: [], weights: [], foods: [] });
+/** What an adult answers in the Food & fitness intake. Their calorie plan is worked out from it. */
+export type Sex = "female" | "male";
+export type GoalType = "lose" | "maintain" | "gain";
+export type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very";
+export type DietStyle = "balanced" | "highProtein" | "lowerCarb" | "lowerFat";
+export type HealthProfile = {
+  sex: Sex; birthYear: number; heightIn: number; weight: number; goal: GoalType; goalWeight: number;
+  rate: number; activity: ActivityLevel; diet: DietStyle; createdAt: string;
+};
+export type Health = { profiles: Record<string, HealthProfile>; goals: Record<string, HealthGoals>; food: FoodEntry[]; exercise: ExerciseEntry[]; days: DayEntry[]; weights: WeightEntry[]; foods: SavedFood[] };
+export const emptyHealth = (): Health => ({ profiles: {}, goals: {}, food: [], exercise: [], days: [], weights: [], foods: [] });
 
 export type Layers = { tasks: boolean; bills: boolean; trips: boolean; chores: boolean };
 
@@ -269,7 +278,23 @@ export function cleanHealth(input: unknown): Health {
     };
   }
   const nutrition = (r: Record<string, any>) => ({ calories: num(r.calories, 0, 20000), protein: num(r.protein, 0, 2000), carbs: num(r.carbs, 0, 2000), fat: num(r.fat, 0, 2000) });
+  const profiles: Record<string, HealthProfile> = {};
+  for (const [memberId, v] of Object.entries(obj(raw.profiles) || {}).slice(0, LIMITS.members + 1)) {
+    const r = obj(v);
+    if (!r || !memberId || memberId.length > 100) continue;
+    const weight = num(r.weight, 50, 1000);
+    const heightIn = num(r.heightIn, 36, 96);
+    const birthYear = int(r.birthYear, 1900, 2100);
+    if (!weight || !heightIn || !birthYear) continue;
+    profiles[memberId] = {
+      sex: oneOf(r.sex, ["female", "male"] as const, "female"), birthYear, heightIn, weight,
+      goal: oneOf(r.goal, ["lose", "maintain", "gain"] as const, "maintain"), goalWeight: num(r.goalWeight, 0, 1000),
+      rate: num(r.rate, 0, 2), activity: oneOf(r.activity, ["sedentary", "light", "moderate", "active", "very"] as const, "light"),
+      diet: oneOf(r.diet, ["balanced", "highProtein", "lowerCarb", "lowerFat"] as const, "balanced"), createdAt: str(r.createdAt, 40),
+    };
+  }
   return {
+    profiles,
     goals,
     food: rows(raw.food, LIMITS.food, (r) => {
       const name = str(r.name, 100).trim();
