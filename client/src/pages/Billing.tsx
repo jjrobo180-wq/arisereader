@@ -62,6 +62,7 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "good", title: "Premium is free for you this school year", lines: [
         "You signed up before October 1, 2026, so you keep everything at no cost.",
         `Your free year runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
+        "The add-ons further down this page (Teacher Hub and the Learning Bundle) are optional and paid separately.",
       ] };
     case "free-month":
       return { tone: "good", title: "Your first month is free", lines: [

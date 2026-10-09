@@ -305,7 +305,6 @@ export default function ParentDashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        <AddonsCard returnPath="/billing" />
         {proctorPassword && (
           <section className="overflow-hidden rounded-[1.75rem] border border-violet-400/25 bg-gradient-to-r from-violet-500/14 via-fuchsia-500/[.08] to-cyan-400/10 p-4 shadow-[0_18px_55px_rgba(0,0,0,.20)] sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -632,6 +631,9 @@ export default function ParentDashboard() {
             )}
           </>
         )}
+
+        {/* Optional add-ons go last, so the free parent tools above are what a parent meets first. */}
+        <AddonsCard returnPath="/billing" />
       </main>
     </div>
   );
