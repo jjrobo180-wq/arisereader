@@ -2,7 +2,7 @@
 import { Apple, CalendarDays, Check, ChevronRight, ListTodo, Plane, Receipt, Sparkles, Star, StickyNote, Sun, UserPlus, Vote } from "lucide-react";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { pollIsOpen } from "./Polls";
-import { caloriesLeft, dayTotals, goalsFor } from "@shared/familyHealth";
+import { caloriesLeft, dayTotals, goalsFor, healthPeople } from "@shared/familyHealth";
 import type { CalendarTask } from "./FamilyCalendar";
 import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type SectionProps } from "./ui";
 
@@ -93,8 +93,8 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           {trip.packing.length > 0 && <div className="mt-3"><div className="h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white" style={{ width: `${(trip.packing.filter((p) => p.packed).length / trip.packing.length) * 100}%` }} /></div><p className="mt-1 text-[11px] text-white/70">{trip.packing.filter((p) => p.packed).length} of {trip.packing.length} packed</p></div>}
         </button>}
 
-        {on("health") && family.members.length > 0 && <Panel eyebrow="Food & fitness" title="Today" right={<button onClick={() => go("health")} className="text-xs font-bold text-violet-600">Diary</button>}>
-          <ul className="space-y-2.5">{family.members.map((m) => {
+        {on("health") && <Panel eyebrow="Food & fitness" title="Today" right={<button onClick={() => go("health")} className="text-xs font-bold text-violet-600">Diary</button>}>
+          <ul className="space-y-2.5">{healthPeople(family, name).map((m) => {
             const t = dayTotals(family.health, m.id, today);
             const g = goalsFor(family.health, m);
             const left = caloriesLeft(g.calories, t);

@@ -146,3 +146,13 @@ export function recentFoods(health: Health, memberId: string, limit = 12) {
   }
   return out;
 }
+
+/** The signed-in person's own diary, used when no family members have been added
+ *  (and kept afterwards if it has anything in it, so nothing logged is lost). */
+export const ME_ID = "me";
+export function healthPeople(family: { members: Member[]; health: Health }, myName: string): Member[] {
+  const me: Member = { id: ME_ID, name: myName.trim() || "Me", emoji: "🙂", color: "#6e5ae0", kind: "adult" };
+  const h = family.health;
+  const used = !!h.goals[ME_ID] || [h.food, h.exercise, h.days, h.weights].some((list) => list.some((x) => x.memberId === ME_ID));
+  return !family.members.length || used ? [me, ...family.members] : family.members;
+}

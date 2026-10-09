@@ -71,3 +71,14 @@ test("logs keep their newest entries when over the limit", () => {
   assert.equal(h.food[h.food.length - 1].id, "f12004");
   assert.equal(h.food[0].id, "f5");
 });
+
+test("the food tracker works without adding family members", async () => {
+  const { healthPeople, ME_ID } = await import("../shared/familyHealth");
+  const empty = { members: [], health: cleanHealth({}) };
+  assert.deepEqual(healthPeople(empty, "Jess").map((m) => [m.id, m.name, m.kind]), [[ME_ID, "Jess", "adult"]]);
+  assert.equal(healthPeople(empty, "").at(0)?.name, "Me");
+  const family = { members: [adult, kid], health: cleanHealth({}) };
+  assert.deepEqual(healthPeople(family, "Jess").map((m) => m.id), ["a", "k"]);
+  const logged = { members: [adult], health: cleanHealth({ food: [{ id: "1", memberId: ME_ID, date: D, meal: "lunch", name: "Soup", servings: 1, calories: 90 }] }) };
+  assert.deepEqual(healthPeople(logged, "Jess").map((m) => m.id), [ME_ID, "a"]);
+});
