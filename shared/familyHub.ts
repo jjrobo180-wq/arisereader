@@ -71,7 +71,8 @@ export type Goal = {
 /* News */
 export type NewsPrefs = { topics: string[]; place: string };
 
-export type Layers = { tasks: boolean; bills: boolean; trips: boolean; chores: boolean };
+/** `hub`: a teacher's Teacher Hub calendar, read live from the Hub (nothing from it is copied here). */
+export type Layers = { tasks: boolean; bills: boolean; trips: boolean; chores: boolean; hub: boolean };
 
 export type Family = {
   members: Member[];
@@ -123,7 +124,7 @@ export const DEFAULT_BUDGET: BudgetCategory[] = [
 ];
 
 export const emptyFamily = (): Family => ({
-  members: [], sections: {}, layers: { tasks: true, bills: true, trips: true, chores: false }, chorePointsCount: true,
+  members: [], sections: {}, layers: { tasks: true, bills: true, trips: true, chores: false, hub: false }, chorePointsCount: true,
   chores: [], choreDone: [], behavior: [], rewards: DEFAULT_REWARDS.map((r) => ({ ...r })), redemptions: [],
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
   bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
@@ -180,7 +181,7 @@ export function cleanFamily(input: unknown): Family {
   for (const key of TOGGLEABLE) if (typeof rawSections[key] === "boolean") sections[key] = rawSections[key];
   const rawLayers = obj(raw.layers) || {};
   const layers: Layers = {
-    tasks: bool(rawLayers.tasks, true), bills: bool(rawLayers.bills, true), trips: bool(rawLayers.trips, true), chores: bool(rawLayers.chores, false),
+    tasks: bool(rawLayers.tasks, true), bills: bool(rawLayers.bills, true), trips: bool(rawLayers.trips, true), chores: bool(rawLayers.chores, false), hub: bool(rawLayers.hub, false),
   };
   const ids = (v: unknown, max: number) => (Array.isArray(v) ? [...new Set(v.filter((x) => typeof x === "string" && x && x.length <= 100))].slice(0, max) as string[] : []);
   const calendars = Array.isArray(raw.calendars)

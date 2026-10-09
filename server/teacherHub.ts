@@ -11,6 +11,7 @@
 import type { Express, RequestHandler } from "express";
 import { HUB_REQUIRED, hubMessage, type HubAccess } from "../shared/plans";
 import { HUB_CONFLICT, HUB_SEATS_FULL, MAX_WORKSPACE_BYTES, sameInstant } from "../shared/hubSave";
+import { calendarEvents } from "../shared/hubHidden";
 
 type HubUser = { id?: number; role?: string; isAdmin?: boolean };
 
@@ -187,6 +188,34 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
     } catch (error: any) {
       console.error("[teacher-hub] failed to load workspace", error);
       return res.status(500).json({ message: "Could not load your Teacher Hub workspace." });
+    }
+  });
+
+  /**
+   * The teacher's own Hub calendar between two days, for A.R.I.S.E. To-Do's "Teacher Hub" calendar.
+   * Read-only, and only what a calendar needs: repeats are worked out, hidden events and other
+   * people's calendars are left out (the same events the Hub's own calendar shows).
+   */
+  app.get("/api/teacher-hub/calendar", authMiddleware, async (req: any, res) => {
+    const hub = await access(req, res);
+    if (!hub) return;
+    const day = /^\d{4}-\d{2}-\d{2}$/;
+    const from = String(req.query?.from || ""), to = String(req.query?.to || "");
+    if (!day.test(from) || !day.test(to) || from > to || Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`) > 100 * 86_400_000) {
+      return res.status(400).json({ message: "Ask for at most 100 days, from and to as YYYY-MM-DD." });
+    }
+    try {
+      const row = await store.get(Number(req.user.id));
+      const workspace: any = row?.workspace ?? {};
+      const events = calendarEvents({ events: Array.isArray(workspace.events) ? workspace.events : [], hiddenEvents: workspace.hiddenEvents, calendars: workspace.calendars }, from, to)
+        .filter((e) => typeof e?.date === "string" && e.date >= from && e.date <= to && typeof e.title === "string")
+        .slice(0, 2000)
+        .map((e) => ({ id: String(e.id), title: e.title.slice(0, 200), date: e.date, start: String(e.start || ""), end: String(e.end || ""), location: String(e.location || "").slice(0, 200), done: !!e.done }));
+      res.set("Cache-Control", "no-store");
+      return res.json({ events });
+    } catch (error: any) {
+      console.error("[teacher-hub] failed to load the calendar", error);
+      return res.status(500).json({ message: "Could not load your Teacher Hub calendar." });
     }
   });
 

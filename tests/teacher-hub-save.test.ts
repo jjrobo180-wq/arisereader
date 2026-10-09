@@ -218,3 +218,26 @@ test("every reason a save can stop has plain words", () => {
   for (const block of ["conflict", "too_large", "seats_full", "plan", "signed_out", "rejected"] as const) assert.ok(blockMessage(block).length > 20, block);
   assert.match(blockMessage("seats_full", "Your plan covers 100 students."), /100 students/);
 });
+
+test("A.R.I.S.E. To-Do reads the teacher's own Hub calendar: repeats worked out, hidden and other people's events left out", async () => {
+  const { call } = setup();
+  await put(call, {
+    events: [
+      { id: "e1", title: "IEP meeting", date: "2026-10-14", start: "15:30", end: "16:30", location: "Room 4", notes: "private notes" },
+      { id: "e2", title: "Duty", date: "2026-10-05", start: "07:30", end: "", location: "", notes: "", repeat: "Weekly" },
+      { id: "e3", title: "Staff lunch", date: "2026-10-16", start: "12:00", end: "", location: "", notes: "" },
+      { id: "e4", title: "Busy", date: "2026-10-15", start: "09:00", end: "10:00", location: "", notes: "", calendarId: "c-other" },
+      { id: "e5", title: "Old", date: "2026-08-01", start: "", end: "", location: "", notes: "" },
+    ],
+    calendars: [{ id: "c-other", name: "Ms. Lee", url: "https://x", syncedAt: "", owner: "Ms. Lee" }],
+    hiddenEvents: [{ id: "h1", title: "Staff lunch", date: "", start: "" }],
+  }, { baseUpdatedAt: null });
+  const r = await call("GET", "/api/teacher-hub/calendar", {}, { from: "2026-10-01", to: "2026-10-31" });
+  assert.equal(r.status, 200);
+  const got = r.body.events.map((e: any) => `${e.date} ${e.title}`).sort();
+  assert.deepEqual(got, ["2026-10-05 Duty", "2026-10-12 Duty", "2026-10-14 IEP meeting", "2026-10-19 Duty", "2026-10-26 Duty"]);
+  const iep = r.body.events.find((e: any) => e.title === "IEP meeting");
+  assert.deepEqual(iep, { id: "e1", title: "IEP meeting", date: "2026-10-14", start: "15:30", end: "16:30", location: "Room 4", done: false }, "notes stay in the Hub");
+  assert.equal((await call("GET", "/api/teacher-hub/calendar", {}, { from: "2026-01-01", to: "2026-12-31" })).status, 400, "at most 100 days");
+  assert.equal((await call("GET", "/api/teacher-hub/calendar", {}, { from: "nope", to: "2026-10-31" })).status, 400);
+});
