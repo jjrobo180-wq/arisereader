@@ -361,6 +361,9 @@ function TeacherHubPage() {
   const [added, setAdded] = useState<{ words: string; tab: HubTab | null } | null>(null);
   // The tab used last in each group, so tapping the group opens it again.
   const [lastInGroup, setLastInGroup] = useState<Partial<Record<HubGroupId, HubTab>>>({});
+  // Which menu item is being dragged. Must stay with the other hooks: anything
+  // below the early returns changes the hook count between renders and React throws.
+  const [draggingGroup, setDraggingGroup] = useState<HubGroupId | null>(null);
   useEffect(() => { setLastInGroup((prev) => (prev[groupOf(tab).id] === tab ? prev : { ...prev, [groupOf(tab).id]: tab })); }, [tab]);
 
   const canUseHub = !!user && (user.role === "teacher" || user.isAdmin);
@@ -580,7 +583,6 @@ function TeacherHubPage() {
     current.splice(at, 0, id);
     return { ...prev, groupOrder: current };
   });
-  const [draggingGroup, setDraggingGroup] = useState<HubGroupId | null>(null);
   const subTabs = groupTabs(group.id, visible);
 
   return (
