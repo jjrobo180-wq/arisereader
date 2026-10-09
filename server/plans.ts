@@ -1083,6 +1083,26 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   });
 
   // ─── Admin ─────────────────────────────────────────────────────────────────
+  /**
+   * Every A.R.I.S.E. program, and whether this admin can open it. Admins are never charged and
+   * never locked out; this runs the same checks the programs themselves use, so the admin
+   * settings page shows what is really true rather than a promise.
+   */
+  app.get("/api/admin/programs", auth, admin, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.adminPreview && req.realUser ? req.realUser : req.user;
+      const [reader, hub, todo, ...apps] = await Promise.all([
+        entitlement(user), hubAccess(user), todoStatus(user), ...APP_IDS.map((app) => appStatus(user, app)),
+      ]);
+      res.json({ programs: [
+        { id: "reader", name: "A.R.I.S.E. Reader and Class tools", access: reader.premium },
+        { id: "hub", name: "Teacher Hub", access: hub.access },
+        { id: "todo", name: "A.R.I.S.E. To-Do", access: todo.access },
+        ...APP_IDS.map((app, i) => ({ id: app, name: APP_NAMES[app], access: apps[i].access })),
+      ] });
+    } catch (e) { fail(res, e, "admin programs"); }
+  });
+
   app.get("/api/admin/plans", auth, admin, async (_req: any, res: any) => {
     try {
       const index = await readIndex();
