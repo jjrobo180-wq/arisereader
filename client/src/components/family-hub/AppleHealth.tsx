@@ -86,35 +86,40 @@ function AppleSetup({ member, onClose }: { member: Member; onClose: () => void }
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [way, setWay] = useState<"app" | "shortcut">("app");
+  const link = key ? `${syncAddress()}?key=${key}` : "";
   const make = async () => {
     setBusy(true); setError("");
     try { setKey(await makeHealthKey(token, member.id)); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
   };
-  const step = (n: number, title: string, body: ReactNode) => <li className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-black text-white">{n}</span><div className="min-w-0 flex-1 pt-0.5"><p className="text-sm font-black text-slate-800">{title}</p><div className="mt-1 space-y-2 text-sm leading-6 text-slate-600">{body}</div></div></li>;
+  const step = (n: number, title: string, body?: ReactNode) => <li className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-black text-white">{n}</span><div className="min-w-0 flex-1 pt-0.5"><p className="text-sm font-black text-slate-800">{title}</p>{body && <div className="mt-1 space-y-2 text-sm leading-6 text-slate-600">{body}</div>}</div></li>;
   return <Modal title="Connect Apple Health" eyebrow="Food & fitness" onClose={onClose} wide>
-    <p className="mb-5 text-sm text-slate-600">Websites can't open Apple Health directly, so you'll make a small Shortcut on your iPhone (Apple's free Shortcuts app) that sends today's numbers here. It takes about 5 minutes, once.</p>
-    <ol className="space-y-6">
-      {step(1, "Make your private key", key ? <>
-        <CopyField label="Address" value={syncAddress()} />
-        <CopyField label="Header value" value={`Bearer ${key}`} />
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">This key is shown only once. Keep this window open until the Shortcut is set up. Anyone with the key can send numbers to this diary (but can't read anything).</p>
-      </> : <><p>The Shortcut uses it to send numbers to {member.id === "me" ? "your" : `${member.name}'s`} diary. Making a new key turns off any old one.</p>
-        <button onClick={() => void make()} disabled={busy} className={primary}>{busy ? "Making…" : "Make my key"}</button>{error && <p className="text-xs text-rose-600">{error}</p>}</>)}
-      {step(2, "On your iPhone, start a new Shortcut", <p>Open <b>Shortcuts</b>, tap <b>+</b>, and name it <b>ARISE Health Sync</b>.</p>)}
-      {step(3, "Add today's steps", <p>Add the action <b>Find Health Samples</b>: Type <b>Steps</b>, Start Date <b>is today</b>. Then add <b>Calculate Statistics</b> and choose <b>Sum</b>.</p>)}
-      {step(4, "Add today's active calories", <p>Add <b>Find Health Samples</b> again: Type <b>Active Energy</b>, Start Date <b>is today</b>. Then <b>Calculate Statistics</b> → <b>Sum</b>.</p>)}
-      {step(5, "Add your latest weight (optional)", <p>Add <b>Find Health Samples</b>: Type <b>Weight</b>, Sort by <b>Start Date</b>, Order <b>Latest First</b>, Limit <b>1</b>. Then <b>Get Details of Health Samples</b> → <b>Value</b>.</p>)}
-      {step(6, "Add today's date", <p>Add <b>Format Date</b>: Date <b>Current Date</b>, Format <b>Custom</b>, and type <code className="rounded bg-slate-100 px-1">yyyy-MM-dd</code>.</p>)}
-      {step(7, "Send it to A.R.I.S.E.", <>
-        <p>Add <b>Get Contents of URL</b>. Paste the <b>Address</b> from step 1, then tap <b>Show More</b>:</p>
-        <ul className="list-disc space-y-1 pl-5"><li>Method: <b>POST</b></li><li>Headers: add one named <b>Authorization</b> with the <b>Header value</b> from step 1</li>
-          <li>Request Body: <b>JSON</b>, with these fields (tap each value to pick the result from the step above it):
-            <span className="mt-1 block font-mono text-xs">date → Formatted Date<br />steps → Statistics (steps)<br />activeCalories → Statistics (active energy)<br />weight → Value</span></li></ul>
-        <p>Add <b>Show Notification</b> with <b>Contents of URL</b> so you can see it worked. Tap ▶ to run it once: you should see “Synced … steps”. Allow Health access when asked.</p>
-      </>)}
-      {step(8, "Run it automatically every day", <p>In Shortcuts, open <b>Automation</b> → <b>+</b> → <b>Time of Day</b>. Pick a time like <b>9:00 PM</b>, Daily, choose <b>Run Immediately</b>, and select <b>ARISE Health Sync</b>. You can add a second time (like noon) for updates during the day.</p>)}
-    </ol>
-    <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-600"><b className="text-slate-800">How it shows up:</b> steps fill in your step count, active calories appear as “Apple Health activity” under Exercise (so don't log watch-tracked workouts again), and weight is added to your weigh-ins. Numbers sync for the day the Shortcut runs.</div>
+    <div className="rounded-2xl bg-violet-50 p-4">
+      <p className="text-sm font-black text-violet-900">Your personal sync link</p>
+      <p className="mt-1 text-xs text-violet-800">It's the only thing you'll paste. It sends to {member.id === "me" ? "your" : `${member.name}'s`} diary only, and can't read anything.</p>
+      <div className="mt-3">{key ? <CopyField label="Sync link" value={link} /> : <><button onClick={() => void make()} disabled={busy} className={primary}>{busy ? "Making…" : "Make my link"}</button>{error && <p className="mt-2 text-xs text-rose-600">{error}</p>}</>}</div>
+      {key && <p className="mt-2 text-[11px] font-semibold text-violet-800">Shown once. Making a new link turns this one off.</p>}
+    </div>
+
+    <div className="mt-5 inline-flex rounded-xl bg-slate-100 p-1 text-xs font-bold">
+      <button onClick={() => setWay("app")} aria-pressed={way === "app"} className={`min-h-9 rounded-lg px-3 ${way === "app" ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}>Easiest: an app (2 min)</button>
+      <button onClick={() => setWay("shortcut")} aria-pressed={way === "shortcut"} className={`min-h-9 rounded-lg px-3 ${way === "shortcut" ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}>Free: Apple Shortcuts</button>
+    </div>
+
+    {way === "app" ? <ol className="mt-5 space-y-5">
+      {step(1, "Get “Health Auto Export” from the App Store", <p>On your iPhone, search the App Store for <b>Health Auto Export – JSON+CSV</b> and install it. Allow it to read <b>Steps</b>, <b>Active Energy</b> and <b>Weight</b> when it asks.</p>)}
+      {step(2, "Add an automation", <p>In the app, tap <b>Automations</b> → <b>+</b> → <b>REST API</b>.</p>)}
+      {step(3, "Paste your sync link", <p>Paste the link above into <b>URL</b>. Keep the format <b>JSON</b>. Under Health Metrics, pick <b>Step Count</b>, <b>Active Energy</b> and <b>Weight &amp; Body Mass</b>. Set the export period to <b>Since last sync</b> (or Today) and turn the automation <b>on</b>.</p>)}
+      {step(4, "Send a test", <p>Tap <b>Manual Export</b> once. Then tap <b>Check now</b> here: your steps should appear. After that it syncs on its own in the background.</p>)}
+      <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">Health Auto Export is made by another company, not by A.R.I.S.E. or Apple. Automatic syncing may need its paid upgrade; check the App Store listing for current pricing.</p>
+    </ol> : <ol className="mt-5 space-y-5">
+      {step(1, "Open Shortcuts and tap +", <p>Name the new shortcut <b>ARISE Health Sync</b>.</p>)}
+      {step(2, "Add today's numbers", <p>Add <b>Find Health Samples</b> (Type <b>Steps</b>, Start Date <b>is today</b>) then <b>Calculate Statistics → Sum</b>. Do the same with Type <b>Active Energy</b>.</p>)}
+      {step(3, "Send them", <p>Add <b>Get Contents of URL</b>, paste your sync link, tap <b>Show More</b>, set Method <b>POST</b> and Request Body <b>JSON</b> with two fields: <b>steps</b> and <b>activeCalories</b>, each set to its Statistics result. That's it; no date or key needed.</p>)}
+      {step(4, "Make it automatic", <p>In <b>Automation</b> → <b>+</b> → <b>Time of Day</b> (like 9:00 PM, Daily, Run Immediately) → run <b>ARISE Health Sync</b>.</p>)}
+    </ol>}
+
+    <p className="mt-6 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-600">Steps fill in your step count, active calories show as “Apple Health activity” under Exercise (don't log watch-tracked workouts again), and weight goes into your weigh-ins. Prefer not to connect? You can always type steps and weight in yourself.</p>
     <button onClick={onClose} className={primary + " mt-5 w-full"}>Done</button>
   </Modal>;
 }

@@ -42,6 +42,8 @@ app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
 app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
 // A meal photo for the food diary's calorie estimate (shrunk on the phone first).
 app.use("/api/arise-todo/food/estimate", express.json({ limit: "4mb" }));
+// Apple Health apps can send a couple of months of readings in one post.
+app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make
 // the server read 24 MB just to turn them away.
 app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));
