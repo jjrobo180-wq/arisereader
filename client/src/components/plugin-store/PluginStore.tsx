@@ -58,6 +58,12 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const [apps, setApps] = useState<AppAccess | null>(null);
   const [note, setNote] = useState("");
   const closeRef = useRef<HTMLButtonElement>(null);
+  // The hub redraws often (clocks, saving), so the latest close and open-detail live in refs
+  // and the effects below run once, not on every redraw.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const openIdRef = useRef(openId);
+  openIdRef.current = openId;
 
   const all = useMemo(() => pluginsFor(hub, { teacher }), [hub, teacher]);
   const open = all.find((p) => p.id === openId) ?? null;
@@ -75,13 +81,13 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
 
   // Escape closes the detail first, then the store. The page behind doesn't scroll.
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { if (openId) setOpenId(null); else onClose(); } };
-    window.addEventListener("keydown", key);
+    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); if (openIdRef.current) setOpenId(null); else onCloseRef.current(); };
+    window.addEventListener("keydown", key, true);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeRef.current?.focus();
-    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = overflow; };
-  }, [openId, onClose]);
+    return () => { window.removeEventListener("keydown", key, true); document.body.style.overflow = overflow; };
+  }, []);
 
   useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(""), 3500); return () => clearTimeout(t); }, [note]);
 
@@ -107,7 +113,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   };
 
   /** The button on a card or the detail page. */
-  const Action = ({ p, big }: { p: Plugin; big?: boolean }) => {
+  const action = (p: Plugin, big?: boolean) => {
     const pad = big ? "min-h-11 px-5 text-sm" : "min-h-9 px-3 text-xs";
     const base = `inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-bold transition focus-visible:outline-none focus-visible:ring-2 ${a.ring} ${pad}`;
     const t = p.target;
@@ -132,8 +138,8 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
       : <button type="button" className={`${base} ${a.solid}`} onClick={(e) => { e.stopPropagation(); toggle(p, true); }} data-testid={`plugin-add-${p.id}`}><Plus className="h-3.5 w-3.5" />Add</button>;
   };
 
-  const Card = ({ p }: { p: Plugin }) => (
-    <li>
+  const card = (p: Plugin) => (
+    <li key={p.id}>
       <div role="button" tabIndex={0} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
         className={`flex h-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left transition hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 ${a.ring}`}
         data-testid={`plugin-${p.id}`}>
@@ -142,7 +148,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           <span className="block truncate text-sm font-bold text-slate-900">{p.name}</span>
           <span className="block truncate text-xs text-slate-500">{p.tagline}</span>
         </span>
-        <Action p={p} />
+        {action(p)}
       </div>
     </li>
   );
@@ -192,7 +198,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
               <div role="button" tabIndex={0} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
                 className={`relative flex h-full cursor-pointer flex-col gap-3 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 transition hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 ${a.ring}`}>
                 <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: p.color }} aria-hidden />
-                <div className="flex items-start justify-between gap-3"><Tile p={p} size="lg" /><Action p={p} /></div>
+                <div className="flex items-start justify-between gap-3"><Tile p={p} size="lg" />{action(p)}</div>
                 <div><p className="text-base font-black tracking-tight">{p.name}</p><p className="mt-1 text-sm leading-5 text-slate-500">{p.description}</p></div>
               </div>
             </li>)}
@@ -205,12 +211,12 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
                 <h2 id={`ps-${c}`} className="text-base font-black tracking-tight">{c}</h2>
                 <button type="button" onClick={() => setCategory(c)} className={`text-xs font-bold ${a.text} hover:underline`}>See all</button>
               </div>
-              <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{all.filter((p) => p.category === c).map((p) => <Card key={p.id} p={p} />)}</ul>
+              <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{all.filter((p) => p.category === c).map((p) => card(p))}</ul>
             </section>)
           : <section aria-live="polite">
               <h2 className="mb-3 text-base font-black tracking-tight">{view === "installed" ? `Added to your ${HUB_NAME[hub]}` : category ?? "Results"}{query.trim() && <span className="font-medium text-slate-400"> · “{query.trim()}”</span>}</h2>
               {shown.length
-                ? <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{shown.map((p) => <Card key={p.id} p={p} />)}</ul>
+                ? <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{shown.map((p) => card(p))}</ul>
                 : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
                     <p className="text-sm font-bold">{view === "installed" ? "Nothing added here yet." : "No plugins match that."}</p>
                     <p className="mt-1 text-sm text-slate-500">{view === "installed" ? "Browse Discover to add your first one." : "Try another word, or browse every category."}</p>
@@ -241,7 +247,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           {isAddable(open) && isInstalled(open) && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Removing it only hides it from your menu. Everything in it is kept, and adding it back brings it all back.</p>}
           {open.target.kind === "app" && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">A paid Arise add-on with its own page. {apps && !apps[open.target.app] ? "Your plans page shows the free trial and prices." : "It's included for you."}</p>}
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-5">
-            <Action p={open} big />
+            {action(open, true)}
             {isAddable(open) && isInstalled(open) && <button type="button" onClick={() => onOpen(open)} className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-5 text-sm font-bold ${a.solid}`} data-testid="plugin-open">Open {open.name} <ArrowUpRight className="h-4 w-4" /></button>}
           </div>
         </div>
