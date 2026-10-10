@@ -95,7 +95,10 @@ test("there's no way back to the old screens: old addresses and admins land in t
   assert.match(app, /<Route path="\/admin">\s*<OpenHubTab to="\/workhub" storageKey="workhub_tab" value="admin" \/>/);
   assert.match(app, /<Route path="\/parent-dashboard">\s*<OpenHubTab to="\/lifehub" storageKey="lifehub_tab" value="reader" \/>/);
   assert.match(app, /<Route path="\/teacher-dashboard">\s*<OpenHubTab to="\/workhub" storageKey="workhub_tab" value="reader" \/>/);
-  assert.equal((app.match(/user\.isAdmin \? <OpenHubTab to="\/workhub" storageKey="workhub_tab" value="admin" \/>/g) || []).length, 3);
+  // Signing in lands admins and teachers in WorkHub on Home. No tab is asked for: setting one
+  // here opened the Hub on the admin console, which sits inside the A.R.I.S.E. Reader menu item.
+  assert.equal((app.match(/user\.isAdmin \|\| user\.role === 'teacher' \? <Redirect to="\/workhub" replace \/>/g) || []).length, 3);
+  assert.ok(!/path="\/(register|register-independent)?"[\s\S]{0,40}OpenHubTab to="\/workhub"/.test(app), "the sign-in routes ask for no tab");
   assert.match(read("client/src/pages/TeacherHub.tsx"), /sessionStorage\.getItem\("workhub_tab"\)[\s\S]*\}, \[location\]\);/);
   assert.match(read("client/src/pages/AriseTodo.tsx"), /sessionStorage\.getItem\("lifehub_tab"\)[\s\S]*\}, \[location\]\);/);
 });
