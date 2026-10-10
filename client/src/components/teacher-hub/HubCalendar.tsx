@@ -555,8 +555,10 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
                 return (
                   <button key={date} type="button" onClick={() => setPicked(date)} aria-label={`${dayLabel(date)}${count ? `, ${count} ${count === 1 ? "event" : "events"}` : ""}`} aria-pressed={chosen}
                     className={`flex min-h-12 flex-col items-center justify-start rounded-xl border py-1 text-sm ${chosen ? "border-teal-600 bg-teal-50" : "border-transparent"} ${date === today ? "font-bold text-teal-700" : inMonth ? "text-slate-800" : "text-slate-300"} ${date < today ? "opacity-60" : ""}`}>
-                    <span>{Number(date.slice(8))}</span>
-                    {count > 0 && <span className="mt-0.5 inline-flex h-1.5 min-w-1.5 rounded-full bg-teal-600 px-0" aria-hidden />}
+                    <span className="hub-figure text-[15px]">{Number(date.slice(8))}</span>
+                    <span aria-hidden="true"
+                      className={`mt-1 w-[18px] hub-bar ${date === today ? "hub-bar-today" : count >= 3 ? "hub-bar-busy" : ""} ${count ? "" : "opacity-0"}`}
+                      style={{ height: Math.min(20, 4 + count * 4) }} />
                   </button>
                 );
               })}

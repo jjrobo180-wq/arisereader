@@ -27,7 +27,7 @@ const STATUS: Record<GoalStatus, { word: string; cls: string }> = {
 };
 
 function Bar({ percent, label, tone = "bg-teal-600" }: { percent: number; label: string; tone?: string }) {
-  return <div className="h-2.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(percent ? 3 : 0, percent)}%` }} /></div>;
+  return <div className="h-[5px] overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(percent ? 3 : 0, percent)}%` }} /></div>;
 }
 
 function Spark({ goal }: { goal: Goal }) {
@@ -89,7 +89,7 @@ export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Pro
               <Card key={g.id} title={`${g.student} · ${g.area}`} right={<span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${st.cls}`}>{st.word}</span>}>
                 <p className="break-words text-sm font-medium text-slate-900">{g.text}</p>
                 <div className="mt-3 flex items-end justify-between gap-3">
-                  <div><span className="text-3xl font-bold">{pr.latest ?? "—"}</span> <span className="text-sm text-slate-500">{g.unit} · goal {g.target}{g.unit && !/^[%]/.test(g.unit) ? "" : ""}</span></div>
+                  <div><span className="hub-figure text-[30px]">{pr.latest ?? "—"}</span> <span className="text-sm text-slate-500">{g.unit} · goal {g.target}{g.unit && !/^[%]/.test(g.unit) ? "" : ""}</span></div>
                   <span className="text-sm font-semibold text-slate-600">{pr.percent}%</span>
                 </div>
                 <div className="mt-2"><Bar percent={pr.percent} label={`${g.student} progress on goal`} tone={pr.status === "behind" ? "bg-red-500" : pr.status === "close" ? "bg-amber-500" : "bg-teal-600"} /></div>
@@ -314,7 +314,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
             return (
               <Card key={p.id} title={`${p.student} · ${p.kind}`} right={<button type="button" aria-label={`Change minutes for ${p.student}`} className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" onClick={() => editPlan(p)}><Pencil className="h-4 w-4" /></button>}>
                 <p className="mb-2 text-xs font-medium text-slate-500" data-testid="plan-text">{planText(p, placeText(blocks, p))}</p>
-                <div className="flex items-end justify-between gap-3"><div><span className="text-3xl font-bold">{s.thisWeek}</span> <span className="text-sm text-slate-500">of {s.required} min this week</span></div><span className="text-sm font-semibold text-slate-600">{s.remaining ? `${s.remaining} left` : "Done"}</span></div>
+                <div className="flex items-end justify-between gap-3"><div><span className="hub-figure text-[30px]">{s.thisWeek}</span> <span className="text-sm text-slate-500">of {s.required} min this week</span></div><span className="text-sm font-semibold text-slate-600">{s.remaining ? `${s.remaining} left` : "Done"}</span></div>
                 <div className="mt-2"><Bar percent={s.percent} label={`${p.student} minutes this week`} tone={s.remaining ? "bg-teal-600" : "bg-emerald-600"} /></div>
                 {s.days.length > 0 && (
                   <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={`${p.student}: this week day by day`} data-testid="minutes-days">

@@ -76,6 +76,7 @@ import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
 import HubDayHead from "@/components/teacher-hub/HubDayHead";
 import HubAgenda from "@/components/teacher-hub/HubAgenda";
+import HubPageHead from "@/components/teacher-hub/HubPageHead";
 import { weekStart, weeklyMinutes } from "@shared/hubProgress";
 
 /** A wash behind a student's initials, keyed by the area their goals are in. */
@@ -625,11 +626,8 @@ function TeacherHubPage() {
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
-            <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg sm:h-9 sm:w-9 sm:rounded-xl"><HubMark tone="work" className="h-full w-full" /></span>
-            <span className="min-w-0">
-              <span className="hidden text-xs font-bold uppercase tracking-[.22em] text-slate-400 sm:block">Arise</span>
-              <span className="block truncate text-base font-bold tracking-tight sm:text-xl">WorkHub</span>
-            </span>
+            <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
+            <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">WorkHub</span>
           </a>
           <div className="flex shrink-0 items-center gap-2">
             <HubSwitch current="hub" night={night} />
@@ -866,6 +864,10 @@ function TeacherHubPage() {
                 </div>
               </Card>
             </>
+          )}
+
+          {tab !== "overview" && tab !== "caseload" && !isReaderTab(tab) && tab !== "admin" && (
+            <HubPageHead tab={tab} title={TAB_META.find((m) => m.id === tab)?.label ?? groupLabel(group.id, visible)} workspace={workspace} />
           )}
 
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
@@ -1184,7 +1186,14 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
       </Card>
       <Card title="Timeline">
         {workspace.meetings.length ? <div className="space-y-2">{[...workspace.meetings].sort((a,b)=>Number(a.done)-Number(b.done)||dateValue(a.date)-dateValue(b.date)).map((m) => (
-          <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 sm:items-center">
+          <div key={m.id} className="flex items-start gap-3 border-b border-slate-100 py-4 sm:items-center">
+            <div className="w-11 flex-none text-center">
+              <div className={`hub-figure text-[20px] leading-none ${m.done ? "text-slate-400" : "text-slate-900"}`}>{m.date ? Number(m.date.slice(8, 10)) : "—"}</div>
+              <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                {m.date ? new Date(`${m.date}T12:00:00`).toLocaleDateString(undefined, { month: "short" }) : ""}
+              </div>
+            </div>
+            <span aria-hidden="true" className="w-[3px] flex-none self-stretch rounded-full" style={{ background: m.done ? "#e4e0ef" : m.date && m.date <= TODAY() ? "#c2410c" : "var(--hub-accent, #5b3be0)" }} />
             <input type="checkbox" className="h-5 w-5 shrink-0" checked={m.done} onChange={() => setWorkspace((p) => ({ ...p, meetings: p.meetings.map((x) => x.id === m.id ? { ...x, done: !x.done } : x) }))} />
             <div className="min-w-0 flex-1">
               <div className={`font-semibold ${m.done ? "text-slate-400 line-through" : ""}`}>{m.student} · {m.type}</div>
