@@ -4,6 +4,7 @@
 // client/src/components/teacher-hub/HubMinutesBulk.tsx; the screenshot is read in server/teacherHubImport.ts.
 import { BLOCK_NAME_MAX, blockName, cleanPart, cleanTeacher, groupText, partRank, placeText, type BlockPart, type SchoolBlock } from "./hubBlocks";
 import { SERVICE_KINDS, WEEK_DAYS, cleanDayGuide, countedPlan, guideDays, meetingDays, planFields, planText, sessionLog, weekDayOf, weekStart, type WeekDay } from "./hubProgress";
+import { cleanSubject } from "./hubSubjects";
 import type { ServiceLog, ServicePlan } from "./teacherHub";
 
 /** The minutes that take one tap. Anything else is typed in the "Other" box. */
@@ -65,6 +66,8 @@ export type BulkCommon = {
   part?: string;
   /** Whose class is pushed in to. It is kept for push-in only. */
   teacher?: string;
+  /** The subject the minutes are for (Reading, Math…). "" is none (plan), or each student's usual subject (log). */
+  subject?: string;
 };
 
 /** A ticked student. Anything set here is that student's own, and is used in place of what everyone else gets. */
@@ -73,9 +76,9 @@ export type BulkPick = { minutes?: string; block?: string; kind?: string; days?:
 export type BulkPicks = Record<string, BulkPick>;
 
 /** One ticked student with everything worked out: what will be saved for them. */
-export type BulkLine = { student: string; block: string; kind: string; days: WeekDay[]; minutes: string; /** The half of the block and whose class, when they were given. */ part?: BlockPart; teacher?: string };
+export type BulkLine = { student: string; block: string; kind: string; days: WeekDay[]; minutes: string; /** The half of the block and whose class, when they were given. */ part?: BlockPart; teacher?: string; subject?: string };
 
-export type PlanFields = Pick<ServicePlan, "student" | "kind" | "minutesPerWeek" | "days" | "block" | "part" | "teacher">;
+export type PlanFields = Pick<ServicePlan, "student" | "kind" | "minutesPerWeek" | "days" | "block" | "part" | "teacher" | "subject">;
 
 /** The kind of service that is given inside another teacher's class. */
 export const PUSH_IN: string = SERVICE_KINDS[0];
@@ -101,11 +104,12 @@ export function bulkLine(common: BulkCommon, student: string, pick: BulkPick, pl
   // A half is a half of a block, and a class is somewhere to push in: neither is kept without those.
   const part = block ? cleanPart(common.part) : undefined;
   const teacher = kind === PUSH_IN ? cleanTeacher(common.teacher) : "";
-  return { student, block, kind, days, minutes: String(pick.minutes ?? "").trim() || String(common.minutes ?? "").trim(), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}) };
+  const subject = cleanSubject(common.subject);
+  return { student, block, kind, days, minutes: String(pick.minutes ?? "").trim() || String(common.minutes ?? "").trim(), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}), ...(subject ? { subject } : {}) };
 }
 
 /** The half of the block and the class, as they are saved with a plan or a session. Nothing when there is neither. */
-const place = (line: Pick<BulkLine, "part" | "teacher">): { part?: BlockPart; teacher?: string } => ({ ...(line.part ? { part: line.part } : {}), ...(line.teacher ? { teacher: line.teacher } : {}) });
+const place = (line: Pick<BulkLine, "part" | "teacher" | "subject">): { part?: BlockPart; teacher?: string; subject?: string } => ({ ...(line.part ? { part: line.part } : {}), ...(line.teacher ? { teacher: line.teacher } : {}), ...(line.subject ? { subject: line.subject } : {}) });
 
 export type BulkResult = {
   /** The sessions to log (log), in the order of the students handed in. */
@@ -170,8 +174,12 @@ export function withPlans(services: ServicePlan[], plans: PlanFields[], makeId: 
       const days = Object.fromEntries(WEEK_DAYS.filter((d) => both[d]).map((d) => [d, both[d]!]));
       // The half and the class stay as they were, unless new ones were given.
       const part = cleanPart(fields.part) ?? cleanPart(old.part), teacher = cleanTeacher(fields.teacher) || cleanTeacher(old.teacher);
-      next = { ...fields, days, minutesPerWeek: Object.values(days).reduce((n, m) => n + m, 0), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}) };
+      const subject = cleanSubject(fields.subject) || cleanSubject(old.subject);
+      next = { ...fields, days, minutesPerWeek: Object.values(days).reduce((n, m) => n + m, 0), ...(part ? { part } : {}), ...(teacher ? { teacher } : {}), ...(subject ? { subject } : {}) };
     }
+    // A subject stays as it was, unless a new one was given.
+    const kept = cleanSubject(out[at].subject);
+    if (kept && !cleanSubject(next.subject)) next = { ...next, subject: kept };
     // Written out whole, so minutes changed from a day guide to a weekly number do not keep their old days.
     out = out.map((s, i) => (i === at ? { id: s.id, ...next, since: s.since || weekStart(today) } : s));
   }

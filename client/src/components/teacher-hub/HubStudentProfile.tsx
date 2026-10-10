@@ -8,6 +8,7 @@ import { dueWords, studentProfile, type ProfileDate } from "@shared/hubStudentPr
 import { planText } from "@shared/hubProgress";
 import { placeText, schoolBlocks } from "@shared/hubBlocks";
 import { sessionBlockName } from "@shared/hubMinutesWeek";
+import { cleanSubject, logSubject } from "@shared/hubSubjects";
 import { clock12, type HubTab, type Workspace } from "@shared/teacherHub";
 import { Card, Empty, GhostButton, PrimaryButton, Select } from "./ui";
 import { NoteCard, NoteModal } from "./HubNotes";
@@ -119,13 +120,30 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
         </Part>
 
         <Part title="Service minutes" count={profile.services.length} tab="minutes" tabLabel="Minutes" onOpenTab={onOpenTab}>
+          {profile.subjects.length > 0 && (
+            <div className="mb-3" data-testid="profile-subjects">
+              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Minutes by subject</div>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {profile.subjects.map((x) => {
+                  const pct = x.required ? Math.min(100, Math.round((x.thisWeek / x.required) * 100)) : 0;
+                  return (
+                    <li key={x.subject} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                      <div className="flex items-baseline justify-between gap-2"><span className="font-semibold text-slate-900">{x.subject}</span><span className="text-xs font-semibold text-slate-700">{x.required ? `${x.thisWeek} of ${x.required} min` : `${x.thisWeek} min`} this week</span></div>
+                      {x.required > 0 && <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden><div className={`h-full rounded-full ${x.thisWeek >= x.required ? "bg-emerald-600" : "bg-teal-600"}`} style={{ width: `${pct}%` }} /></div>}
+                      <div className="mt-1 text-xs text-slate-500">{x.total} min in all · {x.sessions} {x.sessions === 1 ? "session" : "sessions"}{x.notMet ? ` · ${x.notMet} missed` : ""}{x.owed ? ` · ${x.owed} min to make up` : ""}</div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
           <Rows rows={profile.services} empty="No services set up." render={({ plan, status }) => (
             <li key={plan.id} className={row}>
-              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium text-slate-900">{plan.kind} <span className="text-xs font-normal text-slate-500">· {planText(plan, placeText(blocks, plan))}</span></span><span className="text-xs font-semibold text-slate-700">{status.thisWeek} of {status.required} min this week</span></div>
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium text-slate-900">{[cleanSubject(plan.subject), plan.kind].filter(Boolean).join(" · ")} <span className="text-xs font-normal text-slate-500">· {planText(plan, placeText(blocks, plan))}</span></span><span className="text-xs font-semibold text-slate-700">{status.thisWeek} of {status.required} min this week</span></div>
               {(status.remaining > 0 || status.owed > 0) && <div className="mt-1 text-xs text-slate-500">{status.remaining > 0 ? `${status.remaining} min left this week` : "This week is done"}{status.owed > 0 ? ` · ${status.owed} min to make up` : ""}</div>}
             </li>
           )} />
-          {profile.serviceLogs.length > 0 && <div className="mt-3"><div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Sessions logged</div><Rows rows={profile.serviceLogs} empty="" render={(l) => <li key={l.id} className={row}><span className="font-medium text-slate-900">{day(l.date)}</span>{sessionBlockName(l, workspace.services, blocks) ? ` · ${sessionBlockName(l, workspace.services, blocks)}` : ""} · {l.kind} · {l.notMet ? "did not meet" : `${l.minutes} min`}{l.note ? <span className="text-slate-500"> · {l.note}</span> : null}</li>} /></div>}
+          {profile.serviceLogs.length > 0 && <div className="mt-3"><div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Sessions logged</div><Rows rows={profile.serviceLogs} empty="" render={(l) => <li key={l.id} className={row}><span className="font-medium text-slate-900">{day(l.date)}</span>{sessionBlockName(l, workspace.services, blocks) ? ` · ${sessionBlockName(l, workspace.services, blocks)}` : ""} · {[logSubject(l, workspace.services), l.kind].filter(Boolean).join(" · ")} · {l.notMet ? "did not meet" : `${l.minutes} min`}{l.note ? <span className="text-slate-500"> · {l.note}</span> : null}</li>} /></div>}
         </Part>
 
         <Part title="Meetings" count={profile.meetings.upcoming.length + profile.meetings.past.length} tab="iep" tabLabel="IEP & meetings" onOpenTab={onOpenTab}>

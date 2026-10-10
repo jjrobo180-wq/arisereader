@@ -13,6 +13,7 @@ import {
   PUSH_IN, QUICK_MINUTES, blockGroups, bulkLine, bulkResult, cleanName, cleanReadRows, joinsPlan, knownName, linePlan, lineText, minuteNames, placeRead,
   type BulkCommon, type BulkMode, type BulkPick, type BulkPicks, type BulkResult, type ReadRow,
 } from "@shared/hubMinutesBulk";
+import { MINUTE_SUBJECTS } from "@shared/hubSubjects";
 import { HUB_IMPORT_LIMITS, type ServicePlan, type Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, Labeled, PrimaryButton, Select } from "./ui";
 import { HubModal } from "./HubModal";
@@ -248,6 +249,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
           {!plan && <Labeled label="Date"><Field type="date" value={common.date} onChange={(e) => set({ date: e.target.value })} aria-label="Date" /></Labeled>}
           <Labeled label="Block"><Select value={common.block} onChange={(e) => set({ block: e.target.value })} aria-label="Block for everyone"><option value="">{plan ? "No block" : "Their usual block"}</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>
           <Labeled label="Kind"><Select value={common.kind} onChange={(e) => set({ kind: e.target.value })} aria-label="Kind for everyone">{!plan && <option value="">Their usual kind</option>}{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
+          <Labeled label="Subject"><Select value={common.subject || ""} onChange={(e) => set({ subject: e.target.value })} aria-label="Subject for everyone" data-testid="bulk-subject"><option value="">{plan ? "No subject" : "Their usual subject"}</option>{MINUTE_SUBJECTS.map((x) => <option key={x}>{x}</option>)}</Select></Labeled>
           {!plan && <Labeled label="Note (optional)"><Field value={common.note} onChange={(e) => set({ note: e.target.value })} maxLength={200} aria-label="Note" /></Labeled>}
         </div>
 

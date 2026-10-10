@@ -4,6 +4,7 @@
 import { daysBetween } from "./hubDates";
 import { guideProgress } from "./hubGuide";
 import { countedPlan, goalProgress, optionalDays, serviceStatus, type GoalStatus, type ServiceStatus } from "./hubProgress";
+import { subjectMinutes, type SubjectMinutes } from "./hubSubjects";
 import type {
   AriseRecord, Assignment, AttendanceEntry, BehaviorEntry, Goal, IepGuide, Meeting, NoteItem, ParentLog, ScheduleEntry, ServiceLog, ServicePlan, Student, Workspace,
 } from "./teacherHub";
@@ -23,6 +24,8 @@ export type StudentProfile = {
   goals: { goal: Goal; latest: number | null; percent: number; status: GoalStatus }[];
   services: { plan: ServicePlan; status: ServiceStatus }[];
   serviceLogs: ServiceLog[];
+  /** The service minutes added up by subject (Reading, Math…). */
+  subjects: SubjectMinutes[];
   meetings: { upcoming: Meeting[]; past: Meeting[] };
   guides: { guide: IepGuide; done: number; total: number }[];
   notes: NoteItem[];
@@ -75,6 +78,7 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
     iep: dated(student.iepDate, today),
     reeval: dated(student.reevalDate, today),
     goals, services, serviceLogs,
+    subjects: subjectMinutes(services.map((x) => x.plan), serviceLogs, today, workspace.services || []),
     meetings: {
       upcoming: meetings.filter(ahead).sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999"))),
       past: newest(meetings.filter((m) => !ahead(m))),

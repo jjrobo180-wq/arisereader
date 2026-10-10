@@ -12,6 +12,9 @@ import { NOT_MET_REASONS, blockLogs, notMetLogs, sessionBlockName, setPlanBlock,
 import { blockName, cleanPart, cleanTeacher, placeText, schoolBlocks } from "@shared/hubBlocks";
 import { BulkMinutesModal, ClassFields, MinutesPick, knownTeachers, type BulkStart } from "./HubMinutesBulk";
 import { PUSH_IN, QUICK_MINUTES, knownName, minuteNames, savedText, schoolDay, withPlans, type BulkResult } from "@shared/hubMinutesBulk";
+import { MINUTE_SUBJECTS, NO_SUBJECT, cleanSubject, logSubject } from "@shared/hubSubjects";
+import { classSavedText, type ClassResult } from "@shared/hubClassMinutes";
+import { ClassMinutesModal, ClassMinutesView } from "./HubClassMinutes";
 
 type Setter = Dispatch<SetStateAction<Workspace>>;
 type Props = { workspace: Workspace; setWorkspace: Setter; remove: (key: keyof Workspace, id: string) => void; makeId: () => string; today: string };
@@ -155,15 +158,18 @@ type LogDraft = {
   block: string;
   /** The session did not happen. */
   notMet: boolean;
+  /** The subject ("" for its service's subject). */
+  subject: string;
   /** "Did not meet" for this student only, or for everyone still waiting in the block or on the day. */
   scope: "one" | "block" | "day";
   others?: LogStart["others"];
 };
-/** The two ways to look at the minutes: each day sectioned off by block, or one card per student. */
-type MinutesLook = "week" | "students";
-const readLook = (): MinutesLook => { try { return localStorage.getItem("arise-hub-minutes-look") === "students" ? "students" : "week"; } catch { return "week"; } };
+/** The ways to look at the minutes: a card per class to log with one touch, each day sectioned off by block, or one card per student. */
+type MinutesLook = "class" | "week" | "students";
+const LOOKS: [MinutesLook, string][] = [["class", "By class"], ["week", "By block"], ["students", "By student"]];
+const readLook = (): MinutesLook => { try { const v = localStorage.getItem("arise-hub-minutes-look"); return v === "students" || v === "class" ? v : "week"; } catch { return "week"; } };
 /** A plan being set: counted by the day (a day guide) or by the week. */
-type PlanDraft = { /** A name is being typed, for a student who is not on the list. */ other?: boolean; id: string | null; student: string; kind: string; mode: "days" | "week"; perWeek: string; days: WeekDay[]; perDay: string; /** The block this service is in ("" for none). */ block: string; /** The half of the block ("" for the whole block), and whose class is pushed in to. */ part: string; teacher: string };
+type PlanDraft = { /** A name is being typed, for a student who is not on the list. */ other?: boolean; id: string | null; student: string; kind: string; mode: "days" | "week"; perWeek: string; days: WeekDay[]; perDay: string; /** The block this service is in ("" for none). */ block: string; /** The half of the block ("" for the whole block), and whose class is pushed in to. */ part: string; teacher: string; /** The subject ("" for none). */ subject: string };
 
 /** The choice in a list of students that opens a box to type a name that is not on the list. */
 const OTHER_NAME = "__another_name__";
@@ -188,6 +194,10 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
   const [plan, setPlan] = useState<PlanDraft | null>(null);
   const [look, setLookState] = useState<MinutesLook>(readLook);
   const [settingBlocks, setSettingBlocks] = useState(false);
+  /** The class whose pop-up is open (By class). */
+  const [classOpen, setClassOpen] = useState<string | null>(null);
+  /** The subject shown in By student ("" for every subject). */
+  const [subjectShown, setSubjectShown] = useState("");
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
   const setLook = (v: MinutesLook) => { setLookState(v); try { localStorage.setItem("arise-hub-minutes-look", v); } catch { /* the choice just isn't remembered */ } };
   // A student does not have to be on the caseload to be given minutes: a name can be typed, and is on the list from then on.
@@ -197,6 +207,8 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
   const meeting = meetingDays(optional);
   // Each plan as it counts: an optional day asks for nothing.
   const plans = workspace.services.map((p) => countedPlan(p, optional)).sort((a, b) => a.student.localeCompare(b.student) || a.kind.localeCompare(b.kind));
+  const subjects = [...MINUTE_SUBJECTS.filter((x) => plans.some((p) => cleanSubject(p.subject) === x)), ...(plans.some((p) => !cleanSubject(p.subject)) && plans.some((p) => cleanSubject(p.subject)) ? [NO_SUBJECT] : [])];
+  const shown = subjectShown && subjects.includes(subjectShown) ? plans.filter((p) => (cleanSubject(p.subject) || NO_SUBJECT) === subjectShown) : plans;
   const recent = [...workspace.serviceLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 25);
 
   /** Logs minutes for today with one tap. The session goes in the plan's block. */
@@ -225,7 +237,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
       // Nobody is marked twice for the same day.
       setWorkspace((w) => ({ ...w, serviceLogs: id ? updateLog(w.serviceLogs, id, notMet[0]) : [...w.serviceLogs, ...notMet.filter((made) => !w.serviceLogs.some((l) => l.notMet && l.student === made.student && l.kind === made.kind && l.date === made.date)).map((made) => ({ id: makeId(), ...made }))] }));
     } else if (logReady) {
-      const session = { ...logReady, ...(log.block ? { block: log.block } : {}) };
+      const session = { ...logReady, ...(log.block ? { block: log.block } : {}), ...(cleanSubject(log.subject) ? { subject: cleanSubject(log.subject) } : {}) };
       setWorkspace((w) => ({ ...w, serviceLogs: id ? updateLog(w.serviceLogs, id, session) : [...w.serviceLogs, { id: makeId(), ...session }] }));
     }
     setLog(null);
@@ -249,6 +261,12 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
     setSaved(savedText(result));
     setBulk(null);
   }
+  /** From the class pop-up: a session for each ticked student, and "Student absent" for the ones unticked. */
+  function saveClass(result: ClassResult, title: string) {
+    if (result.logs.length) setWorkspace((w) => ({ ...w, serviceLogs: [...w.serviceLogs, ...result.logs.map((session) => ({ id: makeId(), ...session }))] }));
+    setSaved(classSavedText(result, title));
+    setClassOpen(null);
+  }
   /**
    * Add in the block grid. For a student that was tapped: the log pop-up. For a block on a meeting day: the pop-up that puts
    * several students in it every week. On an optional day (or a weekend) nobody is put there every week: it logs the minutes you gave.
@@ -261,19 +279,19 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
   /** A logged session opened to be changed. */
   function editLog(logId: string) {
     const l = workspace.serviceLogs.find((x) => x.id === logId);
-    if (l) setLog({ ...newLog(), id: l.id, student: l.student, date: l.date, kind: l.kind, minutes: l.notMet ? "" : String(l.minutes), note: l.note || "", block: l.block && blocks.some((b) => b.id === l.block) ? l.block : "", notMet: !!l.notMet });
+    if (l) setLog({ ...newLog(), id: l.id, student: l.student, date: l.date, kind: l.kind, minutes: l.notMet ? "" : String(l.minutes), note: l.note || "", block: l.block && blocks.some((b) => b.id === l.block) ? l.block : "", notMet: !!l.notMet, subject: cleanSubject(l.subject) });
   }
   const planReady = plan && !(plan.mode === "days" && !plan.days.length) ? planFields({ student: knownName(plan.student, names), kind: plan.kind, perWeek: plan.perWeek, days: plan.mode === "days" ? plan.days : [], perDay: plan.perDay }) : null;
   function editPlan(p: ServicePlan) {
     const guide = cleanDayGuide(p.days), days = guideDays(p);
-    setPlan({ id: p.id, student: p.student, kind: p.kind, mode: days.length ? "days" : "week", perWeek: String(p.minutesPerWeek || ""), days, perDay: days.length ? String(guide[days[0]]) : "", block: p.block && blocks.some((b) => b.id === p.block) ? p.block : "", part: cleanPart(p.part) || "", teacher: cleanTeacher(p.teacher) });
+    setPlan({ id: p.id, student: p.student, kind: p.kind, mode: days.length ? "days" : "week", perWeek: String(p.minutesPerWeek || ""), days, perDay: days.length ? String(guide[days[0]]) : "", block: p.block && blocks.some((b) => b.id === p.block) ? p.block : "", part: cleanPart(p.part) || "", teacher: cleanTeacher(p.teacher), subject: cleanSubject(p.subject) });
   }
   /** Where the plan being set is, as it will be saved: a half needs a block, and a class is for push-in. */
   const planPlace = plan ? { ...(plan.block ? { block: plan.block } : {}), ...(plan.block && cleanPart(plan.part) ? { part: cleanPart(plan.part) } : {}), ...(plan.kind === PUSH_IN && cleanTeacher(plan.teacher) ? { teacher: cleanTeacher(plan.teacher) } : {}) } : {};
   function savePlan(e: FormEvent) {
     e.preventDefault();
     if (!plan || !planReady) return;
-    const fields = { ...planReady, ...planPlace };
+    const fields = { ...planReady, ...planPlace, ...(cleanSubject(plan.subject) ? { subject: cleanSubject(plan.subject) } : {}) };
     // Written out whole, so a plan changed from a day guide to a weekly number does not keep its old days.
     setWorkspace((w) => ({
       ...w,
@@ -283,18 +301,18 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
     }));
     setPlan(null);
   }
-  const newPlan = (): PlanDraft => ({ id: null, student: "", kind: "Push-in", mode: "days", perWeek: "", days: [], perDay: "", block: "", part: "", teacher: "" });
-  const newLog = (): LogDraft => ({ student: "", date: today, kind: "Push-in", minutes: "", note: "", block: "", notMet: false, scope: "one" });
+  const newPlan = (): PlanDraft => ({ id: null, student: "", kind: "Push-in", mode: "days", perWeek: "", days: [], perDay: "", block: "", part: "", teacher: "", subject: "" });
+  const newLog = (): LogDraft => ({ student: "", date: today, kind: "Push-in", minutes: "", note: "", block: "", notMet: false, scope: "one", subject: "" });
 
   return (
     <>
       <Card title="Service minutes" right={<PrimaryButton onClick={() => setBulk({ mode: "log", date: today, block: "" })}><Plus className="h-4 w-4" /> Log minutes</PrimaryButton>}>
-        <p className="text-sm text-slate-600">{look === "students" ? `Week of ${friendlyDate(weekStart(today), today)}. ` : ""}Set the minutes each student's IEP requires and the block they are in, then log what you deliver. A session on any other day counts toward the week and is never expected again.</p>
+        <p className="text-sm text-slate-600">{look === "class" ? "Tap a class to log everyone in it with one touch. Untick anyone who didn't show up and they are marked absent. " : ""}{look === "students" ? `Week of ${friendlyDate(weekStart(today), today)}. ` : ""}Set the minutes each student's IEP requires and the block they are in, then log what you deliver. A session on any other day counts toward the week and is never expected again.</p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <GhostButton onClick={() => setPlan(newPlan())}><Plus className="h-4 w-4" /> Set required minutes</GhostButton>
           <span data-testid="minutes-several"><GhostButton onClick={() => setBulk({ mode: "plan", date: today, block: "" })}><Users className="h-4 w-4" /> Add several students</GhostButton></span>
           <div role="tablist" aria-label="How to look at the minutes" className="ml-auto flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="minutes-look">
-            {([["week", "By block"], ["students", "By student"]] as const).map(([key, label]) => (
+            {LOOKS.map(([key, label]) => (
               <button key={key} type="button" role="tab" aria-selected={look === key} onClick={() => setLook(key)} className={`min-h-11 rounded-xl px-3 text-sm font-semibold ${look === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
             ))}
           </div>
@@ -302,17 +320,24 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
         {saved && <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" role="status" data-testid="minutes-saved">{saved}</p>}
       </Card>
 
+      {look === "class" && <ClassMinutesView workspace={workspace} today={today} onOpen={setClassOpen} />}
+      {classOpen && <ClassMinutesModal workspace={workspace} today={today} groupKey={classOpen} onSave={saveClass} onClose={() => setClassOpen(null)} />}
       {look === "week" && <MinutesWeekView workspace={workspace} today={today} onLog={logItems} onEdit={editLog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
       {look === "week" && !plans.length && <Empty>No required minutes set yet. Tap “Set required minutes” to add a student's push-in or pull-out time and block, or “Add several students” to set a whole block at once (you can tick them from a screenshot). They show up in that block on the days they are due.</Empty>}
       {bulk && <BulkMinutesModal workspace={workspace} today={today} token={token} start={bulk} onSave={saveBulk} onClose={() => setBulk(null)} />}
       {settingBlocks && <BlocksModal blocks={blocks} optional={optional} makeId={makeId} onClose={() => setSettingBlocks(false)} onSave={(next, days) => { setWorkspace((w) => ({ ...w, minuteBlocks: next, minuteOptionalDays: days })); setSettingBlocks(false); }} />}
 
+      {look === "students" && subjects.length > 1 && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Show minutes for" data-testid="minutes-subjects">
+          {["", ...subjects].map((x) => <button key={x || "all"} type="button" aria-pressed={(subjectShown && subjects.includes(subjectShown) ? subjectShown : "") === x} className={chipCls((subjectShown && subjects.includes(subjectShown) ? subjectShown : "") === x)} onClick={() => setSubjectShown(x)}>{x || "All subjects"}</button>)}
+        </div>
+      )}
       {look === "students" && (plans.length ? (
         <div className="grid gap-4 xl:grid-cols-2">
-          {plans.map((p) => {
+          {shown.map((p) => {
             const s = serviceStatus(p, workspace.serviceLogs, today);
             return (
-              <Card key={p.id} title={`${p.student} · ${p.kind}`} right={<button type="button" aria-label={`Change minutes for ${p.student}`} className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" onClick={() => editPlan(p)}><Pencil className="h-4 w-4" /></button>}>
+              <Card key={p.id} title={`${p.student} · ${[cleanSubject(p.subject), p.kind].filter(Boolean).join(" · ")}`} right={<button type="button" aria-label={`Change minutes for ${p.student}`} className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100" onClick={() => editPlan(p)}><Pencil className="h-4 w-4" /></button>}>
                 <p className="mb-2 text-xs font-medium text-slate-500" data-testid="plan-text">{planText(p, placeText(blocks, p))}</p>
                 <div className="flex items-end justify-between gap-3"><div><span className="hub-figure text-[30px]">{s.thisWeek}</span> <span className="text-sm text-slate-500">of {s.required} min this week</span></div><span className="text-sm font-semibold text-slate-600">{s.remaining ? `${s.remaining} left` : "Done"}</span></div>
                 <div className="mt-2"><Bar percent={s.percent} label={`${p.student} minutes this week`} tone={s.remaining ? "bg-teal-600" : "bg-emerald-600"} /></div>
@@ -337,7 +362,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
       {look === "students" && <Card title="Recent minutes">
         {recent.length ? <ul className="space-y-2">{recent.map((l) => (
           <li key={l.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm">
-            <div className="min-w-0 flex-1"><div className="font-medium">{l.student} · {l.kind}</div><div className="text-xs text-slate-500">{friendlyDate(l.date, today)}{sessionBlockName(l, workspace.services, blocks) ? ` · ${sessionBlockName(l, workspace.services, blocks)}` : ""}{l.note ? ` · ${l.note}` : ""}</div></div>
+            <div className="min-w-0 flex-1"><div className="font-medium">{l.student} · {[logSubject(l, workspace.services), l.kind].filter(Boolean).join(" · ")}</div><div className="text-xs text-slate-500">{friendlyDate(l.date, today)}{sessionBlockName(l, workspace.services, blocks) ? ` · ${sessionBlockName(l, workspace.services, blocks)}` : ""}{l.note ? ` · ${l.note}` : ""}</div></div>
             <strong className={`shrink-0 ${l.notMet ? "text-slate-500" : ""}`}>{l.notMet ? "Did not meet" : `${l.minutes} min`}</strong>
             <button type="button" aria-label={l.notMet ? `Delete "did not meet" for ${l.student}` : `Delete ${l.minutes} minutes for ${l.student}`} className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("serviceLogs", l.id)}><Trash2 className="h-4 w-4" /></button>
           </li>
@@ -369,6 +394,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
             )}
             {!everyone && <Labeled label="Student"><Select value={log.student} onChange={(e) => setLog({ ...log, student: e.target.value })} required aria-label="Student"><option value="">Choose student</option>{[...new Set([...names, log.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}</Select></Labeled>}
             {!everyone && <Labeled label="Kind"><Select value={log.kind} onChange={(e) => setLog({ ...log, kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>}
+            {!everyone && !log.notMet && <Labeled label="Subject"><Select value={log.subject} onChange={(e) => setLog({ ...log, subject: e.target.value })} aria-label="Subject"><option value="">{log.id ? "Same as the service" : "The service's subject"}</option>{MINUTE_SUBJECTS.map((x) => <option key={x}>{x}</option>)}</Select></Labeled>}
             {!everyone && <Labeled label="Block"><Select value={log.block} onChange={(e) => setLog({ ...log, block: e.target.value })} aria-label="Block"><option value="">{log.id ? "No block of its own" : "The student's usual block"}</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>}
             {log.notMet ? (
               <div>
@@ -394,6 +420,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
             <Labeled label="Student"><Select value={plan.other ? OTHER_NAME : plan.student} onChange={(e) => setPlan(e.target.value === OTHER_NAME ? { ...plan, other: true, student: "" } : { ...plan, other: false, student: e.target.value })} required aria-label="Student"><option value="">Choose student</option>{[...new Set([...names, plan.other ? "" : plan.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}<option value={OTHER_NAME}>Another name…</option></Select></Labeled>
             {plan.other && <Labeled label="Student's name"><Field value={plan.student} onChange={(e) => setPlan({ ...plan, student: e.target.value })} maxLength={80} autoCapitalize="words" placeholder="Type the name" aria-label="Student's name" data-testid="plan-other-name" /></Labeled>}
             <Labeled label="Kind"><Select value={plan.kind} onChange={(e) => setPlan({ ...plan, kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
+            <Labeled label="Subject"><Select value={plan.subject} onChange={(e) => setPlan({ ...plan, subject: e.target.value })} aria-label="Subject" data-testid="plan-subject"><option value="">No subject</option>{MINUTE_SUBJECTS.map((x) => <option key={x}>{x}</option>)}</Select></Labeled>
             <Labeled label="Block"><Select value={plan.block} onChange={(e) => setPlan({ ...plan, block: e.target.value })} aria-label="Block"><option value="">No block</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>
             <ClassFields hasBlock={!!plan.block} pushIn={plan.kind === PUSH_IN} part={plan.part} teacher={plan.teacher} known={knownTeachers(workspace)} onChange={(changes) => setPlan({ ...plan, ...changes })} />
             <div role="tablist" aria-label="How the minutes are counted" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="plan-mode">

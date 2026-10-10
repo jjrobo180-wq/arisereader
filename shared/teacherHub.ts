@@ -80,6 +80,8 @@ export type ServicePlan = {
   part?: string;
   /** Whose class it is: the teacher the service is pushed in to. */
   teacher?: string;
+  /** The subject the minutes are for (Reading, Math…): one of MINUTE_SUBJECTS in shared/hubSubjects.ts. */
+  subject?: string;
 };
 /** Minutes actually delivered on a day. */
 export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string; /** When the session ran ("10:00" to "10:20"), if a time was given. */ start?: string; end?: string; /** The block (period) it was given in, when that was said. Without one it goes in its plan's block. */ block?: string;
@@ -88,6 +90,8 @@ export type ServiceLog = { id: string; student: string; date: string; kind: stri
   /** The half of the block it was given in, and whose class it was, when that was said. Without them it follows its plan. */
   part?: string;
   teacher?: string;
+  /** The subject, when it was said. Without one it follows its plan's subject. */
+  subject?: string;
 };
 export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean;
   /** For a forwarded email: when it was first sent, as written ("Thursday, October 8, 2026 9:57 AM"). */
