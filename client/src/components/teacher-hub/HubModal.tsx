@@ -2,6 +2,7 @@
 // it closes with Escape (and the backdrop, if the screen says so), the page behind it stops
 // scrolling, focus stays inside and goes back where it was, and it fits above the keyboard.
 import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -61,7 +62,11 @@ export function HubModal({
 
   const width = size === "sm" ? "sm:max-w-md" : size === "lg" ? "sm:max-w-3xl" : "sm:max-w-xl";
 
-  return (
+  // Rendered into <body>. A pop-up opened from the header would otherwise measure "fixed"
+  // against the header, because its backdrop blur makes it the containing block - which cut the
+  // top off anything taller than the header itself.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4"
       onMouseDown={(event) => { if (closeOnBackdrop && closeRef.current && event.target === event.currentTarget) closeRef.current(); }}
@@ -87,6 +92,7 @@ export function HubModal({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">{children}</div>
         {footer && <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
