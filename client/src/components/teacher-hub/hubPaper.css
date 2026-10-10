@@ -31,16 +31,18 @@
 .hub-paper:not(.hub-night) .text-slate-500,
 .hub-paper:not(.hub-night) .text-slate-400 { color: #6b6676; }
 
-/* One accent. The Hub's teal becomes the violet the logo uses. */
-.hub-paper:not(.hub-night) .bg-teal-700,
-.hub-paper:not(.hub-night) .bg-teal-600 { background-color: #5b3be0; }
-.hub-paper:not(.hub-night) .hover\:bg-teal-800:hover,
-.hub-paper:not(.hub-night) .hover\:bg-teal-700:hover { background-color: #4a2fc2; }
+/* One accent, the teacher's own (shared/hubAccent.ts). These are not scoped away from night
+   mode: a colour you picked should hold in both. */
+.hub-paper .bg-teal-700,
+.hub-paper .bg-teal-600 { background-color: var(--hub-accent, #5b3be0); }
+.hub-paper .hover\:bg-teal-800:hover,
+.hub-paper .hover\:bg-teal-700:hover { background-color: var(--hub-accent-deep, #4a2fc2); }
+.hub-paper .hub-bar-today { background: var(--hub-accent, #5b3be0); }
 .hub-paper:not(.hub-night) .text-teal-700,
 .hub-paper:not(.hub-night) .text-teal-800,
 .hub-paper:not(.hub-night) .text-teal-900,
 .hub-paper:not(.hub-night) .text-teal-950,
-.hub-paper:not(.hub-night) .text-teal-600 { color: #4a2fc2; }
+.hub-paper:not(.hub-night) .text-teal-600 { color: var(--hub-accent-deep, #4a2fc2); }
 .hub-paper:not(.hub-night) .bg-teal-50,
 .hub-paper:not(.hub-night) .bg-teal-50\/60 { background-color: #f3efff; }
 .hub-paper:not(.hub-night) .bg-teal-100 { background-color: #e7e0ff; }

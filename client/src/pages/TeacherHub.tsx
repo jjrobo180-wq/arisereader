@@ -8,6 +8,7 @@ import {
   Calendar,
   CalendarDays,
   CheckCircle2,
+  Check,
   CheckSquare,
   CheckCheck,
   ChevronDown,
@@ -74,6 +75,8 @@ import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/H
 import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
 import HubDayHead from "@/components/teacher-hub/HubDayHead";
+import { HUB_ACCENTS, DEFAULT_ACCENT, cleanAccent, deepenAccent } from "@shared/hubAccent";
+import { textOn } from "@shared/hubPins";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
 import HubPollBell from "@/components/teacher-hub/HubPollBell";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
@@ -367,6 +370,8 @@ function TeacherHubPage() {
   // Which menu item is being dragged. Must stay with the other hooks: anything
   // below the early returns changes the hook count between renders and React throws.
   const [draggingGroup, setDraggingGroup] = useState<HubGroupId | null>(null);
+  // The teacher's accent, handed to the stylesheet as a pair of custom properties.
+  const accent = cleanAccent(workspace.profile.accent) || DEFAULT_ACCENT;
   // The group's categories dropdown (replaces a second row of sub-tabs). Hooks stay up here:
   // anything below the early returns changes the hook count between renders and React throws.
   const [subMenu, setSubMenu] = useState(false);
@@ -603,7 +608,8 @@ function TeacherHubPage() {
   const subTabs = groupTabs(group.id, visible);
 
   return (
-    <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
+    <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}
+      style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
@@ -705,6 +711,26 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
+              <div className="mb-5">
+                <h3 className="mb-1 text-sm font-semibold text-slate-900">Accent colour</h3>
+                <p className="mb-3 text-sm text-slate-600">The one colour the Hub is tinted with: buttons, links, today's bar and anything chosen.</p>
+                <div role="radiogroup" aria-label="Accent colour" className="flex flex-wrap items-center gap-2">
+                  {HUB_ACCENTS.map((c) => (
+                    <button key={c.hex} type="button" role="radio" aria-checked={accent === c.hex} aria-label={c.name} title={c.name}
+                      onClick={() => setWorkspace((p) => ({ ...p, profile: { ...p.profile, accent: c.hex } }))}
+                      data-testid={`hub-accent-${c.name.toLowerCase()}`}
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-full border-2 ${accent === c.hex ? "border-slate-900" : "border-white ring-1 ring-slate-300"}`}
+                      style={{ backgroundColor: c.hex }}>
+                      {accent === c.hex && <Check className="h-4 w-4" style={{ color: textOn(c.hex) }} />}
+                    </button>
+                  ))}
+                  <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700">Any colour
+                    <input type="color" value={accent} aria-label="Pick any accent colour" data-testid="hub-accent-any"
+                      onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, accent: e.target.value } }))}
+                      className="h-11 w-14 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
+                  </label>
+                </div>
+              </div>
               <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {cleanGroupOrder(workspace.groupOrder).map((id) => HUB_GROUPS.find((g) => g.id === id)!)

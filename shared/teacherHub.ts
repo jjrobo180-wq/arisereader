@@ -9,6 +9,7 @@ import { cleanOptionalDays } from "./hubProgress";
 import { cleanPins, type Pin } from "./hubPins";
 import { cleanBanner } from "./hubBanner";
 import type { StepPlan } from "./meetingSteps";
+import { cleanAccent } from "./hubAccent";
 
 /** The longest a disability can be typed. */
 export const DISABILITY_MAX = 120;
@@ -177,7 +178,7 @@ export type HubTab = (typeof HUB_TABS)[number];
 
 export type Workspace = {
   version: number;
-  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
+  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** The one colour the Hub is tinted with (see shared/hubAccent.ts). */ accent?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
   visibleTabs: Record<HubTab, boolean>;
   /** The order the menu's groups show in, Home aside: group ids as strings, kept loose here to
    *  avoid a circular import with shared/hubTabGroups.ts. See cleanGroupOrder there. */
@@ -234,7 +235,7 @@ export function normalizeWorkspace(raw: any): Workspace {
   const out: any = {
     ...base,
     ...raw,
-    profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}) },
+    profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}), accent: cleanAccent(raw.profile?.accent) || undefined },
     visibleTabs: { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true },
     groupOrder: Array.isArray(raw.groupOrder) ? raw.groupOrder.filter((x: unknown) => typeof x === "string") : [],
   };
