@@ -370,8 +370,6 @@ function TeacherHubPage() {
   // Which menu item is being dragged. Must stay with the other hooks: anything
   // below the early returns changes the hook count between renders and React throws.
   const [draggingGroup, setDraggingGroup] = useState<HubGroupId | null>(null);
-  // The teacher's accent, handed to the stylesheet as a pair of custom properties.
-  const accent = cleanAccent(workspace.profile.accent) || DEFAULT_ACCENT;
   // The group's categories dropdown (replaces a second row of sub-tabs). Hooks stay up here:
   // anything below the early returns changes the hook count between renders and React throws.
   const [subMenu, setSubMenu] = useState(false);
@@ -392,6 +390,8 @@ function TeacherHubPage() {
   // Opening the Hub and keeping it saved (see useHubWorkspace).
   const sync = useHubWorkspace({ enabled: canUseHub, token, userId: user?.id });
   const { workspace, setWorkspace, loaded, loadError, needsPlan, seats, view, bytes } = sync;
+  // The teacher's accent, handed to the stylesheet as a pair of custom properties.
+  const accent = cleanAccent(workspace.profile.accent) || DEFAULT_ACCENT;
   const trial = useHubTrial(token, "work", canUseHub && !user?.isAdmin);
   const toasts = useToasts();
   const latest = useRef(workspace);
