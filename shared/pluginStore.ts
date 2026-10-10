@@ -49,6 +49,8 @@ export type Plugin = {
   steps?: string[];
   /** For a connection: what it needs, in one line (an iPhone, the site admin...). */
   needsNote?: string;
+  /** For a connection: a CSS selector for its setup box, which Start setup scrolls to and highlights. */
+  anchor?: string;
 };
 
 export const PLUGIN_CATEGORIES: Record<PluginHub, readonly string[]> = {
@@ -116,16 +118,19 @@ export const PLUGINS: readonly Plugin[] = [
     description: "Forward emails in and keep the ones that need an answer, with a draft reply.",
     features: ["Forward emails in", "Flag what matters", "Turn an email into a to-do"] },
   { id: "work-calendar-feeds", hub: "work", name: "Google, Outlook & Apple Calendar", tagline: "Bring in the calendars you use", category: "Connections", icon: "CalendarPlus", color: "#4f46e5", target: { kind: "connection", needs: { tab: "calendar" } },
+    anchor: '[data-testid="calendar-whose"]',
     steps: ["In Google Calendar, Outlook or Apple Calendar, find your calendar's private address (it may be called the iCal, ICS or secret address) and copy it.", "In WorkHub, open Calendar and add a calendar, then paste the address.", "Give it a name. To add a colleague's calendar, choose to keep only the busy times.", "Its events show up in WorkHub and stay up to date on their own."],
     needsNote: "Works with any calendar that gives you a link.",
     description: "Connect any calendar by its link and its events show up in WorkHub, kept up to date. Add a colleague's calendar to see when they're busy.",
     features: ["Google, Outlook, Apple or any calendar link", "Syncs on its own", "Colleagues' calendars, busy times only"] },
   { id: "work-apple-reminders", hub: "work", name: "Apple Reminders", tagline: "Reminders become WorkHub to-dos", category: "Connections", icon: "BellRing", color: "#475569", target: { kind: "connection", needs: { tab: "tasks" } },
+    anchor: '[data-testid="apple-steps"]',
     steps: ["Open Tasks in WorkHub and find Apple Reminders at the bottom.", "Tap “Set it up (about 3 minutes)” and copy your private link.", "On your iPhone, make the Shortcut the setup shows you, using that link.", "Run it, or set it to run on its own: your reminders come in as to-dos."],
     needsNote: "Needs an iPhone. Reminders come into WorkHub only; nothing is sent back to Apple.",
     description: "Send reminders from your iPhone straight into your WorkHub to-do list.",
     features: ["From Siri or the Reminders app", "Lands in Tasks", "Set up once"] },
   { id: "work-email-forwarding", hub: "work", name: "Email forwarding", tagline: "Forward an email, get a to-do", category: "Connections", icon: "Forward", color: "#334155", target: { kind: "connection", needs: { tab: "email" } },
+    anchor: '[data-testid="hub-forwarding"]',
     steps: ["Open Email in WorkHub and get your forwarding address.", "Save it as a contact in your email app so it's easy to find.", "Forward any email to it.", "It shows up in Email, ready to answer or turn into a to-do."],
     needsNote: "The site admin turns email on once for the whole site.",
     description: "Your own WorkHub address: forward any email to it and it becomes something to do.",
@@ -177,11 +182,13 @@ export const PLUGINS: readonly Plugin[] = [
     description: "See your Arise WorkHub calendar on your family calendar, read live, so work and home never double-book.",
     features: ["Read live from WorkHub", "Nothing is copied", "Turn it off any time"] },
   { id: "life-apple-health", hub: "life", name: "Apple Health", tagline: "Steps, workouts and weight from your iPhone", category: "Connections", icon: "HeartPulse", color: "#e11d48", target: { kind: "connection", needs: { section: "health" } },
+    anchor: '[data-plugin-anchor="apple-health"]',
     steps: ["Open Food & fitness in LifeHub and pick the person to connect.", "Tap “Connect Apple Health”. You'll get a private link and an iPhone Shortcut.", "On your iPhone, add the Shortcut and let it read your Health data.", "Steps, active calories and weight come in every day on their own."],
     needsNote: "Needs an iPhone (or Apple Watch). Connect each adult separately.",
     description: "Bring steps, workouts and weight in from Apple Health, so Food & fitness fills itself in.",
     features: ["Steps and workouts", "Weight", "Set up once per person"] },
   { id: "life-email-forward", hub: "life", name: "Email forwarding", tagline: "Forward an email, get a task", category: "Connections", icon: "Forward", color: "#334155", target: { kind: "connection", needs: { section: "tasks" } },
+    anchor: '[data-plugin-anchor="email-forward"]',
     steps: ["Open Tasks in LifeHub and find “Forward emails here”.", "Tap “Get my forwarding address”.", "Add the email addresses you'll forward from, so strangers can't send you tasks.", "Forward any email (a bill, a flyer, an appointment) and it becomes a task in your Email list."],
     needsNote: "The site admin turns email on once for the whole site.",
     description: "Your own LifeHub address: forward any email to it and it becomes a task.",

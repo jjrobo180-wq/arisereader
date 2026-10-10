@@ -101,3 +101,19 @@ test("every connection explains its setup steps before sending you anywhere", ()
   const store = read("client/src/components/plugin-store/PluginStore.tsx");
   assert.match(store, /setOpenId\(p\.id\); \}\} data-testid=\{`plugin-setup-/, "Set up opens the popup");
 });
+
+test("Start setup goes to the exact setup box of every connection", () => {
+  const files: Record<string, string> = {
+    '[data-testid="calendar-whose"]': "client/src/components/teacher-hub/HubCalendar.tsx",
+    '[data-testid="apple-steps"]': "client/src/components/teacher-hub/HubApple.tsx",
+    '[data-testid="hub-forwarding"]': "client/src/components/teacher-hub/HubInbox.tsx",
+    '[data-plugin-anchor="apple-health"]': "client/src/components/family-hub/AppleHealth.tsx",
+    '[data-plugin-anchor="email-forward"]': "client/src/components/family-hub/EmailForward.tsx",
+  };
+  for (const p of PLUGINS.filter((q) => q.target.kind === "connection")) {
+    assert.ok(p.anchor && files[p.anchor], `${p.id}: needs a known setup box`);
+    const attr = p.anchor!.slice(1, -1).replace(/"/g, '"');
+    assert.ok(read(files[p.anchor!]).includes(attr), `${p.id}: ${attr} is not in ${files[p.anchor!]}`);
+  }
+  assert.match(read("client/src/components/plugin-store/PluginStore.tsx"), /onOpen\(p\); if \(p\.anchor\) goToSetup\(p\.anchor\)/);
+});

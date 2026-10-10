@@ -20,6 +20,23 @@ const ICONS: Record<string, LucideIcon> = {
   Users, Vote, Wallet,
 };
 
+/**
+ * Scrolls to a connection's setup box once the hub has drawn it (the tab or section opens first),
+ * opens it if it folds, and outlines it for a moment so it's easy to spot.
+ */
+export function goToSetup(selector: string, tries = 40) {
+  const el = document.querySelector<HTMLElement>(selector);
+  if (!el) { if (tries > 0) window.setTimeout(() => goToSetup(selector, tries - 1), 100); return; }
+  if (el instanceof HTMLDetailsElement) el.open = true;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  const before = { outline: el.style.outline, offset: el.style.outlineOffset, radius: el.style.borderRadius, transition: el.style.transition };
+  el.style.transition = "outline-color .4s";
+  el.style.outline = "3px solid #7c6be6";
+  el.style.outlineOffset = "4px";
+  if (!el.style.borderRadius) el.style.borderRadius = "1rem";
+  window.setTimeout(() => { el.style.outline = before.outline; el.style.outlineOffset = before.offset; el.style.borderRadius = before.radius; el.style.transition = before.transition; }, 2600);
+}
+
 const HUB_NAME: Record<PluginHub, string> = { work: "WorkHub", life: "LifeHub" };
 const ACCENT: Record<PluginHub, { solid: string; soft: string; text: string; ring: string }> = {
   work: { solid: "bg-teal-700 hover:bg-teal-800 text-white", soft: "bg-teal-50 text-teal-800", text: "text-teal-700", ring: "focus-visible:ring-teal-600" },
@@ -129,7 +146,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
         return <button type="button" className={`${base} ${a.solid}`} onClick={(e) => { e.stopPropagation(); toggle(need, true); }}><Plus className="h-3.5 w-3.5" />Add {need.name}</button>;
       }
       // Set up explains the steps first; the popup's own button then goes to the place to do them.
-      if (big) return <button type="button" className={`${base} ${a.solid}`} onClick={(e) => { e.stopPropagation(); onOpen(p); }} data-testid="plugin-start-setup">Start setup <ArrowUpRight className="h-3.5 w-3.5" /></button>;
+      if (big) return <button type="button" className={`${base} ${a.solid}`} onClick={(e) => { e.stopPropagation(); onOpen(p); if (p.anchor) goToSetup(p.anchor); }} data-testid="plugin-start-setup">Start setup <ArrowUpRight className="h-3.5 w-3.5" /></button>;
       return <button type="button" className={`${base} bg-slate-100 text-slate-800 hover:bg-slate-200`} onClick={(e) => { e.stopPropagation(); setOpenId(p.id); }} data-testid={`plugin-setup-${p.id}`}>Set up</button>;
     }
     const on = isInstalled(p);
