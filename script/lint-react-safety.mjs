@@ -31,6 +31,7 @@ const report = (file, node, src, message) => {
 };
 
 /** The statements directly inside a function body, skipping anything in a nested function. */
+const isTypeNode = (n) => n.kind >= ts.SyntaxKind.FirstTypeNode && n.kind <= ts.SyntaxKind.LastTypeNode;
 const isFunctionLike = (n) =>
   ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n);
 
@@ -85,7 +86,8 @@ function checkBody(body, file, src) {
   // the source of every false alarm when this walked the whole subtree.
   const flagReads = (node) => {
     node.forEachChild(function step(child) {
-      if (isFunctionLike(child) || ts.isBlock(child)) return;
+      // Type positions name nothing at runtime: useRef<{ user: X }>() is not a read of `user`.
+      if (isFunctionLike(child) || ts.isBlock(child) || isTypeNode(child)) return;
       if (ts.isIdentifier(child)) {
         const at = declared.get(child.text);
         const p = child.parent;
