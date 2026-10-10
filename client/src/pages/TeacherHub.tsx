@@ -1016,6 +1016,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
   const [openId, setOpenId] = useState<string | null>(null);
   // Which service area the list is filtered to, or "all".
   const [area, setArea] = useState("all");
+  // The add form opens over the list instead of sitting on it.
+  const [addOpen, setAddOpen] = useState(false);
   // The new student's IEP team. It is typed in the same form and saved with the student, by the one "Add student" button.
   const [formTeam, setFormTeam] = useState<TeamDraft>(emptyTeamDraft);
   // The disabilities and team part of the add form stays folded away until it is asked for, or has something in it.
@@ -1036,6 +1038,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
     setFormTeam(emptyTeamDraft());
     setMore(false);
     setAddError("");
+    setAddOpen(false);
   }
 
   // The student being changed and what has been typed so far. One at a time.
@@ -1090,7 +1093,13 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
             <h1 className="hub-figure text-[40px] leading-none sm:text-[46px]">Caseload</h1>
             <span className="hub-figure text-[20px] text-slate-500">{workspace.students.length}</span>
           </div>
-          {seats !== null && <span className="pb-1 text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")} seats</span>}
+          <div className="flex items-center gap-3 pb-1">
+            {seats !== null && <span className="text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")} seats</span>}
+            <button type="button" onClick={() => setAddOpen(true)} disabled={full} data-testid="caseload-add-open"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">
+              <Plus className="h-4 w-4" /> Add student
+            </button>
+          </div>
         </div>
         {areas.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Filter by area">
@@ -1101,7 +1110,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
           </div>
         )}
       </section>
-      <Card title="Add a student" collapseKey="caseload-add" right={seats !== null ? <span className="shrink-0 text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")}</span> : undefined}>
+      {addOpen && (
+        <HubModal title="Add a student" size="lg" closeOnBackdrop onClose={() => setAddOpen(false)}>
         {full && (
           <div className="mb-4 flex flex-col gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
             <span>Your plan covers {seats!.toLocaleString("en-US")} students, and your caseload is full.</span>
@@ -1128,7 +1138,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
           {addError && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 md:col-span-4" role="alert">{addError}</div>}
           <div className="md:col-span-4"><PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add student</PrimaryButton></div>
         </form>
-      </Card>
+        </HubModal>
+      )}
       <div className="min-w-0">
         {roster.length ? roster.map((s) => editing?.id === s.id ? (
           <Card key={s.id} title={`Edit ${s.name}`}>
@@ -1215,6 +1226,30 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
   );
 }
 
+/** A heading with a button beside it; the form it holds opens over the page rather than
+ *  sitting open on it. The form closes the pop-up when it is submitted. */
+function AddCard({ title, label, children }: { title: string; label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <section className="min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
+          <h2 className="hub-card-title font-semibold text-slate-900">{title}</h2>
+          <button type="button" onClick={() => setOpen(true)} data-testid={`add-card-${label.toLowerCase().replace(/\s+/g, "-")}`}
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700">
+            <Plus className="h-4 w-4" /> {label}
+          </button>
+        </div>
+      </section>
+      {open && (
+        <HubModal title={title} size="lg" closeOnBackdrop onClose={() => setOpen(false)}>
+          <div onSubmit={() => setOpen(false)}>{children}</div>
+        </HubModal>
+      )}
+    </>
+  );
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div><div className="mt-1 text-slate-700">{value}</div></div>;
 }
@@ -1265,7 +1300,7 @@ function Lessons({ workspace, setWorkspace, remove }: SectionProps) {
   }
   return (
     <>
-      <Card title="Lesson planning">
+      <AddCard title="Lesson planning" label="Add lesson">
         <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
           <Field placeholder="Lesson title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
           <Select value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}><option>Math</option><option>Reading</option><option>Writing</option><option>Push-in</option><option>Pull-out</option><option>Other</option></Select>
@@ -1275,7 +1310,7 @@ function Lessons({ workspace, setWorkspace, remove }: SectionProps) {
           <TextArea placeholder="Materials / worksheet notes" value={form.materials} onChange={(e) => setForm({ ...form, materials: e.target.value })} className="md:col-span-2" />
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Save lesson</PrimaryButton>
         </form>
-      </Card>
+      </AddCard>
       <div className="grid gap-4 lg:grid-cols-2">
         {workspace.lessons.length ? workspace.lessons.map((lesson) => (
           <Card key={lesson.id} title={lesson.title} right={<button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("lessons", lesson.id)}><Trash2 className="h-4 w-4" /></button>}>
@@ -1372,7 +1407,7 @@ function Arise({ workspace, setWorkspace, remove, studentOptions }: SectionProps
   }
   return (
     <>
-      <Card title="A.R.I.S.E. reading records">
+      <AddCard title="A.R.I.S.E. reading records" label="Add record">
         <form onSubmit={add} className="grid gap-3 md:grid-cols-6">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions()}</Select>
           <Field placeholder="Book / text" value={form.book} onChange={(e) => setForm({ ...form, book: e.target.value })} className="md:col-span-2" required />
@@ -1381,7 +1416,7 @@ function Arise({ workspace, setWorkspace, remove, studentOptions }: SectionProps
           <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add record</PrimaryButton>
         </form>
-      </Card>
+      </AddCard>
       <Card title="Reading history">
         {workspace.ariseRecords.length ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="pb-2">Student</th><th>Book</th><th>Score</th><th>Points</th><th>Date</th><th /></tr></thead><tbody>{workspace.ariseRecords.map((r) => <tr key={r.id} className="border-t border-slate-100"><td className="py-3 font-medium">{r.student}</td><td>{r.book}</td><td>{r.score}</td><td>{r.points}</td><td>{r.date}</td><td><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("ariseRecords", r.id)}><Trash2 className="h-4 w-4" /></button></td></tr>)}</tbody></table></div> : <Empty>No A.R.I.S.E. records yet.</Empty>}
       </Card>
@@ -1398,7 +1433,7 @@ function Behavior({ workspace, setWorkspace, remove, studentOptions, totals }: S
   }
   return (
     <>
-      <Card title="Behavior points">
+      <AddCard title="Behavior points" label="Record points">
         <form onSubmit={add} className="grid gap-3 md:grid-cols-5">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions(true)}</Select>
           <Field type="number" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} />
@@ -1406,7 +1441,7 @@ function Behavior({ workspace, setWorkspace, remove, studentOptions, totals }: S
           <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Record points</PrimaryButton>
         </form>
-      </Card>
+      </AddCard>
       <div className="grid gap-4 lg:grid-cols-[.7fr_1.3fr]">
         <Card title="Totals">
           {Object.keys(totals).length ? <div className="space-y-2">{Object.entries(totals).sort((a,b)=>b[1]-a[1]).map(([name,total]) => <div key={name} className="flex justify-between rounded-xl bg-slate-50 px-3 py-2"><span>{name}</span><strong>{total > 0 ? "+" : ""}{total}</strong></div>)}</div> : <Empty>No points yet.</Empty>}
@@ -1508,7 +1543,7 @@ function Parents({ workspace, setWorkspace, remove, studentOptions }: SectionPro
   }
   return (
     <>
-      <Card title="Parent communication">
+      <AddCard title="Parent communication" label="Log contact">
         <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })}>{studentOptions()}</Select>
           <Field placeholder="Parent / guardian" value={form.guardian} onChange={(e) => setForm({ ...form, guardian: e.target.value })} />
@@ -1517,7 +1552,7 @@ function Parents({ workspace, setWorkspace, remove, studentOptions }: SectionPro
           <TextArea placeholder="Message / class feed post / contact note" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className="md:col-span-4" />
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Save contact log</PrimaryButton>
         </form>
-      </Card>
+      </AddCard>
       <Card title="Contact log">
         {workspace.parentLogs.length ? <div className="space-y-3">{workspace.parentLogs.map((p) => <div key={p.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex justify-between gap-3"><div><div className="font-semibold">{p.student || "General"} · {p.guardian || "Guardian"}</div><div className="text-xs text-slate-500">{p.status} · {p.date}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("parentLogs", p.id)}><Trash2 className="h-4 w-4" /></button></div><p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{p.message}</p></div>)}</div> : <Empty>No parent communication saved yet.</Empty>}
       </Card>
@@ -1534,7 +1569,7 @@ function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }
   }
   return (
     <>
-      <Card title="Weekly student schedules">
+      <AddCard title="Weekly student schedules" label="Add schedule">
         <form onSubmit={add} className="grid gap-3 md:grid-cols-6">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions()}</Select>
           <Select value={form.day} onChange={(e) => setForm({ ...form, day: e.target.value })}><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option></Select>
@@ -1543,7 +1578,7 @@ function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }
           <Field placeholder="Class / service" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add block</PrimaryButton>
         </form>
-      </Card>
+      </AddCard>
       {warnings.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex gap-2 font-semibold text-amber-900"><AlertTriangle className="h-5 w-5" /> Schedule overlap</div><div className="mt-2 space-y-1 text-sm text-amber-800">{warnings.map((w) => <div key={w}>{w}</div>)}</div></div>}
       <Card title="Schedule blocks">
         {workspace.schedules.length ? <div className="grid gap-3 lg:grid-cols-2">{workspace.schedules.map((s) => <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><div className="font-medium">{s.student} · {s.label || "Schedule block"}</div><div className="text-xs text-slate-500">{s.day} · {s.start}–{s.end}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("schedules", s.id)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <Empty>No schedule blocks yet.</Empty>}

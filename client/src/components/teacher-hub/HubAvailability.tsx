@@ -6,6 +6,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { AVAILABILITY_LIMIT, FIT_WORDS, WEEK_DAYS, cleanWeekly, suggestAnswers, type Fit, type FreeWindow } from "@shared/availability";
 import type { PollAnswer } from "@shared/meetingPoll";
 import { Card, Empty, GhostButton, PrimaryButton } from "./ui";
+import { HubModal } from "./HubModal";
 
 export async function api(token: string | null, method: string, path: string, body?: unknown) {
   const response = await fetch(`${API_BASE}${path}`, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -63,11 +64,13 @@ export function MyAvailability({ token, setNotice, onChange, defaultOpen = false
         <GhostButton onClick={() => setOpen(!open)}>{open ? "Close" : weekly.length ? "Edit" : "Add"}</GhostButton>
       </div>
       {open && (
-        <div className="mt-3 space-y-3">
+        <HubModal title="My availability" closeOnBackdrop onClose={() => setOpen(false)}>
+        <div className="space-y-3">
           <p className="text-slate-600">The times you can usually meet each week. When someone who invites you opens their link while signed in and adds the poll to their account, they can see whether you're usually available for each time offered. They never see your calendar.</p>
           <WeeklyEditor value={weekly} onChange={setWeekly} label="you" />
           <PrimaryButton onClick={save} disabled={busy || !dirty}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save my availability</PrimaryButton>
         </div>
+        </HubModal>
       )}
     </div>
   );
