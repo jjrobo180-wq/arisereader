@@ -610,7 +610,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
         {view === "avail" && (
           <div className="space-y-3" data-testid="availability-view">
             <p className="text-sm text-slate-600">Your availability is the times you offer for meetings, such as parent conferences. Set it once. When you plan a meeting, the poll's 3 suggested days and times come from here, with anything already on your calendar skipped.</p>
-            <MyAvailability token={token} setNotice={setNotice} defaultOpen />
+            <MyAvailability token={token} setNotice={setNotice} />
             {hint && <div className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900" role="status">{hint}</div>}
           </div>
         )}

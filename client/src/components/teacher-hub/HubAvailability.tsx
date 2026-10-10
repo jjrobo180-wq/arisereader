@@ -44,11 +44,12 @@ export function WeeklyEditor({ value, onChange, label }: { value: FreeWindow[]; 
 }
 
 /** My own weekly availability, saved to my account. People who linked a poll to their account share these with the person who invited them. */
-export function MyAvailability({ token, setNotice, onChange, defaultOpen = false }: { token: string | null; setNotice: (text: string) => void; onChange?: (weekly: FreeWindow[]) => void; defaultOpen?: boolean }) {
+export function MyAvailability({ token, setNotice, onChange }: { token: string | null; setNotice: (text: string) => void; onChange?: (weekly: FreeWindow[]) => void; defaultOpen?: boolean }) {
   const [weekly, setWeekly] = useState<FreeWindow[] | null>(null);
   const [saved, setSaved] = useState("[]");
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(defaultOpen);
+  // Always shut on arrival: the editor is a pop-up now, and one that opens itself is a jump scare.
+  const [open, setOpen] = useState(false);
   useEffect(() => { api(token, "GET", "/api/teacher-hub/availability").then((d) => { setWeekly(d.weekly); setSaved(JSON.stringify(d.weekly)); onChange?.(d.weekly); }).catch(() => setWeekly([])); }, [token]);
   if (!weekly) return null;
   const dirty = JSON.stringify(weekly) !== saved;
