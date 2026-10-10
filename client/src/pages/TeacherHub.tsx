@@ -139,9 +139,12 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
 
 /** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
+  schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, minutes: <Timer className="h-4 w-4" />,
+  notes: <StickyNote className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
+  attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
   home: <Home className="h-4 w-4" />, calendar: <Calendar className="h-4 w-4" />, caseload: <Users className="h-4 w-4" />,
-  iep: <CalendarDays className="h-4 w-4" />, progress: <Target className="h-4 w-4" />, tasks: <CheckSquare className="h-4 w-4" />,
-  classroom: <BookOpen className="h-4 w-4" />, behavior: <Sparkles className="h-4 w-4" />, family: <MessageSquare className="h-4 w-4" />,
+  iep: <CalendarDays className="h-4 w-4" />, tasks: <CheckSquare className="h-4 w-4" />,
+  behavior: <Sparkles className="h-4 w-4" />,
   arise: <BookHeart className="h-4 w-4" />,
 };
 const tabIcon = (tab: HubTab) => TAB_META.find((t) => t.id === tab)?.icon;

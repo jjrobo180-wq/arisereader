@@ -3,22 +3,31 @@
 // "tasks" still opens Tasks, now inside "Tasks & Notes".
 import type { HubTab } from "./teacherHub";
 
-export type HubGroupId = "home" | "calendar" | "caseload" | "progress" | "iep" | "classroom" | "tasks" | "arise" | "behavior" | "family";
+export type HubGroupId =
+  | "home" | "arise" | "calendar" | "schedules" | "caseload" | "iep" | "goals" | "minutes"
+  | "tasks" | "notes" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
   { id: "home", label: "Home", tabs: ["overview"] },
-  // Arise WorkHub is the space for every A.R.I.S.E. program: the Reader's teacher tools come first.
+  // Arise WorkHub is the space for every A.R.I.S.E. program: the Reader's teacher tools come first,
+  // and stay together behind one menu item, since there are nine of them.
   { id: "arise", label: "A.R.I.S.E. Reader", tabs: ["reader", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "arise", "admin"] },
-  { id: "calendar", label: "Calendar & Schedules", tabs: ["calendar", "schedules"] },
+  // Everything else stands on its own, so the menu names the screen you are going to.
+  { id: "calendar", label: "Calendar", tabs: ["calendar"] },
+  { id: "schedules", label: "Student schedules", tabs: ["schedules"] },
   { id: "caseload", label: "Caseload", tabs: ["caseload"] },
-  { id: "iep", label: "IEP & Meetings", tabs: ["iep"] },
-  { id: "progress", label: "Goals & Minutes", tabs: ["goals", "minutes"] },
-  { id: "tasks", label: "Tasks & Notes", tabs: ["tasks", "notes"] },
-  { id: "classroom", label: "Lessons & Grades", tabs: ["lessons", "gradebook"] },
-  { id: "behavior", label: "Behavior & Attendance", tabs: ["behavior", "attendance"] },
-  { id: "family", label: "Parents & Email", tabs: ["parents", "email"] },
+  { id: "iep", label: "Meetings", tabs: ["iep"] },
+  { id: "goals", label: "Goals", tabs: ["goals"] },
+  { id: "minutes", label: "Minutes", tabs: ["minutes"] },
+  { id: "tasks", label: "Tasks", tabs: ["tasks"] },
+  { id: "notes", label: "Notes", tabs: ["notes"] },
+  { id: "lessons", label: "Lessons", tabs: ["lessons"] },
+  { id: "gradebook", label: "Gradebook", tabs: ["gradebook"] },
+  { id: "behavior", label: "Behavior", tabs: ["behavior"] },
+  { id: "attendance", label: "Attendance", tabs: ["attendance"] },
+  { id: "parents", label: "Parents", tabs: ["parents"] },
+  { id: "email", label: "Email", tabs: ["email"] },
 ];
-
 /** What a tab is called on the row of buttons inside its group. */
 export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   calendar: "Calendar", schedules: "Student schedules",
