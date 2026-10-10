@@ -9,8 +9,10 @@ import {
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
   CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
-  ChevronUp, ChevronDown,
+  ChevronUp, ChevronDown, Puzzle,
 } from "lucide-react";
+import PluginStore from "@/components/plugin-store/PluginStore";
+import { OPEN_STORE_KEY, lifeInstalled, pluginOpens, setLifePlugin, type Plugin } from "@shared/pluginStore";
 import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
@@ -200,6 +202,8 @@ export default function AriseTodo() {
     try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
   const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
+  // The Arise Plugin Store. It opens straight away when the person switched here from WorkHub's store.
+  const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   // Going back to the old parent dashboard address while LifeHub is open lands on the Reader tab.
   useEffect(() => {
     try { if (sessionStorage.getItem("lifehub_tab") === "reader") { sessionStorage.removeItem("lifehub_tab"); setSectionState("reader"); } } catch { /* fine */ }
@@ -460,6 +464,14 @@ export default function AriseTodo() {
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
   return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""}`}>
+    {store && <PluginStore
+      hub="life"
+      teacher={user.role === "teacher" || !!user.isAdmin}
+      isInstalled={(p: Plugin) => lifeInstalled(p, family)}
+      onToggle={(p: Plugin, on: boolean) => setFamily((f) => setLifePlugin(f, p, on))}
+      onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "section" in at) setSection(at.section); setStore(false); }}
+      onClose={() => setStore(false)}
+    />}
     <div className="flex min-h-screen w-full flex-col lg:flex-row">
       <aside className="w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-72">
         <div className="flex items-center justify-between gap-2 px-3 py-3 sm:px-5 sm:py-5 lg:px-6 lg:py-7">
@@ -468,7 +480,7 @@ export default function AriseTodo() {
             <span className="min-w-0"><span className="hidden text-xs font-extrabold tracking-[.16em] text-[#7e76aa] sm:block">ARISE</span><span className="block text-base font-black tracking-tight sm:text-xl">LifeHub<span className="text-[#7968e5]">.</span></span></span>
           </div>
           {(user.role === "teacher" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
-          <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden"><button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600"}`} aria-label="Notification settings"><Bell size={18} className="sm:hidden" /><Bell size={20} className="hidden sm:block" /></button><button onClick={openAdd} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf] sm:h-10 sm:w-10" aria-label="Add task"><Plus size={18} className="sm:hidden" /><Plus className="hidden sm:block" /></button></div>
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden"><button onClick={() => setStore(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600 sm:h-10 sm:w-10" aria-label="Plugin Store" data-testid="lifehub-plugin-store-phone"><Puzzle size={18} /></button><button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600"}`} aria-label="Notification settings"><Bell size={18} className="sm:hidden" /><Bell size={20} className="hidden sm:block" /></button><button onClick={openAdd} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf] sm:h-10 sm:w-10" aria-label="Add task"><Plus size={18} className="sm:hidden" /><Plus className="hidden sm:block" /></button></div>
         </div>
         <nav aria-label="Family Hub" className="flex gap-1 overflow-x-auto px-3 pb-2.5 [scrollbar-width:none] sm:px-4 sm:pb-3 lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 [&::-webkit-scrollbar]:hidden">
           {sections.map((id, i) => {
@@ -503,6 +515,7 @@ export default function AriseTodo() {
             );
           })}
         </nav>
+        <div className="hidden px-3 pt-2 lg:block"><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><Puzzle size={18} />Add plugins</button></div>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
         <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0">

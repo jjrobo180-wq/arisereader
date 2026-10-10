@@ -41,7 +41,10 @@ import {
   WandSparkles,
   X,
   MoreHorizontal,
+  Puzzle,
 } from "lucide-react";
+import PluginStore from "@/components/plugin-store/PluginStore";
+import { OPEN_STORE_KEY, pluginOpens, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { PLANS, usd } from "@shared/plans";
@@ -302,6 +305,14 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
   const [tab, setTab] = useState<ReaderTab>(() => { try { return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab")); } catch { return "reader"; } });
   return (
     <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
+      {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
+        hub="work"
+        teacher
+        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs)}
+        onToggle={(p: Plugin, on: boolean) => setWorkspace((prev) => ({ ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }))}
+        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); setStore(false); }}
+        onClose={() => setStore(false)}
+      />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 md:px-6">
           <div className="min-w-0"><div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">Arise</div><div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div></div>
@@ -362,6 +373,8 @@ function TeacherHubPage() {
     } catch { /* stays where it is */ }
   }, [location]);
   const [customize, setCustomize] = useState(false);
+  // The Arise Plugin Store. It opens straight away when the person switched here from LifeHub's store.
+  const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -652,6 +665,7 @@ function TeacherHubPage() {
             <button type="button" onClick={() => setAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
+            <button type="button" onClick={() => setStore(true)} aria-label="Plugin Store" title="Plugin Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-plugin-store"><Puzzle className="h-4 w-4" /> <span className="hidden lg:inline">Plugins</span></button>
             <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize tabs and your data" aria-expanded={customize} className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize tabs</span></button>
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><LogOut className="h-4 w-4" /></button>
             <div ref={moreRef} className="relative sm:hidden">
@@ -666,6 +680,7 @@ function TeacherHubPage() {
                         : <><CheckCircle2 className="h-4 w-4 text-emerald-600" />Saved</>}
                   </div>
                   <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{night ? "Day mode" : "Night mode"}</button>
+                  <button type="button" role="menuitem" onClick={() => { setStore(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Puzzle className="h-4 w-4" />Plugin Store</button>
                   <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize tabs</button>
                   <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" />Sign out</button>
                 </div>
@@ -737,6 +752,7 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
+              <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><Puzzle className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the Plugin Store</span>Add tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
               <div className="mb-5">
                 <h3 className="mb-1 text-sm font-semibold text-slate-900">Accent colour</h3>
                 <p className="mb-3 text-sm text-slate-600">The one colour the Hub is tinted with: buttons, links, today's bar and anything chosen.</p>
