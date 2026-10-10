@@ -44,7 +44,7 @@ export function WeeklyEditor({ value, onChange, label }: { value: FreeWindow[]; 
 }
 
 /** My own weekly availability, saved to my account. People who linked a poll to their account share these with the person who invited them. */
-export function MyAvailability({ token, setNotice, onChange }: { token: string | null; setNotice: (text: string) => void; onChange?: (weekly: FreeWindow[]) => void; defaultOpen?: boolean }) {
+export function MyAvailability({ token, setNotice, onChange }: { token: string | null; setNotice: (text: string) => void; onChange?: (weekly: FreeWindow[]) => void }) {
   const [weekly, setWeekly] = useState<FreeWindow[] | null>(null);
   const [saved, setSaved] = useState("[]");
   const [busy, setBusy] = useState(false);
