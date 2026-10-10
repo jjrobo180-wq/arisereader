@@ -956,6 +956,8 @@ const NO_DETAILS: StudentDetails = { name: "", grade: "", accommodations: "", ie
 
 function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfileId, openTab }: SectionProps & { seats: number | null; profileId: string | null; setProfileId: (studentId: string | null) => void; openTab: (tab: HubTab) => void }) {
   const [form, setForm] = useState<StudentDetails>({ ...NO_DETAILS });
+  // The student whose details are showing. The caseload is a list of names; one opens at a time.
+  const [openId, setOpenId] = useState<string | null>(null);
   // The new student's IEP team. It is typed in the same form and saved with the student, by the one "Add student" button.
   const [formTeam, setFormTeam] = useState<TeamDraft>(emptyTeamDraft);
   // The disabilities and team part of the add form stays folded away until it is asked for, or has something in it.
@@ -1036,7 +1038,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
           <div className="md:col-span-4"><PrimaryButton type="submit"><Plus className="h-4 w-4" /> Add student</PrimaryButton></div>
         </form>
       </Card>
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="min-w-0">
         {workspace.students.length ? workspace.students.map((s) => editing?.id === s.id ? (
           <Card key={s.id} title={`Edit ${s.name}`}>
             <form onSubmit={saveEdit} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} className="grid gap-3 sm:grid-cols-2" data-testid="hub-student-edit-form">
@@ -1065,12 +1067,29 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
             </form>
           </Card>
         ) : (
-          <Card key={s.id} title={s.name} right={
+          <div key={s.id} className="border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setOpenId(openId === s.id ? null : s.id)} aria-expanded={openId === s.id}
+                data-testid={`hub-student-row-${s.id}`}
+                className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-2 text-left">
+                <span aria-hidden="true" className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-slate-100 text-[12.5px] font-bold text-slate-700">
+                  {s.name.split(/\s+/).map((part) => part[0] || "").join("").slice(0, 2).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-semibold text-slate-900">{s.name}</span>
+                  <span className="block truncate text-[12.5px] text-slate-600">
+                    {[s.grade && `Grade ${s.grade}`, s.readingLevel && `Reading ${s.readingLevel}`, s.iepDate && `IEP ${s.iepDate}`].filter(Boolean).join(" · ") || "No details yet"}
+                  </span>
+                </span>
+                <ChevronDown className={`h-4 w-4 flex-none text-slate-400 transition-transform ${openId === s.id ? "" : "-rotate-90"}`} />
+              </button>
             <div className="-m-2 flex shrink-0 items-center">
               <button type="button" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950" onClick={() => startEdit(s)} data-testid="hub-student-edit"><Pencil className="h-4 w-4" /> Edit</button>
               <button type="button" aria-label="Delete" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>
             </div>
-          }>
+            </div>
+            {openId === s.id && (
+            <div className="pb-4">
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <Info label="Grade" value={s.grade || "—"} />
               <Info label="Reading" value={s.readingLevel || "—"} />
@@ -1087,8 +1106,10 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
             )}
             {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{s.notes}</div>}
             <button type="button" onClick={() => setProfileId(s.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-900 hover:bg-teal-100" data-testid="hub-student-profile"><Users className="h-4 w-4" /> See everything for {s.name.split(/\s+/)[0]}</button>
-          </Card>
-        )) : <div className="xl:col-span-2"><Empty>Add students to start your caseload.</Empty></div>}
+            </div>
+            )}
+          </div>
+        )) : <Empty>Add students to start your caseload.</Empty>}
       </div>
     </>
   );

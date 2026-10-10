@@ -333,7 +333,6 @@ export default function ReadingLevelUp() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  if (user?.is_eye_gaze_user) return <Redirect to="/eye-gaze-home" />;
 
   const storageKey = `arise-reading-level-up-${user?.id || user?.username || "student"}`;
   const [progress, setProgress] = useState<Progress>(() => loadProgress(storageKey));
@@ -363,6 +362,10 @@ export default function ReadingLevelUp() {
       setProgress(p => ({ ...p, streak: 0 }));
     }
   }, []);
+
+  // Below every hook: sending eye-gaze users away any earlier changes how many hooks
+  // this page runs between renders, which React treats as an error.
+  if (user?.is_eye_gaze_user) return <Redirect to="/eye-gaze-home" />;
 
   const currentLevel = levelFromXp(progress.xp);
   const nextLevelXp = currentLevel * 200;
