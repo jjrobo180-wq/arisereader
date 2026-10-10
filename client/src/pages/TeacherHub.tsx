@@ -386,9 +386,20 @@ function TeacherHubPage() {
   // The group's categories dropdown (replaces a second row of sub-tabs). Hooks stay up here:
   // anything below the early returns changes the hook count between renders and React throws.
   const [subMenu, setSubMenu] = useState(false);
+  // The quick-add menu: one button for anything that can be added to the Hub.
+  const [addMenu, setAddMenu] = useState(false);
+  const addRef = useRef<HTMLDivElement>(null);
   // Which admin-console section the Reader menu has open (the console no longer has its own menu).
   const [adminSection, setAdminSection] = useState<AdminSection>("overview");
   const subRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!addMenu) return;
+    const close = (e: Event) => { if (!addRef.current?.contains(e.target as Node)) setAddMenu(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAddMenu(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
+  }, [addMenu]);
   useEffect(() => {
     if (!subMenu) return;
     const close = (e: Event) => { if (!subRef.current?.contains(e.target as Node)) setSubMenu(false); };
@@ -892,10 +903,38 @@ function TeacherHubPage() {
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (
-        <button type="button" onClick={() => setQuickEvent(true)} aria-label="Add an event or a reminder" data-testid="quick-add-event"
-          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-teal-600 px-5 text-base font-semibold text-white shadow-lg hover:bg-teal-700">
-          <Plus className="h-5 w-5" /> Event
-        </button>
+        <div ref={addRef} className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)] right-4 z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))]">
+          {addMenu && (
+            <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
+              className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+              {[
+                { key: "ai", label: "With AI", detail: "Paste, photo or file", icon: <WandSparkles className="h-4 w-4" />, go: () => setAdding({}) },
+                { key: "event", label: "Event or reminder", detail: "", icon: <Calendar className="h-4 w-4" />, go: () => setQuickEvent(true) },
+                { key: "task", label: "To-do", detail: "", icon: <CheckSquare className="h-4 w-4" />, go: () => setTab("tasks"), tab: "tasks" as HubTab },
+                { key: "student", label: "Student", detail: "", icon: <Users className="h-4 w-4" />, go: () => setTab("caseload"), tab: "caseload" as HubTab },
+                { key: "minutes", label: "Service minutes", detail: "", icon: <Timer className="h-4 w-4" />, go: () => setTab("minutes"), tab: "minutes" as HubTab },
+                { key: "meeting", label: "Meeting", detail: "", icon: <CalendarDays className="h-4 w-4" />, go: () => setTab("iep"), tab: "iep" as HubTab },
+                { key: "goal", label: "Goal", detail: "", icon: <Target className="h-4 w-4" />, go: () => setTab("goals"), tab: "goals" as HubTab },
+                { key: "note", label: "Note", detail: "", icon: <StickyNote className="h-4 w-4" />, go: () => setTab("notes"), tab: "notes" as HubTab },
+              ].filter((item) => !item.tab || visible[item.tab] !== false).map((item) => (
+                <button key={item.key} type="button" role="menuitem" data-testid={`quick-add-${item.key}`}
+                  onClick={() => { setAddMenu(false); item.go(); }}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  <span className="text-slate-500">{item.icon}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate">{item.label}</span>
+                    {item.detail && <span className="block truncate text-xs text-slate-500">{item.detail}</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={() => setAddMenu((v) => !v)} aria-haspopup="menu" aria-expanded={addMenu}
+            aria-label="Add to your Hub" data-testid="quick-add-event"
+            className="inline-flex h-14 items-center gap-2 rounded-full bg-teal-600 px-5 text-base font-semibold text-white shadow-lg hover:bg-teal-700">
+            <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} /> Add
+          </button>
+        </div>
       )}
       {quickEvent && <AddEventModal onClose={() => setQuickEvent(false)} onAdd={(items) => { setWorkspace((p) => addQuickItems(p, items, id)); if (items.task) reminderAdded(items); }} />}
       {homeTask && workspace.tasks.some((t) => t.id === homeTask) && <TaskModal task={workspace.tasks.find((t) => t.id === homeTask) || null} today={TODAY()}
