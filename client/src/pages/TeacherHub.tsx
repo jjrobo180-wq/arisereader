@@ -76,6 +76,17 @@ import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
 import HubDayHead from "@/components/teacher-hub/HubDayHead";
 import HubAgenda from "@/components/teacher-hub/HubAgenda";
+import { weekStart, weeklyMinutes } from "@shared/hubProgress";
+
+/** A wash behind a student's initials, keyed by the area their goals are in. */
+const AREA_TINT: Record<string, { bg: string; ink: string }> = {
+  Reading: { bg: "#efebff", ink: "#4a2fc2" },
+  Math: { bg: "#e4f4f7", ink: "#0e6b7a" },
+  Writing: { bg: "#fbeae1", ink: "#9a3412" },
+  Behavior: { bg: "#e6f2e8", ink: "#166534" },
+  Communication: { bg: "#fdf0e3", ink: "#92400e" },
+};
+const tintFor = (area: string) => AREA_TINT[area] || { bg: "#f1f0f4", ink: "#4d4859" };
 import { HUB_ACCENTS, DEFAULT_ACCENT, cleanAccent, deepenAccent } from "@shared/hubAccent";
 import { textOn } from "@shared/hubPins";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
@@ -958,6 +969,8 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
   const [form, setForm] = useState<StudentDetails>({ ...NO_DETAILS });
   // The student whose details are showing. The caseload is a list of names; one opens at a time.
   const [openId, setOpenId] = useState<string | null>(null);
+  // Which service area the list is filtered to, or "all".
+  const [area, setArea] = useState("all");
   // The new student's IEP team. It is typed in the same form and saved with the student, by the one "Add student" button.
   const [formTeam, setFormTeam] = useState<TeamDraft>(emptyTeamDraft);
   // The disabilities and team part of the add form stays folded away until it is asked for, or has something in it.
@@ -1002,6 +1015,22 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
   const preview = editing ? updateStudent(workspace, editing.id, editing.form) : null;
   const following = preview && preview.ok ? preview.moved : 0;
 
+  // Each row carries this week's service minutes against what the IEPs ask for, and the area the
+  // student's goals sit in — read from the teacher's own plans, logs and goals, not made up.
+  const weekFrom = weekStart(TODAY());
+  const weekTo = (() => { const d = new Date(`${weekFrom}T12:00:00`); d.setDate(d.getDate() + 6); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-"); })();
+  const metrics = new Map(workspace.students.map((s) => {
+    const owed = workspace.services.filter((p) => p.student === s.name).reduce((n, p) => n + weeklyMinutes(p), 0);
+    const met = workspace.serviceLogs
+      .filter((l) => l.student === s.name && l.date >= weekFrom && l.date <= weekTo && !l.notMet)
+      .reduce((n, l) => n + (Number(l.minutes) || 0), 0);
+    return [s.name, { owed, met, area: workspace.goals.find((g) => g.student === s.name)?.area || "", pct: owed ? Math.min(100, Math.round((met / owed) * 100)) : 0, short: owed > 0 && met / owed < 0.7 }] as const;
+  }));
+  const mOf = (name: string) => metrics.get(name) ?? { owed: 0, met: 0, area: "", pct: 0, short: false };
+  const areas = Array.from(new Set(workspace.students.map((s) => mOf(s.name).area).filter(Boolean))).sort();
+  const roster = workspace.students.filter((s) => area === "all" || mOf(s.name).area === area);
+  const pill = (on: boolean) => `inline-flex min-h-[34px] items-center rounded-full border px-3.5 text-xs font-semibold transition ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 text-slate-900 hover:bg-slate-50"}`;
+
   // One student's whole picture takes the place of the list until the teacher goes back.
   if (profileId && workspace.students.some((s) => s.id === profileId)) {
     return <StudentProfileView workspace={workspace} setWorkspace={setWorkspace} studentId={profileId} today={TODAY()} makeId={id} onBack={() => setProfileId(null)} onPick={setProfileId} onOpenTab={openTab}
@@ -1010,7 +1039,24 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
 
   return (
     <>
-      <Card title="Caseload" right={seats !== null ? <span className="shrink-0 text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")}</span> : undefined}>
+      <section className="min-w-0">
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          <div className="flex items-baseline gap-3">
+            <h1 className="hub-figure text-[40px] leading-none sm:text-[46px]">Caseload</h1>
+            <span className="hub-figure text-[20px] text-slate-500">{workspace.students.length}</span>
+          </div>
+          {seats !== null && <span className="pb-1 text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")} seats</span>}
+        </div>
+        {areas.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Filter by area">
+            <button type="button" onClick={() => setArea("all")} aria-pressed={area === "all"} className={pill(area === "all")}>All {workspace.students.length}</button>
+            {areas.map((a) => (
+              <button key={a} type="button" onClick={() => setArea(a)} aria-pressed={area === a} className={pill(area === a)}>{a}</button>
+            ))}
+          </div>
+        )}
+      </section>
+      <Card title="Add a student" collapseKey="caseload-add" right={seats !== null ? <span className="shrink-0 text-xs font-medium text-slate-500">{workspace.students.length} of {seats.toLocaleString("en-US")}</span> : undefined}>
         {full && (
           <div className="mb-4 flex flex-col gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
             <span>Your plan covers {seats!.toLocaleString("en-US")} students, and your caseload is full.</span>
@@ -1039,7 +1085,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
         </form>
       </Card>
       <div className="min-w-0">
-        {workspace.students.length ? workspace.students.map((s) => editing?.id === s.id ? (
+        {roster.length ? roster.map((s) => editing?.id === s.id ? (
           <Card key={s.id} title={`Edit ${s.name}`}>
             <form onSubmit={saveEdit} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} className="grid gap-3 sm:grid-cols-2" data-testid="hub-student-edit-form">
               <Labeled label="Student name"><Field value={editing.form.name} onChange={(e) => typed({ name: e.target.value })} required autoFocus={editing.start === "name"} /></Labeled>
@@ -1072,24 +1118,33 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
               <button type="button" onClick={() => setOpenId(openId === s.id ? null : s.id)} aria-expanded={openId === s.id}
                 data-testid={`hub-student-row-${s.id}`}
                 className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-2 text-left">
-                <span aria-hidden="true" className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-slate-100 text-[12.5px] font-bold text-slate-700">
+                <span aria-hidden="true" className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-bold"
+                  style={{ background: tintFor(mOf(s.name).area).bg, color: tintFor(mOf(s.name).area).ink }}>
                   {s.name.split(/\s+/).map((part) => part[0] || "").join("").slice(0, 2).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-semibold text-slate-900">{s.name}</span>
                   <span className="block truncate text-[12.5px] text-slate-600">
-                    {[s.grade && `Grade ${s.grade}`, s.readingLevel && `Reading ${s.readingLevel}`, s.iepDate && `IEP ${s.iepDate}`].filter(Boolean).join(" · ") || "No details yet"}
+                    {[s.grade && `Grade ${s.grade}`, mOf(s.name).area, mOf(s.name).owed > 0 ? `${mOf(s.name).owed}/wk` : ""].filter(Boolean).join(" · ") || "No details yet"}
                   </span>
                 </span>
+                {mOf(s.name).owed > 0 && (
+                  <span className="w-[66px] flex-none text-right">
+                    <span className={`hub-figure block text-[13px] ${mOf(s.name).short ? "text-[#9a3412]" : "text-slate-900"}`}>{mOf(s.name).met}/{mOf(s.name).owed}</span>
+                    <span className="mt-1.5 block h-[4px] overflow-hidden rounded-full bg-slate-100">
+                      <span className="block h-full rounded-full" style={{ width: `${mOf(s.name).pct}%`, background: mOf(s.name).short ? "#c2410c" : "var(--hub-accent, #5b3be0)" }} />
+                    </span>
+                  </span>
+                )}
                 <ChevronDown className={`h-4 w-4 flex-none text-slate-400 transition-transform ${openId === s.id ? "" : "-rotate-90"}`} />
               </button>
-            <div className="-m-2 flex shrink-0 items-center">
-              <button type="button" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950" onClick={() => startEdit(s)} data-testid="hub-student-edit"><Pencil className="h-4 w-4" /> Edit</button>
-              <button type="button" aria-label="Delete" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>
-            </div>
             </div>
             {openId === s.id && (
             <div className="pb-4">
+            <div className="-mt-1 mb-3 flex items-center gap-1">
+              <button type="button" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950" onClick={() => startEdit(s)} data-testid="hub-student-edit"><Pencil className="h-4 w-4" /> Edit</button>
+              <button type="button" aria-label="Delete" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>
+            </div>
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <Info label="Grade" value={s.grade || "—"} />
               <Info label="Reading" value={s.readingLevel || "—"} />
