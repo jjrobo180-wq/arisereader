@@ -27,13 +27,13 @@ export function Card({ title, children, right, collapseKey }: { title?: string; 
   const folds = !!collapseKey && !!title;
   const toggle = () => { saveCollapsed(collapseKey!, !closed); setClosed(!closed); };
   return (
-    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white shadow-sm" data-collapsed={folds && closed ? "true" : undefined}>
+    <section className="min-w-0" data-collapsed={folds && closed ? "true" : undefined}>
       {(title || right) && (
-        <div className={`flex items-center justify-between gap-3 px-4 sm:px-5 ${folds ? "py-1.5 sm:py-2" : "py-3 sm:py-4"} ${folds && closed ? "" : "border-b border-slate-100"}`}>
+        <div className={`flex items-center justify-between gap-3 ${folds && closed ? "" : "border-b border-slate-200 pb-2"}`}>
           {folds ? (
             <h2 className="min-w-0 flex-1">
               <button type="button" onClick={toggle} aria-expanded={!closed} title={closed ? "Show" : "Hide"} data-testid={`hub-fold-${collapseKey}`}
-                className="hub-card-title -ml-2 flex min-h-11 w-full items-center gap-2 rounded-xl px-2 text-left font-semibold text-slate-900 hover:bg-slate-50">
+                className="hub-card-title -ml-1.5 flex min-h-11 w-full items-center gap-2 rounded-lg px-1.5 text-left font-semibold text-slate-900 hover:bg-slate-50">
                 <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${closed ? "-rotate-90" : ""}`} />
                 <span className="min-w-0 break-words">{title}</span>
               </button>
@@ -43,7 +43,7 @@ export function Card({ title, children, right, collapseKey }: { title?: string; 
         </div>
       )}
       {/* Hidden, not removed, so what was typed or picked inside is still there when it opens again. */}
-      <div className="p-4 sm:p-5" hidden={folds && closed}>{children}</div>
+      <div className="pt-4" hidden={folds && closed}>{children}</div>
     </section>
   );
 }
@@ -118,5 +118,5 @@ export function Labeled({ label, className = "", children }: { label: string; cl
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">{children}</div>;
+  return <p className="py-4 text-sm text-slate-500">{children}</p>;
 }

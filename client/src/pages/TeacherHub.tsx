@@ -75,6 +75,7 @@ import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/H
 import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
 import HubDayHead from "@/components/teacher-hub/HubDayHead";
+import HubAgenda from "@/components/teacher-hub/HubAgenda";
 import { HUB_ACCENTS, DEFAULT_ACCENT, cleanAccent, deepenAccent } from "@shared/hubAccent";
 import { textOn } from "@shared/hubPins";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
@@ -691,7 +692,7 @@ function TeacherHubPage() {
           </div>
         </aside>
 
-        <main className="min-w-0 space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
+        <main className="min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9">
           <HubTrialNote trial={trial} which="work" upgradeHref="#/billing" />
           <HubSetupBanner token={token} isAdmin={!!user.isAdmin} />
           <PinBanners workspace={workspace} setWorkspace={setWorkspace} />
@@ -801,6 +802,8 @@ function TeacherHubPage() {
           {tab === "overview" && (
             <>
               <HubDayHead workspace={workspace} firstName={user.displayName.split(" ")[0]} onOpenCalendar={() => setTab("calendar")} />
+
+              <HubAgenda workspace={workspace} onOpenCalendar={() => setTab("calendar")} onOpenMeetings={() => setTab("iep")} />
 
               <Card title="Add things fast" collapseKey="home-add">
                 <p className="mb-4 text-sm text-slate-600">Skip the typing. AI reads what you give it and sorts it into your Hub, and you check it before anything is saved.</p>
