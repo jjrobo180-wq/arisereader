@@ -75,3 +75,10 @@
 @media (max-width: 767px) {
   .hub-paper [data-hub-nav][aria-current="page"] { color: var(--hub-accent, #5b3be0); background: transparent; }
 }
+/* From the sidebar breakpoint up the chosen item is a filled pill. Stated here rather than in
+   utility classes: the paper rules above are more specific than a responsive utility, and a
+   text-slate-950 on this button beat md:text-white, leaving black words on a black pill. */
+@media (min-width: 768px) {
+  .hub-paper:not(.hub-night) [data-hub-nav][aria-current="page"] { background-color: #16141f; color: #ffffff; }
+  .hub-paper.hub-night [data-hub-nav][aria-current="page"] { background-color: #334155; color: #f1f5f9; }
+}

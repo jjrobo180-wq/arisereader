@@ -699,7 +699,7 @@ function TeacherHubPage() {
                     aria-current={group.id === item.id ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
                     data-hub-nav
-                    className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id ? "text-slate-950 md:bg-slate-950 md:text-white" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
+                    className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
                   >
                     {GROUP_ICON[item.id]}
                     <span className="max-w-[72px] truncate whitespace-nowrap md:max-w-none md:whitespace-normal">{groupLabel(item.id, visible)}</span>
