@@ -80,6 +80,7 @@ import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQu
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
+import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
 import { ADMIN_SECTIONS, adminSectionLabel, type AdminSection } from "@/lib/adminSections";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
@@ -604,9 +605,12 @@ function TeacherHubPage() {
     <div className={`min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
-          <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="min-w-0 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
-            <div className="hidden text-xs font-bold uppercase tracking-[.22em] text-slate-400 sm:block">Arise</div>
-            <div className="truncate text-base font-bold tracking-tight sm:text-xl">WorkHub</div>
+          <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
+            <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg sm:h-9 sm:w-9 sm:rounded-xl"><HubMark tone="work" className="h-full w-full" /></span>
+            <span className="min-w-0">
+              <span className="hidden text-xs font-bold uppercase tracking-[.22em] text-slate-400 sm:block">Arise</span>
+              <span className="block truncate text-base font-bold tracking-tight sm:text-xl">WorkHub</span>
+            </span>
           </a>
           <div className="flex shrink-0 items-center gap-2">
             <HubSwitch current="hub" night={night} />

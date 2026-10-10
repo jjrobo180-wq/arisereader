@@ -33,6 +33,7 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar } from "@/components/family-hub/ui";
 import HubSwitch from "@/components/HubSwitch";
+import HubMark from "@/components/HubMark";
 import { HubTrialNote } from "@/components/HubTrialNote";
 import { useLifeHubTrial } from "@/components/TodoGate";
 
@@ -463,7 +464,7 @@ export default function AriseTodo() {
       <aside className="w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-72">
         <div className="flex items-center justify-between gap-2 px-3 py-3 sm:px-5 sm:py-5 lg:px-6 lg:py-7">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#6d5ce7] text-white shadow-[0_5px_14px_#6d5ce72b] sm:h-10 sm:w-10 sm:rounded-2xl"><CheckCheck className="h-4 w-4 sm:h-5 sm:w-5" /></span>
+            <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b] sm:h-10 sm:w-10 sm:rounded-2xl"><HubMark tone="life" className="h-full w-full" /></span>
             <span className="min-w-0"><span className="hidden text-xs font-extrabold tracking-[.16em] text-[#7e76aa] sm:block">ARISE</span><span className="block text-base font-black tracking-tight sm:text-xl">LifeHub<span className="text-[#7968e5]">.</span></span></span>
           </div>
           {(user.role === "teacher" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
