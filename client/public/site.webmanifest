@@ -6,7 +6,7 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/favicon-96.png",
+      "src": "/favicon-96.png?v=borderless3",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "any"
