@@ -128,7 +128,9 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
       if (need && !isInstalled(need)) {
         return <button type="button" className={`${base} ${a.solid}`} onClick={(e) => { e.stopPropagation(); toggle(need, true); }}><Plus className="h-3.5 w-3.5" />Add {need.name}</button>;
       }
-      return <button type="button" className={`${base} bg-slate-100 text-slate-800 hover:bg-slate-200`} onClick={(e) => { e.stopPropagation(); onOpen(p); }}>Set up</button>;
+      // Set up explains the steps first; the popup's own button then goes to the place to do them.
+      if (big) return <button type="button" className={`${base} ${a.solid}`} onClick={(e) => { e.stopPropagation(); onOpen(p); }} data-testid="plugin-start-setup">Start setup <ArrowUpRight className="h-3.5 w-3.5" /></button>;
+      return <button type="button" className={`${base} bg-slate-100 text-slate-800 hover:bg-slate-200`} onClick={(e) => { e.stopPropagation(); setOpenId(p.id); }} data-testid={`plugin-setup-${p.id}`}>Set up</button>;
     }
     const on = isInstalled(p);
     return on
@@ -241,9 +243,16 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
             <p className="mt-3 text-sm leading-6 text-slate-600">{open.description}</p>
           </div>
           <ul className="space-y-2">{open.features.map((f) => <li key={f} className="flex items-start gap-2 text-sm"><Check className={`mt-0.5 h-4 w-4 shrink-0 ${a.text}`} />{f}</li>)}</ul>
-          {open.target.kind === "connection" && (() => { const need = connectionNeeds(open); return need && !isInstalled(need)
-            ? <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">This connects inside {need.name}. Add {need.name} first, then set it up there.</p>
-            : <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Set up opens the place in your {HUB_NAME[hub]} where you connect it.</p>; })()}
+          {open.target.kind === "connection" && <div className="rounded-2xl border border-slate-200 p-4" data-testid="plugin-setup-steps">
+            <p className="text-sm font-black">How to set it up</p>
+            {open.steps && <ol className="mt-3 space-y-2.5">{open.steps.map((step, i) => <li key={i} className="flex gap-3 text-sm leading-5">
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${a.soft}`}>{i + 1}</span><span>{step}</span>
+            </li>)}</ol>}
+            {open.needsNote && <p className="mt-3 text-xs text-slate-500">{open.needsNote}</p>}
+            {(() => { const need = connectionNeeds(open); return need && !isInstalled(need)
+              ? <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">This connects inside {need.name}. Add {need.name} first, then start setup.</p>
+              : null; })()}
+          </div>}
           {isAddable(open) && isInstalled(open) && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Removing it only hides it from your menu. Everything in it is kept, and adding it back brings it all back.</p>}
           {open.target.kind === "app" && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">A paid Arise add-on with its own page. {apps && !apps[open.target.app] ? "Your plans page shows the free trial and prices." : "It's included for you."}</p>}
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-5">

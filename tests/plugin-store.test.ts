@@ -92,3 +92,12 @@ test("both hubs open the store and save through their own workspace", () => {
   assert.match(life, /<PluginStore\s+hub="life"/);
   assert.match(life, /setFamily\(\(f\) => setLifePlugin\(f, p, on\)\)/);
 });
+
+test("every connection explains its setup steps before sending you anywhere", () => {
+  for (const p of PLUGINS.filter((q) => q.target.kind === "connection")) {
+    assert.ok((p.steps?.length ?? 0) >= 3, `${p.id}: needs setup steps`);
+    assert.ok(p.needsNote, `${p.id}: needs a note`);
+  }
+  const store = read("client/src/components/plugin-store/PluginStore.tsx");
+  assert.match(store, /setOpenId\(p\.id\); \}\} data-testid=\{`plugin-setup-/, "Set up opens the popup");
+});
