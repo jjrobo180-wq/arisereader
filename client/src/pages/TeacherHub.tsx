@@ -305,14 +305,6 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
   const [tab, setTab] = useState<ReaderTab>(() => { try { return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab")); } catch { return "reader"; } });
   return (
     <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950">
-      {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
-        hub="work"
-        teacher
-        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs)}
-        onToggle={(p: Plugin, on: boolean) => setWorkspace((prev) => ({ ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }))}
-        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); setStore(false); }}
-        onClose={() => setStore(false)}
-      />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 md:px-6">
           <div className="min-w-0"><div className="text-xs font-bold uppercase tracking-[.22em] text-slate-400">Arise</div><div className="truncate text-lg font-bold tracking-tight sm:text-xl">WorkHub</div></div>
@@ -650,6 +642,14 @@ function TeacherHubPage() {
   return (
     <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
+      {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
+        hub="work"
+        teacher
+        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs)}
+        onToggle={(p: Plugin, on: boolean) => setWorkspace((prev) => ({ ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }))}
+        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); setStore(false); }}
+        onClose={() => setStore(false)}
+      />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">

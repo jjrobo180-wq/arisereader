@@ -117,3 +117,10 @@ test("Start setup goes to the exact setup box of every connection", () => {
   }
   assert.match(read("client/src/components/plugin-store/PluginStore.tsx"), /onOpen\(p\); if \(p\.anchor\) goToSetup\(p\.anchor\)/);
 });
+
+test("WorkHub's store lives in the main Hub screen, not the trial-ended screen", () => {
+  const hub = read("client/src/pages/TeacherHub.tsx");
+  const at = hub.indexOf("<PluginStore");
+  assert.ok(at > hub.indexOf("function TeacherHubPage()"), "inside TeacherHubPage");
+  assert.ok(hub.slice(hub.indexOf("function ReaderOnly("), hub.indexOf("export default function TeacherHub()")).indexOf("PluginStore") === -1, "not in ReaderOnly");
+});
