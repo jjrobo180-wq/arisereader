@@ -33,12 +33,12 @@ export function Card({ title, children, right, collapseKey }: { title?: string; 
           {folds ? (
             <h2 className="min-w-0 flex-1">
               <button type="button" onClick={toggle} aria-expanded={!closed} title={closed ? "Show" : "Hide"} data-testid={`hub-fold-${collapseKey}`}
-                className="-ml-2 flex min-h-11 w-full items-center gap-2 rounded-xl px-2 text-left font-semibold text-slate-900 hover:bg-slate-50">
+                className="hub-card-title -ml-2 flex min-h-11 w-full items-center gap-2 rounded-xl px-2 text-left font-semibold text-slate-900 hover:bg-slate-50">
                 <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${closed ? "-rotate-90" : ""}`} />
                 <span className="min-w-0 break-words">{title}</span>
               </button>
             </h2>
-          ) : <h2 className="min-w-0 break-words font-semibold text-slate-900">{title}</h2>}
+          ) : <h2 className="hub-card-title min-w-0 break-words font-semibold text-slate-900">{title}</h2>}
           {!(folds && closed) && right}
         </div>
       )}

@@ -50,6 +50,7 @@ import { cleanSenderName } from "@shared/hubMeetings";
 import { deadlineLabel, meetingDeadline } from "@shared/meetingDeadline";
 import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
 import "@/components/teacher-hub/hubNight.css";
+import "@/components/teacher-hub/hubPaper.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
@@ -72,7 +73,7 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
-import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
+import HubDayHead from "@/components/teacher-hub/HubDayHead";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
 import HubPollBell from "@/components/teacher-hub/HubPollBell";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
@@ -602,7 +603,7 @@ function TeacherHubPage() {
   const subTabs = groupTabs(group.id, visible);
 
   return (
-    <div className={`min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
+    <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
@@ -773,8 +774,7 @@ function TeacherHubPage() {
 
           {tab === "overview" && (
             <>
-              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={user.displayName.split(" ")[0]}
-                stats={[{ label: "Students", value: workspace.students.length }, { label: "Open tasks", value: workspace.tasks.filter((t) => !t.done).length }, { label: "Meetings", value: workspace.meetings.filter((m) => !m.done).length }]} />
+              <HubDayHead workspace={workspace} firstName={user.displayName.split(" ")[0]} onOpenCalendar={() => setTab("calendar")} />
 
               <Card title="Add things fast" collapseKey="home-add">
                 <p className="mb-4 text-sm text-slate-600">Skip the typing. AI reads what you give it and sorts it into your Hub, and you check it before anything is saved.</p>
