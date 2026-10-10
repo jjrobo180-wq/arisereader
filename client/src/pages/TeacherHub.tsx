@@ -661,8 +661,8 @@ function TeacherHubPage() {
       </header>
 
       <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
-        <aside className="min-w-0 sticky top-[57px] z-30 -mx-3 bg-slate-100/95 px-3 py-1 backdrop-blur sm:top-[65px] sm:-mx-4 sm:px-4 md:mx-0 md:bg-transparent md:p-0 md:top-[73px] md:h-[calc(100vh-90px)] md:self-start">
-          <div className="flex snap-x gap-1.5 overflow-x-auto rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white p-1.5 shadow-sm sm:gap-2 sm:p-2 md:h-full md:flex-col md:overflow-y-auto">
+        <aside className="min-w-0 fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur md:sticky md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start">
+          <div className="flex snap-x gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm">
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
@@ -684,10 +684,11 @@ function TeacherHubPage() {
                     onClick={() => setTab(openGroup(item.id, visible, lastInGroup))}
                     aria-current={group.id === item.id ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
-                    className={`flex min-h-10 min-w-0 flex-1 cursor-grab items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-[13px] font-medium transition active:cursor-grabbing sm:min-h-11 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
+                    data-hub-nav
+                    className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id ? "text-slate-950 md:bg-slate-950 md:text-white" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
                   >
                     {GROUP_ICON[item.id]}
-                    <span className="truncate whitespace-nowrap md:whitespace-normal">{groupLabel(item.id, visible)}</span>
+                    <span className="max-w-[72px] truncate whitespace-nowrap md:max-w-none md:whitespace-normal">{groupLabel(item.id, visible)}</span>
                   </button>
                   {movable && (
                     <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">

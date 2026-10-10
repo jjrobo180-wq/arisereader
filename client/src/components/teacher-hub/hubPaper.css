@@ -69,3 +69,9 @@
 .hub-night .hub-bar { background: #26334f; }
 .hub-night .hub-bar-busy { background: #3b4a6b; }
 .hub-night .hub-bar-today { background: #8b6cff; }
+
+/* On a phone the menu is a bar along the bottom: the chosen screen is marked in the accent
+   rather than filled in, which is what the design does. */
+@media (max-width: 767px) {
+  .hub-paper [data-hub-nav][aria-current="page"] { color: var(--hub-accent, #5b3be0); background: transparent; }
+}
