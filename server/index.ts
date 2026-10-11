@@ -6,9 +6,22 @@ import { loggablePath } from "./logPath";
 import { registerHomeWorldRoutes } from "./homeWorld";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
+import path from "node:path";
 
 const app = express();
 const httpServer = createServer(app);
+
+// The A.R.I.S.E. To-Do custom domain gets the educator marketing page at its root.
+// Keep the existing A.R.I.S.E. Reader homepage unchanged on its own hostname.
+// The HTML is a self-contained public page; static assets and API routes are unaffected.
+app.get("/", (req, res, next) => {
+  const host = (req.headers.host || "").split(":")[0].toLowerCase();
+  if (host !== "arisetodo.com" && host !== "www.arisetodo.com") return next();
+  const page = process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public", "educator.html")
+    : path.resolve(process.cwd(), "client", "public", "educator.html");
+  res.type("html").sendFile(page);
+});
 
 // Basic safety headers for every response. (No content security policy or frame blocking:
 // the app embeds videos and games, and schools may show it inside their learning sites.)
