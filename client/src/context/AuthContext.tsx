@@ -219,6 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
+    // A fresh sign-in must not inherit a previous administrator preview session.
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    setAdminPreviewMode(null);
     persistSession(null, null);
     const res = await fetch(`${API_BASE}/api/login`, {
       method: "POST",
