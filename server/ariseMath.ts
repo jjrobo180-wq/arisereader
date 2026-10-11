@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import { createAttemptLimiter } from "./attemptLimiter";
 import { bandForGrade } from "../shared/ariseSocial";
 import {
-  ACHIEVEMENTS, BANDS, CERT_TITLES, DAILY_GOAL, LEVEL_POINTS, LEVELS, LIMITS, MILESTONES, POINTS, SKILLS, STYLES,
+  ACHIEVEMENTS, BANDS, CERT_TITLES, DAILY_GOAL, GRADES, GRADE_LABELS, LEVEL_POINTS, LEVELS, LIMITS, MILESTONES, POINTS, SKILLS, STATE_LESSONS, STYLES,
   accuracy, addPoints, cleanCustom, cleanMathProfile, customProblem, earnedAchievements, emptyMathProfile, isBand, isRight, isSkill,
   makeProblem, mathDay, mathWeek, parseAnswer, profileNow, strength, touchStreak,
   type BandId, type CustomQuestion, type MathProfile, type Problem, type Rng, type SkillId,
@@ -321,8 +321,23 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     res.json({
       bands: BANDS, skills: Object.fromEntries(Object.entries(SKILLS).map(([id, s]) => [id, { name: s.name, std: s.std, glyph: s.glyph, c: s.c, band: s.band }])),
       points: POINTS, levels: LEVELS, levelPoints: LEVEL_POINTS, dailyGoal: DAILY_GOAL, styles: STYLES, milestones: MILESTONES, achievements: ACHIEVEMENTS,
-      certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
+      grades: GRADES, gradeLabels: GRADE_LABELS, states: STATE_LESSONS, certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
     });
+  });
+
+  /* ---------- printable worksheets (public: problems only, no student data) */
+  app.get("/api/math/worksheet", (req: any, res: any) => {
+    const q = req.query || {};
+    const skills = String(q.skills || "").split(",").filter(isSkill).slice(0, 12) as SkillId[];
+    if (!skills.length) return res.status(400).type("text/plain").send("Pick at least one lesson.");
+    const n = Math.max(4, Math.min(40, Math.round(Number(q.n) || 12)));
+    const html = worksheetHTML(skills, n, {
+      title: String(q.title || "").replace(/[\u0000-\u001f]/g, " ").slice(0, 80),
+      key: q.key !== "0", pictures: q.pictures !== "0",
+      codes: String(q.codes || "").split(",").slice(0, 12).map((c: string) => c.replace(/[^A-Za-z0-9.\-]/g, "").slice(0, 16)),
+    });
+    res.set?.("Cache-Control", "no-store");
+    res.type("text/html").send(html);
   });
 
   /* ---------- who am I */
@@ -791,4 +806,67 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     await store.savePlayer({ ...j.me, answer: value, answered_qi: g.qi, score: j.me.score + (right ? 1 : 0) });
     res.json({ ok: true });
   }));
+}
+
+/* ---------- printable worksheets */
+
+const escHTML = (t: string) => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
+/**
+ * A worksheet to print: fresh problems from the chosen lessons (spread evenly, then shuffled lightly), with a
+ * line for the name and date, and an answer key with the steps on its own page. Pictures (ten frames, arrays,
+ * number lines) come along when asked. Choice questions list their choices to circle.
+ */
+export function worksheetHTML(skills: SkillId[], n: number, opts: { title?: string; key?: boolean; pictures?: boolean; codes?: string[] }, r: Rng = Math.random): string {
+  const items = Array.from({ length: n }, (_, i) => makeProblem(skills[i % skills.length], r));
+  const names = [...new Set(skills.map((s) => SKILLS[s].name))];
+  const codes = opts.codes?.filter(Boolean).length ? opts.codes!.filter(Boolean) : [...new Set(skills.map((s) => SKILLS[s].std))];
+  const title = opts.title || (names.length === 1 ? names[0] : "Math practice");
+  const answer = (p: Problem) => (p.kind === "choice" ? String(p.answer) : p.choices.find((c) => Number(c.v) === Number(p.answer))?.label ?? String(p.answer));
+  const problem = (p: Problem, i: number) => `<li class="q${p.viz && opts.pictures !== false ? " tall" : ""}"><div class="ask">${escHTML(p.ask)}</div>
+      ${p.viz && opts.pictures !== false ? `<div class="viz-wrap">${p.viz}</div>` : ""}
+      <div class="prompt">${p.prompt}</div>
+      ${p.kind === "choice" ? `<div class="circle">Circle one: ${p.choices.map((c) => `<span>${escHTML(c.label)}</span>`).join("")}</div>` : `<div class="work">Answer: <span class="line"></span></div>`}</li>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escHTML(title)} · A.R.I.S.E. Math worksheet</title>
+<style>
+  :root{--fg:#1d1b3a;--line:#c9c6e0;--line-2:#9c98c2;--card:#fff;--primary:#4b3fd0;--sun:#f5a524;--coral:#ef5a45;--faint:#8a87a8}
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--fg);background:#f4f3fb}
+  .bar{position:sticky;top:0;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line)}
+  .bar button{min-height:44px;padding:0 18px;border:0;border-radius:12px;background:var(--fg);color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+  .bar .alt{background:#fff;color:var(--fg);border:1.5px solid var(--line-2)}
+  .page{max-width:8.5in;margin:16px auto;background:#fff;padding:.6in .6in .5in;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  header{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;border-bottom:2px solid var(--fg);padding-bottom:10px;margin-bottom:14px}
+  h1{margin:0;font-size:22pt} .sub{font-size:10pt;color:#555;margin-top:4px}
+  .who{font-size:11pt;display:grid;gap:8px;min-width:2.6in} .who span{display:inline-block;border-bottom:1px solid #333;width:1.9in;margin-left:6px}
+  ol{margin:0;padding-left:1.4em;columns:2;column-gap:.5in} .q{break-inside:avoid;margin:0 0 18pt;font-size:13pt}
+  .q.tall{column-span:none} .ask{font-size:10pt;color:#444;margin-bottom:4px} .prompt{font-size:16pt;margin:4px 0}
+  .work{font-size:11pt;margin-top:6px} .line{display:inline-block;border-bottom:1px solid #333;width:1.4in}
+  .circle{font-size:11pt;margin-top:6px} .circle span{display:inline-block;border:1px solid var(--line-2);border-radius:999px;padding:1px 10px;margin-left:6px}
+  .fr{display:inline-flex;flex-direction:column;align-items:center;font-size:.78em;line-height:1.05;vertical-align:middle}
+  .fr span:first-child{border-bottom:.08em solid currentColor;padding:0 .18em}
+  .blank{display:inline-block;min-width:1.6em;height:1.2em;border-bottom:1.5px solid #333;vertical-align:baseline;color:transparent}
+  .viz-wrap{margin:4px 0} .viz{display:block;max-width:100%;height:auto;max-height:1.3in}
+  .cell{fill:#fff;stroke:#333;stroke-width:1.5} .dot.d1{fill:#555} .dot.d2{fill:#bbb} .dot.gone{fill:#ddd} .vx{stroke:#000;stroke-width:2.5;fill:none}
+  .rod{fill:#777} .rodline{stroke:#fff;stroke-width:1} .unit{fill:#bbb}
+  .axis{stroke:#333;stroke-width:1.5} .gridl{stroke:#ddd;stroke-width:1} .tick{stroke:#333;stroke-width:1.2}
+  .pt{fill:#999;stroke:#333;stroke-width:1.5} .ln{stroke:#333;stroke-width:2;stroke-dasharray:6 5;fill:none}
+  .beam{stroke:#333;stroke-width:4} .pan{fill:#eee;stroke:#333;stroke-width:1.5} .fulcrum{fill:#333}
+  .hund{fill:#fff;stroke:#bbb;stroke-width:1} .hund.fill{fill:#888;stroke:#fff}
+  .fb .bar1,.fb rect{stroke:#333}
+  .key{break-before:page} .key ol{columns:2;font-size:11pt} .key li{margin-bottom:10pt;break-inside:avoid} .key b{font-size:13pt}
+  .key .steps{font-size:9.5pt;color:#444;margin-top:2px}
+  footer{margin-top:10px;font-size:8.5pt;color:#777;text-align:right}
+  @media (max-width:700px){.page{padding:.4in .3in}ol{columns:1}.who{min-width:0}}
+  @media print{body{background:#fff}.bar{display:none}.page{box-shadow:none;margin:0;max-width:none;padding:0}@page{margin:.55in}}
+</style></head><body>
+<div class="bar"><b>${escHTML(title)}: ${n} problems${opts.key !== false ? " + answer key" : ""}</b><span style="display:flex;gap:8px"><button class="alt" onclick="location.reload()">New problems</button><button onclick="window.print()">Print</button></span></div>
+<div class="page">
+  <header><div><h1>${escHTML(title)}</h1><div class="sub">Colorado Academic Standards · ${codes.map(escHTML).join(", ")}</div></div>
+    <div class="who"><div>Name<span></span></div><div>Date<span></span></div></div></header>
+  <ol>${items.map(problem).join("")}</ol>
+  <footer>A.R.I.S.E. Math</footer>
+  ${opts.key !== false ? `<section class="key"><header><div><h1>Answer key</h1><div class="sub">${escHTML(title)}</div></div></header>
+    <ol>${items.map((p) => `<li><b>${escHTML(answer(p))}</b><div class="steps">${p.steps.join(" ")}</div></li>`).join("")}</ol></section>` : ""}
+</div></body></html>`;
 }

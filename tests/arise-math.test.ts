@@ -1,8 +1,8 @@
 // Run with: npx tsx --test tests/arise-math.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createMemoryMathStore, registerAriseMathRoutes, type MathUser } from "../server/ariseMath";
-import { BANDS, SKILLS, SKILL_IDS, cleanMathProfile, isRight, makeProblem, mathWeek, numberChoices, parseAnswer, profileNow, emptyMathProfile } from "../shared/ariseMath";
+import { createMemoryMathStore, registerAriseMathRoutes, type MathUser, worksheetHTML } from "../server/ariseMath";
+import { BANDS, SKILLS, SKILL_IDS, cleanMathProfile, isRight, makeProblem, mathWeek, numberChoices, parseAnswer, profileNow, emptyMathProfile, GRADES, STATE_LESSONS } from "../shared/ariseMath";
 
 const people: Record<number, MathUser & { grade?: string }> = {
   1: { id: 1, role: "teacher", displayName: "Ms. Chen", teacherId: null, schoolId: 10, approvedByTeacher: true, archived: false },
@@ -76,7 +76,18 @@ test("every generator makes a question whose stored answer checks as right", () 
   assert.equal(parseAnswer("x = 4"), 4);
   assert.ok(Number.isNaN(parseAnswer("four")));
   assert.ok(numberChoices(2, false, r).every((c) => Number(c.v) >= 0), "no negative choices for young grades");
-  assert.deepEqual(Object.values(BANDS).flatMap((b) => b.skills).sort(), [...SKILL_IDS].sort());
+  // Every skill is in a grade band or a state's grade-by-grade lessons, and every listed skill exists.
+  const listed = new Set([...Object.values(BANDS).flatMap((b) => b.skills), ...Object.values(STATE_LESSONS).flatMap((st) => Object.values(st.grades).flat().map((l) => l.skill))]);
+  assert.deepEqual([...listed].sort(), [...SKILL_IDS].sort());
+});
+
+test("Colorado lessons cover every grade, and a worksheet prints problems with an answer key", () => {
+  for (const g of GRADES) assert.ok(STATE_LESSONS.CO.grades[g].length >= 4, `Colorado ${g} has lessons`);
+  const html = worksheetHTML(["kcount", "g4perim", "frac"], 12, { key: true, pictures: true }, seeded(5));
+  assert.equal((html.match(/<li class="q/g) || []).length, 12);
+  assert.match(html, /Answer key/);
+  assert.doesNotMatch(html, /NaN|undefined/);
+  assert.doesNotMatch(worksheetHTML(["mult"], 8, { key: false }), /Answer key/);
 });
 
 test("answers and steps stay on the server until earned, and points follow the rules", async () => {

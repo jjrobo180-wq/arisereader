@@ -602,6 +602,47 @@ function landingHTML(){
 }
 
 /* ================= STUDENT: PRACTICE ================= */
+/* ================= STATE STANDARDS (Colorado to start) ================= */
+const STATE = 'CO';
+const BAND_GRADE = { k2:'1', g35:'4', g68:'7', g912:'HS' };
+const coLessons = g => (CAT.states?.[STATE]?.grades?.[g] || []);
+const coGrade = () => (S.coGrade && CAT.grades?.includes(S.coGrade)) ? S.coGrade : BAND_GRADE[myBand()] || '4';
+const gradeShort = g => g==='K' ? 'K' : g==='HS' ? 'HS' : g;
+function gradePick(){
+  const g = coGrade();
+  return `<div class="bandpick" role="group" aria-label="Grade">${(CAT.grades||[]).map(x=>`<button data-act="cograde" data-v="${x}" aria-pressed="${x===g}" title="${esc(CAT.gradeLabels[x])}">${gradeShort(x)}</button>`).join('')}</div>`;
+}
+/** Colorado lessons for one grade, each with its standard code. Students start a quiz; teachers can also print them. */
+function coCardHTML(){
+  if (!CAT.states?.[STATE]) return '';
+  const g = coGrade(), st = CAT.states[STATE];
+  const rows = coLessons(g).map(l=>{ const s=SK(l.skill), best=P()?.best?.[l.skill];
+    return `<div class="assign">${op(l.skill)}<div><b>${esc(s.name)}</b><span class="small muted">${esc(st.name)} ${esc(l.code)}${best!=null?` · Best ${best}/5`:''}</span></div><button class="btn primary sm" data-act="start" data-type="skill" data-v="${l.skill}">Start</button></div>`; }).join('');
+  return `<div class="card"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>${esc(st.name)} standards</h2><span class="small muted">${esc(CAT.gradeLabels[g])} · ${esc(st.source)}</span></div>${gradePick()}</div>${rows}</div>`;
+}
+/** Teachers: pick lessons from a grade and print a worksheet with an answer key. */
+function worksheetCardHTML(){
+  if (!CAT.states?.[STATE]) return '';
+  const g = coGrade(), st = CAT.states[STATE], ls = coLessons(g);
+  const picked = S.wsPick && S.wsPick.g===g ? S.wsPick.skills : ls.map(l=>l.skill);
+  return `<div class="card stack" id="wsCard"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>Printable worksheets</h2><span class="small muted">${esc(st.name)} · ${esc(CAT.gradeLabels[g])}. New problems every time, with an answer key.</span></div>${gradePick()}</div>
+    <div class="qlist">${ls.map(l=>`<label style="display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" class="wsSkill" value="${l.skill}" data-code="${esc(l.code)}" ${picked.includes(l.skill)?'checked':''} style="width:20px;height:20px">${op(l.skill)}<span><b>${esc(SK(l.skill).name)}</b> <span class="small muted">${esc(l.code)}</span></span></label>`).join('')}</div>
+    <div class="grid two">
+      <label class="f">Problems<select id="wsN">${[8,12,16,20,24,30].map(n=>`<option ${n===12?'selected':''}>${n}</option>`).join('')}</select></label>
+      <label class="f">Title (optional)<input type="text" id="wsTitle" maxlength="80" placeholder="Unit 2 review"></label></div>
+    <div class="row" style="gap:18px;flex-wrap:wrap">
+      <label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="wsKey" checked style="width:20px;height:20px">Answer key</label>
+      <label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="wsPics" checked style="width:20px;height:20px">Pictures</label></div>
+    <div><button class="btn primary" data-act="worksheet">${svg('plus')}Make worksheet</button></div></div>`;
+}
+function openWorksheet(){
+  const boxes = [...document.querySelectorAll('.wsSkill:checked')];
+  if (!boxes.length) return toast('Tick at least one lesson.');
+  const q = new URLSearchParams({ skills: boxes.map(b=>b.value).join(','), codes: boxes.map(b=>b.dataset.code).join(','), n: document.getElementById('wsN').value,
+    key: document.getElementById('wsKey').checked ? '1' : '0', pictures: document.getElementById('wsPics').checked ? '1' : '0', title: document.getElementById('wsTitle').value.trim() });
+  window.open('/api/math/worksheet?' + q.toString(), '_blank', 'noopener');
+}
+
 function practiceHTML(){
   if (S.lplay) return livePlayHTML();
   if (S.run) return runnerHTML();
@@ -624,6 +665,7 @@ function practiceHTML(){
     <div class="grid qcards">${cards}
       <div class="card qcard"><div class="row" style="flex-wrap:nowrap">${op('mixed')}<div><h3>Mixed review</h3><span class="meta">All three skills</span></div></div>
         <p class="small muted">Weighted toward the skills you find hardest.</p><div class="foot"><span></span><button class="btn outline sm" data-act="start" data-type="mixed">Start quiz</button></div></div></div>
+    ${coCardHTML()}
     ${ME.user.hasClass?`<div class="card"><div class="card-h"><h2>Join a live game</h2></div><div class="join"><label class="sr" for="joinCode">Game code</label><input type="text" id="joinCode" inputmode="numeric" placeholder="Game code" maxlength="7" autocomplete="off"><button class="btn primary" data-act="joinlive">Join</button></div>
       <p class="small muted" style="margin-top:8px">${esc(T||'Your teacher')} shows the code on the board.</p></div>`:''}`;
 }
@@ -900,10 +942,11 @@ function assignHTML(){
   const asg = S.assign, d = S.drafts, b = S.cls?.settings.band || 'g35';
   return `<div class="card"><h1>Assign practice</h1><p class="muted" style="margin-top:4px">Assignments show up first on each student’s Practice page, and they get a notification.</p></div>
     <div class="card stack"><h2>New assignment</h2><div class="grid two">
-      <label class="f">Skill<select id="aSkill">${CAT.bands[b].skills.map(id=>`<option value="${id}">${esc(SK(id).name)} (${esc(SK(id).std)})</option>`).join('')}<option value="mixed">Mixed review</option>${d.length?`<option value="custom">My questions (${d.length})</option>`:''}</select></label>
+      <label class="f">Skill<select id="aSkill">${CAT.bands[b].skills.map(id=>`<option value="${id}">${esc(SK(id).name)} (${esc(SK(id).std)})</option>`).join('')}<option value="mixed">Mixed review</option>${d.length?`<option value="custom">My questions (${d.length})</option>`:''}${(CAT.grades||[]).map(g=>coLessons(g).length?`<optgroup label="${esc(CAT.states[STATE].name)} · ${esc(CAT.gradeLabels[g])}">${coLessons(g).map(l=>`<option value="${l.skill}">${esc(SK(l.skill).name)} (${esc(l.code)})</option>`).join('')}</optgroup>`:'').join('')}</select></label>
       <label class="f">Questions<select id="aN"><option>5</option><option>10</option></select></label>
       <label class="f">Due<input type="date" id="aDue" value="${plus(2)}" min="${plus(0)}"></label></div>
       <div><button class="btn primary" data-act="assign">${svg('plus')}Assign to class</button></div></div>
+    ${worksheetCardHTML()}
     <div class="card"><div class="card-h"><h2>Assigned</h2><span class="small muted tnum">${asg?asg.length:''}</span></div>
       ${asg==null?'<p class="small muted">Loading…</p>':asg.length?asg.map(a=>`<div class="assign">${op(a.skill)}<div><b>${esc(a.title)}</b><span class="small muted">${a.n} questions · Due ${fmtDue(a.due)} · ${a.done} of ${a.classSize} finished</span></div><button class="btn sm" data-act="unassign" data-v="${a.id}">Remove</button></div>`).join(''):'<p class="small muted">Nothing assigned yet.</p>'}</div>
     <div class="card stack"><h2>Write your own questions</h2><p class="small muted">Questions from your lesson. Students answer with a number; fractions like 3/4 work too. Pick “My questions” above to send them.</p>
@@ -1078,6 +1121,8 @@ document.addEventListener('click', async e=>{
     case 'home': S.result=null; return render();
     case 'band': { if (S.run) return; return saveMe({ band: v || null }).then(()=>{ S.board=null; }); }
     case 'start': return startQuiz(el.dataset.type, v);
+    case 'cograde': S.coGrade = v; S.wsPick = null; return render();
+    case 'worksheet': return openWorksheet();
     case 'quit': S.run=null; store.set('arise_math_run', null); return render();
     case 'pick': return submitAnswer(v);
     case 'key': { const inp=document.getElementById('ans'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
