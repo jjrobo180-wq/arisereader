@@ -271,29 +271,41 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   );
   const rows = (list: Plugin[]) => <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{list.map(row)}</ul>;
 
-  /** A full-bleed, art-directed card: the app's own colour is the whole background, not a small icon on white. */
+  /** A full-bleed, art-directed card: the app's own colour is the whole background, and its icon is
+   * blown up into a centred badge so the card reads as artwork, not a settings row. */
   const poster = (p: Plugin, kind: "spotlight" | "rail") => {
     const deep = mix(p.color, "#000000", 0.55);
     const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
+    const big = kind === "spotlight";
     return <div role="button" tabIndex={0} key={p.id} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-      className={`group relative flex shrink-0 cursor-pointer flex-col justify-between overflow-hidden text-left text-white ${ring} ${kind === "spotlight" ? "aspect-[4/5] w-full rounded-[1.75rem] p-6 sm:aspect-[16/9] sm:p-8" : "aspect-[3/4] w-[46vw] max-w-[220px] rounded-[1.4rem] p-4 snap-start sm:w-[220px]"}`}
+      className={`group relative flex shrink-0 cursor-pointer flex-col overflow-hidden text-left text-white ${ring} ${big ? "h-[17rem] w-full rounded-[1.75rem] p-5 sm:h-72 sm:p-7" : "h-44 w-32 rounded-[1.1rem] p-3 snap-start sm:h-48 sm:w-36"}`}
       style={{ background: `radial-gradient(130% 110% at 100% 0%, ${mix(p.color, "#ffffff", 0.3)}, ${p.color} 45%, ${deep})` }}
       data-testid={kind === "spotlight" ? "plugin-spotlight" : `plugin-rail-${p.id}`}>
       <span className="pointer-events-none absolute inset-0 opacity-90 [background:radial-gradient(60%_80%_at_15%_100%,rgba(0,0,0,.35),transparent_65%)]" aria-hidden />
-      <span className="pointer-events-none absolute inset-0 scale-110 opacity-[0.14] transition-transform duration-500 group-hover:scale-125" aria-hidden>
-        <Icon className={kind === "spotlight" ? "absolute -right-6 -top-6 h-48 w-48" : "absolute -right-4 -top-4 h-28 w-28"} strokeWidth={1.25} />
+
+      <span className="relative inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] backdrop-blur-sm">
+        {big ? <><Sparkles className="h-3 w-3" />App of the day</> : p.category}
       </span>
-      <span className="relative inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] backdrop-blur-sm">
-        {kind === "spotlight" ? <><Sparkles className="h-3 w-3" />App of the day</> : p.category}
+
+      {/* The artwork: a large icon badge of its own, centred in the free space, standing in for a photo. */}
+      <span className={`pointer-events-none relative flex flex-1 items-center justify-center transition-transform duration-300 group-hover:scale-105 ${big ? "py-2" : "py-1"}`} aria-hidden>
+        <span
+          className={`flex items-center justify-center rounded-[1.4rem] bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,.4),0_8px_20px_-8px_rgba(0,0,0,.45)] backdrop-blur-sm ${big ? "h-24 w-24" : "h-14 w-14 rounded-xl"}`}
+        >
+          <Icon className={big ? "h-12 w-12" : "h-7 w-7"} strokeWidth={1.6} />
+        </span>
       </span>
+
       <span className="relative">
-        <span className={`block font-black tracking-tight drop-shadow-sm ${kind === "spotlight" ? "text-[28px] sm:text-[34px]" : "text-[17px]"}`}>{p.name}</span>
-        <span className={`mt-1 block text-white/85 ${kind === "spotlight" ? "max-w-sm text-[15px] leading-snug sm:text-base" : "line-clamp-2 text-[12.5px] leading-snug"}`}>{p.tagline}</span>
-        <span className="mt-3 inline-block" onClick={(e) => e.stopPropagation()}>{action(p, kind === "spotlight")}</span>
+        <span className={`block truncate font-black tracking-tight drop-shadow-sm ${big ? "text-[26px] sm:text-[30px]" : "text-[13px]"}`}>{p.name}</span>
+        {big
+          ? <span className="mt-1 block max-w-sm text-[14px] leading-snug text-white/85 sm:text-[15px]">{p.tagline}</span>
+          : <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/80">{p.tagline}</span>}
+        <span className={big ? "mt-3 inline-block" : "mt-2 block"} onClick={(e) => e.stopPropagation()}>{action(p, big)}</span>
       </span>
     </div>;
   };
-  const posterRail = (list: Plugin[]) => <ul className="-mx-4 flex gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 pt-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
+  const posterRail = (list: Plugin[]) => <ul className="-mx-4 flex gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 pt-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
     {list.map((p) => <li key={p.id} className="flex shrink-0">{poster(p, "rail")}</li>)}
   </ul>;
 
@@ -303,11 +315,10 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
 
   return <div className="fixed inset-0 z-[80] flex flex-col bg-[var(--s-bg)] text-[var(--s-text)]" style={vars} role="dialog" aria-modal="true" aria-label={`Arise ${STORE_NAME} for ${HUB_NAME[hub]}`} data-testid="plugin-store">
     <header
-      className="relative shrink-0 overflow-hidden pt-[env(safe-area-inset-top)]"
+      className="relative shrink-0 overflow-hidden pb-7 pt-[env(safe-area-inset-top)] sm:pb-8"
       style={{ background: `linear-gradient(120deg, ${pal.accent}, ${pal.accent2})` }}
     >
       <span className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(60%_140%_at_85%_0%,rgba(255,255,255,.28),transparent_60%)]" aria-hidden />
-      <span className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-[var(--s-bg)]/90" aria-hidden />
       <div className="relative mx-auto flex h-14 max-w-[1100px] items-center gap-2.5 px-3 sm:h-16 sm:px-6">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.75rem] bg-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.4)] backdrop-blur-sm" aria-hidden><ShoppingBag className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1 leading-tight">
@@ -322,18 +333,18 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
         </nav>}
         <button ref={closeRef} type="button" onClick={onClose} aria-label={`Close the ${STORE_NAME}`} className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 ${ring}`} data-testid="plugin-store-close"><X className="h-6 w-6" /></button>
       </div>
+      <label className="relative mx-auto mt-4 block max-w-[1100px] px-3 sm:px-6">
+        <span className="sr-only">Search apps</span>
+        <Search className="pointer-events-none absolute left-7 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--s-faint)] sm:left-9" />
+        {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
+        <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${HUB_NAME[hub]} apps`}
+          className={`h-12 w-full rounded-2xl border pl-11 pr-3 text-base shadow-[0_8px_24px_-10px_rgba(0,0,0,.45)] outline-none ${ring}`}
+          style={{ background: pal.surface, color: pal.text, borderColor: pal.line }} data-testid="plugin-search" />
+      </label>
     </header>
 
     <main ref={listRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
-      <div className="mx-auto max-w-[1100px] px-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6">
-        <label className="relative -mt-7 block sm:-mt-8">
-          <span className="sr-only">Search apps</span>
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--s-faint)]" />
-          {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
-          <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${HUB_NAME[hub]} apps`}
-            className={`h-12 w-full rounded-2xl border pl-11 pr-3 text-base shadow-[0_8px_24px_-10px_rgba(0,0,0,.35)] outline-none ${ring}`}
-            style={{ background: pal.surface, color: pal.text, borderColor: pal.line }} data-testid="plugin-search" />
-        </label>
+      <div className="mx-auto max-w-[1100px] px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4 sm:px-6">
         {/* Stays at the top while the list scrolls under it. */}
         <div className="sticky top-0 z-10 -mx-4 mt-3 bg-[var(--s-bg)] px-4 py-2 sm:-mx-6 sm:px-6">
           <div className="-mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show">
