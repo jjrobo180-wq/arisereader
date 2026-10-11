@@ -134,6 +134,165 @@ function gridRect(rows: number, cols: number) {
   return g + "</svg>";
 }
 
+/* ------------------------------------------------------------------ more visual models */
+
+/** A tape (bar) diagram: one or more rows of parts side by side, each part labelled, and a brace over the row with its total. */
+type TapePart = { label: string; size: number; fill?: boolean };
+function tape(rows: { name?: string; parts: TapePart[]; whole?: string }[]) {
+  const W = 360, x0 = rows.some((r) => r.name) ? 70 : 6, rowH = 66, H = rows.length * rowH + 6;
+  const max = Math.max(...rows.map((r) => r.parts.reduce((s, p) => s + p.size, 0)));
+  let s = `<svg class="viz" viewBox="0 0 ${W + 10} ${H}" style="width:${(W + 10) * 1.2}px" role="img" aria-label="Bar model">`;
+  rows.forEach((row, i) => {
+    const y = i * rowH + 26, scale = (W - x0) / max;
+    let x = x0;
+    if (row.name) s += `<text class="lab" x="${x0 - 8}" y="${y + 22}" text-anchor="end">${row.name}</text>`;
+    for (const p of row.parts) {
+      const w = p.size * scale;
+      s += `<rect class="seg-r ${p.fill ? "fill" : ""}" x="${x}" y="${y}" width="${w}" height="34" rx="3"/>`;
+      if (w > 14) s += `<text class="lab" x="${x + w / 2}" y="${y + 22}" text-anchor="middle" ${p.fill ? 'style="fill:var(--primary-ink,#fff)"' : ""}>${p.label}</text>`;
+      x += w;
+    }
+    if (row.whole) s += `<path d="M${x0} ${y - 6} V${y - 12} H${x} V${y - 6}" fill="none" stroke="currentColor" stroke-width="1.5"/><text class="lab" x="${(x0 + x) / 2}" y="${y - 16}" text-anchor="middle">${row.whole}</text>`;
+  });
+  return s + "</svg>";
+}
+
+/** An area model for multiplying: each number split into place-value parts, with the partial products inside. */
+function areaModel(a: number, b: number) {
+  const split = (n: number) => String(n).split("").map((d, i, all) => Number(d) * 10 ** (all.length - 1 - i)).filter((v) => v > 0);
+  const cols = split(a), rows = split(b), W = 330, H = Math.min(200, 70 * rows.length + 20), x0 = 50, y0 = 26;
+  const cw = cols.map((v) => Math.max(0.18, v / a)), ch = rows.map((v) => Math.max(0.22, v / b));
+  const sw = cw.reduce((s, v) => s + v, 0), sh = ch.reduce((s, v) => s + v, 0);
+  let s = `<svg class="viz" viewBox="0 0 ${x0 + W + 6} ${y0 + H + 6}" style="width:${(x0 + W) * 1.25}px" role="img" aria-label="Area model for ${a} times ${b}">`;
+  let y = y0;
+  rows.forEach((rv, ri) => {
+    const h = (ch[ri] / sh) * H; let x = x0;
+    s += `<text class="lab" x="${x0 - 8}" y="${y + h / 2 + 5}" text-anchor="end">${rv}</text>`;
+    cols.forEach((cv, ci) => {
+      const w = (cw[ci] / sw) * W;
+      if (ri === 0) s += `<text class="lab" x="${x + w / 2}" y="${y0 - 8}" text-anchor="middle">${cv}</text>`;
+      s += `<rect class="cell" x="${x}" y="${y}" width="${w}" height="${h}"/><text class="lab sm" style="font-size:12px;fill:currentColor" x="${x + w / 2}" y="${y + h / 2 + 4}" text-anchor="middle">${cv * rv}</text>`;
+      x += w;
+    });
+    y += h;
+  });
+  return s + "</svg>";
+}
+
+/** A place-value chart with each digit in its column. `heads` name the columns; "." is the decimal point. */
+function placeChart(digits: (number | string)[], heads: string[]) {
+  const cw = 64, W = heads.length * cw;
+  let s = `<svg class="viz" viewBox="0 0 ${W + 4} 82" style="width:${Math.min(520, W * 1.15)}px" role="img" aria-label="Place value chart">`;
+  heads.forEach((h, i) => {
+    const x = 2 + i * cw, dot = h === ".";
+    if (dot) { s += `<text class="lab" style="font-size:30px" x="${x + cw / 2}" y="68" text-anchor="middle">.</text>`; return; }
+    s += `<rect class="cell" x="${x}" y="2" width="${cw}" height="28"/><text class="lab sm" style="fill:currentColor" x="${x + cw / 2}" y="20" text-anchor="middle">${h}</text>`;
+    s += `<rect class="cell" x="${x}" y="30" width="${cw}" height="48"/><text class="lab" style="font-size:24px" x="${x + cw / 2}" y="63" text-anchor="middle">${digits[i] ?? ""}</text>`;
+  });
+  return s + "</svg>";
+}
+const PLACE_HEADS = ["Ten thousands", "Thousands", "Hundreds", "Tens", "Ones"].map((h) => h.replace("Ten thousands", "10 thous."));
+/** A whole number's place-value chart. */
+const wholeChart = (n: number) => { const d = String(n).split(""); return placeChart(d, PLACE_HEADS.slice(PLACE_HEADS.length - d.length)); };
+
+/** A number line from one benchmark to the next, with the halfway mark, showing where a number sits (for rounding). */
+function roundLine(n: number, lo: number, hi: number, fmt = (v: number) => String(v)) {
+  const W = 380, x = (v: number) => 20 + ((v - lo) / (hi - lo)) * (W - 40), mid = (lo + hi) / 2;
+  let s = `<svg class="viz" viewBox="0 0 ${W} 80" style="width:500px" role="img" aria-label="Number line from ${fmt(lo)} to ${fmt(hi)}">`;
+  s += `<line class="axis" x1="10" x2="${W - 10}" y1="44" y2="44"/>`;
+  for (const [v, big] of [[lo, 1], [mid, 0], [hi, 1]] as const) s += `<line class="tick" x1="${x(v)}" x2="${x(v)}" y1="${big ? 34 : 38}" y2="${big ? 54 : 50}"/><text class="lab sm" x="${x(v)}" y="70" text-anchor="middle">${fmt(v)}</text>`;
+  s += `<circle class="pt" cx="${x(n)}" cy="44" r="7"/><text class="lab" x="${x(n)}" y="22" text-anchor="middle">${fmt(n)}</text>`;
+  return s + "</svg>";
+}
+
+/** A number line with jumps of the same size, for skip counting and patterns. The last jump lands on "?". */
+function jumpLine(start: number, step: number, jumps: number) {
+  const W = 400, end = start + step * jumps, lo = Math.min(start, end), hi = Math.max(start, end), x = (v: number) => 24 + ((v - lo) / (hi - lo || 1)) * (W - 48);
+  let s = `<svg class="viz" viewBox="0 0 ${W} 96" style="width:520px" role="img" aria-label="Jumps on a number line">`;
+  s += `<line class="axis" x1="8" x2="${W - 8}" y1="70" y2="70"/>`;
+  for (let i = 0; i <= jumps; i++) {
+    const v = start + i * step, last = i === jumps;
+    s += `<line class="tick" x1="${x(v)}" x2="${x(v)}" y1="62" y2="78"/><text class="lab sm" style="${last ? "fill:currentColor;font-size:13px" : ""}" x="${x(v)}" y="92" text-anchor="middle">${last ? "?" : N(v)}</text>`;
+    if (i) { const a = x(v - step), b = x(v); s += `<path class="ln" style="stroke-dasharray:none" d="M${a} 66 Q${(a + b) / 2} 22 ${b} 66"/><text class="lab sm" x="${(a + b) / 2}" y="36" text-anchor="middle">${step > 0 ? "+" : MINUS}${Math.abs(step)}</text>`; }
+  }
+  return s + "</svg>";
+}
+
+/** A rectangle drawn to shape, with its sides labelled. */
+function labeledRect(w: number, h: number, wl: string, hl: string) {
+  const k = Math.min(220 / w, 120 / h), W = Math.max(60, w * k), H = Math.max(44, h * k);
+  return `<svg class="viz" viewBox="0 0 ${W + 70} ${H + 50}" style="width:${(W + 70) * 1.2}px" role="img" aria-label="Rectangle ${wl} by ${hl}"><rect class="cell" style="stroke-width:2.5" x="10" y="10" width="${W}" height="${H}"/><text class="lab" x="${10 + W / 2}" y="${H + 34}" text-anchor="middle">${wl}</text><text class="lab" x="${W + 18}" y="${10 + H / 2 + 5}">${hl}</text></svg>`;
+}
+/** A triangle with its base and dashed height labelled. */
+function triangleBH(b: string, h: string) {
+  return `<svg class="viz" viewBox="0 0 260 150" style="width:300px" role="img" aria-label="Triangle with base ${b} and height ${h}"><polygon class="cell" style="stroke-width:2.5" points="20,120 230,120 150,20"/><line class="ln" x1="150" y1="20" x2="150" y2="120"/><rect class="cell" x="150" y="108" width="12" height="12"/><text class="lab" x="125" y="142" text-anchor="middle">${b}</text><text class="lab" x="142" y="80" text-anchor="end">${h}</text></svg>`;
+}
+/** A right triangle with its sides labelled; `mark` puts angle A at the bottom left. */
+function rightTriangle(a: string, b: string, c: string, mark = false) {
+  return `<svg class="viz" viewBox="0 0 280 170" style="width:320px" role="img" aria-label="Right triangle"><polygon class="cell" style="stroke-width:2.5" points="30,140 240,140 240,30"/><rect class="cell" x="226" y="126" width="14" height="14"/><text class="lab" x="135" y="162" text-anchor="middle">${b}</text><text class="lab" x="250" y="90">${a}</text><text class="lab" x="118" y="76" text-anchor="end">${c}</text>${mark ? `<path d="M64 140 A34 34 0 0 0 60 125" fill="none" stroke="currentColor" stroke-width="2"/><text class="lab" x="70" y="132">A</text>` : ""}</svg>`;
+}
+/** A box (rectangular prism) with its length, width and height labelled. */
+function boxSvg(l: string, w: string, h: string) {
+  return `<svg class="viz" viewBox="0 0 270 170" style="width:310px" role="img" aria-label="Box ${l} by ${w} by ${h}"><path class="cell" style="stroke-width:2" d="M30 60 L160 60 L160 140 L30 140 Z"/><path class="cell" style="stroke-width:2" d="M30 60 L80 25 L210 25 L160 60 Z"/><path class="cell" style="stroke-width:2" d="M160 60 L210 25 L210 105 L160 140 Z"/><text class="lab" x="95" y="160" text-anchor="middle">${l}</text><text class="lab" x="196" y="135">${w}</text><text class="lab" x="22" y="105" text-anchor="end">${h}</text></svg>`;
+}
+/** A circle with its radius drawn and labelled. */
+function circleSvg(r: string) {
+  return `<svg class="viz" viewBox="0 0 200 170" style="width:240px" role="img" aria-label="Circle with radius ${r}"><circle class="cell" style="stroke-width:2.5" cx="100" cy="85" r="70"/><line class="axis" x1="100" y1="85" x2="170" y2="85"/><circle class="fulcrum" cx="100" cy="85" r="4"/><text class="lab" x="135" y="78" text-anchor="middle">${r}</text></svg>`;
+}
+/** A cylinder, cone or sphere with its radius and height labelled. */
+function solidSvg(kind: "cylinder" | "cone" | "sphere", r: string, h = "") {
+  const open = `<svg class="viz" viewBox="0 0 220 195" style="width:250px" role="img" aria-label="${kind}">`;
+  if (kind === "sphere") return open + `<circle class="cell" style="stroke-width:2.5" cx="110" cy="95" r="75"/><ellipse cx="110" cy="95" rx="75" ry="18" fill="none" stroke="currentColor" stroke-dasharray="5 4"/><line class="axis" x1="110" y1="95" x2="185" y2="95"/><text class="lab" x="148" y="88" text-anchor="middle">${r}</text></svg>`;
+  if (kind === "cone") return open + `<path class="cell" style="stroke-width:2.5" d="M40 150 L110 20 L180 150"/><ellipse class="cell" style="stroke-width:2.5" cx="110" cy="150" rx="70" ry="16"/><line class="ln" x1="110" y1="20" x2="110" y2="150"/><line class="axis" x1="110" y1="150" x2="180" y2="150"/><text class="lab" x="145" y="184" text-anchor="middle">${r}</text><text class="lab" x="116" y="124">${h}</text></svg>`;
+  return open + `<path class="cell" style="stroke-width:2.5" d="M40 40 V150 A70 16 0 0 0 180 150 V40"/><ellipse class="cell" style="stroke-width:2.5" cx="110" cy="40" rx="70" ry="16"/><line class="axis" x1="110" y1="40" x2="180" y2="40"/><circle class="fulcrum" cx="110" cy="40" r="3"/><text class="lab" style="font-size:11px" x="146" y="35" text-anchor="middle">${r}</text><text class="lab" x="188" y="100">${h}</text></svg>`;
+}
+/** Two angles that make a right angle or a straight line; the known one is labelled, the other shows "?". */
+function angleSplit(a: number, whole: 90 | 180, unknownLabel = "?") {
+  const cx = 150, cy = 140, R = 110, p = (deg: number) => [cx + R * Math.cos((deg * Math.PI) / 180), cy - R * Math.sin((deg * Math.PI) / 180)].map((v) => Math.round(v));
+  const [ax, ay] = p(a), [ex, ey] = p(whole), [mx1, my1] = p(a / 2).map((v, i) => (i ? cy - (cy - v) * 0.45 : cx + (v - cx) * 0.45)), [mx2, my2] = p((a + whole) / 2).map((v, i) => (i ? cy - (cy - v) * 0.45 : cx + (v - cx) * 0.45));
+  return `<svg class="viz" viewBox="${whole === 180 ? "20 20 260 140" : "130 20 150 140"}" style="width:${whole === 180 ? 320 : 220}px" role="img" aria-label="Angles"><line class="axis" x1="${cx}" y1="${cy}" x2="${cx + R}" y2="${cy}"/><line class="axis" x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}"/><line class="ln" style="stroke-dasharray:none;stroke-width:2.5" x1="${cx}" y1="${cy}" x2="${ax}" y2="${ay}"/>${whole === 90 ? `<rect class="cell" x="${cx}" y="${cy - 12}" width="12" height="12"/>` : ""}<text class="lab" x="${mx1}" y="${my1}" text-anchor="middle">${a}°</text><text class="lab" x="${mx2}" y="${my2}" text-anchor="middle">${unknownLabel}</text></svg>`;
+}
+/** A triangle with its three angles labelled (one may be "?"). */
+function triangleAngles(a: string, b: string, c: string) {
+  return `<svg class="viz" viewBox="0 0 280 170" style="width:320px" role="img" aria-label="Triangle angles"><polygon class="cell" style="stroke-width:2.5" points="25,150 260,150 170,25"/><text class="lab" x="58" y="142">${a}</text><text class="lab" x="226" y="142" text-anchor="end">${b}</text><text class="lab" x="170" y="56" text-anchor="middle">${c}</text></svg>`;
+}
+/** Coins, each a circle with its value. */
+function coinsSvg(coins: number[]) {
+  const r = (v: number) => (v === 25 ? 24 : v === 5 ? 21 : v === 10 ? 17 : 18);
+  let x = 6, s = "";
+  for (const v of coins) { const rr = r(v); s += `<circle cx="${x + rr}" cy="30" r="${rr}" style="fill:${v === 1 ? "#d58a52" : "#c9ccd6"};stroke:currentColor;stroke-width:1.5"/><text class="lab" style="fill:#1a1828;font-size:12px" x="${x + rr}" y="34" text-anchor="middle">${v}¢</text>`; x += rr * 2 + 6; }
+  return `<svg class="viz" viewBox="0 0 ${x + 4} 60" style="width:${Math.min(520, (x + 4) * 1.1)}px" role="img" aria-label="Coins">${s}</svg>`;
+}
+/** Marbles of up to three colours, as dots. */
+function marblesSvg(counts: [number, string][]) {
+  let s = "", i = 0;
+  for (const [n, color] of counts) for (let k = 0; k < n; k++, i++) s += `<circle cx="${16 + (i % 10) * 26}" cy="${16 + Math.floor(i / 10) * 26}" r="10" style="fill:${color};stroke:currentColor;stroke-width:1"/>`;
+  const rows = Math.ceil(i / 10);
+  return `<svg class="viz" viewBox="0 0 270 ${rows * 26 + 8}" style="width:300px" role="img" aria-label="Marbles">${s}</svg>`;
+}
+/** Whole bars plus a part of one, for mixed numbers. */
+function wholesSvg(w: number, n: number, d: number) {
+  const bw = 150, bh = 26, gap = 8, per = 2, rows = Math.ceil((w + (n ? 1 : 0)) / per);
+  let s = `<svg class="viz" viewBox="0 0 ${per * (bw + gap)} ${rows * (bh + gap)}" style="width:340px" role="img" aria-label="${w} wholes and ${n} ${d}ths">`;
+  for (let b = 0; b < w + (n ? 1 : 0); b++) {
+    const x = (b % per) * (bw + gap), y = Math.floor(b / per) * (bh + gap), full = b < w;
+    for (let k = 0; k < d; k++) s += `<rect class="seg-r ${full || k < n ? "fill" : ""}" x="${x + (k * bw) / d}" y="${y}" width="${bw / d}" height="${bh}"/>`;
+  }
+  return s + "</svg>";
+}
+
+/** A coordinate plane from −6 to 6 with labelled points; `arrow` draws an arrow from the first point to the second. Nothing if a point is off the grid. */
+function pointsPlane(pts: [number, number, string?][], arrow = false) {
+  if (pts.some(([x, y]) => Math.abs(x) > 6 || Math.abs(y) > 6)) return undefined;
+  const s0 = 18, R = 6, M = 30, size = 2 * R * s0, X = (v: number) => M + (v + R) * s0, Y = (v: number) => M + (R - v) * s0, W = size + 2 * M;
+  let s = `<svg class="viz" viewBox="0 0 ${W} ${W}" style="width:${W * 1.15}px" role="img" aria-label="Coordinate plane">`;
+  for (let v = -R; v <= R; v++) s += `<line class="gridl" x1="${X(v)}" x2="${X(v)}" y1="${Y(R)}" y2="${Y(-R)}"/><line class="gridl" y1="${Y(v)}" y2="${Y(v)}" x1="${X(-R)}" x2="${X(R)}"/>`;
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${Y(R)}" y2="${Y(-R)}"/><line class="axis" y1="${Y(0)}" y2="${Y(0)}" x1="${X(-R)}" x2="${X(R)}"/>`;
+  if (arrow && pts.length > 1) s += `<line class="ln" x1="${X(pts[0][0])}" y1="${Y(pts[0][1])}" x2="${X(pts[1][0])}" y2="${Y(pts[1][1])}"/>`;
+  for (const [x, y, label] of pts) { const rt = x < 3; s += `<circle class="pt" cx="${X(x)}" cy="${Y(y)}" r="6"/><text class="lab sm" style="font-size:11px;fill:currentColor" x="${X(x) + (rt ? 10 : -10)}" y="${Y(y) - 9}" text-anchor="${rt ? "start" : "end"}">${label ?? `(${N(x)}, ${N(y)})`}</text>`; }
+  return s + "</svg>";
+}
+
 /* ------------------------------------------------------------------ problems */
 
 export type Choice = { v: string; label: string };
@@ -270,7 +429,7 @@ export const SKILLS = {
     const rnd = rndWith(r); const q = rnd(0, 3), d = rnd(0, 4), n = rnd(0, 3), p = rnd(0, 4), cents = q * 25 + d * 10 + n * 5 + p || 1;
     const parts = [[q, "quarter", 25], [d, "dime", 10], [n, "nickel", 5], [p || (cents === 1 ? 1 : 0), "penny", 1]].filter(([k]) => Number(k) > 0) as [number, string, number][];
     const words = parts.map(([k, w]) => `${k} ${k === 1 ? w : w === "penny" ? "pennies" : w + "s"}`).join(", ");
-    return { ask: `How many cents is ${words}?`, prompt: `<span class="blank">?</span> ¢`, plain: `${words}`, answer: cents,
+    return { ask: `How many cents is ${words}?`, prompt: `<span class="blank">?</span> ¢`, plain: `${words}`, viz: coinsSvg([...Array(q).fill(25), ...Array(d).fill(10), ...Array(n).fill(5), ...Array(p || (cents === 1 ? 1 : 0)).fill(1)]), answer: cents,
       steps: [...parts.map(([k, w, v]) => `${k} ${k === 1 ? w : w === "penny" ? "pennies" : w + "s"} = ${k * v}¢.`), `Add them: ${parts.map(([k, , v]) => k * v).join(" + ")} = ${cents}¢.`] };
   } },
   g2place: { name: "Hundreds, tens and ones", std: "2.NBT.A.1", glyph: "100", c: "teach", band: "k2", gen(r) {
@@ -294,13 +453,13 @@ export const SKILLS = {
   } },
   g3round: { name: "Round to 10 or 100", std: "3.NBT.A.1", glyph: "≈", c: "help", band: "g35", gen(r) {
     const rnd = rndWith(r); const to = r() < 0.5 ? 10 : 100, n = to === 10 ? rnd(11, 989) : rnd(110, 989), ans = Math.round(n / to) * to, digit = to === 10 ? n % 10 : Math.floor(n / 10) % 10;
-    return { ask: `Round ${n} to the nearest ${to}.`, prompt: `${n} ≈ <span class="blank">?</span>`, plain: `round ${n} to the nearest ${to}`, answer: ans,
+    return { ask: `Round ${n} to the nearest ${to}.`, prompt: `${n} ≈ <span class="blank">?</span>`, plain: `round ${n} to the nearest ${to}`, viz: roundLine(n, Math.floor(n / to) * to, Math.floor(n / to) * to + to), answer: ans,
       steps: [`Look at the ${to === 10 ? "ones" : "tens"} digit: ${digit}.`, digit >= 5 ? "5 or more rounds up." : "4 or less rounds down.", `${n} rounds to ${ans}.`] };
   } },
   g4mult: { name: "Multiply multi-digit numbers", std: "4.NBT.B.5", glyph: "×", c: "serve", band: "g35", gen(r) {
     const rnd = rndWith(r); const two = r() < 0.5, a = two ? rnd(11, 49) : rnd(102, 989), b = two ? rnd(11, 29) : rnd(2, 9), p = a * b;
     const T = Math.floor(b / 10) * 10, O = b % 10;
-    return { ask: "Multiply. Break a number into parts if it helps.", prompt: `${a} × ${b} = <span class="blank">?</span>`, plain: `${a} × ${b}`, answer: p,
+    return { ask: "Multiply. Break a number into parts if it helps.", prompt: `${a} × ${b} = <span class="blank">?</span>`, plain: `${a} × ${b}`, viz: areaModel(a, b), answer: p,
       steps: two ? [`Split ${b} into ${T} and ${O}.`, `${a} × ${T} = ${a * T}.`, `${a} × ${O} = ${a * O}.`, `${a * T} + ${a * O} = ${p}.`]
         : [`Split ${a} into ${Math.floor(a / 100) * 100}, ${Math.floor(a / 10) % 10 * 10} and ${a % 10}.`, `Multiply each by ${b}: ${Math.floor(a / 100) * 100 * b}, ${Math.floor(a / 10) % 10 * 10 * b}, ${a % 10 * b}.`, `Add them: ${p}.`] };
   } },
@@ -311,9 +470,9 @@ export const SKILLS = {
   } },
   g4perim: { name: "Perimeter", std: "4.MD.A.3", glyph: "▢", c: "nature", band: "g35", gen(r) {
     const rnd = rndWith(r); const l = rnd(3, 25), w = rnd(2, 20), P2 = 2 * (l + w), findSide = r() < 0.35;
-    if (findSide) return { ask: `A rectangle has a perimeter of ${P2} units. One side is ${l}. How long is the other side?`, prompt: `2 × (${l} + <span class="blank">?</span>) = ${P2}`, plain: `perimeter ${P2}, side ${l}`, answer: w,
+    if (findSide) return { ask: `A rectangle has a perimeter of ${P2} units. One side is ${l}. How long is the other side?`, prompt: `2 × (${l} + <span class="blank">?</span>) = ${P2}`, plain: `perimeter ${P2}, side ${l}`, viz: labeledRect(l, w, `${l}`, "?"), answer: w,
       steps: [`Half the perimeter is one length plus one width: ${P2} ÷ 2 = ${l + w}.`, `${l + w} ${MINUS} ${l} = ${w}.`] };
-    return { ask: `A rectangle is ${l} units long and ${w} units wide. What is its perimeter?`, prompt: `${l} + ${w} + ${l} + ${w} = <span class="blank">?</span>`, plain: `perimeter of ${l} by ${w}`, answer: P2,
+    return { ask: `A rectangle is ${l} units long and ${w} units wide. What is its perimeter?`, prompt: `${l} + ${w} + ${l} + ${w} = <span class="blank">?</span>`, plain: `perimeter of ${l} by ${w}`, viz: labeledRect(l, w, `${l}`, `${w}`), answer: P2,
       steps: ["Perimeter is the distance all the way around.", `${l} + ${w} = ${l + w}.`, `Two of those: 2 × ${l + w} = ${P2}.`] };
   } },
   g5dec: { name: "Add and subtract decimals", std: "5.NBT.B.7", glyph: ".5", c: "tech", band: "g35", gen(r) {
@@ -323,12 +482,12 @@ export const SKILLS = {
   } },
   g5mult: { name: "Multi-digit multiplication", std: "5.NBT.B.5", glyph: "×", c: "serve", band: "g35", gen(r) {
     const rnd = rndWith(r); const a = rnd(102, 899), b = rnd(12, 79), p = a * b, T = Math.floor(b / 10) * 10, O = b % 10;
-    return { ask: "Multiply.", prompt: `${a} × ${b} = <span class="blank">?</span>`, plain: `${a} × ${b}`, long: true, answer: p,
+    return { ask: "Multiply.", prompt: `${a} × ${b} = <span class="blank">?</span>`, plain: `${a} × ${b}`, long: true, viz: areaModel(a, b), answer: p,
       steps: [`Split ${b} into ${T} and ${O}.`, `${a} × ${O} = ${a * O}.`, `${a} × ${T} = ${a * T}.`, `${a * O} + ${a * T} = ${p}.`] };
   } },
   g5volume: { name: "Volume of boxes", std: "5.MD.C.5", glyph: "▣", c: "create", band: "g35", gen(r) {
     const rnd = rndWith(r); const l = rnd(2, 9), w = rnd(2, 6), h = rnd(2, 8), V = l * w * h;
-    return { ask: `A box is ${l} cm long, ${w} cm wide and ${h} cm tall. What is its volume in cubic cm?`, prompt: `${l} × ${w} × ${h} = <span class="blank">?</span>`, plain: `volume of ${l} by ${w} by ${h}`, answer: V,
+    return { ask: `A box is ${l} cm long, ${w} cm wide and ${h} cm tall. What is its volume in cubic cm?`, prompt: `${l} × ${w} × ${h} = <span class="blank">?</span>`, plain: `volume of ${l} by ${w} by ${h}`, viz: boxSvg(`${l} cm`, `${w} cm`, `${h} cm`), answer: V,
       steps: ["Volume = length × width × height.", `${l} × ${w} = ${l * w} (the bottom layer).`, `${l * w} × ${h} = ${V} cubic cm.`] };
   } },
   g5order: { name: "Order of operations", std: "5.OA.A.1", glyph: "( )", c: "fly", band: "g35", gen(r) {
@@ -378,9 +537,9 @@ export const SKILLS = {
   } },
   g8pyth: { name: "Pythagorean theorem", std: "8.G.B.7", glyph: "a²", c: "coral", band: "g68", gen(r) {
     const pick = pickWith(r); const [a0, b0, c0] = pick([[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25]] as const), k = pick([1, 1, 2, 3]), a = a0 * k, b = b0 * k, c = c0 * k, leg = r() < 0.35;
-    if (leg) return { ask: `A right triangle has a hypotenuse of ${c} and one leg of ${a}. How long is the other leg?`, prompt: `${a}² + <span class="blank">?</span>² = ${c}²`, plain: `legs ${a} and ?, hypotenuse ${c}`, answer: b,
+    if (leg) return { ask: `A right triangle has a hypotenuse of ${c} and one leg of ${a}. How long is the other leg?`, prompt: `${a}² + <span class="blank">?</span>² = ${c}²`, plain: `legs ${a} and ?, hypotenuse ${c}`, viz: rightTriangle(`${a}`, "?", `${c}`), answer: b,
       steps: ["a² + b² = c².", `${c}² ${MINUS} ${a}² = ${c * c} ${MINUS} ${a * a} = ${b * b}.`, `√${b * b} = ${b}.`] };
-    return { ask: `A right triangle has legs ${a} and ${b}. How long is the hypotenuse?`, prompt: `${a}² + ${b}² = <span class="blank">?</span>²`, plain: `legs ${a} and ${b}`, answer: c,
+    return { ask: `A right triangle has legs ${a} and ${b}. How long is the hypotenuse?`, prompt: `${a}² + ${b}² = <span class="blank">?</span>²`, plain: `legs ${a} and ${b}`, viz: rightTriangle(`${a}`, `${b}`, "?"), answer: c,
       steps: ["a² + b² = c².", `${a * a} + ${b * b} = ${c * c}.`, `√${c * c} = ${c}.`] };
   } },
   hsfunc: { name: "Evaluate functions", std: "HSF-IF.A.2", glyph: "f(x)", c: "fly", band: "g912", gen(r) {
@@ -414,9 +573,9 @@ export const SKILLS = {
   g1word: { name: "Word problems within 20", std: "1.OA.A.1", glyph: "?", c: "help", band: "k2", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const name = pick(["Mia", "Leo", "Ava", "Sam", "Zoe", "Eli"]), thing = pick(["stickers", "shells", "marbles", "crayons", "cards"]);
     const kind = rnd(0, 2), a = rnd(5, 12), b = rnd(2, 8);
-    if (kind === 0) return { ask: `${name} has ${a} ${thing}. ${name} gets ${b} more. How many ${thing} now?`, prompt: `${a} + ${b} = <span class="blank">?</span>`, plain: `${a} + ${b}`, answer: a + b, steps: ["Getting more means add.", `${a} + ${b} = ${a + b}.`] };
-    if (kind === 1) { const t = a + b; return { ask: `${name} has ${t} ${thing}. ${name} gives away ${b}. How many are left?`, prompt: `${t} ${MINUS} ${b} = <span class="blank">?</span>`, plain: `${t} − ${b}`, answer: a, steps: ["Giving away means subtract.", `${t} ${MINUS} ${b} = ${a}.`] }; }
-    const t = a + b; return { ask: `${name} has ${a} ${thing}. ${name} wants ${t}. How many more does ${name} need?`, prompt: `${a} + <span class="blank">?</span> = ${t}`, plain: `${a} + ? = ${t}`, answer: b, steps: [`Count up from ${a} to ${t}.`, `${t} ${MINUS} ${a} = ${b}.`] };
+    if (kind === 0) return { ask: `${name} has ${a} ${thing}. ${name} gets ${b} more. How many ${thing} now?`, prompt: `${a} + ${b} = <span class="blank">?</span>`, plain: `${a} + ${b}`, viz: tape([{ parts: [{ label: `${a}`, size: a, fill: true }, { label: `${b}`, size: b }], whole: "?" }]), answer: a + b, steps: ["Getting more means add.", `${a} + ${b} = ${a + b}.`] };
+    if (kind === 1) { const t = a + b; return { ask: `${name} has ${t} ${thing}. ${name} gives away ${b}. How many are left?`, prompt: `${t} ${MINUS} ${b} = <span class="blank">?</span>`, plain: `${t} − ${b}`, viz: tape([{ parts: [{ label: "?", size: a }, { label: `${b}`, size: b, fill: true }], whole: `${t}` }]), answer: a, steps: ["Giving away means subtract.", `${t} ${MINUS} ${b} = ${a}.`] }; }
+    const t = a + b; return { ask: `${name} has ${a} ${thing}. ${name} wants ${t}. How many more does ${name} need?`, prompt: `${a} + <span class="blank">?</span> = ${t}`, plain: `${a} + ? = ${t}`, viz: tape([{ parts: [{ label: `${a}`, size: a, fill: true }, { label: "?", size: b }], whole: `${t}` }]), answer: b, steps: [`Count up from ${a} to ${t}.`, `${t} ${MINUS} ${a} = ${b}.`] };
   } },
   g1time: { name: "Tell time to the hour", std: "1.MD.B.3", glyph: "🕒", c: "nature", band: "k2", gen(r) {
     const rnd = rndWith(r); const h = rnd(1, 12), half = r() < 0.5;
@@ -430,18 +589,18 @@ export const SKILLS = {
   g2word: { name: "Word problems within 100", std: "2.OA.A.1", glyph: "?", c: "help", band: "k2", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const name = pick(["Nora", "Jay", "Lily", "Max", "Ivy", "Omar"]), thing = pick(["pages", "beads", "points", "seeds", "blocks"]);
     const a = rnd(15, 60), b = rnd(8, 99 - a), t = a + b;
-    return r() < 0.5 ? { ask: `${name} had ${a} ${thing} and got ${b} more. How many in all?`, prompt: `${a} + ${b} = <span class="blank">?</span>`, plain: `${a} + ${b}`, answer: t, steps: ["In all means add.", `${a} + ${b} = ${t}.`] }
-      : { ask: `${name} had ${t} ${thing} and used ${b}. How many are left?`, prompt: `${t} ${MINUS} ${b} = <span class="blank">?</span>`, plain: `${t} − ${b}`, answer: a, steps: ["Left means subtract.", `${t} ${MINUS} ${b} = ${a}.`, `Check: ${a} + ${b} = ${t} ✓`] };
+    return r() < 0.5 ? { ask: `${name} had ${a} ${thing} and got ${b} more. How many in all?`, prompt: `${a} + ${b} = <span class="blank">?</span>`, plain: `${a} + ${b}`, viz: tape([{ parts: [{ label: `${a}`, size: a, fill: true }, { label: `${b}`, size: b }], whole: "?" }]), answer: t, steps: ["In all means add.", `${a} + ${b} = ${t}.`] }
+      : { ask: `${name} had ${t} ${thing} and used ${b}. How many are left?`, prompt: `${t} ${MINUS} ${b} = <span class="blank">?</span>`, plain: `${t} − ${b}`, viz: tape([{ parts: [{ label: "?", size: a }, { label: `${b}`, size: b, fill: true }], whole: `${t}` }]), answer: a, steps: ["Left means subtract.", `${t} ${MINUS} ${b} = ${a}.`, `Check: ${a} + ${b} = ${t} ✓`] };
   } },
   g2tens: { name: "Add or take away 10 and 100", std: "2.NBT.B.8", glyph: "±10", c: "build", band: "k2", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const step = pick([10, 100]), add = r() < 0.5, n = add ? rnd(100, 899) : rnd(step + 100, 999), ans = add ? n + step : n - step;
-    return { ask: "Use place value. Only one digit changes.", prompt: `${n} ${add ? "+" : MINUS} ${step} = <span class="blank">?</span>`, plain: `${n} ${add ? "+" : MINUS} ${step}`, answer: ans,
+    return { ask: "Use place value. Only one digit changes.", prompt: `${n} ${add ? "+" : MINUS} ${step} = <span class="blank">?</span>`, plain: `${n} ${add ? "+" : MINUS} ${step}`, viz: wholeChart(n), answer: ans,
       steps: [`${step} is 1 ${step === 10 ? "ten" : "hundred"}.`, `The ${step === 10 ? "tens" : "hundreds"} digit goes ${add ? "up" : "down"} by 1.`, `${n} ${add ? "+" : MINUS} ${step} = ${ans}.`] };
   } },
   g2length: { name: "Length word problems", std: "2.MD.B.5", glyph: "📏", c: "nature", band: "k2", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const [obj, unit] = pick([["ribbon", "inches"], ["rope", "feet"], ["track", "meters"], ["string", "centimeters"]] as const), a = rnd(12, 60), b = rnd(5, 35), longer = r() < 0.5;
-    return longer ? { ask: `A ${obj} is ${a} ${unit} long. Another is ${b} ${unit} longer. How long is the second ${obj}?`, prompt: `${a} + ${b} = <span class="blank">?</span> ${unit}`, plain: `${a} + ${b}`, answer: a + b, steps: ["Longer means add.", `${a} + ${b} = ${a + b} ${unit}.`] }
-      : { ask: `A ${obj} is ${a + b} ${unit} long. ${b} ${unit} are cut off. How long is it now?`, prompt: `${a + b} ${MINUS} ${b} = <span class="blank">?</span> ${unit}`, plain: `${a + b} − ${b}`, answer: a, steps: ["Cut off means subtract.", `${a + b} ${MINUS} ${b} = ${a} ${unit}.`] };
+    return longer ? { ask: `A ${obj} is ${a} ${unit} long. Another is ${b} ${unit} longer. How long is the second ${obj}?`, prompt: `${a} + ${b} = <span class="blank">?</span> ${unit}`, plain: `${a} + ${b}`, viz: tape([{ name: "First", parts: [{ label: `${a}`, size: a, fill: true }] }, { name: "Second", parts: [{ label: `${a}`, size: a, fill: true }, { label: `${b}`, size: b }], whole: "?" }]), answer: a + b, steps: ["Longer means add.", `${a} + ${b} = ${a + b} ${unit}.`] }
+      : { ask: `A ${obj} is ${a + b} ${unit} long. ${b} ${unit} are cut off. How long is it now?`, prompt: `${a + b} ${MINUS} ${b} = <span class="blank">?</span> ${unit}`, plain: `${a + b} − ${b}`, viz: tape([{ parts: [{ label: "?", size: a }, { label: `${b} cut`, size: b, fill: true }], whole: `${a + b}` }]), answer: a, steps: ["Cut off means subtract.", `${a + b} ${MINUS} ${b} = ${a} ${unit}.`] };
   } },
   g3eqfrac: { name: "Equivalent fractions", std: "3.NF.A.3b", glyph: "=½", c: "teach", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const d = pick([2, 3, 4, 6]), n = rnd(1, d - 1), k = pick([2, 3, 4].filter((x) => d * x <= 12)), D = d * k;
@@ -450,9 +609,9 @@ export const SKILLS = {
   } },
   g3twostep: { name: "Two-step word problems", std: "3.OA.D.8", glyph: "2×", c: "help", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const name = pick(["Rosa", "Ben", "Kai", "Tess", "Ali"]), packs = rnd(2, 8), per = rnd(3, 9), extra = rnd(2, 15), total = packs * per;
-    return r() < 0.5 ? { ask: `${name} buys ${packs} packs of ${per} pencils and already has ${extra}. How many pencils now?`, prompt: `${packs} × ${per} + ${extra} = <span class="blank">?</span>`, plain: `${packs} × ${per} + ${extra}`, answer: total + extra,
+    return r() < 0.5 ? { ask: `${name} buys ${packs} packs of ${per} pencils and already has ${extra}. How many pencils now?`, prompt: `${packs} × ${per} + ${extra} = <span class="blank">?</span>`, plain: `${packs} × ${per} + ${extra}`, viz: tape([{ parts: [...Array.from({ length: packs }, () => ({ label: `${per}`, size: per, fill: true })), { label: `${extra}`, size: extra }], whole: "?" }]), answer: total + extra,
         steps: [`First the packs: ${packs} × ${per} = ${total}.`, `Then add the ${extra}: ${total} + ${extra} = ${total + extra}.`] }
-      : { ask: `${name} has ${total + extra} cards, gives away ${extra}, and shares the rest equally with ${packs} friends. How many does each friend get?`, prompt: `(${total + extra} ${MINUS} ${extra}) ÷ ${packs} = <span class="blank">?</span>`, plain: `(${total + extra} − ${extra}) ÷ ${packs}`, answer: per,
+      : { ask: `${name} has ${total + extra} cards, gives away ${extra}, and shares the rest equally with ${packs} friends. How many does each friend get?`, prompt: `(${total + extra} ${MINUS} ${extra}) ÷ ${packs} = <span class="blank">?</span>`, plain: `(${total + extra} − ${extra}) ÷ ${packs}`, viz: tape([{ parts: [{ label: `${extra}`, size: extra, fill: true }, ...Array.from({ length: packs }, () => ({ label: "?", size: per }))], whole: `${total + extra}` }]), answer: per,
         steps: [`First take away: ${total + extra} ${MINUS} ${extra} = ${total}.`, `Then share: ${total} ÷ ${packs} = ${per}.`] };
   } },
   g3elapsed: { name: "Elapsed time", std: "3.MD.A.1", glyph: "⏱", c: "nature", band: "g35", gen(r) {
@@ -464,7 +623,7 @@ export const SKILLS = {
   g4addfrac: { name: "Add fractions, like denominators", std: "4.NF.B.3a", glyph: "+⅓", c: "build", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const d = pick([4, 5, 6, 8, 10, 12]), a = rnd(1, d - 2), b = rnd(1, d - a - 1), sub = r() < 0.4;
     const [x, y] = sub ? [a + b, b] : [a, b], ans = sub ? a : a + b;
-    return { ask: "Find the top number of the answer. The bottom stays the same.", prompt: `${frac(x, d)} ${sub ? MINUS : "+"} ${frac(y, d)} = ${frac('<span class="blank">?</span>', d)}`, plain: `${x}/${d} ${sub ? "−" : "+"} ${y}/${d}`, answer: ans,
+    return { ask: "Find the top number of the answer. The bottom stays the same.", prompt: `${frac(x, d)} ${sub ? MINUS : "+"} ${frac(y, d)} = ${frac('<span class="blank">?</span>', d)}`, plain: `${x}/${d} ${sub ? "−" : "+"} ${y}/${d}`, viz: fractionBars(x, d, y, d), answer: ans,
       steps: ["The pieces are the same size, so the denominator stays the same.", `${sub ? "Subtract" : "Add"} the tops: ${x} ${sub ? MINUS : "+"} ${y} = ${ans}.`, `${x}/${d} ${sub ? MINUS : "+"} ${y}/${d} = ${ans}/${d}.`] };
   } },
   g4prime: { name: "Prime or composite", std: "4.OA.B.4", glyph: "P", c: "fly", band: "g35", gen(r) {
@@ -476,17 +635,17 @@ export const SKILLS = {
   g4round: { name: "Round multi-digit numbers", std: "4.NBT.A.3", glyph: "≈", c: "help", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const to = pick([100, 1000, 10000]), n = rnd(to + 1, Math.min(99999, to * 90)), ans = Math.round(n / to) * to, digit = Math.floor(n / (to / 10)) % 10;
     const place = to === 100 ? "hundred" : to === 1000 ? "thousand" : "ten thousand";
-    return { ask: `Round ${n.toLocaleString("en-US")} to the nearest ${place}.`, prompt: `≈ <span class="blank">?</span>`, plain: `round ${n} to the nearest ${place}`, answer: ans,
+    return { ask: `Round ${n.toLocaleString("en-US")} to the nearest ${place}.`, prompt: `≈ <span class="blank">?</span>`, plain: `round ${n} to the nearest ${place}`, viz: roundLine(n, Math.floor(n / to) * to, Math.floor(n / to) * to + to, (v) => v.toLocaleString("en-US")), answer: ans,
       steps: [`Look at the digit to the right of the ${place}s place: ${digit}.`, digit >= 5 ? "5 or more rounds up." : "4 or less rounds down.", `${n.toLocaleString("en-US")} rounds to ${ans.toLocaleString("en-US")}.`] };
   } },
   g4angle: { name: "Missing angles", std: "4.MD.C.7", glyph: "∠", c: "coral", band: "g35", gen(r) {
     const rnd = rndWith(r); const whole = r() < 0.5 ? 90 : 180, a = rnd(2, whole / 5 - 2) * 5, b = whole - a;
-    return { ask: `Two angles make a ${whole === 90 ? "right angle (90°)" : "straight line (180°)"}. One is ${a}°. What is the other?`, prompt: `${a}° + <span class="blank">?</span>° = ${whole}°`, plain: `${a} + ? = ${whole}`, answer: b,
+    return { ask: `Two angles make a ${whole === 90 ? "right angle (90°)" : "straight line (180°)"}. One is ${a}°. What is the other?`, prompt: `${a}° + <span class="blank">?</span>° = ${whole}°`, plain: `${a} + ? = ${whole}`, viz: angleSplit(a, whole), answer: b,
       steps: [`Together they make ${whole}°.`, `${whole} ${MINUS} ${a} = ${b}.`, `The other angle is ${b}°.`] };
   } },
   g5fracwhole: { name: "Fraction of a whole number", std: "5.NF.B.4a", glyph: "⅔×", c: "serve", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const d = pick([2, 3, 4, 5, 6, 8]), n = rnd(1, d - 1), w = d * rnd(2, 12), ans = (w / d) * n;
-    return { ask: "Multiply.", prompt: `${frac(n, d)} × ${w} = <span class="blank">?</span>`, plain: `${n}/${d} of ${w}`, answer: ans,
+    return { ask: "Multiply.", prompt: `${frac(n, d)} × ${w} = <span class="blank">?</span>`, plain: `${n}/${d} of ${w}`, viz: tape([{ parts: Array.from({ length: d }, (_, i) => ({ label: "", size: 1, fill: i < n })), whole: `${w}` }]), answer: ans,
       steps: [`Find ${frac(1, d)} of ${w}: ${w} ÷ ${d} = ${w / d}.`, `Then ${n} of those: ${n} × ${w / d} = ${ans}.`] };
   } },
   g5pow10: { name: "Multiply and divide by 10, 100, 1000", std: "5.NBT.A.2", glyph: "×10", c: "tech", band: "g35", gen(r) {
@@ -502,7 +661,7 @@ export const SKILLS = {
   } },
   g6abs: { name: "Absolute value", std: "6.NS.C.7c", glyph: "|x|", c: "tech", band: "g68", gen(r) {
     const rnd = rndWith(r); const a = rnd(-30, 30) || 7, b = rnd(-20, 20), two = r() < 0.4, ans = two ? Math.abs(a) + Math.abs(b) : Math.abs(a);
-    return { ask: "Absolute value is the distance from 0.", prompt: two ? `|${N(a)}| + |${N(b)}| = <span class="blank">?</span>` : `|${N(a)}| = <span class="blank">?</span>`, plain: two ? `|${N(a)}| + |${N(b)}|` : `|${N(a)}|`, answer: ans,
+    return { ask: "Absolute value is the distance from 0.", prompt: two ? `|${N(a)}| + |${N(b)}| = <span class="blank">?</span>` : `|${N(a)}| = <span class="blank">?</span>`, plain: two ? `|${N(a)}| + |${N(b)}|` : `|${N(a)}|`, viz: two ? undefined : numberLine(a, Math.min(a, 0) - 1, Math.max(a, 0) + 1), answer: ans,
       steps: two ? [`|${N(a)}| = ${Math.abs(a)}.`, `|${N(b)}| = ${Math.abs(b)}.`, `${Math.abs(a)} + ${Math.abs(b)} = ${ans}.`] : [`${N(a)} is ${Math.abs(a)} steps from 0.`, `|${N(a)}| = ${ans}.`] };
   } },
   g6onestep: { name: "One-step equations", std: "6.EE.B.7", glyph: "x", c: "serve", band: "g68", gen(r) {
@@ -512,7 +671,7 @@ export const SKILLS = {
   } },
   g6tri: { name: "Area of triangles", std: "6.G.A.1", glyph: "△", c: "create", band: "g68", gen(r) {
     const rnd = rndWith(r); const b = rnd(2, 14) * 2, h = rnd(2, 15), A = (b * h) / 2;
-    return { ask: `A triangle has a base of ${b} cm and a height of ${h} cm. What is its area in square cm?`, prompt: `½ × ${b} × ${h} = <span class="blank">?</span>`, plain: `area, base ${b}, height ${h}`, answer: A,
+    return { ask: `A triangle has a base of ${b} cm and a height of ${h} cm. What is its area in square cm?`, prompt: `½ × ${b} × ${h} = <span class="blank">?</span>`, plain: `area, base ${b}, height ${h}`, viz: triangleBH(`${b} cm`, `${h} cm`), answer: A,
       steps: ["A triangle is half of a rectangle.", `${b} × ${h} = ${b * h}.`, `Half of ${b * h} is ${A}.`] };
   } },
   g6mean: { name: "Find the mean", std: "6.SP.B.5c", glyph: "x̄", c: "nature", band: "g68", gen(r) {
@@ -523,19 +682,19 @@ export const SKILLS = {
   } },
   g7percent: { name: "Percent increase and discount", std: "7.RP.A.3", glyph: "%", c: "help", band: "g68", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const p = pick([10, 20, 25, 30, 40, 50, 15]), price = rnd(2, 20) * 20, off = r() < 0.6, change = (price * p) / 100, ans = off ? price - change : price + change;
-    return { ask: off ? `A $${price} jacket is ${p}% off. What is the sale price in dollars?` : `A $${price} bill gets a ${p}% tip. What is the total in dollars?`, prompt: `$<span class="blank">?</span>`, plain: off ? `${p}% off ${price}` : `${price} plus ${p}%`, answer: ans,
+    return { ask: off ? `A $${price} jacket is ${p}% off. What is the sale price in dollars?` : `A $${price} bill gets a ${p}% tip. What is the total in dollars?`, prompt: `$<span class="blank">?</span>`, plain: off ? `${p}% off ${price}` : `${price} plus ${p}%`, viz: tape([{ parts: [{ label: `${p}%`, size: p, fill: true }, { label: `${100 - p}%`, size: 100 - p }], whole: `$${price}` }]), answer: ans,
       steps: [`${p}% of ${price} = ${change}.`, off ? `${price} ${MINUS} ${change} = ${ans}.` : `${price} + ${change} = ${ans}.`] };
   } },
   g7circle: { name: "Circles: area and circumference", std: "7.G.B.4", glyph: "○", c: "coral", band: "g68", gen(r) {
-    const rnd = rndWith(r); const rad = rnd(2, 12), area = r() < 0.5, exact = area ? 3.14 * rad * rad : 2 * 3.14 * rad, ans = Math.round(exact);
-    return { ask: `A circle has a radius of ${rad} cm. Using π ≈ 3.14, find its ${area ? "area" : "circumference"}, rounded to the nearest whole number.`, prompt: area ? `3.14 × ${rad}² ≈ <span class="blank">?</span>` : `2 × 3.14 × ${rad} ≈ <span class="blank">?</span>`, plain: `${area ? "area" : "circumference"}, radius ${rad}`, long: true, answer: ans,
+    const rnd = rndWith(r); const rad = rnd(2, 12), area = r() < 0.5, hundredths = area ? 314 * rad * rad : 628 * rad, exact = hundredths / 100, ans = Math.round(hundredths / 100);
+    return { ask: `A circle has a radius of ${rad} cm. Using π ≈ 3.14, find its ${area ? "area" : "circumference"}, rounded to the nearest whole number.`, prompt: area ? `3.14 × ${rad}² ≈ <span class="blank">?</span>` : `2 × 3.14 × ${rad} ≈ <span class="blank">?</span>`, plain: `${area ? "area" : "circumference"}, radius ${rad}`, long: true, viz: circleSvg(`r = ${rad} cm`), answer: ans,
       steps: [area ? "Area = π × r × r." : "Circumference = 2 × π × r.", `${area ? `3.14 × ${rad * rad}` : `2 × 3.14 × ${rad}`} = ${Math.round(exact * 100) / 100}.`, `Rounded: ${ans}.`] };
   } },
   g7prob: { name: "Simple probability", std: "7.SP.C.5", glyph: "🎲", c: "fly", band: "g68", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const red = rnd(1, 8), blue = rnd(1, 8), green = rnd(0, 6), total = red + blue + green, color = pick(["red", "blue"] as const), k = color === "red" ? red : blue;
     const opts = [...new Set([`${k}/${total}`, `${total - k}/${total}`, `${k}/${Math.max(1, total - k)}`, `${Math.min(total, k + 1)}/${total}`, `1/${total}`])].filter((o, i, all) => all.indexOf(o) === i).slice(0, 4);
     const shuffled = opts.map((v) => ({ v, k: r() })).sort((x, y) => x.k - y.k).map(({ v }) => ({ v, label: v }));
-    return { ask: `A bag has ${red} red, ${blue} blue and ${green} green marbles. What is the chance of picking ${color}?`, prompt: `P(${color}) = <span class="blank">?</span>`, plain: `chance of ${color}`, long: true, kind: "choice", answer: `${k}/${total}`, choices: shuffled,
+    return { ask: `A bag has ${red} red, ${blue} blue and ${green} green marbles. What is the chance of picking ${color}?`, prompt: `P(${color}) = <span class="blank">?</span>`, plain: `chance of ${color}`, long: true, kind: "choice", viz: marblesSvg([[red, "#ef5a45"], [blue, "#1f8fd6"], [green, "#2f9e57"]]), answer: `${k}/${total}`, choices: shuffled,
       steps: [`There are ${total} marbles in all.`, `${k} are ${color}.`, `P(${color}) = ${k}/${total}.`] };
   } },
   g8exp: { name: "Rules of exponents", std: "8.EE.A.1", glyph: "xⁿ", c: "tech", band: "g68", gen(r) {
@@ -551,8 +710,8 @@ export const SKILLS = {
       steps: [`Move the decimal point to make a number between 1 and 10: ${lead}.`, `It moved ${e} places.`, `${n.toLocaleString("en-US")} = ${lead} × 10<sup>${e}</sup>.`] };
   } },
   g8cyl: { name: "Volume of cylinders", std: "8.G.C.9", glyph: "⌭", c: "create", band: "g68", gen(r) {
-    const rnd = rndWith(r); const rad = rnd(1, 6), h = rnd(2, 12), exact = 3.14 * rad * rad * h, ans = Math.round(exact);
-    return { ask: `A cylinder has a radius of ${rad} in and a height of ${h} in. Using π ≈ 3.14, find its volume to the nearest whole cubic inch.`, prompt: `3.14 × ${rad}² × ${h} ≈ <span class="blank">?</span>`, plain: `cylinder, radius ${rad}, height ${h}`, long: true, answer: ans,
+    const rnd = rndWith(r); const rad = rnd(1, 6), h = rnd(2, 12), exact = (314 * rad * rad * h) / 100, ans = Math.round((314 * rad * rad * h) / 100);
+    return { ask: `A cylinder has a radius of ${rad} in and a height of ${h} in. Using π ≈ 3.14, find its volume to the nearest whole cubic inch.`, prompt: `3.14 × ${rad}² × ${h} ≈ <span class="blank">?</span>`, plain: `cylinder, radius ${rad}, height ${h}`, long: true, viz: solidSvg("cylinder", `r = ${rad}`, `h = ${h}`), answer: ans,
       steps: ["Volume = π × r² × h.", `3.14 × ${rad * rad} × ${h} = ${Math.round(exact * 100) / 100}.`, `Rounded: ${ans}.`] };
   } },
   hsslope: { name: "Linear functions from a table", std: "HSF-LE.A.2", glyph: "Δ", c: "fly", band: "g912", gen(r) {
@@ -576,7 +735,7 @@ export const SKILLS = {
   // ─── Batch: K–2, the rest of the standards ───
   kcount100: { name: "Count by ones and tens", std: "K.CC.A.1", glyph: "→", c: "build", band: "k2", gen(r) {
     const rnd = rndWith(r); const tens = r() < 0.5, start = tens ? rnd(1, 7) * 10 : rnd(1, 96), seq = tens ? [start, start + 10, start + 20] : [start, start + 1, start + 2], next = seq[2] + (tens ? 10 : 1);
-    return { ask: `Count by ${tens ? "tens" : "ones"}. What comes next?`, prompt: `${seq.join(", ")}, <span class="blank">?</span>`, plain: `${seq.join(", ")}, ?`, answer: next, steps: [`Each number is ${tens ? 10 : 1} more.`, `${seq[2]} + ${tens ? 10 : 1} = ${next}.`] };
+    return { ask: `Count by ${tens ? "tens" : "ones"}. What comes next?`, prompt: `${seq.join(", ")}, <span class="blank">?</span>`, plain: `${seq.join(", ")}, ?`, viz: jumpLine(start, tens ? 10 : 1, 3), answer: next, steps: [`Each number is ${tens ? 10 : 1} more.`, `${seq[2]} + ${tens ? 10 : 1} = ${next}.`] };
   } },
   kcounton: { name: "Count on from a number", std: "K.CC.A.2", glyph: "+1", c: "build", band: "k2", gen(r) {
     const rnd = rndWith(r); const n = rnd(3, 18), k = rnd(1, 3), ans = n + k;
@@ -608,7 +767,7 @@ export const SKILLS = {
   } },
   g1three: { name: "Add three numbers", std: "1.OA.A.2", glyph: "+++", c: "build", band: "k2", gen(r) {
     const rnd = rndWith(r); const a = rnd(1, 9), b = rnd(1, 9), c = rnd(1, Math.max(1, 20 - a - b)), s = a + b + c, ten = a + b === 10 ? "a + b" : b + c === 10 ? "b + c" : a + c === 10 ? "a + c" : "";
-    return { ask: "Add all three. Look for a 10 first.", prompt: `${a} + ${b} + ${c} = <span class="blank">?</span>`, plain: `${a} + ${b} + ${c}`, answer: s,
+    return { ask: "Add all three. Look for a 10 first.", prompt: `${a} + ${b} + ${c} = <span class="blank">?</span>`, plain: `${a} + ${b} + ${c}`, viz: tenFrames([{ n: a, cls: "d1" }, { n: b, cls: "d2" }, { n: c, cls: "d1" }]), answer: s,
       steps: ten ? [`Make a ten first: ${ten === "a + b" ? `${a} + ${b}` : ten === "b + c" ? `${b} + ${c}` : `${a} + ${c}`} = 10.`, `10 + ${ten === "a + b" ? c : ten === "b + c" ? a : b} = ${s}.`] : [`${a} + ${b} = ${a + b}.`, `${a + b} + ${c} = ${s}.`] };
   } },
   g1turn: { name: "Turnaround facts", std: "1.OA.B.3", glyph: "⇄", c: "heal", band: "k2", gen(r) {
@@ -652,7 +811,7 @@ export const SKILLS = {
   } },
   g2skip: { name: "Skip count by 5s, 10s and 100s", std: "2.NBT.A.2", glyph: "+5", c: "build", band: "k2", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const by = pick([5, 10, 100]), start = by === 100 ? rnd(1, 6) * 100 : by * rnd(1, 15), seq = [start, start + by, start + 2 * by];
-    return { ask: `Skip count by ${by}s.`, prompt: `${seq.join(", ")}, <span class="blank">?</span>`, plain: `${seq.join(", ")}, ?`, answer: start + 3 * by, steps: [`Each jump is ${by}.`, `${seq[2]} + ${by} = ${start + 3 * by}.`] };
+    return { ask: `Skip count by ${by}s.`, prompt: `${seq.join(", ")}, <span class="blank">?</span>`, plain: `${seq.join(", ")}, ?`, viz: jumpLine(start, by, 3), answer: start + 3 * by, steps: [`Each jump is ${by}.`, `${seq[2]} + ${by} = ${start + 3 * by}.`] };
   } },
   g2expanded: { name: "Expanded form", std: "2.NBT.A.3", glyph: "+++", c: "teach", band: "k2", gen(r) {
     const rnd = rndWith(r); const h = rnd(1, 9), t = rnd(0, 9), o = rnd(0, 9), n = h * 100 + t * 10 + o;
@@ -704,7 +863,7 @@ export const SKILLS = {
   } },
   g3multword: { name: "Multiply and divide word problems", std: "3.OA.A.3", glyph: "?×", c: "help", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const a = rnd(3, 9), b = rnd(3, 9), name = pick(["Jo", "Amir", "Lena", "Theo"]);
-    return r() < 0.5 ? { ask: `${name} reads ${a} pages a day for ${b} days. How many pages?`, prompt: `${a} × ${b} = <span class="blank">?</span>`, plain: `${a} × ${b}`, answer: a * b, steps: [`${b} days of ${a} pages: multiply.`, `${a} × ${b} = ${a * b}.`] }
+    return r() < 0.5 ? { ask: `${name} reads ${a} pages a day for ${b} days. How many pages?`, prompt: `${a} × ${b} = <span class="blank">?</span>`, plain: `${a} × ${b}`, viz: dotArray(b, a), answer: a * b, steps: [`${b} days of ${a} pages: multiply.`, `${a} × ${b} = ${a * b}.`] }
       : { ask: `${name} puts ${a * b} chairs in rows of ${a}. How many rows?`, prompt: `${a * b} ÷ ${a} = <span class="blank">?</span>`, plain: `${a * b} ÷ ${a}`, answer: b, steps: ["Rows of the same size: divide.", `${a * b} ÷ ${a} = ${b}.`] };
   } },
   g3unknownfactor: { name: "Unknown factor", std: "3.OA.A.4", glyph: "?×", c: "teach", band: "g35", gen(r) {
@@ -718,7 +877,7 @@ export const SKILLS = {
   } },
   g3pattern: { name: "Number patterns", std: "3.OA.D.9", glyph: "…", c: "fly", band: "g35", gen(r) {
     const rnd = rndWith(r); const step = rnd(2, 9), start = rnd(1, 20), seq = [0, 1, 2, 3].map((i) => start + i * step);
-    return { ask: "What number comes next in the pattern?", prompt: `${seq.join(", ")}, <span class="blank">?</span>`, plain: `${seq.join(", ")}, ?`, answer: start + 4 * step, steps: [`Each number is ${step} more than the one before.`, `${seq[3]} + ${step} = ${start + 4 * step}.`] };
+    return { ask: "What number comes next in the pattern?", prompt: `${seq.join(", ")}, <span class="blank">?</span>`, plain: `${seq.join(", ")}, ?`, viz: jumpLine(start, step, 4), answer: start + 4 * step, steps: [`Each number is ${step} more than the one before.`, `${seq[3]} + ${step} = ${start + 4 * step}.`] };
   } },
   g3fracshade: { name: "What fraction is shaded?", std: "3.NF.A.1", glyph: "▰▱", c: "teach", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const d = pick([2, 3, 4, 6, 8]), n = rnd(1, d - 1);
@@ -747,7 +906,7 @@ export const SKILLS = {
   } },
   g4times: { name: "Times as many", std: "4.OA.A.1", glyph: "×n", c: "serve", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const a = rnd(2, 12), k = rnd(2, 9), [x, y] = pick([["Maya", "her brother"], ["The oak", "the pine"], ["Team A", "Team B"]] as const);
-    return { ask: `${y[0].toUpperCase() + y.slice(1)} has ${a}. ${x} has ${k} times as many. How many does ${x} have?`, prompt: `${k} × ${a} = <span class="blank">?</span>`, plain: `${k} times as many as ${a}`, answer: k * a, steps: [`"${k} times as many" means multiply by ${k}.`, `${k} × ${a} = ${k * a}.`] };
+    return { ask: `${y[0].toUpperCase() + y.slice(1)} has ${a}. ${x} has ${k} times as many. How many does ${x} have?`, prompt: `${k} × ${a} = <span class="blank">?</span>`, plain: `${k} times as many as ${a}`, viz: tape([{ name: "1×", parts: [{ label: `${a}`, size: a, fill: true }] }, { name: `${k}×`, parts: Array.from({ length: k }, () => ({ label: `${a}`, size: a, fill: true })), whole: "?" }]), answer: k * a, steps: [`"${k} times as many" means multiply by ${k}.`, `${k} × ${a} = ${k * a}.`] };
   } },
   g4remainder: { name: "Division with remainders", std: "4.OA.A.3", glyph: "R", c: "create", band: "g35", gen(r) {
     const rnd = rndWith(r); const d = rnd(3, 9), q = rnd(4, 15), rem = rnd(1, d - 1), n = d * q + rem, askRem = r() < 0.5;
@@ -762,7 +921,7 @@ export const SKILLS = {
   g4rule: { name: "Patterns with a rule", std: "4.OA.C.5", glyph: "↦", c: "fly", band: "g35", gen(r) {
     const rnd = rndWith(r); const mul = r() < 0.5, k = rnd(2, 5), start = rnd(1, 6), seq = [start]; for (let i = 0; i < 3; i++) seq.push(mul ? seq[i] * k : seq[i] + k * 3);
     const next = mul ? seq[3] * k : seq[3] + k * 3;
-    return { ask: `The rule is ${mul ? `multiply by ${k}` : `add ${k * 3}`}. What comes next?`, prompt: `${seq.join(", ")}, <span class="blank">?</span>`, plain: `${seq.join(", ")}, ?`, answer: next, steps: [`${seq[3]} ${mul ? "×" : "+"} ${mul ? k : k * 3} = ${next}.`] };
+    return { ask: `The rule is ${mul ? `multiply by ${k}` : `add ${k * 3}`}. What comes next?`, prompt: `${seq.join(", ")}, <span class="blank">?</span>`, plain: `${seq.join(", ")}, ?`, viz: mul ? undefined : jumpLine(start, k * 3, 4), answer: next, steps: [`${seq[3]} ${mul ? "×" : "+"} ${mul ? k : k * 3} = ${next}.`] };
   } },
   g4addsub: { name: "Add and subtract big numbers", std: "4.NBT.B.4", glyph: "±", c: "build", band: "g35", gen(r) {
     const rnd = rndWith(r); const add = r() < 0.5, a = rnd(10000, 89999), b = rnd(1000, add ? 99999 - a : a - 100), ans = add ? a + b : a - b;
@@ -780,7 +939,7 @@ export const SKILLS = {
   } },
   g4mixed: { name: "Mixed numbers", std: "4.NF.B.3c", glyph: "1½", c: "build", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const d = pick([2, 3, 4, 5, 6, 8]), w = rnd(1, 5), n = rnd(1, d - 1), top = w * d + n;
-    return { ask: "Write the mixed number as a fraction. Enter the top number.", prompt: `${w} ${frac(n, d)} = ${frac('<span class="blank">?</span>', d)}`, plain: `${w} ${n}/${d} = ?/${d}`, answer: top, steps: [`${w} whole${w > 1 ? "s" : ""} = ${w * d}/${d}.`, `${w * d} + ${n} = ${top}, so ${top}/${d}.`] };
+    return { ask: "Write the mixed number as a fraction. Enter the top number.", prompt: `${w} ${frac(n, d)} = ${frac('<span class="blank">?</span>', d)}`, plain: `${w} ${n}/${d} = ?/${d}`, viz: wholesSvg(w, n, d), answer: top, steps: [`${w} whole${w > 1 ? "s" : ""} = ${w * d}/${d}.`, `${w * d} + ${n} = ${top}, so ${top}/${d}.`] };
   } },
   g4fracmul: { name: "Multiply a fraction by a whole number", std: "4.NF.B.4", glyph: "n×⅓", c: "serve", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const d = pick([3, 4, 5, 6, 8, 10, 12]), n = rnd(1, d - 1), k = rnd(2, 6);
@@ -788,7 +947,7 @@ export const SKILLS = {
   } },
   g4decimal: { name: "Fractions as decimals", std: "4.NF.C.6", glyph: ".1", c: "tech", band: "g35", gen(r) {
     const rnd = rndWith(r); const tenths = r() < 0.4, n = tenths ? rnd(1, 9) : rnd(1, 99), d = tenths ? 10 : 100, ans = n / d;
-    return { ask: "Write as a decimal.", prompt: `${frac(n, d)} = <span class="blank">?</span>`, plain: `${n}/${d} as a decimal`, answer: ans, steps: [`${d === 10 ? "Tenths" : "Hundredths"}: ${d === 10 ? "one" : "two"} place${d === 10 ? "" : "s"} after the point.`, `${n}/${d} = ${ans}.`] };
+    return { ask: "Write as a decimal.", prompt: `${frac(n, d)} = <span class="blank">?</span>`, plain: `${n}/${d} as a decimal`, viz: d === 100 ? hundredGrid(n) : undefined, answer: ans, steps: [`${d === 10 ? "Tenths" : "Hundredths"}: ${d === 10 ? "one" : "two"} place${d === 10 ? "" : "s"} after the point.`, `${n}/${d} = ${ans}.`] };
   } },
   g4deccompare: { name: "Compare decimals", std: "4.NF.C.7", glyph: ".<.", c: "tech", band: "g35", gen(r) {
     const rnd = rndWith(r); let a: number, b: number; do { a = rnd(1, 99) / 100; b = r() < 0.5 ? rnd(1, 9) / 10 : rnd(1, 99) / 100; } while (a === b);
@@ -803,7 +962,7 @@ export const SKILLS = {
   g4triangle: { name: "Classify triangles by angles", std: "4.G.A.2", glyph: "◺", c: "coral", band: "g35", gen(r) {
     const rnd = rndWith(r); const kind = rnd(0, 2), big = kind === 0 ? 90 : kind === 1 ? rnd(19, 30) * 5 : rnd(13, 17) * 5, other = rnd(5, Math.min(big === 90 ? 17 : 13, Math.floor((180 - big) / 5) - 1)) * 5, third = 180 - big - other;
     const ans = Math.max(big, other, third) === 90 ? "right" : Math.max(big, other, third) > 90 ? "obtuse" : "acute";
-    return { ask: `A triangle has angles of ${big}°, ${other}° and ${third}°. What kind of triangle is it?`, prompt: `a <span class="blank">?</span> triangle`, plain: `${big}, ${other}, ${third}`, kind: "choice", answer: ans,
+    return { ask: `A triangle has angles of ${big}°, ${other}° and ${third}°. What kind of triangle is it?`, prompt: `a <span class="blank">?</span> triangle`, plain: `${big}, ${other}, ${third}`, kind: "choice", viz: triangleAngles(`${big}°`, `${other}°`, `${third}°`), answer: ans,
       choices: ["acute", "right", "obtuse"].map((v) => ({ v, label: v })), steps: ["Right: one angle is 90°. Obtuse: one is more than 90°. Acute: all are less than 90°.", `The biggest angle is ${Math.max(big, other, third)}°, so it is ${ans}.`] };
   } },
   g5placevalue: { name: "Decimal place value", std: "5.NBT.A.1", glyph: ".0", c: "teach", band: "g35", gen(r) {
@@ -816,8 +975,8 @@ export const SKILLS = {
     return { ask: "Which symbol makes this true?", prompt: `${a} <span class="blank">?</span> ${b}`, plain: `${a} ? ${b}`, kind: "choice", answer: sym, choices: ["<", "=", ">"].map((v) => ({ v, label: v })), steps: [`As thousandths: ${Math.round(a * 1000)} and ${Math.round(b * 1000)}.`, `${a} ${sym} ${b}.`] };
   } },
   g5decround: { name: "Round decimals", std: "5.NBT.A.4", glyph: "≈", c: "help", band: "g35", gen(r) {
-    const rnd = rndWith(r), pick = pickWith(r); const n = rnd(1001, 99999) / 1000, to = pick(["whole number", "tenth", "hundredth"] as const), f = { "whole number": 1, tenth: 10, hundredth: 100 }[to], ans = Math.round(n * f) / f;
-    return { ask: `Round ${n} to the nearest ${to}.`, prompt: `≈ <span class="blank">?</span>`, plain: `round ${n} to the nearest ${to}`, answer: ans, steps: ["Look at the digit just to the right of where you round.", "5 or more rounds up; 4 or less rounds down.", `${n} ≈ ${ans}.`] };
+    const rnd = rndWith(r), pick = pickWith(r); const m = rnd(1001, 99999), n = m / 1000, to = pick(["whole number", "tenth", "hundredth"] as const), f = { "whole number": 1, tenth: 10, hundredth: 100 }[to], ans = Math.round(m / (1000 / f)) / f; // whole-number math, so 60.255 rounds up
+    return { ask: `Round ${n} to the nearest ${to}.`, prompt: `≈ <span class="blank">?</span>`, plain: `round ${n} to the nearest ${to}`, viz: roundLine(n, Math.floor(n * f) / f, Math.floor(n * f) / f + 1 / f, (v) => String(Math.round(v * 10000) / 10000)), answer: ans, steps: ["Look at the digit just to the right of where you round.", "5 or more rounds up; 4 or less rounds down.", `${n} ≈ ${ans}.`] };
   } },
   g5div2: { name: "Divide by two-digit numbers", std: "5.NBT.B.6", glyph: "÷", c: "create", band: "g35", gen(r) {
     const rnd = rndWith(r); const d = rnd(11, 49), q = rnd(12, 199), n = d * q;
@@ -831,7 +990,7 @@ export const SKILLS = {
   g5unlike: { name: "Add fractions, unlike denominators", std: "5.NF.A.1", glyph: "½+⅓", c: "build", band: "g35", gen(r) {
     const pick = pickWith(r), rnd = rndWith(r); let d1: number, d2: number; do { d1 = pick([2, 3, 4, 5, 6]); d2 = pick([2, 3, 4, 6, 8, 10]); } while (d1 === d2);
     const L = lcm(d1, d2), n1 = rnd(1, d1 - 1), n2 = rnd(1, d2 - 1), top = n1 * (L / d1) + n2 * (L / d2);
-    return { ask: `Add. Use ${L} as the common denominator and enter the top number.`, prompt: `${frac(n1, d1)} + ${frac(n2, d2)} = ${frac('<span class="blank">?</span>', L)}`, plain: `${n1}/${d1} + ${n2}/${d2} = ?/${L}`, answer: top,
+    return { ask: `Add. Use ${L} as the common denominator and enter the top number.`, prompt: `${frac(n1, d1)} + ${frac(n2, d2)} = ${frac('<span class="blank">?</span>', L)}`, plain: `${n1}/${d1} + ${n2}/${d2} = ?/${L}`, viz: fractionBars(n1, d1, n2, d2), answer: top,
       steps: [`${n1}/${d1} = ${n1 * (L / d1)}/${L}.`, `${n2}/${d2} = ${n2 * (L / d2)}/${L}.`, `${n1 * (L / d1)} + ${n2 * (L / d2)} = ${top}, so ${top}/${L}.`] };
   } },
   g5fracdiv: { name: "Divide with unit fractions", std: "5.NF.B.7", glyph: "÷⅓", c: "create", band: "g35", gen(r) {
@@ -851,7 +1010,7 @@ export const SKILLS = {
   // ─── Batch: grades 6–8 ───
   g6ratio: { name: "Ratios", std: "6.RP.A.1", glyph: "a:b", c: "nature", band: "g68", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const a = rnd(1, 9), b = rnd(1, 9), k = rnd(2, 6), [x, y] = pick([["red", "blue"], ["cats", "dogs"], ["boys", "girls"]] as const);
-    return { ask: `The ratio of ${x} to ${y} is ${a}:${b}. If there are ${a * k} ${x}, how many ${y}?`, prompt: `${a}:${b} = ${a * k}:<span class="blank">?</span>`, plain: `${a}:${b} = ${a * k}:?`, answer: b * k, steps: [`${a} × ${k} = ${a * k}, so scale by ${k}.`, `${b} × ${k} = ${b * k}.`] };
+    return { ask: `The ratio of ${x} to ${y} is ${a}:${b}. If there are ${a * k} ${x}, how many ${y}?`, prompt: `${a}:${b} = ${a * k}:<span class="blank">?</span>`, plain: `${a}:${b} = ${a * k}:?`, viz: tape([{ name: x, parts: Array.from({ length: a }, () => ({ label: "", size: 1, fill: true })), whole: `${a * k}` }, { name: y, parts: Array.from({ length: b }, () => ({ label: "", size: 1 })), whole: "?" }]), answer: b * k, steps: [`${a} × ${k} = ${a * k}, so scale by ${k}.`, `${b} × ${k} = ${b * k}.`] };
   } },
   g6ratiotable: { name: "Ratio tables", std: "6.RP.A.3a", glyph: "⊞", c: "nature", band: "g68", gen(r) {
     const rnd = rndWith(r); const a = rnd(2, 6), b = rnd(3, 12), ks = [1, 2, 3, rnd(4, 10)];
@@ -883,7 +1042,7 @@ export const SKILLS = {
   g6coorddist: { name: "Distance on the coordinate plane", std: "6.NS.C.8", glyph: "↔", c: "fly", band: "g68", gen(r) {
     const rnd = rndWith(r); const x = rnd(-8, 8), y1 = rnd(-9, 9); let y2: number; do { y2 = rnd(-9, 9); } while (y2 === y1);
     const sameX = r() < 0.5, A = sameX ? [x, y1] : [y1, x], B = sameX ? [x, y2] : [y2, x];
-    return { ask: "How far apart are these points?", prompt: `(${N(A[0])}, ${N(A[1])}) and (${N(B[0])}, ${N(B[1])})`, plain: `distance from (${A}) to (${B})`, long: true, answer: Math.abs(y2 - y1), steps: [`They share ${sameX ? "an x" : "a y"}-coordinate, so count along the other.`, `|${N(y2)} ${MINUS} ${P(y1)}| = ${Math.abs(y2 - y1)}.`] };
+    return { ask: "How far apart are these points?", prompt: `(${N(A[0])}, ${N(A[1])}) and (${N(B[0])}, ${N(B[1])})`, plain: `distance from (${A}) to (${B})`, long: true, viz: pointsPlane([[A[0], A[1]], [B[0], B[1]]], true), answer: Math.abs(y2 - y1), steps: [`They share ${sameX ? "an x" : "a y"}-coordinate, so count along the other.`, `|${N(y2)} ${MINUS} ${P(y1)}| = ${Math.abs(y2 - y1)}.`] };
   } },
   g6distribute: { name: "The distributive property", std: "6.EE.A.3", glyph: "a(b+c)", c: "serve", band: "g68", gen(r) {
     const rnd = rndWith(r); const a = rnd(2, 9), b = rnd(1, 12);
@@ -897,7 +1056,7 @@ export const SKILLS = {
   } },
   g6surface: { name: "Surface area of boxes", std: "6.G.A.4", glyph: "⧉", c: "create", band: "g68", gen(r) {
     const rnd = rndWith(r); const l = rnd(2, 9), w = rnd(2, 8), h = rnd(2, 7), sa = 2 * (l * w + l * h + w * h);
-    return { ask: `A box is ${l} by ${w} by ${h} cm. What is its surface area in square cm?`, prompt: `2(${l}·${w} + ${l}·${h} + ${w}·${h}) = <span class="blank">?</span>`, plain: `surface area ${l}×${w}×${h}`, long: true, answer: sa, steps: [`Faces come in pairs: ${l * w}, ${l * h}, ${w * h}.`, `${l * w} + ${l * h} + ${w * h} = ${l * w + l * h + w * h}.`, `Double it: ${sa}.`] };
+    return { ask: `A box is ${l} by ${w} by ${h} cm. What is its surface area in square cm?`, prompt: `2(${l}·${w} + ${l}·${h} + ${w}·${h}) = <span class="blank">?</span>`, plain: `surface area ${l}×${w}×${h}`, long: true, viz: boxSvg(`${l} cm`, `${w} cm`, `${h} cm`), answer: sa, steps: [`Faces come in pairs: ${l * w}, ${l * h}, ${w * h}.`, `${l * w} + ${l * h} + ${w * h} = ${l * w + l * h + w * h}.`, `Double it: ${sa}.`] };
   } },
   g6median: { name: "Median and range", std: "6.SP.B.5c", glyph: "M", c: "nature", band: "g68", gen(r) {
     const rnd = rndWith(r); const n = rnd(2, 3) * 2 + 1, vals = Array.from({ length: n }, () => rnd(1, 50)), s = [...vals].sort((a, b) => a - b), rangeQ = r() < 0.4;
@@ -924,7 +1083,7 @@ export const SKILLS = {
   g7angles: { name: "Angle relationships", std: "7.G.B.5", glyph: "∠", c: "coral", band: "g68", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const kind = pick(["supplementary", "complementary", "vertical"] as const), a = kind === "complementary" ? rnd(10, 80) : rnd(20, 160);
     const ans = kind === "supplementary" ? 180 - a : kind === "complementary" ? 90 - a : a;
-    return { ask: `Two angles are ${kind}. One is ${a}°. What is the other?`, prompt: `<span class="blank">?</span>°`, plain: `${kind}, ${a}`, answer: ans, steps: [kind === "vertical" ? "Vertical angles are equal." : `${kind[0].toUpperCase() + kind.slice(1)} angles add to ${kind === "supplementary" ? 180 : 90}°.`, `The other angle is ${ans}°.`] };
+    return { ask: `Two angles are ${kind}. One is ${a}°. What is the other?`, prompt: `<span class="blank">?</span>°`, plain: `${kind}, ${a}`, viz: kind === "vertical" ? undefined : angleSplit(a, kind === "supplementary" ? 180 : 90), answer: ans, steps: [kind === "vertical" ? "Vertical angles are equal." : `${kind[0].toUpperCase() + kind.slice(1)} angles add to ${kind === "supplementary" ? 180 : 90}°.`, `The other angle is ${ans}°.`] };
   } },
   g7prism: { name: "Volume of prisms", std: "7.G.B.6", glyph: "◭", c: "create", band: "g68", gen(r) {
     const rnd = rndWith(r); const b = rnd(2, 10) * 2, h = rnd(2, 9), L = rnd(3, 12), V = (b * h / 2) * L;
@@ -966,18 +1125,18 @@ export const SKILLS = {
   } },
   g8translate: { name: "Translations", std: "8.G.A.3", glyph: "→", c: "fly", band: "g68", gen(r) {
     const rnd = rndWith(r); const x = rnd(-6, 6), y = rnd(-6, 6), dx = rnd(-5, 5) || 3, dy = rnd(-5, 5) || -2, askX = r() < 0.5;
-    return { ask: `Point (${N(x)}, ${N(y)}) moves ${Math.abs(dx)} ${dx > 0 ? "right" : "left"} and ${Math.abs(dy)} ${dy > 0 ? "up" : "down"}. What is its new ${askX ? "x" : "y"}-coordinate?`, prompt: askX ? `(<span class="blank">?</span>, ${N(y + dy)})` : `(${N(x + dx)}, <span class="blank">?</span>)`, plain: `move (${x}, ${y}) by (${dx}, ${dy})`, answer: askX ? x + dx : y + dy,
+    return { ask: `Point (${N(x)}, ${N(y)}) moves ${Math.abs(dx)} ${dx > 0 ? "right" : "left"} and ${Math.abs(dy)} ${dy > 0 ? "up" : "down"}. What is its new ${askX ? "x" : "y"}-coordinate?`, prompt: askX ? `(<span class="blank">?</span>, ${N(y + dy)})` : `(${N(x + dx)}, <span class="blank">?</span>)`, plain: `move (${x}, ${y}) by (${dx}, ${dy})`, viz: pointsPlane([[x, y, "start"], [x + dx, y + dy, "?"]], true), answer: askX ? x + dx : y + dy,
       steps: [`Right/left changes x: ${N(x)} ${dx > 0 ? "+" : MINUS} ${Math.abs(dx)} = ${N(x + dx)}.`, `Up/down changes y: ${N(y)} ${dy > 0 ? "+" : MINUS} ${Math.abs(dy)} = ${N(y + dy)}.`] };
   } },
   g8anglesum: { name: "Angles in a triangle", std: "8.G.A.5", glyph: "△", c: "coral", band: "g68", gen(r) {
     const rnd = rndWith(r); const a = rnd(20, 100), b = rnd(20, 160 - a - 0);
-    if (a + b >= 175) return { ask: "Two angles of a triangle are 50° and 60°. What is the third?", prompt: `50° + 60° + <span class="blank">?</span>° = 180°`, plain: "50, 60", answer: 70, steps: ["The angles of a triangle add to 180°.", "180 − 110 = 70."] };
-    return { ask: `Two angles of a triangle are ${a}° and ${b}°. What is the third?`, prompt: `${a}° + ${b}° + <span class="blank">?</span>° = 180°`, plain: `${a}, ${b}`, answer: 180 - a - b, steps: ["The angles of a triangle add to 180°.", `180 ${MINUS} ${a + b} = ${180 - a - b}.`] };
+    if (a + b >= 175) return { ask: "Two angles of a triangle are 50° and 60°. What is the third?", prompt: `50° + 60° + <span class="blank">?</span>° = 180°`, plain: "50, 60", viz: triangleAngles("50°", "60°", "?"), answer: 70, steps: ["The angles of a triangle add to 180°.", "180 − 110 = 70."] };
+    return { ask: `Two angles of a triangle are ${a}° and ${b}°. What is the third?`, prompt: `${a}° + ${b}° + <span class="blank">?</span>° = 180°`, plain: `${a}, ${b}`, viz: triangleAngles(`${a}°`, `${b}°`, "?"), answer: 180 - a - b, steps: ["The angles of a triangle add to 180°.", `180 ${MINUS} ${a + b} = ${180 - a - b}.`] };
   } },
   g8conesphere: { name: "Volume of cones and spheres", std: "8.G.C.9", glyph: "◬", c: "create", band: "g68", gen(r) {
-    const rnd = rndWith(r); const cone = r() < 0.5, rad = rnd(1, 6), h = rnd(3, 12), exact = cone ? (3.14 * rad * rad * h) / 3 : (4 / 3) * 3.14 * rad ** 3, ans = Math.round(exact);
+    const rnd = rndWith(r); const cone = r() < 0.5, rad = rnd(1, 6), h = rnd(3, 12), exact = cone ? (314 * rad * rad * h) / 300 : (1256 * rad ** 3) / 300, ans = Math.round(exact);
     return { ask: cone ? `A cone has radius ${rad} and height ${h}. Using π ≈ 3.14, find its volume to the nearest whole number.` : `A sphere has radius ${rad}. Using π ≈ 3.14, find its volume to the nearest whole number.`,
-      prompt: cone ? `⅓ × 3.14 × ${rad}² × ${h} ≈ <span class="blank">?</span>` : `4/3 × 3.14 × ${rad}³ ≈ <span class="blank">?</span>`, plain: cone ? `cone r ${rad} h ${h}` : `sphere r ${rad}`, long: true, answer: ans,
+      prompt: cone ? `⅓ × 3.14 × ${rad}² × ${h} ≈ <span class="blank">?</span>` : `4/3 × 3.14 × ${rad}³ ≈ <span class="blank">?</span>`, plain: cone ? `cone r ${rad} h ${h}` : `sphere r ${rad}`, long: true, viz: solidSvg(cone ? "cone" : "sphere", `r = ${rad}`, `h = ${h}`), answer: ans,
       steps: [cone ? "Cone: V = ⅓ × π × r² × h." : "Sphere: V = 4/3 × π × r³.", `≈ ${Math.round(exact * 100) / 100}, rounded to ${ans}.`] };
   } },
   // ─── Batch: high school ───
@@ -1015,7 +1174,7 @@ export const SKILLS = {
     const pick = pickWith(r); const [a, b, c] = pick([[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25]] as const), fn = pick(["sin", "cos", "tan"] as const);
     const ans = fn === "sin" ? `${a}/${c}` : fn === "cos" ? `${b}/${c}` : `${a}/${b}`;
     const opts = [...new Set([ans, `${a}/${c}`, `${b}/${c}`, `${a}/${b}`, `${b}/${a}`])].slice(0, 4);
-    return { ask: `In a right triangle, angle A has opposite side ${a}, adjacent side ${b}, and hypotenuse ${c}. What is ${fn} A?`, prompt: `${fn} A = <span class="blank">?</span>`, plain: `${fn} A`, kind: "choice", answer: ans, choices: opts.map((v) => ({ v, k: r() })).sort((x, y) => x.k - y.k).map(({ v }) => ({ v, label: v })),
+    return { ask: `In a right triangle, angle A has opposite side ${a}, adjacent side ${b}, and hypotenuse ${c}. What is ${fn} A?`, prompt: `${fn} A = <span class="blank">?</span>`, plain: `${fn} A`, kind: "choice", viz: rightTriangle(`${a}`, `${b}`, `${c}`, true), answer: ans, choices: opts.map((v) => ({ v, k: r() })).sort((x, y) => x.k - y.k).map(({ v }) => ({ v, label: v })),
       steps: ["SOH CAH TOA: sin = opposite/hypotenuse, cos = adjacent/hypotenuse, tan = opposite/adjacent.", `${fn} A = ${ans}.`] };
   } },
   hsdistance: { name: "Distance between two points", std: "HSG-GPE.B.7", glyph: "d", c: "fly", band: "g912", gen(r) {
@@ -1024,7 +1183,7 @@ export const SKILLS = {
   } },
   hsmidpoint: { name: "Midpoints", std: "HSG-GPE.B.6", glyph: "M", c: "fly", band: "g912", gen(r) {
     const rnd = rndWith(r); const x1 = rnd(-9, 9), y1 = rnd(-9, 9), mx = rnd(-8, 8), my = rnd(-8, 8), x2 = 2 * mx - x1, y2 = 2 * my - y1, askX = r() < 0.5;
-    return { ask: `Find the ${askX ? "x" : "y"}-coordinate of the midpoint.`, prompt: `(${N(x1)}, ${N(y1)}) and (${N(x2)}, ${N(y2)})`, plain: "midpoint", long: true, answer: askX ? mx : my, steps: ["Average the coordinates.", `x: (${N(x1)} + ${P(x2)}) ÷ 2 = ${N(mx)}. y: (${N(y1)} + ${P(y2)}) ÷ 2 = ${N(my)}.`] };
+    return { ask: `Find the ${askX ? "x" : "y"}-coordinate of the midpoint.`, prompt: `(${N(x1)}, ${N(y1)}) and (${N(x2)}, ${N(y2)})`, plain: "midpoint", long: true, viz: pointsPlane([[x1, y1], [x2, y2]], true), answer: askX ? mx : my, steps: ["Average the coordinates.", `x: (${N(x1)} + ${P(x2)}) ÷ 2 = ${N(mx)}. y: (${N(y1)} + ${P(y2)}) ÷ 2 = ${N(my)}.`] };
   } },
   hsarc: { name: "Circle arcs and angles", std: "HSG-C.A.2", glyph: "◔", c: "coral", band: "g912", gen(r) {
     const rnd = rndWith(r); const central = rnd(2, 17) * 10, inscribed = r() < 0.5;
