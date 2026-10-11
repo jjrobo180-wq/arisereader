@@ -46,7 +46,9 @@ import {
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkKit, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
-import { cleanKit, type KitRecord } from "@shared/pluginKit";
+import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
+import KitPlugin from "@/components/plugin-kit/KitPlugin";
+import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { PLANS, usd } from "@shared/plans";
@@ -376,6 +378,8 @@ function TeacherHubPage() {
   const [more, setMore] = useState(false);
   /** The menu strip down the left side on a phone: shown, or tucked away behind a small tab. Remembered on this device. */
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem("arise-hub-rail") !== "closed"; } catch { return true; } });
+  /** A WorkHub plugin (from the Plugin Kit) open as its own page. Picking any tab closes it. */
+  const [kitOpen, setKitOpen] = useState<string | null>(null);
   /** The app drawer is open (the "App drawer" menu choice). */
   const [apps, setApps] = useState(false);
   const [appsQuery, setAppsQuery] = useState("");
@@ -450,7 +454,7 @@ function TeacherHubPage() {
   latest.current = workspace;
 
   // The "added" message belongs to the screen it appeared on.
-  useEffect(() => { setAdded(null); }, [tab]);
+  useEffect(() => { setAdded(null); setKitOpen(null); }, [tab]);
 
   // Connected calendars are read again when the Hub opens.
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
@@ -483,6 +487,11 @@ function TeacherHubPage() {
   const [homeTask, setHomeTask] = useState<string | null>(null);
   const [homeQuick, setHomeQuick] = useState("");
   const openTasks = workspace.tasks.filter((t) => !t.done).length;
+  /** The WorkHub plugins this teacher added from the Plugin Store, in the order they were added. They get their own place in the menu. */
+  const myKits = ((workspace as any).kitInstalled as string[] | undefined ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d && d.hub === "work");
+  const kitRecords = cleanKit((workspace as any).kitRecords, 8000);
+  const setKitRecords = (update: (all: KitRecord[]) => KitRecord[]) => setWorkspace((prev) => ({ ...prev, kitRecords: cleanKit(update(cleanKit((prev as any).kitRecords, 8000)), 8000) }));
+  const openKit = (k: string | null) => { setKitOpen(k); if (k) window.scrollTo({ top: 0 }); };
   // How the teacher arranged the Hub (Customize): where the phone menu sits, how it closes, and what Home shows.
   const layout = cleanLayout(workspace.layout);
   const setLayout = (next: HubLayout) => setWorkspace((p) => ({ ...p, layout: next }));
@@ -685,12 +694,15 @@ function TeacherHubPage() {
         hub="work"
         teacher
         isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled)}
-        onToggle={(p: Plugin, on: boolean) => setWorkspace((prev) => (p.target.kind === "kit"
-          ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) }
-          : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }))}
+        onToggle={(p: Plugin, on: boolean) => {
+          setWorkspace((prev) => (p.target.kind === "kit"
+            ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) }
+            : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }));
+          if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
+        }}
         kit={{
-          records: cleanKit((workspace as any).kitRecords, 8000),
-          setRecords: (update: (all: KitRecord[]) => KitRecord[]) => setWorkspace((prev) => ({ ...prev, kitRecords: cleanKit(update(cleanKit((prev as any).kitRecords, 8000)), 8000) })),
+          records: kitRecords,
+          setRecords: setKitRecords,
           today: TODAY(),
           makeId: id,
         }}
@@ -764,9 +776,17 @@ function TeacherHubPage() {
                 <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
               </div>
               <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
+                {myKits.filter((d) => d.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((d) => { const Icon = kitIcon(d.icon); return (
+                  <li key={`kit-${d.id}`} className="order-last">
+                    <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { openKit(d.id); setApps(false); }} data-testid={`hub-app-kit-${d.id}`} className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                      <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: d.color }}><Icon className="h-7 w-7" /></span>
+                      <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{d.name}</span>
+                    </button>
+                  </li>
+                ); })}
                 {menu.filter((item) => groupLabel(item.id, visible).toLowerCase().includes(appsQuery.trim().toLowerCase())).map((item) => (
                   <li key={item.id}>
-                    <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); setApps(false); }} data-testid={`hub-app-${item.id}`}
+                    <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); setKitOpen(null); setApps(false); }} data-testid={`hub-app-${item.id}`}
                       className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
                       <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[item.id]}</span>
                       <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{groupLabel(item.id, visible)}</span>
@@ -798,11 +818,11 @@ function TeacherHubPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); afterPick(); }}
-                    aria-current={group.id === item.id ? "page" : undefined}
+                    onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); setKitOpen(null); afterPick(); }}
+                    aria-current={group.id === item.id && !kitOpen ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
                     data-hub-nav
-                    className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
+                    className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id && !kitOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
                   >
                     {GROUP_ICON[item.id]}
                     <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal`}>{groupLabel(item.id, visible)}</span>
@@ -816,10 +836,32 @@ function TeacherHubPage() {
                 </div>
               );
             })}
+            {myKits.length > 0 && <p className="hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 md:block">My plugins</p>}
+            {myKits.map((d) => {
+              const Icon = kitIcon(d.icon);
+              return (
+                <div key={`kit-${d.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 md:w-full`}>
+                  <button type="button" onClick={() => { openKit(d.id); afterPick(); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`hub-kit-${d.id}`} data-hub-nav
+                    className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${kitOpen === d.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: d.color }}><Icon className="h-3.5 w-3.5" /></span>
+                    <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal`}>{d.name}</span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </aside>
 
-        <main className="min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9">
+        <main className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${kitOpen && kitDef(kitOpen) ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+          {kitOpen && kitDef(kitOpen) && (
+            <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
+              <div className="flex items-center justify-between gap-2">
+                <button type="button" onClick={() => setKitOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><Puzzle className="h-4 w-4" /> Plugin Store</button>
+              </div>
+              <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={kitRecords} setRecords={setKitRecords} today={TODAY()} makeId={id} say={(m) => toasts.show(m, [])} />
+            </div>
+          )}
           <HubTrialNote trial={trial} which="work" upgradeHref="#/billing" />
           <HubSetupBanner token={token} isAdmin={!!user.isAdmin} />
           <PinBanners workspace={workspace} setWorkspace={setWorkspace} />
@@ -1035,8 +1077,11 @@ function TeacherHubPage() {
               </Card>
                   ),
                 };
-                const quick = pluginsFor("work", { teacher: true }).filter((p) => isAddable(p) && p.target.kind === "tab" && !workInstalled(p, workspace.visibleTabs))
-                  .map((plugin) => ({ plugin, onAdd: () => { setWorkspace((prev) => ({ ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) })); toasts.show(`${plugin.name} added to your menu.`, []); } }));
+                const quick = pluginsFor("work", { teacher: true }).filter((p) => isAddable(p) && (p.target.kind === "tab" || p.target.kind === "kit") && !workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled))
+                  .map((plugin) => ({ plugin, onAdd: () => {
+                    setWorkspace((prev) => (plugin.target.kind === "kit" ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, plugin, true) } : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) }));
+                    toasts.show(`${plugin.name} added to your menu.`, []);
+                  } }));
                 return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} />;
               })()}
             </>
