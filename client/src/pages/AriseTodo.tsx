@@ -245,6 +245,8 @@ const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 roun
 export default function AriseTodo() {
   const [location, navigate] = useLocation();
   const { user, token, logout } = useAuth();
+  const onTodoSite = /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
+  const goToSiteHome = () => onTodoSite ? window.location.assign("/") : navigate("/");
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
   const rawSet = sync.setWorkspace;
@@ -779,7 +781,7 @@ export default function AriseTodo() {
             <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">Tasks, chores, calendars, plans and bills for the whole family in one simple space.</p>
           </div>
-          <button onClick={() => navigate("/")} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> Back to A.R.I.S.E. Reader</button>
+          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to A.R.I.S.E. To-Do" : "Back to A.R.I.S.E. Reader"}</button>
         </div>
       </aside>
 
@@ -879,7 +881,7 @@ export default function AriseTodo() {
                 <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
               </section>
               <EmailForwardCard token={token} />
-              <button onClick={() => navigate("/")} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> A.R.I.S.E. Reader</button>
+              <button onClick={goToSiteHome} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> {onTodoSite ? "A.R.I.S.E. To-Do" : "A.R.I.S.E. Reader"}</button>
             </aside>
           </div>
           </>}
