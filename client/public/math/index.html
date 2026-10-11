@@ -611,6 +611,14 @@ const coGrade = () => (S.coGrade && CAT.grades?.includes(S.coGrade)) ? S.coGrade
 const gradeShort = g => g==='K' ? 'K' : g==='HS' ? 'HS' : g;
 /** A lesson's code in the chosen state: the state's own code where it uses the Common Core codes, or the Common Core match. */
 const codeLabel = (st, code) => st?.ccss ? `${st.id} ${code}` : `Common Core ${code}`;
+const domainOf = code => code.startsWith('HS') ? code.slice(0,3) : (code.split('.')[1] || '');
+/** A grade's lessons grouped by domain (Operations, Fractions, Geometry…), in teaching order. */
+function byDomain(list){
+  const out = [];
+  for (const l of list){ const id = domainOf(l.code), name = (CAT.domains||[]).find(d=>d.id===id)?.name || id; let g = out.find(x=>x.id===id); if (!g) out.push(g = { id, name, items: [] }); g.items.push(l); }
+  return out;
+}
+const domainHead = name => `<p class="eyebrow" style="margin:14px 0 4px">${esc(name)}</p>`;
 function gradePick(){
   const g = coGrade();
   return `<div class="bandpick" role="group" aria-label="Grade">${(CAT.grades||[]).map(x=>`<button data-act="cograde" data-v="${x}" aria-pressed="${x===g}" title="${esc(CAT.gradeLabels[x])}">${gradeShort(x)}</button>`).join('')}</div>`;
@@ -624,8 +632,8 @@ const stateNote = st => st ? (st.ccss ? esc(st.standards) : `Common Core codes s
 function coCardHTML(){
   if (!CAT.gradeLessons) return '';
   const g = coGrade(), st = myState();
-  const rows = coLessons(g).map(l=>{ const s=SK(l.skill), best=P()?.best?.[l.skill];
-    return `<div class="assign">${op(l.skill)}<div><b>${esc(s.name)}</b><span class="small muted">${esc(codeLabel(st, l.code))}${best!=null?` · Best ${best}/5`:''}</span></div><button class="btn primary sm" data-act="start" data-type="skill" data-v="${l.skill}">Start</button></div>`; }).join('');
+  const rows = byDomain(coLessons(g)).map(d=>domainHead(d.name)+d.items.map(l=>{ const s=SK(l.skill), best=P()?.best?.[l.skill];
+    return `<div class="assign">${op(l.skill)}<div><b>${esc(s.name)}</b><span class="small muted">${esc(codeLabel(st, l.code))}${best!=null?` · Best ${best}/5`:''}</span></div><button class="btn primary sm" data-act="start" data-type="skill" data-v="${l.skill}">Start</button></div>`; }).join('')).join('');
   return `<div class="card"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>${esc(st?.name||'')} standards</h2><span class="small muted">${esc(CAT.gradeLabels[g])} · ${stateNote(st)}</span></div>${statePick()}</div><div style="margin-bottom:10px">${gradePick()}</div>${rows}</div>`;
 }
 /** Teachers: pick lessons from a grade and print a worksheet with an answer key. */
@@ -636,7 +644,7 @@ function worksheetCardHTML(){
   return `<div class="card stack" id="wsCard"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>Printable worksheets</h2><span class="small muted">${esc(st?.name||'')} · ${esc(CAT.gradeLabels[g])}. New problems every time, with an answer key.</span></div>${statePick()}</div>
     <div>${gradePick()}</div>
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn outline sm" data-act="wsall">Tick all</button><button class="btn outline sm" data-act="wsnone">Tick none</button></div>
-    <div class="qlist">${ls.map(l=>`<label style="display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" class="wsSkill" value="${l.skill}" data-code="${esc(l.code)}" ${picked.includes(l.skill)?'checked':''} style="width:20px;height:20px">${op(l.skill)}<span><b>${esc(SK(l.skill).name)}</b> <span class="small muted">${esc(codeLabel(st, l.code))}</span></span></label>`).join('')}</div>
+    <div class="qlist">${byDomain(ls).map(d=>domainHead(d.name)+d.items.map(l=>`<label style="display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" class="wsSkill" value="${l.skill}" data-code="${esc(l.code)}" ${picked.includes(l.skill)?'checked':''} style="width:20px;height:20px">${op(l.skill)}<span><b>${esc(SK(l.skill).name)}</b> <span class="small muted">${esc(codeLabel(st, l.code))}</span></span></label>`).join('')).join('')}</div>
     <div class="grid two">
       <label class="f">Problems<select id="wsN">${[8,12,16,20,24,30,40].map(n=>`<option ${n===12?'selected':''}>${n}</option>`).join('')}</select></label>
       <label class="f">Title (optional)<input type="text" id="wsTitle" maxlength="80" placeholder="Unit 2 review"></label></div>

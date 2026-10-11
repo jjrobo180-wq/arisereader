@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import { createAttemptLimiter } from "./attemptLimiter";
 import { bandForGrade } from "../shared/ariseSocial";
 import {
-  ACHIEVEMENTS, BANDS, CERT_TITLES, DAILY_GOAL, GRADES, GRADE_LABELS, LEVEL_POINTS, LEVELS, LIMITS, MILESTONES, POINTS, SKILLS, GRADE_LESSONS, STATES, STYLES, stateById,
+  ACHIEVEMENTS, BANDS, CERT_TITLES, DAILY_GOAL, GRADES, GRADE_LABELS, LEVEL_POINTS, LEVELS, LIMITS, MILESTONES, POINTS, SKILLS, GRADE_LESSONS, STATES, STYLES, DOMAINS, stateById,
   accuracy, addPoints, cleanCustom, cleanMathProfile, customProblem, earnedAchievements, emptyMathProfile, isBand, isRight, isSkill,
   makeProblem, mathDay, mathWeek, parseAnswer, profileNow, strength, touchStreak,
   type BandId, type CustomQuestion, type MathProfile, type Problem, type Rng, type SkillId,
@@ -321,7 +321,7 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     res.json({
       bands: BANDS, skills: Object.fromEntries(Object.entries(SKILLS).map(([id, s]) => [id, { name: s.name, std: s.std, glyph: s.glyph, c: s.c, band: s.band }])),
       points: POINTS, levels: LEVELS, levelPoints: LEVEL_POINTS, dailyGoal: DAILY_GOAL, styles: STYLES, milestones: MILESTONES, achievements: ACHIEVEMENTS,
-      grades: GRADES, gradeLabels: GRADE_LABELS, states: STATES, gradeLessons: GRADE_LESSONS, certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
+      grades: GRADES, gradeLabels: GRADE_LABELS, states: STATES, gradeLessons: GRADE_LESSONS, domains: DOMAINS, certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
     });
   });
 
@@ -868,7 +868,7 @@ export function worksheetHTML(skills: SkillId[], n: number, opts: { title?: stri
   .pt{fill:#999;stroke:#333;stroke-width:1.5} .ln{stroke:#333;stroke-width:2;stroke-dasharray:6 5;fill:none}
   .beam{stroke:#333;stroke-width:4} .pan{fill:#eee;stroke:#333;stroke-width:1.5} .fulcrum{fill:#333}
   .hund{fill:#fff;stroke:#bbb;stroke-width:1} .hund.fill{fill:#888;stroke:#fff}
-  .fb .bar1,.fb rect{stroke:#333}
+  .seg-r{fill:#fff;stroke:#333;stroke-width:1.2} .seg-r.fill{fill:#9a9a9a} .lab{font-size:12px;fill:#333} .lab.sm{font-size:10px}
   .key{break-before:page} .key ol{columns:2;font-size:11pt} .key li{margin-bottom:10pt;break-inside:avoid} .key b{font-size:13pt}
   .key .steps{font-size:9.5pt;color:#444;margin-top:2px}
   footer{margin-top:10px;font-size:8.5pt;color:#777;text-align:right}
