@@ -31,6 +31,7 @@ function getTokenFromCookie(): string | null {
   return null;
 }
 import Login from "./pages/Login";
+import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
 import ParentSignup from "./pages/ParentSignup";
@@ -327,6 +328,9 @@ function AppRoutes() {
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/signin">
+        {user ? <Redirect to="/" replace /> : <SignIn />}
+      </Route>
+      <Route path="/explore-reader">
         {user ? <Redirect to="/" replace /> : <Login />}
       </Route>
       <Route path="/">
