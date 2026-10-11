@@ -296,25 +296,26 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     </div>;
   };
 
-  /** One rail card: a compact, full-colour tile with a small icon badge, one line of title, and the
-   * standard small button. Content sets the height (no fixed box to overflow). */
+  /** One rail card: a compact, full-colour tile with a small icon badge, a one-line title, a fixed
+   * two-line tagline slot (so a short tagline doesn't make its card shorter than its neighbours),
+   * and the button pinned to the same bottom edge on every card in the row. */
   const railCard = (p: Plugin) => {
     const deep = mix(p.color, "#000000", 0.55);
     const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
     return <div role="button" tabIndex={0} key={p.id} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-      className={`group relative flex w-32 shrink-0 cursor-pointer flex-col gap-2 overflow-hidden rounded-[1.1rem] p-3 text-left text-white shadow-[0_6px_16px_-8px_rgba(0,0,0,.4)] snap-start sm:w-36 ${ring}`}
+      className={`group relative flex h-[11.5rem] w-32 shrink-0 cursor-pointer flex-col overflow-hidden rounded-[1.1rem] p-3 text-left text-white shadow-[0_6px_16px_-8px_rgba(0,0,0,.4)] snap-start sm:h-[12.5rem] sm:w-36 ${ring}`}
       style={{ background: `radial-gradient(130% 110% at 100% 0%, ${mix(p.color, "#ffffff", 0.3)}, ${p.color} 45%, ${deep})` }}
       data-testid={`plugin-rail-${p.id}`}>
       <span className="pointer-events-none absolute inset-0 opacity-90 [background:radial-gradient(60%_80%_at_15%_100%,rgba(0,0,0,.35),transparent_65%)]" aria-hidden />
       <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,.4)] backdrop-blur-sm" aria-hidden><Icon className="h-5 w-5" strokeWidth={1.8} /></span>
-      <span className="relative min-w-0">
+      <span className="relative mt-2 min-w-0 flex-1">
         <span className="block truncate text-[13px] font-black leading-tight tracking-tight">{p.name}</span>
-        <span className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-white/75">{p.tagline}</span>
+        <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/75">{p.tagline}</span>
       </span>
-      <span className="relative mt-auto" onClick={(e) => e.stopPropagation()}>{action(p)}</span>
+      <span className="relative shrink-0" onClick={(e) => e.stopPropagation()}>{action(p)}</span>
     </div>;
   };
-  const posterRail = (list: Plugin[]) => <ul className="-mx-4 flex gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 pt-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
+  const posterRail = (list: Plugin[]) => <ul className="-mx-4 flex items-stretch gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 pt-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
     {list.map((p) => <li key={p.id} className="flex shrink-0">{railCard(p)}</li>)}
   </ul>;
 
