@@ -42,6 +42,7 @@ import {
   X,
   MoreHorizontal,
   Puzzle,
+  Menu as MenuIcon,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, pluginOpens, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
@@ -370,6 +371,16 @@ function TeacherHubPage() {
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  /** The slide-out menu on a phone, opened from the button at the top left. */
+  const [drawer, setDrawer] = useState(false);
+  useEffect(() => {
+    if (!drawer) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); };
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; };
+  }, [drawer]);
   useEffect(() => {
     if (!more) return;
     const close = (e: Event) => { if (!moreRef.current?.contains(e.target as Node)) setMore(false); };
@@ -652,10 +663,13 @@ function TeacherHubPage() {
       />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+          <button type="button" onClick={() => setDrawer(true)} aria-label="Open menu" aria-expanded={drawer} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 md:hidden" data-testid="hub-drawer-open"><MenuIcon className="h-5 w-5" /></button>
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
             <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
             <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">WorkHub</span>
           </a>
+          </div>
           <div className="flex shrink-0 items-center gap-2">
             <HubSwitch current="hub" night={night} />
             <span className="hidden sm:contents"><SaveBadge view={view} /></span>
@@ -691,7 +705,7 @@ function TeacherHubPage() {
       </header>
 
       <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
-        <aside className="min-w-0 fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur md:sticky md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start">
+        <aside className="hidden min-w-0 md:block fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur md:sticky md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start">
           <div className="flex snap-x gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm">
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
@@ -731,6 +745,29 @@ function TeacherHubPage() {
             })}
           </div>
         </aside>
+
+        {/* On a phone the menu slides out from the left, so a sideways swipe never leaves the app. */}
+        <div className={`fixed inset-0 z-[60] md:hidden ${drawer ? "" : "pointer-events-none"}`} aria-hidden={!drawer}>
+          <div className={`absolute inset-0 bg-slate-950/40 transition-opacity duration-200 ${drawer ? "opacity-100" : "opacity-0"}`} onClick={() => setDrawer(false)} />
+          <nav aria-label="WorkHub menu" data-testid="hub-drawer"
+            className={`absolute inset-y-0 left-0 flex w-[min(80vw,300px)] flex-col overflow-y-auto overscroll-contain bg-white pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] shadow-2xl transition-transform duration-200 ${drawer ? "translate-x-0" : "-translate-x-full"}`}>
+            <div className="flex items-center justify-between gap-2 px-4 pb-2">
+              <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p><p className="truncate text-xs text-slate-500">@{user.username}</p></div>
+              <button type="button" onClick={() => setDrawer(false)} aria-label="Close menu" tabIndex={drawer ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+            </div>
+            <ul className="space-y-1 px-2">
+              {menu.map((item) => (
+                <li key={item.id}>
+                  <button type="button" tabIndex={drawer ? 0 : -1} onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); setDrawer(false); }} aria-current={group.id === item.id ? "page" : undefined} data-testid={`hub-drawer-${item.id}`}
+                    className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-100"}`}>
+                    {GROUP_ICON[item.id]}
+                    <span className="truncate">{groupLabel(item.id, visible)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
 
         <main className="min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9">
           <HubTrialNote trial={trial} which="work" upgradeHref="#/billing" />
@@ -923,7 +960,7 @@ function TeacherHubPage() {
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (
-        <div ref={addRef} className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)] right-4 z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div ref={addRef} className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-50">
           {addMenu && (
             <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
               className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
