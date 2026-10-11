@@ -10,7 +10,7 @@ import { randomBytes } from "node:crypto";
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
 
-type Authentication = (req: any, res: Response, next: NextFunction) => void | Promise<void>;
+type Authentication = (req: any, res: Response, next: NextFunction) => unknown;
 type Ticket = { sessionToken: string; userId: number; expiresAt: number };
 const tickets = new Map<string, Ticket>();
 const TTL_MS = 60_000;
