@@ -42,7 +42,7 @@ import {
   X,
   MoreHorizontal,
   Puzzle,
-  ChevronLeft as RailHide, ChevronRight as RailShow,
+  ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
@@ -375,6 +375,18 @@ function TeacherHubPage() {
   const [more, setMore] = useState(false);
   /** The menu strip down the left side on a phone: shown, or tucked away behind a small tab. Remembered on this device. */
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem("arise-hub-rail") !== "closed"; } catch { return true; } });
+  /** The app drawer is open (the "App drawer" menu choice). */
+  const [apps, setApps] = useState(false);
+  const [appsQuery, setAppsQuery] = useState("");
+  useEffect(() => {
+    if (!apps) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setApps(false); };
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setAppsQuery(""); };
+  }, [apps]);
+  const appsSwipe = useRef<number | null>(null);
   const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
   const moreRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -476,12 +488,14 @@ function TeacherHubPage() {
   const side = layout.menuSide;
   /** The menu runs across the screen (top or bottom) instead of down a side. */
   const across = side === "top" || side === "bottom";
+  /** The app drawer: no menu on screen, just a button that opens every section as app icons. */
+  const drawerMenu = side === "drawer";
   const menuOpen = layout.menuClose === "always" || rail;
   const canHide = layout.menuClose !== "always";
   /** On a phone the menu may close by itself once a section is picked. */
   const afterPick = () => { if (layout.menuClose === "auto" && typeof window !== "undefined" && window.innerWidth < 768) setRail(false); };
-  const pagePad = side === "top" ? `px-3 sm:px-4 ${menuOpen ? "!pt-[84px] md:!pt-4" : "!pt-9 md:!pt-4"}` : side === "bottom" ? "px-3 sm:px-4" : side === "right" ? `pl-3 sm:pl-4 ${menuOpen ? "pr-[80px] sm:pr-[84px]" : "pr-9 sm:pr-10"}` : `pr-3 sm:pr-4 ${menuOpen ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"}`;
-  const asidePhone = side === "top"
+  const pagePad = drawerMenu ? "px-3 sm:px-4" : side === "top" ? `px-3 sm:px-4 ${menuOpen ? "!pt-[84px] md:!pt-4" : "!pt-9 md:!pt-4"}` : side === "bottom" ? "px-3 sm:px-4" : side === "right" ? `pl-3 sm:pl-4 ${menuOpen ? "pr-[80px] sm:pr-[84px]" : "pr-9 sm:pr-10"}` : `pr-3 sm:pr-4 ${menuOpen ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"}`;
+  const asidePhone = drawerMenu ? "hidden md:block" : side === "top"
     ? `inset-x-0 top-[65px] border-b px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "-translate-y-full"}`
     : side === "bottom"
     ? `inset-x-0 bottom-0 border-t px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "translate-y-full"}`
@@ -715,9 +729,45 @@ function TeacherHubPage() {
       </header>
 
       <div className={`mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} md:grid-cols-[220px_minmax(0,1fr)] md:px-6`}>
-        {!menuOpen && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
+        {!menuOpen && !drawerMenu && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
           className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "top" ? "left-1/2 top-[65px] h-7 w-14 -translate-x-1/2 rounded-b-xl border-t-0" : side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
           {side === "top" ? <ChevronDown className="h-5 w-5" /> : side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
+        {drawerMenu && !apps && (
+          <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="hub-apps-open"
+            onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (appsSwipe.current !== null && appsSwipe.current - e.touches[0].clientY > 30) { appsSwipe.current = null; setApps(true); } }}
+            className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 inline-flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl transition active:scale-90 md:hidden">
+            <AppsIcon className="h-6 w-6" />
+          </button>
+        )}
+        {drawerMenu && (
+          <div className={`fixed inset-0 z-[70] md:hidden ${apps ? "" : "pointer-events-none"}`} aria-hidden={!apps}>
+            <div className={`absolute inset-0 bg-slate-950/30 transition-opacity duration-200 ${apps ? "opacity-100" : "opacity-0"}`} onClick={() => setApps(false)} />
+            <div role="dialog" aria-modal="true" aria-label="All sections" data-testid="hub-apps"
+              className={`absolute inset-x-0 bottom-0 top-[max(2.5rem,env(safe-area-inset-top))] flex flex-col rounded-t-[2rem] bg-white shadow-2xl transition-transform duration-300 ease-out ${apps ? "translate-y-0" : "translate-y-full"}`}
+              onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }}
+              onTouchEnd={(e) => { const from = appsSwipe.current; appsSwipe.current = null; const list = document.getElementById("hub-apps-list"); if (from !== null && e.changedTouches[0].clientY - from > 90 && (!list || list.scrollTop <= 0)) setApps(false); }}>
+              <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-300" aria-hidden />
+              <div className="flex items-center gap-2 px-4 pb-3 pt-3">
+                <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-slate-100 px-3">
+                  <AppsSearch className="h-4 w-4 shrink-0 text-slate-500" />
+                  <input value={appsQuery} onChange={(e) => setAppsQuery(e.target.value)} placeholder="Search" aria-label="Search sections" tabIndex={apps ? 0 : -1} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-slate-500" />
+                </label>
+                <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+              </div>
+              <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
+                {menu.filter((item) => groupLabel(item.id, visible).toLowerCase().includes(appsQuery.trim().toLowerCase())).map((item) => (
+                  <li key={item.id}>
+                    <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); setApps(false); }} data-testid={`hub-app-${item.id}`}
+                      className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                      <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[item.id]}</span>
+                      <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{groupLabel(item.id, visible)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
         <aside className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start`} aria-hidden={menuOpen ? undefined : true}>
           <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm`}>
             {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${across ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "top" ? <ChevronUp className="h-5 w-5" /> : side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
@@ -789,13 +839,13 @@ function TeacherHubPage() {
                     {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
                       className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
                   </div>
-                  <div role="radiogroup" aria-label="How the menu closes" className="grid gap-2">
+                  {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid gap-2">
                     {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); setRail(true); }} data-testid={`menu-close-${o.id}`}
                       className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
                       <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-slate-950" : "border-slate-300"}`} aria-hidden />
                       <span><span className="block font-semibold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
                     </button>)}
-                  </div>
+                  </div>}
                 </div>
                 <div>
                   <h3 className="mb-1 text-sm font-semibold text-slate-900">Home screen</h3>
