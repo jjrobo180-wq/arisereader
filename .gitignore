@@ -15,3 +15,9 @@ data.db-journal
 *.log
 .DS_Store
 .llm_env
+
+# Generated, platform-specific iOS build assets (keep Xcode source in Git).
+mobile/*/node_modules/
+mobile/*/www/
+mobile/*/ios/DerivedData/
+mobile/*/ios/App/build/
