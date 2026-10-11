@@ -1,0 +1,13 @@
+{
+  "appId": "com.arisetodo.app",
+  "appName": "A.R.I.S.E. To-Do",
+  "webDir": "www",
+  "server": {
+    "iosScheme": "capacitor"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
