@@ -238,3 +238,177 @@ export function parseMostRead(json: any, max = 20): MostRead[] {
       url: safeUrl(a.content_urls?.desktop?.page), image: safeUrl(a.thumbnail?.source),
     }));
 }
+
+// ── Dictionary ───────────────────────────────────────────────────────────────
+
+export type WordOfDay = { word: string; type: string; definition: string; example: string };
+
+export const WORDS: readonly WordOfDay[] = [
+  { word: "serendipity", type: "noun", definition: "Finding something good without looking for it.", example: "Meeting her best friend in a wrong-turn café was pure serendipity." },
+  { word: "resilient", type: "adjective", definition: "Able to recover quickly from hard times.", example: "Kids are more resilient than we give them credit for." },
+  { word: "ephemeral", type: "adjective", definition: "Lasting a very short time.", example: "The sunset's colors were ephemeral, gone in minutes." },
+  { word: "gregarious", type: "adjective", definition: "Fond of company; sociable.", example: "Our gregarious neighbor knows everyone on the block." },
+  { word: "meticulous", type: "adjective", definition: "Showing great attention to detail.", example: "She kept meticulous notes on every recipe she tried." },
+  { word: "candor", type: "noun", definition: "Being open and honest in what you say.", example: "I appreciated his candor about the budget." },
+  { word: "tenacious", type: "adjective", definition: "Holding firmly to something; not giving up.", example: "The tenacious puppy would not let go of the rope." },
+  { word: "benevolent", type: "adjective", definition: "Kind and well-meaning.", example: "A benevolent stranger paid for our coffee." },
+  { word: "eloquent", type: "adjective", definition: "Fluent and persuasive in speaking or writing.", example: "Her eloquent toast had everyone in tears." },
+  { word: "frugal", type: "adjective", definition: "Careful about spending money.", example: "Being frugal this month means a bigger vacation fund." },
+  { word: "nostalgia", type: "noun", definition: "A fond longing for the past.", example: "The old song filled him with nostalgia." },
+  { word: "ubiquitous", type: "adjective", definition: "Found everywhere.", example: "Phones have become ubiquitous at the dinner table." },
+  { word: "zeal", type: "noun", definition: "Great energy and enthusiasm for something.", example: "He cleaned the garage with surprising zeal." },
+  { word: "pragmatic", type: "adjective", definition: "Dealing with things in a practical, sensible way.", example: "We took a pragmatic approach to the move." },
+  { word: "quaint", type: "adjective", definition: "Charmingly old-fashioned.", example: "We stayed in a quaint cabin by the lake." },
+  { word: "altruism", type: "noun", definition: "Caring about the good of others without expecting anything back.", example: "Volunteering on weekends is pure altruism for her." },
+  { word: "cacophony", type: "noun", definition: "A harsh mix of loud sounds.", example: "Breakfast with four kids is a cacophony." },
+  { word: "diligent", type: "adjective", definition: "Hard-working and careful.", example: "A diligent student reviews notes every night." },
+  { word: "empathy", type: "noun", definition: "Understanding and sharing someone else's feelings.", example: "A little empathy goes a long way in an argument." },
+  { word: "fortitude", type: "noun", definition: "Courage in pain or hard times.", example: "She faced the long recovery with fortitude." },
+  { word: "hiatus", type: "noun", definition: "A pause or break.", example: "The show is on hiatus until spring." },
+  { word: "jubilant", type: "adjective", definition: "Very happy, especially after a success.", example: "The team was jubilant after the win." },
+  { word: "kinship", type: "noun", definition: "A feeling of closeness or connection.", example: "They felt an instant kinship over shared hobbies." },
+  { word: "luminous", type: "adjective", definition: "Full of light; glowing.", example: "The luminous moon lit up the yard." },
+  { word: "mellifluous", type: "adjective", definition: "Sweet and smooth to hear.", example: "Her mellifluous voice made the audiobook a joy." },
+  { word: "nonchalant", type: "adjective", definition: "Calm and unworried, or seeming so.", example: "He was nonchalant about the spelling bee, but practiced every night." },
+  { word: "obstinate", type: "adjective", definition: "Stubbornly refusing to change your mind.", example: "The obstinate toddler would not wear a coat." },
+  { word: "plethora", type: "noun", definition: "A large amount, often more than needed.", example: "The buffet offered a plethora of desserts." },
+  { word: "quell", type: "verb", definition: "To calm or put an end to something.", example: "A hug can quell a lot of worries." },
+  { word: "reverie", type: "noun", definition: "A pleasant daydream.", example: "The bus stop snapped her out of her reverie." },
+  { word: "solace", type: "noun", definition: "Comfort in a time of sadness.", example: "He found solace in long walks." },
+  { word: "trepidation", type: "noun", definition: "A feeling of fear about what might happen.", example: "She opened the report card with trepidation." },
+  { word: "vivacious", type: "adjective", definition: "Lively and full of spirit.", example: "Their vivacious aunt is the life of every party." },
+  { word: "whimsical", type: "adjective", definition: "Playful and unusual in a charming way.", example: "The kids painted whimsical murals on the fence." },
+  { word: "zenith", type: "noun", definition: "The highest point.", example: "At the zenith of summer, the pool was packed." },
+  { word: "aplomb", type: "noun", definition: "Calm self-confidence in a hard situation.", example: "She handled the spilled milk with aplomb." },
+  { word: "bucolic", type: "adjective", definition: "Relating to the pleasant side of country life.", example: "The farm stay was wonderfully bucolic." },
+  { word: "convivial", type: "adjective", definition: "Friendly, lively and enjoyable.", example: "Sunday dinners at Grandma's are always convivial." },
+  { word: "gumption", type: "noun", definition: "Common sense and the courage to act on it.", example: "It took gumption to start her own business." },
+  { word: "halcyon", type: "adjective", definition: "Calm, happy and peaceful, often remembered fondly.", example: "We talk about the halcyon days of summer camp." },
+];
+
+/** A word safe to look up: letters, with spaces, hyphens or apostrophes inside. */
+export function cleanWord(v: unknown): string {
+  if (typeof v !== "string") return "";
+  const w = v.trim().toLowerCase();
+  return /^[a-z][a-z' -]{0,40}$/.test(w) ? w : "";
+}
+
+export type Definition = { word: string; phonetic: string; audio: string; meanings: { partOfSpeech: string; definitions: { definition: string; example: string }[]; synonyms: string[] }[] };
+
+/** Reads a dictionaryapi.dev answer. */
+export function parseDefinition(json: unknown): Definition | null {
+  if (!Array.isArray(json) || !json.length) return null;
+  const first: any = json[0];
+  const phonetics: any[] = json.flatMap((e: any) => (Array.isArray(e?.phonetics) ? e.phonetics : []));
+  const meanings = json.flatMap((e: any) => (Array.isArray(e?.meanings) ? e.meanings : [])).slice(0, 8).map((m: any) => ({
+    partOfSpeech: String(m?.partOfSpeech || "").slice(0, 30),
+    definitions: (Array.isArray(m?.definitions) ? m.definitions : []).slice(0, 4).map((d: any) => ({ definition: String(d?.definition || "").slice(0, 500), example: String(d?.example || "").slice(0, 300) })).filter((d: any) => d.definition),
+    synonyms: (Array.isArray(m?.synonyms) ? m.synonyms : []).filter((s: unknown) => typeof s === "string").slice(0, 8),
+  })).filter((m: any) => m.definitions.length);
+  if (!meanings.length) return null;
+  return {
+    word: String(first?.word || "").slice(0, 60),
+    phonetic: String(first?.phonetic || phonetics.find((p) => p?.text)?.text || "").slice(0, 60),
+    audio: safeUrl(phonetics.find((p) => typeof p?.audio === "string" && p.audio)?.audio),
+    meanings,
+  };
+}
+
+// ── Relationships ────────────────────────────────────────────────────────────
+
+export const RELATIONSHIP_TOPICS: readonly { id: string; title: string; tips: string[] }[] = [
+  { id: "talk", title: "Talking & listening", tips: [
+    "Put the phone face down when your partner starts talking. Full attention says more than any reply.",
+    "Try repeating back what you heard before you answer: \"So you felt left out when…\" It slows things down and shows you get it.",
+    "Ask \"Do you want help fixing this, or do you just need me to listen?\" Both are fine. Guessing wrong causes trouble.",
+    "Check in daily, even for ten minutes: the best and hardest part of each of your days.",
+    "Share the small stuff. Little updates through the day build the closeness that big talks rely on.",
+  ] },
+  { id: "conflict", title: "Handling disagreements", tips: [
+    "Start with \"I\" instead of \"you\": \"I felt worried when you were late\" lands softer than \"You're always late.\"",
+    "Stick to one issue. Bringing up old fights turns a small problem into a big one.",
+    "If either of you is too heated, call a 20-minute break and agree on when you'll come back to it.",
+    "Look for the need under the complaint. \"You never help\" often means \"I'm tired and I need us to be a team.\"",
+    "A repair attempt, like a joke, a touch or \"I'm sorry, that came out wrong,\" is worth accepting even mid-argument.",
+    "You don't have to win. Ask what would make you both feel okay, then meet in the middle.",
+  ] },
+  { id: "appreciation", title: "Showing appreciation", tips: [
+    "Say thank you for the everyday things: making coffee, taking out the trash, handling the bills.",
+    "Notice what your partner does that no one sees, and say it out loud.",
+    "Leave a note in a lunch box, a car or on the mirror. It takes ten seconds and lasts all day.",
+    "Brag about your partner to someone else when they can hear it.",
+    "Learn how they feel most loved: words, time together, help, touch or small gifts. Give love their way, not just yours.",
+  ] },
+  { id: "romance", title: "Keeping the spark", tips: [
+    "Put a date on the calendar every week or two, even if it's dessert on the porch after bedtime.",
+    "Try something new together. New experiences bring back that early-days feeling.",
+    "Hold hands, hug for a full 20 seconds, kiss hello and goodbye. Small touches matter.",
+    "Flirt by text in the middle of the day.",
+    "Ask questions you don't know the answer to yet. People keep changing, so keep getting to know them.",
+  ] },
+  { id: "trust", title: "Trust & respect", tips: [
+    "Do what you said you'd do. Trust is built from small promises kept.",
+    "Be honest even when it's awkward. Small hidden things grow into big ones.",
+    "Respect each other's alone time and friendships. Missing each other is healthy.",
+    "Talk about money openly: what you earn, owe, spend and hope for.",
+    "Never mock your partner in front of others, even as a joke they didn't laugh at.",
+  ] },
+  { id: "team", title: "Being a team at home", tips: [
+    "Divide chores by what each of you actually doesn't mind doing, and revisit it when life changes.",
+    "Back each other up in front of the kids, and work out disagreements privately.",
+    "Hold a short weekly planning chat: the calendar, the money, who's covering what.",
+    "Trade a free afternoon now and then, so each of you gets time to recharge.",
+    "When one of you is struggling, the other carries a bit more. It evens out over time.",
+  ] },
+];
+
+export const CONVERSATION_STARTERS: readonly string[] = [
+  "What's something you've never told me?",
+  "What's a memory of us you think about a lot?",
+  "If we could live anywhere for a year, where would you pick?",
+  "What's something I do that makes you feel loved?",
+  "What's one thing you'd like us to do more of?",
+  "What's a dream you've put on hold?",
+  "What was the best part of your week?",
+  "What's something you're worried about lately?",
+  "What would your perfect Saturday look like?",
+  "What's a habit of mine you secretly love?",
+  "Where do you see us in five years?",
+  "What's something new you'd like to learn together?",
+  "What's the best advice anyone ever gave you?",
+  "What did you want to be when you were little?",
+  "What song always reminds you of us?",
+  "What's one thing that would make your mornings easier?",
+  "What's something you're proud of that you don't talk about?",
+  "If we had a whole day with no responsibilities, what would we do?",
+  "What's a tradition you'd like us to start?",
+  "When did you first know you liked me?",
+];
+
+export const DATE_IDEAS: readonly { idea: string; kind: "home" | "out" | "free" }[] = [
+  { idea: "Cook a new recipe together from a country neither of you has visited.", kind: "home" },
+  { idea: "Build a blanket fort and watch the first movie you saw together.", kind: "home" },
+  { idea: "Have a candlelit picnic on the living room floor.", kind: "home" },
+  { idea: "Play a board game with a silly bet on the winner.", kind: "home" },
+  { idea: "Make a playlist for each other and listen side by side.", kind: "home" },
+  { idea: "Do a puzzle together with dessert and no phones.", kind: "home" },
+  { idea: "Try a free online dance tutorial in the kitchen.", kind: "home" },
+  { idea: "Go for a sunset walk somewhere you've never walked.", kind: "free" },
+  { idea: "Stargaze from the backyard or a dark park with a blanket.", kind: "free" },
+  { idea: "Visit a free museum day or local art walk.", kind: "free" },
+  { idea: "Go on a hike and pack each other a surprise snack.", kind: "free" },
+  { idea: "Wander a farmers market and cook dinner from what you find.", kind: "free" },
+  { idea: "Read the same short story and talk about it over coffee.", kind: "free" },
+  { idea: "Watch the sunrise together with something warm to drink.", kind: "free" },
+  { idea: "Take a pottery, painting or cooking class.", kind: "out" },
+  { idea: "Go bowling, mini golf or to an arcade.", kind: "out" },
+  { idea: "Find a live music night at a local spot.", kind: "out" },
+  { idea: "Recreate your first date.", kind: "out" },
+  { idea: "Try a restaurant with food neither of you has had.", kind: "out" },
+  { idea: "Go to a comedy show.", kind: "out" },
+  { idea: "Rent bikes or a canoe for an afternoon.", kind: "out" },
+  { idea: "Go ice skating or roller skating.", kind: "out" },
+];
+
+/** Every tip, for the tip of the day. */
+export const ALL_TIPS: readonly string[] = RELATIONSHIP_TOPICS.flatMap((t) => t.tips);

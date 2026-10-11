@@ -1,6 +1,6 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind } from "lucide-react";
+import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2 } from "lucide-react";
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
@@ -33,6 +33,10 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   quotes: { label: "Daily quote", detail: "A motivational quote every day", icon: <Quote size={17} /> },
   history: { label: "Today in history", detail: "What happened on this day", icon: <History size={17} /> },
   trending: { label: "What's trending", detail: "Top searches and most-read stories", icon: <TrendingUp size={17} /> },
+  randomizer: { label: "Randomizer", detail: "Pick from a list, flip a coin, roll dice", icon: <Shuffle size={17} /> },
+  relationships: { label: "Relationships", detail: "Tips, conversation starters and date ideas", icon: <HeartHandshake size={17} /> },
+  dictionary: { label: "Dictionary", detail: "Look up any word, plus a word a day", icon: <BookOpen size={17} /> },
+  links: { label: "Link page", detail: "Your links on one shareable page", icon: <Link2 size={17} /> },
 };
 const blank = (id: string, n: number): Member => ({ id, name: "", emoji: EMOJI[n % EMOJI.length], color: MEMBER_COLORS[n % MEMBER_COLORS.length], kind: "kid" });
 

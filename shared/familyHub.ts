@@ -4,12 +4,12 @@
 
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending"];
+export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links"];
 /** Sections added from the Plugin Store: off until the family adds them (the others start on). */
-export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending"];
+export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links"];
 
 /** A family's `sectionOrder` (only the toggleable sections can be reordered) made safe to use:
  *  every toggleable section appears exactly once, keeping the saved order where valid and
@@ -104,6 +104,15 @@ export type Countdown = { id: string; title: string; date: string; emoji: string
 export type GroceryItem = { id: string; name: string; qty: string; aisle: string; checked: boolean };
 export type SavedVerse = { id: string; reference: string; text: string };
 export type MeditationLog = { id: string; date: string; minutes: number; kind: string };
+/** A sticky note on the Home screen: `x` is how far across (0 to 1), `y` how far down in pixels. */
+export type Sticky = { id: string; text: string; color: string; x: number; y: number };
+export type RandomList = { id: string; name: string; items: string[] };
+export type SavedWord = { id: string; word: string; definition: string };
+export type PageLink = { id: string; title: string; url: string; emoji: string };
+/** The family's own link page (like a link tree), shareable with a link. */
+export type LinkPage = { title: string; bio: string; links: PageLink[] };
+/** Plugin Store add-ons that live on another screen rather than in the menu. */
+export type Widgets = { stickies: boolean };
 /* News */
 export type NewsPrefs = { topics: string[]; place: string };
 
@@ -147,6 +156,11 @@ export type Family = {
   meditations: MeditationLog[];
   /** Ids of quotes saved from the daily quote (see shared/lifePlugins.ts). */
   savedQuotes: string[];
+  widgets: Widgets;
+  stickies: Sticky[];
+  randomLists: RandomList[];
+  savedWords: SavedWord[];
+  linkPage: LinkPage;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -179,6 +193,7 @@ export const emptyFamily = (): Family => ({
   bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
   notify: defaultNotify(),
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
+  widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], linkPage: { title: "", bio: "", links: [] },
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -217,7 +232,7 @@ function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Re
   return newest ? out.slice(-max) : out;
 }
 
-export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300 };
+export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300, stickies: 60, randomLists: 50, savedWords: 1000, links: 60 };
 
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
@@ -403,6 +418,27 @@ export function cleanFamily(input: unknown): Family {
       const date = day(r.date);
       return date ? { id: id(r.id), date, minutes: num(r.minutes, 0, 600), kind: str(r.kind, 30) } : null;
     }, true),
+    widgets: { stickies: bool(obj(raw.widgets)?.stickies, false) },
+    stickies: rows(raw.stickies, LIMITS.stickies, (r) => ({ id: id(r.id), text: str(r.text, 1000), color: color(r.color, NOTE_COLORS[0]), x: num(r.x, 0, 1, 0.5), y: int(r.y, 0, 6000, 40) })),
+    randomLists: rows(raw.randomLists, LIMITS.randomLists, (r) => {
+      const name = str(r.name, 60).trim();
+      const items = Array.isArray(r.items) ? r.items.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 100)).slice(0, 200) : [];
+      return name && items.length ? { id: id(r.id), name, items } : null;
+    }),
+    savedWords: rows(raw.savedWords, LIMITS.savedWords, (r) => {
+      const word = str(r.word, 60).trim();
+      return word ? { id: id(r.id), word, definition: str(r.definition, 500) } : null;
+    }),
+    linkPage: (() => {
+      const lp = obj(raw.linkPage) || {};
+      return {
+        title: str(lp.title, 80), bio: str(lp.bio, 300),
+        links: rows(lp.links, LIMITS.links, (r) => {
+          const title = str(r.title, 80).trim(), url = str(r.url, 1000).trim();
+          return title && /^(https?:\/\/|mailto:|tel:)/i.test(url) ? { id: id(r.id), title, url, emoji: str(r.emoji, 8) } : null;
+        }),
+      };
+    })(),
     savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
   };
 }
@@ -563,8 +599,8 @@ export function isCurrentFamily(f: unknown): f is Family {
   const r = obj(f);
   const h = r && obj(r.health);
   if (!r || !h) return false;
-  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes"];
+  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes", "stickies", "randomLists", "savedWords"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
-    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
+    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.widgets) && !!obj(r.linkPage) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
 }

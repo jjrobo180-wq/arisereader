@@ -22,6 +22,7 @@ export type PluginTarget =
   | { kind: "tab"; tab: HubTab }
   | { kind: "section"; section: FamilySection }
   | { kind: "layer"; layer: "hub"; opens: FamilySection }
+  | { kind: "widget"; widget: "stickies"; opens: FamilySection }
   | { kind: "connection"; needs: { tab: HubTab } | { section: FamilySection } }
   | { kind: "app"; app: "history" | "math" | "social"; href: string };
 
@@ -201,6 +202,22 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-trending", hub: "life", name: "What's trending", tagline: "Top searches and most-read stories", category: "Discover", icon: "TrendingUp", color: "#e11d48", target: section("trending"),
     description: "See what people across the United States are searching for right now, with the news behind it, and the stories everyone is reading.",
     features: ["Top searches right now", "The news behind each one", "Most-read stories"] },
+  { id: "life-stickies", hub: "life", name: "Sticky notes", tagline: "Notes you can put anywhere on Home", category: "Everyday", icon: "StickyNote", color: "#eab308", featured: true,
+    target: { kind: "widget", widget: "stickies", opens: "home" },
+    description: "Stick colorful notes anywhere on your LifeHub Home screen. Drag them where you want them, change the color, and they stay put on every device.",
+    features: ["Put them anywhere on Home", "Drag to move", "Six colors", "Saved to your account"] },
+  { id: "life-randomizer", hub: "life", name: "Randomizer", tagline: "Pick from a list, flip a coin, roll dice", category: "Everyday", icon: "Shuffle", color: "#14b8a6", target: section("randomizer"),
+    description: "Settle it fairly: pick a name or a dinner from a list, flip a coin, roll dice or pick a number. Save lists you use often.",
+    features: ["Pick from a list", "Coin flip and dice", "Random number", "Save your lists"] },
+  { id: "life-relationships", hub: "life", name: "Relationships", tagline: "Tips, conversation starters and date ideas", category: "Family", icon: "HeartHandshake", color: "#f43f5e", target: section("relationships"),
+    description: "A practical relationship tip every day, tips by topic (talking, disagreements, appreciation, romance, trust, teamwork), conversation starters and date ideas.",
+    features: ["A tip every day", "Tips by topic", "Conversation starters", "Date ideas for any budget"] },
+  { id: "life-dictionary", hub: "life", name: "Dictionary", tagline: "Look up any word, plus a word a day", category: "Discover", icon: "BookOpenText", color: "#0891b2", target: section("dictionary"),
+    description: "Definitions, pronunciation, examples and similar words for any English word, a new word every day, and a list of words you want to remember.",
+    features: ["Any English word", "Hear it said", "Word of the day", "Save your words"] },
+  { id: "life-links", hub: "life", name: "Link page", tagline: "All your links on one shareable page", category: "Everyday", icon: "Link2", color: "#7c3aed", target: section("links"),
+    description: "Like a link tree: put your socials, shop, calendar or favorite sites on one tidy page, and share it with a single link anyone can open.",
+    features: ["Your links as big buttons", "A name and a short bio", "Reorder any time", "Share with one link"] },
   { id: "life-workhub-calendar", hub: "life", name: "WorkHub calendar", tagline: "Your work calendar inside LifeHub", category: "Connections", icon: "Briefcase", color: "#0f766e", teacherOnly: true,
     target: { kind: "layer", layer: "hub", opens: "calendar" },
     description: "See your Arise WorkHub calendar on your family calendar, read live, so work and home never double-book.",
@@ -226,14 +243,14 @@ export function pluginsFor(hub: PluginHub, opts: { teacher: boolean }): Plugin[]
 }
 
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
-export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer";
+export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget";
 
 /** Where a plugin opens in its hub: a WorkHub tab or a LifeHub section. null for an Arise app. */
 export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySection } | null {
   const t = p.target;
   if (t.kind === "tab") return { tab: t.tab };
   if (t.kind === "section") return { section: t.section };
-  if (t.kind === "layer") return { section: t.opens };
+  if (t.kind === "layer" || t.kind === "widget") return { section: t.opens };
   if (t.kind === "connection") return t.needs;
   return null;
 }
@@ -257,18 +274,20 @@ export function setWorkPlugin<V extends Partial<Record<HubTab, boolean>>>(visibl
 // ── LifeHub ────────────────────────────────────────────────────────────────
 
 /** Is this LifeHub plugin on? A section is on unless it was switched off. */
-export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers">): boolean {
+export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets">>): boolean {
   const t = p.target;
   const sectionOn = (s: FamilySection) => isOn(s, family);
   if (t.kind === "section") return sectionOn(t.section);
   if (t.kind === "layer") return !!family.layers?.[t.layer];
+  if (t.kind === "widget") return !!family.widgets?.[t.widget];
   if (t.kind === "connection" && "section" in t.needs) return sectionOn(t.needs.section);
   return false;
 }
 
 /** The family with this plugin added or removed. Adding the WorkHub calendar also adds the Calendar section it shows in. */
-export function setLifePlugin<F extends Pick<Family, "sections" | "layers">>(family: F, p: Plugin, on: boolean): F {
+export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets">>>(family: F, p: Plugin, on: boolean): F {
   const t = p.target;
+  if (t.kind === "widget") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), [t.widget]: on } };
   if (t.kind === "section") return { ...family, sections: { ...family.sections, [t.section]: on } };
   if (t.kind === "layer") {
     const next = { ...family, layers: { ...family.layers, [t.layer]: on } };

@@ -9,8 +9,13 @@ import {
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
   CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
-  ChevronUp, ChevronDown, Puzzle, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp,
+  ChevronUp, ChevronDown, Puzzle, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
 } from "lucide-react";
+import Randomizer from "@/components/family-hub/Randomizer";
+import Relationships from "@/components/family-hub/Relationships";
+import Dictionary from "@/components/family-hub/Dictionary";
+import LinkPage from "@/components/family-hub/LinkPage";
+import StickyBoard from "@/components/family-hub/StickyBoard";
 import Journal from "@/components/family-hub/Journal";
 import Countdowns from "@/components/family-hub/Countdowns";
 import Grocery from "@/components/family-hub/Grocery";
@@ -162,6 +167,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
+  randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2,
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
 // Tasks and Notifications is the family's own toggleable block, in the order they chose.
@@ -471,6 +477,10 @@ export default function AriseTodo() {
     : shown === "quotes" ? <Quotes {...common} />
     : shown === "history" ? <TodayInHistory {...common} />
     : shown === "trending" ? <Trending {...common} />
+    : shown === "randomizer" ? <Randomizer {...common} />
+    : shown === "relationships" ? <Relationships {...common} />
+    : shown === "dictionary" ? <Dictionary {...common} />
+    : shown === "links" ? <LinkPage {...common} />
     : shown === "family" ? <Members {...common} />
     : null;
 
@@ -589,7 +599,7 @@ export default function AriseTodo() {
 
           {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
           <div className="mt-4"><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" onUpgrade={user.role === "parent" ? () => { setSection("reader"); window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" }), 600); } : undefined} /></div>
-          {shown !== "tasks" && <div className="mt-2">{familyContent}</div>}
+          {shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">

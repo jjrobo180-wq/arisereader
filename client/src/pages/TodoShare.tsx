@@ -76,6 +76,7 @@ export default function TodoShare() {
         {view.kind === "chores" && <ChoresView view={view} today={data.today} />}
         {view.kind === "goals" && <GoalsView view={view} />}
         {view.kind === "health" && <HealthView view={view} today={data.today} />}
+        {view.kind === "links" && <LinksView view={view} />}
       </>}
       <p className="mt-6 text-center text-xs text-slate-400">Anyone with this link can see this page. Only share it with people you trust.</p>
     </div>
@@ -212,6 +213,16 @@ function ChoresView({ view, today }: { view: Extract<SharedView, { kind: "chores
       </tr>)}</tbody>
     </table>
   </Card>;
+}
+
+/** A family's link page: their links as big buttons, like a link tree. */
+function LinksView({ view }: { view: Extract<SharedView, { kind: "links" }> }) {
+  return <div className="rounded-[2rem] bg-gradient-to-b from-[#2d2555] to-[#6d5ce7] p-6 text-center text-white shadow-[0_18px_40px_#4b3fa033] sm:p-8">
+    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-3xl font-black">{view.title.trim().charAt(0).toUpperCase()}</div>
+    {view.bio && <p className="mx-auto mt-3 max-w-md text-sm text-violet-100">{view.bio}</p>}
+    <div className="mt-6 space-y-3">{view.links.length ? view.links.map((l, i) => <a key={i} href={l.url} target="_blank" rel="noreferrer noopener" className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-base font-extrabold text-[#2d2555] shadow-sm transition hover:scale-[1.02]"><span aria-hidden>{l.emoji}</span>{l.title}</a>)
+      : <p className="rounded-2xl border border-dashed border-white/40 p-5 text-sm text-violet-100">No links yet.</p>}</div>
+  </div>;
 }
 
 function GoalsView({ view }: { view: Extract<SharedView, { kind: "goals" }> }) {

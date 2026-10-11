@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Apple, ArrowLeft, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare,
   ClipboardCheck, Clock, Droplets, Forward, GraduationCap, Handshake, HeartPulse, History, Hourglass, Landmark, LayoutGrid, Mail, MessageCircle, Newspaper, NotebookPen, Pill, Plane,
-  Plus, Puzzle, Quote, Search, ShoppingCart, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer, TrendingUp, Users, Vote, Wallet, Wind, X, type LucideIcon,
+  Plus, Puzzle, Quote, Search, ShoppingCart, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer, TrendingUp, Users, Vote, Wallet, Wind, X, Shuffle, HeartHandshake, BookOpenText, Link2, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -17,7 +17,7 @@ import {
 const ICONS: Record<string, LucideIcon> = {
   Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
   GraduationCap, Handshake, HeartPulse, Landmark, Mail, MessageCircle, Newspaper, Pill, Plane, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer,
-  Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp,
+  Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
 };
 
 /**

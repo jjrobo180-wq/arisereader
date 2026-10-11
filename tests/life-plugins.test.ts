@@ -81,3 +81,40 @@ test("the trending and history feeds are read safely", () => {
   assert.deepEqual(h.map((e) => e.year), [2000, 1900]);
   assert.equal(safeUrl("javascript:alert(1)"), "");
 });
+
+test("sticky notes live on Home: added from the store, placed anywhere, kept in bounds", () => {
+  const p = PLUGINS.find((q) => q.id === "life-stickies")!;
+  const f = emptyFamily();
+  assert.equal(lifeInstalled(p, f), false);
+  const on = setLifePlugin(f, p, true);
+  assert.equal(on.widgets.stickies, true);
+  assert.equal(lifeInstalled(p, on), true);
+  const cleaned = cleanFamily({ ...on, stickies: [{ id: "s1", text: "Hi", color: "#fff7d6", x: 3, y: -50 }, { id: "s2", text: "", color: "bad", x: 0.25, y: 300 }] });
+  assert.deepEqual(cleaned.stickies.map((s) => [s.x, s.y]), [[1, 0], [0.25, 300]], "positions stay on the board");
+  assert.equal(cleaned.stickies[1].color, "#fff7d6");
+  assert.equal(cleaned.widgets.stickies, true);
+});
+
+test("the link page keeps only real links, and can be shared", async () => {
+  const f = cleanFamily({ ...emptyFamily(), linkPage: { title: "Maya", bio: "Hi", links: [{ id: "a", title: "Site", url: "https://maya.test" }, { id: "b", title: "Bad", url: "javascript:alert(1)" }, { id: "c", title: "Mail", url: "mailto:m@x.test" }] } });
+  assert.deepEqual(f.linkPage.links.map((l) => l.id), ["a", "c"]);
+  const { parseTarget, sharedView, targetLabel } = await import("../shared/todoShare");
+  assert.deepEqual(parseTarget("links"), { kind: "links" });
+  assert.equal(parseTarget("links:x"), null);
+  const view: any = sharedView({ family: f }, { kind: "links" }, "2026-10-10");
+  assert.equal(view.kind, "links");
+  assert.equal(view.title, "Maya");
+  assert.equal(view.links.length, 2);
+  assert.equal(targetLabel({ family: f }, { kind: "links" }), "Link page");
+});
+
+test("dictionary words are checked and entries read safely", async () => {
+  const { cleanWord, parseDefinition, WORDS } = await import("../shared/lifePlugins");
+  assert.equal(cleanWord("Serendipity "), "serendipity");
+  assert.equal(cleanWord("<script>"), "");
+  assert.equal(new Set(WORDS.map((w) => w.word)).size, WORDS.length);
+  const d = parseDefinition([{ word: "hello", phonetics: [{ text: "/həˈləʊ/", audio: "https://a.test/hello.mp3" }], meanings: [{ partOfSpeech: "noun", definitions: [{ definition: "A greeting.", example: "She said hello." }], synonyms: ["hi"] }] }]);
+  assert.equal(d?.phonetic, "/həˈləʊ/");
+  assert.equal(d?.meanings[0].definitions[0].example, "She said hello.");
+  assert.equal(parseDefinition({ title: "No Definitions Found" }), null);
+});

@@ -2,7 +2,7 @@
 // (Wikipedia and Google Trends) and Bible passages (bible-api.com, King James Version). Each answer
 // is cached, so a busy morning costs one request per feed, and an old copy is served if a feed is down.
 import type { Express, RequestHandler } from "express";
-import { cleanReference, parseBiblePassage, parseMostRead, parseOnThisDay, parseTrendsRss } from "../shared/lifePlugins";
+import { cleanReference, cleanWord, parseBiblePassage, parseDefinition, parseMostRead, parseOnThisDay, parseTrendsRss } from "../shared/lifePlugins";
 
 const UA = "AriseLifeHub/1.0 (https://arisereader.onrender.com)";
 const cache = new Map<string, { at: number; value: unknown }>();
@@ -89,6 +89,26 @@ export function registerLifehubPluginRoutes(app: Express, authMiddleware: Reques
     } catch (error: any) {
       console.error("[lifehub] bible:", error?.message);
       return res.status(503).json({ message: "The Bible lookup can't be reached right now. Try again in a minute." });
+    }
+  });
+
+  /** A dictionary entry: ?word=serendipity (dictionaryapi.dev, English). */
+  app.get("/api/lifehub/define", authMiddleware, async (req: any, res) => {
+    const word = cleanWord(req.query?.word);
+    if (!word) return res.status(400).json({ message: "Type one word (letters only)." });
+    try {
+      const got = await cached(`define:${word}`, 30 * 86_400_000, async () => {
+        const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { headers: { "User-Agent": UA, Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+        if (r.status === 404) return null;
+        if (!r.ok) throw new Error(`dictionaryapi answered ${r.status}`);
+        return parseDefinition(await r.json());
+      });
+      if (!got.value) return res.status(404).json({ message: `We couldn't find “${word}”. Check the spelling?` });
+      res.set("Cache-Control", "private, max-age=86400");
+      return res.json(got.value);
+    } catch (error: any) {
+      console.error("[lifehub] define:", error?.message);
+      return res.status(503).json({ message: "The dictionary can't be reached right now. Try again in a minute." });
     }
   });
 }
