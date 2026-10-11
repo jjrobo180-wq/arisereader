@@ -276,6 +276,11 @@ export default function AriseTodo() {
     try { localStorage.setItem(SECTION_KEY, next); } catch {}
     window.scrollTo({ top: 0 });
   };
+  /** Goes to Home and scrolls to one of its parts once it has rendered (a part that's hidden, e.g. not yet added, has nothing to scroll to). */
+  const goToHomePart = (id: string) => {
+    setSection("home");
+    window.setTimeout(() => document.querySelector(`[data-home-part="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+  };
   const [memberFilter, setMemberFilter] = useState("");
   // Forwarded emails become tasks in an "Email" list (made the first time one arrives).
   useEmailInbox(user ? token : null, !!user && sync.loaded && !sync.recovery, items => {
@@ -633,9 +638,24 @@ export default function AriseTodo() {
       isInstalled={(p: Plugin) => lifeInstalled(p, family)}
       onToggle={(p: Plugin, on: boolean) => {
         setFamily((f) => setLifePlugin(f, p, on));
-        if (p.target.kind === "widget" && p.target.widget === "board" && on) setMessage("Widgets added to Home. Tap Add widget to pick your first one.");
+        // A widget (like the Widgets board) is a part of Home, not its own section: adding it
+        // should land you looking at it, the same as tapping Open does below, not leave you to
+        // go find it yourself.
+        if (p.target.kind === "widget" && p.target.widget === "board" && on) {
+          setMessage("Widgets added to Home. Tap Add widget to pick your first one.");
+          setStore(false);
+          goToHomePart("widgets");
+        }
       }}
-      onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "section" in at) setSection(at.section); setStore(false); if (p.target.kind === "assistant") setMessage("Tap the ✦ button at the bottom right to chat."); }}
+      onOpen={(p: Plugin) => {
+        const at = pluginOpens(p);
+        if (at && "section" in at) setSection(at.section);
+        // A widget's "section" is really Home, so land on its own part there once it has rendered,
+        // instead of just the top of a Home that might be long.
+        if (p.target.kind === "widget" && p.target.widget === "board") goToHomePart("widgets");
+        setStore(false);
+        if (p.target.kind === "assistant") setMessage("Tap the ✦ button at the bottom right to chat.");
+      }}
       onClose={() => setStore(false)}
     />}
     {customizing && <Modal title="Customize" eyebrow="LifeHub" onClose={() => setCustomizing(false)} wide>
