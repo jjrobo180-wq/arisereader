@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createMemoryMathStore, registerAriseMathRoutes, type MathUser, worksheetHTML } from "../server/ariseMath";
-import { BANDS, SKILLS, SKILL_IDS, cleanMathProfile, isRight, makeProblem, mathWeek, numberChoices, parseAnswer, profileNow, emptyMathProfile, GRADES, STATE_LESSONS } from "../shared/ariseMath";
+import { BANDS, SKILLS, SKILL_IDS, cleanMathProfile, isRight, makeProblem, mathWeek, numberChoices, parseAnswer, profileNow, emptyMathProfile, GRADES, GRADE_LESSONS, STATES, codeLabel, stateById } from "../shared/ariseMath";
 
 const people: Record<number, MathUser & { grade?: string }> = {
   1: { id: 1, role: "teacher", displayName: "Ms. Chen", teacherId: null, schoolId: 10, approvedByTeacher: true, archived: false },
@@ -77,12 +77,16 @@ test("every generator makes a question whose stored answer checks as right", () 
   assert.ok(Number.isNaN(parseAnswer("four")));
   assert.ok(numberChoices(2, false, r).every((c) => Number(c.v) >= 0), "no negative choices for young grades");
   // Every skill is in a grade band or a state's grade-by-grade lessons, and every listed skill exists.
-  const listed = new Set([...Object.values(BANDS).flatMap((b) => b.skills), ...Object.values(STATE_LESSONS).flatMap((st) => Object.values(st.grades).flat().map((l) => l.skill))]);
+  const listed = new Set([...Object.values(BANDS).flatMap((b) => b.skills), ...Object.values(GRADE_LESSONS).flat().map((l) => l.skill)]);
   assert.deepEqual([...listed].sort(), [...SKILL_IDS].sort());
 });
 
-test("Colorado lessons cover every grade, and a worksheet prints problems with an answer key", () => {
-  for (const g of GRADES) assert.ok(STATE_LESSONS.CO.grades[g].length >= 4, `Colorado ${g} has lessons`);
+test("every grade has lessons, every state is listed, and a worksheet prints problems with an answer key", () => {
+  for (const g of GRADES) assert.ok(GRADE_LESSONS[g].length >= 6, `grade ${g} has lessons`);
+  assert.equal(STATES.length, 51, "50 states and DC");
+  assert.equal(codeLabel(stateById("CO"), "3.OA.C.7"), "CO 3.OA.C.7");
+  assert.equal(codeLabel(stateById("TX"), "3.OA.C.7"), "Common Core 3.OA.C.7");
+  assert.match(worksheetHTML(["mult"], 8, { state: "TX" }), /for use with Texas Essential Knowledge and Skills/);
   const html = worksheetHTML(["kcount", "g4perim", "frac"], 12, { key: true, pictures: true }, seeded(5));
   assert.equal((html.match(/<li class="q/g) || []).length, 12);
   assert.match(html, /Answer key/);

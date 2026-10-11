@@ -6,7 +6,10 @@ export type BandId = "k2" | "g35" | "g68" | "g912";
 export type SkillId = "add20" | "sub20" | "tens" | "mult" | "div" | "frac" | "int" | "pct" | "eq2" | "slope" | "linear" | "quad"
   | "kcount" | "kadd10" | "kmake10" | "kcompare" | "g1add2d" | "g2addsub" | "g2oddeven" | "g2money" | "g2place"
   | "g3add1000" | "g3area" | "g3round" | "g4mult" | "g4div" | "g4perim" | "g5dec" | "g5mult" | "g5volume" | "g5order"
-  | "g6exp" | "g6eval" | "g6gcf" | "g6rate" | "g7prop" | "g7muldiv" | "g8sqrt" | "g8pyth" | "hsfunc" | "hssystem";
+  | "g6exp" | "g6eval" | "g6gcf" | "g6rate" | "g7prop" | "g7muldiv" | "g8sqrt" | "g8pyth" | "hsfunc" | "hssystem"
+  | "kaddsub5" | "kteens" | "g1compare" | "g1word" | "g1time" | "g2word" | "g2tens" | "g2length" | "g3eqfrac" | "g3twostep" | "g3elapsed"
+  | "g4addfrac" | "g4prime" | "g4round" | "g4angle" | "g5fracwhole" | "g5pow10" | "g5coord" | "g6abs" | "g6onestep" | "g6tri" | "g6mean"
+  | "g7percent" | "g7circle" | "g7prob" | "g8exp" | "g8sci" | "g8cyl" | "hsslope" | "hsmedian" | "hspoly";
 export type Rng = () => number;
 
 /* ------------------------------------------------------------------ numbers */
@@ -105,6 +108,16 @@ function hundredGrid(p: number) {
   let s = `<svg class="viz" viewBox="0 0 ${W} ${W}" style="width:${W * 1.2}px" role="img" aria-label="${p} of 100 squares shaded">`;
   for (let i = 0; i < 100; i++) s += `<rect class="hund ${i < p ? "fill" : ""}" x="${(i % 10) * c}" y="${Math.floor(i / 10) * c}" width="${c}" height="${c}"/>`;
   return s + "</svg>";
+}
+
+/** A first-quadrant grid from 0 to 6 with one point on it. */
+function pointGrid(px: number, py: number) {
+  const c = 22, o = 18, W = o + 6 * c + 10;
+  let g = `<svg class="viz" viewBox="0 0 ${W} ${W}" style="width:${W * 1.1}px" role="img" aria-label="A grid with a point">`;
+  for (let i = 0; i <= 6; i++) g += `<line class="gridl" x1="${o + i * c}" y1="${10}" x2="${o + i * c}" y2="${10 + 6 * c}"/><line class="gridl" x1="${o}" y1="${10 + i * c}" x2="${o + 6 * c}" y2="${10 + i * c}"/>`
+    + `<text x="${o + i * c}" y="${10 + 6 * c + 12}" text-anchor="middle" font-size="10" fill="currentColor">${i}</text>` + (i ? `<text x="${o - 8}" y="${10 + (6 - i) * c + 4}" text-anchor="middle" font-size="10" fill="currentColor">${i}</text>` : "");
+  g += `<line class="axis" x1="${o}" y1="${10 + 6 * c}" x2="${o + 6 * c}" y2="${10 + 6 * c}"/><line class="axis" x1="${o}" y1="10" x2="${o}" y2="${10 + 6 * c}"/>`;
+  return g + `<circle class="pt" cx="${o + px * c}" cy="${10 + (6 - py) * c}" r="5"/></svg>`;
 }
 
 /* ------------------------------------------------------------------ problems */
@@ -366,6 +379,185 @@ export const SKILLS: Record<SkillId, { name: string; std: string; glyph: string;
     return { ask: "Solve the system. Enter the value of x.", long: true, prompt: `x + y = ${N(s)}<br>x ${MINUS} y = ${N(d)}`, plain: `x + y = ${N(s)} and x − y = ${N(d)}`, answer: x,
       steps: ["Add the two equations: the y's cancel.", `2x = ${N(s)} + ${P(d)} = ${N(s + d)}.`, `x = ${N(x)}.`, `Then y = ${N(s)} ${MINUS} ${P(x)} = ${N(y)}.`] };
   } },
+  // ─── More grade-level lessons (Common Core codes, which many states use as their own). ───
+  kaddsub5: { name: "Add and subtract within 5", std: "K.OA.A.5", glyph: "±", c: "heal", band: "k2", gen(r) {
+    const rnd = rndWith(r); const add = r() < 0.5, a = rnd(1, 4), b = add ? rnd(1, 5 - a) : rnd(1, a), ans = add ? a + b : a - b;
+    return { ask: add ? "Add." : "Take away.", prompt: `${a} ${add ? "+" : MINUS} ${b} = <span class="blank">?</span>`, plain: `${a} ${add ? "+" : MINUS} ${b}`, viz: tenFrames([{ n: add ? a : a, cls: "d1" }, ...(add ? [{ n: b, cls: "d2" }] : [])], add ? 0 : b), answer: ans,
+      steps: add ? [`Start with ${a}.`, `Count on ${b}.`, `${a} + ${b} = ${ans}.`] : [`Start with ${a}.`, `Take away ${b}.`, `${ans} ${ans === 1 ? "is" : "are"} left.`] };
+  } },
+  kteens: { name: "Ten and some more", std: "K.NBT.A.1", glyph: "10+", c: "teach", band: "k2", gen(r) {
+    const rnd = rndWith(r); const o = rnd(1, 9), n = 10 + o;
+    return { ask: `${n} is 10 and how many more?`, prompt: `${n} = 10 + <span class="blank">?</span>`, plain: `${n} = 10 + ?`, viz: tenFrames([{ n: 10, cls: "d1" }, { n: o, cls: "d2" }]), answer: o,
+      steps: ["The first frame is full: that is 10.", `Count the dots in the second frame: ${o}.`, `${n} = 10 + ${o}.`] };
+  } },
+  g1compare: { name: "Compare two-digit numbers", std: "1.NBT.B.3", glyph: "<>", c: "teach", band: "k2", gen(r) {
+    const rnd = rndWith(r); let a: number, b: number; do { a = rnd(10, 99); b = rnd(10, 99); } while (a === b && r() < 0.85);
+    const sym = a > b ? ">" : a < b ? "<" : "=";
+    return { ask: "Which symbol makes this true?", prompt: `${a} <span class="blank">?</span> ${b}`, plain: `${a} ? ${b}`, kind: "choice", answer: sym, choices: ["<", "=", ">"].map((v) => ({ v, label: v })),
+      steps: [`Compare the tens first: ${Math.floor(a / 10)} tens and ${Math.floor(b / 10)} tens.`, Math.floor(a / 10) === Math.floor(b / 10) ? `The tens are the same, so compare the ones: ${a % 10} and ${b % 10}.` : "The number with more tens is bigger.", `${a} ${sym} ${b}.`] };
+  } },
+  g1word: { name: "Word problems within 20", std: "1.OA.A.1", glyph: "?", c: "help", band: "k2", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const name = pick(["Mia", "Leo", "Ava", "Sam", "Zoe", "Eli"]), thing = pick(["stickers", "shells", "marbles", "crayons", "cards"]);
+    const kind = rnd(0, 2), a = rnd(5, 12), b = rnd(2, 8);
+    if (kind === 0) return { ask: `${name} has ${a} ${thing}. ${name} gets ${b} more. How many ${thing} now?`, prompt: `${a} + ${b} = <span class="blank">?</span>`, plain: `${a} + ${b}`, answer: a + b, steps: ["Getting more means add.", `${a} + ${b} = ${a + b}.`] };
+    if (kind === 1) { const t = a + b; return { ask: `${name} has ${t} ${thing}. ${name} gives away ${b}. How many are left?`, prompt: `${t} ${MINUS} ${b} = <span class="blank">?</span>`, plain: `${t} − ${b}`, answer: a, steps: ["Giving away means subtract.", `${t} ${MINUS} ${b} = ${a}.`] }; }
+    const t = a + b; return { ask: `${name} has ${a} ${thing}. ${name} wants ${t}. How many more does ${name} need?`, prompt: `${a} + <span class="blank">?</span> = ${t}`, plain: `${a} + ? = ${t}`, answer: b, steps: [`Count up from ${a} to ${t}.`, `${t} ${MINUS} ${a} = ${b}.`] };
+  } },
+  g1time: { name: "Tell time to the hour", std: "1.MD.B.3", glyph: "🕒", c: "nature", band: "k2", gen(r) {
+    const rnd = rndWith(r); const h = rnd(1, 12), half = r() < 0.5;
+    const at = (deg: number, len: number) => [50 + len * Math.sin((deg * Math.PI) / 180), 50 - len * Math.cos((deg * Math.PI) / 180)].map((v) => Math.round(v * 10) / 10);
+    const [hx, hy] = at(((h % 12) + (half ? 0.5 : 0)) * 30, 22), [mx, my] = at(half ? 180 : 0, 34);
+    const nums = Array.from({ length: 12 }, (_, i) => { const [x, y] = at((i + 1) * 30, 38); return `<text x="${x}" y="${y + 3}" text-anchor="middle" font-size="9" fill="currentColor">${i + 1}</text>`; }).join("");
+    const viz = `<svg class="viz" viewBox="0 0 100 100" style="width:150px" role="img" aria-label="A clock"><circle cx="50" cy="50" r="47" class="cell"/>${nums}<line x1="50" y1="50" x2="${mx}" y2="${my}" class="axis" style="stroke-width:2.5"/><line x1="50" y1="50" x2="${hx}" y2="${hy}" class="beam"/><circle cx="50" cy="50" r="3" class="fulcrum"/></svg>`;
+    return { ask: half ? "What time is it? The long hand is on the 6, so it is half past. Type the hour." : "What time is it? Type the hour.", prompt: `<span class="blank">?</span>:${half ? "30" : "00"}`, plain: half ? "half past ?" : "? o'clock", viz, answer: h,
+      steps: ["The short hand shows the hour.", half ? `It is halfway past the ${h}.` : `It points to the ${h}.`, `The time is ${h}:${half ? "30" : "00"}.`] };
+  } },
+  g2word: { name: "Word problems within 100", std: "2.OA.A.1", glyph: "?", c: "help", band: "k2", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const name = pick(["Nora", "Jay", "Lily", "Max", "Ivy", "Omar"]), thing = pick(["pages", "beads", "points", "seeds", "blocks"]);
+    const a = rnd(15, 60), b = rnd(8, 99 - a), t = a + b;
+    return r() < 0.5 ? { ask: `${name} had ${a} ${thing} and got ${b} more. How many in all?`, prompt: `${a} + ${b} = <span class="blank">?</span>`, plain: `${a} + ${b}`, answer: t, steps: ["In all means add.", `${a} + ${b} = ${t}.`] }
+      : { ask: `${name} had ${t} ${thing} and used ${b}. How many are left?`, prompt: `${t} ${MINUS} ${b} = <span class="blank">?</span>`, plain: `${t} − ${b}`, answer: a, steps: ["Left means subtract.", `${t} ${MINUS} ${b} = ${a}.`, `Check: ${a} + ${b} = ${t} ✓`] };
+  } },
+  g2tens: { name: "Add or take away 10 and 100", std: "2.NBT.B.8", glyph: "±10", c: "build", band: "k2", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const step = pick([10, 100]), add = r() < 0.5, n = add ? rnd(100, 899) : rnd(step + 100, 999), ans = add ? n + step : n - step;
+    return { ask: "Use place value. Only one digit changes.", prompt: `${n} ${add ? "+" : MINUS} ${step} = <span class="blank">?</span>`, plain: `${n} ${add ? "+" : MINUS} ${step}`, answer: ans,
+      steps: [`${step} is 1 ${step === 10 ? "ten" : "hundred"}.`, `The ${step === 10 ? "tens" : "hundreds"} digit goes ${add ? "up" : "down"} by 1.`, `${n} ${add ? "+" : MINUS} ${step} = ${ans}.`] };
+  } },
+  g2length: { name: "Length word problems", std: "2.MD.B.5", glyph: "📏", c: "nature", band: "k2", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const [obj, unit] = pick([["ribbon", "inches"], ["rope", "feet"], ["track", "meters"], ["string", "centimeters"]] as const), a = rnd(12, 60), b = rnd(5, 35), longer = r() < 0.5;
+    return longer ? { ask: `A ${obj} is ${a} ${unit} long. Another is ${b} ${unit} longer. How long is the second ${obj}?`, prompt: `${a} + ${b} = <span class="blank">?</span> ${unit}`, plain: `${a} + ${b}`, answer: a + b, steps: ["Longer means add.", `${a} + ${b} = ${a + b} ${unit}.`] }
+      : { ask: `A ${obj} is ${a + b} ${unit} long. ${b} ${unit} are cut off. How long is it now?`, prompt: `${a + b} ${MINUS} ${b} = <span class="blank">?</span> ${unit}`, plain: `${a + b} − ${b}`, answer: a, steps: ["Cut off means subtract.", `${a + b} ${MINUS} ${b} = ${a} ${unit}.`] };
+  } },
+  g3eqfrac: { name: "Equivalent fractions", std: "3.NF.A.3b", glyph: "=½", c: "teach", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const d = pick([2, 3, 4, 6]), n = rnd(1, d - 1), k = pick([2, 3, 4].filter((x) => d * x <= 12)), D = d * k;
+    return { ask: "Find the missing number.", prompt: `${frac(n, d)} = ${frac('<span class="blank">?</span>', D)}`, plain: `${n}/${d} = ?/${D}`, viz: fractionBars(n, d, n * k, D), answer: n * k,
+      steps: [`${d} × ${k} = ${D}, so the pieces are ${k} times smaller.`, `Multiply the top by ${k} too: ${n} × ${k} = ${n * k}.`, `${n}/${d} = ${n * k}/${D}.`] };
+  } },
+  g3twostep: { name: "Two-step word problems", std: "3.OA.D.8", glyph: "2×", c: "help", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const name = pick(["Rosa", "Ben", "Kai", "Tess", "Ali"]), packs = rnd(2, 8), per = rnd(3, 9), extra = rnd(2, 15), total = packs * per;
+    return r() < 0.5 ? { ask: `${name} buys ${packs} packs of ${per} pencils and already has ${extra}. How many pencils now?`, prompt: `${packs} × ${per} + ${extra} = <span class="blank">?</span>`, plain: `${packs} × ${per} + ${extra}`, answer: total + extra,
+        steps: [`First the packs: ${packs} × ${per} = ${total}.`, `Then add the ${extra}: ${total} + ${extra} = ${total + extra}.`] }
+      : { ask: `${name} has ${total + extra} cards, gives away ${extra}, and shares the rest equally with ${packs} friends. How many does each friend get?`, prompt: `(${total + extra} ${MINUS} ${extra}) ÷ ${packs} = <span class="blank">?</span>`, plain: `(${total + extra} − ${extra}) ÷ ${packs}`, answer: per,
+        steps: [`First take away: ${total + extra} ${MINUS} ${extra} = ${total}.`, `Then share: ${total} ÷ ${packs} = ${per}.`] };
+  } },
+  g3elapsed: { name: "Elapsed time", std: "3.MD.A.1", glyph: "⏱", c: "nature", band: "g35", gen(r) {
+    const rnd = rndWith(r); const h = rnd(1, 11), m = rnd(0, 11) * 5, add = rnd(2, 11) * 5, end = h * 60 + m + add, eh = Math.floor(end / 60), em = end % 60;
+    const t = (hh: number, mm: number) => `${((hh - 1) % 12) + 1}:${String(mm).padStart(2, "0")}`;
+    return { ask: `Practice starts at ${t(h, m)} and ends at ${t(eh, em)}. How many minutes long is it?`, prompt: `<span class="blank">?</span> minutes`, plain: `${t(h, m)} to ${t(eh, em)}`, answer: add,
+      steps: [m + add >= 60 ? `From ${t(h, m)} to ${t(h + 1, 0)} is ${60 - m} minutes.` : `Count on from ${t(h, m)} by fives.`, m + add >= 60 ? `From ${t(h + 1, 0)} to ${t(eh, em)} is ${em} minutes.` : `You reach ${t(eh, em)}.`, `${add} minutes in all.`] };
+  } },
+  g4addfrac: { name: "Add fractions, like denominators", std: "4.NF.B.3a", glyph: "+⅓", c: "build", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const d = pick([4, 5, 6, 8, 10, 12]), a = rnd(1, d - 2), b = rnd(1, d - a - 1), sub = r() < 0.4;
+    const [x, y] = sub ? [a + b, b] : [a, b], ans = sub ? a : a + b;
+    return { ask: "Find the top number of the answer. The bottom stays the same.", prompt: `${frac(x, d)} ${sub ? MINUS : "+"} ${frac(y, d)} = ${frac('<span class="blank">?</span>', d)}`, plain: `${x}/${d} ${sub ? "−" : "+"} ${y}/${d}`, answer: ans,
+      steps: ["The pieces are the same size, so the denominator stays the same.", `${sub ? "Subtract" : "Add"} the tops: ${x} ${sub ? MINUS : "+"} ${y} = ${ans}.`, `${x}/${d} ${sub ? MINUS : "+"} ${y}/${d} = ${ans}/${d}.`] };
+  } },
+  g4prime: { name: "Prime or composite", std: "4.OA.B.4", glyph: "P", c: "fly", band: "g35", gen(r) {
+    const rnd = rndWith(r); const n = rnd(2, 99); let f = 0; for (let i = 2; i * i <= n; i++) if (n % i === 0) { f = i; break; }
+    const prime = !f;
+    return { ask: `Is ${n} prime or composite?`, prompt: `${n} is <span class="blank">?</span>`, plain: `Is ${n} prime or composite?`, kind: "choice", answer: prime ? "prime" : "composite", choices: [{ v: "prime", label: "prime" }, { v: "composite", label: "composite" }],
+      steps: ["A prime number has exactly two factors: 1 and itself.", prime ? `No number from 2 up to ${Math.floor(Math.sqrt(n))} divides ${n} evenly.` : `${n} = ${f} × ${n / f}, so it has more factors.`, `${n} is ${prime ? "prime" : "composite"}.`] };
+  } },
+  g4round: { name: "Round multi-digit numbers", std: "4.NBT.A.3", glyph: "≈", c: "help", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const to = pick([100, 1000, 10000]), n = rnd(to + 1, Math.min(99999, to * 90)), ans = Math.round(n / to) * to, digit = Math.floor(n / (to / 10)) % 10;
+    const place = to === 100 ? "hundred" : to === 1000 ? "thousand" : "ten thousand";
+    return { ask: `Round ${n.toLocaleString("en-US")} to the nearest ${place}.`, prompt: `≈ <span class="blank">?</span>`, plain: `round ${n} to the nearest ${place}`, answer: ans,
+      steps: [`Look at the digit to the right of the ${place}s place: ${digit}.`, digit >= 5 ? "5 or more rounds up." : "4 or less rounds down.", `${n.toLocaleString("en-US")} rounds to ${ans.toLocaleString("en-US")}.`] };
+  } },
+  g4angle: { name: "Missing angles", std: "4.MD.C.7", glyph: "∠", c: "coral", band: "g35", gen(r) {
+    const rnd = rndWith(r); const whole = r() < 0.5 ? 90 : 180, a = rnd(2, whole / 5 - 2) * 5, b = whole - a;
+    return { ask: `Two angles make a ${whole === 90 ? "right angle (90°)" : "straight line (180°)"}. One is ${a}°. What is the other?`, prompt: `${a}° + <span class="blank">?</span>° = ${whole}°`, plain: `${a} + ? = ${whole}`, answer: b,
+      steps: [`Together they make ${whole}°.`, `${whole} ${MINUS} ${a} = ${b}.`, `The other angle is ${b}°.`] };
+  } },
+  g5fracwhole: { name: "Fraction of a whole number", std: "5.NF.B.4a", glyph: "⅔×", c: "serve", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const d = pick([2, 3, 4, 5, 6, 8]), n = rnd(1, d - 1), w = d * rnd(2, 12), ans = (w / d) * n;
+    return { ask: "Multiply.", prompt: `${frac(n, d)} × ${w} = <span class="blank">?</span>`, plain: `${n}/${d} of ${w}`, answer: ans,
+      steps: [`Find ${frac(1, d)} of ${w}: ${w} ÷ ${d} = ${w / d}.`, `Then ${n} of those: ${n} × ${w / d} = ${ans}.`] };
+  } },
+  g5pow10: { name: "Multiply and divide by 10, 100, 1000", std: "5.NBT.A.2", glyph: "×10", c: "tech", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const p = pick([10, 100, 1000]), mul = r() < 0.5, x = rnd(12, 9999) / 100, ans = Math.round((mul ? x * p : x / p) * 1e6) / 1e6;
+    const zeros = String(p).length - 1;
+    return { ask: `Move the decimal point ${zeros} place${zeros > 1 ? "s" : ""} to the ${mul ? "right" : "left"}.`, prompt: `${x} ${mul ? "×" : "÷"} ${p} = <span class="blank">?</span>`, plain: `${x} ${mul ? "×" : "÷"} ${p}`, answer: ans,
+      steps: [`${p} has ${zeros} zero${zeros > 1 ? "s" : ""}.`, `${mul ? "Multiplying" : "Dividing"} moves every digit ${zeros} place${zeros > 1 ? "s" : ""} ${mul ? "left (bigger)" : "right (smaller)"}.`, `${x} ${mul ? "×" : "÷"} ${p} = ${ans}.`] };
+  } },
+  g5coord: { name: "Read a coordinate point", std: "5.G.A.2", glyph: "(x,y)", c: "fly", band: "g35", gen(r) {
+    const rnd = rndWith(r); const x = rnd(1, 5), y = rnd(1, 5), askX = r() < 0.5;
+    return { ask: `What is the ${askX ? "x" : "y"}-coordinate of the point?`, prompt: askX ? `(<span class="blank">?</span>, ${y})` : `(${x}, <span class="blank">?</span>)`, plain: `the ${askX ? "x" : "y"}-coordinate`, viz: pointGrid(x, y), answer: askX ? x : y,
+      steps: ["The x-coordinate is how far right you go.", "The y-coordinate is how far up you go.", `The point is (${x}, ${y}).`] };
+  } },
+  g6abs: { name: "Absolute value", std: "6.NS.C.7c", glyph: "|x|", c: "tech", band: "g68", gen(r) {
+    const rnd = rndWith(r); const a = rnd(-30, 30) || 7, b = rnd(-20, 20), two = r() < 0.4, ans = two ? Math.abs(a) + Math.abs(b) : Math.abs(a);
+    return { ask: "Absolute value is the distance from 0.", prompt: two ? `|${N(a)}| + |${N(b)}| = <span class="blank">?</span>` : `|${N(a)}| = <span class="blank">?</span>`, plain: two ? `|${N(a)}| + |${N(b)}|` : `|${N(a)}|`, answer: ans,
+      steps: two ? [`|${N(a)}| = ${Math.abs(a)}.`, `|${N(b)}| = ${Math.abs(b)}.`, `${Math.abs(a)} + ${Math.abs(b)} = ${ans}.`] : [`${N(a)} is ${Math.abs(a)} steps from 0.`, `|${N(a)}| = ${ans}.`] };
+  } },
+  g6onestep: { name: "One-step equations", std: "6.EE.B.7", glyph: "x", c: "serve", band: "g68", gen(r) {
+    const rnd = rndWith(r); const x = rnd(2, 30), k = rnd(2, 12), mulEq = r() < 0.5;
+    return mulEq ? { ask: "Solve for x.", prompt: `${k}x = ${k * x}`, plain: `${k}x = ${k * x}`, viz: balance(`${k}x`, String(k * x)), answer: x, steps: [`Undo times ${k}: divide both sides by ${k}.`, `x = ${k * x} ÷ ${k} = ${x}.`] }
+      : { ask: "Solve for x.", prompt: `x + ${k} = ${x + k}`, plain: `x + ${k} = ${x + k}`, viz: balance(`x + ${k}`, String(x + k)), answer: x, steps: [`Undo plus ${k}: subtract ${k} from both sides.`, `x = ${x + k} ${MINUS} ${k} = ${x}.`] };
+  } },
+  g6tri: { name: "Area of triangles", std: "6.G.A.1", glyph: "△", c: "create", band: "g68", gen(r) {
+    const rnd = rndWith(r); const b = rnd(2, 14) * 2, h = rnd(2, 15), A = (b * h) / 2;
+    return { ask: `A triangle has a base of ${b} cm and a height of ${h} cm. What is its area in square cm?`, prompt: `½ × ${b} × ${h} = <span class="blank">?</span>`, plain: `area, base ${b}, height ${h}`, answer: A,
+      steps: ["A triangle is half of a rectangle.", `${b} × ${h} = ${b * h}.`, `Half of ${b * h} is ${A}.`] };
+  } },
+  g6mean: { name: "Find the mean", std: "6.SP.B.5c", glyph: "x̄", c: "nature", band: "g68", gen(r) {
+    const rnd = rndWith(r); const n = rnd(3, 6), mean = rnd(4, 40); const vals = Array.from({ length: n - 1 }, () => mean + rnd(-6, 6)); vals.push(mean * n - vals.reduce((s, v) => s + v, 0));
+    if (vals.some((v) => v < 0)) vals.splice(0, vals.length, ...Array(n).fill(mean));
+    return { ask: `Find the mean of these ${n} numbers.`, prompt: `${vals.join(", ")}`, plain: `mean of ${vals.join(", ")}`, long: true, answer: mean,
+      steps: [`Add them: ${vals.join(" + ")} = ${mean * n}.`, `Divide by how many there are: ${mean * n} ÷ ${n} = ${mean}.`] };
+  } },
+  g7percent: { name: "Percent increase and discount", std: "7.RP.A.3", glyph: "%", c: "help", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const p = pick([10, 20, 25, 30, 40, 50, 15]), price = rnd(2, 20) * 20, off = r() < 0.6, change = (price * p) / 100, ans = off ? price - change : price + change;
+    return { ask: off ? `A $${price} jacket is ${p}% off. What is the sale price in dollars?` : `A $${price} bill gets a ${p}% tip. What is the total in dollars?`, prompt: `$<span class="blank">?</span>`, plain: off ? `${p}% off ${price}` : `${price} plus ${p}%`, answer: ans,
+      steps: [`${p}% of ${price} = ${change}.`, off ? `${price} ${MINUS} ${change} = ${ans}.` : `${price} + ${change} = ${ans}.`] };
+  } },
+  g7circle: { name: "Circles: area and circumference", std: "7.G.B.4", glyph: "○", c: "coral", band: "g68", gen(r) {
+    const rnd = rndWith(r); const rad = rnd(2, 12), area = r() < 0.5, exact = area ? 3.14 * rad * rad : 2 * 3.14 * rad, ans = Math.round(exact);
+    return { ask: `A circle has a radius of ${rad} cm. Using π ≈ 3.14, find its ${area ? "area" : "circumference"}, rounded to the nearest whole number.`, prompt: area ? `3.14 × ${rad}² ≈ <span class="blank">?</span>` : `2 × 3.14 × ${rad} ≈ <span class="blank">?</span>`, plain: `${area ? "area" : "circumference"}, radius ${rad}`, long: true, answer: ans,
+      steps: [area ? "Area = π × r × r." : "Circumference = 2 × π × r.", `${area ? `3.14 × ${rad * rad}` : `2 × 3.14 × ${rad}`} = ${Math.round(exact * 100) / 100}.`, `Rounded: ${ans}.`] };
+  } },
+  g7prob: { name: "Simple probability", std: "7.SP.C.5", glyph: "🎲", c: "fly", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const red = rnd(1, 8), blue = rnd(1, 8), green = rnd(0, 6), total = red + blue + green, color = pick(["red", "blue"] as const), k = color === "red" ? red : blue;
+    const opts = [...new Set([`${k}/${total}`, `${total - k}/${total}`, `${k}/${Math.max(1, total - k)}`, `${Math.min(total, k + 1)}/${total}`, `1/${total}`])].filter((o, i, all) => all.indexOf(o) === i).slice(0, 4);
+    const shuffled = opts.map((v) => ({ v, k: r() })).sort((x, y) => x.k - y.k).map(({ v }) => ({ v, label: v }));
+    return { ask: `A bag has ${red} red, ${blue} blue and ${green} green marbles. What is the chance of picking ${color}?`, prompt: `P(${color}) = <span class="blank">?</span>`, plain: `chance of ${color}`, long: true, kind: "choice", answer: `${k}/${total}`, choices: shuffled,
+      steps: [`There are ${total} marbles in all.`, `${k} are ${color}.`, `P(${color}) = ${k}/${total}.`] };
+  } },
+  g8exp: { name: "Rules of exponents", std: "8.EE.A.1", glyph: "xⁿ", c: "tech", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const b = pick([2, 3, 5, 7, 10]), m = rnd(2, 9), n = rnd(2, 6), kind = rnd(0, 2);
+    const [prompt, ans, step] = kind === 0 ? [`${b}<sup>${m}</sup> × ${b}<sup>${n}</sup> = ${b}<sup>?</sup>`, m + n, `Multiplying: add the exponents, ${m} + ${n} = ${m + n}.`]
+      : kind === 1 ? [`${b}<sup>${m + n}</sup> ÷ ${b}<sup>${n}</sup> = ${b}<sup>?</sup>`, m, `Dividing: subtract the exponents, ${m + n} ${MINUS} ${n} = ${m}.`]
+      : [`(${b}<sup>${m}</sup>)<sup>${n}</sup> = ${b}<sup>?</sup>`, m * n, `A power of a power: multiply the exponents, ${m} × ${n} = ${m * n}.`];
+    return { ask: "Find the missing exponent.", prompt: String(prompt).replace("<sup>?</sup>", '<sup><span class="blank">?</span></sup>'), plain: String(prompt).replace(/<sup>(.*?)<\/sup>/g, "^$1"), answer: ans as number, steps: [step as string] };
+  } },
+  g8sci: { name: "Scientific notation", std: "8.EE.A.3", glyph: "×10ⁿ", c: "tech", band: "g68", gen(r) {
+    const rnd = rndWith(r); const e = rnd(3, 8), lead = rnd(11, 99) / 10, n = Math.round(lead * 10 ** e);
+    return { ask: `Write ${n.toLocaleString("en-US")} in scientific notation. What is the power of 10?`, prompt: `${n.toLocaleString("en-US")} = ${lead} × 10<sup><span class="blank">?</span></sup>`, plain: `${n} = ${lead} × 10^?`, long: true, answer: e,
+      steps: [`Move the decimal point to make a number between 1 and 10: ${lead}.`, `It moved ${e} places.`, `${n.toLocaleString("en-US")} = ${lead} × 10<sup>${e}</sup>.`] };
+  } },
+  g8cyl: { name: "Volume of cylinders", std: "8.G.C.9", glyph: "⌭", c: "create", band: "g68", gen(r) {
+    const rnd = rndWith(r); const rad = rnd(1, 6), h = rnd(2, 12), exact = 3.14 * rad * rad * h, ans = Math.round(exact);
+    return { ask: `A cylinder has a radius of ${rad} in and a height of ${h} in. Using π ≈ 3.14, find its volume to the nearest whole cubic inch.`, prompt: `3.14 × ${rad}² × ${h} ≈ <span class="blank">?</span>`, plain: `cylinder, radius ${rad}, height ${h}`, long: true, answer: ans,
+      steps: ["Volume = π × r² × h.", `3.14 × ${rad * rad} × ${h} = ${Math.round(exact * 100) / 100}.`, `Rounded: ${ans}.`] };
+  } },
+  hsslope: { name: "Linear functions from a table", std: "HSF-LE.A.2", glyph: "Δ", c: "fly", band: "g912", gen(r) {
+    const rnd = rndWith(r); const m = rnd(-5, 6) || 2, b = rnd(-10, 10), xs = [0, 1, 2, 3], askB = r() < 0.4;
+    const rows = xs.map((x) => `(${x}, ${N(m * x + b)})`).join(", ");
+    return { ask: `These points are on a line y = mx + b: ${rows}. What is ${askB ? "b, the y-intercept" : "m, the slope"}?`, prompt: askB ? `b = <span class="blank">?</span>` : `m = <span class="blank">?</span>`, plain: `points ${rows}`, long: true, answer: askB ? b : m,
+      steps: askB ? ["The y-intercept is y when x = 0.", `At x = 0, y = ${N(b)}.`] : ["Slope is how much y changes when x goes up by 1.", `${N(m * 1 + b)} ${MINUS} ${P(b)} = ${N(m)}.`] };
+  } },
+  hsmedian: { name: "Median of a data set", std: "HSS-ID.A.2", glyph: "M", c: "nature", band: "g912", gen(r) {
+    const rnd = rndWith(r); const n = rnd(2, 4) * 2 + 1, vals = Array.from({ length: n }, () => rnd(1, 60)), sorted = [...vals].sort((a, b) => a - b), med = sorted[(n - 1) / 2];
+    return { ask: `Find the median of these ${n} numbers.`, prompt: vals.join(", "), plain: `median of ${vals.join(", ")}`, long: true, answer: med,
+      steps: [`Put them in order: ${sorted.join(", ")}.`, `The middle one (number ${(n + 1) / 2}) is ${med}.`] };
+  } },
+  hspoly: { name: "Add and subtract polynomials", std: "HSA-APR.A.1", glyph: "x²+", c: "serve", band: "g912", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const a = [rnd(1, 6), rnd(-8, 8), rnd(-9, 9)], b = [rnd(1, 6), rnd(-8, 8), rnd(-9, 9)], sub = r() < 0.5, which = pick([0, 1, 2]);
+    const term = (c: number[]) => `${c[0] === 1 ? "" : c[0]}x² ${c[1] < 0 ? MINUS : "+"} ${Math.abs(c[1])}x ${c[2] < 0 ? MINUS : "+"} ${Math.abs(c[2])}`;
+    const res = a.map((v, i) => (sub ? v - b[i] : v + b[i])), name = ["x²", "x", "constant"][which];
+    return { ask: `Simplify. What is the ${name === "constant" ? "constant term" : `coefficient of ${name}`}?`, prompt: `(${term(a)}) ${sub ? MINUS : "+"} (${term(b)})`, plain: `(${term(a)}) ${sub ? "−" : "+"} (${term(b)})`, long: true, answer: res[which],
+      steps: [sub ? "Subtracting: change every sign in the second part, then add." : "Add the like terms.", `${name === "constant" ? "Constants" : `${name} terms`}: ${N(a[which])} ${sub ? MINUS : "+"} ${P(b[which])} = ${N(res[which])}.`] };
+  } },
 };
 export const SKILL_IDS = Object.keys(SKILLS) as SkillId[];
 export const BANDS: Record<BandId, { label: string; skills: SkillId[] }> = {
@@ -382,31 +574,53 @@ export const BAND_IDS = Object.keys(BANDS) as BandId[];
 export const GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "HS"] as const;
 export type Grade = (typeof GRADES)[number];
 export const GRADE_LABELS: Record<Grade, string> = { K: "Kindergarten", 1: "Grade 1", 2: "Grade 2", 3: "Grade 3", 4: "Grade 4", 5: "Grade 5", 6: "Grade 6", 7: "Grade 7", 8: "Grade 8", HS: "High school" };
-export type StateId = "CO";
-/** One lesson: a skill to practice, labelled with the state's standard. */
+/** One lesson: a skill to practice, with its Common Core code. */
 export type StateLesson = { skill: SkillId; code: string };
 /**
- * Lessons by state and grade. Colorado's 2020 Academic Standards in Mathematics use the same codes as the
- * Common Core (K.CC.B.5, 3.OA.C.7…), so each lesson carries its Colorado code. More states can be added here.
+ * Lessons by grade, each with its Common Core code. Every state's grade-level math covers these topics; states that
+ * use the Common Core codes (Colorado among them) show the code as their own, and the rest show it as a Common Core match.
  */
-export const STATE_LESSONS: Record<StateId, { name: string; source: string; grades: Record<Grade, StateLesson[]> }> = {
-  CO: {
-    name: "Colorado", source: "2020 Colorado Academic Standards, Mathematics",
-    grades: {
-      K: [{ skill: "kcount", code: "K.CC.B.5" }, { skill: "kcompare", code: "K.CC.C.7" }, { skill: "kadd10", code: "K.OA.A.2" }, { skill: "kmake10", code: "K.OA.A.4" }],
-      1: [{ skill: "add20", code: "1.OA.C.6" }, { skill: "sub20", code: "1.OA.C.6" }, { skill: "tens", code: "1.NBT.B.2" }, { skill: "g1add2d", code: "1.NBT.C.4" }],
-      2: [{ skill: "g2addsub", code: "2.NBT.B.5" }, { skill: "g2place", code: "2.NBT.A.1" }, { skill: "g2oddeven", code: "2.OA.C.3" }, { skill: "g2money", code: "2.MD.C.8" }],
-      3: [{ skill: "mult", code: "3.OA.C.7" }, { skill: "div", code: "3.OA.C.7" }, { skill: "g3add1000", code: "3.NBT.A.2" }, { skill: "g3round", code: "3.NBT.A.1" }, { skill: "g3area", code: "3.MD.C.7" }],
-      4: [{ skill: "frac", code: "4.NF.A.2" }, { skill: "g4mult", code: "4.NBT.B.5" }, { skill: "g4div", code: "4.NBT.B.6" }, { skill: "g4perim", code: "4.MD.A.3" }],
-      5: [{ skill: "g5order", code: "5.OA.A.1" }, { skill: "g5mult", code: "5.NBT.B.5" }, { skill: "g5dec", code: "5.NBT.B.7" }, { skill: "g5volume", code: "5.MD.C.5" }],
-      6: [{ skill: "g6rate", code: "6.RP.A.3b" }, { skill: "pct", code: "6.RP.A.3c" }, { skill: "g6gcf", code: "6.NS.B.4" }, { skill: "g6exp", code: "6.EE.A.1" }, { skill: "g6eval", code: "6.EE.A.2c" }],
-      7: [{ skill: "g7prop", code: "7.RP.A.2" }, { skill: "int", code: "7.NS.A.1" }, { skill: "g7muldiv", code: "7.NS.A.2" }, { skill: "eq2", code: "7.EE.B.4a" }],
-      8: [{ skill: "g8sqrt", code: "8.EE.A.2" }, { skill: "linear", code: "8.EE.C.7" }, { skill: "slope", code: "8.F.B.4" }, { skill: "g8pyth", code: "8.G.B.7" }],
-      HS: [{ skill: "linear", code: "HSA-REI.B.3" }, { skill: "quad", code: "HSA-REI.B.4b" }, { skill: "hssystem", code: "HSA-REI.C.6" }, { skill: "hsfunc", code: "HSF-IF.A.2" }],
-    },
-  },
+export const GRADE_LESSONS: Record<Grade, StateLesson[]> = {
+  K: [{ skill: "kcount", code: "K.CC.B.5" }, { skill: "kcompare", code: "K.CC.C.7" }, { skill: "kadd10", code: "K.OA.A.2" }, { skill: "kmake10", code: "K.OA.A.4" }, { skill: "kaddsub5", code: "K.OA.A.5" }, { skill: "kteens", code: "K.NBT.A.1" }],
+  1: [{ skill: "g1word", code: "1.OA.A.1" }, { skill: "add20", code: "1.OA.C.6" }, { skill: "sub20", code: "1.OA.C.6" }, { skill: "tens", code: "1.NBT.B.2" }, { skill: "g1compare", code: "1.NBT.B.3" }, { skill: "g1add2d", code: "1.NBT.C.4" }, { skill: "g1time", code: "1.MD.B.3" }],
+  2: [{ skill: "g2word", code: "2.OA.A.1" }, { skill: "g2oddeven", code: "2.OA.C.3" }, { skill: "g2place", code: "2.NBT.A.1" }, { skill: "g2addsub", code: "2.NBT.B.5" }, { skill: "g2tens", code: "2.NBT.B.8" }, { skill: "g2length", code: "2.MD.B.5" }, { skill: "g2money", code: "2.MD.C.8" }],
+  3: [{ skill: "mult", code: "3.OA.C.7" }, { skill: "div", code: "3.OA.C.7" }, { skill: "g3twostep", code: "3.OA.D.8" }, { skill: "g3round", code: "3.NBT.A.1" }, { skill: "g3add1000", code: "3.NBT.A.2" }, { skill: "g3eqfrac", code: "3.NF.A.3b" }, { skill: "g3elapsed", code: "3.MD.A.1" }, { skill: "g3area", code: "3.MD.C.7" }],
+  4: [{ skill: "g4prime", code: "4.OA.B.4" }, { skill: "g4round", code: "4.NBT.A.3" }, { skill: "g4mult", code: "4.NBT.B.5" }, { skill: "g4div", code: "4.NBT.B.6" }, { skill: "frac", code: "4.NF.A.2" }, { skill: "g4addfrac", code: "4.NF.B.3a" }, { skill: "g4perim", code: "4.MD.A.3" }, { skill: "g4angle", code: "4.MD.C.7" }],
+  5: [{ skill: "g5order", code: "5.OA.A.1" }, { skill: "g5pow10", code: "5.NBT.A.2" }, { skill: "g5mult", code: "5.NBT.B.5" }, { skill: "g5dec", code: "5.NBT.B.7" }, { skill: "g5fracwhole", code: "5.NF.B.4a" }, { skill: "g5volume", code: "5.MD.C.5" }, { skill: "g5coord", code: "5.G.A.2" }],
+  6: [{ skill: "g6rate", code: "6.RP.A.3b" }, { skill: "pct", code: "6.RP.A.3c" }, { skill: "g6gcf", code: "6.NS.B.4" }, { skill: "g6abs", code: "6.NS.C.7c" }, { skill: "g6exp", code: "6.EE.A.1" }, { skill: "g6eval", code: "6.EE.A.2c" }, { skill: "g6onestep", code: "6.EE.B.7" }, { skill: "g6tri", code: "6.G.A.1" }, { skill: "g6mean", code: "6.SP.B.5c" }],
+  7: [{ skill: "g7prop", code: "7.RP.A.2" }, { skill: "g7percent", code: "7.RP.A.3" }, { skill: "int", code: "7.NS.A.1" }, { skill: "g7muldiv", code: "7.NS.A.2" }, { skill: "eq2", code: "7.EE.B.4a" }, { skill: "g7circle", code: "7.G.B.4" }, { skill: "g7prob", code: "7.SP.C.5" }],
+  8: [{ skill: "g8exp", code: "8.EE.A.1" }, { skill: "g8sqrt", code: "8.EE.A.2" }, { skill: "g8sci", code: "8.EE.A.3" }, { skill: "linear", code: "8.EE.C.7" }, { skill: "slope", code: "8.F.B.4" }, { skill: "g8pyth", code: "8.G.B.7" }, { skill: "g8cyl", code: "8.G.C.9" }],
+  HS: [{ skill: "linear", code: "HSA-REI.B.3" }, { skill: "quad", code: "HSA-REI.B.4b" }, { skill: "hssystem", code: "HSA-REI.C.6" }, { skill: "hspoly", code: "HSA-APR.A.1" }, { skill: "hsfunc", code: "HSF-IF.A.2" }, { skill: "hsslope", code: "HSF-LE.A.2" }, { skill: "hsmedian", code: "HSS-ID.A.2" }],
 };
-export const isStateId = (v: unknown): v is StateId => typeof v === "string" && Object.prototype.hasOwnProperty.call(STATE_LESSONS, v);
+
+/**
+ * Every state and DC. `ccss`: the state's math standards use the Common Core codes, so a lesson's code is the
+ * state's own (Colorado checked against its 2020 standards). Otherwise the state numbers its standards its own way
+ * (Texas TEKS, Virginia SOL…), and the code shown is labelled as the Common Core match for the same topic.
+ */
+export type StateInfo = { id: string; name: string; standards: string; ccss: boolean };
+export const STATES: StateInfo[] = ([
+  ["AL", "Alabama", "Alabama Course of Study: Mathematics", 0], ["AK", "Alaska", "Alaska Mathematics Standards", 0], ["AZ", "Arizona", "Arizona Mathematics Standards", 0],
+  ["AR", "Arkansas", "Arkansas Mathematics Standards", 0], ["CA", "California", "California Common Core State Standards: Mathematics", 1], ["CO", "Colorado", "2020 Colorado Academic Standards, Mathematics", 1],
+  ["CT", "Connecticut", "Connecticut Core Standards", 1], ["DE", "Delaware", "Common Core State Standards", 1], ["DC", "District of Columbia", "Common Core State Standards", 1],
+  ["FL", "Florida", "Florida B.E.S.T. Standards", 0], ["GA", "Georgia", "Georgia's K-12 Mathematics Standards", 0], ["HI", "Hawaii", "Common Core State Standards", 1],
+  ["ID", "Idaho", "Idaho Content Standards, Mathematics", 1], ["IL", "Illinois", "Illinois Learning Standards, Mathematics", 1], ["IN", "Indiana", "Indiana Academic Standards", 0],
+  ["IA", "Iowa", "Iowa Core Mathematics", 1], ["KS", "Kansas", "Kansas Mathematics Standards", 0], ["KY", "Kentucky", "Kentucky Academic Standards", 0],
+  ["LA", "Louisiana", "Louisiana Student Standards", 0], ["ME", "Maine", "Maine Learning Results", 0], ["MD", "Maryland", "Maryland College and Career Ready Standards", 1],
+  ["MA", "Massachusetts", "Massachusetts Curriculum Framework for Mathematics", 1], ["MI", "Michigan", "Michigan K-12 Standards, Mathematics", 1], ["MN", "Minnesota", "Minnesota K-12 Academic Standards", 0],
+  ["MS", "Mississippi", "Mississippi College- and Career-Readiness Standards", 0], ["MO", "Missouri", "Missouri Learning Standards", 0], ["MT", "Montana", "Montana Common Core Standards", 1],
+  ["NE", "Nebraska", "Nebraska's College and Career Ready Standards", 0], ["NV", "Nevada", "Nevada Academic Content Standards", 1], ["NH", "New Hampshire", "New Hampshire College and Career Ready Standards", 1],
+  ["NJ", "New Jersey", "New Jersey Student Learning Standards", 1], ["NM", "New Mexico", "Common Core State Standards", 1], ["NY", "New York", "New York State Next Generation Mathematics Learning Standards", 0],
+  ["NC", "North Carolina", "North Carolina Standard Course of Study", 0], ["ND", "North Dakota", "North Dakota Mathematics Content Standards", 0], ["OH", "Ohio", "Ohio's Learning Standards", 0],
+  ["OK", "Oklahoma", "Oklahoma Academic Standards", 0], ["OR", "Oregon", "Oregon Mathematics Standards", 1], ["PA", "Pennsylvania", "Pennsylvania Core Standards", 0],
+  ["RI", "Rhode Island", "Common Core State Standards", 1], ["SC", "South Carolina", "South Carolina College- and Career-Ready Standards", 0], ["SD", "South Dakota", "South Dakota Mathematics Standards", 0],
+  ["TN", "Tennessee", "Tennessee Academic Standards", 0], ["TX", "Texas", "Texas Essential Knowledge and Skills (TEKS)", 0], ["UT", "Utah", "Utah Core Standards", 0],
+  ["VT", "Vermont", "Common Core State Standards", 1], ["VA", "Virginia", "Virginia Standards of Learning", 0], ["WA", "Washington", "Washington K-12 Learning Standards", 1],
+  ["WV", "West Virginia", "West Virginia College- and Career-Readiness Standards", 0], ["WI", "Wisconsin", "Wisconsin Standards for Mathematics", 1], ["WY", "Wyoming", "Wyoming Mathematics Content and Performance Standards", 1],
+] as const).map(([id, name, standards, ccss]) => ({ id, name, standards, ccss: !!ccss }));
+export const stateById = (id: unknown): StateInfo | undefined => STATES.find((s) => s.id === id);
+/** How a lesson's code is labelled in a state: the state's own code, or the Common Core match. */
+export const codeLabel = (state: StateInfo | undefined, code: string) => (state?.ccss ? `${state.id} ${code}` : `Common Core ${code}`);
 export const isBand = (v: unknown): v is BandId => typeof v === "string" && (BAND_IDS as string[]).includes(v);
 export const isSkill = (v: unknown): v is SkillId => typeof v === "string" && Object.prototype.hasOwnProperty.call(SKILLS, v);
 

@@ -602,45 +602,55 @@ function landingHTML(){
 }
 
 /* ================= STUDENT: PRACTICE ================= */
-/* ================= STATE STANDARDS (Colorado to start) ================= */
-const STATE = 'CO';
+/* ================= STATE STANDARDS (all 50 states and DC) ================= */
+const STATE_KEY = 'arise_math_state';
+const myState = () => { const saved = (()=>{ try { return localStorage.getItem(STATE_KEY); } catch { return null; } })(); return (CAT.states||[]).find(s=>s.id===saved) || (CAT.states||[]).find(s=>s.id==='CO') || (CAT.states||[])[0]; };
 const BAND_GRADE = { k2:'1', g35:'4', g68:'7', g912:'HS' };
-const coLessons = g => (CAT.states?.[STATE]?.grades?.[g] || []);
+const coLessons = g => (CAT.gradeLessons?.[g] || []);
 const coGrade = () => (S.coGrade && CAT.grades?.includes(S.coGrade)) ? S.coGrade : BAND_GRADE[myBand()] || '4';
 const gradeShort = g => g==='K' ? 'K' : g==='HS' ? 'HS' : g;
+/** A lesson's code in the chosen state: the state's own code where it uses the Common Core codes, or the Common Core match. */
+const codeLabel = (st, code) => st?.ccss ? `${st.id} ${code}` : `Common Core ${code}`;
 function gradePick(){
   const g = coGrade();
   return `<div class="bandpick" role="group" aria-label="Grade">${(CAT.grades||[]).map(x=>`<button data-act="cograde" data-v="${x}" aria-pressed="${x===g}" title="${esc(CAT.gradeLabels[x])}">${gradeShort(x)}</button>`).join('')}</div>`;
 }
-/** Colorado lessons for one grade, each with its standard code. Students start a quiz; teachers can also print them. */
+function statePick(){
+  const st = myState();
+  return `<label class="f" style="max-width:280px"><span class="sr">State</span><select id="statePick" data-change="state" aria-label="State standards">${(CAT.states||[]).map(x=>`<option value="${x.id}" ${x.id===st?.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>`;
+}
+const stateNote = st => st ? (st.ccss ? esc(st.standards) : `Common Core codes shown. Check them against the ${esc(st.standards)}.`) : '';
+/** The chosen state's lessons for one grade. Students start a quiz; teachers can also print them. */
 function coCardHTML(){
-  if (!CAT.states?.[STATE]) return '';
-  const g = coGrade(), st = CAT.states[STATE];
+  if (!CAT.gradeLessons) return '';
+  const g = coGrade(), st = myState();
   const rows = coLessons(g).map(l=>{ const s=SK(l.skill), best=P()?.best?.[l.skill];
-    return `<div class="assign">${op(l.skill)}<div><b>${esc(s.name)}</b><span class="small muted">${esc(st.name)} ${esc(l.code)}${best!=null?` · Best ${best}/5`:''}</span></div><button class="btn primary sm" data-act="start" data-type="skill" data-v="${l.skill}">Start</button></div>`; }).join('');
-  return `<div class="card"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>${esc(st.name)} standards</h2><span class="small muted">${esc(CAT.gradeLabels[g])} · ${esc(st.source)}</span></div>${gradePick()}</div>${rows}</div>`;
+    return `<div class="assign">${op(l.skill)}<div><b>${esc(s.name)}</b><span class="small muted">${esc(codeLabel(st, l.code))}${best!=null?` · Best ${best}/5`:''}</span></div><button class="btn primary sm" data-act="start" data-type="skill" data-v="${l.skill}">Start</button></div>`; }).join('');
+  return `<div class="card"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>${esc(st?.name||'')} standards</h2><span class="small muted">${esc(CAT.gradeLabels[g])} · ${stateNote(st)}</span></div>${statePick()}</div><div style="margin-bottom:10px">${gradePick()}</div>${rows}</div>`;
 }
 /** Teachers: pick lessons from a grade and print a worksheet with an answer key. */
 function worksheetCardHTML(){
-  if (!CAT.states?.[STATE]) return '';
-  const g = coGrade(), st = CAT.states[STATE], ls = coLessons(g);
+  if (!CAT.gradeLessons) return '';
+  const g = coGrade(), st = myState(), ls = coLessons(g);
   const picked = S.wsPick && S.wsPick.g===g ? S.wsPick.skills : ls.map(l=>l.skill);
-  return `<div class="card stack" id="wsCard"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>Printable worksheets</h2><span class="small muted">${esc(st.name)} · ${esc(CAT.gradeLabels[g])}. New problems every time, with an answer key.</span></div>${gradePick()}</div>
-    <div class="qlist">${ls.map(l=>`<label style="display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" class="wsSkill" value="${l.skill}" data-code="${esc(l.code)}" ${picked.includes(l.skill)?'checked':''} style="width:20px;height:20px">${op(l.skill)}<span><b>${esc(SK(l.skill).name)}</b> <span class="small muted">${esc(l.code)}</span></span></label>`).join('')}</div>
+  return `<div class="card stack" id="wsCard"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>Printable worksheets</h2><span class="small muted">${esc(st?.name||'')} · ${esc(CAT.gradeLabels[g])}. New problems every time, with an answer key.</span></div>${statePick()}</div>
+    <div>${gradePick()}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn outline sm" data-act="wsall">Tick all</button><button class="btn outline sm" data-act="wsnone">Tick none</button></div>
+    <div class="qlist">${ls.map(l=>`<label style="display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" class="wsSkill" value="${l.skill}" data-code="${esc(l.code)}" ${picked.includes(l.skill)?'checked':''} style="width:20px;height:20px">${op(l.skill)}<span><b>${esc(SK(l.skill).name)}</b> <span class="small muted">${esc(codeLabel(st, l.code))}</span></span></label>`).join('')}</div>
     <div class="grid two">
-      <label class="f">Problems<select id="wsN">${[8,12,16,20,24,30].map(n=>`<option ${n===12?'selected':''}>${n}</option>`).join('')}</select></label>
+      <label class="f">Problems<select id="wsN">${[8,12,16,20,24,30,40].map(n=>`<option ${n===12?'selected':''}>${n}</option>`).join('')}</select></label>
       <label class="f">Title (optional)<input type="text" id="wsTitle" maxlength="80" placeholder="Unit 2 review"></label></div>
     <div class="row" style="gap:18px;flex-wrap:wrap">
       <label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="wsKey" checked style="width:20px;height:20px">Answer key</label>
       <label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="wsPics" checked style="width:20px;height:20px">Pictures</label></div>
-    <div><button class="btn primary" data-act="worksheet">${svg('plus')}Make worksheet</button></div></div>`;
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="worksheet">${svg('plus')}Make worksheet</button><button class="btn outline" data-act="worksheet" data-v="each">One page per lesson</button></div></div>`;
 }
-function openWorksheet(){
+function openWorksheet(each){
   const boxes = [...document.querySelectorAll('.wsSkill:checked')];
   if (!boxes.length) return toast('Tick at least one lesson.');
-  const q = new URLSearchParams({ skills: boxes.map(b=>b.value).join(','), codes: boxes.map(b=>b.dataset.code).join(','), n: document.getElementById('wsN').value,
-    key: document.getElementById('wsKey').checked ? '1' : '0', pictures: document.getElementById('wsPics').checked ? '1' : '0', title: document.getElementById('wsTitle').value.trim() });
-  window.open('/api/math/worksheet?' + q.toString(), '_blank', 'noopener');
+  const base = { n: document.getElementById('wsN').value, state: myState()?.id || 'CO',
+    key: document.getElementById('wsKey').checked ? '1' : '0', pictures: document.getElementById('wsPics').checked ? '1' : '0', title: document.getElementById('wsTitle').value.trim() };
+  window.open('/api/math/worksheet?' + new URLSearchParams({ ...base, ...(each ? { each:'1' } : {}), skills: boxes.map(b=>b.value).join(','), codes: boxes.map(b=>b.dataset.code).join(',') }).toString(), '_blank', 'noopener');
 }
 
 function practiceHTML(){
@@ -942,7 +952,7 @@ function assignHTML(){
   const asg = S.assign, d = S.drafts, b = S.cls?.settings.band || 'g35';
   return `<div class="card"><h1>Assign practice</h1><p class="muted" style="margin-top:4px">Assignments show up first on each student’s Practice page, and they get a notification.</p></div>
     <div class="card stack"><h2>New assignment</h2><div class="grid two">
-      <label class="f">Skill<select id="aSkill">${CAT.bands[b].skills.map(id=>`<option value="${id}">${esc(SK(id).name)} (${esc(SK(id).std)})</option>`).join('')}<option value="mixed">Mixed review</option>${d.length?`<option value="custom">My questions (${d.length})</option>`:''}${(CAT.grades||[]).map(g=>coLessons(g).length?`<optgroup label="${esc(CAT.states[STATE].name)} · ${esc(CAT.gradeLabels[g])}">${coLessons(g).map(l=>`<option value="${l.skill}">${esc(SK(l.skill).name)} (${esc(l.code)})</option>`).join('')}</optgroup>`:'').join('')}</select></label>
+      <label class="f">Skill<select id="aSkill">${CAT.bands[b].skills.map(id=>`<option value="${id}">${esc(SK(id).name)} (${esc(SK(id).std)})</option>`).join('')}<option value="mixed">Mixed review</option>${d.length?`<option value="custom">My questions (${d.length})</option>`:''}${(CAT.grades||[]).map(g=>coLessons(g).length?`<optgroup label="${esc(CAT.gradeLabels[g])}">${coLessons(g).map(l=>`<option value="${l.skill}">${esc(SK(l.skill).name)} (${esc(codeLabel(myState(), l.code))})</option>`).join('')}</optgroup>`:'').join('')}</select></label>
       <label class="f">Questions<select id="aN"><option>5</option><option>10</option></select></label>
       <label class="f">Due<input type="date" id="aDue" value="${plus(2)}" min="${plus(0)}"></label></div>
       <div><button class="btn primary" data-act="assign">${svg('plus')}Assign to class</button></div></div>
@@ -1102,6 +1112,9 @@ async function saveMe(body){
   try { const r = await api('/me', { method:'PUT', body }); ME.profile = r.profile; ME.band = r.band; render(); }
   catch(e){ toast(e.message); }
 }
+document.addEventListener('change', e=>{
+  if (e.target && e.target.id==='statePick'){ try { localStorage.setItem(STATE_KEY, e.target.value); } catch {} render(); }
+});
 document.addEventListener('click', async e=>{
   const el = e.target.closest('[data-act]');
   if (S.menu && !e.target.closest('.menu') && !(el && el.dataset.act==='menu')) { S.menu=false; renderChrome(); }
@@ -1122,7 +1135,8 @@ document.addEventListener('click', async e=>{
     case 'band': { if (S.run) return; return saveMe({ band: v || null }).then(()=>{ S.board=null; }); }
     case 'start': return startQuiz(el.dataset.type, v);
     case 'cograde': S.coGrade = v; S.wsPick = null; return render();
-    case 'worksheet': return openWorksheet();
+    case 'worksheet': return openWorksheet(v==='each');
+    case 'wsall': case 'wsnone': document.querySelectorAll('.wsSkill').forEach(b=>{ b.checked = act==='wsall'; }); return;
     case 'quit': S.run=null; store.set('arise_math_run', null); return render();
     case 'pick': return submitAnswer(v);
     case 'key': { const inp=document.getElementById('ans'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }

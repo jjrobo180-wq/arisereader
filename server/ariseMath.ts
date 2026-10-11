@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import { createAttemptLimiter } from "./attemptLimiter";
 import { bandForGrade } from "../shared/ariseSocial";
 import {
-  ACHIEVEMENTS, BANDS, CERT_TITLES, DAILY_GOAL, GRADES, GRADE_LABELS, LEVEL_POINTS, LEVELS, LIMITS, MILESTONES, POINTS, SKILLS, STATE_LESSONS, STYLES,
+  ACHIEVEMENTS, BANDS, CERT_TITLES, DAILY_GOAL, GRADES, GRADE_LABELS, LEVEL_POINTS, LEVELS, LIMITS, MILESTONES, POINTS, SKILLS, GRADE_LESSONS, STATES, STYLES, stateById,
   accuracy, addPoints, cleanCustom, cleanMathProfile, customProblem, earnedAchievements, emptyMathProfile, isBand, isRight, isSkill,
   makeProblem, mathDay, mathWeek, parseAnswer, profileNow, strength, touchStreak,
   type BandId, type CustomQuestion, type MathProfile, type Problem, type Rng, type SkillId,
@@ -321,7 +321,7 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     res.json({
       bands: BANDS, skills: Object.fromEntries(Object.entries(SKILLS).map(([id, s]) => [id, { name: s.name, std: s.std, glyph: s.glyph, c: s.c, band: s.band }])),
       points: POINTS, levels: LEVELS, levelPoints: LEVEL_POINTS, dailyGoal: DAILY_GOAL, styles: STYLES, milestones: MILESTONES, achievements: ACHIEVEMENTS,
-      grades: GRADES, gradeLabels: GRADE_LABELS, states: STATE_LESSONS, certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
+      grades: GRADES, gradeLabels: GRADE_LABELS, states: STATES, gradeLessons: GRADE_LESSONS, certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
     });
   });
 
@@ -335,6 +335,8 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
       title: String(q.title || "").replace(/[\u0000-\u001f]/g, " ").slice(0, 80),
       key: q.key !== "0", pictures: q.pictures !== "0",
       codes: String(q.codes || "").split(",").slice(0, 12).map((c: string) => c.replace(/[^A-Za-z0-9.\-]/g, "").slice(0, 16)),
+      state: String(q.state || "").slice(0, 2).toUpperCase(),
+      each: q.each === "1",
     });
     res.set?.("Cache-Control", "no-store");
     res.type("text/html").send(html);
@@ -817,7 +819,20 @@ const escHTML = (t: string) => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<"
  * line for the name and date, and an answer key with the steps on its own page. Pictures (ten frames, arrays,
  * number lines) come along when asked. Choice questions list their choices to circle.
  */
-export function worksheetHTML(skills: SkillId[], n: number, opts: { title?: string; key?: boolean; pictures?: boolean; codes?: string[] }, r: Rng = Math.random): string {
+export function worksheetHTML(skills: SkillId[], n: number, opts: { title?: string; key?: boolean; pictures?: boolean; codes?: string[]; state?: string; each?: boolean }, r: Rng = Math.random): string {
+  const st = stateById(opts.state || "CO");
+  // One page per lesson: a packet with each lesson on its own page, and the keys at the back.
+  if (opts.each && skills.length > 1) {
+    const one = skills.map((sk, i) => worksheetHTML([sk], n, { ...opts, each: false, title: SKILLS[sk].name, codes: opts.codes?.[i] ? [opts.codes[i]] : undefined }, r));
+    const part = (html: string, cls: string) => { const m = html.match(new RegExp(`<${cls === "key" ? 'section class="key"' : 'div class="page">'}[\\s\\S]*?${cls === "key" ? "</section>" : "<footer>A.R.I.S.E. Math</footer>"}`)); return m ? m[0] : ""; };
+    const head = one[0].slice(0, one[0].indexOf('<div class="page">'));
+    const pages = one.map((h) => part(h, "page").replace(/^<div class="page">/, '<div class="lesson">')).join("");
+    const keys = opts.key !== false ? one.map((h) => part(h, "key")).join("") : "";
+    return head.replace(/<title>[^<]*<\/title>/, `<title>${escHTML(opts.title || "Math practice packet")} · A.R.I.S.E. Math</title>`)
+      .replace(/<b>[^<]*<\/b><span style="display:flex;gap:8px">/, `<b>${skills.length} lessons, one per page${opts.key !== false ? " + answer keys" : ""}</b><span style="display:flex;gap:8px">`)
+      .replace("</style>", ".lesson{break-after:page} .lesson:last-child{break-after:auto} .page .lesson + .lesson{margin-top:28px;padding-top:20px;border-top:2px dashed #ccc}@media print{.page .lesson + .lesson{border:0;margin:0;padding:0}}</style>")
+      + `<div class="page">${pages}${keys}</div></body></html>`;
+  }
   const items = Array.from({ length: n }, (_, i) => makeProblem(skills[i % skills.length], r));
   const names = [...new Set(skills.map((s) => SKILLS[s].name))];
   const codes = opts.codes?.filter(Boolean).length ? opts.codes!.filter(Boolean) : [...new Set(skills.map((s) => SKILLS[s].std))];
@@ -862,7 +877,7 @@ export function worksheetHTML(skills: SkillId[], n: number, opts: { title?: stri
 </style></head><body>
 <div class="bar"><b>${escHTML(title)}: ${n} problems${opts.key !== false ? " + answer key" : ""}</b><span style="display:flex;gap:8px"><button class="alt" onclick="location.reload()">New problems</button><button onclick="window.print()">Print</button></span></div>
 <div class="page">
-  <header><div><h1>${escHTML(title)}</h1><div class="sub">Colorado Academic Standards · ${codes.map(escHTML).join(", ")}</div></div>
+  <header><div><h1>${escHTML(title)}</h1><div class="sub">${st ? (st.ccss ? `${escHTML(st.standards)} · ${codes.map(escHTML).join(", ")}` : `Common Core ${codes.map(escHTML).join(", ")} · for use with ${escHTML(st.standards)}`) : `Common Core ${codes.map(escHTML).join(", ")}`}</div></div>
     <div class="who"><div>Name<span></span></div><div>Date<span></span></div></div></header>
   <ol>${items.map(problem).join("")}</ol>
   <footer>A.R.I.S.E. Math</footer>
