@@ -172,7 +172,7 @@ function Hero({ s, onStart }: { s: CycleSummary; onStart: () => void }) {
         <p className="text-2xl font-black">{s.late ? `Period is ${s.late} day${s.late === 1 ? "" : "s"} late` : s.onPeriod ? "On your period" : s.daysUntil === 0 ? "Period expected today" : `Period in ${s.daysUntil} day${s.daysUntil === 1 ? "" : "s"}`}</p>
         <p className="text-sm text-white/75">{s.phase && <><b style={{ color }}>{PHASE_GUIDE[s.phase as PhaseId].name}</b>. </>}{!s.late && s.nextStart && !s.onPeriod && <>Next expected around {shortDate(s.nextStart, { weekday: "short", month: "short", day: "numeric" })}. </>}{s.fertileStart && s.fertileEnd && <>Fertile window {shortDate(s.fertileStart, { month: "short", day: "numeric" })} – {shortDate(s.fertileEnd, { month: "short", day: "numeric" })}.</>}</p>
       </> : <><p className="text-2xl font-black">Log your last period to start</p><p className="text-sm text-white/75">Tap "Period started today", or open the Calendar and tap the first day of your last period.</p></>}
-      <button onClick={onStart} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#e0566b] px-4 text-sm font-bold text-white hover:bg-[#c84459]"><Droplets size={16} /> Period started today</button>
+      <button onClick={onStart} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#c63f55] px-4 text-sm font-bold text-white hover:bg-[#ad3448]"><Droplets size={16} /> Period started today</button>
     </div>
   </section>;
 }

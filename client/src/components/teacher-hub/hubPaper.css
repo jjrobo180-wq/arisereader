@@ -82,3 +82,9 @@
   .hub-paper:not(.hub-night) [data-hub-nav][aria-current="page"] { background-color: #16141f; color: #ffffff; }
   .hub-paper.hub-night [data-hub-nav][aria-current="page"] { background-color: #334155; color: #f1f5f9; }
 }
+
+/* Light text on the dark promo cards stays light in the paper look; the ink remap above
+   is only meant for text on paper. */
+.hub-paper:not(.hub-night) .bg-slate-950 .text-slate-400,
+.hub-paper:not(.hub-night) .bg-slate-950 .text-slate-300 { color: #cbd5e1; }
+.hub-paper:not(.hub-night) .text-\[\#7869d7\] { color: #5b48c9; }

@@ -41,9 +41,8 @@ import {
   WandSparkles,
   X,
   MoreHorizontal,
-  Puzzle,
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
-  Trophy, Clapperboard,
+  Trophy, Clapperboard, ShoppingBag,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkKit, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
@@ -379,7 +378,7 @@ function TeacherHubPage() {
     } catch { /* stays where it is */ }
   }, [location]);
   const [customize, setCustomize] = useState(false);
-  // The Arise Plugin Store. It opens straight away when the person switched here from LifeHub's store.
+  // The Arise App Store. It opens straight away when the person switched here from LifeHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
@@ -494,7 +493,7 @@ function TeacherHubPage() {
   const [homeTask, setHomeTask] = useState<string | null>(null);
   const [homeQuick, setHomeQuick] = useState("");
   const openTasks = workspace.tasks.filter((t) => !t.done).length;
-  /** The WorkHub plugins this teacher added from the Plugin Store, in the order they were added. They get their own place in the menu. */
+  /** The WorkHub apps this teacher added from the App Store, in the order they were added. They get their own place in the menu. */
   const myKits = ((workspace as any).kitInstalled as string[] | undefined ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d && d.hub === "work");
   const kitRecords = cleanKit((workspace as any).kitRecords, 8000);
   const setKitRecords = (update: (all: KitRecord[]) => KitRecord[]) => setWorkspace((prev) => ({ ...prev, kitRecords: cleanKit(update(cleanKit((prev as any).kitRecords, 8000)), 8000) }));
@@ -699,6 +698,8 @@ function TeacherHubPage() {
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
+        night={night}
+        accent={accent}
         teacher
         isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn)}
         onToggle={(p: Plugin, on: boolean) => {
@@ -734,7 +735,7 @@ function TeacherHubPage() {
             <button type="button" onClick={() => setAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
-            <button type="button" onClick={() => setStore(true)} aria-label="Plugin Store" title="Plugin Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-plugin-store"><Puzzle className="h-4 w-4" /> <span className="hidden lg:inline">Plugins</span></button>
+            <button type="button" onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-plugin-store"><ShoppingBag className="h-4 w-4" /> <span className="hidden lg:inline">App Store</span></button>
             <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize your Hub" aria-expanded={customize} className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize</span></button>
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><LogOut className="h-4 w-4" /></button>
             <div ref={moreRef} className="relative sm:hidden">
@@ -749,7 +750,6 @@ function TeacherHubPage() {
                         : <><CheckCircle2 className="h-4 w-4 text-emerald-600" />Saved</>}
                   </div>
                   <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{night ? "Day mode" : "Night mode"}</button>
-                  <button type="button" role="menuitem" onClick={() => { setStore(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Puzzle className="h-4 w-4" />Plugin Store</button>
                   <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize</button>
                   <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" />Sign out</button>
                 </div>
@@ -786,6 +786,15 @@ function TeacherHubPage() {
                 <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
               </div>
               <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
+                {"app store".includes(appsQuery.trim().toLowerCase()) && (
+                  <li>
+                    <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); setStore(true); }} data-testid="hub-app-store"
+                      className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                      <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-7 w-7" /></span>
+                      <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">App Store</span>
+                    </button>
+                  </li>
+                )}
                 {myKits.filter((d) => d.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((d) => { const Icon = kitIcon(d.icon); return (
                   <li key={`kit-${d.id}`} className="order-last">
                     <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { openKit(d.id); setApps(false); }} data-testid={`hub-app-kit-${d.id}`} className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
@@ -846,7 +855,7 @@ function TeacherHubPage() {
                 </div>
               );
             })}
-            {myKits.length > 0 && <p className="hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 md:block">My plugins</p>}
+            {myKits.length > 0 && <p className="hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 md:block">My apps</p>}
             {myKits.map((d) => {
               const Icon = kitIcon(d.icon);
               return (
@@ -859,6 +868,13 @@ function TeacherHubPage() {
                 </div>
               );
             })}
+            <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 md:mt-2 md:w-full md:border-t md:border-slate-100 md:pt-2`}>
+              <button type="button" onClick={() => { setStore(true); afterPick(); }} data-testid="hub-menu-app-store" data-hub-store
+                className="flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium">
+                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-3.5 w-3.5" /></span>
+                <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal`}>App Store</span>
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -867,7 +883,7 @@ function TeacherHubPage() {
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
                 <button type="button" onClick={() => setKitOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
-                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><Puzzle className="h-4 w-4" /> Plugin Store</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
               </div>
               <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={kitRecords} setRecords={setKitRecords} today={TODAY()} makeId={id} say={(m) => toasts.show(m, [])} />
             </div>
@@ -891,7 +907,7 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize" right={<button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button>}>
-              <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><Puzzle className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the Plugin Store</span>Add tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
+              <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
               <div className="mb-6 grid gap-5 lg:grid-cols-2" data-testid="customize-layout">
                 <div>
                   <h3 className="mb-1 text-sm font-semibold text-slate-900">Menu on your phone</h3>

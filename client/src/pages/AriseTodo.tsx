@@ -9,7 +9,8 @@ import {
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
   CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
-  ChevronUp, ChevronDown, Puzzle, MoreHorizontal, Save, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
+  ChevronUp, ChevronDown, MoreHorizontal, Save, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
+  ShoppingBag,
 } from "lucide-react";
 import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
@@ -256,7 +257,7 @@ export default function AriseTodo() {
     try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
   const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
-  // The Arise Plugin Store. It opens straight away when the person switched here from WorkHub's store.
+  // The Arise App Store. It opens straight away when the person switched here from WorkHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   // Going back to the old parent dashboard address while LifeHub is open lands on the Reader tab.
   useEffect(() => {
@@ -495,7 +496,11 @@ export default function AriseTodo() {
   const phone = usePhoneMenu(layout.menuSide, layout.menuClose);
   const [customizing, setCustomizing] = useState(false);
   const [more, setMore] = useState(false);
-  const phoneItems: PhoneMenuItem[] = sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: shown === id, badge: badge(id), onClick: () => setSection(id) }; });
+  const phoneItems: PhoneMenuItem[] = [
+    ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: shown === id, badge: badge(id), onClick: () => setSection(id) }; }),
+    // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
+    { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
+  ];
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
@@ -580,6 +585,7 @@ export default function AriseTodo() {
   return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""}`}>
     {store && <PluginStore
       hub="life"
+      night={night}
       teacher={user.role === "teacher" || !!user.isAdmin}
       isInstalled={(p: Plugin) => lifeInstalled(p, family)}
       onToggle={(p: Plugin, on: boolean) => {
@@ -624,7 +630,7 @@ export default function AriseTodo() {
           <button type="button" onClick={() => setLayout({ ...layout, home: LIFE_PARTS.map((x) => x.id), homeHidden: family.widgets.board ? [] : ["widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
         </section>
         <section className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-          <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><Puzzle size={16} /> Add plugins</button>
+          <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><ShoppingBag size={16} /> App Store</button>
           <button type="button" onClick={() => { setCustomizing(false); setSection("family"); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200"><Settings2 size={16} /> Sections, family and settings</button>
         </section>
       </div>
@@ -641,7 +647,7 @@ export default function AriseTodo() {
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
           <button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} aria-label="Notification settings"><Bell size={17} /></button>
           <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex">{night ? <Sun size={16} /> : <Moon size={16} />}</button>
-          <button onClick={() => setStore(true)} aria-label="Plugin Store" title="Plugin Store" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="lifehub-plugin-store-header"><Puzzle size={16} /> <span className="hidden lg:inline">Plugins</span></button>
+          <button onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="lifehub-plugin-store-header"><ShoppingBag size={16} /> <span className="hidden lg:inline">App Store</span></button>
           <button onClick={() => setCustomizing(true)} aria-label="Customize your LifeHub" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="life-customize"><Settings2 size={16} /> <span className="hidden lg:inline">Customize</span></button>
           <button onClick={() => void signOut()} aria-label="Sign out" title="Sign out" className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex"><LogOut size={16} /></button>
           <button onClick={openAdd} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf] sm:hidden" aria-label="Add task"><Plus size={18} /></button>
@@ -652,7 +658,6 @@ export default function AriseTodo() {
               <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
                 <div role="status" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-600">{sync.view.kind === "saved" ? <CheckCircle2 size={16} className="text-emerald-600" /> : sync.view.kind === "blocked" ? <AlertCircle size={16} className="text-rose-600" /> : <Save size={16} />}{saveStatus}</div>
                 <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun size={16} /> : <Moon size={16} />}{night ? "Day mode" : "Night mode"}</button>
-                <button type="button" role="menuitem" onClick={() => { setStore(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50" data-testid="lifehub-plugin-store-phone"><Puzzle size={16} />Plugin Store</button>
                 <button type="button" role="menuitem" onClick={() => { setCustomizing(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 size={16} />Customize</button>
                 <button type="button" role="menuitem" onClick={() => void signOut()} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut size={16} />Sign out</button>
               </div>
@@ -698,7 +703,7 @@ export default function AriseTodo() {
             );
           })}
         </nav>
-        <div className="hidden px-3 pt-2 lg:block"><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><Puzzle size={18} />Add plugins</button></div>
+        <div className="hidden px-3 pt-2 lg:block"><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
         <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0">

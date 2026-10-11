@@ -41,7 +41,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
   const pick = (item: PhoneMenuItem) => { item.onClick(); afterPick(); };
   const across = side === "top" || side === "bottom";
   const canHide = close !== "always";
-  const badge = (n?: number) => (n ? <span className="absolute right-1 top-0.5 min-w-[16px] rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-4 text-white">{n > 99 ? "99+" : n}</span> : null);
+  const badge = (n?: number) => (n ? <span className="absolute right-1 top-0.5 min-w-[16px] rounded-full bg-rose-600 px-1 text-[9px] font-bold leading-4 text-white">{n > 99 ? "99+" : n}</span> : null);
 
   if (side === "drawer") {
     const shown = items.filter((i) => i.label.toLowerCase().includes(query.trim().toLowerCase()));

@@ -275,7 +275,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
           {(plugins.length > 0 || onOpenStore) && (
             <div data-testid="home-plugins">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-slate-900">Plugins</p>
+                <p className="text-sm font-semibold text-slate-900">Apps</p>
                 {onOpenStore && <button type="button" onClick={onOpenStore} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">See all</button>}
               </div>
               {plugins.length ? (
@@ -291,7 +291,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
                     );
                   })}
                 </div>
-              ) : <p className="text-sm text-slate-500">Every plugin is added.</p>}
+              ) : <p className="text-sm text-slate-500">Every app is added.</p>}
             </div>
           )}
         </div>

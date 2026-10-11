@@ -94,10 +94,18 @@ export function Label({ text, children, className = "" }: { text: string; childr
   return <label className={`block text-xs font-bold text-slate-600 ${className}`}>{text}<div className="mt-1.5">{children}</div></label>;
 }
 
+/** White or near-black, whichever reads better on a colour (a member's colour can be pale). */
+function inkOn(hex: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
+  const [r, g, b] = [1, 3, 5].map((i) => { const v = parseInt(hex.slice(i, i + 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 1.05 / (L + 0.05) >= (L + 0.05) / 0.05 ? "#ffffff" : "#1e1b33";
+}
+
 export function Avatar({ member, size = "md" }: { member?: Member; size?: "sm" | "md" | "lg" }) {
   const box = size === "sm" ? "h-6 w-6 text-[11px]" : size === "lg" ? "h-12 w-12 text-xl" : "h-8 w-8 text-sm";
   if (!member) return <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-slate-100 font-black text-slate-400 ${box}`}>?</span>;
-  return <span className={`inline-flex shrink-0 items-center justify-center rounded-full font-black text-white ${box}`} style={{ background: member.color }} aria-hidden="true">{member.emoji || member.name.slice(0, 1).toUpperCase()}</span>;
+  return <span className={`inline-flex shrink-0 items-center justify-center rounded-full font-black ${box}`} style={{ background: member.color, color: inkOn(member.color) }} aria-hidden="true">{member.emoji || member.name.slice(0, 1).toUpperCase()}</span>;
 }
 
 export function MemberTag({ member, fallback = "Anyone" }: { member?: Member; fallback?: string }) {

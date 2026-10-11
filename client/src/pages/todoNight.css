@@ -72,3 +72,15 @@
 .todo-night .text-slate-100 { color: #26244a; }
 .todo-night .hover\:border-sky-300:hover { border-color: #38bdf8; }
 .todo-night .text-sky-500 { color: #7dd3fc; }
+
+/* Found by checking every LifeHub screen at night (October 2026). */
+/* The header stayed light, with pale words on it. */
+.todo-night .bg-white\/95, .todo-night .bg-white\/90, .todo-night .bg-white\/80 { background-color: rgba(23, 22, 43, 0.95); }
+.todo-night .text-violet-800 { color: #b9b0ff; }
+/* Pale words on the dark ink panels stay pale. */
+.todo-night .bg-\[\#292446\] .text-slate-300, .todo-night .bg-\[\#292446\] .text-slate-400, .todo-night .bg-slate-900 .text-slate-300 { color: #cfcce3; }
+.todo-night .bg-teal-50, .todo-night .bg-teal-50\/60, .todo-night .bg-teal-100 { background-color: rgba(20, 184, 166, 0.16); }
+.todo-night .text-teal-600, .todo-night .text-teal-700, .todo-night .text-teal-800, .todo-night .text-teal-900 { color: #5eead4; }
+.todo-night .border-teal-200, .todo-night .border-teal-300 { border-color: rgba(20, 184, 166, 0.4); }
+/* Calendar chips are tinted with their list's colour; at night their words are light so they read on any tint. */
+.todo-night .cal-chip { color: #ece9fb !important; }
