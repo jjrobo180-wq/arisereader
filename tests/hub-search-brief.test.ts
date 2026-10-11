@@ -30,6 +30,11 @@ test("layouts keep a computer menu choice and clean folders; folders group the m
   const menu = ["home", "calendar", "caseload", "tasks", "notes"].map((id) => ({ id }));
   const folded = foldMenu(menu, l.folders);
   assert.deepEqual(folded.map((e) => (e.kind === "item" ? e.item.id : `[${e.folder.name}:${e.items.map((i) => i.id).join(",")}]`)), ["home", "[Planning:calendar,tasks]", "caseload", "[Dup:notes]"]);
+  // A folder just made in Customize has nothing in it yet, and no section to sit next to — it still shows,
+  // at the end, rather than disappearing until something is dropped into it.
+  const freshlyMade = [...l.folders, { id: "c", name: "Empty So Far", items: [] }];
+  const foldedWithEmpty = foldMenu(menu, freshlyMade);
+  assert.deepEqual(foldedWithEmpty.map((e) => (e.kind === "item" ? e.item.id : `[${e.folder.name}:${e.items.map((i) => i.id).join(",")}]`)), ["home", "[Planning:calendar,tasks]", "caseload", "[Dup:notes]", "[Empty So Far:]"]);
 });
 
 test("the daily brief gathers today's schedule, to-dos and deadlines", () => {

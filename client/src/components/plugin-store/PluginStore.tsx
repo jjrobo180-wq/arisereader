@@ -18,8 +18,10 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import HubMark from "@/components/HubMark";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
+import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { KIT_ICONS } from "@/components/plugin-kit/kitIcons";
 import { kitDef, type KitRecord } from "@shared/pluginKit";
+import type { Note } from "@shared/notesApp";
 import {
   PLUGIN_CATEGORIES, connectionNeeds, isAddable, pluginsFor, searchPlugins, OPEN_STORE_KEY, type Plugin, type PluginHub,
 } from "@shared/pluginStore";
@@ -109,6 +111,9 @@ export type PluginStoreProps = {
   onClose: () => void;
   /** WorkHub's Plugin Kit apps open inside the store, with their records kept in the hub. */
   kit?: { records: KitRecord[]; setRecords: (update: (all: KitRecord[]) => KitRecord[]) => void; today: string; makeId: () => string };
+  /** Installed Notes-app plugins (see shared/notesApp.ts) open inside the store, keyed by plugin id
+   *  so each install (LifeHub Notes in WorkHub, Work Notes in LifeHub) keeps its own separate notes. */
+  notesApp?: { notes: Record<string, Note[]>; setNotes: (id: string, update: (all: Note[]) => Note[]) => void; makeId: () => string };
   /** The hub is in night mode. */
   night?: boolean;
   /** The hub's accent colour (a hex), for buttons and selected chips. */
@@ -134,7 +139,7 @@ function Tile({ p, size = "md" }: { p: Plugin; size?: "md" | "lg" }) {
 /** How many apps a category shows before "See all". */
 const PER_CATEGORY = 6;
 
-export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpen, onClose, kit, night = false, accent }: PluginStoreProps) {
+export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent }: PluginStoreProps) {
   const { token } = useAuth();
   const pal = useMemo(() => storePalette(hub, night, accent), [hub, night, accent]);
   const vars = {
@@ -152,7 +157,9 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const [running, setRunning] = useState<string | null>(null);
   const runningRef = useRef(running);
   runningRef.current = running;
-  const openPlugin = (p: Plugin) => { if (p.target.kind === "kit" && kit) { setRunning(p.target.id); setOpenId(null); } else onOpen(p); };
+  const openPlugin = (p: Plugin) => { if (p.target.kind === "kit" && kit) { setRunning(p.target.id); setOpenId(null); } else if (p.target.kind === "notesApp" && notesApp) { setRunning(p.target.id); setOpenId(null); } else onOpen(p); };
+  /** The running plugin's definition: either a Kit plugin, or a Notes-app install (by its store id). */
+  const runningNotesApp = running ? all.find((p) => p.id === running && p.target.kind === "notesApp") : null;
   const closeRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLElement>(null);
   // The hub redraws often (clocks, saving), so the latest close and open-detail live in refs
@@ -406,13 +413,14 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
       </div>
     </main>
 
-    {running && kit && kitDef(running) && <div className="fixed inset-0 z-[87] flex flex-col bg-[var(--s-bg)]" role="dialog" aria-modal="true" aria-label={kitDef(running)!.name} data-testid="kit-running">
+    {running && ((kit && kitDef(running)) || (notesApp && runningNotesApp)) && <div className="fixed inset-0 z-[87] flex flex-col bg-[var(--s-bg)]" role="dialog" aria-modal="true" aria-label={kitDef(running)?.name || runningNotesApp?.name} data-testid="kit-running">
       <div className="shrink-0 border-b border-[var(--s-line)] bg-[var(--s-surface)] pt-[env(safe-area-inset-top)]"><div className="mx-auto flex h-14 max-w-[1100px] items-center gap-2 px-3 sm:px-6">
         <button type="button" onClick={() => setRunning(null)} className={`inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-bold text-[var(--s-text)] ${ring}`} data-testid="kit-back">← {STORE_NAME}</button>
         <span className="ml-auto text-xs font-bold uppercase tracking-[.14em] text-[var(--s-faint)]">{HUB_NAME[hub]} app</span>
       </div></div>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"><div className="mx-auto max-w-[1100px] px-4 py-6 sm:px-6">
-        <KitPlugin key={running} def={kitDef(running)!} records={kit.records} setRecords={kit.setRecords} today={kit.today} makeId={kit.makeId} say={setNote} />
+        {kit && kitDef(running) && <KitPlugin key={running} def={kitDef(running)!} records={kit.records} setRecords={kit.setRecords} today={kit.today} makeId={kit.makeId} say={setNote} />}
+        {notesApp && runningNotesApp && <NotesKitApp key={running} name={runningNotesApp.name} blurb={runningNotesApp.description} notes={notesApp.notes[running] ?? []} setNotes={(update) => notesApp.setNotes(running, update)} makeId={notesApp.makeId} say={setNote} />}
       </div></div>
     </div>}
     {note && <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[90] flex justify-center px-4"><p className="max-w-md rounded-2xl px-4 py-3 text-sm font-semibold shadow-xl" style={{ background: night ? "#f8fafc" : "#15141d", color: night ? "#15141d" : "#ffffff" }}>{note}</p></div>}

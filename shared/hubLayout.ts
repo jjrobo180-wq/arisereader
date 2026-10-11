@@ -69,7 +69,9 @@ export function cleanFolders(raw: unknown): MenuFolder[] {
 }
 
 export type MenuEntry<T> = { kind: "item"; item: T } | { kind: "folder"; folder: MenuFolder; items: T[] };
-/** The menu with folders: each folder sits where its first section was, holding its sections; empty folders drop out. */
+/** The menu with folders: each folder sits where its first section was, holding its sections.
+ *  A folder with nothing in it yet (just made in Customize) has no section to sit next to, so it
+ *  shows at the end instead of disappearing — otherwise making a new folder looks like it did nothing. */
 export function foldMenu<T extends { id: string }>(items: T[], folders: MenuFolder[]): MenuEntry<T>[] {
   const out: MenuEntry<T>[] = [], placed = new Set<string>();
   for (const item of items) {
@@ -79,6 +81,7 @@ export function foldMenu<T extends { id: string }>(items: T[], folders: MenuFold
     placed.add(f.id);
     out.push({ kind: "folder", folder: f, items: items.filter((i) => f.items.includes(i.id)) });
   }
+  for (const f of folders) if (!placed.has(f.id)) out.push({ kind: "folder", folder: f, items: [] });
   return out;
 }
 

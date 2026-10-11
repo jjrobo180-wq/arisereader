@@ -1,7 +1,7 @@
 // Arise WorkHub: the Notes tab. A note is about a student (a check-in, a concern) or it is not about
 // any one student (a staff meeting, a team meeting, a training). Notes can be searched and changed.
 import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { Check, Pencil, Plus, Trash2, User, Users } from "lucide-react";
+import { Check, Pencil, Plus, Search, Trash2, User, Users } from "lucide-react";
 import { GENERAL_NOTE_KINDS, STUDENT_NOTE_KINDS, NOTE_TITLE_MAX, arrangeNotes, cleanNote, noteCounts, noteFields, noteHeading, noteScope, saveNote, type NoteFields, type NoteFilter, type NoteScope } from "@shared/hubNotes";
 import type { NoteItem, Workspace } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
@@ -86,44 +86,57 @@ export function NoteCard({ note, onEdit, onDelete }: { note: NoteItem; onEdit?: 
 export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { workspace: Workspace; setWorkspace: SetWorkspace; remove: (key: "notes", rowId: string) => void; makeId: () => string }) {
   const students = useMemo(() => workspace.students.map((s) => s.name), [workspace.students]);
   const [form, setForm] = useState<NoteFields>(() => blank("student"));
+  const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState<NoteFilter>("all");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<NoteItem | null>(null);
   const counts = noteCounts(workspace.notes);
   const shown = useMemo(() => arrangeNotes(workspace.notes, filter, search), [workspace.notes, filter, search]);
   const ready = !!cleanNote(form);
-  function add(e: FormEvent) {
-    e.preventDefault();
+  function add(e?: FormEvent) {
+    e?.preventDefault();
     if (!ready) return;
     setWorkspace((p) => saveNote(p, null, form, makeId));
-    // The next note is most likely of the same sort, on the same day.
-    setForm({ ...blank(form.scope), type: form.type, date: form.date });
+    setForm(blank("student"));
+    setAdding(false);
   }
-  const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
+  const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
   return (
     <>
-      <Card title="Add a note">
-        <p className="mb-4 text-sm text-slate-600">Notes about a student go with that student. Notes from a staff meeting, a team meeting or a training don't need a student at all.</p>
-        <form onSubmit={add} className="space-y-3" data-testid="note-add">
-          <NoteBoxes form={form} setForm={setForm} students={students} />
-          <PrimaryButton type="submit" disabled={!ready}><Plus className="h-4 w-4" /> Add note</PrimaryButton>
-        </form>
-      </Card>
-      <Card title="Notes">
+      <section className="min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
+          <h2 className="hub-card-title font-semibold text-slate-900">Notes</h2>
+          <button type="button" onClick={() => { setForm(blank("student")); setAdding(true); }} data-testid="add-card-add-note"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700">
+            <Plus className="h-4 w-4" /> Add note
+          </button>
+        </div>
+      </section>
+      <Card>
         {workspace.notes.length > 0 && (
-          <>
-            <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="Show">
+          <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Show">
               <button type="button" className={chip(filter === "all")} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All <span className="opacity-70">{counts.all}</span></button>
               <button type="button" className={chip(filter === "student")} aria-pressed={filter === "student"} onClick={() => setFilter("student")}>Students <span className="opacity-70">{counts.student}</span></button>
               <button type="button" className={chip(filter === "general")} aria-pressed={filter === "general"} onClick={() => setFilter("general")}>Meetings &amp; general <span className="opacity-70">{counts.general}</span></button>
             </div>
-            <Field type="search" placeholder="Search notes" aria-label="Search notes" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-4" />
-          </>
+            <div className="relative min-w-0 flex-1 sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Field type="search" placeholder="Search notes" aria-label="Search notes" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            </div>
+          </div>
         )}
         {shown.length
           ? <div className="space-y-3">{shown.map((n) => <NoteCard key={n.id} note={n} onEdit={() => setEditing(n)} onDelete={() => remove("notes", n.id)} />)}</div>
-          : <Empty>{workspace.notes.length ? "No notes match." : "No notes yet."}</Empty>}
+          : <Empty>{workspace.notes.length ? "No notes match." : "No notes yet. Tap “Add note” to write the first one."}</Empty>}
       </Card>
+      {adding && (
+        <HubModal title="New note" size="lg" closeOnBackdrop onClose={() => setAdding(false)}
+          footer={<div className="flex gap-2"><PrimaryButton onClick={() => add()} disabled={!ready}><Plus className="h-4 w-4" /> Add note</PrimaryButton><GhostButton onClick={() => setAdding(false)}>Cancel</GhostButton></div>}>
+          <p className="mb-4 text-sm text-slate-600">Notes about a student go with that student. Notes from a staff meeting, a team meeting or a training don't need a student at all.</p>
+          <form onSubmit={add} data-testid="note-add"><NoteBoxes form={form} setForm={setForm} students={students} /><button type="submit" hidden /></form>
+        </HubModal>
+      )}
       {editing && <NoteModal key={editing.id} note={editing} students={students} onSave={(fields) => setWorkspace((p) => saveNote(p, editing.id, fields, makeId))} onClose={() => setEditing(null)} />}
     </>
   );

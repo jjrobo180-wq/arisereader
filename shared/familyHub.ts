@@ -226,6 +226,11 @@ export type Family = {
   medical: MedicalCard[];
   /** Records for the Plugin Kit's LifeHub plugins (see shared/pluginKit.ts). */
   kit: KitRecord[];
+  /** Notes-app plugins (see shared/notesApp.ts) added from the App Store that aren't built into
+   *  LifeHub, by their plugin id ("life-work-notes" for Work Notes). Each keeps its own notes in
+   *  notesApps, separate from LifeHub's own built-in Notes (above) and from each other. */
+  notesInstalled: string[];
+  notesApps: Record<string, Note[]>;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -261,6 +266,7 @@ export const emptyFamily = (): Family => ({
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], linkPage: { title: "", bio: "", links: [] },
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
   sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [],
+  notesInstalled: [], notesApps: {},
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -578,6 +584,21 @@ export function cleanFamily(input: unknown): Family {
     }),
     kit: cleanKit(raw.kit),
     savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
+    notesInstalled: Array.isArray(raw.notesInstalled) ? [...new Set(raw.notesInstalled.filter((x: unknown): x is string => typeof x === "string" && !!x && x.length <= 60))].slice(0, 20) : [],
+    // Notes-app installs (shared/notesApp.ts): same shape as the built-in Notes above, one list per
+    // installed app so each keeps its own separate notes.
+    notesApps: (() => {
+      const out: Record<string, Note[]> = {};
+      for (const [pid, list] of Object.entries(obj(raw.notesApps) || {}).slice(0, 20)) {
+        if (pid.length > 60 || !Array.isArray(list)) continue;
+        out[pid] = rows(list, LIMITS.notes, (r) => {
+          const title = str(r.title, 120);
+          const body = str(r.body, 5000);
+          return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40) } : null;
+        });
+      }
+      return out;
+    })(),
   };
 }
 

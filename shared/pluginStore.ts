@@ -29,6 +29,9 @@ export type PluginTarget =
   | { kind: "widget"; widget: "stickies" | "board"; opens: FamilySection }
   /** A WorkHub Plugin Kit plugin: added to workspace.kitInstalled and opened from the store. */
   | { kind: "kit"; id: string }
+  /** The Notes app, installed into a hub it isn't built into: added to workspace.notesInstalled or
+   *  family.notesInstalled and opened from the store. Its notes are separate from the hub's own. */
+  | { kind: "notesApp"; id: string; label: string }
   | { kind: "connection"; needs: { tab: HubTab } | { section: FamilySection } }
   /** The AI assistant: a chat button on every page of the hub. */
   | { kind: "assistant" }
@@ -112,9 +115,12 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "work-tasks", hub: "work", name: "Tasks", tagline: "To-dos with due dates and repeats", category: "Planning", icon: "CheckSquare", color: "#0d9488", featured: true, target: tab("tasks"),
     description: "A to-do list that keeps up with school life: due dates, repeating to-dos and importance.",
     features: ["Due dates and repeats", "Mark what's important", "Undo a check-off", "Forwarded emails become to-dos"] },
-  { id: "work-notes", hub: "work", name: "Notes", tagline: "Notes about students and meetings", category: "Planning", icon: "StickyNote", color: "#ca8a04", target: tab("notes"),
+  { id: "work-notes", hub: "work", name: "Work Notes", tagline: "Notes about students and meetings", category: "Planning", icon: "StickyNote", color: "#ca8a04", target: tab("notes"),
     description: "Keep notes by student or on their own: staff meetings, trainings, phone calls.",
     features: ["Notes by student", "Notes on their own", "Search everything"] },
+  { id: "work-lifehub-notes", hub: "work", name: "LifeHub Notes", tagline: "Quick pinnable notes, the LifeHub way", category: "Planning", icon: "StickyNote", color: "#e5b04f", target: { kind: "notesApp", id: "work-lifehub-notes", label: "LifeHub Notes" },
+    description: "The same simple, colorful note cards LifeHub users keep for codes, lists and ideas — now in WorkHub too. A separate set of notes from Work Notes, just for the quick stuff you'd normally jot on a sticky note.",
+    features: ["Color-coded note cards", "Pin your most-used notes to the top", "Search across every note", "Its own notes, separate from Work Notes"] },
   { id: "work-lessons", hub: "work", name: "Lessons", tagline: "Plan lessons by subject and group", category: "Planning", icon: "BookOpenCheck", color: "#2563eb", target: tab("lessons"),
     description: "Plan lessons with their objective, materials and the group they're for.",
     features: ["Objective and materials", "By subject and group", "Dated, so you can plan ahead"] },
@@ -199,9 +205,12 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-money", hub: "life", name: "Budget & bills", tagline: "Bills, budget and spending", category: "Money & home", icon: "Wallet", color: "#16a34a", featured: true, target: section("money"),
     description: "Every bill with its due day, a monthly budget and where the money went.",
     features: ["Bill due dates", "Budget by category", "Spending this month"] },
-  { id: "life-notes", hub: "life", name: "Notes", tagline: "Codes, contacts, lists and ideas", category: "Money & home", icon: "StickyNote", color: "#e5b04f", target: section("notes"),
+  { id: "life-notes", hub: "life", name: "LifeHub Notes", tagline: "Codes, contacts, lists and ideas", category: "Money & home", icon: "StickyNote", color: "#e5b04f", target: section("notes"),
     description: "Colourful notes for the things you keep looking up: codes, contacts, lists and ideas.",
     features: ["Pin what matters", "Colours", "Search"] },
+  { id: "life-work-notes", hub: "life", name: "Work Notes", tagline: "A second, separate set of notes", category: "Money & home", icon: "StickyNote", color: "#ca8a04", target: { kind: "notesApp", id: "life-work-notes", label: "Work Notes" },
+    description: "The same note-card feature as LifeHub Notes, as a second, separate app. Handy if you want to keep work-related notes apart from everything else in LifeHub Notes.",
+    features: ["Color-coded note cards", "Pin your most-used notes to the top", "Search across every note", "Its own notes, separate from LifeHub Notes"] },
   { id: "life-goals", hub: "life", name: "Goals", tagline: "Personal and family goals", category: "Everyday", icon: "Target", color: "#7566e8", target: section("goals"),
     description: "Personal and family goals with progress you can see.",
     features: ["Goals by area of life", "Progress bars", "Family goals too"] },
@@ -398,8 +407,13 @@ export function pluginsFor(hub: PluginHub, opts: { teacher: boolean }): Plugin[]
   return PLUGINS.filter((p) => p.hub === hub && (!p.teacherOnly || opts.teacher));
 }
 
+/** A Notes-app plugin (see shared/notesApp.ts) by its App Store id, in the given hub. */
+export function notesAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
+  return PLUGINS.find((p) => p.hub === hub && p.id === id && p.target.kind === "notesApp");
+}
+
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
-export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit";
+export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp";
 
 /** Where a plugin opens in its hub: a WorkHub tab or a LifeHub section. null for an Arise app. */
 export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySection } | null {
@@ -414,11 +428,12 @@ export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySecti
 // ── WorkHub ────────────────────────────────────────────────────────────────
 
 /** Is this WorkHub plugin on? A tab is on unless it was switched off. */
-export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[], assistant?: boolean, widgets?: boolean): boolean {
+export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[], assistant?: boolean, widgets?: boolean, notesInstalled?: readonly string[]): boolean {
   const t = p.target;
   if (t.kind === "widget") return t.widget === "board" && !!widgets;
   if (t.kind === "assistant") return !!assistant;
   if (t.kind === "kit") return !!kitInstalled?.includes(t.id);
+  if (t.kind === "notesApp") return !!notesInstalled?.includes(t.id);
   if (t.kind === "tab") return visibleTabs[t.tab] !== false;
   if (t.kind === "connection" && "tab" in t.needs) return visibleTabs[t.needs.tab] !== false;
   return false;
@@ -432,6 +447,15 @@ export function setWorkKit(list: readonly string[] | undefined, p: Plugin, on: b
   return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
 }
 
+/** WorkHub's added Notes-app installs with this one added or removed. Removing keeps its saved notes:
+ *  adding it back brings them right back, the same as any other plugin. */
+export function setWorkNotesApp(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
+  const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
+  if (p.target.kind !== "notesApp") return cur;
+  const id = p.target.id;
+  return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
+}
+
 /** The WorkHub's tab switches with this plugin added or removed. Nothing else changes. */
 export function setWorkPlugin<V extends Partial<Record<HubTab, boolean>>>(visibleTabs: V, p: Plugin, on: boolean): V {
   if (p.target.kind !== "tab") return visibleTabs;
@@ -441,13 +465,14 @@ export function setWorkPlugin<V extends Partial<Record<HubTab, boolean>>>(visibl
 // ── LifeHub ────────────────────────────────────────────────────────────────
 
 /** Is this LifeHub plugin on? A section is on unless it was switched off. */
-export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets">>): boolean {
+export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets">>, notesInstalled?: readonly string[]): boolean {
   const t = p.target;
   const sectionOn = (s: FamilySection) => isOn(s, family);
   if (t.kind === "section") return sectionOn(t.section);
   if (t.kind === "layer") return !!family.layers?.[t.layer];
   if (t.kind === "widget") return !!family.widgets?.[t.widget];
   if (t.kind === "assistant") return !!(family.widgets as { chat?: boolean } | undefined)?.chat;
+  if (t.kind === "notesApp") return !!notesInstalled?.includes(t.id);
   if (t.kind === "connection" && "section" in t.needs) return sectionOn(t.needs.section);
   return false;
 }
@@ -465,6 +490,14 @@ export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Pa
     return on ? { ...next, sections: { ...next.sections, [t.opens]: true } } : next;
   }
   return family;
+}
+
+/** LifeHub's added Notes-app installs with this one added or removed. Removing keeps its saved notes. */
+export function setLifeNotesApp(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
+  const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
+  if (p.target.kind !== "notesApp") return cur;
+  const id = p.target.id;
+  return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
 }
 
 /** A connection whose tab or section isn't added yet: the plugin to add first. */

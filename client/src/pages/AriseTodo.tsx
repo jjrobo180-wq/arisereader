@@ -12,6 +12,7 @@ import {
   ChevronUp, ChevronDown, MoreHorizontal, Save, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
   ShoppingBag,
   Folder as Folder, ChevronRight as ChevronRight,
+  Archive, ArchiveRestore,
 } from "lucide-react";
 import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
@@ -59,7 +60,8 @@ import Quotes from "@/components/family-hub/Quotes";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, lifeInstalled, pluginOpens, setLifePlugin, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, lifeInstalled, notesAppPlugin, pluginOpens, setLifeNotesApp, setLifePlugin, type Plugin } from "@shared/pluginStore";
+import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
@@ -101,12 +103,14 @@ import "./todoNight.css";
 
 type Priority = "low" | "normal" | "high";
 type Repeat = "none" | "daily" | "weekly" | "monthly";
-type View = "all" | "today" | "upcoming" | "completed";
+type View = "all" | "today" | "upcoming" | "completed" | "archived";
 type List = { id: string; name: string; color: string };
 type Task = {
   id: string; title: string; notes: string; listId: string; assignee: string;
   due: string; time: string; priority: Priority; repeat: Repeat;
   done: boolean; createdAt: string; completedAt?: string;
+  /** Tucked out of every list (including Completed) without being deleted. Can always be brought back. */
+  archived?: boolean;
 };
 // Version 2 adds the Family Hub beside the lists and tasks. Version 1 workspaces open as version 2.
 type Data = { version: 2; lists: List[]; tasks: Task[]; family: Family };
@@ -153,6 +157,7 @@ const validate = (value: unknown): Data => {
       done: item.done === true,
       createdAt: short(item.createdAt, 40) || new Date().toISOString(),
       completedAt: short(item.completedAt, 40) || undefined,
+      archived: item.archived === true,
     })).filter(item => item.title);
   return { version: 2, lists: uniqueLists, tasks: [...new Map(tasks.map(item => [item.id, item])).values()], family: cleanFamily(raw.family) };
 };
@@ -356,23 +361,28 @@ export default function AriseTodo() {
     return () => window.clearTimeout(timeout);
   }, [message]);
 
-  const active = data.tasks.filter(task => !task.done);
+  const active = data.tasks.filter(task => !task.done && !task.archived);
   const countFor = (listId: string) => active.filter(task => task.listId === listId).length;
   const overdue = active.filter(task => task.due && task.due < currentDay);
   const dueToday = active.filter(task => task.due && task.due <= currentDay);
   const upcoming = active.filter(task => task.due && task.due > currentDay)
     .sort((a, b) => (a.due + a.time).localeCompare(b.due + b.time));
-  const completed = data.tasks.filter(task => task.done).length;
+  const completed = data.tasks.filter(task => task.done && !task.archived).length;
+  const archivedCount = data.tasks.filter(task => task.archived).length;
   const filtered = useMemo(() => data.tasks.filter(task => {
     if (selectedList !== "all" && task.listId !== selectedList) return false;
-    if (view === "completed" ? !task.done : task.done) return false;
-    if (view === "today" && (!task.due || task.due > currentDay)) return false;
-    if (view === "upcoming" && (!task.due || task.due <= currentDay)) return false;
+    if (view === "archived") { if (!task.archived) return false; }
+    else {
+      if (task.archived) return false;
+      if (view === "completed" ? !task.done : task.done) return false;
+      if (view === "today" && (!task.due || task.due > currentDay)) return false;
+      if (view === "upcoming" && (!task.due || task.due <= currentDay)) return false;
+    }
     if (memberFilter && task.assignee.trim().toLowerCase() !== memberFilter.toLowerCase()) return false;
     const q = search.trim().toLowerCase();
     return !q || [task.title, task.notes, task.assignee].some(text => text.toLowerCase().includes(q));
   }).sort((a, b) => {
-    if (view === "completed") return (b.completedAt || "").localeCompare(a.completedAt || "");
+    if (view === "completed" || view === "archived") return (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt);
     if (a.due && b.due) return (a.due + a.time).localeCompare(b.due + b.time);
     if (a.due) return -1;
     if (b.due) return 1;
@@ -414,6 +424,15 @@ export default function AriseTodo() {
     setData(previous => ({ ...previous, tasks: previous.tasks.filter(item => item.id !== task.id) }));
     setEditing(null);
     setMessage("Task deleted");
+  };
+  const archiveTask = (task: Task) => {
+    setData(previous => ({ ...previous, tasks: previous.tasks.map(item => item.id === task.id ? { ...item, archived: true } : item) }));
+    setEditing(null);
+    setMessage("Task archived");
+  };
+  const unarchiveTask = (task: Task) => {
+    setData(previous => ({ ...previous, tasks: previous.tasks.map(item => item.id === task.id ? { ...item, archived: false } : item) }));
+    setMessage("Task restored");
   };
   const createList = (event: FormEvent) => {
     event.preventDefault();
@@ -473,6 +492,7 @@ export default function AriseTodo() {
     { id: "today", title: "Today", icon: Sun, count: dueToday.length },
     { id: "upcoming", title: "Upcoming", icon: CalendarClock, count: upcoming.length },
     { id: "completed", title: "Completed", icon: CheckCheck, count: completed },
+    { id: "archived", title: "Archived", icon: Archive, count: archivedCount },
   ];
 
   const family = data.family;
@@ -544,8 +564,17 @@ export default function AriseTodo() {
     return out;
   })();
   const [more, setMore] = useState(false);
+  /** A Notes-app install (see shared/notesApp.ts; e.g. Work Notes, added from the App Store) open
+   *  full-page, by its App Store plugin id. Not a FamilySection, so it sits alongside `section`. */
+  const [notesAppOpen, setNotesAppOpenState] = useState<string | null>(null);
+  const setNotesAppOpen = (id: string | null) => { setNotesAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
+  /** Notes-app plugins this family added from the Store that aren't built into LifeHub. */
+  const myNotesApps = family.notesInstalled.map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const setNotesAppRecords = (pid: string, update: (all: Family["notesApps"][string]) => Family["notesApps"][string]) =>
+    setFamily((f) => ({ ...f, notesApps: { ...f.notesApps, [pid]: update(f.notesApps[pid] ?? []) } }));
   const phoneItems: PhoneMenuItem[] = [
-    ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: shown === id, badge: badge(id), onClick: () => setSection(id) }; }),
+    ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { setNotesAppOpen(null); setSection(id); } }; }),
+    ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => setNotesAppOpen(p.id) })),
     // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
     { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
   ];
@@ -635,8 +664,14 @@ export default function AriseTodo() {
       hub="life"
       night={night}
       teacher={user.role === "teacher" || !!user.isAdmin}
-      isInstalled={(p: Plugin) => lifeInstalled(p, family)}
+      isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled)}
       onToggle={(p: Plugin, on: boolean) => {
+        if (p.target.kind === "notesApp") {
+          setFamily((f) => ({ ...f, notesInstalled: setLifeNotesApp(f.notesInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (notesAppOpen === p.target.id) setNotesAppOpen(null);
+          return;
+        }
         setFamily((f) => setLifePlugin(f, p, on));
         // A widget (like the Widgets board) is a part of Home, not its own section: adding it
         // should land you looking at it, the same as tapping Open does below, not leave you to
@@ -657,6 +692,11 @@ export default function AriseTodo() {
         if (p.target.kind === "assistant") setMessage("Tap the ✦ button at the bottom right to chat.");
       }}
       onClose={() => setStore(false)}
+      notesApp={{
+        notes: family.notesApps,
+        setNotes: setNotesAppRecords,
+        makeId,
+      }}
     />}
     {customizing && <Modal title="Customize" eyebrow="LifeHub" onClose={() => setCustomizing(false)} wide>
       <div className="space-y-6" data-testid="life-customize-panel">
@@ -781,6 +821,15 @@ export default function AriseTodo() {
             );
           })}
         </nav>
+        {myNotesApps.length > 0 && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
+          <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
+          <div className="space-y-0.5">{myNotesApps.map((p) => (
+            <button key={`notes-app-${p.id}`} type="button" onClick={() => { setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
+              className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+              <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
+            </button>
+          ))}</div>
+        </div>}
         <div className={`hidden px-3 pt-2 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
@@ -832,8 +881,16 @@ export default function AriseTodo() {
 
           {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
           <div className="mt-4"><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" onUpgrade={user.role === "parent" ? () => { setSection("reader"); window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" }), 600); } : undefined} /></div>
-          {shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
-          {shown === "tasks" && <>
+          {notesAppOpen && notesAppPlugin("life", notesAppOpen) && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setNotesAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <NotesKitApp key={notesAppOpen} name={notesAppPlugin("life", notesAppOpen)!.name} blurb={notesAppPlugin("life", notesAppOpen)!.description}
+              notes={family.notesApps[notesAppOpen] ?? []} setNotes={(update) => setNotesAppRecords(notesAppOpen, update)} makeId={makeId} say={setMessage} />
+          </div>}
+          {!notesAppOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!notesAppOpen && shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
             {[
@@ -874,10 +931,16 @@ export default function AriseTodo() {
                         {task.repeat !== "none" && <span className="inline-flex items-center gap-1 text-slate-400"><Repeat2 size={12} /> {task.repeat}</span>}
                       </div>
                     </button>
-                    <button onClick={() => setEditing({ ...task })} aria-label={`Edit ${task.title}`} className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Pencil size={16} /></button>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button onClick={() => setEditing({ ...task })} aria-label={`Edit ${task.title}`} title="Edit" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Pencil size={16} /></button>
+                      {task.archived
+                        ? <button onClick={() => unarchiveTask(task)} aria-label={`Restore ${task.title} from archive`} title="Restore" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><ArchiveRestore size={16} /></button>
+                        : <button onClick={() => archiveTask(task)} aria-label={`Archive ${task.title}`} title="Archive" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Archive size={16} /></button>}
+                      <button onClick={() => removeTask(task)} aria-label={`Delete ${task.title}`} title="Delete" className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"><Trash2 size={16} /></button>
+                    </div>
                   </div>;
                 })}
-                {!filtered.length && <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center"><span className="rounded-2xl bg-violet-50 p-4 text-violet-600"><Sparkles size={26} /></span><p className="mt-4 text-lg font-extrabold">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : "A fresh start"}</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : "Add your first task and start planning your day."}</p><button onClick={openAdd} className={buttonClass + " mt-5 bg-violet-100 text-violet-700"}><Plus size={16} /> Add a task</button></div>}
+                {!filtered.length && <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center"><span className="rounded-2xl bg-violet-50 p-4 text-violet-600">{view === "archived" ? <Archive size={26} /> : <Sparkles size={26} />}</span><p className="mt-4 text-lg font-extrabold">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : view === "archived" ? "Nothing archived" : "A fresh start"}</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Tasks you archive are tucked away here, and can always be brought back." : "Add your first task and start planning your day."}</p>{view !== "archived" && <button onClick={openAdd} className={buttonClass + " mt-5 bg-violet-100 text-violet-700"}><Plus size={16} /> Add a task</button>}</div>}
               </div>
               {selectedList !== "all" && !DEFAULT_LISTS.some(list => list.id === selectedList) && <button onClick={() => { const list = data.lists.find(item => item.id === selectedList); if (list) removeList(list); }} className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-rose-500 hover:underline"><Trash2 size={14} /> Delete this custom list</button>}
             </section>
@@ -910,12 +973,12 @@ export default function AriseTodo() {
     </div>
 
     {editing && <div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[94dvh] w-full overflow-y-auto rounded-t-[1.5rem] bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-7">
-        <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">Arise LifeHub</p><h2 id="todo-modal-title" className="mt-1 text-xl font-black">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
-        <form onSubmit={saveTask} className="space-y-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[96dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-6">
+        <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">Arise LifeHub</p><h2 id="todo-modal-title" className="mt-1 text-lg font-black sm:text-xl">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
+        <form onSubmit={saveTask} className="space-y-3">
           <label className="block text-xs font-bold text-slate-600">Task name<input autoFocus required maxLength={200} value={editing.title} onChange={event => setEditing({ ...editing, title: event.target.value })} className={inputClass + " mt-1.5"} placeholder="What needs to get done?" /></label>
-          <label className="block text-xs font-bold text-slate-600">Notes (optional)<textarea rows={3} maxLength={2000} value={editing.notes} onChange={event => setEditing({ ...editing, notes: event.target.value })} className={inputClass + " mt-1.5 py-3"} placeholder="Add more details..." /></label>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block text-xs font-bold text-slate-600">Notes (optional)<textarea rows={2} maxLength={2000} value={editing.notes} onChange={event => setEditing({ ...editing, notes: event.target.value })} className={inputClass + " mt-1.5 py-3"} placeholder="Add more details..." /></label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-xs font-bold text-slate-600">List<select className={inputClass + " mt-1.5"} value={editing.listId} onChange={event => setEditing({ ...editing, listId: event.target.value })}>{data.lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label>
             <label className="block text-xs font-bold text-slate-600">Priority<select className={inputClass + " mt-1.5"} value={editing.priority} onChange={event => setEditing({ ...editing, priority: event.target.value as Priority })}><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
             <label className="block text-xs font-bold text-slate-600">Due date<input type="date" className={inputClass + " mt-1.5"} value={editing.due} onChange={event => setEditing({ ...editing, due: event.target.value, repeat: event.target.value ? editing.repeat : "none" })} /></label>
@@ -931,10 +994,15 @@ export default function AriseTodo() {
             <input className={inputClass + " mt-2"} maxLength={100} value={editing.assignee} onChange={event => setEditing({ ...editing, assignee: event.target.value })} placeholder={members.length ? "…or type any name" : "Me, partner, kid's name…"} aria-label="Assigned to" />
             <p className="mt-1.5 text-xs leading-5 text-slate-500">{members.length ? "Tap a family member, or type someone else's name." : "Add your family in “Family & settings” to pick them with one tap."}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
             <button type="submit" className={buttonClass + " flex-1 bg-[#6e5ce1] px-5 text-white hover:bg-[#5a48cb]"}><Check size={17} /> Save task</button>
             <button type="button" onClick={() => setEditing(null)} className={buttonClass + " border border-slate-200 bg-white text-slate-600"}>Cancel</button>
-            {data.tasks.some(item => item.id === editing.id) && <button type="button" onClick={() => removeTask(editing)} title="Delete task" aria-label="Delete task" className={buttonClass + " border border-rose-100 bg-rose-50 text-rose-600"}><Trash2 size={17} /></button>}
+            {data.tasks.some(item => item.id === editing.id) && <>
+              {editing.archived
+                ? <button type="button" onClick={() => unarchiveTask(editing)} title="Restore from archive" aria-label="Restore from archive" className={buttonClass + " border border-slate-200 bg-white text-slate-600"}><ArchiveRestore size={17} /></button>
+                : <button type="button" onClick={() => archiveTask(editing)} title="Archive task" aria-label="Archive task" className={buttonClass + " border border-slate-200 bg-white text-slate-600"}><Archive size={17} /></button>}
+              <button type="button" onClick={() => removeTask(editing)} title="Delete task" aria-label="Delete task" className={buttonClass + " border border-rose-100 bg-rose-50 text-rose-600"}><Trash2 size={17} /></button>
+            </>}
           </div>
         </form>
       </div>

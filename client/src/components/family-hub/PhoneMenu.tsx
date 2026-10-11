@@ -3,8 +3,8 @@
 // app drawer (a round button that opens every section as app icons, with search). It can close with a Hide
 // button, by itself once a section is picked, or never. On a computer (lg and up) the sidebar is used instead.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Folder, LayoutGrid, Search, X } from "lucide-react";
-import { foldMenu, type MenuClose, type MenuFolder, type MenuSide } from "@shared/hubLayout";
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Folder, LayoutGrid, Search, X } from "lucide-react";
+import { foldMenu, type MenuClose, type MenuEntry, type MenuFolder, type MenuSide } from "@shared/hubLayout";
 
 export type PhoneMenuItem = { id: string; label: string; icon: ReactNode; active: boolean; badge?: number; color?: string; onClick: () => void };
 
@@ -33,6 +33,8 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
   const toggleFolder = (id: string) => setOpenFolders((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
   const [apps, setApps] = useState(false);
   const [query, setQuery] = useState("");
+  /** Inside the full app grid, tapping a folder drills into its own grid; a back button returns to the top level. */
+  const [gridFolder, setGridFolder] = useState<string | null>(null);
   const swipe = useRef<number | null>(null);
   useEffect(() => {
     if (!apps) return;
@@ -40,7 +42,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setQuery(""); };
+    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setQuery(""); setGridFolder(null); };
   }, [apps]);
   const pick = (item: PhoneMenuItem) => { item.onClick(); afterPick(); };
   const across = side === "top" || side === "bottom";
@@ -48,7 +50,15 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
   const badge = (n?: number) => (n ? <span className="absolute right-1 top-0.5 min-w-[16px] rounded-full bg-rose-600 px-1 text-[9px] font-bold leading-4 text-white">{n > 99 ? "99+" : n}</span> : null);
 
   const onPhone = side === "drawer";
-  const shown = items.filter((i) => i.label.toLowerCase().includes(query.trim().toLowerCase()));
+  const searching = query.trim().length > 0;
+  const openFolder = gridFolder ? folders.find((f) => f.id === gridFolder) : null;
+  // Searching looks across every app, folders included (flattened to plain tiles), so something
+  // tucked in a folder is still found. Not searching at the top level: folders collapse to one
+  // tile each, via foldMenu, until the person drills in. Inside a folder: just its own items.
+  const entries: MenuEntry<PhoneMenuItem>[] = searching
+    ? items.filter((i) => i.label.toLowerCase().includes(query.trim().toLowerCase())).map((item) => ({ kind: "item" as const, item }))
+    : openFolder ? openFolder.items.map((id) => items.find((i) => i.id === id)).filter((i): i is PhoneMenuItem => !!i).map((item) => ({ kind: "item" as const, item }))
+    : foldMenu(items, folders);
   const drawer = !(onPhone || deskDrawer) ? null : <>
       {!apps && <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="life-apps-open"
         onTouchStart={(e) => { swipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (swipe.current !== null && swipe.current - e.touches[0].clientY > 30) { swipe.current = null; setApps(true); } }}
@@ -61,18 +71,26 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
           onTouchEnd={(e) => { const from = swipe.current; swipe.current = null; const list = document.getElementById("life-apps-list"); if (from !== null && e.changedTouches[0].clientY - from > 90 && (!list || list.scrollTop <= 0)) setApps(false); }}>
           <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-300" aria-hidden />
           <div className="flex items-center gap-2 px-4 pb-3 pt-3">
+            {openFolder && !searching && <button type="button" onClick={() => setGridFolder(null)} aria-label="Back to all sections" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" data-testid="life-apps-back"><ArrowLeft className="h-5 w-5" /></button>}
             <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-slate-100 px-3"><Search className="h-4 w-4 shrink-0 text-slate-500" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" aria-label="Search sections" tabIndex={apps ? 0 : -1} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-slate-500" /></label>
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={openFolder ? `Search ${openFolder.name}` : "Search"} aria-label="Search sections" tabIndex={apps ? 0 : -1} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-slate-500" /></label>
             <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
           </div>
+          {openFolder && !searching && <p className="-mt-1 px-4 pb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{openFolder.name}</p>}
           <ul id="life-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
-            {shown.map((item) => <li key={item.id}>
-              <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { item.onClick(); setApps(false); }} data-testid={`life-app-${item.id}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${item.active ? "bg-[#7968e5]" : "bg-[#292446]"}`} style={item.color && !item.active ? { backgroundColor: item.color } : undefined}>{item.icon}</span>
-                {badge(item.badge)}
-                <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{item.label}</span>
+            {entries.map((entry) => entry.kind === "item" ? <li key={entry.item.id}>
+              <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { entry.item.onClick(); setApps(false); }} data-testid={`life-app-${entry.item.id}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${entry.item.active ? "bg-[#7968e5]" : "bg-[#292446]"}`} style={entry.item.color && !entry.item.active ? { backgroundColor: entry.item.color } : undefined}>{entry.item.icon}</span>
+                {badge(entry.item.badge)}
+                <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{entry.item.label}</span>
+              </button>
+            </li> : <li key={`folder-${entry.folder.id}`}>
+              <button type="button" tabIndex={apps ? 0 : -1} onClick={() => setGridFolder(entry.folder.id)} data-testid={`life-app-folder-${entry.folder.id}`} aria-label={`Open folder ${entry.folder.name}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                <span className="grid h-14 w-14 grid-cols-2 gap-0.5 rounded-[1.1rem] bg-slate-200 p-2 shadow-sm">{Array.from({ length: 4 }, (_, i) => <span key={i} className="flex items-center justify-center rounded-[5px] bg-white text-slate-400 [&_svg]:h-3 [&_svg]:w-3">{entry.items[i]?.icon}</span>)}</span>
+                <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800"><Folder className="mr-0.5 -mt-0.5 inline h-2.5 w-2.5 text-slate-400" />{entry.folder.name}</span>
               </button>
             </li>)}
+            {!entries.length && <li className="col-span-full py-10 text-center text-sm text-slate-400">{searching ? "No matches." : "This folder is empty."}</li>}
           </ul>
         </div>
       </div>

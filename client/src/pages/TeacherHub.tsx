@@ -5,9 +5,10 @@ import { DeskSidePicker, FolderEditor } from "@/components/HubCustomizeExtras";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildWorkBrief } from "@shared/dailyBrief";
-import { foldMenu } from "@shared/hubLayout";
+import { foldMenu, type MenuEntry, type MenuFolder } from "@shared/hubLayout";
 import {
   AlertTriangle,
+  ArrowLeft,
   BookHeart,
   BookOpen,
   Calendar,
@@ -50,9 +51,11 @@ import {
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkKit, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, isAddable, notesAppPlugin, pluginOpens, pluginsFor, setWorkKit, setWorkNotesApp, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
+import { cleanNotesApp } from "@shared/notesApp";
 import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
+import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { HubChat } from "@/components/HubChat";
 import WidgetBoard from "@/components/widgets/WidgetBoard";
 import { cleanWidgets } from "@shared/widgets";
@@ -391,16 +394,20 @@ function TeacherHubPage() {
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem("arise-hub-rail") !== "closed"; } catch { return true; } });
   /** A WorkHub plugin (from the Plugin Kit) open as its own page. Picking any tab closes it. */
   const [kitOpen, setKitOpen] = useState<string | null>(null);
+  /** A Notes-app install (see shared/notesApp.ts) open full-page, by its App Store plugin id. */
+  const [notesAppOpen, setNotesAppOpen] = useState<string | null>(null);
   /** The app drawer is open (the "App drawer" menu choice). */
   const [apps, setApps] = useState(false);
   const [appsQuery, setAppsQuery] = useState("");
+  /** The folder opened in the app drawer's grid (drilled into by tapping it). Closed drawer or a search clears it. */
+  const [hubGridFolder, setHubGridFolder] = useState<string | null>(null);
   useEffect(() => {
     if (!apps) return;
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setApps(false); };
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setAppsQuery(""); };
+    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setAppsQuery(""); setHubGridFolder(null); };
   }, [apps]);
   const appsSwipe = useRef<number | null>(null);
   const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
@@ -503,6 +510,12 @@ function TeacherHubPage() {
   const kitRecords = cleanKit((workspace as any).kitRecords, 8000);
   const setKitRecords = (update: (all: KitRecord[]) => KitRecord[]) => setWorkspace((prev) => ({ ...prev, kitRecords: cleanKit(update(cleanKit((prev as any).kitRecords, 8000)), 8000) }));
   const openKit = (k: string | null) => { setKitOpen(k); if (k) window.scrollTo({ top: 0 }); };
+  /** Notes-app plugins (LifeHub Notes, installed here from the Store) this teacher added, same idea as myKits. */
+  const myNotesApps = ((workspace as any).notesInstalled as string[] | undefined ?? []).map((id) => notesAppPlugin("work", id)).filter((p): p is Plugin => !!p);
+  const notesAppRecords = Object.fromEntries(Object.entries((workspace as any).notesApps ?? {}).map(([pid, list]) => [pid, cleanNotesApp(list)])) as Record<string, ReturnType<typeof cleanNotesApp>>;
+  const setNotesAppRecords = (pid: string, update: (all: ReturnType<typeof cleanNotesApp>) => ReturnType<typeof cleanNotesApp>) =>
+    setWorkspace((prev) => ({ ...prev, notesApps: { ...(prev as any).notesApps, [pid]: update(cleanNotesApp(((prev as any).notesApps ?? {})[pid])) } }));
+  const openNotesApp = (k: string | null) => { setNotesAppOpen(k); if (k) window.scrollTo({ top: 0 }); };
   // How the teacher arranged the Hub (Customize): where the phone menu sits, how it closes, and what Home shows.
   const layout = cleanLayout(workspace.layout);
   const setLayout = (next: HubLayout) => setWorkspace((p) => ({ ...p, layout: next }));
@@ -698,6 +711,7 @@ function TeacherHubPage() {
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomize(true) });
     out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", open: () => setStore(true) });
     for (const d of myKits) out.push({ id: `kit-${d.id}`, kind: "Plugins", title: d.name, open: () => openKit(d.id) });
+    for (const p of myNotesApps) out.push({ id: `notes-app-${p.id}`, kind: "Plugins", title: p.name, open: () => openNotesApp(p.id) });
     for (const st of workspace.students) out.push({ id: st.id, kind: "Students", title: st.name, sub: [st.grade && `Grade ${st.grade}`, st.iepDate && `IEP ${dateWord(st.iepDate)}`].filter(Boolean).join(" · "), keywords: `${st.disability1 || ""} ${st.disability2 || ""}`, open: () => goTab("caseload") });
     for (const t of workspace.tasks) out.push({ id: t.id, kind: "To-dos", title: t.title, sub: [t.done ? "Done" : "", t.dueDate && `Due ${dateWord(t.dueDate)}`].filter(Boolean).join(" · "), keywords: t.notes || "", open: () => goTab("tasks") });
     for (const m of workspace.meetings) out.push({ id: m.id, kind: "Meetings", title: `${m.type}: ${m.student}`, sub: [m.date && dateWord(m.date), m.room].filter(Boolean).join(" · "), keywords: m.notes, open: () => goTab("iep") });
@@ -736,20 +750,27 @@ function TeacherHubPage() {
         night={night}
         accent={accent}
         teacher
-        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn)}
+        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn, (workspace as any).notesInstalled)}
         onToggle={(p: Plugin, on: boolean) => {
           // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
           setWorkspace((prev) => (p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
-            ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) }
+            ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) } : p.target.kind === "notesApp"
+            ? { ...prev, notesInstalled: setWorkNotesApp((prev as any).notesInstalled, p, on) }
             : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }));
           if (p.target.kind === "assistant" && on) toasts.show("AI assistant added. Tap the ✦ button at the bottom right to chat.", []);
           if (p.target.kind === "widget" && on) toasts.show("Widgets added to Home. Tap Add widget to pick your first one.", []);
           if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
+          if (p.target.kind === "notesApp" && on) toasts.show(`${p.name} added. Find it in your menu.`, []);
         }}
         kit={{
           records: kitRecords,
           setRecords: setKitRecords,
           today: TODAY(),
+          makeId: id,
+        }}
+        notesApp={{
+          notes: notesAppRecords,
+          setNotes: setNotesAppRecords,
           makeId: id,
         }}
         onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); }}
@@ -815,41 +836,73 @@ function TeacherHubPage() {
               onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }}
               onTouchEnd={(e) => { const from = appsSwipe.current; appsSwipe.current = null; const list = document.getElementById("hub-apps-list"); if (from !== null && e.changedTouches[0].clientY - from > 90 && (!list || list.scrollTop <= 0)) setApps(false); }}>
               <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-300" aria-hidden />
-              <div className="flex items-center gap-2 px-4 pb-3 pt-3">
-                <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-slate-100 px-3">
-                  <AppsSearch className="h-4 w-4 shrink-0 text-slate-500" />
-                  <input value={appsQuery} onChange={(e) => setAppsQuery(e.target.value)} placeholder="Search" aria-label="Search sections" tabIndex={apps ? 0 : -1} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-slate-500" />
-                </label>
-                <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
-              </div>
-              <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
-                {"app store".includes(appsQuery.trim().toLowerCase()) && (
-                  <li>
-                    <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); setStore(true); }} data-testid="hub-app-store"
-                      className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                      <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-7 w-7" /></span>
-                      <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">App Store</span>
-                    </button>
-                  </li>
-                )}
-                {myKits.filter((d) => d.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((d) => { const Icon = kitIcon(d.icon); return (
-                  <li key={`kit-${d.id}`} className="order-last">
-                    <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { openKit(d.id); setApps(false); }} data-testid={`hub-app-kit-${d.id}`} className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                      <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: d.color }}><Icon className="h-7 w-7" /></span>
-                      <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{d.name}</span>
-                    </button>
-                  </li>
-                ); })}
-                {menu.filter((item) => groupLabel(item.id, visible).toLowerCase().includes(appsQuery.trim().toLowerCase())).map((item) => (
-                  <li key={item.id}>
-                    <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); setKitOpen(null); setApps(false); }} data-testid={`hub-app-${item.id}`}
-                      className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                      <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[item.id]}</span>
-                      <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{groupLabel(item.id, visible)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {(() => {
+                const hubSearching = appsQuery.trim().length > 0;
+                const hubOpenFolder: MenuFolder | null = !hubSearching && hubGridFolder ? layout.folders.find((f) => f.id === hubGridFolder) ?? null : null;
+                // Searching looks across every group, folders included (flattened), so nothing tucked away becomes unfindable.
+                // Not searching, at the top level: a folder collapses to one tile, via foldMenu, until tapped open.
+                // Inside a folder: just its own groups.
+                const hubEntries: MenuEntry<(typeof menu)[number]>[] = hubSearching
+                  ? menu.filter((item) => groupLabel(item.id, visible).toLowerCase().includes(appsQuery.trim().toLowerCase())).map((item) => ({ kind: "item" as const, item }))
+                  : hubOpenFolder
+                  ? hubOpenFolder.items.map((id) => menu.find((m) => m.id === id)).filter((m): m is (typeof menu)[number] => !!m).map((item) => ({ kind: "item" as const, item }))
+                  : foldMenu(menu, layout.folders);
+                return (<>
+                  <div className="flex items-center gap-2 px-4 pb-3 pt-3">
+                    {hubOpenFolder && <button type="button" onClick={() => setHubGridFolder(null)} aria-label="Back to all sections" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" data-testid="hub-apps-back"><ArrowLeft className="h-5 w-5" /></button>}
+                    <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-slate-100 px-3">
+                      <AppsSearch className="h-4 w-4 shrink-0 text-slate-500" />
+                      <input value={appsQuery} onChange={(e) => setAppsQuery(e.target.value)} placeholder={hubOpenFolder ? `Search ${hubOpenFolder.name}` : "Search"} aria-label="Search sections" tabIndex={apps ? 0 : -1} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-slate-500" />
+                    </label>
+                    <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+                  </div>
+                  {hubOpenFolder && <p className="-mt-1 px-4 pb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{hubOpenFolder.name}</p>}
+                  <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
+                    {!hubOpenFolder && "app store".includes(appsQuery.trim().toLowerCase()) && (
+                      <li>
+                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); setStore(true); }} data-testid="hub-app-store"
+                          className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                          <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: "var(--hub-accent, #5b3be0)" }}><ShoppingBag className="h-7 w-7" /></span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">App Store</span>
+                        </button>
+                      </li>
+                    )}
+                    {!hubOpenFolder && myKits.filter((d) => d.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((d) => { const Icon = kitIcon(d.icon); return (
+                      <li key={`kit-${d.id}`} className="order-last">
+                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { openKit(d.id); setApps(false); }} data-testid={`hub-app-kit-${d.id}`} className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                          <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: d.color }}><Icon className="h-7 w-7" /></span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{d.name}</span>
+                        </button>
+                      </li>
+                    ); })}
+                    {!hubOpenFolder && myNotesApps.filter((p) => p.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((p) => (
+                      <li key={`notes-app-${p.id}`} className="order-last">
+                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { openNotesApp(p.id); setApps(false); }} data-testid={`hub-app-notes-app-${p.id}`} className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                          <span className="inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ backgroundColor: p.color }}><StickyNote className="h-7 w-7" /></span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{p.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                    {hubEntries.map((entry) => entry.kind === "item" ? (
+                      <li key={entry.item.id}>
+                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setTab(openGroup(entry.item.id, visible, lastInGroup)); setKitOpen(null); setApps(false); }} data-testid={`hub-app-${entry.item.id}`}
+                          className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                          <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === entry.item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[entry.item.id]}</span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{groupLabel(entry.item.id, visible)}</span>
+                        </button>
+                      </li>
+                    ) : (
+                      <li key={`folder-${entry.folder.id}`}>
+                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => setHubGridFolder(entry.folder.id)} data-testid={`hub-app-folder-${entry.folder.id}`} aria-label={`Open folder ${entry.folder.name}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                          <span className="grid h-14 w-14 grid-cols-2 gap-0.5 rounded-[1.1rem] bg-slate-200 p-2 shadow-sm">{Array.from({ length: 4 }, (_, i) => <span key={i} className="flex items-center justify-center rounded-[5px] bg-white text-slate-400 [&_svg]:h-3 [&_svg]:w-3">{entry.items[i] ? GROUP_ICON[entry.items[i].id] : null}</span>)}</span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800"><FolderIcon className="mr-0.5 -mt-0.5 inline h-2.5 w-2.5 text-slate-400" />{entry.folder.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                    {!hubEntries.length && hubOpenFolder && <li className="col-span-full py-10 text-center text-sm text-slate-400">This folder is empty.</li>}
+                  </ul>
+                </>);
+              })()}
             </div>
           </div>
         )}
@@ -910,7 +963,7 @@ function TeacherHubPage() {
                 </Fragment>;
               });
             })()}
-            {myKits.length > 0 && <p className={`hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskTop || deskCompact ? "" : "md:block"}`}>My apps</p>}
+            {(myKits.length > 0 || myNotesApps.length > 0) && <p className={`hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskTop || deskCompact ? "" : "md:block"}`}>My apps</p>}
             {myKits.map((d) => {
               const Icon = kitIcon(d.icon);
               return (
@@ -923,6 +976,15 @@ function TeacherHubPage() {
                 </div>
               );
             })}
+            {myNotesApps.map((p) => (
+              <div key={`notes-app-${p.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                <button type="button" onClick={() => { openNotesApp(p.id); afterPick(); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`hub-notes-app-${p.id}`} data-hub-nav
+                  className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${notesAppOpen === p.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><StickyNote className="h-3.5 w-3.5" /></span>
+                  <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{p.name}</span>
+                </button>
+              </div>
+            ))}
             <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 md:mt-2 md:w-full md:border-t md:border-slate-100 md:pt-2`}>
               <button type="button" onClick={() => { setStore(true); afterPick(); }} data-testid="hub-menu-app-store" data-hub-store
                 className="flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium">
@@ -933,7 +995,7 @@ function TeacherHubPage() {
           </div>
         </aside>
 
-        <main className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${kitOpen && kitDef(kitOpen) ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+        <main className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
           {kitOpen && kitDef(kitOpen) && (
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
@@ -941,6 +1003,16 @@ function TeacherHubPage() {
                 <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
               </div>
               <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={kitRecords} setRecords={setKitRecords} today={TODAY()} makeId={id} say={(m) => toasts.show(m, [])} />
+            </div>
+          )}
+          {notesAppOpen && notesAppPlugin("work", notesAppOpen) && (
+            <div data-kit-view className="space-y-3" data-testid="hub-notes-app-view">
+              <div className="flex items-center justify-between gap-2">
+                <button type="button" onClick={() => setNotesAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+              </div>
+              <NotesKitApp key={notesAppOpen} name={notesAppPlugin("work", notesAppOpen)!.name} blurb={notesAppPlugin("work", notesAppOpen)!.description}
+                notes={notesAppRecords[notesAppOpen] ?? []} setNotes={(update) => setNotesAppRecords(notesAppOpen, update)} makeId={id} say={(m) => toasts.show(m, [])} />
             </div>
           )}
           <HubTrialNote trial={trial} which="work" upgradeHref="#/billing" />
