@@ -14,7 +14,7 @@
 // devices like any other change. The store page is client/src/components/plugin-store/PluginStore.tsx.
 
 import type { HubTab } from "./teacherHub";
-import { TOGGLEABLE, type Family, type FamilySection } from "./familyHub";
+import { isOn, type Family, type FamilySection } from "./familyHub";
 
 export type PluginHub = "work" | "life";
 
@@ -55,7 +55,7 @@ export type Plugin = {
 
 export const PLUGIN_CATEGORIES: Record<PluginHub, readonly string[]> = {
   work: ["Planning", "Students & IEPs", "Classroom", "Families", "Connections", "Arise apps"],
-  life: ["Family", "Health & wellness", "Money & home", "Everyday", "Connections", "Arise apps"],
+  life: ["Family", "Health & wellness", "Money & home", "Everyday", "Inspiration", "Discover", "Connections", "Arise apps"],
 };
 
 const tab = (t: HubTab): PluginTarget => ({ kind: "tab", tab: t });
@@ -177,6 +177,30 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-news", hub: "life", name: "News", tagline: "Today's headlines and local news", category: "Everyday", icon: "Newspaper", color: "#64748b", target: section("news"),
     description: "Today's headlines on the topics you pick, and news from where you live.",
     features: ["Pick your topics", "Local news", "Fresh every day"] },
+  { id: "life-journal", hub: "life", name: "Journal", tagline: "A daily journal with prompts", category: "Everyday", icon: "NotebookPen", color: "#8b5cf6", featured: true, target: section("journal"),
+    description: "Write a few lines a day, with a fresh prompt when you don't know where to start. Add a mood, search old entries, and look back on how far you've come.",
+    features: ["A new prompt every day", "Mood for each entry", "Search past entries", "Saved to your account"] },
+  { id: "life-countdowns", hub: "life", name: "Countdowns", tagline: "Days until the big days", category: "Everyday", icon: "Hourglass", color: "#f97316", target: section("countdowns"),
+    description: "Count down to birthdays, trips, holidays and the last day of school, with big friendly numbers the whole family can watch go down.",
+    features: ["Days and weeks to go", "An emoji for each one", "Past ones tucked away"] },
+  { id: "life-grocery", hub: "life", name: "Grocery list", tagline: "A shopping list sorted by aisle", category: "Money & home", icon: "ShoppingCart", color: "#22c55e", featured: true, target: section("grocery"),
+    description: "Type what you need and it sorts itself by aisle, so you're not running back across the store. Check things off as they go in the cart.",
+    features: ["Sorts itself by aisle", "Add many at once with commas", "Check off as you shop", "Copy the list to text someone"] },
+  { id: "life-meditate", hub: "life", name: "Meditate", tagline: "Guided breathing and a quiet timer", category: "Health & wellness", icon: "Wind", color: "#0ea5e9", featured: true, target: section("meditate"),
+    description: "Follow a breathing circle (calm breath, box breathing or 4-7-8), or sit quietly until a soft bell. Your minutes and streak are kept.",
+    features: ["Three guided breathing patterns", "A quiet timer with a bell", "1 to 20 minutes", "Streak and weekly minutes"] },
+  { id: "life-bible", hub: "life", name: "Bible", tagline: "Verse of the day and any passage", category: "Inspiration", icon: "BookMarked", color: "#b45309", target: section("bible"),
+    description: "A new verse every day, look up and read any passage, and save the verses that matter to you. King James Version.",
+    features: ["Verse of the day", "Read any passage", "Save your favorite verses", "King James Version"] },
+  { id: "life-quotes", hub: "life", name: "Daily quote", tagline: "A motivational quote every day", category: "Inspiration", icon: "Quote", color: "#6366f1", target: section("quotes"),
+    description: "Start each day with a quote worth thinking about. Shuffle for another, and save the ones that stick.",
+    features: ["A new quote every day", "Shuffle for more", "Save your favorites"] },
+  { id: "life-history", hub: "life", name: "Today in history", tagline: "What happened on this day", category: "Discover", icon: "History", color: "#a16207", target: section("history"),
+    description: "What happened on this day over the years, who was born, and the day's observances. Pick any day to look back. From Wikipedia.",
+    features: ["Highlights and events", "Born on this day", "Pick any day", "Links to read more"] },
+  { id: "life-trending", hub: "life", name: "What's trending", tagline: "Top searches and most-read stories", category: "Discover", icon: "TrendingUp", color: "#e11d48", target: section("trending"),
+    description: "See what people across the United States are searching for right now, with the news behind it, and the stories everyone is reading.",
+    features: ["Top searches right now", "The news behind each one", "Most-read stories"] },
   { id: "life-workhub-calendar", hub: "life", name: "WorkHub calendar", tagline: "Your work calendar inside LifeHub", category: "Connections", icon: "Briefcase", color: "#0f766e", teacherOnly: true,
     target: { kind: "layer", layer: "hub", opens: "calendar" },
     description: "See your Arise WorkHub calendar on your family calendar, read live, so work and home never double-book.",
@@ -235,7 +259,7 @@ export function setWorkPlugin<V extends Partial<Record<HubTab, boolean>>>(visibl
 /** Is this LifeHub plugin on? A section is on unless it was switched off. */
 export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers">): boolean {
   const t = p.target;
-  const sectionOn = (s: FamilySection) => !TOGGLEABLE.includes(s) || family.sections[s] !== false;
+  const sectionOn = (s: FamilySection) => isOn(s, family);
   if (t.kind === "section") return sectionOn(t.section);
   if (t.kind === "layer") return !!family.layers?.[t.layer];
   if (t.kind === "connection" && "section" in t.needs) return sectionOn(t.needs.section);

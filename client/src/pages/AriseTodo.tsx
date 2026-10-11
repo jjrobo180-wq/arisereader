@@ -9,8 +9,16 @@ import {
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
   CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
-  ChevronUp, ChevronDown, Puzzle,
+  ChevronUp, ChevronDown, Puzzle, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp,
 } from "lucide-react";
+import Journal from "@/components/family-hub/Journal";
+import Countdowns from "@/components/family-hub/Countdowns";
+import Grocery from "@/components/family-hub/Grocery";
+import Meditate from "@/components/family-hub/Meditate";
+import Bible from "@/components/family-hub/Bible";
+import Quotes from "@/components/family-hub/Quotes";
+import TodayInHistory from "@/components/family-hub/TodayInHistory";
+import Trending from "@/components/family-hub/Trending";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, lifeInstalled, pluginOpens, setLifePlugin, type Plugin } from "@shared/pluginStore";
 import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
@@ -153,6 +161,7 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
+  journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
 // Tasks and Notifications is the family's own toggleable block, in the order they chose.
@@ -454,6 +463,14 @@ export default function AriseTodo() {
     : shown === "trips" ? <Trips {...common} />
     : shown === "money" ? <Money {...common} />
     : shown === "notes" ? <Notes {...common} />
+    : shown === "journal" ? <Journal {...common} />
+    : shown === "countdowns" ? <Countdowns {...common} />
+    : shown === "grocery" ? <Grocery {...common} />
+    : shown === "meditate" ? <Meditate {...common} />
+    : shown === "bible" ? <Bible {...common} />
+    : shown === "quotes" ? <Quotes {...common} />
+    : shown === "history" ? <TodayInHistory {...common} />
+    : shown === "trending" ? <Trending {...common} />
     : shown === "family" ? <Members {...common} />
     : null;
 

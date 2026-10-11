@@ -4,10 +4,12 @@
 
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news"];
+export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending"];
+/** Sections added from the Plugin Store: off until the family adds them (the others start on). */
+export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending"];
 
 /** A family's `sectionOrder` (only the toggleable sections can be reordered) made safe to use:
  *  every toggleable section appears exactly once, keeping the saved order where valid and
@@ -96,6 +98,12 @@ export type Goal = {
   kind: "steps" | "number"; target: number; current: number; unit: string;
   milestones: { id: string; title: string; done: boolean }[]; done: boolean; createdAt: string; doneAt: string;
 };
+/* Plugin Store add-ons */
+export type JournalEntry = { id: string; date: string; title: string; body: string; mood: string; createdAt: string };
+export type Countdown = { id: string; title: string; date: string; emoji: string; color: string };
+export type GroceryItem = { id: string; name: string; qty: string; aisle: string; checked: boolean };
+export type SavedVerse = { id: string; reference: string; text: string };
+export type MeditationLog = { id: string; date: string; minutes: number; kind: string };
 /* News */
 export type NewsPrefs = { topics: string[]; place: string };
 
@@ -132,6 +140,13 @@ export type Family = {
   news: NewsPrefs;
   /** Which phone notifications to send, when, and how many (see shared/todoNotify.ts). */
   notify: NotifyPrefs;
+  journal: JournalEntry[];
+  countdowns: Countdown[];
+  groceries: GroceryItem[];
+  savedVerses: SavedVerse[];
+  meditations: MeditationLog[];
+  /** Ids of quotes saved from the daily quote (see shared/lifePlugins.ts). */
+  savedQuotes: string[];
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -163,6 +178,7 @@ export const emptyFamily = (): Family => ({
   calendars: DEFAULT_CALENDARS.map((c) => ({ ...c })), events: [], trips: [], polls: [],
   bills: [], budget: DEFAULT_BUDGET.map((b) => ({ ...b })), expenses: [], income: 0, notes: [], health: emptyHealth(), cycleLogs: [], pills: [], pillDoses: [], moods: [], goals: [], news: { topics: ["top", "local", "NATION"], place: "" },
   notify: defaultNotify(),
+  journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -201,7 +217,7 @@ function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Re
   return newest ? out.slice(-max) : out;
 }
 
-export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000 };
+export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300 };
 
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
@@ -367,6 +383,27 @@ export function cleanFamily(input: unknown): Family {
       return { topics: topics.length ? topics : ["top"], place: n ? str(n.place, 60) : "" };
     })(),
     notify: cleanNotify(raw.notify),
+    journal: rows(raw.journal, LIMITS.journal, (r) => {
+      const date = day(r.date), body = str(r.body, 20_000);
+      return date && (body.trim() || str(r.title, 120).trim()) ? { id: id(r.id), date, title: str(r.title, 120), body, mood: str(r.mood, 8), createdAt: str(r.createdAt, 40) } : null;
+    }, true),
+    countdowns: rows(raw.countdowns, LIMITS.countdowns, (r) => {
+      const title = str(r.title, 80).trim(), date = day(r.date);
+      return title && date ? { id: id(r.id), title, date, emoji: str(r.emoji, 8), color: color(r.color, "#7566e8") } : null;
+    }),
+    groceries: rows(raw.groceries, LIMITS.groceries, (r) => {
+      const name = str(r.name, 80).trim();
+      return name ? { id: id(r.id), name, qty: str(r.qty, 20), aisle: str(r.aisle, 30), checked: bool(r.checked) } : null;
+    }),
+    savedVerses: rows(raw.savedVerses, LIMITS.savedVerses, (r) => {
+      const reference = str(r.reference, 60).trim(), text = str(r.text, 4000).trim();
+      return reference && text ? { id: id(r.id), reference, text } : null;
+    }),
+    meditations: rows(raw.meditations, LIMITS.meditations, (r) => {
+      const date = day(r.date);
+      return date ? { id: id(r.id), date, minutes: num(r.minutes, 0, 600), kind: str(r.kind, 30) } : null;
+    }, true),
+    savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
   };
 }
 
@@ -434,7 +471,9 @@ export const addDays = (s: string, n: number) => { const d = fromDay(s); d.setDa
 export const weekStart = (s: string) => addDays(s, -fromDay(s).getDay());
 export const monthKey = (s: string) => s.slice(0, 7);
 export const daysBetween = (a: string, b: string) => Math.round((fromDay(b).getTime() - fromDay(a).getTime()) / 86_400_000);
-export const isOn = (section: FamilySection, f: Family) => !TOGGLEABLE.includes(section) || f.sections[section] !== false;
+/** Whether a section shows: the usual ones unless switched off, Plugin Store add-ons only once added. */
+export const isOn = (section: FamilySection, f: Pick<Family, "sections">) =>
+  !TOGGLEABLE.includes(section) || (ADD_ON_SECTIONS.includes(section) ? f.sections[section] === true : f.sections[section] !== false);
 
 /** Whether an event (or one of its repeats) falls on a day. */
 export function occursOn(e: FamilyEvent, date: string): boolean {
@@ -524,7 +563,7 @@ export function isCurrentFamily(f: unknown): f is Family {
   const r = obj(f);
   const h = r && obj(r.health);
   if (!r || !h) return false;
-  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals"];
+  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
     && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";

@@ -1,7 +1,7 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Apple, CalendarDays, Check, Droplets, Pill, Newspaper, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, UserPlus, Vote, Wallet } from "lucide-react";
-import { MEMBER_COLORS, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
+import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind } from "lucide-react";
+import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
 
@@ -25,6 +25,14 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   money: { label: "Budget & bills", detail: "Bills, budget and spending", icon: <Wallet size={17} /> },
   notes: { label: "Notes", detail: "Codes, contacts, lists and ideas", icon: <StickyNote size={17} /> },
   family: { label: "Family & settings", detail: "People and switches", icon: null },
+  journal: { label: "Journal", detail: "A private daily journal with prompts", icon: <NotebookPen size={17} /> },
+  countdowns: { label: "Countdowns", detail: "Days until the big days", icon: <Hourglass size={17} /> },
+  grocery: { label: "Grocery list", detail: "A shopping list sorted by aisle", icon: <ShoppingCart size={17} /> },
+  meditate: { label: "Meditate", detail: "Guided breathing and a quiet timer", icon: <Wind size={17} /> },
+  bible: { label: "Bible", detail: "Verse of the day and any passage", icon: <BookMarked size={17} /> },
+  quotes: { label: "Daily quote", detail: "A motivational quote every day", icon: <Quote size={17} /> },
+  history: { label: "Today in history", detail: "What happened on this day", icon: <History size={17} /> },
+  trending: { label: "What's trending", detail: "Top searches and most-read stories", icon: <TrendingUp size={17} /> },
 };
 const blank = (id: string, n: number): Member => ({ id, name: "", emoji: EMOJI[n % EMOJI.length], color: MEMBER_COLORS[n % MEMBER_COLORS.length], kind: "kid" });
 
@@ -70,7 +78,7 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
         <p className="mb-3 text-sm text-slate-500">Hiding a feature keeps everything saved in it. Turn it back on any time. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
         <ul className="divide-y divide-slate-100">{orderedToggleable(family).map((s) => {
           const info = SECTION_INFO[s];
-          const on = family.sections[s] !== false;
+          const on = isOn(s, family);
           return <li key={s} className="flex items-center gap-3 py-3">
             <span className={`rounded-xl p-2 ${on ? "bg-violet-50 text-violet-600" : "bg-slate-100 text-slate-400"}`}>{info.icon}</span>
             <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{info.label}</span><span className="text-xs text-slate-500">{info.detail}</span></span>

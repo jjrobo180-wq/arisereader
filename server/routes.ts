@@ -47,6 +47,7 @@ import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerAppleHealthRoutes } from "./appleHealth";
 import { registerTodoNewsRoutes } from "./todoNews";
+import { registerLifehubPluginRoutes } from "./lifehubPlugins";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
@@ -1222,6 +1223,7 @@ export async function registerRoutes(
   registerFoodLookupRoutes(app, authMiddleware);
   registerAppleHealthRoutes(app, authMiddleware);
   registerTodoNewsRoutes(app, authMiddleware);
+  registerLifehubPluginRoutes(app, authMiddleware);
   // Arise WorkHub, the paid add-on: only teachers with a Arise WorkHub plan can open it.
   registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
