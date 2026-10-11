@@ -1,7 +1,11 @@
+import { installNativeAppBridge } from "./lib/nativeAppBridge";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./login-mobile-fix.css";
+
+// Native apps have different launch routes and an authenticated API transport.
+installNativeAppBridge();
 
 // arisereader.com/hub (or /teacher-hub) goes straight to the Arise WorkHub sign-in.
 {

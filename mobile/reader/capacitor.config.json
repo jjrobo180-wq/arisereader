@@ -1,0 +1,13 @@
+{
+  "appId": "com.arisereader.reader",
+  "appName": "A.R.I.S.E. Reader",
+  "webDir": "www",
+  "server": {
+    "iosScheme": "capacitor"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
