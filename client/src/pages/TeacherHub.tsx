@@ -41,11 +41,7 @@ import {
   WandSparkles,
   X,
   MoreHorizontal,
-  Puzzle,
-  Menu as MenuIcon,
 } from "lucide-react";
-import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, pluginOpens, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { PLANS, usd } from "@shared/plans";
@@ -366,21 +362,9 @@ function TeacherHubPage() {
     } catch { /* stays where it is */ }
   }, [location]);
   const [customize, setCustomize] = useState(false);
-  // The Arise Plugin Store. It opens straight away when the person switched here from LifeHub's store.
-  const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
-  /** The slide-out menu on a phone, opened from the button at the top left. */
-  const [drawer, setDrawer] = useState(false);
-  useEffect(() => {
-    if (!drawer) return;
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); };
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; };
-  }, [drawer]);
   useEffect(() => {
     if (!more) return;
     const close = (e: Event) => { if (!moreRef.current?.contains(e.target as Node)) setMore(false); };
@@ -653,23 +637,12 @@ function TeacherHubPage() {
   return (
     <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
-      {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
-        hub="work"
-        teacher
-        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs)}
-        onToggle={(p: Plugin, on: boolean) => setWorkspace((prev) => ({ ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }))}
-        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); setStore(false); }}
-        onClose={() => setStore(false)}
-      />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
-          <div className="flex min-w-0 items-center gap-2">
-          <button type="button" onClick={() => setDrawer(true)} aria-label="Open menu" aria-expanded={drawer} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 md:hidden" data-testid="hub-drawer-open"><MenuIcon className="h-5 w-5" /></button>
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
             <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
             <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">WorkHub</span>
           </a>
-          </div>
           <div className="flex shrink-0 items-center gap-2">
             <HubSwitch current="hub" night={night} />
             <span className="hidden sm:contents"><SaveBadge view={view} /></span>
@@ -679,7 +652,6 @@ function TeacherHubPage() {
             <button type="button" onClick={() => setAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
-            <button type="button" onClick={() => setStore(true)} aria-label="Plugin Store" title="Plugin Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-plugin-store"><Puzzle className="h-4 w-4" /> <span className="hidden lg:inline">Plugins</span></button>
             <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize tabs and your data" aria-expanded={customize} className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize tabs</span></button>
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><LogOut className="h-4 w-4" /></button>
             <div ref={moreRef} className="relative sm:hidden">
@@ -694,7 +666,6 @@ function TeacherHubPage() {
                         : <><CheckCircle2 className="h-4 w-4 text-emerald-600" />Saved</>}
                   </div>
                   <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{night ? "Day mode" : "Night mode"}</button>
-                  <button type="button" role="menuitem" onClick={() => { setStore(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Puzzle className="h-4 w-4" />Plugin Store</button>
                   <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize tabs</button>
                   <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" />Sign out</button>
                 </div>
@@ -704,9 +675,9 @@ function TeacherHubPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
-        <aside className="hidden min-w-0 md:block fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur md:sticky md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start">
-          <div className="flex snap-x gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm">
+      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 pl-[80px] pr-3 sm:gap-4 sm:py-4 sm:pl-[84px] sm:pr-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
+        <aside className="fixed bottom-0 left-0 top-[65px] z-30 w-[72px] min-w-0 border-r border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] backdrop-blur md:sticky md:left-auto md:w-auto md:border-r-0 md:pl-0 md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start">
+          <div className="flex h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm">
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
@@ -721,7 +692,7 @@ function TeacherHubPage() {
                   onDragEnd={movable ? () => setDraggingGroup(null) : undefined}
                   onDragOver={movable && draggingGroup && draggingGroup !== item.id ? (e) => e.preventDefault() : undefined}
                   onDrop={movable && draggingGroup && draggingGroup !== item.id ? (e) => { e.preventDefault(); moveGroupTo(draggingGroup, item.id); setDraggingGroup(null); } : undefined}
-                  className={`group/navitem flex shrink-0 snap-start items-stretch gap-0.5 rounded-xl transition md:w-full ${draggingGroup === item.id ? "opacity-40" : ""}`}
+                  className={`group/navitem flex w-full shrink-0 items-stretch gap-0.5 rounded-xl transition ${draggingGroup === item.id ? "opacity-40" : ""}`}
                 >
                   <button
                     type="button"
@@ -732,7 +703,7 @@ function TeacherHubPage() {
                     className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
                   >
                     {GROUP_ICON[item.id]}
-                    <span className="max-w-[72px] truncate whitespace-nowrap md:max-w-none md:whitespace-normal">{groupLabel(item.id, visible)}</span>
+                    <span className="max-w-[62px] truncate whitespace-nowrap md:max-w-none md:whitespace-normal">{groupLabel(item.id, visible)}</span>
                   </button>
                   {movable && (
                     <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">
@@ -745,29 +716,6 @@ function TeacherHubPage() {
             })}
           </div>
         </aside>
-
-        {/* On a phone the menu slides out from the left, so a sideways swipe never leaves the app. */}
-        <div className={`fixed inset-0 z-[60] md:hidden ${drawer ? "" : "pointer-events-none"}`} aria-hidden={!drawer}>
-          <div className={`absolute inset-0 bg-slate-950/40 transition-opacity duration-200 ${drawer ? "opacity-100" : "opacity-0"}`} onClick={() => setDrawer(false)} />
-          <nav aria-label="WorkHub menu" data-testid="hub-drawer"
-            className={`absolute inset-y-0 left-0 flex w-[min(80vw,300px)] flex-col overflow-y-auto overscroll-contain bg-white pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] shadow-2xl transition-transform duration-200 ${drawer ? "translate-x-0" : "-translate-x-full"}`}>
-            <div className="flex items-center justify-between gap-2 px-4 pb-2">
-              <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p><p className="truncate text-xs text-slate-500">@{user.username}</p></div>
-              <button type="button" onClick={() => setDrawer(false)} aria-label="Close menu" tabIndex={drawer ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
-            </div>
-            <ul className="space-y-1 px-2">
-              {menu.map((item) => (
-                <li key={item.id}>
-                  <button type="button" tabIndex={drawer ? 0 : -1} onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); setDrawer(false); }} aria-current={group.id === item.id ? "page" : undefined} data-testid={`hub-drawer-${item.id}`}
-                    className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium ${group.id === item.id ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-100"}`}>
-                    {GROUP_ICON[item.id]}
-                    <span className="truncate">{groupLabel(item.id, visible)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
 
         <main className="min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9">
           <HubTrialNote trial={trial} which="work" upgradeHref="#/billing" />
@@ -789,7 +737,6 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
-              <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><Puzzle className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the Plugin Store</span>Add tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
               <div className="mb-5">
                 <h3 className="mb-1 text-sm font-semibold text-slate-900">Accent colour</h3>
                 <p className="mb-3 text-sm text-slate-600">The one colour the Hub is tinted with: buttons, links, today's bar and anything chosen.</p>
