@@ -56,12 +56,12 @@ export default function Login() {
   const [password,setPassword]=useState("");
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
-  const [showSampleChooser,setShowSampleChooser]=useState(false);
+  const [showSampleChooser,setShowSampleChooser]=useState(()=>/[?&]sample=1(?:&|$)/.test(window.location.hash));
   const [sampleLoading,setSampleLoading]=useState<SampleType|null>(null);
   const [loginBanner,setLoginBanner]=useState<{text:string;bgColor:string;textColor:string;link?:string}|null>(null);
-  const [frontTab,setFrontTab]=useState<FrontTab>(()=>/[?&]tab=create\b/.test(window.location.hash)||/[?&]tab=create\b/.test(window.location.search)?"create":"signin");
-  const [donationOpen,setDonationOpen]=useState(false);
-  const [selectedFeature,setSelectedFeature]=useState<FeatureId|null>(null);
+  const [frontTab,setFrontTab]=useState<FrontTab>(()=>/[?&]tab=explore\b/.test(window.location.hash)?"explore":/[?&]tab=create\b/.test(window.location.hash)||/[?&]tab=create\b/.test(window.location.search)?"create":"signin");
+  const [donationOpen,setDonationOpen]=useState(()=>/[?&]donation=1(?:&|$)/.test(window.location.hash));
+  const [selectedFeature,setSelectedFeature]=useState<FeatureId|null>(()=>{const id=window.location.hash.match(/[?&]feature=([a-z]+)/)?.[1];return id&&Object.prototype.hasOwnProperty.call(FEATURES,id)?id as FeatureId:null;});
 
   useEffect(()=>{fetch(`${API_BASE}/api/banners/login`).then(r=>r.ok?r.json():null).then(d=>{if(d?.text)setLoginBanner(d);}).catch(()=>{});},[]);
   useEffect(()=>{
