@@ -41,6 +41,7 @@ import {
   WandSparkles,
   X,
   MoreHorizontal,
+  ChevronLeft as RailHide, ChevronRight as RailShow,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
@@ -364,6 +365,9 @@ function TeacherHubPage() {
   const [customize, setCustomize] = useState(false);
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
+  /** The menu strip down the left side on a phone: shown, or tucked away behind a small tab. Remembered on this device. */
+  const [rail, setRailState] = useState(() => { try { return localStorage.getItem("arise-hub-rail") !== "closed"; } catch { return true; } });
+  const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
   const moreRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!more) return;
@@ -675,9 +679,11 @@ function TeacherHubPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 pl-[80px] pr-3 sm:gap-4 sm:py-4 sm:pl-[84px] sm:pr-4 md:grid-cols-[220px_minmax(0,1fr)] md:px-6">
-        <aside className="fixed bottom-0 left-0 top-[65px] z-30 w-[72px] min-w-0 border-r border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] backdrop-blur md:sticky md:left-auto md:w-auto md:border-r-0 md:pl-0 md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start">
+      <div className={`mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 pr-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 sm:pr-4 ${rail ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"} md:grid-cols-[220px_minmax(0,1fr)] md:px-6`}>
+        {!rail && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" className="fixed left-0 top-[77px] z-30 inline-flex h-14 w-7 items-center justify-center rounded-r-xl border border-l-0 border-slate-200 bg-white text-slate-600 shadow-md md:hidden" data-testid="hub-rail-show"><RailShow className="h-5 w-5" /></button>}
+        <aside className={`fixed bottom-0 left-0 top-[65px] z-30 w-[72px] min-w-0 transition-transform duration-200 md:translate-x-0 ${rail ? "translate-x-0" : "-translate-x-full"} border-r border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] backdrop-blur md:sticky md:left-auto md:w-auto md:border-r-0 md:pl-0 md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start`} aria-hidden={rail ? undefined : true}>
           <div className="flex h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm">
+            <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className="flex min-h-11 w-full shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden" data-testid="hub-rail-hide"><RailHide className="h-5 w-5" />Hide</button>
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
