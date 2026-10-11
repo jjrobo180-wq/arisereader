@@ -8,7 +8,8 @@
 // layout (shared/hubLayout.ts), the same one Customize sets.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Check, Plus, Puzzle, X } from "lucide-react";
+import { Bell, CalendarDays, Check, CheckSquare, Image as ImageIcon, ListChecks, Plus, Puzzle, School, Sun, Users, WandSparkles, X, type LucideIcon } from "lucide-react";
+import { HubModal } from "./HubModal";
 import { HOME_SECTIONS, HOME_SIZES, homeShown, resizeSection, sizeOf, type HomeSection, type HomeSize, type HubLayout } from "@shared/hubLayout";
 import type { Plugin } from "@shared/pluginStore";
 import { ICONS } from "@/components/plugin-store/PluginStore";
@@ -20,10 +21,14 @@ const label = (id: HomeSection) => HOME_SECTIONS.find((s) => s.id === id)?.label
 /** A press on something you can use (a button, a link, a box to type in) is never a hold. */
 const isControl = (el: EventTarget | null) => el instanceof HTMLElement && !!el.closest("a, button, input, textarea, select, label, [role='button'], [role='radio'], [contenteditable='true']");
 /** Where a part sits in the grid, and how tall it may be. Small is half width from tablet size up. */
-const SPAN: Record<HomeSize, string> = { small: "col-span-2 sm:col-span-1", medium: "col-span-2", large: "col-span-2" };
+// The grid has 3 columns on a phone and more on wider screens. Small is one square, like an app icon but bigger.
+const GRID = "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-5 md:grid-cols-5 xl:grid-cols-6";
+const SPAN: Record<HomeSize, string> = { small: "col-span-1", medium: "col-span-full", large: "col-span-full" };
+/** The picture on each part's small tile. */
+const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, notifications: Bell, profile: School };
 const CAP: Record<HomeSize, string> = { small: "max-h-[26rem] overflow-y-auto overscroll-contain rounded-3xl", medium: "max-h-[22rem] overflow-y-auto overscroll-contain rounded-3xl", large: "" };
 /** How tall a part's picture is while arranging. */
-const PREVIEW: Record<HomeSize, string> = { small: "h-36", medium: "h-36", large: "h-52" };
+const PREVIEW: Record<HomeSize, string> = { small: "aspect-square", medium: "h-36", large: "h-52" };
 const GLIDE = { type: "spring", stiffness: 520, damping: 42, mass: 0.8 } as const;
 
 export type QuickPlugin = { plugin: Plugin; onAdd: () => void };
@@ -45,6 +50,8 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
   onOpenStore?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  /** A small tile tapped open: its whole part in a pop-up. */
+  const [opened, setOpened] = useState<HomeSection | null>(null);
   const hidden = layout.homeHidden;
   /** The parts on Home in order, while editing. */
   const [order, setOrder] = useState<HomeSection[]>(() => homeShown(layout));
@@ -184,17 +191,20 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
     const shown = homeShown(layout);
     return (
       <>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6" data-testid="home-grid">
+        <div className={GRID} data-testid="home-grid">
           {shown.map((id) => (
             <div key={id} {...holdProps} className={`${SPAN[sizeOf(layout, id)]} min-w-0`} data-home-part={id}>
-              <div className={CAP[sizeOf(layout, id)]}>{parts[id]}</div>
+              {sizeOf(layout, id) === "small"
+                ? <button type="button" onClick={() => setOpened(id)} className="w-full transition active:scale-95" aria-label={`Open ${label(id)}`} data-testid={`home-tile-${id}`}><Tile id={id} /></button>
+                : <div className={CAP[sizeOf(layout, id)]}>{parts[id]}</div>}
             </div>
           ))}
-          {!shown.length && <p className="col-span-2 py-4 text-sm text-slate-500">Everything on Home is hidden.</p>}
+          {!shown.length && <p className="col-span-full py-4 text-sm text-slate-500">Everything on Home is hidden.</p>}
         </div>
         <div className="flex justify-center">
           <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95" data-testid="home-edit">Edit Home</button>
         </div>
+        {opened && <HubModal title={label(opened)} size="lg" onClose={() => setOpened(null)}>{parts[opened]}</HubModal>}
       </>
     );
   }
@@ -209,7 +219,7 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
         <button type="button" onClick={() => setEditing(false)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition active:scale-95" data-testid="home-edit-done"><Check className="h-4 w-4" /> Done</button>
       </div>
 
-      <div ref={grid} className="relative grid grid-cols-2 gap-4 sm:gap-6">
+      <div ref={grid} className={`relative ${GRID}`}>
         {order.map((id, i) => {
           const sz = sizeOf(layout, id), held = dragId === id;
           return (
@@ -219,19 +229,21 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
               style={held ? { willChange: "transform" } : undefined}>
               <div className={`hub-jiggle relative rounded-3xl bg-white transition-shadow duration-150 ${held ? "shadow-2xl ring-2 ring-slate-900" : "shadow-sm ring-1 ring-slate-300"}`}
                 style={{ animation: held ? "none" : `hub-jiggle .3s ease-in-out ${i % 2 ? "-.15s" : "0s"} infinite` }}>
-                <div className={`pointer-events-none ${PREVIEW[sz]} overflow-hidden rounded-3xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)]`} aria-hidden>{parts[id]}</div>
-                <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-white">{label(id)}</span>
+                {sz === "small"
+                  ? <div className="pointer-events-none" aria-hidden><Tile id={id} /></div>
+                  : <div className={`pointer-events-none ${PREVIEW[sz]} overflow-hidden rounded-3xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)]`} aria-hidden>{parts[id]}</div>}
+                {sz !== "small" && <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-white">{label(id)}</span>}
                 <button type="button" onClick={() => onChange({ ...layout, home: full(order), homeHidden: [...new Set([...hidden, id])] })} aria-label={`Remove ${label(id)} from Home`}
                   className="absolute -left-2 -top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-700 text-white shadow-md transition active:scale-90" data-testid={`home-remove-${id}`}><X className="h-4 w-4" /></button>
-                <div className="absolute right-2 top-2 z-10 flex rounded-full bg-white/95 p-0.5 shadow-md ring-1 ring-slate-200" role="radiogroup" aria-label={`Size of ${label(id)}`}>
+                <div className={`absolute z-10 flex rounded-full bg-white/95 p-0.5 shadow-md ring-1 ring-slate-200 ${sz === "small" ? "-bottom-3 left-1/2 -translate-x-1/2" : "right-2 top-2"}`} role="radiogroup" aria-label={`Size of ${label(id)}`}>
                   {HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => onChange(resizeSection({ ...layout, home: full(order) }, id, z.id))}
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${sz === z.id ? "bg-slate-950 text-white" : "text-slate-600"}`} data-testid={`home-size-${id}-${z.id}`}>{z.short}</button>)}
+                    className={`inline-flex ${sz === "small" ? "h-7 w-7" : "h-8 w-8"} items-center justify-center rounded-full text-xs font-bold transition ${sz === z.id ? "bg-slate-950 text-white" : "text-slate-600"}`} data-testid={`home-size-${id}-${z.id}`}>{z.short}</button>)}
                 </div>
               </div>
             </motion.div>
           );
         })}
-        {!order.length && <p className="col-span-2 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Home is empty. Add parts back below.</p>}
+        {!order.length && <p className="col-span-full rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Home is empty. Add parts back below.</p>}
       </div>
 
       {(off.length > 0 || plugins.length > 0 || onOpenStore) && (
@@ -273,5 +285,16 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
         </div>
       )}
     </div>
+  );
+}
+
+/** A part as a small square tile, like an app icon: its picture and its name. */
+function Tile({ id }: { id: HomeSection }) {
+  const Icon = PART_ICON[id] ?? Puzzle;
+  return (
+    <span className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[1.6rem] border border-slate-200 bg-white p-2 text-center shadow-sm">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-14 sm:w-14"><Icon className="h-6 w-6 sm:h-7 sm:w-7" /></span>
+      <span className="line-clamp-2 text-xs font-semibold leading-tight text-slate-800 sm:text-sm">{label(id)}</span>
+    </span>
   );
 }
