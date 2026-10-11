@@ -1,6 +1,6 @@
 // Family Hub home: today across every switched-on part of the hub.
 // Its parts can be arranged right here, like WorkHub's Home: press and hold (or Edit Home) to drag, resize or remove them.
-import { Apple, CalendarDays, Check, ChevronRight, LayoutGrid, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
+import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, LayoutGrid, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
 import type { ReactNode } from "react";
 import { HomeParts, type HomePart } from "@/components/teacher-hub/HubHomeEdit";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
@@ -10,9 +10,11 @@ import { MOODS } from "./Mood";
 import { goalProgress } from "./Goals";
 import { caloriesLeft, dayTotals, goalsFor, healthPeople } from "@shared/familyHealth";
 import type { CalendarTask } from "./FamilyCalendar";
+import WidgetBoard from "@/components/widgets/WidgetBoard";
+import { cleanWidgets } from "@shared/widgets";
 import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type SectionProps } from "./ui";
 
-const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote };
+const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets: AlarmClock, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote };
 const CATALOG: HomePart[] = LIFE_PARTS.map((p) => ({ id: p.id, label: p.label, icon: PART_ICONS[p.id] }));
 
 export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name }: SectionProps & {
@@ -39,6 +41,8 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
     greeting: <><header className="flex flex-wrap items-start justify-between gap-4">
       <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{shortDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{greeting}{name ? `, ${name}` : ""}<span className="text-[#7866e1]">.</span></h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:mt-2">Here's what's happening with your family today.</p></div>
     </header></>,
+    widgets: family.widgets.board ? <WidgetBoard items={family.widgetBoard} makeId={makeId} accent="bg-[#292446]"
+      setItems={(update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) }))} /> : null,
     stats: <><div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
       <button onClick={() => go("tasks")} className="text-left"><Stat label="Tasks due" value={dueTasks.length} icon={<ListTodo size={17} />} tint="bg-violet-50 text-violet-600" /></button>
       {on("chores") && <button onClick={() => go("chores")} className="text-left"><Stat label="Chores left today" value={choresLeft.length} icon={<Sparkles size={17} />} tint="bg-emerald-50 text-emerald-600" /></button>}

@@ -5,6 +5,7 @@ import { cleanAnyLayout, type AnyLayout } from "./hubLayout";
 /** The parts of LifeHub's Home, in the order they start in. */
 export const LIFE_PARTS = [
   { id: "greeting", label: "Today's greeting" },
+  { id: "widgets", label: "Widgets" },
   { id: "stats", label: "Quick counts" },
   { id: "agenda", label: "Today's agenda" },
   { id: "chores", label: "Chores" },
@@ -23,4 +24,4 @@ export type LifeLayout = AnyLayout & { home: LifePart[]; homeHidden: LifePart[] 
 
 /** LifeHub starts with the menu across the top on a phone, as it always was. */
 export const cleanLifeLayout = (raw: unknown): LifeLayout =>
-  cleanAnyLayout(raw, LIFE_PARTS.map((p) => p.id), { menuSide: "top", menuClose: "button", homeHidden: [] }) as LifeLayout;
+  cleanAnyLayout(raw, LIFE_PARTS.map((p) => p.id), { menuSide: "top", menuClose: "button", homeHidden: ["widgets"] }) as LifeLayout;

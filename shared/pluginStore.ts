@@ -16,6 +16,8 @@
 import type { HubTab } from "./teacherHub";
 import { isOn, type Family, type FamilySection } from "./familyHub";
 import { KIT_DEFS, type KitDef } from "./pluginKit";
+import { showSection } from "./hubLayout";
+import { cleanLifeLayout } from "./lifeLayout";
 
 export type PluginHub = "work" | "life";
 
@@ -23,7 +25,8 @@ export type PluginTarget =
   | { kind: "tab"; tab: HubTab }
   | { kind: "section"; section: FamilySection }
   | { kind: "layer"; layer: "hub"; opens: FamilySection }
-  | { kind: "widget"; widget: "stickies"; opens: FamilySection }
+  /** Something added to Home: LifeHub's sticky notes, or the Widgets board (in both hubs). */
+  | { kind: "widget"; widget: "stickies" | "board"; opens: FamilySection }
   /** A WorkHub Plugin Kit plugin: added to workspace.kitInstalled and opened from the store. */
   | { kind: "kit"; id: string }
   | { kind: "connection"; needs: { tab: HubTab } | { section: FamilySection } }
@@ -88,8 +91,18 @@ const ARISE_APPS = (hub: PluginHub): Plugin[] => [
     features: ["Hundreds of careers", "What a day on the job looks like", "Points that count toward prizes"], target: { kind: "app", app: "social", href: "/social/" } },
 ];
 
+const WIDGETS_PLUGIN = (hub: PluginHub): Plugin => ({
+  id: `${hub}-widgets`, hub, name: "Widgets", tagline: "Clocks, calendars, countdowns and fun widgets for Home", category: hub === "work" ? "Teaching tools" : "Tools",
+  icon: "AlarmClock", color: "#6d28d9", featured: true, target: { kind: "widget", widget: "board", opens: "home" },
+  description: hub === "work"
+    ? "Put live widgets on your WorkHub Home: a flip clock, a next-bell countdown, the school day's progress, a month calendar, a timer, world clocks and more. Pick from 34 widgets in 11 themes, from serious to silly, in three sizes."
+    : "Put live widgets on your LifeHub Home: clocks of every kind, calendars, countdowns to trips and birthdays, the moon tonight, dice, a coin flip and more. Pick from 34 widgets in 11 themes, from serious to silly, in three sizes.",
+  features: ["34 widgets: clocks, calendars, countdowns, fun and focus", "11 themes, from Classic and Paper to Neon and Terminal", "Small, wide or large", "Saved to your account on every device"],
+});
+
 export const PLUGINS: readonly Plugin[] = [
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
+  WIDGETS_PLUGIN("work"),
   { id: "work-assistant", hub: "work", name: "AI assistant", tagline: "Chat with AI about lessons, IEPs, emails and more", category: "Teaching tools", icon: "Sparkles", color: "#0f766e", featured: true, teacherOnly: true,
     description: "A chat button on every page of WorkHub. Ask for lesson ideas, help wording an IEP goal or accommodation, a parent email draft, or a quick explanation, and get a clear answer right away.",
     features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Your chat stays on this device"], target: { kind: "assistant" } },
@@ -222,6 +235,7 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-assistant", hub: "life", name: "AI assistant", tagline: "Chat with AI about meals, plans, homework and more", category: "Tools", icon: "Sparkles", color: "#7968e5", featured: true,
     description: "A chat button on every page of LifeHub. Ask for dinner ideas, a weekend plan, help with a hard email or a kid's homework question, and get a clear answer right away.",
     features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Your chat stays on this device"], target: { kind: "assistant" } },
+  WIDGETS_PLUGIN("life"),
   { id: "life-stickies", hub: "life", name: "Sticky notes", tagline: "Notes you can put anywhere on Home", category: "Everyday", icon: "StickyNote", color: "#eab308", featured: true,
     target: { kind: "widget", widget: "stickies", opens: "home" },
     description: "Stick colorful notes anywhere on your LifeHub Home screen. Drag them where you want them, change the color, and they stay put on every device.",
@@ -400,8 +414,9 @@ export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySecti
 // ── WorkHub ────────────────────────────────────────────────────────────────
 
 /** Is this WorkHub plugin on? A tab is on unless it was switched off. */
-export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[], assistant?: boolean): boolean {
+export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[], assistant?: boolean, widgets?: boolean): boolean {
   const t = p.target;
+  if (t.kind === "widget") return t.widget === "board" && !!widgets;
   if (t.kind === "assistant") return !!assistant;
   if (t.kind === "kit") return !!kitInstalled?.includes(t.id);
   if (t.kind === "tab") return visibleTabs[t.tab] !== false;
@@ -438,8 +453,10 @@ export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "laye
 }
 
 /** The family with this plugin added or removed. Adding the WorkHub calendar also adds the Calendar section it shows in. */
-export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets">>>(family: F, p: Plugin, on: boolean): F {
+export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout">>>(family: F, p: Plugin, on: boolean): F {
   const t = p.target;
+  // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
+  if (t.kind === "widget" && t.widget === "board") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), board: on }, layout: showSection(cleanLifeLayout(family.layout), "widgets", on) };
   if (t.kind === "widget") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), [t.widget]: on } };
   if (t.kind === "assistant") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), chat: on } };
   if (t.kind === "section") return { ...family, sections: { ...family.sections, [t.section]: on } };

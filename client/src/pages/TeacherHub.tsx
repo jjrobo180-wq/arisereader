@@ -49,6 +49,8 @@ import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkKit, setWork
 import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { HubChat } from "@/components/HubChat";
+import WidgetBoard from "@/components/widgets/WidgetBoard";
+import { cleanWidgets } from "@shared/widgets";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
@@ -694,12 +696,14 @@ function TeacherHubPage() {
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         teacher
-        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat)}
+        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn)}
         onToggle={(p: Plugin, on: boolean) => {
-          setWorkspace((prev) => (p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
+          // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
+          setWorkspace((prev) => (p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
             ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) }
             : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }));
           if (p.target.kind === "assistant" && on) toasts.show("AI assistant added. Tap the ✦ button at the bottom right to chat.", []);
+          if (p.target.kind === "widget" && on) toasts.show("Widgets added to Home. Tap Add widget to pick your first one.", []);
           if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
         }}
         kit={{
@@ -708,7 +712,7 @@ function TeacherHubPage() {
           today: TODAY(),
           makeId: id,
         }}
-        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); }}
+        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); }}
         onClose={() => setStore(false)}
       />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -919,7 +923,7 @@ function TeacherHubPage() {
                       );
                     })}
                   </ul>
-                  <button type="button" onClick={() => setLayout({ ...layout, home: HOME_SECTIONS.map((x) => x.id), homeHidden: ["picture"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
+                  <button type="button" onClick={() => setLayout({ ...layout, home: HOME_SECTIONS.map((x) => x.id), homeHidden: (workspace as any).widgetsOn ? ["picture"] : ["picture", "widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
                 </div>
               </div>
               <div className="mb-5">
@@ -1066,6 +1070,10 @@ function TeacherHubPage() {
                 <RecentlyDone tasks={workspace.tasks} onUndo={undoCheck} limit={4} />
               </Card>
                   ),
+                  widgets: (workspace as any).widgetsOn ? (
+              <WidgetBoard items={(workspace as any).widgetItems} makeId={id} accent="bg-slate-950"
+                setItems={(update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) }))} />
+                  ) : null,
                   notifications: (
               <HubNotifications token={token} />
                   ),
@@ -1079,10 +1087,10 @@ function TeacherHubPage() {
               </Card>
                   ),
                 };
-                const quick = pluginsFor("work", { teacher: true }).filter((p) => isAddable(p) && (p.target.kind === "tab" || p.target.kind === "kit" || p.target.kind === "assistant") && !workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat))
+                const quick = pluginsFor("work", { teacher: true }).filter((p) => isAddable(p) && (p.target.kind === "tab" || p.target.kind === "kit" || p.target.kind === "assistant" || p.target.kind === "widget") && !workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn))
                   .map((plugin) => ({ plugin, onAdd: () => {
-                    setWorkspace((prev) => (plugin.target.kind === "assistant" ? { ...prev, aiChat: true } : plugin.target.kind === "kit" ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, plugin, true) } : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) }));
-                    toasts.show(`${plugin.name} added to your menu.`, []);
+                    setWorkspace((prev) => (plugin.target.kind === "widget" ? { ...prev, widgetsOn: true, layout: showSection(cleanLayout(prev.layout), "widgets", true) } : plugin.target.kind === "assistant" ? { ...prev, aiChat: true } : plugin.target.kind === "kit" ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, plugin, true) } : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) }));
+                    toasts.show(plugin.target.kind === "widget" ? "Widgets added to Home." : `${plugin.name} added to your menu.`, []);
                   } }));
                 return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} />;
               })()}

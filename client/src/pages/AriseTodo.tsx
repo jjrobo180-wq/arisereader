@@ -582,7 +582,10 @@ export default function AriseTodo() {
       hub="life"
       teacher={user.role === "teacher" || !!user.isAdmin}
       isInstalled={(p: Plugin) => lifeInstalled(p, family)}
-      onToggle={(p: Plugin, on: boolean) => setFamily((f) => setLifePlugin(f, p, on))}
+      onToggle={(p: Plugin, on: boolean) => {
+        setFamily((f) => setLifePlugin(f, p, on));
+        if (p.target.kind === "widget" && p.target.widget === "board" && on) setMessage("Widgets added to Home. Tap Add widget to pick your first one.");
+      }}
       onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "section" in at) setSection(at.section); setStore(false); if (p.target.kind === "assistant") setMessage("Tap the ✦ button at the bottom right to chat."); }}
       onClose={() => setStore(false)}
     />}
@@ -618,7 +621,7 @@ export default function AriseTodo() {
               </li>;
             })}
           </ul>
-          <button type="button" onClick={() => setLayout({ ...layout, home: LIFE_PARTS.map((x) => x.id), homeHidden: [], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
+          <button type="button" onClick={() => setLayout({ ...layout, home: LIFE_PARTS.map((x) => x.id), homeHidden: family.widgets.board ? [] : ["widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
         </section>
         <section className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
           <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><Puzzle size={16} /> Add plugins</button>

@@ -4,6 +4,7 @@
 
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
+import { cleanWidgets, type WidgetItem } from "./widgets";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
 
 export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS, "notifications", "reader", "family"] as const;
@@ -144,7 +145,7 @@ export type MileageTrip = { id: string; date: string; miles: number; purpose: st
 export type MedicalCard = { id: string; person: string; bloodType: string; allergies: string; conditions: string; medications: string; doctor: string; insurance: string; notes: string };
 /** Plugin Store add-ons that live on another screen rather than in the menu. */
 /** Extras added from the Plugin Store: sticky notes on Home, and the AI assistant's chat button. */
-export type Widgets = { stickies: boolean; chat?: boolean };
+export type Widgets = { stickies: boolean; chat?: boolean; board?: boolean };
 /* News */
 export type NewsPrefs = { topics: string[]; place: string };
 
@@ -189,6 +190,8 @@ export type Family = {
   /** Ids of quotes saved from the daily quote (see shared/lifePlugins.ts). */
   savedQuotes: string[];
   widgets: Widgets;
+  /** The widgets on Home's Widgets board (see shared/widgets.ts). */
+  widgetBoard?: WidgetItem[];
   /** How the family arranged the hub in Customize (see shared/lifeLayout.ts). Not set: the usual layout. */
   layout?: LifeLayout;
   stickies: Sticky[];
@@ -482,7 +485,8 @@ export function cleanFamily(input: unknown): Family {
       const date = day(r.date);
       return date ? { id: id(r.id), date, minutes: num(r.minutes, 0, 600), kind: str(r.kind, 30) } : null;
     }, true),
-    widgets: { stickies: bool(obj(raw.widgets)?.stickies, false), ...(bool(obj(raw.widgets)?.chat, false) ? { chat: true } : {}) },
+    widgets: { stickies: bool(obj(raw.widgets)?.stickies, false), ...(bool(obj(raw.widgets)?.chat, false) ? { chat: true } : {}), ...(bool(obj(raw.widgets)?.board, false) ? { board: true } : {}) },
+    ...(Array.isArray(raw.widgetBoard) ? { widgetBoard: cleanWidgets(raw.widgetBoard) } : {}),
     ...(obj(raw.layout) ? { layout: cleanLifeLayout(raw.layout) } : {}),
     stickies: rows(raw.stickies, LIMITS.stickies, (r) => ({ id: id(r.id), text: str(r.text, 1000), color: color(r.color, NOTE_COLORS[0]), x: num(r.x, 0, 1, 0.5), y: int(r.y, 0, 6000, 40) })),
     randomLists: rows(raw.randomLists, LIMITS.randomLists, (r) => {

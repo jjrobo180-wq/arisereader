@@ -20,6 +20,7 @@ export const MENU_CLOSES: { id: MenuClose; label: string; detail: string }[] = [
 /** The parts of Home, in the order they start in. */
 export const HOME_SECTIONS = [
   { id: "day", label: "Today's greeting" },
+  { id: "widgets", label: "Widgets" },
   { id: "picture", label: "Picture box" },
   { id: "agenda", label: "Today's agenda" },
   { id: "add", label: "Add things fast" },
@@ -52,7 +53,7 @@ export type AnyLayout = {
 /** WorkHub's layout. */
 export type HubLayout = AnyLayout & { home: HomeSection[]; homeHidden: HomeSection[]; homeSize: Partial<Record<HomeSection, HomeSize>> };
 
-export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture"], homeSize: {} };
+export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture", "widgets"], homeSize: {} };
 
 /**
  * A saved layout made safe for a hub whose Home has these parts (in their usual order): known choices only, every part
@@ -71,6 +72,10 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
     home.splice(before ? home.indexOf(before) + 1 : 0, 0, id);
   });
   const homeHidden: Id[] = Array.isArray(r.homeHidden) ? [...new Set((r.homeHidden as unknown[]).filter(isPart))] : [...defaults.homeHidden];
+  // A part that is new since this layout was saved starts the way it does on a new layout: hidden if it starts hidden there.
+  if (Array.isArray(r.home) && Array.isArray(r.homeHidden)) {
+    for (const id of defaults.homeHidden) if (!(r.home as unknown[]).includes(id) && !homeHidden.includes(id)) homeHidden.push(id);
+  }
   const homeSize: Partial<Record<Id, HomeSize>> = {};
   if (r.homeSize && typeof r.homeSize === "object") for (const [k, v] of Object.entries(r.homeSize)) if (isPart(k) && HOME_SIZES.some((z) => z.id === v)) homeSize[k] = v as HomeSize;
   return { menuSide, menuClose, home, homeHidden, homeSize };
