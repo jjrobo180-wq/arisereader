@@ -45,7 +45,7 @@ import {
   ChevronLeft as RailHide, ChevronRight as RailShow,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, pluginOpens, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { PLANS, usd } from "@shared/plans";
@@ -704,7 +704,7 @@ function TeacherHubPage() {
                         : <><CheckCircle2 className="h-4 w-4 text-emerald-600" />Saved</>}
                   </div>
                   <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{night ? "Day mode" : "Night mode"}</button>
-                  <button type="button" role="menuitem" onClick={() => { setStore(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50" data-testid="hub-more-plugin-store"><Puzzle className="h-4 w-4" />Plugin Store</button>
+                  <button type="button" role="menuitem" onClick={() => { setStore(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Puzzle className="h-4 w-4" />Plugin Store</button>
                   <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize</button>
                   <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" />Sign out</button>
                 </div>
@@ -816,7 +816,7 @@ function TeacherHubPage() {
                       );
                     })}
                   </ul>
-                  <button type="button" onClick={() => setLayout({ ...layout, home: HOME_SECTIONS.map((x) => x.id), homeHidden: ["picture"] })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
+                  <button type="button" onClick={() => setLayout({ ...layout, home: HOME_SECTIONS.map((x) => x.id), homeHidden: ["picture"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
                 </div>
               </div>
               <div className="mb-5">
@@ -976,7 +976,9 @@ function TeacherHubPage() {
               </Card>
                   ),
                 };
-                return <HomeParts parts={part} layout={layout} onChange={setLayout} />;
+                const quick = pluginsFor("work", { teacher: true }).filter((p) => isAddable(p) && p.target.kind === "tab" && !workInstalled(p, workspace.visibleTabs))
+                  .map((plugin) => ({ plugin, onAdd: () => { setWorkspace((prev) => ({ ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) })); toasts.show(`${plugin.name} added to your menu.`, []); } }));
+                return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} />;
               })()}
             </>
           )}

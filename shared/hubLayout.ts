@@ -30,6 +30,12 @@ export const HOME_SECTIONS = [
 ] as const;
 export type HomeSection = (typeof HOME_SECTIONS)[number]["id"];
 
+/** How big a part of Home is, like an iPhone widget: small is half the width, medium is the full width but short, large is the full width at its own height. */
+export type HomeSize = "small" | "medium" | "large";
+export const HOME_SIZES: { id: HomeSize; short: string; label: string }[] = [
+  { id: "small", short: "S", label: "Small" }, { id: "medium", short: "M", label: "Medium" }, { id: "large", short: "L", label: "Large" },
+];
+
 export type HubLayout = {
   menuSide: MenuSide;
   menuClose: MenuClose;
@@ -37,9 +43,11 @@ export type HubLayout = {
   home: HomeSection[];
   /** The parts of Home that are hidden. The picture box starts hidden. */
   homeHidden: HomeSection[];
+  /** Each part's size. A part not listed is large. */
+  homeSize: Partial<Record<HomeSection, HomeSize>>;
 };
 
-export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture"] };
+export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture"], homeSize: {} };
 
 const isSection = (x: unknown): x is HomeSection => HOME_SECTIONS.some((s) => s.id === x);
 
@@ -59,7 +67,9 @@ export function cleanLayout(raw: unknown): HubLayout {
     home.splice(at, 0, s.id);
   });
   const homeHidden = Array.isArray(r.homeHidden) ? [...new Set((r.homeHidden as unknown[]).filter(isSection))] : DEFAULT_LAYOUT.homeHidden;
-  return { menuSide, menuClose, home, homeHidden };
+  const homeSize: Partial<Record<HomeSection, HomeSize>> = {};
+  if (r.homeSize && typeof r.homeSize === "object") for (const [k, v] of Object.entries(r.homeSize)) if (isSection(k) && HOME_SIZES.some((z) => z.id === v)) homeSize[k] = v as HomeSize;
+  return { menuSide, menuClose, home, homeHidden, homeSize };
 }
 
 /** The parts of Home that show, in order. */
@@ -77,3 +87,8 @@ export function moveSection(layout: HubLayout, id: HomeSection, by: -1 | 1): Hub
 /** The layout with a part of Home shown or hidden. */
 export const showSection = (layout: HubLayout, id: HomeSection, on: boolean): HubLayout =>
   ({ ...layout, homeHidden: on ? layout.homeHidden.filter((x) => x !== id) : [...new Set([...layout.homeHidden, id])] });
+
+/** A part's size (large unless it was changed). */
+export const sizeOf = (layout: HubLayout, id: HomeSection): HomeSize => layout.homeSize[id] || "large";
+/** The layout with a part resized. */
+export const resizeSection = (layout: HubLayout, id: HomeSection, size: HomeSize): HubLayout => ({ ...layout, homeSize: { ...layout.homeSize, [id]: size } });
