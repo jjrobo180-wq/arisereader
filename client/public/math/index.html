@@ -382,6 +382,50 @@ body.big .prompt{font-size:clamp(2.4rem,8vw,3.7rem)} body.big .prompt.long{font-
 .lopt.mine{outline:3px solid var(--fg);outline-offset:2px}
 
 .link{background:none;border:0;color:var(--primary-text);text-decoration:underline;text-underline-offset:3px;font-weight:600;font-size:inherit}
+
+/* ---------- lessons, practice modes, new games ---------- */
+.idea p{font-size:1.06rem;line-height:1.55;margin-top:6px}
+.remember{background:var(--primary-soft)}
+.remember .rem{font-size:1.2rem;font-weight:800;margin-top:6px;color:var(--primary-text);line-height:1.35}
+.ex-card{display:flex;flex-direction:column;gap:12px}
+.steps li.ans-step{list-style:none;margin-left:-1.4em;color:var(--leaf);font-weight:800}
+.modes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.mode{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card-2);color:var(--fg);min-height:118px;font:inherit}
+button.mode{cursor:pointer} button.mode:hover{border-color:var(--primary)}
+.mode b{font-size:.98rem} .mode span{font-size:.8rem;color:var(--muted);line-height:1.35} .mode em{font-style:normal;font-size:.76rem;font-weight:800;color:var(--primary-text)}
+.game-card .btn{margin-top:auto}
+.levels{display:flex;flex-direction:column}
+.level{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+.level:last-child{border-bottom:0;padding-bottom:0} .level b{display:block;font-size:.92rem} .level .btn{flex:none}
+.hintbox{border-left:4px solid var(--sun);background:color-mix(in oklab,var(--sun) 10%,var(--card));padding:10px 14px;border-radius:0 12px 12px 0;display:flex;flex-direction:column;gap:6px}
+.flipcard{border:2px dashed var(--line-2);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px;min-height:220px}
+.flipcard.back{border-style:solid;border-color:var(--primary);animation:pop .25s}
+.flipcard .big-ans{font-size:clamp(2.4rem,8vw,3.4rem);font-weight:800;color:var(--primary-text);line-height:1}
+.streak{display:flex;gap:8px} .streak i{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.28)} .streak i.on{background:#ffd27a;animation:pop .3s}
+details.bigidea{width:100%;max-width:62ch;background:var(--primary-soft);border-radius:12px;padding:8px 12px}
+details.bigidea summary{cursor:pointer;font-weight:700;color:var(--primary-text);display:flex;gap:6px;align-items:center;min-height:32px}
+details.bigidea summary svg{width:18px;height:18px} details.bigidea p{margin:6px 0 2px;line-height:1.5}
+.mem{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.mem{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.mcard{min-height:76px;border-radius:14px;border:2px solid transparent;background:linear-gradient(135deg,var(--cover-a),var(--cover-b));color:#fff;font-weight:800;font-size:1.5rem;padding:6px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.mcard.up{background:var(--card-2);color:var(--fg);border-color:var(--primary);font-size:1.05rem}
+.mcard.up.a{font-size:1.4rem}
+.mcard.done{background:color-mix(in oklab,var(--leaf) 18%,var(--card));border-color:var(--leaf)}
+.mcard.pop{animation:pop .3s}
+.bq .prompt{font-size:clamp(1.5rem,5vw,2.2rem)}
+.skybox{position:relative;height:300px;border-radius:16px;overflow:hidden;background:linear-gradient(color-mix(in oklab,var(--sky) 24%,var(--card)),var(--card-2))}
+.bwrap{position:absolute;bottom:-40px;width:16%;min-width:70px;display:flex;justify-content:center;animation:rise 7.5s linear forwards}
+.balloon{position:relative;width:78px;height:94px;border:0;border-radius:50% 50% 46% 46%;background:var(--c);color:#fff;font-weight:800;font-size:1.15rem;box-shadow:inset -8px -10px 0 rgba(0,0,0,.1);font-variant-numeric:tabular-nums;padding:0 4px;overflow-wrap:anywhere;line-height:1.1}
+.balloon::after{content:'';position:absolute;left:50%;top:100%;width:1.5px;height:36px;background:rgba(0,0,0,.28)}
+.balloon.popped{animation:burst .3s forwards} .balloon.no{opacity:.3;animation:shake .3s}
+@keyframes rise{to{transform:translateY(-440px)}}
+@keyframes burst{to{transform:scale(1.7);opacity:0}}
+.tf-stmt{font-size:clamp(1.8rem,7vw,2.8rem);font-weight:800;text-align:center;padding:28px 16px;border-radius:16px;background:var(--card-2);font-variant-numeric:tabular-nums;border:3px solid transparent}
+.tf-stmt.good{border-color:var(--leaf)} .tf-stmt.bad{border-color:var(--coral);animation:shake .3s}
+.tf-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tf-btns button{min-height:76px;font-size:1.4rem;font-weight:800;border-radius:16px;border:0;color:#fff;display:flex;gap:8px;align-items:center;justify-content:center}
+.tf-btns svg{width:24px;height:24px} .tf-t{background:var(--leaf)} .tf-f{background:var(--coral)}
+@media (prefers-reduced-motion: reduce){ .bwrap{bottom:60px} }
 </style>
 </head>
 <body>
@@ -437,7 +481,9 @@ const I = {
   school:'<path d="M3 9l9-5 9 5-9 5z"/><path d="M7 11v5c0 1.5 2.5 3 5 3s5-1.5 5-3v-5"/>',
   book:'<path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/>',
   heart:'<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11.4 8.8 11.4s8.8-6 8.8-11.4z"/>',
-  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
+  back:'<path d="M15 18l-6-6 6-6"/>',
+  print:'<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>'
 };
 const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -633,7 +679,7 @@ function coCardHTML(){
   if (!CAT.gradeLessons) return '';
   const g = coGrade(), st = myState();
   const rows = byDomain(coLessons(g)).map(d=>domainHead(d.name)+d.items.map(l=>{ const s=SK(l.skill), best=P()?.best?.[l.skill];
-    return `<div class="assign">${op(l.skill)}<div><b>${esc(s.name)}</b><span class="small muted">${esc(codeLabel(st, l.code))}${best!=null?` · Best ${best}/5`:''}</span></div><button class="btn primary sm" data-act="start" data-type="skill" data-v="${l.skill}">Start</button></div>`; }).join('')).join('');
+    return `<div class="assign">${op(l.skill)}<div><b>${esc(s.name)}</b><span class="small muted">${esc(codeLabel(st, l.code))}${best!=null?` · Best ${best}/5`:''}</span></div><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-act="learn" data-v="${l.skill}">Learn</button>${role()==='student'?`<button class="btn primary sm" data-act="start" data-type="skill" data-v="${l.skill}">Start</button>`:''}</span></div>`; }).join('')).join('');
   return `<div class="card"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>${esc(st?.name||'')} standards</h2><span class="small muted">${esc(CAT.gradeLabels[g])} · ${stateNote(st)}</span></div>${statePick()}</div><div style="margin-bottom:10px">${gradePick()}</div>${rows}</div>`;
 }
 /** Teachers: pick lessons from a grade and print a worksheet with an answer key. */
@@ -644,10 +690,12 @@ function worksheetCardHTML(){
   return `<div class="card stack" id="wsCard"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>Printable worksheets</h2><span class="small muted">${esc(st?.name||'')} · ${esc(CAT.gradeLabels[g])}. New problems every time, with an answer key.</span></div>${statePick()}</div>
     <div>${gradePick()}</div>
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn outline sm" data-act="wsall">Tick all</button><button class="btn outline sm" data-act="wsnone">Tick none</button></div>
-    <div class="qlist">${byDomain(ls).map(d=>domainHead(d.name)+d.items.map(l=>`<label style="display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" class="wsSkill" value="${l.skill}" data-code="${esc(l.code)}" ${picked.includes(l.skill)?'checked':''} style="width:20px;height:20px">${op(l.skill)}<span><b>${esc(SK(l.skill).name)}</b> <span class="small muted">${esc(codeLabel(st, l.code))}</span></span></label>`).join('')).join('')}</div>
+    <div class="qlist">${byDomain(ls).map(d=>domainHead(d.name)+d.items.map(l=>`<label style="display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" class="wsSkill" value="${l.skill}" data-code="${esc(l.code)}" ${picked.includes(l.skill)?'checked':''} style="width:20px;height:20px">${op(l.skill)}<span style="min-width:0"><b>${esc(SK(l.skill).name)}</b> <span class="small muted">${esc(codeLabel(st, l.code))}</span></span><button type="button" class="btn sm" style="margin-left:auto" data-act="learn" data-v="${l.skill}">Preview</button></label>`).join('')).join('')}</div>
     <div class="grid two">
       <label class="f">Problems<select id="wsN">${[8,12,16,20,24,30,40].map(n=>`<option ${n===12?'selected':''}>${n}</option>`).join('')}</select></label>
-      <label class="f">Title (optional)<input type="text" id="wsTitle" maxlength="80" placeholder="Unit 2 review"></label></div>
+      <label class="f">Title (optional)<input type="text" id="wsTitle" maxlength="80" placeholder="Unit 2 review"></label>
+      <label class="f">Level<select id="wsLevel">${['scaffold','standard','challenge'].map(id=>`<option value="${id}" ${id==='standard'?'selected':''}>${esc(CAT.worksheetLevels?.[id]?.name||id)}</option>`).join('')}</select></label></div>
+    <p class="small muted" style="margin:0">${['scaffold','standard','challenge'].map(id=>`<b>${esc(CAT.worksheetLevels?.[id]?.name||id)}:</b> ${esc(CAT.worksheetLevels?.[id]?.note||'')}`).join(' ')}</p>
     <div class="row" style="gap:18px;flex-wrap:wrap">
       <label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="wsKey" checked style="width:20px;height:20px">Answer key</label>
       <label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="wsPics" checked style="width:20px;height:20px">Pictures</label></div>
@@ -657,7 +705,7 @@ function openWorksheet(each){
   const boxes = [...document.querySelectorAll('.wsSkill:checked')];
   if (!boxes.length) return toast('Tick at least one lesson.');
   const base = { n: document.getElementById('wsN').value, state: myState()?.id || 'CO',
-    key: document.getElementById('wsKey').checked ? '1' : '0', pictures: document.getElementById('wsPics').checked ? '1' : '0', title: document.getElementById('wsTitle').value.trim() };
+    level: document.getElementById('wsLevel').value, key: document.getElementById('wsKey').checked ? '1' : '0', pictures: document.getElementById('wsPics').checked ? '1' : '0', title: document.getElementById('wsTitle').value.trim() };
   window.open('/api/math/worksheet?' + new URLSearchParams({ ...base, ...(each ? { each:'1' } : {}), skills: boxes.map(b=>b.value).join(','), codes: boxes.map(b=>b.dataset.code).join(',') }).toString(), '_blank', 'noopener');
 }
 
@@ -675,7 +723,7 @@ function practiceHTML(){
   const cards = CAT.bands[b].skills.map(id=>{ const s=SK(id), m=P().mastery[id], st=m&&m.t?Math.round(100*m.r/m.t):null, best=P().best[id];
     return `<div class="card qcard"><div class="row" style="flex-wrap:nowrap">${op(id)}<div style="min-width:0"><h3>${esc(s.name)}</h3><span class="meta">CCSS ${esc(s.std)}</span></div></div>
       <div><div class="row between small" style="margin-bottom:4px"><span class="muted">Strength</span><b class="tnum">${st==null?'New':st+'%'}</b></div><div class="bar leaf"><i style="width:${st||0}%"></i></div></div>
-      <div class="foot"><span class="meta">${best!=null?`Best ${best}/5`:'Not tried yet'}</span><button class="btn primary sm" data-act="start" data-type="skill" data-v="${id}">Start quiz</button></div></div>`; }).join('');
+      <div class="foot"><span class="meta">${best!=null?`Best ${best}/5`:'Not tried yet'}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-act="learn" data-v="${id}">Learn</button><button class="btn primary sm" data-act="start" data-type="skill" data-v="${id}">Start quiz</button></span></div></div>`; }).join('');
   return `<div class="card"><div class="card-h" style="margin-bottom:6px"><h1>Math quizzes</h1>
       <div class="bandpick" role="group" aria-label="Grade band">${['k2','g35','g68','g912'].map(x=>`<button data-act="band" data-v="${x}" aria-pressed="${x===b}">${bandLabel(x)}</button>`).join('')}</div></div>
       <p class="muted">Five questions per quiz. Earn ${CAT.points.firstTry} points for a first-try answer, ${CAT.points.withHelp} with help, and ${CAT.points.perfectBonus} bonus points for a perfect score.</p></div>
@@ -698,7 +746,7 @@ function answerHTML(it){
       return `<button type="button" data-act="pick" data-v="${esc(c.v)}" class="${good?'is-good':bad?'is-bad':''}" ${it.done||bad?'disabled':''} aria-label="${esc(names[c.label]||c.label)}">${esc(c.label)}</button>`; }).join('')}</div>`;
   }
   const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
-  return `<form class="answer" id="ansForm" autocomplete="off"><label for="ans" class="sr">Your answer</label><input id="ans" inputmode="none" placeholder="?" spellcheck="false" class="${S.run.bad?'is-bad':''}" ${it.done?'disabled':''} value="${it.done&&it.answer!=null?esc(fmtV(it.answer)):''}"><button class="btn primary lg" type="submit" ${it.done||S.run.busy?'disabled':''}>Check</button></form>
+  return `<form class="answer" id="ansForm" autocomplete="off"><label for="ans" class="sr">Your answer</label><input id="ans" inputmode="none" placeholder="?" spellcheck="false" class="${S.run.bad?'is-bad':''}" ${it.done?'disabled':''} value="${it.done&&it.answer!=null?esc(it.answerLabel||fmtV(it.answer)):''}"><button class="btn primary lg" type="submit" ${it.done||S.run.busy?'disabled':''}>Check</button></form>
     ${it.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="key" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
 }
 function runnerHTML(){
@@ -718,7 +766,8 @@ function runnerHTML(){
       ${S.run.fb?`<p class="feedback ${S.run.fb.c}" role="status">${esc(S.run.fb.t)}</p>`:''}
       ${it.done?`<div><button class="btn primary lg" data-act="next" id="nextBtn" ${S.run.busy?'disabled':''}>${s.i+1<s.n?'Next question':'See my score'}</button></div>`:''}
       <div class="hints"><button class="btn" data-act="hint" ${shown>=it.stepsTotal||S.run.busy?'disabled':''}>${shown>=it.stepsTotal?'All steps shown':shown?`Next step (${shown+1} of ${it.stepsTotal})`:'Show a hint'}</button>
-        ${shown?`<ol class="steps">${it.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`:''}</div>
+        ${shown?`<ol class="steps">${it.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`:''}
+        ${it.skill!=='custom'&&CAT.learn?.[it.skill]?`<details class="bigidea"><summary>${svg('info')}Big idea</summary><p>${esc(LEARN_OF(it.skill).idea)}</p><p class="small"><b>Remember:</b> ${esc(LEARN_OF(it.skill).remember)}</p></details>`:''}</div>
     </div></div>`;
 }
 function resultsHTML(){
@@ -759,7 +808,7 @@ async function submitAnswer(value){
   S.run.session = r.session; S.run.bad = !r.correct && !it.done;
   if (r.correct) { S.run.fb = { t: it.result==='first' ? `Correct on the first try. +${r.gained} points` : `Correct. +${r.gained} points`, c:'good' }; ME.profile.points += r.gained; }
   else if (!it.done) S.run.fb = { t:'Not quite. Try once more, or open a hint.', c:'bad' };
-  else S.run.fb = { t:`The answer is ${it.kind==='choice'?it.answer:fmtV(it.answer)}. Read the steps, then keep going.`, c:'bad' };
+  else S.run.fb = { t:`The answer is ${it.answerLabel||(it.kind==='choice'?it.answer:fmtV(it.answer))}. Read the steps, then keep going.`, c:'bad' };
   render();
   if (it.done) setTimeout(()=>{ const b=document.getElementById('nextBtn'); if(b) b.focus({preventScroll:true}); },30);
 }
@@ -835,6 +884,142 @@ function rewardsHTML(){
       <div class="row" style="margin-top:12px;gap:6px">${M.map(m=>`<span class="chip ${p.solved>=m?'pill-ok':''}">${p.solved>=m?svg('check','style="width:13px;height:13px"'):''}${m}</span>`).join('')}</div></div>`;
 }
 
+/* ================= LEARN + PRACTICE MODES (no points: answers come with the set and are checked here) ================= */
+const LEARN_OF = id => CAT.learn?.[id] || { idea:'Read the question carefully, try it, and use a hint if you get stuck.', remember:'Hints show one step at a time.' };
+const MODES = {
+  guided:{ name:'Guided practice', icon:'eye', c:'sky', note:'A hint and answer choices on every question. A wrong answer shows the next step.', n:8 },
+  flash:{ name:'Flashcards', icon:'book', c:'teach', note:'Solve it in your head, flip the card, and check the answer and steps.', n:10 },
+  speed:{ name:'Speed round', icon:'bolt', c:'sun', note:'How many can you get right in 60 seconds?', n:40 },
+  mastery:{ name:'Mastery challenge', icon:'target', c:'leaf', note:'Type each answer. Get 5 right in a row to master the lesson.', n:20 },
+};
+const shuf = a => { const b=a.slice(); for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; };
+async function practiceSet(skills, n){ return (await api('/practice?' + new URLSearchParams({ skills: skills.slice(0,24).join(','), n:String(n) }))).problems; }
+const isRightLocal = (p, v) => p.kind==='choice' ? String(v)===String(p.answer) : Math.abs(parseNum(v)-Number(p.answer))<1e-9;
+const bestSpeed = id => keep.get('arise_math_speed_'+id, 0);
+let speedTimer = null;
+function stopSpeed(){ clearInterval(speedTimer); speedTimer=null; }
+async function openLesson(skill){
+  stopSpeed();
+  S.lesson = { skill, ex:null, shown:0, mode:null };
+  render(); window.scrollTo({top:0});
+  try { const ex = (await practiceSet([skill], 1))[0]; if (S.lesson?.skill===skill){ S.lesson.ex = ex; render(); } }
+  catch(e){ if (S.lesson?.skill===skill){ S.lesson.err = e.message; render(); } }
+}
+async function newExample(){ const L=S.lesson; try { const ex=(await practiceSet([L.skill],1))[0]; if (S.lesson===L){ L.ex=ex; L.shown=0; render(); } } catch(e){ toast(e.message); } }
+function printLesson(skill, level){
+  const st = myState();
+  window.open('/api/math/worksheet?' + new URLSearchParams({ skills:skill, n:'12', level, state:st?.id||'CO', codes:SK(skill).std }).toString(), '_blank', 'noopener');
+}
+function exampleHTML(p, shown){
+  const all = shown>=p.steps.length;
+  return `<div class="ex-card"><p class="ask">${esc(p.ask)}</p><div class="prompt ${p.long?'long':''}">${p.prompt}</div>${p.viz?`<div class="viz-wrap">${p.viz}</div>`:''}
+    ${shown?`<ol class="steps">${p.steps.slice(0,shown).map(x=>`<li>${x}</li>`).join('')}${all?`<li class="ans-step">Answer: ${esc(p.answerLabel)}</li>`:''}</ol>`:''}
+    <div class="row" style="gap:8px;flex-wrap:wrap">${all?'':`<button class="btn primary" data-act="exstep">${shown?`Next step (${shown+1} of ${p.steps.length})`:'Show the first step'}</button><button class="btn" data-act="exall">Show every step</button>`}<button class="btn outline" data-act="exnew">${svg('plus')}New example</button></div></div>`;
+}
+function lessonHTML(){
+  const L = S.lesson; if (L.mode) return modeHTML();
+  const s = SK(L.skill), lf = LEARN_OF(L.skill), st = myState(), student = role()==='student', lv = CAT.worksheetLevels || {};
+  return `<div class="card"><div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn sm" data-act="lclose">${svg('back')}Back</button><span class="small muted">Lesson</span></div>
+      <div class="row" style="flex-wrap:nowrap;margin-top:12px;gap:12px">${op(L.skill)}<div style="min-width:0"><h1>${esc(s.name)}</h1><span class="small muted">${esc(codeLabel(st, s.std))}</span></div></div></div>
+    <div class="grid two"><div class="card idea"><span class="eyebrow">Big idea</span><p>${esc(lf.idea)}</p></div><div class="card remember"><span class="eyebrow">Remember</span><p class="rem">${esc(lf.remember)}</p></div></div>
+    <div class="card stack"><div class="card-h"><h2>Worked example</h2><span class="small muted">One step at a time</span></div>${L.err?`<p class="small muted">${esc(L.err)}</p>`:L.ex?exampleHTML(L.ex, L.shown):'<p class="small muted">Loading…</p>'}</div>
+    <div class="card"><div class="card-h"><h2>Practice your way</h2><span class="small muted">${student?'Quizzes earn points. The rest are practice.':'Practice is for learning, so no points.'}</span></div>
+      <div class="modes">${student?`<button class="mode" data-act="start" data-type="skill" data-v="${L.skill}">${ico('award','primary')}<b>Quiz for points</b><span>Five questions that count on the leaderboard.</span></button>`:''}
+        ${Object.entries(MODES).map(([id,m])=>`<button class="mode" data-act="lmode" data-v="${id}">${ico(m.icon,m.c)}<b>${m.name}</b><span>${m.note}</span>${id==='speed'&&bestSpeed(L.skill)?`<em>Your best: ${bestSpeed(L.skill)}</em>`:''}</button>`).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Print a worksheet</h2><span class="small muted">12 new problems with an answer key</span></div>
+      <div class="levels">${['scaffold','standard','challenge'].map(id=>`<div class="level"><div><b>${esc(lv[id]?.name||id)}</b><span class="small muted">${esc(lv[id]?.note||'')}</span></div><button class="btn ${id==='standard'?'primary':'outline'} sm" data-act="lprint" data-v="${id}">${svg('print')}Print</button></div>`).join('')}</div></div>`;
+}
+async function startMode(mode){
+  const L = S.lesson; if (!L) return; stopSpeed();
+  let set; try { set = await practiceSet([L.skill], MODES[mode].n); } catch(e){ return toast(e.message); }
+  if (S.lesson!==L) return;
+  Object.assign(L, { mode, set, i:0, first:0, known:0, again:0, streak:0, right:0, miss:0, wrong:[], done:false, over:false, flip:false, fb:null, last:null, hint: mode==='guided' && set[0].steps.length>1 ? 1 : 0 });
+  if (mode==='speed'){
+    L.end = Date.now()+60000;
+    speedTimer = setInterval(()=>{ const left=Math.max(0,Math.ceil((L.end-Date.now())/1000)); const el=document.getElementById('spTime'); if(el) el.textContent=left+'s'; if(left<=0) finishSpeed(); }, 250);
+  }
+  render(); window.scrollTo({top:0}); focusMode();
+}
+const curP = () => S.lesson.set[S.lesson.i];
+function focusMode(){ setTimeout(()=>{ const i=document.getElementById('mAns'); if (i && window.matchMedia('(pointer:fine)').matches) i.focus({preventScroll:true}); }, 0); }
+async function moreProblems(){ const L=S.lesson; if (!L || L.set.length-L.i>=6 || L.loading) return; L.loading=true; try { const more=await practiceSet([L.skill], 20); if (S.lesson===L) L.set.push(...more); } catch {} L.loading=false; }
+function finishSpeed(){
+  const L=S.lesson; stopSpeed(); if (!L || L.mode!=='speed' || L.over) return;
+  L.over=true; L.prev=bestSpeed(L.skill); L.newBest=L.right>L.prev; if (L.newBest){ keep.set('arise_math_speed_'+L.skill, L.right); if (L.right>=5) confetti(); }
+  render();
+}
+function modeAnswer(v){
+  const L=S.lesson, p=curP(); if (!p || L.done || L.over) return;
+  const ok = isRightLocal(p, v);
+  if (L.mode==='speed'){ if (ok) L.right++; else L.miss++; L.last = ok ? { c:'good', t:'Right!' } : { c:'bad', t:`${p.plain}: the answer was ${p.answerLabel}` }; L.i++; moreProblems(); return render(); }
+  if (L.mode==='guided'){
+    if (ok){ L.done=true; if (!L.wrong.length) L.first++; L.hint=p.steps.length; L.fb={ c:'good', t: L.wrong.length ? 'You got it. Read the steps to see why it works.' : 'Right on the first try!' }; }
+    else { L.wrong.push(String(v)); L.hint=Math.min(p.steps.length, L.hint+1); L.fb={ c:'bad', t:'Not quite. Read the next step, then try again.' }; }
+    return render();
+  }
+  if (L.mode==='mastery'){
+    if (String(v).trim()==='') return;
+    if (p.kind==='num' && Number.isNaN(parseNum(v))) { L.fb={ c:'bad', t:'Type a number, like 12, −3, 3/4 or 2.5.' }; return render(); }
+    L.done=true;
+    if (ok){ L.streak++; L.fb={ c:'good', t: L.streak>=5 ? 'Five in a row. Mastered!' : `Right! ${5-L.streak} more in a row.` }; if (L.streak>=5){ L.over=true; confetti(); } }
+    else { L.streak=0; L.missed=true; L.typed=String(v); L.wrong.push(String(v)); L.fb={ c:'bad', t:`The answer is ${p.answerLabel}. Read the steps, then start a new streak.` }; }
+    moreProblems(); render(); setTimeout(()=>document.getElementById('mNext')?.focus({preventScroll:true}),0); return;
+  }
+}
+function modeNext(){
+  const L=S.lesson; L.i++; Object.assign(L, { done:false, wrong:[], fb:null, flip:false, missed:false, typed:'' });
+  if ((L.mode==='guided' || L.mode==='flash') && L.i>=L.set.length) L.over=true;
+  else L.hint = L.mode==='guided' && curP().steps.length>1 ? 1 : 0;
+  render(); window.scrollTo({top:0}); focusMode();
+}
+function modeQ(p){ return `<p class="ask">${esc(p.ask)}</p><div class="prompt ${p.long?'long':''}">${p.prompt}</div>${p.viz?`<div class="viz-wrap">${p.viz}</div>`:''}`; }
+function modeChoices(p, L, act='mpick'){
+  const right = c => L.done && (p.kind==='choice' ? c.v===p.answer : Number(c.v)===Number(p.answer));
+  return `<div class="choices">${p.choices.map(c=>{ const bad=L.wrong.includes(c.v), good=right(c);
+    return `<button type="button" data-act="${act}" data-v="${esc(c.v)}" class="${good?'is-good':bad?'is-bad':''}" ${L.done||bad?'disabled':''}>${esc(c.label)}</button>`; }).join('')}</div>`;
+}
+function modeHTML(){
+  const L=S.lesson, m=MODES[L.mode], s=SK(L.skill);
+  const sub = L.over ? 'Finished' : L.mode==='guided' ? `Question ${L.i+1} of ${L.set.length}` : L.mode==='flash' ? `Card ${L.i+1} of ${L.set.length}` : L.mode==='speed' ? `${L.right} right` : `${L.streak} in a row`;
+  const bar = L.mode==='mastery' ? `<div class="streak" aria-label="${L.streak} of 5 in a row">${range(0,4).map(i=>`<i class="${i<L.streak?'on':''}"></i>`).join('')}</div>`
+    : L.mode==='speed' ? '' : `<div class="pips">${range(0,Math.min(L.set.length,20)-1).map(i=>`<i class="${i<L.i?'first':i===L.i&&!L.over?'cur':''}"></i>`).join('')}</div>`;
+  const head = `<div class="cover run-head"><div class="run-top"><button class="btn sm glass" data-act="lback">${svg('back')}Lesson</button>${L.mode==='speed'&&!L.over?`<span class="run-pts tnum" id="spTime">${Math.max(0,Math.ceil((L.end-Date.now())/1000))}s</span>`:''}</div>
+    <div class="run-title"><b>${esc(m.name)}</b><span>${esc(s.name)} · ${sub}</span></div>${bar}</div>`;
+  let body;
+  if (L.over){
+    const big = L.mode==='guided' ? `${L.first}/${L.set.length}` : L.mode==='flash' ? `${L.known}` : L.mode==='speed' ? `${L.right}` : '5/5';
+    const line = L.mode==='guided' ? 'right on the first try' : L.mode==='flash' ? `card${L.known===1?'':'s'} you knew right away` : L.mode==='speed' ? `right in 60 seconds${L.miss?` · ${L.miss} missed`:''}` : 'in a row';
+    const note = L.mode==='speed' ? (L.newBest ? (L.prev ? `A new best! Your old best was ${L.prev}.` : 'Your first speed round. Try to beat it!') : `Your best is ${L.prev}. Keep going!`)
+      : L.mode==='mastery' ? 'You mastered this lesson. Try a speed round or a quiz next.'
+      : L.mode==='guided' ? (L.first>=L.set.length-1 ? 'Ready for the Mastery challenge without hints.' : 'Keep the hints coming until it clicks, then try Flashcards.')
+      : 'Flip through again any time.';
+    body = `<div><div class="result-score tnum">${big}</div><span class="muted small">${line}</span></div><p>${note}</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="lmode" data-v="${L.mode}">Go again</button><button class="btn" data-act="lback">${svg('back')}Back to the lesson</button></div>`;
+  } else {
+    const p = curP();
+    if (L.mode==='guided') body = `${modeQ(p)}
+      ${L.hint?`<div class="hintbox"><span class="eyebrow">Hint${L.hint>1?'s':''}</span><ol class="steps">${p.steps.slice(0,L.hint).map(x=>`<li>${x}</li>`).join('')}</ol></div>`:''}
+      ${modeChoices(p, L)}
+      ${L.fb?`<p class="feedback ${L.fb.c}" role="status">${esc(L.fb.t)}</p>`:''}
+      <div class="row" style="gap:8px;flex-wrap:wrap">${L.done?`<button class="btn primary lg" data-act="mnext">${L.i+1<L.set.length?'Next question':'See how I did'}</button>`:L.hint<p.steps.length?`<button class="btn" data-act="mhint">Show another step</button>`:''}</div>`;
+    else if (L.mode==='flash') body = `<div class="flipcard ${L.flip?'back':''}">${L.flip
+        ? `<span class="eyebrow">Answer</span><div class="big-ans">${esc(p.answerLabel)}</div><div class="prompt long" style="opacity:.7">${p.prompt}</div><ol class="steps">${p.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`
+        : `<span class="eyebrow">Solve it in your head</span>${modeQ(p)}`}</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">${L.flip?`<button class="btn primary lg" data-act="mknew">${svg('check')}I knew it</button><button class="btn lg" data-act="magain">Practice it again</button>`:`<button class="btn primary lg" data-act="mflip" id="mFlip">Flip the card</button>`}</div>`;
+    else if (L.mode==='speed') body = `${modeQ(p)}${modeChoices(p, { done:false, wrong:[] })}${L.last?`<p class="feedback ${L.last.c}" role="status">${esc(L.last.t)}</p>`:''}`;
+    else {
+      const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
+      const ans = p.kind==='choice' ? modeChoices(p, L)
+        : `<form class="answer" id="mForm" autocomplete="off"><label for="mAns" class="sr">Your answer</label><input id="mAns" inputmode="none" placeholder="?" spellcheck="false" class="${L.missed?'is-bad':''}" ${L.done?'disabled':''} value="${esc(L.done?(L.missed?L.typed:p.answerLabel):'')}"><button class="btn primary lg" type="submit" ${L.done?'disabled':''}>Check</button></form>
+          ${L.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="mkey" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
+      body = `${modeQ(p)}${ans}${L.fb?`<p class="feedback ${L.fb.c}" role="status">${esc(L.fb.t)}</p>`:''}
+        ${L.missed?`<div class="hintbox"><span class="eyebrow">How to solve it</span><ol class="steps">${p.steps.map(x=>`<li>${x}</li>`).join('')}</ol></div>`:''}
+        ${L.done?`<div><button class="btn primary lg" data-act="mnext" id="mNext">Next question</button></div>`:''}`;
+    }
+  }
+  return `<div class="card flush">${head}<div class="run-body">${body}</div></div>`;
+}
+
 /* ================= STUDENT: GAMES (on the A.R.I.S.E. play timer) ================= */
 const sessionId = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
 async function heartbeat(){
@@ -862,22 +1047,27 @@ function tilesFor(band){
   for(let i=tiles.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tiles[i],tiles[j]]=[tiles[j],tiles[i]]; }
   return { T, pair, tiles: tiles.map(v=>({ v, id:'t'+Math.random().toString(36).slice(2) })) };
 }
-async function startGame(){
-  const a = await heartbeat();
-  if (!canPlay(a)) { render(); return; }
-  const t = tilesFor(myBand());
-  GAME = { T:t.T, pair:t.pair, tiles:t.tiles, sel:null, score:0, end:Date.now()+60000, over:false, flash:null };
-  clearInterval(beatTimer); beatTimer = setInterval(async ()=>{ const x = await heartbeat(); if (GAME && !GAME.over && x && !canPlay(x)) endGame('Play time is up for now.'); }, 8000);
-  clearInterval(gameTimer);
-  gameTimer = setInterval(()=>{ if(!GAME) return clearInterval(gameTimer); const left=Math.max(0,Math.ceil((GAME.end-Date.now())/1000)); const el=document.getElementById('gTime'); if(el) el.textContent=left+'s'; if(left<=0) endGame(); },250);
-  render();
+const GAMES = {
+  target:{ name:'Target Pop', icon:'target', c:'primary', note:'Find pairs that add up to the target before the timer runs out.', secs:60 },
+  memory:{ name:'Memory Match', icon:'eye', c:'teach', note:'Flip cards to match each problem with its answer. Fewer flips is better.', secs:180 },
+  balloon:{ name:'Balloon Pop', icon:'up', c:'coral', note:'Pop the balloon with the right answer before it floats away.', secs:60 },
+  truefalse:{ name:'True or False', icon:'bolt', c:'sun', note:'Is the math right? Decide fast. 45 seconds.', secs:45 },
+};
+/** Lessons whose question is about a picture (count the dots, read the clock), and ones whose short form isn't a true equation. */
+const SEE = new Set(['kcount','kmore','kshape','ksides','add20','sub20','pct','g2oddeven','g1time','g2time5','g2bar','g3fracshade','g5coord']);
+const NOT_EQ = new Set(['g4addfrac','g4fracmul','g8scimul','tens']);
+const FACTS = { k2:['kadd10','kmake10','g2facts','g1three','g1sub10s','kdecompose','g1unknown'], g35:['mult','div','g3mult10','g3add1000','g3twostep','g3eqfrac','g4mixed'], g68:['int','g7muldiv','g6exp','g7rational','g6divfrac','g6decops','g5order'], g912:['hsradical','hsexpgrowth','g7muldiv','int','g7rational','g8exp'] };
+const shortMath = p => p.kind==='num' && !SEE.has(p.skill) && !NOT_EQ.has(p.skill) && p.plain.length<=18 && /\d/.test(p.plain) && /^[-\d\s+−×÷().\/=?,:|²^√%]+$/.test(p.plain);
+const eqText = (p, label) => p.plain.includes('?') ? p.plain.replace('?', label) : `${p.plain} = ${label}`;
+async function gamePool(kind){
+  const band = myBand(), grade = coLessons(coGrade()).map(l=>l.skill);
+  const want = kind==='balloon' ? (p => !SEE.has(p.skill) && !p.viz && p.choices.length>=2 && (p.kind==='choice' || !NOT_EQ.has(p.skill))) : shortMath;
+  let list = (await practiceSet(shuf([...new Set([...grade, ...FACTS[band]])]), 40)).filter(want);
+  if (list.length < 12) list = list.concat((await practiceSet(FACTS[band], 30)).filter(want));
+  if (kind==='memory'){ const seen=new Set(); list = list.filter(p=>!seen.has(p.plain) && seen.add(p.plain)); }
+  return shuf(list);
 }
-function endGame(msg){
-  if (!GAME || GAME.over) return;
-  clearInterval(gameTimer); GAME.over = true; leavePlay();
-  toast(msg || `Round over: ${GAME.score} pairs`);
-  if (S.tab==='games') render();
-}
+function makeStmt(p){ const truth = Math.random()<.5, wrong = p.choices.filter(c=>Number(c.v)!==Number(p.answer)); const label = truth || !wrong.length ? p.answerLabel : wrong[Math.floor(Math.random()*wrong.length)].label; return { text: eqText(p, label), truth: truth || !wrong.length, right: eqText(p, p.answerLabel) }; }
 function tapTile(id){
   if (!GAME||GAME.over) return;
   const t=GAME.tiles.find(x=>x.id===id); if(!t) return;
@@ -888,7 +1078,96 @@ function tapTile(id){
   else GAME.flash={no:[a.id,t.id]};
   GAME.sel=null; render();
 }
+async function startGame(kind){
+  if (!GAMES[kind]) kind = 'target';
+  const a = await heartbeat();
+  if (!canPlay(a)) { render(); return; }
+  if (kind==='target'){ const t = tilesFor(myBand()); GAME = { kind, T:t.T, pair:t.pair, tiles:t.tiles, sel:null, score:0, flash:null }; }
+  else {
+    let pool; try { pool = await gamePool(kind); } catch(e){ return toast(e.message); }
+    if (pool.length < 6) return toast('Not enough questions for this game yet. Try another game.');
+    if (kind==='memory'){ const ps = pool.slice(0,6); GAME = { kind, cards: shuf(ps.flatMap((p,i)=>[{ id:'q'+i, side:'q', text:p.plain, key:p.answerLabel }, { id:'a'+i, side:'a', text:p.answerLabel, key:p.answerLabel }])), up:[], matched:[], flips:0, score:0, lock:false }; }
+    else if (kind==='balloon') GAME = { kind, pool, qi:0, score:0, miss:0, wait:false, last:null };
+    else GAME = { kind, pool, qi:0, score:0, miss:0, stmt:makeStmt(pool[0]), last:null };
+  }
+  Object.assign(GAME, { start:Date.now(), end:Date.now()+GAMES[kind].secs*1000, over:false });
+  clearInterval(beatTimer); beatTimer = setInterval(async ()=>{ const x = await heartbeat(); if (GAME && !GAME.over && x && !canPlay(x)) endGame('Play time is up for now.'); }, 8000);
+  clearInterval(gameTimer);
+  gameTimer = setInterval(()=>{ if(!GAME) return clearInterval(gameTimer); const left=Math.max(0,Math.ceil((GAME.end-Date.now())/1000)); const el=document.getElementById('gTime'); if(el) el.textContent=left+'s'; if(left<=0) endGame(); },250);
+  render();
+  if (kind==='balloon') armBalloon();
+}
+function endGame(msg){
+  if (!GAME || GAME.over) return;
+  clearInterval(gameTimer); clearTimeout(GAME.bt); GAME.over = true; GAME.secs = Math.round((Date.now()-GAME.start)/1000); leavePlay();
+  toast(msg || (GAME.kind==='target' ? `Round over: ${GAME.score} pairs` : GAME.kind==='memory' ? `Time’s up: ${GAME.score} of 6 pairs` : `Round over: ${GAME.score} right`));
+  if (S.tab==='games') render();
+}
+/* Memory Match: flip two cards; a problem and its answer stay up. */
+function flipCard(id){
+  const G = GAME; if (!G || G.over || G.kind!=='memory' || G.lock) return;
+  const c = G.cards.find(x=>x.id===id); if (!c || G.up.includes(id) || G.matched.includes(id)) return;
+  G.up.push(id); G.flips++;
+  if (G.up.length===2){
+    const [a,b] = G.up.map(x=>G.cards.find(y=>y.id===x));
+    if (a.side!==b.side && a.key===b.key){ G.matched.push(a.id,b.id); G.up=[]; G.score++; G.just=[a.id,b.id];
+      if (G.matched.length===G.cards.length){ render(); confetti(); return endGame(`All matched in ${Math.round((Date.now()-G.start)/1000)} seconds and ${G.flips} flips!`); } }
+    else { G.lock=true; G.just=null; setTimeout(()=>{ if (GAME!==G) return; G.up=[]; G.lock=false; if (S.tab==='games') render(); }, 900); }
+  } else G.just=null;
+  render();
+}
+/* Balloon Pop: the balloons rise on their own; tapping only changes the tapped balloon, so they keep rising. */
+const balloonQ = () => GAME.pool[GAME.qi % GAME.pool.length];
+function armBalloon(){
+  clearTimeout(GAME.bt);
+  const G = GAME; G.bt = setTimeout(()=>{ if (GAME!==G || G.over) return; G.miss++; G.last={ c:'bad', t:`Too slow! It was ${balloonQ().answerLabel}.` }; G.qi++; render(); armBalloon(); }, 7500);
+}
+function popBalloon(el, v){
+  const G = GAME; if (!G || G.over || G.kind!=='balloon' || G.wait) return;
+  const p = balloonQ(), ok = p.kind==='choice' ? String(v)===String(p.answer) : Number(v)===Number(p.answer);
+  if (ok){ clearTimeout(G.bt); G.wait=true; G.score++; el.classList.add('popped'); G.last={ c:'good', t:'Pop! That’s right.' };
+    setTimeout(()=>{ if (GAME!==G || G.over) return; G.wait=false; G.qi++; render(); armBalloon(); }, 320); }
+  else { el.classList.add('no'); el.disabled=true; G.miss++; const f=document.getElementById('bFb'); if (f){ f.className='feedback bad'; f.textContent='Not that one. Keep looking!'; } }
+}
+/* True or False */
+function tfAnswer(v){
+  const G = GAME; if (!G || G.over || G.kind!=='truefalse') return;
+  const ok = (v==='true') === G.stmt.truth;
+  if (ok) G.score++; else G.miss++;
+  G.last = ok ? { c:'good', t:'Right!' } : { c:'bad', t: G.stmt.truth ? `It was true: ${G.stmt.right}` : `False. ${G.stmt.right}` };
+  G.qi++; G.stmt = makeStmt(G.pool[G.qi % G.pool.length]); G.flash = ok ? 'good' : 'bad';
+  render();
+}
 const fmtG = v => N(+Number(v).toFixed(2));
+function gameBodyHTML(){
+  const G = GAME, s = Math.max(0,Math.ceil((G.end-Date.now())/1000));
+  const top = (label, big, score) => `<div class="target"><div><span class="eyebrow">${label}</span><div class="t">${big}</div></div><div style="text-align:right"><div class="timer" id="gTime">${s}s</div><span class="small muted tnum">${score}</span></div></div>`;
+  const quit = `<div><button class="btn sm" data-act="gamequit">${svg('x')}End round</button></div>`;
+  if (G.kind==='target') return `<div class="card stack">${top('Make the target', fmtG(G.T), `${G.score} pairs`)}
+      <div class="tiles">${G.tiles.map(t=>`<button class="tile ${G.flash?.ok?.includes(t.id)?'pop':''} ${G.flash?.no?.includes(t.id)?'no':''}" data-act="tile" data-v="${t.id}" aria-pressed="${G.sel===t.id}">${fmtG(t.v)}</button>`).join('')}</div>
+      <p class="small muted">Tap two numbers that add up to ${fmtG(G.T)}.</p>${quit}</div>`;
+  if (G.kind==='memory') return `<div class="card stack">${top('Memory Match', `${G.score}/6`, `${G.flips} flips`)}
+      <div class="mem">${G.cards.map(c=>{ const shown=G.up.includes(c.id)||G.matched.includes(c.id);
+        return `<button class="mcard ${shown?'up':''} ${G.matched.includes(c.id)?'done':''} ${G.just?.includes(c.id)?'pop':''} ${c.side}" data-act="mflipcard" data-v="${c.id}" aria-label="${shown?esc(c.text):'Hidden card'}">${shown?esc(c.text):'?'}</button>`; }).join('')}</div>
+      <p class="small muted">Match each problem with its answer.</p>${quit}</div>`;
+  if (G.kind==='balloon'){
+    const p = balloonQ(), cols = ['coral','sky','leaf','teach','sun'], xs = shuf([6,30,54,78]).slice(0,p.choices.length);
+    return `<div class="card stack">${top('Balloon Pop', `${G.score}`, `${G.miss} missed`)}
+      <div class="bq"><p class="ask">${esc(p.ask)}</p><div class="prompt long">${p.prompt}</div></div>
+      <div class="skybox" aria-label="Balloons">${p.choices.map((c,i)=>`<span class="bwrap" style="left:${xs[i]}%;animation-delay:${(i*0.25).toFixed(2)}s"><button class="balloon" style="--c:${cc(cols[(G.qi+i)%cols.length])}" data-act="balloon" data-v="${esc(c.v)}">${esc(c.label)}</button></span>`).join('')}</div>
+      <p class="${G.last?`feedback ${G.last.c}`:'small muted'}" id="bFb" role="status">${G.last?esc(G.last.t):'Tap the balloon with the right answer.'}</p>${quit}</div>`;
+  }
+  return `<div class="card stack">${top('True or False?', `${G.score}`, `${G.miss} missed`)}
+      <div class="tf-stmt ${G.flash||''}">${esc(G.stmt.text)}</div>
+      <div class="tf-btns"><button class="tf-t" data-act="tf" data-v="true">${svg('check')}True</button><button class="tf-f" data-act="tf" data-v="false">${svg('x')}False</button></div>
+      <p class="${G.last?`feedback ${G.last.c}`:'small muted'}" role="status">${G.last?esc(G.last.t):'Is the math right?'}</p>${quit}</div>`;
+}
+function lastRoundHTML(){
+  const G = GAME; if (!G || !G.over) return '';
+  const big = G.kind==='target' ? `${G.score} pairs` : G.kind==='memory' ? `${G.score} of 6 pairs` : `${G.score} right`;
+  const sub = G.kind==='memory' ? `${G.flips} flips in ${G.secs} seconds` : G.kind==='target' ? '' : `${G.miss} missed`;
+  return `<div class="card"><span class="eyebrow">Last round · ${esc(GAMES[G.kind].name)}</span><div class="result-score tnum">${big}</div>${sub?`<span class="small muted">${sub}</span>`:''}</div>`;
+}
 function gamesHTML(){
   const a = playAccess, open = canPlay(a) || !a;
   const left = a ? (a.unlimitedThisWeek ? 'Unlimited this week' : `${Math.floor(playLeft(a)/60)}:${String(playLeft(a)%60).padStart(2,'0')} left today`) : 'Uses your A.R.I.S.E. play time';
@@ -897,17 +1176,9 @@ function gamesHTML(){
     : a && !canPlay(a) && !(GAME && !GAME.over)
     ? `<div class="gate closed">${svg('lock')}<div><b>The game room is closed</b><div class="small muted">${esc(closedWhy(a))}</div>${!a.closedByAdmin&&!a.closedByTeacher&&!a.locked?(a.timeRequestStatus==='pending'?'<div class="small" style="margin-top:6px">Your request for more time is waiting for a grown-up.</div>':`<button class="btn sm" style="margin-top:8px" data-act="moretime">${svg('clock')}Ask for 10 more minutes</button>`):''}</div></div>`
     : `<div class="gate open">${svg('unlock')}<div><b>${esc(left)}</b><div class="small muted">Games share the daily play timer with the rest of A.R.I.S.E. Your teacher’s and family’s limits apply here too.</div></div></div>`;
-  let body;
-  if (GAME && !GAME.over){
-    const s = Math.max(0,Math.ceil((GAME.end-Date.now())/1000));
-    body = `<div class="card stack"><div class="target"><div><span class="eyebrow">Make the target</span><div class="t">${fmtG(GAME.T)}</div></div><div style="text-align:right"><div class="timer" id="gTime">${s}s</div><span class="small muted tnum">${GAME.score} pairs</span></div></div>
-      <div class="tiles">${GAME.tiles.map(t=>`<button class="tile ${GAME.flash?.ok?.includes(t.id)?'pop':''} ${GAME.flash?.no?.includes(t.id)?'no':''}" data-act="tile" data-v="${t.id}" aria-pressed="${GAME.sel===t.id}">${fmtG(t.v)}</button>`).join('')}</div>
-      <p class="small muted">Tap two numbers that add up to ${fmtG(GAME.T)}.</p></div>`;
-  } else {
-    body = `<div class="card stack">${GAME&&GAME.over?`<div><span class="eyebrow">Last round</span><div class="result-score tnum">${GAME.score} pairs</div></div>`:''}
-      <div class="row" style="flex-wrap:nowrap;align-items:flex-start">${ico('target','primary')}<div><h2>Target Pop</h2><p class="small muted">Find pairs that add up to the target before the 60-second timer runs out. Games are a reward, so they don’t add leaderboard points.</p></div></div>
-      <div><button class="btn primary lg" data-act="game" ${open?'':'disabled'}>${svg('game')}${GAME&&GAME.over?'Play again':'Play a round'}</button></div></div>`;
-  }
+  const body = GAME && !GAME.over ? gameBodyHTML()
+    : `${lastRoundHTML()}<div class="modes">${Object.entries(GAMES).map(([id,g])=>`<div class="mode game-card">${ico(g.icon,g.c)}<b>${g.name}</b><span>${g.note}</span><button class="btn primary sm" data-act="game" data-v="${id}" ${open?'':'disabled'}>${svg('game')}${GAME?.over&&GAME.kind===id?'Play again':'Play'}</button></div>`).join('')}</div>
+      <p class="small muted">Games use questions from your grade’s lessons. They’re a reward, so they don’t add leaderboard points.</p>`;
   return `<div class="card"><h1>Game room</h1><p class="muted" style="margin-top:4px">Quizzes come first. Games open with the play time your teacher and family allow.</p></div>${status}${body}`;
 }
 
@@ -1010,7 +1281,7 @@ function currentChild(){ const kids=S.children||[]; return kids.find(k=>k.id===S
 function familyHTML(){
   if (S.err.children) return errCard(S.err.children, 'retry-children');
   if (!S.children) return loadingCard('your family');
-  if (!S.children.length) return `<div class="card stack"><h1>Arise Math</h1><p class="muted">Link your child’s A.R.I.S.E. Reader account from your parent dashboard, and their math progress will show up here.</p><div><a class="btn primary" href="/parent-dashboard">Open parent dashboard</a></div></div>`;
+  if (!S.children.length) return `<div class="card stack"><h1>Arise Math</h1><p class="muted">Link your child’s A.R.I.S.E. Reader account from your parent dashboard, and their math progress will show up here.</p><div><a class="btn primary" href="/parent-dashboard">Open parent dashboard</a></div></div>${coCardHTML()}`;
   const k = currentChild(), p = k.profile, first = k.firstName;
   const kids = S.children.length>1 ? `<div class="bandpick" role="group" aria-label="Choose a child">${S.children.map(c=>`<button data-act="child" data-v="${c.id}" aria-pressed="${c.id===k.id}">${esc(c.firstName)}</button>`).join('')}</div>` : '';
   const weakest = k.skills.filter(s=>s.strength!=null).sort((a,b)=>a.strength-b.strength)[0];
@@ -1020,7 +1291,8 @@ function familyHTML(){
       ${p.history.slice(0,8).map(h=>`<tr><td>${esc(h.d)}</td><td>${esc(h.title)}</td><td class="num">${h.score}/${h.of}</td><td class="num">+${h.pts}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted">${esc(first)} hasn’t taken a math quiz yet.</p>`}</div>
     <div class="grid two"><div class="card"><div class="card-h"><h2>Skills</h2></div><div class="stack" style="gap:10px">${k.skills.map(s=>`<div><div class="row between small"><b>${esc(SK(s.id).name)}</b><span class="tnum">${s.strength==null?'Not started':s.strength+'%'}</span></div><div class="bar leaf"><i style="width:${s.strength||0}%"></i></div></div>`).join('')}</div></div>
       <div class="card"><div class="card-h"><h2>Certificates</h2><span class="small muted tnum">${p.certs.length}</span></div>${p.certs.length?p.certs.slice(0,4).map((c,i)=>`<div class="certrow">${ico('award','sun')}<div><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div><button class="btn sm" data-act="cert" data-v="${i}">View</button></div>`).join(''):'<p class="small muted">Perfect quizzes and teacher awards show up here.</p>'}</div></div>
-    <div class="card"><div class="card-h"><h2>Talk about it at dinner</h2></div><p class="muted">${weakest?`${esc(first)} is working hardest on <b>${esc(SK(weakest.id).name.toLowerCase())}</b>. Ask them to teach you one problem and explain each step out loud.`:`Ask ${esc(first)} to show you their first math quiz and explain one answer.`}</p></div>`;
+    <div class="card"><div class="card-h"><h2>Talk about it at dinner</h2></div><p class="muted">${weakest?`${esc(first)} is working hardest on <b>${esc(SK(weakest.id).name.toLowerCase())}</b>. Ask them to teach you one problem and explain each step out loud.`:`Ask ${esc(first)} to show you their first math quiz and explain one answer.`}</p></div>
+    ${coCardHTML()}`;
 }
 
 /* ================= MODALS ================= */
@@ -1087,6 +1359,7 @@ setInterval(()=>{ const el=document.getElementById('ltimer'); const g = S.lplay?
 /* ================= RENDER ================= */
 function mainHTML(){
   if (!ME) return landingHTML();
+  if (S.lesson) return lessonHTML();
   const r = role();
   if (r==='student'){
     if (S.tab==='practice') return practiceHTML();
@@ -1137,11 +1410,26 @@ document.addEventListener('click', async e=>{
     case 'menu': S.menu=!S.menu; return renderChrome();
     case 'tab':
       if (S.tab==='games' && v!=='games' && GAME && !GAME.over) endGame('Round ended.');
-      S.tab=v; S.menu=false; if (v==='practice' && S.result) S.result=null;
+      S.tab=v; S.menu=false; S.lesson=null; stopSpeed(); if (v==='practice' && S.result) S.result=null;
       render(); window.scrollTo({top:0}); return loadFor(v);
     case 'home': S.result=null; return render();
     case 'band': { if (S.run) return; return saveMe({ band: v || null }).then(()=>{ S.board=null; }); }
-    case 'start': return startQuiz(el.dataset.type, v);
+    case 'start': S.lesson=null; stopSpeed(); return startQuiz(el.dataset.type, v);
+    case 'learn': return openLesson(v);
+    case 'lclose': stopSpeed(); S.lesson=null; render(); window.scrollTo({top:0}); return;
+    case 'exstep': if (S.lesson?.ex){ S.lesson.shown++; render(); } return;
+    case 'exall': if (S.lesson?.ex){ S.lesson.shown=S.lesson.ex.steps.length; render(); } return;
+    case 'exnew': return newExample();
+    case 'lprint': return printLesson(S.lesson.skill, v);
+    case 'lmode': return startMode(v);
+    case 'lback': stopSpeed(); if (S.lesson){ S.lesson.mode=null; render(); window.scrollTo({top:0}); } return;
+    case 'mpick': return modeAnswer(v);
+    case 'mnext': return modeNext();
+    case 'mhint': { const L=S.lesson, p=curP(); L.hint=Math.min(p.steps.length, L.hint+1); return render(); }
+    case 'mflip': S.lesson.flip=true; render(); setTimeout(()=>document.querySelector('[data-act="mknew"]')?.focus({preventScroll:true}),0); return;
+    case 'mknew': S.lesson.known++; return modeNext();
+    case 'magain': { const L=S.lesson; if (L.again<10){ L.again++; L.set.push(curP()); } return modeNext(); }
+    case 'mkey': { const inp=document.getElementById('mAns'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
     case 'cograde': S.coGrade = v; S.wsPick = null; return render();
     case 'worksheet': return openWorksheet(v==='each');
     case 'wsall': case 'wsnone': document.querySelectorAll('.wsSkill').forEach(b=>{ b.checked = act==='wsall'; }); return;
@@ -1159,7 +1447,11 @@ document.addEventListener('click', async e=>{
     case 'retry-class': S.err={}; S.cls=null; render(); return loadFor('class');
     case 'retry-live': S.err={}; S.live=undefined; render(); return loadFor('live');
     case 'retry-children': S.err={}; S.children=null; render(); return loadFor('family');
-    case 'game': return startGame();
+    case 'game': return startGame(v);
+    case 'gamequit': return endGame('Round ended.');
+    case 'mflipcard': return flipCard(v);
+    case 'balloon': return popBalloon(el, v);
+    case 'tf': return tfAnswer(v);
     case 'tile': return tapTile(v);
     case 'moretime': try { const r = await apiAt('/api/club-play/request-more-time', { method:'POST', body:{ minutes:10 } }); toast(r.message || 'Request sent.'); if (playAccess) playAccess.timeRequestStatus='pending'; render(); } catch(err){ toast(err.message); } return;
     case 'joinlive': {
@@ -1195,13 +1487,19 @@ document.addEventListener('click', async e=>{
     case 'child': S.childId=+v; return render();
   }
 });
-document.addEventListener('submit', e=>{ if (e.target.id==='ansForm'){ e.preventDefault(); submitAnswer(document.getElementById('ans').value); } });
+document.addEventListener('submit', e=>{ if (e.target.id==='ansForm'){ e.preventDefault(); submitAnswer(document.getElementById('ans').value); } if (e.target.id==='mForm'){ e.preventDefault(); modeAnswer(document.getElementById('mAns').value); } });
 document.addEventListener('change', async e=>{
   if (e.target.id==='bsetBy'){ try { await api('/class/settings', { method:'PUT', body:{ boardBy:e.target.value } }); S.cls.settings.boardBy=e.target.value; S.board=null; render(); loadFor('board'); } catch(err){ toast(err.message); } }
 });
 document.addEventListener('keydown', e=>{
   if (e.key==='Escape'){ if (document.getElementById('modalRoot').innerHTML) closeModal(); if (S.menu){ S.menu=false; renderChrome(); } return; }
   if (e.key==='Enter' && e.target.id==='joinCode'){ e.preventDefault(); document.querySelector('[data-act="joinlive"]')?.click(); return; }
+  if (S.lesson?.mode && !S.lesson.over){
+    const L=S.lesson;
+    if (e.key==='Enter' && L.done && !['mNext','nextBtn'].includes(document.activeElement?.id) && document.activeElement?.tagName!=='BUTTON'){ e.preventDefault(); return modeNext(); }
+    if (L.mode==='flash' && e.key===' ' && !L.flip && document.activeElement?.tagName!=='BUTTON'){ e.preventDefault(); L.flip=true; return render(); }
+    return;
+  }
   if (!S.run || S.tab!=='practice') return;
   const it = S.run.session.item;
   if (it.done && e.key==='Enter' && document.activeElement?.id!=='nextBtn'){ e.preventDefault(); nextQuestion(); return; }

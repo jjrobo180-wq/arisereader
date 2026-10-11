@@ -1037,12 +1037,12 @@ export const SKILLS = {
   } },
   g6negative: { name: "Positive and negative numbers", std: "6.NS.C.5", glyph: "±", c: "tech", band: "g68", gen(r) {
     const rnd = rndWith(r); const a = rnd(-15, -1), b = rnd(1, 20);
-    return { ask: `It was ${N(a)}°F in the morning and ${b}°F at noon. How many degrees did it warm up?`, prompt: `${b} ${MINUS} ${P(a)} = <span class="blank">?</span>`, plain: `${a} to ${b}`, viz: numberLine(a, a - 1, b + 1), answer: b - a, steps: [`From ${N(a)} up to 0 is ${-a}.`, `From 0 up to ${b} is ${b}.`, `${-a} + ${b} = ${b - a}.`] };
+    return { ask: `It was ${N(a)}°F in the morning and ${b}°F at noon. How many degrees did it warm up?`, prompt: `${b} ${MINUS} ${P(a)} = <span class="blank">?</span>`, plain: `${N(a)} to ${b}`, viz: numberLine(a, a - 1, b + 1), answer: b - a, steps: [`From ${N(a)} up to 0 is ${-a}.`, `From 0 up to ${b} is ${b}.`, `${-a} + ${b} = ${b - a}.`] };
   } },
   g6coorddist: { name: "Distance on the coordinate plane", std: "6.NS.C.8", glyph: "↔", c: "fly", band: "g68", gen(r) {
     const rnd = rndWith(r); const x = rnd(-8, 8), y1 = rnd(-9, 9); let y2: number; do { y2 = rnd(-9, 9); } while (y2 === y1);
     const sameX = r() < 0.5, A = sameX ? [x, y1] : [y1, x], B = sameX ? [x, y2] : [y2, x];
-    return { ask: "How far apart are these points?", prompt: `(${N(A[0])}, ${N(A[1])}) and (${N(B[0])}, ${N(B[1])})`, plain: `distance from (${A}) to (${B})`, long: true, viz: pointsPlane([[A[0], A[1]], [B[0], B[1]]], true), answer: Math.abs(y2 - y1), steps: [`They share ${sameX ? "an x" : "a y"}-coordinate, so count along the other.`, `|${N(y2)} ${MINUS} ${P(y1)}| = ${Math.abs(y2 - y1)}.`] };
+    return { ask: "How far apart are these points?", prompt: `(${N(A[0])}, ${N(A[1])}) and (${N(B[0])}, ${N(B[1])})`, plain: `distance from (${N(A[0])}, ${N(A[1])}) to (${N(B[0])}, ${N(B[1])})`, long: true, viz: pointsPlane([[A[0], A[1]], [B[0], B[1]]], true), answer: Math.abs(y2 - y1), steps: [`They share ${sameX ? "an x" : "a y"}-coordinate, so count along the other.`, `|${N(y2)} ${MINUS} ${P(y1)}| = ${Math.abs(y2 - y1)}.`] };
   } },
   g6distribute: { name: "The distributive property", std: "6.EE.A.3", glyph: "a(b+c)", c: "serve", band: "g68", gen(r) {
     const rnd = rndWith(r); const a = rnd(2, 9), b = rnd(1, 12);
@@ -1150,7 +1150,7 @@ export const SKILLS = {
   } },
   hsbinomial: { name: "Multiply binomials", std: "HSA-APR.A.1b", glyph: "(x+a)(x+b)", c: "serve", band: "g912", gen(r) {
     const rnd = rndWith(r); const a = rnd(-9, 9) || 2, b = rnd(-9, 9) || -3, which = r() < 0.5;
-    return { ask: `Multiply. What is the ${which ? "coefficient of x" : "constant term"}?`, prompt: `(x ${a < 0 ? MINUS : "+"} ${Math.abs(a)})(x ${b < 0 ? MINUS : "+"} ${Math.abs(b)})`, plain: `(x + ${a})(x + ${b})`, long: true, answer: which ? a + b : a * b,
+    return { ask: `Multiply. What is the ${which ? "coefficient of x" : "constant term"}?`, prompt: `(x ${a < 0 ? MINUS : "+"} ${Math.abs(a)})(x ${b < 0 ? MINUS : "+"} ${Math.abs(b)})`, plain: `(x ${sgn(a)})(x ${sgn(b)})`, long: true, answer: which ? a + b : a * b,
       steps: ["FOIL: x·x + x·b + a·x + a·b.", `x terms: ${N(a)} + ${P(b)} = ${N(a + b)}.`, `Constant: ${N(a)} × ${P(b)} = ${N(a * b)}.`] };
   } },
   hsdiscriminant: { name: "How many real solutions?", std: "HSA-REI.B.4b", glyph: "b²−4ac", c: "coral", band: "g912", gen(r) {
@@ -1283,17 +1283,22 @@ export const isBand = (v: unknown): v is BandId => typeof v === "string" && (BAN
 export const isSkill = (v: unknown): v is SkillId => typeof v === "string" && Object.prototype.hasOwnProperty.call(SKILLS, v);
 
 /** Three wrong answers near the right one, plus the right one, in random order. */
-export function numberChoices(answer: number, allowNegative: boolean, r: Rng): Choice[] {
+/** Four answer choices: the answer and three near misses. `dec` shows halves as decimals (3.5, not 7/2). */
+export function numberChoices(answer: number, allowNegative: boolean, r: Rng, dec = false): Choice[] {
   const step = Number.isInteger(answer) ? 1 : 0.5;
-  const pool = [...new Set([answer + step, answer - step, answer + 2 * step, answer - 2 * step, answer + 10, answer - 10, -answer, answer * 2])]
+  const places = Math.min(6, (String(answer).split(".")[1] || "").length), fix = (v: number) => Number(v.toFixed(places));
+  const pool = [...new Set([answer + step, answer - step, answer + 2 * step, answer - 2 * step, answer + 10, answer - 10, -answer, answer * 2].map(fix))]
     .filter((v) => v !== answer && (allowNegative || v >= 0));
   const shuffle = <T,>(a: T[]) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
-  return shuffle([answer, ...shuffle(pool).slice(0, 3)]).map((v) => ({ v: String(v), label: fmtV(v) }));
+  return shuffle([answer, ...shuffle(pool).slice(0, 3)]).map((v) => ({ v: String(v), label: dec ? N(v) : fmtV(v) }));
 }
+/** Lessons whose answers are decimals even when they come out to a half. */
+const DEC_SKILLS = new Set(["g4decimal", "g5metric", "g5dec", "g5decmul", "g5decround", "g5pow10", "g6decops"]);
 
 export function makeProblem(skill: SkillId, r: Rng = Math.random): Problem {
   const s: SkillDef = SKILLS[skill], g = s.gen(r), kind = g.kind ?? "num";
-  const choices = kind === "choice" ? g.choices! : numberChoices(Number(g.answer), s.band === "g68" || s.band === "g912", r);
+  const dec = DEC_SKILLS.has(skill) || /\d\.\d/.test(g.plain);
+  const choices = kind === "choice" ? g.choices! : numberChoices(Number(g.answer), s.band === "g68" || s.band === "g912", r, dec);
   return { skill, ask: g.ask, prompt: g.prompt, plain: g.plain, viz: g.viz ?? "", long: !!g.long, kind, answer: g.answer, choices, steps: g.steps };
 }
 
@@ -1309,6 +1314,9 @@ export function customProblem(c: CustomQuestion, r: Rng = Math.random): Problem 
   return { skill: "custom", ask: "Your teacher wrote this question.", prompt: esc(c.q), plain: c.q, viz: "", long: c.q.length > 14, kind: "num", answer: c.a,
     choices: numberChoices(c.a, c.a < 0, r), steps: [...(c.h ? [esc(c.h)] : []), `The answer is ${fmtV(c.a)}.`] };
 }
+/** How the answer is written for people: the matching choice's label (3.5, 7/18, rhombus). */
+export const answerLabel = (p: Pick<Problem, "kind" | "answer" | "choices">) =>
+  p.kind === "choice" ? String(p.choices.find((c) => c.v === String(p.answer))?.label ?? p.answer) : p.choices.find((c) => Number(c.v) === Number(p.answer))?.label ?? fmtV(Number(p.answer));
 export function isRight(p: Pick<Problem, "kind" | "answer">, value: unknown): boolean {
   if (p.kind === "choice") return String(value) === String(p.answer);
   const v = parseAnswer(value);
