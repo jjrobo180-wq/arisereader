@@ -43,6 +43,7 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
 import { registerAriseTodoRoutes } from "./ariseTodo";
+import { registerAdminHandoffRoutes } from "./adminHandoff";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerHubChatRoutes } from "./hubChat";
@@ -1211,6 +1212,7 @@ export async function registerRoutes(
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
     "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
+  registerAdminHandoffRoutes(app, authMiddleware);
   registerAriseTodoRoutes(app, authMiddleware);
   // Share links from LifeHub (a poll to vote in, a list, the calendar, bills, a trip...) that family open without an account.
   const todoOwnerAllowed = async (id: number) => {
