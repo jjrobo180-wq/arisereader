@@ -45,7 +45,8 @@ import {
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkKit, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
+import { cleanKit, type KitRecord } from "@shared/pluginKit";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
 import { PLANS, usd } from "@shared/plans";
@@ -683,8 +684,16 @@ function TeacherHubPage() {
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         teacher
-        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs)}
-        onToggle={(p: Plugin, on: boolean) => setWorkspace((prev) => ({ ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }))}
+        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled)}
+        onToggle={(p: Plugin, on: boolean) => setWorkspace((prev) => (p.target.kind === "kit"
+          ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) }
+          : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }))}
+        kit={{
+          records: cleanKit((workspace as any).kitRecords, 8000),
+          setRecords: (update: (all: KitRecord[]) => KitRecord[]) => setWorkspace((prev) => ({ ...prev, kitRecords: cleanKit(update(cleanKit((prev as any).kitRecords, 8000)), 8000) })),
+          today: TODAY(),
+          makeId: id,
+        }}
         onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); setStore(false); }}
         onClose={() => setStore(false)}
       />}

@@ -15,6 +15,7 @@
 
 import type { HubTab } from "./teacherHub";
 import { isOn, type Family, type FamilySection } from "./familyHub";
+import { KIT_DEFS, type KitDef } from "./pluginKit";
 
 export type PluginHub = "work" | "life";
 
@@ -23,6 +24,8 @@ export type PluginTarget =
   | { kind: "section"; section: FamilySection }
   | { kind: "layer"; layer: "hub"; opens: FamilySection }
   | { kind: "widget"; widget: "stickies"; opens: FamilySection }
+  /** A WorkHub Plugin Kit plugin: added to workspace.kitInstalled and opened from the store. */
+  | { kind: "kit"; id: string }
   | { kind: "connection"; needs: { tab: HubTab } | { section: FamilySection } }
   | { kind: "app"; app: "history" | "math" | "social"; href: string };
 
@@ -55,11 +58,20 @@ export type Plugin = {
 };
 
 export const PLUGIN_CATEGORIES: Record<PluginHub, readonly string[]> = {
-  work: ["Planning", "Students & IEPs", "Classroom", "Families", "Connections", "Arise apps"],
-  life: ["Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Inspiration", "Discover", "Connections", "Arise apps"],
+  work: ["Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps"],
+  life: ["Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
 };
 
 const tab = (t: HubTab): PluginTarget => ({ kind: "tab", tab: t });
+
+/** A Plugin Kit definition as a store plugin. LifeHub ones are sections; WorkHub ones open from the store. */
+function kitPlugin(d: KitDef): Plugin {
+  return {
+    id: `${d.hub}-kit-${d.id}`, hub: d.hub, name: d.name, tagline: d.tagline, description: d.description, features: d.features,
+    category: d.category, icon: d.icon, color: d.color, featured: d.featured,
+    target: d.hub === "life" ? { kind: "section", section: d.id as FamilySection } : { kind: "kit", id: d.id },
+  };
+}
 const section = (s: FamilySection): PluginTarget => ({ kind: "section", section: s });
 
 const ARISE_APPS = (hub: PluginHub): Plugin[] => [
@@ -355,6 +367,8 @@ export const PLUGINS: readonly Plugin[] = [
     description: "Your own LifeHub address: forward any email to it and it becomes a task.",
     features: ["Your own forwarding address", "Works from any email app", "Lands in Tasks"] },
   ...ARISE_APPS("life"),
+  // The Plugin Kit: 100 plugins drawn by shared tools (shared/pluginKit.ts).
+  ...KIT_DEFS.map(kitPlugin),
 ];
 
 /** The plugins one person sees in one hub. */
@@ -363,7 +377,7 @@ export function pluginsFor(hub: PluginHub, opts: { teacher: boolean }): Plugin[]
 }
 
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
-export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget";
+export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "kit";
 
 /** Where a plugin opens in its hub: a WorkHub tab or a LifeHub section. null for an Arise app. */
 export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySection } | null {
@@ -378,11 +392,20 @@ export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySecti
 // ── WorkHub ────────────────────────────────────────────────────────────────
 
 /** Is this WorkHub plugin on? A tab is on unless it was switched off. */
-export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>): boolean {
+export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[]): boolean {
   const t = p.target;
+  if (t.kind === "kit") return !!kitInstalled?.includes(t.id);
   if (t.kind === "tab") return visibleTabs[t.tab] !== false;
   if (t.kind === "connection" && "tab" in t.needs) return visibleTabs[t.needs.tab] !== false;
   return false;
+}
+
+/** WorkHub's added Plugin Kit plugins with this one added or removed. */
+export function setWorkKit(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
+  const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
+  if (p.target.kind !== "kit") return cur;
+  const id = p.target.id;
+  return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
 }
 
 /** The WorkHub's tab switches with this plugin added or removed. Nothing else changes. */

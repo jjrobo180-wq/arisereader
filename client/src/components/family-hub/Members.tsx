@@ -4,6 +4,8 @@ import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, N
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
+import { KIT_DEFS, type KitLifeId } from "@shared/pluginKit";
+import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { Coins as CoinsIcon2, CreditCard as CreditCardIcon2, Dumbbell as DumbbellIcon2, Gauge as GaugeIcon2, Globe as GlobeIcon2, GraduationCap as GraduationCapIcon2, Hammer as HammerIcon2, HandCoins as HandCoinsIcon2, Handshake as HandshakeIcon2, Heart as HeartIcon2, HeartPulse as HeartPulseIcon2, Landmark as LandmarkIcon2, ListChecks as ListChecksIcon2, Moon as MoonIcon2, ShieldCheck as ShieldCheckIcon2, Sparkles as SparklesIcon2, Star as StarIcon2, Stethoscope as StethoscopeIcon2, Timer as TimerIcon2, Utensils as UtensilsIcon2 } from "lucide-react";
 import { ArrowLeftRight as ArrowLeftRightIcon, BookOpen as BookOpenIcon, Cake as CakeIcon, Calculator as CalculatorIcon, Car as CarIcon, ChefHat as ChefHatIcon, CloudSun as CloudSunIcon, CreditCard as CreditCardIcon, Flower2 as Flower2Icon, Gift as GiftIcon, Heart as HeartIcon, Mountain as MountainIcon, PawPrint as PawPrintIcon, Phone as PhoneIcon, PiggyBank as PiggyBankIcon, Repeat as RepeatIcon, Timer as TimerIcon, Tv as TvIcon, UtensilsCrossed as UtensilsCrossedIcon, Wrench as WrenchIcon } from "lucide-react";
 
@@ -79,6 +81,8 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   clocks: { label: "World clock", detail: "Time where your people are", icon: <GlobeIcon2 size={17} /> },
   timers: { label: "Kitchen timers", detail: "Several timers at once", icon: <TimerIcon2 size={17} /> },
   medical: { label: "Medical info", detail: "Allergies, medicines, blood type", icon: <HeartPulseIcon2 size={17} /> },
+  // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).
+  ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => { const Icon = kitIcon(d.icon); return [d.id, { label: d.name, detail: d.tagline, icon: <Icon size={17} /> }]; })) as Record<KitLifeId, { label: string; detail: string; icon: ReactNode }>),
 };
 const blank = (id: string, n: number): Member => ({ id, name: "", emoji: EMOJI[n % EMOJI.length], color: MEMBER_COLORS[n % MEMBER_COLORS.length], kind: "kid" });
 

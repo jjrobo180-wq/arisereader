@@ -12,6 +12,9 @@ import { Coins as CoinsTile2, Dumbbell as DumbbellTile2, Gauge as GaugeTile2, Gl
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import HubMark from "@/components/HubMark";
+import KitPlugin from "@/components/plugin-kit/KitPlugin";
+import { KIT_ICONS } from "@/components/plugin-kit/kitIcons";
+import { kitDef, type KitRecord } from "@shared/pluginKit";
 import {
   PLUGIN_CATEGORIES, connectionNeeds, isAddable, pluginsFor, searchPlugins, OPEN_STORE_KEY, type Plugin, type PluginHub,
 } from "@shared/pluginStore";
@@ -59,17 +62,19 @@ export type PluginStoreProps = {
   /** Opens the plugin's tab or section in the hub (and closes the store). */
   onOpen: (p: Plugin) => void;
   onClose: () => void;
+  /** WorkHub's Plugin Kit plugins open inside the store, with their records kept in the hub. */
+  kit?: { records: KitRecord[]; setRecords: (update: (all: KitRecord[]) => KitRecord[]) => void; today: string; makeId: () => string };
 };
 
 function Tile({ p, size = "md" }: { p: Plugin; size?: "md" | "lg" }) {
-  const Icon = ICONS[p.icon] ?? Puzzle;
+  const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
   const box = size === "lg" ? "h-16 w-16 rounded-2xl" : "h-11 w-11 rounded-xl";
   return <span className={`flex shrink-0 items-center justify-center text-white shadow-sm ${box}`} style={{ background: p.color }} aria-hidden>
     <Icon className={size === "lg" ? "h-8 w-8" : "h-5 w-5"} />
   </span>;
 }
 
-export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpen, onClose }: PluginStoreProps) {
+export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpen, onClose, kit }: PluginStoreProps) {
   const { token } = useAuth();
   const a = ACCENT[hub];
   const [view, setView] = useState<"discover" | "installed">("discover");
@@ -78,6 +83,11 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const [openId, setOpenId] = useState<string | null>(null);
   const [apps, setApps] = useState<AppAccess | null>(null);
   const [note, setNote] = useState("");
+  // A WorkHub kit plugin being used, shown over the store.
+  const [running, setRunning] = useState<string | null>(null);
+  const runningRef = useRef(running);
+  runningRef.current = running;
+  const openPlugin = (p: Plugin) => { if (p.target.kind === "kit" && kit) { setRunning(p.target.id); setOpenId(null); } else onOpen(p); };
   const closeRef = useRef<HTMLButtonElement>(null);
   // The hub redraws often (clocks, saving), so the latest close and open-detail live in refs
   // and the effects below run once, not on every redraw.
@@ -102,7 +112,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
 
   // Escape closes the detail first, then the store. The page behind doesn't scroll.
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); if (openIdRef.current) setOpenId(null); else onCloseRef.current(); };
+    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); if (runningRef.current) setRunning(null); else if (openIdRef.current) setOpenId(null); else onCloseRef.current(); };
     window.addEventListener("keydown", key, true);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -248,6 +258,15 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
       </div>
     </main>
 
+    {running && kit && kitDef(running) && <div className="fixed inset-0 z-[87] flex flex-col bg-[#f6f7fc]" role="dialog" aria-modal="true" aria-label={kitDef(running)!.name} data-testid="kit-running">
+      <div className="border-b border-slate-200 bg-white"><div className="mx-auto flex max-w-[1100px] items-center gap-2 px-4 py-3 sm:px-6">
+        <button type="button" onClick={() => setRunning(null)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-sm font-bold text-slate-600 hover:bg-slate-100" data-testid="kit-back">← Plugins</button>
+        <span className="ml-auto text-xs font-bold uppercase tracking-[.14em] text-slate-400">{HUB_NAME[hub]} plugin</span>
+      </div></div>
+      <div className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto max-w-[1100px] px-4 py-6 sm:px-6">
+        <KitPlugin key={running} def={kitDef(running)!} records={kit.records} setRecords={kit.setRecords} today={kit.today} makeId={kit.makeId} say={setNote} />
+      </div></div>
+    </div>}
     {note && <div role="status" className="pointer-events-none fixed inset-x-0 bottom-5 z-[90] flex justify-center px-4"><p className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-xl">{note}</p></div>}
 
     {open && <div className="fixed inset-0 z-[85] flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-6" onClick={() => setOpenId(null)}>
@@ -278,7 +297,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           {open.target.kind === "app" && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">A paid Arise add-on with its own page. {apps && !apps[open.target.app] ? "Your plans page shows the free trial and prices." : "It's included for you."}</p>}
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-5">
             {action(open, true)}
-            {isAddable(open) && isInstalled(open) && <button type="button" onClick={() => onOpen(open)} className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-5 text-sm font-bold ${a.solid}`} data-testid="plugin-open">Open {open.name} <ArrowUpRight className="h-4 w-4" /></button>}
+            {isAddable(open) && isInstalled(open) && <button type="button" onClick={() => openPlugin(open)} className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-5 text-sm font-bold ${a.solid}`} data-testid="plugin-open">Open {open.name} <ArrowUpRight className="h-4 w-4" /></button>}
           </div>
         </div>
       </div>

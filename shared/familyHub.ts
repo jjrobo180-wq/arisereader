@@ -3,13 +3,14 @@
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
+import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS, "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical"];
+export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
 /** Sections added from the Plugin Store: off until the family adds them (the others start on). */
-export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical"];
+export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
 
 /** A family's `sectionOrder` (only the toggleable sections can be reordered) made safe to use:
  *  every toggleable section appears exactly once, keeping the saved order where valid and
@@ -216,6 +217,8 @@ export type Family = {
   /** Time zones for the World clock (IANA names, like America/New_York). */
   clocks: string[];
   medical: MedicalCard[];
+  /** Records for the Plugin Kit's LifeHub plugins (see shared/pluginKit.ts). */
+  kit: KitRecord[];
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -250,7 +253,7 @@ export const emptyFamily = (): Family => ({
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], linkPage: { title: "", bio: "", links: [] },
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
-  sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [],
+  sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [],
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -564,6 +567,7 @@ export function cleanFamily(input: unknown): Family {
       const person = str(r.person, 60).trim();
       return person ? { id: id(r.id), person, bloodType: str(r.bloodType, 10), allergies: str(r.allergies, 500), conditions: str(r.conditions, 500), medications: str(r.medications, 500), doctor: str(r.doctor, 200), insurance: str(r.insurance, 200), notes: str(r.notes, 1000) } : null;
     }),
+    kit: cleanKit(raw.kit),
     savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
   };
 }
@@ -724,7 +728,7 @@ export function isCurrentFamily(f: unknown): f is Family {
   const r = obj(f);
   const h = r && obj(r.health);
   if (!r || !h) return false;
-  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes", "stickies", "randomLists", "savedWords", "habits", "gratitude", "focusLog", "recipes", "meals", "care", "birthdays", "contacts", "subscriptions", "jars", "collections", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftCards", "warranties", "mileage", "clocks", "medical"];
+  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes", "stickies", "randomLists", "savedWords", "habits", "gratitude", "focusLog", "recipes", "meals", "care", "birthdays", "contacts", "subscriptions", "jars", "collections", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftCards", "warranties", "mileage", "clocks", "medical", "kit"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
     && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.widgets) && !!obj(r.linkPage) && !!obj(r.weather) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
