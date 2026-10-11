@@ -412,3 +412,159 @@ export const DATE_IDEAS: readonly { idea: string; kind: "home" | "out" | "free" 
 
 /** Every tip, for the tip of the day. */
 export const ALL_TIPS: readonly string[] = RELATIONSHIP_TOPICS.flatMap((t) => t.tips);
+
+// ── Shared date helpers ──────────────────────────────────────────────────────
+
+export const addDaysTo = (date: string, n: number) => new Date(Date.parse(`${date}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/** Days in a row a habit was done, ending today (or yesterday, if today isn't checked yet). */
+export function streak(days: readonly string[], today: string): number {
+  const set = new Set(days);
+  let d = set.has(today) ? today : addDaysTo(today, -1), n = 0;
+  while (set.has(d)) { n++; d = addDaysTo(d, -1); }
+  return n;
+}
+
+/** The next time a yearly date comes round, on or after today, and how old (or how many years) it will be. */
+export function nextYearly(month: number, day: number, year: number, today: string): { date: string; days: number; turns: number | null } {
+  const y = Number(today.slice(0, 4));
+  const at = (yy: number) => {
+    const last = new Date(Date.UTC(yy, month, 0)).getUTCDate(); // Feb 29 lands on Feb 28 in other years
+    return `${yy}-${String(month).padStart(2, "0")}-${String(Math.min(day, last)).padStart(2, "0")}`;
+  };
+  let date = at(y);
+  if (date < today) date = at(y + 1);
+  const ny = Number(date.slice(0, 4));
+  return { date, days: daysUntil(date, today), turns: year > 0 && year <= ny ? ny - year : null };
+}
+
+// ── Care (home upkeep, plants, car, pets) ────────────────────────────────────
+
+/** When something is next due, and how far off that is (negative when overdue). */
+export function careDue(item: { everyDays: number; lastDone: string }, today: string): { due: string; days: number } {
+  if (!item.lastDone) return { due: today, days: 0 };
+  const due = addDaysTo(item.lastDone, item.everyDays);
+  return { due, days: daysUntil(due, today) };
+}
+
+export const CARE_PRESETS: Record<"upkeep" | "plants" | "car" | "pets", { name: string; everyDays: number }[]> = {
+  upkeep: [
+    { name: "Change HVAC filter", everyDays: 90 }, { name: "Test smoke & CO alarms", everyDays: 30 }, { name: "Clean fridge coils", everyDays: 180 },
+    { name: "Clean dryer vent", everyDays: 365 }, { name: "Clean gutters", everyDays: 180 }, { name: "Flush water heater", everyDays: 365 },
+    { name: "Clean dishwasher filter", everyDays: 30 }, { name: "Replace water filter", everyDays: 60 }, { name: "Deep clean oven", everyDays: 90 },
+    { name: "Check fire extinguisher", everyDays: 365 }, { name: "Wash bedding", everyDays: 7 }, { name: "Clean garbage disposal", everyDays: 14 },
+  ],
+  plants: [
+    { name: "Water", everyDays: 7 }, { name: "Fertilize", everyDays: 30 }, { name: "Mist leaves", everyDays: 3 }, { name: "Rotate pot", everyDays: 14 }, { name: "Repot", everyDays: 365 },
+  ],
+  car: [
+    { name: "Oil change", everyDays: 120 }, { name: "Rotate tires", everyDays: 180 }, { name: "Check tire pressure", everyDays: 30 }, { name: "Replace wiper blades", everyDays: 365 },
+    { name: "Replace cabin air filter", everyDays: 365 }, { name: "Car wash", everyDays: 14 }, { name: "Registration renewal", everyDays: 365 }, { name: "Inspection", everyDays: 365 },
+  ],
+  pets: [
+    { name: "Flea & tick medicine", everyDays: 30 }, { name: "Heartworm medicine", everyDays: 30 }, { name: "Vet checkup", everyDays: 365 }, { name: "Grooming", everyDays: 60 },
+    { name: "Nail trim", everyDays: 21 }, { name: "Bath", everyDays: 30 }, { name: "Clean litter box (full change)", everyDays: 14 }, { name: "Buy food", everyDays: 30 },
+  ],
+};
+
+// ── Subscriptions ────────────────────────────────────────────────────────────
+
+/** What a subscription costs in an average month. */
+export const monthlyCost = (s: { amount: number; cycle: "weekly" | "monthly" | "yearly" }) => s.cycle === "yearly" ? s.amount / 12 : s.cycle === "weekly" ? (s.amount * 52) / 12 : s.amount;
+
+/** The next renewal on or after today, rolling an old date forward by its cycle. */
+export function nextRenewal(s: { nextDate: string; cycle: "weekly" | "monthly" | "yearly" }, today: string): string {
+  if (!s.nextDate) return "";
+  let d = s.nextDate, guard = 0;
+  while (d < today && guard++ < 600) {
+    if (s.cycle === "weekly") d = addDaysTo(d, 7);
+    else {
+      const [y, m, dd] = d.split("-").map(Number);
+      const months = s.cycle === "yearly" ? 12 : 1;
+      const ny = y + Math.floor((m - 1 + months) / 12), nm = ((m - 1 + months) % 12) + 1;
+      const last = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+      d = `${ny}-${String(nm).padStart(2, "0")}-${String(Math.min(dd, last)).padStart(2, "0")}`;
+    }
+  }
+  return d;
+}
+
+// ── Lists with a status (reading, watchlist, bucket list, gifts) ─────────────
+
+export const COLLECTIONS: Record<"reading" | "watchlist" | "bucket" | "gifts", { statuses: { id: string; label: string }[]; subLabel: string; rated: boolean; priced: boolean; linked: boolean }> = {
+  reading: { statuses: [{ id: "want", label: "Want to read" }, { id: "reading", label: "Reading" }, { id: "done", label: "Read" }], subLabel: "Author", rated: true, priced: false, linked: false },
+  watchlist: { statuses: [{ id: "want", label: "To watch" }, { id: "watching", label: "Watching" }, { id: "done", label: "Watched" }], subLabel: "Movie, show, where to watch", rated: true, priced: false, linked: false },
+  bucket: { statuses: [{ id: "want", label: "Someday" }, { id: "planned", label: "Planned" }, { id: "done", label: "Done" }], subLabel: "Category (travel, adventure, learn…)", rated: false, priced: false, linked: false },
+  gifts: { statuses: [{ id: "want", label: "Idea" }, { id: "bought", label: "Bought" }, { id: "done", label: "Given" }], subLabel: "Who it's for", rated: false, priced: true, linked: true },
+};
+
+// ── Weather (Open-Meteo) ─────────────────────────────────────────────────────
+
+/** What a WMO weather code means, with an emoji. */
+export function weatherCode(code: number): { text: string; icon: string } {
+  if (code === 0) return { text: "Clear", icon: "☀️" };
+  if (code === 1) return { text: "Mostly clear", icon: "🌤️" };
+  if (code === 2) return { text: "Partly cloudy", icon: "⛅" };
+  if (code === 3) return { text: "Cloudy", icon: "☁️" };
+  if (code === 45 || code === 48) return { text: "Fog", icon: "🌫️" };
+  if (code >= 51 && code <= 57) return { text: "Drizzle", icon: "🌦️" };
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { text: code >= 80 ? "Showers" : "Rain", icon: "🌧️" };
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { text: "Snow", icon: "🌨️" };
+  if (code >= 95) return { text: "Thunderstorms", icon: "⛈️" };
+  return { text: "—", icon: "🌡️" };
+}
+
+export type Forecast = {
+  place: string;
+  unit: "F" | "C";
+  current: { temp: number; feels: number; code: number; wind: number; humidity: number };
+  days: { date: string; code: number; high: number; low: number; rain: number }[];
+};
+
+/** Reads Open-Meteo's forecast answer. */
+export function parseForecast(json: any, place: string, unit: "F" | "C"): Forecast | null {
+  const c = json?.current, d = json?.daily;
+  if (!c || !d || !Array.isArray(d.time)) return null;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.round(v) : 0);
+  return {
+    place: place.slice(0, 120), unit,
+    current: { temp: n(c.temperature_2m), feels: n(c.apparent_temperature), code: n(c.weather_code), wind: n(c.wind_speed_10m), humidity: n(c.relative_humidity_2m) },
+    days: d.time.slice(0, 7).map((date: string, i: number) => ({ date: String(date).slice(0, 10), code: n(d.weather_code?.[i]), high: n(d.temperature_2m_max?.[i]), low: n(d.temperature_2m_min?.[i]), rain: n(d.precipitation_probability_max?.[i]) })),
+  };
+}
+
+/** A place name safe to look up: letters, spaces and a few separators. */
+export function cleanPlace(v: unknown): string {
+  if (typeof v !== "string") return "";
+  const p = v.trim().replace(/\s+/g, " ");
+  return /^[\p{L}\p{M}0-9 .,'-]{2,80}$/u.test(p) ? p : "";
+}
+
+// ── Unit converter ───────────────────────────────────────────────────────────
+
+/** Each unit's size in the group's base unit (temperature is handled on its own). */
+export const UNITS: Record<string, Record<string, number>> = {
+  Length: { Millimeters: 0.001, Centimeters: 0.01, Meters: 1, Kilometers: 1000, Inches: 0.0254, Feet: 0.3048, Yards: 0.9144, Miles: 1609.344 },
+  Weight: { Grams: 1, Kilograms: 1000, Ounces: 28.349523125, Pounds: 453.59237, Stones: 6350.29318 },
+  Cooking: { Teaspoons: 4.92892159375, Tablespoons: 14.78676478125, "Fluid ounces": 29.5735295625, Cups: 236.5882365, Pints: 473.176473, Quarts: 946.352946, Gallons: 3785.411784, Milliliters: 1, Liters: 1000 },
+  Speed: { "Miles per hour": 0.44704, "Kilometers per hour": 0.2777777778, "Meters per second": 1, Knots: 0.5144444444 },
+  Area: { "Square feet": 0.09290304, "Square meters": 1, Acres: 4046.8564224, Hectares: 10000, "Square miles": 2589988.110336 },
+  Temperature: { Fahrenheit: 1, Celsius: 1, Kelvin: 1 },
+};
+
+export function convertUnit(group: string, value: number, from: string, to: string): number {
+  if (group === "Temperature") {
+    const c = from === "Celsius" ? value : from === "Fahrenheit" ? (value - 32) * 5 / 9 : value - 273.15;
+    return to === "Celsius" ? c : to === "Fahrenheit" ? c * 9 / 5 + 32 : c + 273.15;
+  }
+  const g = UNITS[group];
+  return g && g[from] && g[to] ? (value * g[from]) / g[to] : NaN;
+}
+
+// ── Recipes ──────────────────────────────────────────────────────────────────
+
+/** An ingredient line as a grocery item: "2 cups flour" becomes qty "2 cups", name "flour". */
+export function ingredientToGrocery(line: string): { qty: string; name: string } {
+  const m = line.trim().match(/^((?:\d+[\d\/.\s-]*|½|¼|¾|⅓|⅔)\s*(?:cups?|c\.|tbsp|tablespoons?|tsp|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|ml|l|liters?|cloves?|cans?|pinch(?:es)?|dash(?:es)?|slices?|sticks?|packages?|pkg|bunch(?:es)?|large|medium|small)?\.?)\s+(.+)$/i);
+  return m ? { qty: m[1].trim().slice(0, 20), name: m[2].trim().slice(0, 80) } : { qty: "", name: line.trim().slice(0, 80) };
+}

@@ -118,3 +118,52 @@ test("dictionary words are checked and entries read safely", async () => {
   assert.equal(d?.meanings[0].definitions[0].example, "She said hello.");
   assert.equal(parseDefinition({ title: "No Definitions Found" }), null);
 });
+
+test("the 20 everyday plugins: all in the store, off until added, data cleaned", async () => {
+  const ids = ["habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car"];
+  const f = emptyFamily();
+  for (const id of ids) {
+    assert.ok(ADD_ON_SECTIONS.includes(id as any), id);
+    assert.ok(PLUGINS.some((p) => p.target.kind === "section" && p.target.section === id), `${id} in the store`);
+    assert.equal(isOn(id as any, f), false);
+  }
+  const c = cleanFamily({ ...f,
+    habits: [{ id: "h", name: "Walk", days: ["2026-10-10", "2026-10-10", "bad"] }],
+    care: [{ id: "c", kind: "pets", group: "Biscuit", name: "Vet", everyDays: 99999, lastDone: "2026-01-01" }],
+    birthdays: [{ id: "b", name: "Mom", month: 2, day: 29, year: 1970 }, { id: "x", name: "Bad", month: 13, day: 1 }],
+    collections: [{ id: "r", kind: "reading", title: "Dune", url: "javascript:x", rating: 9 }],
+    weather: { place: "Denver, CO", unit: "K" },
+  });
+  assert.deepEqual(c.habits[0].days, ["2026-10-10"]);
+  assert.equal(c.care[0].everyDays, 3650);
+  assert.deepEqual(c.birthdays.map((b) => b.id), ["b"]);
+  assert.equal(c.collections[0].url, "");
+  assert.equal(c.collections[0].rating, 5);
+  assert.deepEqual(c.weather, { place: "Denver, CO", unit: "F" });
+});
+
+test("everyday helpers: streaks, yearly dates, care due, renewals, units, ingredients", async () => {
+  const m = await import("../shared/lifePlugins");
+  assert.equal(m.streak(["2026-10-08", "2026-10-09", "2026-10-10"], "2026-10-10"), 3);
+  assert.equal(m.streak(["2026-10-08", "2026-10-09"], "2026-10-10"), 2, "today not checked yet keeps the streak");
+  assert.equal(m.streak(["2026-10-07"], "2026-10-10"), 0);
+  assert.deepEqual(m.nextYearly(10, 10, 1990, "2026-10-10"), { date: "2026-10-10", days: 0, turns: 36 });
+  assert.equal(m.nextYearly(2, 29, 0, "2026-10-10").date, "2027-02-28", "Feb 29 in a non-leap year");
+  assert.equal(m.nextYearly(1, 5, 0, "2026-10-10").turns, null);
+  assert.deepEqual(m.careDue({ everyDays: 30, lastDone: "2026-10-01" }, "2026-10-10"), { due: "2026-10-31", days: 21 });
+  assert.equal(m.careDue({ everyDays: 30, lastDone: "" }, "2026-10-10").days, 0);
+  assert.equal(m.nextRenewal({ nextDate: "2026-01-31", cycle: "monthly" }, "2026-10-10"), "2026-10-28");
+  assert.equal(m.nextRenewal({ nextDate: "2025-03-01", cycle: "yearly" }, "2026-10-10"), "2027-03-01");
+  assert.equal(Math.round(m.monthlyCost({ amount: 120, cycle: "yearly" })), 10);
+  assert.equal(Math.round(m.convertUnit("Temperature", 212, "Fahrenheit", "Celsius")), 100);
+  assert.equal(Math.round(m.convertUnit("Cooking", 1, "Cups", "Tablespoons")), 16);
+  assert.equal(Math.round(m.convertUnit("Length", 1, "Miles", "Kilometers") * 1000) / 1000, 1.609);
+  assert.deepEqual(m.ingredientToGrocery("2 cups flour"), { qty: "2 cups", name: "flour" });
+  assert.deepEqual(m.ingredientToGrocery("salt"), { qty: "", name: "salt" });
+  assert.equal(m.weatherCode(0).text, "Clear");
+  assert.equal(m.cleanPlace("Denver, CO"), "Denver, CO");
+  assert.equal(m.cleanPlace("<x>"), "");
+  const fc = m.parseForecast({ current: { temperature_2m: 61.4, apparent_temperature: 59, weather_code: 2, wind_speed_10m: 7, relative_humidity_2m: 30 }, daily: { time: ["2026-10-10"], weather_code: [1], temperature_2m_max: [70], temperature_2m_min: [44], precipitation_probability_max: [10] } }, "Denver", "F");
+  assert.equal(fc?.current.temp, 61);
+  assert.equal(fc?.days[0].high, 70);
+});

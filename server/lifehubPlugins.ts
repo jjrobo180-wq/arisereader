@@ -2,7 +2,7 @@
 // (Wikipedia and Google Trends) and Bible passages (bible-api.com, King James Version). Each answer
 // is cached, so a busy morning costs one request per feed, and an old copy is served if a feed is down.
 import type { Express, RequestHandler } from "express";
-import { cleanReference, cleanWord, parseBiblePassage, parseDefinition, parseMostRead, parseOnThisDay, parseTrendsRss } from "../shared/lifePlugins";
+import { cleanPlace, cleanReference, cleanWord, parseBiblePassage, parseDefinition, parseForecast, parseMostRead, parseOnThisDay, parseTrendsRss } from "../shared/lifePlugins";
 
 const UA = "AriseLifeHub/1.0 (https://arisereader.onrender.com)";
 const cache = new Map<string, { at: number; value: unknown }>();
@@ -109,6 +109,36 @@ export function registerLifehubPluginRoutes(app: Express, authMiddleware: Reques
     } catch (error: any) {
       console.error("[lifehub] define:", error?.message);
       return res.status(503).json({ message: "The dictionary can't be reached right now. Try again in a minute." });
+    }
+  });
+
+  /** The weather for a town: ?place=Denver&unit=F (Open-Meteo, no key needed). */
+  app.get("/api/lifehub/weather", authMiddleware, async (req: any, res) => {
+    const place = cleanPlace(req.query?.place);
+    const unit = req.query?.unit === "C" ? "C" : "F";
+    if (!place) return res.status(400).json({ message: "Type your town or city." });
+    try {
+      const where = await cached(`geo:${place.toLowerCase()}`, 30 * 86_400_000, async () => {
+        const json: any = await (await get(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place.split(",")[0])}&count=10&language=en&format=json`)).json();
+        const results: any[] = Array.isArray(json?.results) ? json.results : [];
+        // "Denver, CO" or "Paris, France": prefer the result whose state or country matches the part after the comma.
+        const hint = place.includes(",") ? place.split(",").slice(1).join(",").trim().toLowerCase() : "";
+        const best = results.find((r) => hint && [r.admin1, r.country, r.country_code].some((x: unknown) => typeof x === "string" && (x.toLowerCase() === hint || x.toLowerCase().startsWith(hint)))) ?? results[0];
+        return best ? { lat: Number(best.latitude), lon: Number(best.longitude), name: [best.name, best.admin1, best.country_code].filter(Boolean).join(", ") } : null;
+      });
+      if (!where.value) return res.status(404).json({ message: `We couldn't find “${place}”. Try adding the state, like Denver, CO.` });
+      const { lat, lon, name } = where.value;
+      const got = await cached(`weather:${lat.toFixed(2)},${lon.toFixed(2)}:${unit}`, 15 * 60_000, async () => {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7${unit === "F" ? "&temperature_unit=fahrenheit&wind_speed_unit=mph" : ""}`;
+        const forecast = parseForecast(await (await get(url)).json(), name, unit);
+        if (!forecast) throw new Error("weather answer was not readable");
+        return forecast;
+      });
+      res.set("Cache-Control", "private, max-age=600");
+      return res.json(got.value);
+    } catch (error: any) {
+      console.error("[lifehub] weather:", error?.message);
+      return res.status(503).json({ message: "The weather can't be reached right now. Try again in a minute." });
     }
   });
 }

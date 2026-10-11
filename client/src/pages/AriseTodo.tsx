@@ -16,6 +16,21 @@ import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
 import StickyBoard from "@/components/family-hub/StickyBoard";
+import Birthdays from "@/components/family-hub/Birthdays";
+import CareTracker from "@/components/family-hub/CareTracker";
+import Collection from "@/components/family-hub/Collection";
+import Contacts from "@/components/family-hub/Contacts";
+import Converter from "@/components/family-hub/Converter";
+import Focus from "@/components/family-hub/Focus";
+import Gratitude from "@/components/family-hub/Gratitude";
+import Habits from "@/components/family-hub/Habits";
+import MealPlanner from "@/components/family-hub/MealPlanner";
+import Recipes from "@/components/family-hub/Recipes";
+import SavingsJars from "@/components/family-hub/SavingsJars";
+import Subscriptions from "@/components/family-hub/Subscriptions";
+import TipCalculator from "@/components/family-hub/TipCalculator";
+import Weather from "@/components/family-hub/Weather";
+import { ArrowLeftRight as ArrowLeftRightNav, BookOpen as BookOpenNav, Cake as CakeNav, Calculator as CalculatorNav, Car as CarNav, ChefHat as ChefHatNav, CloudSun as CloudSunNav, CreditCard as CreditCardNav, Flower2 as Flower2Nav, Gift as GiftNav, Heart as HeartNav, Mountain as MountainNav, PawPrint as PawPrintNav, Phone as PhoneNav, PiggyBank as PiggyBankNav, Repeat as RepeatNav, Timer as TimerNav, Tv as TvNav, UtensilsCrossed as UtensilsCrossedNav, Wrench as WrenchNav } from "lucide-react";
 import Journal from "@/components/family-hub/Journal";
 import Countdowns from "@/components/family-hub/Countdowns";
 import Grocery from "@/components/family-hub/Grocery";
@@ -168,6 +183,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2,
+  habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
 // Tasks and Notifications is the family's own toggleable block, in the order they chose.
@@ -481,6 +497,26 @@ export default function AriseTodo() {
     : shown === "relationships" ? <Relationships {...common} />
     : shown === "dictionary" ? <Dictionary {...common} />
     : shown === "links" ? <LinkPage {...common} />
+    : shown === "habits" ? <Habits {...common} />
+    : shown === "gratitude" ? <Gratitude {...common} />
+    : shown === "focus" ? <Focus {...common} />
+    : shown === "bucket" ? <Collection kind="bucket" {...common} />
+    : shown === "recipes" ? <Recipes {...common} />
+    : shown === "meals" ? <MealPlanner {...common} />
+    : shown === "upkeep" ? <CareTracker kind="upkeep" {...common} />
+    : shown === "plants" ? <CareTracker kind="plants" {...common} />
+    : shown === "birthdays" ? <Birthdays {...common} />
+    : shown === "gifts" ? <Collection kind="gifts" {...common} />
+    : shown === "pets" ? <CareTracker kind="pets" {...common} />
+    : shown === "contacts" ? <Contacts {...common} />
+    : shown === "subscriptions" ? <Subscriptions {...common} />
+    : shown === "jars" ? <SavingsJars {...common} />
+    : shown === "tips" ? <TipCalculator {...common} />
+    : shown === "reading" ? <Collection kind="reading" {...common} />
+    : shown === "watchlist" ? <Collection kind="watchlist" {...common} />
+    : shown === "weather" ? <Weather {...common} />
+    : shown === "convert" ? <Converter {...common} />
+    : shown === "car" ? <CareTracker kind="car" {...common} />
     : shown === "family" ? <Members {...common} />
     : null;
 

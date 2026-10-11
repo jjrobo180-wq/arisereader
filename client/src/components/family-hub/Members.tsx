@@ -4,6 +4,7 @@ import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, N
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
+import { ArrowLeftRight as ArrowLeftRightIcon, BookOpen as BookOpenIcon, Cake as CakeIcon, Calculator as CalculatorIcon, Car as CarIcon, ChefHat as ChefHatIcon, CloudSun as CloudSunIcon, CreditCard as CreditCardIcon, Flower2 as Flower2Icon, Gift as GiftIcon, Heart as HeartIcon, Mountain as MountainIcon, PawPrint as PawPrintIcon, Phone as PhoneIcon, PiggyBank as PiggyBankIcon, Repeat as RepeatIcon, Timer as TimerIcon, Tv as TvIcon, UtensilsCrossed as UtensilsCrossedIcon, Wrench as WrenchIcon } from "lucide-react";
 
 const EMOJI = ["🙂", "😎", "🦄", "🦖", "🐱", "🐶", "🌟", "⚽", "🎨", "🎮", "🌸", "🚀", "👑", "🐻", "🦊", "🐢"];
 export const SECTION_INFO: Record<FamilySection, { label: string; detail: string; icon: ReactNode }> = {
@@ -37,6 +38,26 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   relationships: { label: "Relationships", detail: "Tips, conversation starters and date ideas", icon: <HeartHandshake size={17} /> },
   dictionary: { label: "Dictionary", detail: "Look up any word, plus a word a day", icon: <BookOpen size={17} /> },
   links: { label: "Link page", detail: "Your links on one shareable page", icon: <Link2 size={17} /> },
+  habits: { label: "Habits", detail: "Daily habits and streaks", icon: <RepeatIcon size={17} /> },
+  gratitude: { label: "Gratitude", detail: "Three good things a day", icon: <HeartIcon size={17} /> },
+  focus: { label: "Focus timer", detail: "Work in focused blocks with breaks", icon: <TimerIcon size={17} /> },
+  bucket: { label: "Bucket list", detail: "Someday, for real", icon: <MountainIcon size={17} /> },
+  recipes: { label: "Recipe box", detail: "Family recipes, one tap to shop", icon: <ChefHatIcon size={17} /> },
+  meals: { label: "Meal planner", detail: "Plan the week's meals", icon: <UtensilsCrossedIcon size={17} /> },
+  upkeep: { label: "Home upkeep", detail: "Filters, alarms and the rest", icon: <WrenchIcon size={17} /> },
+  plants: { label: "Plant care", detail: "Watering schedules for each plant", icon: <Flower2Icon size={17} /> },
+  birthdays: { label: "Birthdays", detail: "Birthdays and anniversaries", icon: <CakeIcon size={17} /> },
+  gifts: { label: "Gift ideas", detail: "Ideas all year, bought and given", icon: <GiftIcon size={17} /> },
+  pets: { label: "Pet care", detail: "Medicine, vet visits and grooming", icon: <PawPrintIcon size={17} /> },
+  contacts: { label: "Important contacts", detail: "Doctors, school, sitters and more", icon: <PhoneIcon size={17} /> },
+  subscriptions: { label: "Subscriptions", detail: "What they cost each month", icon: <CreditCardIcon size={17} /> },
+  jars: { label: "Savings jars", detail: "Save toward goals", icon: <PiggyBankIcon size={17} /> },
+  tips: { label: "Tip & split", detail: "Tip and split the bill", icon: <CalculatorIcon size={17} /> },
+  reading: { label: "Reading list", detail: "Books to read and read", icon: <BookOpenIcon size={17} /> },
+  watchlist: { label: "Watchlist", detail: "Movies and shows to watch", icon: <TvIcon size={17} /> },
+  weather: { label: "Weather", detail: "Now and the next 7 days", icon: <CloudSunIcon size={17} /> },
+  convert: { label: "Unit converter", detail: "Cooking, length, weight and more", icon: <ArrowLeftRightIcon size={17} /> },
+  car: { label: "Car care", detail: "Oil changes, tires and registration", icon: <CarIcon size={17} /> },
 };
 const blank = (id: string, n: number): Member => ({ id, name: "", emoji: EMOJI[n % EMOJI.length], color: MEMBER_COLORS[n % MEMBER_COLORS.length], kind: "kid" });
 

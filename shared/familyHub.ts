@@ -4,12 +4,12 @@
 
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links"];
+export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car"];
 /** Sections added from the Plugin Store: off until the family adds them (the others start on). */
-export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links"];
+export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car"];
 
 /** A family's `sectionOrder` (only the toggleable sections can be reordered) made safe to use:
  *  every toggleable section appears exactly once, keeping the saved order where valid and
@@ -111,6 +111,23 @@ export type SavedWord = { id: string; word: string; definition: string };
 export type PageLink = { id: string; title: string; url: string; emoji: string };
 /** The family's own link page (like a link tree), shareable with a link. */
 export type LinkPage = { title: string; bio: string; links: PageLink[] };
+export type Habit = { id: string; name: string; emoji: string; color: string; days: string[] };
+export type GratitudeDay = { id: string; date: string; items: string[] };
+export type FocusLog = { id: string; date: string; minutes: number };
+export type Recipe = { id: string; title: string; ingredients: string[]; steps: string; tags: string; servings: number; minutes: number };
+export type MealSlot = "breakfast" | "lunch" | "dinner";
+export type PlannedMeal = { id: string; date: string; slot: MealSlot; text: string; recipeId: string };
+/** Something that needs doing every so often: home upkeep, plants, a car or a pet. */
+export type CareKind = "upkeep" | "plants" | "car" | "pets";
+export type CareItem = { id: string; kind: CareKind; group: string; name: string; everyDays: number; lastDone: string; notes: string };
+export type Birthday = { id: string; name: string; month: number; day: number; /** 0 when the year isn't known. */ year: number; kind: "birthday" | "anniversary" | "other" };
+export type Contact = { id: string; name: string; role: string; phone: string; email: string; note: string; emergency: boolean };
+export type Subscription = { id: string; name: string; amount: number; cycle: "weekly" | "monthly" | "yearly"; nextDate: string; category: string };
+export type SavingsJar = { id: string; name: string; emoji: string; color: string; target: number; saved: number };
+/** One item in a list with a status: a book, a show, a bucket-list dream or a gift idea. */
+export type CollectionKind = "reading" | "watchlist" | "bucket" | "gifts";
+export type CollectionItem = { id: string; kind: CollectionKind; title: string; sub: string; status: string; rating: number; note: string; url: string; price: number; doneOn: string };
+export type WeatherPrefs = { place: string; unit: "F" | "C" };
 /** Plugin Store add-ons that live on another screen rather than in the menu. */
 export type Widgets = { stickies: boolean };
 /* News */
@@ -161,6 +178,18 @@ export type Family = {
   randomLists: RandomList[];
   savedWords: SavedWord[];
   linkPage: LinkPage;
+  habits: Habit[];
+  gratitude: GratitudeDay[];
+  focusLog: FocusLog[];
+  recipes: Recipe[];
+  meals: PlannedMeal[];
+  care: CareItem[];
+  birthdays: Birthday[];
+  contacts: Contact[];
+  subscriptions: Subscription[];
+  jars: SavingsJar[];
+  collections: CollectionItem[];
+  weather: WeatherPrefs;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -194,6 +223,7 @@ export const emptyFamily = (): Family => ({
   notify: defaultNotify(),
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], linkPage: { title: "", bio: "", links: [] },
+  habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -232,7 +262,7 @@ function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Re
   return newest ? out.slice(-max) : out;
 }
 
-export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300, stickies: 60, randomLists: 50, savedWords: 1000, links: 60 };
+export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300, stickies: 60, randomLists: 50, savedWords: 1000, links: 60, habits: 40, gratitude: 3000, focusLog: 6000, recipes: 500, meals: 2000, care: 300, birthdays: 300, contacts: 200, subscriptions: 100, jars: 40, collections: 3000 };
 
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
@@ -439,6 +469,52 @@ export function cleanFamily(input: unknown): Family {
         }),
       };
     })(),
+    habits: rows(raw.habits, LIMITS.habits, (r) => {
+      const name = str(r.name, 60).trim();
+      const days = Array.isArray(r.days) ? [...new Set(r.days.filter(isDay))].sort().slice(-500) as string[] : [];
+      return name ? { id: id(r.id), name, emoji: str(r.emoji, 8), color: color(r.color, "#7566e8"), days } : null;
+    }),
+    gratitude: rows(raw.gratitude, LIMITS.gratitude, (r) => {
+      const date = day(r.date);
+      const items = Array.isArray(r.items) ? r.items.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 300)).slice(0, 5) : [];
+      return date && items.length ? { id: id(r.id), date, items } : null;
+    }, true),
+    focusLog: rows(raw.focusLog, LIMITS.focusLog, (r) => { const date = day(r.date); return date ? { id: id(r.id), date, minutes: int(r.minutes, 0, 600) } : null; }, true),
+    recipes: rows(raw.recipes, LIMITS.recipes, (r) => {
+      const title = str(r.title, 120).trim();
+      const ingredients = Array.isArray(r.ingredients) ? r.ingredients.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 120)).slice(0, 80) : [];
+      return title ? { id: id(r.id), title, ingredients, steps: str(r.steps, 8000), tags: str(r.tags, 120), servings: int(r.servings, 0, 100), minutes: int(r.minutes, 0, 2000) } : null;
+    }),
+    meals: rows(raw.meals, LIMITS.meals, (r) => {
+      const date = day(r.date), text = str(r.text, 120).trim();
+      return date && (text || r.recipeId) ? { id: id(r.id), date, slot: oneOf(r.slot, ["breakfast", "lunch", "dinner"] as const, "dinner"), text, recipeId: id(r.recipeId) } : null;
+    }, true),
+    care: rows(raw.care, LIMITS.care, (r) => {
+      const name = str(r.name, 80).trim();
+      return name ? { id: id(r.id), kind: oneOf(r.kind, ["upkeep", "plants", "car", "pets"] as const, "upkeep"), group: str(r.group, 60), name, everyDays: int(r.everyDays, 1, 3650, 30), lastDone: day(r.lastDone), notes: str(r.notes, 500) } : null;
+    }),
+    birthdays: rows(raw.birthdays, LIMITS.birthdays, (r) => {
+      const name = str(r.name, 80).trim();
+      const month = Number.isInteger(r.month) && r.month >= 1 && r.month <= 12 ? r.month as number : 0, dd = Number.isInteger(r.day) && r.day >= 1 && r.day <= 31 ? r.day as number : 0;
+      return name && month && dd ? { id: id(r.id), name, month, day: dd, year: int(r.year, 0, 2200), kind: oneOf(r.kind, ["birthday", "anniversary", "other"] as const, "birthday") } : null;
+    }),
+    contacts: rows(raw.contacts, LIMITS.contacts, (r) => {
+      const name = str(r.name, 80).trim();
+      return name ? { id: id(r.id), name, role: str(r.role, 60), phone: str(r.phone, 40), email: str(r.email, 120), note: str(r.note, 500), emergency: bool(r.emergency) } : null;
+    }),
+    subscriptions: rows(raw.subscriptions, LIMITS.subscriptions, (r) => {
+      const name = str(r.name, 80).trim();
+      return name ? { id: id(r.id), name, amount: num(r.amount, 0, 100_000), cycle: oneOf(r.cycle, ["weekly", "monthly", "yearly"] as const, "monthly"), nextDate: day(r.nextDate), category: str(r.category, 40) } : null;
+    }),
+    jars: rows(raw.jars, LIMITS.jars, (r) => {
+      const name = str(r.name, 60).trim();
+      return name ? { id: id(r.id), name, emoji: str(r.emoji, 8), color: color(r.color, "#16a34a"), target: num(r.target, 0, 100_000_000), saved: num(r.saved, -100_000_000, 100_000_000) } : null;
+    }),
+    collections: rows(raw.collections, LIMITS.collections, (r) => {
+      const title = str(r.title, 160).trim();
+      return title ? { id: id(r.id), kind: oneOf(r.kind, ["reading", "watchlist", "bucket", "gifts"] as const, "bucket"), title, sub: str(r.sub, 120), status: str(r.status, 20), rating: int(r.rating, 0, 5), note: str(r.note, 1000), url: /^https?:\/\//i.test(str(r.url, 1000)) ? str(r.url, 1000) : "", price: num(r.price, 0, 1_000_000), doneOn: day(r.doneOn) } : null;
+    }),
+    weather: (() => { const w = obj(raw.weather) || {}; return { place: str(w.place, 80), unit: oneOf(w.unit, ["F", "C"] as const, "F") }; })(),
     savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
   };
 }
@@ -599,8 +675,8 @@ export function isCurrentFamily(f: unknown): f is Family {
   const r = obj(f);
   const h = r && obj(r.health);
   if (!r || !h) return false;
-  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes", "stickies", "randomLists", "savedWords"];
+  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes", "stickies", "randomLists", "savedWords", "habits", "gratitude", "focusLog", "recipes", "meals", "care", "birthdays", "contacts", "subscriptions", "jars", "collections"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
-    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.widgets) && !!obj(r.linkPage) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
+    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.widgets) && !!obj(r.linkPage) && !!obj(r.weather) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
 }
