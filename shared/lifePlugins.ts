@@ -447,7 +447,7 @@ export function careDue(item: { everyDays: number; lastDone: string }, today: st
   return { due, days: daysUntil(due, today) };
 }
 
-export const CARE_PRESETS: Record<"upkeep" | "plants" | "car" | "pets", { name: string; everyDays: number }[]> = {
+export const CARE_PRESETS: Record<"upkeep" | "plants" | "car" | "pets" | "cleaning" | "checkups", { name: string; everyDays: number }[]> = {
   upkeep: [
     { name: "Change HVAC filter", everyDays: 90 }, { name: "Test smoke & CO alarms", everyDays: 30 }, { name: "Clean fridge coils", everyDays: 180 },
     { name: "Clean dryer vent", everyDays: 365 }, { name: "Clean gutters", everyDays: 180 }, { name: "Flush water heater", everyDays: 365 },
@@ -460,6 +460,15 @@ export const CARE_PRESETS: Record<"upkeep" | "plants" | "car" | "pets", { name: 
   car: [
     { name: "Oil change", everyDays: 120 }, { name: "Rotate tires", everyDays: 180 }, { name: "Check tire pressure", everyDays: 30 }, { name: "Replace wiper blades", everyDays: 365 },
     { name: "Replace cabin air filter", everyDays: 365 }, { name: "Car wash", everyDays: 14 }, { name: "Registration renewal", everyDays: 365 }, { name: "Inspection", everyDays: 365 },
+  ],
+  cleaning: [
+    { name: "Vacuum", everyDays: 7 }, { name: "Mop floors", everyDays: 14 }, { name: "Clean bathroom", everyDays: 7 }, { name: "Change sheets", everyDays: 7 },
+    { name: "Dust", everyDays: 14 }, { name: "Wipe down kitchen", everyDays: 3 }, { name: "Clean out fridge", everyDays: 14 }, { name: "Take out recycling", everyDays: 7 },
+    { name: "Clean windows", everyDays: 90 }, { name: "Wash towels", everyDays: 7 }, { name: "Clean microwave", everyDays: 14 },
+  ],
+  checkups: [
+    { name: "Physical", everyDays: 365 }, { name: "Dental cleaning", everyDays: 182 }, { name: "Eye exam", everyDays: 365 }, { name: "Flu shot", everyDays: 365 },
+    { name: "Skin check", everyDays: 365 }, { name: "Well-child visit", everyDays: 365 },
   ],
   pets: [
     { name: "Flea & tick medicine", everyDays: 30 }, { name: "Heartworm medicine", everyDays: 30 }, { name: "Vet checkup", everyDays: 365 }, { name: "Grooming", everyDays: 60 },
@@ -491,11 +500,16 @@ export function nextRenewal(s: { nextDate: string; cycle: "weekly" | "monthly" |
 
 // ── Lists with a status (reading, watchlist, bucket list, gifts) ─────────────
 
-export const COLLECTIONS: Record<"reading" | "watchlist" | "bucket" | "gifts", { statuses: { id: string; label: string }[]; subLabel: string; rated: boolean; priced: boolean; linked: boolean }> = {
+export const COLLECTIONS: Record<"reading" | "watchlist" | "bucket" | "gifts" | "wishlist" | "restaurants" | "learning" | "projects" | "loans", { statuses: { id: string; label: string }[]; subLabel: string; rated: boolean; priced: boolean; linked: boolean }> = {
   reading: { statuses: [{ id: "want", label: "Want to read" }, { id: "reading", label: "Reading" }, { id: "done", label: "Read" }], subLabel: "Author", rated: true, priced: false, linked: false },
   watchlist: { statuses: [{ id: "want", label: "To watch" }, { id: "watching", label: "Watching" }, { id: "done", label: "Watched" }], subLabel: "Movie, show, where to watch", rated: true, priced: false, linked: false },
   bucket: { statuses: [{ id: "want", label: "Someday" }, { id: "planned", label: "Planned" }, { id: "done", label: "Done" }], subLabel: "Category (travel, adventure, learn…)", rated: false, priced: false, linked: false },
   gifts: { statuses: [{ id: "want", label: "Idea" }, { id: "bought", label: "Bought" }, { id: "done", label: "Given" }], subLabel: "Who it's for", rated: false, priced: true, linked: true },
+  wishlist: { statuses: [{ id: "want", label: "Want" }, { id: "saving", label: "Saving up" }, { id: "done", label: "Got it" }], subLabel: "Store or details", rated: false, priced: true, linked: true },
+  restaurants: { statuses: [{ id: "want", label: "Want to try" }, { id: "done", label: "Tried" }], subLabel: "Food and where", rated: true, priced: false, linked: true },
+  learning: { statuses: [{ id: "want", label: "Want to learn" }, { id: "learning", label: "Learning" }, { id: "done", label: "Learned" }], subLabel: "How (course, book, video…)", rated: false, priced: false, linked: true },
+  projects: { statuses: [{ id: "want", label: "Ideas" }, { id: "doing", label: "In progress" }, { id: "done", label: "Done" }], subLabel: "Room or area", rated: false, priced: true, linked: false },
+  loans: { statuses: [{ id: "want", label: "Lent out" }, { id: "done", label: "Returned" }], subLabel: "Who has it", rated: false, priced: false, linked: false },
 };
 
 // ── Weather (Open-Meteo) ─────────────────────────────────────────────────────
@@ -568,3 +582,33 @@ export function ingredientToGrocery(line: string): { qty: string; name: string }
   const m = line.trim().match(/^((?:\d+[\d\/.\s-]*|½|¼|¾|⅓|⅔)\s*(?:cups?|c\.|tbsp|tablespoons?|tsp|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|ml|l|liters?|cloves?|cans?|pinch(?:es)?|dash(?:es)?|slices?|sticks?|packages?|pkg|bunch(?:es)?|large|medium|small)?\.?)\s+(.+)$/i);
   return m ? { qty: m[1].trim().slice(0, 20), name: m[2].trim().slice(0, 80) } : { qty: "", name: line.trim().slice(0, 80) };
 }
+
+// ── Sleep, loans and clocks ──────────────────────────────────────────────────
+
+/** Hours slept from bedtime to wake time ("23:15" to "06:45" is 7.5). */
+export function sleepHours(bed: string, wake: string): number {
+  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  let m = toMin(wake) - toMin(bed);
+  if (m <= 0) m += 24 * 60;
+  return Math.round((m / 60) * 10) / 10;
+}
+
+/** A loan's monthly payment, total paid and total interest (yearly rate in percent). */
+export function loanPayment(principal: number, yearlyRate: number, years: number): { monthly: number; total: number; interest: number } {
+  const n = Math.round(years * 12);
+  if (principal <= 0 || n <= 0) return { monthly: 0, total: 0, interest: 0 };
+  const r = yearlyRate / 100 / 12;
+  const monthly = r === 0 ? principal / n : (principal * r) / (1 - Math.pow(1 + r, -n));
+  return { monthly, total: monthly * n, interest: monthly * n - principal };
+}
+
+export const CLOCK_ZONES: readonly { zone: string; label: string }[] = [
+  { zone: "America/New_York", label: "New York" }, { zone: "America/Chicago", label: "Chicago" }, { zone: "America/Denver", label: "Denver" },
+  { zone: "America/Phoenix", label: "Phoenix" }, { zone: "America/Los_Angeles", label: "Los Angeles" }, { zone: "America/Anchorage", label: "Anchorage" },
+  { zone: "Pacific/Honolulu", label: "Honolulu" }, { zone: "America/Toronto", label: "Toronto" }, { zone: "America/Mexico_City", label: "Mexico City" },
+  { zone: "America/Sao_Paulo", label: "São Paulo" }, { zone: "Europe/London", label: "London" }, { zone: "Europe/Paris", label: "Paris" },
+  { zone: "Europe/Berlin", label: "Berlin" }, { zone: "Europe/Madrid", label: "Madrid" }, { zone: "Europe/Rome", label: "Rome" },
+  { zone: "Africa/Lagos", label: "Lagos" }, { zone: "Africa/Johannesburg", label: "Johannesburg" }, { zone: "Asia/Dubai", label: "Dubai" },
+  { zone: "Asia/Kolkata", label: "India" }, { zone: "Asia/Manila", label: "Manila" }, { zone: "Asia/Shanghai", label: "Beijing" },
+  { zone: "Asia/Tokyo", label: "Tokyo" }, { zone: "Asia/Seoul", label: "Seoul" }, { zone: "Australia/Sydney", label: "Sydney" },
+];

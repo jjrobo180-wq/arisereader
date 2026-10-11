@@ -4,12 +4,12 @@
 
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car"];
+export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical"];
 /** Sections added from the Plugin Store: off until the family adds them (the others start on). */
-export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car"];
+export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical"];
 
 /** A family's `sectionOrder` (only the toggleable sections can be reordered) made safe to use:
  *  every toggleable section appears exactly once, keeping the saved order where valid and
@@ -118,16 +118,28 @@ export type Recipe = { id: string; title: string; ingredients: string[]; steps: 
 export type MealSlot = "breakfast" | "lunch" | "dinner";
 export type PlannedMeal = { id: string; date: string; slot: MealSlot; text: string; recipeId: string };
 /** Something that needs doing every so often: home upkeep, plants, a car or a pet. */
-export type CareKind = "upkeep" | "plants" | "car" | "pets";
+export type CareKind = "upkeep" | "plants" | "car" | "pets" | "cleaning" | "checkups";
 export type CareItem = { id: string; kind: CareKind; group: string; name: string; everyDays: number; lastDone: string; notes: string };
 export type Birthday = { id: string; name: string; month: number; day: number; /** 0 when the year isn't known. */ year: number; kind: "birthday" | "anniversary" | "other" };
 export type Contact = { id: string; name: string; role: string; phone: string; email: string; note: string; emergency: boolean };
 export type Subscription = { id: string; name: string; amount: number; cycle: "weekly" | "monthly" | "yearly"; nextDate: string; category: string };
 export type SavingsJar = { id: string; name: string; emoji: string; color: string; target: number; saved: number };
 /** One item in a list with a status: a book, a show, a bucket-list dream or a gift idea. */
-export type CollectionKind = "reading" | "watchlist" | "bucket" | "gifts";
+export type CollectionKind = "reading" | "watchlist" | "bucket" | "gifts" | "wishlist" | "restaurants" | "learning" | "projects" | "loans";
 export type CollectionItem = { id: string; kind: CollectionKind; title: string; sub: string; status: string; rating: number; note: string; url: string; price: number; doneOn: string };
 export type WeatherPrefs = { place: string; unit: "F" | "C" };
+export type SleepEntry = { id: string; date: string; bed: string; wake: string; quality: number };
+export type Workout = { id: string; date: string; exercise: string; sets: number; reps: number; weight: number; unit: "lb" | "kg" };
+/** A checklist that starts fresh each day. `doneSteps` counts only on `doneDate`. */
+export type Routine = { id: string; name: string; emoji: string; steps: { id: string; text: string }[]; doneDate: string; doneSteps: string[] };
+export type Milestone = { id: string; who: string; title: string; date: string; note: string };
+/** Money between you and someone else: positive, they owe you; negative, you owe them. */
+export type Iou = { id: string; person: string; amount: number; note: string; date: string; settled: boolean };
+export type AllowanceEntry = { id: string; who: string; amount: number; note: string; date: string };
+export type GiftCard = { id: string; store: string; balance: number; expires: string; note: string };
+export type Warranty = { id: string; item: string; store: string; bought: string; until: string; note: string };
+export type MileageTrip = { id: string; date: string; miles: number; purpose: string; route: string };
+export type MedicalCard = { id: string; person: string; bloodType: string; allergies: string; conditions: string; medications: string; doctor: string; insurance: string; notes: string };
 /** Plugin Store add-ons that live on another screen rather than in the menu. */
 export type Widgets = { stickies: boolean };
 /* News */
@@ -190,6 +202,20 @@ export type Family = {
   jars: SavingsJar[];
   collections: CollectionItem[];
   weather: WeatherPrefs;
+  sleep: SleepEntry[];
+  workouts: Workout[];
+  routines: Routine[];
+  milestones: Milestone[];
+  ious: Iou[];
+  allowance: AllowanceEntry[];
+  giftCards: GiftCard[];
+  warranties: Warranty[];
+  mileage: MileageTrip[];
+  /** Dollars per mile for the Mileage log. */
+  mileageRate: number;
+  /** Time zones for the World clock (IANA names, like America/New_York). */
+  clocks: string[];
+  medical: MedicalCard[];
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -224,6 +250,7 @@ export const emptyFamily = (): Family => ({
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], linkPage: { title: "", bio: "", links: [] },
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
+  sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [],
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -262,7 +289,7 @@ function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Re
   return newest ? out.slice(-max) : out;
 }
 
-export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300, stickies: 60, randomLists: 50, savedWords: 1000, links: 60, habits: 40, gratitude: 3000, focusLog: 6000, recipes: 500, meals: 2000, care: 300, birthdays: 300, contacts: 200, subscriptions: 100, jars: 40, collections: 3000 };
+export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300, stickies: 60, randomLists: 50, savedWords: 1000, links: 60, habits: 40, gratitude: 3000, focusLog: 6000, recipes: 500, meals: 2000, care: 300, birthdays: 300, contacts: 200, subscriptions: 100, jars: 40, collections: 3000, sleep: 3000, workouts: 8000, routines: 20, milestones: 1000, ious: 1000, allowance: 5000, giftCards: 200, warranties: 500, mileage: 5000, clocks: 12, medical: 20 };
 
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
@@ -491,7 +518,7 @@ export function cleanFamily(input: unknown): Family {
     }, true),
     care: rows(raw.care, LIMITS.care, (r) => {
       const name = str(r.name, 80).trim();
-      return name ? { id: id(r.id), kind: oneOf(r.kind, ["upkeep", "plants", "car", "pets"] as const, "upkeep"), group: str(r.group, 60), name, everyDays: int(r.everyDays, 1, 3650, 30), lastDone: day(r.lastDone), notes: str(r.notes, 500) } : null;
+      return name ? { id: id(r.id), kind: oneOf(r.kind, ["upkeep", "plants", "car", "pets", "cleaning", "checkups"] as const, "upkeep"), group: str(r.group, 60), name, everyDays: int(r.everyDays, 1, 3650, 30), lastDone: day(r.lastDone), notes: str(r.notes, 500) } : null;
     }),
     birthdays: rows(raw.birthdays, LIMITS.birthdays, (r) => {
       const name = str(r.name, 80).trim();
@@ -512,9 +539,31 @@ export function cleanFamily(input: unknown): Family {
     }),
     collections: rows(raw.collections, LIMITS.collections, (r) => {
       const title = str(r.title, 160).trim();
-      return title ? { id: id(r.id), kind: oneOf(r.kind, ["reading", "watchlist", "bucket", "gifts"] as const, "bucket"), title, sub: str(r.sub, 120), status: str(r.status, 20), rating: int(r.rating, 0, 5), note: str(r.note, 1000), url: /^https?:\/\//i.test(str(r.url, 1000)) ? str(r.url, 1000) : "", price: num(r.price, 0, 1_000_000), doneOn: day(r.doneOn) } : null;
+      return title ? { id: id(r.id), kind: oneOf(r.kind, ["reading", "watchlist", "bucket", "gifts", "wishlist", "restaurants", "learning", "projects", "loans"] as const, "bucket"), title, sub: str(r.sub, 120), status: str(r.status, 20), rating: int(r.rating, 0, 5), note: str(r.note, 1000), url: /^https?:\/\//i.test(str(r.url, 1000)) ? str(r.url, 1000) : "", price: num(r.price, 0, 1_000_000), doneOn: day(r.doneOn) } : null;
     }),
     weather: (() => { const w = obj(raw.weather) || {}; return { place: str(w.place, 80), unit: oneOf(w.unit, ["F", "C"] as const, "F") }; })(),
+    sleep: rows(raw.sleep, LIMITS.sleep, (r) => { const date = day(r.date), bed = clock(r.bed), wake = clock(r.wake); return date && bed && wake ? { id: id(r.id), date, bed, wake, quality: int(r.quality, 0, 5) } : null; }, true),
+    workouts: rows(raw.workouts, LIMITS.workouts, (r) => {
+      const date = day(r.date), exercise = str(r.exercise, 60).trim();
+      return date && exercise ? { id: id(r.id), date, exercise, sets: int(r.sets, 0, 100), reps: int(r.reps, 0, 1000), weight: num(r.weight, 0, 5000), unit: oneOf(r.unit, ["lb", "kg"] as const, "lb") } : null;
+    }, true),
+    routines: rows(raw.routines, LIMITS.routines, (r) => {
+      const name = str(r.name, 60).trim();
+      const steps = rows(r.steps, 30, (s) => { const text = str(s.text, 100).trim(); return text ? { id: id(s.id), text } : null; });
+      return name ? { id: id(r.id), name, emoji: str(r.emoji, 8), steps, doneDate: day(r.doneDate), doneSteps: ids(r.doneSteps, 30) } : null;
+    }),
+    milestones: rows(raw.milestones, LIMITS.milestones, (r) => { const title = str(r.title, 120).trim(), date = day(r.date); return title && date ? { id: id(r.id), who: str(r.who, 60), title, date, note: str(r.note, 1000) } : null; }),
+    ious: rows(raw.ious, LIMITS.ious, (r) => { const person = str(r.person, 60).trim(); return person ? { id: id(r.id), person, amount: num(r.amount, -1_000_000, 1_000_000), note: str(r.note, 200), date: day(r.date), settled: bool(r.settled) } : null; }),
+    allowance: rows(raw.allowance, LIMITS.allowance, (r) => { const who = str(r.who, 60).trim(); return who ? { id: id(r.id), who, amount: num(r.amount, -100_000, 100_000), note: str(r.note, 120), date: day(r.date) } : null; }, true),
+    giftCards: rows(raw.giftCards, LIMITS.giftCards, (r) => { const store = str(r.store, 60).trim(); return store ? { id: id(r.id), store, balance: num(r.balance, 0, 100_000), expires: day(r.expires), note: str(r.note, 200) } : null; }),
+    warranties: rows(raw.warranties, LIMITS.warranties, (r) => { const item = str(r.item, 100).trim(); return item ? { id: id(r.id), item, store: str(r.store, 60), bought: day(r.bought), until: day(r.until), note: str(r.note, 300) } : null; }),
+    mileage: rows(raw.mileage, LIMITS.mileage, (r) => { const date = day(r.date); return date ? { id: id(r.id), date, miles: num(r.miles, 0, 10_000), purpose: str(r.purpose, 120), route: str(r.route, 120) } : null; }, true),
+    mileageRate: num(raw.mileageRate, 0, 10, 0.7),
+    clocks: Array.isArray(raw.clocks) ? [...new Set(raw.clocks.filter((z: unknown) => typeof z === "string" && /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+){0,2}$/.test(z as string) && (z as string).length <= 60))].slice(0, LIMITS.clocks) as string[] : [],
+    medical: rows(raw.medical, LIMITS.medical, (r) => {
+      const person = str(r.person, 60).trim();
+      return person ? { id: id(r.id), person, bloodType: str(r.bloodType, 10), allergies: str(r.allergies, 500), conditions: str(r.conditions, 500), medications: str(r.medications, 500), doctor: str(r.doctor, 200), insurance: str(r.insurance, 200), notes: str(r.notes, 1000) } : null;
+    }),
     savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
   };
 }
@@ -675,7 +724,7 @@ export function isCurrentFamily(f: unknown): f is Family {
   const r = obj(f);
   const h = r && obj(r.health);
   if (!r || !h) return false;
-  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes", "stickies", "randomLists", "savedWords", "habits", "gratitude", "focusLog", "recipes", "meals", "care", "birthdays", "contacts", "subscriptions", "jars", "collections"];
+  const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes", "stickies", "randomLists", "savedWords", "habits", "gratitude", "focusLog", "recipes", "meals", "care", "birthdays", "contacts", "subscriptions", "jars", "collections", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftCards", "warranties", "mileage", "clocks", "medical"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
   return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
     && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.widgets) && !!obj(r.linkPage) && !!obj(r.weather) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";

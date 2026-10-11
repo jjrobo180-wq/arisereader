@@ -16,6 +16,20 @@ import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
 import StickyBoard from "@/components/family-hub/StickyBoard";
+import Allowance from "@/components/family-hub/Allowance";
+import GiftCards from "@/components/family-hub/GiftCards";
+import Ious from "@/components/family-hub/Ious";
+import KitchenTimers from "@/components/family-hub/KitchenTimers";
+import LoanCalculator from "@/components/family-hub/LoanCalculator";
+import MedicalInfo from "@/components/family-hub/MedicalInfo";
+import Mileage from "@/components/family-hub/Mileage";
+import Milestones from "@/components/family-hub/Milestones";
+import Routines from "@/components/family-hub/Routines";
+import SleepLog from "@/components/family-hub/SleepLog";
+import Warranties from "@/components/family-hub/Warranties";
+import WorkoutLog from "@/components/family-hub/WorkoutLog";
+import WorldClock from "@/components/family-hub/WorldClock";
+import { Coins as CoinsNav2, CreditCard as CreditCardNav2, Dumbbell as DumbbellNav2, Gauge as GaugeNav2, Globe as GlobeNav2, GraduationCap as GraduationCapNav2, Hammer as HammerNav2, HandCoins as HandCoinsNav2, Handshake as HandshakeNav2, Heart as HeartNav2, HeartPulse as HeartPulseNav2, Landmark as LandmarkNav2, ListChecks as ListChecksNav2, Moon as MoonNav2, ShieldCheck as ShieldCheckNav2, Sparkles as SparklesNav2, Star as StarNav2, Stethoscope as StethoscopeNav2, Timer as TimerNav2, Utensils as UtensilsNav2 } from "lucide-react";
 import Birthdays from "@/components/family-hub/Birthdays";
 import CareTracker from "@/components/family-hub/CareTracker";
 import Collection from "@/components/family-hub/Collection";
@@ -184,6 +198,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2,
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
+  wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2,
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
 // Tasks and Notifications is the family's own toggleable block, in the order they chose.
@@ -517,6 +532,26 @@ export default function AriseTodo() {
     : shown === "weather" ? <Weather {...common} />
     : shown === "convert" ? <Converter {...common} />
     : shown === "car" ? <CareTracker kind="car" {...common} />
+    : shown === "wishlist" ? <Collection kind="wishlist" {...common} />
+    : shown === "restaurants" ? <Collection kind="restaurants" {...common} />
+    : shown === "learning" ? <Collection kind="learning" {...common} />
+    : shown === "projects" ? <Collection kind="projects" {...common} />
+    : shown === "loans" ? <Collection kind="loans" {...common} />
+    : shown === "cleaning" ? <CareTracker kind="cleaning" {...common} />
+    : shown === "checkups" ? <CareTracker kind="checkups" {...common} />
+    : shown === "sleep" ? <SleepLog {...common} />
+    : shown === "workouts" ? <WorkoutLog {...common} />
+    : shown === "routines" ? <Routines {...common} />
+    : shown === "milestones" ? <Milestones {...common} />
+    : shown === "ious" ? <Ious {...common} />
+    : shown === "allowance" ? <Allowance {...common} />
+    : shown === "giftcards" ? <GiftCards {...common} />
+    : shown === "warranties" ? <Warranties {...common} />
+    : shown === "mileage" ? <Mileage {...common} />
+    : shown === "mortgage" ? <LoanCalculator {...common} />
+    : shown === "clocks" ? <WorldClock {...common} />
+    : shown === "timers" ? <KitchenTimers {...common} />
+    : shown === "medical" ? <MedicalInfo {...common} />
     : shown === "family" ? <Members {...common} />
     : null;
 

@@ -4,6 +4,7 @@ import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, N
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
+import { Coins as CoinsIcon2, CreditCard as CreditCardIcon2, Dumbbell as DumbbellIcon2, Gauge as GaugeIcon2, Globe as GlobeIcon2, GraduationCap as GraduationCapIcon2, Hammer as HammerIcon2, HandCoins as HandCoinsIcon2, Handshake as HandshakeIcon2, Heart as HeartIcon2, HeartPulse as HeartPulseIcon2, Landmark as LandmarkIcon2, ListChecks as ListChecksIcon2, Moon as MoonIcon2, ShieldCheck as ShieldCheckIcon2, Sparkles as SparklesIcon2, Star as StarIcon2, Stethoscope as StethoscopeIcon2, Timer as TimerIcon2, Utensils as UtensilsIcon2 } from "lucide-react";
 import { ArrowLeftRight as ArrowLeftRightIcon, BookOpen as BookOpenIcon, Cake as CakeIcon, Calculator as CalculatorIcon, Car as CarIcon, ChefHat as ChefHatIcon, CloudSun as CloudSunIcon, CreditCard as CreditCardIcon, Flower2 as Flower2Icon, Gift as GiftIcon, Heart as HeartIcon, Mountain as MountainIcon, PawPrint as PawPrintIcon, Phone as PhoneIcon, PiggyBank as PiggyBankIcon, Repeat as RepeatIcon, Timer as TimerIcon, Tv as TvIcon, UtensilsCrossed as UtensilsCrossedIcon, Wrench as WrenchIcon } from "lucide-react";
 
 const EMOJI = ["🙂", "😎", "🦄", "🦖", "🐱", "🐶", "🌟", "⚽", "🎨", "🎮", "🌸", "🚀", "👑", "🐻", "🦊", "🐢"];
@@ -58,6 +59,26 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   weather: { label: "Weather", detail: "Now and the next 7 days", icon: <CloudSunIcon size={17} /> },
   convert: { label: "Unit converter", detail: "Cooking, length, weight and more", icon: <ArrowLeftRightIcon size={17} /> },
   car: { label: "Car care", detail: "Oil changes, tires and registration", icon: <CarIcon size={17} /> },
+  wishlist: { label: "Wishlist", detail: "Things you'd love, with prices and links", icon: <HeartIcon2 size={17} /> },
+  restaurants: { label: "Restaurants", detail: "Places to try and how they were", icon: <UtensilsIcon2 size={17} /> },
+  learning: { label: "Learning goals", detail: "Skills and subjects to learn", icon: <GraduationCapIcon2 size={17} /> },
+  projects: { label: "Home projects", detail: "Repairs, upgrades and DIY", icon: <HammerIcon2 size={17} /> },
+  loans: { label: "Lent items", detail: "Who has your stuff", icon: <HandshakeIcon2 size={17} /> },
+  cleaning: { label: "Cleaning schedule", detail: "Room by room, a little at a time", icon: <SparklesIcon2 size={17} /> },
+  checkups: { label: "Health checkups", detail: "Physicals, dentist, eye exams", icon: <StethoscopeIcon2 size={17} /> },
+  sleep: { label: "Sleep log", detail: "Bedtime, wake time and a chart", icon: <MoonIcon2 size={17} /> },
+  workouts: { label: "Workout log", detail: "Sets, reps, weight and bests", icon: <DumbbellIcon2 size={17} /> },
+  routines: { label: "Routines", detail: "Daily checklists that start fresh", icon: <ListChecksIcon2 size={17} /> },
+  milestones: { label: "Milestones", detail: "First words, steps and more", icon: <StarIcon2 size={17} /> },
+  ious: { label: "IOUs", detail: "Who owes who", icon: <HandCoinsIcon2 size={17} /> },
+  allowance: { label: "Allowance", detail: "Kids' money in and out", icon: <CoinsIcon2 size={17} /> },
+  giftcards: { label: "Gift cards", detail: "Balances and expiry dates", icon: <CreditCardIcon2 size={17} /> },
+  warranties: { label: "Warranties", detail: "What's still covered", icon: <ShieldCheckIcon2 size={17} /> },
+  mileage: { label: "Mileage log", detail: "Business and volunteer miles", icon: <GaugeIcon2 size={17} /> },
+  mortgage: { label: "Loan calculator", detail: "Payments and interest for any loan", icon: <LandmarkIcon2 size={17} /> },
+  clocks: { label: "World clock", detail: "Time where your people are", icon: <GlobeIcon2 size={17} /> },
+  timers: { label: "Kitchen timers", detail: "Several timers at once", icon: <TimerIcon2 size={17} /> },
+  medical: { label: "Medical info", detail: "Allergies, medicines, blood type", icon: <HeartPulseIcon2 size={17} /> },
 };
 const blank = (id: string, n: number): Member => ({ id, name: "", emoji: EMOJI[n % EMOJI.length], color: MEMBER_COLORS[n % MEMBER_COLORS.length], kind: "kid" });
 

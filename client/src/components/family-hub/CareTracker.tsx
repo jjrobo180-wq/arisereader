@@ -1,7 +1,7 @@
 // Home upkeep, Plant care, Car care and Pet care (Plugin Store add-ons): things that need doing
 // every so often. Each shows when it's due, and checking it off starts the clock again.
 import { useState, type FormEvent } from "react";
-import { Car, Check, Flower2, Home, PawPrint, Trash2 } from "lucide-react";
+import { Car, Check, Flower2, Home, PawPrint, Sparkles, Stethoscope, Trash2 } from "lucide-react";
 import { CARE_PRESETS, careDue } from "@shared/lifePlugins";
 import type { CareItem, CareKind } from "@shared/familyHub";
 import { Empty, PageHead, Panel, danger, inputClass, plain, primary, type SectionProps } from "./ui";
@@ -10,6 +10,8 @@ const CONFIG: Record<CareKind, { eyebrow: string; title: string; blurb: string; 
   upkeep: { eyebrow: "Home upkeep", title: "Keep the house happy", blurb: "Filters, alarms, gutters and the rest. See what's due and check it off when it's done.", group: "Room or area", groupHint: "Kitchen, garage… (optional)", icon: Home },
   plants: { eyebrow: "Plant care", title: "Happy plants", blurb: "Never forget to water again. Each plant gets its own schedule.", group: "Plant", groupHint: "Monstera, basil, the fern…", icon: Flower2 },
   car: { eyebrow: "Car care", title: "Keep it running", blurb: "Oil changes, tires, registration and more for every car in the family.", group: "Car", groupHint: "Honda, Mom's car…", icon: Car },
+  cleaning: { eyebrow: "Cleaning schedule", title: "A tidy house, a little at a time", blurb: "Spread the cleaning out: each job by room, on its own schedule. See what's due today.", group: "Room", groupHint: "Kitchen, bathroom…", icon: Sparkles },
+  checkups: { eyebrow: "Health checkups", title: "Stay on top of checkups", blurb: "Physicals, dentist, eye exams and shots for everyone in the family. See who's due.", group: "Person", groupHint: "Maya, Dad…", icon: Stethoscope },
   pets: { eyebrow: "Pet care", title: "Happy, healthy pets", blurb: "Medicine, vet visits, grooming and food for every pet.", group: "Pet", groupHint: "Biscuit, Luna…", icon: PawPrint },
 };
 const nice = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -58,6 +60,7 @@ export default function CareTracker({ kind, family, setFamily, today, makeId, sa
         <button type="button" onClick={() => set((all) => all.filter((x) => x.id !== i.id))} className={danger + " px-2"} aria-label={`Delete ${i.name}`}><Trash2 size={14} /></button>
       </li>)}</ul>
     </Panel>) : <Panel><Empty icon={<Icon />} title="Nothing here yet.">Add your own above, or tap a quick add.</Empty></Panel>}
+    {kind === "checkups" && items.length > 0 && <p className="text-xs text-slate-500">Your doctor knows best: change the days to match what they recommend for each person.</p>}
     {kind === "car" && items.length > 0 && <p className="text-xs text-slate-500">Tip: your car's manual has the exact service schedule. Edit the days to match it.</p>}
     {items.some((i) => i.lastDone) && <button type="button" onClick={() => { if (window.confirm("Clear the 'last done' date on everything here?")) set((all) => all.map((i) => (i.kind === kind ? { ...i, lastDone: "" } : i))); }} className={plain + " text-xs"}>Reset all dates</button>}
   </div>;

@@ -167,3 +167,34 @@ test("everyday helpers: streaks, yearly dates, care due, renewals, units, ingred
   assert.equal(fc?.current.temp, 61);
   assert.equal(fc?.days[0].high, 70);
 });
+
+test("the third batch of 20: in the store, off until added, data cleaned", async () => {
+  const ids = ["wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical"];
+  const f = emptyFamily();
+  for (const id of ids) {
+    assert.ok(ADD_ON_SECTIONS.includes(id as any), id);
+    assert.ok(PLUGINS.some((p) => p.target.kind === "section" && p.target.section === id), `${id} in the store`);
+    assert.equal(isOn(id as any, f), false);
+  }
+  const c = cleanFamily({ ...f,
+    sleep: [{ id: "s", date: "2026-10-10", bed: "23:00", wake: "07:00", quality: 9 }, { id: "t", date: "2026-10-09", bed: "late", wake: "07:00" }],
+    routines: [{ id: "r", name: "Morning", steps: [{ id: "a", text: "Brush teeth" }, { id: "b", text: "" }], doneDate: "2026-10-10", doneSteps: ["a", 5] }],
+    clocks: ["America/New_York", "javascript:x", "America/New_York", "Europe/London"],
+    collections: [{ id: "w", kind: "wishlist", title: "Bike", price: 300 }],
+    care: [{ id: "k", kind: "checkups", group: "Maya", name: "Dentist", everyDays: 182 }],
+    mileageRate: 99,
+  });
+  assert.deepEqual(c.sleep.map((s) => [s.id, s.quality]), [["s", 5]]);
+  assert.deepEqual(c.routines[0].steps.map((s) => s.id), ["a"]);
+  assert.deepEqual(c.routines[0].doneSteps, ["a"]);
+  assert.deepEqual(c.clocks, ["America/New_York", "Europe/London"]);
+  assert.equal(c.collections[0].kind, "wishlist");
+  assert.equal(c.care[0].kind, "checkups");
+  assert.equal(c.mileageRate, 10);
+  const m = await import("../shared/lifePlugins");
+  assert.equal(m.sleepHours("23:15", "06:45"), 7.5);
+  assert.equal(m.sleepHours("01:00", "09:00"), 8);
+  const loan = m.loanPayment(30000, 7, 5);
+  assert.equal(Math.round(loan.monthly), 594);
+  assert.equal(Math.round(m.loanPayment(1200, 0, 1).monthly), 100);
+});
