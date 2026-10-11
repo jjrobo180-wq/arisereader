@@ -74,6 +74,8 @@ function readable(color: string, ground: string, toward: string, need = 4.6) {
 export type StorePalette = {
   bg: string; surface: string; raised: string; line: string; text: string; sub: string; faint: string;
   chipOn: string; chipOnText: string; accent: string; onAccent: string; accentSoft: string; accentText: string;
+  /** A second accent, further round the hue wheel, for the hero's two-colour gradient. */
+  accent2: string;
 };
 
 /** The store's colours for a hub, in day or night. Every text colour reads at 4.5:1 or better on the ground it sits on. */
@@ -81,14 +83,16 @@ export function storePalette(hub: PluginHub, night: boolean, accentIn?: string):
   const accent = /^#[0-9a-f]{6}$/i.test(accentIn || "") ? accentIn!.toLowerCase() : HUB_ACCENT[hub];
   const base = night
     ? hub === "work"
-      ? { bg: "#0b1220", surface: "#121b2f", raised: "#1b2640", line: "#27344f", text: "#f1f5f9", sub: "#bac6d8", faint: "#9aa8bd", chipOn: "#f1f5f9", chipOnText: "#0b1220" }
-      : { bg: "#0e0d1a", surface: "#18162c", raised: "#221f3c", line: "#2e2b4f", text: "#f3f1fb", sub: "#c6c2de", faint: "#a29fc0", chipOn: "#f3f1fb", chipOnText: "#0e0d1a" }
-    : { bg: "#f5f5f8", surface: "#ffffff", raised: "#eff0f4", line: "#e3e4eb", text: "#15141d", sub: "#555264", faint: "#625f70", chipOn: "#15141d", chipOnText: "#ffffff" };
+      ? { bg: "#070c17", surface: "#121b2f", raised: "#1b2640", line: "#27344f", text: "#f1f5f9", sub: "#bac6d8", faint: "#9aa8bd", chipOn: "#f1f5f9", chipOnText: "#0b1220" }
+      : { bg: "#0a0915", surface: "#18162c", raised: "#221f3c", line: "#2e2b4f", text: "#f3f1fb", sub: "#c6c2de", faint: "#a29fc0", chipOn: "#f3f1fb", chipOnText: "#0e0d1a" }
+    : { bg: "#f6f6fa", surface: "#ffffff", raised: "#f1f1f6", line: "#e6e6ee", text: "#131220", sub: "#4f4c60", faint: "#6a6778", chipOn: "#131220", chipOnText: "#ffffff" };
   // A solid button keeps the accent; its words are white, or near-black for a pale accent.
   const onAccent = contrast("#ffffff", accent) >= 4.5 ? "#ffffff" : "#111111";
   const accentSoft = night ? mix(base.surface, accent, 0.3) : mix("#ffffff", accent, 0.12);
   const accentText = readable(accent, night ? accentSoft : accentSoft, night ? "#ffffff" : "#000000");
-  return { ...base, accent, onAccent, accentSoft, accentText };
+  // A second hue, shifted warm-to-cool from the accent, for the hero gradient's far edge.
+  const accent2 = mix(accent, night ? "#ff7ad1" : "#ff8fc7", 0.35);
+  return { ...base, accent, onAccent, accentSoft, accentText, accent2 };
 }
 
 type AppAccess = Partial<Record<"history" | "math" | "social", boolean>>;
@@ -113,9 +117,17 @@ export type PluginStoreProps = {
 
 function Tile({ p, size = "md" }: { p: Plugin; size?: "md" | "lg" }) {
   const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
-  const box = size === "lg" ? "h-16 w-16 rounded-[1.15rem]" : "h-12 w-12 rounded-[0.9rem]";
-  return <span className={`flex shrink-0 items-center justify-center text-white ${box}`} style={{ background: p.color }} aria-hidden>
-    <Icon className={size === "lg" ? "h-8 w-8" : "h-6 w-6"} />
+  const box = size === "lg" ? "h-16 w-16 rounded-[1.3rem]" : "h-12 w-12 rounded-[1rem]";
+  return <span
+    className={`relative flex shrink-0 items-center justify-center text-white ${box}`}
+    style={{
+      background: `linear-gradient(150deg, ${mix(p.color, "#ffffff", 0.22)}, ${p.color} 55%, ${mix(p.color, "#000000", 0.18)})`,
+      boxShadow: `0 1px 2px rgba(0,0,0,.18), 0 6px 14px -6px ${p.color}99, inset 0 1px 0 rgba(255,255,255,.35)`,
+    }}
+    aria-hidden
+  >
+    <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-white/25 via-transparent to-transparent" />
+    <Icon className={`relative drop-shadow-sm ${size === "lg" ? "h-8 w-8" : "h-6 w-6"}`} strokeWidth={2.1} />
   </span>;
 }
 
@@ -209,14 +221,14 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   };
 
   const ring = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--s-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s-bg)]";
-  const solid = "bg-[var(--s-accent)] text-[var(--s-on-accent)]";
+  const solid = "bg-[var(--s-accent)] text-[var(--s-on-accent)] shadow-[0_4px_12px_-4px_var(--s-accent)]";
   const soft = "bg-[var(--s-accent-soft)] text-[var(--s-accent-text)]";
   const quiet = "bg-[var(--s-raised)] text-[var(--s-text)]";
 
   /** The button on a row or the detail sheet. Row buttons keep one width, so Add → Added moves nothing. */
   const action = (p: Plugin, big?: boolean) => {
     const size = big ? "min-h-12 px-5 text-[15px]" : "h-9 w-[5.5rem] px-2 text-[13px]";
-    const base = `inline-flex shrink-0 items-center justify-center gap-1 rounded-full font-bold transition-colors active:opacity-80 ${ring} ${size}`;
+    const base = `inline-flex shrink-0 items-center justify-center gap-1 rounded-full font-bold transition-all active:scale-[.96] active:opacity-80 ${ring} ${size}`;
     const t = p.target;
     if (t.kind === "app") {
       const has = apps?.[t.app] ?? true;
@@ -245,7 +257,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const row = (p: Plugin) => (
     <li key={p.id} className="min-w-0">
       <div role="button" tabIndex={0} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-        className={`flex h-full min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-[var(--s-line)] bg-[var(--s-surface)] p-3 text-left ${ring}`}
+        className={`group flex h-full min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-[var(--s-line)] bg-[var(--s-surface)] p-3 text-left shadow-[0_1px_2px_rgba(0,0,0,.04)] transition-all hover:-translate-y-0.5 hover:border-[var(--s-accent)]/30 hover:shadow-[0_10px_24px_-14px_rgba(0,0,0,.35)] ${ring}`}
         data-testid={`plugin-${p.id}`}>
         <Tile p={p} />
         <span className="min-w-0 flex-1">
@@ -259,39 +271,44 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const rows = (list: Plugin[]) => <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{list.map(row)}</ul>;
 
   const categories = PLUGIN_CATEGORIES[hub].filter((c) => all.some((p) => p.category === c));
-  const chip = (on: boolean) => `inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-colors ${ring} ${on ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)]" : "border border-[var(--s-line)] bg-[var(--s-surface)] text-[var(--s-text)]"}`;
+  const chip = (on: boolean) => `inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-all ${ring} ${on ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)] shadow-[0_4px_10px_-4px_rgba(0,0,0,.35)]" : "border border-[var(--s-line)] bg-[var(--s-surface)] text-[var(--s-text)] hover:border-[var(--s-accent)]/40"}`;
   const label = "text-xs font-extrabold uppercase tracking-[.14em] text-[var(--s-faint)]";
 
   return <div className="fixed inset-0 z-[80] flex flex-col bg-[var(--s-bg)] text-[var(--s-text)]" style={vars} role="dialog" aria-modal="true" aria-label={`Arise ${STORE_NAME} for ${HUB_NAME[hub]}`} data-testid="plugin-store">
-    <header className="shrink-0 border-b border-[var(--s-line)] bg-[var(--s-surface)] pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-14 max-w-[1100px] items-center gap-2.5 px-3 sm:h-16 sm:px-6">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] text-[var(--s-on-accent)]" style={{ background: pal.accent }} aria-hidden><ShoppingBag className="h-5 w-5" /></span>
+    <header
+      className="relative shrink-0 overflow-hidden pt-[env(safe-area-inset-top)]"
+      style={{ background: `linear-gradient(120deg, ${pal.accent}, ${pal.accent2})` }}
+    >
+      <span className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(60%_140%_at_85%_0%,rgba(255,255,255,.28),transparent_60%)]" aria-hidden />
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-[var(--s-bg)]/90" aria-hidden />
+      <div className="relative mx-auto flex h-14 max-w-[1100px] items-center gap-2.5 px-3 sm:h-16 sm:px-6">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.75rem] bg-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.4)] backdrop-blur-sm" aria-hidden><ShoppingBag className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block text-[10px] font-extrabold uppercase tracking-[.18em] text-[var(--s-faint)]">Arise</span>
-          <span className="block truncate text-[17px] font-black tracking-tight text-[var(--s-text)]">{STORE_NAME}</span>
+          <span className="block text-[10px] font-extrabold uppercase tracking-[.2em] text-white/75">Arise</span>
+          <span className="block truncate text-[17px] font-black tracking-tight text-white">{STORE_NAME}</span>
         </span>
-        {teacher && <nav aria-label="Which hub" className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[var(--s-line)] bg-[var(--s-raised)] p-0.5">
+        {teacher && <nav aria-label="Which hub" className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-black/15 p-0.5 backdrop-blur-sm">
           {(["work", "life"] as const).map((h) => <button key={h} type="button" onClick={h === hub ? undefined : switchHub} aria-current={h === hub ? "page" : undefined} aria-label={HUB_NAME[h]}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold ${ring} ${h === hub ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)]" : "text-[var(--s-sub)]"}`}>
+            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold transition-colors ${ring} ${h === hub ? "bg-white text-[var(--s-text)] shadow-sm" : "text-white/80"}`}>
             <HubMark tone={h} className="h-4 w-4 shrink-0" /><span className="hidden sm:inline">{HUB_NAME[h]}</span>
           </button>)}
         </nav>}
-        <button ref={closeRef} type="button" onClick={onClose} aria-label={`Close the ${STORE_NAME}`} className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--s-sub)] ${ring}`} data-testid="plugin-store-close"><X className="h-6 w-6" /></button>
+        <button ref={closeRef} type="button" onClick={onClose} aria-label={`Close the ${STORE_NAME}`} className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 ${ring}`} data-testid="plugin-store-close"><X className="h-6 w-6" /></button>
       </div>
     </header>
 
     <main ref={listRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
       <div className="mx-auto max-w-[1100px] px-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6">
-        <label className="relative mt-3 block">
+        <label className="relative -mt-7 block sm:-mt-8">
           <span className="sr-only">Search apps</span>
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--s-faint)]" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--s-faint)]" />
           {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
           <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${HUB_NAME[hub]} apps`}
-            className={`h-12 w-full rounded-2xl border pl-11 pr-3 text-base outline-none ${ring}`}
+            className={`h-12 w-full rounded-2xl border pl-11 pr-3 text-base shadow-[0_8px_24px_-10px_rgba(0,0,0,.35)] outline-none ${ring}`}
             style={{ background: pal.surface, color: pal.text, borderColor: pal.line }} data-testid="plugin-search" />
         </label>
         {/* Stays at the top while the list scrolls under it. */}
-        <div className="sticky top-0 z-10 -mx-4 mt-2 bg-[var(--s-bg)] px-4 py-2 sm:-mx-6 sm:px-6">
+        <div className="sticky top-0 z-10 -mx-4 mt-3 bg-[var(--s-bg)] px-4 py-2 sm:-mx-6 sm:px-6">
           <div className="-mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show">
             <button type="button" onClick={() => { setView("discover"); setCategory(null); }} aria-pressed={browsing} className={chip(view === "discover" && !category)}>All</button>
             <button type="button" onClick={() => { setView("installed"); setCategory(null); }} aria-pressed={view === "installed"} className={chip(view === "installed")} data-testid="plugin-store-added">Added · {installedCount}</button>
@@ -301,17 +318,24 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
 
         <div className="space-y-8 pt-3">
           {browsing && <section aria-labelledby="ps-featured">
-            <h2 id="ps-featured" className={`mb-3 ${label}`}>Featured for your {HUB_NAME[hub]}</h2>
-            <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="mb-3 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--s-accent)]" aria-hidden />
+              <h2 id="ps-featured" className={label}>Featured for your {HUB_NAME[hub]}</h2>
+            </div>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {featured.map((p) => <li key={p.id} className="min-w-0">
                 <div role="button" tabIndex={0} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-                  className={`flex h-full min-w-0 cursor-pointer flex-col gap-2.5 rounded-2xl border border-[var(--s-line)] bg-[var(--s-surface)] p-3 ${ring}`}>
+                  className={`group relative flex h-full min-w-0 cursor-pointer flex-col gap-3 overflow-hidden rounded-[1.4rem] border border-[var(--s-line)] bg-[var(--s-surface)] p-3.5 shadow-[0_1px_2px_rgba(0,0,0,.04)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_32px_-16px_rgba(0,0,0,.4)] ${ring}`}>
+                  <span
+                    className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-[0.12] blur-2xl transition-opacity group-hover:opacity-25"
+                    style={{ background: p.color }} aria-hidden
+                  />
                   <Tile p={p} />
-                  <span className="min-w-0 flex-1">
+                  <span className="relative min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-bold leading-tight text-[var(--s-text)]">{p.name}</span>
                     <span className="mt-1 line-clamp-2 break-words text-[13px] leading-snug text-[var(--s-sub)]">{p.tagline}</span>
                   </span>
-                  {action(p)}
+                  <span className="relative">{action(p)}</span>
                 </div>
               </li>)}
             </ul>
@@ -323,7 +347,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
                 return <section key={c} aria-labelledby={`ps-${c}`}>
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h2 id={`ps-${c}`} className="min-w-0 truncate text-lg font-black tracking-tight text-[var(--s-text)]">{c}</h2>
-                    {inCat.length > PER_CATEGORY && <button type="button" onClick={() => setCategory(c)} className={`inline-flex h-9 shrink-0 items-center rounded-full px-3 text-[13px] font-bold text-[var(--s-accent-text)] ${ring}`}>See all {inCat.length}</button>}
+                    {inCat.length > PER_CATEGORY && <button type="button" onClick={() => setCategory(c)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-[var(--s-accent-text)] transition-colors hover:bg-[var(--s-accent-soft)] ${ring}`}>See all {inCat.length} <ArrowUpRight className="h-3.5 w-3.5" /></button>}
                   </div>
                   {rows(inCat.slice(0, PER_CATEGORY))}
                 </section>;
@@ -335,7 +359,8 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
                 </h2>
                 {shown.length
                   ? rows(shown)
-                  : <div className="rounded-2xl border border-dashed border-[var(--s-line)] bg-[var(--s-surface)] p-8 text-center">
+                  : <div className="rounded-[1.4rem] border border-dashed border-[var(--s-line)] bg-[var(--s-surface)] p-10 text-center">
+                      <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--s-accent-soft)] text-[var(--s-accent-text)]"><Search className="h-5 w-5" /></span>
                       <p className="text-[15px] font-bold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No apps match that."}</p>
                       <p className="mt-1 text-sm text-[var(--s-sub)]">{view === "installed" ? "Tap All to add your first one." : "Try another word, or tap All."}</p>
                     </div>}
@@ -355,21 +380,22 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     </div>}
     {note && <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[90] flex justify-center px-4"><p className="max-w-md rounded-2xl px-4 py-3 text-sm font-semibold shadow-xl" style={{ background: night ? "#f8fafc" : "#15141d", color: night ? "#15141d" : "#ffffff" }}>{note}</p></div>}
 
-    {open && <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/50 sm:items-center sm:p-6" onClick={() => setOpenId(null)}>
+    {open && <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setOpenId(null)}>
       <div role="dialog" aria-modal="true" aria-label={open.name} onClick={(e) => e.stopPropagation()}
-        className="max-h-[88dvh] w-full max-w-lg overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-[1.75rem] bg-[var(--s-surface)] text-[var(--s-text)] shadow-2xl sm:rounded-[1.75rem]" data-testid="plugin-detail">
-        <div className="relative h-24" style={{ background: `linear-gradient(135deg, ${open.color}, ${open.color}aa)` }}>
+        className="max-h-[88dvh] w-full max-w-lg overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-[1.75rem] bg-[var(--s-surface)] text-[var(--s-text)] shadow-[0_30px_80px_-20px_rgba(0,0,0,.55)] sm:rounded-[1.75rem]" data-testid="plugin-detail">
+        <div className="relative h-28 overflow-hidden" style={{ background: `linear-gradient(135deg, ${mix(open.color, "#ffffff", 0.18)}, ${open.color} 55%, ${mix(open.color, "#000000", 0.25)})` }}>
+          <span className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_120%_at_90%_-10%,rgba(255,255,255,.35),transparent_60%)]" aria-hidden />
           <span className="absolute left-1/2 top-2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/60 sm:hidden" aria-hidden />
-          <button type="button" onClick={() => setOpenId(null)} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/25 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={() => setOpenId(null)} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"><X className="h-5 w-5" /></button>
         </div>
-        <div className="-mt-10 space-y-5 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6">
-          <span className="inline-block rounded-[1.4rem] bg-[var(--s-surface)] p-1.5"><Tile p={open} size="lg" /></span>
+        <div className="-mt-11 space-y-5 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6">
+          <span className="inline-block rounded-[1.5rem] bg-[var(--s-surface)] p-1.5 shadow-[0_8px_20px_-8px_rgba(0,0,0,.35)]"><Tile p={open} size="lg" /></span>
           <div>
             <h3 className="text-2xl font-black tracking-tight text-[var(--s-text)]">{open.name}</h3>
-            <p className="mt-0.5 text-xs font-bold uppercase tracking-[.14em] text-[var(--s-faint)]">{open.category} · Made by Arise</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[.14em] text-[var(--s-faint)]">{open.category}<span aria-hidden className="text-[var(--s-line)]">•</span>Made by Arise</p>
             <p className="mt-3 text-[15px] leading-6 text-[var(--s-sub)]">{open.description}</p>
           </div>
-          <ul className="space-y-2">{open.features.map((f) => <li key={f} className="flex items-start gap-2 text-[15px] text-[var(--s-text)]"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--s-accent-text)]" />{f}</li>)}</ul>
+          <ul className="space-y-2 rounded-2xl bg-[var(--s-raised)] p-4">{open.features.map((f) => <li key={f} className="flex items-start gap-2 text-[15px] text-[var(--s-text)]"><span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${soft}`}><Check className="h-3.5 w-3.5" /></span>{f}</li>)}</ul>
           {open.target.kind === "connection" && <div className="rounded-2xl border border-[var(--s-line)] p-4" data-testid="plugin-setup-steps">
             <p className="text-[15px] font-black">How to set it up</p>
             {open.steps && <ol className="mt-3 space-y-2.5">{open.steps.map((step, i) => <li key={i} className="flex gap-3 text-sm leading-5">
