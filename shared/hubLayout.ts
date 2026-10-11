@@ -38,9 +38,57 @@ export const HOME_SIZES: { id: HomeSize; short: string; label: string }[] = [
   { id: "small", short: "S", label: "Small" }, { id: "medium", short: "M", label: "Medium" }, { id: "large", short: "L", label: "Large" },
 ];
 
+/** Where the menu sits on a computer. */
+export type DeskSide = "left" | "right" | "compact" | "top" | "drawer";
+export const DESK_SIDES: { id: DeskSide; label: string; detail: string }[] = [
+  { id: "left", label: "Sidebar left", detail: "Names and icons down the left." },
+  { id: "right", label: "Sidebar right", detail: "The same sidebar on the right." },
+  { id: "compact", label: "Icons only", detail: "A slim strip of icons for more room." },
+  { id: "top", label: "Top bar", detail: "Sections across the top." },
+  { id: "drawer", label: "App drawer", detail: "No menu, just a button that opens every section as app icons." },
+];
+
+/** A folder in the menu: a name and the sections (menu items) inside it, like a folder of apps on a phone. */
+export type MenuFolder = { id: string; name: string; items: string[] };
+export const FOLDER_LIMIT = 12;
+
+/** Saved folders made safe: named, each item in one folder only. */
+export function cleanFolders(raw: unknown): MenuFolder[] {
+  const seen = new Set<string>(), ids = new Set<string>(), out: MenuFolder[] = [];
+  for (const f of Array.isArray(raw) ? raw.slice(0, FOLDER_LIMIT) : []) {
+    if (!f || typeof f !== "object") continue;
+    const name = String((f as any).name ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 30);
+    let id = String((f as any).id ?? "").slice(0, 40) || `f${out.length + 1}`;
+    if (!name || ids.has(id)) continue;
+    ids.add(id);
+    const items = (Array.isArray((f as any).items) ? (f as any).items : []).filter((x: unknown): x is string => typeof x === "string" && !!x && x.length <= 60 && !seen.has(x)).slice(0, 40);
+    items.forEach((x: string) => seen.add(x));
+    out.push({ id, name, items });
+  }
+  return out;
+}
+
+export type MenuEntry<T> = { kind: "item"; item: T } | { kind: "folder"; folder: MenuFolder; items: T[] };
+/** The menu with folders: each folder sits where its first section was, holding its sections; empty folders drop out. */
+export function foldMenu<T extends { id: string }>(items: T[], folders: MenuFolder[]): MenuEntry<T>[] {
+  const out: MenuEntry<T>[] = [], placed = new Set<string>();
+  for (const item of items) {
+    const f = folders.find((x) => x.items.includes(item.id));
+    if (!f) { out.push({ kind: "item", item }); continue; }
+    if (placed.has(f.id)) continue;
+    placed.add(f.id);
+    out.push({ kind: "folder", folder: f, items: items.filter((i) => f.items.includes(i.id)) });
+  }
+  return out;
+}
+
 /** What every hub's layout has: where the phone menu sits, how it closes, and Home's parts in order, hidden and sized. */
 export type AnyLayout = {
   menuSide: MenuSide;
+  /** Where the menu sits on a computer. */
+  deskSide: DeskSide;
+  /** Folders the person made in the menu. */
+  folders: MenuFolder[];
   menuClose: MenuClose;
   /** Every part of Home, in the person's order. */
   home: string[];
@@ -53,7 +101,7 @@ export type AnyLayout = {
 /** WorkHub's layout. */
 export type HubLayout = AnyLayout & { home: HomeSection[]; homeHidden: HomeSection[]; homeSize: Partial<Record<HomeSection, HomeSize>> };
 
-export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture", "widgets"], homeSize: {} };
+export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", deskSide: "left", folders: [], menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture", "widgets"], homeSize: {} };
 
 /**
  * A saved layout made safe for a hub whose Home has these parts (in their usual order): known choices only, every part
@@ -78,7 +126,8 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
   }
   const homeSize: Partial<Record<Id, HomeSize>> = {};
   if (r.homeSize && typeof r.homeSize === "object") for (const [k, v] of Object.entries(r.homeSize)) if (isPart(k) && HOME_SIZES.some((z) => z.id === v)) homeSize[k] = v as HomeSize;
-  return { menuSide, menuClose, home, homeHidden, homeSize };
+  const deskSide: DeskSide = DESK_SIDES.some((s) => s.id === r.deskSide) ? r.deskSide : "left";
+  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize };
 }
 
 /** WorkHub's saved layout made safe. */

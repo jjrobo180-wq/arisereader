@@ -1,6 +1,11 @@
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
 import { markEmailRead } from "@shared/hubInbox";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { DeskSidePicker, FolderEditor } from "@/components/HubCustomizeExtras";
+import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
+import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
+import { buildWorkBrief } from "@shared/dailyBrief";
+import { foldMenu } from "@shared/hubLayout";
 import {
   AlertTriangle,
   BookHeart,
@@ -42,7 +47,7 @@ import {
   X,
   MoreHorizontal,
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
-  Trophy, Clapperboard, ShoppingBag,
+  Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkKit, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
@@ -516,6 +521,15 @@ function TeacherHubPage() {
     : side === "bottom"
     ? `inset-x-0 bottom-0 border-t px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "translate-y-full"}`
     : `bottom-0 top-[65px] w-[72px] ${side === "right" ? "right-0 border-l pr-[env(safe-area-inset-right)]" : "left-0 border-r pl-[env(safe-area-inset-left)]"} ${menuOpen ? "translate-x-0" : side === "right" ? "translate-x-full" : "-translate-x-full"}`;
+  // Where the menu sits on a computer (Customize): sidebar left or right, icons only, a top bar, or the app drawer.
+  const desk = layout.deskSide;
+  const deskDrawer = desk === "drawer", deskTop = desk === "top", deskCompact = desk === "compact";
+  const deskGrid = deskDrawer || deskTop ? "md:grid-cols-[minmax(0,1fr)]" : deskCompact ? "md:grid-cols-[76px_minmax(0,1fr)]" : desk === "right" ? "md:grid-cols-[minmax(0,1fr)_220px]" : "md:grid-cols-[220px_minmax(0,1fr)]";
+  const deskAside = deskDrawer ? "md:hidden" : deskTop ? "md:top-[65px] md:h-auto md:self-auto" : `md:top-[73px] md:h-[calc(100vh-90px)] md:self-start ${desk === "right" ? "md:order-2" : ""}`;
+  const deskList = deskTop ? "md:h-auto md:flex-row md:items-center md:gap-1 md:overflow-x-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-1.5 md:shadow-sm" : "md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm";
+  const [openFolders, setOpenFolders] = useState<string[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan);
   const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
   const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
@@ -673,6 +687,27 @@ function TeacherHubPage() {
   // The admin console shows for admins only.
   const visible = { ...workspace.visibleTabs, admin: !!user.isAdmin };
   const menu = visibleGroups(visible, workspace.groupOrder);
+  // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
+  const goTab = (t: HubTab) => { setTab(t); setKitOpen(null); window.scrollTo({ top: 0 }); };
+  const searchEntries = ((): HubSearchEntry[] => {
+    if (!searching) return [];
+    const out: HubSearchEntry[] = [];
+    const dateWord = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
+    for (const g of menu) for (const t of groupTabs(g.id, visible)) out.push({ id: `tab-${t}`, kind: "Section", title: TAB_META.find((m) => m.id === t)?.label || t, sub: groupLabel(g.id, visible), open: () => goTab(t) });
+    out.push({ id: "brief", kind: "Section", title: "Daily brief", sub: "Today at a glance", keywords: "morning summary today", open: () => setBriefOpen(true) });
+    out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomize(true) });
+    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", open: () => setStore(true) });
+    for (const d of myKits) out.push({ id: `kit-${d.id}`, kind: "Plugins", title: d.name, open: () => openKit(d.id) });
+    for (const st of workspace.students) out.push({ id: st.id, kind: "Students", title: st.name, sub: [st.grade && `Grade ${st.grade}`, st.iepDate && `IEP ${dateWord(st.iepDate)}`].filter(Boolean).join(" · "), keywords: `${st.disability1 || ""} ${st.disability2 || ""}`, open: () => goTab("caseload") });
+    for (const t of workspace.tasks) out.push({ id: t.id, kind: "To-dos", title: t.title, sub: [t.done ? "Done" : "", t.dueDate && `Due ${dateWord(t.dueDate)}`].filter(Boolean).join(" · "), keywords: t.notes || "", open: () => goTab("tasks") });
+    for (const m of workspace.meetings) out.push({ id: m.id, kind: "Meetings", title: `${m.type}: ${m.student}`, sub: [m.date && dateWord(m.date), m.room].filter(Boolean).join(" · "), keywords: m.notes, open: () => goTab("iep") });
+    for (const e of workspace.events) out.push({ id: e.id, kind: "Calendar", title: e.title, sub: [dateWord(e.date), e.location].filter(Boolean).join(" · "), keywords: e.notes, open: () => goTab("calendar") });
+    for (const n of workspace.notes) out.push({ id: n.id, kind: "Notes", title: n.title || (n.body || "").slice(0, 60) || "Note", sub: [n.student, dateWord(n.date)].filter(Boolean).join(" · "), keywords: n.body.slice(0, 400), open: () => goTab("notes") });
+    for (const l of workspace.lessons) out.push({ id: l.id, kind: "Lessons", title: l.title, sub: [l.subject, l.group, dateWord(l.date)].filter(Boolean).join(" · "), keywords: `${l.objective} ${l.materials}`, open: () => goTab("lessons") });
+    for (const g of workspace.goals) out.push({ id: g.id, kind: "Goals", title: `${g.student}: ${g.area}`, sub: g.text.slice(0, 90), keywords: g.text, open: () => goTab("goals") });
+    for (const em of workspace.emails) out.push({ id: em.id, kind: "Email", title: em.subject || "(no subject)", sub: em.from, keywords: em.body.slice(0, 300), open: () => goTab("email") });
+    return out;
+  })();
   const group = groupOf(tab);
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits. Home never moves.
   const moveGroupBy = (id: HubGroupId, dir: -1 | 1) => setWorkspace((prev) => {
@@ -728,6 +763,8 @@ function TeacherHubPage() {
           </a>
           <div className="flex shrink-0 items-center gap-2">
             <HubSwitch current="hub" night={night} />
+            <HubSearchButton onOpen={() => setSearching(true)} />
+            <BriefButton onOpen={() => setBriefOpen(true)} className="hidden sm:inline-flex" />
             <span className="hidden sm:contents"><SaveBadge view={view} /></span>
             <HubPollBell token={token} userId={user?.id} enabled={canUseHub && loaded && !loadError && !needsPlan} onOpenMeetings={() => setTab("iep")} />
             <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
@@ -759,22 +796,22 @@ function TeacherHubPage() {
         </div>
       </header>
 
-      <div className={`mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} md:grid-cols-[220px_minmax(0,1fr)] md:px-6`}>
+      <div className={`mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} ${deskGrid} md:px-6`}>
         {!menuOpen && !drawerMenu && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
           className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "top" ? "left-1/2 top-[65px] h-7 w-14 -translate-x-1/2 rounded-b-xl border-t-0" : side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
           {side === "top" ? <ChevronDown className="h-5 w-5" /> : side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
-        {drawerMenu && !apps && (
+        {(drawerMenu || deskDrawer) && !apps && (
           <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="hub-apps-open"
             onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (appsSwipe.current !== null && appsSwipe.current - e.touches[0].clientY > 30) { appsSwipe.current = null; setApps(true); } }}
-            className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 inline-flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl transition active:scale-90 md:hidden">
+            className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl transition active:scale-90 ${drawerMenu ? "inline-flex" : "hidden"} ${deskDrawer ? "md:inline-flex" : "md:hidden"}`}>
             <AppsIcon className="h-6 w-6" />
           </button>
         )}
-        {drawerMenu && (
-          <div className={`fixed inset-0 z-[70] md:hidden ${apps ? "" : "pointer-events-none"}`} aria-hidden={!apps}>
+        {(drawerMenu || deskDrawer) && (
+          <div className={`fixed inset-0 z-[70] ${drawerMenu ? "" : "max-md:hidden"} ${deskDrawer ? "" : "md:hidden"} ${apps ? "" : "pointer-events-none"}`} aria-hidden={!apps}>
             <div className={`absolute inset-0 bg-slate-950/30 transition-opacity duration-200 ${apps ? "opacity-100" : "opacity-0"}`} onClick={() => setApps(false)} />
             <div role="dialog" aria-modal="true" aria-label="All sections" data-testid="hub-apps"
-              className={`absolute inset-x-0 bottom-0 top-[max(2.5rem,env(safe-area-inset-top))] flex flex-col rounded-t-[2rem] bg-white shadow-2xl transition-transform duration-300 ease-out ${apps ? "translate-y-0" : "translate-y-full"}`}
+              className={`absolute inset-x-0 bottom-0 top-[max(2.5rem,env(safe-area-inset-top))] mx-auto flex max-w-3xl flex-col rounded-t-[2rem] md:top-16 bg-white shadow-2xl transition-transform duration-300 ease-out ${apps ? "translate-y-0" : "translate-y-full"}`}
               onTouchStart={(e) => { appsSwipe.current = e.touches[0].clientY; }}
               onTouchEnd={(e) => { const from = appsSwipe.current; appsSwipe.current = null; const list = document.getElementById("hub-apps-list"); if (from !== null && e.changedTouches[0].clientY - from > 90 && (!list || list.scrollTop <= 0)) setApps(false); }}>
               <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-slate-300" aria-hidden />
@@ -785,7 +822,7 @@ function TeacherHubPage() {
                 </label>
                 <button type="button" onClick={() => setApps(false)} aria-label="Close" tabIndex={apps ? 0 : -1} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
               </div>
-              <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
+              <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
                 {"app store".includes(appsQuery.trim().toLowerCase()) && (
                   <li>
                     <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); setStore(true); }} data-testid="hub-app-store"
@@ -816,14 +853,15 @@ function TeacherHubPage() {
             </div>
           </div>
         )}
-        <aside className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start`} aria-hidden={menuOpen ? undefined : true}>
-          <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm`}>
+        <aside className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
+          <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${deskList}`}>
             {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${across ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "top" ? <ChevronUp className="h-5 w-5" /> : side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
-            <div className="hidden px-3 py-3 md:block">
+            <div className={`hidden px-3 py-3 ${deskTop || deskCompact ? "" : "md:block"}`}>
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
             </div>
-            {menu.map((item, i) => {
+            {(() => {
+              const navItem = (item: (typeof menu)[number], i: number, nested = false) => {
               const movable = item.id !== "home";
               return (
                 <div
@@ -833,7 +871,7 @@ function TeacherHubPage() {
                   onDragEnd={movable ? () => setDraggingGroup(null) : undefined}
                   onDragOver={movable && draggingGroup && draggingGroup !== item.id ? (e) => e.preventDefault() : undefined}
                   onDrop={movable && draggingGroup && draggingGroup !== item.id ? (e) => { e.preventDefault(); moveGroupTo(draggingGroup, item.id); setDraggingGroup(null); } : undefined}
-                  className={`group/navitem flex ${across ? "snap-start" : "w-full"} shrink-0 items-stretch md:w-full gap-0.5 rounded-xl transition ${draggingGroup === item.id ? "opacity-40" : ""}`}
+                  className={`group/navitem flex ${across ? "snap-start" : "w-full"} shrink-0 items-stretch ${deskTop ? "md:w-auto" : "md:w-full"} ${nested && !deskTop && !deskCompact ? "md:pl-4" : ""} gap-0.5 rounded-xl transition ${draggingGroup === item.id ? "opacity-40" : ""}`}
                 >
                   <button
                     type="button"
@@ -841,29 +879,46 @@ function TeacherHubPage() {
                     aria-current={group.id === item.id && !kitOpen ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
                     data-hub-nav
-                    className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id && !kitOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
+                    className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id && !kitOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
                   >
                     {GROUP_ICON[item.id]}
-                    <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal`}>{groupLabel(item.id, visible)}</span>
+                    <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{groupLabel(item.id, visible)}</span>
                   </button>
                   {movable && (
-                    <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">
+                    <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${deskTop || deskCompact || nested ? "" : "md:flex"}`}>
                       <button type="button" onClick={() => moveGroupBy(item.id, -1)} disabled={i <= 1} aria-label={`Move ${groupLabel(item.id, visible)} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
                       <button type="button" onClick={() => moveGroupBy(item.id, 1)} disabled={i >= menu.length - 1} aria-label={`Move ${groupLabel(item.id, visible)} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
                     </span>
                   )}
                 </div>
               );
-            })}
-            {myKits.length > 0 && <p className="hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 md:block">My apps</p>}
+              };
+              return foldMenu(menu, layout.folders).map((entry) => {
+                if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
+                const f = entry.folder, here = entry.items.some((x) => x.id === group.id) && !kitOpen;
+                const open = openFolders.includes(f.id) || here;
+                return <Fragment key={`folder-${f.id}`}>
+                  <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                    <button type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`hub-folder-${f.id}`} data-hub-nav
+                      className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${here ? "text-slate-950" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                      <FolderIcon className="h-4 w-4" />
+                      <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none ${deskCompact ? "md:sr-only" : ""}`}>{f.name}</span>
+                      <FolderChevron className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
+                    </button>
+                  </div>
+                  {open && entry.items.map((item) => navItem(item, menu.indexOf(item), true))}
+                </Fragment>;
+              });
+            })()}
+            {myKits.length > 0 && <p className={`hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskTop || deskCompact ? "" : "md:block"}`}>My apps</p>}
             {myKits.map((d) => {
               const Icon = kitIcon(d.icon);
               return (
-                <div key={`kit-${d.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 md:w-full`}>
+                <div key={`kit-${d.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                   <button type="button" onClick={() => { openKit(d.id); afterPick(); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`hub-kit-${d.id}`} data-hub-nav
                     className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${kitOpen === d.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: d.color }}><Icon className="h-3.5 w-3.5" /></span>
-                    <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal`}>{d.name}</span>
+                    <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{d.name}</span>
                   </button>
                 </div>
               );
@@ -911,7 +966,7 @@ function TeacherHubPage() {
               <div className="mb-6 grid gap-5 lg:grid-cols-2" data-testid="customize-layout">
                 <div>
                   <h3 className="mb-1 text-sm font-semibold text-slate-900">Menu on your phone</h3>
-                  <p className="mb-3 text-sm text-slate-600">Where it sits, and how it closes. On a computer it is always the sidebar.</p>
+                  <p className="mb-3 text-sm text-slate-600">Where it sits, and how it closes. The computer menu has its own choices below.</p>
                   <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
                     {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
                       className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
@@ -923,6 +978,10 @@ function TeacherHubPage() {
                       <span><span className="block font-semibold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
                     </button>)}
                   </div>}
+                </div>
+                <div className="space-y-6">
+                  <DeskSidePicker layout={layout} setLayout={setLayout} dark="#020617" />
+                  <FolderEditor layout={layout} setLayout={setLayout} makeId={id} items={menu.filter((m) => m.id !== "home").map((m) => ({ id: m.id, label: groupLabel(m.id, visible) }))} />
                 </div>
                 <div>
                   <h3 className="mb-1 text-sm font-semibold text-slate-900">Home screen</h3>
@@ -1142,6 +1201,8 @@ function TeacherHubPage() {
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift />}
+      {searching && <HubSearch entries={searchEntries} hubName="WorkHub" accent="bg-teal-700" onClose={() => setSearching(false)} />}
+      {briefOpen && canUseHub && loaded && !loadError && <DailyBrief hub="work" brief={buildWorkBrief(workspace, TODAY(), new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={(t) => goTab(t as HubTab)} tint="from-teal-900 via-teal-700 to-amber-500" />}
       {canUseHub && loaded && !loadError && !needsPlan && (
         <div ref={addRef} className={`fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
           {addMenu && (

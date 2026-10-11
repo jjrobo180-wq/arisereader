@@ -11,6 +11,7 @@ import {
   CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
   ChevronUp, ChevronDown, MoreHorizontal, Save, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
   ShoppingBag,
+  Folder as Folder, ChevronRight as ChevronRight,
 } from "lucide-react";
 import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
@@ -81,6 +82,11 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar, Modal } from "@/components/family-hub/ui";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
+import { DeskSidePicker, FolderEditor } from "@/components/HubCustomizeExtras";
+import { foldMenu } from "@shared/hubLayout";
+import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
+import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
+import { buildLifeBrief } from "@shared/dailyBrief";
 import { HubChat } from "@/components/HubChat";
 import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
@@ -494,7 +500,42 @@ export default function AriseTodo() {
   const layout = cleanLifeLayout(family.layout);
   const setLayout = (next: LifeLayout) => setFamily((f) => ({ ...f, layout: next }));
   const phone = usePhoneMenu(layout.menuSide, layout.menuClose);
+  // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
+  const dsk = shown === "tasks" ? "left" : layout.deskSide;
+  const deskAside = dsk === "drawer" ? "lg:hidden"
+    : dsk === "top" ? "lg:sticky lg:top-16 lg:z-30 lg:block lg:w-full"
+    : dsk === "compact" ? "lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:w-[76px] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r"
+    : `lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 xl:w-72 ${dsk === "right" ? "lg:border-l" : "lg:border-r"}`;
+  const [openFolders, setOpenFolders] = useState<string[]>([]);
+  // Search everything in LifeHub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const [customizing, setCustomizing] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user);
+  const goSection = (id: string) => { setSection(id as FamilySection); window.scrollTo({ top: 0 }); };
+  const searchEntries = ((): HubSearchEntry[] => {
+    if (!searching) return [];
+    const out: HubSearchEntry[] = [], f = family;
+    const dw = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
+    for (const id of sections) out.push({ id: `s-${id}`, kind: "Section", title: SECTION_INFO[id].label, open: () => goSection(id) });
+    out.push({ id: "brief", kind: "Section", title: "Daily brief", sub: "Today at a glance", keywords: "morning summary today", open: () => setBriefOpen(true) });
+    out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomizing(true) });
+    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", open: () => setStore(true) });
+    for (const t of data.tasks) out.push({ id: t.id, kind: "Tasks", title: t.title, sub: [t.done ? "Done" : "", t.due && `Due ${dw(t.due)}`].filter(Boolean).join(" · "), keywords: t.notes, open: () => goSection("tasks") });
+    for (const e of f.events) out.push({ id: e.id, kind: "Calendar", title: e.title, sub: [dw(e.date), e.location].filter(Boolean).join(" · "), keywords: e.notes, open: () => goSection("calendar") });
+    for (const n of f.notes) out.push({ id: n.id, kind: "Notes", title: n.title || n.body.slice(0, 60) || "Note", keywords: n.body.slice(0, 400), open: () => goSection("notes") });
+    for (const m of f.members) out.push({ id: m.id, kind: "Family", title: m.name, sub: m.kind === "kid" ? "Kid" : "Adult", open: () => goSection("family") });
+    for (const r of f.recipes) out.push({ id: r.id, kind: "Recipes", title: r.title, sub: r.tags, keywords: r.ingredients.join(" "), open: () => goSection("recipes") });
+    for (const g of f.groceries) out.push({ id: g.id, kind: "Grocery list", title: g.name, sub: [g.qty, g.aisle, g.checked ? "In the cart" : ""].filter(Boolean).join(" · "), open: () => goSection("grocery") });
+    for (const m of f.meals) out.push({ id: m.id, kind: "Meals", title: m.text || f.recipes.find((r) => r.id === m.recipeId)?.title || "Meal", sub: `${dw(m.date)} · ${m.slot}`, open: () => goSection("meals") });
+    for (const c of f.contacts) out.push({ id: c.id, kind: "Contacts", title: c.name, sub: [c.role, c.phone].filter(Boolean).join(" · "), keywords: `${c.email} ${c.note}`, open: () => goSection("contacts") });
+    for (const b of f.birthdays) out.push({ id: b.id, kind: "Birthdays", title: b.name, sub: `${b.month}/${b.day}`, open: () => goSection("birthdays") });
+    for (const b of f.bills) out.push({ id: b.id, kind: "Bills", title: b.name, sub: `$${b.amount.toFixed(2)} · due the ${b.dueDay}`, keywords: b.category, open: () => goSection("money") });
+    for (const c of f.chores) out.push({ id: c.id, kind: "Chores", title: c.title, open: () => goSection("chores") });
+    for (const j of f.journal) out.push({ id: j.id, kind: "Journal", title: j.title || dw(j.date), sub: dw(j.date), keywords: j.body.slice(0, 300), open: () => goSection("journal") });
+    for (const c of f.countdowns) out.push({ id: c.id, kind: "Countdowns", title: c.title, sub: dw(c.date), open: () => goSection("countdowns") });
+    for (const t of f.trips) out.push({ id: t.id, kind: "Trips", title: t.name || "Trip", sub: [t.destination, dw(t.start)].filter(Boolean).join(" · "), open: () => goSection("trips") });
+    return out;
+  })();
   const [more, setMore] = useState(false);
   const phoneItems: PhoneMenuItem[] = [
     ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: shown === id, badge: badge(id), onClick: () => setSection(id) }; }),
@@ -599,7 +640,7 @@ export default function AriseTodo() {
       <div className="space-y-6" data-testid="life-customize-panel">
         <section>
           <h3 className="text-sm font-black text-slate-900">Menu on your phone</h3>
-          <p className="mb-3 mt-1 text-sm text-slate-500">Where it sits, and how it closes. On a computer it is always the sidebar.</p>
+          <p className="mb-3 mt-1 text-sm text-slate-500">Where it sits, and how it closes. The computer menu has its own choices below.</p>
           <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
             {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); phone.setRail(true); }} data-testid={`life-menu-side-${o.id}`}
               className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${layout.menuSide === o.id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{o.label}</button>)}
@@ -613,6 +654,8 @@ export default function AriseTodo() {
               </button>)}
             </div>}
         </section>
+        <DeskSidePicker layout={layout} setLayout={setLayout} />
+        <FolderEditor layout={layout} setLayout={setLayout} makeId={makeId} items={sections.filter((x) => x !== "home").map((x) => ({ id: x, label: SECTION_INFO[x].label }))} />
         <section>
           <h3 className="text-sm font-black text-slate-900">Home screen</h3>
           <p className="mb-3 mt-1 text-sm text-slate-500">Turn parts on or off, move them, and pick a size. You can also press and hold Home itself to drag things around.</p>
@@ -644,6 +687,8 @@ export default function AriseTodo() {
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {(user.role === "teacher" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
+          <HubSearchButton onOpen={() => setSearching(true)} />
+          <BriefButton onOpen={() => setBriefOpen(true)} className="hidden sm:inline-flex" />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
           <button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} aria-label="Notification settings"><Bell size={17} /></button>
           <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex">{night ? <Sun size={16} /> : <Moon size={16} />}</button>
@@ -667,11 +712,22 @@ export default function AriseTodo() {
       </div>
     </header>
     {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift={layout.menuSide === "bottom"} />}
-    <PhoneMenu items={phoneItems} side={layout.menuSide} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} />
-    <div className="flex min-h-[calc(100vh-4rem)] w-full flex-col lg:flex-row">
-      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-72`}>
-        <nav aria-label="Family Hub" className="hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 lg:pt-6 [scrollbar-width:none] sm:px-4 sm:pb-3 lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 [&::-webkit-scrollbar]:hidden">
-          {sections.map((id, i) => {
+    {searching && <HubSearch entries={searchEntries} hubName="LifeHub" accent="bg-[#292446]" onClose={() => setSearching(false)} />}
+    {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
+    <PhoneMenu items={phoneItems} side={layout.menuSide} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />
+    <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
+      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside}`}>
+        <nav aria-label="Family Hub" className={`hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
+          {foldMenu(sections.map((id) => ({ id })), layout.folders).flatMap((entry) => {
+            if (entry.kind === "item") return [entry.item.id];
+            const f = entry.folder, here = entry.items.some((x) => x.id === shown), open = openFolders.includes(f.id) || here;
+            return [<button key={`folder-${f.id}`} type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`life-folder-${f.id}`}
+              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${here ? "text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+              <Folder className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{f.name}</span><ChevronRight className={`ml-auto h-4 w-4 transition ${open ? "rotate-90" : ""} ${dsk === "compact" ? "lg:hidden" : ""}`} />
+            </button>, ...(open ? entry.items.map((x) => `nested:${x.id}`) : [])];
+          }).map((raw, i) => {
+            if (typeof raw !== "string") return raw;
+            const nested = raw.startsWith("nested:"), id = (nested ? raw.slice(7) : raw) as FamilySection;
             const Icon = SECTION_ICONS[id];
             const movable = (TOGGLEABLE as readonly FamilySection[]).includes(id);
             const toggleableShown = sections.filter((s) => (TOGGLEABLE as readonly FamilySection[]).includes(s));
@@ -684,17 +740,17 @@ export default function AriseTodo() {
                 onDragEnd={movable ? () => setDraggingSection(null) : undefined}
                 onDragOver={movable && draggingSection && draggingSection !== id ? (e) => e.preventDefault() : undefined}
                 onDrop={movable && draggingSection && draggingSection !== id ? (e) => { e.preventDefault(); moveSectionTo(draggingSection, id); setDraggingSection(null); } : undefined}
-                className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition lg:w-full ${draggingSection === id ? "opacity-40" : ""}`}
+                className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
               >
                 <button
                   onClick={() => setSection(id)}
                   aria-current={shown === id ? "page" : undefined}
-                  className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm lg:w-full ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
+                  className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
-                  <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
+                  <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
                 </button>
                 {movable && (
-                  <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 lg:flex">
+                  <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${dsk === "left" || dsk === "right" ? "lg:flex" : ""}`}>
                     <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
                     <button type="button" onClick={() => moveSectionBy(id, 1)} disabled={posInToggleable >= toggleableShown.length - 1} aria-label={`Move ${SECTION_INFO[id].label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
                   </span>
@@ -703,7 +759,7 @@ export default function AriseTodo() {
             );
           })}
         </nav>
-        <div className="hidden px-3 pt-2 lg:block"><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
+        <div className={`hidden px-3 pt-2 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
         <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0">
@@ -717,7 +773,7 @@ export default function AriseTodo() {
         </div>
         {addingList && <form onSubmit={createList} className="mx-4 mb-4 flex gap-2 lg:mx-5"><input className={inputClass + " min-w-0"} value={newListName} autoFocus maxLength={60} onChange={e => setNewListName(e.target.value)} placeholder="List name" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check size={18} /></button><button type="button" onClick={() => { setAddingList(false); setNewListName(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X size={18} /></button></form>}
         </>}
-        <div className="mt-auto hidden px-5 pb-7 pt-6 lg:block">
+        <div className={`mt-auto hidden px-5 pb-7 pt-6 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <div className="rounded-2xl bg-[#f4f1ff] p-4">
             <div className="mb-2 inline-flex rounded-xl bg-white p-2 text-[#715fe3]"><Heart size={18} /></div>
             <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
