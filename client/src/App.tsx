@@ -303,11 +303,25 @@ function OpenHubTab({ to, storageKey, value }: { to: string; storageKey: "workhu
   return <Redirect to={to} replace />;
 }
 
+function ReaderToTodoRedirect() {
+  useEffect(() => {
+    window.location.replace("https://arisetodo.com/app#/lifehub");
+  }, []);
+  return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f6f7fc] p-6 text-center text-slate-900">
+    <h1 className="text-2xl font-black">A.R.I.S.E. To-Do has its own home.</h1>
+    <p className="max-w-md text-sm text-slate-600">Your LifeHub workspace is now available at arisetodo.com. You can sign in with your existing A.R.I.S.E. account.</p>
+    <a href="https://arisetodo.com/app#/lifehub" className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white">Open A.R.I.S.E. To-Do</a>
+  </main>;
+}
+
 function AppRoutes() {
   const { user, isLoading } = useAuth();
   // Eye-gaze mode is only for non-privileged learner accounts. Admin,
   // teacher, and parent roles must always keep the standard site layout.
   const isEyeGazeStudent = !!user && !user.isAdmin && user.role !== 'teacher' && user.role !== 'parent' && !!user.is_eye_gaze_user;
+  const domain = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
+  const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com";
+  const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com";
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">
@@ -319,10 +333,10 @@ function AppRoutes() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch>
       <Route path="/lifehub">
-        <TodoGate><AriseTodo /></TodoGate>
+        {onReaderDomain && user?.role !== "parent" ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
       <Route path="/to-do">
-        <TodoGate><AriseTodo /></TodoGate>
+        {onReaderDomain && user?.role !== "parent" ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
@@ -334,7 +348,7 @@ function AppRoutes() {
         {user ? <Redirect to="/" replace /> : <Login />}
       </Route>
       <Route path="/">
-        {user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
+        {onTodoDomain ? <Redirect to="/lifehub" replace /> : user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
         {user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
