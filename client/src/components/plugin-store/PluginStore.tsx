@@ -206,9 +206,10 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const installedCount = all.filter((p) => isAddable(p) && isInstalled(p)).length;
   const browsing = view === "discover" && !category && !query.trim();
   // Featured: the ones not added yet first, worked out once when the store opens, so a card never
-  // jumps to a new place the moment it's added.
+  // jumps to a new place the moment it's added. The first becomes the spotlight; the rest run as a rail.
   const [featured] = useState(() => all.filter((p) => p.featured).map((p, i) => ({ p, i, on: isAddable(p) && isInstalled(p) ? 1 : 0 }))
-    .sort((a, b) => a.on - b.on || a.i - b.i).slice(0, 6).map((x) => x.p));
+    .sort((a, b) => a.on - b.on || a.i - b.i).slice(0, 9).map((x) => x.p));
+  const [spotlight, ...rail] = featured;
 
   const toggle = (p: Plugin, on: boolean) => {
     onToggle(p, on);
@@ -270,6 +271,32 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   );
   const rows = (list: Plugin[]) => <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{list.map(row)}</ul>;
 
+  /** A full-bleed, art-directed card: the app's own colour is the whole background, not a small icon on white. */
+  const poster = (p: Plugin, kind: "spotlight" | "rail") => {
+    const deep = mix(p.color, "#000000", 0.55);
+    const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
+    return <div role="button" tabIndex={0} key={p.id} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
+      className={`group relative flex shrink-0 cursor-pointer flex-col justify-between overflow-hidden text-left text-white ${ring} ${kind === "spotlight" ? "aspect-[4/5] w-full rounded-[1.75rem] p-6 sm:aspect-[16/9] sm:p-8" : "aspect-[3/4] w-[46vw] max-w-[220px] rounded-[1.4rem] p-4 snap-start sm:w-[220px]"}`}
+      style={{ background: `radial-gradient(130% 110% at 100% 0%, ${mix(p.color, "#ffffff", 0.3)}, ${p.color} 45%, ${deep})` }}
+      data-testid={kind === "spotlight" ? "plugin-spotlight" : `plugin-rail-${p.id}`}>
+      <span className="pointer-events-none absolute inset-0 opacity-90 [background:radial-gradient(60%_80%_at_15%_100%,rgba(0,0,0,.35),transparent_65%)]" aria-hidden />
+      <span className="pointer-events-none absolute inset-0 scale-110 opacity-[0.14] transition-transform duration-500 group-hover:scale-125" aria-hidden>
+        <Icon className={kind === "spotlight" ? "absolute -right-6 -top-6 h-48 w-48" : "absolute -right-4 -top-4 h-28 w-28"} strokeWidth={1.25} />
+      </span>
+      <span className="relative inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] backdrop-blur-sm">
+        {kind === "spotlight" ? <><Sparkles className="h-3 w-3" />App of the day</> : p.category}
+      </span>
+      <span className="relative">
+        <span className={`block font-black tracking-tight drop-shadow-sm ${kind === "spotlight" ? "text-[28px] sm:text-[34px]" : "text-[17px]"}`}>{p.name}</span>
+        <span className={`mt-1 block text-white/85 ${kind === "spotlight" ? "max-w-sm text-[15px] leading-snug sm:text-base" : "line-clamp-2 text-[12.5px] leading-snug"}`}>{p.tagline}</span>
+        <span className="mt-3 inline-block" onClick={(e) => e.stopPropagation()}>{action(p, kind === "spotlight")}</span>
+      </span>
+    </div>;
+  };
+  const posterRail = (list: Plugin[]) => <ul className="-mx-4 flex gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 pt-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
+    {list.map((p) => <li key={p.id} className="flex shrink-0">{poster(p, "rail")}</li>)}
+  </ul>;
+
   const categories = PLUGIN_CATEGORIES[hub].filter((c) => all.some((p) => p.category === c));
   const chip = (on: boolean) => `inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-bold transition-all ${ring} ${on ? "bg-[var(--s-chip-on)] text-[var(--s-chip-on-text)] shadow-[0_4px_10px_-4px_rgba(0,0,0,.35)]" : "border border-[var(--s-line)] bg-[var(--s-surface)] text-[var(--s-text)] hover:border-[var(--s-accent)]/40"}`;
   const label = "text-xs font-extrabold uppercase tracking-[.14em] text-[var(--s-faint)]";
@@ -316,29 +343,18 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           </div>
         </div>
 
-        <div className="space-y-8 pt-3">
-          {browsing && <section aria-labelledby="ps-featured">
+        <div className="space-y-9 pt-1">
+          {browsing && spotlight && <section aria-labelledby="ps-spotlight">
+            <h2 id="ps-spotlight" className="sr-only">App of the day</h2>
+            {poster(spotlight, "spotlight")}
+          </section>}
+
+          {browsing && rail.length > 0 && <section aria-labelledby="ps-featured">
             <div className="mb-3 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-[var(--s-accent)]" aria-hidden />
               <h2 id="ps-featured" className={label}>Featured for your {HUB_NAME[hub]}</h2>
             </div>
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {featured.map((p) => <li key={p.id} className="min-w-0">
-                <div role="button" tabIndex={0} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-                  className={`group relative flex h-full min-w-0 cursor-pointer flex-col gap-3 overflow-hidden rounded-[1.4rem] border border-[var(--s-line)] bg-[var(--s-surface)] p-3.5 shadow-[0_1px_2px_rgba(0,0,0,.04)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_32px_-16px_rgba(0,0,0,.4)] ${ring}`}>
-                  <span
-                    className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-[0.12] blur-2xl transition-opacity group-hover:opacity-25"
-                    style={{ background: p.color }} aria-hidden
-                  />
-                  <Tile p={p} />
-                  <span className="relative min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-bold leading-tight text-[var(--s-text)]">{p.name}</span>
-                    <span className="mt-1 line-clamp-2 break-words text-[13px] leading-snug text-[var(--s-sub)]">{p.tagline}</span>
-                  </span>
-                  <span className="relative">{action(p)}</span>
-                </div>
-              </li>)}
-            </ul>
+            {posterRail(rail)}
           </section>}
 
           {browsing
@@ -349,7 +365,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
                     <h2 id={`ps-${c}`} className="min-w-0 truncate text-lg font-black tracking-tight text-[var(--s-text)]">{c}</h2>
                     {inCat.length > PER_CATEGORY && <button type="button" onClick={() => setCategory(c)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-[var(--s-accent-text)] transition-colors hover:bg-[var(--s-accent-soft)] ${ring}`}>See all {inCat.length} <ArrowUpRight className="h-3.5 w-3.5" /></button>}
                   </div>
-                  {rows(inCat.slice(0, PER_CATEGORY))}
+                  {posterRail(inCat.slice(0, PER_CATEGORY))}
                 </section>;
               })
             : <section aria-live="polite">
