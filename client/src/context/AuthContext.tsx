@@ -31,6 +31,7 @@ interface AuthContextType {
   exitAdminPreview: () => void;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
+  completeAdminHandoff: (code: string) => Promise<void>;
   register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; independent?: boolean; directorySchool?: string }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -239,6 +240,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     returnIfAsked();
   }, [persistSession]);
 
+  // Redeem a one-use sign-in code on arisetodo.com. The code is never a session token.
+  const completeAdminHandoff = useCallback(async (code: string) => {
+    if (!/^[a-f0-9]{64}$/.test(code)) throw new Error("The sign-in link is invalid.");
+    const res = await fetch(`${API_BASE}/api/auth/admin-handoff/consume`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.message || "Could not complete sign-in.");
+    if (!data?.user?.isAdmin || typeof data.token !== "string") {
+      throw new Error("Administrator account verification failed.");
+    }
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    setAdminPreviewMode(null);
+    sessionStorage.removeItem(SAMPLE_SESSION_KEY);
+    resetAuthenticatedNavigation(data.user);
+    persistSession(data.user, data.token);
+  }, [persistSession]);
+
   const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; independent?: boolean; directorySchool?: string }) => {
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     const res = await fetch(`${API_BASE}/api/register`, {
@@ -331,6 +353,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       exitAdminPreview,
       token,
       login,
+      completeAdminHandoff,
       register,
       logout,
       isLoading,
