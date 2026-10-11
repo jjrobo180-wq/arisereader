@@ -143,6 +143,7 @@ const ReadingClub = lazyPage(() => import("./pages/ReadingClub"));
 const TeacherArise2 = lazyPage(() => import("./pages/TeacherArise2"));
 const ParentArise2 = lazyPage(() => import("./pages/ParentArise2"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
+const TodoLanding = lazyPage(() => import("./pages/TodoLanding"));
 const Billing = lazyPage(() => import("./pages/Billing"));
 
 // Gate that shows profile setup overlay after student registration
@@ -352,7 +353,7 @@ function AppRoutes() {
         {user ? <Redirect to="/" replace /> : <Login />}
       </Route>
       <Route path="/">
-        {onTodoDomain ? user?.isAdmin ? <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" /> : user?.role === "teacher" ? <Redirect to="/workhub" replace /> : <Redirect to="/lifehub" replace /> : user && !user.isAdmin ? (user.role === "teacher" ? <Redirect to="/workhub" replace /> : user.role === "parent" ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
+        {onTodoDomain ? (!user ? <TodoLanding /> : user.isAdmin ? <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" /> : user.role === "teacher" ? <Redirect to="/workhub" replace /> : <Redirect to="/lifehub" replace />) : user && !user.isAdmin ? (user.role === "teacher" ? <Redirect to="/workhub" replace /> : user.role === "parent" ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
         {user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
