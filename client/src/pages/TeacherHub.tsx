@@ -1,6 +1,6 @@
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
 import { markEmailRead } from "@shared/hubInbox";
-import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
   BookHeart,
@@ -55,7 +55,8 @@ import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
-import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, homeShown, moveSection, showSection, type HomeSection, type HubLayout } from "@shared/hubLayout";
+import { HomeParts } from "@/components/teacher-hub/HubHomeEdit";
+import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, moveSection, showSection, type HomeSection, type HubLayout } from "@shared/hubLayout";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
@@ -893,7 +894,7 @@ function TeacherHubPage() {
           {tab === "overview" && (
             <>
               {(() => {
-                // Home in the teacher's order (Customize). Meetings and To do sit side by side when they are next to each other.
+                // Home in the teacher's order. Press and hold (or Edit Home) to arrange it right here; Customize sets the same order.
                 const part: Record<HomeSection, ReactNode> = {
                   day: (
               <HubDayHead workspace={workspace} firstName={user.displayName.split(" ")[0]} onOpenCalendar={() => setTab("calendar")} />
@@ -959,15 +960,7 @@ function TeacherHubPage() {
               </Card>
                   ),
                 };
-                const shown = homeShown(layout);
-                const out: ReactNode[] = [];
-                for (let i = 0; i < shown.length; i++) {
-                  const id = shown[i], next = shown[i + 1];
-                  const pair = (id === "meetings" && next === "todo") || (id === "todo" && next === "meetings");
-                  if (pair) { out.push(<div key={`${id}-${next}`} className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-2">{part[id]}{part[next]}</div>); i++; }
-                  else out.push(<Fragment key={id}>{part[id]}</Fragment>);
-                }
-                return out.length ? out : <Empty>Everything on Home is hidden. Turn parts back on in Customize.</Empty>;
+                return <HomeParts parts={part} layout={layout} onChange={setLayout} />;
               })()}
             </>
           )}
