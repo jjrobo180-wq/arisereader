@@ -402,6 +402,7 @@ button.mode{cursor:pointer} button.mode:hover{border-color:var(--primary)}
 .flipcard.back{border-style:solid;border-color:var(--primary);animation:pop .25s}
 .flipcard .big-ans{font-size:clamp(2.4rem,8vw,3.4rem);font-weight:800;color:var(--primary-text);line-height:1}
 .streak{display:flex;gap:8px} .streak i{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.28)} .streak i.on{background:#ffd27a;animation:pop .3s}
+.streak-card{gap:6px;flex-wrap:wrap} .streak-card i{width:16px;height:16px;background:color-mix(in oklab,var(--fg) 12%,transparent)} .streak-card i.on{background:#ffd27a}
 details.bigidea{width:100%;max-width:62ch;background:var(--primary-soft);border-radius:12px;padding:8px 12px}
 details.bigidea summary{cursor:pointer;font-weight:700;color:var(--primary-text);display:flex;gap:6px;align-items:center;min-height:32px}
 details.bigidea summary svg{width:18px;height:18px} details.bigidea p{margin:6px 0 2px;line-height:1.5}
@@ -1052,6 +1053,7 @@ const GAMES = {
   memory:{ name:'Memory Match', icon:'eye', c:'teach', note:'Flip cards to match each problem with its answer. Fewer flips is better.', secs:180 },
   balloon:{ name:'Balloon Pop', icon:'up', c:'coral', note:'Pop the balloon with the right answer before it floats away.', secs:60 },
   truefalse:{ name:'True or False', icon:'bolt', c:'sun', note:'Is the math right? Decide fast. 45 seconds.', secs:45 },
+  streak:{ name:'Streak Sprint', icon:'flame', c:'leaf', note:'Type each answer fast. Right answers in a row build your streak and multiply your points.', secs:45 },
 };
 /** Lessons whose question is about a picture (count the dots, read the clock), and ones whose short form isn't a true equation. */
 const SEE = new Set(['kcount','kmore','kshape','ksides','add20','sub20','pct','g2oddeven','g1time','g2time5','g2bar','g3fracshade','g5coord']);
@@ -1088,6 +1090,7 @@ async function startGame(kind){
     if (pool.length < 6) return toast('Not enough questions for this game yet. Try another game.');
     if (kind==='memory'){ const ps = pool.slice(0,6); GAME = { kind, cards: shuf(ps.flatMap((p,i)=>[{ id:'q'+i, side:'q', text:p.plain, key:p.answerLabel }, { id:'a'+i, side:'a', text:p.answerLabel, key:p.answerLabel }])), up:[], matched:[], flips:0, score:0, lock:false }; }
     else if (kind==='balloon') GAME = { kind, pool, qi:0, score:0, miss:0, wait:false, last:null };
+    else if (kind==='streak') GAME = { kind, pool, qi:0, score:0, miss:0, streak:0, best:0, last:null };
     else GAME = { kind, pool, qi:0, score:0, miss:0, stmt:makeStmt(pool[0]), last:null };
   }
   Object.assign(GAME, { start:Date.now(), end:Date.now()+GAMES[kind].secs*1000, over:false });
@@ -1100,7 +1103,7 @@ async function startGame(kind){
 function endGame(msg){
   if (!GAME || GAME.over) return;
   clearInterval(gameTimer); clearTimeout(GAME.bt); GAME.over = true; GAME.secs = Math.round((Date.now()-GAME.start)/1000); leavePlay();
-  toast(msg || (GAME.kind==='target' ? `Round over: ${GAME.score} pairs` : GAME.kind==='memory' ? `Time’s up: ${GAME.score} of 6 pairs` : `Round over: ${GAME.score} right`));
+  toast(msg || (GAME.kind==='target' ? `Round over: ${GAME.score} pairs` : GAME.kind==='memory' ? `Time’s up: ${GAME.score} of 6 pairs` : GAME.kind==='streak' ? `Round over: ${GAME.score} right, best streak ${GAME.best}` : `Round over: ${GAME.score} right`));
   if (S.tab==='games') render();
 }
 /* Memory Match: flip two cards; a problem and its answer stay up. */
@@ -1128,6 +1131,20 @@ function popBalloon(el, v){
   if (ok){ clearTimeout(G.bt); G.wait=true; G.score++; el.classList.add('popped'); G.last={ c:'good', t:'Pop! That’s right.' };
     setTimeout(()=>{ if (GAME!==G || G.over) return; G.wait=false; G.qi++; render(); armBalloon(); }, 320); }
   else { el.classList.add('no'); el.disabled=true; G.miss++; const f=document.getElementById('bFb'); if (f){ f.className='feedback bad'; f.textContent='Not that one. Keep looking!'; } }
+}
+/* Streak Sprint: type each answer; a right streak raises the multiplier, a miss resets it to 0. */
+const streakQ = () => GAME.pool[GAME.qi % GAME.pool.length];
+const streakMult = s => s>=10?4:s>=6?3:s>=3?2:1;
+function streakAnswer(v){
+  const G = GAME; if (!G || G.over || G.kind!=='streak') return;
+  if (String(v).trim()==='') return;
+  const p = streakQ(), ok = isRightLocal(p, v);
+  if (p.kind==='num' && Number.isNaN(parseNum(v))) { G.last={ c:'bad', t:'Type a number, like 12, −3, 3/4 or 2.5.' }; return render(); }
+  if (ok){ const mult = streakMult(G.streak); G.streak++; G.score += mult; if (G.streak>G.best) G.best = G.streak; G.last = { c:'good', t: mult>1 ? `Right! ×${mult} streak bonus.` : 'Right!' }; }
+  else { G.streak = 0; G.miss++; G.last = { c:'bad', t:`Not quite — it was ${p.answerLabel}. Streak reset.` }; }
+  G.qi++; G.flash = ok ? 'good' : 'bad';
+  const inp = document.getElementById('gAns'); if (inp) inp.value='';
+  render(); setTimeout(()=>document.getElementById('gAns')?.focus({preventScroll:true}),0);
 }
 /* True or False */
 function tfAnswer(v){
@@ -1157,6 +1174,16 @@ function gameBodyHTML(){
       <div class="skybox" aria-label="Balloons">${p.choices.map((c,i)=>`<span class="bwrap" style="left:${xs[i]}%;animation-delay:${(i*0.25).toFixed(2)}s"><button class="balloon" style="--c:${cc(cols[(G.qi+i)%cols.length])}" data-act="balloon" data-v="${esc(c.v)}">${esc(c.label)}</button></span>`).join('')}</div>
       <p class="${G.last?`feedback ${G.last.c}`:'small muted'}" id="bFb" role="status">${G.last?esc(G.last.t):'Tap the balloon with the right answer.'}</p>${quit}</div>`;
   }
+  if (G.kind==='streak'){
+    const p = streakQ(), mult = streakMult(G.streak), keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
+    return `<div class="card stack">${top('Streak Sprint', `${G.score}`, `best ${G.best}`)}
+      <div class="bq"><p class="ask">${esc(p.ask)}</p><div class="prompt long">${p.prompt}</div></div>
+      <div class="streak streak-card" aria-label="Current streak: ${G.streak}">${Array.from({length:10},(_,i)=>`<i class="${i<Math.min(G.streak,10)?'on':''}"></i>`).join('')}</div>
+      <p class="small muted tnum">${G.streak} in a row${mult>1?` · ×${mult} points`:''}</p>
+      <form class="answer" id="gForm" autocomplete="off"><label for="gAns" class="sr">Your answer</label><input id="gAns" inputmode="none" placeholder="?" autofocus spellcheck="false"><button class="btn primary lg" type="submit">Check</button></form>
+      <div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="gkey" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>
+      <p class="${G.last?`feedback ${G.last.c}`:'small muted'}" role="status">${G.last?esc(G.last.t):'Type the answer and hit Check.'}</p>${quit}</div>`;
+  }
   return `<div class="card stack">${top('True or False?', `${G.score}`, `${G.miss} missed`)}
       <div class="tf-stmt ${G.flash||''}">${esc(G.stmt.text)}</div>
       <div class="tf-btns"><button class="tf-t" data-act="tf" data-v="true">${svg('check')}True</button><button class="tf-f" data-act="tf" data-v="false">${svg('x')}False</button></div>
@@ -1164,8 +1191,8 @@ function gameBodyHTML(){
 }
 function lastRoundHTML(){
   const G = GAME; if (!G || !G.over) return '';
-  const big = G.kind==='target' ? `${G.score} pairs` : G.kind==='memory' ? `${G.score} of 6 pairs` : `${G.score} right`;
-  const sub = G.kind==='memory' ? `${G.flips} flips in ${G.secs} seconds` : G.kind==='target' ? '' : `${G.miss} missed`;
+  const big = G.kind==='target' ? `${G.score} pairs` : G.kind==='memory' ? `${G.score} of 6 pairs` : G.kind==='streak' ? `${G.score} points` : `${G.score} right`;
+  const sub = G.kind==='memory' ? `${G.flips} flips in ${G.secs} seconds` : G.kind==='target' ? '' : G.kind==='streak' ? `best streak ${G.best} · ${G.miss} missed` : `${G.miss} missed`;
   return `<div class="card"><span class="eyebrow">Last round · ${esc(GAMES[G.kind].name)}</span><div class="result-score tnum">${big}</div>${sub?`<span class="small muted">${sub}</span>`:''}</div>`;
 }
 function gamesHTML(){
@@ -1452,6 +1479,7 @@ document.addEventListener('click', async e=>{
     case 'mflipcard': return flipCard(v);
     case 'balloon': return popBalloon(el, v);
     case 'tf': return tfAnswer(v);
+    case 'gkey': { const inp=document.getElementById('gAns'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
     case 'tile': return tapTile(v);
     case 'moretime': try { const r = await apiAt('/api/club-play/request-more-time', { method:'POST', body:{ minutes:10 } }); toast(r.message || 'Request sent.'); if (playAccess) playAccess.timeRequestStatus='pending'; render(); } catch(err){ toast(err.message); } return;
     case 'joinlive': {
@@ -1487,7 +1515,7 @@ document.addEventListener('click', async e=>{
     case 'child': S.childId=+v; return render();
   }
 });
-document.addEventListener('submit', e=>{ if (e.target.id==='ansForm'){ e.preventDefault(); submitAnswer(document.getElementById('ans').value); } if (e.target.id==='mForm'){ e.preventDefault(); modeAnswer(document.getElementById('mAns').value); } });
+document.addEventListener('submit', e=>{ if (e.target.id==='ansForm'){ e.preventDefault(); submitAnswer(document.getElementById('ans').value); } if (e.target.id==='mForm'){ e.preventDefault(); modeAnswer(document.getElementById('mAns').value); } if (e.target.id==='gForm'){ e.preventDefault(); streakAnswer(document.getElementById('gAns').value); } });
 document.addEventListener('change', async e=>{
   if (e.target.id==='bsetBy'){ try { await api('/class/settings', { method:'PUT', body:{ boardBy:e.target.value } }); S.cls.settings.boardBy=e.target.value; S.board=null; render(); loadFor('board'); } catch(err){ toast(err.message); } }
 });

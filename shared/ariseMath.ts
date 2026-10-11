@@ -852,6 +852,76 @@ export const SKILLS = {
     const rnd = rndWith(r); const rows = rnd(2, 5), cols = rnd(2, 6);
     return { ask: `A rectangle is split into ${rows} rows and ${cols} columns of same-size squares. How many squares?`, prompt: `<span class="blank">?</span> squares`, plain: `${rows} rows, ${cols} columns`, viz: gridRect(rows, cols), answer: rows * cols, steps: [`Count one row: ${cols}.`, `${rows} rows of ${cols} = ${rows * cols}.`] };
   } },
+  // ─── Batch: more K–2 ───
+  kafter: { name: "What comes next", std: "K.CC.A.2", glyph: "→", c: "build", band: "k2", gen(r) {
+    const rnd = rndWith(r); const n = rnd(1, 19);
+    return { ask: "Counting up by ones, what number comes right after?", prompt: `${n}, <span class="blank">?</span>`, plain: `after ${n}`, answer: n + 1, steps: [`Count on from ${n}.`, `${n}, ${n + 1}.`] };
+  } },
+  kbefore: { name: "What comes before", std: "K.CC.A.2", glyph: "←", c: "build", band: "k2", gen(r) {
+    const rnd = rndWith(r); const n = rnd(2, 20);
+    return { ask: "Counting up by ones, what number comes right before?", prompt: `<span class="blank">?</span>, ${n}`, plain: `before ${n}`, answer: n - 1, steps: [`One less than ${n}.`, `${n - 1}, ${n}.`] };
+  } },
+  kshapesort: { name: "Flat or solid", std: "K.G.A.3", glyph: "◆", c: "create", band: "k2", gen(r) {
+    const pick = pickWith(r); const [name, flat] = pick([["circle", 1], ["square", 1], ["triangle", 1], ["sphere (ball)", 0], ["cube (box)", 0], ["cone", 0]] as const);
+    return { ask: `Is a ${name} flat (2-D) or solid (3-D)?`, prompt: `A ${name} is <span class="blank">?</span>`, plain: `${name} flat or solid`, kind: "choice", answer: flat ? "flat" : "solid",
+      choices: [{ v: "flat", label: "flat (2-D)" }, { v: "solid", label: "solid (3-D)" }], steps: [flat ? "It lies flat on paper and has no inside space." : "You can hold it, and it takes up space.", `A ${name} is ${flat ? "flat" : "solid"}.`] };
+  } },
+  kposition: { name: "Position words", std: "K.G.A.1", glyph: "↕", c: "nature", band: "k2", gen(r) {
+    const pick = pickWith(r); const [word, opp] = pick([["above", "below"], ["below", "above"], ["inside", "outside"], ["outside", "inside"], ["next to", "far from"]] as const);
+    return { ask: `A ball is drawn ${word} a box. Where is the ball?`, prompt: `<span class="blank">?</span> the box`, plain: `position: ${word}`, kind: "choice", answer: word,
+      choices: [word, opp].map((v) => ({ v, label: v })), steps: [`The picture shows the ball ${word} the box.`] };
+  } },
+  g1bonds: { name: "Number bonds to 20", std: "1.OA.D.8", glyph: "⊂⊃", c: "teach", band: "k2", gen(r) {
+    const rnd = rndWith(r); const total = rnd(11, 20), a = rnd(3, total - 3), b = total - a, missing = r() < 0.5 ? "a" : "b";
+    return { ask: "Find the missing part.", prompt: missing === "a" ? `<span class="blank">?</span> + ${b} = ${total}` : `${a} + <span class="blank">?</span> = ${total}`, plain: `? + ? = ${total}`, viz: tenFrames([{ n: a, cls: "d1" }, { n: b, cls: "d2" }]), answer: missing === "a" ? a : b,
+      steps: [`${a} and ${b} make ${total}.`, `Check: ${a} + ${b} = ${total}.`] };
+  } },
+  g1fewmore: { name: "A few more or fewer", std: "1.OA.A.1", glyph: "±", c: "help", band: "k2", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const name = pick(["Mia", "Theo", "Zoe", "Sam"]), thing = pick(["stickers", "marbles", "cards", "shells"]);
+    const start = rnd(4, 15), diff = rnd(2, 7), more = r() < 0.5;
+    return { ask: more ? `${name} has ${start} ${thing}, which is ${diff} more than their friend. How many does the friend have?` : `${name} has ${start} ${thing}, which is ${diff} fewer than their friend. How many does the friend have?`,
+      prompt: `<span class="blank">?</span>`, plain: more ? `${start} − ${diff}` : `${start} + ${diff}`, answer: more ? start - diff : start + diff,
+      steps: more ? [`"More than" the friend means ${name} has extra, so the friend has less.`, `${start} ${MINUS} ${diff} = ${start - diff}.`] : [`"Fewer than" the friend means ${name} has less, so the friend has more.`, `${start} + ${diff} = ${start + diff}.`] };
+  } },
+  g1clocksort: { name: "Hour or half hour", std: "1.MD.B.3", glyph: "🕑", c: "nature", band: "k2", gen(r) {
+    const rnd = rndWith(r); const h = rnd(1, 12), half = r() < 0.5;
+    return { ask: `The short hand is between numbers and the long hand is on the ${half ? "6" : "12"}. Is this an exact hour or a half hour?`, prompt: `<span class="blank">?</span>`, plain: half ? "half hour" : "hour", kind: "choice", answer: half ? "half hour" : "hour",
+      choices: [{ v: "hour", label: "exact hour" }, { v: "half hour", label: "half hour" }], steps: [half ? "Long hand on the 6 means 30 minutes past: a half hour." : "Long hand on the 12 means an exact hour.", `${h}:${half ? "30" : "00"} is a ${half ? "half hour" : "hour"}.`] };
+  } },
+  g2coins2: { name: "Count mixed coins", std: "2.MD.C.8", glyph: "¢", c: "sun", band: "k2", gen(r) {
+    const pick = pickWith(r), rnd = rndWith(r); const kinds = [25, 10, 5, 1];
+    const coins: number[] = []; let total = 0; const count = rnd(3, 6);
+    for (let i = 0; i < count; i++) { const v = pick(kinds); coins.push(v); total += v; }
+    coins.sort((a, b) => b - a);
+    return { ask: "Add up the coins, biggest first.", prompt: `<span class="blank">?</span>¢`, plain: `${coins.join("+")}¢`, viz: coinsSvg(coins), answer: total, steps: ["Start with the quarters, then dimes, then nickels, then pennies.", `${coins.join(" + ")} = ${total}¢.`] };
+  } },
+  g2measure: { name: "Measure with a ruler", std: "2.MD.A.1", glyph: "📏", c: "serve", band: "k2", gen(r) {
+    const rnd = rndWith(r); const n = rnd(2, 11);
+    const ticks = range(0, 12).map((v) => `<line x1="${20 + v * 24}" x2="${20 + v * 24}" y1="20" y2="${v % 2 === 0 ? 32 : 28}" class="axis"/>` + (v % 2 === 0 ? `<text x="${20 + v * 24}" y="46" text-anchor="middle" font-size="9" fill="currentColor">${v}</text>` : "")).join("");
+    const viz = `<svg class="viz" viewBox="0 0 320 54" style="width:320px" role="img" aria-label="A ruler with a bar ${n} inches long"><line x1="20" x2="${20 + 12 * 24}" y1="20" y2="20" class="axis"/>${ticks}<rect x="20" y="4" width="${n * 24}" height="10" class="unit" rx="2"/></svg>`;
+    return { ask: "How many inches long is the bar?", prompt: `<span class="blank">?</span> inches`, plain: `${n} inches`, viz, answer: n, steps: [`The bar starts at 0 and ends at ${n}.`, `It is ${n} inches long.`] };
+  } },
+  g2addsub3: { name: "Add three two-digit numbers", std: "2.NBT.B.6", glyph: "+++", c: "teach", band: "k2", gen(r) {
+    const rnd = rndWith(r); const a = rnd(10, 40), b = rnd(10, 40), c = rnd(10, 40), s = a + b + c;
+    return { ask: "Add all three.", prompt: `${a} + ${b} + ${c} = <span class="blank">?</span>`, plain: `${a} + ${b} + ${c}`, answer: s, steps: [`${a} + ${b} = ${a + b}.`, `${a + b} + ${c} = ${s}.`] };
+  } },
+  g2fraceq: { name: "Equal shares", std: "2.G.A.3", glyph: "◐", c: "help", band: "k2", gen(r) {
+    const pick = pickWith(r); const [d, word] = pick([[2, "halves"], [3, "thirds"], [4, "fourths"]] as const);
+    return { ask: `A shape is cut into ${d} equal pieces. What do you call each piece?`, prompt: `each piece is one of the <span class="blank">?</span>`, plain: `${d} equal pieces`, viz: fractionBars(1, d, d, d), kind: "choice", answer: word,
+      choices: ["halves", "thirds", "fourths"].map((v) => ({ v, label: v })), steps: ["2 equal pieces = halves. 3 = thirds. 4 = fourths.", `${d} equal pieces = ${word}.`] };
+  } },
+  g2pictograph: { name: "Read a picture graph", std: "2.MD.D.10", glyph: "🖼", c: "help", band: "k2", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const names = ["Apples", "Pears", "Grapes"], icon = pick(["🍎", "⭐", "●"]);
+    const counts = names.map(() => rnd(1, 7)); const q = rnd(0, names.length - 1);
+    const rows = names.map((nm, i) => `<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:64px;font-size:12px">${nm}</span><span style="letter-spacing:3px">${icon.repeat(counts[i])}</span></div>`).join("");
+    return { ask: `Each ${icon} stands for 1. How many ${names[q]}?`, prompt: `<span class="blank">?</span>`, plain: `${names[q]} count`, viz: `<div class="viz" role="img" aria-label="Picture graph">${rows}</div>`, answer: counts[q],
+      steps: [`Count the ${icon} next to ${names[q]}.`, `There are ${counts[q]}.`] };
+  } },
+  g2addsubbal: { name: "Balance: missing number", std: "2.OA.B.2", glyph: "=", c: "serve", band: "k2", gen(r) {
+    const rnd = rndWith(r); const a = rnd(5, 40), b = rnd(5, 40), s = a + b, side = r() < 0.5;
+    return { ask: "What number makes both sides equal?", prompt: side ? `${a} + <span class="blank">?</span> = ${s}` : `<span class="blank">?</span> + ${b} = ${s}`, plain: side ? `${a} + ? = ${s}` : `? + ${b} = ${s}`, viz: balance(side ? `${a} + ?` : `? + ${b}`, N(s)), answer: side ? b : a,
+      steps: [`Both sides of = must match.`, side ? `${s} ${MINUS} ${a} = ${b}.` : `${s} ${MINUS} ${b} = ${a}.`] };
+  } },
   // ─── Batch: grades 3–5 ───
   g3groups: { name: "Equal groups", std: "3.OA.A.1", glyph: "⊞", c: "serve", band: "g35", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const g = rnd(2, 9), n = rnd(2, 9), thing = pick(["bags with", "boxes with", "plates with", "vases with"]), item = pick(["apples", "crayons", "cookies", "flowers"]);
@@ -1007,6 +1077,85 @@ export const SKILLS = {
     const pick = pickWith(r); const [q, a] = pick([["Is every square a rectangle?", "yes"], ["Is every rectangle a square?", "no"], ["Is every square a rhombus?", "yes"], ["Is every rhombus a square?", "no"], ["Is every rectangle a parallelogram?", "yes"], ["Is every trapezoid a parallelogram?", "no"]] as const);
     return { ask: q, prompt: q, plain: q, kind: "choice", answer: a, choices: [{ v: "yes", label: "yes" }, { v: "no", label: "no" }], steps: ["Think about what each shape must have.", a === "yes" ? "The first shape always has everything the second needs." : "The first shape doesn't always have what the second needs.", `So: ${a}.`] };
   } },
+  // ─── Batch: more grades 3–5 ───
+  g3elapsed2: { name: "Elapsed time in minutes", std: "3.MD.A.1", glyph: "⏱", c: "nature", band: "g35", gen(r) {
+    const rnd = rndWith(r); const startH = rnd(1, 11), startM = pickWith(r)([0, 15, 30, 45]), mins = rnd(10, 50);
+    const total = startH * 60 + startM + mins, endH = Math.floor(total / 60) % 12 || 12, endM = total % 60;
+    const fmt = (h: number, m: number) => `${h}:${String(m).padStart(2, "0")}`;
+    return { ask: `A movie starts at ${fmt(startH, startM)} and lasts ${mins} minutes. What time does it end?`, prompt: `<span class="blank">?</span>`, plain: `${fmt(startH, startM)} + ${mins} min`, answer: Number(`${endH}.${String(endM).padStart(2, "0")}`), steps: [`${fmt(startH, startM)} + ${mins} minutes.`, `That ends at ${fmt(endH, endM)}.`, `Type it as ${endH}.${String(endM).padStart(2, "0")}.` ] };
+  } },
+  g3multword2: { name: "Multiplication word problems", std: "3.OA.A.3", glyph: "✕", c: "serve", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const rows = rnd(3, 9), cols = rnd(3, 9), thing = pick(["chairs", "desks", "trees", "tiles"]);
+    return { ask: `A garden has ${rows} rows of ${thing}, with ${cols} in each row. How many ${thing} in all?`, prompt: `${rows} × ${cols} = <span class="blank">?</span>`, plain: `${rows} × ${cols}`, viz: dotArray(rows, cols), answer: rows * cols, steps: [`${rows} rows of ${cols}.`, `${rows} × ${cols} = ${rows * cols}.`] };
+  } },
+  g4lineplot: { name: "Read a line plot", std: "4.MD.B.4", glyph: "·|·", c: "help", band: "g35", gen(r) {
+    const rnd = rndWith(r); const vals = [1, 2, 3, 4].map(() => rnd(0, 4));
+    const max = Math.max(1, ...vals), row = (i: number) => "●".repeat(vals[i]);
+    const viz = `<div class="viz" role="img" aria-label="Line plot"><div style="display:flex;gap:18px;align-items:flex-end;font-size:14px">${vals.map((_, i) => `<div style="text-align:center"><div style="min-height:${max * 16}px;display:flex;flex-direction:column-reverse">${row(i)}</div><div style="border-top:1px solid currentColor;margin-top:2px;font-size:11px">${i + 1}</div></div>`).join("")}</div></div>`;
+    const q = rnd(0, 3);
+    return { ask: `Each dot is one. How many dots are above ${q + 1}?`, prompt: `<span class="blank">?</span>`, plain: `dots above ${q + 1}`, viz, answer: vals[q], steps: [`Count the dots stacked above ${q + 1}.`, `There are ${vals[q]}.`] };
+  } },
+  g4angle2: { name: "Measure an angle", std: "4.MD.C.6", glyph: "∠", c: "create", band: "g35", gen(r) {
+    const rnd = rndWith(r); const deg = rnd(2, 17) * 10;
+    const rad = (deg * Math.PI) / 180, x = 70 + 60 * Math.cos(rad), y = 70 - 60 * Math.sin(rad);
+    const viz = `<svg class="viz" viewBox="0 0 140 90" style="width:200px" role="img" aria-label="An angle of ${deg} degrees"><line x1="70" y1="70" x2="140" y2="70" class="axis"/><line x1="70" y1="70" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="beam"/><path d="M${90} 70 A20 20 0 0 0 ${(70 + 20 * Math.cos(rad)).toFixed(1)} ${(70 - 20 * Math.sin(rad)).toFixed(1)}" fill="none" class="axis"/></svg>`;
+    return { ask: `This angle measures ${deg}°. Is it acute, right, or obtuse?`, prompt: `<span class="blank">?</span>`, plain: `${deg}° angle type`, viz, kind: "choice", answer: deg < 90 ? "acute" : deg === 90 ? "right" : "obtuse",
+      choices: [{ v: "acute", label: "acute" }, { v: "right", label: "right" }, { v: "obtuse", label: "obtuse" }], steps: ["Less than 90° is acute, exactly 90° is right, more than 90° is obtuse.", `${deg}° is ${deg < 90 ? "acute" : deg === 90 ? "right" : "obtuse"}.`] };
+  } },
+  g4fracword: { name: "Fraction word problems", std: "4.NF.B.3d", glyph: "+⅟", c: "teach", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const d = pick([4, 5, 6, 8]), n1 = rnd(1, d - 2), n2 = rnd(1, d - n1 - 1), name = pick(["Ana", "Theo", "Mia", "Jon"]);
+    return { ask: `${name} ate ${frac(n1, d)} of a pizza, then ate ${frac(n2, d)} more. How much did ${name} eat in all? Enter the top number (the bottom is ${d}).`, prompt: `${frac(n1, d)} + ${frac(n2, d)} = ${frac('<span class="blank">?</span>', d)}`, plain: `${n1}/${d} + ${n2}/${d}`, viz: fractionBars(n1, d, n2, d), answer: n1 + n2,
+      steps: ["Same bottom number, so add the tops.", `${n1} + ${n2} = ${n1 + n2}.`, `${frac(n1 + n2, d)} in all.`] };
+  } },
+  g5volword: { name: "Volume word problems", std: "5.MD.C.5", glyph: "▦³", c: "nature", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const l = rnd(2, 8), w = rnd(2, 8), h = rnd(2, 8), thing = pick(["toy box", "fish tank", "storage bin", "planter"]);
+    return { ask: `A ${thing} is ${l} in by ${w} in by ${h} in. How many cubic inches does it hold?`, prompt: `${l} × ${w} × ${h} = <span class="blank">?</span>`, plain: `${l} × ${w} × ${h}`, answer: l * w * h, steps: [`Volume = length × width × height.`, `${l} × ${w} = ${l * w}.`, `${l * w} × ${h} = ${l * w * h}.`] };
+  } },
+  g5deccompare2: { name: "Compare decimals to thousandths", std: "5.NBT.A.3b", glyph: ".", c: "teach", band: "g35", gen(r) {
+    const rnd = rndWith(r); const a = rnd(100, 9999) / 1000, b = rnd(100, 9999) / 1000;
+    const sym = a > b ? ">" : a < b ? "<" : "=";
+    return { ask: "Which symbol makes this true?", prompt: `${a} <span class="blank">?</span> ${b}`, plain: `${a} ? ${b}`, kind: "choice", answer: sym, choices: ["<", "=", ">"].map((v) => ({ v, label: v })),
+      steps: ["Compare from the left: ones, then tenths, then hundredths, then thousandths.", `${a} ${sym} ${b}.`] };
+  } },
+  g5graph: { name: "Plot ordered pairs", std: "5.G.A.1", glyph: "(x,y)", c: "fly", band: "g35", gen(r) {
+    const rnd = rndWith(r); const x = rnd(0, 8), y = rnd(0, 8);
+    return { ask: "Which point is this?", prompt: "", plain: `(${x}, ${y})`, long: true, viz: pointsPlane([[x, y]]) ?? numberLine(x, 0, 8), kind: "choice", answer: `${x},${y}`,
+      choices: [[x, y], [y, x], [x, y === 8 ? 0 : y + 1], [x === 8 ? 0 : x + 1, y]].map(([a, b]) => `${a},${b}`).filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 4).map((v) => ({ v, label: `(${v.replace(",", ", ")})` })),
+      steps: ["Go right x, then up y, starting at (0, 0).", `(${x}, ${y})`] };
+  } },
+  g4factorword: { name: "Factor pairs", std: "4.OA.B.4", glyph: "×=", c: "create", band: "g35", gen(r) {
+    const pick = pickWith(r); const n = pick([12, 16, 18, 20, 24, 28, 30, 36]);
+    const factors: number[] = []; for (let i = 1; i <= n; i++) if (n % i === 0) factors.push(i);
+    const miss = pick(factors.filter((f) => f !== 1 && f !== n));
+    return { ask: `${n} = ${miss} × <span class="blank">?</span>. What number completes the factor pair?`, prompt: `${miss} × <span class="blank">?</span> = ${n}`, plain: `${miss} × ? = ${n}`, answer: n / miss, steps: [`${n} ÷ ${miss} = ${n / miss}.`, `${miss} × ${n / miss} = ${n}.`] };
+  } },
+  g3perimarea: { name: "Perimeter or area?", std: "3.MD.D.8", glyph: "▭", c: "serve", band: "g35", gen(r) {
+    const pick = pickWith(r); const [q, a] = pick([
+      ["How much fence goes around a yard?", "perimeter"], ["How much carpet covers a floor?", "area"],
+      ["How far do you walk around the edge of a field?", "perimeter"], ["How much paint covers a wall?", "area"],
+      ["How much ribbon wraps around a box's top?", "perimeter"], ["How many tiles cover a kitchen floor?", "area"],
+    ] as const);
+    return { ask: q, prompt: q, plain: q, kind: "choice", answer: a, choices: [{ v: "perimeter", label: "perimeter" }, { v: "area", label: "area" }], steps: ["Perimeter is the distance around the edge. Area is how much surface is covered.", `This asks about ${a}.`] };
+  } },
+  g4compare2: { name: "Order multi-digit numbers", std: "4.NBT.A.2", glyph: "<>", c: "teach", band: "g35", gen(r) {
+    const rnd = rndWith(r); const nums = new Set<number>(); while (nums.size < 3) nums.add(rnd(1000, 99999));
+    const list = [...nums], sorted = [...list].sort((a, b) => b - a);
+    return { ask: "Which number is the greatest?", prompt: list.join(", "), plain: `greatest of ${list.join(", ")}`, answer: sorted[0], steps: ["Compare from the left-most digit.", `The greatest is ${sorted[0]}.`] };
+  } },
+  g5linegraph: { name: "Read a line graph", std: "5.G.A.2", glyph: "📈", c: "help", band: "g35", gen(r) {
+    const rnd = rndWith(r); const start = rnd(2, 10), step = rnd(1, 4);
+    const pts = [0, 1, 2, 3].map((i) => start + i * step);
+    const W = 220, H = 100, pad = 24, max = Math.max(...pts) + 2;
+    const X = (i: number) => pad + (i * (W - 2 * pad)) / 3, Y = (v: number) => H - pad - (v * (H - 2 * pad)) / max;
+    const path = pts.map((v, i) => `${X(i)},${Y(v).toFixed(1)}`).join(" ");
+    const dots = pts.map((v, i) => `<circle cx="${X(i)}" cy="${Y(v).toFixed(1)}" r="3.5" class="pt"/>`).join("");
+    const viz = `<svg class="viz" viewBox="0 0 ${W} ${H}" style="width:260px" role="img" aria-label="Line graph"><polyline points="${path}" fill="none" class="ln"/>${dots}</svg>`;
+    return { ask: "Each point is one hour apart. What is the value at the last point shown?", prompt: `<span class="blank">?</span>`, plain: "last point", viz, answer: pts[3], steps: [`The line goes up by ${step} each hour.`, `${start}, ${start + step}, ${start + 2 * step}, ${pts[3]}.`] };
+  } },
+  g3timesword: { name: "Times as many", std: "3.OA.A.1", glyph: "×many", c: "serve", band: "g35", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const base = rnd(3, 9), times = rnd(2, 6), name1 = pick(["Leo", "Maya", "Finn"]), name2 = pick(["Rosa", "Eli", "Jade"]);
+    return { ask: `${name1} has ${base} toy cars. ${name2} has ${times} times as many. How many does ${name2} have?`, prompt: `${times} × ${base} = <span class="blank">?</span>`, plain: `${times} × ${base}`, answer: times * base, steps: [`"${times} times as many" means multiply.`, `${times} × ${base} = ${times * base}.`] };
+  } },
   // ─── Batch: grades 6–8 ───
   g6ratio: { name: "Ratios", std: "6.RP.A.1", glyph: "a:b", c: "nature", band: "g68", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const a = rnd(1, 9), b = rnd(1, 9), k = rnd(2, 6), [x, y] = pick([["red", "blue"], ["cats", "dogs"], ["boys", "girls"]] as const);
@@ -1139,6 +1288,83 @@ export const SKILLS = {
       prompt: cone ? `⅓ × 3.14 × ${rad}² × ${h} ≈ <span class="blank">?</span>` : `4/3 × 3.14 × ${rad}³ ≈ <span class="blank">?</span>`, plain: cone ? `cone r ${rad} h ${h}` : `sphere r ${rad}`, long: true, viz: solidSvg(cone ? "cone" : "sphere", `r = ${rad}`, `h = ${h}`), answer: ans,
       steps: [cone ? "Cone: V = ⅓ × π × r² × h." : "Sphere: V = 4/3 × π × r³.", `≈ ${Math.round(exact * 100) / 100}, rounded to ${ans}.`] };
   } },
+  // ─── Batch: more grades 6–8 ───
+  g6percent2: { name: "Percent of a number", std: "6.RP.A.3c", glyph: "%", c: "nature", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const pct = pick([10, 20, 25, 50, 75]), base = rnd(2, 40) * 4;
+    return { ask: `What is ${pct}% of ${base}?`, prompt: `${pct}% × ${base} = <span class="blank">?</span>`, plain: `${pct}% of ${base}`, answer: (pct * base) / 100, steps: [`${pct}% = ${pct}/100.`, `${pct}/100 × ${base} = ${(pct * base) / 100}.`] };
+  } },
+  g6absval: { name: "Absolute value", std: "6.NS.C.7c", glyph: "|x|", c: "tech", band: "g68", gen(r) {
+    const rnd = rndWith(r); const a = rnd(-20, 20) || 5;
+    return { ask: `What is the absolute value of ${N(a)}?`, prompt: `|${N(a)}| = <span class="blank">?</span>`, plain: `|${a}|`, answer: Math.abs(a), steps: ["Absolute value is the distance from zero, always positive.", `|${N(a)}| = ${Math.abs(a)}.`] };
+  } },
+  g6equation: { name: "One-step equations", std: "6.EE.B.7", glyph: "x=", c: "serve", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const x = rnd(2, 20), op = pick(["+", "-", "×"] as const), b = rnd(2, 15);
+    const left = op === "+" ? x + b : op === "-" ? x - b : x * b;
+    const prompt = op === "+" ? `x + ${b} = ${left}` : op === "-" ? `x ${MINUS} ${b} = ${N(left)}` : `${b}x = ${left}`;
+    return { ask: "Solve for x.", prompt, plain: prompt, answer: x, steps: [op === "+" ? `Subtract ${b} from both sides.` : op === "-" ? `Add ${b} to both sides.` : `Divide both sides by ${b}.`, `x = ${x}.`] };
+  } },
+  g7percentchange: { name: "Percent increase and decrease", std: "7.RP.A.3", glyph: "%Δ", c: "nature", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const base = rnd(4, 40) * 5, pct = pick([10, 20, 25, 50]), up = r() < 0.5, thing = pick(["shirt", "bike", "backpack", "game"]);
+    const amt = (pct * base) / 100, result = up ? base + amt : base - amt;
+    return { ask: `A ${thing} costs $${base}. The price goes ${up ? "up" : "down"} by ${pct}%. What is the new price?`, prompt: `$${base} ${up ? "+" : MINUS} ${pct}% = <span class="blank">?</span>`, plain: `$${base} ${up ? "+" : "−"} ${pct}%`, answer: result, steps: [`${pct}% of ${base} is $${amt}.`, `${base} ${up ? "+" : MINUS} ${amt} = $${result}.`] };
+  } },
+  g7simpleint: { name: "Simple interest", std: "7.RP.A.3", glyph: "I=prt", c: "nature", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const p = rnd(2, 20) * 50, rate = pick([2, 3, 4, 5, 6]), t = rnd(1, 4);
+    return { ask: `You deposit $${p} at ${rate}% simple interest per year. How much interest do you earn after ${t} year${t > 1 ? "s" : ""}?`, prompt: `${p} × ${rate}% × ${t} = <span class="blank">?</span>`, plain: `I = ${p} × ${rate}% × ${t}`, answer: (p * rate * t) / 100, steps: ["Interest = principal × rate × time.", `${p} × ${rate / 100} × ${t} = ${(p * rate * t) / 100}.`] };
+  } },
+  g7twostep: { name: "Two-step equations", std: "7.EE.B.4a", glyph: "ax+b", c: "serve", band: "g68", gen(r) {
+    const rnd = rndWith(r); const a = rnd(2, 9), x = rnd(-6, 12), b = rnd(-15, 15), c = a * x + b;
+    return { ask: "Solve for x.", prompt: `${a}x ${b < 0 ? MINUS : "+"} ${Math.abs(b)} = ${N(c)}`, plain: `${a}x + ${b} = ${c}`, answer: x, steps: [`${b < 0 ? "Add" : "Subtract"} ${Math.abs(b)} from both sides: ${a}x = ${N(c - b)}.`, `Divide by ${a}: x = ${N(x)}.`] };
+  } },
+  g7circle: { name: "Circumference and area of circles", std: "7.G.B.4", glyph: "○", c: "create", band: "g68", gen(r) {
+    const rnd = rndWith(r); const rad = rnd(2, 12), area = r() < 0.5;
+    const ans = area ? Math.round(314 * rad * rad) / 100 : Math.round(628 * rad) / 100;
+    return { ask: `A circle has radius ${rad}. Using π ≈ 3.14, find its ${area ? "area" : "circumference"} to the nearest hundredth.`, prompt: area ? `3.14 × ${rad}² = <span class="blank">?</span>` : `2 × 3.14 × ${rad} = <span class="blank">?</span>`, plain: `${area ? "area" : "circumference"} r=${rad}`, answer: ans, steps: [area ? "Area = π × r²." : "Circumference = 2 × π × r.", `≈ ${ans}.`] };
+  } },
+  g8linear: { name: "Slope and y-intercept", std: "8.F.B.4", glyph: "y=mx+b", c: "fly", band: "g68", gen(r) {
+    const rnd = rndWith(r); const m = rnd(-6, 6) || 2, b = rnd(-10, 10), askM = r() < 0.5;
+    const eq = `y = ${m === 1 ? "" : m === -1 ? MINUS : N(m)}x ${b < 0 ? MINUS : "+"} ${Math.abs(b)}`;
+    return { ask: `In the equation ${eq}, what is the ${askM ? "slope" : "y-intercept"}?`, prompt: eq, plain: eq, answer: askM ? m : b, steps: ["The equation is y = mx + b: m is the slope, b is the y-intercept.", `The ${askM ? "slope" : "y-intercept"} is ${N(askM ? m : b)}.`] };
+  } },
+  g8pythagorean: { name: "The Pythagorean theorem", std: "8.G.B.7", glyph: "a²+b²", c: "coral", band: "g68", gen(r) {
+    const pick = pickWith(r); const [a, b, c] = pick([[3, 4, 5], [6, 8, 10], [5, 12, 13], [8, 15, 17], [9, 12, 15], [7, 24, 25]] as const), askHyp = r() < 0.5;
+    const unknown = askHyp ? c : pick([a, b]);
+    const [leg1, leg2] = unknown === c ? [a, b] : unknown === a ? [b, c] : [a, c];
+    const ans = unknown === c ? c : Math.round(Math.sqrt(c * c - (unknown === a ? b : a) * (unknown === a ? b : a)));
+    return { ask: `A right triangle has legs of ${unknown === c ? `${a} and ${b}` : `${leg1} and the hypotenuse ${leg2}`}. Find the ${unknown === c ? "hypotenuse" : "missing leg"}.`, prompt: `<span class="blank">?</span>`, plain: `right triangle, find side`, viz: triangleAngles("", "", ""), answer: unknown === c ? c : ans,
+      steps: ["a² + b² = c², where c is the hypotenuse.", unknown === c ? `${a}² + ${b}² = ${a * a + b * b}, so c = ${c}.` : `${c}² ${MINUS} ${(unknown === a ? b : a)}² = ${c * c - (unknown === a ? b : a) * (unknown === a ? b : a)}, so the leg = ${unknown === c ? c : ans}.`] };
+  } },
+  g8scatter: { name: "Scatter plots and trends", std: "8.SP.A.1", glyph: "⠿", c: "nature", band: "g68", gen(r) {
+    const pick = pickWith(r); const [desc, ans] = pick([
+      ["As study time goes up, test scores go up.", "positive"], ["As a car gets older, its value goes down.", "negative"],
+      ["As shoe size goes up, favorite color changes randomly.", "no association"], ["As screen brightness goes up, battery life goes down.", "negative"],
+      ["As practice hours go up, free-throw percentage goes up.", "positive"],
+    ] as const);
+    return { ask: `${desc} What kind of association is this?`, prompt: desc, plain: desc, kind: "choice", answer: ans, choices: [{ v: "positive", label: "positive" }, { v: "negative", label: "negative" }, { v: "no association", label: "no association" }],
+      steps: ["Positive: both go up together. Negative: one goes up while the other goes down.", `This is ${ans}.`] };
+  } },
+  g8bivariate: { name: "Two-way tables", std: "8.SP.A.4", glyph: "⊞⊞", c: "help", band: "g68", gen(r) {
+    const rnd = rndWith(r); const a = rnd(5, 20), b = rnd(5, 20), c = rnd(5, 20), d = rnd(5, 20), rowTotal = r() < 0.5;
+    return { ask: `A survey has ${a} yes/dogs, ${b} no/dogs, ${c} yes/cats, ${d} no/cats. How many people chose "dogs" in all?`, prompt: `${a} + ${b} = <span class="blank">?</span>`, plain: `${a} + ${b}`, answer: a + b, steps: ["Add the column (or row) you need.", `${a} + ${b} = ${a + b}.`] };
+  } },
+  g6nets: { name: "Nets of 3-D shapes", std: "6.G.A.4", glyph: "⬡", c: "create", band: "g68", gen(r) {
+    const pick = pickWith(r); const [shape, faces] = pick([["cube", 6], ["rectangular prism", 6], ["triangular prism", 5], ["square pyramid", 5], ["triangular pyramid", 4]] as const);
+    return { ask: `How many faces does the net of a ${shape} fold into?`, prompt: `${shape}: <span class="blank">?</span> faces`, plain: `faces of a ${shape}`, answer: faces, steps: ["Unfold the solid flat — each flat piece in the net becomes one face.", `A ${shape} has ${faces} faces.`] };
+  } },
+  g7probmodel: { name: "Probability from a model", std: "7.SP.C.7", glyph: "P=", c: "fly", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const total = pick([4, 5, 6, 8, 10]), fav = rnd(1, total - 1);
+    const g = gcd(fav, total);
+    return { ask: `A spinner has ${total} equal sections, ${fav} of them blue. What is the probability of landing on blue? Enter the top number (the bottom is ${total / g}).`, prompt: `P(blue) = ${frac(fav, total)} = ${frac('<span class="blank">?</span>', total / g)}`, plain: `${fav}/${total} simplified`, answer: fav / g, steps: [`Divide top and bottom by ${g}.`, `${fav} ÷ ${g} = ${fav / g}, and ${total} ÷ ${g} = ${total / g}.`] };
+  } },
+  g6expwrite: { name: "Write algebraic expressions", std: "6.EE.A.2a", glyph: "x+n", c: "serve", band: "g68", gen(r) {
+    const rnd = rndWith(r), pick = pickWith(r); const n = rnd(3, 12), [desc, build] = pick([
+      [`${n} more than a number`, (x: string) => `${x} + ${n}`], [`${n} less than a number`, (x: string) => `${x} ${MINUS} ${n}`],
+      [`a number times ${n}`, (x: string) => `${n}${x}`], [`a number divided by ${n}`, (x: string) => `${x}/${n}`],
+    ] as const);
+    const correct = build("x"), wrongs = [build("x").replace(String(n), String(n + 1)), `x${n === 0 ? "" : ""} ${MINUS} ${n}` === correct ? `x + ${n}` : `x ${MINUS} ${n}`, `${n}x` === correct ? `x + ${n}` : `${n}x`].filter((w) => w !== correct).slice(0, 3);
+    const choices = [correct, ...wrongs].filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 4).map((v) => ({ v, label: v }));
+    return { ask: `Which expression means "${desc}"?`, prompt: desc, plain: desc, kind: "choice", answer: correct, choices, steps: ["Translate the words in order: the number, then the operation.", `"${desc}" → ${correct}.`] };
+  } },
   // ─── Batch: high school ───
   hsradical: { name: "Rational exponents", std: "HSN-RN.A.2", glyph: "x^½", c: "tech", band: "g912", gen(r) {
     const pick = pickWith(r); const [b, n, m] = pick([[8, 3, 2], [27, 3, 2], [16, 4, 3], [4, 2, 3], [9, 2, 3], [32, 5, 2], [64, 3, 2], [25, 2, 3], [81, 4, 3]] as const), root = Math.round(b ** (1 / n)), ans = root ** m;
@@ -1199,6 +1425,70 @@ export const SKILLS = {
   hsabsval: { name: "Absolute value equations", std: "HSA-REI.B.3", glyph: "|x|", c: "tech", band: "g912", gen(r) {
     const rnd = rndWith(r); const a = rnd(-9, 9), k = rnd(1, 12);
     return { ask: "Solve. Enter the larger solution.", prompt: `|x ${a < 0 ? "+" : MINUS} ${Math.abs(a)}| = ${k}`, plain: `|x − ${a}| = ${k}`, answer: a + k, steps: [`x ${a < 0 ? "+" : MINUS} ${Math.abs(a)} = ${k} or ${N(-k)}.`, `x = ${N(a + k)} or x = ${N(a - k)}.`, `The larger is ${N(a + k)}.`] };
+  } },
+  // ─── Batch: more high school ───
+  hsvertex: { name: "Vertex form of a parabola", std: "HSF-IF.C.8a", glyph: "a(x−h)²+k", c: "coral", band: "g912", gen(r) {
+    const rnd = rndWith(r); const h = rnd(-8, 8), k = rnd(-9, 9), askH = r() < 0.5;
+    const eq = `y = (x ${h < 0 ? "+" : MINUS} ${Math.abs(h)})² ${k < 0 ? MINUS : "+"} ${Math.abs(k)}`;
+    return { ask: `For ${eq}, what is the ${askH ? "x" : "y"}-coordinate of the vertex?`, prompt: eq, plain: eq, answer: askH ? h : k, steps: ["In y = (x − h)² + k, the vertex is at (h, k).", `The vertex is (${N(h)}, ${N(k)}), so the ${askH ? "x" : "y"}-coordinate is ${N(askH ? h : k)}.`] };
+  } },
+  hsquadform: { name: "The quadratic formula", std: "HSA-REI.B.4b", glyph: "(−b±√…)/2a", c: "coral", band: "g912", gen(r) {
+    const pick = pickWith(r); const [a, b, c, x1, x2] = pick([[1, -1, -6, 3, -2], [1, -5, 6, 3, 2], [1, 1, -12, 3, -4], [1, -7, 10, 5, 2], [1, 2, -15, 3, -5], [1, -3, -10, 5, -2]] as const), larger = r() < 0.5;
+    return { ask: "Solve using the quadratic formula. Enter the larger solution.", prompt: `${a === 1 ? "" : a}x² ${b < 0 ? MINUS : "+"} ${Math.abs(b)}x ${c < 0 ? MINUS : "+"} ${Math.abs(c)} = 0`, plain: `${a}x² ${sgn(b)}x ${sgn(c)} = 0`, long: true, answer: Math.max(x1, x2),
+      steps: ["x = (−b ± √(b² − 4ac)) / 2a.", `Discriminant: ${P(b)}² − 4(${a})(${P(c)}) = ${b * b - 4 * a * c}.`, `x = ${Math.min(x1, x2)} or ${Math.max(x1, x2)}; the larger is ${Math.max(x1, x2)}.`] };
+  } },
+  hscomppoly: { name: "Multiply polynomials", std: "HSA-APR.A.1", glyph: "(x+a)(x²+…)", c: "serve", band: "g912", gen(r) {
+    const rnd = rndWith(r); const a = rnd(-6, 6) || 2, b = rnd(1, 6), askLead = r() < 0.5;
+    return { ask: `Multiply (x ${a < 0 ? MINUS : "+"} ${Math.abs(a)})(x² + ${b}). What is the ${askLead ? "coefficient of x²" : "constant term"}?`, prompt: `(x ${sgn(a)})(x² + ${b})`, plain: `(x ${sgn(a)})(x² + ${b})`, long: true, answer: askLead ? a : a * b,
+      steps: ["Distribute x and a across (x² + b).", `x · x² = x³; x · ${b} = ${b}x; ${N(a)} · x² = ${N(a)}x²; ${N(a)} · ${b} = ${N(a * b)}.`, `The x² coefficient is ${N(a)}; the constant is ${N(a * b)}.`] };
+  } },
+  hsexpdecay: { name: "Exponential decay", std: "HSF-LE.A.1c", glyph: "½ˣ", c: "fly", band: "g912", gen(r) {
+    const rnd = rndWith(r); const start = rnd(2, 40) * 10, t = rnd(2, 4);
+    return { ask: `A radioactive sample of ${start} grams loses half its mass every year. How much is left after ${t} years?`, prompt: `${start} × (½)<sup>${t}</sup> = <span class="blank">?</span>`, plain: `${start} × (1/2)^${t}`, answer: start / 2 ** t, steps: [`Halving ${t} times divides by ${2 ** t}.`, `${start} ÷ ${2 ** t} = ${start / 2 ** t}.`] };
+  } },
+  hsdomain: { name: "Domain and range from a graph", std: "HSF-IF.B.5", glyph: "D,R", c: "fly", band: "g912", gen(r) {
+    const rnd = rndWith(r); const lo = rnd(-8, 0), hi = lo + rnd(4, 14), askDomain = r() < 0.5;
+    return { ask: `A graph exists only for x between ${lo} and ${hi} (inclusive). What is the ${askDomain ? "smallest" : "largest"} value of x in its domain?`, prompt: `x ∈ [${lo}, ${hi}]`, plain: `domain [${lo}, ${hi}]`, answer: askDomain ? lo : hi, steps: ["The domain is every x-value the graph covers.", `The ${askDomain ? "smallest" : "largest"} is ${N(askDomain ? lo : hi)}.`] };
+  } },
+  hstransform: { name: "Function transformations", std: "HSF-BF.B.3", glyph: "f(x)+k", c: "fly", band: "g912", gen(r) {
+    const rnd = rndWith(r); const x0 = rnd(-5, 5), y0 = rnd(-9, 9), k = rnd(-8, 8) || 3, up = r() < 0.5;
+    return { ask: `If f(${x0}) = ${y0}, and g(x) = f(x) ${up ? "+" : MINUS} ${Math.abs(k)}, what is g(${x0})?`, prompt: `g(${x0}) = <span class="blank">?</span>`, plain: `g(${x0})`, answer: up ? y0 + Math.abs(k) : y0 - Math.abs(k), steps: [`g(x) shifts f(x) ${up ? "up" : "down"} by ${Math.abs(k)}.`, `g(${x0}) = ${y0} ${up ? "+" : MINUS} ${Math.abs(k)} = ${N(up ? y0 + Math.abs(k) : y0 - Math.abs(k))}.`] };
+  } },
+  hsstddev: { name: "Standard deviation (concept)", std: "HSS-ID.A.2", glyph: "σ", c: "nature", band: "g912", gen(r) {
+    const pick = pickWith(r); const [setA, setB, ans] = pick([
+      ["5, 5, 5, 5, 5", "2, 8, 2, 8, 5", "2, 8, 2, 8, 5"], ["10, 10, 10, 10", "1, 19, 1, 19", "1, 19, 1, 19"],
+      ["7, 7, 7, 7, 7", "3, 11, 3, 11, 7", "3, 11, 3, 11, 7"],
+    ] as const);
+    return { ask: `Both sets have the same mean. Which has the greater standard deviation: {${setA}} or {${setB}}?`, prompt: `{${setA}} vs {${setB}}`, plain: `{${setA}} vs {${setB}}`, long: true, kind: "choice", answer: `{${ans}}`, choices: [{ v: `{${setA}}`, label: `{${setA}}` }, { v: `{${setB}}`, label: `{${setB}}` }],
+      steps: ["Standard deviation measures spread from the mean. More spread out values mean a bigger standard deviation.", `{${ans}} is spread farther from the mean.`] };
+  } },
+  hsnormal: { name: "Normal distribution basics", std: "HSS-ID.A.4", glyph: "⟋⟍", c: "nature", band: "g912", gen(r) {
+    const pick = pickWith(r); const pct = pick([["within 1 standard deviation", "68%"], ["within 2 standard deviations", "95%"], ["within 3 standard deviations", "99.7%"]] as const);
+    const [desc, ans] = pct, opts = ["68%", "95%", "99.7%"];
+    return { ask: `In a normal distribution, about what percent of data falls ${desc} of the mean?`, prompt: desc, plain: desc, kind: "choice", answer: ans, choices: opts.map((v) => ({ v, label: v })),
+      steps: ["The 68-95-99.7 rule: 68% within 1 SD, 95% within 2 SDs, 99.7% within 3 SDs.", `${desc} → ${ans}.`] };
+  } },
+  hslogic: { name: "Compound inequalities", std: "HSA-REI.B.3", glyph: "a<x<b", c: "serve", band: "g912", gen(r) {
+    const rnd = rndWith(r); const a = rnd(2, 9), b = rnd(-10, 5), x = rnd(-4, 10), c1 = a * x + b, width = rnd(4, 14), c2 = c1 + width, askLow = r() < 0.5;
+    return { ask: `Solve for x. Enter the ${askLow ? "lower" : "upper"} bound.`, prompt: `${N(c1)} < ${a}x ${b < 0 ? MINUS : "+"} ${Math.abs(b)} < ${N(c2)}`, plain: `${c1} < ${a}x + ${b} < ${c2}`, long: true, answer: askLow ? x : x + width / a,
+      steps: [`Subtract ${b} from all three parts: ${N(c1 - b)} < ${a}x < ${N(c2 - b)}.`, `Divide by ${a}: ${N(x)} < x < ${N(x + width / a)}.`, `The ${askLow ? "lower" : "upper"} bound is ${N(askLow ? x : x + width / a)}.`] };
+  } },
+  hsvector: { name: "Vector addition", std: "HSN-VM.B.4a", glyph: "v+w", c: "tech", band: "g912", gen(r) {
+    const rnd = rndWith(r); const x1 = rnd(-8, 8), y1 = rnd(-8, 8), x2 = rnd(-8, 8), y2 = rnd(-8, 8), askX = r() < 0.5;
+    return { ask: `Vector u = (${N(x1)}, ${N(y1)}) and vector v = (${N(x2)}, ${N(y2)}). What is the ${askX ? "x" : "y"}-component of u + v?`, prompt: `u + v = <span class="blank">?</span>`, plain: `u+v ${askX ? "x" : "y"}`, answer: askX ? x1 + x2 : y1 + y2, steps: ["Add component by component.", `x: ${N(x1)} + ${P(x2)} = ${N(x1 + x2)}. y: ${N(y1)} + ${P(y2)} = ${N(y1 + y2)}.`] };
+  } },
+  hslogexp: { name: "Logarithms as inverses", std: "HSF-LE.A.4", glyph: "logₐ", c: "tech", band: "g912", gen(r) {
+    const pick = pickWith(r); const [b, n] = pick([[2, 3], [2, 4], [2, 5], [3, 2], [3, 3], [5, 2], [10, 2], [10, 3]] as const), result = b ** n;
+    return { ask: `Solve for x.`, prompt: `log<sub>${b}</sub>${result} = x`, plain: `log base ${b} of ${result}`, answer: n, steps: [`A log asks: ${b} to what power gives ${result}?`, `${b}<sup>${n}</sup> = ${result}, so x = ${n}.`] };
+  } },
+  hscomplex: { name: "Imaginary and complex numbers", std: "HSN-CN.A.1", glyph: "i", c: "tech", band: "g912", gen(r) {
+    const pick = pickWith(r); const n = pick([-4, -9, -16, -25, -36, -49, -64, -81]), root = Math.round(Math.sqrt(-n));
+    return { ask: `Simplify. Enter the coefficient of i.`, prompt: `√${n} = <span class="blank">?</span>i`, plain: `√${n}`, answer: root, steps: [`√${n} = √(${-n} × −1) = √${-n} × i.`, `√${-n} = ${root}, so the answer is ${root}i.`] };
+  } },
+  hscircle2: { name: "Equation of a circle", std: "HSG-GPE.A.1", glyph: "(x−h)²+(y−k)²", c: "coral", band: "g912", gen(r) {
+    const rnd = rndWith(r); const h = rnd(-8, 8), k = rnd(-8, 8), radius = rnd(2, 10), askR = r() < 0.5;
+    const eq = `(x ${h < 0 ? "+" : MINUS} ${Math.abs(h)})² + (y ${k < 0 ? "+" : MINUS} ${Math.abs(k)})² = ${radius * radius}`;
+    return { ask: `For the circle ${eq}, what is the ${askR ? "radius" : "x-coordinate of the center"}?`, prompt: eq, plain: eq, answer: askR ? radius : h, steps: ["In (x − h)² + (y − k)² = r², the center is (h, k) and r² is the right side.", `Center (${N(h)}, ${N(k)}), radius √${radius * radius} = ${radius}.`] };
   } },
   // @@MORE@@
 } satisfies Record<string, SkillDef>;
