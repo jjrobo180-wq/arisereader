@@ -12,7 +12,7 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 test("WorkHub: the Reader group comes right after Home with its own WorkHub tabs; admin console only for admins", () => {
   assert.equal(HUB_GROUPS[1].id, "arise");
   assert.equal(HUB_GROUPS[1].label, "A.R.I.S.E. Reader");
-  const reader = ["reader", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"];
+  const reader = ["reader", "readerLive", "readerScenes", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"];
   const visible = emptyWorkspace().visibleTabs;
   assert.deepEqual(groupTabs("arise", { ...visible, admin: false }), [...reader, "arise"]);
   assert.deepEqual(groupTabs("arise", { ...visible, admin: true }), [...reader, "arise", "admin"]);

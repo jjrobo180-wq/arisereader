@@ -54,3 +54,19 @@ export function firstOpen(plan: StepPlan | undefined): number {
 }
 
 export const stepsDone = (plan: StepPlan | undefined) => cleanPlan(plan).done.length;
+
+/** The prep to-dos a meeting needs, each due a set number of days before (or after) the meeting or deadline. */
+export const PREP_TODOS: readonly { step: number; title: string; days: number }[] = [
+  { step: 6, title: "Gather data and work samples", days: -14 },
+  { step: 7, title: "Draft goals and reports", days: -10 },
+  { step: 8, title: "Send drafts to parents and the team", days: -5 },
+  { step: 10, title: "Finish paperwork and send the final copy", days: 3 },
+];
+
+const shift = (day: string, n: number) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+
+/** Dated prep to-dos for a meeting on (or due by) `when`. A date already past moves up to `today`. */
+export function prepTodos(student: string, when: string, today: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(when)) return [];
+  return PREP_TODOS.map((t) => { const due = shift(when, t.days); return { step: t.step, title: `${t.title}: ${student}`, dueDate: due < today ? today : due }; });
+}

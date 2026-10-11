@@ -29,10 +29,11 @@ export default function Grocery({ family, setFamily, makeId, say }: SectionProps
   };
 
   const open = items.filter((i) => !i.checked), done = items.filter((i) => i.checked);
+  const total = Math.round(open.reduce((a, i) => a + (i.price || 0), 0) * 100) / 100;
   const aisles = AISLES.filter((a) => open.some((i) => (i.aisle || "Other") === a));
 
   return <div className="space-y-6">
-    <PageHead eyebrow="Grocery list" title="Shopping, sorted" blurb="Add what you need and it sorts itself by aisle. Check things off as they go in the cart."
+    <PageHead eyebrow="Grocery list" title="Shopping, sorted" blurb={`Add what you need and it sorts itself by aisle. Check things off as they go in the cart.${total ? ` Estimated total: $${total.toFixed(2)}.` : ""}`}
       action={open.length > 0 ? <button type="button" onClick={copy} className={plain}><Copy size={16} />Copy list</button> : undefined} />
     <Panel>
       <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto]">
@@ -45,6 +46,7 @@ export default function Grocery({ family, setFamily, makeId, say }: SectionProps
       <ul className="divide-y divide-slate-100">{open.filter((i) => (i.aisle || "Other") === a).map((i) => <li key={i.id} className="flex items-center gap-3 py-2">
         <button type="button" onClick={() => toggle(i.id)} aria-label={`Got ${i.name}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-slate-300 text-transparent hover:border-violet-500"><Check size={15} /></button>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">{i.qty && <span className="text-violet-700">{i.qty} </span>}{i.name}</span>
+        {!!i.price && <span className="shrink-0 text-xs font-bold text-emerald-700">${i.price.toFixed(2)}</span>}
         <select value={i.aisle || "Other"} onChange={(e) => move(i.id, e.target.value)} className="max-w-28 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-500" aria-label={`Aisle for ${i.name}`}>{AISLES.map((x) => <option key={x}>{x}</option>)}</select>
         <button type="button" onClick={() => remove(i.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label={`Remove ${i.name}`}><X size={15} /></button>
       </li>)}</ul>

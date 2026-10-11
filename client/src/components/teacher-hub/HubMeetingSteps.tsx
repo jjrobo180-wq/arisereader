@@ -5,7 +5,7 @@
 // and come back to; the progress is kept on the meeting.
 import { useEffect, useState, type FormEvent, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import { ArrowLeft, Check, ChevronRight, Plus, SkipForward, Undo2, X } from "lucide-react";
-import { MEETING_STEPS, STEP_COUNT, cleanPlan, emptyPlan, markDone, markSkipped, stepState } from "@shared/meetingSteps";
+import { MEETING_STEPS, STEP_COUNT, cleanPlan, emptyPlan, firstOpen, markDone, markSkipped, prepTodos, stepState } from "@shared/meetingSteps";
 import { addMeetingWithDeadline, deadlineLabel, deadlineWords, meetingDeadline, savesToStudent, studentDeadline } from "@shared/meetingDeadline";
 import { newGuideFor } from "@shared/hubStudentTeam";
 import type { GuideSender } from "@shared/hubGuide";
@@ -38,6 +38,7 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
   // The deadline fills in from the student's caseload date until the teacher types their own.
   const [typedDeadline, setTypedDeadline] = useState(false);
   const [knowTime, setKnowTime] = useState(false);
+  const [prep, setPrep] = useState(true);
   const saved = studentDeadline(workspace, form.student, form.type);
   useEffect(() => {
     if (!typedDeadline) setForm((f) => ({ ...f, deadline: studentDeadline(workspace, f.student, f.type) }));
@@ -65,13 +66,22 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
     const id = makeId();
     const kind = /reeval/i.test(form.type) ? "Re-evaluation" : "IEP meeting";
     setWorkspace((p) => {
-      const next = addMeetingWithDeadline(p, knowTime ? form : { ...form, date: "", time: "" }, id, markDone(emptyPlan(), 1));
+      // With the time already set, there's nothing to poll: finding, booking and telling are done.
+      const start = knowTime && form.date ? [1, 2, 3, 4].reduce((pl, n) => markDone(pl, n), emptyPlan()) : markDone(emptyPlan(), 1);
+      let next = addMeetingWithDeadline(p, knowTime ? form : { ...form, date: "", time: "" }, id, start);
+      // The prep to-dos go on the list with dates counted back from the meeting (or the deadline).
+      if (prep) {
+        const today = new Date().toISOString().slice(0, 10);
+        const todos = prepTodos(form.student, (knowTime && form.date) || form.deadline, today).filter((t) => !next.tasks.some((x) => x.title === t.title && !x.done));
+        next = { ...next, tasks: [...next.tasks, ...todos.map((t) => ({ id: makeId(), title: t.title, dueDate: t.dueDate, recurring: "", done: false }))] };
+      }
       // The meeting's guide starts with it: the student's team is already on it, and it holds the parents and the checklist.
       if (next.guides.some((g) => g.student === form.student)) return next;
       const g = newGuideFor(next, form.student, kind, makeId);
       return { ...next, guides: [...next.guides, knowTime ? { ...g, meetingDate: form.date, meetingTime: form.time, room: form.room.trim() } : { ...g, room: form.room.trim() }] };
     });
     setWizard({ step: 1, meetingId: id });
+    if (prep) setAdded({ 6: true, 7: true, 8: true, 10: true });
   }
   function addTodo(title: string) {
     if (!meeting) return;
@@ -133,9 +143,10 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
           {step === 1 && !meeting && (
             <form id="wizard-add" onSubmit={addMeeting} className="grid gap-3">
               <Select aria-label="Student" value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required autoFocus>{studentOptions()}</Select>
-              <Select aria-label="Meeting type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                <option>Annual IEP</option><option>Reevaluation</option><option>Planning meeting</option><option>Parent meeting</option><option>Progress review</option><option>Other</option>
-              </Select>
+              <div role="radiogroup" aria-label="Meeting type" className="flex flex-wrap gap-2">
+                {["Annual IEP", "Reevaluation", "Planning meeting", "Parent meeting", "Progress review", "Other"].map((t) => <button key={t} type="button" role="radio" aria-checked={form.type === t} onClick={() => setForm({ ...form, type: t })}
+                  className={`min-h-11 rounded-xl border px-3 text-sm font-semibold ${form.type === t ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>{t}</button>)}
+              </div>
               <label className="block text-sm font-semibold text-slate-800">
                 {deadlineLabel(form.type)}
                 <Field aria-label={deadlineLabel(form.type)} type="date" value={form.deadline} className="mt-1 w-full" data-testid="wizard-deadline"
@@ -145,14 +156,20 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
                   Step 2 finds times before this date.{form.deadline && savesToStudent(form.type) && form.student && saved !== form.deadline ? ` It is saved to ${form.student.split(" ")[0]}'s caseload too.` : ""}
                 </span>
               </label>
-              {knowTime ? (
+              <div role="radiogroup" aria-label="Meeting time" className="grid gap-2 sm:grid-cols-2">
+                <button type="button" role="radio" aria-checked={!knowTime} onClick={() => setKnowTime(false)} className={`rounded-2xl border-2 p-3 text-left ${!knowTime ? "border-teal-700 bg-teal-50" : "border-slate-200"}`}><b className="block text-sm">Find a time with everyone</b><span className="text-xs text-slate-600">Next, the team and parents pick times that work.</span></button>
+                <button type="button" role="radio" aria-checked={knowTime} onClick={() => setKnowTime(true)} className={`rounded-2xl border-2 p-3 text-left ${knowTime ? "border-teal-700 bg-teal-50" : "border-slate-200"}`}><b className="block text-sm">I already have a time</b><span className="text-xs text-slate-600">Skip the poll and go straight to the checklist.</span></button>
+              </div>
+              {knowTime && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field aria-label="Meeting date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
                   <Field aria-label="Meeting time (optional)" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
                 </div>
-              ) : (
-                <button type="button" onClick={() => setKnowTime(true)} className="min-h-11 justify-self-start text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4">Already have a meeting date and time?</button>
               )}
+              <label className="flex min-h-11 items-start gap-3 rounded-2xl bg-slate-50 p-3 text-sm">
+                <input type="checkbox" checked={prep} onChange={(e) => setPrep(e.target.checked)} className="mt-0.5 h-5 w-5" />
+                <span><b>Plan my prep for me</b><span className="block text-xs text-slate-600">Adds dated to-dos: gather data 2 weeks before, draft goals 10 days before, send drafts 5 days before, and finish the paperwork 3 days after.</span></span>
+              </label>
               <Field aria-label="Room (optional)" placeholder="Room (optional)" value={form.room} maxLength={80} onChange={(e) => setForm({ ...form, room: e.target.value })} />
               <TextArea aria-label="Meeting notes" placeholder="Meeting notes / checklist (optional)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </form>
@@ -193,7 +210,7 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
               : <>
                 {meeting && step > 1 && <button type="button" onClick={skip} className={`${pill} border border-slate-200 text-slate-600 hover:bg-slate-50`}><SkipForward className="h-4 w-4" /> Skip for now</button>}
                 {meeting && step !== 2 && <PrimaryButton onClick={done}>{step === STEP_COUNT ? "Finish" : "Done, next"} <ChevronRight className="h-4 w-4" /></PrimaryButton>}
-                {meeting && step === 1 && <PrimaryButton onClick={() => go(2)}>Next <ChevronRight className="h-4 w-4" /></PrimaryButton>}
+                {meeting && step === 1 && <PrimaryButton onClick={() => go(firstOpen(plan) > 1 ? firstOpen(plan) : 2)}>Next <ChevronRight className="h-4 w-4" /></PrimaryButton>}
               </>}
           </div>
         </div>

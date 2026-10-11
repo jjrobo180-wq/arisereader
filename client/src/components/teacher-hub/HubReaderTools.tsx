@@ -3,7 +3,7 @@
 // made of WorkHub cards, buttons, lists and pop-ups. Everything the old teacher dashboard did is here.
 // The Reader pieces inside (camera-quiz review, comprehension grading, prizes, play time, email
 // invites, add-ons) are the hub-built ones in components/hub-pieces.
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import {
   AlertTriangle, Award, BookOpen, Check, CheckCircle2, ChevronRight, Clock3, Copy, ExternalLink,
@@ -24,8 +24,31 @@ import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextAr
 import { HubModal } from "./HubModal";
 import { ProgramLinks } from "./HubReader";
 
+const LiveQuizPage = lazy(() => import("@/pages/LiveQuiz"));
+const ScenesPage = lazy(() => import("@/pages/TeacherScenes"));
+
+/** A row of sub-tabs inside a Reader tab. The choice is remembered for the visit. */
+function useSub<T extends string>(key: string, first: T) {
+  const [sub, setSubState] = useState<T>(() => { try { return (sessionStorage.getItem(`reader-sub-${key}`) as T) || first; } catch { return first; } });
+  const setSub = (v: T) => { setSubState(v); try { sessionStorage.setItem(`reader-sub-${key}`, v); } catch { /* not kept */ } };
+  return [sub, setSub] as const;
+}
+function SubTabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { id: T; label: string; count?: number }[] }) {
+  return <div role="tablist" className="flex gap-1.5 overflow-x-auto rounded-2xl bg-slate-100 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    {items.map((it) => <button key={it.id} type="button" role="tab" aria-selected={value === it.id} onClick={() => onChange(it.id)}
+      className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-sm font-semibold transition ${value === it.id ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>
+      {it.label}{!!it.count && <span className="rounded-full bg-rose-500 px-1.5 text-[11px] font-bold leading-5 text-white">{it.count}</span>}
+    </button>)}
+  </div>;
+}
+function Embedded({ children }: { children: ReactNode }) {
+  return <div className="overflow-hidden rounded-3xl border border-slate-200 [&>main]:min-h-[70vh]">
+    <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center gap-3 text-sm text-slate-600"><div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" /> Opening…</div>}>{children}</Suspense>
+  </div>;
+}
+
 /** The WorkHub tabs that make up the teacher's A.R.I.S.E. Reader account. */
-export const READER_TABS = ["reader", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"] as const satisfies readonly HubTab[];
+export const READER_TABS = ["reader", "readerLive", "readerScenes", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"] as const satisfies readonly HubTab[];
 export type ReaderTab = (typeof READER_TABS)[number];
 export const isReaderTab = (tab: HubTab): tab is ReaderTab => (READER_TABS as readonly HubTab[]).includes(tab);
 
@@ -209,6 +232,8 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   const [action, setAction] = useState<Action | null>(null);
   const openAction = (student: Action["student"], kind: Action["kind"]) => { setFlash(null); setAction({ student, kind }); };
 
+  const [apSub, setApSub] = useSub<"join" | "grades" | "books" | "quizzes">("approvals", "join");
+  const [qSub, setQSub] = useSub<"grade" | "camera" | "proctor">("quizzes", "grade");
   const approvals = pending.length + gradeChanges.length + bookRequests.length + (school ? school.quizzes.length + school.pending.length : 0);
 
   if (!approved) {
@@ -240,10 +265,10 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
       <Card title="Start something" collapseKey="reader-start">
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          <Launch icon={<Trophy className="h-5 w-5" />} title="Host a live quiz" detail="Your class plays together" onClick={() => navigate("/live-quiz")} main />
+          <Launch icon={<Trophy className="h-5 w-5" />} title="Host a live quiz" detail="Your class plays together" onClick={() => openTab("readerLive")} main />
           <Launch icon={<GraduationCap className="h-5 w-5" />} title="Study Squad sets" detail="Practice sets for your class" onClick={() => navigate("/study")} />
           <Launch icon={<Trophy className="h-5 w-5" />} title="Leaderboard" detail="See who's reading the most" onClick={() => navigate("/leaderboard")} />
-          <Launch icon={<BookOpen className="h-5 w-5" />} title="Scenes" detail="Live reading scenes" onClick={() => navigate("/teacher-scenes")} />
+          <Launch icon={<BookOpen className="h-5 w-5" />} title="Scenes" detail="Live reading scenes" onClick={() => openTab("readerScenes")} />
           <Launch icon={<Sparkles className="h-5 w-5" />} title="What A.R.I.S.E. 2.0 can do" detail="Live games, game time and quiz tracking" onClick={() => navigate("/teacher-arise-2")} />
           {!user?.isAdmin && <Launch icon={<Award className="h-5 w-5" />} title="Your plan" detail="Plans, add-ons and billing" onClick={() => navigate("/billing")} />}
         </div>
@@ -272,36 +297,52 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       onView={(id) => navigate(`/student-profile/${id}`)} onMessage={(id) => navigate(`/messages/${id}`)} onCertificates={(id) => navigate(`/student-certificates/${id}`)}
       onAction={openAction} />}
 
+    {tab === "readerLive" && <>
+      <Card title="Live quiz"><p className="text-sm text-slate-600">Host a game your whole class plays at once. Pick a ready-made quiz or make one, then show the join code on the board.</p></Card>
+      <Embedded><LiveQuizPage /></Embedded>
+    </>}
+
+    {tab === "readerScenes" && <>
+      <Card title="Scenes"><p className="text-sm text-slate-600">Present live reading scenes from your class's books. Students follow along on their own screens.</p></Card>
+      <Embedded><ScenesPage /></Embedded>
+    </>}
+
     {tab === "readerApprovals" && <>
-      <Card title={`Students waiting to join your class${pending.length ? ` (${pending.length})` : ""}`}>
+      <SubTabs value={apSub} onChange={setApSub} items={[
+        { id: "join", label: "Joining", count: pending.length + (school?.pending.length || 0) },
+        { id: "grades", label: "Grade changes", count: gradeChanges.length },
+        { id: "books", label: "Book requests", count: bookRequests.length },
+        { id: "quizzes", label: "AI quizzes", count: school?.quizzes.length || 0 },
+      ]} />
+      {apSub === "join" && <Card title={`Students waiting to join your class${pending.length ? ` (${pending.length})` : ""}`}>
         {loading ? <Empty>Loading…</Empty> : pending.length ? <ul className="space-y-2">{pending.map((s) =>
           <Row key={s.id} title={nameOf(s)} sub={`@${s.username}`} right={<button type="button" className={goodBtn} onClick={() => void approveMine(s.id)} data-testid={`button-approve-student-${s.id}`}><Check className="h-4 w-4" /> Approve</button>} />)}</ul>
           : <Empty>No one is waiting.</Empty>}
-      </Card>
-      <Card title={`Grade change requests${gradeChanges.length ? ` (${gradeChanges.length})` : ""}`}>
+      </Card>}
+      {apSub === "grades" && <Card title={`Grade change requests${gradeChanges.length ? ` (${gradeChanges.length})` : ""}`}>
         {gradeChanges.length ? <ul className="space-y-2">{gradeChanges.map((r) =>
           <Row key={r.id} title={r.studentName} sub={`Grade ${r.currentGrade} → grade ${r.requestedGrade}`} right={<>
             <button type="button" className={goodBtn} onClick={() => void decideGrade(r.id, "approve")}><Check className="h-4 w-4" /> Approve</button>
             <button type="button" className={badBtn} onClick={() => void decideGrade(r.id, "deny")}><X className="h-4 w-4" /> Deny</button>
           </>} />)}</ul> : <Empty>No grade change requests.</Empty>}
-      </Card>
-      <Card title={`Book requests${bookRequests.length ? ` (${bookRequests.length})` : ""}`}>
+      </Card>}
+      {apSub === "books" && <Card title={`Book requests${bookRequests.length ? ` (${bookRequests.length})` : ""}`}>
         {bookRequests.length ? <ul className="space-y-2">{bookRequests.map((r) =>
           <Row key={r.id} title={r.bookTitle} sub={<>Requested by {r.studentName} · {new Date(r.createdAt).toLocaleDateString()}{r.message ? <span className="mt-1 block text-slate-600">{r.message}</span> : null}</>}
             right={<button type="button" className={smallBtn} onClick={() => void dismissBook(r.id)}>Dismiss</button>} />)}</ul> : <Empty>No book requests from students yet.</Empty>}
-      </Card>
-      <Card title={`AI quizzes to check${school?.quizzes.length ? ` (${school.quizzes.length})` : ""}`}>
+      </Card>}
+      {apSub === "quizzes" && <Card title={`AI quizzes to check${school?.quizzes.length ? ` (${school.quizzes.length})` : ""}`}>
         {!school ? <Empty>Loading…</Empty> : school.quizzes.length ? <ul className="space-y-2">{school.quizzes.map((q) =>
           <Row key={q.id} title={q.book_title} sub={`by ${q.author || "Unknown"} · made by ${q.student_name} · ${q.quiz_type || "book"} quiz`} right={<>
             <button type="button" disabled={quizBusy} className={goodBtn} onClick={() => void decideQuiz(q.id, true)}><Check className="h-4 w-4" /> Approve</button>
             <button type="button" disabled={quizBusy} className={badBtn} onClick={() => void decideQuiz(q.id, false)}><X className="h-4 w-4" /> Send back</button>
           </>} />)}</ul> : <Empty>No quizzes waiting.</Empty>}
-      </Card>
-      <Card title={`Students waiting across the school${school?.pending.length ? ` (${school.pending.length})` : ""}`} collapseKey="reader-school-pending">
+      </Card>}
+      {apSub === "join" && <Card title={`Students waiting across the school${school?.pending.length ? ` (${school.pending.length})` : ""}`} collapseKey="reader-school-pending">
         {!school ? <Empty>Loading…</Empty> : school.pending.length ? <ul className="space-y-2">{school.pending.map((s) =>
           <Row key={s.id} title={s.displayName || s.username} sub={`@${s.username}${s.teacherName ? ` · ${s.teacherName}` : ""}`} right={<button type="button" className={goodBtn} onClick={() => void approveAny(s.id)}><Check className="h-4 w-4" /> Approve</button>} />)}</ul>
           : <Empty>No one is waiting.</Empty>}
-      </Card>
+      </Card>}
     </>}
 
     {tab === "readerParents" && <>
@@ -328,16 +369,17 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
     </>}
 
     {tab === "readerQuizzes" && <>
-      <div className="grid gap-4 xl:grid-cols-2">
+      <SubTabs value={qSub} onChange={setQSub} items={[{ id: "grade", label: "To grade", count: toGrade }, { id: "camera", label: "Camera quizzes" }, { id: "proctor", label: "Proctor & growth" }]} />
+      {qSub === "proctor" && <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Proctor code"><ProctorCode code={proctor} onCopy={() => proctor && void copy(proctor, "Proctor code")} />
           <p className="mt-3 text-sm text-slate-600">After every book quiz, students can also write about the book for up to 10 extra points, with your code or on their own with the camera on. You grade those below.</p>
         </Card>
         <Card title="Growth check">
           {growth.length ? <ul className="space-y-2">{growth.map((a: any) => <Row key={a.id} title={a.studentName || "Student"} sub={`Score ${a.score}/${a.totalQuestions} · ${a.wcpm ? `${a.wcpm} words a minute` : "no reading speed"}`} />)}</ul> : <Empty>No growth checks yet.</Empty>}
         </Card>
-      </div>
-      <Card title={`Reading comprehension to grade${toGrade ? ` (${toGrade})` : ""}`}><HubComprehension which="work" onPendingChange={setToGrade} /></Card>
-      <Card title="Camera quizzes"><HubCameraQuizzes which="work" /></Card>
+      </div>}
+      <div hidden={qSub !== "grade"}><Card title={`Reading comprehension to grade${toGrade ? ` (${toGrade})` : ""}`}><HubComprehension which="work" onPendingChange={setToGrade} /></Card></div>
+      {qSub === "camera" && <Card title="Camera quizzes"><HubCameraQuizzes which="work" /></Card>}
     </>}
 
     {tab === "readerGames" && <>

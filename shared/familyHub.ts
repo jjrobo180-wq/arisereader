@@ -104,7 +104,7 @@ export type Goal = {
 /* Plugin Store add-ons */
 export type JournalEntry = { id: string; date: string; title: string; body: string; mood: string; createdAt: string };
 export type Countdown = { id: string; title: string; date: string; emoji: string; color: string };
-export type GroceryItem = { id: string; name: string; qty: string; aisle: string; checked: boolean };
+export type GroceryItem = { id: string; name: string; qty: string; aisle: string; checked: boolean; /** Estimated cost in dollars, 0 when unknown. */ price?: number };
 export type SavedVerse = { id: string; reference: string; text: string };
 export type MeditationLog = { id: string; date: string; minutes: number; kind: string };
 /** A sticky note on the Home screen: `x` is how far across (0 to 1), `y` how far down in pixels. */
@@ -119,7 +119,7 @@ export type GratitudeDay = { id: string; date: string; items: string[] };
 export type FocusLog = { id: string; date: string; minutes: number };
 export type Recipe = { id: string; title: string; ingredients: string[]; steps: string; tags: string; servings: number; minutes: number };
 export type MealSlot = "breakfast" | "lunch" | "dinner";
-export type PlannedMeal = { id: string; date: string; slot: MealSlot; text: string; recipeId: string };
+export type PlannedMeal = { id: string; date: string; slot: MealSlot; text: string; recipeId: string; /** Estimated cost of this meal in dollars. */ cost?: number; /** Adult servings it feeds. */ serves?: number };
 /** Something that needs doing every so often: home upkeep, plants, a car or a pet. */
 export type CareKind = "upkeep" | "plants" | "car" | "pets" | "cleaning" | "checkups";
 export type CareItem = { id: string; kind: CareKind; group: string; name: string; everyDays: number; lastDone: string; notes: string };
@@ -475,7 +475,7 @@ export function cleanFamily(input: unknown): Family {
     }),
     groceries: rows(raw.groceries, LIMITS.groceries, (r) => {
       const name = str(r.name, 80).trim();
-      return name ? { id: id(r.id), name, qty: str(r.qty, 20), aisle: str(r.aisle, 30), checked: bool(r.checked) } : null;
+      return name ? { id: id(r.id), name, qty: str(r.qty, 20), aisle: str(r.aisle, 30), checked: bool(r.checked), price: Math.round(num(r.price, 0, 10000) * 100) / 100 } : null;
     }),
     savedVerses: rows(raw.savedVerses, LIMITS.savedVerses, (r) => {
       const reference = str(r.reference, 60).trim(), text = str(r.text, 4000).trim();
@@ -526,7 +526,7 @@ export function cleanFamily(input: unknown): Family {
     }),
     meals: rows(raw.meals, LIMITS.meals, (r) => {
       const date = day(r.date), text = str(r.text, 120).trim();
-      return date && (text || r.recipeId) ? { id: id(r.id), date, slot: oneOf(r.slot, ["breakfast", "lunch", "dinner"] as const, "dinner"), text, recipeId: id(r.recipeId) } : null;
+      return date && (text || r.recipeId) ? { id: id(r.id), date, slot: oneOf(r.slot, ["breakfast", "lunch", "dinner"] as const, "dinner"), text, recipeId: id(r.recipeId), cost: Math.round(num(r.cost, 0, 10000) * 100) / 100, serves: num(r.serves, 0, 100) } : null;
     }, true),
     care: rows(raw.care, LIMITS.care, (r) => {
       const name = str(r.name, 80).trim();

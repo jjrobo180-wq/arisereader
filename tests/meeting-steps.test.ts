@@ -31,3 +31,12 @@ test("a saved plan is cleaned", () => {
   assert.deepEqual(cleanPlan({ done: [3, 3, 99, "x", 1], skipped: [1, 5] }), { done: [1, 3], skipped: [5] });
   assert.deepEqual(cleanPlan("bad"), { done: [], skipped: [] });
 });
+
+test("prep to-dos are dated back from the meeting, and never in the past", async () => {
+  const { prepTodos } = await import("../shared/meetingSteps");
+  const list = prepTodos("Ava M.", "2026-11-20", "2026-10-11");
+  assert.deepEqual(list.map((t) => t.dueDate), ["2026-11-06", "2026-11-10", "2026-11-15", "2026-11-23"]);
+  assert.match(list[0].title, /Ava M\./);
+  assert.equal(prepTodos("Ava M.", "2026-10-15", "2026-10-11")[0].dueDate, "2026-10-11");
+  assert.deepEqual(prepTodos("Ava", "", "2026-10-11"), []);
+});

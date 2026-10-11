@@ -43,6 +43,7 @@ import {
   MoreHorizontal,
   Puzzle,
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
+  Trophy, Clapperboard,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkKit, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
@@ -134,6 +135,8 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "tasks", label: "Tasks", icon: <CheckSquare className="h-4 w-4" /> },
   { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
   { id: "reader", label: "Overview", icon: <BookHeart className="h-4 w-4" /> },
+  { id: "readerLive", label: "Live quiz", icon: <Trophy className="h-4 w-4" /> },
+  { id: "readerScenes", label: "Scenes", icon: <Clapperboard className="h-4 w-4" /> },
   { id: "readerStudents", label: "Students", icon: <Users className="h-4 w-4" /> },
   { id: "readerApprovals", label: "Approvals", icon: <CheckCircle2 className="h-4 w-4" /> },
   { id: "readerParents", label: "Parents", icon: <MessageSquare className="h-4 w-4" /> },
