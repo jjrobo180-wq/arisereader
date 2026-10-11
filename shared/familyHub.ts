@@ -2,6 +2,7 @@
 // One sanitizer (cleanFamily) is shared by the page and the server, so whatever is stored
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
+import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
 
@@ -187,6 +188,8 @@ export type Family = {
   /** Ids of quotes saved from the daily quote (see shared/lifePlugins.ts). */
   savedQuotes: string[];
   widgets: Widgets;
+  /** How the family arranged the hub in Customize (see shared/lifeLayout.ts). Not set: the usual layout. */
+  layout?: LifeLayout;
   stickies: Sticky[];
   randomLists: RandomList[];
   savedWords: SavedWord[];
@@ -479,6 +482,7 @@ export function cleanFamily(input: unknown): Family {
       return date ? { id: id(r.id), date, minutes: num(r.minutes, 0, 600), kind: str(r.kind, 30) } : null;
     }, true),
     widgets: { stickies: bool(obj(raw.widgets)?.stickies, false) },
+    ...(obj(raw.layout) ? { layout: cleanLifeLayout(raw.layout) } : {}),
     stickies: rows(raw.stickies, LIMITS.stickies, (r) => ({ id: id(r.id), text: str(r.text, 1000), color: color(r.color, NOTE_COLORS[0]), x: num(r.x, 0, 1, 0.5), y: int(r.y, 0, 6000, 40) })),
     randomLists: rows(raw.randomLists, LIMITS.randomLists, (r) => {
       const name = str(r.name, 60).trim();

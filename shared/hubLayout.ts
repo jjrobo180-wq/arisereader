@@ -37,47 +37,53 @@ export const HOME_SIZES: { id: HomeSize; short: string; label: string }[] = [
   { id: "small", short: "S", label: "Small" }, { id: "medium", short: "M", label: "Medium" }, { id: "large", short: "L", label: "Large" },
 ];
 
-export type HubLayout = {
+/** What every hub's layout has: where the phone menu sits, how it closes, and Home's parts in order, hidden and sized. */
+export type AnyLayout = {
   menuSide: MenuSide;
   menuClose: MenuClose;
-  /** Every part of Home, in the teacher's order. */
-  home: HomeSection[];
-  /** The parts of Home that are hidden. The picture box starts hidden. */
-  homeHidden: HomeSection[];
+  /** Every part of Home, in the person's order. */
+  home: string[];
+  /** The parts of Home that are hidden. */
+  homeHidden: string[];
   /** Each part's size. A part not listed is large. */
-  homeSize: Partial<Record<HomeSection, HomeSize>>;
+  homeSize: Partial<Record<string, HomeSize>>;
 };
+
+/** WorkHub's layout. */
+export type HubLayout = AnyLayout & { home: HomeSection[]; homeHidden: HomeSection[]; homeSize: Partial<Record<HomeSection, HomeSize>> };
 
 export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", menuClose: "button", home: HOME_SECTIONS.map((s) => s.id), homeHidden: ["picture"], homeSize: {} };
 
-const isSection = (x: unknown): x is HomeSection => HOME_SECTIONS.some((s) => s.id === x);
-
-/** A saved layout made safe: known choices only, every part of Home once (a part added later goes in its usual place). */
-export function cleanLayout(raw: unknown): HubLayout {
+/**
+ * A saved layout made safe for a hub whose Home has these parts (in their usual order): known choices only, every part
+ * once (a part added later goes back right after the part it follows by default), and sizes only for real parts.
+ */
+export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly Id[], defaults: { menuSide: MenuSide; menuClose: MenuClose; homeHidden: Id[] }) {
   const r: any = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-  const menuSide: MenuSide = MENU_SIDES.some((s) => s.id === r.menuSide) ? r.menuSide : DEFAULT_LAYOUT.menuSide;
-  const menuClose: MenuClose = MENU_CLOSES.some((c) => c.id === r.menuClose) ? r.menuClose : DEFAULT_LAYOUT.menuClose;
-  const saved: HomeSection[] = [];
-  for (const x of Array.isArray(r.home) ? r.home : []) if (isSection(x) && !saved.includes(x)) saved.push(x);
-  // A part missing from the saved order goes back right after the part it follows by default.
-  const home = [...saved];
-  HOME_SECTIONS.forEach((s, i) => {
-    if (home.includes(s.id)) return;
-    const before = i ? HOME_SECTIONS[i - 1].id : null;
-    const at = before ? home.indexOf(before) + 1 : 0;
-    home.splice(at, 0, s.id);
+  const isPart = (x: unknown): x is Id => typeof x === "string" && (parts as readonly string[]).includes(x);
+  const menuSide: MenuSide = MENU_SIDES.some((s) => s.id === r.menuSide) ? r.menuSide : defaults.menuSide;
+  const menuClose: MenuClose = MENU_CLOSES.some((c) => c.id === r.menuClose) ? r.menuClose : defaults.menuClose;
+  const home: Id[] = [];
+  for (const x of Array.isArray(r.home) ? r.home : []) if (isPart(x) && !home.includes(x)) home.push(x);
+  parts.forEach((id, i) => {
+    if (home.includes(id)) return;
+    const before = i ? parts[i - 1] : null;
+    home.splice(before ? home.indexOf(before) + 1 : 0, 0, id);
   });
-  const homeHidden = Array.isArray(r.homeHidden) ? [...new Set((r.homeHidden as unknown[]).filter(isSection))] : DEFAULT_LAYOUT.homeHidden;
-  const homeSize: Partial<Record<HomeSection, HomeSize>> = {};
-  if (r.homeSize && typeof r.homeSize === "object") for (const [k, v] of Object.entries(r.homeSize)) if (isSection(k) && HOME_SIZES.some((z) => z.id === v)) homeSize[k] = v as HomeSize;
+  const homeHidden: Id[] = Array.isArray(r.homeHidden) ? [...new Set((r.homeHidden as unknown[]).filter(isPart))] : [...defaults.homeHidden];
+  const homeSize: Partial<Record<Id, HomeSize>> = {};
+  if (r.homeSize && typeof r.homeSize === "object") for (const [k, v] of Object.entries(r.homeSize)) if (isPart(k) && HOME_SIZES.some((z) => z.id === v)) homeSize[k] = v as HomeSize;
   return { menuSide, menuClose, home, homeHidden, homeSize };
 }
 
+/** WorkHub's saved layout made safe. */
+export const cleanLayout = (raw: unknown): HubLayout => cleanAnyLayout(raw, HOME_SECTIONS.map((s) => s.id), DEFAULT_LAYOUT);
+
 /** The parts of Home that show, in order. */
-export const homeShown = (layout: HubLayout): HomeSection[] => layout.home.filter((s) => !layout.homeHidden.includes(s));
+export const homeShown = <L extends AnyLayout>(layout: L): L["home"] => layout.home.filter((s) => !layout.homeHidden.includes(s));
 
 /** The order with one part moved up (-1) or down (+1). */
-export function moveSection(layout: HubLayout, id: HomeSection, by: -1 | 1): HubLayout {
+export function moveSection<L extends AnyLayout>(layout: L, id: string, by: -1 | 1): L {
   const home = [...layout.home];
   const at = home.indexOf(id), to = at + by;
   if (at < 0 || to < 0 || to >= home.length) return layout;
@@ -86,10 +92,10 @@ export function moveSection(layout: HubLayout, id: HomeSection, by: -1 | 1): Hub
 }
 
 /** The layout with a part of Home shown or hidden. */
-export const showSection = (layout: HubLayout, id: HomeSection, on: boolean): HubLayout =>
+export const showSection = <L extends AnyLayout>(layout: L, id: string, on: boolean): L =>
   ({ ...layout, homeHidden: on ? layout.homeHidden.filter((x) => x !== id) : [...new Set([...layout.homeHidden, id])] });
 
 /** A part's size (large unless it was changed). */
-export const sizeOf = (layout: HubLayout, id: HomeSection): HomeSize => layout.homeSize[id] || "large";
+export const sizeOf = (layout: AnyLayout, id: string): HomeSize => layout.homeSize[id] || "large";
 /** The layout with a part resized. */
-export const resizeSection = (layout: HubLayout, id: HomeSection, size: HomeSize): HubLayout => ({ ...layout, homeSize: { ...layout.homeSize, [id]: size } });
+export const resizeSection = <L extends AnyLayout>(layout: L, id: string, size: HomeSize): L => ({ ...layout, homeSize: { ...layout.homeSize, [id]: size } });

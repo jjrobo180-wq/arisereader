@@ -10,14 +10,14 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import { motion } from "framer-motion";
 import { Bell, CalendarDays, Check, CheckSquare, Image as ImageIcon, ListChecks, Plus, Puzzle, School, Sun, Users, WandSparkles, X, type LucideIcon } from "lucide-react";
 import { HubModal } from "./HubModal";
-import { HOME_SECTIONS, HOME_SIZES, homeShown, resizeSection, sizeOf, type HomeSection, type HomeSize, type HubLayout } from "@shared/hubLayout";
+import { HOME_SECTIONS, HOME_SIZES, homeShown, resizeSection, sizeOf, type AnyLayout, type HomeSection, type HomeSize } from "@shared/hubLayout";
 import type { Plugin } from "@shared/pluginStore";
 import { ICONS } from "@/components/plugin-store/PluginStore";
 
 /** Holding this long on Home starts editing; holding this long on a part while editing picks it up. */
 const HOLD_EDIT_MS = 600;
 const HOLD_DRAG_MS = 220;
-const label = (id: HomeSection) => HOME_SECTIONS.find((s) => s.id === id)?.label ?? id;
+
 /** A press on something you can use (a button, a link, a box to type in) is never a hold. */
 const isControl = (el: EventTarget | null) => el instanceof HTMLElement && !!el.closest("a, button, input, textarea, select, label, [role='button'], [role='radio'], [contenteditable='true']");
 /** Where a part sits in the grid, and how tall it may be. Small is half width from tablet size up. */
@@ -26,6 +26,10 @@ const GRID = "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-5 md:grid-cols-5 xl:g
 const SPAN: Record<HomeSize, string> = { small: "col-span-1", medium: "col-span-full", large: "col-span-full" };
 /** The picture on each part's small tile. */
 const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, notifications: Bell, profile: School };
+/** One part of a hub's Home: its name and the picture on its small tile. */
+export type HomePart = { id: string; label: string; icon?: LucideIcon };
+/** WorkHub's parts of Home. */
+export const WORK_PARTS: HomePart[] = HOME_SECTIONS.map((s) => ({ id: s.id, label: s.label, icon: PART_ICON[s.id] }));
 const CAP: Record<HomeSize, string> = { small: "max-h-[26rem] overflow-y-auto overscroll-contain rounded-3xl", medium: "max-h-[22rem] overflow-y-auto overscroll-contain rounded-3xl", large: "" };
 /** How tall a part's picture is while arranging. */
 const PREVIEW: Record<HomeSize, string> = { small: "aspect-square", medium: "h-36", large: "h-52" };
@@ -34,34 +38,41 @@ const GLIDE = { type: "spring", stiffness: 520, damping: 42, mass: 0.8 } as cons
 export type QuickPlugin = { plugin: Plugin; onAdd: () => void };
 
 type Drag = {
-  id: HomeSection;
+  id: string;
   /** Where the finger took hold, inside the part. */
   grabX: number; grabY: number;
   /** The finger now, on the screen. */
   x: number; y: number;
   /** The part just swapped with: it is not swapped back until the finger leaves it, so parts never flip back and forth. */
-  last: HomeSection | null;
+  last: string | null;
 };
 
-export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }: {
-  parts: Record<HomeSection, ReactNode>; layout: HubLayout; onChange: (next: HubLayout) => void;
+export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950" }: {
+  /** Each part's content. null is a part with nothing to show right now: it is left out of Home, and shown as its tile while editing. */
+  parts: Record<string, ReactNode | null>; layout: L; onChange: (next: L) => void;
+  /** The hub's parts of Home, for their names and tile pictures. */
+  catalog?: HomePart[];
+  /** The colour of the small tiles' picture square (a Tailwind background class). */
+  accent?: string;
   /** Plugins not added yet, to add with one tap from the tray. */
   plugins?: QuickPlugin[];
   onOpenStore?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   /** A small tile tapped open: its whole part in a pop-up. */
-  const [opened, setOpened] = useState<HomeSection | null>(null);
+  const [opened, setOpened] = useState<string | null>(null);
   const hidden = layout.homeHidden;
+  const label = (id: string) => catalog.find((p) => p.id === id)?.label ?? id;
+  const tileOf = (id: string) => <PartTile part={catalog.find((p) => p.id === id) ?? { id, label: id }} accent={accent} />;
   /** The parts on Home in order, while editing. */
-  const [order, setOrder] = useState<HomeSection[]>(() => homeShown(layout));
+  const [order, setOrder] = useState<string[]>(() => homeShown(layout));
   const orderRef = useRef(order);
   orderRef.current = order;
-  const [dragId, setDragId] = useState<HomeSection | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
   const drag = useRef<Drag | null>(null);
   const grid = useRef<HTMLDivElement>(null);
-  const els = useRef(new Map<HomeSection, HTMLDivElement>());
-  const press = useRef<{ timer: number; x: number; y: number; id: HomeSection | null } | null>(null);
+  const els = useRef(new Map<string, HTMLDivElement>());
+  const press = useRef<{ timer: number; x: number; y: number; id: string | null } | null>(null);
   const scrollLoop = useRef(0);
 
   useEffect(() => { if (!drag.current) setOrder(homeShown(layout)); }, [layout.home.join(","), hidden.join(",")]);
@@ -73,7 +84,7 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
   }, [editing]);
 
   /** The full order: the parts on Home as arranged, then the hidden ones. */
-  const full = (shown: HomeSection[]) => [...shown, ...layout.home.filter((id) => !shown.includes(id))];
+  const full = (shown: string[]) => [...shown, ...layout.home.filter((id) => !shown.includes(id))];
 
   // ─── While a part is held, the page does not scroll under the finger ───────
   // The listener is there the whole time Home is being edited, so it is ready the moment a part is picked up.
@@ -96,7 +107,7 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
     const d = drag.current, box = grid.current?.getBoundingClientRect();
     if (!d || !box) return;
     const px = d.x - box.left, py = d.y - box.top;
-    const inside = (id: HomeSection) => { const el = els.current.get(id); return !!el && px >= el.offsetLeft && px <= el.offsetLeft + el.offsetWidth && py >= el.offsetTop && py <= el.offsetTop + el.offsetHeight; };
+    const inside = (id: string) => { const el = els.current.get(id); return !!el && px >= el.offsetLeft && px <= el.offsetLeft + el.offsetWidth && py >= el.offsetTop && py <= el.offsetTop + el.offsetHeight; };
     if (d.last && !inside(d.last)) d.last = null;
     const target = orderRef.current.find((id) => id !== d.id && id !== d.last && inside(id));
     if (!target) return;
@@ -109,7 +120,7 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
     requestAnimationFrame(place);
   }
 
-  function pickUp(id: HomeSection, x: number, y: number) {
+  function pickUp(id: string, x: number, y: number) {
     const el = els.current.get(id);
     if (!el) return;
     const r = el.getBoundingClientRect();
@@ -136,12 +147,12 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
     const el = els.current.get(d.id);
     if (el) { el.style.transition = "transform 220ms cubic-bezier(.2,.8,.2,1)"; el.style.transform = ""; setTimeout(() => { el.style.transition = ""; }, 240); }
     setDragId(null);
-    onChange({ ...layout, home: full(orderRef.current) });
+    onChange({ ...layout, home: full(orderRef.current) } as L);
   }
 
   // ─── Pointer handling for a part while editing ─────────────────────────────
   const cancelPress = () => { if (press.current) { clearTimeout(press.current.timer); press.current = null; } };
-  const partHandlers = (id: HomeSection) => ({
+  const partHandlers = (id: string) => ({
     onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => {
       if (isControl(e.target) || (e.pointerType === "mouse" && e.button !== 0)) return;
       cancelPress();
@@ -184,18 +195,18 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
     onPointerUp: cancelPress, onPointerCancel: cancelPress, onPointerLeave: cancelPress,
   };
 
-  const ref = (id: HomeSection) => (el: HTMLDivElement | null) => { if (el) els.current.set(id, el); else els.current.delete(id); };
+  const ref = (id: string) => (el: HTMLDivElement | null) => { if (el) els.current.set(id, el); else els.current.delete(id); };
 
   // ─── Not editing: Home as usual, each part at its size ─────────────────────
   if (!editing) {
-    const shown = homeShown(layout);
+    const shown = (homeShown(layout) as string[]).filter((id) => parts[id] != null);
     return (
       <>
         <div className={GRID} data-testid="home-grid">
           {shown.map((id) => (
             <div key={id} {...holdProps} className={`${SPAN[sizeOf(layout, id)]} min-w-0`} data-home-part={id}>
               {sizeOf(layout, id) === "small"
-                ? <button type="button" onClick={() => setOpened(id)} className="w-full transition active:scale-95" aria-label={`Open ${label(id)}`} data-testid={`home-tile-${id}`}><Tile id={id} /></button>
+                ? <button type="button" onClick={() => setOpened(id)} className="w-full transition active:scale-95" aria-label={`Open ${label(id)}`} data-testid={`home-tile-${id}`}>{tileOf(id)}</button>
                 : <div className={CAP[sizeOf(layout, id)]}>{parts[id]}</div>}
             </div>
           ))}
@@ -230,13 +241,14 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
               <div className={`hub-jiggle relative rounded-3xl bg-white transition-shadow duration-150 ${held ? "shadow-2xl ring-2 ring-slate-900" : "shadow-sm ring-1 ring-slate-300"}`}
                 style={{ animation: held ? "none" : `hub-jiggle .3s ease-in-out ${i % 2 ? "-.15s" : "0s"} infinite` }}>
                 {sz === "small"
-                  ? <div className="pointer-events-none" aria-hidden><Tile id={id} /></div>
+                  ? <div className="pointer-events-none" aria-hidden>{tileOf(id)}</div>
+                  : parts[id] == null ? <div className={`pointer-events-none flex ${PREVIEW[sz]} items-center justify-center rounded-3xl bg-slate-50 text-sm text-slate-400`} aria-hidden>Nothing here right now</div>
                   : <div className={`pointer-events-none ${PREVIEW[sz]} overflow-hidden rounded-3xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)]`} aria-hidden>{parts[id]}</div>}
                 {sz !== "small" && <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-white">{label(id)}</span>}
-                <button type="button" onClick={() => onChange({ ...layout, home: full(order), homeHidden: [...new Set([...hidden, id])] })} aria-label={`Remove ${label(id)} from Home`}
+                <button type="button" onClick={() => onChange({ ...layout, home: full(order), homeHidden: [...new Set([...hidden, id])] } as L)} aria-label={`Remove ${label(id)} from Home`}
                   className="absolute -left-2 -top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-700 text-white shadow-md transition active:scale-90" data-testid={`home-remove-${id}`}><X className="h-4 w-4" /></button>
                 <div className={`absolute z-10 flex rounded-full bg-white/95 p-0.5 shadow-md ring-1 ring-slate-200 ${sz === "small" ? "-bottom-3 left-1/2 -translate-x-1/2" : "right-2 top-2"}`} role="radiogroup" aria-label={`Size of ${label(id)}`}>
-                  {HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => onChange(resizeSection({ ...layout, home: full(order) }, id, z.id))}
+                  {HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => onChange(resizeSection({ ...layout, home: full(order) } as L, id, z.id))}
                     className={`inline-flex ${sz === "small" ? "h-7 w-7" : "h-8 w-8"} items-center justify-center rounded-full text-xs font-bold transition ${sz === z.id ? "bg-slate-950 text-white" : "text-slate-600"}`} data-testid={`home-size-${id}-${z.id}`}>{z.short}</button>)}
                 </div>
               </div>
@@ -253,7 +265,7 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
               <p className="mb-2 text-sm font-semibold text-slate-900">Add to Home</p>
               <div className="flex flex-wrap gap-2">
                 {off.map((id) => (
-                  <button key={id} type="button" onClick={() => onChange({ ...layout, homeHidden: hidden.filter((x) => x !== id) })} className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95" data-testid={`home-add-${id}`}>
+                  <button key={id} type="button" onClick={() => onChange({ ...layout, homeHidden: hidden.filter((x) => x !== id) } as L)} className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95" data-testid={`home-add-${id}`}>
                     <Plus className="h-4 w-4" /> {label(id)}
                   </button>
                 ))}
@@ -289,12 +301,12 @@ export function HomeParts({ parts, layout, onChange, plugins = [], onOpenStore }
 }
 
 /** A part as a small square tile, like an app icon: its picture and its name. */
-function Tile({ id }: { id: HomeSection }) {
-  const Icon = PART_ICON[id] ?? Puzzle;
+function PartTile({ part, accent }: { part: HomePart; accent: string }) {
+  const Icon = part.icon ?? Puzzle;
   return (
     <span className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[1.6rem] border border-slate-200 bg-white p-2 text-center shadow-sm">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-14 sm:w-14"><Icon className="h-6 w-6 sm:h-7 sm:w-7" /></span>
-      <span className="line-clamp-2 text-xs font-semibold leading-tight text-slate-800 sm:text-sm">{label(id)}</span>
+      <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-sm sm:h-14 sm:w-14 ${accent}`}><Icon className="h-6 w-6 sm:h-7 sm:w-7" /></span>
+      <span className="line-clamp-2 text-xs font-semibold leading-tight text-slate-800 sm:text-sm">{part.label}</span>
     </span>
   );
 }
