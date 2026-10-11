@@ -326,8 +326,11 @@ function AppRoutes() {
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
+      <Route path="/signin">
+        {user ? <Redirect to="/" replace /> : <Login />}
+      </Route>
       <Route path="/">
-        {user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Login />}
+        {user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
         {user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
