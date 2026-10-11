@@ -271,42 +271,51 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   );
   const rows = (list: Plugin[]) => <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{list.map(row)}</ul>;
 
-  /** A full-bleed, art-directed card: the app's own colour is the whole background, and its icon is
-   * blown up into a centred badge so the card reads as artwork, not a settings row. */
-  const poster = (p: Plugin, kind: "spotlight" | "rail") => {
+  /** The App of the day spotlight: the app's own colour fills the whole card, with a big icon badge
+   * standing in for artwork. Fixed height (not content-driven), so it never depends on how long the
+   * tagline runs. */
+  const spotlightCard = (p: Plugin) => {
     const deep = mix(p.color, "#000000", 0.55);
     const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
-    const big = kind === "spotlight";
-    return <div role="button" tabIndex={0} key={p.id} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
-      className={`group relative flex shrink-0 cursor-pointer flex-col overflow-hidden text-left text-white ${ring} ${big ? "h-[17rem] w-full rounded-[1.75rem] p-5 sm:h-72 sm:p-7" : "h-44 w-32 rounded-[1.1rem] p-3 snap-start sm:h-48 sm:w-36"}`}
+    return <div role="button" tabIndex={0} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
+      className={`group relative flex h-[17rem] w-full cursor-pointer flex-col overflow-hidden rounded-[1.75rem] p-5 text-left text-white sm:h-72 sm:p-7 ${ring}`}
       style={{ background: `radial-gradient(130% 110% at 100% 0%, ${mix(p.color, "#ffffff", 0.3)}, ${p.color} 45%, ${deep})` }}
-      data-testid={kind === "spotlight" ? "plugin-spotlight" : `plugin-rail-${p.id}`}>
+      data-testid="plugin-spotlight">
       <span className="pointer-events-none absolute inset-0 opacity-90 [background:radial-gradient(60%_80%_at_15%_100%,rgba(0,0,0,.35),transparent_65%)]" aria-hidden />
-
-      <span className="relative inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] backdrop-blur-sm">
-        {big ? <><Sparkles className="h-3 w-3" />App of the day</> : p.category}
-      </span>
-
-      {/* The artwork: a large icon badge of its own, centred in the free space, standing in for a photo. */}
-      <span className={`pointer-events-none relative flex flex-1 items-center justify-center transition-transform duration-300 group-hover:scale-105 ${big ? "py-2" : "py-1"}`} aria-hidden>
-        <span
-          className={`flex items-center justify-center rounded-[1.4rem] bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,.4),0_8px_20px_-8px_rgba(0,0,0,.45)] backdrop-blur-sm ${big ? "h-24 w-24" : "h-14 w-14 rounded-xl"}`}
-        >
-          <Icon className={big ? "h-12 w-12" : "h-7 w-7"} strokeWidth={1.6} />
+      <span className="relative inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] backdrop-blur-sm"><Sparkles className="h-3 w-3" />App of the day</span>
+      <span className="pointer-events-none relative flex flex-1 items-center justify-center py-2 transition-transform duration-300 group-hover:scale-105" aria-hidden>
+        <span className="flex h-24 w-24 items-center justify-center rounded-[1.4rem] bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,.4),0_8px_20px_-8px_rgba(0,0,0,.45)] backdrop-blur-sm">
+          <Icon className="h-12 w-12" strokeWidth={1.6} />
         </span>
       </span>
-
       <span className="relative">
-        <span className={`block truncate font-black tracking-tight drop-shadow-sm ${big ? "text-[26px] sm:text-[30px]" : "text-[13px]"}`}>{p.name}</span>
-        {big
-          ? <span className="mt-1 block max-w-sm text-[14px] leading-snug text-white/85 sm:text-[15px]">{p.tagline}</span>
-          : <span className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/80">{p.tagline}</span>}
-        <span className={big ? "mt-3 inline-block" : "mt-2 block"} onClick={(e) => e.stopPropagation()}>{action(p, big)}</span>
+        <span className="block truncate text-[26px] font-black tracking-tight drop-shadow-sm sm:text-[30px]">{p.name}</span>
+        <span className="mt-1 block max-w-sm text-[14px] leading-snug text-white/85 sm:text-[15px]">{p.tagline}</span>
+        <span className="mt-3 inline-block" onClick={(e) => e.stopPropagation()}>{action(p, true)}</span>
       </span>
     </div>;
   };
+
+  /** One rail card: a compact, full-colour tile with a small icon badge, one line of title, and the
+   * standard small button. Content sets the height (no fixed box to overflow). */
+  const railCard = (p: Plugin) => {
+    const deep = mix(p.color, "#000000", 0.55);
+    const Icon = ICONS[p.icon] ?? KIT_ICONS[p.icon] ?? Puzzle;
+    return <div role="button" tabIndex={0} key={p.id} onClick={() => setOpenId(p.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(p.id); } }}
+      className={`group relative flex w-32 shrink-0 cursor-pointer flex-col gap-2 overflow-hidden rounded-[1.1rem] p-3 text-left text-white shadow-[0_6px_16px_-8px_rgba(0,0,0,.4)] snap-start sm:w-36 ${ring}`}
+      style={{ background: `radial-gradient(130% 110% at 100% 0%, ${mix(p.color, "#ffffff", 0.3)}, ${p.color} 45%, ${deep})` }}
+      data-testid={`plugin-rail-${p.id}`}>
+      <span className="pointer-events-none absolute inset-0 opacity-90 [background:radial-gradient(60%_80%_at_15%_100%,rgba(0,0,0,.35),transparent_65%)]" aria-hidden />
+      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,.4)] backdrop-blur-sm" aria-hidden><Icon className="h-5 w-5" strokeWidth={1.8} /></span>
+      <span className="relative min-w-0">
+        <span className="block truncate text-[13px] font-black leading-tight tracking-tight">{p.name}</span>
+        <span className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-white/75">{p.tagline}</span>
+      </span>
+      <span className="relative mt-auto" onClick={(e) => e.stopPropagation()}>{action(p)}</span>
+    </div>;
+  };
   const posterRail = (list: Plugin[]) => <ul className="-mx-4 flex gap-2.5 overflow-x-auto overscroll-x-contain px-4 pb-1 pt-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
-    {list.map((p) => <li key={p.id} className="flex shrink-0">{poster(p, "rail")}</li>)}
+    {list.map((p) => <li key={p.id} className="flex shrink-0">{railCard(p)}</li>)}
   </ul>;
 
   const categories = PLUGIN_CATEGORIES[hub].filter((c) => all.some((p) => p.category === c));
@@ -357,7 +366,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
         <div className="space-y-9 pt-1">
           {browsing && spotlight && <section aria-labelledby="ps-spotlight">
             <h2 id="ps-spotlight" className="sr-only">App of the day</h2>
-            {poster(spotlight, "spotlight")}
+            {spotlightCard(spotlight)}
           </section>}
 
           {browsing && rail.length > 0 && <section aria-labelledby="ps-featured">
