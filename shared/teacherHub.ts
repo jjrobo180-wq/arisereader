@@ -211,6 +211,8 @@ export type Workspace = {
   minuteBlocks?: SchoolBlock[];
   /** The school days that are optional: nothing is due on them, they are only for extra minutes. Not set means Wednesday. See shared/hubProgress.ts. */
   minuteOptionalDays?: string[];
+  /** How the teacher arranged the Hub in Customize (see shared/hubLayout.ts): the phone menu and Home. */
+  layout?: import("./hubLayout").HubLayout;
   guides: IepGuide[];
   spedContacts: HubContact[];
   guideLinks: HubLink[];

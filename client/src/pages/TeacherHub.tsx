@@ -1,6 +1,6 @@
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
 import { markEmailRead } from "@shared/hubInbox";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   AlertTriangle,
   BookHeart,
@@ -54,6 +54,8 @@ import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs
 import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
+import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
+import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, homeShown, moveSection, showSection, type HomeSection, type HubLayout } from "@shared/hubLayout";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
@@ -462,6 +464,19 @@ function TeacherHubPage() {
   const [homeTask, setHomeTask] = useState<string | null>(null);
   const [homeQuick, setHomeQuick] = useState("");
   const openTasks = workspace.tasks.filter((t) => !t.done).length;
+  // How the teacher arranged the Hub (Customize): where the phone menu sits, how it closes, and what Home shows.
+  const layout = cleanLayout(workspace.layout);
+  const setLayout = (next: HubLayout) => setWorkspace((p) => ({ ...p, layout: next }));
+  const side = layout.menuSide;
+  const menuOpen = layout.menuClose === "always" || rail;
+  const canHide = layout.menuClose !== "always";
+  /** On a phone the menu may close by itself once a section is picked. */
+  const afterPick = () => { if (layout.menuClose === "auto" && typeof window !== "undefined" && window.innerWidth < 768) setRail(false); };
+  const pagePad = side === "bottom" ? "px-3 sm:px-4" : side === "right" ? `pl-3 sm:pl-4 ${menuOpen ? "pr-[80px] sm:pr-[84px]" : "pr-9 sm:pr-10"}` : `pr-3 sm:pr-4 ${menuOpen ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"}`;
+  const asidePhone = side === "bottom"
+    ? `inset-x-0 bottom-0 border-t px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "translate-y-full"}`
+    : `bottom-0 top-[65px] w-[72px] ${side === "right" ? "right-0 border-l pr-[env(safe-area-inset-right)]" : "left-0 border-r pl-[env(safe-area-inset-left)]"} ${menuOpen ? "translate-x-0" : side === "right" ? "translate-x-full" : "-translate-x-full"}`;
+  const listPhone = side === "bottom" ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
   const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
 
@@ -656,7 +671,7 @@ function TeacherHubPage() {
             <button type="button" onClick={() => setAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
-            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize tabs and your data" aria-expanded={customize} className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize tabs</span></button>
+            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize your Hub" aria-expanded={customize} className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize</span></button>
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><LogOut className="h-4 w-4" /></button>
             <div ref={moreRef} className="relative sm:hidden">
               <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" data-testid="hub-more"><MoreHorizontal className="h-5 w-5" /></button>
@@ -670,7 +685,7 @@ function TeacherHubPage() {
                         : <><CheckCircle2 className="h-4 w-4 text-emerald-600" />Saved</>}
                   </div>
                   <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{night ? "Day mode" : "Night mode"}</button>
-                  <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize tabs</button>
+                  <button type="button" role="menuitem" onClick={() => { setCustomize((v) => !v); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 className="h-4 w-4" />Customize</button>
                   <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut className="h-4 w-4" />Sign out</button>
                 </div>
               )}
@@ -679,11 +694,13 @@ function TeacherHubPage() {
         </div>
       </header>
 
-      <div className={`mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 pr-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 sm:pr-4 ${rail ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"} md:grid-cols-[220px_minmax(0,1fr)] md:px-6`}>
-        {!rail && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" className="fixed left-0 top-[77px] z-30 inline-flex h-14 w-7 items-center justify-center rounded-r-xl border border-l-0 border-slate-200 bg-white text-slate-600 shadow-md md:hidden" data-testid="hub-rail-show"><RailShow className="h-5 w-5" /></button>}
-        <aside className={`fixed bottom-0 left-0 top-[65px] z-30 w-[72px] min-w-0 transition-transform duration-200 md:translate-x-0 ${rail ? "translate-x-0" : "-translate-x-full"} border-r border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] backdrop-blur md:sticky md:left-auto md:w-auto md:border-r-0 md:pl-0 md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start`} aria-hidden={rail ? undefined : true}>
-          <div className="flex h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm">
-            <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className="flex min-h-11 w-full shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden" data-testid="hub-rail-hide"><RailHide className="h-5 w-5" />Hide</button>
+      <div className={`mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} md:grid-cols-[220px_minmax(0,1fr)] md:px-6`}>
+        {!menuOpen && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
+          className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
+          {side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
+        <aside className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start`} aria-hidden={menuOpen ? undefined : true}>
+          <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm`}>
+            {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${side === "bottom" ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
@@ -698,18 +715,18 @@ function TeacherHubPage() {
                   onDragEnd={movable ? () => setDraggingGroup(null) : undefined}
                   onDragOver={movable && draggingGroup && draggingGroup !== item.id ? (e) => e.preventDefault() : undefined}
                   onDrop={movable && draggingGroup && draggingGroup !== item.id ? (e) => { e.preventDefault(); moveGroupTo(draggingGroup, item.id); setDraggingGroup(null); } : undefined}
-                  className={`group/navitem flex w-full shrink-0 items-stretch gap-0.5 rounded-xl transition ${draggingGroup === item.id ? "opacity-40" : ""}`}
+                  className={`group/navitem flex ${side === "bottom" ? "snap-start" : "w-full"} shrink-0 items-stretch md:w-full gap-0.5 rounded-xl transition ${draggingGroup === item.id ? "opacity-40" : ""}`}
                 >
                   <button
                     type="button"
-                    onClick={() => setTab(openGroup(item.id, visible, lastInGroup))}
+                    onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); afterPick(); }}
                     aria-current={group.id === item.id ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
                     data-hub-nav
                     className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
                   >
                     {GROUP_ICON[item.id]}
-                    <span className="max-w-[62px] truncate whitespace-nowrap md:max-w-none md:whitespace-normal">{groupLabel(item.id, visible)}</span>
+                    <span className={`${side === "bottom" ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal`}>{groupLabel(item.id, visible)}</span>
                   </button>
                   {movable && (
                     <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">
@@ -742,7 +759,45 @@ function TeacherHubPage() {
             </div>
           )}
           {customize && (
-            <Card title="Customize tabs" right={<button onClick={() => setCustomize(false)} className="text-sm font-medium text-slate-500">Close</button>}>
+            <Card title="Customize" right={<button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button>}>
+              <div className="mb-6 grid gap-5 lg:grid-cols-2" data-testid="customize-layout">
+                <div>
+                  <h3 className="mb-1 text-sm font-semibold text-slate-900">Menu on your phone</h3>
+                  <p className="mb-3 text-sm text-slate-600">Where it sits, and how it closes. On a computer it is always the sidebar.</p>
+                  <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
+                    {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
+                      className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
+                  </div>
+                  <div role="radiogroup" aria-label="How the menu closes" className="grid gap-2">
+                    {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); setRail(true); }} data-testid={`menu-close-${o.id}`}
+                      className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
+                      <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-slate-950" : "border-slate-300"}`} aria-hidden />
+                      <span><span className="block font-semibold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
+                    </button>)}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="mb-1 text-sm font-semibold text-slate-900">Home screen</h3>
+                  <p className="mb-3 text-sm text-slate-600">Turn parts on or off and move them up or down. The picture box shows a photo of your choice; tap Style on it to add one.</p>
+                  <ul className="space-y-1.5" aria-label="Parts of Home">
+                    {layout.home.map((id, i) => {
+                      const on = !layout.homeHidden.includes(id);
+                      const label = HOME_SECTIONS.find((x) => x.id === id)!.label;
+                      return (
+                        <li key={id} className={`flex min-h-11 items-center gap-2 rounded-xl border px-2 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`home-part-${id}`}>
+                          <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm">
+                            <input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={(e) => setLayout(showSection(layout, id, e.target.checked))} />
+                            <span className={on ? "font-medium text-slate-900" : "text-slate-500"}>{label}</span>
+                          </label>
+                          <button type="button" onClick={() => setLayout(moveSection(layout, id, -1))} disabled={i === 0} aria-label={`Move ${label} up`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronUp className="h-4 w-4" /></button>
+                          <button type="button" onClick={() => setLayout(moveSection(layout, id, 1))} disabled={i === layout.home.length - 1} aria-label={`Move ${label} down`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronDown className="h-4 w-4" /></button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <button type="button" onClick={() => setLayout({ ...layout, home: HOME_SECTIONS.map((x) => x.id), homeHidden: ["picture"] })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
+                </div>
+              </div>
               <div className="mb-5">
                 <h3 className="mb-1 text-sm font-semibold text-slate-900">Accent colour</h3>
                 <p className="mb-3 text-sm text-slate-600">The one colour the Hub is tinted with: buttons, links, today's bar and anything chosen.</p>
@@ -763,6 +818,7 @@ function TeacherHubPage() {
                   </label>
                 </div>
               </div>
+              <h3 className="mb-1 text-sm font-semibold text-slate-900">Tabs</h3>
               <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {cleanGroupOrder(workspace.groupOrder).map((id) => HUB_GROUPS.find((g) => g.id === id)!)
@@ -832,10 +888,19 @@ function TeacherHubPage() {
 
           {tab === "overview" && (
             <>
+              {(() => {
+                // Home in the teacher's order (Customize). Meetings and To do sit side by side when they are next to each other.
+                const part: Record<HomeSection, ReactNode> = {
+                  day: (
               <HubDayHead workspace={workspace} firstName={user.displayName.split(" ")[0]} onOpenCalendar={() => setTab("calendar")} />
-
+                  ),
+                  picture: (
+              <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={user.displayName.split(" ")[0]} stats={[{ label: "Students", value: workspace.students.length }, { label: "Open to-dos", value: openTasks }, { label: "Meetings ahead", value: upcomingMeetings.length }]} />
+                  ),
+                  agenda: (
               <HubAgenda workspace={workspace} onOpenCalendar={() => setTab("calendar")} onOpenMeetings={() => setTab("iep")} />
-
+                  ),
+                  add: (
               <Card title="Add things fast" collapseKey="home-add">
                 <p className="mb-4 text-sm text-slate-600">Skip the typing. AI reads what you give it and sorts it into your Hub, and you check it before anything is saved.</p>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -845,39 +910,42 @@ function TeacherHubPage() {
                   <QuickAdd icon={<Link2 className="h-5 w-5" />} title="Connect a calendar" detail="Google, Outlook or Apple" onClick={() => setTab("calendar")} />
                 </div>
               </Card>
-
+                  ),
+                  calendar: (
               <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} title="Your calendar" onReminderAdded={reminderAdded} agendaToday collapseKey="home-calendar" />
-
-              <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-2">
-                <Card title="Upcoming IEP / reevaluation meetings" collapseKey="home-meetings">
-                  {upcomingMeetings.length ? (
-                    <div className="space-y-2">
-                      {upcomingMeetings.map((m) => (
-                        <button key={m.id} onClick={() => setTab("iep")} className="flex w-full items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-3 text-left hover:bg-slate-100">
-                          <div className="min-w-0 flex-1"><div className="break-words font-medium">{m.student || "Student"}</div><div className="text-xs text-slate-500">{m.type}</div></div>
-                          <div className="max-w-[50%] text-right text-sm font-semibold text-slate-700">{m.date ? friendlyDate(m.date, TODAY()) : "No date"}{m.time ? ` · ${clock12(m.time)}` : ""}</div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : <Empty>No upcoming meetings yet.</Empty>}
-                </Card>
-
-                <Card title="To do" collapseKey="home-todo" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
-                  <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, { title, dueDate: "", recurring: "", priority: false }, id) })); setHomeQuick(""); }} className="mb-3 flex gap-2" data-testid="home-task-add">
-                    <Field placeholder="Add a to-do and press Enter" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
-                    <PrimaryButton type="submit" disabled={!homeQuick.trim()}>Add</PrimaryButton>
-                  </form>
-                  {dueTasks.length ? (
-                    <ul className="space-y-2">
-                      {dueTasks.map((task) => <TaskRow key={task.id} task={task} today={TODAY()} workspace={workspace} setWorkspace={setWorkspace} makeId={id} onToggle={checkTask} onEdit={(t) => setHomeTask(t.id)} onDelete={(t) => remove("tasks", t.id)} />)}
-                    </ul>
-                  ) : <Empty>Nothing due right now.</Empty>}
-                  <RecentlyDone tasks={workspace.tasks} onUndo={undoCheck} limit={4} />
-                </Card>
-              </div>
-
+                  ),
+                  meetings: (
+              <Card title="Upcoming IEP / reevaluation meetings" collapseKey="home-meetings">
+                {upcomingMeetings.length ? (
+                  <div className="space-y-2">
+                    {upcomingMeetings.map((m) => (
+                      <button key={m.id} onClick={() => setTab("iep")} className="flex w-full items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-3 text-left hover:bg-slate-100">
+                        <div className="min-w-0 flex-1"><div className="break-words font-medium">{m.student || "Student"}</div><div className="text-xs text-slate-500">{m.type}</div></div>
+                        <div className="max-w-[50%] text-right text-sm font-semibold text-slate-700">{m.date ? friendlyDate(m.date, TODAY()) : "No date"}{m.time ? ` · ${clock12(m.time)}` : ""}</div>
+                      </button>
+                    ))}
+                  </div>
+                ) : <Empty>No upcoming meetings yet.</Empty>}
+              </Card>
+                  ),
+                  todo: (
+              <Card title="To do" collapseKey="home-todo" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
+                <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, { title, dueDate: "", recurring: "", priority: false }, id) })); setHomeQuick(""); }} className="mb-3 flex gap-2" data-testid="home-task-add">
+                  <Field placeholder="Add a to-do and press Enter" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
+                  <PrimaryButton type="submit" disabled={!homeQuick.trim()}>Add</PrimaryButton>
+                </form>
+                {dueTasks.length ? (
+                  <ul className="space-y-2">
+                    {dueTasks.map((task) => <TaskRow key={task.id} task={task} today={TODAY()} workspace={workspace} setWorkspace={setWorkspace} makeId={id} onToggle={checkTask} onEdit={(t) => setHomeTask(t.id)} onDelete={(t) => remove("tasks", t.id)} />)}
+                  </ul>
+                ) : <Empty>Nothing due right now.</Empty>}
+                <RecentlyDone tasks={workspace.tasks} onUndo={undoCheck} limit={4} />
+              </Card>
+                  ),
+                  notifications: (
               <HubNotifications token={token} />
-
+                  ),
+                  profile: (
               <Card title="Workspace profile" collapseKey="home-profile">
                 <div className="grid gap-3 md:grid-cols-3">
                   <Field placeholder="School" value={workspace.profile.school} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, school: e.target.value } }))} />
@@ -885,6 +953,18 @@ function TeacherHubPage() {
                   <Field placeholder="Subject / role" value={workspace.profile.subject} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, subject: e.target.value } }))} />
                 </div>
               </Card>
+                  ),
+                };
+                const shown = homeShown(layout);
+                const out: ReactNode[] = [];
+                for (let i = 0; i < shown.length; i++) {
+                  const id = shown[i], next = shown[i + 1];
+                  const pair = (id === "meetings" && next === "todo") || (id === "todo" && next === "meetings");
+                  if (pair) { out.push(<div key={`${id}-${next}`} className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-2">{part[id]}{part[next]}</div>); i++; }
+                  else out.push(<Fragment key={id}>{part[id]}</Fragment>);
+                }
+                return out.length ? out : <Empty>Everything on Home is hidden. Turn parts back on in Customize.</Empty>;
+              })()}
             </>
           )}
 
@@ -913,7 +993,7 @@ function TeacherHubPage() {
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (
-        <div ref={addRef} className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-50">
+        <div ref={addRef} className={`fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
           {addMenu && (
             <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
               className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
