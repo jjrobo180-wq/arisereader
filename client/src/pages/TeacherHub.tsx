@@ -468,15 +468,19 @@ function TeacherHubPage() {
   const layout = cleanLayout(workspace.layout);
   const setLayout = (next: HubLayout) => setWorkspace((p) => ({ ...p, layout: next }));
   const side = layout.menuSide;
+  /** The menu runs across the screen (top or bottom) instead of down a side. */
+  const across = side === "top" || side === "bottom";
   const menuOpen = layout.menuClose === "always" || rail;
   const canHide = layout.menuClose !== "always";
   /** On a phone the menu may close by itself once a section is picked. */
   const afterPick = () => { if (layout.menuClose === "auto" && typeof window !== "undefined" && window.innerWidth < 768) setRail(false); };
-  const pagePad = side === "bottom" ? "px-3 sm:px-4" : side === "right" ? `pl-3 sm:pl-4 ${menuOpen ? "pr-[80px] sm:pr-[84px]" : "pr-9 sm:pr-10"}` : `pr-3 sm:pr-4 ${menuOpen ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"}`;
-  const asidePhone = side === "bottom"
+  const pagePad = side === "top" ? `px-3 sm:px-4 ${menuOpen ? "!pt-[84px] md:!pt-4" : "!pt-9 md:!pt-4"}` : side === "bottom" ? "px-3 sm:px-4" : side === "right" ? `pl-3 sm:pl-4 ${menuOpen ? "pr-[80px] sm:pr-[84px]" : "pr-9 sm:pr-10"}` : `pr-3 sm:pr-4 ${menuOpen ? "pl-[80px] sm:pl-[84px]" : "pl-9 sm:pl-10"}`;
+  const asidePhone = side === "top"
+    ? `inset-x-0 top-[65px] border-b px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "-translate-y-full"}`
+    : side === "bottom"
     ? `inset-x-0 bottom-0 border-t px-2 pt-1.5 ${menuOpen ? "translate-y-0" : "translate-y-full"}`
     : `bottom-0 top-[65px] w-[72px] ${side === "right" ? "right-0 border-l pr-[env(safe-area-inset-right)]" : "left-0 border-r pl-[env(safe-area-inset-left)]"} ${menuOpen ? "translate-x-0" : side === "right" ? "translate-x-full" : "-translate-x-full"}`;
-  const listPhone = side === "bottom" ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
+  const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
   const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
 
@@ -696,11 +700,11 @@ function TeacherHubPage() {
 
       <div className={`mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} md:grid-cols-[220px_minmax(0,1fr)] md:px-6`}>
         {!menuOpen && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
-          className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
-          {side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
+          className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "top" ? "left-1/2 top-[65px] h-7 w-14 -translate-x-1/2 rounded-b-xl border-t-0" : side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
+          {side === "top" ? <ChevronDown className="h-5 w-5" /> : side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
         <aside className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:top-[73px] md:border-0 md:bg-transparent md:p-0 md:h-[calc(100vh-90px)] md:self-start`} aria-hidden={menuOpen ? undefined : true}>
           <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm`}>
-            {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${side === "bottom" ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
+            {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${across ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "top" ? <ChevronUp className="h-5 w-5" /> : side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
             <div className="hidden px-3 py-3 md:block">
               <p className="truncate text-sm font-semibold text-slate-900">{user.displayName}</p>
               <p className="truncate text-xs text-slate-500">@{user.username}</p>
@@ -715,7 +719,7 @@ function TeacherHubPage() {
                   onDragEnd={movable ? () => setDraggingGroup(null) : undefined}
                   onDragOver={movable && draggingGroup && draggingGroup !== item.id ? (e) => e.preventDefault() : undefined}
                   onDrop={movable && draggingGroup && draggingGroup !== item.id ? (e) => { e.preventDefault(); moveGroupTo(draggingGroup, item.id); setDraggingGroup(null); } : undefined}
-                  className={`group/navitem flex ${side === "bottom" ? "snap-start" : "w-full"} shrink-0 items-stretch md:w-full gap-0.5 rounded-xl transition ${draggingGroup === item.id ? "opacity-40" : ""}`}
+                  className={`group/navitem flex ${across ? "snap-start" : "w-full"} shrink-0 items-stretch md:w-full gap-0.5 rounded-xl transition ${draggingGroup === item.id ? "opacity-40" : ""}`}
                 >
                   <button
                     type="button"
@@ -726,7 +730,7 @@ function TeacherHubPage() {
                     className={`flex min-h-[52px] min-w-0 flex-1 cursor-grab flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition active:cursor-grabbing md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${group.id === item.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}
                   >
                     {GROUP_ICON[item.id]}
-                    <span className={`${side === "bottom" ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal`}>{groupLabel(item.id, visible)}</span>
+                    <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal`}>{groupLabel(item.id, visible)}</span>
                   </button>
                   {movable && (
                     <span className="hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 md:flex">

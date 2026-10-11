@@ -3,12 +3,12 @@
 // (including the picture box).
 
 /** Where the menu sits on a phone. On a computer it is always the sidebar on the left. */
-export type MenuSide = "left" | "right" | "bottom";
+export type MenuSide = "left" | "right" | "top" | "bottom";
 /** How the phone menu closes: a Hide button (and a tab to bring it back), never, or by itself after a section is picked. */
 export type MenuClose = "button" | "always" | "auto";
 
 export const MENU_SIDES: { id: MenuSide; label: string }[] = [
-  { id: "left", label: "Left side" }, { id: "right", label: "Right side" }, { id: "bottom", label: "Bottom" },
+  { id: "left", label: "Left side" }, { id: "right", label: "Right side" }, { id: "top", label: "Top" }, { id: "bottom", label: "Bottom" },
 ];
 export const MENU_CLOSES: { id: MenuClose; label: string; detail: string }[] = [
   { id: "button", label: "Hide button", detail: "Tap Hide to tuck it away, and the small tab to bring it back." },
