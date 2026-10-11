@@ -2,7 +2,11 @@
 // more (each shown live), and settings for each one (theme, size and its own options).
 // What a widget looks like is in WidgetFace.tsx; the catalog, themes and saved shape are in
 // shared/widgets.ts. Every change is cleaned and handed to the hub, which saves it like anything else.
-import { useMemo, useState, type CSSProperties } from "react";
+//
+// In Edit mode, a widget can also be dragged by its body to reorder it, and dragged by its corner
+// handle to resize it (small → wide → large), with no library: plain pointer events, since the
+// board is a fixed-row CSS grid and a drag only ever needs to land on another widget's cell.
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   MAX_WIDGETS, WIDGET_CITIES, WIDGET_DEFS, WIDGET_GROUPS, WIDGET_SIZES, WIDGET_THEMES, cleanWidgets, dayKey, newWidget, themeOf, widgetDef,
@@ -13,6 +17,10 @@ import { WIDGET_CSS, WidgetFace, fontOf, useNow } from "./WidgetFace";
 const SPAN: Record<WidgetSize, string> = { small: "col-span-1 row-span-1", wide: "col-span-2 row-span-1", large: "col-span-2 row-span-2" };
 /** One grid row: small widgets are about square on a phone. */
 const ROW = "clamp(8.5rem, 22vw, 10.5rem)";
+/** Sizes in order, for the resize handle to step through. */
+const SIZE_ORDER: WidgetSize[] = ["small", "wide", "large"];
+/** How many pixels of drag it takes to step the resize handle to the next size. */
+const RESIZE_STEP_PX = 56;
 const GROUP_NOTE: Record<WidgetGroup, string> = {
   Clocks: "Ten ways to tell the time, from classic to binary.",
   Calendars: "Today, this week, this month and the whole year.",
@@ -22,14 +30,123 @@ const GROUP_NOTE: Record<WidgetGroup, string> = {
 };
 
 /** A widget's outside: its theme's background, text colour, border and typeface. */
-function Shell({ item, children, className = "", style }: { item: WidgetItem; children: React.ReactNode; className?: string; style?: CSSProperties }) {
+function Shell({ item, children, className = "", style, onPointerDown }: { item: WidgetItem; children: React.ReactNode; className?: string; style?: CSSProperties; onPointerDown?: (e: ReactPointerEvent<HTMLDivElement>) => void }) {
   const t = themeOf(item.theme);
   return (
-    <div className={`relative h-full overflow-hidden rounded-[1.6rem] p-4 ${className}`}
+    <div className={`relative h-full overflow-hidden rounded-[1.6rem] p-4 ${className}`} onPointerDown={onPointerDown}
       style={{ background: t.bg, color: t.fg, fontFamily: fontOf(t), border: t.border === "transparent" ? "none" : `${t.id === "bold" ? 3 : 1}px solid ${t.border}`, boxShadow: t.id === "bold" ? "4px 4px 0 #000" : "0 1px 2px rgba(15,23,42,.06)", ...style }}>
       {children}
     </div>
   );
+}
+
+// ── Drag to reorder ──────────────────────────────────────────────────────────
+
+/**
+ * Drag a widget by its body (in Edit mode) to reorder it. Pointer events only, so it works with
+ * mouse, touch and pen alike. While dragging, the pointer's position is checked against every
+ * other widget's cell on each move; crossing into one swaps that widget to the dragged widget's
+ * old spot, the way most phone home-screen reordering works.
+ */
+function useWidgetDrag(items: WidgetItem[], onReorder: (next: WidgetItem[]) => void) {
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const orderRef = useRef(items);
+  orderRef.current = items;
+
+  const start = (e: ReactPointerEvent<HTMLDivElement>, id: string) => {
+    // Only the widget's own surface starts a drag; its ✎ and resize buttons handle their own clicks.
+    if ((e.target as HTMLElement).closest("button")) return;
+    e.preventDefault();
+    const pointerId = e.pointerId;
+    setDraggingId(id);
+    const board = boardRef.current;
+
+    const cellAt = (x: number, y: number): string | null => {
+      if (!board) return null;
+      for (const el of board.querySelectorAll<HTMLElement>("[data-widget-cell]")) {
+        const r = el.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el.dataset.widgetCell ?? null;
+      }
+      return null;
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      const overCell = cellAt(ev.clientX, ev.clientY);
+      setOverId(overCell && overCell !== id ? overCell : null);
+    };
+    const finish = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      const dropCell = cellAt(ev.clientX, ev.clientY);
+      setDraggingId(null);
+      setOverId(null);
+      if (dropCell && dropCell !== id) {
+        const cur = orderRef.current;
+        const from = cur.findIndex((w) => w.id === id), to = cur.findIndex((w) => w.id === dropCell);
+        if (from >= 0 && to >= 0 && from !== to) {
+          const next = [...cur];
+          const [moved] = next.splice(from, 1);
+          next.splice(to, 0, moved);
+          onReorder(next);
+        }
+      }
+      try { (ev.target as Element)?.releasePointerCapture?.(pointerId); } catch { /* already released */ }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+  };
+
+  return { boardRef, draggingId, overId, start };
+}
+
+// ── Drag to resize ───────────────────────────────────────────────────────────
+
+/**
+ * Drag a widget's corner handle (in Edit mode) to resize it. Every RESIZE_STEP_PX of outward drag
+ * steps to the next size (small → wide → large); dragging back inward steps down again. The face
+ * previews the new size live as you drag, and the size is only saved on release.
+ */
+function useWidgetResize(onResize: (id: string, size: WidgetSize) => void) {
+  const [resizingId, setResizingId] = useState<string | null>(null);
+  const [previewSize, setPreviewSize] = useState<WidgetSize | null>(null);
+
+  const start = (e: ReactPointerEvent<HTMLButtonElement>, id: string, startSize: WidgetSize) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const pointerId = e.pointerId;
+    const startX = e.clientX, startY = e.clientY;
+    const startIndex = SIZE_ORDER.indexOf(startSize);
+    setResizingId(id);
+    setPreviewSize(startSize);
+    let current = startSize;
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      const dist = Math.max(dx, dy); // corner drag: either axis growing counts as "bigger"
+      const steps = Math.round(dist / RESIZE_STEP_PX);
+      const nextIndex = Math.min(SIZE_ORDER.length - 1, Math.max(0, startIndex + steps));
+      current = SIZE_ORDER[nextIndex];
+      setPreviewSize(current);
+    };
+    const finish = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      if (current !== startSize) onResize(id, current);
+      setResizingId(null);
+      setPreviewSize(null);
+      try { (ev.target as Element)?.releasePointerCapture?.(pointerId); } catch { /* already released */ }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+  };
+
+  return { resizingId, previewSize, start };
 }
 
 export default function WidgetBoard({ items: raw, setItems, makeId, accent = "bg-slate-950" }: {
@@ -43,10 +160,12 @@ export default function WidgetBoard({ items: raw, setItems, makeId, accent = "bg
   const now = useNow(1000);
   const [gallery, setGallery] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  /** Edit mode shows each widget's ✎ button. With a mouse it also shows on hover. */
+  /** Edit mode shows each widget's ✎ button and its drag handles. With a mouse it also shows on hover. */
   const [arranging, setArranging] = useState(false);
   const save = (update: (items: WidgetItem[]) => WidgetItem[]) => setItems((cur) => cleanWidgets(update(cleanWidgets(cur))));
   const patch = (id: string, p: Partial<WidgetItem>) => save((all) => all.map((w) => (w.id === id ? { ...w, ...p } : w)));
+  const reorder = useWidgetDrag(items, (next) => save(() => next));
+  const resize = useWidgetResize((id, size) => patch(id, { size }));
   const add = (type: string) => {
     const w = newWidget(type, makeId(), dayKey(new Date()));
     if (!w) return;
@@ -72,17 +191,33 @@ export default function WidgetBoard({ items: raw, setItems, makeId, accent = "bg
       </div>
 
       {items.length ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" style={{ gridAutoRows: ROW, gridAutoFlow: "dense" }}>
-          {items.map((w) => (
-            <div key={w.id} className={`${SPAN[w.size]} min-w-0`} data-widget={w.type}>
-              <Shell item={w} className={`group ${arranging ? "outline outline-2 outline-offset-2 outline-slate-400" : ""}`}>
-                <WidgetFace item={w} theme={themeOf(w.theme)} now={now} size={w.size} onChange={(p) => patch(w.id, p)} />
-                <button type="button" onClick={() => setEditing(w.id)} aria-label={`Change ${widgetDef(w.type)?.name ?? "widget"}`}
-                  className={`absolute right-2 top-2 inline-flex h-10 w-10 items-center justify-center rounded-full text-base font-bold shadow-md transition focus-visible:opacity-100 active:scale-90 ${arranging ? "opacity-100" : "pointer-events-none opacity-0 focus-visible:pointer-events-auto [@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-hover:opacity-100"}`}
-                  style={{ background: "#ffffff", color: "#0f172a" }} data-testid={`widget-edit-${w.type}`}>✎</button>
-              </Shell>
-            </div>
-          ))}
+        <div ref={reorder.boardRef} className="grid grid-cols-2 gap-3 sm:grid-cols-4" style={{ gridAutoRows: ROW, gridAutoFlow: "dense" }} data-testid="widget-grid">
+          {items.map((w) => {
+            const isDragging = reorder.draggingId === w.id;
+            const isDropTarget = reorder.overId === w.id && reorder.draggingId !== w.id;
+            const isResizing = resize.resizingId === w.id;
+            const liveSize = isResizing ? resize.previewSize ?? w.size : w.size;
+            return (
+              <div key={w.id} data-widget-cell={w.id} className={`${SPAN[liveSize]} min-w-0 ${isDragging ? "z-20 scale-95 opacity-80" : ""} ${isDropTarget ? "scale-[1.02]" : ""} ${isResizing ? "z-20" : "transition-transform"}`} data-widget={w.type}>
+                <Shell item={w} className={`group relative ${arranging ? "outline outline-2 outline-offset-2 outline-slate-400" : ""} ${isDropTarget ? "ring-2 ring-offset-2 ring-slate-900" : ""}`}
+                  onPointerDown={arranging ? (e) => reorder.start(e, w.id) : undefined}
+                  style={{ touchAction: arranging ? "none" : undefined, cursor: arranging ? "grab" : undefined }}>
+                  <WidgetFace item={w} theme={themeOf(w.theme)} now={now} size={liveSize} onChange={(p) => patch(w.id, p)} />
+                  <button type="button" onClick={() => setEditing(w.id)} aria-label={`Change ${widgetDef(w.type)?.name ?? "widget"}`}
+                    className={`absolute right-2 top-2 inline-flex h-10 w-10 items-center justify-center rounded-full text-base font-bold shadow-md transition focus-visible:opacity-100 active:scale-90 ${arranging ? "opacity-100" : "pointer-events-none opacity-0 focus-visible:pointer-events-auto [@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-hover:opacity-100"}`}
+                    style={{ background: "#ffffff", color: "#0f172a" }} data-testid={`widget-edit-${w.type}`}>✎</button>
+                  {arranging && (
+                    <button type="button" aria-label={`Resize ${widgetDef(w.type)?.name ?? "widget"}`} data-testid={`widget-resize-${w.type}`}
+                      onPointerDown={(e) => resize.start(e, w.id, w.size)}
+                      className="absolute bottom-2 right-2 inline-flex h-9 w-9 touch-none items-center justify-center rounded-full text-sm font-bold shadow-md active:scale-90"
+                      style={{ background: "#ffffff", color: "#0f172a", cursor: "nwse-resize" }}>
+                      <svg aria-hidden width="14" height="14" viewBox="0 0 14 14"><path d="M12 2 2 12M12 7 7 12M12 12h.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                    </button>
+                  )}
+                </Shell>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <button type="button" onClick={() => setGallery(true)} className="flex w-full flex-col items-center gap-2 rounded-[1.6rem] border-2 border-dashed border-slate-300 bg-white/60 px-6 py-10 text-center transition hover:bg-white" data-testid="widget-empty">
