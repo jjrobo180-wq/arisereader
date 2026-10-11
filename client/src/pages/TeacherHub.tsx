@@ -48,6 +48,7 @@ import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, isAddable, pluginOpens, pluginsFor, setWorkKit, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
 import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
+import { HubChat } from "@/components/HubChat";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "wouter";
@@ -693,11 +694,12 @@ function TeacherHubPage() {
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         teacher
-        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled)}
+        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat)}
         onToggle={(p: Plugin, on: boolean) => {
-          setWorkspace((prev) => (p.target.kind === "kit"
+          setWorkspace((prev) => (p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
             ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) }
             : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }));
+          if (p.target.kind === "assistant" && on) toasts.show("AI assistant added. Tap the ✦ button at the bottom right to chat.", []);
           if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
         }}
         kit={{
@@ -706,7 +708,7 @@ function TeacherHubPage() {
           today: TODAY(),
           makeId: id,
         }}
-        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); setStore(false); }}
+        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); }}
         onClose={() => setStore(false)}
       />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -1077,9 +1079,9 @@ function TeacherHubPage() {
               </Card>
                   ),
                 };
-                const quick = pluginsFor("work", { teacher: true }).filter((p) => isAddable(p) && (p.target.kind === "tab" || p.target.kind === "kit") && !workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled))
+                const quick = pluginsFor("work", { teacher: true }).filter((p) => isAddable(p) && (p.target.kind === "tab" || p.target.kind === "kit" || p.target.kind === "assistant") && !workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat))
                   .map((plugin) => ({ plugin, onAdd: () => {
-                    setWorkspace((prev) => (plugin.target.kind === "kit" ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, plugin, true) } : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) }));
+                    setWorkspace((prev) => (plugin.target.kind === "assistant" ? { ...prev, aiChat: true } : plugin.target.kind === "kit" ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, plugin, true) } : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) }));
                     toasts.show(`${plugin.name} added to your menu.`, []);
                   } }));
                 return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} />;
@@ -1111,6 +1113,7 @@ function TeacherHubPage() {
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} openId={openEmailId} />}
         </main>
       </div>
+      {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift />}
       {canUseHub && loaded && !loadError && !needsPlan && (
         <div ref={addRef} className={`fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>
           {addMenu && (

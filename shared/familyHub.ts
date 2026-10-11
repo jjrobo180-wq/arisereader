@@ -143,7 +143,8 @@ export type Warranty = { id: string; item: string; store: string; bought: string
 export type MileageTrip = { id: string; date: string; miles: number; purpose: string; route: string };
 export type MedicalCard = { id: string; person: string; bloodType: string; allergies: string; conditions: string; medications: string; doctor: string; insurance: string; notes: string };
 /** Plugin Store add-ons that live on another screen rather than in the menu. */
-export type Widgets = { stickies: boolean };
+/** Extras added from the Plugin Store: sticky notes on Home, and the AI assistant's chat button. */
+export type Widgets = { stickies: boolean; chat?: boolean };
 /* News */
 export type NewsPrefs = { topics: string[]; place: string };
 
@@ -481,7 +482,7 @@ export function cleanFamily(input: unknown): Family {
       const date = day(r.date);
       return date ? { id: id(r.id), date, minutes: num(r.minutes, 0, 600), kind: str(r.kind, 30) } : null;
     }, true),
-    widgets: { stickies: bool(obj(raw.widgets)?.stickies, false) },
+    widgets: { stickies: bool(obj(raw.widgets)?.stickies, false), ...(bool(obj(raw.widgets)?.chat, false) ? { chat: true } : {}) },
     ...(obj(raw.layout) ? { layout: cleanLifeLayout(raw.layout) } : {}),
     stickies: rows(raw.stickies, LIMITS.stickies, (r) => ({ id: id(r.id), text: str(r.text, 1000), color: color(r.color, NOTE_COLORS[0]), x: num(r.x, 0, 1, 0.5), y: int(r.y, 0, 6000, 40) })),
     randomLists: rows(raw.randomLists, LIMITS.randomLists, (r) => {

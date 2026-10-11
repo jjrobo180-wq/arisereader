@@ -45,6 +45,7 @@ import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./tea
 import { registerAriseTodoRoutes } from "./ariseTodo";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
+import { registerHubChatRoutes } from "./hubChat";
 import { registerAppleHealthRoutes } from "./appleHealth";
 import { registerTodoNewsRoutes } from "./todoNews";
 import { registerLifehubPluginRoutes } from "./lifehubPlugins";
@@ -1221,6 +1222,7 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
+  registerHubChatRoutes(app, authMiddleware);
   registerAppleHealthRoutes(app, authMiddleware);
   registerTodoNewsRoutes(app, authMiddleware);
   registerLifehubPluginRoutes(app, authMiddleware);

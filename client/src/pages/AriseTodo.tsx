@@ -80,6 +80,7 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar, Modal } from "@/components/family-hub/ui";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
+import { HubChat } from "@/components/HubChat";
 import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
@@ -582,7 +583,7 @@ export default function AriseTodo() {
       teacher={user.role === "teacher" || !!user.isAdmin}
       isInstalled={(p: Plugin) => lifeInstalled(p, family)}
       onToggle={(p: Plugin, on: boolean) => setFamily((f) => setLifePlugin(f, p, on))}
-      onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "section" in at) setSection(at.section); setStore(false); }}
+      onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "section" in at) setSection(at.section); setStore(false); if (p.target.kind === "assistant") setMessage("Tap the ✦ button at the bottom right to chat."); }}
       onClose={() => setStore(false)}
     />}
     {customizing && <Modal title="Customize" eyebrow="LifeHub" onClose={() => setCustomizing(false)} wide>
@@ -657,6 +658,7 @@ export default function AriseTodo() {
         </div>
       </div>
     </header>
+    {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift={layout.menuSide === "bottom"} />}
     <PhoneMenu items={phoneItems} side={layout.menuSide} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} />
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-col lg:flex-row">
       <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-72`}>

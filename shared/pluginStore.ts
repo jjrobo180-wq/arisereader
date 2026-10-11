@@ -27,6 +27,8 @@ export type PluginTarget =
   /** A WorkHub Plugin Kit plugin: added to workspace.kitInstalled and opened from the store. */
   | { kind: "kit"; id: string }
   | { kind: "connection"; needs: { tab: HubTab } | { section: FamilySection } }
+  /** The AI assistant: a chat button on every page of the hub. */
+  | { kind: "assistant" }
   | { kind: "app"; app: "history" | "math" | "social"; href: string };
 
 export type Plugin = {
@@ -88,6 +90,9 @@ const ARISE_APPS = (hub: PluginHub): Plugin[] => [
 
 export const PLUGINS: readonly Plugin[] = [
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
+  { id: "work-assistant", hub: "work", name: "AI assistant", tagline: "Chat with AI about lessons, IEPs, emails and more", category: "Teaching tools", icon: "Sparkles", color: "#0f766e", featured: true, teacherOnly: true,
+    description: "A chat button on every page of WorkHub. Ask for lesson ideas, help wording an IEP goal or accommodation, a parent email draft, or a quick explanation, and get a clear answer right away.",
+    features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Your chat stays on this device"], target: { kind: "assistant" } },
   { id: "work-calendar", hub: "work", name: "Calendar", tagline: "Your school days, meetings and events", category: "Planning", icon: "CalendarDays", color: "#0f766e", featured: true, target: tab("calendar"),
     description: "One calendar for meetings, deadlines and events, with repeating events and the calendars you already use pulled in.",
     features: ["Day, week and month views", "Repeating events", "Google, Outlook and Apple calendars", "Meetings land here when booked"] },
@@ -214,6 +219,9 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-trending", hub: "life", name: "What's trending", tagline: "Top searches and most-read stories", category: "Discover", icon: "TrendingUp", color: "#e11d48", target: section("trending"),
     description: "See what people across the United States are searching for right now, with the news behind it, and the stories everyone is reading.",
     features: ["Top searches right now", "The news behind each one", "Most-read stories"] },
+  { id: "life-assistant", hub: "life", name: "AI assistant", tagline: "Chat with AI about meals, plans, homework and more", category: "Tools", icon: "Sparkles", color: "#7968e5", featured: true,
+    description: "A chat button on every page of LifeHub. Ask for dinner ideas, a weekend plan, help with a hard email or a kid's homework question, and get a clear answer right away.",
+    features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Your chat stays on this device"], target: { kind: "assistant" } },
   { id: "life-stickies", hub: "life", name: "Sticky notes", tagline: "Notes you can put anywhere on Home", category: "Everyday", icon: "StickyNote", color: "#eab308", featured: true,
     target: { kind: "widget", widget: "stickies", opens: "home" },
     description: "Stick colorful notes anywhere on your LifeHub Home screen. Drag them where you want them, change the color, and they stay put on every device.",
@@ -377,7 +385,7 @@ export function pluginsFor(hub: PluginHub, opts: { teacher: boolean }): Plugin[]
 }
 
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
-export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "kit";
+export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit";
 
 /** Where a plugin opens in its hub: a WorkHub tab or a LifeHub section. null for an Arise app. */
 export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySection } | null {
@@ -392,8 +400,9 @@ export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySecti
 // ── WorkHub ────────────────────────────────────────────────────────────────
 
 /** Is this WorkHub plugin on? A tab is on unless it was switched off. */
-export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[]): boolean {
+export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[], assistant?: boolean): boolean {
   const t = p.target;
+  if (t.kind === "assistant") return !!assistant;
   if (t.kind === "kit") return !!kitInstalled?.includes(t.id);
   if (t.kind === "tab") return visibleTabs[t.tab] !== false;
   if (t.kind === "connection" && "tab" in t.needs) return visibleTabs[t.needs.tab] !== false;
@@ -423,6 +432,7 @@ export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "laye
   if (t.kind === "section") return sectionOn(t.section);
   if (t.kind === "layer") return !!family.layers?.[t.layer];
   if (t.kind === "widget") return !!family.widgets?.[t.widget];
+  if (t.kind === "assistant") return !!(family.widgets as { chat?: boolean } | undefined)?.chat;
   if (t.kind === "connection" && "section" in t.needs) return sectionOn(t.needs.section);
   return false;
 }
@@ -431,6 +441,7 @@ export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "laye
 export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets">>>(family: F, p: Plugin, on: boolean): F {
   const t = p.target;
   if (t.kind === "widget") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), [t.widget]: on } };
+  if (t.kind === "assistant") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), chat: on } };
   if (t.kind === "section") return { ...family, sections: { ...family.sections, [t.section]: on } };
   if (t.kind === "layer") {
     const next = { ...family, layers: { ...family.layers, [t.layer]: on } };
