@@ -93,6 +93,7 @@ const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
 import TodoGate from "@/components/TodoGate";
+import { ReaderAdminToTodoRedirect, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -338,6 +339,9 @@ function AppRoutes() {
       <Route path="/to-do">
         {onReaderDomain && user?.role !== "parent" ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
+      <Route path="/admin-handoff">
+        {onTodoDomain ? <TodoAdminHandoff /> : <Redirect to="/signin" replace />}
+      </Route>
       <Route path="/saved">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
@@ -348,7 +352,7 @@ function AppRoutes() {
         {user ? <Redirect to="/" replace /> : <Login />}
       </Route>
       <Route path="/">
-        {onTodoDomain ? <Redirect to="/lifehub" replace /> : user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
+        {onTodoDomain ? user?.isAdmin ? <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" /> : user?.role === "teacher" ? <Redirect to="/workhub" replace /> : <Redirect to="/lifehub" replace /> : user?.isAdmin ? <ReaderAdminToTodoRedirect /> : user ? (user.role === "teacher" ? <Redirect to="/workhub" replace /> : user.role === "parent" ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
         {user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
@@ -376,10 +380,10 @@ function AppRoutes() {
         <OpenHubTab to="/workhub" storageKey="workhub_tab" value="reader" />
       </Route>
       <Route path="/workhub">
-        <TeacherHub />
+        {onReaderDomain && user?.isAdmin ? <ReaderAdminToTodoRedirect /> : onTodoDomain && !user ? <SignIn /> : <TeacherHub />}
       </Route>
       <Route path="/teacher-hub">
-        <TeacherHub />
+        {onReaderDomain && user?.isAdmin ? <ReaderAdminToTodoRedirect /> : onTodoDomain && !user ? <SignIn /> : <TeacherHub />}
       </Route>
       <Route path="/hub">
         <Redirect to="/workhub" replace />
@@ -589,7 +593,7 @@ function AppRoutes() {
       </Route>
       {/* The admin console lives in Arise WorkHub's A.R.I.S.E. Reader group. */}
       <Route path="/admin">
-        <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" />
+        {onReaderDomain && user?.isAdmin ? <ReaderAdminToTodoRedirect /> : <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" />}
       </Route>
       <Route path="/progress">
         <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate> : <GrowthCheck />}</ProtectedRoute>
