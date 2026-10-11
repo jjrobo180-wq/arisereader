@@ -9,7 +9,7 @@ const field = "min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 
 export default function AriseTodoSignIn() {
   const { login, isLoading } = useAuth();
   const [, navigate] = useLocation();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup">(() => /[?&]mode=signup(?:&|$)/.test(window.location.hash) ? "signup" : "login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -47,7 +47,7 @@ export default function AriseTodoSignIn() {
           <p className="mt-4 text-sm leading-7 text-slate-200">All your tasks and lists saved privately to your account. Open them at home, at work, or on the go.</p>
           <div className="mt-8 space-y-4 text-sm font-semibold text-slate-100"><p className="flex items-center gap-3"><Cloud className="h-5 w-5 text-violet-200" /> Cloud sync on phones, tablets and computers</p><p className="flex items-center gap-3"><LockKeyhole className="h-5 w-5 text-violet-200" /> Your own private lists and deadlines</p><p className="flex items-center gap-3"><Users className="h-5 w-5 text-violet-200" /> For personal, family, or professional plans</p></div>
         </div>
-        <button className="mt-10 inline-flex items-center gap-2 text-xs font-bold text-slate-200 hover:text-white" onClick={() => navigate("/")}><ArrowLeft size={16} /> A.R.I.S.E. Reader homepage</button>
+        <button type="button" className="mt-10 inline-flex items-center gap-2 text-xs font-bold text-slate-200 hover:text-white" onClick={() => window.location.assign("/")}><ArrowLeft size={16} /> {/^(www\.)?arisetodo\.com$/i.test(window.location.hostname) ? "A.R.I.S.E. To-Do homepage" : "A.R.I.S.E. Reader homepage"}</button>
       </div>
       <div className="p-6 sm:p-10">
         <p className="text-xs font-black uppercase tracking-[.18em] text-violet-600">Your personal workspace</p>
