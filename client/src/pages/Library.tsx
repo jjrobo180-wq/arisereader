@@ -1,4 +1,5 @@
 import BannerTap from "@/components/BannerTap";
+import { StudentBehaviorCard } from "@/components/ClassBehaviorCards";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -1546,6 +1547,7 @@ export default function Library() {
             onReads={() => navigate("/reads")} onGames={() => navigate("/games")}
           />
         )}
+        {user?.role === "student" && !user?.is_eye_gaze_user && <StudentBehaviorCard />}
         {user?.role === "student" && !user?.is_eye_gaze_user && <div className="mb-5"><AddonsCard showTodo={false} /></div>}
                 <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}

@@ -1,4 +1,5 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
+import InstallAppPrompt from "@/components/InstallAppPrompt";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -695,6 +696,7 @@ function AppInner() {
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
+      {overlays && !isAdminPreview && <InstallAppPrompt />}
       <Router hook={useHashLocation}>
         <AuthenticatedNavigationTracker />
         <AdminPreviewBar />

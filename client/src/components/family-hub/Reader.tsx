@@ -12,6 +12,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { generateCertificate } from "@/lib/certificate";
 import { fetchFamilySettings, saveFamilySettings, type ParentControls } from "@/lib/parentControls";
 import HubAddons from "@/components/hub-pieces/HubAddons";
+import { ParentBehaviorCard } from "@/components/ClassBehaviorCards";
 import HubPlayTime from "@/components/hub-pieces/HubPlayTime";
 import HubCameraQuizzes from "@/components/hub-pieces/HubCameraQuizzes";
 import { HubPrizeBoard, HubPrizeManager } from "@/components/hub-pieces/HubPrizes";
@@ -108,6 +109,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
   const child = profile?.student;
 
   return <div className="space-y-6" data-testid="lifehub-reader">
+    <ParentBehaviorCard />
     <PageHead eyebrow="A.R.I.S.E. Reader" title={child ? `${child.displayName}'s reading` : "Your readers"}
       blurb="Your children's reading, quizzes and certificates, the family proctor code, game time and prizes."
       action={<div className="flex flex-wrap gap-2">

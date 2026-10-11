@@ -114,6 +114,7 @@ import HubSwitch from "@/components/HubSwitch";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
 import { ADMIN_SECTIONS, adminSectionLabel, type AdminSection } from "@/lib/adminSections";
+import HubBehavior from "@/components/teacher-hub/HubBehavior";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import { HubEndedNote, HubTrialNote, useHubTrial } from "@/components/HubTrialNote";
 
@@ -1115,7 +1116,7 @@ function TeacherHubPage() {
           {isReaderTab(tab) && <ReaderTools tab={tab} openTab={setTab} night={night} />}
           {tab === "admin" && user.isAdmin && <AdminTab night={night} section={adminSection} onSection={setAdminSection} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
-          {tab === "behavior" && <Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />}
+          {tab === "behavior" && <HubBehavior legacy={<Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />} />}
           {tab === "attendance" && <Attendance workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} exportAttendance={exportAttendance} />}
           {tab === "gradebook" && <Gradebook workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "parents" && <Parents workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}

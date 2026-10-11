@@ -54,6 +54,7 @@ import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
+import { registerClassBehaviorRoutes } from "./classBehavior";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
 import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
@@ -1434,6 +1435,16 @@ export async function registerRoutes(
       gradeOf: async (id) => (await studentGrades())[String(id)] || null,
       studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
       childrenOf: (parentId) => getParentStudentIds(parentId),
+      notify: (id, message) => notifyUser(id, message),
+    },
+  });
+  // Class behavior (WorkHub's Behavior tab): points, hall passes, and what parents see. See server/classBehavior.ts.
+  registerClassBehaviorRoutes(app, authMiddleware, {
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      parentsOf: async (studentId) => Object.entries(await readParentStudentLinks()).filter(([, ids]) => normalizeLinkedIds(ids).includes(studentId)).map(([pid]) => Number(pid)).filter((n) => Number.isSafeInteger(n) && n > 0),
       notify: (id, message) => notifyUser(id, message),
     },
   });
