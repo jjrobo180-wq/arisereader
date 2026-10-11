@@ -1,4 +1,4 @@
-// The Plugin Kit: 100 plugins drawn by shared tools, 60 in LifeHub and 40 in WorkHub.
+// The Plugin Kit: 400 plugins drawn by shared tools, 240 in LifeHub and 160 in WorkHub.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -8,12 +8,12 @@ import { PLUGINS, PLUGIN_CATEGORIES, isAddable, setWorkKit, workInstalled } from
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("100 kit plugins: 60 LifeHub sections and 40 WorkHub tools, all well-formed", () => {
-  assert.equal(KIT_DEFS.length, 100);
-  assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 100);
+test("400 kit plugins: 240 LifeHub sections and 160 WorkHub tools, all well-formed", () => {
+  assert.equal(KIT_DEFS.length, 400);
+  assert.equal(new Set(KIT_DEFS.map((d) => d.id)).size, 400);
   const life = KIT_DEFS.filter((d) => d.hub === "life"), work = KIT_DEFS.filter((d) => d.hub === "work");
-  assert.equal(life.length, 60);
-  assert.equal(work.length, 40);
+  assert.equal(life.length, 240);
+  assert.equal(work.length, 160);
   assert.deepEqual([...KIT_LIFE_IDS].sort(), life.map((d) => d.id).sort());
   for (const d of KIT_DEFS) {
     assert.ok(PLUGIN_CATEGORIES[d.hub].includes(d.category), `${d.id}: ${d.category}`);
@@ -23,6 +23,13 @@ test("100 kit plugins: 60 LifeHub sections and 40 WorkHub tools, all well-formed
     if (d.type === "checklist") assert.ok(d.items.length >= 8 && new Set(d.items).size === d.items.length, d.id);
     if (d.type === "cards") assert.ok(d.items.length >= 12 && new Set(d.items.map((i) => i.t)).size === d.items.length, d.id);
     if (d.type === "log") assert.ok(d.step > 0 && d.max >= d.step && (d.goal === undefined || d.goal <= d.max), d.id);
+    if (d.type === "cards" && d.reveal) assert.ok(d.items.every((i) => i.a), `${d.id}: every card has an answer`);
+    if (d.type === "list") assert.equal(new Set(d.fields.map((f) => f.key)).size, d.fields.length, d.id);
+  }
+  // no two plugins in one hub share a name
+  for (const hub of ["life", "work"] as const) {
+    const names = PLUGINS.filter((p) => p.hub === hub).map((p) => p.name.toLowerCase());
+    assert.equal(new Set(names).size, names.length, `${hub} plugin names are unique`);
   }
 });
 
@@ -34,7 +41,7 @@ test("LifeHub kit plugins are sections that start off; WorkHub ones are added to
     assert.ok(PLUGINS.some((p) => p.target.kind === "section" && p.target.section === id), `${id} in the store`);
   }
   const work = PLUGINS.filter((p) => p.target.kind === "kit");
-  assert.equal(work.length, 40);
+  assert.equal(work.length, 160);
   const p = work[0];
   assert.ok(isAddable(p));
   assert.equal(workInstalled(p, {}, []), false);

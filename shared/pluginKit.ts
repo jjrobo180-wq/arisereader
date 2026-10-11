@@ -1,4 +1,4 @@
-// The Plugin Kit: plugins described as data and drawn by one set of tools, so the Plugin Store can
+// The Plugin Kit: 400 plugins described as data and drawn by one set of tools, so the Plugin Store can
 // offer many of them without a hand-built screen each. Five kinds of tool:
 //  - list:      records with a few fields (text, number, date, choice…), optional stages, totals,
 //               due dates and a random pick.
@@ -17,11 +17,18 @@ export type KitList = Base & { type: "list"; fields: KitField[]; statuses?: stri
 export type KitChecklist = Base & { type: "checklist"; items: string[] };
 export type KitLog = Base & { type: "log"; unit: string; goal?: number; lower?: boolean; step: number; max: number; binary?: boolean; ask: string };
 export type KitCards = Base & { type: "cards"; noun: string; items: { t: string; a?: string }[]; reveal?: string };
-export type KitCalc = Base & { type: "calc"; calc: "age" | "datediff" | "percent" | "scale" | "paint" | "discount" | "grade" | "trials" | "groups" | "picker" | "wcpm" };
+export type KitCalc = Base & { type: "calc"; calc: "age" | "datediff" | "percent" | "scale" | "paint" | "discount" | "grade" | "trials" | "groups" | "picker" | "wcpm"
+  | "unitprice" | "fuel" | "payrate" | "savegoal" | "bedtime" | "average" | "weighted" | "attendance" | "services" | "needed" };
 export type KitDef = KitList | KitChecklist | KitLog | KitCards | KitCalc;
 
 /** One saved thing for a kit plugin. `date` is set for logs (one record a day). */
 export type KitRecord = { id: string; plugin: string; date: string; data: Record<string, string | number | boolean> };
+
+// More plugins live in their own files to keep this one readable. They only import types from here.
+import { KIT_LIFE_DEFS_2, KIT_LIFE_IDS_2 } from "./pluginKitLife2";
+import { KIT_LIFE_DEFS_3, KIT_LIFE_IDS_3 } from "./pluginKitLife3";
+import { KIT_WORK_DEFS_2 } from "./pluginKitWork2";
+import { KIT_WORK_DEFS_3 } from "./pluginKitWork3";
 
 const f = (key: string, label: string, type: KitField["type"] = "text", extra: Partial<KitField> = {}): KitField => ({ key, label, type, ...extra });
 const cards = (...lines: string[]) => lines.map((t) => ({ t }));
@@ -36,13 +43,14 @@ export const KIT_LIFE_IDS = [
   "water-log", "steps-log", "screen-time", "coffee-log", "reading-log", "practice-log", "energy-log", "no-spend", "alcohol-free", "veggie-log", "outdoor-log", "pages-log",
   "jokes", "fun-facts", "riddles", "would-you-rather", "dinner-questions", "parenting-tips", "money-tips", "cleaning-hacks", "kindness", "affirmations", "kid-chores", "family-games", "rainy-day", "self-care", "cooking-tips", "organizing-tips",
   "age-calc", "date-diff", "percent-calc", "recipe-scaler", "paint-calc", "discount-calc",
+  ...KIT_LIFE_IDS_2, ...KIT_LIFE_IDS_3,
 ] as const;
 export type KitLifeId = (typeof KIT_LIFE_IDS)[number];
 
 const L = { hub: "life" as const };
 const W = { hub: "work" as const };
 
-export const KIT_DEFS: readonly KitDef[] = [
+const KIT_DEFS_1: readonly KitDef[] = [
   // Lists
   { ...L, id: "babysitters", type: "list", name: "Babysitters", tagline: "Sitters you trust, one tap to call", category: "Family", icon: "Baby", color: "#ec4899", description: "Keep your go-to sitters with their number, rate and notes, and rate how it went.", features: ["Phone and rate", "Notes for each", "Star the favorites"],
     fields: [f("name", "Name"), f("phone", "Phone", "phone"), f("rate", "Rate per hour", "money"), f("rating", "How it went", "select", { options: ["", "⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"] }), f("notes", "Notes")] },
@@ -238,9 +246,13 @@ export const KIT_DEFS: readonly KitDef[] = [
   { ...W, id: "wcpm", type: "calc", calc: "wcpm", name: "Reading fluency (WCPM)", tagline: "Words correct per minute", category: "Students & IEPs", icon: "BookOpenCheck", color: "#7c3aed", description: "Work out words correct per minute and accuracy from a timed reading.", features: ["Words correct per minute", "Accuracy percent", "Any reading length"] },
 ];
 
+/** Every kit plugin: the first 100, then 180 more for LifeHub and 120 more for WorkHub. */
+export const KIT_DEFS: readonly KitDef[] = [...KIT_DEFS_1, ...KIT_LIFE_DEFS_2, ...KIT_LIFE_DEFS_3, ...KIT_WORK_DEFS_2, ...KIT_WORK_DEFS_3];
+const KIT_BY_ID = new Map(KIT_DEFS.map((d) => [d.id, d]));
+
 /** WorkHub kit plugins, by id. */
 export const KIT_WORK_IDS: readonly string[] = KIT_DEFS.filter((d) => d.hub === "work").map((d) => d.id);
-export const kitDef = (id: string) => KIT_DEFS.find((d) => d.id === id);
+export const kitDef = (id: string) => KIT_BY_ID.get(id);
 export const isKitLifeId = (id: string): id is KitLifeId => (KIT_LIFE_IDS as readonly string[]).includes(id);
 
 /** Saved kit records made safe: known shape, sizes capped, the newest kept when over the limit. */

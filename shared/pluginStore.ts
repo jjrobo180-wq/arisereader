@@ -375,7 +375,7 @@ export const PLUGINS: readonly Plugin[] = [
     description: "Your own LifeHub address: forward any email to it and it becomes a task.",
     features: ["Your own forwarding address", "Works from any email app", "Lands in Tasks"] },
   ...ARISE_APPS("life"),
-  // The Plugin Kit: 100 plugins drawn by shared tools (shared/pluginKit.ts).
+  // The Plugin Kit: 400 plugins drawn by shared tools (shared/pluginKit.ts).
   ...KIT_DEFS.map(kitPlugin),
 ];
 

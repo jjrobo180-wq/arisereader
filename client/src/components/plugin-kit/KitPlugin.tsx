@@ -7,6 +7,7 @@ import { addDaysTo, daysUntil, forDay, nextYearly } from "@shared/lifePlugins";
 import type { KitCalc, KitCards, KitChecklist, KitDef, KitList, KitLog, KitRecord } from "@shared/pluginKit";
 import { Empty, PageHead, Panel, danger, inputClass, plain, primary, soft } from "@/components/family-hub/ui";
 import { kitIcon } from "./kitIcons";
+import { attendanceRate, bedtimeFor, finalNeeded, fuelCost, hourlyFromSalary, letterFor, payFromHourly, savingsPlan, scoreStats, serviceMinutes, unitPrice, weightedGrade } from "@shared/kitCalcs";
 
 export type KitProps = {
   def: KitDef;
@@ -341,6 +342,61 @@ function CalcTool({ def, records, setRecords, today, makeId, say }: KitProps & {
       return <div className="grid gap-6 lg:grid-cols-2"><Panel>{names_}</Panel>
         <Result><Big label={pick ? "Your turn" : "Ready"} value={<span className="text-6xl">{pick || "?"}</span>} /><p className="mt-2 text-sm text-violet-100">{list.length ? `${left.length} of ${list.length} haven't had a turn this round` : "Add your class list"}</p>
           <div className="mt-5 flex gap-2"><button type="button" onClick={doPick} disabled={!list.length} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-white px-5 text-base font-black text-[#2d2555] hover:bg-violet-50"><Shuffle size={18} />Pick</button>{pickedSet.length > 0 && <button type="button" onClick={() => { setPickedSet([]); setPick(""); }} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold hover:bg-white/25"><RotateCcw size={15} />New round</button>}</div></Result></div>;
+    }
+    case "unitprice": {
+      const r = unitPrice(num(a), num(b), num(c), num(d)), unit = e.trim() || "oz";
+      const per = (n: number) => `${n < 1 ? `${(n * 100).toFixed(1)}¢` : money(n)} per ${unit}`;
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><div className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Option A price" value={a} onChange={setA} suffix="$" /><Field label="Option A size" value={b} onChange={setB} suffix={unit} /></div><div className="grid grid-cols-2 gap-3"><Field label="Option B price" value={c} onChange={setC} suffix="$" /><Field label="Option B size" value={d} onChange={setD} suffix={unit} /></div><Field label="Unit (oz, lb, count, sheets…)" type="text" value={e} onChange={setE} /></div></Panel>
+        <Result>{r ? <>{r.better && r.better !== "same" ? <Big label="Better deal" value={`Option ${r.better}`} /> : r.better === "same" ? <Big label="Better deal" value="It's a tie" /> : <Big label="Option A" value={per(r.a)} />}<p className="mt-2 text-sm text-violet-100">A: {per(r.a)}{r.b !== null ? <> · B: {per(r.b)}</> : null}</p>{r.better && r.better !== "same" && <p className="mt-3 inline-flex w-fit rounded-full bg-white/15 px-3 py-1 text-sm font-black">{Math.round(r.savePct)}% cheaper per {unit}</p>}</> : <p className="text-violet-200">Type a price and size for each option.</p>}</Result></div>;
+    }
+    case "fuel": {
+      const round = g === "round", r = fuelCost(num(a), num(b), num(c), round, num(d) || 1);
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><div className="space-y-3"><div className="grid grid-cols-2 gap-3"><Field label="Distance (one way)" value={a} onChange={setA} suffix="mi" /><Field label="Car's MPG" value={b} onChange={setB} /><Field label="Gas price" value={c} onChange={setC} suffix="$/gal" /><Field label="Split between" value={d} onChange={setD} suffix="people" /></div>
+        <div className="flex gap-2" role="group" aria-label="Trip type"><button type="button" onClick={() => setG("")} aria-pressed={!round} className={!round ? primary : plain}>One way</button><button type="button" onClick={() => setG("round")} aria-pressed={round} className={round ? primary : plain}>Round trip</button></div></div></Panel>
+        <Result>{r ? <><Big label="Gas cost" value={money(r.cost)} /><p className="mt-1 text-sm text-violet-100">{Math.round(r.gallons * 10) / 10} gallons for {r.miles.toLocaleString()} miles{r.people > 1 ? ` · ${money(r.perPerson)} each for ${r.people} people` : ""}</p></> : <p className="text-violet-200">Type the miles, MPG and gas price.</p>}</Result></div>;
+    }
+    case "payrate": {
+      const fromSalary = g === "salary", hours = num(b) || 40, weeks = num(c) || 52;
+      const hourly = fromSalary ? hourlyFromSalary(num(a), hours, weeks) : num(a) > 0 ? num(a) : null;
+      const r = hourly ? payFromHourly(hourly, hours, weeks) : null;
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><div className="space-y-3"><div className="flex gap-2" role="group" aria-label="Start from"><button type="button" onClick={() => setG("")} aria-pressed={!fromSalary} className={!fromSalary ? primary : plain}>From hourly</button><button type="button" onClick={() => setG("salary")} aria-pressed={fromSalary} className={fromSalary ? primary : plain}>From yearly</button></div>
+        <Field label={fromSalary ? "Yearly salary" : "Hourly pay"} value={a} onChange={setA} suffix="$" /><div className="grid grid-cols-2 gap-3"><Field label="Hours a week" value={b} onChange={setB} suffix="40 if blank" /><Field label="Weeks a year" value={c} onChange={setC} suffix="52 if blank" /></div></div></Panel>
+        <Result>{r && hourly ? <><Big label={fromSalary ? "Hourly" : "Yearly"} value={fromSalary ? money(hourly) : money(r.yearly)} /><p className="mt-2 text-sm text-violet-100">{money(r.weekly)} a week · {money(r.monthly)} a month{fromSalary ? "" : ` · ${money(hourly)} an hour`}</p><p className="mt-3 text-xs text-violet-200">Before taxes and deductions.</p></> : <p className="text-violet-200">Type the {fromSalary ? "salary" : "hourly pay"}.</p>}</Result></div>;
+    }
+    case "savegoal": {
+      const r = savingsPlan(num(a), num(b), today, c);
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><div className="space-y-3"><Field label="Goal" value={a} onChange={setA} suffix="$" /><Field label="Saved so far" value={b} onChange={setB} suffix="$" /><Field label="Reach it by" type="date" value={c} onChange={setC} /></div></Panel>
+        <Result>{r ? r.done ? <Big label="Goal" value="Reached! 🎉" /> : r.late ? <><Big label="Still to save" value={money(r.left)} /><p className="mt-2 text-sm text-violet-100">That date has passed. Pick a new one.</p></> : <><Big label="Save each week" value={money(r.perWeek)} /><p className="mt-1 text-lg font-bold">{money(r.perMonth)} a month</p><p className="mt-2 text-sm text-violet-100">{money(r.left)} to go · {r.days} days left</p></> : <p className="text-violet-200">Type a goal and pick a date.</p>}</Result></div>;
+    }
+    case "bedtime": {
+      const r = bedtimeFor(a || "06:30", num(b) || 8, c.trim() ? num(c) : 15);
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><div className="space-y-3"><Field label="Wake up at" type="time" value={a || "06:30"} onChange={setA} /><Field label="Hours of sleep" value={b} onChange={setB} suffix="8 if blank" /><Field label="Time to fall asleep" value={c} onChange={setC} suffix="minutes (15 if blank)" /></div></Panel>
+        <Result>{r ? <><Big label="Be in bed by" value={r.bed} /><p className="mt-1 text-sm text-violet-100">to wake at {r.wake}</p><div className="mt-4 grid grid-cols-2 gap-2">{r.options.map((o) => <div key={o.hours} className="rounded-xl bg-white/10 px-3 py-2 text-sm"><span className="font-bold text-violet-200">{o.hours} hours</span> <span className="font-black">{o.bed}</span></div>)}</div><p className="mt-3 text-xs text-violet-200">Kids and teens usually need more sleep than adults. Ask your doctor what's right.</p></> : <p className="text-violet-200">Pick a wake-up time.</p>}</Result></div>;
+    }
+    case "average": {
+      const r = scoreStats(a);
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><label className="block text-xs font-bold text-slate-500">Scores (one per line, or with commas)<textarea value={a} onChange={(ev) => setA(ev.target.value)} rows={9} placeholder={"88\n92\n75\n100"} className={inputClass + " mt-1 py-3 leading-6"} /></label></Panel>
+        <Result>{r ? <><Big label="Average" value={Math.round(r.mean * 10) / 10} /><p className="mt-1 text-lg font-bold">Median {Math.round(r.median * 10) / 10}</p><p className="mt-2 text-sm text-violet-100">High {r.max} · low {r.min} · {r.count} score{r.count === 1 ? "" : "s"}</p><button type="button" onClick={() => copyText(`Average ${Math.round(r.mean * 10) / 10}, median ${Math.round(r.median * 10) / 10}, high ${r.max}, low ${r.min} (${r.count} scores)`, say)} className="mt-4 inline-flex min-h-10 w-fit items-center gap-2 rounded-xl bg-white/15 px-3 text-sm font-bold hover:bg-white/25"><Copy size={15} />Copy</button></> : <p className="text-violet-200">Paste some scores.</p>}</Result></div>;
+    }
+    case "weighted": {
+      const r = weightedGrade(a);
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><label className="block text-xs font-bold text-slate-500">One category per line: name, weight %, score %<textarea value={a} onChange={(ev) => setA(ev.target.value)} rows={7} placeholder={"Tests 40 85\nQuizzes 20 90\nHomework 20 100\nClasswork 20 78"} className={inputClass + " mt-1 py-3 leading-6"} /></label></Panel>
+        <Result>{r ? <><Big label="Weighted grade" value={`${Math.round(r.grade * 10) / 10}%`} /><p className="mt-1 text-2xl font-black">{letterFor(r.grade)}</p><ul className="mt-3 space-y-1 text-sm text-violet-100">{r.rows.map((row, i) => <li key={i}>{row.label}: {row.score}% × {row.weight}%</li>)}</ul>{!r.weightsAdd && <p className="mt-3 inline-flex w-fit rounded-full bg-amber-300/25 px-3 py-1 text-xs font-black">Weights add to {Math.round(r.totalWeight * 10) / 10}%, not 100%. The grade is scaled to fit.</p>}<p className="mt-2 text-xs text-violet-200">Letters use a 90/80/70/60 scale.</p></> : <p className="text-violet-200">Add a line for each category.</p>}</Result></div>;
+    }
+    case "attendance": {
+      const r = attendanceRate(num(a), num(b));
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><div className="space-y-3"><Field label="School days so far" value={a} onChange={setA} /><Field label="Days absent" value={b} onChange={setB} /></div></Panel>
+        <Result>{r ? <><Big label="Attendance" value={`${Math.round(r.rate * 10) / 10}%`} /><p className="mt-1 text-sm text-violet-100">Present {r.present} of {num(a)} days · missed {Math.round(r.missedPct * 10) / 10}%</p><p className={`mt-3 inline-flex w-fit rounded-full px-3 py-1 text-sm font-black ${r.chronic ? "bg-rose-400/30" : "bg-emerald-400/30"}`}>{r.chronic ? "Chronically absent (10% or more missed)" : "Not chronically absent"}</p></> : <p className="text-violet-200">Type the days enrolled and days absent.</p>}</Result></div>;
+    }
+    case "services": {
+      const r = serviceMinutes(num(a), num(b), num(c), num(d), e.trim() ? num(e) : -1);
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><div className="grid grid-cols-2 gap-3"><Field label="Minutes per session" value={a} onChange={setA} /><Field label="Sessions per week" value={b} onChange={setB} /><Field label="School weeks this year" value={c} onChange={setC} suffix="36 if blank" /><Field label="Weeks so far" value={d} onChange={setD} /><Field label="Minutes delivered so far" value={e} onChange={setE} /></div></Panel>
+        <Result>{r ? <><Big label="Each week" value={`${r.weekly.toLocaleString()} min`} /><p className="mt-1 text-sm text-violet-100">About {r.monthly.toLocaleString()} min a month · {r.yearly.toLocaleString()} min over {r.weeks} weeks ({Math.round((r.yearly / 60) * 10) / 10} hours)</p>{r.expected !== null && <p className="mt-3 text-sm text-violet-100">Expected so far: <span className="font-black text-white">{r.expected.toLocaleString()} min</span>{r.owed !== null && <> · still owed: <span className="font-black text-white">{r.owed.toLocaleString()} min</span></>}</p>}<p className="mt-3 text-xs text-violet-200">Check the IEP for how your district counts service time.</p></> : <p className="text-violet-200">Type the minutes per session and sessions per week.</p>}</Result></div>;
+    }
+    case "needed": {
+      const r = finalNeeded(num(a), num(b), num(c));
+      return <div className="grid gap-6 lg:grid-cols-2"><Panel><div className="space-y-3"><Field label="Current grade" value={a} onChange={setA} suffix="%" /><Field label="The final is worth" value={b} onChange={setB} suffix="% of the grade" /><Field label="Target grade" value={c} onChange={setC} suffix="%" /></div></Panel>
+        <Result>{r ? <><Big label="Score needed on the final" value={r.already ? "0%" : `${r.needed}%`} /><p className="mt-2 text-sm text-violet-100">{r.already ? "The target is already locked in, even with a zero on the final." : r.possible ? "Doable. Make a study plan." : "Over 100%: the target can't be reached on the final alone."}</p></> : <p className="text-violet-200">Type the current grade, the final's weight and the target.</p>}</Result></div>;
     }
     case "wcpm": {
       const words = num(a), errors = num(b), secs = num(c) || 60;
