@@ -23,6 +23,19 @@ app.get("/", (req, res, next) => {
   res.type("html").sendFile(page);
 });
 
+// Serve the real A.R.I.S.E. LifeHub SPA on the To-Do domain without replacing its
+// independent educator landing page at /. This keeps Reader's homepage untouched.
+app.get("/app", (req, res, next) => {
+  const host = (req.headers.host || "").split(":")[0].toLowerCase();
+  if (host !== "arisetodo.com" && host !== "www.arisetodo.com") return next();
+  const appIndex = process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public", "index.html")
+    : path.resolve(process.cwd(), "client", "index.html");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  res.type("html").sendFile(appIndex);
+});
+
 // Basic safety headers for every response. (No content security policy or frame blocking:
 // the app embeds videos and games, and schools may show it inside their learning sites.)
 app.disable("x-powered-by");
