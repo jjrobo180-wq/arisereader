@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BarChart3, BookOpen, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { canScan, estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
+import { searchByName } from "@shared/foodSpelling";
 import type { FoundFood } from "@shared/foodLookup";
 import Intake, { profileToDraft } from "./Intake";
 import { AppleHealthPanel, useAppleHealth } from "./AppleHealth";
@@ -107,12 +108,12 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
                 return <li key={f.id} className="group flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-50">
                   <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-800">{f.name}</span>
                     {!kid && <span className="text-[11px] text-slate-500">{f.servings === 1 ? "1 serving" : `${f.servings} servings`} · P {t.protein}g · C {t.carbs}g · F {t.fat}g</span>}</span>
-                  {!kid && <span className="text-sm font-bold text-slate-700">{fmt(t.calories)}</span>}
-                  <button onClick={() => removeFood(f.id)} className="rounded-lg p-1.5 text-slate-300 hover:text-rose-500" aria-label={`Remove ${f.name}`}><Trash2 size={14} /></button>
+                  {!kid && <span className="shrink-0 text-sm font-bold text-slate-700">{fmt(t.calories)}</span>}
+                  <button onClick={() => removeFood(f.id)} className="-mr-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:text-rose-500" aria-label={`Remove ${f.name}`}><Trash2 size={15} /></button>
                 </li>;
               })}</ul>}
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => setAdding(meal)} className={soft + " min-h-9 text-xs"}><Plus size={14} /> Add food</button>
+                <button onClick={() => setAdding(meal)} className={soft + " min-h-11 text-sm"}><Plus size={15} /> Add food</button>
                 {!items.length && fromYesterday && <button onClick={() => copyYesterday(meal)} className={plain + " min-h-9 text-xs"}><Copy size={13} /> Same as yesterday</button>}
               </div>
             </section>;
@@ -296,14 +297,14 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
   const [picked, setPicked] = useState<Pick | null>(null);
   const [servings, setServings] = useState("1");
   const [quick, setQuick] = useState({ name: "", serving: "", calories: "", protein: "", carbs: "", fat: "", save: true });
-  const [online, setOnline] = useState<{ q: string; foods: FoundFood[]; busy: boolean; error: string }>({ q: "", foods: [], busy: false, error: "" });
+  const [online, setOnline] = useState<{ q: string; foods: FoundFood[]; busy: boolean; error: string; corrected?: string }>({ q: "", foods: [], busy: false, error: "" });
   const [ai, setAi] = useState<{ text: string; image: string | null; busy: boolean; error: string; foods: FoundFood[]; done: boolean }>({ text: "", image: null, busy: false, error: "", foods: [], done: false });
   const [code, setCode] = useState("");
   const [scan, setScan] = useState<{ busy: boolean; error: string; camera: boolean }>({ busy: false, error: "", camera: false });
   const video = useRef<HTMLVideoElement>(null);
   const library = useMemo(() => [...saved.map((f) => ({ ...f, mine: true })), ...COMMON_FOODS.map((f) => ({ ...f, mine: false }))], [saved]);
   const term = q.trim().toLowerCase();
-  const results = library.filter((f) => !term || f.name.toLowerCase().includes(term)).slice(0, term ? 8 : 40);
+  const results = searchByName(library, term, term ? 8 : 40); // spelling doesn't have to be exact
   const add = (p: Pick, n: number, save = false) => { onAdd(meal, p, n, save); setPicked(null); setServings("1"); };
   const fromFound = (f: FoundFood): Pick => ({ name: (f.brand && !f.name.toLowerCase().includes(f.brand.toLowerCase()) ? `${f.name} (${f.brand})` : f.name).slice(0, 100), serving: f.serving, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat });
 
@@ -314,7 +315,7 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
     const timer = window.setTimeout(() => {
       setOnline((o) => ({ ...o, busy: true, error: "" }));
       searchFoods(token, term, ctrl.signal)
-        .then((foods) => setOnline({ q: term, foods, busy: false, error: "" }))
+        .then(({ foods, corrected }) => setOnline({ q: term, foods, busy: false, error: "", corrected }))
         .catch((e: Error) => { if (!ctrl.signal.aborted) setOnline({ q: term, foods: [], busy: false, error: e.message }); });
     }, 450);
     return () => { window.clearTimeout(timer); ctrl.abort(); };
@@ -372,23 +373,26 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
     <div className="mb-4 flex flex-wrap gap-1.5">{MEALS.map((m) => <button key={m} onClick={() => setMeal(m)} aria-pressed={meal === m} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${meal === m ? "bg-violet-600 text-white ring-violet-600" : "bg-white text-slate-500 ring-slate-200"}`}>{MEAL_LABEL[m]}</button>)}</div>
     {picked ? <div className="space-y-4">
       <div className="rounded-2xl bg-slate-50 p-4"><p className="text-base font-black">{picked.name}</p><p className="text-xs text-slate-500">{picked.serving || "1 serving"}</p></div>
-      <Label text="Number of servings"><input autoFocus type="number" min={0.25} step={0.25} value={servings} onChange={(e) => setServings(e.target.value)} className={inputClass + " max-w-[140px]"} /></Label>
+      <Label text="Number of servings"><div className="flex flex-wrap items-center gap-2">
+        <input type="number" inputMode="decimal" min={0.25} step={0.25} value={servings} onChange={(e) => setServings(e.target.value)} className={inputClass + " w-24 text-base"} />
+        {["0.5", "1", "1.5", "2"].map((n) => <button key={n} type="button" onClick={() => setServings(n)} aria-pressed={servings === n} className={`min-h-11 min-w-11 rounded-xl px-3 text-sm font-bold ring-1 ${servings === n ? "bg-violet-600 text-white ring-violet-600" : "bg-white text-slate-600 ring-slate-200"}`}>{n === "0.5" ? "½" : n === "1.5" ? "1½" : n}</button>)}
+      </div></Label>
       {!kid && Number(servings) > 0 && <div className="grid grid-cols-4 gap-2 text-center">{[["Calories", picked.calories, ""], ["Protein", picked.protein, "g"], ["Carbs", picked.carbs, "g"], ["Fat", picked.fat, "g"]].map(([l, v, u]) => <div key={l as string} className="rounded-xl bg-slate-50 py-2"><p className="text-base font-black">{l === "Calories" ? Math.round((v as number) * Number(servings)) : Math.round((v as number) * Number(servings) * 10) / 10}{u}</p><p className="text-[10px] font-bold text-slate-500">{l}</p></div>)}</div>}
-      <div className="flex gap-2"><button onClick={() => Number(servings) > 0 && add(picked, Math.round(Number(servings) * 100) / 100)} disabled={!(Number(servings) > 0)} className={primary + " flex-1"}><Check size={17} /> Add to {MEAL_LABEL[meal].toLowerCase()}</button><button onClick={() => setPicked(null)} className={plain}>Back</button></div>
+      <div className="sticky bottom-0 -mx-5 flex gap-2 bg-white px-5 pb-[max(.25rem,env(safe-area-inset-bottom))] pt-2 sm:static sm:mx-0 sm:px-0"><button onClick={() => Number(servings) > 0 && add(picked, Math.round(Number(servings) * 100) / 100)} disabled={!(Number(servings) > 0)} className={primary + " flex-1"}><Check size={17} /> Add to {MEAL_LABEL[meal].toLowerCase()}</button><button onClick={() => setPicked(null)} className={plain}>Back</button></div>
     </div> : <>
-      <div className="mb-4 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold">
-        {tabs.map(([k, l]) => <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`min-h-9 flex-1 whitespace-nowrap rounded-lg px-3 ${tab === k ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}>{l}</button>)}
+      <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold sm:flex">
+        {tabs.map(([k, l]) => <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`min-h-10 rounded-lg px-2 sm:flex-1 sm:px-3 ${tab === k ? "bg-white text-violet-700 shadow-sm" : "text-slate-500"}`}>{k === "ai" ? <><span className="sm:hidden">Photo / AI</span><span className="hidden sm:inline">{l}</span></> : l}</button>)}
       </div>
 
       {tab === "search" && <>
-        <div className="relative mb-3"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any food, brand or restaurant item" aria-label="Search foods" className={inputClass + " pl-10"} /></div>
-        <div className="max-h-[50vh] space-y-4 overflow-y-auto pr-1">
+        <div className="sticky -top-5 z-10 -mx-5 mb-3 bg-white px-5 pb-2 pt-1 sm:static sm:mx-0 sm:px-0 sm:pt-0"><div className="relative"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any food, brand or restaurant item" aria-label="Search foods" enterKeyHint="search" autoCorrect="on" spellCheck className={inputClass + " pl-10 text-base"} /></div></div>
+        <div className="space-y-4 sm:max-h-[50vh] sm:overflow-y-auto sm:pr-1">
           {results.length > 0 && <div>{term && <p className="mb-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400">Common foods</p>}<ul className="space-y-1.5">{results.map((f, i) => row(f, f.name + i))}</ul></div>}
           {term.length >= 2 && <div>
             <p className="mb-1.5 flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-slate-400">Food database {online.busy && <Loader2 size={13} className="animate-spin" />}</p>
             {online.error ? <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{online.error}</p>
               : online.q === term && !online.busy && !online.foods.length ? <p className="text-xs text-slate-500">No matches. Try a simpler name, or use “{kid ? "Type it in" : "Describe or photo"}”.</p>
-              : <ul className="space-y-1.5">{(online.q === term ? online.foods : []).map((f, i) => row({ ...fromFound(f), tag: f.source === "usda" ? "USDA" : "Open Food Facts" }, `o${i}`))}</ul>}
+              : <>{online.q === term && online.corrected && <p className="mb-1.5 text-xs text-slate-500">Showing results for <b className="text-slate-700">{online.corrected}</b></p>}<ul className="space-y-1.5">{(online.q === term ? online.foods : []).map((f, i) => row({ ...fromFound(f), tag: f.source === "usda" ? "USDA" : "Open Food Facts" }, `o${i}`))}</ul></>}
           </div>}
         </div>
         {!kid && <p className="mt-3 text-[11px] text-slate-400">Nutrition comes from the USDA food database and Open Food Facts. Check the package label for exact numbers.</p>}

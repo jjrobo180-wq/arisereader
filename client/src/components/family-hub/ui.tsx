@@ -83,7 +83,7 @@ export function Modal({ title, eyebrow = "Family Hub", onClose, children, wide }
     return () => window.removeEventListener("keydown", key);
   }, [onClose]);
   return <div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div role="dialog" aria-modal="true" aria-label={title} className={`max-h-[94dvh] w-full overflow-y-auto rounded-t-[1.5rem] bg-white p-5 shadow-2xl sm:rounded-[1.5rem] sm:p-7 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
+    <div role="dialog" aria-modal="true" aria-label={title} className={`max-h-[94dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[1.5rem] sm:p-7 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
       <div className="mb-5 flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p><h2 className="mt-1 text-xl font-black">{title}</h2></div><button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
       {children}
     </div>

@@ -5,6 +5,7 @@
 // Nothing sent here is stored or logged; only failures' status codes are.
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { fixFoodSpelling } from "../shared/foodSpelling";
 import { FOOD_AI_PROMPT, cleanAiFoods, isBarcode, mergeFound, parseFdcFood, parseOffProduct, type FoundFood } from "../shared/foodLookup";
 
 const OFF_FIELDS = "product_name,generic_name,brands,serving_size,nutriments,code";
@@ -58,14 +59,22 @@ export function registerFoodLookupRoutes(app: Express, authMiddleware: RequestHa
     const q = typeof req.query?.q === "string" ? req.query.q.trim().slice(0, 80) : "";
     if (q.length < 2) return res.json({ foods: [] });
     if (limited(searchLimits, req, res)) return;
-    const [usda, off] = await Promise.allSettled([searchUsda(q), searchOff(q)]);
-    const lists = [usda, off].map((r) => (r.status === "fulfilled" ? r.value : []));
-    if (usda.status === "rejected" && off.status === "rejected") {
-      console.error("[food-lookup] search failed:", String(usda.reason?.message), String(off.reason?.message));
-      return res.status(503).json({ message: "The food database can't be reached right now. Try again, or type it in." });
-    }
+    const run = async (term: string) => {
+      const [usda, off] = await Promise.allSettled([searchUsda(term), searchOff(term)]);
+      if (usda.status === "rejected" && off.status === "rejected") {
+        console.error("[food-lookup] search failed:", String(usda.reason?.message), String(off.reason?.message));
+        return null;
+      }
+      return mergeFound([usda, off].map((r) => (r.status === "fulfilled" ? r.value : [])));
+    };
+    // The databases only find words spelled right, so a misspelled search is fixed first ("chiken" is chicken)
+    // and the fixed one is used when it finds more.
+    const fixed = fixFoodSpelling(q);
+    const [asTyped, asFixed] = await Promise.all([run(q), fixed ? run(fixed) : Promise.resolve(null)]);
+    if (!asTyped && !asFixed) return res.status(503).json({ message: "The food database can't be reached right now. Try again, or type it in." });
     res.set("Cache-Control", "private, max-age=3600");
-    return res.json({ foods: mergeFound(lists) });
+    if (fixed && asFixed && asFixed.length > (asTyped?.length ?? 0) + 2) return res.json({ foods: asFixed, corrected: fixed });
+    return res.json({ foods: asTyped ?? asFixed ?? [] });
   });
 
   app.get("/api/arise-todo/food/barcode/:code", authMiddleware, async (req: any, res) => {
