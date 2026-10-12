@@ -609,11 +609,11 @@ export default function AriseTodo() {
   const setDriveFiles = (update: (all: ReturnType<typeof cleanDriveFiles>) => ReturnType<typeof cleanDriveFiles>) =>
     setFamily((f) => ({ ...f, drive: update(cleanDriveFiles(f.drive)) }));
   const phoneItems: PhoneMenuItem[] = [
-    ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { setNotesAppOpen(null); setSection(id); } }; }),
-    ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => setNotesAppOpen(p.id) })),
-    ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => setSheetsAppOpen(p.id) })),
-    ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => setDriveOpen(true) }] : []),
-    ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, active: dropOpen, color: dropPlugin.color, onClick: () => setDropOpen(true) }] : []),
+    ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); setSection(id); } }; }),
+    ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); setNotesAppOpen(p.id); } })),
+    ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { setNotesAppOpen(null); setDriveOpen(false); setDropOpen(false); setSheetsAppOpen(p.id); } })),
+    ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { setNotesAppOpen(null); setSheetsAppOpen(null); setDropOpen(false); setDriveOpen(true); } }] : []),
+    ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, active: dropOpen, color: dropPlugin.color, onClick: () => { setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(true); } }] : []),
     // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
     { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
   ];
@@ -858,7 +858,7 @@ export default function AriseTodo() {
                 className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
               >
                 <button
-                  onClick={() => setSection(id)}
+                  onClick={() => { setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); setSection(id); }}
                   aria-current={shown === id ? "page" : undefined}
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
@@ -878,25 +878,25 @@ export default function AriseTodo() {
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
           <div className="space-y-0.5">
             {myNotesApps.map((p) => (
-              <button key={`notes-app-${p.id}`} type="button" onClick={() => { setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
+              <button key={`notes-app-${p.id}`} type="button" onClick={() => { setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
               </button>
             ))}
             {pinnableSheets.map((p) => (
-              <button key={`sheets-app-${p.id}`} type="button" onClick={() => { setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
+              <button key={`sheets-app-${p.id}`} type="button" onClick={() => { setNotesAppOpen(null); setDriveOpen(false); setDropOpen(false); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <Table className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
               </button>
             ))}
             {drivePlugin && (
-              <button type="button" onClick={() => { setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
+              <button type="button" onClick={() => { setNotesAppOpen(null); setSheetsAppOpen(null); setDropOpen(false); setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${driveOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <FolderOpen className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{drivePlugin.name}</span>
               </button>
             )}
             {dropPlugin && (
-              <button type="button" onClick={() => { setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
+              <button type="button" onClick={() => { setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${dropOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <QrCode className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{dropPlugin.name}</span>
               </button>
