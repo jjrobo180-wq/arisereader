@@ -749,7 +749,7 @@ export default function AriseTodo() {
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
-          <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">LifeHub</span>
+          <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">A.R.I.S.E. To-Do · Life</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {(user.role === "teacher" || user.role === "parent" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
