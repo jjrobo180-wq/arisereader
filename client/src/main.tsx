@@ -3,6 +3,13 @@ import App from "./App";
 import "./index.css";
 import "./login-mobile-fix.css";
 
+// Old personal-account signup links must open the shared A.R.I.S.E. sign-in/
+// sign-up screen, never the retired LifeHub signup view.
+if (/^(www\.)?arisetodo\.com$/i.test(window.location.hostname) &&
+    /^#\/(?:lifehub|to-do)\?mode=signup(?:&|$)/.test(window.location.hash)) {
+  window.history.replaceState(null, "", "/app#/signin");
+}
+
 // arisereader.com/hub (or /teacher-hub) goes straight to the Arise WorkHub sign-in.
 {
   const path = window.location.pathname.replace(/\/+$/, "").toLowerCase();
