@@ -354,7 +354,7 @@ export function entitlementFor(person: PlanPerson | null | undefined, facts: Pla
 
 /** Can a parent with this many children already linked add one more? */
 export function parentCanLink(linkedCount: number, opts: { enforced: boolean; premiumFamily?: boolean }): boolean {
-  if (!opts.enforced) return true;
+  // The free family limit is a safety and plan limit, independent of rollout flags.
   return linkedCount < PLANS.parentMaxChildren;
 }
 
