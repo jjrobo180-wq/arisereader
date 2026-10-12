@@ -23,7 +23,7 @@ import { KIT_ICONS } from "@/components/plugin-kit/kitIcons";
 import { kitDef, type KitRecord } from "@shared/pluginKit";
 import type { Note } from "@shared/notesApp";
 import {
-  HUB_TEMPLATES, PLUGIN_CATEGORIES, connectionNeeds, isAddable, pluginsFor, searchPlugins, templatePlugins, OPEN_STORE_KEY, type HubTemplate, type Plugin, type PluginHub,
+  PLUGIN_CATEGORIES, connectionNeeds, isAddable, pluginsFor, searchPlugins, OPEN_STORE_KEY, type Plugin, type PluginHub,
 } from "@shared/pluginStore";
 
 export const ICONS: Record<string, LucideIcon> = {
@@ -147,11 +147,10 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     "--s-chip-on": pal.chipOn, "--s-chip-on-text": pal.chipOnText, "--s-accent": pal.accent, "--s-on-accent": pal.onAccent, "--s-accent-soft": pal.accentSoft, "--s-accent-text": pal.accentText,
     colorScheme: night ? "dark" : "light",
   } as CSSProperties;
-  const [view, setView] = useState<"discover" | "installed" | "templates">("discover");
+  const [view, setView] = useState<"discover" | "installed">("discover");
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [openTemplateId, setOpenTemplateId] = useState<string | null>(null);
   const [apps, setApps] = useState<AppAccess | null>(null);
   const [note, setNote] = useState("");
   // A WorkHub kit app being used, shown over the store.
@@ -169,14 +168,9 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   onCloseRef.current = onClose;
   const openIdRef = useRef(openId);
   openIdRef.current = openId;
-  const openTemplateIdRef = useRef(openTemplateId);
-  openTemplateIdRef.current = openTemplateId;
 
   const all = useMemo(() => pluginsFor(hub, { teacher }), [hub, teacher]);
   const open = all.find((p) => p.id === openId) ?? null;
-  // Hub templates: ready-made bundles of this hub's plugins, for building a new hub around one area of life.
-  const templates = useMemo(() => HUB_TEMPLATES.filter((t) => t.hub === hub), [hub]);
-  const openTemplate = templates.find((t) => t.id === openTemplateId) ?? null;
 
   // Whether the Arise apps are already included, so the card can say Open rather than See plans.
   useEffect(() => {
@@ -192,7 +186,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   // Escape closes the detail first, then the store. The page behind is held still, iPhone included:
   // fixing the body in place is the only thing Safari respects, so the hub can't slide under the store.
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); if (runningRef.current) setRunning(null); else if (openIdRef.current) setOpenId(null); else if (openTemplateIdRef.current) setOpenTemplateId(null); else onCloseRef.current(); };
+    const key = (e: KeyboardEvent) => { if (e.key !== "Escape") return; e.stopPropagation(); if (runningRef.current) setRunning(null); else if (openIdRef.current) setOpenId(null); else onCloseRef.current(); };
     window.addEventListener("keydown", key, true);
     const body = document.body.style, y = window.scrollY;
     const was = { overflow: body.overflow, position: body.position, top: body.top, width: body.width };
@@ -227,12 +221,6 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const toggle = (p: Plugin, on: boolean) => {
     onToggle(p, on);
     setNote(on ? `${p.name} was added to your ${HUB_NAME[hub]}.` : `${p.name} was removed. Nothing in it was deleted: add it back any time.`);
-  };
-
-  /** Adds (or removes) every plugin in a template at once, each exactly as toggle() would on its own. */
-  const toggleTemplate = (t: HubTemplate, on: boolean) => {
-    for (const p of templatePlugins(t)) onToggle(p, on);
-    setNote(on ? `${t.name}: every app in it was added to your ${HUB_NAME[hub]}.` : `${t.name} was removed. Nothing in it was deleted: add it back any time.`);
   };
 
   const switchHub = () => {
@@ -271,40 +259,6 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           {big ? "Remove" : <><Check className="h-4 w-4" />Added</>}
         </button>
       : <button type="button" className={`${base} ${solid}`} onClick={(e) => { e.stopPropagation(); toggle(p, true); }} data-testid={`plugin-add-${p.id}`}><Plus className="h-4 w-4" />Add</button>;
-  };
-
-  /** A template's icon-and-colour badge, same look as a plugin's Tile. */
-  const templateTile = (t: HubTemplate) => {
-    const Icon = ICONS[t.icon] ?? KIT_ICONS[t.icon] ?? Puzzle;
-    return <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] text-white"
-      style={{ background: `linear-gradient(150deg, ${mix(t.color, "#ffffff", 0.22)}, ${t.color} 55%, ${mix(t.color, "#000000", 0.18)})`, boxShadow: `0 1px 2px rgba(0,0,0,.18), 0 6px 14px -6px ${t.color}99, inset 0 1px 0 rgba(255,255,255,.35)` }} aria-hidden>
-      <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-white/25 via-transparent to-transparent" />
-      <Icon className="relative h-6 w-6 drop-shadow-sm" strokeWidth={2.1} />
-    </span>;
-  };
-
-  /** A hub template as a card: its apps, how many are already added, and one button to add (or remove) them all. */
-  const templateCard = (t: HubTemplate) => {
-    const plugins = templatePlugins(t);
-    const have = plugins.filter((p) => isInstalled(p)).length;
-    const everyOne = have === plugins.length;
-    return <div role="button" tabIndex={0} onClick={() => setOpenTemplateId(t.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenTemplateId(t.id); } }}
-      className={`group flex h-full min-w-0 cursor-pointer flex-col gap-3 rounded-[1.4rem] border border-[var(--s-line)] bg-[var(--s-surface)] p-4 text-left shadow-[0_1px_2px_rgba(0,0,0,.04)] transition-all hover:-translate-y-0.5 hover:border-[var(--s-accent)]/30 hover:shadow-[0_10px_24px_-14px_rgba(0,0,0,.35)] ${ring}`}
-      data-testid={`template-${t.id}`}>
-      <div className="flex items-start gap-3">
-        {templateTile(t)}
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-bold leading-tight text-[var(--s-text)]">{t.name}</span>
-          <span className="mt-0.5 line-clamp-2 break-words text-[13px] leading-snug text-[var(--s-sub)]">{t.tagline}</span>
-        </span>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-bold text-[var(--s-faint)]">{have} of {plugins.length} added</span>
-        {everyOne
-          ? <button type="button" className={`inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-full px-3.5 text-[13px] font-bold transition-all active:scale-[.96] ${quiet} ${ring}`} onClick={(e) => { e.stopPropagation(); toggleTemplate(t, false); }} data-testid={`template-remove-${t.id}`}>Remove all</button>
-          : <button type="button" className={`inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-full px-3.5 text-[13px] font-bold transition-all active:scale-[.96] ${solid} ${ring}`} onClick={(e) => { e.stopPropagation(); toggleTemplate(t, true); }} data-testid={`template-add-${t.id}`}><Plus className="h-4 w-4" />{have ? "Add the rest" : "Add all"}</button>}
-      </div>
-    </div>;
   };
 
   /** One app as a row: the whole row opens its details, the button on the right adds it. */
@@ -413,7 +367,6 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           <div className="-mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show">
             <button type="button" onClick={() => { setView("discover"); setCategory(null); }} aria-pressed={browsing} className={chip(view === "discover" && !category)}>All</button>
             <button type="button" onClick={() => { setView("installed"); setCategory(null); }} aria-pressed={view === "installed"} className={chip(view === "installed")} data-testid="plugin-store-added">Added · {installedCount}</button>
-            {templates.length > 0 && <button type="button" onClick={() => { setView("templates"); setCategory(null); }} aria-pressed={view === "templates"} className={chip(view === "templates")} data-testid="plugin-store-templates">Hubs</button>}
             {categories.map((c) => <button key={c} type="button" onClick={() => { setView("discover"); setCategory(c === category ? null : c); }} aria-pressed={category === c} className={chip(category === c)}>{c}</button>)}
           </div>
         </div>
@@ -432,13 +385,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
             {posterRail(rail)}
           </section>}
 
-          {view === "templates" && <section aria-live="polite">
-            <h2 className="mb-1 text-lg font-black tracking-tight text-[var(--s-text)]">Build a new hub</h2>
-            <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Each one adds a ready-made set of apps in a single tap. Add just the ones you want afterward, or remove any of them the same way you would on their own.</p>
-            <ul className="grid gap-3 sm:grid-cols-2">{templates.map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
-          </section>}
-
-          {view !== "templates" && (browsing
+          {browsing
             ? categories.map((c) => {
                 const inCat = all.filter((p) => p.category === c);
                 return <section key={c} aria-labelledby={`ps-${c}`}>
@@ -461,7 +408,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
                       <p className="text-[15px] font-bold text-[var(--s-text)]">{view === "installed" ? "Nothing added here yet." : "No apps match that."}</p>
                       <p className="mt-1 text-sm text-[var(--s-sub)]">{view === "installed" ? "Tap All to add your first one." : "Try another word, or tap All."}</p>
                     </div>}
-              </section>)}
+              </section>}
         </div>
       </div>
     </main>
@@ -513,37 +460,5 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
         </div>
       </div>
     </div>}
-
-    {openTemplate && (() => {
-      const plugins = templatePlugins(openTemplate);
-      const have = plugins.filter((p) => isInstalled(p)).length;
-      return <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setOpenTemplateId(null)}>
-        <div role="dialog" aria-modal="true" aria-label={openTemplate.name} onClick={(e) => e.stopPropagation()}
-          className="max-h-[88dvh] w-full max-w-lg overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-[1.75rem] bg-[var(--s-surface)] text-[var(--s-text)] shadow-[0_30px_80px_-20px_rgba(0,0,0,.55)] sm:rounded-[1.75rem]" data-testid="template-detail">
-          <div className="relative h-28 overflow-hidden" style={{ background: `linear-gradient(135deg, ${mix(openTemplate.color, "#ffffff", 0.18)}, ${openTemplate.color} 55%, ${mix(openTemplate.color, "#000000", 0.25)})` }}>
-            <span className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_120%_at_90%_-10%,rgba(255,255,255,.35),transparent_60%)]" aria-hidden />
-            <span className="absolute left-1/2 top-2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/60 sm:hidden" aria-hidden />
-            <button type="button" onClick={() => setOpenTemplateId(null)} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"><X className="h-5 w-5" /></button>
-          </div>
-          <div className="-mt-11 space-y-5 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6">
-            <span className="inline-block rounded-[1.5rem] bg-[var(--s-surface)] p-1.5 shadow-[0_8px_20px_-8px_rgba(0,0,0,.35)]">{templateTile(openTemplate)}</span>
-            <div>
-              <h3 className="text-2xl font-black tracking-tight text-[var(--s-text)]">{openTemplate.name}</h3>
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[.14em] text-[var(--s-faint)]">Hub template<span aria-hidden className="text-[var(--s-line)]">•</span>Made by Arise</p>
-              <p className="mt-3 text-[15px] leading-6 text-[var(--s-sub)]">{openTemplate.description}</p>
-            </div>
-            <ul className="space-y-2 rounded-2xl bg-[var(--s-raised)] p-4">{plugins.map((p) => <li key={p.id} className="flex items-center gap-2.5 text-[15px] text-[var(--s-text)]">
-              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isInstalled(p) ? soft : quiet}`}>{isInstalled(p) && <Check className="h-3.5 w-3.5" />}</span>{p.name}
-            </li>)}</ul>
-            <p className="rounded-xl bg-[var(--s-raised)] p-3 text-xs text-[var(--s-sub)]">Adding it adds every app above at once. Removing it only hides them from your menu, and you can always add any one of them back on its own afterward.</p>
-            <div className="flex flex-wrap gap-2 border-t border-[var(--s-line)] pt-5">
-              {have === plugins.length
-                ? <button type="button" onClick={() => toggleTemplate(openTemplate, false)} className={`inline-flex min-h-12 items-center gap-1.5 rounded-full px-5 text-[15px] font-bold ${quiet} ${ring}`} data-testid="template-remove">Remove all</button>
-                : <button type="button" onClick={() => toggleTemplate(openTemplate, true)} className={`inline-flex min-h-12 items-center gap-1.5 rounded-full px-5 text-[15px] font-bold ${solid} ${ring}`} data-testid="template-add"><Plus className="h-4 w-4" />{have ? "Add the rest" : "Add all"}</button>}
-            </div>
-          </div>
-        </div>
-      </div>;
-    })()}
   </div>;
 }
