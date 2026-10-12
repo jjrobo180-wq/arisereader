@@ -13,7 +13,7 @@ export const PLANS = {
   teacher: {
     /** $10 a month covers one block of students. */
     monthlyCents: 1000,
-    studentsPerBlock: 100,
+    studentsPerBlock: 30,
     /** The most blocks one teacher can buy online (5,000 students). */
     maxBlocks: 50,
   },
@@ -74,7 +74,7 @@ export const PLANS = {
   trialDays: 30,
   trialFrom: "2026-10-09T06:00:00.000Z",
   /** One parent profile can follow this many children on the Free plan. */
-  parentMaxChildren: 5,
+  parentMaxChildren: 3,
   /**
    * Teachers and school students who signed up before this moment keep
    * everything free until `grandfatherUntil`. Midnight on October 1, 2026,
@@ -121,7 +121,7 @@ export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school
 /** The three apps in the Learning Bundle. */
 export type AppId = "math" | "history" | "social";
 export const APP_IDS: readonly AppId[] = ["math", "history", "social"];
-export const APP_NAMES: Record<AppId, string> = { math: "Arise Math", history: "Arise History", social: "Arise Social" };
+export const APP_NAMES: Record<AppId, string> = { math: "Arise Math", history: "Arise History", social: "A.R.I.S.E. Connect" };
 export const isAppId = (v: unknown): v is AppId => v === "math" || v === "history" || v === "social";
 /** The class add-on for one app. */
 export const classKindOf = (app: AppId): PlanKind => `${app}_class` as PlanKind;
@@ -360,7 +360,7 @@ export function parentCanLink(linkedCount: number, opts: { enforced: boolean; pr
 
 // ─── Arise WorkHub ─────────────────────────────────────────────────────────────
 
-export type HubVia = "admin" | "hub-teacher-plan" | "hub-school-plan" | "free-month";
+export type HubVia = "admin" | "free" | "hub-teacher-plan" | "hub-school-plan" | "free-month";
 export type HubAccess = { access: boolean; via: HubVia | null; seats: number | null; endsAt: string | null };
 
 /**
@@ -373,14 +373,17 @@ export function hubAccessFor(person: PlanPerson | null | undefined, facts: { now
   const none: HubAccess = { access: false, via: null, seats: null, endsAt: null };
   if (!person) return none;
   if (person.isAdmin || person.role === "admin") return { access: true, via: "admin", seats: null, endsAt: null };
-  if (person.role !== "teacher") return none;
+  if (person.role !== "teacher" && person.role !== "parent") return none;
+  // Both hubs are free and separately saved for every adult account.
+  return { access: true, via: "free", seats: null, endsAt: null };
+  /* Legacy paid grants retained only for historical subscription management.
   const now = facts.now ?? Date.now();
   const own = facts.teacherGrant, school = facts.schoolGrant;
   if (grantLive(own, now) && own!.kind === "hub_teacher") return { access: true, via: "hub-teacher-plan", seats: own!.seats, endsAt: own!.endsAt };
   if (grantLive(school, now) && school!.kind === "hub_school" && !school!.free) return { access: true, via: "hub-school-plan", seats: school!.seats, endsAt: school!.endsAt };
   // The free month has no student limit.
   if (inFreeMonth(person.createdAt, now)) return { access: true, via: "free-month", seats: null, endsAt: freeMonthEnd(person.createdAt) };
-  return none;
+  return none; */
 }
 
 // ─── Arise Social ────────────────────────────────────────────────────────────
@@ -416,7 +419,8 @@ export type AddonVia =
   | "social-plan"      // an Arise Social plan bought before the Learning Bundle existed
   | "child-in-class"   // a parent whose every linked child is covered by a class plan
   | "hub"              // LifeHub for a teacher, through Arise WorkHub
-  | "todo-plan"        // LifeHub for a parent
+  | "todo-plan"        // historical paid LifeHub account
+  | "free"             // free adult hub access
   | "trial";
 export type AddonAccess = { access: boolean; via: AddonVia | null; endsAt: string | null; trialEndsAt: string | null };
 
@@ -468,26 +472,17 @@ export function appAccessFor(person: PlanPerson | null | undefined, app: AppId, 
  * Can this person use Arise LifeHub? Parents with a LifeHub plan or in their trial; teachers
  * with Arise WorkHub (paid or in its free month). Everyone else keeps LifeHub as before.
  */
-export function todoAccessFor(person: PlanPerson | null | undefined, facts: { now?: number; todoGrant?: PlanGrant | null; hub?: HubAccess | null }): AddonAccess {
+export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { now?: number; todoGrant?: PlanGrant | null; hub?: HubAccess | null }): AddonAccess {
   const none: AddonAccess = { access: false, via: null, endsAt: null, trialEndsAt: null };
   if (!person) return none;
-  if (person.isAdmin || person.role === "admin") return { ...none, access: true, via: "admin" };
-  if (isDemoAccount(person.username)) return { ...none, access: true, via: "demo" };
-  const now = facts.now ?? Date.now();
-  if (person.role === "teacher") {
-    return facts.hub?.access ? { access: true, via: "hub", endsAt: facts.hub.endsAt, trialEndsAt: facts.hub.via === "free-month" ? facts.hub.endsAt : null } : none;
-  }
-  if (person.role !== "parent") return { ...none, access: true };
-  const g = facts.todoGrant;
-  if (g && g.kind === "todo_family" && grantLive(g, now)) return { access: true, via: "todo-plan", endsAt: g.endsAt, trialEndsAt: null };
-  if (inTrial(person.createdAt, now)) return { access: true, via: "trial", endsAt: trialEnd(person.createdAt), trialEndsAt: trialEnd(person.createdAt) };
-  return { ...none, trialEndsAt: trialEnd(person.createdAt) };
+  return { ...none, access: true, via: person.isAdmin || person.role === "admin" ? "admin" : "free" };
 }
+
 export const BUNDLE_REQUIRED = "bundle_required";
 export const TODO_REQUIRED = "todo_required";
 
 export const HUB_REQUIRED = "hub_required";
-export const hubMessage = "Arise WorkHub is a paid add-on. Get it on your plan page.";
+export const hubMessage = "A.R.I.S.E. To-Do is free for parents and teachers. Please sign in to continue.";
 
 /** The message shown when something needs Premium. */
 export const PREMIUM_REQUIRED = "premium_required";
