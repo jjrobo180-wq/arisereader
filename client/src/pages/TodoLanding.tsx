@@ -28,7 +28,7 @@ const coreFeatures = [
     tag: "YOUR HUB, YOUR SHAPE",
     title: "The only to-do app that reshapes itself around you",
     pitch: "Most to-do apps give you a list. Arise gives you a home base you build: pick which sections you want, drag them into the order you want, and group them into your own folders.",
-    points: ["70+ built-in sections to turn on or off", "Drag-to-reorder menu and a customizable Home screen", "Your own folders — group things the way your brain works, not ours"],
+    points: ["305 sections to turn on or off", "Drag-to-reorder menu and a customizable Home screen", "Your own folders — group things the way your brain works, not ours"],
     accent: "from-fuchsia-500/25 to-rose-500/10",
     iconColor: "text-fuchsia-300",
   },
@@ -109,7 +109,7 @@ export default function TodoLanding() {
             <Sparkles className="h-4 w-4" /> 100% free for parents, teachers and families
           </div>
           <h1 className="text-4xl font-black leading-[1.05] tracking-[-.04em] sm:text-6xl">
-            Your free to-do app with <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent">ultimate customization</span>.
+            One to-do app. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent">Over 1 trillion ways to make it yours.</span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-300 sm:text-lg">
             Tasks, calendar, chores, meals, budget, habits and over 100 add-on apps — turn on what you need, hide what you don't, and arrange it all your way. Built for families. Just as fantastic for teachers.
@@ -134,7 +134,7 @@ export default function TodoLanding() {
                 Most to-do apps hand you one fixed layout and call it done. Arise starts with the basics — tasks, a calendar, a daily brief — and lets you add from over 100 App Store apps, turn off anything you don't use, drag the menu into your own order, and group it all into folders that make sense to you.
               </p>
               <ul className="mt-5 space-y-2.5">
-                {["Turn 70+ sections on or off, anytime", "Drag-to-reorder your menu and Home screen", "Build your own folders instead of one long list", "Add daily-prompt apps from the App Store — jokes, facts, habits, calculators and more"].map(t => (
+                {["Turn 305 sections on or off, anytime", "Drag-to-reorder your menu and Home screen", "Build your own folders instead of one long list", "Add daily-prompt apps from the App Store — jokes, facts, habits, calculators and more"].map(t => (
                   <li key={t} className="flex gap-2 text-sm leading-6 text-slate-200">
                     <Blocks className="mt-0.5 h-4 w-4 shrink-0 text-fuchsia-300" />{t}
                   </li>
@@ -191,7 +191,7 @@ export default function TodoLanding() {
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-black uppercase tracking-[.25em] text-amber-300">Beyond the task list</p>
           <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Everything a household actually juggles</h2>
-          <p className="mt-2 max-w-2xl text-sm font-semibold text-slate-400">A sample of the 70+ sections in the App Store. Add only what you'll use — the rest stay out of your way.</p>
+          <p className="mt-2 max-w-2xl text-sm font-semibold text-slate-400">A sample of the 305 sections you can choose from. Add only what you'll use — the rest stay out of your way.</p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {lifeExtras.map(({ icon: Icon, title, text }) => (
               <div key={title} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4">
