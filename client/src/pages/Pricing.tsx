@@ -10,7 +10,7 @@ export default function Pricing() {
 
   // arisetodo.com has its own pricing page. A.R.I.S.E. Reader's learning
   // bundles are separate products and should never replace To-Do pricing.
-  const onTodoDomain = typeof window !== "undefined" && /^(www\\.)?arisetodo\\.com$/i.test(window.location.hostname);
+  const onTodoDomain = typeof window !== "undefined" && /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
   if (onTodoDomain) return (
     <main className="min-h-screen bg-[#07060f] text-white">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6">
