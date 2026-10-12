@@ -2,6 +2,7 @@ import { isSampleAccount } from "../shared/sampleAccounts";
 import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
+import { registerDropAppRoutes } from "./dropApp";
 import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
 import type { Express } from "express";
@@ -1261,6 +1262,16 @@ export async function registerRoutes(
         } catch { /* ignore malformed grant */ }
       }
       return FREE_STORAGE_BYTES + best;
+    },
+  });
+  registerDropAppRoutes(app, authMiddleware, raw, {
+    getAdminSupabase,
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    listSettingsByPrefix: async (prefix) => {
+      const { data, error } = await getAdminSupabase().from("settings").select("key, value").like("key", `${prefix}%`).limit(500);
+      if (error) throw new Error(error.message);
+      return (data || []) as Array<{ key: string; value: string }>;
     },
   });
   // Arise WorkHub, the paid add-on: only teachers with a Arise WorkHub plan can open it.

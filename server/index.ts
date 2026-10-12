@@ -77,6 +77,11 @@ app.use("/api/lifehub/drive/upload", express.raw({
   limit: "22mb",
 }));
 
+// LifeHub Drop (App Store add-on): an AirDrop-style file hand-off. Any file type is allowed, so
+// this has to catch every content-type on this one path — same raw-before-json ordering reason
+// as Drive and My World above.
+app.use("/api/lifehub/drop/upload", express.raw({ type: "*/*", limit: "205mb" }));
+
 // Arise WorkHub: a workspace with a full caseload and connected calendars is bigger than the usual
 // request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));

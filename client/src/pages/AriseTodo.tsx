@@ -14,7 +14,7 @@ import {
   ShoppingBag,
   Folder as Folder, ChevronRight as ChevronRight,
   Archive, ArchiveRestore,
-  Table, FolderOpen,
+  Table, FolderOpen, QrCode,
 } from "lucide-react";
 import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
@@ -62,9 +62,10 @@ import Quotes from "@/components/family-hub/Quotes";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, driveAppPlugin, lifeInstalled, notesAppPlugin, pluginOpens, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, lifeInstalled, notesAppPlugin, pluginOpens, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
 import SheetsApp from "@/components/family-hub/SheetsApp";
 import DriveApp from "@/components/family-hub/DriveApp";
+import DropApp from "@/components/family-hub/DropApp";
 import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
 import { cleanDriveFiles } from "@shared/driveApp";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
@@ -537,7 +538,8 @@ export default function AriseTodo() {
   // menu entry, the same as a Notes-app install — see myNotesApps/phoneItems below.
   const pinnableSheets = (family.sheetsInstalled ?? []).map((id) => sheetsAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   const drivePlugin = family.driveInstalled ? driveAppPlugin("life") : undefined;
-  const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : [])];
+  const dropPlugin = family.dropInstalled ? dropAppPlugin("life") : undefined;
+  const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id));
   const setLayout = (next: LifeLayout) => setFamily((f) => ({ ...f, layout: next }));
   const phone = usePhoneMenu(layout.menuSide, layout.menuClose);
@@ -586,11 +588,13 @@ export default function AriseTodo() {
   const myNotesApps = pinnableNotes;
   const setNotesAppRecords = (pid: string, update: (all: Family["notesApps"][string]) => Family["notesApps"][string]) =>
     setFamily((f) => ({ ...f, notesApps: { ...f.notesApps, [pid]: update(f.notesApps[pid] ?? []) } }));
-  /** Sheets and Drive (App Store add-ons) open full-page, the same way a Notes-app install does. */
+  /** Sheets, Drive, and Drop (App Store add-ons) open full-page, the same way a Notes-app install does. */
   const [sheetsAppOpen, setSheetsAppOpenState] = useState<string | null>(null);
   const setSheetsAppOpen = (id: string | null) => { setSheetsAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
   const [driveOpen, setDriveOpenState] = useState(false);
   const setDriveOpen = (on: boolean) => { setDriveOpenState(on); if (on) window.scrollTo({ top: 0 }); };
+  const [dropOpen, setDropOpenState] = useState(false);
+  const setDropOpen = (on: boolean) => { setDropOpenState(on); if (on) window.scrollTo({ top: 0 }); };
   const sheets = useMemo(() => cleanSpreadsheets(family.sheets?.["life-sheets"]), [family.sheets]);
   const setSheets = (update: (all: Spreadsheet[]) => Spreadsheet[]) =>
     setFamily((f) => ({ ...f, sheets: { ...(f.sheets ?? {}), "life-sheets": update(cleanSpreadsheets((f.sheets ?? {})["life-sheets"])) } }));
@@ -602,6 +606,7 @@ export default function AriseTodo() {
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => setNotesAppOpen(p.id) })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => setSheetsAppOpen(p.id) })),
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => setDriveOpen(true) }] : []),
+    ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, active: dropOpen, color: dropPlugin.color, onClick: () => setDropOpen(true) }] : []),
     // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
     { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
   ];
@@ -708,6 +713,7 @@ export default function AriseTodo() {
         }
         setFamily((f) => setLifePlugin(f, p, on));
         if (p.target.kind === "driveApp" && !on) setDriveOpen(false);
+        if (p.target.kind === "dropApp" && !on) setDropOpen(false);
         // A widget (like the Widgets board) is a part of Home, not its own section: adding it
         // should land you looking at it, the same as tapping Open does below, not leave you to
         // go find it yourself.
@@ -722,6 +728,7 @@ export default function AriseTodo() {
         if (at && "section" in at) setSection(at.section);
         if (p.target.kind === "sheetsApp") { setSheetsAppOpen(p.target.id); setStore(false); return; }
         if (p.target.kind === "driveApp") { setDriveOpen(true); setStore(false); return; }
+        if (p.target.kind === "dropApp") { setDropOpen(true); setStore(false); return; }
         if (p.target.kind === "assistantPro") { setStore(false); navigate("/billing"); return; }
         // A widget's "section" is really Home, so land on its own part there once it has rendered,
         // instead of just the top of a Home that might be long.
@@ -881,6 +888,12 @@ export default function AriseTodo() {
                 <FolderOpen className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{drivePlugin.name}</span>
               </button>
             )}
+            {dropPlugin && (
+              <button type="button" onClick={() => { setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${dropOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <QrCode className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{dropPlugin.name}</span>
+              </button>
+            )}
           </div>
         </div>}
         <div className={`hidden px-3 pt-2 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
@@ -956,8 +969,15 @@ export default function AriseTodo() {
             </div>
             <DriveApp files={driveFiles} setFiles={setDriveFiles} say={setMessage} />
           </div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && shown === "tasks" && <>
+          {dropOpen && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setDropOpen(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <DropApp say={setMessage} />
+          </div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
             {[

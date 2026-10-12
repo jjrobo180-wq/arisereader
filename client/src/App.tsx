@@ -80,6 +80,7 @@ const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
 const Games = lazyPage(() => import("./pages/Games"));
 const MeetingPoll = lazyPage(() => import("./pages/MeetingPoll"));
 const TodoShare = lazyPage(() => import("./pages/TodoShare"));
+const DropReceive = lazyPage(() => import("./pages/DropReceive"));
 const AriseCity = lazyPage(() => import("./pages/AriseCity"));
 const SmashRoom = lazyPage(() => import("./pages/play/SmashRoom"));
 const BuildZone = lazyPage(() => import("./pages/play/BuildZone"));
@@ -407,6 +408,9 @@ function AppRoutes() {
       </Route>
       <Route path="/share/:token">
         <TodoShare />
+      </Route>
+      <Route path="/drop/:code">
+        <DropReceive />
       </Route>
       <Route path="/teacher-signup">
         <TeacherSignup />

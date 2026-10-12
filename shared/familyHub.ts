@@ -242,6 +242,10 @@ export type Family = {
    *  storage. Metadata only lives here; the image bytes live in object storage (see server/routes.ts). */
   driveInstalled: boolean;
   drive: DriveFile[];
+  /** The Drop app (App Store add-on, shared/dropApp.ts): an AirDrop-style file hand-off. Just an
+   *  install flag — a drop itself isn't family state (see shared/dropApp.ts for why), so nothing
+   *  else about it lives here. */
+  dropInstalled: boolean;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -278,7 +282,7 @@ export const emptyFamily = (): Family => ({
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
   sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [],
   notesInstalled: [], notesApps: {},
-  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [],
+  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false,
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -621,6 +625,7 @@ export function cleanFamily(input: unknown): Family {
       return out;
     })(),
     driveInstalled: bool(raw.driveInstalled, false),
+    dropInstalled: bool(raw.dropInstalled, false),
     drive: cleanDriveFiles(raw.drive),
   };
 }

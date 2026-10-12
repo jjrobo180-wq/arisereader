@@ -36,6 +36,8 @@ export type PluginTarget =
   | { kind: "sheetsApp"; id: string; label: string }
   /** The Drive app (shared/driveApp.ts): added to family.driveInstalled, opened from the store. */
   | { kind: "driveApp" }
+  /** The Drop app (shared/dropApp.ts): added to family.dropInstalled, opened from the store. */
+  | { kind: "dropApp" }
   | { kind: "connection"; needs: { tab: HubTab } | { section: FamilySection } }
   /** The AI assistant: a chat button on every page of the hub. */
   | { kind: "assistant" }
@@ -200,6 +202,9 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-sheets", hub: "life", name: "Sheets", tagline: "A simple spreadsheet, right in LifeHub", category: "Premium", icon: "Table", color: "#16a34a", featured: true,
     description: "A real spreadsheet for budgets, packing lists or anything with rows and columns: text or number cells, and formulas like SUM, AVERAGE and basic math between cells. No external app, no export needed.",
     features: ["A real grid: up to 60 rows, 18 columns", "SUM, AVERAGE, MIN, MAX, COUNT and +-*/", "Save as many sheets as you like", "Saved to your account on every device"], target: { kind: "sheetsApp", id: "life-sheets", label: "Sheets" } },
+  { id: "life-drop", hub: "life", name: "Drop", tagline: "Send a file to another device, AirDrop-style", category: "Premium", icon: "QrCode", color: "#db2777", featured: true,
+    description: "Send a file from this device to another with a 6-character code, a QR code to scan, or a link — whichever's easiest. No account needed on the receiving end. Files are kept for 24 hours or until they're picked up, up to 200MB each.",
+    features: ["Code, QR, or link — receiver picks what's easiest", "No sign-in needed to receive", "Up to 200MB per file", "Kept 24 hours or until downloaded once"], target: { kind: "dropApp" } },
   { id: "life-calendar", hub: "life", name: "Family calendar", tagline: "Everyone's plans in one place", category: "Family", icon: "CalendarRange", color: "#7c6be6", featured: true, target: section("calendar"),
     description: "Shared family calendars with repeating events, and your tasks, bills, trips and chores laid on top.",
     features: ["A calendar per person or group", "Repeating events", "Tasks, bills and trips on top"] },
@@ -447,8 +452,13 @@ export function driveAppPlugin(hub: PluginHub): Plugin | undefined {
   return PLUGINS.find((p) => p.hub === hub && p.target.kind === "driveApp");
 }
 
+/** The Drop-app plugin (see shared/dropApp.ts) in the given hub, if that hub offers one. */
+export function dropAppPlugin(hub: PluginHub): Plugin | undefined {
+  return PLUGINS.find((p) => p.hub === hub && p.target.kind === "dropApp");
+}
+
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
-export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp" || p.target.kind === "sheetsApp" || p.target.kind === "driveApp";
+export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp" || p.target.kind === "sheetsApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp";
 
 /** Where a plugin opens in its hub: a WorkHub tab or a LifeHub section. null for an Arise app. */
 export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySection } | null {
@@ -500,7 +510,7 @@ export function setWorkPlugin<V extends Partial<Record<HubTab, boolean>>>(visibl
 // ── LifeHub ────────────────────────────────────────────────────────────────
 
 /** Is this LifeHub plugin on? A section is on unless it was switched off. */
-export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "driveInstalled">>, notesInstalled?: readonly string[], sheetsInstalled?: readonly string[]): boolean {
+export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "driveInstalled" | "dropInstalled">>, notesInstalled?: readonly string[], sheetsInstalled?: readonly string[]): boolean {
   const t = p.target;
   const sectionOn = (s: FamilySection) => isOn(s, family);
   if (t.kind === "section") return sectionOn(t.section);
@@ -510,12 +520,13 @@ export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "laye
   if (t.kind === "notesApp") return !!notesInstalled?.includes(t.id);
   if (t.kind === "sheetsApp") return !!sheetsInstalled?.includes(t.id);
   if (t.kind === "driveApp") return !!family.driveInstalled;
+  if (t.kind === "dropApp") return !!family.dropInstalled;
   if (t.kind === "connection" && "section" in t.needs) return sectionOn(t.needs.section);
   return false;
 }
 
 /** The family with this plugin added or removed. Adding the WorkHub calendar also adds the Calendar section it shows in. */
-export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout" | "driveInstalled">>>(family: F, p: Plugin, on: boolean): F {
+export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout" | "driveInstalled" | "dropInstalled">>>(family: F, p: Plugin, on: boolean): F {
   const t = p.target;
   // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
   if (t.kind === "widget" && t.widget === "board") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), board: on }, layout: showSection(cleanLifeLayout(family.layout), "widgets", on) };
@@ -523,6 +534,7 @@ export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Pa
   if (t.kind === "assistant") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), chat: on } };
   if (t.kind === "section") return { ...family, sections: { ...family.sections, [t.section]: on } };
   if (t.kind === "driveApp") return { ...family, driveInstalled: on };
+  if (t.kind === "dropApp") return { ...family, dropInstalled: on };
   if (t.kind === "layer") {
     const next = { ...family, layers: { ...family.layers, [t.layer]: on } };
     return on ? { ...next, sections: { ...next.sections, [t.opens]: true } } : next;
