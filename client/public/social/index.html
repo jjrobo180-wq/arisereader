@@ -566,8 +566,8 @@ function landingHTML(){
     <section class="card land-hero">
       <div>
         <span class="eyebrow">Student achievements · Career pathways · Closed class community</span>
-        <h1 style="margin-top:8px">Find work you’d <em>actually love.</em></h1>
-        <p class="lead">A.R.I.S.E. Connect brings a student’s achievements, interests, skills and career goals together in a LinkedIn-inspired profile. Students can celebrate wins within their teacher-approved class community. Posts require teacher approval and there are no private messages. Student searching and follow requests remain closed while parent-approved class and homeschool connections are developed.</p>
+        <h1 style="margin-top:8px">Show what you can do. <em>Discover what comes next.</em></h1>
+        <p class="lead">A.R.I.S.E. Connect brings a student’s achievements, interests, skills and career goals together in a LinkedIn-inspired profile. Students can celebrate wins within their teacher-approved class community. Posts require teacher approval and there are no private messages. Student searching and follow requests remain closed while school connections restricted to the same class or advisory, and separate parent-approved homeschool connections, are developed.</p>
         <div class="join" style="margin-top:20px;max-width:420px">
           <button class="btn primary" data-act="join">${svg('plus')}Sign up as a student</button>
           <button class="btn outline" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button>
@@ -579,7 +579,7 @@ function landingHTML(){
         <div class="row" style="margin-top:12px;gap:6px">${sample.slice(0,6).map(c=>`<span class="chip cl" style="--c:${cc(c.c)}">${esc(c.name)}</span>`).join('')}</div></div></div>
     </section>
     <div class="points">
-      ${[['Closed class community','Only approved classroom posts are visible; student searching and follow requests are not enabled yet.'],['No private messages','Students can’t message anyone, and no one can message them.'],['Parents in the loop','Parents see progress, approve events for younger kids, and choose who sees posts.'],['Every path counts','Apprenticeships, military, community college, certificates, and four-year college, side by side.']].map(([t,d])=>`<div class="card"><b>${svg('check')}${t}</b><p class="muted small">${d}</p></div>`).join('')}
+      ${[['Closed class community','Only approved classroom posts are visible; student searching and follow requests are not enabled yet.'],['No private messages','Students can’t message anyone, and no one can message them.'],['Parent & teacher approval','Class connections will require adult approval. Homeschool-to-homeschool connections will require parental approval on both sides.'],['Every path counts','Apprenticeships, military, community college, certificates, and four-year college, side by side.']].map(([t,d])=>`<div class="card"><b>${svg('check')}${t}</b><p class="muted small">${d}</p></div>`).join('')}
     </div>
     <div class="card"><div class="card-h"><div><h2>Look around first</h2><p class="muted small" style="margin-top:2px">Tap any career to see what the job is like and how to get started at every age.</p></div></div>
       <div class="grid careers">${sample.map(careerCard).join('')}</div></div>
