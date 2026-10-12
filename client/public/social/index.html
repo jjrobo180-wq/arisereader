@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Arise Social</title>
-<meta name="description" content="Arise Social: a safe career-discovery network where K–12 students explore trades, the military, teaching, health care, tech and college paths, with their teachers and parents.">
+<title>A.R.I.S.E. Connect</title>
+<meta name="description" content="A.R.I.S.E. Connect: a safe career-discovery network where K–12 students explore trades, the military, teaching, health care, tech and college paths, with their teachers and parents.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -401,13 +401,13 @@ tr:last-child td{border-bottom:0}
 </head>
 <body>
 <header class="top"><div class="top-in" id="topIn">
-  <a href="/social/" aria-label="Arise Social home" style="display:flex"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
+  <a href="/social/" aria-label="A.R.I.S.E. Connect home" style="display:flex"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
     <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2a8f"/><stop offset="1" stop-color="#6d4fd8"/></linearGradient>
     <linearGradient id="sg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef5a45"/><stop offset="1" stop-color="#ffb23f"/></linearGradient></defs>
     <rect width="40" height="40" rx="9" fill="url(#lg)"/><path d="M9 28a11 11 0 0 1 22 0z" fill="url(#sg)"/><path d="M7 31h26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
   </svg></a>
-  <span class="wordmark">Arise <b>Social</b></span>
-  <label class="search" id="searchWrap" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="q" placeholder="Search careers" aria-label="Search careers"></label>
+  <span class="wordmark">A.R.I.S.E. <b>Connect</b></span>
+  <label class="search" id="searchWrap" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="q" placeholder="Search career paths" aria-label="Search career paths (student search is closed)"></label>
   <nav class="topnav" id="nav" aria-label="Sections"></nav>
   <div id="me"></div>
 </div></header>
@@ -475,7 +475,7 @@ async function api(path, opts = {}){
   const t = sessionToken(); if (t) headers.Authorization = `Bearer ${t}`;
   let res;
   try { res = await fetch('/api/social' + path, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store' }); }
-  catch { throw new ApiError('Can’t reach Arise Social. Check your connection and try again.', 0); }
+  catch { throw new ApiError('Can’t reach A.R.I.S.E. Connect. Check your connection and try again.', 0); }
   let body = null; try { body = await res.json(); } catch {}
   if (!res.ok) throw new ApiError(body?.message || 'Something went wrong. Please try again.', res.status, body);
   return body;
@@ -485,12 +485,12 @@ async function apiAt(fullPath, opts = {}){
   const t = sessionToken(); if (t) headers.Authorization = `Bearer ${t}`;
   let res;
   try { res = await fetch(fullPath, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache:'no-store' }); }
-  catch { throw new ApiError('Can’t reach Arise Social. Check your connection and try again.', 0); }
+  catch { throw new ApiError('Can’t reach A.R.I.S.E. Connect. Check your connection and try again.', 0); }
   let body = null; try { body = await res.json(); } catch {}
   if (!res.ok) throw new ApiError(body?.message || 'Something went wrong. Please try again.', res.status, body);
   return body;
 }
-/** Opens Stripe's checkout page to add Arise Social for yourself, or (parents) for a child. */
+/** Opens Stripe's checkout page to add A.R.I.S.E. Connect for yourself, or (parents) for a child. */
 async function buySocial(forUserId){
   const r = await apiAt('/api/billing/addon-checkout', { method:'POST', body:{ product: role()==='teacher' ? 'social' : 'bundle', returnPath:'/social/' } });
   location.href = r.url;
@@ -565,21 +565,21 @@ function landingHTML(){
   return `<div class="landing">
     <section class="card land-hero">
       <div>
-        <span class="eyebrow">From A.R.I.S.E. Reader · Grades K–12 · 30 days free</span>
+        <span class="eyebrow">Student achievements · Career pathways · Closed class community</span>
         <h1 style="margin-top:8px">Find work you’d <em>actually love.</em></h1>
-        <p class="lead">Arise Social is where students explore every kind of career, from the trades and the military to teaching, health care, tech, and college paths. They try real-world quests, collect careers, and share wins with their class. Teachers approve every post, and parents follow along.</p>
+        <p class="lead">A.R.I.S.E. Connect brings a student’s achievements, interests, skills and career goals together in a LinkedIn-inspired profile. Students can celebrate wins within their teacher-approved class community. Posts require teacher approval and there are no private messages. Student searching and follow requests remain closed while parent-approved class and homeschool connections are developed.</p>
         <div class="join" style="margin-top:20px;max-width:420px">
           <button class="btn primary" data-act="join">${svg('plus')}Sign up as a student</button>
           <button class="btn outline" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button>
           <button class="btn outline" data-act="go" data-v="/teacher-signup">${svg('teach')}I’m a teacher</button>
-          <p class="muted small" style="margin-top:4px">Free for 30 days. Then a teacher adds it for their class for $7 a month, or a family gets it with Arise History and Arise Math in the $10 Learning Bundle. Already have an A.R.I.S.E. Reader account? <a href="/" data-act="signin">Log in</a>.</p>
+          <p class="muted small" style="margin-top:4px">Families can get Connect with Math and History in the $10/month Learning Bundle covering up to three children. Teachers can add Connect separately. A.R.I.S.E. Reader and To-Do remain free. Already have an A.R.I.S.E. Reader account? <a href="/" data-act="signin">Log in</a>.</p>
         </div>
       </div>
-      <div class="land-art"><div class="cover tall"></div><div class="inner">${av('Jaylen W.','lg')}<h3 style="margin-top:8px">Your career profile</h3><p class="muted small">Collect careers, finish quests, and build a profile that grows with you from kindergarten to graduation.</p>
+      <div class="land-art"><div class="cover tall"></div><div class="inner">${av('Jaylen W.','lg')}<h3 style="margin-top:8px">Your achievement profile</h3><p class="muted small">Build your profile with achievements, interests, career goals and completed learning challenges.</p>
         <div class="row" style="margin-top:12px;gap:6px">${sample.slice(0,6).map(c=>`<span class="chip cl" style="--c:${cc(c.c)}">${esc(c.name)}</span>`).join('')}</div></div></div>
     </section>
     <div class="points">
-      ${[['Teacher-approved','Every student post is checked by their own teacher before anyone else sees it.'],['No private messages','Students can’t message anyone, and no one can message them.'],['Parents in the loop','Parents see progress, approve events for younger kids, and choose who sees posts.'],['Every path counts','Apprenticeships, military, community college, certificates, and four-year college, side by side.']].map(([t,d])=>`<div class="card"><b>${svg('check')}${t}</b><p class="muted small">${d}</p></div>`).join('')}
+      ${[['Closed class community','Only approved classroom posts are visible; student searching and follow requests are not enabled yet.'],['No private messages','Students can’t message anyone, and no one can message them.'],['Parents in the loop','Parents see progress, approve events for younger kids, and choose who sees posts.'],['Every path counts','Apprenticeships, military, community college, certificates, and four-year college, side by side.']].map(([t,d])=>`<div class="card"><b>${svg('check')}${t}</b><p class="muted small">${d}</p></div>`).join('')}
     </div>
     <div class="card"><div class="card-h"><div><h2>Look around first</h2><p class="muted small" style="margin-top:2px">Tap any career to see what the job is like and how to get started at every age.</p></div></div>
       <div class="grid careers">${sample.map(careerCard).join('')}</div></div>
@@ -591,9 +591,9 @@ function landingHTML(){
 function joinHTML(){
   const u = ME.user;
   return `<div class="landing" style="max-width:820px"><section class="card" style="padding:28px">
-    <span class="eyebrow">Arise Social · 30-day free trial</span>
+    <span class="eyebrow">A.R.I.S.E. Connect · 30-day free trial</span>
     <h1 style="margin-top:8px">Hi ${esc(u.name.split(' ')[0])}, your free trial has ended.</h1>
-    <p class="muted" style="margin-top:8px;max-width:58ch">A teacher can add Arise Social for the whole class for $7 a month, or a family can get it with Arise History and Arise Math in the $10 Learning Bundle.</p>
+    <p class="muted" style="margin-top:8px;max-width:58ch">A teacher can add A.R.I.S.E. Connect for the whole class for $7 a month, or a family can get it with Arise History and Arise Math in the $10 Learning Bundle.</p>
     <div class="row" style="margin-top:16px"><a class="btn outline" href="/">Back to A.R.I.S.E. Reader</a></div></section>
     <div class="card"><div class="card-h"><div><h2>Look around</h2><p class="muted small" style="margin-top:2px">Careers are free to browse.</p></div></div>
       <div class="grid careers">${CAT.careers.slice(0,8).map(careerCard).join('')}</div></div></div>`;
@@ -860,7 +860,7 @@ function viewFamily(){
   </div>
   <div class="card"><h2 style="margin-bottom:8px">Events for ${esc(k.firstName)}</h2>${k.events.length?k.events.map(e=>eventRow(e, e.status==='going'?`<span class="chip pill-ok">Going</span><button class="btn sm ghost" data-act="prsvp" data-id="${e.id}" data-v="leave">Remove</button>`:e.status==='requested'?`<button class="btn primary sm" data-act="prsvp" data-id="${e.id}" data-v="approve">Approve</button>`:`<button class="btn outline sm" data-act="prsvp" data-id="${e.id}" data-v="join">Sign ${esc(k.firstName)} up</button>`)).join(''):'<p class="muted">No upcoming events.</p>'}</div>
   <div class="card"><h2 style="margin-bottom:14px">Privacy and safety</h2>
-    <div class="setting"><b>Who can see ${esc(k.firstName)}’s posts</b><div class="filters">${[['class','Class only'],['school','Whole school']].map(([v,l])=>`<button class="chip ${p.postScope===v?'on':''}" data-act="scope" data-v="${v}">${l}</button>`).join('')}</div></div>
+    <div class="setting"><b>Who can see ${esc(k.firstName)}’s posts</b><div class="filters"><span class="chip on">Approved class only</span></div></div>
     ${['No private messages between kids, or between kids and adults','Every post is approved by the student’s own teacher first','Students show first name and last initial only'].map(t=>`<div class="list-item" style="align-items:center">${svg('check','style="width:18px;height:18px;color:var(--leaf);flex:none"')}<span style="color:var(--fg);font-size:.9rem">${t}</span></div>`).join('')}
   </div>`;
 }
@@ -1043,13 +1043,13 @@ function burst(){
 (async function start(){
   render();
   try { CAT = await api('/catalog'); }
-  catch (e) { return centerMessage('Arise Social can’t load right now', e.message || 'Please try again in a minute.', '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>'); }
+  catch (e) { return centerMessage('A.R.I.S.E. Connect can’t load right now', e.message || 'Please try again in a minute.', '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>'); }
   if (!sessionToken()) return render();
   try { ME = await api('/me'); }
   catch (e) {
     if (e.code===401) { ME = null; return render(); }
-    if (e.body && e.body.setup) return centerMessage('Almost ready', 'Arise Social is still being set up. Please check back soon.');
-    return centerMessage('Arise Social can’t load right now', e.message, '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>');
+    if (e.body && e.body.setup) return centerMessage('Almost ready', 'A.R.I.S.E. Connect is still being set up. Please check back soon.');
+    return centerMessage('A.R.I.S.E. Connect can’t load right now', e.message, '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>');
   }
   await loadPlan();
   S.tab = role()==='parent' ? 'family' : 'feed';
