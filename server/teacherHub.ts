@@ -120,7 +120,7 @@ export function createSupabaseWorkspaceStore(client?: any): WorkspaceStore {
 
 function teacherAccess(req: any) {
   // An admin previewing the site as someone else is not that teacher.
-  return !!req.user && !req.adminPreview && (req.user.role === "teacher" || req.user.isAdmin === true);
+  return !!req.user && !req.adminPreview && (req.user.role === "teacher" || req.user.role === "parent" || req.user.isAdmin === true);
 }
 
 /** How many students are in a saved workspace's caseload. */
@@ -142,7 +142,7 @@ export async function countHubStudents(teacherId: number, store: WorkspaceStore 
 export function createHubGate(deps: TeacherHubDeps) {
   return async (req: any, res: any): Promise<HubAccess | null> => {
     if (!teacherAccess(req)) {
-      res.status(403).json({ message: "Teacher access required" });
+      res.status(403).json({ message: "Parent or teacher account required" });
       return null;
     }
     let hub: HubAccess;
