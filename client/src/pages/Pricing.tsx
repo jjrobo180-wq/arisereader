@@ -11,7 +11,7 @@ export default function Pricing() {
 
   // Visitors using a saved /app#/pricing link should see the light homepage's
   // pricing section, not this Reader-focused React view.
-  const onTodoDomain = typeof window !== "undefined" && /^(www\\.)?arisetodo\\.com$/i.test(window.location.hostname);
+  const onTodoDomain = typeof window !== "undefined" && /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
   useEffect(() => {
     if (onTodoDomain) window.location.replace("/#pricing");
   }, [onTodoDomain]);
