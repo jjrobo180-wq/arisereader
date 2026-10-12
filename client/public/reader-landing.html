@@ -68,6 +68,40 @@
     @media(max-width:900px){.nav-links .mobile-menu-signin{display:block;padding:12px 14px;border-radius:11px;background:#f1efff;color:#5249c8;font-weight:800;margin-bottom:8px}}@media(min-width:901px){.nav-links .mobile-menu-signin{display:none}}
 
     .nav-actions .student-signin{opacity:.85}@media(max-width:900px){.nav-actions .student-signin{display:none!important}}
+
+    /* Header: every menu item stays on one line. Wide screens: 4 links + More. Medium: links move into the
+       menu button, both sign-in buttons stay. Phones: one "Sign in" button; both sign-ins are in the menu. */
+    .nav-links a,.nav-more-btn,.nav-actions .btn{white-space:nowrap}
+    .header .nav{gap:24px}
+    .nav-links{gap:26px}
+    .nav-actions{gap:10px}
+    .nav-actions .btn-text{padding:11px 15px;border:1px solid #e3e1f6;border-radius:12px;background:#fff;color:#3f3a8c}
+    .nav-actions .btn-text:hover{border-color:var(--purple);color:var(--purple)}
+    .nav-actions .adult-signin{background:#f4f2ff;border-color:#d9d4ff;color:#4b42c6}
+    .nav-actions .student-signin{opacity:1}
+    .nav-actions .btn-primary{padding:13px 19px}
+    .lbl-short{display:none}
+    .nav-more{position:relative}
+    .nav-more-btn{display:inline-flex;align-items:center;gap:4px;font:inherit;font-size:13px;font-weight:700;color:#414963;background:none;border:0;padding:6px 0;cursor:pointer}
+    .nav-more-btn:hover,.nav-more.open .nav-more-btn{color:var(--purple)}
+    .nav-more-btn svg{width:15px;height:15px;transition:transform .2s}
+    .nav-more.open .nav-more-btn svg{transform:rotate(180deg)}
+    .nav-more-menu{display:none;position:absolute;top:calc(100% + 16px);left:50%;transform:translateX(-50%);min-width:190px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px #1e245318;padding:8px;flex-direction:column;z-index:60}
+    .nav-more.open .nav-more-menu{display:flex}
+    .nav-more-menu a{padding:10px 12px;border-radius:9px}
+    .nav-more-menu a:hover{background:#f4f2ff}
+    @media(max-width:1240px){
+      .nav-links{display:none;position:absolute;top:83px;left:0;right:0;background:white;border-bottom:1px solid var(--line);padding:19px 24px;flex-direction:column;align-items:stretch;gap:4px;box-shadow:0 18px 35px #1e245310}
+      .nav-links.open{display:flex}
+      .nav-links a{font-size:15px;padding:8px 0}
+      .hamburger{display:grid;place-items:center}
+      .nav-more-btn{display:none}
+      .nav-more-menu{display:flex;position:static;transform:none;box-shadow:none;border:0;padding:0;min-width:0;gap:4px}
+      .nav-more-menu a{padding:8px 0;border-radius:0}
+      .nav-more-menu a:hover{background:none}
+    }
+    @media(max-width:900px){.nav-links{top:75px}}
+    @media(max-width:600px){.nav-links{top:69px}.lbl-long{display:none}.lbl-short{display:inline}}
 </style>
 </head>
 <body>
@@ -98,8 +132,8 @@
 <div class="topbar">EVERY STORY STARTS SOMETHING AMAZING <span>✦</span> Read · Learn · Earn · Play · Grow</div>
 <header class="header"><div class="container nav">
   <a href="#top" class="logo" aria-label="A.R.I.S.E. Reader home"><span class="logo-mark"><svg class="ico"><use href="#i-book"/></svg></span><span><span class="logo-name">A.R.I.S.E. <strong>Reader</strong></span><span class="logo-sub">Read · Imagine · Grow</span></span></a>
-  <nav class="nav-links" id="navLinks" aria-label="Main menu"><a href="/#/signin" target="_top" class="mobile-menu-signin">Sign in</a><a href="/#/signin?as=student" target="_top" class="mobile-menu-signin">Student sign in</a><a href="#how">Parent &amp; teacher tools</a><a href="#books">Explore books</a><a href="#games">Games</a><a href="#who">For everyone</a><a href="#features">Features</a><a href="/#/pricing" target="_top">Pricing</a><a href="#faq">Questions</a><a href="#full-toolkit">All tools</a></nav>
-  <div class="nav-actions"><a href="/#/signin?as=student" target="_top" class="btn btn-text student-signin">Student sign in</a><a href="/#/signin" target="_top" class="btn btn-text">Sign in</a><button class="btn btn-primary" data-start>Get started <svg class="ico small"><use href="#i-arrow"/></svg></button><button class="hamburger" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg class="ico lg"><use href="#i-menu"/></svg></button></div>
+  <nav class="nav-links" id="navLinks" aria-label="Main menu"><a href="/#/signin" target="_top" class="mobile-menu-signin">Parent &amp; teacher sign in</a><a href="/#/signin?as=student" target="_top" class="mobile-menu-signin">Student sign in</a><a href="#how">Parent &amp; teacher tools</a><a href="#books">Explore books</a><a href="#games">Games</a><a href="/#/pricing" target="_top">Pricing</a><div class="nav-more" id="navMore"><button type="button" class="nav-more-btn" id="navMoreBtn" aria-expanded="false" aria-controls="navMoreMenu">More <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="nav-more-menu" id="navMoreMenu"><a href="#who">For everyone</a><a href="#features">Features</a><a href="#faq">Questions</a><a href="#full-toolkit">All tools</a></div></div></nav>
+  <div class="nav-actions"><a href="/#/signin?as=student" target="_top" class="btn btn-text student-signin">Student sign in</a><a href="/#/signin" target="_top" class="btn btn-text adult-signin"><span class="lbl-long">Parent &amp; teacher sign in</span><span class="lbl-short">Sign in</span></a><button class="btn btn-primary" data-start>Get started <svg class="ico small"><use href="#i-arrow"/></svg></button><button class="hamburger" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg class="ico lg"><use href="#i-menu"/></svg></button></div>
 </div></header>
 <main id="top"><div class="arise-announcement" id="ariseAnnouncement" hidden></div>
 <section class="hero"><div class="container hero-grid">
@@ -182,11 +216,19 @@
   const $$ = s => Array.from(document.querySelectorAll(s));
   // Already signed in: "Sign in" takes them straight to their hub or library, so say so.
   if (/(?:^|;\s*)arise_session=/.test(document.cookie)) {
-    $$('a[href="/#/signin"]').forEach(a => { a.childNodes.forEach(n => { if (n.nodeType === 3 && /sign in/i.test(n.textContent)) n.textContent = n.textContent.replace(/sign in/i, 'Open my account'); }); });
+    $$('a[href="/#/signin"]').forEach(a => { a.childNodes.forEach(n => { if (n.nodeType === 3 && /sign in/i.test(n.textContent)) n.textContent = n.textContent.replace(/(parent & teacher )?sign in/i, 'Open my account'); }); });
+    $$('.adult-signin .lbl-long').forEach(el => { el.textContent = 'Open my account'; });
+    $$('.adult-signin .lbl-short').forEach(el => { el.textContent = 'My account'; });
     $$('.student-signin').forEach(a => a.remove());
   }
   const menu = $('#menuToggle'), nav = $('#navLinks');
   menu.addEventListener('click', () => {const opening=!nav.classList.contains('open');nav.classList.toggle('open',opening);menu.setAttribute('aria-expanded',String(opening));menu.setAttribute('aria-label',opening?'Close menu':'Open menu');menu.innerHTML=opening?'<svg class="ico lg"><use href="#i-close"/></svg>':'<svg class="ico lg"><use href="#i-menu"/></svg>';});
+  const more = $('#navMore'), moreBtn = $('#navMoreBtn');
+  const setMore = open => { more.classList.toggle('open', open); moreBtn.setAttribute('aria-expanded', String(open)); };
+  moreBtn.addEventListener('click', e => { e.stopPropagation(); setMore(!more.classList.contains('open')); });
+  document.addEventListener('click', e => { if (!more.contains(e.target)) setMore(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && more.classList.contains('open')) { setMore(false); moreBtn.focus(); } });
+  $$('#navMoreMenu a').forEach(a => a.addEventListener('click', () => setMore(false)));
   $$('#navLinks a').forEach(a=>a.addEventListener('click',()=>{nav.classList.remove('open');menu.setAttribute('aria-expanded','false');menu.setAttribute('aria-label','Open menu');menu.innerHTML='<svg class="ico lg"><use href="#i-menu"/></svg>';}));
   const experience={
     student:{title:"A reading journey that's all yours.",desc:'Build confidence with books you choose, quizzes you can try, and achievements that give you another reason to keep going.',benefits:["Discover stories you'll want to finish","Practice with engaging book quizzes","Unlock achievements along the way"],name:'My reader dashboard',greeting:'Small steps.<br>Big adventures.',visual:'🚀',tasks:[['Pick your next read','Your adventure is waiting'],['Finish a book quiz','Practice and grow'],['Celebrate every win','Your progress matters']]},
