@@ -51,6 +51,7 @@ import {
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
   Table, FolderOpen, QrCode,
+  type LucideIcon,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import SheetsApp from "@/components/family-hub/SheetsApp";
@@ -129,7 +130,7 @@ import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
-import { ADMIN_SECTIONS, adminSectionLabel, type AdminSection } from "@/lib/adminSections";
+import { ADMIN_SECTIONS, SETTINGS_SECTIONS, adminSectionLabel, settingsSectionLabel, type AdminSection, type SettingsSection } from "@/lib/adminSections";
 import HubBehavior from "@/components/teacher-hub/HubBehavior";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import { HubEndedNote, HubTrialNote, useHubTrial } from "@/components/HubTrialNote";
@@ -395,6 +396,7 @@ function TeacherHubPage() {
   const addRef = useRef<HTMLDivElement>(null);
   // Which admin-console section the Reader menu has open (the console no longer has its own menu).
   const [adminSection, setAdminSection] = useState<AdminSection>("overview");
+  const [adminSettings, setAdminSettings] = useState<SettingsSection>("alerts");
   const subRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!addMenu) return;
@@ -935,6 +937,16 @@ function TeacherHubPage() {
                   </button>
                 </div>
               );
+              /** One of the admin console's sections (depth 2) or one of Settings' parts (depth 3), nested under Admin console. Desktop only. */
+              const adminItem = (s: { id: string; label: string; icon: LucideIcon }, depth: 2 | 3, on: boolean, pick: () => void, testId: string) => (
+                <div key={testId} className={`hidden ${deskTop ? "md:w-auto" : "md:w-full"} shrink-0 md:flex ${deskTop || deskCompact ? "" : depth === 2 ? "md:pl-8" : "md:pl-12"}`}>
+                  <button type="button" onClick={() => { pick(); closeApps(); afterPick(); }} aria-current={on ? "page" : undefined} title={s.label} data-testid={testId} data-hub-nav
+                    className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-1.5 text-left text-sm transition ${deskCompact ? "justify-center" : "justify-start"} ${depth === 3 ? "text-[13px]" : ""} ${on ? "font-semibold" : "font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-950"}`}>
+                    <s.icon className={`${depth === 3 ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0`} />
+                    <span className={`truncate ${deskCompact ? "sr-only" : ""}`}>{s.label}</span>
+                  </button>
+                </div>
+              );
               return foldMenu(menu, layout.folders).map((entry) => {
                 if (entry.kind === "item" && entry.item.id === "arise") {
                   const tabs = groupTabs("arise", visible);
@@ -956,7 +968,17 @@ function TeacherHubPage() {
                           className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
                       </button>
                     </div>
-                    {open && tabs.map((t) => subItem(t, true))}
+                    {open && tabs.map((t) => <Fragment key={t}>
+                      {subItem(t, true)}
+                      {/* The admin console's sections (and Settings' own parts) open up right under
+                          Admin console here, so on desktop they sit with the rest of the Reader's
+                          items instead of in a bar across the top of the page. Phones keep the bar,
+                          since their menu is a strip along the edge with no room to nest. */}
+                      {t === "admin" && tab === "admin" && ADMIN_SECTIONS.map((s) => <Fragment key={`admin-${s.id}`}>
+                        {adminItem(s, 2, tab === "admin" && adminSection === s.id && !kitOpen, () => { setAdminSection(s.id); setTab("admin"); }, s.id === "overview" ? "hub-menu-admin-overview" : `hub-menu-admin-${s.id}`)}
+                        {s.id === "settings" && adminSection === "settings" && SETTINGS_SECTIONS.map((p) => adminItem(p, 3, adminSettings === p.id && !kitOpen, () => { setAdminSettings(p.id); setAdminSection("settings"); setTab("admin"); }, `hub-menu-admin-settings-${p.id}`))}
+                      </Fragment>)}
+                    </Fragment>)}
                   </Fragment>;
                 }
                 if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
@@ -1196,17 +1218,15 @@ function TeacherHubPage() {
           )}
 
           {subTabs.length > 1 && (
-            // The sidebar already lists every A.R.I.S.E. Reader sub-tab inline once that group is
-            // open, so on desktop this dropdown would just repeat those — but it is also the ONLY
-            // place the Admin console's own sections (Banners, Alerts, Family emails, Club, AI,
-            // Extras, Security — see ADMIN_SECTIONS below) are reachable; the sidebar has no
-            // listing for those at all. So it only hides on desktop for the Reader's own sub-tabs,
-            // never while viewing the admin console.
-            <div ref={subRef} className={`relative ${subTabs.includes("admin") ? "" : "md:hidden"}`} data-testid="hub-subtabs">
+            // On desktop the sidebar lists every A.R.I.S.E. Reader sub-tab, and under Admin console
+            // its sections and Settings' parts, so this dropdown would only repeat them there. It
+            // earns its keep on phones, and on desktop only in the drawer layout, which has no
+            // sidebar showing.
+            <div ref={subRef} className={`relative ${deskDrawer ? "" : "md:hidden"}`} data-testid="hub-subtabs">
               <button type="button" onClick={() => setSubMenu((v) => !v)} aria-haspopup="menu" aria-expanded={subMenu} aria-label={`${group.label} categories`} data-testid="hub-subtabs-button"
                 className="flex min-h-11 w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 sm:px-4">
                 {tabIcon(tab)}
-                <span className="min-w-0 flex-1 truncate">{tab === "admin" ? `Admin console · ${adminSectionLabel(adminSection)}` : SUB_LABELS[tab] ?? group.label}</span>
+                <span className="min-w-0 flex-1 truncate">{tab === "admin" ? `Admin console · ${adminSectionLabel(adminSection)}${adminSection === "settings" ? ` · ${settingsSectionLabel(adminSettings)}` : ""}` : SUB_LABELS[tab] ?? group.label}</span>
                 <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${subMenu ? "rotate-180" : ""}`} />
               </button>
               {subMenu && (
@@ -1350,7 +1370,7 @@ function TeacherHubPage() {
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
           {isReaderTab(tab) && <ReaderTools tab={tab} openTab={setTab} night={night} />}
-          {tab === "admin" && user.isAdmin && <AdminTab night={night} section={adminSection} onSection={setAdminSection} />}
+          {tab === "admin" && user.isAdmin && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <HubBehavior legacy={<Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />} />}
           {tab === "attendance" && <Attendance workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} exportAttendance={exportAttendance} />}

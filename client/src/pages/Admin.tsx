@@ -149,10 +149,9 @@ interface QuestionForm {
   correct: string;
 }
 
-import type { AdminSection } from "@/lib/adminSections";
+import { SETTINGS_SECTIONS, type AdminSection, type SettingsSection } from "@/lib/adminSections";
 type AdminTab = AdminSection;
 type PeopleTab = "students" | "teachers" | "parents" | "archived";
-type SettingsSection = "programs" | "alerts" | "banners" | "family-emails" | "club" | "ai" | "extras" | "security";
 const ADMIN_TABS: AdminTab[] = ["overview", "stats", "todo", "inbox", "people", "library", "schools", "settings"];
 const TAB_STORAGE = "arise_admin_tab";
 
@@ -163,7 +162,7 @@ let adminCache: { students: Student[]; books: BookItem[] } = {
 };
 
 /** The admin console. `embedded`: shown inside Arise WorkHub's A.R.I.S.E. Reader group (no sticky page header). */
-export default function Admin({ embedded = false, section, onSection, hideNav = false }: { embedded?: boolean; section?: AdminTab; onSection?: (next: AdminTab) => void; hideNav?: boolean } = {}) {
+export default function Admin({ embedded = false, section, onSection, hideNav = false, settingsPart, onSettingsPart, settingsInSidebar = false }: { embedded?: boolean; section?: AdminTab; onSection?: (next: AdminTab) => void; hideNav?: boolean; settingsPart?: SettingsSection; onSettingsPart?: (next: SettingsSection) => void; /** The host page lists Settings' parts in its desktop sidebar, so the row of tabs is only needed on phones. */ settingsInSidebar?: boolean } = {}) {
   const { user, token, logout, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -228,7 +227,13 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
   // Arise WorkHub drives this from its one Reader menu; on its own page it keeps its own.
   const tab = section ?? innerTab;
   const [peopleTab, setPeopleTab] = useState<PeopleTab>("students");
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>("alerts");
+  // Like the tab above: Arise WorkHub lists Settings' parts in its sidebar and drives this.
+  const [innerSettings, setInnerSettings] = useState<SettingsSection>("alerts");
+  const settingsSection = settingsPart ?? innerSettings;
+  const setSettingsSection = useCallback((next: SettingsSection) => {
+    setInnerSettings(next);
+    onSettingsPart?.(next);
+  }, [onSettingsPart]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [showResolvedReviews, setShowResolvedReviews] = useState(false);
   const [showCompletedRequests, setShowCompletedRequests] = useState(false);
@@ -3740,22 +3745,16 @@ Generate exactly 10 questions.`;
         <h1 className="text-xl font-black sm:text-2xl">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">Your Arise programs, notifications, banners, Club hours and the rest of the site's switches.</p>
       </div>
-      <SegmentedTabs
-        ariaLabel="Settings"
-        dataAttr="data-settings-section"
-        value={settingsSection}
-        onChange={setSettingsSection}
-        options={[
-          { value: "programs", label: "Arise programs", icon: ShieldCheck },
-          { value: "alerts", label: "Notifications", icon: BellRing },
-          { value: "banners", label: "Banners", icon: Megaphone },
-          { value: "family-emails", label: "Family emails", icon: Mail },
-          { value: "club", label: "Club & play time", icon: Gamepad2 },
-          { value: "ai", label: "AI quizzes", icon: Brain },
-          { value: "extras", label: "Competition & extras", icon: Trophy },
-          { value: "security", label: "Proctor password", icon: KeyRound },
-        ]}
-      />
+      {/* In Arise WorkHub the sidebar lists these on desktop, so there the row of tabs is only kept for phones. */}
+      <div className={settingsInSidebar ? "md:hidden" : undefined}>
+        <SegmentedTabs
+          ariaLabel="Settings"
+          dataAttr="data-settings-section"
+          value={settingsSection}
+          onChange={setSettingsSection}
+          options={SETTINGS_SECTIONS.map((s) => ({ value: s.id, label: s.label, icon: s.icon }))}
+        />
+      </div>
       {settingsSection === "programs" && <AdminPrograms token={token || getTokenFromCookie()} />}
       {settingsSection === "alerts" && <AlertSettingsCard token={token || getTokenFromCookie()} />}
       {settingsSection === "banners" && (
