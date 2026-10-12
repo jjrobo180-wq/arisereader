@@ -7,7 +7,7 @@
 // a hub's theme never touches the Reader site's own colors or any other hub's.
 
 export type HubThemeId =
-  | "classic" | "minimal" | "tile" | "sunrise" | "forest" | "candy" | "crt";
+  | "classic" | "tile" | "crt";
 
 export type HubTheme = {
   id: HubThemeId;
@@ -41,16 +41,6 @@ export const HUB_THEMES: HubTheme[] = [
     vars: {}, radius: "normal", shadow: "soft", font: "system",
   },
   {
-    id: "minimal", name: "Minimalist", tagline: "Black, white and a lot of breathing room.",
-    swatch: ["#ffffff", "#111111", "#e5e5e5"],
-    vars: {
-      "--hub-bg": "#ffffff", "--hub-surface": "#ffffff", "--hub-surface-2": "#fafafa",
-      "--hub-border": "#e5e5e5", "--hub-text": "#111111", "--hub-text-soft": "#6b7280",
-      "--hub-accent": "#111111", "--hub-accent-foreground": "#ffffff",
-    },
-    radius: "sharp", shadow: "none", font: "system", homeLayout: "list",
-  },
-  {
     id: "tile", name: "Tile", tagline: "Bold flat color blocks, live tile style.",
     swatch: ["#00a2e8", "#ffffff", "#f2600c"],
     vars: {
@@ -59,36 +49,6 @@ export const HUB_THEMES: HubTheme[] = [
       "--hub-accent": "#f2600c", "--hub-accent-foreground": "#ffffff",
     },
     radius: "sharp", shadow: "none", font: "system", homeLayout: "tiles",
-  },
-  {
-    id: "sunrise", name: "Sunrise", tagline: "Warm coral-to-amber gradient, soft and friendly.",
-    swatch: ["#ff7e5f", "#feb47b", "#fff3e0"],
-    vars: {
-      "--hub-bg": "#fff8f1", "--hub-surface": "#ffffff", "--hub-surface-2": "#fff1e4",
-      "--hub-border": "#ffd9b8", "--hub-text": "#3a2317", "--hub-text-soft": "#8a6652",
-      "--hub-accent": "#ff7e5f", "--hub-accent-foreground": "#ffffff",
-    },
-    radius: "round", shadow: "soft", font: "rounded", homeLayout: "loose",
-  },
-  {
-    id: "forest", name: "Forest", tagline: "Deep green and warm wood tones.",
-    swatch: ["#1b4332", "#74c69d", "#f1faee"],
-    vars: {
-      "--hub-bg": "#f1faee", "--hub-surface": "#ffffff", "--hub-surface-2": "#e9f5e4",
-      "--hub-border": "#cde8d1", "--hub-text": "#1b3a2b", "--hub-text-soft": "#4f7a62",
-      "--hub-accent": "#1b4332", "--hub-accent-foreground": "#ffffff",
-    },
-    radius: "normal", shadow: "soft", font: "system", homeLayout: "stacked",
-  },
-  {
-    id: "candy", name: "Candy Pop", tagline: "Bright pink and violet, playful and bold.",
-    swatch: ["#ff4fa3", "#8b5cf6", "#fff0f7"],
-    vars: {
-      "--hub-bg": "#fff0f7", "--hub-surface": "#ffffff", "--hub-surface-2": "#ffe3f0",
-      "--hub-border": "#ffc2e2", "--hub-text": "#3a1030", "--hub-text-soft": "#9c5a86",
-      "--hub-accent": "#ff4fa3", "--hub-accent-foreground": "#ffffff",
-    },
-    radius: "round", shadow: "soft", font: "rounded", homeLayout: "bubbles",
   },
   {
     id: "crt", name: "Old Computer", tagline: "Green phosphor text on a black CRT screen.",

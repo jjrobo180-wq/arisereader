@@ -94,6 +94,7 @@ import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
 import { hubThemeOf } from "@shared/appThemes";
+import { tileColorOf } from "@/components/teacher-hub/HubHomeEdit";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildLifeBrief } from "@shared/dailyBrief";
@@ -1007,8 +1008,7 @@ export default function AriseTodo() {
               <div className="relative mt-5"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks, notes, or names" aria-label="Search tasks" className={inputClass + " pl-10"} /></div>
               <div className={
                 taskLayout === "terminal" ? "mt-5 space-y-0 border border-current/30 font-mono" :
-                taskLayout === "list" ? "mt-5" :
-                taskLayout === "tiles" || taskLayout === "bubbles" ? "mt-5 flex flex-wrap gap-2" :
+                taskLayout === "tiles" ? "mt-5 flex flex-wrap gap-2" :
                 "mt-5 space-y-2"
               }>
                 {filtered.map(task => {
@@ -1016,13 +1016,10 @@ export default function AriseTodo() {
                   const late = !task.done && !!task.due && task.due < currentDay;
                   const rowClass =
                     taskLayout === "terminal" ? "group flex min-w-0 items-start gap-3 border-b border-current/20 p-2.5 last:border-b-0" :
-                    taskLayout === "list" ? "group flex min-w-0 items-start gap-3 border-b border-slate-100 py-3 last:border-b-0" :
-                    taskLayout === "tiles" ? "group flex min-w-0 items-start gap-3 rounded-none border-2 border-black bg-white p-3 sm:p-3.5" :
-                    taskLayout === "bubbles" ? "group flex min-w-0 items-start gap-3 rounded-[1.4rem] border-2 border-[#ffc2e2] bg-white p-3" :
-                    taskLayout === "stacked" ? "group flex min-w-0 items-start gap-3 rounded-2xl border border-[#cde8d1] bg-white p-4" :
-                    taskLayout === "loose" ? "group flex min-w-0 items-start gap-3 rounded-[1.75rem] border border-[#ffd9b8] bg-white p-4 sm:p-5" :
+                    taskLayout === "tiles" ? "group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-none border-2 border-black bg-white p-3 pl-4 sm:p-3.5 sm:pl-5" :
                     "group flex min-w-0 items-start gap-3 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:p-4";
                   return <div key={task.id} className={rowClass}>
+                    {taskLayout === "tiles" && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-2" style={{ background: list?.color || tileColorOf(task.id) }} />}
                     {taskLayout === "terminal"
                       ? <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className="mt-0.5 shrink-0 font-mono text-sm">[{task.done ? "x" : " "}]</button>
                       : <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={15} /></button>}

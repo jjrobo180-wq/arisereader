@@ -2,70 +2,34 @@
    Same approach as todoNight.css / hubNight.css: each theme is a class on the hub root that
    remaps the same small set of surface/border/text/accent utility classes the page actually
    uses, so switching themes never touches any other page or hub. "classic" (the default) adds
-   no class and changes nothing. */
+   no class and changes nothing. Only three themes exist: Classic (no class), Tile, and Old
+   Computer — this covers every screen (Home, Tasks, calendar, notes, settings/Customize, the
+   menu/nav chrome) because it remaps the shared utility classes those screens are all built
+   from, rather than theming one screen at a time. */
 
-/* ───────────────────────── Minimalist: black, white, a lot of air ───────────────────────── */
-.hub-theme-minimal { color-scheme: light; background: #ffffff; }
-.hub-theme-minimal .bg-\[\#f6f7fc\], .hub-theme-minimal .bg-\[\#f9fafc\], .hub-theme-minimal .bg-slate-50,
-.hub-theme-minimal .bg-slate-50\/60, .hub-theme-minimal .bg-slate-50\/70, .hub-theme-minimal .bg-slate-100, .hub-theme-minimal .bg-slate-100\/60 { background-color: #ffffff; }
-.hub-theme-minimal .bg-white { background-color: #ffffff; }
-.hub-theme-minimal .bg-\[\#292446\] { background-color: #111111; }
-.hub-theme-minimal .border-slate-100, .hub-theme-minimal .border-slate-200, .hub-theme-minimal .border-slate-300,
-.hub-theme-minimal .border-\[\#e7e8f0\], .hub-theme-minimal .border-\[\#e7e8ef\], .hub-theme-minimal .border-\[\#ececf3\], .hub-theme-minimal .border-\[\#e4e6f0\] { border-color: #e5e5e5; }
-.hub-theme-minimal .rounded-xl, .hub-theme-minimal .rounded-2xl, .hub-theme-minimal .rounded-\[1\.75rem\] { border-radius: 4px; }
-.hub-theme-minimal .shadow-sm, .hub-theme-minimal .shadow, .hub-theme-minimal .shadow-md, .hub-theme-minimal .shadow-lg, .hub-theme-minimal .shadow-xl { box-shadow: none; }
-.hub-theme-minimal .text-violet-600, .hub-theme-minimal .text-violet-700, .hub-theme-minimal .text-indigo-700,
-.hub-theme-minimal .bg-violet-50, .hub-theme-minimal .bg-violet-100, .hub-theme-minimal .bg-indigo-50 { color: #111111; background-color: #f2f2f2; }
-
-/* ───────────────────────── Tile: flat color blocks, live-tile style ───────────────────────── */
+/* ───────────────────────── Tile: Windows-Phone-style, a full flat-color revamp ───────────────────────── */
 .hub-theme-tile { color-scheme: dark; background: #0a0a0a; }
-.hub-theme-tile .bg-\[\#f6f7fc\], .hub-theme-tile .bg-\[\#f9fafc\], .hub-theme-tile .bg-slate-50, .hub-theme-tile .bg-slate-100 { background-color: #0a0a0a; }
+.hub-theme-tile .bg-\[\#f6f7fc\], .hub-theme-tile .bg-\[\#f9fafc\], .hub-theme-tile .bg-slate-50,
+.hub-theme-tile .bg-slate-50\/60, .hub-theme-tile .bg-slate-50\/70, .hub-theme-tile .bg-slate-100, .hub-theme-tile .bg-slate-100\/60 { background-color: #0a0a0a; }
 .hub-theme-tile .bg-white, .hub-theme-tile .hover\:bg-white:hover { background-color: #141414; color: #ffffff; }
 .hub-theme-tile .bg-\[\#292446\] { background-color: #00a2e8; }
+.hub-theme-tile .bg-\[\#7968e5\] { background-color: #f2600c; }
 .hub-theme-tile .border-slate-100, .hub-theme-tile .border-slate-200, .hub-theme-tile .border-slate-300,
 .hub-theme-tile .border-\[\#e7e8f0\], .hub-theme-tile .border-\[\#e7e8ef\], .hub-theme-tile .border-\[\#ececf3\], .hub-theme-tile .border-\[\#e4e6f0\] { border-color: #000000; }
-.hub-theme-tile .rounded-xl, .hub-theme-tile .rounded-2xl, .hub-theme-tile .rounded-\[1\.75rem\], .hub-theme-tile .rounded-full { border-radius: 2px; }
+/* Sharp corners everywhere — live tiles are square, never rounded. */
+.hub-theme-tile .rounded-xl, .hub-theme-tile .rounded-2xl, .hub-theme-tile .rounded-3xl,
+.hub-theme-tile .rounded-\[1\.1rem\], .hub-theme-tile .rounded-\[1\.4rem\], .hub-theme-tile .rounded-\[1\.6rem\],
+.hub-theme-tile .rounded-\[1\.75rem\], .hub-theme-tile .rounded-full { border-radius: 2px; }
 .hub-theme-tile .shadow-sm, .hub-theme-tile .shadow, .hub-theme-tile .shadow-md, .hub-theme-tile .shadow-lg, .hub-theme-tile .shadow-xl { box-shadow: none; }
 .hub-theme-tile .text-slate-900, .hub-theme-tile .text-slate-800, .hub-theme-tile .text-slate-700 { color: #ffffff; }
 .hub-theme-tile .text-slate-500, .hub-theme-tile .text-slate-400 { color: #9fcbe8; }
 .hub-theme-tile .text-violet-600, .hub-theme-tile .text-violet-700 { color: #00a2e8; }
 .hub-theme-tile .bg-violet-700, .hub-theme-tile .bg-emerald-700 { background-color: #f2600c; }
-
-/* ───────────────────────── Sunrise: coral-to-amber, warm and soft ───────────────────────── */
-.hub-theme-sunrise { color-scheme: light; background: #fff8f1; }
-.hub-theme-sunrise .bg-\[\#f6f7fc\], .hub-theme-sunrise .bg-\[\#f9fafc\], .hub-theme-sunrise .bg-slate-50, .hub-theme-sunrise .bg-slate-100 { background-color: #fff1e4; }
-.hub-theme-sunrise .bg-white { background-color: #fffaf5; }
-.hub-theme-sunrise .bg-\[\#292446\] { background-color: #ff7e5f; }
-.hub-theme-sunrise .border-slate-100, .hub-theme-sunrise .border-slate-200, .hub-theme-sunrise .border-slate-300,
-.hub-theme-sunrise .border-\[\#e7e8f0\], .hub-theme-sunrise .border-\[\#e7e8ef\], .hub-theme-sunrise .border-\[\#ececf3\], .hub-theme-sunrise .border-\[\#e4e6f0\] { border-color: #ffd9b8; }
-.hub-theme-sunrise .rounded-xl, .hub-theme-sunrise .rounded-2xl { border-radius: 20px; }
-.hub-theme-sunrise .text-violet-600, .hub-theme-sunrise .text-violet-700, .hub-theme-sunrise .text-indigo-700 { color: #ff7e5f; }
-.hub-theme-sunrise .bg-violet-50, .hub-theme-sunrise .bg-indigo-50 { background-color: #ffe9d6; }
-.hub-theme-sunrise .bg-violet-700 { background-color: #ff7e5f; }
-
-/* ───────────────────────── Forest: deep green, warm wood ───────────────────────── */
-.hub-theme-forest { color-scheme: light; background: #f1faee; }
-.hub-theme-forest .bg-\[\#f6f7fc\], .hub-theme-forest .bg-\[\#f9fafc\], .hub-theme-forest .bg-slate-50, .hub-theme-forest .bg-slate-100 { background-color: #e9f5e4; }
-.hub-theme-forest .bg-white { background-color: #fbfdf9; }
-.hub-theme-forest .bg-\[\#292446\] { background-color: #1b4332; }
-.hub-theme-forest .border-slate-100, .hub-theme-forest .border-slate-200, .hub-theme-forest .border-slate-300,
-.hub-theme-forest .border-\[\#e7e8f0\], .hub-theme-forest .border-\[\#e7e8ef\], .hub-theme-forest .border-\[\#ececf3\], .hub-theme-forest .border-\[\#e4e6f0\] { border-color: #cde8d1; }
-.hub-theme-forest .text-slate-900, .hub-theme-forest .text-slate-800 { color: #1b3a2b; }
-.hub-theme-forest .text-violet-600, .hub-theme-forest .text-violet-700, .hub-theme-forest .text-indigo-700 { color: #1b4332; }
-.hub-theme-forest .bg-violet-50, .hub-theme-forest .bg-indigo-50 { background-color: #d7ecd9; }
-.hub-theme-forest .bg-violet-700 { background-color: #2d6a4f; }
-
-/* ───────────────────────── Candy Pop: bright pink and violet ───────────────────────── */
-.hub-theme-candy { color-scheme: light; background: #fff0f7; }
-.hub-theme-candy .bg-\[\#f6f7fc\], .hub-theme-candy .bg-\[\#f9fafc\], .hub-theme-candy .bg-slate-50, .hub-theme-candy .bg-slate-100 { background-color: #ffe3f0; }
-.hub-theme-candy .bg-white { background-color: #fffafd; }
-.hub-theme-candy .bg-\[\#292446\] { background-color: #ff4fa3; }
-.hub-theme-candy .border-slate-100, .hub-theme-candy .border-slate-200, .hub-theme-candy .border-slate-300,
-.hub-theme-candy .border-\[\#e7e8f0\], .hub-theme-candy .border-\[\#e7e8ef\], .hub-theme-candy .border-\[\#ececf3\], .hub-theme-candy .border-\[\#e4e6f0\] { border-color: #ffc2e2; }
-.hub-theme-candy .rounded-xl, .hub-theme-candy .rounded-2xl { border-radius: 22px; }
-.hub-theme-candy .text-violet-600, .hub-theme-candy .text-violet-700, .hub-theme-candy .text-indigo-700 { color: #c026d3; }
-.hub-theme-candy .bg-violet-50, .hub-theme-candy .bg-indigo-50 { background-color: #fbd7ec; }
-.hub-theme-candy .bg-violet-700 { background-color: #ff4fa3; }
+.hub-theme-tile .bg-violet-50, .hub-theme-tile .bg-indigo-50 { background-color: #142230; }
+.hub-theme-tile .bg-slate-100.hover\:bg-slate-100:hover, .hub-theme-tile .hover\:bg-slate-100:hover { background-color: #1f1f1f; }
+.hub-theme-tile input, .hub-theme-tile select, .hub-theme-tile textarea { background-color: #141414; color: #ffffff; border-color: #000000; }
+/* The menu/nav chrome's active tab and app grid read as tiles too, flat and bold. */
+.hub-theme-tile nav, .hub-theme-tile [data-testid="life-phone-menu"] { background-color: #0a0a0a; border-color: #000000; }
 
 /* ───────────────────────── Old Computer: green phosphor CRT ───────────────────────── */
 .hub-theme-crt { color-scheme: dark; background: #0a0f0a; font-family: "Courier New", ui-monospace, monospace !important; }
