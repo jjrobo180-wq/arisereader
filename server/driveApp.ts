@@ -25,13 +25,20 @@ export type DriveDeps = {
   storageLimitFor: (userId: number) => Promise<number>;
 };
 
-async function ensureBucket(adminDb: any) {
-  const { error } = await adminDb.storage.createBucket(BUCKET, {
-    public: false,
-    allowedMimeTypes: Object.keys(ALLOWED),
-    fileSizeLimit: "20MB",
-  });
-  if (error && !/already exists|duplicate/i.test(error.message || "")) throw error;
+/** Make sure the bucket is there, once per process. A creation failure is logged rather than
+ *  thrown: throwing turned every upload into a 500 even when the bucket was fine, and if it
+ *  really is missing the upload below reports that itself, precisely. (Same change in dropApp.ts.) */
+let bucketReady: Promise<void> | null = null;
+function ensureBucket(adminDb: any) {
+  bucketReady ??= adminDb.storage
+    .createBucket(BUCKET, { public: false, allowedMimeTypes: Object.keys(ALLOWED), fileSizeLimit: "20MB" })
+    .then(({ error }: { error: any }) => {
+      if (error && !/already exists|duplicate/i.test(error.message || "")) {
+        console.error(`[drive-app] could not create the "${BUCKET}" bucket (carrying on, it may already exist):`, error.message || error);
+      }
+    })
+    .catch((error: any) => { console.error(`[drive-app] bucket check failed (carrying on):`, error?.message || error); });
+  return bucketReady;
 }
 
 export function registerDriveAppRoutes(app: Express, authMiddleware: RequestHandler, raw: (opts: { type: string[]; limit: string }) => RequestHandler, deps: DriveDeps) {

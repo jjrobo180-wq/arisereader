@@ -29,9 +29,24 @@ export type DropDeps = {
   listSettingsByPrefix: (prefix: string) => Promise<Array<{ key: string; value: string }>>;
 };
 
-async function ensureBucket(adminDb: any) {
-  const { error } = await adminDb.storage.createBucket(BUCKET, { public: false, fileSizeLimit: "200MB" });
-  if (error && !/already exists|duplicate/i.test(error.message || "")) throw error;
+/** Make sure the bucket is there, once per process.
+ *
+ *  This used to throw whenever createBucket returned anything but "already exists", which meant a
+ *  project where the key may not create buckets failed EVERY upload with a 500 — and on the Drop
+ *  screen a failed upload shows no code, no QR and no link, so the app looked simply broken.
+ *  A creation failure is now logged and the upload goes ahead: if the bucket does exist, the
+ *  upload works, and if it truly doesn't, the upload's own error says so precisely. */
+let bucketReady: Promise<void> | null = null;
+function ensureBucket(adminDb: any) {
+  bucketReady ??= adminDb.storage
+    .createBucket(BUCKET, { public: false, fileSizeLimit: "200MB" })
+    .then(({ error }: { error: any }) => {
+      if (error && !/already exists|duplicate/i.test(error.message || "")) {
+        console.error(`[drop-app] could not create the "${BUCKET}" bucket (carrying on, it may already exist):`, error.message || error);
+      }
+    })
+    .catch((error: any) => { console.error(`[drop-app] bucket check failed (carrying on):`, error?.message || error); });
+  return bucketReady;
 }
 
 type StoredDrop = DropMeta & { path: string; ownerId: number | null };

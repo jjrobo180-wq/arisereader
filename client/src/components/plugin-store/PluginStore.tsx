@@ -159,8 +159,6 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const runningRef = useRef(running);
   runningRef.current = running;
   const openPlugin = (p: Plugin) => { if (p.target.kind === "kit" && kit) { setRunning(p.target.id); setOpenId(null); } else if (p.target.kind === "notesApp" && notesApp) { setRunning(p.target.id); setOpenId(null); } else onOpen(p); };
-  /** The running plugin's definition: either a Kit plugin, or a Notes-app install (by its store id). */
-  const runningNotesApp = running ? all.find((p) => p.id === running && p.target.kind === "notesApp") : null;
   const closeRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLElement>(null);
   // The hub redraws often (clocks, saving), so the latest close and open-detail live in refs
@@ -173,6 +171,9 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   openTemplateIdRef.current = openTemplateId;
 
   const all = useMemo(() => pluginsFor(hub, { teacher }), [hub, teacher]);
+  /** The running plugin's definition: either a Kit plugin, or a Notes-app install (by its store id).
+   *  Must stay below `all`: read above it, opening a Kit or Notes app threw a ReferenceError. */
+  const runningNotesApp = running ? all.find((p) => p.id === running && p.target.kind === "notesApp") : null;
   const open = all.find((p) => p.id === openId) ?? null;
   // Hub templates: ready-made bundles of this hub's plugins, for building a new hub around one area of life.
   const templates = useMemo(() => HUB_TEMPLATES.filter((t) => t.hub === hub), [hub]);

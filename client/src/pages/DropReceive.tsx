@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { Download, Loader2, CheckCircle2, QrCode } from "lucide-react";
 import { isDropCode } from "@shared/dropApp";
+import { API_BASE } from "@/lib/queryClient";
 
 const fmtBytes = (n: number) => n >= 1024 * 1024 ? `${(n / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 
@@ -18,7 +19,7 @@ export default function DropReceive() {
 
   useEffect(() => {
     if (!isDropCode(code)) { setError("That link isn't a valid Drop code."); setLoading(false); return; }
-    fetch(`/api/lifehub/drop/${code}`)
+    fetch(`${API_BASE}/api/lifehub/drop/${code}`)
       .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
       .then(({ ok, j }) => { if (!ok) setError(j?.message || "That drop couldn't be found."); else setInfo(j); })
       .catch(() => setError("Couldn't reach A.R.I.S.E. Check your connection."))
@@ -28,7 +29,7 @@ export default function DropReceive() {
   const claim = async () => {
     setClaiming(true);
     try {
-      const res = await fetch(`/api/lifehub/drop/${code}/claim`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/api/lifehub/drop/${code}/claim`, { method: "POST" });
       const j = await res.json().catch(() => null);
       if (!res.ok || !j?.url) { setError(j?.message || "Couldn't open that drop."); return; }
       const a = document.createElement("a");

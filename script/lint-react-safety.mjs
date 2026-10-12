@@ -91,8 +91,13 @@ function checkBody(body, file, src) {
       if (ts.isIdentifier(child)) {
         const at = declared.get(child.text);
         const p = child.parent;
+        // A name in one of these positions is a label, not a read of the variable. JSX attributes
+        // are the subtle one: `title="Class"` is an attribute called title, and flagging it as a
+        // read of a `const title` declared further down was a false alarm.
         const isName = (ts.isPropertyAccessExpression(p) && p.name === child)
           || (ts.isPropertyAssignment(p) && p.name === child)
+          || (ts.isJsxAttribute(p) && p.name === child)
+          || ts.isJsxSelfClosingElement(p) || ts.isJsxOpeningElement(p) || ts.isJsxClosingElement(p)
           || ts.isBindingElement(p) || ts.isVariableDeclaration(p);
         if (at !== undefined && child.getStart(src) < at && !isName) {
           report(file, child, src, `"${child.text}" is read here but declared further down — that throws at runtime`);

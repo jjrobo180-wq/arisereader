@@ -4,6 +4,7 @@
 import { useRef, useState } from "react";
 import { Upload, Trash2, ImageOff } from "lucide-react";
 import { addDriveFile, removeDriveFile, driveBytesUsed, FREE_STORAGE_BYTES, type DriveFile } from "@shared/driveApp";
+import { API_BASE } from "@/lib/queryClient";
 
 type Props = {
   files: DriveFile[];
@@ -32,7 +33,7 @@ export default function DriveApp({ files, setFiles, say, token }: Props) {
     try {
       for (const file of Array.from(fileList).slice(0, 10)) {
         const body = await file.arrayBuffer();
-        const res = await fetch("/api/lifehub/drive/upload", {
+        const res = await fetch(`${API_BASE}/api/lifehub/drive/upload`, {
           method: "POST",
           headers: { "Content-Type": file.type || "application/octet-stream", "x-drive-used-bytes": String(driveBytesUsed(files)), "x-drive-name": encodeURIComponent(file.name), Authorization: `Bearer ${token}` },
           body,
@@ -52,14 +53,14 @@ export default function DriveApp({ files, setFiles, say, token }: Props) {
 
   const view = async (f: DriveFile) => {
     if (urls[f.id] || !token) return;
-    const res = await fetch("/api/lifehub/drive/url", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path: f.path }) });
+    const res = await fetch(`${API_BASE}/api/lifehub/drive/url`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path: f.path }) });
     const j = await res.json().catch(() => null);
     if (j?.url) setUrls((u) => ({ ...u, [f.id]: j.url }));
   };
 
   const del = async (f: DriveFile) => {
     setFiles((all) => removeDriveFile(all, f.id));
-    if (token) await fetch("/api/lifehub/drive/delete", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path: f.path }) }).catch(() => {});
+    if (token) await fetch(`${API_BASE}/api/lifehub/drive/delete`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path: f.path }) }).catch(() => {});
     say("Photo deleted.");
   };
 
@@ -73,7 +74,11 @@ export default function DriveApp({ files, setFiles, say, token }: Props) {
       <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[#292446]" style={{ width: `${pct}%` }} /></div>
       {pct >= 90 && <p className="mt-1.5 text-xs font-semibold text-amber-700">Almost out of free storage. Add more space in Billing.</p>}
     </div>
-    <input ref={inputRef} type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={(e) => upload(e.target.files)} />
+    {/* No `capture`: that attribute opens the camera and offers nothing else, so on a phone there
+        was no way to pick a photo already on it, or one in Files, iCloud or Google Drive — only to
+        take a new picture. The extensions are spelled out because an iPhone HEIC often arrives
+        with no MIME type at all, which `image/*` alone then filters out of the picker. */}
+    <input ref={inputRef} type="file" accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp" multiple className="hidden" onChange={(e) => upload(e.target.files)} />
     <button type="button" onClick={pickFiles} disabled={busy} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white disabled:opacity-60" data-testid="drive-upload">
       <Upload size={16} /> {busy ? "Uploading…" : "Upload photos"}
     </button>

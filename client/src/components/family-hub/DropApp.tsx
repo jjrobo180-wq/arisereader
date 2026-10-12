@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Upload, Copy, Check, QrCode, Download, Clock, Link2 } from "lucide-react";
 import { DROP_MAX_BYTES, isDropCode } from "@shared/dropApp";
+import { API_BASE } from "@/lib/queryClient";
 
 type Props = {
   say: (msg: string) => void;
@@ -32,6 +33,9 @@ export default function DropApp({ say, token }: Props) {
   const [sent, setSent] = useState<{ code: string; name: string; size: number; expiresAt: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [mine, setMine] = useState<SentDrop[]>([]);
+  // A send that fails shows nothing at all otherwise — no code, no QR, no link — which reads as
+  // the app being broken rather than as one upload going wrong. The reason stays on the screen.
+  const [sendError, setSendError] = useState("");
 
   const [codeInput, setCodeInput] = useState("");
   const [lookupBusy, setLookupBusy] = useState(false);
@@ -43,7 +47,7 @@ export default function DropApp({ say, token }: Props) {
 
   const loadMine = () => {
     if (!token) return;
-    fetch("/api/lifehub/drop/mine/list", { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE}/api/lifehub/drop/mine/list`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((j) => setMine(Array.isArray(j?.drops) ? j.drops : [])).catch(() => {});
   };
   useEffect(() => { loadMine(); }, [token]);
@@ -61,21 +65,23 @@ export default function DropApp({ say, token }: Props) {
   const upload = async (fileList: FileList | null) => {
     const file = fileList?.[0];
     if (!file) return;
-    if (!token) { say("Sign in again to send with Drop."); return; }
-    if (file.size > DROP_MAX_BYTES) { say("Keep a Drop file under 200 MB."); return; }
+    const fail = (msg: string) => { setSendError(msg); say(msg); };
+    if (!token) { fail("Sign in again to send with Drop."); return; }
+    if (file.size > DROP_MAX_BYTES) { fail("Keep a Drop file under 200 MB."); return; }
     setBusy(true);
+    setSendError("");
     try {
       const body = await file.arrayBuffer();
-      const res = await fetch("/api/lifehub/drop/upload", {
+      const res = await fetch(`${API_BASE}/api/lifehub/drop/upload`, {
         method: "POST",
         headers: { "Content-Type": file.type || "application/octet-stream", "x-drop-name": encodeURIComponent(file.name), Authorization: `Bearer ${token}` },
         body,
       });
       const j = await res.json().catch(() => null);
-      if (!res.ok) { say(j?.message || "Couldn't create that drop."); return; }
+      if (!res.ok) { fail(j?.message || "Couldn't create that drop."); return; }
       setSent(j); setCopied(false); loadMine();
     } catch {
-      say("Couldn't upload. Check your connection and try again.");
+      fail("Couldn't upload. Check your connection and try again.");
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -93,7 +99,7 @@ export default function DropApp({ say, token }: Props) {
     if (!isDropCode(code)) { setReceivedError("Enter the 6-character code."); return; }
     setLookupBusy(true);
     try {
-      const res = await fetch(`/api/lifehub/drop/${code}`);
+      const res = await fetch(`${API_BASE}/api/lifehub/drop/${code}`);
       const j = await res.json().catch(() => null);
       if (!res.ok) { setReceivedError(j?.message || "That drop couldn't be found."); setReceived(null); return; }
       setReceived(j);
@@ -108,7 +114,7 @@ export default function DropApp({ say, token }: Props) {
     if (!received) return;
     setClaiming(true);
     try {
-      const res = await fetch(`/api/lifehub/drop/${received.code}/claim`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/api/lifehub/drop/${received.code}/claim`, { method: "POST" });
       const j = await res.json().catch(() => null);
       if (!res.ok || !j?.url) { say(j?.message || "Couldn't open that drop."); return; }
       const a = document.createElement("a");
@@ -137,6 +143,7 @@ export default function DropApp({ say, token }: Props) {
         <button type="button" onClick={pick} disabled={busy} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white disabled:opacity-60" data-testid="drop-upload">
           <Upload size={16} /> {busy ? "Preparing…" : "Choose a file"}
         </button>
+        {sendError && <p className="mt-2 text-sm font-semibold text-rose-600" data-testid="drop-send-error">{sendError}</p>}
       </> : <div className="mt-3 space-y-4">
         <div className="flex flex-wrap items-center gap-4">
           <img src={`https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=${encodeURIComponent(link(sent.code))}`} alt="QR code for this drop" width={132} height={132} className="rounded-xl border border-slate-200" />
