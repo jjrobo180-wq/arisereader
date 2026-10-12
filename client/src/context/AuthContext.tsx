@@ -112,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
   const [isLoading, setIsLoading] = useState(!!sessionRef.current.token);
   const [sessionValidated, setSessionValidated] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
   const [adminPreviewMode, setAdminPreviewMode] = useState<AdminPreviewMode>(() => {
     if (typeof window === "undefined") return null;
     const saved = sessionStorage.getItem("arise_admin_preview_mode");
@@ -184,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!sessionRef.current.token || sessionValidated) return;
+    let cancelled = false;
     setIsLoading(true);
     fetch(`${API_BASE}/api/me`, {
       headers: { Authorization: `Bearer ${sessionRef.current.token}` },
@@ -194,20 +196,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // hiccup keeps the sign-in they have, so opening the app in a school with poor Wi-Fi doesn't log them out.
         if (res.status === 401 || res.status === 403) {
           setUser(null); setToken(null); persistSession(null, null);
-          return null;
+          return { ok: true as const, userData: null };
         }
-        return res.ok ? res.json() : null;
+        if (!res.ok) return { ok: false as const, userData: null };
+        return res.json().then(userData => ({ ok: true as const, userData }));
       })
-      .then(userData => {
+      .then(({ ok, userData }) => {
+        if (cancelled) return;
         if (userData) {
           setUser(userData);
           sessionRef.current.user = userData;
           persistSession(userData, sessionRef.current.token);
         }
+        setIsLoading(false);
+        if (ok) {
+          // A real answer came back (signed out, or a fresh user object): this is
+          // settled, no need to check again this tab.
+          setSessionValidated(true);
+        } else {
+          // The server answered but something was wrong server-side (a 500, a
+          // flaky proxy) — try again shortly rather than running for the rest of
+          // this tab's life on whatever was cached in the sign-in cookie, which
+          // is exactly what let a stale isAdmin/role silently hide admin-only
+          // pages until the next full reload. Bumping retryTick re-triggers this
+          // effect even though sessionValidated is already false.
+          window.setTimeout(() => { if (!cancelled) setRetryTick((t) => t + 1); }, 15000);
+        }
       })
-      .catch(() => { /* offline or too slow to answer: keep the saved sign-in */ })
-      .finally(() => { setIsLoading(false); setSessionValidated(true); });
-  }, [persistSession, sessionValidated]);
+      .catch(() => {
+        // Offline or too slow to answer: keep the saved sign-in, but keep trying —
+        // see the comment above for why giving up permanently here is the bug.
+        if (cancelled) return;
+        setIsLoading(false);
+        window.setTimeout(() => { if (!cancelled) setRetryTick((t) => t + 1); }, 15000);
+      });
+    return () => { cancelled = true; };
+  }, [persistSession, sessionValidated, retryTick]);
 
   useEffect(() => {
     if (user && user.schoolId) {
