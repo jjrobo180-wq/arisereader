@@ -125,38 +125,8 @@ export default function TodoLanding() {
         </section>
       </div>
 
-      {/* Core features */}
-      <section className="border-t border-white/10 px-4 py-12 sm:px-8 sm:py-16">
-        <div className="mx-auto max-w-5xl">
-          <p className="text-xs font-black uppercase tracking-[.25em] text-violet-300">What you get</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">A to-do list that becomes your whole hub</h2>
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            {coreFeatures.map(({ icon: Icon, tag, title, pitch, points, accent, iconColor }) => (
-              <article key={tag} className={`flex flex-col rounded-[28px] border border-white/10 bg-gradient-to-br ${accent} p-6`}>
-                <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-black/30 ring-1 ring-white/10">
-                    <Icon className={`h-6 w-6 ${iconColor}`} />
-                  </div>
-                  <span className={`text-[10px] font-black uppercase tracking-[.24em] ${iconColor}`}>{tag}</span>
-                </div>
-                <h3 className="mt-4 text-xl font-black leading-snug">{title}</h3>
-                <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">{pitch}</p>
-                <ul className="mt-4 flex-1 space-y-2">
-                  {points.map(p => (
-                    <li key={p} className="flex gap-2 text-sm leading-6 text-slate-200">
-                      <Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{p}
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Life extras */}
       {/* Customization deep dive */}
-      <section className="px-4 py-12 sm:px-8 sm:py-16">
+      <section className="border-t border-white/10 px-4 py-12 sm:px-8 sm:py-16">
         <div className="mx-auto max-w-5xl">
           <div className="grid items-center gap-8 lg:grid-cols-2">
             <div>
@@ -189,6 +159,36 @@ export default function TodoLanding() {
         </div>
       </section>
 
+      {/* Core features */}
+      <section className="px-4 py-12 sm:px-8 sm:py-16">
+        <div className="mx-auto max-w-5xl">
+          <p className="text-xs font-black uppercase tracking-[.25em] text-violet-300">What you get</p>
+          <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">A to-do list that becomes your whole hub</h2>
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {coreFeatures.map(({ icon: Icon, tag, title, pitch, points, accent, iconColor }) => (
+              <article key={tag} className={`flex flex-col rounded-[28px] border border-white/10 bg-gradient-to-br ${accent} p-6`}>
+                <div className="flex items-center gap-3">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-black/30 ring-1 ring-white/10">
+                    <Icon className={`h-6 w-6 ${iconColor}`} />
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-[.24em] ${iconColor}`}>{tag}</span>
+                </div>
+                <h3 className="mt-4 text-xl font-black leading-snug">{title}</h3>
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">{pitch}</p>
+                <ul className="mt-4 flex-1 space-y-2">
+                  {points.map(p => (
+                    <li key={p} className="flex gap-2 text-sm leading-6 text-slate-200">
+                      <Check className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />{p}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Life extras */}
       <section className="border-y border-white/10 bg-white/[.025] px-4 py-12 sm:px-8 sm:py-14">
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-black uppercase tracking-[.25em] text-amber-300">Beyond the task list</p>
