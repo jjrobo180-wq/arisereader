@@ -22,7 +22,6 @@ export type LifePart = (typeof LIFE_PARTS)[number]["id"];
 
 export type LifeLayout = AnyLayout & { home: LifePart[]; homeHidden: LifePart[] };
 
-/** LifeHub starts with the menu across the top on a phone, as it always was.
- *  `pinnable`: installed Kit-plugin/Notes-app ids (see pinId in hubLayout.ts) that may be pinned to Home. */
-export const cleanLifeLayout = (raw: unknown, pinnable: readonly string[] = []): LifeLayout =>
-  cleanAnyLayout(raw, LIFE_PARTS.map((p) => p.id), { menuSide: "top", menuClose: "button", homeHidden: ["widgets"] }, pinnable) as LifeLayout;
+/** LifeHub starts with the menu across the top on a phone, as it always was. */
+export const cleanLifeLayout = (raw: unknown): LifeLayout =>
+  cleanAnyLayout(raw, LIFE_PARTS.map((p) => p.id), { menuSide: "top", menuClose: "button", homeHidden: ["widgets"] }) as LifeLayout;

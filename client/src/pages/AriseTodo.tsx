@@ -581,7 +581,7 @@ export default function AriseTodo() {
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
-  const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} />
+  const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} />
     : shown === "chores" ? <Chores {...common} />
     : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "behavior" ? <Behavior {...common} />
