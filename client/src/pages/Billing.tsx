@@ -63,11 +63,11 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "good", title: "Premium is free for you this school year", lines: [
         "You signed up before October 1, 2026, so you keep everything at no cost.",
         `Your free year runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
-        "The add-ons further down this page (Arise WorkHub, Arise Math, Arise History and Arise Social) are optional and paid separately.",
+        "A.R.I.S.E. To-Do is free. Reader, Math and History are included in the Class plan, and Connect is a separate optional learning program.",
       ] };
     case "free-month":
       return { tone: "good", title: "You're on a 30-day free trial", lines: [
-        "Your Class plan (the teacher account) and Arise WorkHub are open to you at no cost, and so are Arise Math, Arise History and Arise Social for your class.",
+        "A.R.I.S.E. To-Do is permanently free. Your Class plan temporarily includes Reader, Math and History during its learning trial.",
         `Your free trial runs until ${day(plan.endsAt)}. There is nothing to pay before then, and no card is needed.`,
       ] };
     case "rules-off":
@@ -290,6 +290,14 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
   const school = hub.schoolPlan?.live ? hub.schoolPlan : null;
   const price = blocks * H.monthlyCents;
   const freeMonth = hub.via === "free-month";
+  if (hub.via === "free") return (
+    <div className="bl-hub" data-testid="billing-hub">
+      <h2 className="bl-h2">A.R.I.S.E. To-Do — Work &amp; Life <span className="bl-tag">Free</span></h2>
+      <p className="bl-hub-lede">Both hubs are permanently free for teachers and parents. No trial, separate subscription, or student block charge applies to To-Do.</p>
+      <button type="button" className="pr-pill pr-pill-sm" onClick={open} data-testid="billing-open-hub">Open Work hub</button>
+      {own?.paidOnline && <p className="mt-4 text-sm text-slate-700">You have an older paid WorkHub subscription. The hub is free now, but older recurring billing may still need to be cancelled. <button type="button" className="bl-text" onClick={() => go("hub-portal", "/api/billing/portal", { kind: "hub_teacher", returnTo: siteAddress() })}>Manage old subscription</button></p>}
+    </div>
+  );
   return (
     <div className="bl-hub" data-testid="billing-hub">
       <h2 className="bl-h2">Arise WorkHub <span className="bl-tag">Add-on</span></h2>
