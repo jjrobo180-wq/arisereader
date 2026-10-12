@@ -1,4 +1,4 @@
-// Arise Social (/social/): students explore careers, do off-screen quests and share wins with
+// A.R.I.S.E. Connect (/social/): students explore careers, do off-screen quests and share wins with
 // their class; parents follow along and set limits; teachers approve every student post and host events.
 //
 // Safety rules kept here, on the server:
@@ -75,7 +75,7 @@ export type SocialDirectory = {
 export type SocialDeps = {
   store?: SocialStore; directory: SocialDirectory; now?: () => number; random?: () => number;
   /**
-   * Arise Social is a paid add-on (see shared/plans.ts). self: may the signed-in account use it?
+   * A.R.I.S.E. Connect is a paid add-on (see shared/plans.ts). self: may the signed-in account use it?
    * user: does this account have it (used to check a student's teacher)? Left out, everyone may.
    */
   access?: { self(req: any): Promise<boolean>; user(id: number): Promise<boolean> };
@@ -278,7 +278,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
   const eventsToday = createAttemptLimiter({ max: LIMITS.eventsPerDay, windowMs: 24 * 3600_000, now });
   const notify = (id: number, title: string, body: string) => { dir.notify?.(id, { title, body, url: "/social/" })?.catch?.(() => {}); };
 
-  /** The signed-in account as Arise Social sees it (an admin previewing as a student counts as that student). */
+  /** The signed-in account as A.R.I.S.E. Connect sees it (an admin previewing as a student counts as that student). */
   async function viewer(req: any): Promise<SocialUser & { band: BandId; grade: string | null }> {
     const raw = req.user || {};
     const role: SocialRole = req.adminPreview ? "student" : roleOf(raw);
@@ -296,13 +296,13 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     if (v.role !== "student") return null;
     if (!v.teacherId) return "Posting opens once you join a teacher’s class.";
     if (!v.approvedByTeacher) return "Posting opens once your teacher approves your account.";
-    if (!(await userHasAccess(v.teacherId))) return "Your teacher hasn’t added Arise Social yet, so nobody can approve posts. Ask them about it!";
+    if (!(await userHasAccess(v.teacherId))) return "Your teacher hasn’t added A.R.I.S.E. Connect yet, so nobody can approve posts. Ask them about it!";
     return null;
   }
   const handle = (fn: (req: any, res: any) => Promise<unknown>) => async (req: any, res: any) => {
     try { await fn(req, res); }
     catch (error: any) {
-      if (error instanceof SocialNotSetUp) return res.status(503).json({ message: "Arise Social is still being set up. Please check back soon.", setup: true });
+      if (error instanceof SocialNotSetUp) return res.status(503).json({ message: "A.R.I.S.E. Connect is still being set up. Please check back soon.", setup: true });
       console.error("[arise-social]", error?.message || error);
       res.status(500).json({ message: "Something went wrong. Please try again." });
     }
@@ -310,14 +310,14 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
   const noStore = (res: any) => res.set?.("Cache-Control", "no-store");
   /** Every route but the catalog and "who am I" needs the add-on. */
   const paid = (fn: (req: any, res: any) => Promise<unknown>) => handle(async (req, res) => {
-    if (!(await hasAccess(req))) return res.status(402).json({ message: "Arise Social is a paid add-on. Add it to keep going.", code: "social_required" });
+    if (!(await hasAccess(req))) return res.status(402).json({ message: "A.R.I.S.E. Connect is a paid add-on. Add it to keep going.", code: "social_required" });
     return fn(req, res);
   });
 
   /** Which classes' posts and events this person sees. */
   async function reach(v: SocialUser): Promise<{ teacherIds: number[]; schoolId: number | null }> {
-    if (v.role === "teacher") return { teacherIds: [v.id], schoolId: v.schoolId };
-    if (v.role === "student") return { teacherIds: v.teacherId && v.approvedByTeacher ? [v.teacherId] : [], schoolId: v.teacherId && v.approvedByTeacher ? v.schoolId : null };
+    if (v.role === "teacher") return { teacherIds: [v.id], schoolId: null };
+    if (v.role === "student") return { teacherIds: v.teacherId && v.approvedByTeacher ? [v.teacherId] : [], schoolId: null };
     return { teacherIds: [], schoolId: null };
   }
   async function canSeePost(v: SocialUser, p: PostRow) {
@@ -415,7 +415,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       if (p.quests[questId] !== "done") return res.status(400).json({ message: "Finish that quest before sharing it." });
     }
     if (!text && !questId) return res.status(400).json({ message: "Write something or attach a finished quest." });
-    const scope: PostScope = v.role === "student" ? (await store.getProfile(v.id)).post_scope : body.scope === "school" ? "school" : "class";
+    const scope: PostScope = "class"; // Student achievements cannot be broadcast school-wide.
     const isStaff = v.role === "teacher";
     const post = await store.createPost({
       author_id: v.id, author_role: isStaff ? "teacher" : "student",
@@ -423,7 +423,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       scope, body: text, quest_id: questId, career_id: careerId, status: isStaff ? "approved" : "pending",
     });
     postsToday.fail(String(v.id));
-    if (!isStaff && v.teacherId) notify(v.teacherId, "Arise Social", `${studentName(v.displayName)} shared a post for you to check.`);
+    if (!isStaff && v.teacherId) notify(v.teacherId, "A.R.I.S.E. Connect", `${studentName(v.displayName)} shared a post for you to check.`);
     res.status(201).json({ post: (await present(v, [post]))[0] });
   }));
 
@@ -461,7 +461,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     const decision = req.body?.decision === "approve" ? "approved" : req.body?.decision === "reject" ? "rejected" : null;
     if (!decision) return res.status(400).json({ message: "Choose approve or send back." });
     await store.review(p.id, decision, v.id, new Date(now()).toISOString());
-    notify(p.author_id, "Arise Social", decision === "approved" ? "Your post is live for your class." : "Your teacher sent your post back. Take another look.");
+    notify(p.author_id, "A.R.I.S.E. Connect", decision === "approved" ? "Your post is live for your class." : "Your teacher sent your post back. Take another look.");
     res.json({ ok: true, status: decision });
   }));
 
@@ -560,7 +560,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     const r = await linkedChild(req, Number(req.params.id));
     if ("error" in r) return res.status(r.error).json({ message: r.error === 403 ? "Parent accounts only." : "That student is not linked to your account." });
     const scope = req.body?.postScope;
-    if (scope !== "class" && scope !== "school") return res.status(400).json({ message: "Choose class or school." });
+    if (scope !== "class") return res.status(400).json({ message: "A.R.I.S.E. Connect is restricted to the student’s approved class. School-wide sharing is disabled." });
     await store.setScope(r.child.id, scope);
     res.json({ ok: true, postScope: scope });
   }));
@@ -596,7 +596,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     const format = EVENT_FORMATS.includes(String(b.format)) ? String(b.format) : "In class";
     const seats = Math.min(1000, Math.max(1, Math.floor(Number(b.seats) || 30)));
     const time = String(b.time || "").replace(/[^\w :.-]/g, "").slice(0, 20);
-    const e = await store.createEvent({ host_id: v.id, school_id: v.schoolId, scope: b.scope === "school" && v.schoolId ? "school" : "class", title, starts_on: String(b.date), time_label: time, format, cluster, seats });
+    const e = await store.createEvent({ host_id: v.id, school_id: v.schoolId, scope: "class", title, starts_on: String(b.date), time_label: time, format, cluster, seats });
     eventsToday.fail(String(v.id));
     res.status(201).json({ event: { ...eventOut(e, []), host: v.displayName, mine: true, myStatus: null } });
   }));
@@ -640,7 +640,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       }
     } else return res.status(400).json({ message: "Unknown choice." });
     await store.setRsvp(e.id, student.id, next);
-    if (next === "requested" && current !== "requested") for (const pid of await parentsFor(student.id)) notify(pid, "Arise Social", `${studentName(student.displayName)} wants to join “${e.title}”.`);
+    if (next === "requested" && current !== "requested") for (const pid of await parentsFor(student.id)) notify(pid, "A.R.I.S.E. Connect", `${studentName(student.displayName)} wants to join “${e.title}”.`);
     const after = await store.rsvps([e.id]);
     res.json({ event: { ...eventOut(e, after), myStatus: next } });
   }));
