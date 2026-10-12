@@ -10175,13 +10175,24 @@ Important:
     } catch { res.status(500).json({ message: 'Could not link this student right now.' }); }
   });
 
-  // === Teacher Admin endpoints: limited admin access for ALL teachers ===
-  // These mirror admin endpoints but are accessible to any approved teacher
+  // === Teacher Admin endpoints ===
+  // Admins act on every student. A teacher only ever sees or touches the students assigned to
+  // them (users.teacher_id) -- never another teacher's class -- because student records are
+  // private: a teacher clicking "all" must not be able to browse the whole school.
+  /** True when this signed-in user may see or change this student. */
+  const canReachStudent = async (user: any, studentId: number): Promise<boolean> => {
+    if (user?.isAdmin) return true;
+    if (!Number.isFinite(studentId) || studentId <= 0) return false;
+    const student = await storage.getUser(studentId);
+    return !!student && !student.isAdmin && student.role !== "teacher" && student.role !== "parent" && Number(student.teacherId) === Number(user?.id);
+  };
+  const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
 
   // GET all students across all teachers (with stats + teacher names)
   app.get("/api/teacher-admin/all-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
-      const students = (await storage.getAllUsers()).filter((s: any) => s.role === 'student' || (!s.role && !s.isAdmin));
+      const students = (await storage.getAllUsers()).filter((s: any) => (s.role === 'student' || (!s.role && !s.isAdmin))
+        && (req.user.isAdmin || Number(s.teacherId) === Number(req.user.id)));
       const allUsers = await storage.getAllUsers();
       const teacherMap = new Map();
       for (const u of allUsers) {
@@ -10191,7 +10202,9 @@ Important:
       let allUsersWithAttempts: any[] = [];
       for (let retry = 0; retry < 5; retry++) {
         try {
-          const { data, error } = await supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
+          let q = supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
+          if (!req.user.isAdmin) q = q.eq("teacher_id", req.user.id);
+          const { data, error } = await q;
           if (!error && data) { allUsersWithAttempts = data; break; }
         } catch (e) {}
         if (retry < 4) await new Promise(r => setTimeout(r, 1000));
@@ -10225,12 +10238,13 @@ Important:
   });
 
   // GET all teachers (for reassignment dropdown)
-  app.get("/api/teacher-admin/teachers", authMiddleware, teacherOrAdminMiddleware, async (_req, res) => {
+  app.get("/api/teacher-admin/teachers", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const allUsers = await storage.getAllUsers();
+      // Names only for teachers (enough to pick who to hand a student to); usernames are admin-only.
       const teachers = allUsers
         .filter((u: any) => u.role === 'teacher')
-        .map((t: any) => ({ id: t.id, displayName: t.displayName, username: t.username }));
+        .map((t: any) => (req.user.isAdmin ? { id: t.id, displayName: t.displayName, username: t.username } : { id: t.id, displayName: t.displayName }));
       res.json(teachers);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -10238,10 +10252,11 @@ Important:
   });
 
   // GET pending students across ALL teachers
-  app.get("/api/teacher-admin/pending-students", authMiddleware, teacherOrAdminMiddleware, async (_req, res) => {
+  app.get("/api/teacher-admin/pending-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const allUsers = await storage.getAllUsers();
-      const pending = allUsers.filter((u: any) => !u.approvedByTeacher && (u.role === 'student' || (!u.role && !u.isAdmin)));
+      const pending = allUsers.filter((u: any) => !u.approvedByTeacher && (u.role === 'student' || (!u.role && !u.isAdmin))
+        && (req.user.isAdmin || Number(u.teacherId) === Number(req.user.id)));
       const teacherMap = new Map();
       for (const u of allUsers) {
         if (u.role === 'teacher') teacherMap.set(u.id, u.displayName);
@@ -10263,6 +10278,7 @@ Important:
   app.post("/api/teacher-admin/students/:id/approve", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const seat = await plans.seatCheck(req.user);
       if (!seat.ok) return res.status(409).json({ message: seat.message });
       await supabase.from("users").update({ approved_by_teacher: true }).eq("id", studentId);
@@ -10280,6 +10296,7 @@ Important:
   app.post("/api/teacher-admin/students/:id/reset-password", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const { newPassword } = req.body;
       if (!newPassword || newPassword.length < 4) {
         return res.status(400).json({ message: "Password must be at least 4 characters" });
@@ -10296,6 +10313,7 @@ Important:
   app.get("/api/teacher-admin/students/:id/rewards", authMiddleware, teacherOrAdminMiddleware, async (req, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const key = `student_rewards_${studentId}`;
       const raw = await storage.getSetting(key);
       let rewards: any[] = [];
@@ -10310,6 +10328,7 @@ Important:
   app.post("/api/teacher-admin/students/:id/rewards", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const { title, message, requiredQuizCount, expiresAt } = req.body;
       if (!title || !message) {
         return res.status(400).json({ message: "Title and message are required" });
@@ -10340,6 +10359,7 @@ Important:
   app.delete("/api/teacher-admin/students/:id/rewards/:rewardId", authMiddleware, teacherOrAdminMiddleware, async (req, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const rewardId = parseInt(req.params.rewardId);
       const key = `student_rewards_${studentId}`;
       const raw = await storage.getSetting(key);
@@ -10357,6 +10377,7 @@ Important:
   app.post("/api/teacher-admin/students/:id/reassign", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const { newTeacherId } = req.body;
       if (!newTeacherId) {
         return res.status(400).json({ message: "newTeacherId is required" });
@@ -10647,6 +10668,7 @@ Important:
   app.post("/api/teacher/reset-password/:studentId", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.studentId);
+      if (!(await canReachStudent(req.user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const tempPassword = 'arise' + Math.random().toString(36).slice(2, 8);
       const hashedPassword = bcrypt.hashSync(tempPassword, 10);
       await storage.resetPassword(studentId, hashedPassword);
@@ -10680,11 +10702,11 @@ Important:
   app.get("/api/teacher/student/:id/profile", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
-      // This is a read-only educator profile. Approved teachers can open any student
-      // shown in the All Students directory; editing and messaging stay roster-restricted.
+      // A teacher may only open the profile of a student assigned to them; admins may open any.
       const student = await storage.getUser(studentId);
       if (!student || student.isAdmin || student.role !== 'student') return res.status(404).json({ message: "Student not found" });
       if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: "Teacher account approval required" });
+      if (!req.user.isAdmin && Number(student.teacherId) !== Number(req.user.id)) return res.status(403).json(NOT_YOUR_STUDENT);
       const attempts = await storage.getUserAttempts(studentId);
       const books = await storage.getAllBooks();
       const bookMap = new Map(books.map(b => [b.id, b]));

@@ -148,7 +148,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
     void loadBookRequests();
   }, [user?.id, approved, loadClass, loadGradeChanges, loadBookRequests, request]);
 
-  /* ---- the whole school (other teachers' students, AI quizzes to check) ---- */
+  /* ---- the whole school for admins (every class); for a teacher the server only returns their own students ---- */
   const [school, setSchool] = useState<{ students: SchoolStudent[]; pending: PendingStudent[]; teachers: Teacher[]; quizzes: PendingQuiz[] } | null>(null);
   const [schoolBusy, setSchoolBusy] = useState(false);
   const loadSchool = useCallback(async () => {
@@ -238,7 +238,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
   const [apSub, setApSub] = useSub<"join" | "grades" | "books" | "quizzes">("approvals", "join");
   const [qSub, setQSub] = useSub<"grade" | "camera" | "proctor">("quizzes", "grade");
-  const approvals = pending.length + gradeChanges.length + bookRequests.length + (school ? school.quizzes.length + school.pending.length : 0);
+  const approvals = pending.length + gradeChanges.length + bookRequests.length + (school ? school.quizzes.length + (user?.isAdmin ? school.pending.length : 0) : 0);
 
   if (!approved) {
     return <Card title="A.R.I.S.E. Reader"><div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /> Your teacher account is waiting for the administrator to approve it. Your Reader tools open here as soon as it is.</div></Card>;
@@ -305,7 +305,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       <Card title="Add-ons for your class" collapseKey="reader-addons"><HubAddons which="work" /></Card>
     </>}
 
-    {tab === "readerStudents" && <StudentsTab
+    {tab === "readerStudents" && <StudentsTab isAdmin={!!user?.isAdmin}
       students={students} loading={loading} loadError={loadError} school={school} schoolBusy={schoolBusy}
       onView={(id) => navigate(`/student-profile/${id}`)} onMessage={(id) => navigate(`/messages/${id}`)} onCertificates={(id) => navigate(`/student-certificates/${id}`)}
       onAction={openAction} request={request}
@@ -323,7 +323,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
     {tab === "readerApprovals" && <>
       <SubTabs value={apSub} onChange={setApSub} items={[
-        { id: "join", label: "Joining", count: pending.length + (school?.pending.length || 0) },
+        { id: "join", label: "Joining", count: pending.length + (user?.isAdmin ? school?.pending.length || 0 : 0) },
         { id: "grades", label: "Grade changes", count: gradeChanges.length },
         { id: "books", label: "Book requests", count: bookRequests.length },
         { id: "quizzes", label: "AI quizzes", count: school?.quizzes.length || 0 },
@@ -352,7 +352,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
             <button type="button" disabled={quizBusy} className={badBtn} onClick={() => void decideQuiz(q.id, false)}><X className="h-4 w-4" /> Send back</button>
           </>} />)}</ul> : <Empty>No quizzes waiting.</Empty>}
       </Card>}
-      {apSub === "join" && <Card title={`Students waiting across the school${school?.pending.length ? ` (${school.pending.length})` : ""}`} collapseKey="reader-school-pending">
+      {apSub === "join" && user?.isAdmin && <Card title={`Students waiting across the school${school?.pending.length ? ` (${school.pending.length})` : ""}`} collapseKey="reader-school-pending">
         {!school ? <Empty>Loading…</Empty> : school.pending.length ? <ul className="space-y-2">{school.pending.map((s) =>
           <Row key={s.id} title={s.displayName || s.username} sub={`@${s.username}${s.teacherName ? ` · ${s.teacherName}` : ""}`} right={<button type="button" className={goodBtn} onClick={() => void approveAny(s.id)}><Check className="h-4 w-4" /> Approve</button>} />)}</ul>
           : <Empty>No one is waiting.</Empty>}
@@ -460,12 +460,15 @@ function ProctorCode({ code, onCopy }: { code: string; onCopy: () => void }) {
   </div>;
 }
 
-function StudentsTab({ students, loading, loadError, school, schoolBusy, onView, onMessage, onCertificates, onAction, request, onDone }: {
+function StudentsTab({ isAdmin = false, students, loading, loadError, school, schoolBusy, onView, onMessage, onCertificates, onAction, request, onDone }: {
+  /** Only admins get the Whole school view; a teacher sees their own class and nothing else. */
+  isAdmin?: boolean;
   students: Student[]; loading: boolean; loadError: string; school: { students: SchoolStudent[]; teachers: Teacher[] } | null; schoolBusy: boolean;
   onView: (id: number) => void; onMessage: (id: number) => void; onCertificates: (id: number) => void; onAction: (s: Action["student"], kind: Action["kind"]) => void;
   request: (path: string, options?: RequestInit) => Promise<any>; onDone: (text: string, reload?: boolean) => void;
 }) {
-  const [which, setWhich] = useState<"mine" | "school">("mine");
+  const [picked, setWhich] = useState<"mine" | "school">("mine");
+  const which = isAdmin ? picked : "mine";
   const [q, setQ] = useState("");
   const [teacher, setTeacher] = useState("");
   const [adding, setAdding] = useState(false);
@@ -476,9 +479,9 @@ function StudentsTab({ students, loading, loadError, school, schoolBusy, onView,
   return <Card title={which === "mine" ? `My class (${students.length})` : `Whole school (${school?.students.length ?? "…"})`}
     right={<div className="flex flex-wrap items-center gap-2">
       <GhostButton onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" /> Add students</GhostButton>
-      <div className="flex rounded-xl border border-slate-200 p-1" role="tablist" aria-label="Which students">
+      {isAdmin && <div className="flex rounded-xl border border-slate-200 p-1" role="tablist" aria-label="Which students">
         {(["mine", "school"] as const).map((w) => <button key={w} type="button" role="tab" aria-selected={which === w} onClick={() => setWhich(w)} className={`min-h-9 rounded-lg px-3 text-sm font-semibold ${which === w ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{w === "mine" ? "My class" : "Whole school"}</button>)}
-      </div>
+      </div>}
     </div>}>
     {adding && <AddStudentsModal onClose={() => setAdding(false)} request={request} onDone={(text) => onDone(text, true)} />}
     <div className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
