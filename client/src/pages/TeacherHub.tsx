@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type Re
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
-import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
+import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildWorkBrief } from "@shared/dailyBrief";
 import { foldMenu, type MenuEntry, type MenuFolder } from "@shared/hubLayout";
 import {
@@ -50,9 +50,15 @@ import {
   MoreHorizontal,
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
+  Table, FolderOpen, QrCode,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, isAddable, notesAppPlugin, pluginOpens, pluginsFor, setWorkKit, setWorkNotesApp, setWorkPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
+import SheetsApp from "@/components/family-hub/SheetsApp";
+import DriveApp from "@/components/family-hub/DriveApp";
+import DropApp from "@/components/family-hub/DropApp";
+import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
+import { cleanDriveFiles } from "@shared/driveApp";
+import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, notesAppPlugin, pluginOpens, pluginsFor, setKitInstalled, setWorkKit, setWorkNotesApp, setWorkPlugin, setWorkSheetsApp, sheetsAppPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
 import { cleanNotesApp } from "@shared/notesApp";
 import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
@@ -326,6 +332,11 @@ function TeacherHubPage() {
   const [kitOpen, setKitOpen] = useState<string | null>(null);
   /** A Notes-app install (see shared/notesApp.ts) open full-page, by its App Store plugin id. */
   const [notesAppOpen, setNotesAppOpen] = useState<string | null>(null);
+  /** Sheets, Drive and Drop: built for LifeHub, offered here too (App Store). Each opens full-page
+   *  the same way a Kit plugin or a Notes-app install does. */
+  const [sheetsAppOpen, setSheetsAppOpen] = useState<string | null>(null);
+  const [driveOpen, setDriveOpen] = useState(false);
+  const [dropOpen, setDropOpen] = useState(false);
   /** The app drawer is open (the "App drawer" menu choice). */
   const [apps, setApps] = useState(false);
   const [appsQuery, setAppsQuery] = useState("");
@@ -402,7 +413,9 @@ function TeacherHubPage() {
   latest.current = workspace;
 
   // The "added" message belongs to the screen it appeared on.
-  useEffect(() => { setAdded(null); setKitOpen(null); }, [tab]);
+  // Picking any tab leaves whichever full-page app was open. It used to clear only the Kit view,
+  // so tapping a tab while a Notes app, Sheets, Drive or Drop was open left the screen on that app.
+  useEffect(() => { setAdded(null); closeApps(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Connected calendars are read again when the Hub opens.
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
@@ -446,6 +459,17 @@ function TeacherHubPage() {
   const setNotesAppRecords = (pid: string, update: (all: ReturnType<typeof cleanNotesApp>) => ReturnType<typeof cleanNotesApp>) =>
     setWorkspace((prev) => ({ ...prev, notesApps: { ...(prev as any).notesApps, [pid]: update(cleanNotesApp(((prev as any).notesApps ?? {})[pid])) } }));
   const openNotesApp = (k: string | null) => { setNotesAppOpen(k); if (k) window.scrollTo({ top: 0 }); };
+  const mySheetsApps = ((workspace as any).sheetsInstalled as string[] | undefined ?? []).map((id) => sheetsAppPlugin("work", id)).filter((p): p is Plugin => !!p);
+  const drivePlugin = (workspace as any).driveInstalled ? driveAppPlugin("work") : undefined;
+  const dropPlugin = (workspace as any).dropInstalled ? dropAppPlugin("work") : undefined;
+  const hubSheets = cleanSpreadsheets(((workspace as any).sheets ?? {})["work-sheets"]);
+  const setHubSheets = (update: (all: Spreadsheet[]) => Spreadsheet[]) =>
+    setWorkspace((prev) => ({ ...prev, sheets: { ...((prev as any).sheets ?? {}), "work-sheets": update(cleanSpreadsheets(((prev as any).sheets ?? {})["work-sheets"])) } }));
+  const hubDrive = cleanDriveFiles((workspace as any).drive);
+  const setHubDrive = (update: (all: ReturnType<typeof cleanDriveFiles>) => ReturnType<typeof cleanDriveFiles>) =>
+    setWorkspace((prev) => ({ ...prev, drive: update(cleanDriveFiles((prev as any).drive)) }));
+  /** Leaves whichever full-page app is open, so opening one never leaves another behind it. */
+  const closeApps = () => { setKitOpen(null); setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); };
   // How the teacher arranged the Hub (Customize): where the phone menu sits, how it closes, and what Home shows.
   // Every added Kit plugin and Notes app may be pinned to Home as its own tile (myKits/myNotesApps, just above).
   const pinnableApps = [...myKits.map((d) => d.id), ...myNotesApps.map((p) => p.id)];
@@ -474,7 +498,7 @@ function TeacherHubPage() {
   const deskList = deskTop ? "md:h-auto md:flex-row md:items-center md:gap-1 md:overflow-x-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-1.5 md:shadow-sm" : "md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm";
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   const [searching, setSearching] = useState(false);
-  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan);
+  const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff);
   const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
   const reminderAdded = (items: QuickItems) => { toasts.show(quickAddedMessage(items), tab === "tasks" ? [] : [{ label: "View", run: () => setTab("tasks") }]); };
@@ -634,13 +658,14 @@ function TeacherHubPage() {
   const visible = { ...workspace.visibleTabs, admin: !!user.isAdmin };
   const menu = visibleGroups(visible, workspace.groupOrder);
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
-  const goTab = (t: HubTab) => { setTab(t); setKitOpen(null); window.scrollTo({ top: 0 }); };
+  const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
   const searchEntries = ((): HubSearchEntry[] => {
     if (!searching) return [];
     const out: HubSearchEntry[] = [];
     const dateWord = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
     for (const g of menu) for (const t of groupTabs(g.id, visible)) out.push({ id: `tab-${t}`, kind: "Section", title: TAB_META.find((m) => m.id === t)?.label || t, sub: groupLabel(g.id, visible), open: () => goTab(t) });
-    out.push({ id: "brief", kind: "Section", title: "Daily brief", sub: "Today at a glance", keywords: "morning summary today", open: () => setBriefOpen(true) });
+    // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
+    if (!(workspace as any).briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomize(true) });
     out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", open: () => setStore(true) });
     for (const d of myKits) out.push({ id: `kit-${d.id}`, kind: "Plugins", title: d.name, open: () => openKit(d.id) });
@@ -683,10 +708,14 @@ function TeacherHubPage() {
         night={night}
         accent={accent}
         teacher
-        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn, (workspace as any).notesInstalled)}
+        isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn, (workspace as any).notesInstalled, !!(workspace as any).briefOff, (workspace as any).sheetsInstalled, !!(workspace as any).driveInstalled, !!(workspace as any).dropInstalled)}
         onToggle={(p: Plugin, on: boolean) => {
           // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
-          setWorkspace((prev) => (p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
+          setWorkspace((prev) => (p.target.kind === "brief" ? { ...prev, briefOff: !on }
+            : p.target.kind === "sheetsApp" ? { ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, on) }
+            : p.target.kind === "driveApp" ? { ...prev, driveInstalled: on }
+            : p.target.kind === "dropApp" ? { ...prev, dropInstalled: on }
+            : p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
             ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, p, on) } : p.target.kind === "notesApp"
             ? { ...prev, notesInstalled: setWorkNotesApp((prev as any).notesInstalled, p, on) }
             : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, p, on) }));
@@ -694,6 +723,9 @@ function TeacherHubPage() {
           if (p.target.kind === "widget" && on) toasts.show("Widgets added to Home. Tap Add widget to pick your first one.", []);
           if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
           if (p.target.kind === "notesApp" && on) toasts.show(`${p.name} added. Find it in your menu.`, []);
+          if (p.target.kind === "sheetsApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp") {
+            if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else closeApps();
+          }
         }}
         kit={{
           records: kitRecords,
@@ -706,7 +738,7 @@ function TeacherHubPage() {
           setNotes: setNotesAppRecords,
           makeId: id,
         }}
-        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
+        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
         onClose={() => setStore(false)}
       />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -718,7 +750,6 @@ function TeacherHubPage() {
           <div className="flex shrink-0 items-center gap-2">
             <HubSwitch current="hub" night={night} />
             <HubSearchButton onOpen={() => setSearching(true)} />
-            <BriefButton onOpen={() => setBriefOpen(true)} className="hidden sm:inline-flex" />
             <span className="hidden sm:contents"><SaveBadge view={view} /></span>
             <HubPollBell token={token} userId={user?.id} enabled={canUseHub && loaded && !loadError && !needsPlan} onOpenMeetings={() => setTab("iep")} />
             <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
@@ -818,7 +849,7 @@ function TeacherHubPage() {
                     ))}
                     {hubEntries.map((entry) => entry.kind === "item" ? (
                       <li key={entry.item.id}>
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setTab(openGroup(entry.item.id, visible, lastInGroup)); setKitOpen(null); setApps(false); }} data-testid={`hub-app-${entry.item.id}`}
+                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setTab(openGroup(entry.item.id, visible, lastInGroup)); closeApps(); setApps(false); }} data-testid={`hub-app-${entry.item.id}`}
                           className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
                           <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === entry.item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[entry.item.id]}</span>
                           <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{groupLabel(entry.item.id, visible)}</span>
@@ -861,7 +892,7 @@ function TeacherHubPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); setKitOpen(null); afterPick(); }}
+                    onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); closeApps(); afterPick(); }}
                     aria-current={group.id === item.id && !kitOpen ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
                     data-hub-nav
@@ -896,12 +927,12 @@ function TeacherHubPage() {
                 </Fragment>;
               });
             })()}
-            {(myKits.length > 0 || myNotesApps.length > 0) && <p className={`hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskTop || deskCompact ? "" : "md:block"}`}>My apps</p>}
+            {(myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || drivePlugin || dropPlugin) && <p className={`hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskTop || deskCompact ? "" : "md:block"}`}>My apps</p>}
             {myKits.map((d) => {
               const Icon = kitIcon(d.icon);
               return (
                 <div key={`kit-${d.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                  <button type="button" onClick={() => { openKit(d.id); afterPick(); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`hub-kit-${d.id}`} data-hub-nav
+                  <button type="button" onClick={() => { closeApps(); openKit(d.id); afterPick(); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`hub-kit-${d.id}`} data-hub-nav
                     className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${kitOpen === d.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: d.color }}><Icon className="h-3.5 w-3.5" /></span>
                     <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{d.name}</span>
@@ -911,13 +942,40 @@ function TeacherHubPage() {
             })}
             {myNotesApps.map((p) => (
               <div key={`notes-app-${p.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                <button type="button" onClick={() => { openNotesApp(p.id); afterPick(); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`hub-notes-app-${p.id}`} data-hub-nav
+                <button type="button" onClick={() => { closeApps(); openNotesApp(p.id); afterPick(); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`hub-notes-app-${p.id}`} data-hub-nav
                   className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${notesAppOpen === p.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: p.color }}><StickyNote className="h-3.5 w-3.5" /></span>
                   <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{p.name}</span>
                 </button>
               </div>
             ))}
+            {mySheetsApps.map((a) => (
+              <div key={`sheets-app-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(a.id); afterPick(); }} aria-current={sheetsAppOpen === a.id ? "page" : undefined} data-testid={`hub-sheets-app-${a.id}`} data-hub-nav
+                  className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${sheetsAppOpen === a.id ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: a.color }}><Table className="h-3.5 w-3.5" /></span>
+                  <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{a.name}</span>
+                </button>
+              </div>
+            ))}
+            {drivePlugin && (
+              <div key={"drive-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                <button type="button" onClick={() => { closeApps(); setDriveOpen(true); afterPick(); }} aria-current={driveOpen ? "page" : undefined} data-testid={"hub-drive-app"} data-hub-nav
+                  className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${driveOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: drivePlugin.color }}><FolderOpen className="h-3.5 w-3.5" /></span>
+                  <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{drivePlugin.name}</span>
+                </button>
+              </div>
+            )}
+            {dropPlugin && (
+              <div key={"drop-app"} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                <button type="button" onClick={() => { closeApps(); setDropOpen(true); afterPick(); }} aria-current={dropOpen ? "page" : undefined} data-testid={"hub-drop-app"} data-hub-nav
+                  className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${dropOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-white" style={{ backgroundColor: dropPlugin.color }}><QrCode className="h-3.5 w-3.5" /></span>
+                  <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{dropPlugin.name}</span>
+                </button>
+              </div>
+            )}
             <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 md:mt-2 md:w-full md:border-t md:border-slate-100 md:pt-2`}>
               <button type="button" onClick={() => { setStore(true); afterPick(); }} data-testid="hub-menu-app-store" data-hub-store
                 className="flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 md:min-h-11 md:flex-row md:justify-start md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium">
@@ -928,7 +986,7 @@ function TeacherHubPage() {
           </div>
         </aside>
 
-        <main className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+        <main className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
           {kitOpen && kitDef(kitOpen) && (
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
@@ -946,6 +1004,33 @@ function TeacherHubPage() {
               </div>
               <NotesKitApp key={notesAppOpen} name={notesAppPlugin("work", notesAppOpen)!.name} blurb={notesAppPlugin("work", notesAppOpen)!.description}
                 notes={notesAppRecords[notesAppOpen] ?? []} setNotes={(update) => setNotesAppRecords(notesAppOpen, update)} makeId={id} say={(m) => toasts.show(m, [])} />
+            </div>
+          )}
+          {sheetsAppOpen && (
+            <div data-kit-view className="space-y-3" data-testid="hub-sheets-app-view">
+              <div className="flex items-center justify-between gap-2">
+                <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+              </div>
+              <SheetsApp name="Sheets" blurb="A real spreadsheet: text or number cells, and formulas like SUM and AVERAGE." sheets={hubSheets} setSheets={setHubSheets} makeId={id} say={(m) => toasts.show(m, [])} />
+            </div>
+          )}
+          {driveOpen && (
+            <div data-kit-view className="space-y-3" data-testid="hub-drive-app-view">
+              <div className="flex items-center justify-between gap-2">
+                <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+              </div>
+              <DriveApp files={hubDrive} setFiles={setHubDrive} say={(m) => toasts.show(m, [])} token={token} />
+            </div>
+          )}
+          {dropOpen && (
+            <div data-kit-view className="space-y-3" data-testid="hub-drop-app-view">
+              <div className="flex items-center justify-between gap-2">
+                <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
+                <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
+              </div>
+              <DropApp say={(m) => toasts.show(m, [])} token={token} />
             </div>
           )}
           <HubTrialNote trial={trial} which="work" upgradeHref="#/billing" />

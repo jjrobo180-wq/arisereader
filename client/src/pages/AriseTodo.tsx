@@ -11,6 +11,7 @@ import {
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
   CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
   ChevronUp, ChevronDown, MoreHorizontal, Save, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
+  Puzzle,
   ShoppingBag,
   Folder as Folder, ChevronRight as ChevronRight,
   Archive, ArchiveRestore,
@@ -62,7 +63,7 @@ import Quotes from "@/components/family-hub/Quotes";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, lifeInstalled, notesAppPlugin, pluginOpens, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, lifeInstalled, notesAppPlugin, pluginOpens, setKitInstalled, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
 import SheetsApp from "@/components/family-hub/SheetsApp";
 import DriveApp from "@/components/family-hub/DriveApp";
 import DropApp from "@/components/family-hub/DropApp";
@@ -96,7 +97,7 @@ import { foldMenu } from "@shared/hubLayout";
 import { hubThemeOf } from "@shared/appThemes";
 import { tileColorOf } from "@/components/teacher-hub/HubHomeEdit";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
-import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
+import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildLifeBrief } from "@shared/dailyBrief";
 import { HubChat } from "@/components/HubChat";
 import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
@@ -541,6 +542,9 @@ export default function AriseTodo() {
   const pinnableSheets = (family.sheetsInstalled ?? []).map((id) => sheetsAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   const drivePlugin = family.driveInstalled ? driveAppPlugin("life") : undefined;
   const dropPlugin = family.dropInstalled ? dropAppPlugin("life") : undefined;
+  /** Kit plugins added from WorkHub's shelf. LifeHub's own kits are sections, so these are only
+   *  the crossed-over ones; they open full-page like a Notes-app install. */
+  const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id));
   const setLayout = (next: LifeLayout) => setFamily((f) => ({ ...f, layout: next }));
@@ -560,14 +564,15 @@ export default function AriseTodo() {
   // Search everything in LifeHub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const [customizing, setCustomizing] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user);
+  const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user && !family.briefOff);
   const goSection = (id: string) => { setSection(id as FamilySection); window.scrollTo({ top: 0 }); };
   const searchEntries = ((): HubSearchEntry[] => {
     if (!searching) return [];
     const out: HubSearchEntry[] = [], f = family;
     const dw = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
     for (const id of sections) out.push({ id: `s-${id}`, kind: "Section", title: SECTION_INFO[id].label, open: () => goSection(id) });
-    out.push({ id: "brief", kind: "Section", title: "Daily brief", sub: "Today at a glance", keywords: "morning summary today", open: () => setBriefOpen(true) });
+    // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
+    if (!family.briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomizing(true) });
     out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", open: () => setStore(true) });
     for (const t of data.tasks) out.push({ id: t.id, kind: "Tasks", title: t.title, sub: [t.done ? "Done" : "", t.due && `Due ${dw(t.due)}`].filter(Boolean).join(" · "), keywords: t.notes, open: () => goSection("tasks") });
@@ -602,6 +607,14 @@ export default function AriseTodo() {
   const setDriveOpen = (on: boolean) => { setDriveOpenState(on); if (on) window.scrollTo({ top: 0 }); };
   const [dropOpen, setDropOpenState] = useState(false);
   const setDropOpen = (on: boolean) => { setDropOpenState(on); if (on) window.scrollTo({ top: 0 }); };
+  /** A Kit plugin added from WorkHub's shelf (App Store), open full-page. LifeHub's own kit plugins
+   *  are menu sections; these crossed-over ones work like a Notes-app install. */
+  const [kitOpen, setKitOpenState] = useState<string | null>(null);
+  const setKitOpen = (id: string | null) => { setKitOpenState(id); if (id) window.scrollTo({ top: 0 }); };
+  /** Leaves whatever full-page app is open. Every nav entry calls this before opening its own, so
+   *  one more app can never leave a stale one showing — which is what made tapping Home while Drop
+   *  was open look like a frozen screen. */
+  const closeApps = () => { setNotesAppOpenState(null); setSheetsAppOpenState(null); setDriveOpenState(false); setDropOpenState(false); setKitOpenState(null); };
   const sheets = useMemo(() => cleanSpreadsheets(family.sheets?.["life-sheets"]), [family.sheets]);
   const setSheets = (update: (all: Spreadsheet[]) => Spreadsheet[]) =>
     setFamily((f) => ({ ...f, sheets: { ...(f.sheets ?? {}), "life-sheets": update(cleanSpreadsheets((f.sheets ?? {})["life-sheets"])) } }));
@@ -609,11 +622,12 @@ export default function AriseTodo() {
   const setDriveFiles = (update: (all: ReturnType<typeof cleanDriveFiles>) => ReturnType<typeof cleanDriveFiles>) =>
     setFamily((f) => ({ ...f, drive: update(cleanDriveFiles(f.drive)) }));
   const phoneItems: PhoneMenuItem[] = [
-    ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); setSection(id); } }; }),
-    ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); setNotesAppOpen(p.id); } })),
-    ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { setNotesAppOpen(null); setDriveOpen(false); setDropOpen(false); setSheetsAppOpen(p.id); } })),
-    ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { setNotesAppOpen(null); setSheetsAppOpen(null); setDropOpen(false); setDriveOpen(true); } }] : []),
-    ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, active: dropOpen, color: dropPlugin.color, onClick: () => { setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(true); } }] : []),
+    ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); setSection(id); } }; }),
+    ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
+    ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
+    ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
+    ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, active: dropOpen, color: dropPlugin.color, onClick: () => { closeApps(); setDropOpen(true); } }] : []),
+    ...myKits.map((d) => ({ id: `kit-${d.id}`, label: d.name, icon: <Puzzle />, active: kitOpen === d.id, color: d.color, onClick: () => { closeApps(); setKitOpen(d.id); } })),
     // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
     { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
   ];
@@ -705,7 +719,17 @@ export default function AriseTodo() {
       night={night}
       teacher={user.role === "teacher" || !!user.isAdmin}
       isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)}
+      kit={{ records: family.kit, setRecords: (update) => setFamily((f) => ({ ...f, kit: update(f.kit) })), today: currentDay, makeId }}
       onToggle={(p: Plugin, on: boolean) => {
+        // A Kit plugin from WorkHub's shelf. LifeHub's own kits are sections and fall through to
+        // setLifePlugin below, the same as before.
+        if (p.target.kind === "kit") {
+          const kitId = p.target.id;
+          setFamily((f) => ({ ...f, kitInstalled: setKitInstalled(f.kitInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (kitOpen === kitId) setKitOpen(null);
+          return;
+        }
         if (p.target.kind === "notesApp") {
           setFamily((f) => ({ ...f, notesInstalled: setLifeNotesApp(f.notesInstalled, p, on) }));
           if (on) setMessage(`${p.name} added. Find it in your menu.`);
@@ -733,9 +757,11 @@ export default function AriseTodo() {
       onOpen={(p: Plugin) => {
         const at = pluginOpens(p);
         if (at && "section" in at) setSection(at.section);
+        if (p.target.kind === "brief") { setBriefOpen(true); setStore(false); return; }
         if (p.target.kind === "sheetsApp") { setSheetsAppOpen(p.target.id); setStore(false); return; }
         if (p.target.kind === "driveApp") { setDriveOpen(true); setStore(false); return; }
         if (p.target.kind === "dropApp") { setDropOpen(true); setStore(false); return; }
+        if (p.target.kind === "kit") { closeApps(); setKitOpen(p.target.id); setStore(false); return; }
         if (p.target.kind === "assistantPro") { setStore(false); navigate("/billing"); return; }
         // A widget's "section" is really Home, so land on its own part there once it has rendered,
         // instead of just the top of a Home that might be long.
@@ -803,7 +829,6 @@ export default function AriseTodo() {
         <div className="flex shrink-0 items-center gap-2">
           {(user.role === "teacher" || user.role === "parent" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <HubSearchButton onOpen={() => setSearching(true)} />
-          <BriefButton onOpen={() => setBriefOpen(true)} className="hidden sm:inline-flex" />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
           <button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} aria-label="Notification settings"><Bell size={17} /></button>
           <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex">{night ? <Sun size={16} /> : <Moon size={16} />}</button>
@@ -858,7 +883,7 @@ export default function AriseTodo() {
                 className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
               >
                 <button
-                  onClick={() => { setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); setSection(id); }}
+                  onClick={() => { closeApps(); setSection(id); }}
                   aria-current={shown === id ? "page" : undefined}
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
@@ -874,33 +899,39 @@ export default function AriseTodo() {
             );
           })}
         </nav>
-        {pinnableApps.length > 0 && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
+        {(pinnableApps.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
           <div className="space-y-0.5">
             {myNotesApps.map((p) => (
-              <button key={`notes-app-${p.id}`} type="button" onClick={() => { setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(false); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
+              <button key={`notes-app-${p.id}`} type="button" onClick={() => { closeApps(); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
               </button>
             ))}
             {pinnableSheets.map((p) => (
-              <button key={`sheets-app-${p.id}`} type="button" onClick={() => { setNotesAppOpen(null); setDriveOpen(false); setDropOpen(false); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
+              <button key={`sheets-app-${p.id}`} type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <Table className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
               </button>
             ))}
             {drivePlugin && (
-              <button type="button" onClick={() => { setNotesAppOpen(null); setSheetsAppOpen(null); setDropOpen(false); setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
+              <button type="button" onClick={() => { closeApps(); setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${driveOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <FolderOpen className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{drivePlugin.name}</span>
               </button>
             )}
             {dropPlugin && (
-              <button type="button" onClick={() => { setNotesAppOpen(null); setSheetsAppOpen(null); setDriveOpen(false); setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
+              <button type="button" onClick={() => { closeApps(); setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${dropOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
                 <QrCode className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{dropPlugin.name}</span>
               </button>
             )}
+            {myKits.map((d) => (
+              <button key={`kit-${d.id}`} type="button" onClick={() => { closeApps(); setKitOpen(d.id); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`lifehub-kit-${d.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${kitOpen === d.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <Puzzle className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{d.name}</span>
+              </button>
+            ))}
           </div>
         </div>}
         <div className={`hidden px-3 pt-2 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
@@ -983,8 +1014,15 @@ export default function AriseTodo() {
             </div>
             <DropApp say={setMessage} token={token} />
           </div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && shown === "tasks" && <>
+          {kitOpen && kitDef(kitOpen) && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setKitOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
+          </div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
             {[

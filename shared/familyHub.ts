@@ -228,6 +228,9 @@ export type Family = {
   medical: MedicalCard[];
   /** Records for the Plugin Kit's LifeHub plugins (see shared/pluginKit.ts). */
   kit: KitRecord[];
+  /** Kit plugins added from WorkHub's shelf (App Store). LifeHub's own kit plugins are menu
+   *  sections instead; these are the crossed-over ones, opened like the Notes/Sheets apps. */
+  kitInstalled?: string[];
   /** Notes-app plugins (see shared/notesApp.ts) added from the App Store that aren't built into
    *  LifeHub, by their plugin id ("life-work-notes" for Work Notes). Each keeps its own notes in
    *  notesApps, separate from LifeHub's own built-in Notes (above) and from each other. */
@@ -246,6 +249,9 @@ export type Family = {
    *  install flag — a drop itself isn't family state (see shared/dropApp.ts for why), so nothing
    *  else about it lives here. */
   dropInstalled: boolean;
+  /** The Daily Brief is OFF only when this is true: it ships on, so replacing its old header button
+   *  with an App Store app took it away from nobody. */
+  briefOff?: boolean;
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -280,9 +286,9 @@ export const emptyFamily = (): Family => ({
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], linkPage: { title: "", bio: "", links: [] },
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
-  sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [],
+  sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
   notesInstalled: [], notesApps: {},
-  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false,
+  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false,
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -599,6 +605,7 @@ export function cleanFamily(input: unknown): Family {
       return person ? { id: id(r.id), person, bloodType: str(r.bloodType, 10), allergies: str(r.allergies, 500), conditions: str(r.conditions, 500), medications: str(r.medications, 500), doctor: str(r.doctor, 200), insurance: str(r.insurance, 200), notes: str(r.notes, 1000) } : null;
     }),
     kit: cleanKit(raw.kit),
+    kitInstalled: Array.isArray(raw.kitInstalled) ? raw.kitInstalled.filter((x: unknown): x is string => typeof x === "string").slice(0, 400) : [],
     savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
     notesInstalled: Array.isArray(raw.notesInstalled) ? [...new Set(raw.notesInstalled.filter((x: unknown): x is string => typeof x === "string" && !!x && x.length <= 60))].slice(0, 20) : [],
     // Notes-app installs (shared/notesApp.ts): same shape as the built-in Notes above, one list per
@@ -626,6 +633,7 @@ export function cleanFamily(input: unknown): Family {
     })(),
     driveInstalled: bool(raw.driveInstalled, false),
     dropInstalled: bool(raw.dropInstalled, false),
+    briefOff: bool(raw.briefOff, false),
     drive: cleanDriveFiles(raw.drive),
   };
 }

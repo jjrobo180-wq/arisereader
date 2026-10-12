@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import {
   Apple, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare,
   ClipboardCheck, Clock, Droplets, Forward, GraduationCap, Handshake, HeartPulse, History, Hourglass, Landmark, Mail, MessageCircle, Newspaper, NotebookPen, Pill, Plane,
-  Plus, Puzzle, Quote, Search, ShoppingBag, ShoppingCart, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer, TrendingUp, Users, Vote, Wallet, Wind, X, Shuffle, HeartHandshake, BookOpenText, Link2, type LucideIcon,
+  Plus, Puzzle, Quote, Search, ShoppingBag, ShoppingCart, Smile, SmilePlus, Sparkles, StickyNote, Sun, Target, Timer, TrendingUp, Users, Vote, Wallet, Wind, X, Shuffle, HeartHandshake, BookOpenText, Link2, type LucideIcon,
 } from "lucide-react";
 import { ArrowLeftRight as ArrowLeftRightTile, BookOpen as BookOpenTile, Cake as CakeTile, Car as CarTile, ChefHat as ChefHatTile, CloudSun as CloudSunTile, CreditCard as CreditCardTile, Flower2 as Flower2Tile, Gift as GiftTile, Heart as HeartTile, Mountain as MountainTile, PawPrint as PawPrintTile, Phone as PhoneTile, PiggyBank as PiggyBankTile, Repeat as RepeatTile, Tv as TvTile, UtensilsCrossed as UtensilsCrossedTile, Wrench as WrenchTile } from "lucide-react";
 import { Coins as CoinsTile2, Dumbbell as DumbbellTile2, Gauge as GaugeTile2, Globe as GlobeTile2, Hammer as HammerTile2, HandCoins as HandCoinsTile2, ListChecks as ListChecksTile2, Moon as MoonTile2, ShieldCheck as ShieldCheckTile2, Star as StarTile2, Stethoscope as StethoscopeTile2, Utensils as UtensilsTile2 } from "lucide-react";
@@ -29,7 +29,7 @@ import {
 export const ICONS: Record<string, LucideIcon> = {
   Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
   GraduationCap, Handshake, HeartPulse, Landmark, Mail, MessageCircle, Newspaper, Pill, Plane, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer,
-  Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
+  Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2, Sun,
   ArrowLeftRight: ArrowLeftRightTile, BookOpen: BookOpenTile, Cake: CakeTile, Car: CarTile, ChefHat: ChefHatTile, CloudSun: CloudSunTile, CreditCard: CreditCardTile, Flower2: Flower2Tile, Gift: GiftTile, Heart: HeartTile, Mountain: MountainTile, PawPrint: PawPrintTile, Phone: PhoneTile, PiggyBank: PiggyBankTile, Repeat: RepeatTile, Tv: TvTile, UtensilsCrossed: UtensilsCrossedTile, Wrench: WrenchTile,
   Coins: CoinsTile2, Dumbbell: DumbbellTile2, Gauge: GaugeTile2, Globe: GlobeTile2, Hammer: HammerTile2, HandCoins: HandCoinsTile2, ListChecks: ListChecksTile2, Moon: MoonTile2, ShieldCheck: ShieldCheckTile2, Star: StarTile2, Stethoscope: StethoscopeTile2, Utensils: UtensilsTile2,
 };
@@ -316,7 +316,10 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
         data-testid={`plugin-${p.id}`}>
         <Tile p={p} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-bold leading-tight text-[var(--s-text)]">{p.name}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[15px] font-bold leading-tight text-[var(--s-text)]">{p.name}</span>
+            {p.recommendedFor && <span title={`Recommended for Arise ${HUB_NAME[p.recommendedFor]}`} className="shrink-0 rounded-full border border-[var(--s-line)] px-1.5 py-px text-[10px] font-black uppercase tracking-wide text-[var(--s-faint)]">{HUB_NAME[p.recommendedFor]}</span>}
+          </span>
           <span className="mt-0.5 line-clamp-2 break-words text-[13px] leading-snug text-[var(--s-sub)]">{p.tagline}</span>
         </span>
         {action(p)}
@@ -492,6 +495,9 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           <div>
             <h3 className="text-2xl font-black tracking-tight text-[var(--s-text)]">{open.name}</h3>
             <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[.14em] text-[var(--s-faint)]">{open.category}<span aria-hidden className="text-[var(--s-line)]">•</span>Made by Arise</p>
+            {open.recommendedFor && <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${soft}`} data-testid="plugin-recommended-for">
+              <Sparkles className="h-3.5 w-3.5" /> Recommended for Arise {HUB_NAME[open.recommendedFor]} — works here too
+            </p>}
             <p className="mt-3 text-[15px] leading-6 text-[var(--s-sub)]">{open.description}</p>
           </div>
           <ul className="space-y-2 rounded-2xl bg-[var(--s-raised)] p-4">{open.features.map((f) => <li key={f} className="flex items-start gap-2 text-[15px] text-[var(--s-text)]"><span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${soft}`}><Check className="h-3.5 w-3.5" /></span>{f}</li>)}</ul>

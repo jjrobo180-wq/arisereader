@@ -41,6 +41,10 @@ export type PluginTarget =
   | { kind: "connection"; needs: { tab: HubTab } | { section: FamilySection } }
   /** The AI assistant: a chat button on every page of the hub. */
   | { kind: "assistant" }
+  /** The Daily Brief (shared/dailyBrief.ts): today at a glance, opened from the store, the menu or
+   *  search, and once each morning by itself. It used to be a header button, which had nowhere to
+   *  fit — the label only appeared on very wide screens and the icon alone was easy to miss. */
+  | { kind: "brief" }
   /** Arise AI Pro: the premium, metered assistant ($10/mo, see shared/plans.ts's "ai_pro" kind and
    *  shared/aiProApp.ts's usage cap). A paid add-on like the Arise apps below, not a toggle. */
   | { kind: "assistantPro" }
@@ -64,6 +68,11 @@ export type Plugin = {
   target: PluginTarget;
   /** Shown first, in the big row at the top. */
   featured?: boolean;
+  /** Set on a plugin offered in a hub it wasn't built for. Everything that can work in both hubs is
+   *  offered in both; this only says which hub it was designed around, so the store can mark it
+   *  "Recommended for Arise LifeHub" rather than hiding it. What can't cross is structural: a
+   *  WorkHub tab or a LifeHub section is a screen the other hub doesn't have, so those stay put. */
+  recommendedFor?: PluginHub;
   /** Only teachers (and admins) see it. */
   teacherOnly?: boolean;
   /** For a connection: how to set it up, shown in the store before it sends you anywhere. */
@@ -107,6 +116,17 @@ const ARISE_APPS = (hub: PluginHub): Plugin[] => [
     features: ["Hundreds of careers", "What a day on the job looks like", "Points that count toward prizes"], target: { kind: "app", app: "social", href: "/social/" } },
 ];
 
+/** The Daily Brief, in both hubs. On unless it is removed, so it does not vanish for anyone who
+ *  was using the header button it replaces. */
+const BRIEF_PLUGIN = (hub: PluginHub): Plugin => ({
+  id: `${hub}-brief`, hub, name: "Daily Brief", tagline: "Today at a glance, every morning", category: hub === "work" ? "Teaching tools" : "Tools",
+  icon: "Sun", color: "#f29a14", featured: true, target: { kind: "brief" },
+  description: hub === "work"
+    ? "One page each morning with what today holds: your classes and service minutes, meetings, tasks due, and what is coming up this week. It opens by itself the first time you sign in each morning, and is always a tap away after that."
+    : "One page each morning with what today holds: everyone's events, what is due, meals planned, and what is coming up this week. It opens by itself the first time you open LifeHub each morning, and is always a tap away after that.",
+  features: ["Opens once each morning, on its own", "Reads itself aloud", "Copy it to share, or print it", "Turn the morning pop-up off any time"],
+});
+
 const WIDGETS_PLUGIN = (hub: PluginHub): Plugin => ({
   id: `${hub}-widgets`, hub, name: "Widgets", tagline: "Clocks, calendars, countdowns and fun widgets for Home", category: hub === "work" ? "Teaching tools" : "Tools",
   icon: "AlarmClock", color: "#6d28d9", featured: true, target: { kind: "widget", widget: "board", opens: "home" },
@@ -123,6 +143,7 @@ export const PLUGINS: readonly Plugin[] = [
     description: "The same chat button, with real headroom: longer answers, more conversation history, and help with multi-step work — a full unit plan across several lessons, a detailed IEP goal with accommodations, a staff email that needs real nuance.",
     features: ["Longer, more detailed answers", "Remembers more of the conversation", "500 messages a month", "Priced to stay fast even at busy times"], target: { kind: "assistantPro" } },
   WIDGETS_PLUGIN("work"),
+  BRIEF_PLUGIN("work"),
   { id: "work-assistant", hub: "work", name: "AI assistant", tagline: "Chat with AI about lessons, IEPs, emails and more", category: "Teaching tools", icon: "Sparkles", color: "#0f766e", featured: true, teacherOnly: true,
     description: "A chat button on every page of WorkHub. Ask for lesson ideas, help wording an IEP goal or accommodation, a parent email draft, or a quick explanation, and get a clear answer right away.",
     features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Free, with no monthly cap"], target: { kind: "assistant" } },
@@ -275,6 +296,7 @@ export const PLUGINS: readonly Plugin[] = [
     description: "A chat button on every page of LifeHub. Ask for dinner ideas, a weekend plan, help with a hard email or a kid's homework question, and get a clear answer right away.",
     features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Your chat stays on this device"], target: { kind: "assistant" } },
   WIDGETS_PLUGIN("life"),
+  BRIEF_PLUGIN("life"),
   { id: "life-stickies", hub: "life", name: "Sticky notes", tagline: "Notes you can put anywhere on Home", category: "Everyday", icon: "StickyNote", color: "#eab308", featured: true,
     target: { kind: "widget", widget: "stickies", opens: "home" },
     description: "Stick colorful notes anywhere on your LifeHub Home screen. Drag them where you want them, change the color, and they stay put on every device.",
@@ -433,32 +455,72 @@ export const PLUGINS: readonly Plugin[] = [
 ];
 
 /** The plugins one person sees in one hub. */
+// ── The same app in the other hub ────────────────────────────────────────────
+// Most apps aren't really about teaching or about home — a water log, a packing checklist, a file
+// hand-off — so keeping each one locked to the hub it was written for meant a teacher couldn't use
+// a LifeHub app and a parent couldn't use a WorkHub one. Anything whose screen can be drawn in
+// either hub is now offered in both, marked with the hub it was designed around.
+//
+// What can't cross is structural, not a policy: a "tab" is a WorkHub screen and a "section" is a
+// LifeHub screen, and neither hub has the other's. Everything else here is self-contained.
+const other = (hub: PluginHub): PluginHub => (hub === "work" ? "life" : "work");
+
+/** A Kit plugin offered in the hub it wasn't written for. Both hubs run a Kit plugin the same way
+ *  (a "kit" target, opened from the store and the menu), so every one of the 400 crosses over.
+ *  A LifeHub kit is natively a menu section; in WorkHub it becomes a kit, and vice versa. */
+const crossKitPlugin = (d: KitDef): Plugin => ({
+  id: `${other(d.hub)}-kit-${d.id}`, hub: other(d.hub), name: d.name, tagline: d.tagline, description: d.description,
+  features: d.features, category: d.category, icon: d.icon, color: d.color,
+  target: { kind: "kit", id: d.id }, recommendedFor: d.hub,
+});
+
+/** The file and sheet apps, built for LifeHub, offered in WorkHub too: nothing in them is about
+ *  home rather than school, and a teacher wanting a PDF on hand or a sheet of numbers is the same
+ *  person with the same need. Each keeps its own id so an install in one hub is its own install. */
+const CROSS_APPS: readonly Plugin[] = PLUGINS
+  .filter((p) => p.hub === "life" && (p.target.kind === "driveApp" || p.target.kind === "dropApp" || p.target.kind === "sheetsApp"))
+  .map((p) => ({ ...p, id: `work-${p.id.replace(/^life-/, "")}`, hub: "work" as const, recommendedFor: "life" as const }));
+
+const CROSS_PLUGINS: readonly Plugin[] = [...KIT_DEFS.map(crossKitPlugin), ...CROSS_APPS];
+
+/** Everything on offer anywhere: built-for-this-hub plus crossed-over. A function, not a const, so
+ *  the lookups defined above can call it without depending on declaration order. */
+const allPlugins = (): readonly Plugin[] => [...PLUGINS, ...CROSS_PLUGINS];
+
+/** Every plugin this hub can add: the ones built for it, then the ones built for the other hub that
+ *  work here all the same (marked `recommendedFor`). */
 export function pluginsFor(hub: PluginHub, opts: { teacher: boolean }): Plugin[] {
-  return PLUGINS.filter((p) => p.hub === hub && (!p.teacherOnly || opts.teacher));
+  const mine = (p: Plugin) => p.hub === hub && (!p.teacherOnly || opts.teacher);
+  return [...PLUGINS.filter(mine), ...CROSS_PLUGINS.filter(mine)];
+}
+
+/** Looks a plugin up by id across both the built-for-this-hub list and the crossed-over ones. */
+export function pluginById(hub: PluginHub, id: string): Plugin | undefined {
+  return allPlugins().find((p) => p.hub === hub && p.id === id);
 }
 
 /** A Notes-app plugin (see shared/notesApp.ts) by its App Store id, in the given hub. */
 export function notesAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
-  return PLUGINS.find((p) => p.hub === hub && p.id === id && p.target.kind === "notesApp");
+  return allPlugins().find((p) => p.hub === hub && p.id === id && p.target.kind === "notesApp");
 }
 
 /** A Sheets-app plugin (see shared/sheetsApp.ts) by its App Store id, in the given hub. */
 export function sheetsAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
-  return PLUGINS.find((p) => p.hub === hub && p.id === id && p.target.kind === "sheetsApp");
+  return allPlugins().find((p) => p.hub === hub && p.id === id && p.target.kind === "sheetsApp");
 }
 
 /** The Drive-app plugin (see shared/driveApp.ts) in the given hub, if that hub offers one. */
 export function driveAppPlugin(hub: PluginHub): Plugin | undefined {
-  return PLUGINS.find((p) => p.hub === hub && p.target.kind === "driveApp");
+  return allPlugins().find((p) => p.hub === hub && p.target.kind === "driveApp");
 }
 
 /** The Drop-app plugin (see shared/dropApp.ts) in the given hub, if that hub offers one. */
 export function dropAppPlugin(hub: PluginHub): Plugin | undefined {
-  return PLUGINS.find((p) => p.hub === hub && p.target.kind === "dropApp");
+  return allPlugins().find((p) => p.hub === hub && p.target.kind === "dropApp");
 }
 
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
-export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp" || p.target.kind === "sheetsApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp";
+export const isAddable = (p: Plugin) => p.target.kind === "brief" || p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp" || p.target.kind === "sheetsApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp";
 
 /** Where a plugin opens in its hub: a WorkHub tab or a LifeHub section. null for an Arise app. */
 export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySection } | null {
@@ -473,18 +535,41 @@ export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySecti
 // ── WorkHub ────────────────────────────────────────────────────────────────
 
 /** Is this WorkHub plugin on? A tab is on unless it was switched off. */
-export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[], assistant?: boolean, widgets?: boolean, notesInstalled?: readonly string[]): boolean {
+export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boolean>>, kitInstalled?: readonly string[], assistant?: boolean, widgets?: boolean, notesInstalled?: readonly string[], briefOff?: boolean, sheetsInstalled?: readonly string[], driveInstalled?: boolean, dropInstalled?: boolean): boolean {
   const t = p.target;
+  // The brief is on until it is taken off, so replacing the old header button with an app did not
+  // quietly remove it from everyone who had been using it.
+  if (t.kind === "brief") return !briefOff;
   if (t.kind === "widget") return t.widget === "board" && !!widgets;
   if (t.kind === "assistant") return !!assistant;
   if (t.kind === "kit") return !!kitInstalled?.includes(t.id);
   if (t.kind === "notesApp") return !!notesInstalled?.includes(t.id);
+  // Sheets, Drive and Drop were built for LifeHub and are offered here too (see CROSS_APPS).
+  if (t.kind === "sheetsApp") return !!sheetsInstalled?.includes(t.id);
+  if (t.kind === "driveApp") return !!driveInstalled;
+  if (t.kind === "dropApp") return !!dropInstalled;
   if (t.kind === "tab") return visibleTabs[t.tab] !== false;
   if (t.kind === "connection" && "tab" in t.needs) return visibleTabs[t.needs.tab] !== false;
   return false;
 }
 
 /** WorkHub's added Plugin Kit plugins with this one added or removed. */
+/** Add or remove a Kit plugin in a hub's kit list. Both hubs keep one (workspace.kitInstalled,
+ *  family.kitInstalled), since Kit plugins cross between them. */
+export function setKitInstalled(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
+  const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
+  if (p.target.kind !== "kit") return cur;
+  const id = p.target.id;
+  return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
+}
+/** Add or remove a Sheets-app install in a WorkHub workspace's list (same shape as the Notes one). */
+export function setWorkSheetsApp(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
+  const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
+  if (p.target.kind !== "sheetsApp") return cur;
+  const id = p.target.id;
+  return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
+}
+/** @deprecated Use setKitInstalled — kept so existing WorkHub call sites keep working. */
 export function setWorkKit(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
   const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
   if (p.target.kind !== "kit") return cur;
@@ -510,13 +595,16 @@ export function setWorkPlugin<V extends Partial<Record<HubTab, boolean>>>(visibl
 // ── LifeHub ────────────────────────────────────────────────────────────────
 
 /** Is this LifeHub plugin on? A section is on unless it was switched off. */
-export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "driveInstalled" | "dropInstalled">>, notesInstalled?: readonly string[], sheetsInstalled?: readonly string[]): boolean {
+export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "driveInstalled" | "dropInstalled" | "briefOff" | "kitInstalled">>, notesInstalled?: readonly string[], sheetsInstalled?: readonly string[]): boolean {
   const t = p.target;
   const sectionOn = (s: FamilySection) => isOn(s, family);
+  if (t.kind === "brief") return !family.briefOff;
   if (t.kind === "section") return sectionOn(t.section);
   if (t.kind === "layer") return !!family.layers?.[t.layer];
   if (t.kind === "widget") return !!family.widgets?.[t.widget];
   if (t.kind === "assistant") return !!(family.widgets as { chat?: boolean } | undefined)?.chat;
+  // A Kit plugin from WorkHub's shelf, added here. LifeHub's own kits are sections instead.
+  if (t.kind === "kit") return !!family.kitInstalled?.includes(t.id);
   if (t.kind === "notesApp") return !!notesInstalled?.includes(t.id);
   if (t.kind === "sheetsApp") return !!sheetsInstalled?.includes(t.id);
   if (t.kind === "driveApp") return !!family.driveInstalled;
@@ -526,8 +614,9 @@ export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "laye
 }
 
 /** The family with this plugin added or removed. Adding the WorkHub calendar also adds the Calendar section it shows in. */
-export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout" | "driveInstalled" | "dropInstalled">>>(family: F, p: Plugin, on: boolean): F {
+export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout" | "driveInstalled" | "dropInstalled" | "briefOff">>>(family: F, p: Plugin, on: boolean): F {
   const t = p.target;
+  if (t.kind === "brief") return { ...family, briefOff: !on };
   // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
   if (t.kind === "widget" && t.widget === "board") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), board: on }, layout: showSection(cleanLifeLayout(family.layout), "widgets", on) };
   if (t.kind === "widget") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), [t.widget]: on } };
