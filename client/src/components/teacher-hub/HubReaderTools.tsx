@@ -97,9 +97,12 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   const request = useCallback(async (path: string, options: RequestInit = {}) => {
     const r = await fetch(`${API_BASE}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers } });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.message || "Something went wrong. Please try again.");
+    if (!r.ok) { const e: any = new Error(data.message || "Something went wrong. Please try again."); e.code = data.code; throw e; }
     return data;
   }, [token]);
+  /** True once a Reader API call has come back "premium_required" — no plan, so nothing here is real data. */
+  const [premiumLocked, setPremiumLocked] = useState(false);
+  const noteIfLocked = (e: unknown) => { if (e instanceof Error && (e as any).code === "premium_required") setPremiumLocked(true); };
 
   // What the last action did, shown at the top of the tab.
   const [flash, setFlash] = useState<{ good: boolean; text: string } | null>(null);
@@ -124,13 +127,13 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       const [mine, waiting] = await Promise.all([request("/api/teacher/students"), request("/api/teacher/pending-students")]);
       setStudents(Array.isArray(mine) ? mine : []);
       setPending(Array.isArray(waiting) ? waiting : []);
-    } catch (e) { setLoadError(e instanceof Error ? e.message : "Your students could not be loaded."); }
+    } catch (e) { noteIfLocked(e); setLoadError(e instanceof Error ? e.message : "Your students could not be loaded."); }
     finally { setLoading(false); }
   }, [request]);
-  const loadGradeChanges = useCallback(() => request("/api/grade-change-requests").then((d) => setGradeChanges(d.requests || [])).catch(() => {}), [request]);
+  const loadGradeChanges = useCallback(() => request("/api/grade-change-requests").then((d) => setGradeChanges(d.requests || [])).catch(noteIfLocked), [request]);
   const loadBookRequests = useCallback(async () => {
     try { setBookRequests((await request("/api/teacher-admin/book-requests")).requests || []); }
-    catch { try { setBookRequests((await request("/api/notifications")).pendingRequestItems || []); } catch { /* none to show */ } }
+    catch (e) { noteIfLocked(e); try { setBookRequests((await request("/api/notifications")).pendingRequestItems || []); } catch { /* none to show */ } }
   }, [request]);
 
   useEffect(() => {
@@ -138,7 +141,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
     void loadClass();
     request("/api/proctor-password").then((d) => d?.password && setProctor(d.password)).catch(() => {});
     request("/api/banners").then((d) => d?.teacherBanner && setBanner(d.teacherBanner)).catch(() => {});
-    request("/api/comprehension/review?limit=1").then((d) => setToGrade(Number(d?.pending) || 0)).catch(() => {});
+    request("/api/comprehension/review?limit=1").then((d) => setToGrade(Number(d?.pending) || 0)).catch(noteIfLocked);
     request("/api/teacher/growth-check/overview").then((d) => d?.attempts && setGrowth(d.attempts)).catch(() => {});
     void loadGradeChanges();
     void loadBookRequests();
@@ -245,8 +248,17 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
     <button type="button" onClick={() => setFlash(null)} aria-label="Dismiss" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-white/60"><X className="h-4 w-4" /></button>
   </div>;
 
+  // Every number below is real only once there's a plan — the API calls behind it all come back
+  // "premium_required" without one, so this makes that visible instead of a silently empty dashboard.
+  const lockedNote = premiumLocked && <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" data-testid="reader-premium-locked">
+    <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+    <span className="min-w-0 flex-1">A.R.I.S.E. Reader needs the Class plan. The numbers and lists below are empty because nothing can load without it — get the Class plan to see your real students, approvals and grading.</span>
+    <a href="#/billing" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 px-3 text-sm font-bold text-slate-950 hover:bg-amber-400">Get the Class plan</a>
+  </div>;
+
   return <div className="space-y-4" data-testid={`reader-${tab}`}>
     {status}
+    {lockedNote}
 
     {tab === "reader" && <>
       <section className="rounded-3xl bg-slate-950 p-5 text-white sm:p-6 md:p-8" data-testid="reader-overview-banner">

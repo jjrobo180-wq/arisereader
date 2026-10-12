@@ -233,7 +233,7 @@ function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?
               <div className="shrink-0 text-right"><div className="text-xl font-bold text-slate-950">{usd(H.schoolYearlyCents)}</div><div className="text-xs text-slate-500">a year</div></div>
             </div>
           </div>
-          <p className="text-sm text-slate-600">Arise WorkHub starts with a 30-day free trial. After that it is sold on its own, and isn't included with A.R.I.S.E. Premium or a free school account. Everything you saved is kept.</p>
+          <p className="text-sm text-slate-600">Arise WorkHub is sold on its own, and isn't included with A.R.I.S.E. Premium or a free school account. Everything you saved is kept if you add it later.</p>
           <div className="flex flex-col gap-3 sm:flex-row">
             {!isAdmin && <a href="#/billing" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 text-base font-semibold text-white hover:bg-slate-800" data-testid="hub-get">Get Arise WorkHub</a>}
             {!embedded && <a href="#/workhub" className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-slate-200 px-5 text-base font-semibold text-slate-700 hover:bg-slate-50">Back to WorkHub</a>}
