@@ -258,7 +258,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AdminPreviewBar() {
   const { realUser, adminPreviewMode, startAdminPreview, exitAdminPreview } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+
+  // Previewing "as a student" has no meaning inside the admin console or Arise
+  // WorkHub (the admin's own tools) — if preview mode was left on from an
+  // earlier visit, drop it the moment the admin lands back here, so it can't
+  // keep silently narrowing what they can see on these pages.
+  useEffect(() => {
+    if (!adminPreviewMode) return;
+    if (location === "/admin" || location === "/workhub" || location === "/lifehub") exitAdminPreview();
+  }, [location, adminPreviewMode, exitAdminPreview]);
+
   if (!realUser?.isAdmin || !adminPreviewMode) return null;
 
   const switchMode = (mode: "regular" | "eye-gaze") => {

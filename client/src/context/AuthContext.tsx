@@ -138,9 +138,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!rawUrl.includes("/api/")) return originalFetch(input, init);
       const headers = new Headers(input instanceof Request ? input.headers : undefined);
       new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-      // The preview header goes on every call except "who am I", which must keep
-      // answering with the admin account (the preview is layered on top here).
-      if (user.isAdmin && !/\/api\/me(?:[?#]|$)/.test(rawUrl)) {
+      // The preview header goes on every call except "who am I" (which must keep
+      // answering with the admin account — the preview is layered on top here) and
+      // the admin console / Arise WorkHub's own APIs. Those are the admin's own
+      // tools, never "preview as a student" territory — sending the header there
+      // would silently demote the admin to a student server-side and lock them
+      // out of Settings, banners, and the rest of the admin console with no
+      // visible error, which is exactly the bug this guards against.
+      const isAdminOrHubApi = /\/api\/(admin\/|teacher-hub\/)/.test(rawUrl);
+      if (user.isAdmin && !isAdminOrHubApi && !/\/api\/me(?:[?#]|$)/.test(rawUrl)) {
         const previewMode = sessionStorage.getItem("arise_admin_preview_mode");
         if (previewMode === "regular" || previewMode === "eye-gaze") headers.set("X-ARISE-Admin-Preview", previewMode);
       }

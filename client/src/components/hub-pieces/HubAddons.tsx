@@ -84,7 +84,7 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
 
     <div>
       <p className={k.eyebrow}>{teacher ? "Class add-ons" : "Learning Bundle"}</p>
-      <p className={`mt-1 ${k.text}`}>{teacher ? `Your Class plan includes Reader, Math and History for 30 students per $10/month, with another $10/month per additional 30. Connect is an optional separate program.`
+      <p className={`mt-1 ${k.text}`}>{teacher ? `Your Class plan includes Reader, Math, History and A.R.I.S.E. Connect for 30 students per $10/month, with another $10/month per additional 30.`
         : role === "parent" ? `One plan covers you and every child you've linked: ${money(data.prices.familyBundleCents)}/month. If a child's teacher adds all three for the class, we refund your unused days.`
         : "Three more ways to learn and earn points, right next to your reading."}</p>
     </div>
@@ -94,14 +94,14 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
       let right: ReactNode = null;
       if (teacher) {
         if (a.paidByYou && live) right = <button type="button" className={k.ghost} disabled={!!busy} onClick={() => go(`m-${app.id}`, "/api/billing/addon-portal", { product: app.id, returnPath })}>Manage previous plan</button>;
-        else if (live || (app.id !== "social" && data.premium)) right = <Pill which={which} tone="green">Included with Class</Pill>;
+        else if (live || data.premium) right = <Pill which={which} tone="green">Included with Class</Pill>;
         else if (!data.premium) right = <a className={k.ghost} href="/#/billing">Get the Class plan first</a>;
         else right = <button type="button" className={k.primary} disabled={!!busy || !data.payment} onClick={() => go(app.id, "/api/billing/addon-checkout", { product: app.id, returnPath })} data-testid={`addons-buy-${app.id}`}>{busy === app.id ? "Opening…" : `Add · ${money(data.prices.classApps[app.id])}/mo`}</button>;
       }
-      const status = teacher && app.id !== "social" && data.premium ? "Included with Class" : teacher ? (live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${fmtDay(a.plan.endsAt)}` : ""}`) : "Off") : app.sub;
+      const status = teacher && data.premium ? "Included with Class" : teacher ? (live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${fmtDay(a.plan.endsAt)}` : ""}`) : "Off") : app.sub;
       return <li key={app.id} className={`${k.row} flex flex-wrap items-center gap-3`} data-testid={`addons-${teacher ? "class" : "app"}-${app.id}`}>
         <span className={k.tile}><Icon className="h-5 w-5" /></span>
-        <a href={app.href} className="min-w-0 flex-1 hover:underline"><span className={`block ${k.h}`}>{app.label}{teacher && app.id === "social" ? <span className="font-normal text-slate-500"> · optional</span> : null}</span><span className={`block ${k.small}`}>{status}</span></a>
+        <a href={app.href} className="min-w-0 flex-1 hover:underline"><span className={`block ${k.h}`}>{app.label}</span><span className={`block ${k.small}`}>{status}</span></a>
         {right}
       </li>;
     })}</ul>

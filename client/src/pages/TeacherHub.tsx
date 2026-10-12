@@ -1,6 +1,6 @@
 import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox } from "@/components/teacher-hub/HubInbox";
 import { markEmailRead } from "@shared/hubInbox";
-import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
@@ -300,16 +300,29 @@ function TeacherHubPage() {
   const { user, token, logout } = useAuth();
   // Coming back from connecting a mailbox lands on the meetings tab, where the polls are.
   // The old teacher dashboard address opens the A.R.I.S.E. Reader tab (see OpenHubTab in App.tsx).
-  const [tab, setTab] = useState<HubTab>(() => {
+  // Which tab is showing is remembered per account (sessionStorage key below), so a
+  // browser refresh lands back where the teacher/parent actually was instead of
+  // always resetting to Overview.
+  const lastTabKey = `workhub_last_tab_${user?.id ?? "x"}`;
+  const [tab, setTabState] = useState<HubTab>(() => {
     if (/[?&]mailbox=/.test(window.location.search)) return "iep";
     try {
       const asked = sessionStorage.getItem("workhub_tab");
       sessionStorage.removeItem("workhub_tab");
       if (asked === "admin") return asked;
       if (asked === "reader") return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab"));
+      const remembered = sessionStorage.getItem(lastTabKey);
+      if (remembered) return remembered as HubTab;
     } catch { /* Home */ }
     return "overview";
   });
+  const setTab = useCallback((next: HubTab | ((prev: HubTab) => HubTab)) => {
+    setTabState((prev) => {
+      const value = typeof next === "function" ? (next as (prev: HubTab) => HubTab)(prev) : next;
+      try { sessionStorage.setItem(lastTabKey, value); } catch { /* not remembered */ }
+      return value;
+    });
+  }, [lastTabKey]);
   // Going to an old address (the old dashboard, #/admin, or back to one) while WorkHub is open picks the tab here.
   const [location] = useLocation();
   useEffect(() => {
