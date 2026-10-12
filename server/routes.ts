@@ -1471,7 +1471,11 @@ export async function registerRoutes(
   // each page can show its free-trial countdown or how to keep it.
   for (const [base, which, name] of [["/api/math", "math", "Arise Math"], ["/api/history", "history", "Arise History"]] as const) {
     app.use(base, addonGate(
-      (method, path) => method === "GET" && (path === `${base}/catalog` || path === `${base}/me`),
+      // The printable worksheet is open too. It is opened with window.open in a new tab, and a new
+      // tab carries no Authorization header (this app signs in with a Bearer token, not a cookie),
+      // so behind the gate it answered 401 and the tab showed that error instead of the worksheet.
+      // Leaving it open is what the route intends: generated problems, never any student data.
+      (method, path) => method === "GET" && (path === `${base}/catalog` || path === `${base}/me` || path === `${base}/worksheet`),
       (user) => plans.appAccess(user, which),
       "bundle_required", `${name} needs a class add-on from your teacher or a family Learning Bundle. Start it from your plan page.`,
     ));

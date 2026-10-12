@@ -158,6 +158,16 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 
+  /* Tapping a control twice quickly fired the browser's double-tap-to-zoom, so an impatient second
+     tap on the menu button left the page zoomed in. `manipulation` turns off double-tap zoom on
+     controls only — pinch-to-zoom still works everywhere, which matters for anyone who needs it,
+     so this is the fix rather than user-scalable=no on the viewport. It also drops the 300ms wait
+     some mobile browsers add before a tap counts, so buttons feel quicker. */
+  button, a, [role="button"], [role="menuitem"], [role="tab"], summary,
+  input[type="button"], input[type="submit"], input[type="checkbox"], input[type="radio"], label {
+    touch-action: manipulation;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Barlow', Arial, Helvetica, sans-serif;
     font-weight: 700;

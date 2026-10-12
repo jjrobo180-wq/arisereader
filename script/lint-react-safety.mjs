@@ -1,11 +1,15 @@
-// Catches the two runtime mistakes that type-checking and bundling both let through:
+// Catches the runtime mistakes that type-checking and bundling both let through:
 //
 //   1. a hook (useState, useEffect, useMemo…) called below an early return, so a component
 //      runs a different number of hooks on different renders and React throws;
 //   2. a const or let read earlier in a function than it is declared, which throws a
-//      ReferenceError the moment that line runs.
+//      ReferenceError the moment that line runs;
+//   3. a <Component /> that is never imported or declared in its file. esbuild treats an unknown
+//      capitalised name as a global rather than an error, so the bundle builds clean and the page
+//      dies the moment that element renders. An icon added to a menu without adding it to the
+//      lucide-react import is the usual way in.
 //
-// Both shipped broken pages in October 2026. Run with: npm run lint:safety
+// All three shipped broken pages in October 2026. Run with: npm run lint:safety
 import ts from "typescript";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -109,6 +113,47 @@ function checkBody(body, file, src) {
   for (const stmt of body.statements) flagReads(stmt);
 }
 
+/** --- 3. a <Component /> nothing in this file defines ---
+ *  Every name bound anywhere in the file is collected first (imports, functions, variables,
+ *  classes, enums, parameters), then each capitalised JSX tag is checked against it. Lower-case
+ *  tags are HTML, and a dotted tag (<Foo.Bar />) is checked on its leftmost name only. */
+function checkUndefinedComponents(src, file) {
+  const bound = new Set(["React", "Fragment"]);
+  const bind = (name) => {
+    if (!name) return;
+    if (ts.isIdentifier(name)) bound.add(name.text);
+    else if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+      for (const el of name.elements) if (ts.isBindingElement(el)) bind(el.name);
+    }
+  };
+  const collect = (node) => {
+    if (ts.isImportDeclaration(node) && node.importClause) {
+      if (node.importClause.name) bound.add(node.importClause.name.text);
+      const nb = node.importClause.namedBindings;
+      if (nb && ts.isNamespaceImport(nb)) bound.add(nb.name.text);
+      if (nb && ts.isNamedImports(nb)) for (const e of nb.elements) bound.add(e.name.text);
+    }
+    if (ts.isImportEqualsDeclaration(node)) bound.add(node.name.text);
+    if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node) || ts.isEnumDeclaration(node)) && node.name) bound.add(node.name.text);
+    if (ts.isVariableDeclaration(node)) bind(node.name);
+    if (ts.isParameter(node)) bind(node.name);
+    node.forEachChild(collect);
+  };
+  collect(src);
+
+  const check = (node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      let tag = node.tagName;
+      while (ts.isPropertyAccessExpression(tag)) tag = tag.expression;
+      if (ts.isIdentifier(tag) && /^[A-Z]/.test(tag.text) && !bound.has(tag.text)) {
+        report(file, tag, src, `<${tag.text}> is used here but never imported or defined in this file — the bundle builds, then the page crashes when it renders`);
+      }
+    }
+    node.forEachChild(check);
+  };
+  check(src);
+}
+
 for (const file of files(SRC)) {
   const src = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const visit = (node) => {
@@ -116,6 +161,7 @@ for (const file of files(SRC)) {
     node.forEachChild(visit);
   };
   visit(src);
+  checkUndefinedComponents(src, file);
 }
 
 if (problems.length) {

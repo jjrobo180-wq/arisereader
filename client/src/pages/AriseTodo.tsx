@@ -5,7 +5,7 @@ import { useTodoCloud } from "@/lib/useTodoCloud";
 
 import { goToSignIn } from "@/lib/hubs";
 import {
-  ArrowLeft, CalendarDays, Check, CheckCircle2,
+  ArrowLeft, CalendarDays, Check, CheckCircle2, CheckSquare,
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
@@ -611,6 +611,18 @@ export default function AriseTodo() {
    *  are menu sections; these crossed-over ones work like a Notes-app install. */
   const [kitOpen, setKitOpenState] = useState<string | null>(null);
   const setKitOpen = (id: string | null) => { setKitOpenState(id); if (id) window.scrollTo({ top: 0 }); };
+  /** The floating add menu (bottom right), the same idea as WorkHub's: one button that adds
+   *  anything, instead of a + wedged into the header beside the search, bell and ⋯ buttons. */
+  const [addMenu, setAddMenu] = useState(false);
+  const addRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!addMenu) return;
+    const away = (e: MouseEvent) => { if (addRef.current && !addRef.current.contains(e.target as Node)) setAddMenu(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAddMenu(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [addMenu]);
   /** Leaves whatever full-page app is open. Every nav entry calls this before opening its own, so
    *  one more app can never leave a stale one showing — which is what made tapping Home while Drop
    *  was open look like a frozen screen. */
@@ -824,7 +836,7 @@ export default function AriseTodo() {
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
-          <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">A.R.I.S.E. To-Do · Life</span>
+          <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">To Do</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {(user.role === "teacher" || user.role === "parent" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
@@ -835,7 +847,6 @@ export default function AriseTodo() {
           <button onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="lifehub-plugin-store-header"><ShoppingBag size={16} /> <span className="hidden lg:inline">App Store</span></button>
           <button onClick={() => setCustomizing(true)} aria-label="Customize your LifeHub" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="life-customize"><Settings2 size={16} /> <span className="hidden lg:inline">Customize</span></button>
           <button onClick={() => void signOut()} aria-label="Sign out" title="Sign out" className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex"><LogOut size={16} /></button>
-          <button onClick={openAdd} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf] sm:hidden" aria-label="Add task"><Plus size={18} /></button>
           <div className="relative sm:hidden">
             <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700" data-testid="life-more"><MoreHorizontal size={20} /></button>
             {more && <>
@@ -851,8 +862,40 @@ export default function AriseTodo() {
         </div>
       </div>
     </header>
-    {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift={layout.menuSide === "bottom"} />}
+    {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift raiseRem={layout.menuSide === "bottom" && phone.open ? 4.9 : 0} />}
     {searching && <HubSearch entries={searchEntries} hubName="LifeHub" accent="bg-[#292446]" onClose={() => setSearching(false)} />}
+    {/* One floating button that adds anything, mirroring WorkHub. It sits clear of the phone menu
+        when that menu is along the bottom or the right, so it never covers the menu's own buttons. */}
+    <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
+      {addMenu && (
+        <div role="menu" aria-label="Add to your To Do" data-testid="life-add-menu"
+          className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {[
+            { key: "task", label: "Task", detail: "", icon: <CheckSquare size={16} />, go: openAdd },
+            { key: "list", label: "List", detail: "A new list of tasks", icon: <FolderPlus size={16} />, go: () => setAddingList(true) },
+            { key: "calendar", label: "Event", detail: "", icon: <CalendarDays size={16} />, go: () => goSection("calendar"), section: "calendar" },
+            { key: "grocery", label: "Grocery item", detail: "", icon: <ShoppingCart size={16} />, go: () => goSection("grocery"), section: "grocery" },
+            { key: "notes", label: "Note", detail: "", icon: <StickyNote size={16} />, go: () => goSection("notes"), section: "notes" },
+            { key: "money", label: "Bill or expense", detail: "", icon: <Wallet size={16} />, go: () => goSection("money"), section: "money" },
+          ].filter((item) => !item.section || sections.includes(item.section as FamilySection)).map((item) => (
+            <button key={item.key} type="button" role="menuitem" data-testid={`life-add-${item.key}`}
+              onClick={() => { setAddMenu(false); closeApps(); item.go(); }}
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <span className="text-slate-500">{item.icon}</span>
+              <span className="min-w-0">
+                <span className="block truncate">{item.label}</span>
+                {item.detail && <span className="block truncate text-xs text-slate-500">{item.detail}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <button type="button" onClick={() => setAddMenu((v) => !v)} aria-haspopup="menu" aria-expanded={addMenu}
+        aria-label="Add to your To Do" data-testid="life-add-button"
+        className="inline-flex h-14 items-center gap-2 rounded-full bg-[#6e5ae0] px-5 text-base font-semibold text-white shadow-lg transition hover:bg-[#5948c8]">
+        <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} size={20} /> Add
+      </button>
+    </div>
     {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
     <PhoneMenu items={phoneItems} side={layout.menuSide} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>

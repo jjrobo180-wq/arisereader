@@ -15,8 +15,14 @@ const NAME: Record<Hub, string> = { work: "WorkHub", life: "LifeHub" };
 const keyFor = (hub: Hub) => `arise-chat-${hub}`;
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
-/** The chat button and panel. `accent` colours the button and the person's messages. `lift` raises the button above another floating button. */
-export function HubChat({ hub, token, accent, lift = false }: { hub: Hub; token: string | null; accent: string; lift?: boolean }) {
+/** The chat button and panel. `accent` colours the button and the person's messages.
+ *
+ *  Both floating buttons sit at the bottom right, so their heights have to be worked out together
+ *  or they land on top of each other. `lift` means an Add button sits below this one, so raise by
+ *  its height; `raiseRem` is how far that Add button has itself been raised to clear a phone menu
+ *  running along the bottom. Lift alone wasn't enough: with the menu along the bottom the Add
+ *  button rose past the chat button and the two overlapped. */
+export function HubChat({ hub, token, accent, lift = false, raiseRem = 0 }: { hub: Hub; token: string | null; accent: string; lift?: boolean; raiseRem?: number }) {
   const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<Turn[]>(() => { try { return JSON.parse(sessionStorage.getItem(keyFor(hub)) || "[]"); } catch { return []; } });
   const [draft, setDraft] = useState("");
@@ -59,7 +65,7 @@ export function HubChat({ hub, token, accent, lift = false }: { hub: Hub; token:
 
   return <>
     {!open && <button type="button" onClick={() => setOpen(true)} aria-label="Open the AI assistant" data-testid="hub-chat-open"
-      className={`fixed right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition active:scale-90 ${accent} ${lift ? "bottom-[calc(max(1.25rem,env(safe-area-inset-bottom))+4.25rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"}`}>
+      className={`fixed right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition active:scale-90 ${accent} `} style={{ bottom: `calc(max(1.25rem, env(safe-area-inset-bottom)) + ${(lift ? 4.25 : 0) + raiseRem}rem)` }}>
       <Sparkles className="h-6 w-6" />
     </button>}
     {open && <div className="fixed inset-0 z-[650] flex items-end justify-end bg-slate-950/20 sm:bg-transparent sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
