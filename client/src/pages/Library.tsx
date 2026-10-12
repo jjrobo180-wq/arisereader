@@ -1370,7 +1370,7 @@ export default function Library() {
                         )}
                         {!user?.is_eye_gaze_user && (
                           <a href="/social/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <Users className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Arise Social<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
+                            <Users className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">A.R.I.S.E. Connect<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </a>
                         )}
                         <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
@@ -1394,7 +1394,7 @@ export default function Library() {
                     <div className="space-y-1">
                       {user?.isAdmin && <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Admin</button>}
                       {user?.role === 'teacher' && <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Teacher Dashboard</button>}
-                      <a href="/social/" className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Users className="mr-2 inline h-4 w-4" /> Arise Social</a>
+                      <a href="/social/" className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Users className="mr-2 inline h-4 w-4" /> A.R.I.S.E. Connect</a>
                       <button onClick={() => { if (realUser?.isAdmin) { startAdminPreview("regular"); navigate("/profile"); } else { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); } setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><User className="mr-2 inline h-4 w-4" /> Account</button>
                     </div>
                   )}

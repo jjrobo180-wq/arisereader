@@ -1,4 +1,4 @@
-// The add-ons card: Arise History, Arise Math, Arise Social and Arise LifeHub.
+// The add-ons card: Arise History, Arise Math, A.R.I.S.E. Connect and Arise LifeHub.
 // It shows each person what they have and the right way to get it: parents buy the Learning
 // Bundle (all three) for the family, teachers add each app for their class on top of the
 // Class plan, and students are told to ask a grown-up. No part of the site has a free trial.
@@ -49,7 +49,7 @@ const REASON: Record<string, string> = {
   "family-plan": "Included with your family’s plan",
   "class-plan": "On for your class",
   "child-in-class": "Included through your children’s class plans",
-  "social-plan": "Included with your Arise Social plan",
+  "social-plan": "Included with your A.R.I.S.E. Connect plan",
   admin: "Included for admins",
   demo: "Included in this sample account",
   hub: "Included with Arise WorkHub",
@@ -104,7 +104,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       ...(user.role !== "student" ? [{ href: "/#/lifehub", label: "LifeHub", icon: CheckSquare, tone: "text-emerald-400", testId: "button-teacher-todo" }] : []),
       { href: "/history/", label: "Arise History", icon: Landmark, tone: "text-amber-400", testId: "button-teacher-history" },
       { href: "/math/", label: "Arise Math", icon: Calculator, tone: "text-cyan-400", testId: "button-teacher-math" },
-      { href: "/social/", label: "Arise Social", icon: Users, tone: "text-violet-400", testId: "button-teacher-social" },
+      { href: "/social/", label: "A.R.I.S.E. Connect", icon: Users, tone: "text-violet-400", testId: "button-teacher-social" },
     ];
     const bundle = data?.bundle;
     const status = !bundle || bundle.access ? "" : "Not added";
@@ -133,7 +133,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
 
   if (!user || !data) return null;
   const role = data.role;
-  const b = data.bundle, t = data.todo;
+  const b = data.bundle;
   const btn = "inline-flex min-h-10 items-center justify-center rounded-full px-4 text-sm font-black disabled:opacity-50";
   const primary = `${btn} bg-violet-700 text-white hover:bg-violet-800`;
   const ghost = `${btn} border border-slate-200 bg-white text-[#141b32] hover:border-violet-300 hover:bg-violet-50`;
@@ -141,7 +141,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
   const apps: { id: AppId; href: string; label: string; sub: string; icon: typeof Landmark; tone: string }[] = [
     { id: "history", href: "/history/", label: "Arise History", sub: "True stories and quizzes", icon: Landmark, tone: "text-amber-600" },
     { id: "math", href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator, tone: "text-cyan-600" },
-    { id: "social", href: "/social/", label: "Arise Social", sub: "Explore every career", icon: Users, tone: "text-violet-600" },
+    { id: "social", href: "/social/", label: "A.R.I.S.E. Connect", sub: "Explore every career", icon: Users, tone: "text-violet-600" },
   ];
 
   let bundleAction: ReactNode = null;
@@ -187,10 +187,10 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-600">{role === "teacher" ? "Class add-ons" : "Learning Bundle"}</p>
-          <h2 className="mt-1 text-xl font-black text-[#141b32]">Arise History, Arise Math & Arise Social</h2>
+          <h2 className="mt-1 text-xl font-black text-[#141b32]">Arise History, Arise Math & A.R.I.S.E. Connect</h2>
           <p className="mt-1 text-sm text-slate-600">
-            {role === "teacher" ? `Arise Math and Arise History are included free with your Class plan, for up to ${data.prices.classSeats} students. Arise Social is a separate monthly add-on.`
-              : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher adds all three for the class, we refund your unused days.`
+            {role === "teacher" ? `Arise Math and Arise History are included free with your Class plan, for up to ${data.prices.classSeats} students. A.R.I.S.E. Connect is a separate monthly add-on. A.R.I.S.E. To-Do (Work and Life hubs) is free on every plan.`
+              : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher adds all three for the class, we refund your unused days. A.R.I.S.E. To-Do (Work and Life hubs) is free on every plan.`
               : "Three more ways to learn and earn points, right next to your reading."}
           </p>
         </div>
@@ -213,7 +213,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
         {role !== "teacher" && b.access && b.via && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${day(b.endsAt)}` : ""}</p>}
         {!b.access && <p className="text-sm font-bold text-amber-700">{role === "teacher" ? "Add the ones your class uses." : "Not added yet."}</p>}
         {role === "student" && !b.access && <p className="text-sm text-slate-600">Ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
-        {role === "teacher" && <p className="text-xs text-slate-500">Math and History are included for up to {data.prices.classSeats} students; you have {data.students ?? 0}. Add Arise Social for the same class. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three covered.</p>}
+        {role === "teacher" && <p className="text-xs text-slate-500">Math and History are included for up to {data.prices.classSeats} students; you have {data.students ?? 0}. Add A.R.I.S.E. Connect for the same class. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three covered.</p>}
         {role === "parent" && !!data.children?.length && (
           <div className="flex flex-wrap gap-2">{data.children.map((k) => <span key={k.id} className={`rounded-full border px-3 py-1 text-xs font-bold ${k.coveredByClass ? "border-emerald-300 text-emerald-700" : "border-slate-200 text-slate-600"}`}>{k.name}{k.coveredByClass ? " · covered by class" : ""}</span>)}</div>
         )}
@@ -226,17 +226,13 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
         <div className="mt-5 border-t border-slate-200 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-base font-black text-[#141b32]"><BookOpen className="h-4 w-4 text-emerald-600" />Arise LifeHub</p>
-              <p className="text-sm text-slate-600">{role === "teacher" ? "Comes with Arise WorkHub: one subscription, both tools." : "Lists, chores, the family calendar and more. Free for every parent."}</p>
+              <p className="flex items-center gap-2 text-base font-black text-[#141b32]"><BookOpen className="h-4 w-4 text-emerald-600" />A.R.I.S.E. To-Do</p>
+              <p className="text-sm text-slate-600">{role === "teacher" ? "Arise WorkHub and LifeHub: free for every teacher, no subscription." : "Lists, chores, the family calendar and more. Free for every parent."}</p>
             </div>
             <a className={ghost} href="/#/lifehub">Open LifeHub</a>
           </div>
           <div className="mt-3 space-y-3">
-            {t.access && t.via && REASON[t.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[t.via]}</p>}
-            {!t.access && <p className="text-sm font-bold text-amber-700">{role === "teacher" ? "Get Arise WorkHub to use LifeHub." : "LifeHub needs a plan."}</p>}
-            <div className="flex flex-wrap gap-2">
-              {role === "teacher" && data.hub?.via !== "hub-teacher-plan" && data.hub?.via !== "hub-school-plan" && <a className={ghost} href="/#/billing">Arise WorkHub: {money(data.prices.hubCents)}/month</a>}
-            </div>
+            <p className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />Free on every plan. No charge, no subscription.</p>
           </div>
         </div>
       )}

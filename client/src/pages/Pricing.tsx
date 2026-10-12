@@ -47,7 +47,7 @@ export default function Pricing() {
           <h2 className="mt-3 text-2xl font-black">A.R.I.S.E. Reader</h2>
           <p className="mt-3 text-5xl font-black">$0 <span className="text-sm font-semibold text-slate-500">forever</span></p>
           <p className="mt-4 text-sm leading-6 text-slate-600">100% free for every student and their parent or guardian, with up to {kids} linked children per parent.</p>
-          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Reading library &amp; book quizzes</li><li>✓ Progress, achievements &amp; points</li><li>✓ Games &amp; accessible reading</li><li>✓ Parent monitoring and learning support</li></ul>
+          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Reading library &amp; book quizzes</li><li>✓ Progress, achievements &amp; points</li><li>✓ Games &amp; accessible reading</li><li>✓ Parent monitoring and learning support</li><li>✓ A.R.I.S.E. To-Do (Work &amp; Life hubs) included free</li></ul>
           <button onClick={startReading} className="mt-7 w-full rounded-xl border border-violet-300 bg-violet-50 px-5 py-3 font-bold text-violet-800" data-testid="pricing-start-free">Start reading free</button>
         </article>
         <article className="rounded-[1.75rem] border-2 border-violet-600 bg-white p-6 shadow-xl shadow-violet-100" data-testid="pricing-family">
@@ -55,7 +55,7 @@ export default function Pricing() {
           <h2 className="mt-3 text-2xl font-black">Math, History &amp; Connect</h2>
           <p className="mt-3 text-5xl font-black">{usd(PLANS.bundle.familyMonthlyCents)} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
           <p className="mt-4 text-sm leading-6 text-slate-600">One price for the parent and all {kids} linked children. Reading stays free even without the bundle.</p>
-          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ A.R.I.S.E. Math</li><li>✓ A.R.I.S.E. History</li><li>✓ A.R.I.S.E. Connect</li><li>✓ Family access across linked accounts</li></ul>
+          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ A.R.I.S.E. Math</li><li>✓ A.R.I.S.E. History</li><li>✓ A.R.I.S.E. Connect</li><li>✓ Family access across linked accounts</li><li>✓ A.R.I.S.E. To-Do (Work &amp; Life hubs) included free</li></ul>
           <button onClick={familyPlan} className="mt-7 w-full rounded-xl bg-violet-700 px-5 py-3 font-bold text-white">Get the family bundle</button>
         </article>
         <article className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm" data-testid="pricing-class">
@@ -63,7 +63,7 @@ export default function Pricing() {
           <h2 className="mt-3 text-2xl font-black">Class Learning</h2>
           <p className="mt-3 text-5xl font-black">{perBlock} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
           <p className="mt-4 text-sm leading-6 text-slate-600">Includes A.R.I.S.E. Reader, Math and History for up to {block} students. Add another {block} students for {perBlock} more per month.</p>
-          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Reader classroom dashboard &amp; quizzes</li><li>✓ Math and History included</li><li>✓ {block} students per paid block</li><li>✓ Parent accounts remain free</li></ul>
+          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Reader classroom dashboard &amp; quizzes</li><li>✓ Math and History included</li><li>✓ {block} students per paid block</li><li>✓ Parent accounts remain free</li><li>✓ A.R.I.S.E. To-Do (Work &amp; Life hubs) included free</li></ul>
           <button onClick={teacherPlan} className="mt-7 w-full rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white" data-testid="pricing-get-premium">View class plan</button>
         </article>
       </section>

@@ -113,7 +113,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
     <PageHead eyebrow="A.R.I.S.E. Reader" title={child ? `${child.displayName}'s reading` : "Your readers"}
       blurb="Your children's reading, quizzes and certificates, the family proctor code, game time and prizes."
       action={<div className="flex flex-wrap gap-2">
-        <a href="/social/" className={plain + " min-h-11"}><Users size={16} /> Arise Social</a>
+        <a href="/social/" className={plain + " min-h-11"}><Users size={16} /> A.R.I.S.E. Connect</a>
         <button type="button" onClick={() => setAdding(true)} className={primary + " min-h-11"}><UserPlus size={16} /> Add child</button>
       </div>} />
 

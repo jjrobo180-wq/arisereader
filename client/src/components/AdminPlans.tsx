@@ -30,8 +30,8 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-
 const select = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
 const KIND_LABEL: Record<PlanKind, string> = {
   school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Arise WorkHub · School", hub_teacher: "Arise WorkHub · Teacher",
-  social: "Arise Social · Account (old)", bundle_family: "Learning Bundle · Family", bundle_teacher: "Learning Bundle · Class (old)",
-  todo_family: "LifeHub · Family", math_class: "Arise Math · Class", history_class: "Arise History · Class", social_class: "Arise Social · Class",
+  social: "A.R.I.S.E. Connect · Account (old)", bundle_family: "Learning Bundle · Family", bundle_teacher: "Learning Bundle · Class (old)",
+  todo_family: "LifeHub · Family", math_class: "Arise Math · Class", history_class: "Arise History · Class", social_class: "A.R.I.S.E. Connect · Class",
 };
 /** Plans given to one parent account, picked by its ID. */
 const byAccountId = (k: PlanKind) => k === "social" || k === "bundle_family" || k === "todo_family";
@@ -211,7 +211,7 @@ export default function AdminPlans() {
                     <option value="hub_teacher">Arise WorkHub: one teacher</option>
                     <option value="math_class">Arise Math: one teacher's class</option>
                     <option value="history_class">Arise History: one teacher's class</option>
-                    <option value="social_class">Arise Social: one teacher's class</option>
+                    <option value="social_class">A.R.I.S.E. Connect: one teacher's class</option>
                     <option value="bundle_family">Learning Bundle: one family (parent account ID)</option>
                     <option value="todo_family">Arise LifeHub: one family (parent account ID)</option>
                   </select>

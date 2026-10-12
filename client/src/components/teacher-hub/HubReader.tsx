@@ -11,7 +11,7 @@ const PROGRAMS = [
   { href: "/#/library", label: "A.R.I.S.E. Reader", detail: "Library, quizzes and reading", icon: BookOpen, tint: "bg-violet-50 text-violet-700" },
   { href: "/math/", label: "Arise Math", detail: "Class add-on", icon: Calculator, tint: "bg-sky-50 text-sky-700" },
   { href: "/history/", label: "Arise History", detail: "Class add-on", icon: Landmark, tint: "bg-amber-50 text-amber-700" },
-  { href: "/social/", label: "Arise Social", detail: "Class add-on", icon: Users, tint: "bg-pink-50 text-pink-700" },
+  { href: "/social/", label: "A.R.I.S.E. Connect", detail: "Class add-on", icon: Users, tint: "bg-pink-50 text-pink-700" },
   { href: "/#/lifehub", label: "Arise LifeHub", detail: "Your own lists and calendar", icon: CheckCheck, tint: "bg-emerald-50 text-emerald-700" },
 ];
 

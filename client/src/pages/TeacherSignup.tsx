@@ -162,7 +162,7 @@ export default function TeacherSignup() {
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval. Arise WorkHub and Arise LifeHub are free from day one. The Class plan (A.R.I.S.E. Reader for your students) starts at {usd(PLANS.teacher.monthlyCents)}/month, and Arise Math, Arise History and Arise Social are optional add-ons for your class — no trial on anything.</span>
+              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval. Arise WorkHub and Arise LifeHub (A.R.I.S.E. To-Do) are free from day one, on every plan. The Class plan (A.R.I.S.E. Reader, Math and History for your students) starts at {usd(PLANS.teacher.monthlyCents)}/month, and A.R.I.S.E. Connect is an optional add-on for your class — no trial on anything.</span>
             </div>
             <Field id="teacher-display-name" label="Display Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="teacher-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
