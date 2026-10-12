@@ -1083,7 +1083,9 @@ export default function EyeGazeMyWorld() {
                                   <label className="mt-3 min-h-12 rounded-2xl bg-violet-50 border-2 border-violet-100 px-4 flex items-center justify-center gap-2 font-black cursor-pointer">
                                     {itemFile?.type.startsWith("video/") ? <Video className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
                                     {itemFile ? itemFile.name : "Optional teaching photo/video"}
-                                    <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" capture="environment" className="hidden" onChange={e => setItemFile(e.target.files?.[0] || null)} />
+                                    {/* No `capture`: it opens the camera and nothing else, so a photo or video
+                                        already on the phone, or one in Files or Drive, could not be picked. */}
+                                    <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" onChange={e => setItemFile(e.target.files?.[0] || null)} />
                                   </label>
                                 </div>
                               </div>
