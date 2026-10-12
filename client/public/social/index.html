@@ -533,7 +533,7 @@ const fail = e => toast(e?.message || 'Something went wrong. Please try again.')
 function tabs(){
   const r = role();
   if (ME && !ME.access) return [];
-  if (r==='student') return [['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]).concat([['profile','Profile','passport']]);
+  if (r==='student') return [['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]).concat([['profile','Achievements','passport']]);
   if (r==='teacher') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['events','Events','event'],['explore','Explore','explore']];
   if (r==='admin') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
   if (r==='parent') return [['family','Home','feed'],['explore','Explore','explore'],['paths','Paths','paths']];
@@ -796,14 +796,19 @@ function viewProfile(){
   const done = CAT.quests[u.band].filter(q=>p.quests[q.id]==='done');
   const tops = topClusters(p,2);
   return `<div class="card flush prof"><div class="cover tall"></div><div class="head">${av(u.name,'xl')}
-      <h1>${esc(u.name)}</h1><p class="hl">${esc(roleLine())}${tops.length?` · Into ${esc(tops.join(' and '))}`:''}</p>
+      <span class="eyebrow">My A.R.I.S.E. Connect achievement portfolio</span><h1>${esc(u.name)}</h1><p class="hl">${esc(roleLine())}${tops.length?` · Into ${esc(tops.join(' and '))}`:''}</p>
       <p class="loc">${esc(CAT.bands[u.band].crew)} · Level ${p.level+1} ${esc(p.levelName)} · ${p.xp} XP · ${p.streak}-day streak</p>
       <div class="row" style="margin-top:12px"><button class="btn primary" data-act="tab" data-v="explore">${svg('plus')}Add careers</button><button class="btn outline" data-act="tab" data-v="quests">Do a quest</button></div>
       ${yb?'':`<div class="open-to"><b>Open to</b><span>${tops.length?`Job shadows and summer programs in ${esc(tops.join(' and '))}`:'Job shadows, summer programs, and club invites'}</span></div>`}
     </div></div>
-    <div class="card"><div class="card-h"><h2>Collection</h2><span class="muted small tnum">${p.collected.length} of ${CAT.careers.length}</span></div>
+    <div class="grid two">
+      <div class="card"><p class="muted small">Achievements unlocked</p><h2 style="font-size:2.3rem;margin-top:6px">${p.badges.length}</h2><p class="muted small">Earned badges and recognition</p></div>
+      <div class="card"><p class="muted small">Learning challenges completed</p><h2 style="font-size:2.3rem;margin-top:6px">${done.length}</h2><p class="muted small">Projects and career exploration quests</p></div>
+    </div>
+    <div class="notice">${svg('lock')}<div><b>Your connections are private by design.</b><br><span class="muted">Teacher-approved class posts are the only shared student activity today. Searching or following other children is disabled until parent/teacher-approved class connections and parent-approved homeschool sharing are ready.</span></div></div>
+    <div class="card"><div class="card-h"><h2>Careers &amp; skills explored</h2><span class="muted small tnum">${p.collected.length} of ${CAT.careers.length}</span></div>
       <div class="stamps">${CAT.careers.map(c=>{const got=p.collected.includes(c.id);return `<button class="stamp ${got?'got':''}" data-act="open" data-id="${c.id}"><div class="ico" style="--c:${cc(c.c)}">${svg(got?c.c:'lock')}</div><span>${esc(c.name)}</span></button>`}).join('')}</div></div>
-    <div class="card"><h2 style="margin-bottom:12px">Quests completed</h2>${done.length?done.map(q=>`<div class="list-item">${ico(q.c,'sm')}<div><b>${esc(q.title)}</b><span>${esc(CAT.clusters[q.c].name)} · +${q.xp} XP</span></div></div>`).join(''):`<p class="muted">No quests finished yet. <a href="#" data-act="tab" data-v="quests">Start one</a>.</p>`}</div>
+    <div class="card"><h2 style="margin-bottom:12px">Completed learning achievements</h2>${done.length?done.map(q=>`<div class="list-item">${ico(q.c,'sm')}<div><b>${esc(q.title)}</b><span>${esc(CAT.clusters[q.c].name)} · +${q.xp} XP</span></div></div>`).join(''):`<p class="muted">No quests finished yet. <a href="#" data-act="tab" data-v="quests">Start one</a>.</p>`}</div>
     <div class="grid two">
       <div class="card"><h2 style="margin-bottom:12px">Interests</h2><div class="cbars">${byC.slice(0,5).map(x=>`<div class="cbar" style="--c:${cc(x.k)}"><span>${esc(CAT.clusters[x.k].name)}</span><div class="bar"><i style="width:${x.n/max*100}%"></i></div><span class="tnum">${x.n}</span></div>`).join('')}</div></div>
       <div class="card"><h2 style="margin-bottom:12px">Badges</h2><div class="badges">${Object.entries(BADGE_NAMES).map(([id,n])=>{const on=p.badges.includes(id);return `<div class="badge ${on?'':'locked'}"><i>${svg(on?'star':'lock')}</i>${n}</div>`}).join('')}</div></div>
