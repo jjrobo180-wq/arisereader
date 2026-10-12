@@ -929,9 +929,11 @@ function TeacherHubPage() {
                   const open = ariseOpen || here;
                   return <Fragment key="group-arise">
                     <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                      {/* A.R.I.S.E. Reader is the core product, so its nav item stands out from the
+                          rest of the menu: a violet icon badge and a tinted row, active or not. */}
                       <button type="button" onClick={() => setAriseOpen((v) => !v)} aria-expanded={open} data-testid="hub-menu-arise" data-hub-nav
-                        className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${here ? "text-slate-950" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
-                        {GROUP_ICON.arise}
+                        className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${here ? "bg-violet-50 text-violet-950 md:border md:border-violet-200" : "text-violet-700 hover:bg-violet-50 md:hover:bg-violet-50"}`}>
+                        <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${here ? "bg-violet-700 text-white" : "bg-violet-100 text-violet-700"}`}>{GROUP_ICON.arise}</span>
                         <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
                         <FolderChevron className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
                       </button>
@@ -1176,7 +1178,10 @@ function TeacherHubPage() {
           )}
 
           {subTabs.length > 1 && (
-            <div ref={subRef} className="relative" data-testid="hub-subtabs">
+            // The sidebar already lists every sub-tab inline once its group is open, so this
+            // dropdown would just repeat it there — it only earns its keep on mobile, where the
+            // sidebar collapses into a drawer/bottom bar instead of staying visible.
+            <div ref={subRef} className="relative md:hidden" data-testid="hub-subtabs">
               <button type="button" onClick={() => setSubMenu((v) => !v)} aria-haspopup="menu" aria-expanded={subMenu} aria-label={`${group.label} categories`} data-testid="hub-subtabs-button"
                 className="flex min-h-11 w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 sm:px-4">
                 {tabIcon(tab)}
