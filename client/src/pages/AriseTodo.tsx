@@ -93,6 +93,7 @@ import { Avatar, Modal } from "@/components/family-hub/ui";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
+import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildLifeBrief } from "@shared/dailyBrief";
@@ -542,6 +543,11 @@ export default function AriseTodo() {
   const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
   const layout = cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id));
   const setLayout = (next: LifeLayout) => setFamily((f) => ({ ...f, layout: next }));
+  // The current theme's structural feel, reused for the task list's row style below (see
+  // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
+  // a dense tap-chip wrap for Tile/Candy, bracketed text lines for Old Computer, and a quiet
+  // thin-divider list for Minimalist.
+  const taskLayout = hubThemeOf(layout.theme).homeLayout ?? "cards";
   const phone = usePhoneMenu(layout.menuSide, layout.menuClose);
   // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
   const dsk = shown === "tasks" ? "left" : layout.deskSide;
@@ -999,12 +1005,27 @@ export default function AriseTodo() {
                 {members.map(m => <button key={m.id} onClick={() => setMemberFilter(memberFilter === m.name ? "" : m.name)} aria-pressed={memberFilter === m.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ring-1 bg-white text-slate-600 ring-slate-200" style={memberFilter === m.name ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span>{m.emoji || "🙂"}</span>{m.name}<span className="opacity-70">{active.filter(t => t.assignee.trim().toLowerCase() === m.name.toLowerCase()).length}</span></button>)}
               </div>}
               <div className="relative mt-5"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks, notes, or names" aria-label="Search tasks" className={inputClass + " pl-10"} /></div>
-              <div className="mt-5 space-y-2">
+              <div className={
+                taskLayout === "terminal" ? "mt-5 space-y-0 border border-current/30 font-mono" :
+                taskLayout === "list" ? "mt-5" :
+                taskLayout === "tiles" || taskLayout === "bubbles" ? "mt-5 flex flex-wrap gap-2" :
+                "mt-5 space-y-2"
+              }>
                 {filtered.map(task => {
                   const list = data.lists.find(row => row.id === task.listId);
                   const late = !task.done && !!task.due && task.due < currentDay;
-                  return <div key={task.id} className="group flex min-w-0 items-start gap-3 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:p-4">
-                    <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={15} /></button>
+                  const rowClass =
+                    taskLayout === "terminal" ? "group flex min-w-0 items-start gap-3 border-b border-current/20 p-2.5 last:border-b-0" :
+                    taskLayout === "list" ? "group flex min-w-0 items-start gap-3 border-b border-slate-100 py-3 last:border-b-0" :
+                    taskLayout === "tiles" ? "group flex min-w-0 items-start gap-3 rounded-none border-2 border-black bg-white p-3 sm:p-3.5" :
+                    taskLayout === "bubbles" ? "group flex min-w-0 items-start gap-3 rounded-[1.4rem] border-2 border-[#ffc2e2] bg-white p-3" :
+                    taskLayout === "stacked" ? "group flex min-w-0 items-start gap-3 rounded-2xl border border-[#cde8d1] bg-white p-4" :
+                    taskLayout === "loose" ? "group flex min-w-0 items-start gap-3 rounded-[1.75rem] border border-[#ffd9b8] bg-white p-4 sm:p-5" :
+                    "group flex min-w-0 items-start gap-3 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:p-4";
+                  return <div key={task.id} className={rowClass}>
+                    {taskLayout === "terminal"
+                      ? <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className="mt-0.5 shrink-0 font-mono text-sm">[{task.done ? "x" : " "}]</button>
+                      : <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={15} /></button>}
                     <button onClick={() => setEditing({ ...task })} className="min-w-0 flex-1 text-left">
                       <p className={`break-words text-sm font-bold sm:text-base ${task.done ? "text-slate-400 line-through" : "text-slate-800"}`}>{task.title}</p>
                       {task.notes && <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-slate-500">{task.notes}</p>}

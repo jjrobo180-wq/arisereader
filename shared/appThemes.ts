@@ -48,7 +48,7 @@ export const HUB_THEMES: HubTheme[] = [
       "--hub-border": "#e5e5e5", "--hub-text": "#111111", "--hub-text-soft": "#6b7280",
       "--hub-accent": "#111111", "--hub-accent-foreground": "#ffffff",
     },
-    radius: "sharp", shadow: "none", font: "system",
+    radius: "sharp", shadow: "none", font: "system", homeLayout: "list",
   },
   {
     id: "tile", name: "Tile", tagline: "Bold flat color blocks, live tile style.",
@@ -68,7 +68,7 @@ export const HUB_THEMES: HubTheme[] = [
       "--hub-border": "#ffd9b8", "--hub-text": "#3a2317", "--hub-text-soft": "#8a6652",
       "--hub-accent": "#ff7e5f", "--hub-accent-foreground": "#ffffff",
     },
-    radius: "round", shadow: "soft", font: "rounded",
+    radius: "round", shadow: "soft", font: "rounded", homeLayout: "loose",
   },
   {
     id: "forest", name: "Forest", tagline: "Deep green and warm wood tones.",
@@ -78,7 +78,7 @@ export const HUB_THEMES: HubTheme[] = [
       "--hub-border": "#cde8d1", "--hub-text": "#1b3a2b", "--hub-text-soft": "#4f7a62",
       "--hub-accent": "#1b4332", "--hub-accent-foreground": "#ffffff",
     },
-    radius: "normal", shadow: "soft", font: "system",
+    radius: "normal", shadow: "soft", font: "system", homeLayout: "stacked",
   },
   {
     id: "candy", name: "Candy Pop", tagline: "Bright pink and violet, playful and bold.",
@@ -88,7 +88,7 @@ export const HUB_THEMES: HubTheme[] = [
       "--hub-border": "#ffc2e2", "--hub-text": "#3a1030", "--hub-text-soft": "#9c5a86",
       "--hub-accent": "#ff4fa3", "--hub-accent-foreground": "#ffffff",
     },
-    radius: "round", shadow: "soft", font: "rounded",
+    radius: "round", shadow: "soft", font: "rounded", homeLayout: "bubbles",
   },
   {
     id: "crt", name: "Old Computer", tagline: "Green phosphor text on a black CRT screen.",

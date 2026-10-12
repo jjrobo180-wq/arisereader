@@ -38,28 +38,53 @@ const GLIDE = { type: "spring", stiffness: 520, damping: 42, mass: 0.8 } as cons
 /** Which Home layout a theme uses (see shared/appThemes.ts's HomeLayout). Only the presentation
  *  constants below vary per layout — drag, reorder, resize and hide (everything above) stay the
  *  same code path regardless of layout, so a new structural theme is a new entry here, never a
- *  change to the editing logic. */
-export type HubHomeLayout = "cards" | "tiles" | "terminal";
+ *  change to the editing logic.
+ *    cards    - today's layout: a wide responsive grid, soft rounded cards. Classic's.
+ *    tiles    - Windows-Phone-style: uniform flat-color square tiles, name bottom-left. Tile's.
+ *    terminal - CRT-style: a single column of bracketed "[ LABEL ]" text rows. Old Computer's.
+ *    list     - Minimalist: one quiet column, no cards, no tile pictures — thin dividers and a
+ *               lot of air between rows, text only.
+ *    loose    - Sunrise: like cards, but larger gaps and every part full width — an airy, slow
+ *               scroll rather than a packed grid.
+ *    stacked  - Forest: a single wide column of full-width panels in a fixed vertical order,
+ *               like turning pages — no grid, no resorting into columns at any width.
+ *    bubbles  - Candy Pop: a tightly packed grid of small round tiles, denser and more playful
+ *               than "tiles", every part capped to a bubble regardless of its set size. */
+export type HubHomeLayout = "cards" | "tiles" | "terminal" | "list" | "loose" | "stacked" | "bubbles";
 
-/** Grid shape per layout: "tiles" packs small, uniform squares edge to edge; "terminal" is a
- *  single stacked column, since a CRT desktop reads top to bottom, not as a grid. */
 const LAYOUT_GRID: Record<HubHomeLayout, string> = {
   cards: GRID,
   tiles: "grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6",
   terminal: "grid grid-cols-1 gap-3",
+  list: "grid grid-cols-1",
+  loose: "grid grid-cols-1 gap-6 sm:gap-8",
+  stacked: "grid grid-cols-1 gap-5",
+  bubbles: "grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8",
 };
-/** "tiles" never goes full width — even a "large" part stays a big square tile, Windows-Phone
- *  style, so nothing breaks the grid's rhythm. "terminal" is always one column regardless of size. */
+/** "tiles"/"bubbles" never go full width — even a "large" part stays a tile, so nothing breaks
+ *  the grid's rhythm. "terminal"/"list"/"loose"/"stacked" are always one column, full width,
+ *  regardless of size — those layouts read top to bottom, not across columns. */
 const LAYOUT_SPAN: Record<HubHomeLayout, Record<HomeSize, string>> = {
   cards: SPAN,
   tiles: { small: "col-span-1", medium: "col-span-2 row-span-2", large: "col-span-3 row-span-2" },
   terminal: { small: "col-span-1", medium: "col-span-1", large: "col-span-1" },
+  list: { small: "col-span-1", medium: "col-span-1", large: "col-span-1" },
+  loose: { small: "col-span-1", medium: "col-span-1", large: "col-span-1" },
+  stacked: { small: "col-span-1", medium: "col-span-1", large: "col-span-1" },
+  bubbles: { small: "col-span-1", medium: "col-span-2 row-span-2", large: "col-span-2 row-span-2" },
 };
 const LAYOUT_CAP: Record<HubHomeLayout, Record<HomeSize, string>> = {
   cards: CAP,
   tiles: { small: "max-h-[26rem] overflow-y-auto overscroll-contain", medium: "max-h-[22rem] overflow-y-auto overscroll-contain", large: "max-h-[26rem] overflow-y-auto overscroll-contain" },
   terminal: { small: "max-h-[20rem] overflow-y-auto overscroll-contain", medium: "max-h-[20rem] overflow-y-auto overscroll-contain", large: "" },
+  list: { small: "max-h-[22rem] overflow-y-auto overscroll-contain", medium: "max-h-[22rem] overflow-y-auto overscroll-contain", large: "" },
+  loose: { small: "max-h-[28rem] overflow-y-auto overscroll-contain rounded-[2rem]", medium: "max-h-[24rem] overflow-y-auto overscroll-contain rounded-[2rem]", large: "rounded-[2rem]" },
+  stacked: { small: "max-h-[24rem] overflow-y-auto overscroll-contain rounded-2xl", medium: "max-h-[24rem] overflow-y-auto overscroll-contain rounded-2xl", large: "rounded-2xl" },
+  bubbles: { small: "max-h-[22rem] overflow-y-auto overscroll-contain", medium: "max-h-[22rem] overflow-y-auto overscroll-contain", large: "max-h-[22rem] overflow-y-auto overscroll-contain" },
 };
+/** Layouts where every part renders as a tap-to-open tile, not just "small"-sized parts (see
+ *  alwaysTile below) — the dense, uniform-grid layouts. */
+const TILE_LAYOUTS: readonly HubHomeLayout[] = ["tiles", "bubbles"];
 
 export type QuickPlugin = { plugin: Plugin; onAdd: () => void };
 
@@ -97,7 +122,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   const tileOf = (id: string) => <PartTile part={partOf(id)} accent={accent} layout={homeLayout} />;
   // "tiles" (Windows-Phone-style) always shows every part as a tile that opens in a pop-up, not
   // just the "small"-sized ones cards mode reserves tiles for — that dense tap-grid is the look.
-  const alwaysTile = homeLayout === "tiles";
+  const alwaysTile = TILE_LAYOUTS.includes(homeLayout);
   /** The parts on Home in order, while editing. */
   const [order, setOrder] = useState<string[]>(() => homeShown(layout));
   const orderRef = useRef(order);
@@ -353,6 +378,22 @@ function PartTile({ part, accent, layout = "cards" }: { part: HomePart; accent: 
       <span className={`relative flex aspect-square w-full flex-col items-end justify-end overflow-hidden p-2.5 text-left text-white ${accent}`}>
         <Icon className="absolute left-2.5 top-2.5 h-5 w-5 opacity-90 sm:h-6 sm:w-6" />
         <span className="line-clamp-2 w-full text-xs font-bold leading-tight sm:text-sm">{part.label}</span>
+      </span>
+    );
+  }
+  if (layout === "bubbles") {
+    return (
+      <span className={`flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-full text-center text-white ${accent}`}>
+        <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+        <span className="line-clamp-1 px-1 text-[10px] font-bold leading-tight sm:text-xs">{part.label}</span>
+      </span>
+    );
+  }
+  if (layout === "list") {
+    return (
+      <span className="flex w-full items-center gap-3 border-b border-current/10 py-3 text-left">
+        <Icon className="h-4 w-4 shrink-0 opacity-70" />
+        <span className="truncate text-sm font-medium">{part.label}</span>
       </span>
     );
   }
