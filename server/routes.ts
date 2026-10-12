@@ -1,4 +1,7 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
+import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
+import { FREE_STORAGE_BYTES } from "../shared/driveApp";
+import { registerDriveAppRoutes } from "./driveApp";
 import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
 import type { Express } from "express";
@@ -1228,10 +1231,38 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
-  registerHubChatRoutes(app, authMiddleware);
+  registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    hasAiPro: async (userId) => {
+      const owner: any = await storage.getUser(userId);
+      if (!owner) return false;
+      const raw = await storage.getSetting(`plan_ai_pro_${userId}`).catch(() => "");
+      let grant: any = null;
+      try { grant = raw ? JSON.parse(raw) : null; } catch { grant = null; }
+      return aiProAccessFor({ id: userId, role: owner.role, isAdmin: owner.isAdmin, username: owner.username }, grant && grant.kind === "ai_pro" && Number(grant.ownerId) === userId ? grant : null);
+    },
+  });
   registerAppleHealthRoutes(app, authMiddleware);
   registerTodoNewsRoutes(app, authMiddleware);
   registerLifehubPluginRoutes(app, authMiddleware);
+  registerDriveAppRoutes(app, authMiddleware, raw, {
+    getAdminSupabase,
+    storageLimitFor: async (userId) => {
+      let best = 0;
+      for (const kind of STORAGE_PLAN_KINDS) {
+        const raw = await storage.getSetting(`plan_${kind}_${userId}`).catch(() => "");
+        if (!raw) continue;
+        try {
+          const grant = JSON.parse(raw);
+          if (grant?.kind === kind && Number(grant.ownerId) === userId && grantLive(grant)) {
+            best = Math.max(best, storageTierGb(kind) * 1024 * 1024 * 1024);
+          }
+        } catch { /* ignore malformed grant */ }
+      }
+      return FREE_STORAGE_BYTES + best;
+    },
+  });
   // Arise WorkHub, the paid add-on: only teachers with a Arise WorkHub plan can open it.
   registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.

@@ -1,8 +1,29 @@
-// Customize, for both hubs: where the menu sits on a computer, and menu folders (group sections into a
-// folder that opens with a tap, like folders of apps on a phone). Used in WorkHub's and LifeHub's Customize.
+// Customize, for both hubs: where the menu sits on a computer, menu folders (group sections into a
+// folder that opens with a tap, like folders of apps on a phone), and the hub's visual theme. Used
+// in WorkHub's and LifeHub's Customize.
 import { useState } from "react";
 import { Folder, FolderPlus, Trash2 } from "lucide-react";
-import { DESK_SIDES, FOLDER_LIMIT, type AnyLayout, type MenuFolder } from "@shared/hubLayout";
+import { DESK_SIDES, FOLDER_LIMIT, setTheme, type AnyLayout, type MenuFolder } from "@shared/hubLayout";
+import { HUB_THEMES } from "@shared/appThemes";
+
+export function ThemePicker<L extends AnyLayout>({ layout, setLayout, dark = "#292446" }: { layout: L; setLayout: (l: L) => void; dark?: string }) {
+  return <section>
+    <h3 className="text-sm font-black text-slate-900">Theme</h3>
+    <p className="mb-3 mt-1 text-sm text-slate-500">A different look for your whole hub. Extreme customization is the whole point — try a few.</p>
+    <div role="radiogroup" aria-label="Hub theme" className="grid gap-2 sm:grid-cols-2">
+      {HUB_THEMES.map((t) => {
+        const on = (layout.theme || "classic") === t.id;
+        return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout(setTheme(layout, t.id))} data-testid={`hub-theme-${t.id}`}
+          className={`flex min-h-14 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm ${on ? "bg-slate-50" : "border-slate-200 bg-white"}`} style={on ? { borderColor: dark } : undefined}>
+          <span className="flex shrink-0 overflow-hidden rounded-lg ring-1 ring-black/5" aria-hidden>
+            {t.swatch.map((c, i) => <span key={i} style={{ background: c }} className="h-7 w-3" />)}
+          </span>
+          <span><span className="block font-bold text-slate-900">{t.name}</span><span className="block text-xs text-slate-500">{t.tagline}</span></span>
+        </button>;
+      })}
+    </div>
+  </section>;
+}
 
 export function DeskSidePicker<L extends AnyLayout>({ layout, setLayout, dark = "#292446" }: { layout: L; setLayout: (l: L) => void; dark?: string }) {
   return <section>

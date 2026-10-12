@@ -32,9 +32,16 @@ export type PluginTarget =
   /** The Notes app, installed into a hub it isn't built into: added to workspace.notesInstalled or
    *  family.notesInstalled and opened from the store. Its notes are separate from the hub's own. */
   | { kind: "notesApp"; id: string; label: string }
+  /** The Sheets app (shared/sheetsApp.ts): added to family.sheetsInstalled, opened from the store. */
+  | { kind: "sheetsApp"; id: string; label: string }
+  /** The Drive app (shared/driveApp.ts): added to family.driveInstalled, opened from the store. */
+  | { kind: "driveApp" }
   | { kind: "connection"; needs: { tab: HubTab } | { section: FamilySection } }
   /** The AI assistant: a chat button on every page of the hub. */
   | { kind: "assistant" }
+  /** Arise AI Pro: the premium, metered assistant ($10/mo, see shared/plans.ts's "ai_pro" kind and
+   *  shared/aiProApp.ts's usage cap). A paid add-on like the Arise apps below, not a toggle. */
+  | { kind: "assistantPro" }
   | { kind: "app"; app: "history" | "math" | "social"; href: string };
 
 export type Plugin = {
@@ -63,11 +70,15 @@ export type Plugin = {
   needsNote?: string;
   /** For a connection: a CSS selector for its setup box, which Start setup scrolls to and highlights. */
   anchor?: string;
+  /** A paid add-on, billed on its own instead of being part of a plan. Shown as a price badge on its
+   *  tile and card; "Add" sends to Billing to subscribe instead of switching the plugin on directly.
+   *  $ is per month, per hub (one subscription covers everyone in that WorkHub or LifeHub). */
+  premium?: { priceMonthly: number; note?: string };
 };
 
 export const PLUGIN_CATEGORIES: Record<PluginHub, readonly string[]> = {
-  work: ["Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps"],
-  life: ["Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
+  work: ["Premium", "Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps"],
+  life: ["Premium", "Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
 };
 
 const tab = (t: HubTab): PluginTarget => ({ kind: "tab", tab: t });
@@ -105,10 +116,14 @@ const WIDGETS_PLUGIN = (hub: PluginHub): Plugin => ({
 
 export const PLUGINS: readonly Plugin[] = [
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
+  { id: "work-assistant-pro", hub: "work", name: "Arise AI Pro", tagline: "The premium AI assistant: more context, longer answers", category: "Premium", icon: "Sparkles", color: "#9333ea", featured: true, teacherOnly: true,
+    premium: { priceMonthly: 10, note: "500 messages a month included" },
+    description: "The same chat button, with real headroom: longer answers, more conversation history, and help with multi-step work — a full unit plan across several lessons, a detailed IEP goal with accommodations, a staff email that needs real nuance.",
+    features: ["Longer, more detailed answers", "Remembers more of the conversation", "500 messages a month", "Priced to stay fast even at busy times"], target: { kind: "assistantPro" } },
   WIDGETS_PLUGIN("work"),
   { id: "work-assistant", hub: "work", name: "AI assistant", tagline: "Chat with AI about lessons, IEPs, emails and more", category: "Teaching tools", icon: "Sparkles", color: "#0f766e", featured: true, teacherOnly: true,
     description: "A chat button on every page of WorkHub. Ask for lesson ideas, help wording an IEP goal or accommodation, a parent email draft, or a quick explanation, and get a clear answer right away.",
-    features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Your chat stays on this device"], target: { kind: "assistant" } },
+    features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Free, with no monthly cap"], target: { kind: "assistant" } },
   { id: "work-calendar", hub: "work", name: "Calendar", tagline: "Your school days, meetings and events", category: "Planning", icon: "CalendarDays", color: "#0f766e", featured: true, target: tab("calendar"),
     description: "One calendar for meetings, deadlines and events, with repeating events and the calendars you already use pulled in.",
     features: ["Day, week and month views", "Repeating events", "Google, Outlook and Apple calendars", "Meetings land here when booked"] },
@@ -175,6 +190,16 @@ export const PLUGINS: readonly Plugin[] = [
   ...ARISE_APPS("work"),
 
   // ── Arise LifeHub ──────────────────────────────────────────────────────────
+  { id: "life-assistant-pro", hub: "life", name: "Arise AI Pro", tagline: "The premium AI assistant: more context, longer answers", category: "Premium", icon: "Sparkles", color: "#9333ea", featured: true,
+    premium: { priceMonthly: 10, note: "500 messages a month included" },
+    description: "The same chat button, with real headroom: longer answers, more conversation history, and help with multi-step planning — a week of meals and the grocery list in one go, a detailed budget walkthrough, a family trip planned day by day.",
+    features: ["Longer, more detailed answers", "Remembers more of the conversation", "500 messages a month", "Priced to stay fast even at busy times"], target: { kind: "assistantPro" } },
+  { id: "life-drive", hub: "life", name: "Drive", tagline: "Upload photos from your camera roll", category: "Premium", icon: "FolderOpen", color: "#2563eb", featured: true,
+    description: "A simple photo drive for the family: upload pictures straight from a phone's camera roll or a computer, browse them in one place, and share what you need. 500MB free, with paid storage tiers for more room.",
+    features: ["Upload from camera roll or files", "500MB free storage", "More space in Billing when you need it", "Private to your hub"], target: { kind: "driveApp" } },
+  { id: "life-sheets", hub: "life", name: "Sheets", tagline: "A simple spreadsheet, right in LifeHub", category: "Premium", icon: "Table", color: "#16a34a", featured: true,
+    description: "A real spreadsheet for budgets, packing lists or anything with rows and columns: text or number cells, and formulas like SUM, AVERAGE and basic math between cells. No external app, no export needed.",
+    features: ["A real grid: up to 60 rows, 18 columns", "SUM, AVERAGE, MIN, MAX, COUNT and +-*/", "Save as many sheets as you like", "Saved to your account on every device"], target: { kind: "sheetsApp", id: "life-sheets", label: "Sheets" } },
   { id: "life-calendar", hub: "life", name: "Family calendar", tagline: "Everyone's plans in one place", category: "Family", icon: "CalendarRange", color: "#7c6be6", featured: true, target: section("calendar"),
     description: "Shared family calendars with repeating events, and your tasks, bills, trips and chores laid on top.",
     features: ["A calendar per person or group", "Repeating events", "Tasks, bills and trips on top"] },
@@ -413,7 +438,7 @@ export function notesAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
 }
 
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
-export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp";
+export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp" || p.target.kind === "sheetsApp" || p.target.kind === "driveApp";
 
 /** Where a plugin opens in its hub: a WorkHub tab or a LifeHub section. null for an Arise app. */
 export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySection } | null {
@@ -465,7 +490,7 @@ export function setWorkPlugin<V extends Partial<Record<HubTab, boolean>>>(visibl
 // ── LifeHub ────────────────────────────────────────────────────────────────
 
 /** Is this LifeHub plugin on? A section is on unless it was switched off. */
-export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets">>, notesInstalled?: readonly string[]): boolean {
+export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "driveInstalled">>, notesInstalled?: readonly string[], sheetsInstalled?: readonly string[]): boolean {
   const t = p.target;
   const sectionOn = (s: FamilySection) => isOn(s, family);
   if (t.kind === "section") return sectionOn(t.section);
@@ -473,23 +498,34 @@ export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "laye
   if (t.kind === "widget") return !!family.widgets?.[t.widget];
   if (t.kind === "assistant") return !!(family.widgets as { chat?: boolean } | undefined)?.chat;
   if (t.kind === "notesApp") return !!notesInstalled?.includes(t.id);
+  if (t.kind === "sheetsApp") return !!sheetsInstalled?.includes(t.id);
+  if (t.kind === "driveApp") return !!family.driveInstalled;
   if (t.kind === "connection" && "section" in t.needs) return sectionOn(t.needs.section);
   return false;
 }
 
 /** The family with this plugin added or removed. Adding the WorkHub calendar also adds the Calendar section it shows in. */
-export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout">>>(family: F, p: Plugin, on: boolean): F {
+export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Partial<Pick<Family, "widgets" | "layout" | "driveInstalled">>>(family: F, p: Plugin, on: boolean): F {
   const t = p.target;
   // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
   if (t.kind === "widget" && t.widget === "board") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), board: on }, layout: showSection(cleanLifeLayout(family.layout), "widgets", on) };
   if (t.kind === "widget") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), [t.widget]: on } };
   if (t.kind === "assistant") return { ...family, widgets: { ...(family.widgets ?? { stickies: false }), chat: on } };
   if (t.kind === "section") return { ...family, sections: { ...family.sections, [t.section]: on } };
+  if (t.kind === "driveApp") return { ...family, driveInstalled: on };
   if (t.kind === "layer") {
     const next = { ...family, layers: { ...family.layers, [t.layer]: on } };
     return on ? { ...next, sections: { ...next.sections, [t.opens]: true } } : next;
   }
   return family;
+}
+
+/** LifeHub's added Sheets-app installs with this one added or removed. Removing keeps its saved sheets. */
+export function setLifeSheetsApp(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
+  const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
+  if (p.target.kind !== "sheetsApp") return cur;
+  const id = p.target.id;
+  return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
 }
 
 /** LifeHub's added Notes-app installs with this one added or removed. Removing keeps its saved notes. */

@@ -3,6 +3,8 @@
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
+import { cleanSpreadsheets, type Spreadsheet } from "./sheetsApp";
+import { cleanDriveFiles, type DriveFile } from "./driveApp";
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 import { cleanWidgets, type WidgetItem } from "./widgets";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
@@ -231,6 +233,15 @@ export type Family = {
    *  notesApps, separate from LifeHub's own built-in Notes (above) and from each other. */
   notesInstalled: string[];
   notesApps: Record<string, Note[]>;
+  /** The Sheets app (App Store add-on, shared/sheetsApp.ts), bolted on the same loose way as a
+   *  Notes-app install: not a typed field most of this file knows about, just a plugin id in
+   *  notesInstalled-style and its data read/saved through sheetsApp.ts's own helpers. */
+  sheetsInstalled: string[];
+  sheets: Record<string, Spreadsheet[]>;
+  /** The Drive app (App Store add-on, shared/driveApp.ts): camera-roll photos uploaded to cloud
+   *  storage. Metadata only lives here; the image bytes live in object storage (see server/routes.ts). */
+  driveInstalled: boolean;
+  drive: DriveFile[];
 };
 
 export const MEMBER_COLORS = ["#7566e8", "#f59e72", "#36b6a5", "#619ee6", "#db77ac", "#e5b04f", "#5fb35b", "#e0645a"];
@@ -267,6 +278,7 @@ export const emptyFamily = (): Family => ({
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
   sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [],
   notesInstalled: [], notesApps: {},
+  sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [],
 });
 
 /* ---------------- sanitizing ---------------- */
@@ -599,6 +611,17 @@ export function cleanFamily(input: unknown): Family {
       }
       return out;
     })(),
+    sheetsInstalled: Array.isArray(raw.sheetsInstalled) ? [...new Set(raw.sheetsInstalled.filter((x: unknown): x is string => typeof x === "string" && !!x && x.length <= 60))].slice(0, 20) : [],
+    sheets: (() => {
+      const out: Record<string, Spreadsheet[]> = {};
+      for (const [pid, list] of Object.entries(obj(raw.sheets) || {}).slice(0, 20)) {
+        if (pid.length > 60) continue;
+        out[pid] = cleanSpreadsheets(list);
+      }
+      return out;
+    })(),
+    driveInstalled: bool(raw.driveInstalled, false),
+    drive: cleanDriveFiles(raw.drive),
   };
 }
 

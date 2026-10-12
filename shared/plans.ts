@@ -67,6 +67,26 @@ export const PLANS = {
     familyMonthlyCents: 1000,
   },
   /**
+   * Arise AI Pro: the premium AI assistant add-on, $10 a month per hub, billed on its own like
+   * Arise Social. See shared/aiProApp.ts for its monthly usage cap and the margin math behind it.
+   */
+  aiPro: {
+    monthlyCents: 1000,
+  },
+  /**
+   * Arise Drive storage tiers: extra cloud storage for the Drive app, on top of the free 500MB
+   * (shared/driveApp.ts). Priced against real Supabase Storage cost (~$0.021/GB-month, plus a
+   * conservative egress estimate for a personal photo drive) to keep a healthy margin at every
+   * tier: roughly 80% / 62% / 40% gross margin as the tiers get bigger and cost scales up.
+   */
+  storage: {
+    tiers: [
+      { id: "storage_20gb", gb: 20, monthlyCents: 299 },
+      { id: "storage_100gb", gb: 100, monthlyCents: 799 },
+      { id: "storage_500gb", gb: 500, monthlyCents: 2499 },
+    ],
+  },
+  /**
    * Every account gets 30 free days of the Learning Bundle and LifeHub, no card needed.
    * The days start when the account is made; for an account that was already there,
    * they start here instead: midnight on October 9, 2026, Mountain time.
@@ -116,8 +136,16 @@ export function clampBlocks(blocks: unknown): number {
  * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
  * "hub_teacher" and "hub_school" are the Arise WorkHub add-on.
  */
-export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class";
-export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class"];
+export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb";
+export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb"];
+/** The three paid Drive storage tiers, by plan kind. */
+export const STORAGE_PLAN_KINDS: readonly PlanKind[] = ["storage_20gb", "storage_100gb", "storage_500gb"];
+export const isStoragePlanKind = (kind: PlanKind): boolean => (STORAGE_PLAN_KINDS as readonly string[]).includes(kind);
+/** This storage plan's size, in GB. */
+export function storageTierGb(kind: PlanKind): number {
+  const tier = PLANS.storage.tiers.find((t) => t.id === kind);
+  return tier?.gb ?? 0;
+}
 /** The three apps in the Learning Bundle. */
 export type AppId = "math" | "history" | "social";
 export const APP_IDS: readonly AppId[] = ["math", "history", "social"];
@@ -129,7 +157,7 @@ export const appOfClassKind = (kind: PlanKind): AppId | null => (kind === "math_
 export const isClassAppKind = (kind: PlanKind) => appOfClassKind(kind) !== null;
 export const classAppCents = (app: AppId) => (app === "math" ? PLANS.classApps.mathCents : app === "history" ? PLANS.classApps.historyCents : PLANS.classApps.socialCents);
 /** Plans bought for one person (or one family, or one teacher's class), not sized in blocks of students. */
-export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || isClassAppKind(kind);
+export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind);
 export const isPlanKind = (v: unknown): v is PlanKind => typeof v === "string" && (PLAN_KINDS as readonly string[]).includes(v);
 export const isSchoolKind = (kind: PlanKind) => kind === "school" || kind === "hub_school";
 export const isHubKind = (kind: PlanKind) => kind === "hub_teacher" || kind === "hub_school";
@@ -144,6 +172,8 @@ export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "y
   if (kind === "bundle_family") return { cents: PLANS.bundle.familyMonthlyCents, interval: "month", seats: () => 1 };
   if (kind === "bundle_teacher") return { cents: PLANS.bundle.teacherMonthlyCents, interval: "month", seats: () => PLANS.bundle.teacherSeats };
   if (kind === "todo_family") return { cents: PLANS.todo.familyMonthlyCents, interval: "month", seats: () => 1 };
+  if (kind === "ai_pro") return { cents: PLANS.aiPro.monthlyCents, interval: "month", seats: () => 1 };
+  if (isStoragePlanKind(kind)) { const tier = PLANS.storage.tiers.find((t) => t.id === kind)!; return { cents: tier.monthlyCents, interval: "month", seats: () => 1 }; }
   const app = appOfClassKind(kind);
   if (app) return { cents: classAppCents(app), interval: "month", seats: () => PLANS.classApps.seats };
   const t = kind === "hub_teacher" ? PLANS.hub : PLANS.teacher;
@@ -389,6 +419,19 @@ export function socialAccessFor(person: PlanPerson | null | undefined, grant: Pl
   return !!grant && grant.kind === "social" && grantLive(grant, now);
 }
 export const SOCIAL_REQUIRED = "social_required";
+
+// ─── Arise AI Pro ────────────────────────────────────────────────────────────
+
+/**
+ * Can this person use Arise AI Pro, the premium metered AI assistant? Only with an AI Pro plan of
+ * their own, or as the site admin. It does not depend on plan rules being on, same as Social.
+ */
+export function aiProAccessFor(person: PlanPerson | null | undefined, grant: PlanGrant | null | undefined, now = Date.now()): boolean {
+  if (!person) return false;
+  if (person.isAdmin || person.role === "admin" || isDemoAccount(person.username)) return true;
+  return !!grant && grant.kind === "ai_pro" && grantLive(grant, now);
+}
+export const AI_PRO_REQUIRED = "ai_pro_required";
 
 // ─── Free trial, Learning Bundle and LifeHub ───────────────────────────────────
 

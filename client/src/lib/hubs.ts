@@ -16,9 +16,11 @@ export function isHubAccount(user: HubUser): boolean {
   return !!user && (user.isAdmin === true || user.role === "teacher" || user.role === "parent" || user.role === "todo");
 }
 
-/** The hub an adult opens after signing in. */
-export function hubPathFor(user: HubUser): "/workhub" | "/lifehub" {
-  return user && (user.isAdmin || user.role === "teacher") ? "/workhub" : "/lifehub";
+/** The hub an adult opens after signing in. Every role — admin, teacher and parent alike —
+ *  lands on the to-do list (LifeHub) first; WorkHub's classroom tools are one click away from
+ *  there for anyone who still needs them. */
+export function hubPathFor(_user: HubUser): "/workhub" | "/lifehub" {
+  return "/lifehub";
 }
 
 /** The sign-in screen's address on this site (the app lives at /app on arisetodo.com). */

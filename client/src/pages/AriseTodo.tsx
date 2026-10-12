@@ -61,7 +61,11 @@ import Quotes from "@/components/family-hub/Quotes";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, lifeInstalled, notesAppPlugin, pluginOpens, setLifeNotesApp, setLifePlugin, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, lifeInstalled, notesAppPlugin, pluginOpens, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, type Plugin } from "@shared/pluginStore";
+import SheetsApp from "@/components/family-hub/SheetsApp";
+import DriveApp from "@/components/family-hub/DriveApp";
+import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
+import { cleanDriveFiles } from "@shared/driveApp";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
@@ -85,7 +89,7 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { Avatar, Modal } from "@/components/family-hub/ui";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
-import { DeskSidePicker, FolderEditor } from "@/components/HubCustomizeExtras";
+import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
@@ -101,6 +105,7 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 // The parents' A.R.I.S.E. Reader tab, built from LifeHub parts (loaded when opened).
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
+import "./hubThemes.css";
 
 type Priority = "low" | "normal" | "high";
 type Repeat = "none" | "daily" | "weekly" | "monthly";
@@ -575,6 +580,17 @@ export default function AriseTodo() {
   const myNotesApps = pinnableNotes;
   const setNotesAppRecords = (pid: string, update: (all: Family["notesApps"][string]) => Family["notesApps"][string]) =>
     setFamily((f) => ({ ...f, notesApps: { ...f.notesApps, [pid]: update(f.notesApps[pid] ?? []) } }));
+  /** Sheets and Drive (App Store add-ons) open full-page, the same way a Notes-app install does. */
+  const [sheetsAppOpen, setSheetsAppOpenState] = useState<string | null>(null);
+  const setSheetsAppOpen = (id: string | null) => { setSheetsAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
+  const [driveOpen, setDriveOpenState] = useState(false);
+  const setDriveOpen = (on: boolean) => { setDriveOpenState(on); if (on) window.scrollTo({ top: 0 }); };
+  const sheets = useMemo(() => cleanSpreadsheets(family.sheets?.["life-sheets"]), [family.sheets]);
+  const setSheets = (update: (all: Spreadsheet[]) => Spreadsheet[]) =>
+    setFamily((f) => ({ ...f, sheets: { ...(f.sheets ?? {}), "life-sheets": update(cleanSpreadsheets((f.sheets ?? {})["life-sheets"])) } }));
+  const driveFiles = useMemo(() => cleanDriveFiles(family.drive), [family.drive]);
+  const setDriveFiles = (update: (all: ReturnType<typeof cleanDriveFiles>) => ReturnType<typeof cleanDriveFiles>) =>
+    setFamily((f) => ({ ...f, drive: update(cleanDriveFiles(f.drive)) }));
   const phoneItems: PhoneMenuItem[] = [
     ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { setNotesAppOpen(null); setSection(id); } }; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => setNotesAppOpen(p.id) })),
@@ -663,12 +679,12 @@ export default function AriseTodo() {
   </div>;
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
-  return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""}`}>
+  return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
     {store && <PluginStore
       hub="life"
       night={night}
       teacher={user.role === "teacher" || !!user.isAdmin}
-      isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled)}
+      isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)}
       onToggle={(p: Plugin, on: boolean) => {
         if (p.target.kind === "notesApp") {
           setFamily((f) => ({ ...f, notesInstalled: setLifeNotesApp(f.notesInstalled, p, on) }));
@@ -676,7 +692,14 @@ export default function AriseTodo() {
           else if (notesAppOpen === p.target.id) setNotesAppOpen(null);
           return;
         }
+        if (p.target.kind === "sheetsApp") {
+          setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (sheetsAppOpen === p.target.id) setSheetsAppOpen(null);
+          return;
+        }
         setFamily((f) => setLifePlugin(f, p, on));
+        if (p.target.kind === "driveApp" && !on) setDriveOpen(false);
         // A widget (like the Widgets board) is a part of Home, not its own section: adding it
         // should land you looking at it, the same as tapping Open does below, not leave you to
         // go find it yourself.
@@ -689,6 +712,9 @@ export default function AriseTodo() {
       onOpen={(p: Plugin) => {
         const at = pluginOpens(p);
         if (at && "section" in at) setSection(at.section);
+        if (p.target.kind === "sheetsApp") { setSheetsAppOpen(p.target.id); setStore(false); return; }
+        if (p.target.kind === "driveApp") { setDriveOpen(true); setStore(false); return; }
+        if (p.target.kind === "assistantPro") { setStore(false); navigate("/billing"); return; }
         // A widget's "section" is really Home, so land on its own part there once it has rendered,
         // instead of just the top of a Home that might be long.
         if (p.target.kind === "widget" && p.target.widget === "board") goToHomePart("widgets");
@@ -721,6 +747,7 @@ export default function AriseTodo() {
             </div>}
         </section>
         <DeskSidePicker layout={layout} setLayout={setLayout} />
+        <ThemePicker layout={layout} setLayout={setLayout} />
         <FolderEditor layout={layout} setLayout={setLayout} makeId={makeId} items={sections.filter((x) => x !== "home").map((x) => ({ id: x, label: SECTION_INFO[x].label }))} />
         <section>
           <h3 className="text-sm font-black text-slate-900">Home screen</h3>
@@ -893,8 +920,22 @@ export default function AriseTodo() {
             <NotesKitApp key={notesAppOpen} name={notesAppPlugin("life", notesAppOpen)!.name} blurb={notesAppPlugin("life", notesAppOpen)!.description}
               notes={family.notesApps[notesAppOpen] ?? []} setNotes={(update) => setNotesAppRecords(notesAppOpen, update)} makeId={makeId} say={setMessage} />
           </div>}
-          {!notesAppOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
-          {!notesAppOpen && shown === "tasks" && <>
+          {sheetsAppOpen && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setSheetsAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <SheetsApp name="Sheets" blurb="A real spreadsheet: text or number cells, and formulas like SUM and AVERAGE." sheets={sheets} setSheets={setSheets} makeId={makeId} say={setMessage} />
+          </div>}
+          {driveOpen && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setDriveOpen(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <DriveApp files={driveFiles} setFiles={setDriveFiles} say={setMessage} />
+          </div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
             {[
