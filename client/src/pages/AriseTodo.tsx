@@ -70,6 +70,7 @@ import DropApp from "@/components/family-hub/DropApp";
 import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
 import { cleanDriveFiles } from "@shared/driveApp";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
+import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
@@ -647,8 +648,16 @@ export default function AriseTodo() {
   const driveFiles = useMemo(() => cleanDriveFiles(family.drive), [family.drive]);
   const setDriveFiles = (update: (all: ReturnType<typeof cleanDriveFiles>) => ReturnType<typeof cleanDriveFiles>) =>
     setFamily((f) => ({ ...f, drive: update(cleanDriveFiles(f.drive)) }));
+  const learningAccess = useLearningAccess(token);
+  /** A program they don't have yet: a parent adds it on the Reader page (its Add-ons panel); anyone else, on the plan page. */
+  const getLearning = user?.role === "parent" ? () => {
+    closeApps(); setSection("reader");
+    window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+  } : undefined;
   const phoneItems: PhoneMenuItem[] = [
-    ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); setSection(id); } }; }),
+    ...sections.flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); setSection(id); } };
+      // Arise Learning (Math, History, Connect) sits right after A.R.I.S.E. Reader.
+      return id !== "reader" ? [item] : [item, ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
@@ -958,6 +967,24 @@ export default function AriseTodo() {
             );
           })}
         </nav>
+        {/* Arise Learning: Math, History and Connect, each in its own color, so they stand out from the family sections. */}
+        <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`} data-testid="life-learning">
+          <div className="flex items-center gap-2 px-1 pb-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Arise Learning</span>
+            <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
+          </div>
+          <div className="space-y-0.5">
+            {LEARNING_APPS.map((a) => {
+              const has = learningAccess[a.id];
+              return <button key={a.id} type="button" onClick={() => openLearning(a.id, has, getLearning)} data-testid={`life-learning-${a.id}`} title={has ? `Open ${a.label}` : `${a.label}: add it from your plan page`}
+                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
+                <LearningIcon id={a.id} />
+                <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                {!has && <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: a.soft, color: a.color }}>Add-on</span>}
+              </button>;
+            })}
+          </div>
+        </div>
         {(pinnableApps.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
           <div className="space-y-0.5">

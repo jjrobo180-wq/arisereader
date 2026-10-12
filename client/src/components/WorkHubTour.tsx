@@ -93,6 +93,15 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }],
     },
     {
+      title: "Arise Learning",
+      body: "Arise Math, Arise History and A.R.I.S.E. Connect have their own spot, right under A.R.I.S.E. Reader. Tap one to open it. An Add-on tag means it isn't on your plan yet; tapping it shows you how to add it.",
+      targets: [
+        { sel: '[data-testid="hub-learning-heading"]', label: "Arise Learning" },
+        { sel: '[data-testid="hub-learning-math"]', label: "Arise Learning" },
+        { sel: '[data-testid="hub-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
+      ],
+    },
+    {
       title: "Add things fast",
       body: "Paste a list, an email or a photo of your notes, and AI turns it into to-dos and calendar events. You check everything before it's saved.",
       open: { tab: "overview" },
@@ -150,6 +159,15 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
       parentOnly: true,
       open: { section: "reader" },
       targets: [{ sel: '[data-tour="life-content"]', label: "Your child's reading" }],
+    },
+    {
+      title: "Arise Learning",
+      body: "Arise Math, Arise History and A.R.I.S.E. Connect have their own spot in your menu. Tap one to open it. An Add-on tag means it isn't on your plan yet; tapping it shows you how to add it.",
+      targets: [
+        { sel: '[data-testid="life-learning"]', label: "Arise Learning" },
+        { sel: '[data-testid="life-menu-learning-math"]', label: "Arise Learning" },
+        { sel: '[data-testid="life-rail-show"]', label: "Open your menu", note: "Your menu is tucked away. Tap this tab to open it." },
+      ],
     },
     {
       title: "Family to-dos",

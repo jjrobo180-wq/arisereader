@@ -80,7 +80,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
           <ul id="life-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
             {entries.map((entry) => entry.kind === "item" ? <li key={entry.item.id}>
               <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { entry.item.onClick(); setApps(false); }} data-testid={`life-app-${entry.item.id}`} className="relative flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${entry.item.active ? "bg-[#7968e5]" : "bg-[#292446]"}`} style={entry.item.color && !entry.item.active ? { backgroundColor: entry.item.color } : undefined}>{entry.item.icon}</span>
+                <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm [&_svg]:h-7 [&_svg]:w-7 [&_svg]:text-white ${entry.item.active ? "bg-[#7968e5]" : "bg-[#292446]"}`} style={entry.item.color && !entry.item.active ? { backgroundColor: entry.item.color } : undefined}>{entry.item.icon}</span>
                 {badge(entry.item.badge)}
                 <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{entry.item.label}</span>
               </button>

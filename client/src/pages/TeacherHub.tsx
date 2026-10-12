@@ -130,6 +130,7 @@ import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
+import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { ADMIN_SECTIONS, SETTINGS_SECTIONS, adminSectionLabel, settingsSectionLabel, type AdminSection, type SettingsSection } from "@/lib/adminSections";
 import HubBehavior from "@/components/teacher-hub/HubBehavior";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
@@ -514,6 +515,7 @@ function TeacherHubPage() {
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
   const [ariseOpen, setAriseOpen] = useState(false);
+  const learningAccess = useLearningAccess(token);
   // The guided tour (WorkHubTour) opens real sections as it goes, so a step can point at the
   // actual screen instead of describing it. It asks with this event; the menu is shown too, so
   // the item it highlights is on screen even when the phone menu was tucked away.
@@ -855,6 +857,15 @@ function TeacherHubPage() {
                   </div>
                   {hubOpenFolder && <p className="-mt-1 px-4 pb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{hubOpenFolder.name}</p>}
                   <ul id="hub-apps-list" className="grid flex-1 grid-cols-4 content-start sm:grid-cols-6 gap-x-2 gap-y-5 overflow-y-auto overscroll-contain px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1">
+                    {!hubOpenFolder && LEARNING_APPS.filter((a) => a.label.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => { const Icon = a.icon; const has = learningAccess[a.id]; return (
+                      <li key={`learn-${a.id}`}>
+                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); openLearning(a.id, has); }} data-testid={`hub-app-learning-${a.id}`}
+                          className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
+                          <span className="relative inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] text-white shadow-sm" style={{ background: `linear-gradient(135deg, ${a.color}, ${a.color}cc)` }}><Icon className="h-7 w-7" />{!has && <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 text-[9px] font-bold shadow" style={{ color: a.color }}>Add</span>}</span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{a.label}</span>
+                        </button>
+                      </li>
+                    ); })}
                     {!hubOpenFolder && "app store".includes(appsQuery.trim().toLowerCase()) && (
                       <li>
                         <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setApps(false); setStore(true); }} data-testid="hub-app-store"
@@ -963,6 +974,28 @@ function TeacherHubPage() {
                   </button>
                 </div>
               );
+              /** "Arise Learning": Math, History and Connect, each in its own color, right under A.R.I.S.E. Reader. */
+              const learning = <Fragment key="learning">
+                <div className={`hidden items-center gap-2 px-3 pb-1 pt-4 ${deskTop || deskCompact ? "" : "md:flex"}`} data-testid="hub-learning-heading">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Arise Learning</span>
+                  <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
+                </div>
+                {LEARNING_APPS.map((a) => {
+                  const has = learningAccess[a.id];
+                  return (
+                    <div key={`learn-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                      <button type="button" onClick={() => { afterPick(); openLearning(a.id, has); }} data-testid={`hub-learning-${a.id}`} data-hub-nav
+                        title={has ? `Open ${a.label}` : `${a.label}: add it from your plan page`}
+                        className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-700 transition hover:text-slate-950 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm md:hover:bg-slate-100`}>
+                        <LearningIcon id={a.id} />
+                        <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:hidden`}>{a.short}</span>
+                        <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>{a.label}</span>
+                        {!has && <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold md:ml-auto ${deskCompact || deskTop ? "" : "md:inline"}`} style={{ background: a.soft, color: a.color }}>Add-on</span>}
+                      </button>
+                    </div>
+                  );
+                })}
+              </Fragment>;
               return foldMenu(menu, layout.folders).map((entry) => {
                 if (entry.kind === "item" && entry.item.id === "arise") {
                   const tabs = groupTabs("arise", visible);
@@ -995,6 +1028,7 @@ function TeacherHubPage() {
                         {s.id === "settings" && adminSection === "settings" && SETTINGS_SECTIONS.map((p) => adminItem(p, 3, adminSettings === p.id && !kitOpen, () => { setAdminSettings(p.id); setAdminSection("settings"); setTab("admin"); }, `hub-menu-admin-settings-${p.id}`))}
                       </Fragment>)}
                     </Fragment>)}
+                    {learning}
                   </Fragment>;
                 }
                 if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
