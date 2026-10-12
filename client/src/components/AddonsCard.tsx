@@ -170,6 +170,19 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       </div>
     );
   };
+  /** A.R.I.S.E. To-Do as one more checklist row, matching classRow/apps styling — it's always
+   * free, so it's never a separate titled section, just another included line item. */
+  const todoRow = () => (
+    <div key="todo" className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3" data-testid="addons-todo-row">
+      <BookOpen className="h-6 w-6 shrink-0 text-emerald-600" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-black text-[#141b32]">A.R.I.S.E. To-Do</span>
+        <span className="block text-xs text-slate-500">{role === "teacher" ? "Work and Life hubs — free on every plan" : "Lists, chores, the family calendar and more — free for every parent"}</span>
+      </span>
+      <span className="text-xs font-bold text-emerald-700">Free</span>
+      <a className={ghost} href="/#/lifehub">Open LifeHub</a>
+    </div>
+  );
 
   return (
     <section className="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-label="Add-ons" data-testid="addons-card">
@@ -198,7 +211,10 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       </div>
 
       {role === "teacher" ? (
-        <div className="mt-4 space-y-2">{(["math", "history", "social"] as AppId[]).map(classRow)}</div>
+        <div className="mt-4 space-y-2">
+          {(["math", "history", "social"] as AppId[]).map(classRow)}
+          {showTodo && todoRow()}
+        </div>
       ) : (
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {apps.map((a) => (
@@ -207,6 +223,12 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
             <span className="min-w-0"><span className="block text-sm font-black text-[#141b32]">{a.label}</span><span className="block truncate text-xs text-slate-600">{a.sub}</span></span>
           </a>
         ))}
+        {showTodo && role === "parent" && (
+          <a href="/#/lifehub" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-violet-300 hover:bg-violet-50">
+            <BookOpen className="h-6 w-6 shrink-0 text-emerald-600" />
+            <span className="min-w-0"><span className="block text-sm font-black text-[#141b32]">A.R.I.S.E. To-Do</span><span className="block truncate text-xs text-slate-600">Free on every plan</span></span>
+          </a>
+        )}
       </div>
       )}
 
@@ -222,21 +244,6 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
         {bundleAction && <div className="flex flex-wrap gap-2">{bundleAction}</div>}
         {!data.payment && (role === "parent" || role === "teacher") && !ownPlanLive && <p className="text-xs text-slate-500">Online payment isn’t open yet.</p>}
       </div>
-
-      {showTodo && (role === "parent" || role === "teacher") && (
-        <div className="mt-5 border-t border-slate-200 pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="flex items-center gap-2 text-base font-black text-[#141b32]"><BookOpen className="h-4 w-4 text-emerald-600" />A.R.I.S.E. To-Do</p>
-              <p className="text-sm text-slate-600">{role === "teacher" ? "Arise WorkHub and LifeHub: free for every teacher, no subscription." : "Lists, chores, the family calendar and more. Free for every parent."}</p>
-            </div>
-            <a className={ghost} href="/#/lifehub">Open LifeHub</a>
-          </div>
-          <div className="mt-3 space-y-3">
-            <p className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />Free on every plan. No charge, no subscription.</p>
-          </div>
-        </div>
-      )}
 
       {note && <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-[#141b32]" role="status">{note}</p>}
     </section>
