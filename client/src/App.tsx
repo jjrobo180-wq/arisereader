@@ -152,7 +152,6 @@ const ReadingClub = lazyPage(() => import("./pages/ReadingClub"));
 const TeacherArise2 = lazyPage(() => import("./pages/TeacherArise2"));
 const ParentArise2 = lazyPage(() => import("./pages/ParentArise2"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
-const TodoLanding = lazyPage(() => import("./pages/TodoLanding"));
 const Billing = lazyPage(() => import("./pages/Billing"));
 
 // Gate that shows profile setup overlay after student registration
@@ -349,6 +348,16 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   return <Redirect to="/" replace />;
 }
 
+/** The retired dark To-Do marketing screen is no longer part of the app.
+ * Visitors arriving at /app#/ are sent to the current white homepage,
+ * while sign-in and authenticated Work/Life hubs keep their existing routes. */
+function TodoPublicHomeRedirect() {
+  useEffect(() => {
+    window.location.replace("/");
+  }, []);
+  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href="/" className="font-semibold text-indigo-700 underline">Open the A.R.I.S.E. To-Do homepage</a></main>;
+}
+
 function AppRoutes() {
   const { user, isLoading } = useAuth();
   // Eye-gaze mode is only for non-privileged learner accounts. Admin,
@@ -386,7 +395,7 @@ function AppRoutes() {
         <Redirect to="/" replace />
       </Route>
       <Route path="/">
-        {onTodoDomain ? (!user ? <TodoLanding /> : user.isAdmin ? <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" /> : user.role === "teacher" ? <Redirect to="/workhub" replace /> : <Redirect to="/lifehub" replace />) : user && !user.isAdmin ? (user.role === "teacher" ? <Redirect to="/workhub" replace /> : user.role === "parent" ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
+        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : user.isAdmin ? <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" /> : user.role === "teacher" ? <Redirect to="/workhub" replace /> : <Redirect to="/lifehub" replace />) : user && !user.isAdmin ? (user.role === "teacher" ? <Redirect to="/workhub" replace /> : user.role === "parent" ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
         {user ? (user.isAdmin || user.role === 'teacher' ? <Redirect to="/workhub" replace /> : user.role === 'parent' ? <Redirect to="/lifehub" replace /> : user.role === "todo" ? <Redirect to="/lifehub" replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}
