@@ -388,7 +388,7 @@ function TeacherHubPage() {
   }, [subMenu]);
   useEffect(() => { setLastInGroup((prev) => (prev[groupOf(tab).id] === tab ? prev : { ...prev, [groupOf(tab).id]: tab })); }, [tab]);
 
-  const canUseHub = !!user && (user.role === "teacher" || user.isAdmin);
+  const canUseHub = !!user && (user.role === "teacher" || user.role === "parent" || user.isAdmin);
   // Opening the Hub and keeping it saved (see useHubWorkspace).
   const sync = useHubWorkspace({ enabled: canUseHub, token, userId: user?.id });
   const { workspace, setWorkspace, loaded, loadError, needsPlan, seats, view, bytes } = sync;
