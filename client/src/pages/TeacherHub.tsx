@@ -929,13 +929,18 @@ function TeacherHubPage() {
                   const open = ariseOpen || here;
                   return <Fragment key="group-arise">
                     <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                      {/* A.R.I.S.E. Reader is the core product, so its nav item stands out from the
-                          rest of the menu: a violet icon badge and a tinted row, active or not. */}
-                      <button type="button" onClick={() => setAriseOpen((v) => !v)} aria-expanded={open} data-testid="hub-menu-arise" data-hub-nav
-                        className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${here ? "bg-violet-50 text-violet-950 md:border md:border-violet-200" : "text-violet-700 hover:bg-violet-50 md:hover:bg-violet-50"}`}>
-                        <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${here ? "bg-violet-700 text-white" : "bg-violet-100 text-violet-700"}`}>{GROUP_ICON.arise}</span>
+                      {/* A.R.I.S.E. Reader is the core product, so its nav item is unmissable: a
+                          solid violet pill with a white icon badge, bigger than the rest of the
+                          menu. Pressing it jumps straight to the Reader Overview (not just
+                          expand/collapse) so a teacher always lands somewhere, never just a toggle. */}
+                      <button type="button" onClick={() => { setTab("reader"); setAriseOpen(true); closeApps(); afterPick(); }} aria-expanded={open} aria-current={here ? "page" : undefined} data-testid="hub-menu-arise" data-hub-nav
+                        className={`flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-center text-[10px] font-bold transition md:min-h-12 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3.5 md:py-2.5 md:text-left md:text-sm shadow-sm ${here ? "bg-violet-700 text-white md:shadow-md md:shadow-violet-200" : "bg-violet-100 text-violet-900 hover:bg-violet-200"}`}>
+                        <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${here ? "bg-white text-violet-700" : "bg-violet-700 text-white"}`}>{GROUP_ICON.arise}</span>
                         <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
-                        <FolderChevron className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
+                        <FolderChevron
+                          onClick={(e) => { e.stopPropagation(); setAriseOpen((v) => !v); }}
+                          role="button" aria-label={`${open ? "Collapse" : "Expand"} A.R.I.S.E. Reader tabs`}
+                          className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
                       </button>
                     </div>
                     {open && tabs.map((t) => subItem(t, true))}
