@@ -90,7 +90,7 @@ const KEY = {
 };
 
 /** What a teacher without Premium may still reach: signing in and out, their plan, and paying for it. */
-const TEACHER_OPEN = ["/api/social", "/api/addons", "/api/teacher-hub", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
+const TEACHER_OPEN = ["/api/social", "/api/addons", "/api/teacher-hub", "/api/arise-todo", "/api/lifehub", "/api/hub-chat", "/api/hub-calendar", "/api/hub-files", "/api/hub-inbox", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
 
 // Never 401 or 503 here: the app retries those for several seconds before showing the message.
 class Refused extends Error { constructor(message: string, readonly status = 400, readonly code?: string) { super(message); } }
