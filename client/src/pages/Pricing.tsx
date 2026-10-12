@@ -45,7 +45,7 @@ export default function Pricing() {
           <h2 className="mt-3 text-2xl font-black">Math, History &amp; Connect</h2>
           <p className="mt-3 text-5xl font-black">{usd(PLANS.bundle.familyMonthlyCents)} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
           <p className="mt-4 text-sm leading-6 text-slate-600">One price for the parent and all {kids} linked children. Reading stays free even without the bundle.</p>
-          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ A.R.I.S.E. Math</li><li>✓ A.R.I.S.E. History</li><li>✓ A.R.I.S.E. Connect (career discovery; restricted student connections under development)</li><li>✓ Family access across linked accounts</li></ul>
+          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ A.R.I.S.E. Math</li><li>✓ A.R.I.S.E. History</li><li>✓ A.R.I.S.E. Connect</li><li>✓ Family access across linked accounts</li></ul>
           <button onClick={familyPlan} className="mt-7 w-full rounded-xl bg-violet-700 px-5 py-3 font-bold text-white">Get the family bundle</button>
         </article>
         <article className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm" data-testid="pricing-class">
