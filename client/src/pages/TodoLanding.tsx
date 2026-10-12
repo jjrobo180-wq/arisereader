@@ -155,25 +155,6 @@ export default function TodoLanding() {
       </section>
 
       {/* Life extras */}
-      <section className="border-y border-white/10 bg-white/[.025] px-4 py-12 sm:px-8 sm:py-14">
-        <div className="mx-auto max-w-5xl">
-          <p className="text-xs font-black uppercase tracking-[.25em] text-amber-300">Beyond the task list</p>
-          <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Everything a household actually juggles</h2>
-          <p className="mt-2 max-w-2xl text-sm font-semibold text-slate-400">A sample of the 70+ sections in the App Store. Add only what you'll use — the rest stay out of your way.</p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {lifeExtras.map(({ icon: Icon, title, text }) => (
-              <div key={title} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4">
-                <Icon className="mt-0.5 h-5 w-5 shrink-0 text-violet-300" />
-                <div>
-                  <div className="font-black">{title}</div>
-                  <p className="mt-1 text-sm leading-6 text-slate-400">{text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Customization deep dive */}
       <section className="px-4 py-12 sm:px-8 sm:py-16">
         <div className="mx-auto max-w-5xl">
@@ -204,6 +185,25 @@ export default function TodoLanding() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-white/10 bg-white/[.025] px-4 py-12 sm:px-8 sm:py-14">
+        <div className="mx-auto max-w-5xl">
+          <p className="text-xs font-black uppercase tracking-[.25em] text-amber-300">Beyond the task list</p>
+          <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Everything a household actually juggles</h2>
+          <p className="mt-2 max-w-2xl text-sm font-semibold text-slate-400">A sample of the 70+ sections in the App Store. Add only what you'll use — the rest stay out of your way.</p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {lifeExtras.map(({ icon: Icon, title, text }) => (
+              <div key={title} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4">
+                <Icon className="mt-0.5 h-5 w-5 shrink-0 text-violet-300" />
+                <div>
+                  <div className="font-black">{title}</div>
+                  <p className="mt-1 text-sm leading-6 text-slate-400">{text}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
