@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { PLANS, usd } from "@shared/plans";
 import "./pricing.css";
@@ -8,60 +9,14 @@ export default function Pricing() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  // arisetodo.com has its own pricing page. A.R.I.S.E. Reader's learning
-  // bundles are separate products and should never replace To-Do pricing.
-  const onTodoDomain = typeof window !== "undefined" && /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
-  if (onTodoDomain) return (
-    <main className="min-h-screen bg-[#07060f] text-white">
-      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6">
-        <button onClick={() => navigate("/")} className="text-lg font-black tracking-tight">A.R.I.S.E. <span className="text-violet-300">To-Do</span></button>
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/")} className="rounded-full px-3 py-2 text-sm font-bold text-slate-300 hover:text-white">Back to home</button>
-          <button onClick={() => navigate("/signin")} className="rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950">Log in</button>
-        </div>
-      </header>
-      <section className="mx-auto max-w-4xl px-5 pb-12 pt-12 text-center sm:pt-20">
-        <p className="text-xs font-black uppercase tracking-[.24em] text-violet-300">A.R.I.S.E. To-Do pricing</p>
-        <h1 className="mt-4 text-4xl font-black leading-tight tracking-tight sm:text-6xl">
-          Your whole life, organized. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent">Completely free.</span>
-        </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">Both Work and Life hubs are included for parents and teachers. Make your own space and customize it your way.</p>
-      </section>
-      <section aria-label="To-Do plans" className="mx-auto grid max-w-5xl gap-5 px-5 pb-10 md:grid-cols-2">
-        <article className="rounded-[28px] border border-violet-400/30 bg-gradient-to-br from-violet-500/15 to-indigo-500/5 p-7" data-testid="todo-pricing-life">
-          <p className="text-xs font-black uppercase tracking-widest text-violet-300">Personal &amp; family</p>
-          <h2 className="mt-3 text-2xl font-black">A.R.I.S.E. To-Do · Life</h2>
-          <p className="mt-5 text-5xl font-black">$0 <span className="text-sm font-semibold text-slate-300">/ month</span></p>
-          <p className="mt-5 text-sm leading-7 text-slate-300">Plan your day, take care of your household and keep what matters in one place.</p>
-          <ul className="mt-6 space-y-3 text-sm font-semibold text-slate-100">
-            <li>✓ Tasks, calendars and family schedules</li>
-            <li>✓ Habits, routines, meals and grocery lists</li>
-            <li>✓ Budget, health and household trackers</li>
-            <li>✓ Custom sections, layouts and App Store tools</li>
-          </ul>
-        </article>
-        <article className="rounded-[28px] border border-fuchsia-400/30 bg-gradient-to-br from-fuchsia-500/15 to-violet-500/5 p-7" data-testid="todo-pricing-work">
-          <p className="text-xs font-black uppercase tracking-widest text-fuchsia-300">Work &amp; education</p>
-          <h2 className="mt-3 text-2xl font-black">A.R.I.S.E. To-Do · Work</h2>
-          <p className="mt-5 text-5xl font-black">$0 <span className="text-sm font-semibold text-slate-300">/ month</span></p>
-          <p className="mt-5 text-sm leading-7 text-slate-300">Bring tasks, schedules and daily planning together in a workspace you control.</p>
-          <ul className="mt-6 space-y-3 text-sm font-semibold text-slate-100">
-            <li>✓ To-do lists, recurring tasks and reminders</li>
-            <li>✓ Calendars, meetings and notes</li>
-            <li>✓ Educator organization and planning tools</li>
-            <li>✓ Custom Home screens, menus and folders</li>
-          </ul>
-        </article>
-      </section>
-      <section className="mx-auto max-w-5xl px-5 pb-20 pt-5 text-center">
-        <p className="text-sm font-semibold leading-6 text-slate-300">One A.R.I.S.E. account gives you access to both hubs.</p>
-        <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <button onClick={() => navigate("/register-independent")} className="min-h-12 rounded-full bg-white px-8 py-3 text-sm font-black text-slate-950 transition hover:scale-[1.03]">Get started free</button>
-          <button onClick={() => navigate("/signin")} className="min-h-12 rounded-full border border-white/30 px-8 py-3 text-sm font-black text-white hover:bg-white/10">I already have an account</button>
-        </div>
-      </section>
-    </main>
-  );
+  // Visitors using a saved /app#/pricing link should see the light homepage's
+  // pricing section, not this Reader-focused React view.
+  const onTodoDomain = typeof window !== "undefined" && /^(www\\.)?arisetodo\\.com$/i.test(window.location.hostname);
+  useEffect(() => {
+    if (onTodoDomain) window.location.replace("/#pricing");
+  }, [onTodoDomain]);
+  if (onTodoDomain) return <main className="min-h-screen bg-[#f9fafc] p-10 text-center"><a href="/#pricing">Open A.R.I.S.E. To-Do pricing</a></main>;
+
   const home = () => { window.location.assign("https://www.arisereader.com/"); };
   const todo = () => { window.location.assign("https://arisetodo.com/app#/signin"); };
   const startReading = () => { window.location.assign("https://www.arisereader.com/#/signin"); };
