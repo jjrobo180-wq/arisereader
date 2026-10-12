@@ -135,13 +135,13 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
   const role = data.role;
   const b = data.bundle, t = data.todo;
   const btn = "inline-flex min-h-10 items-center justify-center rounded-full px-4 text-sm font-black disabled:opacity-50";
-  const primary = `${btn} arise-gradient-button text-white`;
-  const ghost = `${btn} border border-white/15 bg-white/5 hover:bg-white/10`;
+  const primary = `${btn} bg-violet-700 text-white hover:bg-violet-800`;
+  const ghost = `${btn} border border-slate-200 bg-white text-[#141b32] hover:border-violet-300 hover:bg-violet-50`;
 
   const apps: { id: AppId; href: string; label: string; sub: string; icon: typeof Landmark; tone: string }[] = [
-    { id: "history", href: "/history/", label: "Arise History", sub: "True stories and quizzes", icon: Landmark, tone: "text-amber-400" },
-    { id: "math", href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator, tone: "text-cyan-400" },
-    { id: "social", href: "/social/", label: "Arise Social", sub: "Explore every career", icon: Users, tone: "text-violet-400" },
+    { id: "history", href: "/history/", label: "Arise History", sub: "True stories and quizzes", icon: Landmark, tone: "text-amber-600" },
+    { id: "math", href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator, tone: "text-cyan-600" },
+    { id: "social", href: "/social/", label: "Arise Social", sub: "Explore every career", icon: Users, tone: "text-violet-600" },
   ];
 
   let bundleAction: ReactNode = null;
@@ -157,15 +157,15 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     const live = !!a.plan?.live;
     let action: ReactNode;
     if (a.paidByYou && live) action = <button type="button" className={ghost} disabled={!!busy} onClick={() => go(`m-${id}`, "/api/billing/addon-portal", { product: id, returnPath })}>Manage</button>;
-    else if (live) action = <span className="text-xs font-bold text-emerald-300">On</span>;
+    else if (live) action = <span className="text-xs font-bold text-emerald-700">On</span>;
     else if (!classPremium) action = <a className={ghost} href="/#/billing">Get the Class plan first</a>;
     else action = <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go(id, "/api/billing/addon-checkout", { product: id, returnPath })} data-testid={`addons-buy-${id}`}>{busy === id ? "Opening…" : `Add · ${money(data.prices.classApps[id])}/mo`}</button>;
     return (
-      <div key={id} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3" data-testid={`addons-class-${id}`}>
+      <div key={id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3" data-testid={`addons-class-${id}`}>
         <app.icon className={`h-6 w-6 shrink-0 ${app.tone}`} />
         <a href={app.href} className="min-w-0 flex-1 hover:underline">
-          <span className="block text-sm font-black">{app.label} <span className="font-bold text-muted-foreground">· {money(data.prices.classApps[id])}/month</span></span>
-          <span className="block text-xs text-muted-foreground">{live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${day(a.plan.endsAt)}` : ""}`) : "Off"}</span>
+          <span className="block text-sm font-black text-[#141b32]">{app.label} <span className="font-bold text-slate-500">· {money(data.prices.classApps[id])}/month</span></span>
+          <span className="block text-xs text-slate-500">{live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${day(a.plan.endsAt)}` : ""}`) : "Off"}</span>
         </a>
         {action}
       </div>
@@ -173,18 +173,18 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
   };
 
   return (
-    <section className="rounded-[1.6rem] border border-white/10 bg-gradient-to-br from-[#1b1638] via-[#151326] to-[#10202a] p-5 sm:p-6" aria-label="Add-ons" data-testid="addons-card">
+    <section className="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-label="Add-ons" data-testid="addons-card">
       {(role === "parent" || role === "teacher") && (
-        <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3" data-testid="addons-optional">
-          <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">Optional add-ons</p>
-          <p className="mt-1 text-sm font-bold text-foreground">{[freeLine(data), "Everything below is an extra you can add or skip, and is paid separately."].filter(Boolean).join(" ")}</p>
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3" data-testid="addons-optional">
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-700">Optional add-ons</p>
+          <p className="mt-1 text-sm font-bold text-[#141b32]">{[freeLine(data), "Everything below is an extra you can add or skip, and is paid separately."].filter(Boolean).join(" ")}</p>
         </div>
       )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-300">{role === "teacher" ? "Class add-ons" : "Learning Bundle"}</p>
-          <h2 className="mt-1 text-xl font-black">Arise History, Arise Math & Arise Social</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-600">{role === "teacher" ? "Class add-ons" : "Learning Bundle"}</p>
+          <h2 className="mt-1 text-xl font-black text-[#141b32]">Arise History, Arise Math & Arise Social</h2>
+          <p className="mt-1 text-sm text-slate-600">
             {role === "teacher" ? `Add any of them for your whole class (up to ${data.prices.classSeats} students), on top of the Class plan. Each is its own monthly add-on.`
               : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher adds all three for the class, we refund your unused days.`
               : "Three more ways to learn and earn points, right next to your reading."}
@@ -197,39 +197,39 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       ) : (
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {apps.map((a) => (
-          <a key={a.href} href={a.href} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/10">
+          <a key={a.href} href={a.href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-violet-300 hover:bg-violet-50">
             <a.icon className={`h-6 w-6 shrink-0 ${a.tone}`} />
-            <span className="min-w-0"><span className="block text-sm font-black">{a.label}</span><span className="block truncate text-xs text-muted-foreground">{a.sub}</span></span>
+            <span className="min-w-0"><span className="block text-sm font-black text-[#141b32]">{a.label}</span><span className="block truncate text-xs text-slate-600">{a.sub}</span></span>
           </a>
         ))}
       </div>
       )}
 
       <div className="mt-4 space-y-3">
-        {role !== "teacher" && b.access && b.via && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${day(b.endsAt)}` : ""}</p>}
-        {!b.access && <p className="text-sm font-bold text-amber-300">{role === "teacher" ? "Add the ones your class uses." : "Not added yet."}</p>}
-        {role === "student" && !b.access && <p className="text-sm text-muted-foreground">Ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
-        {role === "teacher" && <p className="text-xs text-muted-foreground">Each add-on covers up to {data.prices.classSeats} students; you have {data.students ?? 0}. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three.</p>}
+        {role !== "teacher" && b.access && b.via && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${day(b.endsAt)}` : ""}</p>}
+        {!b.access && <p className="text-sm font-bold text-amber-700">{role === "teacher" ? "Add the ones your class uses." : "Not added yet."}</p>}
+        {role === "student" && !b.access && <p className="text-sm text-slate-600">Ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
+        {role === "teacher" && <p className="text-xs text-slate-500">Each add-on covers up to {data.prices.classSeats} students; you have {data.students ?? 0}. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three.</p>}
         {role === "parent" && !!data.children?.length && (
-          <div className="flex flex-wrap gap-2">{data.children.map((k) => <span key={k.id} className={`rounded-full border px-3 py-1 text-xs font-bold ${k.coveredByClass ? "border-emerald-400/40 text-emerald-300" : "border-white/15 text-muted-foreground"}`}>{k.name}{k.coveredByClass ? " · covered by class" : ""}</span>)}</div>
+          <div className="flex flex-wrap gap-2">{data.children.map((k) => <span key={k.id} className={`rounded-full border px-3 py-1 text-xs font-bold ${k.coveredByClass ? "border-emerald-300 text-emerald-700" : "border-slate-200 text-slate-600"}`}>{k.name}{k.coveredByClass ? " · covered by class" : ""}</span>)}</div>
         )}
-        {role === "parent" && data.refund && data.refund.cents > 0 && <p className="text-sm text-emerald-300">Your children’s teachers now cover Arise History, Math and Social, so we cancelled your plan and refunded {money(data.refund.cents)} to your card on {day(data.refund.at)}.</p>}
+        {role === "parent" && data.refund && data.refund.cents > 0 && <p className="text-sm text-emerald-700">Your children’s teachers now cover Arise History, Math and Social, so we cancelled your plan and refunded {money(data.refund.cents)} to your card on {day(data.refund.at)}.</p>}
         {bundleAction && <div className="flex flex-wrap gap-2">{bundleAction}</div>}
-        {!data.payment && (role === "parent" || role === "teacher") && !ownPlanLive && <p className="text-xs text-muted-foreground">Online payment isn’t open yet.</p>}
+        {!data.payment && (role === "parent" || role === "teacher") && !ownPlanLive && <p className="text-xs text-slate-500">Online payment isn’t open yet.</p>}
       </div>
 
       {showTodo && (role === "parent" || role === "teacher") && (
-        <div className="mt-5 border-t border-white/10 pt-4">
+        <div className="mt-5 border-t border-slate-200 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-base font-black"><BookOpen className="h-4 w-4 text-emerald-400" />Arise LifeHub</p>
-              <p className="text-sm text-muted-foreground">{role === "teacher" ? "Comes with Arise WorkHub: one subscription, both tools." : "Lists, chores, the family calendar and more. Free for every parent."}</p>
+              <p className="flex items-center gap-2 text-base font-black text-[#141b32]"><BookOpen className="h-4 w-4 text-emerald-600" />Arise LifeHub</p>
+              <p className="text-sm text-slate-600">{role === "teacher" ? "Comes with Arise WorkHub: one subscription, both tools." : "Lists, chores, the family calendar and more. Free for every parent."}</p>
             </div>
             <a className={ghost} href="/#/lifehub">Open LifeHub</a>
           </div>
           <div className="mt-3 space-y-3">
-            {t.access && t.via && REASON[t.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[t.via]}</p>}
-            {!t.access && <p className="text-sm font-bold text-amber-300">{role === "teacher" ? "Get Arise WorkHub to use LifeHub." : "LifeHub needs a plan."}</p>}
+            {t.access && t.via && REASON[t.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[t.via]}</p>}
+            {!t.access && <p className="text-sm font-bold text-amber-700">{role === "teacher" ? "Get Arise WorkHub to use LifeHub." : "LifeHub needs a plan."}</p>}
             <div className="flex flex-wrap gap-2">
               {role === "teacher" && data.hub?.via !== "hub-teacher-plan" && data.hub?.via !== "hub-school-plan" && <a className={ghost} href="/#/billing">Arise WorkHub: {money(data.prices.hubCents)}/month</a>}
             </div>
@@ -237,7 +237,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
         </div>
       )}
 
-      {note && <p className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm" role="status">{note}</p>}
+      {note && <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-[#141b32]" role="status">{note}</p>}
     </section>
   );
 }

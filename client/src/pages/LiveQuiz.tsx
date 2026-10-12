@@ -103,16 +103,20 @@ export default function LiveQuiz() {
       cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || "Something went wrong. Please try again.");
+    if (!response.ok) { const e: any = new Error(data.message || "Something went wrong. Please try again."); e.code = data.code; throw e; }
     return data;
   }
+
+  // True once a call has come back "premium_required" — shown as a lock banner, not a raw error.
+  const [premiumLocked, setPremiumLocked] = useState(false);
+  const noteIfLocked = (e: unknown) => { if (e instanceof Error && (e as any).code === "premium_required") { setPremiumLocked(true); return true; } return false; };
 
   async function loadTeacherHome() {
     if (!isTeacher || id) return;
     try {
       const [saved, ready] = await Promise.all([api("/api/live-quizzes"), api("/api/live-quizzes/presets")]);
       setQuizzes(saved); setPresets(ready);
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { if (!noteIfLocked(e)) setError((e as Error).message); }
   }
 
   async function loadRoom(roomId: string) {
@@ -134,7 +138,7 @@ export default function LiveQuiz() {
       if (waiting || !alive) return;
       waiting = true;
       try { await loadRoom(id); if (alive) setError(""); }
-      catch (e) { if (alive) setError((e as Error).message); }
+      catch (e) { if (alive && !noteIfLocked(e)) setError((e as Error).message); }
       finally { waiting = false; }
     };
     void refresh();
@@ -159,7 +163,7 @@ export default function LiveQuiz() {
   async function run(key: string, operation: () => Promise<void>) {
     if (busy) return;
     setBusy(key); setError(""); setNotice("");
-    try { await operation(); } catch (e) { setError((e as Error).message); }
+    try { await operation(); } catch (e) { if (!noteIfLocked(e)) setError((e as Error).message); }
     finally { setBusy(""); }
   }
 
@@ -276,6 +280,10 @@ export default function LiveQuiz() {
         </div>
       </header>
 
+      {premiumLocked && <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-300/40 bg-amber-500/10 p-4 font-bold text-amber-100" data-testid="live-quiz-premium-locked">
+        <span className="min-w-0 flex-1">A.R.I.S.E. Live Classroom needs the Class plan.</span>
+        <a href="#/billing" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl bg-amber-400 px-3 text-sm font-black text-slate-950 hover:bg-amber-300">Get the Class plan</a>
+      </div>}
       {error && <div role="alert" className="mb-5 rounded-2xl border border-red-400/50 bg-red-950/80 p-4 font-bold">{error}</div>}
       {notice && <div className="mb-5 rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 font-bold text-emerald-100">{notice}</div>}
 

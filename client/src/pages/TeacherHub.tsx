@@ -497,6 +497,8 @@ function TeacherHubPage() {
   const deskAside = deskDrawer ? "md:hidden" : deskTop ? "md:top-[65px] md:h-auto md:self-auto" : `md:top-[73px] md:h-[calc(100vh-90px)] md:self-start ${desk === "right" ? "md:order-2" : ""}`;
   const deskList = deskTop ? "md:h-auto md:flex-row md:items-center md:gap-1 md:overflow-x-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-1.5 md:shadow-sm" : "md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm";
   const [openFolders, setOpenFolders] = useState<string[]>([]);
+  /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
+  const [ariseOpen, setAriseOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff);
   const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
@@ -910,7 +912,33 @@ function TeacherHubPage() {
                 </div>
               );
               };
+              /** A.R.I.S.E. Reader's own row: one sub-item, folder-style, for each of its tabs. */
+              const subItem = (t: HubTab, nested: boolean) => (
+                <div key={t} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"} ${nested && !deskTop && !deskCompact ? "md:pl-4" : ""}`}>
+                  <button type="button" onClick={() => { setTab(t); closeApps(); afterPick(); }} aria-current={tab === t && !kitOpen ? "page" : undefined} data-testid={`hub-menu-${t}`} data-hub-nav
+                    className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${tab === t && !kitOpen ? "" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                    {tabIcon(t)}
+                    <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none md:whitespace-normal ${deskCompact ? "md:sr-only" : ""}`}>{SUB_LABELS[t] ?? TAB_META.find((m) => m.id === t)?.label ?? t}</span>
+                  </button>
+                </div>
+              );
               return foldMenu(menu, layout.folders).map((entry) => {
+                if (entry.kind === "item" && entry.item.id === "arise") {
+                  const tabs = groupTabs("arise", visible);
+                  const here = group.id === "arise" && !kitOpen;
+                  const open = ariseOpen || here;
+                  return <Fragment key="group-arise">
+                    <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                      <button type="button" onClick={() => setAriseOpen((v) => !v)} aria-expanded={open} data-testid="hub-menu-arise" data-hub-nav
+                        className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2 md:px-3 md:py-2 md:text-left md:text-sm md:font-medium ${here ? "text-slate-950" : "text-slate-500 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                        {GROUP_ICON.arise}
+                        <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+                        <FolderChevron className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
+                      </button>
+                    </div>
+                    {open && tabs.map((t) => subItem(t, true))}
+                  </Fragment>;
+                }
                 if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
                 const f = entry.folder, here = entry.items.some((x) => x.id === group.id) && !kitOpen;
                 const open = openFolders.includes(f.id) || here;
