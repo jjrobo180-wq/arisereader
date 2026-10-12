@@ -63,7 +63,11 @@ export function registerDriveAppRoutes(app: Express, authMiddleware: RequestHand
       if (!userId) return res.status(401).json({ message: "Sign in required." });
 
       const contentType = String(req.headers["content-type"] || "").split(";")[0].toLowerCase();
-      const sentName = decodeURIComponent(String(req.headers["x-drive-name"] || "")).slice(0, 120);
+      // decodeURIComponent throws on a name that isn't percent-encoded, which would have failed
+      // the whole upload, so a name it can't decode is used as it arrived.
+      let rawName = String(req.headers["x-drive-name"] || "");
+      try { rawName = decodeURIComponent(rawName); } catch { /* use as sent */ }
+      const sentName = rawName.slice(0, 120);
       let ext = ALLOWED[contentType];
       const body: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
       // Phones often send no useful MIME type at all. Read the file's own first bytes, then fall

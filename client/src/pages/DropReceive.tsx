@@ -49,15 +49,18 @@ export default function DropReceive() {
       <h1 className="text-lg font-black text-slate-900">A.R.I.S.E. Drop</h1>
       {loading ? <p className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Looking up this drop…</p>
         : error ? <p className="mt-4 text-sm font-semibold text-rose-600">{error}</p>
-        : done ? <p className="mt-4 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600"><CheckCircle2 size={16} /> Download started.</p>
         : info && <>
           <p className="mt-4 truncate text-sm font-bold text-slate-800">{info.name}</p>
           <p className="text-xs text-slate-500">{fmtBytes(info.size)}</p>
+          {/* The button stays after a download rather than being replaced by a "done" message: a
+              drop lives a full hour however many times it is fetched, so if the save went wrong
+              or the file is wanted on this device too, it is still right there to tap again. */}
+          {done && <p className="mt-4 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600"><CheckCircle2 size={16} /> Download started.</p>}
           <button type="button" onClick={claim} disabled={claiming} className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white disabled:opacity-60">
-            <Download size={16} /> {claiming ? "Opening…" : "Download"}
+            <Download size={16} /> {claiming ? "Opening…" : done ? "Download again" : "Download"}
           </button>
         </>}
-      <p className="mt-5 text-xs text-slate-400">Sent with A.R.I.S.E. Drop, no account needed to receive.</p>
+      <p className="mt-5 text-xs text-slate-400">Sent with A.R.I.S.E. Drop, no account needed to receive. This link works for one hour.</p>
     </div>
   </div>;
 }

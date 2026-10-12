@@ -1,8 +1,8 @@
 // The Drop app (App Store add-on, shared/dropApp.ts): an AirDrop-style file hand-off. Send a
 // file from this device and get a code, a QR code, and a link; on the receiving device, type the
 // code, scan the QR, or open the link to pull it straight back down. Also lists this account's
-// own recent, unclaimed drops ("Sent from this account") as a tap-to-grab shortcut between two of
-// your own devices, without retyping a code.
+// own drops from the last hour ("Waiting for you") as a tap-to-grab shortcut between two of your
+// own devices, without retyping a code. A drop lasts an hour and downloading leaves it in place.
 import { useEffect, useRef, useState } from "react";
 import { Upload, Copy, Check, QrCode, Download, Clock, Link2 } from "lucide-react";
 import { DROP_MAX_BYTES, isDropCode } from "@shared/dropApp";
@@ -17,7 +17,7 @@ type Props = {
 };
 
 type SentDrop = { code: string; name: string; size: number; createdAt: string; expiresAt: string };
-type ReceivedInfo = { code: string; name: string; size: number; contentType: string; expiresAt: string };
+type ReceivedInfo = { code: string; name: string; size: number; contentType: string; expiresAt: string; claimed?: boolean };
 
 const fmtBytes = (n: number) => n >= 1024 * 1024 ? `${(n / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 const fmtLeft = (iso: string) => {
@@ -135,7 +135,9 @@ export default function DropApp({ say, token }: Props) {
       a.href = j.url; a.download = j.name || fallbackName; a.rel = "noopener";
       document.body.appendChild(a); a.click(); a.remove();
       say("Download started.");
-      setReceived(null); setCodeInput("");
+      setReceived((r) => (r && r.code === code ? { ...r, claimed: true } : r));
+      // The drop is left on screen rather than cleared: it stays alive for the rest of its hour,
+      // so being able to tap Download again (a save that went wrong, a second device) matters.
       loadMine();
     } catch {
       say("Couldn't open that drop. Try again.");
@@ -147,7 +149,7 @@ export default function DropApp({ say, token }: Props) {
   return <div className="space-y-6" data-testid="drop-app">
     <div>
       <h2 className="text-lg font-black text-slate-900">Drop</h2>
-      <p className="mt-1 text-sm text-slate-500">Send a file to another device with a code, a QR code, or a link. Files are kept for 24 hours or until they're picked up.</p>
+      <p className="mt-1 text-sm text-slate-500">Send a file to another device with a code, a QR code, or a link. Files stay for one hour, and you can pick one up as many times as you need.</p>
     </div>
 
     {/* ---- Send ---- */}
@@ -190,7 +192,7 @@ export default function DropApp({ say, token }: Props) {
       {received && <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-slate-800">{received.name}</p>
-          <p className="text-xs text-slate-500">{fmtBytes(received.size)} · {fmtLeft(received.expiresAt)}</p>
+          <p className="text-xs text-slate-500">{fmtBytes(received.size)} · {fmtLeft(received.expiresAt)}{received.claimed ? " · already picked up once, still here" : ""}</p>
         </div>
         <button type="button" onClick={() => grab(received.code, received.name)} disabled={!!claiming} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#292446] px-3 text-sm font-bold text-white disabled:opacity-60" data-testid="drop-download">
           <Download size={15} /> {claiming === received.code ? "Opening…" : "Download"}

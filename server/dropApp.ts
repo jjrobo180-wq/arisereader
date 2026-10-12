@@ -10,9 +10,13 @@
 //
 // "Nearby" list: real local-network device discovery (the way AirDrop/Snapdrop do it) needs
 // either a live socket server or multicast, neither of which this request is standing up right
-// now. Instead, GET /api/lifehub/drop/mine lists this signed-in user's own recent, unclaimed
-// drops — a tap-to-grab list when sender and receiver are the same account on two devices (e.g.
+// now. Instead, GET /api/lifehub/drop/mine lists this signed-in user's own drops from the last
+// hour — a tap-to-grab list when sender and receiver are the same account on two devices (e.g.
 // phone drops a photo, laptop picks it up), without a true cross-account "nearby" radar.
+//
+// A drop lasts one hour and downloading it does NOT remove it, so the same file can be pulled
+// down on several devices, or again after a download that went wrong. Expired drops are swept
+// (bytes and lookup row both) when the next upload comes in — see sweepExpired.
 import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { DROP_MAX_BYTES, DROP_TTL_MS, cleanDropMeta, isDropCode, isDropExpired, makeDropCode, type DropMeta } from "@shared/dropApp";
@@ -70,6 +74,42 @@ const readDrop = async (deps: DropDeps, code: string): Promise<StoredDrop | null
 const writeDrop = (deps: DropDeps, drop: StoredDrop) =>
   deps.upsertSetting(`${SETTING_PREFIX}${drop.code}`, JSON.stringify(drop));
 
+/** Clears out drops whose hour is up: the stored bytes and the code -> file row both.
+ *
+ *  Nothing used to delete a drop's bytes at all — a claimed drop was merely hidden — so the bucket
+ *  only ever grew. Now that a download no longer ends a drop, the clock is the only thing that
+ *  does, and this is what acts on it. It runs after an upload rather than on a timer: uploads are
+ *  the only moment new files appear, and a sweep then keeps the bucket proportional to real use
+ *  without standing up a scheduler. Failures are logged and ignored; the next upload tries again. */
+async function sweepExpired(deps: DropDeps) {
+  try {
+    const rows = await deps.listSettingsByPrefix(SETTING_PREFIX);
+    const dead: { key: string; path: string }[] = [];
+    for (const r of rows) {
+      try {
+        const parsed = JSON.parse(r.value);
+        if (parsed?.expiresAt && isDropExpired({ expiresAt: String(parsed.expiresAt) })) {
+          dead.push({ key: r.key, path: String(parsed.path || "") });
+        }
+      } catch { dead.push({ key: r.key, path: "" }); } // unreadable row: drop it too
+    }
+    if (!dead.length) return;
+
+    const adminDb = deps.getAdminSupabase();
+    const paths = dead.map((d) => d.path).filter(Boolean);
+    if (paths.length) {
+      const { error } = await adminDb.storage.from(BUCKET).remove(paths);
+      // If the bytes can't be removed, keep the lookup rows so the next sweep retries them rather
+      // than orphaning files nothing points at any more.
+      if (error) { console.error("[drop-app] sweep could not remove files:", error.message || error); return; }
+    }
+    const { error } = await adminDb.from("settings").delete().in("key", dead.map((d) => d.key));
+    if (error) console.error("[drop-app] sweep could not clear lookup rows:", error.message || error);
+  } catch (error: any) {
+    console.error("[drop-app] sweep failed:", error?.message || error);
+  }
+}
+
 export function registerDropAppRoutes(app: Express, authMiddleware: RequestHandler, raw: (opts: { type: string[]; limit: string }) => RequestHandler, deps: DropDeps) {
   // Send: pick a file, get back a code + link. Signed in, so a drop can be attributed to an
   // account for the "mine" list, but the receiving side never needs to be.
@@ -81,20 +121,32 @@ export function registerDropAppRoutes(app: Express, authMiddleware: RequestHandl
       if (body.length > DROP_MAX_BYTES) return res.status(413).json({ message: "Keep a Drop file under 200 MB." });
 
       const contentType = String(req.headers["content-type"] || "application/octet-stream").split(";")[0].toLowerCase();
-      const name = String(req.headers["x-drop-name"] || "file").toString().slice(0, 160).replace(/[^\w.\- ]+/g, "") || "file";
+      // The client percent-encodes the name so it survives as a header. Decoding it first matters:
+      // without that, "My Report.pdf" arrived as "My%20Report.pdf" and the strip below turned the
+      // escape into digits, handing the other device a file called "My20Report.pdf".
+      let sentName = String(req.headers["x-drop-name"] || "");
+      try { sentName = decodeURIComponent(sentName); } catch { /* not encoded; use as sent */ }
+      const name = sentName.slice(0, 160).replace(/[^\w.\- ]+/g, "").trim() || "file";
 
       const adminDb = deps.getAdminSupabase();
       await ensureBucket(adminDb);
 
       // Codes are short, so collisions are possible (not likely): retry a few times against an
-      // unexpired, unclaimed existing drop before giving up.
+      // unexpired existing drop before giving up.
       let code = "";
+      let replacing = "";
       for (let attempt = 0; attempt < 6; attempt++) {
         const candidate = makeDropCode();
         const existing = await readDrop(deps, candidate);
-        if (!existing || isDropExpired(existing)) { code = candidate; break; }
+        if (!existing || isDropExpired(existing)) { code = candidate; replacing = existing?.path || ""; break; }
       }
       if (!code) return res.status(503).json({ message: "Drop is busy right now. Try again in a moment." });
+      // Taking over an expired drop's code overwrites the only row pointing at its file, so the
+      // sweep below would never find those bytes again. Remove them while the path is still known.
+      if (replacing) {
+        const { error } = await adminDb.storage.from(BUCKET).remove([replacing]);
+        if (error) console.error("[drop-app] could not remove the file of the expired drop whose code is being reused:", error.message || error);
+      }
 
       const id = randomUUID();
       const path = `${userId ?? "anon"}/${Date.now()}-${id}`;
@@ -105,6 +157,8 @@ export function registerDropAppRoutes(app: Express, authMiddleware: RequestHandl
       const drop: StoredDrop = { code, name, size: body.length, contentType, createdAt: new Date(now).toISOString(), expiresAt: new Date(now + DROP_TTL_MS).toISOString(), claimed: false, path, ownerId: userId };
       await writeDrop(deps, drop);
       res.json({ code, name, size: drop.size, expiresAt: drop.expiresAt });
+      // After answering, so clearing out old drops never delays the send that just happened.
+      void sweepExpired(deps);
     } catch (error: any) {
       console.error("[drop-app] upload failed:", error?.message || error);
       res.status(500).json({ message: "Could not create that drop. Try again." });
@@ -118,21 +172,22 @@ export function registerDropAppRoutes(app: Express, authMiddleware: RequestHandl
       const code = String(req.params.code || "").toUpperCase();
       if (!isDropCode(code)) return res.status(400).json({ message: "That code isn't valid." });
       const drop = await readDrop(deps, code);
-      if (!drop || isDropExpired(drop)) return res.status(404).json({ message: "That drop has expired or was already picked up." });
-      res.json({ code: drop.code, name: drop.name, size: drop.size, contentType: drop.contentType, expiresAt: drop.expiresAt });
+      if (!drop || isDropExpired(drop)) return res.status(404).json({ message: "That drop has expired. Drops last one hour." });
+      res.json({ code: drop.code, name: drop.name, size: drop.size, contentType: drop.contentType, expiresAt: drop.expiresAt, claimed: drop.claimed });
     } catch {
       res.status(500).json({ message: "Could not look up that drop." });
     }
   });
 
-  // Receive, step 2: the actual file, as a signed URL good for a few minutes. Marks the drop
-  // claimed so a second visitor sees "already picked up" instead of also grabbing it.
+  // Receive, step 2: the actual file, as a signed URL good for a few minutes. The drop is marked
+  // as having been picked up, but stays available for the rest of its hour — a download is not a
+  // one-shot consumption, so a second device (or a retry) still finds it.
   app.post("/api/lifehub/drop/:code/claim", async (req, res) => {
     try {
       const code = String(req.params.code || "").toUpperCase();
       if (!isDropCode(code)) return res.status(400).json({ message: "That code isn't valid." });
       const drop = await readDrop(deps, code);
-      if (!drop || isDropExpired(drop)) return res.status(404).json({ message: "That drop has expired or was already picked up." });
+      if (!drop || isDropExpired(drop)) return res.status(404).json({ message: "That drop has expired. Drops last one hour." });
 
       const adminDb = deps.getAdminSupabase();
       const { data, error } = await adminDb.storage.from(BUCKET).createSignedUrl(drop.path, 300, { download: drop.name });
@@ -144,7 +199,7 @@ export function registerDropAppRoutes(app: Express, authMiddleware: RequestHandl
     }
   });
 
-  // The signed-in user's own recent, unclaimed drops — the "nearby" tap-to-grab list on the
+  // The signed-in user's own drops from the last hour — the "Waiting for you" tap-to-grab list on the
   // Drop screen (see file-top comment for why this isn't true cross-device network discovery).
   app.get("/api/lifehub/drop/mine/list", authMiddleware, async (req: any, res) => {
     try {
