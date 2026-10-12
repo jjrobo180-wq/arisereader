@@ -16,11 +16,14 @@ export function isHubAccount(user: HubUser): boolean {
   return !!user && (user.isAdmin === true || user.role === "teacher" || user.role === "parent" || user.role === "todo");
 }
 
-/** The hub an adult opens after signing in. Every role — admin, teacher and parent alike —
- *  lands on the to-do list (LifeHub) first; WorkHub's classroom tools are one click away from
- *  there for anyone who still needs them. */
-export function hubPathFor(_user: HubUser): "/workhub" | "/lifehub" {
-  return "/lifehub";
+/** The hub an adult opens after signing in. A teacher lands straight in WorkHub, where their
+ *  class and all of A.R.I.S.E. Reader's teacher tools (overview, live quiz, scenes, students,
+ *  approvals, parents, quizzes & grading, game time, prizes) actually live — that's what a
+ *  teacher signed up for, not the family to-do list. Every other adult (parent, LifeHub-only,
+ *  the administrator) still lands on the to-do list (LifeHub) first; WorkHub is one click away
+ *  for anyone who needs it. */
+export function hubPathFor(user: HubUser): "/workhub" | "/lifehub" {
+  return user?.role === "teacher" ? "/workhub" : "/lifehub";
 }
 
 /** The sign-in screen's address on this site (the app lives at /app on arisetodo.com). */
