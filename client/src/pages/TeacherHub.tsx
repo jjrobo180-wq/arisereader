@@ -1196,10 +1196,13 @@ function TeacherHubPage() {
           )}
 
           {subTabs.length > 1 && (
-            // The sidebar already lists every sub-tab inline once its group is open, so this
-            // dropdown would just repeat it there — it only earns its keep on mobile, where the
-            // sidebar collapses into a drawer/bottom bar instead of staying visible.
-            <div ref={subRef} className="relative md:hidden" data-testid="hub-subtabs">
+            // The sidebar already lists every A.R.I.S.E. Reader sub-tab inline once that group is
+            // open, so on desktop this dropdown would just repeat those — but it is also the ONLY
+            // place the Admin console's own sections (Banners, Alerts, Family emails, Club, AI,
+            // Extras, Security — see ADMIN_SECTIONS below) are reachable; the sidebar has no
+            // listing for those at all. So it only hides on desktop for the Reader's own sub-tabs,
+            // never while viewing the admin console.
+            <div ref={subRef} className={`relative ${subTabs.includes("admin") ? "" : "md:hidden"}`} data-testid="hub-subtabs">
               <button type="button" onClick={() => setSubMenu((v) => !v)} aria-haspopup="menu" aria-expanded={subMenu} aria-label={`${group.label} categories`} data-testid="hub-subtabs-button"
                 className="flex min-h-11 w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-left text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 sm:px-4">
                 {tabIcon(tab)}
