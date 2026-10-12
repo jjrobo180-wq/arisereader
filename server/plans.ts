@@ -9,9 +9,9 @@
 // "hub_school"), bought the same way. Plan rules, the free year and always-free
 // schools don't apply to it.
 //
-// Every teacher's first month is free, for Premium and Arise WorkHub alike (see
-// freeMonthFrom in shared/plans.ts). Nothing is stored for it: it is worked out
-// from the day the account was made.
+// Arise WorkHub is always free for a teacher or parent (see hubAccessFor). Premium
+// (Reader/Math/History for a teacher's class) has no free trial — a teacher pays
+// from day one, unless they are grandfathered or their school has a free plan.
 //
 // Two switches keep a live site safe:
 //   - Plan rules do nothing until the admin turns them on (setting "plans_enforced").
@@ -23,7 +23,7 @@
 import type { Express, RequestHandler } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  APP_IDS, APP_NAMES, PLANS, PLAN_KINDS, PREMIUM_REQUIRED, appAccessFor, appOfClassKind, classAppCents, classGrantCovers, classKindOf, clampBlocks, isAppId, isClassAppKind, entitlementFor, freeMonthEnd, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
+  APP_IDS, APP_NAMES, PLANS, PLAN_KINDS, PREMIUM_REQUIRED, appAccessFor, appOfClassKind, classAppCents, classGrantCovers, classKindOf, clampBlocks, isAppId, isClassAppKind, entitlementFor, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
   type AddonAccess, type AppId,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
@@ -631,8 +631,6 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       };
       if (user.role === "teacher" && !user.isAdmin) {
         const schoolId = schoolOf(user);
-        // When this teacher's free month ends, or ended.
-        body.freeMonthEndsAt = freeMonthEnd(user.createdAt);
         body.students = await deps.countTeacherStudents(user.id);
         body.teacherPlan = grantView(await readGrant("teacher", user.id));
         const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
@@ -1001,8 +999,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (user.role === "teacher" && !user.isAdmin) {
         const reading = await entitlement(user);
         body.premium = reading.premium;
-        // Why the teacher's reading plan is on (a free year, a free month, a plan) and until when,
-        // so the card can say the add-ons are a separate thing.
+        // Why the teacher's reading plan is on (a free year, a plan) and until when, so the card
+        // can say the add-ons are a separate thing.
         body.premiumVia = reading.via;
         body.premiumEndsAt = reading.endsAt;
         body.students = await deps.countTeacherStudents(user.id);
@@ -1137,7 +1135,6 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         enforced: await enforced(), plans: rows, freeSchools,
         stripe: { keySet: !!key, keyPreview: mask(key), keyFromHosting: !!deps.envStripeKey?.(), webhookSet: !!secret, webhookPreview: mask(secret), webhookFromHosting: !!deps.envWebhookSecret?.() },
         grandfather: { before: PLANS.grandfatherBefore, until: PLANS.grandfatherUntil },
-        freeMonth: { from: PLANS.freeMonthFrom, existingUntil: freeMonthEnd(null) },
       });
     } catch (e) { fail(res, e, "admin plans"); }
   });

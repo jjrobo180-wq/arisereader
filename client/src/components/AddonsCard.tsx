@@ -71,7 +71,6 @@ function freeLine(data: Addons): string {
   if (data.role !== "teacher") return "";
   const until = data.premiumEndsAt ? `, until ${longDay(data.premiumEndsAt)}` : "";
   if (data.premiumVia === "grandfathered") return `Reading with your class is free for you this school year${until}.`;
-  if (data.premiumVia === "free-month") return `Your Class plan is on a 30-day free trial${until}.`;
   if (data.premiumVia === "teacher-plan" || data.premiumVia === "school-plan") return "Reading with your class is already covered by your plan.";
   return "";
 }
@@ -140,11 +139,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     const bundle = data?.bundle;
     const days = bundle?.trialDaysLeft;
     const plural = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
-    // A teacher on the 30-day Class trial sees that countdown first.
-    const classDays = data?.role === "teacher" && data.premiumVia === "free-month" && data.premiumEndsAt
-      ? Math.max(0, Math.ceil((Date.parse(data.premiumEndsAt) - Date.now()) / 86_400_000)) : null;
-    const status = classDays != null ? `Free trial: ${plural(classDays)} left`
-      : !bundle ? ""
+    const status = !bundle ? ""
       : bundle.via === "trial" && days != null ? `Free trial: ${plural(days)} left`
       : !bundle.access ? "Free trial ended" : "";
     return (
@@ -245,7 +240,6 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       )}
 
       <div className="mt-4 space-y-3">
-        {role === "teacher" && data.premiumVia === "free-month" && data.premiumEndsAt && <TrialMeter endsAt={data.premiumEndsAt} total={data.trialDays} label="Class plan free trial" />}
         {b.via === "trial" && b.trialEndsAt && <TrialMeter endsAt={b.trialEndsAt} total={data.trialDays} label={role === "teacher" ? "History, Math & Social free trial" : "Your free trial"} />}
         {role !== "teacher" && b.access && b.via && b.via !== "trial" && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${day(b.endsAt)}` : ""}</p>}
         {!b.access && <p className="text-sm font-bold text-amber-300">{role === "teacher" ? "Your free trial of History, Math and Social has ended. Add the ones your class uses." : "Your free trial has ended."}</p>}
@@ -270,8 +264,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
           </div>
           <div className="mt-3 space-y-3">
             {t.via === "trial" && t.trialEndsAt && <TrialMeter endsAt={t.trialEndsAt} total={data.trialDays} label="LifeHub free trial" />}
-            {role === "teacher" && data.hub?.via === "free-month" && data.hub.endsAt && <TrialMeter endsAt={data.hub.endsAt} total={data.trialDays} label="Arise WorkHub & LifeHub free trial" />}
-            {t.access && t.via && t.via !== "trial" && REASON[t.via] && !(role === "teacher" && data.hub?.via === "free-month") && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[t.via]}</p>}
+            {t.access && t.via && t.via !== "trial" && REASON[t.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-300"><CheckCircle2 className="h-4 w-4" />{REASON[t.via]}</p>}
             {!t.access && <p className="text-sm font-bold text-amber-300">{role === "teacher" ? "Get Arise WorkHub to keep using LifeHub." : "Your LifeHub free trial has ended."}</p>}
             <div className="flex flex-wrap gap-2">
               {role === "parent" && (t.paidByYou

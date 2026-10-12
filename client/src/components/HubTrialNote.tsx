@@ -19,8 +19,8 @@ export function useHubTrial(token: string | null | undefined, which: "work" | "l
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!live || !d) return;
-        // A teacher's LifeHub comes with WorkHub, so both hubs follow the WorkHub free month.
-        const ends = d.hub?.via === "free-month" ? d.hub.endsAt : which === "life" && d.todo?.via === "trial" ? d.todo.trialEndsAt : null;
+        // Arise WorkHub is always free for a teacher, so only a parent's LifeHub trial applies here.
+        const ends = which === "life" && d.todo?.via === "trial" ? d.todo.trialEndsAt : null;
         setTrial(ends ? { endsAt: ends, daysLeft: daysUntil(ends) } : null);
       })
       .catch(() => {});

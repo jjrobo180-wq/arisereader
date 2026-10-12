@@ -5,6 +5,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { SchoolPicker, schoolFields, type SchoolChoice } from "@/components/SchoolPicker";
 import { TEACHER_CONFIRM_KEY, checkSchoolEmail } from "@shared/schoolEmail";
+import { PLANS, usd } from "@shared/plans";
 
 const waitingUsername = () => { try { return (sessionStorage.getItem(TEACHER_CONFIRM_KEY) || "").trim().toLowerCase(); } catch { return ""; } };
 
@@ -161,7 +162,7 @@ export default function TeacherSignup() {
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval. You get a 30-day free trial of the Class plan and Arise WorkHub (with Arise LifeHub), plus 30 days of Arise Math, Arise History and Arise Social for your class. No card is needed.</span>
+              <span>Sign up with your <strong>school email</strong> (ending in .edu, .net, .org or .us). We&apos;ll email you a 6-digit code to confirm it, and then your account is open right away. No waiting for approval. Arise WorkHub and Arise LifeHub are free from day one. You get 30 free days of Arise Math, Arise History and Arise Social for your class; the Class plan (A.R.I.S.E. Reader for your students) starts at {usd(PLANS.teacher.monthlyCents)}/month, no trial.</span>
             </div>
             <Field id="teacher-display-name" label="Display Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="teacher-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />

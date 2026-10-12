@@ -105,17 +105,6 @@ export const PLANS = {
   grandfatherUntil: "2027-07-01T06:00:00.000Z",
   /** A paid plan stays on this long past its end date, so a late renewal notice never locks a class out. */
   graceDays: 3,
-  /**
-   * Every teacher's free trial: Premium (the teacher account) and Arise WorkHub. It starts
-   * when the account is made. For a teacher who already had an account when the free
-   * time began, it starts here instead: 8:36 pm on October 8, 2026, Mountain time.
-   */
-  freeMonthFrom: "2026-10-09T02:36:00.000Z",
-  /**
-   * The free time became a 30-day trial at this moment (10 am on October 9, 2026, Mountain
-   * time). Teachers who signed up before then keep the full calendar month they were promised.
-   */
-  classTrialFrom: "2026-10-09T16:00:00.000Z",
 } as const;
 
 export const usd = (cents: number) => (cents % 100 === 0 ? `$${(cents / 100).toLocaleString("en-US")}` : `$${(cents / 100).toFixed(2)}`);
@@ -230,36 +219,6 @@ export function grandfathered(createdAt: unknown, now = Date.now()): boolean {
   return t < Date.parse(PLANS.grandfatherBefore);
 }
 
-/** The same time of day one calendar month later. January 31 gives the last day of February. */
-export function monthAfter(ms: number): number {
-  const d = new Date(ms);
-  const dayOfMonth = d.getUTCDate();
-  d.setUTCDate(1);
-  d.setUTCMonth(d.getUTCMonth() + 1);
-  const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
-  d.setUTCDate(Math.min(dayOfMonth, lastDay));
-  return d.getTime();
-}
-
-/**
- * When a teacher's free trial ends (ISO): 30 days after they made their account.
- * An account that was already there when the free time began, or has no sign-up date
- * on record, counts from `freeMonthFrom`. Accounts made before `classTrialFrom` were
- * promised a calendar month, and keep it.
- */
-export function freeMonthEnd(createdAt: unknown): string {
-  const from = Date.parse(PLANS.freeMonthFrom);
-  const t = signedUpAt(createdAt);
-  const start = Number.isFinite(t) && t > from ? t : from;
-  if (start < Date.parse(PLANS.classTrialFrom)) return new Date(monthAfter(start)).toISOString();
-  return new Date(start + PLANS.trialDays * 86_400_000).toISOString();
-}
-
-/** Is this teacher still in their free month? */
-export function inFreeMonth(createdAt: unknown, now = Date.now()): boolean {
-  return now >= Date.parse(PLANS.freeMonthFrom) && now < Date.parse(freeMonthEnd(createdAt));
-}
-
 /**
  * The sample accounts behind "Try a sample" on the front page. They always see
  * everything. Exact names only: a prefix match would hand Premium to anyone who
@@ -315,8 +274,7 @@ export type PlanVia =
   | "teacher-plan"   // this teacher's own plan
   | "school-plan"    // a teacher whose school has a plan
   | "class"          // a student whose teacher has Premium
-  | "grandfathered"  // signed up before October 1, 2026
-  | "free-month";    // a teacher's first month
+  | "grandfathered"; // signed up before October 1, 2026
 
 export type Entitlement = {
   premium: boolean;
@@ -350,8 +308,6 @@ function teacherEntitlement(teacher: PlanPerson, own: PlanGrant | null | undefin
   if (grantLive(own, now)) return yes("teacher-plan", own);
   if (grantLive(school, now)) return yes("school-plan", school);
   if (grandfathered(teacher.createdAt, now)) return yes("grandfathered", null, PLANS.grandfatherUntil);
-  // The free month comes last: a plan or the free year outlasts it.
-  if (inFreeMonth(teacher.createdAt, now)) return yes("free-month", null, freeMonthEnd(teacher.createdAt));
   return NONE;
 }
 
@@ -390,14 +346,15 @@ export function parentCanLink(linkedCount: number, opts: { enforced: boolean; pr
 
 // ─── Arise WorkHub ─────────────────────────────────────────────────────────────
 
-export type HubVia = "admin" | "free" | "hub-teacher-plan" | "hub-school-plan" | "free-month";
+export type HubVia = "admin" | "free" | "hub-teacher-plan" | "hub-school-plan";
 export type HubAccess = { access: boolean; via: HubVia | null; seats: number | null; endsAt: string | null };
 
 /**
- * Can this person open Arise WorkHub? With a Arise WorkHub plan of their own or their
- * school's, during a teacher's free month, or as the site admin. Unlike Premium it
- * does not depend on plan rules being on, and there is no free year, free school
- * or sample account.
+ * Can this person open Arise WorkHub? Always, for a teacher or parent, or as the site
+ * admin — WorkHub itself is permanently free. (A.R.I.S.E. Premium, the Reader/Math/
+ * History content for a teacher's class, is the separate thing that is paid and has
+ * no free trial — see entitlementFor.) Unlike Premium this does not depend on plan
+ * rules being on, and there is no free year, free school or sample account.
  */
 export function hubAccessFor(person: PlanPerson | null | undefined, _facts: { now?: number; teacherGrant?: PlanGrant | null; schoolGrant?: PlanGrant | null }): HubAccess {
   if (!person) return { access: false, via: null, seats: null, endsAt: null };

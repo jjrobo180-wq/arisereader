@@ -65,24 +65,16 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
         `Your free year runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
         "A.R.I.S.E. To-Do is free. Reader, Math and History are included in the Class plan, and Connect is a separate optional learning program.",
       ] };
-    case "free-month":
-      return { tone: "good", title: "You're on a 30-day free trial", lines: [
-        "A.R.I.S.E. To-Do is permanently free. Your Class plan temporarily includes Reader, Math and History during its learning trial.",
-        `Your free trial runs until ${day(plan.endsAt)}. There is nothing to pay before then, and no card is needed.`,
-      ] };
     case "rules-off":
       return { tone: "plain", title: "Plans haven't started yet", lines: ["Every teacher tool is open to you for now. You don't need to do anything."] };
     case "admin":
     case "demo":
       return { tone: "plain", title: "This account always has Premium", lines: ["Nothing to pay."] };
-    default: {
-      const ended = plan.freeMonthEndsAt && Date.parse(plan.freeMonthEndsAt) <= Date.now() ? day(plan.freeMonthEndsAt) : "";
+    default:
       return { tone: "need", title: "Your teacher account needs Premium", lines: [
-        ...(ended ? [`Your free trial ended on ${ended}.`] : []),
         "Teacher tools are part of the Class plan: your dashboard, live class games, game controls and more.",
         "Your students keep reading, taking quizzes and playing for free either way.",
       ] };
-    }
   }
 }
 
@@ -143,10 +135,9 @@ export default function Billing() {
   const locked = !!plan && plan.enforced && !plan.premium;
   const ownPlan = plan?.teacherPlan?.live ? plan.teacherPlan : null;
   const schoolPlan = plan?.school?.plan?.live ? plan.school.plan : null;
-  // Buying is offered to a teacher who needs Premium. While plans haven't started, or during a free year or free month, there is nothing to pay.
+  // Buying is offered to a teacher who needs Premium. While plans haven't started, or during a free year, there is nothing to pay.
   const canBuy = isTeacher && !!plan && plan.enforced && !plan.premium && !ownPlan && !schoolPlan;
   const freeYear = isTeacher && plan?.via === "grandfathered";
-  const freeMonth = isTeacher && plan?.via === "free-month";
   const price = teacherMonthlyCents(blocks);
 
   return (
@@ -206,9 +197,9 @@ export default function Billing() {
           </div>
         )}
 
-        {(freeYear || freeMonth) && plan && (
+        {freeYear && plan && (
           <div className="bl-card">
-            <h2>When your free {freeMonth ? "trial" : "year"} ends</h2>
+            <h2>When your free year ends</h2>
             <p>After {day(plan.endsAt)}, Premium is {usd(PLANS.teacher.monthlyCents)} a month for each {PLANS.teacher.studentsPerBlock} students, or {usd(PLANS.school.yearlyCents)} a year for a whole school of up to {count(PLANS.school.studentCap)} students. You'll be able to pay on this page when the time comes.</p>
           </div>
         )}
@@ -289,7 +280,6 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
   const own = hub.teacherPlan?.live ? hub.teacherPlan : null;
   const school = hub.schoolPlan?.live ? hub.schoolPlan : null;
   const price = blocks * H.monthlyCents;
-  const freeMonth = hub.via === "free-month";
   if (hub.via === "free") return (
     <div className="bl-hub" data-testid="billing-hub">
       <h2 className="bl-h2">A.R.I.S.E. To-Do — Work &amp; Life <span className="bl-tag">Free</span></h2>
@@ -305,15 +295,11 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
 
       {hub.access ? (
         <div className="bl-status good">
-          <h2>{freeMonth ? "Arise WorkHub is on your 30-day free trial" : hub.via === "hub-school-plan" ? "You have Arise WorkHub through your school" : "You have Arise WorkHub"}</h2>
-          {freeMonth
-            ? <p>Your free trial runs until {day(hub.endsAt)}, with no limit on the students in your caseload. Arise LifeHub comes with it.</p>
-            : hub.via === "hub-school-plan"
-              ? <p>{plan.school?.name || "Your school"}'s plan covers up to {count(hub.seats ?? H.schoolStudentCap)} students, and every teacher there gets their own Hub.</p>
-              : <p>Your plan covers up to {count(hub.seats ?? 0)} students in your caseload. You have {count(hub.students)}.</p>}
-          <p>{freeMonth
-            ? `After that, Arise WorkHub is ${usd(H.monthlyCents)} a month for each ${H.studentsPerBlock} students, or ${usd(H.schoolYearlyCents)} a year for a whole school. You'll be able to pay on this page when the time comes, and everything you saved stays in your account.`
-            : own?.paidOnline ? `It renews on ${day(hub.endsAt)}.` : hub.endsAt ? `It runs until ${day(hub.endsAt)}.` : "It has no end date."}</p>
+          <h2>{hub.via === "hub-school-plan" ? "You have Arise WorkHub through your school" : "You have Arise WorkHub"}</h2>
+          {hub.via === "hub-school-plan"
+            ? <p>{plan.school?.name || "Your school"}'s plan covers up to {count(hub.seats ?? H.schoolStudentCap)} students, and every teacher there gets their own Hub.</p>
+            : <p>Your plan covers up to {count(hub.seats ?? 0)} students in your caseload. You have {count(hub.students)}.</p>}
+          <p>{own?.paidOnline ? `It renews on ${day(hub.endsAt)}.` : hub.endsAt ? `It runs until ${day(hub.endsAt)}.` : "It has no end date."}</p>
           <button type="button" className="pr-pill pr-pill-sm" onClick={open} data-testid="billing-open-hub">Open Arise WorkHub</button>
         </div>
       ) : (
@@ -342,7 +328,7 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
               <small>Runs a full 12 months.</small>
             </div>
           </div>
-          <p className="bl-foot">After a teacher's 30-day free trial, Arise WorkHub isn't included free with any A.R.I.S.E. plan or school. <button type="button" className="bl-text" onClick={pricing}>See what Arise WorkHub includes</button></p>
+          <p className="bl-foot">Arise WorkHub isn't included free with any A.R.I.S.E. plan or school. <button type="button" className="bl-text" onClick={pricing}>See what Arise WorkHub includes</button></p>
         </>
       )}
 

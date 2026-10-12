@@ -93,7 +93,6 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
 
   const free = role === "parent" ? "Your parent account is always free: your child's progress, game limits and the proctor code never cost anything."
     : teacher && data.premiumVia === "grandfathered" ? `Reading with your class is free for you this school year${data.premiumEndsAt ? `, until ${longDay(data.premiumEndsAt)}` : ""}.`
-    : teacher && data.premiumVia === "free-month" ? `Your Class plan is on a 30-day free trial${data.premiumEndsAt ? `, until ${longDay(data.premiumEndsAt)}` : ""}.`
     : teacher && (data.premiumVia === "teacher-plan" || data.premiumVia === "school-plan") ? "Reading with your class is already covered by your plan." : "";
 
   let bundleAction: ReactNode = null;
@@ -130,7 +129,6 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
     })}</ul>
 
     <div className="space-y-3">
-      {teacher && data.premiumVia === "free-month" && data.premiumEndsAt && <Trial which={which} endsAt={data.premiumEndsAt} total={data.trialDays} label="Class plan free trial" />}
       {b.via === "trial" && b.trialEndsAt && <Trial which={which} endsAt={b.trialEndsAt} total={data.trialDays} label={teacher ? "History, Math & Social free trial" : "Your free trial"} />}
       {!teacher && b.access && b.via && b.via !== "trial" && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${fmtDay(b.endsAt)}` : ""}</p>}
       {!b.access && <p className="text-sm font-semibold text-amber-800">{teacher ? "Your free trial of History, Math and Social has ended. Add the ones your class uses." : "Your free trial has ended."}</p>}
