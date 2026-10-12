@@ -149,8 +149,8 @@ interface QuestionForm {
   correct: string;
 }
 
-import { SETTINGS_SECTIONS, type AdminSection, type SettingsSection } from "@/lib/adminSections";
-type AdminTab = AdminSection;
+import { SETTINGS_SECTIONS, type AdminSection as AdminSectionId, type SettingsSection } from "@/lib/adminSections";
+type AdminTab = AdminSectionId;
 type PeopleTab = "students" | "teachers" | "parents" | "archived";
 const ADMIN_TABS: AdminTab[] = ["overview", "stats", "todo", "inbox", "people", "library", "schools", "settings"];
 const TAB_STORAGE = "arise_admin_tab";

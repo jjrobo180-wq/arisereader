@@ -514,6 +514,22 @@ function TeacherHubPage() {
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
   const [ariseOpen, setAriseOpen] = useState(false);
+  // The guided tour (WorkHubTour) opens real sections as it goes, so a step can point at the
+  // actual screen instead of describing it. It asks with this event; the menu is shown too, so
+  // the item it highlights is on screen even when the phone menu was tucked away.
+  useEffect(() => {
+    const open = (e: Event) => {
+      const want = (e as CustomEvent<{ tab?: string }>).detail?.tab;
+      if (!want || !TAB_META.some((m) => m.id === want)) return;
+      closeApps();
+      setCustomize(false);
+      setTab(want as HubTab);
+      if (groupOf(want as HubTab).id === "arise") setAriseOpen(true);
+      setRail(true);
+    };
+    window.addEventListener("arise-tour:open", open);
+    return () => window.removeEventListener("arise-tour:open", open);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   const [searching, setSearching] = useState(false);
   const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff);
   const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
@@ -775,7 +791,7 @@ function TeacherHubPage() {
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
             <button type="button" onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-plugin-store"><ShoppingBag className="h-4 w-4" /> <span className="hidden lg:inline">App Store</span></button>
-            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize your Hub" aria-expanded={customize} className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize</span></button>
+            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize your Hub" aria-expanded={customize} data-tour="customize" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize</span></button>
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><LogOut className="h-4 w-4" /></button>
             <div ref={moreRef} className="relative sm:hidden">
               <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" data-testid="hub-more"><MoreHorizontal className="h-5 w-5" /></button>
@@ -887,7 +903,7 @@ function TeacherHubPage() {
             </div>
           </div>
         )}
-        <aside className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
+        <aside data-tour="hub-menu" className={`fixed z-30 min-w-0 transition-transform duration-200 ${asidePhone} border-slate-200 bg-white/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:left-auto md:right-auto md:w-auto md:translate-x-0 md:translate-y-0 md:border-0 md:px-0 md:pt-0 md:inset-x-auto md:bottom-auto md:z-30 md:border-0 md:bg-transparent md:p-0 ${deskAside}`} aria-hidden={menuOpen ? undefined : true}>
           <div className={`flex ${listPhone} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${deskList}`}>
             {canHide && <button type="button" onClick={() => setRail(false)} aria-label="Hide menu" className={`flex min-h-11 ${across ? "min-w-11 px-2" : "w-full"} shrink-0 flex-col items-center justify-center rounded-xl text-[10px] font-semibold text-slate-500 hover:bg-slate-100 md:hidden`} data-testid="hub-rail-hide">{side === "top" ? <ChevronUp className="h-5 w-5" /> : side === "bottom" ? <ChevronDown className="h-5 w-5" /> : side === "right" ? <RailShow className="h-5 w-5" /> : <RailHide className="h-5 w-5" />}Hide</button>}
             <div className={`hidden px-3 py-3 ${deskTop || deskCompact ? "" : "md:block"}`}>
@@ -1056,7 +1072,7 @@ function TeacherHubPage() {
           </div>
         </aside>
 
-        <main className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+        <main data-tour="hub-content" className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
           {kitOpen && kitDef(kitOpen) && (
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
@@ -1121,7 +1137,7 @@ function TeacherHubPage() {
             </div>
           )}
           {customize && (
-            <Card title="Customize" right={<button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button>}>
+            <Card title="Customize" right={<div className="flex items-center gap-3"><button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="min-h-11 text-sm font-semibold text-violet-700 hover:text-violet-900" data-testid="hub-take-tour">Take the tour</button><button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button></div>}>
               <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
               <div className="mb-6 grid gap-5 lg:grid-cols-2" data-testid="customize-layout">
                 <div>

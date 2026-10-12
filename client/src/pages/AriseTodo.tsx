@@ -627,6 +627,20 @@ export default function AriseTodo() {
    *  one more app can never leave a stale one showing — which is what made tapping Home while Drop
    *  was open look like a frozen screen. */
   const closeApps = () => { setNotesAppOpenState(null); setSheetsAppOpenState(null); setDriveOpenState(false); setDropOpenState(false); setKitOpenState(null); };
+  // The guided tour (WorkHubTour) opens real sections as it goes so each step points at the
+  // actual screen; it asks with this event.
+  useEffect(() => {
+    const open = (e: Event) => {
+      const want = (e as CustomEvent<{ section?: string }>).detail?.section as FamilySection | undefined;
+      if (!want || !sectionOrderFor(family).includes(want)) return;
+      closeApps();
+      setCustomizing(false);
+      setSection(want);
+      phone.setRail(true);
+    };
+    window.addEventListener("arise-tour:open", open);
+    return () => window.removeEventListener("arise-tour:open", open);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   const sheets = useMemo(() => cleanSpreadsheets(family.sheets?.["life-sheets"]), [family.sheets]);
   const setSheets = (update: (all: Spreadsheet[]) => Spreadsheet[]) =>
     setFamily((f) => ({ ...f, sheets: { ...(f.sheets ?? {}), "life-sheets": update(cleanSpreadsheets((f.sheets ?? {})["life-sheets"])) } }));
@@ -790,6 +804,7 @@ export default function AriseTodo() {
     />}
     {customizing && <Modal title="Customize" eyebrow="LifeHub" onClose={() => setCustomizing(false)} wide>
       <div className="space-y-6" data-testid="life-customize-panel">
+        <button type="button" onClick={() => { setCustomizing(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100" data-testid="life-take-tour">Take the tour again</button>
         <section>
           <h3 className="text-sm font-black text-slate-900">Menu on your phone</h3>
           <p className="mb-3 mt-1 text-sm text-slate-500">Where it sits, and how it closes. The computer menu has its own choices below.</p>
@@ -928,6 +943,7 @@ export default function AriseTodo() {
                 <button
                   onClick={() => { closeApps(); setSection(id); }}
                   aria-current={shown === id ? "page" : undefined}
+                  data-testid={`life-section-${id}`}
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
                 >
                   <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
@@ -1001,7 +1017,7 @@ export default function AriseTodo() {
         </div>
       </aside>
 
-      <main className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
+      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
           {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
