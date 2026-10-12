@@ -12430,6 +12430,42 @@ Important:
     }
   });
 
+  // Teacher/parent: Dismiss the A.R.I.S.E. To-Do WorkHub tour (server-side, persists across devices)
+  app.post("/api/todo-tour/dismiss", authMiddleware, async (req: any, res) => {
+    try {
+      const raw = await storage.getSetting('todo_tour_shown_users');
+      let shown: Record<string, boolean> = {};
+      if (raw) { try { shown = JSON.parse(raw); } catch {} }
+      shown[String(req.user.id)] = true;
+      await storage.upsertSetting('todo_tour_shown_users', JSON.stringify(shown));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to dismiss tour' });
+    }
+  });
+
+  // Teacher/parent: Check whether this user has already seen the WorkHub tour
+  app.get("/api/todo-tour/status", authMiddleware, async (req: any, res) => {
+    try {
+      const raw = await storage.getSetting('todo_tour_shown_users');
+      let shown: Record<string, boolean> = {};
+      if (raw) { try { shown = JSON.parse(raw); } catch {} }
+      res.json({ shown: !!shown[String(req.user.id)] });
+    } catch (e) {
+      res.json({ shown: false });
+    }
+  });
+
+  // Admin: Reset the WorkHub tour for all teachers/parents
+  app.post("/api/admin/reset-todo-tour", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      await storage.upsertSetting('todo_tour_shown_users', '{}');
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to reset tour' });
+    }
+  });
+
   // Student: Claim an easter egg
   app.post("/api/easter-eggs/claim", authMiddleware, async (req: any, res) => {
     try {

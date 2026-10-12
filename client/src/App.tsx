@@ -1,5 +1,6 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
+import WorkHubTour from "@/components/WorkHubTour";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 
@@ -768,6 +769,7 @@ function AppInner() {
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
+      {overlays && !isAdminPreview && (user?.role === "teacher" || user?.role === "parent") && <WorkHubTour />}
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />
         <AdminPreviewBar />
