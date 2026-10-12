@@ -2,6 +2,15 @@ import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
+
+/** Hash routing that ignores a "?..." after the page name when matching routes, so links like
+ *  #/signin?as=student, #/lifehub?mode=signup and #/admin-handoff?code=... open their page instead of
+ *  "We can't find that page". Pages read their own options from window.location.hash. */
+const useHashPathLocation = ((options?: any) => {
+  const [location, navigate] = (useHashLocation as any)(options);
+  return [String(location).split("?")[0] || "/", navigate];
+}) as unknown as typeof useHashLocation;
+Object.assign(useHashPathLocation as any, { hrefs: (useHashLocation as any).hrefs });
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -748,7 +757,7 @@ function AppInner() {
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
-      <Router hook={useHashLocation}>
+      <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />
         <AdminPreviewBar />
         <EyeGazeSiteShell>
