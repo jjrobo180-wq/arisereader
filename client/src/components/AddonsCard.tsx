@@ -151,21 +151,25 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     else if (!ownPlanLive && b.via !== "child-in-class") bundleAction = <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go("b", "/api/billing/addon-checkout", { product: "bundle", returnPath })} data-testid="addons-buy-bundle">{busy === "b" ? "Opening…" : `Get it for the whole family · ${money(data.prices.familyBundleCents)}/month`}</button>;
   }
   const classPremium = role === "teacher" && !!data.premium;
-  /** A teacher's row for one app: its price, whether it's on, and the button to add or manage it. */
+  /** A teacher's row for one app: its price, whether it's on, and the button to add or manage it.
+   * Math and History come free with the Class plan (server grants them via "class-plan", with no
+   * separate paid grant) — only Social is still sold as its own add-on. `a.access` is the source of
+   * truth for "on"; `a.plan?.live` only tells us whether there's a *separate paid* grant to manage. */
   const classRow = (id: AppId) => {
     const a = data.apps[id], app = apps.find((x) => x.id === id)!;
     const live = !!a.plan?.live;
+    const includedFree = a.access && !live;
     let action: ReactNode;
     if (a.paidByYou && live) action = <button type="button" className={ghost} disabled={!!busy} onClick={() => go(`m-${id}`, "/api/billing/addon-portal", { product: id, returnPath })}>Manage</button>;
-    else if (live) action = <span className="text-xs font-bold text-emerald-700">On</span>;
+    else if (live || includedFree) action = <span className="text-xs font-bold text-emerald-700">{includedFree ? "Included" : "On"}</span>;
     else if (!classPremium) action = <a className={ghost} href="/#/billing">Get the Class plan first</a>;
     else action = <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go(id, "/api/billing/addon-checkout", { product: id, returnPath })} data-testid={`addons-buy-${id}`}>{busy === id ? "Opening…" : `Add · ${money(data.prices.classApps[id])}/mo`}</button>;
     return (
       <div key={id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3" data-testid={`addons-class-${id}`}>
         <app.icon className={`h-6 w-6 shrink-0 ${app.tone}`} />
         <a href={app.href} className="min-w-0 flex-1 hover:underline">
-          <span className="block text-sm font-black text-[#141b32]">{app.label} <span className="font-bold text-slate-500">· {money(data.prices.classApps[id])}/month</span></span>
-          <span className="block text-xs text-slate-500">{live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${day(a.plan.endsAt)}` : ""}`) : "Off"}</span>
+          <span className="block text-sm font-black text-[#141b32]">{app.label} <span className="font-bold text-slate-500">{includedFree ? "· included with your Class plan" : `· ${money(data.prices.classApps[id])}/month`}</span></span>
+          <span className="block text-xs text-slate-500">{includedFree ? "On, free with your Class plan" : live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${day(a.plan.endsAt)}` : ""}`) : "Off"}</span>
         </a>
         {action}
       </div>
@@ -185,7 +189,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
           <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-600">{role === "teacher" ? "Class add-ons" : "Learning Bundle"}</p>
           <h2 className="mt-1 text-xl font-black text-[#141b32]">Arise History, Arise Math & Arise Social</h2>
           <p className="mt-1 text-sm text-slate-600">
-            {role === "teacher" ? `Add any of them for your whole class (up to ${data.prices.classSeats} students), on top of the Class plan. Each is its own monthly add-on.`
+            {role === "teacher" ? `Arise Math and Arise History are included free with your Class plan, for up to ${data.prices.classSeats} students. Arise Social is a separate monthly add-on.`
               : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher adds all three for the class, we refund your unused days.`
               : "Three more ways to learn and earn points, right next to your reading."}
           </p>
@@ -209,7 +213,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
         {role !== "teacher" && b.access && b.via && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${day(b.endsAt)}` : ""}</p>}
         {!b.access && <p className="text-sm font-bold text-amber-700">{role === "teacher" ? "Add the ones your class uses." : "Not added yet."}</p>}
         {role === "student" && !b.access && <p className="text-sm text-slate-600">Ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
-        {role === "teacher" && <p className="text-xs text-slate-500">Each add-on covers up to {data.prices.classSeats} students; you have {data.students ?? 0}. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three.</p>}
+        {role === "teacher" && <p className="text-xs text-slate-500">Math and History are included for up to {data.prices.classSeats} students; you have {data.students ?? 0}. Add Arise Social for the same class. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three covered.</p>}
         {role === "parent" && !!data.children?.length && (
           <div className="flex flex-wrap gap-2">{data.children.map((k) => <span key={k.id} className={`rounded-full border px-3 py-1 text-xs font-bold ${k.coveredByClass ? "border-emerald-300 text-emerald-700" : "border-slate-200 text-slate-600"}`}>{k.name}{k.coveredByClass ? " · covered by class" : ""}</span>)}</div>
         )}
