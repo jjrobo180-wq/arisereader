@@ -1137,7 +1137,8 @@ function TeacherHubPage() {
             </div>
           )}
           {customize && (
-            <Card title="Customize" right={<div className="flex items-center gap-3"><button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="min-h-11 text-sm font-semibold text-violet-700 hover:text-violet-900" data-testid="hub-take-tour">Take the tour</button><button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button></div>}>
+            <Card title="Customize" right={<button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button>}>
+              <button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm font-semibold text-violet-900 hover:bg-violet-100" data-testid="hub-take-tour"><Sparkles className="h-4 w-4 shrink-0" /> Take the tour: see where everything is in your WorkHub</button>
               <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
               <div className="mb-6 grid gap-5 lg:grid-cols-2" data-testid="customize-layout">
                 <div>

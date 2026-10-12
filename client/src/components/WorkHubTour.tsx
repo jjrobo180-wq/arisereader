@@ -26,10 +26,15 @@ type TourStep = {
   targets?: Target[];
   /** Open this section first, so the step shows the actual screen. */
   open?: { tab: string } | { section: string };
+  /** Only for parents (a teacher's LifeHub has no linked child to show). */
+  parentOnly?: boolean;
 };
 
-const TOUR_STEPS: Record<TourRole, TourStep[]> = {
-  teacher: [
+// One tour per hub. It follows the hub you're on, so a teacher (or admin) taking it from LifeHub
+// gets the LifeHub tour, and from WorkHub the WorkHub one.
+type Hub = "work" | "life";
+const TOUR_STEPS: Record<Hub, TourStep[]> = {
+  work: [
     {
       title: "Welcome to your WorkHub",
       body: "Here's a quick walk around the real thing. Each step opens the actual screen and points at it, so you'll know exactly where everything is. It takes about a minute.",
@@ -123,7 +128,7 @@ const TOUR_STEPS: Record<TourRole, TourStep[]> = {
       open: { tab: "overview" },
     },
   ],
-  parent: [
+  life: [
     {
       title: "Welcome to A.R.I.S.E. To-Do",
       body: "Here's a quick walk around. Each step opens the real screen and points at it, so you'll know exactly where everything is. It takes about a minute.",
@@ -131,6 +136,7 @@ const TOUR_STEPS: Record<TourRole, TourStep[]> = {
     {
       title: "Your child's reading",
       body: "A.R.I.S.E. Reader is where you follow your child's reading. Tap it any time to come back here.",
+      parentOnly: true,
       open: { section: "reader" },
       targets: [
         { sel: '[data-testid="life-section-reader"]', label: "A.R.I.S.E. Reader" },
@@ -141,6 +147,7 @@ const TOUR_STEPS: Record<TourRole, TourStep[]> = {
     {
       title: "Progress, quizzes and certificates",
       body: "This page shows how your child is doing: books read, quiz scores, points and certificates, plus messages from their teacher.",
+      parentOnly: true,
       open: { section: "reader" },
       targets: [{ sel: '[data-tour="life-content"]', label: "Your child's reading" }],
     },
@@ -194,12 +201,14 @@ const TOUR_STEPS: Record<TourRole, TourStep[]> = {
     {
       title: "You're all set",
       body: "That's the tour. To see it again, open Customize and choose Take the tour again.",
-      open: { section: "reader" },
     },
   ],
 };
 
-const HUB_PATH: Record<TourRole, string> = { teacher: "/workhub", parent: "/lifehub" };
+/** Which hub a page is, if any. */
+const hubAt = (path: string): Hub | null => (path === "/workhub" ? "work" : path === "/lifehub" ? "life" : null);
+/** The hub a person lands in, where the tour shows itself on their first visit. */
+const HOME_HUB: Record<TourRole, Hub> = { teacher: "work", parent: "life" };
 const SEEN_KEY = (id: number, role: TourRole) => `arise_todo_tour_v2_seen_${id}_${role}`;
 
 function tokenFromCookie(): string | null {
@@ -259,9 +268,12 @@ export default function WorkHubTour() {
   const elRef = useRef<HTMLElement | null>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
 
-  const steps = useMemo(() => (role ? TOUR_STEPS[role] : []), [role]);
+  const hub = hubAt(path);
+  // The hub the tour was started in. It stays put if the page changes underneath it.
+  const [tourHub, setTourHub] = useState<Hub | null>(null);
+  const steps = useMemo(() => (tourHub ? TOUR_STEPS[tourHub].filter((x) => !x.parentOnly || role === "parent") : []), [tourHub, role]);
   const current = steps[step];
-  const onHub = !!role && path === HUB_PATH[role];
+  const onHub = !!tourHub && hub === tourHub;
 
   useEffect(() => {
     const onHash = () => setPath(hashPath());
@@ -285,13 +297,28 @@ export default function WorkHubTour() {
           if (data?.shown) { try { localStorage.setItem(SEEN_KEY(user.id, role), "true"); } catch { /* fine */ } return; }
         }
       } catch { /* show it anyway */ }
-      setTimeout(() => { setStep(0); setShow(true); }, 900);
+      // Wait until they're in their own hub (they may sign in on another page first).
+      const home = HOME_HUB[role];
+      const tryShow = () => {
+        if (hubAt(hashPath()) !== home) return false;
+        setTourHub(home); setStep(0); setShow(true);
+        return true;
+      };
+      setTimeout(() => {
+        if (tryShow()) return;
+        const onHash = () => { if (tryShow()) window.removeEventListener("hashchange", onHash); };
+        window.addEventListener("hashchange", onHash);
+      }, 900);
     })();
   }, [user?.id, role]);
 
   // "Take the tour" in Customize starts it again from the top.
   useEffect(() => {
-    const start = () => { setStep(0); setShow(true); };
+    const start = () => {
+      const here = hubAt(hashPath());
+      if (!here) return;
+      setTourHub(here); setStep(0); setShow(true);
+    };
     window.addEventListener("arise-tour:start", start);
     return () => window.removeEventListener("arise-tour:start", start);
   }, []);
@@ -443,7 +470,7 @@ export default function WorkHubTour() {
         </button>
         <div className="px-5 pb-1 pt-4">
           <p className="pr-8 text-[11px] font-bold uppercase tracking-wide text-violet-600">
-            {role === "teacher" ? "WorkHub tour" : "To-Do tour"} · {step + 1} of {steps.length}
+            {tourHub === "work" ? "WorkHub tour" : "LifeHub tour"} · {step + 1} of {steps.length}
           </p>
           <h2 className="mt-1 text-lg font-extrabold leading-tight tracking-tight text-slate-900">{current.title}</h2>
           <p className="mt-1.5 text-sm leading-6 text-slate-600">{current.body}</p>
