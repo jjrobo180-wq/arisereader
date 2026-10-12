@@ -22,32 +22,30 @@ if (!window.location.hash) {
   window.location.hash = "#/";
 }
 
-// Global fetch interceptor - retries transient 401/503 errors
+// Global fetch wrapper: a page load that briefly gets 401 (session store catching up) or 503 (server
+// restarting during a deploy) is tried again. Only reads (GET) are retried, so a sign-in, a save or a
+// submitted form is never sent twice; a wrong password is answered at once and counts once.
 const originalFetch = window.fetch;
 window.fetch = async function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const retries = 3;
-  const delayMs = 1000;
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  const method = String(init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
+  const readsApi = method === "GET" && /\/api\//.test(url) && !/\/api\/(login|logout|auth\/)/.test(url);
+  const retries = readsApi ? 2 : 0;
+  for (let attempt = 0; ; attempt++) {
     try {
       const res = await originalFetch(input, init);
-      // Retry on 401 (transient session) or 503 (transient server)
-      if ((res.status === 401 || res.status === 503) && attempt < retries) {
-        await new Promise(r => setTimeout(r, delayMs));
+      const transient = res.status === 503 || (res.status === 401 && headers.has("Authorization") && attempt < 1);
+      if (transient && attempt < retries) {
+        await new Promise(r => setTimeout(r, 700));
         continue;
       }
       return res;
     } catch (err) {
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, delayMs));
-      } else {
-        throw err;
-      }
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 700)); continue; }
+      throw err;
     }
   }
-  return new Response(JSON.stringify({ message: "Service temporarily unavailable" }), {
-    status: 503,
-    headers: { "Content-Type": "application/json" },
-  });
 };
 
 createRoot(document.getElementById("root")!).render(<App />);
