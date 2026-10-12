@@ -69,13 +69,15 @@ app.use("/api/eye-gaze/my-world/upload", express.raw({
   limit: "20mb",
 }));
 
-// LifeHub Drive (App Store add-on): photo bytes arrive as a raw body, same as My World above —
+// LifeHub Drive (App Store add-on): file bytes arrive as a raw body, same as My World above —
 // this has to run before the global express.json() below, or that parser drains the request
 // stream first and the route's own body-reading never sees any bytes.
-app.use("/api/lifehub/drive/upload", express.raw({
-  type: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/octet-stream"],
-  limit: "22mb",
-}));
+//
+// Every content-type is caught here, not a list of image types: Drive takes PDFs and documents
+// too, and a type missing from the list fell through to a parser that left req.body empty, so
+// the upload failed with "that file did not reach A.R.I.S.E." The route itself is what decides
+// which types are allowed (ALLOWED in server/driveApp.ts) and rejects the rest by name.
+app.use("/api/lifehub/drive/upload", express.raw({ type: "*/*", limit: "22mb" }));
 
 // LifeHub Drop (App Store add-on): an AirDrop-style file hand-off. Any file type is allowed, so
 // this has to catch every content-type on this one path — same raw-before-json ordering reason

@@ -26,7 +26,9 @@ export function cleanDriveFiles(raw: unknown): DriveFile[] {
     if (!r || typeof r !== "object") continue;
     const id = str((r as any).id, 60), path = str((r as any).path, 300);
     if (!id || !path) continue;
-    out.push({ id, path, name: str((r as any).name, 160) || "Photo", size: numPositive((r as any).size), contentType: str((r as any).contentType, 60) || "image/jpeg", uploadedAt: str((r as any).uploadedAt, 40) });
+    // Drive holds documents as well as pictures, so a file with no recorded type is "some file",
+    // not a JPEG — guessing image/jpeg made the screen try to draw a PDF as a photo.
+    out.push({ id, path, name: str((r as any).name, 160) || "File", size: numPositive((r as any).size), contentType: str((r as any).contentType, 100) || "application/octet-stream", uploadedAt: str((r as any).uploadedAt, 40) });
     if (out.length >= LIMIT) break;
   }
   return out;
