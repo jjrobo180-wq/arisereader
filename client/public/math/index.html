@@ -427,6 +427,74 @@ details.bigidea summary svg{width:18px;height:18px} details.bigidea p{margin:6px
 .tf-btns button{min-height:76px;font-size:1.4rem;font-weight:800;border-radius:16px;border:0;color:#fff;display:flex;gap:8px;align-items:center;justify-content:center}
 .tf-btns svg{width:24px;height:24px} .tf-t{background:var(--leaf)} .tf-f{background:var(--coral)}
 @media (prefers-reduced-motion: reduce){ .bwrap{bottom:60px} }
+
+/* ---------- Solve it with me (interactive worked example) ---------- */
+.wk{display:flex;flex-direction:column;gap:14px}
+.wk-prob{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:var(--card-2)}
+.wk-dots{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.wk-dots i{width:28px;height:8px;border-radius:999px;background:var(--line)}
+.wk-dots i.on{background:var(--primary)} .wk-dots i.ok{background:var(--leaf)} .wk-dots i.shown{background:var(--sun)}
+.wk-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;counter-reset:wk}
+.wk-step{counter-increment:wk;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card)}
+.wk-step::before{content:counter(wk);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.9rem;background:var(--card-2);color:var(--muted)}
+.wk-step.cur{border-color:var(--primary);box-shadow:0 0 0 4px color-mix(in oklab,var(--primary) 14%,transparent);animation:wkin .25s ease-out}
+.wk-step.cur::before{background:var(--primary);color:var(--primary-ink)}
+.wk-step.ok::before{content:"✓";background:var(--leaf);color:#fff}
+.wk-step.shown::before{content:"✓";background:var(--sun);color:#fff}
+.wk-step .txt{font-size:1.08rem;line-height:1.6;font-variant-numeric:tabular-nums}
+.wk-step .txt .fill{display:inline-block;padding:0 .35em;border-radius:8px;font-weight:800;background:color-mix(in oklab,var(--leaf) 18%,var(--card));color:color-mix(in oklab,var(--leaf) 70%,var(--fg))}
+.wk-step.shown .txt .fill{background:color-mix(in oklab,var(--sun) 22%,var(--card));color:color-mix(in oklab,var(--sun) 60%,var(--fg))}
+.wk-in{display:inline-block;width:5.2em;min-width:0;padding:4px 8px;border-radius:10px;border:2px solid var(--primary);background:var(--card);font-weight:800;font-size:1.05rem;text-align:center;vertical-align:baseline}
+.wk-in.is-bad{border-color:var(--coral);animation:shake .35s}
+.wk-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.wk-fb{font-weight:700;font-size:.92rem;margin-top:8px} .wk-fb.good{color:var(--leaf)} .wk-fb.bad{color:var(--coral)} .wk-fb.tip{color:var(--muted)}
+.wk-win{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:14px;background:color-mix(in oklab,var(--leaf) 12%,var(--card));border:1.5px solid color-mix(in oklab,var(--leaf) 45%,transparent);animation:wkin .3s ease-out}
+.wk-win h3{font-size:1.2rem;color:color-mix(in oklab,var(--leaf) 75%,var(--fg))}
+.wk-win .big{font-size:1.6rem;font-weight:800;font-variant-numeric:tabular-nums}
+@keyframes wkin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- videos ---------- */
+.vid{position:relative;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000;border:0;padding:0;display:block;cursor:pointer}
+.vid img{width:100%;height:100%;object-fit:cover;display:block;opacity:.88}
+.vid .play{position:absolute;inset:0;display:grid;place-items:center}
+.vid .play span{width:68px;height:48px;border-radius:14px;background:#e62117;display:grid;place-items:center;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.vid .play span::after{content:"";border-left:18px solid #fff;border-top:11px solid transparent;border-bottom:11px solid transparent;margin-left:4px}
+.vid:hover .play span{filter:brightness(1.1)}
+.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-meta{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-top:8px}
+.vid-meta b{font-size:.95rem} .vid-meta span{font-size:.8rem;color:var(--muted)}
+.vid-more{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.vid-more button{display:flex;gap:10px;align-items:center;text-align:left;padding:6px 10px 6px 6px;border-radius:12px;border:1.5px solid var(--line);background:var(--card-2);max-width:100%}
+.vid-more button[aria-pressed="true"]{border-color:var(--primary)}
+.vid-more img{width:64px;height:36px;object-fit:cover;border-radius:8px;flex:none}
+.vid-more b{font-size:.8rem;line-height:1.25;display:block} .vid-more span{font-size:.72rem;color:var(--muted)}
+
+/* ---------- Snap a problem ---------- */
+.snap-promo{display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,color-mix(in oklab,var(--primary) 14%,var(--card)),color-mix(in oklab,var(--sun) 14%,var(--card)))}
+.snap-promo .cam{width:52px;height:52px;border-radius:16px;background:var(--primary);color:var(--primary-ink);display:grid;place-items:center;flex:none}
+.snap-promo .cam svg{width:28px;height:28px}
+.snap-promo > div{min-width:0;flex:1}
+.drop{border:2.5px dashed var(--line-2);border-radius:18px;padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;background:var(--card-2)}
+.drop.over{border-color:var(--primary);background:var(--primary-soft)}
+.drop .btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.drop label.btn{cursor:pointer}
+.drop input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.snap-img{max-height:320px;width:auto;max-width:100%;border-radius:12px;border:1px solid var(--line);display:block;margin:0 auto;background:#fff}
+.snap-text{width:100%;min-height:76px;resize:vertical;border-radius:12px;border:1px solid var(--line-2);padding:10px 12px;background:var(--card);font:inherit;font-size:1rem}
+.snap-prob{font-size:1.25rem;font-weight:800;line-height:1.45;white-space:pre-wrap;font-variant-numeric:tabular-nums}
+.snap-wait{display:flex;flex-direction:column;align-items:center;gap:14px;padding:30px 10px;text-align:center}
+.snap-wait .spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--primary);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.snap-finish{border:2px solid var(--primary);background:var(--primary-soft)}
+.snap-finish form{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.snap-finish input{flex:1;min-width:140px;font-size:1.1rem;font-weight:700}
+.exq{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card-2)}
+.exq .q{font-size:1.1rem;font-weight:800;white-space:pre-wrap;font-variant-numeric:tabular-nums}
+.exq ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+.exq ol li b{display:block;font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.exq form{display:flex;gap:8px;flex-wrap:wrap} .exq form input{flex:1;min-width:120px}
+.exq .ans{font-weight:800;color:var(--leaf);font-size:1.05rem}
+@media (prefers-reduced-motion: reduce){ .wk-step.cur,.wk-win{animation:none} .snap-wait .spin{animation-duration:3s} }
 </style>
 </head>
 <body>
@@ -728,6 +796,7 @@ function practiceHTML(){
   return `<div class="card"><div class="card-h" style="margin-bottom:6px"><h1>Math quizzes</h1>
       <div class="bandpick" role="group" aria-label="Grade band">${['k2','g35','g68','g912'].map(x=>`<button data-act="band" data-v="${x}" aria-pressed="${x===b}">${bandLabel(x)}</button>`).join('')}</div></div>
       <p class="muted">Five questions per quiz. Earn ${CAT.points.firstTry} points for a first-try answer, ${CAT.points.withHelp} with help, and ${CAT.points.perfectBonus} bonus points for a perfect score.</p></div>
+    ${snapPromoHTML('Stuck on homework? Snap it.')}
     <div class="card"><div class="card-h"><h2>${T?`Assigned by ${esc(T)}`:'Assignments'}</h2></div>${asgHTML}</div>
     <div class="grid qcards">${cards}
       <div class="card qcard"><div class="row" style="flex-wrap:nowrap">${op('mixed')}<div><h3>Mixed review</h3><span class="meta">All three skills</span></div></div>
@@ -906,30 +975,12 @@ async function openLesson(skill){
   try { const ex = (await practiceSet([skill], 1))[0]; if (S.lesson?.skill===skill){ S.lesson.ex = ex; render(); } }
   catch(e){ if (S.lesson?.skill===skill){ S.lesson.err = e.message; render(); } }
 }
-async function newExample(){ const L=S.lesson; try { const ex=(await practiceSet([L.skill],1))[0]; if (S.lesson===L){ L.ex=ex; L.shown=0; render(); } } catch(e){ toast(e.message); } }
+async function newExample(){ const L=S.lesson; try { const ex=(await practiceSet([L.skill],1))[0]; if (S.lesson===L){ L.ex=ex; L.shown=0; if (!L.mode && document.getElementById('wkBox')) paintWk(); else render(); } } catch(e){ toast(e.message); } }
 function printLesson(skill, level){
   const st = myState();
   window.open('/api/math/worksheet?' + new URLSearchParams({ skills:skill, n:'12', level, state:st?.id||'CO', codes:SK(skill).std }).toString(), '_blank', 'noopener');
 }
-function exampleHTML(p, shown){
-  const all = shown>=p.steps.length;
-  return `<div class="ex-card"><p class="ask">${esc(p.ask)}</p><div class="prompt ${p.long?'long':''}">${p.prompt}</div>${p.viz?`<div class="viz-wrap">${p.viz}</div>`:''}
-    ${shown?`<ol class="steps">${p.steps.slice(0,shown).map(x=>`<li>${x}</li>`).join('')}${all?`<li class="ans-step">Answer: ${esc(p.answerLabel)}</li>`:''}</ol>`:''}
-    <div class="row" style="gap:8px;flex-wrap:wrap">${all?'':`<button class="btn primary" data-act="exstep">${shown?`Next step (${shown+1} of ${p.steps.length})`:'Show the first step'}</button><button class="btn" data-act="exall">Show every step</button>`}<button class="btn outline" data-act="exnew">${svg('plus')}New example</button></div></div>`;
-}
-function lessonHTML(){
-  const L = S.lesson; if (L.mode) return modeHTML();
-  const s = SK(L.skill), lf = LEARN_OF(L.skill), st = myState(), student = role()==='student', lv = CAT.worksheetLevels || {};
-  return `<div class="card"><div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn sm" data-act="lclose">${svg('back')}Back</button><span class="small muted">Lesson</span></div>
-      <div class="row" style="flex-wrap:nowrap;margin-top:12px;gap:12px">${op(L.skill)}<div style="min-width:0"><h1>${esc(s.name)}</h1><span class="small muted">${esc(codeLabel(st, s.std))}</span></div></div></div>
-    <div class="grid two"><div class="card idea"><span class="eyebrow">Big idea</span><p>${esc(lf.idea)}</p></div><div class="card remember"><span class="eyebrow">Remember</span><p class="rem">${esc(lf.remember)}</p></div></div>
-    <div class="card stack"><div class="card-h"><h2>Worked example</h2><span class="small muted">One step at a time</span></div>${L.err?`<p class="small muted">${esc(L.err)}</p>`:L.ex?exampleHTML(L.ex, L.shown):'<p class="small muted">Loading…</p>'}</div>
-    <div class="card"><div class="card-h"><h2>Practice your way</h2><span class="small muted">${student?'Quizzes earn points. The rest are practice.':'Practice is for learning, so no points.'}</span></div>
-      <div class="modes">${student?`<button class="mode" data-act="start" data-type="skill" data-v="${L.skill}">${ico('award','primary')}<b>Quiz for points</b><span>Five questions that count on the leaderboard.</span></button>`:''}
-        ${Object.entries(MODES).map(([id,m])=>`<button class="mode" data-act="lmode" data-v="${id}">${ico(m.icon,m.c)}<b>${m.name}</b><span>${m.note}</span>${id==='speed'&&bestSpeed(L.skill)?`<em>Your best: ${bestSpeed(L.skill)}</em>`:''}</button>`).join('')}</div></div>
-    <div class="card"><div class="card-h"><h2>Print a worksheet</h2><span class="small muted">12 new problems with an answer key</span></div>
-      <div class="levels">${['scaffold','standard','challenge'].map(id=>`<div class="level"><div><b>${esc(lv[id]?.name||id)}</b><span class="small muted">${esc(lv[id]?.note||'')}</span></div><button class="btn ${id==='standard'?'primary':'outline'} sm" data-act="lprint" data-v="${id}">${svg('print')}Print</button></div>`).join('')}</div></div>`;
-}
+// lessonHTML and the "Solve it with me" walkthrough live in the LEARN script below.
 async function startMode(mode){
   const L = S.lesson; if (!L) return; stopSpeed();
   let set; try { set = await practiceSet([L.skill], MODES[mode].n); } catch(e){ return toast(e.message); }
@@ -1231,9 +1282,9 @@ function classHTML(){
   const head = `<div class="card"><div class="card-h" style="margin-bottom:12px"><div><h1>My Class</h1><span class="small muted">${C.totals.students} student${C.totals.students===1?'':'s'} · practicing grades ${bandLabel(b)}</span></div>
       <div class="bandpick" role="group" aria-label="Class grade band">${['k2','g35','g68','g912'].map(x=>`<button data-act="classband" data-v="${x}" aria-pressed="${x===b}">${bandLabel(x)}</button>`).join('')}</div></div>
       <div class="statgrid"><div><b>${C.totals.accuracy==null?'–':C.totals.accuracy+'%'}</b><span>Average first-try accuracy</span></div><div><b>${C.totals.weekQuizzes}</b><span>Quizzes this week</span></div><div><b>${C.totals.check}</b><span>Need a check-in</span></div><div><b>${S.assign?S.assign.length:'–'}</b><span>Assignments</span></div></div></div>`;
-  if (!C.students.length) return head + `<div class="card"><p class="muted">Students show up here once they join your class on A.R.I.S.E. Reader and you approve them.</p></div>`;
+  if (!C.students.length) return head + snapPromoHTML('Show the class how to work through a problem') + `<div class="card"><p class="muted">Students show up here once they join your class on A.R.I.S.E. Reader and you approve them.</p></div>`;
   const pill = s => s.status==='check' ? '<span class="chip pill-warn">Check in</span>' : s.status==='new' ? '<span class="chip">Not started</span>' : '<span class="chip pill-ok">On track</span>';
-  return head + `<div class="card"><div class="card-h"><h2>Students</h2><span class="small muted">Tap a student for details</span></div><div class="table-wrap"><table><thead><tr><th>Student</th><th class="num">Points</th><th class="num">Quizzes</th><th class="num">Accuracy</th><th>Last practice</th><th>Status</th></tr></thead><tbody>
+  return head + snapPromoHTML('Show the class how to work through a problem') + `<div class="card"><div class="card-h"><h2>Students</h2><span class="small muted">Tap a student for details</span></div><div class="table-wrap"><table><thead><tr><th>Student</th><th class="num">Points</th><th class="num">Quizzes</th><th class="num">Accuracy</th><th>Last practice</th><th>Status</th></tr></thead><tbody>
       ${C.students.map(s=>`<tr class="click" data-act="student" data-v="${s.id}"><td><div class="row" style="flex-wrap:nowrap;gap:8px">${av(s.name,'xs',s.avatar)}<b>${esc(s.name)}</b></div></td><td class="num">${s.points}</td><td class="num">${s.quizzes}</td><td class="num">${s.accuracy==null?'–':s.accuracy+'%'}</td><td>${lastTxt(s.daysAway)}</td><td>${pill(s)}</td></tr>`).join('')}</tbody></table></div></div>
     <div class="card"><div class="card-h"><h2>Skill strength</h2><span class="small muted">First-try accuracy by skill</span></div><div class="table-wrap"><table><thead><tr><th>Student</th>${skills.map(id=>`<th>${esc(SK(id).name)}</th>`).join('')}</tr></thead><tbody>
       ${C.students.map(s=>`<tr><td>${esc(s.name)}</td>${s.skills.map(v=>`<td>${v==null?'<span class="small muted">–</span>':`<span class="heat ${v<50?'low':''}" style="--p:${Math.max(8,v-35)}%">${v}%</span>`}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
@@ -1319,6 +1370,7 @@ function familyHTML(){
     <div class="grid two"><div class="card"><div class="card-h"><h2>Skills</h2></div><div class="stack" style="gap:10px">${k.skills.map(s=>`<div><div class="row between small"><b>${esc(SK(s.id).name)}</b><span class="tnum">${s.strength==null?'Not started':s.strength+'%'}</span></div><div class="bar leaf"><i style="width:${s.strength||0}%"></i></div></div>`).join('')}</div></div>
       <div class="card"><div class="card-h"><h2>Certificates</h2><span class="small muted tnum">${p.certs.length}</span></div>${p.certs.length?p.certs.slice(0,4).map((c,i)=>`<div class="certrow">${ico('award','sun')}<div><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div><button class="btn sm" data-act="cert" data-v="${i}">View</button></div>`).join(''):'<p class="small muted">Perfect quizzes and teacher awards show up here.</p>'}</div></div>
     <div class="card"><div class="card-h"><h2>Talk about it at dinner</h2></div><p class="muted">${weakest?`${esc(first)} is working hardest on <b>${esc(SK(weakest.id).name.toLowerCase())}</b>. Ask them to teach you one problem and explain each step out loud.`:`Ask ${esc(first)} to show you their first math quiz and explain one answer.`}</p></div>
+    ${snapPromoHTML('Helping with homework? Snap a problem.')}
     ${coCardHTML()}`;
 }
 
@@ -1386,6 +1438,7 @@ setInterval(()=>{ const el=document.getElementById('ltimer'); const g = S.lplay?
 /* ================= RENDER ================= */
 function mainHTML(){
   if (!ME) return landingHTML();
+  if (S.snap) return snapHTML();
   if (S.lesson) return lessonHTML();
   const r = role();
   if (r==='student'){
@@ -1437,7 +1490,7 @@ document.addEventListener('click', async e=>{
     case 'menu': S.menu=!S.menu; return renderChrome();
     case 'tab':
       if (S.tab==='games' && v!=='games' && GAME && !GAME.over) endGame('Round ended.');
-      S.tab=v; S.menu=false; S.lesson=null; stopSpeed(); if (v==='practice' && S.result) S.result=null;
+      S.tab=v; S.menu=false; S.lesson=null; S.snap=null; stopSpeed(); if (v==='practice' && S.result) S.result=null;
       render(); window.scrollTo({top:0}); return loadFor(v);
     case 'home': S.result=null; return render();
     case 'band': { if (S.run) return; return saveMe({ band: v || null }).then(()=>{ S.board=null; }); }
@@ -1557,6 +1610,385 @@ window.addEventListener('pagehide', ()=>{ if (GAME && !GAME.over) leavePlay(); }
   loadFor(S.tab);
   if (isStaff() && S.tab!=='class') loadFor('class');
 })();
+</script>
+<script>
+/* =====================================================================================
+   LEARN: "Solve it with me" walkthroughs, lesson videos, and "Snap a problem".
+   Kept in its own script so the lesson pieces are easy to find. Uses the helpers above
+   (S, CAT, api, esc, svg, render, toast, confetti, speakText, parseNum, SK, startMode).
+   ===================================================================================== */
+Object.assign(I, {
+  camera:'<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  play:'<path d="M7 4l13 8-13 8z"/>',
+  hand:'<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M11 10.5V4a1.5 1.5 0 0 1 3 0v6.5"/><path d="M14 10.5V5.5a1.5 1.5 0 0 1 3 0V13c0 4-2.5 7-6.5 7S5 17.5 5 15v-2.5a1.5 1.5 0 0 1 3 0V13"/>'
+});
+
+/* ---------------- answers ---------------- */
+const numOf = s => parseNum(String(s ?? '').replace(/,(?=\d{3}\b)/g, ''));
+/** Same rules as shared/ariseMathPhoto.ts: "x = 3/4", "0.75", "1 1/2", "24 sq ft". */
+function normAns(raw){
+  let s = String(raw ?? '').toLowerCase().replace(/[−–—]/g,'-').replace(/\$/g,'').replace(/,(?=\d{3}\b)/g,'');
+  return s.replace(/\s+/g,'').replace(/^[a-z]=/,'').replace(/\.$/,'').replace(/\*\*/g,'^').slice(0,80);
+}
+function ansNum(raw){
+  const s = normAns(raw);
+  let m = s.match(/^(-?\d+)(\d+)\/(\d+)$/);
+  if (m && /\d\s+\d+\/\d/.test(String(raw))) { const w=+m[1], f=+m[2]/+m[3]; return w<0 ? w-f : w+f; }
+  const t = s.replace(/%$/,'').replace(/(cm|mm|m|km|in|ft|yd|mi|g|kg|lb|oz|l|ml|units?|sq\.?units?|degrees?|°|cents?|¢)\^?\d?$/,'');
+  m = t.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);
+  if (m) return +m[2] ? +m[1] / +m[2] : NaN;
+  return /^-?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
+}
+function ansMatch(given, want){
+  const g = normAns(given); if (!g) return false;
+  const w = normAns(want); if (w && w===g) return true;
+  const a = ansNum(given), b = ansNum(want);
+  if (!Number.isNaN(a) && !Number.isNaN(b) && Math.abs(a-b) <= 1e-6*Math.max(1,Math.abs(b))) return true;
+  const parts = x => String(x).split(/,|;|\bor\b|\band\b/i).map(normAns).filter(Boolean).sort();
+  const wp = parts(want), gp = parts(given);
+  return wp.length>1 && wp.length===gp.length && wp.every((p,i)=>p===gp[i] || (!Number.isNaN(ansNum(p)) && ansNum(p)===ansNum(gp[i])));
+}
+
+/* ---------------- Solve it with me ---------------- */
+/** Finds the number a student can fill in for a step ("8 + 2 = [10]."), or null for a read-only step. */
+function blankOf(html){
+  if (/^\s*Check\b/i.test(String(html).replace(/<[^>]+>/g,''))) return null;   // a check repeats the given numbers
+  const parts = String(html).split(/(<[^>]+>)/);
+  let depth = 0;
+  const inSpan = parts.map(p => { if (p.startsWith('<')) { if (/^<span\b/i.test(p)) depth++; else if (/^<\/span/i.test(p)) depth = Math.max(0, depth-1); return true; } return depth>0; });
+  const NUM = '([−-]?\\d+(?:,\\d{3})*(?:\\.\\d+)?)';
+  const cut = (i, pos, num) => ({
+    before: parts.slice(0,i).join('') + parts[i].slice(0,pos),
+    after: parts[i].slice(pos + num.length) + parts.slice(i+1).join(''),
+    value: Number(num.replace(/,/g,'').replace('−','-')), raw: num,
+  });
+  for (let i=parts.length-1; i>=0; i--){
+    if (inSpan[i]) continue;
+    const t = parts[i], re = new RegExp('=\\s*'+NUM, 'g'); let m, last=null;
+    while ((m = re.exec(t))){
+      const rest = t.slice(m.index + m[0].length), left = t.slice(0, m.index).split(/[.:;]\s/).pop();
+      if (/^\s*(?:[×÷+\-−·*/^]\s*[\d(]|\d|\.\d)/.test(rest)) continue;   // the sum keeps going
+      if (/\?/.test(left)) continue;                                        // "5 × ? = 15": 15 is given
+      if (/^\s*0\b/.test(m[1]) && /\)/.test(left)) continue;              // "(x + 3)(x − 2) = 0"
+      last = m; }
+    if (last) return cut(i, last.index + last[0].length - last[1].length, last[1]);
+  }
+  for (let i=parts.length-1; i>=0; i--){
+    if (parts[i].startsWith('<') || !parts[i].trim()) continue;
+    if (inSpan[i]) break;
+    const m = parts[i].match(new RegExp('\\b(?:is|are|on|makes|gives|get|equals|be|rounds to)\\s+'+NUM+'(?=(?:\\s+[A-Za-z¢%°]+){0,2}\\s*[.!]?\\s*$)'));
+    if (m) return cut(i, m.index + m[0].length - m[1].length, m[1]);
+    break;
+  }
+  return null;
+}
+const plainHTML = h => { const d=document.createElement('div'); d.innerHTML=String(h); d.querySelectorAll('.fr').forEach(f=>{ const [a,b]=f.children; if (a&&b) f.textContent=` ${a.textContent} over ${b.textContent} `; }); return d.textContent.replace(/\s+/g,' ').trim(); };
+
+function wkState(){ const L=S.lesson; if (!L.wk || L.wk.ex!==L.ex) L.wk = { ex:L.ex, i:0, st:[], tries:0, fb:null }; return L.wk; }
+function walkthroughHTML(){
+  const L = S.lesson;
+  if (L.err) return `<p class="small muted">${esc(L.err)}</p>`;
+  if (!L.ex) return '<p class="small muted">Loading…</p>';
+  const p = L.ex, W = wkState(), n = p.steps.length, done = W.i >= n;
+  const dots = `<div class="wk-dots" aria-label="Step ${Math.min(W.i+1,n)} of ${n}">${p.steps.map((_,j)=>`<i class="${W.st[j]==='shown'?'shown':W.st[j]?'ok':j===W.i?'on':''}"></i>`).join('')}<span class="small muted" style="margin-left:6px">${done?'All steps done':`Step ${W.i+1} of ${n}`}</span></div>`;
+  const items = p.steps.slice(0, Math.min(W.i+1, n)).map((st, j) => {
+    const b = blankOf(st), cur = j===W.i && !done;
+    let txt;
+    if (b && cur) txt = `${b.before}<input class="wk-in ${W.bad?'is-bad':''}" id="wkIn" form="wkForm" autocomplete="off" spellcheck="false" inputmode="${b.value<0?'text':'decimal'}" aria-label="Fill in the missing number" placeholder="?">${b.after}`;
+    else if (b) txt = `${b.before}<span class="fill">${esc(b.raw)}</span>${b.after}`;
+    else txt = st;
+    const act = !cur ? '' : b
+      ? `<form id="wkForm" class="wk-act" autocomplete="off"><button class="btn primary" type="submit">${svg('check')}Check</button>${W.tries?`<button class="btn" type="button" data-act="wkshow">${svg('eye')}Show me</button>`:''}${canSpeak?`<button class="btn sm" type="button" data-act="wkread" data-v="${j}" aria-label="Read this step out loud">${svg('speaker')}</button>`:''}</form>`
+      : `<div class="wk-act"><button class="btn primary" data-act="wkgot">${j===n-1?'Finish':'Got it, next step'} →</button>${canSpeak?`<button class="btn sm" data-act="wkread" data-v="${j}" aria-label="Read this step out loud">${svg('speaker')}</button>`:''}</div>`;
+    const fb = cur && W.fb ? `<p class="wk-fb ${W.fb.c}" role="status">${esc(W.fb.t)}</p>` : '';
+    const tip = cur && b && !W.tries ? `<p class="wk-fb tip">Work out the missing number, then press Check.</p>` : '';
+    return `<li class="wk-step ${cur?'cur':W.st[j]==='shown'?'shown':'ok'}"><div><div class="txt">${txt}</div>${tip}${fb}${act}</div></li>`;
+  }).join('');
+  const lastB = blankOf(p.steps[n-1]), needFinal = p.kind==='choice' || !(lastB && Math.abs(lastB.value - Number(p.answer)) < 1e-9);
+  if (done && needFinal && !W.fin) {
+    const ask = p.kind==='choice'
+      ? `<div class="choices" style="margin-top:10px">${p.choices.map(c=>`<button type="button" data-act="wkpick" data-v="${esc(c.v)}" class="${W.fwrong?.includes(String(c.v))?'is-bad':''}" ${W.fwrong?.includes(String(c.v))?'disabled':''}>${esc(c.label)}</button>`).join('')}</div>`
+      : `<form id="wkFinForm" class="wk-act" autocomplete="off"><label for="wkFin" class="sr">The answer</label><input class="wk-in ${W.bad?'is-bad':''}" id="wkFin" spellcheck="false" placeholder="?" inputmode="${Number(p.answer)<0?'text':'decimal'}" style="width:7em"><button class="btn primary" type="submit">${svg('check')}Check</button>${W.ftries?`<button class="btn" type="button" data-act="wkfinshow">${svg('eye')}Show me</button>`:''}</form>`;
+    return `<div class="wk">
+      <div class="wk-prob"><p class="ask" style="margin:0">${esc(p.ask)}</p><div class="prompt ${p.long?'long':''}">${p.prompt}</div>${p.viz?`<div class="viz-wrap">${p.viz}</div>`:''}</div>
+      ${dots}<ol class="wk-list">${items}</ol>
+      <div class="wk-step cur" style="grid-template-columns:minmax(0,1fr)"><div><b>Last step: you answer it</b><p class="txt" style="margin-top:4px">Use the steps above to answer the question.</p>${ask}${W.fb?`<p class="wk-fb ${W.fb.c}" role="status">${esc(W.fb.t)}</p>`:''}</div></div></div>`;
+  }
+  const win = done ? `<div class="wk-win" role="status"><h3>${W.st.every(x=>x!=='shown') && W.fin!=='shown'?'You did every step yourself!':'You worked it out!'}</h3>
+      <div class="row" style="gap:10px"><span class="muted">Answer</span><span class="big">${esc(p.answerLabel)}</span></div>
+      <p class="small muted">Now try one on your own. The steps are there if you need them.</p>
+      <div class="row" style="gap:8px"><button class="btn primary" data-act="lmode" data-v="guided">${svg('hand')}Your turn</button><button class="btn outline" data-act="exnew">${svg('plus')}Do another with me</button></div></div>` : '';
+  return `<div class="wk">
+    <div class="wk-prob"><p class="ask" style="margin:0">${esc(p.ask)}</p><div class="prompt ${p.long?'long':''}">${p.prompt}</div>${p.viz?`<div class="viz-wrap">${p.viz}</div>`:''}</div>
+    ${dots}<ol class="wk-list">${items}</ol>${win}
+    ${done?'':`<div class="row" style="gap:8px"><button class="btn sm" data-act="exnew">${svg('plus')}Different numbers</button><button class="btn sm" data-act="wkall">Show every step</button></div>`}</div>`;
+}
+function paintWk(focus=true){
+  const box = document.getElementById('wkBox');
+  if (!box) return render();
+  box.innerHTML = walkthroughHTML();
+  if (focus) setTimeout(()=>{ const i=document.getElementById('wkIn') || document.getElementById('wkFin'); if (i) i.focus({preventScroll:true}); else document.querySelector('[data-act="wkgot"]')?.focus({preventScroll:true}); }, 0);
+}
+function wkAdvance(mark){
+  const W = wkState(), p = S.lesson.ex; W.st[W.i] = mark; W.i++; W.tries=0; W.fb=null; W.bad=false;
+  if (W.i >= p.steps.length && p.kind!=='choice' && W.st.every(x=>x!=='shown')) { const b = blankOf(p.steps[p.steps.length-1]); if (b && Math.abs(b.value - Number(p.answer)) < 1e-9) confetti(); }
+  paintWk();
+  setTimeout(()=>document.querySelector('.wk-step.cur, .wk-win')?.scrollIntoView({block:'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}), 30);
+}
+function wkCheck(){
+  const W = wkState(), b = blankOf(S.lesson.ex.steps[W.i]); if (!b) return wkAdvance('ok');
+  const raw = document.getElementById('wkIn')?.value || '';
+  if (!raw.trim()) { W.fb={c:'tip', t:'Type a number in the box first.'}; return paintWk(); }
+  const v = numOf(raw);
+  if (Number.isNaN(v)) { W.fb={c:'bad', t:'Type a number, like 12, −3, 3/4 or 2.5.'}; W.bad=true; return paintWk(); }
+  if (Math.abs(v - b.value) < 1e-9) { return wkAdvance('ok'); }
+  W.tries++; W.bad=true;
+  W.fb = { c:'bad', t: W.tries>=2 ? 'Not quite. Tap “Show me” to see it, then keep going.' : 'Not quite. Look at the picture and the step again, then try once more.' };
+  paintWk();
+}
+
+function wkFinal(v, shown){
+  const W = wkState(), p = S.lesson.ex;
+  if (shown) { W.fin = 'shown'; W.fb = null; return paintWk(); }
+  const ok = p.kind==='choice' ? String(v)===String(p.answer) : Math.abs(numOf(v) - Number(p.answer)) < 1e-9;
+  if (p.kind!=='choice' && Number.isNaN(numOf(v))) { W.fb = { c:'bad', t:'Type a number, like 12, −3, 3/4 or 2.5.' }; W.bad = true; return paintWk(); }
+  if (ok) { W.fin = 'ok'; W.fb = null; W.bad = false; if (W.st.every(x=>x!=='shown')) confetti(); return paintWk(); }
+  W.ftries = (W.ftries||0) + 1; W.bad = true;
+  if (p.kind==='choice') (W.fwrong = W.fwrong || []).push(String(v));
+  W.fb = { c:'bad', t: W.ftries>=2 && p.kind!=='choice' ? 'Not quite. Tap “Show me”, or look back at the steps.' : 'Not quite. Look back at the steps and try again.' };
+  paintWk();
+}
+
+/* ---------------- videos ---------------- */
+function videosOf(skill){ const t = CAT?.videos?.skills?.[skill]; return (t && CAT.videos.topics[t]) || []; }
+const ytThumb = id => `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
+const ytSearch = q => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+/** The video player for one skill (or a search link when there is no skill). `key` keeps its own state. */
+function videoCardHTML(key, skill, search){
+  const vids = skill ? videosOf(skill) : [];
+  S.vids = S.vids || {}; const st = S.vids[key] || (S.vids[key] = { i:0, playing:false });
+  const more = `<a class="btn sm" href="${ytSearch(search || (SK(skill).name + ' math lesson for kids'))}" target="_blank" rel="noopener noreferrer">${svg('play')}More videos on YouTube</a>`;
+  if (!vids.length) return `<div class="card"><div class="card-h"><h2>Watch a lesson</h2></div><p class="small muted" style="margin-bottom:10px">Find a short video lesson on this topic.</p>${more}</div>`;
+  const v = vids[Math.min(st.i, vids.length-1)];
+  const player = st.playing
+    ? `<div class="vid" data-playing data-id="${esc(v.id)}"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.id)}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
+    : `<button class="vid" data-act="vidplay" data-v="${esc(key)}" aria-label="Play video: ${esc(v.title)}"><img src="${ytThumb(v.id)}" alt="" loading="lazy"><span class="play"><span></span></span></button>`;
+  const list = vids.length>1 ? `<div class="vid-more">${vids.map((x,j)=>`<button data-act="vidpick" data-v="${esc(key)}" data-i="${j}" aria-pressed="${j===st.i}"><img src="${ytThumb(x.id)}" alt="" loading="lazy"><span><b>${esc(x.title)}</b><span>${esc(x.by)}</span></span></button>`).join('')}</div>` : '';
+  return `<div class="card" id="vid-${esc(key)}"><div class="card-h"><h2>Watch a lesson</h2><span class="small muted">${vids.length} video${vids.length>1?'s':''}</span></div>
+    ${player}<div class="vid-meta"><b>${esc(v.title)}</b><span>${esc(v.by)} · YouTube</span></div>${list}<div class="vid-more">${more}</div></div>`;
+}
+function paintVideo(key){
+  const el = document.getElementById('vid-'+key);
+  const html = key==='lesson' ? videoCardHTML('lesson', S.lesson?.skill) : videoCardHTML('snap', S.snap?.reply?.skill, S.snap?.reply?.videoSearch);
+  if (!el) return render();
+  const t = document.createElement('div'); t.innerHTML = html; el.replaceWith(t.firstElementChild);
+}
+
+/* ---------------- lesson page ---------------- */
+function lessonHTML(){
+  const L = S.lesson; if (L.mode) return modeHTML();
+  const s = SK(L.skill), lf = LEARN_OF(L.skill), st = myState(), student = role()==='student', lv = CAT.worksheetLevels || {};
+  return `<div class="card"><div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn sm" data-act="lclose">${svg('back')}Back</button><span class="small muted">Lesson</span></div>
+      <div class="row" style="flex-wrap:nowrap;margin-top:12px;gap:12px">${op(L.skill)}<div style="min-width:0"><h1>${esc(s.name)}</h1><span class="small muted">${esc(codeLabel(st, s.std))}</span></div></div></div>
+    <div class="grid two"><div class="card idea"><span class="eyebrow">Big idea</span><p>${esc(lf.idea)}</p></div><div class="card remember"><span class="eyebrow">Remember</span><p class="rem">${esc(lf.remember)}</p></div></div>
+    ${videoCardHTML('lesson', L.skill)}
+    <div class="card stack"><div class="card-h" style="margin-bottom:0"><div><h2>Solve it with me</h2><span class="small muted">Do each step yourself. Fill in the box, press Check, and we’ll go to the next step.</span></div></div><div id="wkBox">${walkthroughHTML()}</div></div>
+    ${snapPromoHTML('Stuck on a problem from class or homework?')}
+    <div class="card"><div class="card-h"><h2>Practice your way</h2><span class="small muted">${student?'Quizzes earn points. The rest are practice.':'Practice is for learning, so no points.'}</span></div>
+      <div class="modes">${student?`<button class="mode" data-act="start" data-type="skill" data-v="${L.skill}">${ico('award','primary')}<b>Quiz for points</b><span>Five questions that count on the leaderboard.</span></button>`:''}
+        ${Object.entries(MODES).map(([id,m])=>`<button class="mode" data-act="lmode" data-v="${id}">${ico(m.icon,m.c)}<b>${m.name}</b><span>${m.note}</span>${id==='speed'&&bestSpeed(L.skill)?`<em>Your best: ${bestSpeed(L.skill)}</em>`:''}</button>`).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Print a worksheet</h2><span class="small muted">12 new problems with an answer key</span></div>
+      <div class="levels">${['scaffold','standard','challenge'].map(id=>`<div class="level"><div><b>${esc(lv[id]?.name||id)}</b><span class="small muted">${esc(lv[id]?.note||'')}</span></div><button class="btn ${id==='standard'?'primary':'outline'} sm" data-act="lprint" data-v="${id}">${svg('print')}Print</button></div>`).join('')}</div></div>`;
+}
+
+/* ---------------- Snap a problem ---------------- */
+function snapPromoHTML(lead){
+  return `<div class="card snap-promo"><div class="cam">${svg('camera')}</div><div><h2>${esc(lead || 'Stuck on a problem?')}</h2><p class="small muted">Snap a photo or a screenshot. We’ll walk through it one step at a time, you find the answer, then practice a few like it.</p></div><button class="btn primary" data-act="snap">${svg('camera')}Snap a problem</button></div>`;
+}
+const newSnap = () => ({ stage:'pick', img:null, text:'', err:null, reply:null, si:0, sst:[], stries:0, sfb:null, fin:{ fb:null, right:false, busy:false, tries:0 }, ex:[] });
+function snapHTML(){
+  const N = S.snap, head = `<div class="card"><div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn sm" data-act="snapclose">${svg('back')}Back</button><span class="small muted">Snap a problem</span></div>`;
+  if (N.stage==='loading') return `${head}<div class="snap-wait" role="status"><div class="spin" aria-hidden="true"></div><h2>Reading your problem…</h2><p class="muted small">Working out the steps. This takes a few seconds.</p></div></div>`;
+  if (N.stage==='pick') return `${head}<h1 style="margin-top:12px">Snap a problem</h1><p class="muted" style="margin-top:4px">Take a photo of one problem, upload a screenshot, or type it. You’ll get the steps, not the answer.</p></div>
+    <div class="card stack">
+      ${N.err?`<p class="feedback bad" role="alert">${esc(N.err)}</p>`:''}
+      <div class="drop" id="snapDrop">
+        ${N.img?`<img class="snap-img" src="${N.img}" alt="Your problem"><button class="btn sm" data-act="snapclear">${svg('x')}Use a different picture</button>`
+          :`<div class="cam" style="width:56px;height:56px;border-radius:16px;background:var(--primary-soft);color:var(--primary-text);display:grid;place-items:center">${svg('camera','style="width:30px;height:30px"')}</div>
+          <div class="btns"><label class="btn primary">${svg('camera')}Take a photo<input type="file" id="snapCam" accept="image/*" capture="environment"></label>
+            <label class="btn outline">${svg('image')}Upload a screenshot<input type="file" id="snapFile" accept="image/*"></label></div>
+          <p class="small muted">On a computer you can also paste a screenshot here (Ctrl+V or ⌘V), or drag a picture in.</p>`}
+      </div>
+      <label class="f"><span class="small muted">${N.img?'Anything to add? (optional, like “just number 4”)':'Or type the problem'}</span><textarea class="snap-text" id="snapText" maxlength="600" placeholder="${N.img?'Number 4 please':'Example: 3x + 5 = 20'}">${esc(N.text)}</textarea></label>
+      <div class="row" style="gap:8px"><button class="btn primary" data-act="snapgo">${svg('hand')}Help me solve it</button></div>
+      <p class="small muted">Tips: one problem at a time, good light, and hold the camera straight over the page.</p>
+    </div>`;
+  const R = N.reply;
+  return `${head}<div style="margin-top:12px" class="stack"><span class="eyebrow">${esc(R.topic)}</span>
+      ${N.img?`<img class="snap-img" src="${N.img}" alt="Your problem" style="max-height:200px;margin:0">`:''}
+      <div class="snap-prob">${esc(R.problem)}</div>
+      <div class="row" style="gap:8px"><button class="btn sm" data-act="snapfix">Not the right problem? Fix it</button><button class="btn sm" data-act="snapnew">${svg('camera')}Snap another</button></div></div></div>
+    ${R.bigIdea?`<div class="card idea"><span class="eyebrow">Big idea</span><p>${esc(R.bigIdea)}</p></div>`:''}
+    <div class="card stack"><div class="card-h" style="margin-bottom:0"><div><h2>Let’s solve it step by step</h2><span class="small muted">You do the math in each step. The answer is yours to find.</span></div></div><div id="snapSteps">${snapStepsHTML()}</div></div>
+    <div id="snapFinish">${snapFinishHTML()}</div>
+    ${videoCardHTML('snap', R.skill, R.videoSearch)}
+    ${R.examples.length?`<div class="card stack"><div class="card-h" style="margin-bottom:0"><div><h2>Practice problems like it</h2><span class="small muted">Try each one. If you get stuck, open the steps one at a time.</span></div></div><div id="snapEx" class="stack">${snapExamplesHTML()}</div></div>`:''}
+    ${R.skill?`<div class="card snap-promo"><div class="cam">${op(R.skill)}</div><div><h2>${esc(SK(R.skill).name)}</h2><p class="small muted">Open the lesson for more worked examples and practice with points.</p></div><button class="btn outline" data-act="snaplearn" data-v="${esc(R.skill)}">Open the lesson</button></div>`:''}`;
+}
+function snapStepsHTML(){
+  const N = S.snap, R = N.reply, n = R.steps.length, done = N.si >= n;
+  const items = R.steps.slice(0, Math.min(N.si+1, n)).map((st, j) => {
+    const cur = j===N.si && !done;
+    const ask = st.ask && st.check ? (cur
+      ? `<form id="snapStepForm" class="wk-act" autocomplete="off" style="align-items:center"><label for="snapStepIn" class="txt" style="font-weight:700">${esc(st.ask)}</label><input class="wk-in ${N.sbad?'is-bad':''}" id="snapStepIn" spellcheck="false" placeholder="?" style="width:7em"><button class="btn primary" type="submit">${svg('check')}Check</button>${N.stries?`<button class="btn" type="button" data-act="snapshow">${svg('eye')}Show me</button>`:''}</form>`
+      : `<p class="txt" style="margin-top:6px">${esc(st.ask)} <span class="fill">${esc(st.check)}</span></p>`) : '';
+    const fb = cur && N.sfb ? `<p class="wk-fb ${N.sfb.c}" role="status">${esc(N.sfb.t)}</p>` : '';
+    const got = cur && !(st.ask && st.check) ? `<div class="wk-act"><button class="btn primary" data-act="snapgot">Got it, next step →</button>${canSpeak?`<button class="btn sm" data-act="snapread" data-v="${j}" aria-label="Read this step out loud">${svg('speaker')}</button>`:''}</div>` : '';
+    return `<li class="wk-step ${cur?'cur':N.sst[j]==='shown'?'shown':'ok'}"><div><b>${esc(st.title)}</b><p class="txt" style="margin-top:4px">${esc(st.explain)}</p>${ask}${fb}${got}</div></li>`;
+  }).join('');
+  const dots = `<div class="wk-dots">${R.steps.map((_,j)=>`<i class="${N.sst[j]==='shown'?'shown':N.sst[j]?'ok':j===N.si?'on':''}"></i>`).join('')}<span class="small muted" style="margin-left:6px">${done?'Steps done. Now finish it below.':`Step ${N.si+1} of ${n}`}</span></div>`;
+  return `${dots}<ol class="wk-list" style="margin-top:12px">${items}</ol>`;
+}
+function snapFinishHTML(){
+  const N = S.snap, R = N.reply, F = N.fin;
+  if (N.si < R.steps.length) return '';
+  if (F.right) return `<div class="card wk-win" role="status"><h3>Yes! You solved it.</h3><p>You found the answer yourself. Try the practice problems below to lock it in.</p></div>`;
+  return `<div class="card snap-finish"><span class="eyebrow">Your turn to finish</span><p class="txt" style="font-size:1.08rem;margin-top:6px">${esc(R.finish)}</p>
+    <form id="snapFinForm" autocomplete="off"><label for="snapFinIn" class="sr">Your answer</label><input type="text" id="snapFinIn" placeholder="Your answer (${esc(R.answerForm)})" spellcheck="false"><button class="btn primary" type="submit" ${F.busy?'disabled':''}>${svg('check')}Check my answer</button></form>
+    ${F.fb?`<p class="wk-fb ${F.fb.c}" role="status">${esc(F.fb.t)}</p>`:''}</div>`;
+}
+function snapExamplesHTML(){
+  const N = S.snap;
+  return N.reply.examples.map((e, k) => {
+    const X = N.ex[k] || (N.ex[k] = { shown:0, fb:null, done:false, ans:false });
+    const steps = X.shown ? `<ol>${e.steps.slice(0, X.shown).map(s=>`<li><b>${esc(s.title)}</b>${esc(s.work)}</li>`).join('')}</ol>` : '';
+    const more = X.shown < e.steps.length ? `<button class="btn sm" data-act="exsstep" data-v="${k}">${X.shown?`Next step (${X.shown+1} of ${e.steps.length})`:'Show the first step'}</button>` : '';
+    return `<div class="exq"><span class="eyebrow">Practice ${k+1}</span><div class="q">${esc(e.problem)}</div>
+      ${X.done?`<p class="ans">${svg('check','style="width:18px;height:18px;vertical-align:-3px"')} ${esc(e.answer)}${X.ans?'':' · You got it!'}</p>`
+        :`<form class="exform" data-k="${k}" autocomplete="off"><label class="sr" for="exIn${k}">Your answer</label><input type="text" id="exIn${k}" placeholder="Your answer" spellcheck="false"><button class="btn primary sm" type="submit">Check</button></form>`}
+      ${X.fb && !X.done?`<p class="wk-fb ${X.fb.c}" role="status">${esc(X.fb.t)}</p>`:''}
+      ${steps}<div class="row" style="gap:8px">${more}${X.done?'':`<button class="btn sm" data-act="exsans" data-v="${k}">Show the answer</button>`}</div></div>`;
+  }).join('');
+}
+function paintSnap(part){
+  const ids = { steps:['snapSteps', snapStepsHTML], fin:['snapFinish', snapFinishHTML], ex:['snapEx', snapExamplesHTML] };
+  const [id, fn] = ids[part] || []; const el = id && document.getElementById(id);
+  if (!el) return render();
+  el.innerHTML = fn();
+}
+async function shrinkImage(file){
+  if (!file) throw new Error('No picture was picked.');
+  if (file.type && !/^image\//.test(file.type)) throw new Error('Pick a photo or a screenshot (JPG or PNG).');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('That picture couldn’t be opened. Try a JPG or PNG, or a screenshot.')); i.src = url; });
+    const sc = Math.min(1, 1600 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * sc)); c.height = Math.max(1, Math.round(img.naturalHeight * sc));
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.85);
+  } finally { URL.revokeObjectURL(url); }
+}
+async function takeImage(file){
+  if (!S.snap) return;
+  try { S.snap.img = await shrinkImage(file); S.snap.err = null; }
+  catch (e) { S.snap.err = e.message; }
+  render();
+}
+async function snapGo(){
+  const N = S.snap; N.text = (document.getElementById('snapText')?.value || '').trim();
+  if (!N.img && !N.text) { N.err = 'Add a photo or screenshot of the problem, or type it in.'; return render(); }
+  N.stage = 'loading'; N.err = null; render(); window.scrollTo({top:0});
+  try {
+    const r = await api('/photo-help', { method:'POST', body:{ image:N.img, text:N.text } });
+    if (S.snap !== N) return;
+    if (r.notMath) { N.stage='pick'; N.err=r.notMath; return render(); }
+    Object.assign(N, { stage:'help', reply:r, si:0, sst:[], stries:0, sfb:null, sbad:false, fin:{ fb:null, right:false, busy:false, tries:0 }, ex:[] });
+    if (S.vids) delete S.vids.snap;
+  } catch (e) { if (S.snap !== N) return; N.stage='pick'; N.err = e.message; }
+  render(); window.scrollTo({top:0});
+}
+function snapAdvance(mark){
+  const N = S.snap; N.sst[N.si] = mark; N.si++; N.stries=0; N.sfb=null; N.sbad=false;
+  paintSnap('steps'); paintSnap('fin');
+  setTimeout(()=>{ const t = document.getElementById('snapStepIn') || document.getElementById('snapFinIn'); t?.focus({preventScroll:true}); (document.querySelector('#snapSteps .wk-step.cur') || document.getElementById('snapFinish'))?.scrollIntoView({block:'nearest', behavior:'smooth'}); }, 30);
+}
+function snapStepCheck(){
+  const N = S.snap, st = N.reply.steps[N.si], v = document.getElementById('snapStepIn')?.value || '';
+  if (!v.trim()) { N.sfb = { c:'tip', t:'Type your answer in the box first.' }; return paintSnap('steps'); }
+  if (ansMatch(v, st.check)) return snapAdvance('ok');
+  N.stries++; N.sbad = true;
+  N.sfb = { c:'bad', t: (st.hint && N.stries===1 ? 'Not quite. Hint: ' + st.hint : N.stries>=2 ? 'Not quite. Tap “Show me” to see this step, then keep going.' : 'Not quite. Read the step again and try once more.') };
+  paintSnap('steps');
+  setTimeout(()=>document.getElementById('snapStepIn')?.focus({preventScroll:true}), 0);
+}
+async function snapFinish(){
+  const N = S.snap, F = N.fin, v = (document.getElementById('snapFinIn')?.value || '').trim();
+  if (!v) { F.fb = { c:'tip', t:'Type your answer first.' }; return paintSnap('fin'); }
+  F.busy = true; paintSnap('fin');
+  try {
+    const r = await api(`/photo-help/${encodeURIComponent(N.reply.id)}/check`, { method:'POST', body:{ answer:v } });
+    F.busy = false;
+    if (r.right) { F.right = true; confetti(); }
+    else { F.tries++; F.fb = { c:'bad', t: F.tries>=3 ? 'Not yet. Try the practice problems below. They show every step, then come back to this one.' : 'Not yet. Go back over each step, check your math, and try again.' }; }
+  } catch (e) { F.busy = false; F.fb = { c:'bad', t:e.message }; }
+  paintSnap('fin');
+  if (!F.right) setTimeout(()=>{ const i=document.getElementById('snapFinIn'); if (i){ i.value=v; i.focus({preventScroll:true}); } }, 0);
+}
+
+/* ---------------- events ---------------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act, v = el.dataset.v;
+  switch (act) {
+    case 'tab': S.snap = null; return;
+    case 'wkgot': return wkAdvance('ok');
+    case 'wkpick': return wkFinal(v);
+    case 'wkfinshow': return wkFinal(null, true);
+    case 'wkshow': return wkAdvance('shown');
+    case 'wkall': { const W = wkState(); for (let j=W.i; j<S.lesson.ex.steps.length; j++) W.st[j]='shown'; W.i = S.lesson.ex.steps.length; W.fin = 'shown'; W.fb = null; return paintWk(false); }
+    case 'wkread': { const st = S.lesson?.ex?.steps[+v]; if (!st) return; const b = blankOf(st); return speakText(plainHTML(b && +v===wkState().i ? b.before + ' what number? ' + b.after : st)); }
+    case 'vidplay': { S.vids[v].playing = true; return paintVideo(v); }
+    case 'vidpick': { S.vids[v].i = +el.dataset.i; S.vids[v].playing = true; return paintVideo(v); }
+    case 'snap': S.snap = newSnap(); render(); window.scrollTo({top:0}); return;
+    case 'snapclose': S.snap = null; render(); window.scrollTo({top:0}); return;
+    case 'snapnew': S.snap = newSnap(); render(); window.scrollTo({top:0}); return;
+    case 'snapclear': S.snap.img = null; return render();
+    case 'snapgo': return snapGo();
+    case 'snapfix': { const p = S.snap.reply?.problem || ''; S.snap = Object.assign(newSnap(), { text:p }); render(); setTimeout(()=>document.getElementById('snapText')?.focus(), 0); return; }
+    case 'snapgot': return snapAdvance('ok');
+    case 'snapshow': return snapAdvance('shown');
+    case 'snapread': { const st = S.snap?.reply?.steps[+v]; if (st) speakText(st.title + '. ' + st.explain + (st.ask ? ' ' + st.ask : '')); return; }
+    case 'snaplearn': S.snap = null; return openLesson(v);
+    case 'exsstep': { const X = S.snap.ex[+v]; X.shown++; return paintSnap('ex'); }
+    case 'exsans': { const X = S.snap.ex[+v]; X.shown = S.snap.reply.examples[+v].steps.length; X.done = true; X.ans = true; return paintSnap('ex'); }
+  }
+});
+document.addEventListener('submit', e => {
+  const f = e.target;
+  if (f.id==='wkForm') { e.preventDefault(); return wkCheck(); }
+  if (f.id==='wkFinForm') { e.preventDefault(); const v = document.getElementById('wkFin')?.value || ''; if (!v.trim()) { wkState().fb = { c:'tip', t:'Type your answer first.' }; return paintWk(); } return wkFinal(v); }
+  if (f.id==='snapStepForm') { e.preventDefault(); return snapStepCheck(); }
+  if (f.id==='snapFinForm') { e.preventDefault(); return snapFinish(); }
+  if (f.classList?.contains('exform')) {
+    e.preventDefault();
+    const k = +f.dataset.k, X = S.snap.ex[k], ex = S.snap.reply.examples[k], v = document.getElementById('exIn'+k)?.value || '';
+    if (!v.trim()) { X.fb = { c:'tip', t:'Type your answer first.' }; return paintSnap('ex'); }
+    if (ansMatch(v, ex.answer)) { X.done = true; X.shown = ex.steps.length; X.fb = null; }
+    else X.fb = { c:'bad', t: X.shown < ex.steps.length ? 'Not quite. Open the next step for help.' : 'Not quite. Look over the steps and try again.' };
+    paintSnap('ex');
+  }
+});
+document.addEventListener('input', e => { if (e.target.id==='snapText' && S.snap) S.snap.text = e.target.value; if (e.target.classList?.contains('wk-in')) e.target.classList.remove('is-bad'); });
+document.addEventListener('change', e => { if ((e.target.id==='snapCam' || e.target.id==='snapFile') && e.target.files?.[0]) takeImage(e.target.files[0]); });
+document.addEventListener('paste', e => {
+  if (!S.snap || S.snap.stage!=='pick') return;
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (item) { e.preventDefault(); takeImage(item.getAsFile()); }
+});
+document.addEventListener('dragover', e => { const d = e.target.closest?.('#snapDrop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
+document.addEventListener('dragleave', e => { e.target.closest?.('#snapDrop')?.classList.remove('over'); });
+document.addEventListener('drop', e => { const d = e.target.closest?.('#snapDrop'); if (!d) return; e.preventDefault(); d.classList.remove('over'); const f = [...(e.dataTransfer?.files || [])].find(x => x.type.startsWith('image/')); if (f) takeImage(f); });
 </script>
 <script src="/addons/addon-bar.js" defer></script>
 </body>

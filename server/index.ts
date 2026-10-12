@@ -73,6 +73,8 @@ app.use("/api/arise-todo/apple-health/sync", express.json({ limit: "5mb" }));
 // An upload that big is only read for someone who is signed in: the sign-in is checked first, so a stranger can't make
 // the server read 24 MB just to turn them away.
 app.use("/api/teacher-hub/import", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "24mb" }));
+// Arise Math "Snap a problem": a photo or screenshot of one math problem (shrunk on the device first).
+app.use("/api/math/photo-help", (req, res, next) => { authMiddleware(req, res, next).catch(next); }, express.json({ limit: "8mb" }));
 
 // No-proctor quizzes: camera snapshots arrive as raw JPEG, and the page sends
 // its last events with sendBeacon (plain text) while it is closing.
