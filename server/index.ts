@@ -23,6 +23,14 @@ app.get("/", (req, res, next) => {
   res.type("html").sendFile(page);
 });
 
+// The light To-Do homepage has an inline pricing section. Old /pricing
+// links must not fall through into the dark React app on this hostname.
+app.get("/pricing", (req, res, next) => {
+  const host = (req.headers.host || "").split(":")[0].toLowerCase();
+  if (host !== "arisetodo.com" && host !== "www.arisetodo.com") return next();
+  res.redirect(302, "/#pricing");
+});
+
 // Serve the real A.R.I.S.E. LifeHub SPA on the To-Do domain without replacing its
 // independent educator landing page at /. This keeps Reader's homepage untouched.
 app.get("/app", (req, res, next) => {
