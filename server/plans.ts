@@ -836,7 +836,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
 
   /** Access to one app for this account, and why. Remembered briefly; a database hiccup lets the person in. */
   const appStatus = async (user: AnyUser | null | undefined, app: AppId): Promise<AddonAccess> => {
-    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null, trialEndsAt: null };
+    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null };
     const key = `${app}|${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
     const hit = addonCache.get(key);
     if (hit && now() - hit.at < CACHE_MS) return hit.value;
@@ -860,14 +860,14 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       return value;
     } catch (e: any) {
       console.error(`[plans] ${app} check failed:`, e?.message);
-      return { access: true, via: null, endsAt: null, trialEndsAt: null };
+      return { access: true, via: null, endsAt: null };
     }
   };
   const appAccess = async (user: AnyUser | null | undefined, app: AppId) => (await appStatus(user, app)).access;
   const socialAccess = (user: AnyUser | null | undefined) => appAccess(user, "social");
 
   const todoStatus = async (user: AnyUser | null | undefined): Promise<AddonAccess> => {
-    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null, trialEndsAt: null };
+    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null };
     try {
       return todoAccessFor(person(user), {
         now: now(),
@@ -876,7 +876,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       });
     } catch (e: any) {
       console.error("[plans] LifeHub check failed:", e?.message);
-      return { access: true, via: null, endsAt: null, trialEndsAt: null };
+      return { access: true, via: null, endsAt: null };
     }
   };
 
@@ -956,14 +956,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const addonView = async (user: AnyUser, kind: PlanKind, status: AddonAccess) => {
     const g = await readGrant(kind, user.id);
-    return {
-      ...status,
-      trialDaysLeft: status.trialEndsAt ? Math.max(0, Math.ceil((Date.parse(status.trialEndsAt) - now()) / DAY)) : null,
-      plan: grantView(g), paidByYou: !!g && g.buyerId === user.id && !!g.stripeCustomerId,
-    };
+    return { ...status, plan: grantView(g), paidByYou: !!g && g.buyerId === user.id && !!g.stripeCustomerId };
   };
 
-  /** Everything the add-on cards show: access, trial countdowns, plans and prices. */
+  /** Everything the add-on cards show: access, why, plans and prices. */
   app.get("/api/addons", auth, async (req: any, res: any) => {
     try {
       const user: AnyUser = req.adminPreview && req.realUser ? req.realUser : req.user;
@@ -978,16 +974,14 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           if (grantLive(old, now())) apps[app] = { ...apps[app], plan: grantView(old), paidByYou: !!old && old.buyerId === user.id && !!old.stripeCustomerId, oldBundle: true };
         }
       }
-      // One summary for the three apps: the trial (the same for all three) and whether any of them is open.
+      // One summary for the three apps: whether any of them is open, and why.
       const all = APP_IDS.map((a) => apps[a]);
-      const trialEndsAt = all.find((a) => a.trialEndsAt)?.trialEndsAt ?? null;
       const bundle = user.role === "parent" || user.role === "student"
-        ? { ...apps.math, access: all.some((a) => a.access), via: all.every((a) => a.via === all[0].via) ? all[0].via : all.find((a) => a.via !== "trial")?.via ?? all[0].via }
-        : { access: all.some((a) => a.access), via: all.every((a) => a.via === "trial") ? "trial" : all.some((a) => a.access) ? "mixed" : null, endsAt: null, trialEndsAt,
-            trialDaysLeft: trialEndsAt ? Math.max(0, Math.ceil((Date.parse(trialEndsAt) - now()) / DAY)) : null, plan: null, paidByYou: false };
+        ? { ...apps.math, access: all.some((a) => a.access), via: all.every((a) => a.via === all[0].via) ? all[0].via : all[0].via }
+        : { access: all.some((a) => a.access), via: all.some((a) => a.access) ? "mixed" : null, endsAt: null, plan: null, paidByYou: false };
       const body: any = {
         role: user.isAdmin ? "admin" : user.role || "student",
-        payment: !!(await stripeKey()), trialDays: PLANS.trialDays,
+        payment: !!(await stripeKey()),
         prices: {
           familyBundleCents: PLANS.bundle.familyMonthlyCents, todoCents: 0, hubCents: 0,
           classSeats: PLANS.classApps.seats, classApps: Object.fromEntries(APP_IDS.map((a) => [a, classAppCents(a)])),

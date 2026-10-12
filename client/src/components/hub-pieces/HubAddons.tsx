@@ -1,16 +1,16 @@
 // Add-ons (Arise History, Math and Social, and Arise LifeHub) built from the hub's own parts.
 // Same rules and buttons as the site's add-ons card (components/AddonsCard.tsx): what's free,
-// the free-trial countdowns, the family Learning Bundle or a teacher's class add-ons, LifeHub.
+// the family Learning Bundle or a teacher's class add-ons, LifeHub. No part of the site has a free trial.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Calculator, CheckCircle2, CheckSquare, Clock3, Landmark, Users } from "lucide-react";
+import { Calculator, CheckCircle2, CheckSquare, Landmark, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { Meter, Pill, fmtDay, kit, type Which } from "./kit";
+import { Pill, fmtDay, kit, type Which } from "./kit";
 
-type Access = { access: boolean; via: string | null; endsAt: string | null; trialEndsAt: string | null; trialDaysLeft: number | null; plan: { live: boolean; endsAt: string | null } | null; paidByYou: boolean; oldBundle?: boolean };
+type Access = { access: boolean; via: string | null; endsAt: string | null; plan: { live: boolean; endsAt: string | null } | null; paidByYou: boolean; oldBundle?: boolean };
 type AppId = "math" | "history" | "social";
 type Addons = {
-  role: string; payment: boolean; trialDays: number;
+  role: string; payment: boolean;
   prices: { familyBundleCents: number; todoCents: number; hubCents: number; classSeats: number; classApps: Record<AppId, number> };
   apps: Record<AppId, Access>; bundle: Access; todo: Access;
   premium?: boolean; premiumVia?: string | null; premiumEndsAt?: string | null; students?: number; hub?: { access: boolean; via: string | null; endsAt: string | null };
@@ -28,28 +28,6 @@ const APPS: { id: AppId; href: string; label: string; sub: string; icon: typeof 
   { id: "math", href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator },
   { id: "social", href: "/social/", label: "A.R.I.S.E. Connect", sub: "Explore every career", icon: Users },
 ];
-
-function useCountdown(endsAt: string | null | undefined) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => { if (!endsAt) return; const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, [endsAt]);
-  if (!endsAt) return null;
-  const ms = Math.max(0, Date.parse(endsAt) - now);
-  const d = Math.floor(ms / 86_400_000), h = Math.floor((ms % 86_400_000) / 3_600_000), m = Math.floor((ms % 3_600_000) / 60_000);
-  return { ms, text: d > 0 ? `${d} day${d === 1 ? "" : "s"}, ${h} hr` : `${h} hr, ${m} min` };
-}
-
-function Trial({ which, endsAt, total, label }: { which: Which; endsAt: string; total: number; label: string }) {
-  const k = kit(which), c = useCountdown(endsAt);
-  if (!c) return null;
-  return <div className={k.rowWarn} data-testid="trial-countdown">
-    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-      <span className="flex items-center gap-2 font-semibold text-amber-950"><Clock3 className="h-4 w-4 text-amber-600" />{label}</span>
-      <span className="font-semibold tabular-nums text-amber-900">{c.text} left</span>
-    </div>
-    <div className="mt-2"><Meter which={which} value={c.ms} max={total * 86_400_000} warn /></div>
-    <p className="mt-1.5 text-xs text-amber-900">Free until {fmtDay(endsAt)}. No card needed.</p>
-  </div>;
-}
 
 export default function HubAddons({ which, returnPath = "/billing", showLifeHub = true }: { which: Which; returnPath?: string; showLifeHub?: boolean }) {
   const { user, token } = useAuth();
@@ -98,7 +76,7 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
   let bundleAction: ReactNode = null;
   if (role === "parent") {
     if (b.paidByYou) bundleAction = <button type="button" className={k.ghost} disabled={!!busy} onClick={() => go("bm", "/api/billing/addon-portal", { product: "bundle", returnPath })}>Manage billing</button>;
-    else if (!b.plan?.live && b.via !== "child-in-class") bundleAction = <button type="button" className={k.primary} disabled={!!busy || !data.payment} onClick={() => go("b", "/api/billing/addon-checkout", { product: "bundle", returnPath })} data-testid="addons-buy-bundle">{busy === "b" ? "Opening…" : `${b.via === "trial" ? "Keep it" : "Get it"} for the whole family · ${money(data.prices.familyBundleCents)}/month`}</button>;
+    else if (!b.plan?.live && b.via !== "child-in-class") bundleAction = <button type="button" className={k.primary} disabled={!!busy || !data.payment} onClick={() => go("b", "/api/billing/addon-checkout", { product: "bundle", returnPath })} data-testid="addons-buy-bundle">{busy === "b" ? "Opening…" : `Get it for the whole family · ${money(data.prices.familyBundleCents)}/month`}</button>;
   }
 
   return <div className="space-y-4" data-testid="hub-addons">
@@ -118,9 +96,9 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
         if (a.paidByYou && live) right = <button type="button" className={k.ghost} disabled={!!busy} onClick={() => go(`m-${app.id}`, "/api/billing/addon-portal", { product: app.id, returnPath })}>Manage previous plan</button>;
         else if (live || (app.id !== "social" && data.premium)) right = <Pill which={which} tone="green">Included with Class</Pill>;
         else if (!data.premium) right = <a className={k.ghost} href="/#/billing">Get the Class plan first</a>;
-        else right = <button type="button" className={k.primary} disabled={!!busy || !data.payment} onClick={() => go(app.id, "/api/billing/addon-checkout", { product: app.id, returnPath })} data-testid={`addons-buy-${app.id}`}>{busy === app.id ? "Opening…" : `${a.via === "trial" ? "Keep" : "Add"} · ${money(data.prices.classApps[app.id])}/mo`}</button>;
+        else right = <button type="button" className={k.primary} disabled={!!busy || !data.payment} onClick={() => go(app.id, "/api/billing/addon-checkout", { product: app.id, returnPath })} data-testid={`addons-buy-${app.id}`}>{busy === app.id ? "Opening…" : `Add · ${money(data.prices.classApps[app.id])}/mo`}</button>;
       }
-      const status = teacher && app.id !== "social" && data.premium ? "Included with Class" : teacher ? (live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${fmtDay(a.plan.endsAt)}` : ""}`) : a.via === "trial" ? "On during your free trial" : "Off") : app.sub;
+      const status = teacher && app.id !== "social" && data.premium ? "Included with Class" : teacher ? (live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${fmtDay(a.plan.endsAt)}` : ""}`) : "Off") : app.sub;
       return <li key={app.id} className={`${k.row} flex flex-wrap items-center gap-3`} data-testid={`addons-${teacher ? "class" : "app"}-${app.id}`}>
         <span className={k.tile}><Icon className="h-5 w-5" /></span>
         <a href={app.href} className="min-w-0 flex-1 hover:underline"><span className={`block ${k.h}`}>{app.label}{teacher && app.id === "social" ? <span className="font-normal text-slate-500"> · optional</span> : null}</span><span className={`block ${k.small}`}>{status}</span></a>
@@ -129,15 +107,14 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
     })}</ul>
 
     <div className="space-y-3">
-      {b.via === "trial" && b.trialEndsAt && <Trial which={which} endsAt={b.trialEndsAt} total={data.trialDays} label={teacher ? "History, Math & Social free trial" : "Your free trial"} />}
-      {!teacher && b.access && b.via && b.via !== "trial" && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${fmtDay(b.endsAt)}` : ""}</p>}
-      {!b.access && <p className="text-sm font-semibold text-amber-800">{teacher ? "Your free trial of History, Math and Social has ended. Add the ones your class uses." : "Your free trial has ended."}</p>}
-      {role === "student" && (!b.access || b.via === "trial") && <p className={k.small}>To keep it after your trial, ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
+      {!teacher && b.access && b.via && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${fmtDay(b.endsAt)}` : ""}</p>}
+      {!b.access && <p className="text-sm font-semibold text-amber-800">{teacher ? "Add the ones your class uses." : "Not added yet."}</p>}
+      {role === "student" && !b.access && <p className={k.small}>Ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
       {teacher && <p className={k.small}>Reader, Math and History are included for every student covered by your Class plan. Your teacher plan can grow in blocks of 30 students.</p>}
       {role === "parent" && !!data.children?.length && <div className="flex flex-wrap gap-2">{data.children.map((c) => <Pill key={c.id} which={which} tone={c.coveredByClass ? "green" : "slate"}>{c.name}{c.coveredByClass ? " · covered by class" : ""}</Pill>)}</div>}
       {role === "parent" && data.refund && data.refund.cents > 0 && <p className={k.ok}>Your children's teachers now cover Arise History, Math and Social, so we cancelled your plan and refunded {money(data.refund.cents)} to your card on {fmtDay(data.refund.at)}.</p>}
       {bundleAction && <div className="flex flex-wrap gap-2">{bundleAction}</div>}
-      {!data.payment && (role === "parent" || teacher) && !b.plan?.live && <p className={k.small}>Online payment isn't open yet. Your free days still count down.</p>}
+      {!data.payment && (role === "parent" || teacher) && !b.plan?.live && <p className={k.small}>Online payment isn't open yet.</p>}
     </div>
 
     {showLifeHub && (role === "parent" || teacher) && <div className={`${k.soft} space-y-3`}>

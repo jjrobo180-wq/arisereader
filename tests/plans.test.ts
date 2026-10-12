@@ -207,10 +207,10 @@ test("the admin has every program free, always: no plan, no trial, nothing that 
       const hub = hubAccessFor(admin, { now: later, teacherGrant: lapsed, schoolGrant: lapsed });
       assert.deepEqual([hub.access, hub.via, hub.endsAt], [true, "admin", null], `Teacher Hub, ${who}`);
       const todo = todoAccessFor(admin, { now: later, todoGrant: lapsed, hub: null });
-      assert.deepEqual([todo.access, todo.via, todo.endsAt, todo.trialEndsAt], [true, "admin", null, null], `To-Do, ${who}`);
+      assert.deepEqual([todo.access, todo.via, todo.endsAt], [true, "admin", null], `To-Do, ${who}`);
       for (const app of APP_IDS) {
         const a = appAccessFor(admin, app, { now: later, ownGrant: lapsed, socialGrant: lapsed });
-        assert.deepEqual([a.access, a.via, a.endsAt, a.trialEndsAt], [true, "admin", null, null], `${app}, ${who}`);
+        assert.deepEqual([a.access, a.via, a.endsAt], [true, "admin", null], `${app}, ${who}`);
       }
       assert.equal(socialAccessFor(admin, lapsed, later), true, `Arise Social (old plan check), ${who}`);
     }

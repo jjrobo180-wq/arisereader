@@ -1,8 +1,5 @@
-// Arise LifeHub for parents and teachers: free for 30 days, then $10 a month for parents;
-// teachers get it with Arise WorkHub. While on a trial, every LifeHub tab says so (see HubTrialNote).
-// When a parent's trial ends, LifeHub keeps only the A.R.I.S.E. Reader tab (the parent portal);
-// a teacher without WorkHub is sent to WorkHub, where their Reader tools are.
-// Everyone else (students, personal LifeHub accounts, signed-out visitors) sees LifeHub as before.
+// Arise LifeHub is free for every signed-in adult — no trial, no gating. This gate is kept
+// disabled (`gated = false` below) as a no-op passthrough in case gating is ever needed again.
 import { Suspense, createContext, lazy, useContext, useEffect, useState, type ReactNode } from "react";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -13,10 +10,10 @@ import { goToSignIn } from "@/lib/hubs";
 
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 
-type Todo = { access: boolean; via: string | null; trialEndsAt: string | null; trialDaysLeft: number | null };
+type Todo = { access: boolean; via: string | null; endsAt: string | null };
 
 const TrialContext = createContext<HubTrial>(null);
-/** The LifeHub free trial this person is on, if any (for the note on every tab). */
+/** Always null now — LifeHub has no trial. Kept so callers that read it don't need to change. */
 export const useLifeHubTrial = () => useContext(TrialContext);
 
 export default function TodoGate({ children }: { children: ReactNode }) {
@@ -56,7 +53,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
             </Suspense>
           </> : <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h1 className="text-xl font-black">LifeHub comes with Arise WorkHub</h1>
-            <p className="mt-1 text-sm leading-6 text-slate-600">Your WorkHub free month has ended, so LifeHub is locked too. Everything you saved is kept. Your A.R.I.S.E. Reader tools are still in WorkHub.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">LifeHub needs a WorkHub plan. Everything you saved is kept. Your A.R.I.S.E. Reader tools are still in WorkHub.</p>
             <a href="#/workhub" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">Open WorkHub</a>
           </section>}
           {!parent && <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5"><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">Add-ons</p><h2 className="mb-4 mt-0.5 text-lg font-black text-[#232139]">Plans and add-ons</h2><HubAddons which="life" /></section>}
@@ -65,6 +62,5 @@ export default function TodoGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  const trial: HubTrial = todo.trialDaysLeft !== null && todo.trialEndsAt ? { daysLeft: todo.trialDaysLeft, endsAt: todo.trialEndsAt } : null;
-  return <TrialContext.Provider value={trial}>{children}</TrialContext.Provider>;
+  return <TrialContext.Provider value={null}>{children}</TrialContext.Provider>;
 }

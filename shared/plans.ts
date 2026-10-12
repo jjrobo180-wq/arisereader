@@ -3,9 +3,12 @@
 // Free is for students and their parents. Premium is for teachers and
 // schools, and their students get the Premium extras through them.
 // Arise WorkHub is a separate add-on for teachers and schools, sold at the same
-// prices as Premium. It is not part of the free year or a free school.
-// Every teacher gets a 30-day free trial of both: Premium (the teacher account,
-// called Class on the pricing page) and Arise WorkHub.
+// prices as Premium, and is unconditionally free for every teacher and parent
+// (see hubAccessFor) — not a trial, just free. It is not part of the free year
+// or a free school.
+// No part of the site has a free trial: Premium, Arise WorkHub's paid tiers (for
+// a school plan, say), Arise Math/History/Social and the storage tiers all need
+// a plan (or grandfathering, or admin/demo) from the first day.
 // This file is the single place the numbers live: the pricing page, the
 // server's plan checks and billing all read them from here.
 
@@ -86,13 +89,6 @@ export const PLANS = {
       { id: "storage_500gb", gb: 500, monthlyCents: 2499 },
     ],
   },
-  /**
-   * Every account gets 30 free days of the Learning Bundle and LifeHub, no card needed.
-   * The days start when the account is made; for an account that was already there,
-   * they start here instead: midnight on October 9, 2026, Mountain time.
-   */
-  trialDays: 30,
-  trialFrom: "2026-10-09T06:00:00.000Z",
   /** One parent profile can follow this many children on the Free plan. */
   parentMaxChildren: 3,
   /**
@@ -390,17 +386,7 @@ export function aiProAccessFor(person: PlanPerson | null | undefined, grant: Pla
 }
 export const AI_PRO_REQUIRED = "ai_pro_required";
 
-// ─── Free trial, Learning Bundle and LifeHub ───────────────────────────────────
-
-/** When this account's 30 free days end (ISO). */
-export function trialEnd(createdAt: unknown): string {
-  const from = Date.parse(PLANS.trialFrom);
-  const t = signedUpAt(createdAt);
-  return new Date((Number.isFinite(t) && t > from ? t : from) + PLANS.trialDays * 86_400_000).toISOString();
-}
-export const inTrial = (createdAt: unknown, now = Date.now()) => now >= Date.parse(PLANS.trialFrom) && now < Date.parse(trialEnd(createdAt));
-/** Whole days left in the trial, counting today (0 once it's over). */
-export const trialDaysLeft = (createdAt: unknown, now = Date.now()) => Math.max(0, Math.ceil((Date.parse(trialEnd(createdAt)) - now) / 86_400_000));
+// ─── Learning Bundle and LifeHub ───────────────────────────────────────────────
 
 export type AddonVia =
   | "admin" | "demo"
@@ -410,9 +396,8 @@ export type AddonVia =
   | "child-in-class"   // a parent whose every linked child is covered by a class plan
   | "hub"              // LifeHub for a teacher, through Arise WorkHub
   | "todo-plan"        // historical paid LifeHub account
-  | "free"             // free adult hub access
-  | "trial";
-export type AddonAccess = { access: boolean; via: AddonVia | null; endsAt: string | null; trialEndsAt: string | null };
+  | "free";            // free adult hub access
+export type AddonAccess = { access: boolean; via: AddonVia | null; endsAt: string | null };
 
 export type BundleFacts = {
   now?: number;
@@ -440,13 +425,13 @@ export function classGrantCovers(g: PlanGrant | null | undefined, app: AppId, no
  * The facts are for that app: a teacher's class add-on is per app; a family's plan covers all three.
  */
 export function appAccessFor(person: PlanPerson | null | undefined, app: AppId, facts: BundleFacts): AddonAccess {
-  const none: AddonAccess = { access: false, via: null, endsAt: null, trialEndsAt: null };
+  const none: AddonAccess = { access: false, via: null, endsAt: null };
   if (!person) return none;
   if (person.isAdmin || person.role === "admin") return { ...none, access: true, via: "admin" };
   if (isDemoAccount(person.username)) return { ...none, access: true, via: "demo" };
   const now = facts.now ?? Date.now();
   const live = (g: PlanGrant | null | undefined, kind: PlanKind) => !!g && g.kind === kind && grantLive(g, now);
-  const yes = (via: AddonVia, g?: PlanGrant | null): AddonAccess => ({ access: true, via, endsAt: g?.endsAt ?? null, trialEndsAt: null });
+  const yes = (via: AddonVia, g?: PlanGrant | null): AddonAccess => ({ access: true, via, endsAt: g?.endsAt ?? null });
   if (app !== "social" && facts.classPremium && (person.role === "teacher" || person.role === "student")) return yes("class-plan");
   if (person.role === "teacher" && classGrantCovers(facts.ownGrant, app, now)) return yes("class-plan", facts.ownGrant);
   if (person.role === "parent" && live(facts.ownGrant, "bundle_family")) return yes("family-plan", facts.ownGrant);
@@ -457,16 +442,12 @@ export function appAccessFor(person: PlanPerson | null | undefined, app: AppId, 
   }
   if (person.role === "parent" && facts.allChildrenInClassPlans) return yes("child-in-class");
   if (app === "social" && live(facts.socialGrant, "social")) return yes("social-plan", facts.socialGrant);
-  if (inTrial(person.createdAt, now)) return { access: true, via: "trial", endsAt: trialEnd(person.createdAt), trialEndsAt: trialEnd(person.createdAt) };
-  return { ...none, trialEndsAt: trialEnd(person.createdAt) };
+  return none;
 }
 
-/**
- * Can this person use Arise LifeHub? Parents with a LifeHub plan or in their trial; teachers
- * with Arise WorkHub (paid or in its free month). Everyone else keeps LifeHub as before.
- */
+/** Can this person use Arise LifeHub? Always, for any signed-in adult — it's permanently free. */
 export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { now?: number; todoGrant?: PlanGrant | null; hub?: HubAccess | null }): AddonAccess {
-  const none: AddonAccess = { access: false, via: null, endsAt: null, trialEndsAt: null };
+  const none: AddonAccess = { access: false, via: null, endsAt: null };
   if (!person) return none;
   return { ...none, access: true, via: person.isAdmin || person.role === "admin" ? "admin" : "free" };
 }

@@ -1,13 +1,12 @@
 // Add-ons: the family Learning Bundle (Arise History, Math and Social), a teacher's class add-ons
-// (Math $12, History $12, Social $7), A.R.I.S.E. To-Do, the 30-day trial, and refunds when class
-// add-ons take over from a family's plan.
+// (Math $12, History $12, Social $7), A.R.I.S.E. To-Do, and refunds when class add-ons take over
+// from a family's plan. No part of the site has a free trial — everything needs a plan from day one.
 // Run with: npx tsx --test tests/addon-plans.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { registerPlanRoutes } from "../server/plans";
-import { trialDaysLeft, trialEnd } from "../shared/plans";
 
-const OLD = "2026-09-01T00:00:00Z"; // signed up before the trial began: their 30 days start on October 9
+const OLD = "2026-09-01T00:00:00Z"; // an account that's been around a while
 const DURING = Date.parse("2026-10-20T18:00:00Z");
 const AFTER = Date.parse("2026-12-01T18:00:00Z");
 const USERS: Record<number, any> = {
@@ -100,22 +99,18 @@ function setup(opts: { clock?: number; enforced?: boolean } = {}) {
   return { plans, call, calls, pay, gate, settings, subs, setClock: (t: number) => { clock = t; } };
 }
 
-test("every account gets 30 free days, no card; older accounts count from October 9", async () => {
-  assert.equal(trialEnd(OLD), "2026-11-08T06:00:00.000Z");
-  assert.equal(trialEnd("2026-10-15T12:00:00Z"), "2026-11-14T12:00:00.000Z");
-  assert.equal(trialDaysLeft(OLD, DURING), 19);
+test("nobody gets Math, History or Social for free — no trial, no card on file means no access", async () => {
   const t = setup();
   for (const id of [50, 70, 71]) for (const app of ["math", "history", "social"] as const) {
     const s = await t.plans.appStatus(USERS[id], app);
-    assert.deepEqual([s.access, s.via], [true, "trial"], `user ${id} ${app}`);
+    assert.deepEqual([s.access, s.via], [false, null], `user ${id} ${app}`);
   }
   const view = await t.call("GET", "/api/addons", 70);
-  assert.equal(view.body.bundle.trialDaysLeft, 19);
-  assert.equal(view.body.apps.math.via, "trial");
-  assert.equal(view.body.todo.via, "trial");
+  assert.equal(view.body.apps.math.via, null);
+  assert.equal(view.body.todo.via, "free", "A.R.I.S.E. To-Do is free for a parent regardless");
   const later = setup({ clock: AFTER });
-  for (const id of [50, 70, 71]) assert.equal(await later.plans.appAccess(USERS[id], "math"), false, `user ${id} after the trial`);
-  assert.equal((await later.plans.todoStatus(USERS[70])).access, false);
+  for (const id of [50, 70, 71]) assert.equal(await later.plans.appAccess(USERS[id], "math"), false, `user ${id}, no plan`);
+  assert.equal((await later.plans.todoStatus(USERS[70])).access, true, "To-Do stays free for a parent");
   assert.equal((await later.plans.todoStatus(USERS[90])).access, true, "personal To-Do accounts are unchanged");
   assert.equal(await later.plans.appAccess(USERS[1], "history"), true, "admin");
 });
@@ -218,7 +213,7 @@ test("the add-on pages stay open to teachers without Class; the old checkout won
   assert.equal((await t.call("POST", "/api/billing/checkout", 50, { kind: "math_class" })).status, 400);
 });
 
-test("the admin settings page: every program is open to the admin, free, with plan rules on and trials over", async () => {
+test("the admin settings page: every program is open to the admin, free, with plan rules on and no trial anywhere", async () => {
   const t = setup({ clock: AFTER, enforced: true });
   const r = await t.call("GET", "/api/admin/programs", 1);
   assert.equal(r.status, 200);
@@ -227,8 +222,8 @@ test("the admin settings page: every program is open to the admin, free, with pl
   // The teacher gate never stops the admin, and the add-ons card says "admin", not a trial.
   assert.equal(await t.gate("/api/teacher/anything", 1), true);
   const card = await t.call("GET", "/api/addons", 1);
-  assert.deepEqual([card.body.bundle.via, card.body.bundle.trialDaysLeft, card.body.todo.via], ["admin", null, "admin"]);
-  // A teacher with no plan, after the trial, is the contrast: nothing is open.
+  assert.deepEqual([card.body.bundle.via, card.body.todo.via], ["admin", "admin"]);
+  // A teacher with no plan is the contrast: nothing is open, since there's no trial to fall back on.
   const teacher = await Promise.all((["math", "history", "social"] as const).map((app) => t.plans.appStatus(USERS[52], app)));
   assert.deepEqual(teacher.map((a) => a.access), [false, false, false]);
 });
