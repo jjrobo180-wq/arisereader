@@ -823,13 +823,21 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if (!student || student.role !== "student" || student.approvedByTeacher === false || !posInt(student.teacherId)) return null;
     return teacherClassGrant(Number(student.teacherId), app);
   };
-  /** Are all of this parent's linked children (at least one) covered by class add-ons for these apps? */
+  /** Is this student covered for an app: an old per-app grant on their teacher, or (now) the teacher's Class plan, which includes every app. */
+  const studentCoveredFor = async (student: AnyUser | null | undefined, app: AppId): Promise<boolean> => {
+    if (!student || student.role !== "student" || student.approvedByTeacher === false || !posInt(student.teacherId)) return false;
+    if (await classPlanOf(student, app)) return true;
+    const teacher = await deps.getUser(Number(student.teacherId));
+    if (!teacher || teacher.role !== "teacher" || teacher.accountApproved === false) return false;
+    return (await entitlement(teacher)).premium;
+  };
+  /** Are all of this parent's linked children (at least one) covered by their teacher's class for these apps? */
   const childrenCoveredByClass = async (parent: AnyUser, apps: readonly AppId[] = APP_IDS): Promise<boolean> => {
     const ids = await linkedChildren(parent);
     if (!ids.length) return false;
     for (const id of ids) {
       const child = await deps.getUser(id);
-      for (const app of apps) if (!(await classPlanOf(child, app))) return false;
+      for (const app of apps) if (!(await studentCoveredFor(child, app))) return false;
     }
     return true;
   };
@@ -842,7 +850,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if (hit && now() - hit.at < CACHE_MS) return hit.value;
     try {
       const facts: Parameters<typeof appAccessFor>[2] = { now: now(), socialGrant: app === "social" ? await current("social", user.id) : null };
-      if (user.role === "teacher") { facts.ownGrant = await teacherClassGrant(user.id, app); if (app !== "social") facts.classPremium = (await entitlement(user)).premium; }
+      if (user.role === "teacher") { facts.ownGrant = await teacherClassGrant(user.id, app); facts.classPremium = (await entitlement(user)).premium; }
       else if (user.role === "parent") {
         facts.ownGrant = await current("bundle_family", user.id);
         facts.allChildrenInClassPlans = await childrenCoveredByClass(user, [app]);
@@ -850,7 +858,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const parents = deps.studentParentIds ? await deps.studentParentIds(user.id) : [];
         facts.parentGrants = await Promise.all(parents.map((p) => current("bundle_family", p)));
         facts.classGrant = await classPlanOf(user, app);
-        if (app !== "social" && user.role === "student" && user.approvedByTeacher !== false && posInt(user.teacherId)) {
+        if (user.role === "student" && user.approvedByTeacher !== false && posInt(user.teacherId)) {
           const classTeacher = await deps.getUser(Number(user.teacherId));
           if (classTeacher?.role === "teacher" && classTeacher.accountApproved !== false) facts.classPremium = (await entitlement(classTeacher)).premium;
         }
@@ -1006,7 +1014,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           const child = await deps.getUser(id);
           if (!child || child.role !== "student") continue;
           const covered: AppId[] = [];
-          for (const app of APP_IDS) if (await classPlanOf(child, app)) covered.push(app);
+          for (const app of APP_IDS) if (await studentCoveredFor(child, app)) covered.push(app);
           kids.push({ id, name: firstAndInitial(child.displayName), coveredByClass: covered.length === APP_IDS.length, coveredApps: covered });
         }
         body.children = kids;
@@ -1028,10 +1036,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have this add-on. Use Manage billing to change it.", 409);
       const app = appOfClassKind(kind);
       if (app) {
-        if (classGrantCovers(await current("bundle_teacher", buyer.id), app, now())) throw new Refused(`Your class plan already includes ${APP_NAMES[app]}.`, 409);
-        if (!(await entitlement(buyer)).premium) throw new Refused(`${APP_NAMES[app]} for a class is added on top of the Class plan. Get the Class plan on your plan page first.`, 409);
-        const students = await deps.countTeacherStudents(buyer.id);
-        if (students > PLANS.classApps.seats) throw new Refused(`A class add-on covers up to ${PLANS.classApps.seats} students, and you have ${students}.`, 409);
+        // The Class plan now includes Math, History and Connect for every student it covers —
+        // there is nothing left to sell separately to a teacher.
+        if (!(await entitlement(buyer)).premium) throw new Refused(`${APP_NAMES[app]} for a class is included with the Class plan. Get the Class plan on your plan page first.`, 409);
+        throw new Refused(`Your Class plan already includes ${APP_NAMES[app]} for your whole class. There's nothing extra to buy.`, 409);
       }
       if (kind === "bundle_family" && (await childrenCoveredByClass(buyer))) throw new Refused("Your children's teachers already cover Arise Math, Arise History and Arise Social for them, so there's nothing to buy.", 409);
       const pending = await readPending(kind, buyer.id);

@@ -6,9 +6,13 @@
 // prices as Premium, and is unconditionally free for every teacher and parent
 // (see hubAccessFor) — not a trial, just free. It is not part of the free year
 // or a free school.
-// No part of the site has a free trial: Premium, Arise WorkHub's paid tiers (for
-// a school plan, say), Arise Math/History/Social and the storage tiers all need
-// a plan (or grandfathering, or admin/demo) from the first day.
+// The teacher Class plan (PLANS.teacher) is a single combined price: $10/month
+// per 30 students includes A.R.I.S.E. Reader, Math, History AND Connect — there
+// is no longer a separate per-app class add-on for teachers (classApps/
+// classAppCents is kept only for the parent family bundle's pricing and old
+// records; appAccessFor grants every app to a teacher with Premium).
+// No part of the site has a free trial: Premium and the storage tiers need a
+// plan (or grandfathering, or admin/demo) from the first day.
 // This file is the single place the numbers live: the pricing page, the
 // server's plan checks and billing all read them from here.
 
@@ -53,11 +57,10 @@ export const PLANS = {
     teacherSeats: 100,
   },
   /**
-   * Class add-ons: a teacher adds each app for their class (up to 100 students), on top
-   * of Premium: Arise Math $12, Arise History $12 and Arise Social $7 a month.
-   * When class add-ons cover all three apps for every child in a family that is paying
-   * for the Learning Bundle, the family's plan is cancelled and the unused part of the
-   * month refunded to their card.
+   * Historical per-app class pricing. Teachers no longer buy these separately — the Class
+   * plan (PLANS.teacher) now includes Math, History and Connect for every student it covers.
+   * The numbers are kept only so a family's Learning Bundle refund math (see
+   * childrenCoveredByClass) and any pre-existing per-app grant still read correctly.
    */
   classApps: {
     mathCents: 1200,
@@ -411,7 +414,7 @@ export type BundleFacts = {
   classGrant?: PlanGrant | null;
   /** Parents: do class add-ons for this app cover every one of their linked children (at least one)? */
   allChildrenInClassPlans?: boolean;
-  /** A teacher Class plan includes Math and History for approved students. */
+  /** A teacher Class plan includes Math, History and Connect for approved students. */
   classPremium?: boolean;
 };
 
@@ -421,8 +424,10 @@ export function classGrantCovers(g: PlanGrant | null | undefined, app: AppId, no
 }
 
 /**
- * Can this person use one of the apps (Arise Math, Arise History or Arise Social)?
- * The facts are for that app: a teacher's class add-on is per app; a family's plan covers all three.
+ * Can this person use one of the apps (Arise Math, Arise History or A.R.I.S.E. Connect)?
+ * A teacher's Class plan now includes all three for every student it covers — there is no
+ * per-app class add-on to buy anymore. A family's Learning Bundle still covers all three
+ * for a parent and their linked children.
  */
 export function appAccessFor(person: PlanPerson | null | undefined, app: AppId, facts: BundleFacts): AddonAccess {
   const none: AddonAccess = { access: false, via: null, endsAt: null };
@@ -432,7 +437,7 @@ export function appAccessFor(person: PlanPerson | null | undefined, app: AppId, 
   const now = facts.now ?? Date.now();
   const live = (g: PlanGrant | null | undefined, kind: PlanKind) => !!g && g.kind === kind && grantLive(g, now);
   const yes = (via: AddonVia, g?: PlanGrant | null): AddonAccess => ({ access: true, via, endsAt: g?.endsAt ?? null });
-  if (app !== "social" && facts.classPremium && (person.role === "teacher" || person.role === "student")) return yes("class-plan");
+  if (facts.classPremium && (person.role === "teacher" || person.role === "student")) return yes("class-plan");
   if (person.role === "teacher" && classGrantCovers(facts.ownGrant, app, now)) return yes("class-plan", facts.ownGrant);
   if (person.role === "parent" && live(facts.ownGrant, "bundle_family")) return yes("family-plan", facts.ownGrant);
   if (person.role !== "teacher" && person.role !== "parent") {

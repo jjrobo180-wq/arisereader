@@ -1,7 +1,8 @@
 // The add-ons card: Arise History, Arise Math, A.R.I.S.E. Connect and Arise LifeHub.
 // It shows each person what they have and the right way to get it: parents buy the Learning
-// Bundle (all three) for the family, teachers add each app for their class on top of the
-// Class plan, and students are told to ask a grown-up. No part of the site has a free trial.
+// Bundle (all three) for the family; a teacher's Class plan already includes all three for
+// their class, so for a teacher this card is a "what's included" display, not something to
+// buy from. Students are told to ask a grown-up. No part of the site has a free trial.
 // Prices and rules live in shared/plans.ts.
 // `compact` is the quiet version for a page that isn't about plans: every add-on together
 // as one group of buttons (Arise WorkHub and LifeHub for teachers, then the three apps), with
@@ -150,47 +151,47 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     if (b.paidByYou) bundleAction = <button type="button" className={ghost} disabled={!!busy} onClick={() => go("bm", "/api/billing/addon-portal", { product: "bundle", returnPath })}>Manage billing</button>;
     else if (!ownPlanLive && b.via !== "child-in-class") bundleAction = <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go("b", "/api/billing/addon-checkout", { product: "bundle", returnPath })} data-testid="addons-buy-bundle">{busy === "b" ? "Opening…" : `Get it for the whole family · ${money(data.prices.familyBundleCents)}/month`}</button>;
   }
-  const classPremium = role === "teacher" && !!data.premium;
-  /** A teacher's row for one app: its price, whether it's on, and the button to add or manage it.
-   * Math and History come free with the Class plan (server grants them via "class-plan", with no
-   * separate paid grant) — only Social is still sold as its own add-on. `a.access` is the source of
-   * truth for "on"; `a.plan?.live` only tells us whether there's a *separate paid* grant to manage. */
+  /** A teacher's row for one app: the Class plan now includes Math, History and Connect
+   * together for every student it covers — there is nothing left to buy per app, so this
+   * is a plain "what's included" row, not an add/manage control. `a.access` is still the
+   * source of truth for whether it's really on (handles admin/demo/grandfathered too). */
   const classRow = (id: AppId) => {
     const a = data.apps[id], app = apps.find((x) => x.id === id)!;
-    const live = !!a.plan?.live;
-    const includedFree = a.access && !live;
-    let action: ReactNode;
-    if (a.paidByYou && live) action = <button type="button" className={ghost} disabled={!!busy} onClick={() => go(`m-${id}`, "/api/billing/addon-portal", { product: id, returnPath })}>Manage</button>;
-    else if (live || includedFree) action = <span className="text-xs font-bold text-emerald-700">{includedFree ? "Included" : "On"}</span>;
-    else if (!classPremium) action = <a className={ghost} href="/#/billing">Get the Class plan first</a>;
-    else action = <button type="button" className={primary} disabled={!!busy || !data.payment} onClick={() => go(id, "/api/billing/addon-checkout", { product: id, returnPath })} data-testid={`addons-buy-${id}`}>{busy === id ? "Opening…" : `Add · ${money(data.prices.classApps[id])}/mo`}</button>;
     return (
       <div key={id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3" data-testid={`addons-class-${id}`}>
         <app.icon className={`h-6 w-6 shrink-0 ${app.tone}`} />
-        <a href={app.href} className="min-w-0 flex-1 hover:underline">
-          <span className="block text-sm font-black text-[#141b32]">{app.label} <span className="font-bold text-slate-500">{includedFree ? "· included with your Class plan" : `· ${money(data.prices.classApps[id])}/month`}</span></span>
-          <span className="block text-xs text-slate-500">{includedFree ? "On, free with your Class plan" : live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${day(a.plan.endsAt)}` : ""}`) : "Off"}</span>
-        </a>
-        {action}
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-black text-[#141b32]">{app.label}</span>
+          <span className="block text-xs text-slate-500">{a.access ? "Included with your Class plan" : "Included once you get the Class plan"}</span>
+        </span>
+        {a.access
+          ? <span className="text-xs font-bold text-emerald-700">Included</span>
+          : <a className={ghost} href="/#/billing">Get the Class plan</a>}
       </div>
     );
   };
 
   return (
     <section className="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-label="Add-ons" data-testid="addons-card">
-      {(role === "parent" || role === "teacher") && (
+      {role === "parent" && (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3" data-testid="addons-optional">
-          <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-700">Optional add-ons</p>
-          <p className="mt-1 text-sm font-bold text-[#141b32]">{[freeLine(data), "Everything below is an extra you can add or skip, and is paid separately."].filter(Boolean).join(" ")}</p>
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-700">Optional add-on</p>
+          <p className="mt-1 text-sm font-bold text-[#141b32]">{[freeLine(data), "This is an extra you can add or skip, and is paid separately."].filter(Boolean).join(" ")}</p>
+        </div>
+      )}
+      {role === "teacher" && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3" data-testid="addons-optional">
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-700">Included with your Class plan</p>
+          <p className="mt-1 text-sm font-bold text-[#141b32]">Nothing extra to buy — your Class plan covers all three.</p>
         </div>
       )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-600">{role === "teacher" ? "Class add-ons" : "Learning Bundle"}</p>
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-600">{role === "teacher" ? "Included with your Class plan" : "Learning Bundle"}</p>
           <h2 className="mt-1 text-xl font-black text-[#141b32]">Arise History, Arise Math & A.R.I.S.E. Connect</h2>
           <p className="mt-1 text-sm text-slate-600">
-            {role === "teacher" ? `Arise Math and Arise History are included free with your Class plan, for up to ${data.prices.classSeats} students. A.R.I.S.E. Connect is a separate monthly add-on. A.R.I.S.E. To-Do (Work and Life hubs) is free on every plan.`
-              : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher adds all three for the class, we refund your unused days. A.R.I.S.E. To-Do (Work and Life hubs) is free on every plan.`
+            {role === "teacher" ? `One price covers everything: Reader, Math, History and Connect are all included in your Class plan, for up to ${data.prices.classSeats} students. A.R.I.S.E. To-Do (Work and Life hubs) is free on every plan.`
+              : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher's Class plan already covers them, we refund your unused days. A.R.I.S.E. To-Do (Work and Life hubs) is free on every plan.`
               : "Three more ways to learn and earn points, right next to your reading."}
           </p>
         </div>
@@ -211,13 +212,13 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
 
       <div className="mt-4 space-y-3">
         {role !== "teacher" && b.access && b.via && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${day(b.endsAt)}` : ""}</p>}
-        {!b.access && <p className="text-sm font-bold text-amber-700">{role === "teacher" ? "Add the ones your class uses." : "Not added yet."}</p>}
-        {role === "student" && !b.access && <p className="text-sm text-slate-600">Ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
-        {role === "teacher" && <p className="text-xs text-slate-500">Math and History are included for up to {data.prices.classSeats} students; you have {data.students ?? 0}. Add A.R.I.S.E. Connect for the same class. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three covered.</p>}
+        {!b.access && <p className="text-sm font-bold text-amber-700">{role === "teacher" ? "Get the Class plan to turn these on." : "Not added yet."}</p>}
+        {role === "student" && !b.access && <p className="text-sm text-slate-600">Ask a parent to add it for your family, or ask your teacher to get the Class plan.</p>}
+        {role === "teacher" && <p className="text-xs text-slate-500">Covers up to {data.prices.classSeats} students; you have {data.students ?? 0}. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class covers all three.</p>}
         {role === "parent" && !!data.children?.length && (
           <div className="flex flex-wrap gap-2">{data.children.map((k) => <span key={k.id} className={`rounded-full border px-3 py-1 text-xs font-bold ${k.coveredByClass ? "border-emerald-300 text-emerald-700" : "border-slate-200 text-slate-600"}`}>{k.name}{k.coveredByClass ? " · covered by class" : ""}</span>)}</div>
         )}
-        {role === "parent" && data.refund && data.refund.cents > 0 && <p className="text-sm text-emerald-700">Your children’s teachers now cover Arise History, Math and Social, so we cancelled your plan and refunded {money(data.refund.cents)} to your card on {day(data.refund.at)}.</p>}
+        {role === "parent" && data.refund && data.refund.cents > 0 && <p className="text-sm text-emerald-700">Your children’s Class plans now cover Arise History, Arise Math and A.R.I.S.E. Connect, so we cancelled your Learning Bundle and refunded {money(data.refund.cents)} to your card on {day(data.refund.at)}.</p>}
         {bundleAction && <div className="flex flex-wrap gap-2">{bundleAction}</div>}
         {!data.payment && (role === "parent" || role === "teacher") && !ownPlanLive && <p className="text-xs text-slate-500">Online payment isn’t open yet.</p>}
       </div>
