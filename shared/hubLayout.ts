@@ -93,13 +93,20 @@ export type AnyLayout = {
   /** Folders the person made in the menu. */
   folders: MenuFolder[];
   menuClose: MenuClose;
-  /** Every part of Home, in the person's order. */
+  /** Every part of Home, in the person's order. Besides the hub's built-in parts, this can hold a
+   *  pinned app's id (see pinId/unpinId below) for an installed app pinned to Home. */
   home: string[];
   /** The parts of Home that are hidden. */
   homeHidden: string[];
   /** Each part's size. A part not listed is large. */
   homeSize: Partial<Record<string, HomeSize>>;
 };
+
+/** A pinned app on Home is kept in `home`/`homeHidden`/`homeSize` under this id, so it never collides
+ *  with a built-in part's id (which never has a colon) and can be told apart from one at a glance. */
+export const pinId = (pluginId: string): string => `pin:${pluginId}`;
+export const isPinId = (id: string): boolean => id.startsWith("pin:");
+export const unpinId = (id: string): string => id.slice("pin:".length);
 
 /** WorkHub's layout. */
 export type HubLayout = AnyLayout & { home: HomeSection[]; homeHidden: HomeSection[]; homeSize: Partial<Record<HomeSection, HomeSize>> };
@@ -109,10 +116,13 @@ export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", deskSide: "left", f
 /**
  * A saved layout made safe for a hub whose Home has these parts (in their usual order): known choices only, every part
  * once (a part added later goes back right after the part it follows by default), and sizes only for real parts.
+ * `pinnable` is every installed app's id that may be pinned to Home right now (Kit plugins, Notes apps): a saved
+ * pin for an app that isn't installed any more is dropped, the same way an unknown built-in part would be.
  */
-export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly Id[], defaults: { menuSide: MenuSide; menuClose: MenuClose; homeHidden: Id[] }) {
+export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly Id[], defaults: { menuSide: MenuSide; menuClose: MenuClose; homeHidden: Id[] }, pinnable: readonly string[] = []) {
   const r: any = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-  const isPart = (x: unknown): x is Id => typeof x === "string" && (parts as readonly string[]).includes(x);
+  const isPinned = (x: unknown): x is string => typeof x === "string" && isPinId(x) && pinnable.includes(unpinId(x));
+  const isPart = (x: unknown): x is Id => typeof x === "string" && ((parts as readonly string[]).includes(x) || isPinned(x));
   const menuSide: MenuSide = MENU_SIDES.some((s) => s.id === r.menuSide) ? r.menuSide : defaults.menuSide;
   const menuClose: MenuClose = MENU_CLOSES.some((c) => c.id === r.menuClose) ? r.menuClose : defaults.menuClose;
   const home: Id[] = [];
@@ -122,19 +132,24 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
     const before = i ? parts[i - 1] : null;
     home.splice(before ? home.indexOf(before) + 1 : 0, 0, id);
   });
+  // A pinned app not already placed (newly installed, or pinned elsewhere and not yet saved here) goes
+  // at the end, hidden, so pinning never happens until the app is actually added through the "Add to Home" tray.
+  for (const id of pinnable.map(pinId)) if (!home.includes(id as Id)) home.push(id as Id);
   const homeHidden: Id[] = Array.isArray(r.homeHidden) ? [...new Set((r.homeHidden as unknown[]).filter(isPart))] : [...defaults.homeHidden];
   // A part that is new since this layout was saved starts the way it does on a new layout: hidden if it starts hidden there.
   if (Array.isArray(r.home) && Array.isArray(r.homeHidden)) {
     for (const id of defaults.homeHidden) if (!(r.home as unknown[]).includes(id) && !homeHidden.includes(id)) homeHidden.push(id);
   }
+  // A pinned app starts hidden too, until it's added from the tray, same as a built-in part that starts hidden.
+  for (const id of pinnable.map(pinId)) if (!homeHidden.includes(id as Id) && !(Array.isArray(r.home) && (r.home as unknown[]).includes(id))) homeHidden.push(id as Id);
   const homeSize: Partial<Record<Id, HomeSize>> = {};
   if (r.homeSize && typeof r.homeSize === "object") for (const [k, v] of Object.entries(r.homeSize)) if (isPart(k) && HOME_SIZES.some((z) => z.id === v)) homeSize[k] = v as HomeSize;
   const deskSide: DeskSide = DESK_SIDES.some((s) => s.id === r.deskSide) ? r.deskSide : "left";
   return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize };
 }
 
-/** WorkHub's saved layout made safe. */
-export const cleanLayout = (raw: unknown): HubLayout => cleanAnyLayout(raw, HOME_SECTIONS.map((s) => s.id), DEFAULT_LAYOUT);
+/** WorkHub's saved layout made safe. `pinnable`: installed Kit-plugin/Notes-app ids (see pinId) that may be pinned to Home. */
+export const cleanLayout = (raw: unknown, pinnable: readonly string[] = []): HubLayout => cleanAnyLayout(raw, HOME_SECTIONS.map((s) => s.id), DEFAULT_LAYOUT, pinnable);
 
 /** The parts of Home that show, in order. */
 export const homeShown = <L extends AnyLayout>(layout: L): L["home"] => layout.home.filter((s) => !layout.homeHidden.includes(s));

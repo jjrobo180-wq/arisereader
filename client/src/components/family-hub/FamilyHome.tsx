@@ -4,7 +4,9 @@ import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, LayoutGrid, ListT
 import type { ReactNode } from "react";
 import { HomeParts, type HomePart } from "@/components/teacher-hub/HubHomeEdit";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
+import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
+import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
 import { pollIsOpen } from "./Polls";
 import { MOODS } from "./Mood";
 import { goalProgress } from "./Goals";
@@ -17,8 +19,10 @@ import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type S
 const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets: AlarmClock, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote };
 const CATALOG: HomePart[] = LIFE_PARTS.map((p) => ({ id: p.id, label: p.label, icon: PART_ICONS[p.id] }));
 
-export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name }: SectionProps & {
+export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp }: SectionProps & {
   tasks: CalendarTask[]; go: (section: FamilySection) => void; onToggleTask: (id: string) => void; name: string;
+  /** Opens an installed Notes app (see shared/notesApp.ts) full-page, by its App Store plugin id. */
+  openNotesApp: (id: string) => void;
 }) {
   const on = (s: FamilySection) => isOn(s, family);
   const hour = new Date().getHours();
@@ -36,8 +40,11 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const pinned = on("notes") ? family.notes.filter((n) => n.pinned).slice(0, 4) : [];
   const kids = family.members.filter((m) => m.kind === "kid");
 
-  const layout = cleanLifeLayout(family.layout);
-  const part: Record<LifePart, ReactNode | null> = {
+  /** Installed Notes apps (LifeHub Notes/Work Notes cross-installed from the Store) this family can pin to Home. */
+  const myNotesApps = family.notesInstalled.map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const layout = cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id));
+  // Widened past Record<LifePart, ...> below so a pinned Notes app (see pinId) can add its own entry.
+  const part: Record<string, ReactNode | null> = {
     greeting: <><header className="flex flex-wrap items-start justify-between gap-4">
       <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{shortDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{greeting}{name ? `, ${name}` : ""}<span className="text-[#7866e1]">.</span></h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:mt-2">Here's what's happening with your family today.</p></div>
     </header></>,
@@ -133,12 +140,20 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           </button>)}</div>
         </Panel>) || null,
   };
+  // A pinned Notes app gets a small tile that opens straight into it, same as tapping it in the menu.
+  for (const p of myNotesApps) part[pinId(p.id)] = (
+    <button onClick={() => openNotesApp(p.id)} className="flex w-full items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4 text-left transition hover:bg-slate-50">
+      <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: p.color }} aria-hidden><StickyNote size={20} /></span>
+      <span className="min-w-0 flex-1"><span className="block truncate font-black text-slate-900">{p.name}</span><span className="block truncate text-sm text-slate-500">{p.tagline}</span></span>
+    </button>
+  );
+  const pinnedCatalog: HomePart[] = myNotesApps.map((p) => ({ id: pinId(p.id), label: p.name, icon: StickyNote }));
   return <div className="space-y-4 sm:space-y-6">
     {!family.members.length && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
       <span className="rounded-2xl bg-white/10 p-3 text-[#bcb2ff]"><UserPlus size={26} /></span>
       <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}
-    <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} catalog={CATALOG} accent="bg-[#292446]" />
+    <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" />
   </div>;
 }

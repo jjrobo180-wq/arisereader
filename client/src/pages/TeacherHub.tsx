@@ -73,8 +73,8 @@ import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
-import { HomeParts } from "@/components/teacher-hub/HubHomeEdit";
-import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, moveSection, showSection, type HomeSection, type HubLayout } from "@shared/hubLayout";
+import { HomeParts, WORK_PARTS, type HomePart } from "@/components/teacher-hub/HubHomeEdit";
+import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, moveSection, pinId, showSection, type HomeSection, type HubLayout } from "@shared/hubLayout";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
@@ -445,7 +445,9 @@ function TeacherHubPage() {
     setWorkspace((prev) => ({ ...prev, notesApps: { ...(prev as any).notesApps, [pid]: update(cleanNotesApp(((prev as any).notesApps ?? {})[pid])) } }));
   const openNotesApp = (k: string | null) => { setNotesAppOpen(k); if (k) window.scrollTo({ top: 0 }); };
   // How the teacher arranged the Hub (Customize): where the phone menu sits, how it closes, and what Home shows.
-  const layout = cleanLayout(workspace.layout);
+  // Every added Kit plugin and Notes app may be pinned to Home as its own tile (myKits/myNotesApps, just above).
+  const pinnableApps = [...myKits.map((d) => d.id), ...myNotesApps.map((p) => p.id)];
+  const layout = cleanLayout(workspace.layout, pinnableApps);
   const setLayout = (next: HubLayout) => setWorkspace((p) => ({ ...p, layout: next }));
   const side = layout.menuSide;
   /** The menu runs across the screen (top or bottom) instead of down a side. */
@@ -1098,7 +1100,8 @@ function TeacherHubPage() {
             <>
               {(() => {
                 // Home in the teacher's order. Press and hold (or Edit Home) to arrange it right here; Customize sets the same order.
-                const part: Record<HomeSection, ReactNode> = {
+                // Widened past Record<HomeSection, ...> below so a pinned Kit plugin or Notes app (see pinId) can add its own entry.
+                const part: Record<string, ReactNode> = {
                   day: (
               <HubDayHead workspace={workspace} firstName={user.displayName.split(" ")[0]} onOpenCalendar={() => setTab("calendar")} />
                   ),
@@ -1167,12 +1170,26 @@ function TeacherHubPage() {
               </Card>
                   ),
                 };
+                // Any added Kit plugin or Notes app can be pinned to Home too (see pinnableApps, above):
+                // a small tile that opens straight into it, same as tapping it in the menu or app drawer.
+                const pinTile = (Icon: typeof StickyNote, color: string, title: string, tagline: string, onClick: () => void) => (
+                  <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4 text-left transition hover:bg-slate-50">
+                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: color }} aria-hidden><Icon className="h-5 w-5" /></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{title}</span><span className="block truncate text-sm text-slate-500">{tagline}</span></span>
+                  </button>
+                );
+                const pinnedCatalog: HomePart[] = [
+                  ...myKits.map((d) => ({ id: pinId(d.id), label: d.name, icon: kitIcon(d.icon) })),
+                  ...myNotesApps.map((p) => ({ id: pinId(p.id), label: p.name, icon: StickyNote })),
+                ];
+                for (const d of myKits) part[pinId(d.id)] = pinTile(kitIcon(d.icon), d.color, d.name, d.tagline, () => openKit(d.id));
+                for (const p of myNotesApps) part[pinId(p.id)] = pinTile(StickyNote, p.color, p.name, p.tagline, () => openNotesApp(p.id));
                 const quick = pluginsFor("work", { teacher: true }).filter((p) => isAddable(p) && (p.target.kind === "tab" || p.target.kind === "kit" || p.target.kind === "assistant" || p.target.kind === "widget") && !workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn))
                   .map((plugin) => ({ plugin, onAdd: () => {
                     setWorkspace((prev) => (plugin.target.kind === "widget" ? { ...prev, widgetsOn: true, layout: showSection(cleanLayout(prev.layout), "widgets", true) } : plugin.target.kind === "assistant" ? { ...prev, aiChat: true } : plugin.target.kind === "kit" ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, plugin, true) } : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) }));
                     toasts.show(plugin.target.kind === "widget" ? "Widgets added to Home." : `${plugin.name} added to your menu.`, []);
                   } }));
-                return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} />;
+                return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} />;
               })()}
             </>
           )}
