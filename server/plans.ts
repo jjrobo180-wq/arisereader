@@ -638,7 +638,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
         body.school = schoolId ? { id: schoolId, name: await deps.schoolName(schoolId), students: await deps.countSchoolStudents(schoolId), plan: grantView(schoolPlan) } : null;
       }
-      if (user.role === "teacher" || user.isAdmin) {
+      if (user.role === "teacher" || user.role === "parent" || user.isAdmin) {
         const h = await hubAccess(user);
         const isTeacher = user.role === "teacher" && !user.isAdmin;
         body.hub = {
@@ -658,6 +658,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/billing/checkout", auth, async (req: any, res: any) => {
     try {
       if (isPlanKind(req.body?.kind) && isAddonKind(req.body.kind)) throw new Refused("Add-ons are bought with their own button.", 400);
+      if (isHubKind(req.body?.kind)) throw new Refused("A.R.I.S.E. To-Do Work and Life hubs are free. No payment is required.", 409);
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const hub = isHubKind(kind);
@@ -843,7 +844,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if (hit && now() - hit.at < CACHE_MS) return hit.value;
     try {
       const facts: Parameters<typeof appAccessFor>[2] = { now: now(), socialGrant: app === "social" ? await current("social", user.id) : null };
-      if (user.role === "teacher") facts.ownGrant = await teacherClassGrant(user.id, app);
+      if (user.role === "teacher") { facts.ownGrant = await teacherClassGrant(user.id, app); if (app !== "social") facts.classPremium = (await entitlement(user)).premium; }
       else if (user.role === "parent") {
         facts.ownGrant = await current("bundle_family", user.id);
         facts.allChildrenInClassPlans = await childrenCoveredByClass(user, [app]);
@@ -851,6 +852,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const parents = deps.studentParentIds ? await deps.studentParentIds(user.id) : [];
         facts.parentGrants = await Promise.all(parents.map((p) => current("bundle_family", p)));
         facts.classGrant = await classPlanOf(user, app);
+        if (app !== "social" && user.role === "student" && user.approvedByTeacher !== false && posInt(user.teacherId)) {
+          const classTeacher = await deps.getUser(Number(user.teacherId));
+          if (classTeacher?.role === "teacher" && classTeacher.accountApproved !== false) facts.classPremium = (await entitlement(classTeacher)).premium;
+        }
       }
       const value = appAccessFor(person(user), app, facts);
       addonCache.set(key, { at: now(), value });
@@ -986,7 +991,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         role: user.isAdmin ? "admin" : user.role || "student",
         payment: !!(await stripeKey()), trialDays: PLANS.trialDays,
         prices: {
-          familyBundleCents: PLANS.bundle.familyMonthlyCents, todoCents: PLANS.todo.familyMonthlyCents, hubCents: PLANS.hub.monthlyCents,
+          familyBundleCents: PLANS.bundle.familyMonthlyCents, todoCents: 0, hubCents: 0,
           classSeats: PLANS.classApps.seats, classApps: Object.fromEntries(APP_IDS.map((a) => [a, classAppCents(a)])),
         },
         appNames: APP_NAMES,
@@ -1026,6 +1031,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const buyer: AnyUser = req.user;
       if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has every add-on.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
+      if (req.body?.product === "todo") throw new Refused("A.R.I.S.E. To-Do is free. No checkout is needed.", 409);
       const kind = productKind(buyer, req.body?.product);
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have this add-on. Use Manage billing to change it.", 409);
       const app = appOfClassKind(kind);
