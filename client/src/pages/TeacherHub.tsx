@@ -2,6 +2,7 @@ import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox
 import { markEmailRead } from "@shared/hubInbox";
 import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
+import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildWorkBrief } from "@shared/dailyBrief";
@@ -1192,7 +1193,7 @@ function TeacherHubPage() {
                     setWorkspace((prev) => (plugin.target.kind === "widget" ? { ...prev, widgetsOn: true, layout: showSection(cleanLayout(prev.layout), "widgets", true) } : plugin.target.kind === "assistant" ? { ...prev, aiChat: true } : plugin.target.kind === "kit" ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, plugin, true) } : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) }));
                     toasts.show(plugin.target.kind === "widget" ? "Widgets added to Home." : `${plugin.name} added to your menu.`, []);
                   } }));
-                return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} />;
+                return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} homeLayout={hubThemeOf(layout.theme).homeLayout} />;
               })()}
             </>
           )}

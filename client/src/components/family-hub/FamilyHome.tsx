@@ -7,6 +7,7 @@ import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
 import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
+import { hubThemeOf } from "@shared/appThemes";
 import { pollIsOpen } from "./Polls";
 import { MOODS } from "./Mood";
 import { goalProgress } from "./Goals";
@@ -154,6 +155,6 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
       <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}
-    <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" />
+    <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} />
   </div>;
 }

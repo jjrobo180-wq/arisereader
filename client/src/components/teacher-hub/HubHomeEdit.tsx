@@ -35,6 +35,32 @@ const CAP: Record<HomeSize, string> = { small: "max-h-[26rem] overflow-y-auto ov
 const PREVIEW: Record<HomeSize, string> = { small: "aspect-square", medium: "h-36", large: "h-52" };
 const GLIDE = { type: "spring", stiffness: 520, damping: 42, mass: 0.8 } as const;
 
+/** Which Home layout a theme uses (see shared/appThemes.ts's HomeLayout). Only the presentation
+ *  constants below vary per layout — drag, reorder, resize and hide (everything above) stay the
+ *  same code path regardless of layout, so a new structural theme is a new entry here, never a
+ *  change to the editing logic. */
+export type HubHomeLayout = "cards" | "tiles" | "terminal";
+
+/** Grid shape per layout: "tiles" packs small, uniform squares edge to edge; "terminal" is a
+ *  single stacked column, since a CRT desktop reads top to bottom, not as a grid. */
+const LAYOUT_GRID: Record<HubHomeLayout, string> = {
+  cards: GRID,
+  tiles: "grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6",
+  terminal: "grid grid-cols-1 gap-3",
+};
+/** "tiles" never goes full width — even a "large" part stays a big square tile, Windows-Phone
+ *  style, so nothing breaks the grid's rhythm. "terminal" is always one column regardless of size. */
+const LAYOUT_SPAN: Record<HubHomeLayout, Record<HomeSize, string>> = {
+  cards: SPAN,
+  tiles: { small: "col-span-1", medium: "col-span-2 row-span-2", large: "col-span-3 row-span-2" },
+  terminal: { small: "col-span-1", medium: "col-span-1", large: "col-span-1" },
+};
+const LAYOUT_CAP: Record<HubHomeLayout, Record<HomeSize, string>> = {
+  cards: CAP,
+  tiles: { small: "max-h-[26rem] overflow-y-auto overscroll-contain", medium: "max-h-[22rem] overflow-y-auto overscroll-contain", large: "max-h-[26rem] overflow-y-auto overscroll-contain" },
+  terminal: { small: "max-h-[20rem] overflow-y-auto overscroll-contain", medium: "max-h-[20rem] overflow-y-auto overscroll-contain", large: "" },
+};
+
 export type QuickPlugin = { plugin: Plugin; onAdd: () => void };
 
 type Drag = {
@@ -47,7 +73,7 @@ type Drag = {
   last: string | null;
 };
 
-export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950" }: {
+export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950", homeLayout = "cards" }: {
   /** Each part's content. null is a part with nothing to show right now: it is left out of Home, and shown as its tile while editing. */
   parts: Record<string, ReactNode | null>; layout: L; onChange: (next: L) => void;
   /** The hub's parts of Home, for their names and tile pictures. */
@@ -57,13 +83,21 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   /** Plugins not added yet, to add with one tap from the tray. */
   plugins?: QuickPlugin[];
   onOpenStore?: () => void;
+  /** The current theme's Home structure (see shared/appThemes.ts). Changes the grid shape and
+   *  tile rendering only — every drag/reorder/resize/hide behavior below is identical regardless. */
+  homeLayout?: HubHomeLayout;
 }) {
   const [editing, setEditing] = useState(false);
   /** A small tile tapped open: its whole part in a pop-up. */
   const [opened, setOpened] = useState<string | null>(null);
   const hidden = layout.homeHidden;
   const label = (id: string) => catalog.find((p) => p.id === id)?.label ?? id;
-  const tileOf = (id: string) => <PartTile part={catalog.find((p) => p.id === id) ?? { id, label: id }} accent={accent} />;
+  const gridClass = LAYOUT_GRID[homeLayout], spanOf = LAYOUT_SPAN[homeLayout], capOf = LAYOUT_CAP[homeLayout];
+  const partOf = (id: string) => catalog.find((p) => p.id === id) ?? { id, label: id };
+  const tileOf = (id: string) => <PartTile part={partOf(id)} accent={accent} layout={homeLayout} />;
+  // "tiles" (Windows-Phone-style) always shows every part as a tile that opens in a pop-up, not
+  // just the "small"-sized ones cards mode reserves tiles for — that dense tap-grid is the look.
+  const alwaysTile = homeLayout === "tiles";
   /** The parts on Home in order, while editing. */
   const [order, setOrder] = useState<string[]>(() => homeShown(layout));
   const orderRef = useRef(order);
@@ -202,12 +236,12 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
     const shown = (homeShown(layout) as string[]).filter((id) => parts[id] != null);
     return (
       <>
-        <div className={GRID} data-testid="home-grid">
+        <div className={gridClass} data-testid="home-grid">
           {shown.map((id) => (
-            <div key={id} {...holdProps} className={`${SPAN[sizeOf(layout, id)]} min-w-0`} data-home-part={id}>
-              {sizeOf(layout, id) === "small"
+            <div key={id} {...holdProps} className={`${spanOf[sizeOf(layout, id)]} min-w-0`} data-home-part={id}>
+              {sizeOf(layout, id) === "small" || alwaysTile
                 ? <button type="button" onClick={() => setOpened(id)} className="w-full transition active:scale-95" aria-label={`Open ${label(id)}`} data-testid={`home-tile-${id}`}>{tileOf(id)}</button>
-                : <div className={CAP[sizeOf(layout, id)]}>{parts[id]}</div>}
+                : <div className={capOf[sizeOf(layout, id)]}>{parts[id]}</div>}
             </div>
           ))}
           {!shown.length && <p className="col-span-full py-4 text-sm text-slate-500">Everything on Home is hidden.</p>}
@@ -230,26 +264,26 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
         <button type="button" onClick={() => setEditing(false)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition active:scale-95" data-testid="home-edit-done"><Check className="h-4 w-4" /> Done</button>
       </div>
 
-      <div ref={grid} className={`relative ${GRID}`}>
+      <div ref={grid} className={`relative ${gridClass}`}>
         {order.map((id, i) => {
-          const sz = sizeOf(layout, id), held = dragId === id;
+          const sz = sizeOf(layout, id), held = dragId === id, tileHere = sz === "small" || alwaysTile;
           return (
             <motion.div key={id} ref={ref(id)} layout={held ? false : "position"} transition={GLIDE} data-home-edit={id}
               {...partHandlers(id)}
-              className={`${SPAN[sz]} relative min-w-0 select-none [-webkit-touch-callout:none] ${held ? "z-40 cursor-grabbing" : "z-0 cursor-grab"}`}
+              className={`${spanOf[sz]} relative min-w-0 select-none [-webkit-touch-callout:none] ${held ? "z-40 cursor-grabbing" : "z-0 cursor-grab"}`}
               style={held ? { willChange: "transform" } : undefined}>
               <div className={`hub-jiggle relative rounded-3xl bg-white transition-shadow duration-150 ${held ? "shadow-2xl ring-2 ring-slate-900" : "shadow-sm ring-1 ring-slate-300"}`}
                 style={{ animation: held ? "none" : `hub-jiggle .3s ease-in-out ${i % 2 ? "-.15s" : "0s"} infinite` }}>
-                {sz === "small"
+                {tileHere
                   ? <div className="pointer-events-none" aria-hidden>{tileOf(id)}</div>
                   : parts[id] == null ? <div className={`pointer-events-none flex ${PREVIEW[sz]} items-center justify-center rounded-3xl bg-slate-50 text-sm text-slate-400`} aria-hidden>Nothing here right now</div>
                   : <div className={`pointer-events-none ${PREVIEW[sz]} overflow-hidden rounded-3xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)]`} aria-hidden>{parts[id]}</div>}
-                {sz !== "small" && <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-white">{label(id)}</span>}
+                {!tileHere && <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-white">{label(id)}</span>}
                 <button type="button" onClick={() => onChange({ ...layout, home: full(order), homeHidden: [...new Set([...hidden, id])] } as L)} aria-label={`Remove ${label(id)} from Home`}
                   className="absolute -left-2 -top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-700 text-white shadow-md transition active:scale-90" data-testid={`home-remove-${id}`}><X className="h-4 w-4" /></button>
-                <div className={`absolute z-10 flex rounded-full bg-white/95 p-0.5 shadow-md ring-1 ring-slate-200 ${sz === "small" ? "-bottom-3 left-1/2 -translate-x-1/2" : "right-2 top-2"}`} role="radiogroup" aria-label={`Size of ${label(id)}`}>
+                <div className={`absolute z-10 flex rounded-full bg-white/95 p-0.5 shadow-md ring-1 ring-slate-200 ${tileHere ? "-bottom-3 left-1/2 -translate-x-1/2" : "right-2 top-2"}`} role="radiogroup" aria-label={`Size of ${label(id)}`}>
                   {HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => onChange(resizeSection({ ...layout, home: full(order) } as L, id, z.id))}
-                    className={`inline-flex ${sz === "small" ? "h-7 w-7" : "h-8 w-8"} items-center justify-center rounded-full text-xs font-bold transition ${sz === z.id ? "bg-slate-950 text-white" : "text-slate-600"}`} data-testid={`home-size-${id}-${z.id}`}>{z.short}</button>)}
+                    className={`inline-flex ${tileHere ? "h-7 w-7" : "h-8 w-8"} items-center justify-center rounded-full text-xs font-bold transition ${sz === z.id ? "bg-slate-950 text-white" : "text-slate-600"}`} data-testid={`home-size-${id}-${z.id}`}>{z.short}</button>)}
                 </div>
               </div>
             </motion.div>
@@ -300,9 +334,28 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   );
 }
 
-/** A part as a small square tile, like an app icon: its picture and its name. */
-function PartTile({ part, accent }: { part: HomePart; accent: string }) {
+/** A part as a small square tile, like an app icon: its picture and its name. Renders quite
+ *  differently per Home layout (see HubHomeLayout) — "cards" is the original app-icon tile,
+ *  "tiles" is a solid flat color block with the label pinned bottom-left (Windows-Phone live
+ *  tile), "terminal" drops the picture tile entirely for a bracketed text line, CRT-menu style. */
+function PartTile({ part, accent, layout = "cards" }: { part: HomePart; accent: string; layout?: HubHomeLayout }) {
   const Icon = part.icon ?? Puzzle;
+  if (layout === "terminal") {
+    return (
+      <span className="flex w-full items-center gap-2 border border-current px-3 py-2.5 text-left font-mono text-sm">
+        <Icon className="h-4 w-4 shrink-0" />
+        <span className="truncate">[ {part.label.toUpperCase()} ]</span>
+      </span>
+    );
+  }
+  if (layout === "tiles") {
+    return (
+      <span className={`relative flex aspect-square w-full flex-col items-end justify-end overflow-hidden p-2.5 text-left text-white ${accent}`}>
+        <Icon className="absolute left-2.5 top-2.5 h-5 w-5 opacity-90 sm:h-6 sm:w-6" />
+        <span className="line-clamp-2 w-full text-xs font-bold leading-tight sm:text-sm">{part.label}</span>
+      </span>
+    );
+  }
   return (
     <span className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[1.6rem] border border-slate-200 bg-white p-2 text-center shadow-sm">
       <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-sm sm:h-14 sm:w-14 ${accent}`}><Icon className="h-6 w-6 sm:h-7 sm:w-7" /></span>

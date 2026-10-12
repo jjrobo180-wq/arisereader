@@ -22,6 +22,16 @@ export type HubTheme = {
   radius?: "sharp" | "normal" | "round";
   shadow?: "none" | "soft" | "hard";
   font?: "system" | "mono" | "rounded";
+  /** Which Home layout shape this theme uses (read by HomeParts, components/teacher-hub/
+   *  HubHomeEdit.tsx) — not just color, an actually different grid/tile structure:
+   *    "cards"    - today's layout: a wide responsive grid, soft rounded cards. The default.
+   *    "tiles"    - Windows-Phone-style: a dense grid of uniform solid-color square tiles, no
+   *                 small/medium/large size mixing, name pinned to the tile's bottom-left corner.
+   *    "terminal" - CRT-style: a single-column stacked list of boxy bordered panels, bracketed
+   *                 labels, no tile pictures.
+   *  Adding a new structural variant means adding its id here and teaching HomeParts to render
+   *  it — the layout logic itself (drag, reorder, resize, hide) never changes per variant. */
+  homeLayout?: "cards" | "tiles" | "terminal";
 };
 
 export const HUB_THEMES: HubTheme[] = [
@@ -48,7 +58,7 @@ export const HUB_THEMES: HubTheme[] = [
       "--hub-border": "#000000", "--hub-text": "#ffffff", "--hub-text-soft": "#d6e9f7",
       "--hub-accent": "#f2600c", "--hub-accent-foreground": "#ffffff",
     },
-    radius: "sharp", shadow: "none", font: "system",
+    radius: "sharp", shadow: "none", font: "system", homeLayout: "tiles",
   },
   {
     id: "sunrise", name: "Sunrise", tagline: "Warm coral-to-amber gradient, soft and friendly.",
@@ -89,7 +99,7 @@ export const HUB_THEMES: HubTheme[] = [
       "--hub-accent": "#33ff33", "--hub-accent-foreground": "#001400",
       "--hub-scanlines": "1",
     },
-    radius: "sharp", shadow: "hard", font: "mono",
+    radius: "sharp", shadow: "hard", font: "mono", homeLayout: "terminal",
   },
 ];
 
