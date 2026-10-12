@@ -354,7 +354,7 @@ export function entitlementFor(person: PlanPerson | null | undefined, facts: Pla
 
 /** Can a parent with this many children already linked add one more? */
 export function parentCanLink(linkedCount: number, opts: { enforced: boolean; premiumFamily?: boolean }): boolean {
-  if (!opts.enforced || opts.premiumFamily) return true;
+  if (!opts.enforced) return true;
   return linkedCount < PLANS.parentMaxChildren;
 }
 
@@ -369,21 +369,11 @@ export type HubAccess = { access: boolean; via: HubVia | null; seats: number | n
  * does not depend on plan rules being on, and there is no free year, free school
  * or sample account.
  */
-export function hubAccessFor(person: PlanPerson | null | undefined, facts: { now?: number; teacherGrant?: PlanGrant | null; schoolGrant?: PlanGrant | null }): HubAccess {
-  const none: HubAccess = { access: false, via: null, seats: null, endsAt: null };
-  if (!person) return none;
+export function hubAccessFor(person: PlanPerson | null | undefined, _facts: { now?: number; teacherGrant?: PlanGrant | null; schoolGrant?: PlanGrant | null }): HubAccess {
+  if (!person) return { access: false, via: null, seats: null, endsAt: null };
   if (person.isAdmin || person.role === "admin") return { access: true, via: "admin", seats: null, endsAt: null };
-  if (person.role !== "teacher" && person.role !== "parent") return none;
-  // Both hubs are free and separately saved for every adult account.
-  return { access: true, via: "free", seats: null, endsAt: null };
-  /* Legacy paid grants retained only for historical subscription management.
-  const now = facts.now ?? Date.now();
-  const own = facts.teacherGrant, school = facts.schoolGrant;
-  if (grantLive(own, now) && own!.kind === "hub_teacher") return { access: true, via: "hub-teacher-plan", seats: own!.seats, endsAt: own!.endsAt };
-  if (grantLive(school, now) && school!.kind === "hub_school" && !school!.free) return { access: true, via: "hub-school-plan", seats: school!.seats, endsAt: school!.endsAt };
-  // The free month has no student limit.
-  if (inFreeMonth(person.createdAt, now)) return { access: true, via: "free-month", seats: null, endsAt: freeMonthEnd(person.createdAt) };
-  return none; */
+  if (person.role === "teacher" || person.role === "parent") return { access: true, via: "free", seats: null, endsAt: null };
+  return { access: false, via: null, seats: null, endsAt: null };
 }
 
 // ─── Arise Social ────────────────────────────────────────────────────────────
@@ -436,6 +426,8 @@ export type BundleFacts = {
   classGrant?: PlanGrant | null;
   /** Parents: do class add-ons for this app cover every one of their linked children (at least one)? */
   allChildrenInClassPlans?: boolean;
+  /** A teacher Class plan includes Math and History for approved students. */
+  classPremium?: boolean;
 };
 
 /** Is this grant a class add-on covering this app: the app's own, or the old all-three class plan? */
@@ -455,6 +447,7 @@ export function appAccessFor(person: PlanPerson | null | undefined, app: AppId, 
   const now = facts.now ?? Date.now();
   const live = (g: PlanGrant | null | undefined, kind: PlanKind) => !!g && g.kind === kind && grantLive(g, now);
   const yes = (via: AddonVia, g?: PlanGrant | null): AddonAccess => ({ access: true, via, endsAt: g?.endsAt ?? null, trialEndsAt: null });
+  if (app !== "social" && facts.classPremium && (person.role === "teacher" || person.role === "student")) return yes("class-plan");
   if (person.role === "teacher" && classGrantCovers(facts.ownGrant, app, now)) return yes("class-plan", facts.ownGrant);
   if (person.role === "parent" && live(facts.ownGrant, "bundle_family")) return yes("family-plan", facts.ownGrant);
   if (person.role !== "teacher" && person.role !== "parent") {
