@@ -93,7 +93,7 @@ export default function TodoLanding() {
         <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 pt-5 sm:px-8">
           <span className="text-sm font-black tracking-wide">A.R.I.S.E. <span className="text-violet-300">To-Do</span></span>
           <div className="flex items-center gap-2">
-            <button onClick={() => window.location.assign("https://www.arisereader.com/#/pricing")} className="inline-flex min-h-10 items-center rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">Pricing</button>
+            <button onClick={() => window.location.assign("https://www.arisereader.com/#/pricing")} className="inline-flex min-h-10 items-center rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">Learning plans</button>
             <button onClick={logIn} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">
               <LogIn className="h-4 w-4" /> Log in
             </button>
@@ -118,9 +118,7 @@ export default function TodoLanding() {
             <button onClick={signUp} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-7 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
               <UserPlus className="h-4 w-4" /> Get started free
             </button>
-            <button onClick={() => window.location.assign("https://www.arisereader.com/#/pricing")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-7 text-sm font-black transition hover:bg-white/10">
-              See pricing <ChevronRight className="h-4 w-4" />
-            </button>
+            <span className="text-sm font-semibold text-emerald-200">Free forever · No trial or credit card</span>
           </div>
         </section>
       </div>
