@@ -784,7 +784,7 @@ function AppInner() {
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
-      {overlays && !isAdminPreview && (user?.role === "teacher" || user?.role === "parent") && <WorkHubTour />}
+      {overlays && !isAdminPreview && (user?.role === "teacher" || user?.role === "parent" || user?.isAdmin) && <WorkHubTour />}
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />
         <AdminPreviewBar />

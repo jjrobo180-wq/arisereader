@@ -273,6 +273,8 @@ export default function WorkHubTour() {
   useEffect(() => {
     if (!user || !role || checked.current) return;
     checked.current = true;
+    // Admins only see it when they ask for it (Customize → Take the tour), to check what teachers see.
+    if (user.isAdmin && user.role !== "teacher" && user.role !== "parent") return;
     try { if (localStorage.getItem(SEEN_KEY(user.id, role)) === "true") return; } catch { /* private window */ }
     (async () => {
       try {
