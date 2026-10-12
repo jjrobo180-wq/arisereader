@@ -2,6 +2,7 @@
 // Payment happens on Stripe's own page; this page only starts it and reads the result.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { Check } from "lucide-react";
 import { goToSignIn } from "@/lib/hubs";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -210,10 +211,19 @@ export default function Billing() {
             <h2 className="bl-h2">Get Premium</h2>
             {!plan.payment && <p className="bl-banner">Online payment isn't open yet. You'll be able to pay here soon.</p>}
             <div className="bl-options">
-              <div className="bl-card">
+              <div className="bl-card bl-featured">
+                <span className="bl-badge">Most popular</span>
                 <h3>One teacher</h3>
                 <p className="bl-price"><b>{usd(price)}</b> a month</p>
-                <p>Covers your class of up to {count(seatsFor(blocks))} students. You have {count(students)}. Arise Math, Arise History and A.R.I.S.E. Connect are all included — nothing extra to buy.</p>
+                <p>Covers your class of up to {count(seatsFor(blocks))} students. You have {count(students)}.</p>
+                <ul className="bl-features">
+                  <li><span className="bl-check"><Check /></span>Your own teacher dashboard</li>
+                  <li><span className="bl-check"><Check /></span>Live class games &amp; game controls</li>
+                  <li><span className="bl-check"><Check /></span>Arise Math included</li>
+                  <li><span className="bl-check"><Check /></span>Arise History included</li>
+                  <li><span className="bl-check"><Check /></span>A.R.I.S.E. Connect included</li>
+                  <li><span className="bl-check"><Check /></span>A.R.I.S.E. To-Do — always free</li>
+                </ul>
                 <Stepper blocks={blocks} min={needed} onChange={setBlocks} />
                 <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment} onClick={() => go("teacher", "/api/billing/checkout", { kind: "teacher", blocks, returnTo: siteAddress() })} data-testid="billing-buy-teacher">
                   {busy === "teacher" ? "Opening the payment page…" : `Pay ${usd(price)} a month`}
@@ -224,9 +234,15 @@ export default function Billing() {
                 <h3>Whole school</h3>
                 <p className="bl-price"><b>{usd(PLANS.school.yearlyCents)}</b> a year</p>
                 {plan.school
-                  ? <p>Covers {plan.school.name}: up to {count(PLANS.school.studentCap)} students, with a separate account for every teacher. The school has {count(plan.school.students)} students on A.R.I.S.E. now. Arise Math, Arise History and A.R.I.S.E. Connect are all included.</p>
+                  ? <p>Covers {plan.school.name}: up to {count(PLANS.school.studentCap)} students, with a separate account for every teacher. The school has {count(plan.school.students)} students on A.R.I.S.E. now.</p>
                   : <p>Your account isn't connected to a school yet, so a school plan can't be bought from it. Ask the site admin to connect you to your school.</p>}
-                <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment || !plan.school} onClick={() => go("school", "/api/billing/checkout", { kind: "school", returnTo: siteAddress() })} data-testid="billing-buy-school">
+                <ul className="bl-features">
+                  <li><span className="bl-check"><Check /></span>Everything in the teacher plan</li>
+                  <li><span className="bl-check"><Check /></span>A separate account for every teacher</li>
+                  <li><span className="bl-check"><Check /></span>Arise Math, History &amp; Connect, school-wide</li>
+                  <li><span className="bl-check"><Check /></span>One yearly bill instead of 12</li>
+                </ul>
+                <button type="button" className="pr-pill pr-pill-ghost pr-wide" disabled={!!busy || !plan.payment || !plan.school} onClick={() => go("school", "/api/billing/checkout", { kind: "school", returnTo: siteAddress() })} data-testid="billing-buy-school">
                   {busy === "school" ? "Opening the payment page…" : `Pay ${usd(PLANS.school.yearlyCents)} a year`}
                 </button>
                 <small>Runs a full 12 months, so summer reading clubs and competitions are covered.</small>

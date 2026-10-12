@@ -15,8 +15,9 @@
 .bl-status p { font-size: 17px; color: var(--muted); }
 .bl-status .pr-pill { margin-top: 10px; }
 
-.bl-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; }
-.bl-card { display: flex; flex-direction: column; gap: 14px; padding: clamp(20px, 2.6vw, 28px); border-radius: 24px; border: 1px solid var(--line); background: #fff; box-shadow: 0 10px 30px rgba(30, 34, 80, .05); }
+.bl-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; align-items: stretch; }
+.bl-card { position: relative; display: flex; flex-direction: column; gap: 14px; padding: clamp(20px, 2.6vw, 28px); border-radius: 24px; border: 1px solid var(--line); background: #fff; box-shadow: 0 10px 30px rgba(30, 34, 80, .05); }
+.bl-card.bl-featured { border-color: var(--purple); box-shadow: 0 16px 40px rgba(91, 83, 223, .16); }
 .bl-card h2, .bl-card h3 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; color: var(--ink); }
 .bl-card p { font-size: 16px; color: var(--muted); }
 .bl-card small, .bl-foot { font-size: 14px; color: #8992a9; }
@@ -24,6 +25,13 @@
 .bl-card .bl-price { color: #8992a9; font-weight: 700; }
 .bl-price b { margin-right: 4px; font-family: "Plus Jakarta Sans", sans-serif; font-size: 40px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--ink); }
 .bl-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.bl-badge { position: absolute; top: -13px; left: 24px; display: inline-flex; align-items: center; padding: 5px 14px; border-radius: 999px; background: var(--purple); color: #fff; font-family: "Plus Jakarta Sans", sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; box-shadow: 0 6px 16px rgba(91, 83, 223, .3); }
+
+.bl-features { display: flex; flex-direction: column; gap: 10px; margin: 2px 0; }
+.bl-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; font-weight: 600; color: var(--inksoft); line-height: 1.4; }
+.bl-features li .bl-check { display: grid; place-items: center; flex-shrink: 0; width: 20px; height: 20px; margin-top: 1px; border-radius: 50%; background: var(--mint); color: #156a45; }
+.bl-features li .bl-check svg { width: 13px; height: 13px; stroke-width: 3; }
 
 .bl-stepper { display: inline-flex; align-items: center; align-self: flex-start; gap: 6px; padding: 5px; border-radius: 999px; border: 1px solid var(--line); background: var(--soft); }
 .bl-stepper button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #fff; border: 1px solid var(--line); font-size: 24px; font-weight: 800; line-height: 1; color: var(--ink); }
