@@ -72,7 +72,7 @@ const teacherPoints = [
 ];
 
 const steps = [
-  { title: "Create your account", text: "Takes about a minute. No card needed to start." },
+  { title: "Create your account", text: "Takes about a minute. Free forever, with no card or trial required." },
   { title: "Turn on what you need", text: "Pick your sections from the App Store, or start with just a task list." },
   { title: "Shape it as you go", text: "Reorder, fold things into your own folders, add more from the App Store anytime." },
 ];
@@ -93,7 +93,7 @@ export default function TodoLanding() {
         <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 pt-5 sm:px-8">
           <span className="text-sm font-black tracking-wide">A.R.I.S.E. <span className="text-violet-300">To-Do</span></span>
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate("/pricing")} className="inline-flex min-h-10 items-center rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">Pricing</button>
+            <button onClick={() => window.location.assign("https://www.arisereader.com/#/pricing")} className="inline-flex min-h-10 items-center rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">Pricing</button>
             <button onClick={logIn} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-bold text-slate-300 hover:text-white">
               <LogIn className="h-4 w-4" /> Log in
             </button>
@@ -106,10 +106,10 @@ export default function TodoLanding() {
         {/* Hero */}
         <section className="relative mx-auto max-w-4xl px-5 pb-14 pt-10 text-center sm:pb-20 sm:pt-14">
           <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[.24em] text-violet-200">
-            <Sparkles className="h-4 w-4" /> For families, teachers and anyone who runs a household
+            <Sparkles className="h-4 w-4" /> 100% free for parents, teachers and families
           </div>
           <h1 className="text-4xl font-black leading-[1.05] tracking-[-.04em] sm:text-6xl">
-            The only to-do app with <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent">ultimate customization</span>.
+            Your free to-do app with <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent">ultimate customization</span>.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base font-semibold leading-7 text-slate-300 sm:text-lg">
             Tasks, calendar, chores, meals, budget, habits and over 100 add-on apps — turn on what you need, hide what you don't, and arrange it all your way. Built for families. Just as fantastic for teachers.
@@ -118,7 +118,7 @@ export default function TodoLanding() {
             <button onClick={signUp} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-7 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
               <UserPlus className="h-4 w-4" /> Get started free
             </button>
-            <button onClick={() => navigate("/pricing")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-7 text-sm font-black transition hover:bg-white/10">
+            <button onClick={() => window.location.assign("https://www.arisereader.com/#/pricing")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-7 text-sm font-black transition hover:bg-white/10">
               See pricing <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -238,7 +238,7 @@ export default function TodoLanding() {
           <p className="text-xs font-black uppercase tracking-[.25em] text-emerald-300">Also fantastic for teachers</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Built for families. Just as at home in a classroom.</h2>
           <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">
-            Teachers get the same hub, plus Arise WorkHub: a private workspace for the parts of teaching that never make it onto a family calendar.
+            Parents and teachers both get free access to the Work and Life hubs, with tools for schedules, organization, school and everyday life. The A.R.I.S.E. portal also connects you to your authorized Reader, Math, History and other programs.
           </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {teacherPoints.map(({ icon: Icon, title, text }) => (
@@ -254,7 +254,7 @@ export default function TodoLanding() {
             ))}
           </div>
           <p className="mt-6 text-sm font-semibold text-slate-400">
-            Arise WorkHub comes bundled for every teacher on Arise LifeHub — one subscription for your classroom and your own life. See the details on the <button onClick={() => navigate("/pricing")} className="font-black text-emerald-300 hover:underline">pricing page</button>.
+            Both A.R.I.S.E. To-Do hubs are free for parents and teachers. Reader is free for students and parents (up to 3 children). Optional learning bundles are explained on the <button onClick={() => window.location.assign("https://www.arisereader.com/#/pricing")} className="font-black text-emerald-300 hover:underline">pricing page</button>.
           </p>
         </div>
       </section>
@@ -277,12 +277,12 @@ export default function TodoLanding() {
           <div className="mt-10 overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-r from-violet-600/30 via-fuchsia-600/20 to-amber-500/20 p-7 text-center sm:p-10">
             <Settings2 className="mx-auto h-8 w-8 text-violet-200" />
             <h2 className="mx-auto mt-3 max-w-2xl text-2xl font-black sm:text-4xl">Build the hub that fits your life.</h2>
-            <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">Start with a simple task list, or turn on everything at once. Change your mind anytime — nothing here is permanent.</p>
+            <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-slate-200">Start with a simple task list, or turn on everything at once. A.R.I.S.E. To-Do is free—there is no trial, subscription or payment required.</p>
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <button onClick={signUp} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-8 text-sm font-black text-slate-950 shadow-xl transition hover:scale-[1.03]">
                 Create your free account <ArrowRight className="h-4 w-4" />
               </button>
-              <button onClick={() => navigate("/pricing")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-8 text-sm font-black transition hover:bg-white/10">
+              <button onClick={() => window.location.assign("https://www.arisereader.com/#/pricing")} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-8 text-sm font-black transition hover:bg-white/10">
                 See pricing
               </button>
             </div>
