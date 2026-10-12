@@ -247,8 +247,8 @@
   function openModal(el){lastFocus=document.activeElement;el.classList.add('open');document.body.style.overflow='hidden';el.querySelector('[data-close]').focus();}
   function closeModal(el){el.classList.remove('open');if(!$$('.overlay.open').length)document.body.style.overflow='';if(lastFocus && lastFocus.focus)lastFocus.focus();}
   $$('[data-start]').forEach(b=>b.addEventListener('click',()=>openModal(start)));
-  $('[data-quiz]').forEach(b=>b.addEventListener('click',()=>{resetQuiz();openModal(quiz)}));
-  $('[data-feature-preview]').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();const card=link.closest('.feature-visual-card');$('#featurePreviewHeading').textContent=card?.querySelector('h4')?.textContent||'Explore A.R.I.S.E.';$('#featurePreviewText').textContent=card?.querySelector('p')?.textContent||'Discover this feature in your account.';openModal(featurePreview);}));
+  $$('[data-quiz]').forEach(b=>b.addEventListener('click',()=>{resetQuiz();openModal(quiz)}));
+  $$('[data-feature-preview]').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();const card=link.closest('.feature-visual-card');$('#featurePreviewHeading').textContent=card?.querySelector('h4')?.textContent||'Explore A.R.I.S.E.';$('#featurePreviewText').textContent=card?.querySelector('p')?.textContent||'Discover this feature in your account.';openModal(featurePreview);}));
   $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.closest('.overlay'))));
   $$('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeModal(o)}));
   document.addEventListener('keydown',e=>{if(e.key==='Escape')$$('.overlay.open').forEach(closeModal);});
