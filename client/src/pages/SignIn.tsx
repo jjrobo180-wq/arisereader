@@ -3,7 +3,7 @@
 // arisetodo.com (WorkHub for teachers, LifeHub for parents). The "Student" tab is the same form
 // with student wording; students go to their A.R.I.S.E. Reader library. (AppRoutes and
 // AfterSignIn do the sending; this page only signs in.)
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
@@ -34,6 +34,12 @@ export default function SignIn() {
   const [showAccounts, setShowAccounts] = useState(false);
   const [showSamples, setShowSamples] = useState(false);
   const adult = who === "adult";
+  // "Student sign in" and "Sign in" links switch the tab even when this screen is already open.
+  useEffect(() => {
+    const sync = () => setWho(/[?&]as=student(?:&|$)/.test(window.location.hash) ? "student" : "adult");
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
 
   const pick = (next: Who) => { setWho(next); setError(""); setShowAccounts(false); setShowSamples(false); };
   const goHome = () => { if (onTodo) window.location.assign("/"); else navigate("/"); };

@@ -79,7 +79,7 @@ export default function TeacherSignup() {
       if (password) {
         try {
           await login(username.trim().toLowerCase(), password);
-          navigate("/");
+          navigate("/signin");
           return;
         } catch { /* the account is on either way: fall through to the log-in button */ }
       }
@@ -120,7 +120,7 @@ export default function TeacherSignup() {
               <CheckCircle2 size={28} aria-hidden="true" style={{ flexShrink: 0 }} />
               <p style={{ margin: 0 }}>Your school email is confirmed and your teacher account is ready. Log in with the username and password you chose.</p>
             </div>
-            <button type="button" onClick={() => navigate("/")} style={{ ...styles.primaryButton, width: "100%" }} data-testid="button-teacher-go-login">Log In</button>
+            <button type="button" onClick={() => navigate("/signin")} style={{ ...styles.primaryButton, width: "100%" }} data-testid="button-teacher-go-login">Log In</button>
           </>
         )}
 
@@ -247,7 +247,7 @@ export default function TeacherSignup() {
           </form>
         )}
 
-        <button type="button" onClick={() => navigate("/")} style={styles.backButton} data-testid="link-back-to-login">
+        <button type="button" onClick={() => navigate("/signin")} style={styles.backButton} data-testid="link-back-to-login">
           <ArrowLeft size={18} aria-hidden="true" /> Back to Login
         </button>
       </section>

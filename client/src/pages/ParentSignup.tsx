@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2, Info, UserPlus, Link2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ParentSignup() {
   const [, navigate] = useLocation();
+  const { login } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -42,6 +44,8 @@ export default function ParentSignup() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to submit your request.");
       setSubmitted(true);
+      // Straight into LifeHub: sign in with the new account (the sign-in screen opens the hub).
+      try { await login(username.trim(), password); navigate("/signin"); return; } catch { /* they can sign in from the button below */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit your request.");
     } finally {
@@ -96,7 +100,7 @@ export default function ParentSignup() {
           </form>
         )}
 
-        <button type="button" onClick={() => navigate("/")} style={styles.backButton} data-testid="link-back-to-login">
+        <button type="button" onClick={() => navigate("/signin")} style={styles.backButton} data-testid="link-back-to-login">
           <ArrowLeft size={18} aria-hidden="true" /> Back to Login
         </button>
       </section>
