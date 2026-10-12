@@ -542,18 +542,18 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch { return { ok: true }; }
   };
 
-  /** Is there room on this teacher's plan for one more approved student? */
-  const seatCheck = async (teacher: AnyUser | null | undefined): Promise<{ ok: boolean; message?: string }> => {
+  /** Is there room on this teacher's plan for `count` more approved students (default 1)? */
+  const seatCheck = async (teacher: AnyUser | null | undefined, count = 1): Promise<{ ok: boolean; message?: string }> => {
     try {
       if (!teacher || teacher.isAdmin || teacher.role !== "teacher") return { ok: true };
       const e = await entitlement(teacher);
       if (e.via === "teacher-plan" && e.seats !== null) {
         const used = await deps.countTeacherStudents(teacher.id);
-        if (used >= e.seats) return { ok: false, message: `This teacher's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full. Another ${PLANS.teacher.studentsPerBlock} students can be added on the plan page.` };
+        if (used + count > e.seats) return { ok: false, message: `This teacher's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full. Another ${PLANS.teacher.studentsPerBlock} students can be added on the plan page.` };
       }
       if (e.via === "school-plan" && e.seats !== null && schoolOf(teacher)) {
         const used = await deps.countSchoolStudents(schoolOf(teacher)!);
-        if (used >= e.seats) return { ok: false, message: `The school's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full.` };
+        if (used + count > e.seats) return { ok: false, message: `The school's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full.` };
       }
       return { ok: true };
     } catch { return { ok: true }; }

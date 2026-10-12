@@ -20,6 +20,7 @@ interface AuthUser {
   schoolId?: number | null;
   totalPoints?: number;
   loginCount?: number;
+  mustChangePassword?: boolean;
 }
 
 type AdminPreviewMode = "regular" | "eye-gaze" | null;

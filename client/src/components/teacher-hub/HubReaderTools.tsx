@@ -7,7 +7,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNo
 import { useLocation } from "wouter";
 import {
   AlertTriangle, Award, BookOpen, Check, CheckCircle2, ChevronRight, Clock3, Copy, ExternalLink,
-  Gift, GraduationCap, KeyRound, Lock, Mail, PenLine, Printer, Search, Sparkles, Trash2, Trophy, Unlock, UserRound, Users, X,
+  Gift, GraduationCap, KeyRound, Lock, Mail, PenLine, Printer, Search, Sparkles, Trash2, Trophy, Unlock, UserPlus, UserRound, Users, X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -23,6 +23,7 @@ import type { HubTab } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
 import { ProgramLinks } from "./HubReader";
+import AddStudentsModal from "./AddStudentsModal";
 
 const LiveQuizPage = lazy(() => import("@/pages/LiveQuiz"));
 const ScenesPage = lazy(() => import("@/pages/TeacherScenes"));
@@ -97,7 +98,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   const request = useCallback(async (path: string, options: RequestInit = {}) => {
     const r = await fetch(`${API_BASE}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers } });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) { const e: any = new Error(data.message || "Something went wrong. Please try again."); e.code = data.code; throw e; }
+    if (!r.ok) { const e: any = new Error(data.message || "Something went wrong. Please try again."); e.code = data.code; e.problems = data.problems; throw e; }
     return data;
   }, [token]);
   /** True once a Reader API call has come back "premium_required" — no plan, so nothing here is real data. */
@@ -307,7 +308,8 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
     {tab === "readerStudents" && <StudentsTab
       students={students} loading={loading} loadError={loadError} school={school} schoolBusy={schoolBusy}
       onView={(id) => navigate(`/student-profile/${id}`)} onMessage={(id) => navigate(`/messages/${id}`)} onCertificates={(id) => navigate(`/student-certificates/${id}`)}
-      onAction={openAction} />}
+      onAction={openAction} request={request}
+      onDone={(text, reload) => { done(text); if (reload) { void loadSchool(); void loadClass(); } }} />}
 
     {tab === "readerLive" && <>
       <Card title="Live quiz"><p className="text-sm text-slate-600">Host a game your whole class plays at once. Pick a ready-made quiz or make one, then show the join code on the board.</p></Card>
@@ -458,21 +460,27 @@ function ProctorCode({ code, onCopy }: { code: string; onCopy: () => void }) {
   </div>;
 }
 
-function StudentsTab({ students, loading, loadError, school, schoolBusy, onView, onMessage, onCertificates, onAction }: {
+function StudentsTab({ students, loading, loadError, school, schoolBusy, onView, onMessage, onCertificates, onAction, request, onDone }: {
   students: Student[]; loading: boolean; loadError: string; school: { students: SchoolStudent[]; teachers: Teacher[] } | null; schoolBusy: boolean;
   onView: (id: number) => void; onMessage: (id: number) => void; onCertificates: (id: number) => void; onAction: (s: Action["student"], kind: Action["kind"]) => void;
+  request: (path: string, options?: RequestInit) => Promise<any>; onDone: (text: string, reload?: boolean) => void;
 }) {
   const [which, setWhich] = useState<"mine" | "school">("mine");
   const [q, setQ] = useState("");
   const [teacher, setTeacher] = useState("");
+  const [adding, setAdding] = useState(false);
   const needle = q.trim().toLowerCase();
   const mine = useMemo(() => students.filter((s) => !needle || nameOf(s).toLowerCase().includes(needle) || s.username.toLowerCase().includes(needle)), [students, needle]);
   const all = useMemo(() => (school?.students || []).filter((s) => (!needle || (s.displayName || "").toLowerCase().includes(needle) || s.username.toLowerCase().includes(needle)) && (!teacher || String(s.teacherId) === teacher)), [school, needle, teacher]);
   const iconBtn = "inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950";
   return <Card title={which === "mine" ? `My class (${students.length})` : `Whole school (${school?.students.length ?? "…"})`}
-    right={<div className="flex rounded-xl border border-slate-200 p-1" role="tablist" aria-label="Which students">
-      {(["mine", "school"] as const).map((w) => <button key={w} type="button" role="tab" aria-selected={which === w} onClick={() => setWhich(w)} className={`min-h-9 rounded-lg px-3 text-sm font-semibold ${which === w ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{w === "mine" ? "My class" : "Whole school"}</button>)}
+    right={<div className="flex flex-wrap items-center gap-2">
+      <GhostButton onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" /> Add students</GhostButton>
+      <div className="flex rounded-xl border border-slate-200 p-1" role="tablist" aria-label="Which students">
+        {(["mine", "school"] as const).map((w) => <button key={w} type="button" role="tab" aria-selected={which === w} onClick={() => setWhich(w)} className={`min-h-9 rounded-lg px-3 text-sm font-semibold ${which === w ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{w === "mine" ? "My class" : "Whole school"}</button>)}
+      </div>
     </div>}>
+    {adding && <AddStudentsModal onClose={() => setAdding(false)} request={request} onDone={(text) => onDone(text, true)} />}
     <div className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
       <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Field value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or username" className="pl-9" aria-label="Search students" /></label>
       {which === "school" && <Select value={teacher} onChange={(e) => setTeacher(e.target.value)} aria-label="Teacher" className="sm:w-56"><option value="">Every teacher</option>{(school?.teachers || []).map((t) => <option key={t.id} value={t.id}>{t.displayName}</option>)}</Select>}

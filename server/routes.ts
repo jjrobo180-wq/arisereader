@@ -2260,7 +2260,7 @@ export async function registerRoutes(
 
       res.json({
         token: session.token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0, loginCount },
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0, loginCount, mustChangePassword: !!user.mustChangePassword },
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -2291,6 +2291,7 @@ export async function registerRoutes(
       email: me.email || null,
       schoolId: me.school_id || null,
       totalPoints: me.totalPoints || 0,
+      mustChangePassword: !!me.mustChangePassword,
     });
   });
 
@@ -6385,6 +6386,27 @@ export async function registerRoutes(
       res.json({ message: "Password changed successfully" });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Failed to change password" });
+    }
+  });
+
+  // First sign-in after a teacher bulk-adds a student: the student is signed in
+  // with the default password (their student number) but must pick a new one
+  // before they're let any further into the app. No current-password check,
+  // since the whole point is that they're replacing a password they were handed,
+  // not one they chose — but it only works while mustChangePassword is still set.
+  app.post("/api/account/set-first-password", authMiddleware, async (req: any, res) => {
+    const { newPassword } = req.body || {};
+    if (!req.user.mustChangePassword) {
+      return res.status(400).json({ message: "Your password doesn't need to be changed right now." });
+    }
+    if (typeof newPassword !== "string" || newPassword.length < 4) {
+      return res.status(400).json({ message: "New password must be at least 4 characters" });
+    }
+    try {
+      await storage.setPasswordAndClearMustChange(req.user.id, newPassword);
+      res.json({ message: "Password set" });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Failed to set password" });
     }
   });
 
@@ -10515,6 +10537,83 @@ Important:
       res.json(students);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add many students at once (CSV upload, pasted rows, or a small manual list).
+  // Each student's username AND starting password are their student number, so a
+  // teacher never has to invent or share individual logins — approvedByTeacher is
+  // true immediately (no "waiting for approval" step, since the teacher is the one
+  // adding them), and mustChangePassword is set so the student is asked to pick
+  // their own password the first time they sign in.
+  app.post("/api/teacher/students/bulk-add", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const rows = Array.isArray(req.body?.students) ? req.body.students : [];
+      if (!rows.length) return res.status(400).json({ message: "No students were given." });
+      if (rows.length > 500) return res.status(400).json({ message: "Add at most 500 students at a time." });
+
+      const requestedTeacherId = parseInt(req.body?.teacherId, 10);
+      const teacherId = req.user.isAdmin ? (Number.isFinite(requestedTeacherId) && requestedTeacherId > 0 ? requestedTeacherId : null) : req.user.id;
+      const schoolId = req.user.isAdmin ? null : (req.user.school_id ?? null);
+
+      // Clean and validate every row before creating anything, so a bad row doesn't
+      // leave a half-finished class behind.
+      const seen = new Set<string>();
+      const clean: { firstName: string; lastName: string; studentNumber: string; row: number }[] = [];
+      const problems: { row: number; message: string }[] = [];
+      rows.forEach((r: any, i: number) => {
+        const rowNum = i + 1;
+        const firstName = String(r?.firstName ?? r?.first ?? "").trim();
+        const lastName = String(r?.lastName ?? r?.last ?? "").trim();
+        const studentNumber = String(r?.studentNumber ?? r?.studentId ?? r?.number ?? "").trim();
+        if (!firstName && !lastName && !studentNumber) return; // a blank row, skip quietly
+        if (!firstName || !lastName) { problems.push({ row: rowNum, message: "First and last name are both required." }); return; }
+        if (!studentNumber) { problems.push({ row: rowNum, message: "Student number is required." }); return; }
+        if (studentNumber.length < 2 || studentNumber.length > 40) { problems.push({ row: rowNum, message: "Student number must be 2–40 characters." }); return; }
+        const key = studentNumber.toLowerCase();
+        if (seen.has(key)) { problems.push({ row: rowNum, message: `Student number "${studentNumber}" is repeated in this list.` }); return; }
+        seen.add(key);
+        clean.push({ firstName, lastName, studentNumber, row: rowNum });
+      });
+
+      if (!clean.length) return res.status(400).json({ message: "No usable rows were found.", problems });
+
+      if (teacherId) {
+        const teacher = await storage.getUser(teacherId);
+        const seat = await plans.seatCheck(teacher, clean.length);
+        if (!seat.ok) return res.status(409).json({ message: seat.message });
+      }
+
+      // Student numbers must be unique against the whole site, not just this batch.
+      for (const c of clean) {
+        const existingNumber = await storage.getUserByStudentNumber(c.studentNumber);
+        if (existingNumber) problems.push({ row: c.row, message: `Student number "${c.studentNumber}" is already in use.` });
+        const existingName = await storage.getUserByUsername(c.studentNumber.toLowerCase());
+        if (existingName && !existingNumber) problems.push({ row: c.row, message: `"${c.studentNumber}" is already taken as a username.` });
+      }
+      if (problems.length) return res.status(409).json({ message: "Some rows need to be fixed before adding.", problems });
+
+      const created: { row: number; displayName: string; username: string }[] = [];
+      for (const c of clean) {
+        const hashedPassword = bcrypt.hashSync(c.studentNumber, 10);
+        const user = await storage.createUser({
+          username: c.studentNumber.toLowerCase(),
+          password: hashedPassword,
+          displayName: `${c.firstName} ${c.lastName}`.trim(),
+          role: "student",
+          teacherId,
+          schoolId,
+          approvedByTeacher: true,
+          accountApproved: true,
+          studentNumber: c.studentNumber,
+          mustChangePassword: true,
+        });
+        created.push({ row: c.row, displayName: user.displayName, username: user.username });
+      }
+      try { clearCache("allUsers"); } catch {}
+      res.json({ success: true, created });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to add students." });
     }
   });
 

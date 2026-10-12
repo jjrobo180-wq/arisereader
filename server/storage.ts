@@ -139,6 +139,8 @@ function mapUser(row: any) {
     email: row.email || null,
     school_id: row.school_id || null,
     archivedAt: row.archived_at || null,
+    studentNumber: row.student_number || null,
+    mustChangePassword: !!row.must_change_password,
   };
 }
 
@@ -292,7 +294,9 @@ export async function seedData() {
 export interface IStorage {
   getUser(id: number): Promise<any>;
   getUserByUsername(username: string): Promise<any>;
-  createUser(user: { username: string; password: string; displayName: string; schoolId?: number | null }): Promise<any>;
+  createUser(user: { username: string; password: string; displayName: string; schoolId?: number | null; studentNumber?: string | null; mustChangePassword?: boolean }): Promise<any>;
+  getUserByStudentNumber(studentNumber: string): Promise<any>;
+  setPasswordAndClearMustChange(userId: number, newPassword: string): Promise<void>;
   resetPassword(userId: number, newPassword: string): Promise<void>;
   getAllUsers(): Promise<any[]>;
   createSession(userId: number): Promise<any>;
@@ -356,7 +360,7 @@ export class DatabaseStorage implements IStorage {
     return mapUser(data);
   }
 
-  async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null }) {
+  async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null; studentNumber?: string | null; mustChangePassword?: boolean }) {
     const { data, error } = await supabase
       .from("users")
       .insert({
@@ -371,6 +375,8 @@ export class DatabaseStorage implements IStorage {
         account_approved: user.accountApproved ?? true,
         email: user.email || null,
         school_id: user.schoolId ?? null,
+        student_number: user.studentNumber ?? null,
+        must_change_password: user.mustChangePassword ?? false,
       })
       .select()
       .single();
@@ -379,6 +385,19 @@ export class DatabaseStorage implements IStorage {
     clearCache('leaderboard');
     clearCache('monthlyLeaderboard');
     return mapUser(data);
+  }
+
+  async getUserByStudentNumber(studentNumber: string) {
+    const { data } = await supabase.from("users").select("*").eq("student_number", studentNumber).maybeSingle();
+    return mapUser(data);
+  }
+
+  /** Sets a new password directly, with no current-password check — used for the
+   *  forced "set your own password" step after a teacher bulk-adds a student with
+   *  a default password (their student number), and also clears the flag. */
+  async setPasswordAndClearMustChange(userId: number, newPassword: string) {
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await supabase.from("users").update({ password: hashed, must_change_password: false }).eq("id", userId);
   }
 
   async resetPassword(userId: number, newPassword: string) {

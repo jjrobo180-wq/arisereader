@@ -1,6 +1,7 @@
 import EyeGazeCelebrations from "@/components/EyeGazeCelebrations";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
 import WorkHubTour from "@/components/WorkHubTour";
+import ForcePasswordChange from "@/components/ForcePasswordChange";
 import { Switch, Route, Router, Redirect, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 
@@ -768,6 +769,10 @@ function AppInner() {
     !!user?.username?.startsWith('sample') || user?.username === 'tutorial-eye'
   );
   const isAdminPreview = !!realUser?.isAdmin && !!adminPreviewMode;
+
+  // A student a teacher just bulk-added signs in with a default password (their
+  // student number) and must replace it before doing anything else in the app.
+  if (user?.mustChangePassword) return <ForcePasswordChange />;
 
   const overlays = !inGame;
   return (
