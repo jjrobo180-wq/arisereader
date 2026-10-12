@@ -69,6 +69,14 @@ app.use("/api/eye-gaze/my-world/upload", express.raw({
   limit: "20mb",
 }));
 
+// LifeHub Drive (App Store add-on): photo bytes arrive as a raw body, same as My World above —
+// this has to run before the global express.json() below, or that parser drains the request
+// stream first and the route's own body-reading never sees any bytes.
+app.use("/api/lifehub/drive/upload", express.raw({
+  type: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/octet-stream"],
+  limit: "22mb",
+}));
+
 // Arise WorkHub: a workspace with a full caseload and connected calendars is bigger than the usual
 // request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
