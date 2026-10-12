@@ -21,12 +21,12 @@ const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}
 const longDay = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "");
 const REASON: Record<string, string> = {
   "family-plan": "Included with your family's plan", "class-plan": "On for your class", "child-in-class": "Included through your children's class plans",
-  "social-plan": "Included with your Arise Social plan", admin: "Included for admins", demo: "Included in this sample account", hub: "Included with Arise WorkHub", "todo-plan": "Included with your LifeHub plan",
+  "social-plan": "Included with your A.R.I.S.E. Connect plan", admin: "Included for admins", demo: "Included in this sample account", hub: "Free with A.R.I.S.E. To-Do", "todo-plan": "A.R.I.S.E. To-Do is free", free: "Always free",
 };
 const APPS: { id: AppId; href: string; label: string; sub: string; icon: typeof Landmark }[] = [
   { id: "history", href: "/history/", label: "Arise History", sub: "True stories and quizzes", icon: Landmark },
   { id: "math", href: "/math/", label: "Arise Math", sub: "Practice that levels up", icon: Calculator },
-  { id: "social", href: "/social/", label: "Arise Social", sub: "Explore every career", icon: Users },
+  { id: "social", href: "/social/", label: "A.R.I.S.E. Connect", sub: "Explore every career", icon: Users },
 ];
 
 function useCountdown(endsAt: string | null | undefined) {
@@ -103,11 +103,11 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
   }
 
   return <div className="space-y-4" data-testid="hub-addons">
-    {(role === "parent" || teacher) && <p className={k.text}>{[free, "Everything here is optional and paid separately."].filter(Boolean).join(" ")}</p>}
+    {(role === "parent" || teacher) && <p className={k.text}>{[free, "A.R.I.S.E. To-Do Work & Life are both free. Optional learning bundles are billed separately."].filter(Boolean).join(" ")}</p>}
 
     <div>
       <p className={k.eyebrow}>{teacher ? "Class add-ons" : "Learning Bundle"}</p>
-      <p className={`mt-1 ${k.text}`}>{teacher ? `Add any of them for your whole class (up to ${data.prices.classSeats} students), on top of the Class plan. Each is its own monthly add-on.`
+      <p className={`mt-1 ${k.text}`}>{teacher ? `Your Class plan includes Reader, Math and History for 30 students per $10/month, with another $10/month per additional 30. Connect is an optional separate program.`
         : role === "parent" ? `One plan covers you and every child you've linked: ${money(data.prices.familyBundleCents)}/month. If a child's teacher adds all three for the class, we refund your unused days.`
         : "Three more ways to learn and earn points, right next to your reading."}</p>
     </div>
@@ -116,15 +116,15 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
       const a = data.apps[app.id], live = !!a.plan?.live, Icon = app.icon;
       let right: ReactNode = null;
       if (teacher) {
-        if (a.paidByYou && live) right = <button type="button" className={k.ghost} disabled={!!busy} onClick={() => go(`m-${app.id}`, "/api/billing/addon-portal", { product: app.id, returnPath })}>Manage</button>;
-        else if (live) right = <Pill which={which} tone="green">On</Pill>;
+        if (a.paidByYou && live) right = <button type="button" className={k.ghost} disabled={!!busy} onClick={() => go(`m-${app.id}`, "/api/billing/addon-portal", { product: app.id, returnPath })}>Manage previous plan</button>;
+        else if (live || (app.id !== "social" && data.premium)) right = <Pill which={which} tone="green">Included with Class</Pill>;
         else if (!data.premium) right = <a className={k.ghost} href="/#/billing">Get the Class plan first</a>;
         else right = <button type="button" className={k.primary} disabled={!!busy || !data.payment} onClick={() => go(app.id, "/api/billing/addon-checkout", { product: app.id, returnPath })} data-testid={`addons-buy-${app.id}`}>{busy === app.id ? "Opening…" : `${a.via === "trial" ? "Keep" : "Add"} · ${money(data.prices.classApps[app.id])}/mo`}</button>;
       }
-      const status = teacher ? (live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${fmtDay(a.plan.endsAt)}` : ""}`) : a.via === "trial" ? "On during your free trial" : "Off") : app.sub;
+      const status = teacher && app.id !== "social" && data.premium ? "Included with Class" : teacher ? (live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${fmtDay(a.plan.endsAt)}` : ""}`) : a.via === "trial" ? "On during your free trial" : "Off") : app.sub;
       return <li key={app.id} className={`${k.row} flex flex-wrap items-center gap-3`} data-testid={`addons-${teacher ? "class" : "app"}-${app.id}`}>
         <span className={k.tile}><Icon className="h-5 w-5" /></span>
-        <a href={app.href} className="min-w-0 flex-1 hover:underline"><span className={`block ${k.h}`}>{app.label}{teacher ? <span className="font-normal text-slate-500"> · {money(data.prices.classApps[app.id])}/month</span> : null}</span><span className={`block ${k.small}`}>{status}</span></a>
+        <a href={app.href} className="min-w-0 flex-1 hover:underline"><span className={`block ${k.h}`}>{app.label}{teacher && app.id === "social" ? <span className="font-normal text-slate-500"> · optional</span> : null}</span><span className={`block ${k.small}`}>{status}</span></a>
         {right}
       </li>;
     })}</ul>
@@ -135,7 +135,7 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
       {!teacher && b.access && b.via && b.via !== "trial" && REASON[b.via] && <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[b.via]}{b.endsAt && b.via !== "child-in-class" ? ` · renews ${fmtDay(b.endsAt)}` : ""}</p>}
       {!b.access && <p className="text-sm font-semibold text-amber-800">{teacher ? "Your free trial of History, Math and Social has ended. Add the ones your class uses." : "Your free trial has ended."}</p>}
       {role === "student" && (!b.access || b.via === "trial") && <p className={k.small}>To keep it after your trial, ask a parent to add it for your family, or ask your teacher to add it for your class.</p>}
-      {teacher && <p className={k.small}>Each add-on covers up to {data.prices.classSeats} students; you have {data.students ?? 0}. Families paying the {money(data.prices.familyBundleCents)} Learning Bundle get their unused days refunded once your class has all three.</p>}
+      {teacher && <p className={k.small}>Reader, Math and History are included for every student covered by your Class plan. Your teacher plan can grow in blocks of 30 students.</p>}
       {role === "parent" && !!data.children?.length && <div className="flex flex-wrap gap-2">{data.children.map((c) => <Pill key={c.id} which={which} tone={c.coveredByClass ? "green" : "slate"}>{c.name}{c.coveredByClass ? " · covered by class" : ""}</Pill>)}</div>}
       {role === "parent" && data.refund && data.refund.cents > 0 && <p className={k.ok}>Your children's teachers now cover Arise History, Math and Social, so we cancelled your plan and refunded {money(data.refund.cents)} to your card on {fmtDay(data.refund.at)}.</p>}
       {bundleAction && <div className="flex flex-wrap gap-2">{bundleAction}</div>}
@@ -145,19 +145,11 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
     {showLifeHub && (role === "parent" || teacher) && <div className={`${k.soft} space-y-3`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3"><span className={k.tile}><CheckSquare className="h-5 w-5" /></span>
-          <span className="min-w-0"><span className={`block ${k.h}`}>Arise LifeHub</span><span className={`block ${k.small}`}>{teacher ? "Comes with Arise WorkHub: one subscription, both hubs." : `Lists, chores, the family calendar and more: ${money(data.prices.todoCents)}/month after your free trial.`}</span></span></div>
-        {which === "work" && <a className={k.ghost} href="/#/lifehub">Open LifeHub</a>}
+          <span className="min-w-0"><span className={`block ${k.h}`}>A.R.I.S.E. To-Do — Work &amp; Life</span><span className={`block ${k.small}`}>Both hubs are free for parents and teachers, with no trial or subscription.</span></span>
+        </div>
+        <div className="flex flex-wrap gap-2"><a className={k.ghost} href="/#/workhub">Open Work</a><a className={k.ghost} href="/#/lifehub">Open Life</a></div>
       </div>
-      {t.via === "trial" && t.trialEndsAt && <Trial which={which} endsAt={t.trialEndsAt} total={data.trialDays} label="LifeHub free trial" />}
-      {teacher && data.hub?.via === "free-month" && data.hub.endsAt && <Trial which={which} endsAt={data.hub.endsAt} total={data.trialDays} label="Arise WorkHub & LifeHub free trial" />}
-      {t.access && t.via && t.via !== "trial" && REASON[t.via] && !(teacher && data.hub?.via === "free-month") && <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{REASON[t.via]}</p>}
-      {!t.access && <p className="text-sm font-semibold text-amber-800">{teacher ? "Get Arise WorkHub to keep using LifeHub." : "Your LifeHub free trial has ended."}</p>}
-      <div className="flex flex-wrap gap-2">
-        {role === "parent" && (t.paidByYou
-          ? <button type="button" className={k.ghost} disabled={!!busy} onClick={() => go("tm", "/api/billing/addon-portal", { product: "todo", returnPath })}>Manage LifeHub billing</button>
-          : !t.plan?.live && <button type="button" className={k.primary} disabled={!!busy || !data.payment} onClick={() => go("t", "/api/billing/addon-checkout", { product: "todo", returnPath })} data-testid="addons-buy-todo">{busy === "t" ? "Opening…" : `${t.via === "trial" ? "Keep" : "Get"} LifeHub · ${money(data.prices.todoCents)}/month`}</button>)}
-        {teacher && data.hub?.via !== "hub-teacher-plan" && data.hub?.via !== "hub-school-plan" && <a className={k.ghost} href="/#/billing">Arise WorkHub: {money(data.prices.hubCents)}/month</a>}
-      </div>
+      {t.paidByYou && <button type="button" className={k.ghost} disabled={!!busy} onClick={() => go("tm", "/api/billing/addon-portal", { product: "todo", returnPath })}>Manage a previous LifeHub subscription</button>}
     </div>}
 
     {note && <p className={k.ok} role="status">{note}</p>}
