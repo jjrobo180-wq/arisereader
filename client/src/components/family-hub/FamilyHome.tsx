@@ -41,7 +41,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const kids = family.members.filter((m) => m.kind === "kid");
 
   /** Installed Notes apps (LifeHub Notes/Work Notes cross-installed from the Store) this family can pin to Home. */
-  const myNotesApps = family.notesInstalled.map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const myNotesApps = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   const layout = cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id));
   // Widened past Record<LifePart, ...> below so a pinned Notes app (see pinId) can add its own entry.
   const part: Record<string, ReactNode | null> = {

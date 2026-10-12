@@ -74,7 +74,7 @@ import "@/components/teacher-hub/hubPaper.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
 import { HomeParts, WORK_PARTS, type HomePart } from "@/components/teacher-hub/HubHomeEdit";
-import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, moveSection, pinId, showSection, type HomeSection, type HubLayout } from "@shared/hubLayout";
+import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, isPinId, moveSection, pinId, showSection, unpinId, type HomeSection, type HubLayout } from "@shared/hubLayout";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
@@ -992,7 +992,8 @@ function TeacherHubPage() {
                   <ul className="space-y-1.5" aria-label="Parts of Home">
                     {layout.home.map((id, i) => {
                       const on = !layout.homeHidden.includes(id);
-                      const label = HOME_SECTIONS.find((x) => x.id === id)!.label;
+                      // A pinned App Store app (pin:<id>) is listed by its own name; it is not one of the built-in parts.
+                      const label = HOME_SECTIONS.find((x) => x.id === id)?.label ?? (isPinId(id) ? (myKits.find((d) => d.id === unpinId(id))?.name ?? myNotesApps.find((p) => p.id === unpinId(id))?.name) : undefined) ?? id;
                       return (
                         <li key={id} className={`flex min-h-11 items-center gap-2 rounded-xl border px-2 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`home-part-${id}`}>
                           <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm">

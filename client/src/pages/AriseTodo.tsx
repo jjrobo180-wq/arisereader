@@ -91,7 +91,7 @@ import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/Hu
 import { BriefButton, DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildLifeBrief } from "@shared/dailyBrief";
 import { HubChat } from "@/components/HubChat";
-import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
+import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
 import HubMark from "@/components/HubMark";
@@ -525,7 +525,9 @@ export default function AriseTodo() {
   const pillsDue = dosesOn(family, currentDay).filter((d) => !d.status).length;
   const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue : 0;
   // How the family arranged the hub (Customize): the phone menu and Home, the same choices as WorkHub.
-  const layout = cleanLifeLayout(family.layout);
+  // Installed Notes apps may be pinned to Home (see FamilyHome), so Customize keeps and names their tiles too.
+  const pinnableNotes = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const layout = cleanLifeLayout(family.layout, pinnableNotes.map((p) => p.id));
   const setLayout = (next: LifeLayout) => setFamily((f) => ({ ...f, layout: next }));
   const phone = usePhoneMenu(layout.menuSide, layout.menuClose);
   // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
@@ -570,7 +572,7 @@ export default function AriseTodo() {
   const [notesAppOpen, setNotesAppOpenState] = useState<string | null>(null);
   const setNotesAppOpen = (id: string | null) => { setNotesAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
   /** Notes-app plugins this family added from the Store that aren't built into LifeHub. */
-  const myNotesApps = family.notesInstalled.map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const myNotesApps = pinnableNotes;
   const setNotesAppRecords = (pid: string, update: (all: Family["notesApps"][string]) => Family["notesApps"][string]) =>
     setFamily((f) => ({ ...f, notesApps: { ...f.notesApps, [pid]: update(f.notesApps[pid] ?? []) } }));
   const phoneItems: PhoneMenuItem[] = [
@@ -725,7 +727,7 @@ export default function AriseTodo() {
           <p className="mb-3 mt-1 text-sm text-slate-500">Turn parts on or off, move them, and pick a size. You can also press and hold Home itself to drag things around.</p>
           <ul className="space-y-1.5" aria-label="Parts of Home">
             {layout.home.map((id, i) => {
-              const on = !layout.homeHidden.includes(id), part = LIFE_PARTS.find((x) => x.id === id)!, sz = sizeOf(layout, id);
+              const on = !layout.homeHidden.includes(id), part = LIFE_PARTS.find((x) => x.id === id) ?? { id, label: pinnableNotes.find((p) => pinId(p.id) === id)?.name ?? id }, sz = sizeOf(layout, id);
               return <li key={id} className={`flex min-h-11 flex-wrap items-center gap-2 rounded-xl border px-2 py-1 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`life-home-part-${id}`}>
                 <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm"><input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={(e) => setLayout(showSection(layout, id, e.target.checked))} /><span className={on ? "font-semibold text-slate-900" : "text-slate-500"}>{part.label}</span></label>
                 <span className="flex rounded-full bg-slate-100 p-0.5" role="radiogroup" aria-label={`Size of ${part.label}`}>{HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => setLayout(resizeSection(layout, id, z.id))} className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${sz === z.id ? "bg-[#292446] text-white" : "text-slate-600"}`}>{z.short}</button>)}</span>
