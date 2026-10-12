@@ -21,6 +21,7 @@ import {
   type BandId, type CustomQuestion, type MathProfile, type Problem, type Rng, type SkillId,
 } from "../shared/ariseMath";
 import { LEARN, learnFor } from "../shared/ariseMathLearn";
+import { SKILL_VIDEO_TOPIC, VIDEO_TOPICS } from "../shared/ariseMathVideos";
 
 export type MathRole = "student" | "teacher" | "parent" | "admin";
 export type MathUser = { id: number; role: MathRole; displayName: string; teacherId: number | null; schoolId: number | null; approvedByTeacher: boolean; archived: boolean };
@@ -322,7 +323,7 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     res.json({
       bands: BANDS, skills: Object.fromEntries(Object.entries(SKILLS).map(([id, s]) => [id, { name: s.name, std: s.std, glyph: s.glyph, c: s.c, band: s.band }])),
       points: POINTS, levels: LEVELS, levelPoints: LEVEL_POINTS, dailyGoal: DAILY_GOAL, styles: STYLES, milestones: MILESTONES, achievements: ACHIEVEMENTS,
-      grades: GRADES, gradeLabels: GRADE_LABELS, states: STATES, gradeLessons: GRADE_LESSONS, domains: DOMAINS, learn: LEARN, worksheetLevels: WORKSHEET_LEVELS, certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
+      grades: GRADES, gradeLabels: GRADE_LABELS, states: STATES, gradeLessons: GRADE_LESSONS, domains: DOMAINS, learn: LEARN, videos: { topics: VIDEO_TOPICS, skills: SKILL_VIDEO_TOPIC }, worksheetLevels: WORKSHEET_LEVELS, certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
     });
   });
 

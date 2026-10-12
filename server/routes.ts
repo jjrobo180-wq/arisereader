@@ -55,6 +55,7 @@ import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
+import { registerMathPhotoRoutes } from "./ariseMathPhoto";
 import { registerClassBehaviorRoutes } from "./classBehavior";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
 import { registerAppleReminderRoutes } from "./appleReminders";
@@ -1440,6 +1441,8 @@ export async function registerRoutes(
       notify: (id, message) => notifyUser(id, message),
     },
   });
+  // Arise Math "Snap a problem": photo or typed problem → step-by-step help without the answer. See server/ariseMathPhoto.ts.
+  registerMathPhotoRoutes(app, authMiddleware, { gradeOf: async (id) => (await studentGrades())[String(id)] || null });
   // Class behavior (WorkHub's Behavior tab): points, hall passes, and what parents see. See server/classBehavior.ts.
   registerClassBehaviorRoutes(app, authMiddleware, {
     directory: {
