@@ -7,7 +7,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { TEACHER_CONFIRM_KEY } from "@shared/schoolEmail";
-import { isTodoHost, TODO_APP } from "@/lib/hubs";
+import { API_BASE } from "@/lib/queryClient";
+import { isTodoHost } from "@/lib/hubs";
 import {
   ArrowLeft, ArrowRight, BookOpen, Briefcase, Check, ChevronRight, Eye, EyeOff,
   GraduationCap, Heart, LockKeyhole, Sparkles, UserRound, Users
@@ -27,6 +28,8 @@ export default function SignIn() {
   const onTodo = isTodoHost();
   const [who, setWho] = useState<Who>(() => /[?&]as=student(?:&|$)/.test(window.location.hash) ? "student" : "adult");
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [personalSignup, setPersonalSignup] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -44,7 +47,7 @@ export default function SignIn() {
   const pick = (next: Who) => { setWho(next); setError(""); setShowAccounts(false); setShowSamples(false); };
   const goHome = () => { if (onTodo) window.location.assign("/"); else navigate("/"); };
   // A personal LifeHub account (no school needed) is made on arisetodo.com.
-  const lifeHubSignup = () => { if (onTodo) window.location.assign("/app#/lifehub?mode=signup"); else window.location.assign(`${TODO_APP}#/lifehub?mode=signup`); };
+  const lifeHubSignup = () => { if (!onTodo) { window.location.assign("https://arisetodo.com/app#/signin"); return; } setPersonalSignup(true); setShowAccounts(false); setShowSamples(false); setError(""); };
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,6 +64,38 @@ export default function SignIn() {
         return;
       }
       setError(err instanceof Error ? err.message : "Unable to sign in. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePersonalSignup = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      const cleanUsername = username.trim().toLowerCase();
+      if (!/^[a-z0-9_-]{3,30}$/.test(cleanUsername)) {
+        throw new Error("Username must have 3–30 letters, numbers, dashes, or underscores.");
+      }
+      if (displayName.trim().length < 2) {
+        throw new Error("Please enter your name.");
+      }
+      if (password.length < 8) {
+        throw new Error("Use a password with at least 8 characters.");
+      }
+      const response = await fetch(`${API_BASE}/api/arise-todo/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: cleanUsername, displayName: displayName.trim(), password }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || "Couldn't create your account.");
+      await login(cleanUsername, password);
+      // The sign-in route opens the newly created person's LifeHub after authentication.
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : "Couldn't create your account.");
     } finally {
       setSubmitting(false);
     }
@@ -139,6 +174,38 @@ export default function SignIn() {
         <section className="relative order-1 z-10 lg:order-2">
           <div className="pointer-events-none absolute -inset-5 -z-10 rounded-[40px] bg-gradient-to-br from-[#e5ddff] via-[#f4f1ff] to-[#dcf8f9] blur-lg"/>
           <div className="rounded-[28px] border border-[#e3e5f6] bg-white p-6 shadow-[0_24px_70px_rgba(65,51,139,.10)] sm:p-8">
+            {personalSignup ? (
+              <section aria-label="Create your personal A.R.I.S.E. account">
+                <div className="mb-7">
+                  <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">Personal Life Hub</p>
+                  <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Create your free account</h2>
+                  <p className="mt-2 text-sm leading-6 text-[#737b94]">No school account needed. Your tasks and lists will be saved to your account.</p>
+                </div>
+                <form onSubmit={handlePersonalSignup} className="space-y-5">
+                  <div>
+                    <label htmlFor="personal-display-name" className="mb-2 block text-sm font-bold text-[#2e3653]">Your name</label>
+                    <input id="personal-display-name" required autoComplete="name" maxLength={80} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your name" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none focus:border-[#665ae6]"/>
+                  </div>
+                  <div>
+                    <label htmlFor="personal-username" className="mb-2 block text-sm font-bold text-[#2e3653]">Username</label>
+                    <input id="personal-username" required autoComplete="username" autoCapitalize="none" spellCheck={false} minLength={3} maxLength={30} value={username} onChange={e => setUsername(e.target.value)} placeholder="Choose a username" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none focus:border-[#665ae6]"/>
+                  </div>
+                  <div>
+                    <label htmlFor="personal-password" className="mb-2 block text-sm font-bold text-[#2e3653]">Password</label>
+                    <div className="relative">
+                      <input id="personal-password" required type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 pr-12 text-base text-[#17213b] outline-none focus:border-[#665ae6]"/>
+                      <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(v => !v)} className="absolute inset-y-0 right-0 grid w-12 place-items-center text-[#788098]">{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
+                    </div>
+                  </div>
+                  {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
+                  <button type="submit" disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5b53df] px-5 text-sm font-black text-white transition hover:bg-[#4941cb] disabled:opacity-60">
+                    {submitting ? "Creating account…" : "Create my free account"} <ArrowRight size={18}/>
+                  </button>
+                </form>
+                <button type="button" onClick={() => { setPersonalSignup(false); setPassword(""); setError(""); }} className="mt-5 min-h-11 w-full text-center text-sm font-bold text-[#5b53df] hover:underline">Already have an account? Sign in</button>
+              </section>
+            ) : (
+              <>
             <div role="tablist" aria-label="Who is signing in" className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-[#f1f0fb] p-1">
               {([["adult", "Teacher or parent", Briefcase], ["student", "Student", GraduationCap]] as const).map(([id, label, Icon]) => (
                 <button key={id} type="button" role="tab" aria-selected={who === id} onClick={() => pick(id)}
@@ -193,6 +260,8 @@ export default function SignIn() {
                   <button disabled={submitting} onClick={() => void trySample("student")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Student</button>
                   <button disabled={submitting} onClick={() => void trySample("eye-gaze")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Eye Gazer</button>
                 </div>)}
+              </>
+            )}
           </div>
           <div className="mt-5 flex items-center justify-center gap-2 text-center text-xs font-semibold text-[#848ba4]">
             <LockKeyhole size={14}/> Secure access to your A.R.I.S.E. account
