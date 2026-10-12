@@ -437,6 +437,16 @@ export function notesAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
   return PLUGINS.find((p) => p.hub === hub && p.id === id && p.target.kind === "notesApp");
 }
 
+/** A Sheets-app plugin (see shared/sheetsApp.ts) by its App Store id, in the given hub. */
+export function sheetsAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
+  return PLUGINS.find((p) => p.hub === hub && p.id === id && p.target.kind === "sheetsApp");
+}
+
+/** The Drive-app plugin (see shared/driveApp.ts) in the given hub, if that hub offers one. */
+export function driveAppPlugin(hub: PluginHub): Plugin | undefined {
+  return PLUGINS.find((p) => p.hub === hub && p.target.kind === "driveApp");
+}
+
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
 export const isAddable = (p: Plugin) => p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp" || p.target.kind === "sheetsApp" || p.target.kind === "driveApp";
 

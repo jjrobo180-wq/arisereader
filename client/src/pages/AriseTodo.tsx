@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Folder as Folder, ChevronRight as ChevronRight,
   Archive, ArchiveRestore,
+  Table, FolderOpen,
 } from "lucide-react";
 import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
@@ -61,7 +62,7 @@ import Quotes from "@/components/family-hub/Quotes";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, lifeInstalled, notesAppPlugin, pluginOpens, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, driveAppPlugin, lifeInstalled, notesAppPlugin, pluginOpens, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
 import SheetsApp from "@/components/family-hub/SheetsApp";
 import DriveApp from "@/components/family-hub/DriveApp";
 import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
@@ -532,7 +533,12 @@ export default function AriseTodo() {
   // How the family arranged the hub (Customize): the phone menu and Home, the same choices as WorkHub.
   // Installed Notes apps may be pinned to Home (see FamilyHome), so Customize keeps and names their tiles too.
   const pinnableNotes = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
-  const layout = cleanLifeLayout(family.layout, pinnableNotes.map((p) => p.id));
+  // Installed Sheets apps and Drive (App Store add-ons) may also be pinned to Home and need a
+  // menu entry, the same as a Notes-app install — see myNotesApps/phoneItems below.
+  const pinnableSheets = (family.sheetsInstalled ?? []).map((id) => sheetsAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const drivePlugin = family.driveInstalled ? driveAppPlugin("life") : undefined;
+  const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : [])];
+  const layout = cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id));
   const setLayout = (next: LifeLayout) => setFamily((f) => ({ ...f, layout: next }));
   const phone = usePhoneMenu(layout.menuSide, layout.menuClose);
   // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
@@ -594,6 +600,8 @@ export default function AriseTodo() {
   const phoneItems: PhoneMenuItem[] = [
     ...sections.map((id) => { const Icon = SECTION_ICONS[id]; return { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { setNotesAppOpen(null); setSection(id); } }; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => setNotesAppOpen(p.id) })),
+    ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => setSheetsAppOpen(p.id) })),
+    ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => setDriveOpen(true) }] : []),
     // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
     { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
   ];
@@ -754,7 +762,7 @@ export default function AriseTodo() {
           <p className="mb-3 mt-1 text-sm text-slate-500">Turn parts on or off, move them, and pick a size. You can also press and hold Home itself to drag things around.</p>
           <ul className="space-y-1.5" aria-label="Parts of Home">
             {layout.home.map((id, i) => {
-              const on = !layout.homeHidden.includes(id), part = LIFE_PARTS.find((x) => x.id === id) ?? { id, label: pinnableNotes.find((p) => pinId(p.id) === id)?.name ?? id }, sz = sizeOf(layout, id);
+              const on = !layout.homeHidden.includes(id), part = LIFE_PARTS.find((x) => x.id === id) ?? { id, label: pinnableApps.find((p) => pinId(p.id) === id)?.name ?? id }, sz = sizeOf(layout, id);
               return <li key={id} className={`flex min-h-11 flex-wrap items-center gap-2 rounded-xl border px-2 py-1 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`life-home-part-${id}`}>
                 <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm"><input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={(e) => setLayout(showSection(layout, id, e.target.checked))} /><span className={on ? "font-semibold text-slate-900" : "text-slate-500"}>{part.label}</span></label>
                 <span className="flex rounded-full bg-slate-100 p-0.5" role="radiogroup" aria-label={`Size of ${part.label}`}>{HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => setLayout(resizeSection(layout, id, z.id))} className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${sz === z.id ? "bg-[#292446] text-white" : "text-slate-600"}`}>{z.short}</button>)}</span>
@@ -852,14 +860,28 @@ export default function AriseTodo() {
             );
           })}
         </nav>
-        {myNotesApps.length > 0 && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
+        {pinnableApps.length > 0 && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
-          <div className="space-y-0.5">{myNotesApps.map((p) => (
-            <button key={`notes-app-${p.id}`} type="button" onClick={() => { setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
-              className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-              <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
-            </button>
-          ))}</div>
+          <div className="space-y-0.5">
+            {myNotesApps.map((p) => (
+              <button key={`notes-app-${p.id}`} type="button" onClick={() => { setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
+              </button>
+            ))}
+            {pinnableSheets.map((p) => (
+              <button key={`sheets-app-${p.id}`} type="button" onClick={() => { setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <Table className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
+              </button>
+            ))}
+            {drivePlugin && (
+              <button type="button" onClick={() => { setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${driveOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <FolderOpen className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{drivePlugin.name}</span>
+              </button>
+            )}
+          </div>
         </div>}
         <div className={`hidden px-3 pt-2 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
         {shown === "tasks" && <>
