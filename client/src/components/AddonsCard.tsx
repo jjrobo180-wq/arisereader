@@ -7,7 +7,7 @@
 // as one group of buttons (Arise WorkHub and LifeHub for teachers, then the three apps), with
 // a price and the way to the plan page. Its buttons don't wait on the add-ons request, so a
 // teacher can always reach them.
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BookOpen, Calculator, CheckCircle2, CheckSquare, ClipboardList, Landmark, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
