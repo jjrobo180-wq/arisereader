@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  billDue, billState, choreDoneOn, choreOwner, cleanFamily, emptyFamily, eventsOn, isOn, monthSummary, occursOn,
+  billDue, billState, choreDoneOn, choreOwner, cleanFamily, emptyFamily, eventsOn, isCurrentFamily, isOn, monthSummary, occursOn,
   starBalance, tally, toggleChore, type Chore, type FamilyEvent,
 } from "../shared/familyHub";
 
@@ -121,4 +121,15 @@ test("family data saved by an older page is recognized and filled in", async () 
   delete older.health;
   assert.equal(isCurrentFamily(older), false);
   assert.ok(isCurrentFamily(cleanFamily(older)));
+});
+
+test("a family saved before newer parts existed is filled in, not opened as-is", () => {
+  // LifeHub crashed ("Cannot read properties of undefined (reading 'map')") for families saved
+  // before notesInstalled existed, because isCurrentFamily let them through unchanged.
+  const fresh: any = emptyFamily();
+  for (const key of Object.keys(fresh)) {
+    const old = { ...fresh }; delete old[key];
+    assert.equal(isCurrentFamily(old), false, `missing ${key} is caught`);
+    assert.ok(isCurrentFamily(cleanFamily(old)), `cleaning fills in ${key}`);
+  }
 });

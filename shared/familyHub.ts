@@ -760,6 +760,14 @@ export function isCurrentFamily(f: unknown): f is Family {
   if (!r || !h) return false;
   const arrays = ["members", "sectionOrder", "chores", "choreDone", "behavior", "rewards", "redemptions", "calendars", "events", "trips", "polls", "bills", "budget", "expenses", "notes", "cycleLogs", "pills", "pillDoses", "moods", "goals", "journal", "countdowns", "groceries", "savedVerses", "meditations", "savedQuotes", "stickies", "randomLists", "savedWords", "habits", "gratitude", "focusLog", "recipes", "meals", "care", "birthdays", "contacts", "subscriptions", "jars", "collections", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftCards", "warranties", "mileage", "clocks", "medical", "kit"];
   const healthArrays = ["food", "exercise", "days", "weights", "foods"];
-  return arrays.every((k) => Array.isArray(r[k])) && healthArrays.every((k) => Array.isArray(h[k]))
-    && !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.widgets) && !!obj(r.linkPage) && !!obj(r.weather) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
+  if (!arrays.every((k) => Array.isArray(r[k])) || !healthArrays.every((k) => Array.isArray(h[k]))) return false;
+  // Every part a new family starts with must be there in the same shape. A family saved before a
+  // part existed (like notesInstalled) goes through cleanFamily instead, so the page never reads
+  // a missing list ("Cannot read properties of undefined").
+  const fresh = emptyFamily() as unknown as Record<string, unknown>;
+  for (const [k, v] of Object.entries(fresh)) {
+    const have = r[k];
+    if (Array.isArray(v) ? !Array.isArray(have) : v !== null && typeof v === "object" ? !obj(have) : v !== null && typeof have !== typeof v) return false;
+  }
+  return !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.widgets) && !!obj(r.linkPage) && !!obj(r.weather) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
 }
