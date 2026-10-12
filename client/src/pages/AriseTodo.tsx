@@ -1,8 +1,9 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
-import { useLocation } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
 import AriseTodoSignIn from "./AriseTodoSignIn";
+import { goToSignIn } from "@/lib/hubs";
 import {
   ArrowLeft, CalendarDays, Check, CheckCircle2,
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
@@ -353,7 +354,7 @@ export default function AriseTodo() {
     await sync.flush();
     if (sync.view.kind !== "saved" && !window.confirm("Some changes may not have reached the cloud. Sign out anyway? A local safety copy is kept on this device.")) return;
     logout();
-    navigate("/lifehub");
+    goToSignIn();
   };
   useEffect(() => {
     if (!message) return;
@@ -653,7 +654,8 @@ export default function AriseTodo() {
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
 
-  if (!user) return <AriseTodoSignIn />;
+  // Signed out: the shared sign-in screen, except when someone is making a personal LifeHub account.
+  if (!user) return /[?&]mode=signup(?:&|$)/.test(window.location.hash) ? <AriseTodoSignIn /> : <Redirect to="/signin" replace />;
   if (!sync.loaded) return <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#f6f7fc] px-4 text-center text-slate-800">
     {sync.error ? <><CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved LifeHub lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button></> : <><RefreshCw className="animate-spin text-violet-600" size={34} /><p className="text-sm font-semibold text-slate-600">Opening your tasks from your account…</p></>}
   </div>;

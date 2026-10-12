@@ -60,7 +60,7 @@ export default function AriseTodoSignIn() {
           {error && <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>}
           <button disabled={busy || isLoading} type="submit" className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#705de0] px-4 font-bold text-white hover:bg-[#5c49cf] disabled:opacity-60">{busy ? "Working…" : mode === "login" ? "Sign in and open LifeHub" : "Create my LifeHub account"} <ArrowRight size={18} /></button>
         </form>
-        <button type="button" className="mt-5 min-h-11 w-full text-center text-sm font-semibold text-violet-700 hover:underline" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>{mode === "login" ? "New here? Create a free LifeHub account" : "Already have an account? Sign in"}</button>
+        <button type="button" className="mt-5 min-h-11 w-full text-center text-sm font-semibold text-violet-700 hover:underline" onClick={() => { if (mode === "signup") { navigate("/signin"); return; } setMode("signup"); setError(""); }}>{mode === "login" ? "New here? Create a free LifeHub account" : "Already have an account? Sign in"}</button>
         <p className="mt-6 rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">If you already use A.R.I.S.E. Reader or Arise WorkHub, your existing username and password work here too. Your tasks stay separate from school records.</p>
       </div>
     </div>

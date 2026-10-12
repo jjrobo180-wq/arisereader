@@ -93,7 +93,8 @@ const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
 import TodoGate from "@/components/TodoGate";
-import { ReaderAdminToTodoRedirect, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
+import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
+import { READER_APP, hubPathFor, isHubAccount } from "@/lib/hubs";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -316,6 +317,30 @@ function ReaderToTodoRedirect() {
   </main>;
 }
 
+/** A student who signed in on arisetodo.com: student accounts live on A.R.I.S.E. Reader. */
+function StudentOnTodo() {
+  const { logout } = useAuth();
+  return <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-[#f6f7fc] p-6 text-center text-slate-900">
+    <h1 className="text-2xl font-black">Student accounts open in A.R.I.S.E. Reader</h1>
+    <p className="max-w-md text-sm text-slate-600">arisetodo.com is for teachers and families. Your books, quizzes and games are on arisereader.com.</p>
+    <button type="button" onClick={() => { logout(); window.location.assign(`${READER_APP}#/signin?as=student`); }} className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white">Go to A.R.I.S.E. Reader</button>
+  </main>;
+}
+
+/** Someone who is signed in reached the sign-in screen (or just signed in): open their place.
+ *  Teachers, parents, LifeHub accounts and the administrator get their hub on arisetodo.com. */
+function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean; onTodoDomain: boolean }) {
+  const { user } = useAuth();
+  if (!user) return null;
+  if (isHubAccount(user)) {
+    if (onReaderDomain) return <ReaderToHubHandoff />;
+    if (user.isAdmin) return <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" />;
+    return <Redirect to={hubPathFor(user)} replace />;
+  }
+  if (onTodoDomain) return <StudentOnTodo />;
+  return <Redirect to="/" replace />;
+}
+
 function AppRoutes() {
   const { user, isLoading } = useAuth();
   // Eye-gaze mode is only for non-privileged learner accounts. Admin,
@@ -335,10 +360,10 @@ function AppRoutes() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
     <Switch>
       <Route path="/lifehub">
-        {onReaderDomain && user?.role !== "parent" ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
+        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
       <Route path="/to-do">
-        {onReaderDomain && user?.role !== "parent" ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
+        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
       </Route>
       <Route path="/admin-handoff">
         {onTodoDomain ? <TodoAdminHandoff /> : <Redirect to="/signin" replace />}
@@ -347,7 +372,7 @@ function AppRoutes() {
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ProtectedRoute><FypMyBooksPage /></ProtectedRoute>}
       </Route>
       <Route path="/signin">
-        {user ? <Redirect to="/" replace /> : <SignIn />}
+        {user ? <AfterSignIn onReaderDomain={onReaderDomain} onTodoDomain={onTodoDomain} /> : <SignIn />}
       </Route>
       <Route path="/explore-reader">
         {user ? <Redirect to="/" replace /> : <Login />}
@@ -381,10 +406,10 @@ function AppRoutes() {
         <OpenHubTab to="/workhub" storageKey="workhub_tab" value="reader" />
       </Route>
       <Route path="/workhub">
-        {onReaderDomain && user?.isAdmin ? <ReaderAdminToTodoRedirect /> : onTodoDomain && !user ? <SignIn /> : <TeacherHub />}
+        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
       </Route>
       <Route path="/teacher-hub">
-        {onReaderDomain && user?.isAdmin ? <ReaderAdminToTodoRedirect /> : onTodoDomain && !user ? <SignIn /> : <TeacherHub />}
+        {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
       </Route>
       <Route path="/hub">
         <Redirect to="/workhub" replace />

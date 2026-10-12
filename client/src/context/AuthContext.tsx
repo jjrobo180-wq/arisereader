@@ -3,6 +3,7 @@ import { API_BASE } from "@/lib/queryClient";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
 import { forgetThisDevice } from "@/lib/pushDevice";
+import { isHubAccount } from "@/lib/hubs";
 
 interface AuthUser {
   id: number;
@@ -31,7 +32,8 @@ interface AuthContextType {
   exitAdminPreview: () => void;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
-  completeAdminHandoff: (code: string) => Promise<void>;
+  /** Redeems a one-use code from arisereader.com (teachers, parents, LifeHub accounts, the administrator). */
+  completeAdminHandoff: (code: string) => Promise<AuthUser>;
   register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; independent?: boolean; directorySchool?: string }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -254,14 +256,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.message || "Could not complete sign-in.");
-    if (!data?.user?.isAdmin || typeof data.token !== "string") {
-      throw new Error("Administrator account verification failed.");
+    if (!isHubAccount(data?.user) || typeof data.token !== "string") {
+      throw new Error("We couldn't confirm your account. Please sign in again.");
     }
     sessionStorage.removeItem("arise_admin_preview_mode");
     setAdminPreviewMode(null);
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
     persistSession(data.user, data.token);
+    return data.user as AuthUser;
   }, [persistSession]);
 
   const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; independent?: boolean; directorySchool?: string }) => {

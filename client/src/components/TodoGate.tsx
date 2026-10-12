@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import HubAddons from "@/components/hub-pieces/HubAddons";
 import { HubEndedNote, type HubTrial } from "@/components/HubTrialNote";
+import { goToSignIn } from "@/lib/hubs";
 
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 
@@ -44,7 +45,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
         <header className="border-b border-[#e4e6f0] bg-white">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4">
             <div><span className="block text-xs font-extrabold tracking-[.16em] text-[#7e76aa]">ARISE</span><span className="block text-xl font-black tracking-tight">LifeHub<span className="text-[#7968e5]">.</span></span></div>
-            <button type="button" onClick={() => { logout(); window.location.hash = "/"; }} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold text-slate-500 hover:bg-slate-100"><LogOut size={15} /> Sign out</button>
+            <button type="button" onClick={() => { logout(); goToSignIn(); }} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold text-slate-500 hover:bg-slate-100"><LogOut size={15} /> Sign out</button>
           </div>
         </header>
         <main className="mx-auto max-w-6xl space-y-5 px-4 py-6">

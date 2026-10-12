@@ -66,6 +66,8 @@
       .header .hamburger{width:40px;height:40px;flex:0 0 40px}
     }
     @media(max-width:900px){.nav-links .mobile-menu-signin{display:block;padding:12px 14px;border-radius:11px;background:#f1efff;color:#5249c8;font-weight:800;margin-bottom:8px}}@media(min-width:901px){.nav-links .mobile-menu-signin{display:none}}
+
+    .nav-actions .student-signin{opacity:.85}@media(max-width:900px){.nav-actions .student-signin{display:none!important}}
 </style>
 </head>
 <body>
@@ -96,8 +98,8 @@
 <div class="topbar">EVERY STORY STARTS SOMETHING AMAZING <span>✦</span> Read · Learn · Earn · Play · Grow</div>
 <header class="header"><div class="container nav">
   <a href="#top" class="logo" aria-label="A.R.I.S.E. Reader home"><span class="logo-mark"><svg class="ico"><use href="#i-book"/></svg></span><span><span class="logo-name">A.R.I.S.E. <strong>Reader</strong></span><span class="logo-sub">Read · Imagine · Grow</span></span></a>
-  <nav class="nav-links" id="navLinks" aria-label="Main menu"><a href="/#/signin" target="_top" class="mobile-menu-signin">Sign in</a><a href="#how">Parent &amp; teacher tools</a><a href="#books">Explore books</a><a href="#games">Games</a><a href="#who">For everyone</a><a href="#features">Features</a><a href="/#/pricing" target="_top">Pricing</a><a href="#faq">Questions</a><a href="#full-toolkit">All tools</a></nav>
-  <div class="nav-actions"><a href="/#/signin" target="_top" class="btn btn-text">Sign in</a><button class="btn btn-primary" data-start>Get started <svg class="ico small"><use href="#i-arrow"/></svg></button><button class="hamburger" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg class="ico lg"><use href="#i-menu"/></svg></button></div>
+  <nav class="nav-links" id="navLinks" aria-label="Main menu"><a href="/#/signin" target="_top" class="mobile-menu-signin">Sign in</a><a href="/#/signin?as=student" target="_top" class="mobile-menu-signin">Student sign in</a><a href="#how">Parent &amp; teacher tools</a><a href="#books">Explore books</a><a href="#games">Games</a><a href="#who">For everyone</a><a href="#features">Features</a><a href="/#/pricing" target="_top">Pricing</a><a href="#faq">Questions</a><a href="#full-toolkit">All tools</a></nav>
+  <div class="nav-actions"><a href="/#/signin?as=student" target="_top" class="btn btn-text student-signin">Student sign in</a><a href="/#/signin" target="_top" class="btn btn-text">Sign in</a><button class="btn btn-primary" data-start>Get started <svg class="ico small"><use href="#i-arrow"/></svg></button><button class="hamburger" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg class="ico lg"><use href="#i-menu"/></svg></button></div>
 </div></header>
 <main id="top"><div class="arise-announcement" id="ariseAnnouncement" hidden></div>
 <section class="hero"><div class="container hero-grid">
@@ -178,6 +180,11 @@
   'use strict';
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
+  // Already signed in: "Sign in" takes them straight to their hub or library, so say so.
+  if (/(?:^|;\s*)arise_session=/.test(document.cookie)) {
+    $$('a[href="/#/signin"]').forEach(a => { a.childNodes.forEach(n => { if (n.nodeType === 3 && /sign in/i.test(n.textContent)) n.textContent = n.textContent.replace(/sign in/i, 'Open my account'); }); });
+    $$('.student-signin').forEach(a => a.remove());
+  }
   const menu = $('#menuToggle'), nav = $('#navLinks');
   menu.addEventListener('click', () => {const opening=!nav.classList.contains('open');nav.classList.toggle('open',opening);menu.setAttribute('aria-expanded',String(opening));menu.setAttribute('aria-label',opening?'Close menu':'Open menu');menu.innerHTML=opening?'<svg class="ico lg"><use href="#i-close"/></svg>':'<svg class="ico lg"><use href="#i-menu"/></svg>';});
   $$('#navLinks a').forEach(a=>a.addEventListener('click',()=>{nav.classList.remove('open');menu.setAttribute('aria-expanded','false');menu.setAttribute('aria-label','Open menu');menu.innerHTML='<svg class="ico lg"><use href="#i-menu"/></svg>';}));

@@ -61,7 +61,8 @@ import WidgetBoard from "@/components/widgets/WidgetBoard";
 import { cleanWidgets } from "@shared/widgets";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { useAuth } from "@/context/AuthContext";
-import { useLocation } from "wouter";
+import { Redirect, useLocation } from "wouter";
+import { goToSignIn } from "@/lib/hubs";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
 import { TASK_SORTS, arrangeTasks, clearDone, restoreTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
@@ -178,80 +179,7 @@ function dateValue(date: string) {
   return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
 }
 
-function TeacherHubLogin() {
-  const { login, user } = useAuth();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      await login(username.trim(), password);
-    } catch (err: any) {
-      setError(err?.message || "Could not sign in.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (user) return null;
-
-  return (
-    <div className="min-h-screen bg-slate-100 px-3 py-6 sm:px-5 sm:py-12">
-      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:rounded-[2rem] md:grid-cols-[1.05fr_.95fr]">
-        <div className="bg-slate-950 p-6 text-white sm:p-8 md:p-12">
-          <div className="mb-6 text-xs font-semibold md:mb-16 uppercase tracking-[.28em] text-slate-400">A.R.I.S.E.</div>
-          <h1 className="max-w-lg text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Arise WorkHub</h1>
-          <p className="mt-5 max-w-lg text-base leading-7 text-slate-300">
-            Your private teacher workspace for caseloads, IEP timelines, lessons, tasks, student notes,
-            attendance, grades, family communication, A.R.I.S.E. records, schedules, and more.
-          </p>
-          <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-            Your Hub is saved to your teacher account, so it is waiting for you on any device after you sign in.
-          </div>
-        </div>
-        <form onSubmit={submit} className="p-6 sm:p-8 md:p-12">
-          <p className="text-sm font-semibold text-slate-500">Teacher account</p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Sign in</h2>
-          <div className="mt-8 space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Username</label>
-              <Field value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Password</label>
-              <Field
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </div>
-            {error && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-            <PrimaryButton type="submit" disabled={busy}>
-              {busy ? "Signing in…" : "Open Arise WorkHub"}
-            </PrimaryButton>
-          </div>
-          <div className="mt-8 border-t border-slate-100 pt-6">
-            <p className="text-sm text-slate-600">New teacher?</p>
-            <a
-              href="#/teacher-signup"
-              className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-slate-950 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900"
-            >
-              <Plus className="h-4 w-4" />
-              Create a teacher account
-            </a>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+// Signed-out visitors get the shared sign-in screen (pages/SignIn.tsx); see AppRoutes.
 
 /** Shown to a teacher without a Arise WorkHub plan. */
 function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?: boolean }) {
@@ -648,9 +576,10 @@ function TeacherHubPage() {
   async function signOut() {
     await sync.flush();
     logout();
+    goToSignIn();
   }
 
-  if (!user) return <TeacherHubLogin />;
+  if (!user) return <Redirect to="/signin" replace />;
 
   if (!canUseHub) {
     return (
@@ -660,7 +589,7 @@ function TeacherHubPage() {
           <h1 className="mt-4 text-2xl font-bold text-slate-950">Teacher accounts only</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">Sign in with an approved teacher account to open the Arise WorkHub.</p>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <GhostButton onClick={logout}><LogOut className="h-4 w-4" /> Sign out</GhostButton>
+            <GhostButton onClick={() => { logout(); goToSignIn(); }}><LogOut className="h-4 w-4" /> Sign out</GhostButton>
             <a href="#/teacher-signup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create teacher account</a>
           </div>
         </div>

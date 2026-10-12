@@ -4,6 +4,30 @@ interface State {
   hasError: boolean;
 }
 
+/** Reads the role from the saved sign-in (no names), so a crash report says whose screen broke. */
+function savedRole(): string {
+  try {
+    const raw = document.cookie.split(";").map(c => c.trim()).find(c => c.startsWith("arise_session="));
+    if (!raw) return "guest";
+    const bin = atob(raw.slice("arise_session=".length));
+    let data: any; try { data = JSON.parse(decodeURIComponent(escape(bin))); } catch { data = JSON.parse(bin); }
+    return data?.user?.isAdmin ? "admin" : String(data?.user?.role || "student");
+  } catch { return "unknown"; }
+}
+
+function reportCrash(error: unknown, info: any) {
+  try {
+    const e = error as Error;
+    const where = String(info?.componentStack || "").split("\n").map(s => s.trim()).filter(Boolean).slice(0, 3).join(" < ");
+    fetch("/api/client-error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({ host: location.hostname, route: location.hash || location.pathname, role: savedRole(), name: e?.name, message: e?.message, where }),
+    }).catch(() => {});
+  } catch { /* reporting must never break the page further */ }
+}
+
 export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   state: State = { hasError: false };
 
@@ -25,15 +49,26 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   componentDidCatch(error: Error, info: any) {
     console.error("App error:", error, info);
+    reportCrash(error, info);
   }
 
   handleReload = () => {
+    window.location.reload();
+  };
+
+  handleHome = () => {
     this.setState({ hasError: false });
-    if (window.location.hash !== "#/library") window.location.hash = "#/library";
+    const role = savedRole();
+    if (role === "teacher" || role === "admin") window.location.hash = "#/workhub";
+    else if (role === "parent" || role === "todo") window.location.hash = "#/lifehub";
+    else if (role === "guest") window.location.hash = "#/signin";
+    else window.location.hash = "#/library";
   };
 
   render() {
     if (this.state.hasError) {
+      const role = savedRole();
+      const adult = role === "teacher" || role === "admin" || role === "parent" || role === "todo";
       return (
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="text-center p-8 max-w-sm">
@@ -44,14 +79,22 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
             </div>
             <h2 className="text-xl font-bold mb-2 text-foreground">Something went wrong</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              That page could not finish loading. The site will recover automatically from stale page files after updates; you can also return to the library.
+              That page couldn’t finish loading. We’ve been told about it. Reloading usually fixes it.
             </p>
-            <button
-              onClick={this.handleReload}
-              className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
-            >
-              Back to Library
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <button
+                onClick={this.handleReload}
+                className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+              >
+                Reload the page
+              </button>
+              <button
+                onClick={this.handleHome}
+                className="px-6 py-2.5 rounded-xl border border-border font-semibold text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                {adult ? "Back to my hub" : role === "guest" ? "Go to sign in" : "Back to Library"}
+              </button>
+            </div>
           </div>
         </div>
       );

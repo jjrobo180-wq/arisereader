@@ -5,6 +5,7 @@ import { isSampleAccount } from "@shared/sampleAccounts";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useLocation } from "wouter";
+import { goToSignIn } from "@/lib/hubs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -2415,7 +2416,7 @@ Generate exactly 10 questions.`;
     adminCache.students = [];
     adminCache.books = [];
     logout();
-    navigate("/");
+    goToSignIn();
   };
 
   useEffect(() => {

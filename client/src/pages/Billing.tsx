@@ -2,6 +2,7 @@
 // Payment happens on Stripe's own page; this page only starts it and reads the result.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { goToSignIn } from "@/lib/hubs";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { usePlan, type PlanInfo } from "@/lib/plan";
@@ -155,7 +156,7 @@ export default function Billing() {
         <button type="button" className="pr-mark" onClick={() => navigate("/pricing")}>A.R.I.S.E. <span>Reader</span></button>
         <nav aria-label="Account">
           {!locked && <button type="button" className="pr-link" onClick={() => navigate("/")}>Back to my dashboard</button>}
-          <button type="button" className="pr-link" onClick={() => { logout(); navigate("/"); }}>Log out</button>
+          <button type="button" className="pr-link" onClick={() => { logout(); goToSignIn(); }}>Log out</button>
         </nav>
       </header>
 
