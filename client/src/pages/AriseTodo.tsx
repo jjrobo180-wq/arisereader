@@ -752,7 +752,7 @@ export default function AriseTodo() {
           <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">LifeHub</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
-          {(user.role === "teacher" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
+          {(user.role === "teacher" || user.role === "parent" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <HubSearchButton onOpen={() => setSearching(true)} />
           <BriefButton onOpen={() => setBriefOpen(true)} className="hidden sm:inline-flex" />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
