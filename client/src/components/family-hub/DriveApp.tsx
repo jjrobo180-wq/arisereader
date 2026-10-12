@@ -9,11 +9,14 @@ type Props = {
   files: DriveFile[];
   setFiles: (update: (all: DriveFile[]) => DriveFile[]) => void;
   say: (msg: string) => void;
+  /** This account's own A.R.I.S.E. session token (see AuthContext) — the server checks for it as
+   *  a Bearer header, not a cookie, so every request here has to attach it itself. */
+  token: string | null;
 };
 
 const fmtBytes = (n: number) => n >= 1024 * 1024 * 1024 ? `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB` : `${(n / (1024 * 1024)).toFixed(0)} MB`;
 
-export default function DriveApp({ files, setFiles, say }: Props) {
+export default function DriveApp({ files, setFiles, say, token }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -24,15 +27,15 @@ export default function DriveApp({ files, setFiles, say }: Props) {
 
   const upload = async (fileList: FileList | null) => {
     if (!fileList || !fileList.length) return;
+    if (!token) { say("Sign in again to upload to Drive."); return; }
     setBusy(true);
     try {
       for (const file of Array.from(fileList).slice(0, 10)) {
         const body = await file.arrayBuffer();
         const res = await fetch("/api/lifehub/drive/upload", {
           method: "POST",
-          headers: { "Content-Type": file.type || "application/octet-stream", "x-drive-used-bytes": String(driveBytesUsed(files)), "x-drive-name": encodeURIComponent(file.name) },
+          headers: { "Content-Type": file.type || "application/octet-stream", "x-drive-used-bytes": String(driveBytesUsed(files)), "x-drive-name": encodeURIComponent(file.name), Authorization: `Bearer ${token}` },
           body,
-          credentials: "include",
         });
         if (!res.ok) { const j = await res.json().catch(() => null); say(j?.message || "Couldn't upload that photo."); continue; }
         const meta: DriveFile = await res.json();
@@ -48,15 +51,15 @@ export default function DriveApp({ files, setFiles, say }: Props) {
   };
 
   const view = async (f: DriveFile) => {
-    if (urls[f.id]) return;
-    const res = await fetch("/api/lifehub/drive/url", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ path: f.path }) });
+    if (urls[f.id] || !token) return;
+    const res = await fetch("/api/lifehub/drive/url", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path: f.path }) });
     const j = await res.json().catch(() => null);
     if (j?.url) setUrls((u) => ({ ...u, [f.id]: j.url }));
   };
 
   const del = async (f: DriveFile) => {
     setFiles((all) => removeDriveFile(all, f.id));
-    await fetch("/api/lifehub/drive/delete", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ path: f.path }) }).catch(() => {});
+    if (token) await fetch("/api/lifehub/drive/delete", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path: f.path }) }).catch(() => {});
     say("Photo deleted.");
   };
 

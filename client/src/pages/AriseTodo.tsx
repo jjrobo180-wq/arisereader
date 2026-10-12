@@ -967,14 +967,14 @@ export default function AriseTodo() {
               <button type="button" onClick={() => setDriveOpen(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
               <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
             </div>
-            <DriveApp files={driveFiles} setFiles={setDriveFiles} say={setMessage} />
+            <DriveApp files={driveFiles} setFiles={setDriveFiles} say={setMessage} token={token} />
           </div>}
           {dropOpen && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => setDropOpen(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
               <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
             </div>
-            <DropApp say={setMessage} />
+            <DropApp say={setMessage} token={token} />
           </div>}
           {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && shown === "tasks" && <>

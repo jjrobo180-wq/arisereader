@@ -7,7 +7,13 @@ import { useEffect, useRef, useState } from "react";
 import { Upload, Copy, Check, QrCode, Download, Clock, Link2 } from "lucide-react";
 import { DROP_MAX_BYTES, isDropCode } from "@shared/dropApp";
 
-type Props = { say: (msg: string) => void };
+type Props = {
+  say: (msg: string) => void;
+  /** This account's own A.R.I.S.E. session token (see AuthContext) — the server checks for it as
+   *  a Bearer header, not a cookie, so sending a drop and listing "mine" both need it attached.
+   *  Receiving (lookup + claim) is deliberately open, no account needed on that side. */
+  token: string | null;
+};
 
 type SentDrop = { code: string; name: string; size: number; createdAt: string; expiresAt: string };
 type ReceivedInfo = { code: string; name: string; size: number; contentType: string; expiresAt: string };
@@ -20,7 +26,7 @@ const fmtLeft = (iso: string) => {
   return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
 };
 
-export default function DropApp({ say }: Props) {
+export default function DropApp({ say, token }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<{ code: string; name: string; size: number; expiresAt: string } | null>(null);
@@ -36,12 +42,13 @@ export default function DropApp({ say }: Props) {
   const link = (code: string) => `${window.location.origin}/drop/${code}`;
 
   const loadMine = () => {
-    fetch("/api/lifehub/drop/mine/list", { credentials: "include" })
+    if (!token) return;
+    fetch("/api/lifehub/drop/mine/list", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((j) => setMine(Array.isArray(j?.drops) ? j.drops : [])).catch(() => {});
   };
-  useEffect(() => { loadMine(); }, []);
+  useEffect(() => { loadMine(); }, [token]);
 
-  // A link like /app/drop/ABC123 (or ?drop=ABC123) opens Drop already looking that code up.
+  // A link like /drop/ABC123 (or ?drop=ABC123) opens Drop already looking that code up.
   useEffect(() => {
     const m = window.location.pathname.match(/\/drop\/([A-Za-z2-9]{6})/) || [null, new URLSearchParams(window.location.search).get("drop") || ""];
     const code = String(m[1] || "").toUpperCase();
@@ -54,14 +61,15 @@ export default function DropApp({ say }: Props) {
   const upload = async (fileList: FileList | null) => {
     const file = fileList?.[0];
     if (!file) return;
+    if (!token) { say("Sign in again to send with Drop."); return; }
     if (file.size > DROP_MAX_BYTES) { say("Keep a Drop file under 200 MB."); return; }
     setBusy(true);
     try {
       const body = await file.arrayBuffer();
       const res = await fetch("/api/lifehub/drop/upload", {
         method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream", "x-drop-name": encodeURIComponent(file.name) },
-        body, credentials: "include",
+        headers: { "Content-Type": file.type || "application/octet-stream", "x-drop-name": encodeURIComponent(file.name), Authorization: `Bearer ${token}` },
+        body,
       });
       const j = await res.json().catch(() => null);
       if (!res.ok) { say(j?.message || "Couldn't create that drop."); return; }
