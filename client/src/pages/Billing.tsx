@@ -280,14 +280,13 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
   const own = hub.teacherPlan?.live ? hub.teacherPlan : null;
   const school = hub.schoolPlan?.live ? hub.schoolPlan : null;
   const price = blocks * H.monthlyCents;
-  if (hub.via === "free") return (
+  // A.R.I.S.E. To-Do is already shown as an included, free item in the checklist above
+  // (AddonsCard) — nothing more to show here unless there's old paid billing to clean up.
+  if (hub.via === "free") return own?.paidOnline ? (
     <div className="bl-hub" data-testid="billing-hub">
-      <h2 className="bl-h2">A.R.I.S.E. To-Do — Work &amp; Life <span className="bl-tag">Free</span></h2>
-      <p className="bl-hub-lede">Both hubs are permanently free for teachers and parents. No trial, separate subscription, or student block charge applies to To-Do.</p>
-      <button type="button" className="pr-pill pr-pill-sm" onClick={open} data-testid="billing-open-hub">Open Work hub</button>
-      {own?.paidOnline && <p className="mt-4 text-sm text-slate-700">You have an older paid WorkHub subscription. The hub is free now, but older recurring billing may still need to be cancelled. <button type="button" className="bl-text" onClick={() => go("hub-portal", "/api/billing/portal", { kind: "hub_teacher", returnTo: siteAddress() })}>Manage old subscription</button></p>}
+      <p className="text-sm text-slate-700">You have an older paid WorkHub subscription. The hub is free now, but older recurring billing may still need to be cancelled. <button type="button" className="bl-text" onClick={() => go("hub-portal", "/api/billing/portal", { kind: "hub_teacher", returnTo: siteAddress() })}>Manage old subscription</button></p>
     </div>
-  );
+  ) : null;
   return (
     <div className="bl-hub" data-testid="billing-hub">
       <h2 className="bl-h2">Arise WorkHub <span className="bl-tag">Add-on</span></h2>
