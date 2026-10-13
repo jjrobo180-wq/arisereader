@@ -541,7 +541,7 @@ function tabs(){
   if (r==='parent') return [['family','Home','feed'],['explore','Explore','explore'],['paths','Paths','paths']];
   return [];
 }
-function badgeFor(id){ return id==='approvals' && S.approvals ? S.approvals.length : 0; }
+function badgeFor(id){ return id==='approvals' ? (S.approvals?.length||0)+(S.accessRequests?.length||0) : 0; }
 function renderChrome(){
   const t = tabs();
   if (t.length && !t.find(x=>x[0]===S.tab)) S.tab = t[0][0];
@@ -622,7 +622,7 @@ function leftHTML(){
     return `<div class="card flush mini"><div class="cover"></div>${av(ME.user.name,'lg')}
       <div class="who"><b>${esc(ME.user.name)} ${tick}</b><span>${r==='admin'?'Admin':'Teacher'}</span></div>
       <div class="divider" style="margin:0"></div>
-      <button class="kv" data-act="tab" data-v="approvals" style="border:0;background:transparent;width:100%;padding-top:12px"><span>Waiting for approval</span><b class="tnum">${S.approvals?S.approvals.length:'–'}</b></button>
+      <button class="kv" data-act="tab" data-v="approvals" style="border:0;background:transparent;width:100%;padding-top:12px"><span>Waiting for approval</span><b class="tnum">${S.approvals===null && S.accessRequests===null ? '–' : (S.approvals?.length||0)+(S.accessRequests?.length||0)}</b></button>
       ${ci?`<div class="kv"><span>Students</span><b class="tnum">${ci.totals.students}</b></div><div class="kv" style="padding-bottom:14px"><span>Active this week</span><b class="tnum">${ci.totals.activeWeek}</b></div>`:'<div style="height:10px"></div>'}</div>`;
   }
   if (r==='parent'){
@@ -920,6 +920,11 @@ function render(){
   if (!ME) { root.innerHTML = landingHTML(); document.getElementById('bottom').hidden = true; return; }
   if (role()==='student' && ME.approvalStatus!=='approved') { document.getElementById('bottom').hidden = true; root.innerHTML = connectLockHTML(); return; }
   if (!ME.access && role()!=='teacher') { document.getElementById('bottom').hidden = true; root.innerHTML = joinHTML(); return; }
+  if (!ME.access && role()==='teacher') {
+    document.getElementById('bottom').hidden = false;
+    root.innerHTML = `<div class="app" style="grid-template-columns:minmax(0,1fr);max-width:800px"><main id="main">${viewApprovals()}</main></div>`;
+    return;
+  }
   document.getElementById('bottom').hidden = false;
   root.innerHTML = `<div class="app"><aside class="left" id="left">${leftHTML()}</aside><main id="main">${(VIEWS[S.tab]||viewFeed)()}</main><aside class="rail" id="rail">${railHTML()}</aside></div>`;
 }
