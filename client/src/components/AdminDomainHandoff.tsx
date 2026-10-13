@@ -104,6 +104,10 @@ export function TodoAdminHandoff() {
         try {
           if (signedIn?.isAdmin && !tab) sessionStorage.setItem("workhub_tab", "admin");
           else if (tab) sessionStorage.setItem(to === "/workhub" ? "workhub_tab" : "lifehub_tab", tab);
+          else if (signedIn.role === "teacher") sessionStorage.setItem("workhub_tab", "overview");
+          else if (signedIn.role === "parent") sessionStorage.setItem("lifehub_tab", "home");
+          localStorage.setItem("arise-hub-rail", "open");
+          localStorage.setItem("arise-life-rail", "open");
         } catch { /* the hub opens on its usual first tab */ }
         window.location.replace(`/app#${to}`);
       })
