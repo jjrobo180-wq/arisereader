@@ -26,7 +26,8 @@ export default function SignIn() {
   const { login } = useAuth();
   const [, navigate] = useLocation();
   const onTodo = isTodoHost();
-  const [who, setWho] = useState<Who>(() => /[?&]as=student(?:&|$)/.test(window.location.hash) ? "student" : "adult");
+  // arisetodo.com is for anyone, so it has one sign-in (students sign in on arisereader.com).
+  const [who, setWho] = useState<Who>(() => !onTodo && /[?&]as=student(?:&|$)/.test(window.location.hash) ? "student" : "adult");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [personalSignup, setPersonalSignup] = useState(false);
@@ -39,7 +40,7 @@ export default function SignIn() {
   const adult = who === "adult";
   // "Student sign in" and "Sign in" links switch the tab even when this screen is already open.
   useEffect(() => {
-    const sync = () => setWho(/[?&]as=student(?:&|$)/.test(window.location.hash) ? "student" : "adult");
+    const sync = () => setWho(!onTodo && /[?&]as=student(?:&|$)/.test(window.location.hash) ? "student" : "adult");
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
@@ -146,26 +147,28 @@ export default function SignIn() {
       <main className="relative mx-auto grid min-h-[calc(100dvh-83px)] w-full max-w-6xl items-center gap-12 overflow-hidden px-5 py-12 sm:px-8 lg:grid-cols-[1fr_450px] lg:gap-20 lg:py-16">
         <section className="relative order-2 max-w-xl lg:order-1">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#dcd7fd] bg-[#eeebff] px-4 py-2 text-[11px] font-black uppercase tracking-[.12em] text-[#6257d7]">
-            <Sparkles size={15}/> {adult ? "One sign-in for teachers and families" : "Your reading adventure awaits"}
+            <Sparkles size={15}/> {onTodo ? "One sign-in for everyone" : adult ? "One sign-in for teachers and families" : "Your reading adventure awaits"}
           </div>
           <h1 className="max-w-lg text-4xl font-black leading-[1.09] tracking-[-.06em] sm:text-5xl xl:text-6xl">
             {adult ? <>Welcome back. <span className="text-[#5b53df]">Your hub is ready.</span></> : <>Welcome back to <span className="text-[#5b53df]">your next chapter.</span></>}
           </h1>
           <p className="mt-6 max-w-md text-base font-medium leading-8 text-[#68728b] sm:text-lg">
-            {adult
+            {onTodo
+              ? "Your Work and Life hubs, for anyone: home, family, work, school and everything in between. Already use A.R.I.S.E. Reader? Same username and password."
+              : adult
               ? "Teachers open Arise WorkHub. Parents open Arise LifeHub. Same username and password on arisereader.com and arisetodo.com."
               : "Your books, quizzes, rewards, and favorite learning spaces are all right where you left them."}
           </p>
           <div className="mt-10 grid max-w-lg gap-4 sm:grid-cols-2">
             <div className="rounded-[22px] border border-[#deddf8] bg-white p-5 shadow-[0_12px_40px_rgba(68,56,122,.05)]">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e9f9ee] text-[#2f9967]">{adult ? <Briefcase size={21}/> : <BookOpen size={21}/>}</span>
-              <div className="mt-3 font-black">{adult ? "Teachers" : "Read and discover"}</div>
-              <p className="mt-1 text-xs leading-5 text-[#707992]">{adult ? "Your class, caseload, plans and A.R.I.S.E. Reader tools in WorkHub." : "Find another great story."}</p>
+              <div className="mt-3 font-black">{onTodo ? "Work" : adult ? "Teachers" : "Read and discover"}</div>
+              <p className="mt-1 text-xs leading-5 text-[#707992]">{onTodo ? "Projects, meetings, to-dos and your workday in WorkHub." : adult ? "Your class, caseload, plans and A.R.I.S.E. Reader tools in WorkHub." : "Find another great story."}</p>
             </div>
             <div className="rounded-[22px] border border-[#deddf8] bg-white p-5 shadow-[0_12px_40px_rgba(68,56,122,.05)]">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#f4eaff] text-[#795ed6]">{adult ? <Heart size={21}/> : <Sparkles size={21}/>}</span>
-              <div className="mt-3 font-black">{adult ? "Parents" : "Keep growing"}</div>
-              <p className="mt-1 text-xs leading-5 text-[#707992]">{adult ? "Your family, to-dos, calendar and your child's reading in LifeHub." : "Celebrate every reading win."}</p>
+              <div className="mt-3 font-black">{onTodo ? "Life" : adult ? "Parents" : "Keep growing"}</div>
+              <p className="mt-1 text-xs leading-5 text-[#707992]">{onTodo ? "Home, family, calendar, health and everyday plans in LifeHub." : adult ? "Your family, to-dos, calendar and your child's reading in LifeHub." : "Celebrate every reading win."}</p>
             </div>
           </div>
           <p className="mt-7 flex items-start gap-2 text-xs font-semibold text-[#7d839d]"><Check size={16} className="mt-0.5 shrink-0 text-[#409b72]"/> Designed for students, educators, families, and every kind of learner.</p>
@@ -177,9 +180,9 @@ export default function SignIn() {
             {personalSignup ? (
               <section aria-label="Create your personal A.R.I.S.E. account">
                 <div className="mb-7">
-                  <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">Personal Life Hub</p>
+                  <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">{onTodo ? "A.R.I.S.E. To-Do" : "Personal Life Hub"}</p>
                   <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Create your free account</h2>
-                  <p className="mt-2 text-sm leading-6 text-[#737b94]">No school account needed. Your tasks and lists will be saved to your account.</p>
+                  <p className="mt-2 text-sm leading-6 text-[#737b94]">{onTodo ? "For anyone. No school or work email needed. You get both hubs, Work and Life." : "No school account needed. Your tasks and lists will be saved to your account."}</p>
                 </div>
                 <form onSubmit={handlePersonalSignup} className="space-y-5">
                   <div>
@@ -206,18 +209,18 @@ export default function SignIn() {
               </section>
             ) : (
               <>
-            <div role="tablist" aria-label="Who is signing in" className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-[#f1f0fb] p-1">
+            {!onTodo && <div role="tablist" aria-label="Who is signing in" className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-[#f1f0fb] p-1">
               {([["adult", "Teacher or parent", Briefcase], ["student", "Student", GraduationCap]] as const).map(([id, label, Icon]) => (
                 <button key={id} type="button" role="tab" aria-selected={who === id} onClick={() => pick(id)}
                   className={`flex min-h-11 items-center justify-center gap-2 rounded-xl text-sm font-black transition ${who === id ? "bg-white text-[#4d45cf] shadow-sm" : "text-[#6c7290] hover:text-[#3d3a7a]"}`}>
                   <Icon size={17}/> {label}
                 </button>
               ))}
-            </div>
+            </div>}
             <div className="mb-7">
-              <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">{adult ? "Teachers and parents" : "Student sign in"}</p>
+              <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">{onTodo ? "A.R.I.S.E. To-Do" : adult ? "Teachers and parents" : "Student sign in"}</p>
               <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Sign in</h2>
-              <p className="mt-2 text-sm text-[#737b94]">{adult ? "Your hub opens as soon as you sign in." : "Use the username and password from your teacher or parent."}</p>
+              <p className="mt-2 text-sm text-[#737b94]">{onTodo ? "Your hubs open as soon as you sign in." : adult ? "Your hub opens as soon as you sign in." : "Use the username and password from your teacher or parent."}</p>
             </div>
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
@@ -235,10 +238,22 @@ export default function SignIn() {
               </div>
               {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
               <button type="submit" disabled={submitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5b53df] px-5 text-sm font-black text-white shadow-md shadow-violet-200 transition hover:bg-[#4941cb] disabled:cursor-wait disabled:opacity-60">
-                {submitting ? "Signing you in…" : adult ? "Sign in and open my hub" : "Sign in to A.R.I.S.E. Reader"} <ArrowRight size={18}/>
+                {submitting ? "Signing you in…" : onTodo ? "Sign in and open my hubs" : adult ? "Sign in and open my hub" : "Sign in to A.R.I.S.E. Reader"} <ArrowRight size={18}/>
               </button>
             </form>
             <div className="my-6 flex items-center gap-3 text-xs text-[#8b91a5]"><span className="h-px flex-1 bg-[#e5e7f4]"/><span>New to A.R.I.S.E.?</span><span className="h-px flex-1 bg-[#e5e7f4]"/></div>
+            {onTodo ? <>
+              {/* arisetodo.com is for anyone: the main sign-up is a free personal account with no school email.
+                  Teacher accounts (which can see students' data) still confirm a school email, on their own page. */}
+              <button type="button" onClick={lifeHubSignup} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#d9d5fb] bg-[#f5f3ff] text-sm font-black text-[#5b53df] hover:bg-[#eeebff]" data-testid="todo-create-account">
+                Create a free account <ArrowRight size={18}/>
+              </button>
+              <p className="mt-3 text-center text-xs leading-5 text-[#7d839d]">
+                Using A.R.I.S.E. Reader? <button type="button" onClick={() => navigate("/teacher-signup")} className="font-bold text-[#5b53df] hover:underline">Teacher with a class</button>
+                {" · "}<button type="button" onClick={() => navigate("/parent-signup")} className="font-bold text-[#5b53df] hover:underline">Parent of a reader</button>
+                {" · "}<a href="https://www.arisereader.com/#/signin?as=student" className="font-bold text-[#5b53df] hover:underline">Student sign in</a>
+              </p>
+            </> : <>
             <button type="button" aria-expanded={showAccounts} onClick={() => setShowAccounts(v => !v)} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#d9d5fb] bg-[#f5f3ff] text-sm font-black text-[#5b53df] hover:bg-[#eeebff]">
               Create an account <ChevronRight size={18} className={showAccounts ? "rotate-90 transition-transform" : "transition-transform"}/>
             </button>
@@ -249,6 +264,7 @@ export default function SignIn() {
                 {accountButton("Just me", "A personal LifeHub, no school needed", UserRound, lifeHubSignup)}
               </> : studentAccounts.map(({ label, description, path, icon }) => accountButton(label, description, icon, () => navigate(path)))}
             </div>}
+            </>}
             <button type="button" aria-expanded={showSamples} onClick={() => setShowSamples(v => !v)} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-[#6d668c] hover:bg-[#f7f7ff] hover:text-[#554bd2]">
               <Sparkles size={17}/> Try a sample account
             </button>

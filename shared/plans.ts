@@ -362,7 +362,8 @@ export type HubAccess = { access: boolean; via: HubVia | null; seats: number | n
 export function hubAccessFor(person: PlanPerson | null | undefined, _facts: { now?: number; teacherGrant?: PlanGrant | null; schoolGrant?: PlanGrant | null }): HubAccess {
   if (!person) return { access: false, via: null, seats: null, endsAt: null };
   if (person.isAdmin || person.role === "admin") return { access: true, via: "admin", seats: null, endsAt: null };
-  if (person.role === "teacher" || person.role === "parent") return { access: true, via: "free", seats: null, endsAt: null };
+  // Both hubs are for anyone with an adult account: teachers, parents and personal A.R.I.S.E. To-Do accounts.
+  if (person.role === "teacher" || person.role === "parent" || person.role === "todo") return { access: true, via: "free", seats: null, endsAt: null };
   return { access: false, via: null, seats: null, endsAt: null };
 }
 

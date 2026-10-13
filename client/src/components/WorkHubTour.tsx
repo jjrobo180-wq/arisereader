@@ -14,7 +14,7 @@ import { API_BASE } from "@/lib/queryClient";
 // be started again from Customize ("Take the tour"), which sends "arise-tour:start". To open a
 // section it sends "arise-tour:open"; TeacherHub and AriseTodo listen for it.
 
-type TourRole = "teacher" | "parent";
+type TourRole = "teacher" | "parent" | "personal";
 
 /** Where to point. The first selector that is on screen wins; `note` is added when it isn't the first (e.g. a phone's ••• menu). */
 type Target = { sel: string; label: string; note?: string };
@@ -28,6 +28,8 @@ type TourStep = {
   open?: { tab: string } | { section: string };
   /** Only for parents (a teacher's LifeHub has no linked child to show). */
   parentOnly?: boolean;
+  /** Only for teachers (and admins): the A.R.I.S.E. Reader class tools. */
+  teacherOnly?: boolean;
 };
 
 // One tour per hub. It follows the hub you're on, so a teacher (or admin) taking it from LifeHub
@@ -46,6 +48,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
     },
     {
       title: "A.R.I.S.E. Reader",
+      teacherOnly: true,
       body: "Your reading program lives here, in the violet button. Tap it any time to get back to your Reader Overview.",
       open: { tab: "reader" },
       targets: [
@@ -55,12 +58,14 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
     },
     {
       title: "Your Reader Overview",
+      teacherOnly: true,
       body: "This is the Overview. It shows what needs you today: students waiting to join, quizzes to grade and requests to answer.",
       open: { tab: "reader" },
       targets: [{ sel: '[data-tour="hub-content"]', label: "Reader Overview" }],
     },
     {
       title: "Your students",
+      teacherOnly: true,
       body: "Your class list. You only ever see students assigned to you. Add students one at a time or a whole class from a spreadsheet, and open anyone's profile to see their quizzes and points.",
       open: { tab: "readerStudents" },
       targets: [
@@ -70,6 +75,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
     },
     {
       title: "Approvals",
+      teacherOnly: true,
       body: "New students who sign up with your class code, grade changes and book requests wait here for a yes or no.",
       open: { tab: "readerApprovals" },
       targets: [
@@ -79,6 +85,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
     },
     {
       title: "Live quiz",
+      teacherOnly: true,
       body: "Run a live reading quiz with your whole class. Students join on their own devices and you see answers come in as they happen.",
       open: { tab: "readerLive" },
       targets: [
@@ -88,12 +95,14 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
     },
     {
       title: "The rest of your Reader",
+      teacherOnly: true,
       body: "Everything else for your class sits under A.R.I.S.E. Reader too: Scenes, Parents, Quizzes & grading, Game time, Prizes and Reading records.",
       open: { tab: "reader" },
       targets: [{ sel: '[data-tour="hub-menu"]', label: "Your menu" }],
     },
     {
       title: "Arise Learning",
+      teacherOnly: true,
       body: "Arise Math, Arise History and A.R.I.S.E. Connect have their own spot, right under A.R.I.S.E. Reader. Tap one to open it. An Add-on tag means it isn't on your plan yet; tapping it shows you how to add it.",
       targets: [
         { sel: '[data-testid="hub-learning-heading"]', label: "Arise Learning" },
@@ -162,6 +171,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
     },
     {
       title: "Arise Learning",
+      parentOnly: true,
       body: "Arise Math, Arise History and A.R.I.S.E. Connect have their own spot in your menu. Tap one to open it. An Add-on tag means it isn't on your plan yet; tapping it shows you how to add it.",
       targets: [
         { sel: '[data-testid="life-learning"]', label: "Arise Learning" },
@@ -226,7 +236,7 @@ const TOUR_STEPS: Record<Hub, TourStep[]> = {
 /** Which hub a page is, if any. */
 const hubAt = (path: string): Hub | null => (path === "/workhub" ? "work" : path === "/lifehub" ? "life" : null);
 /** The hub a person lands in, where the tour shows itself on their first visit. */
-const HOME_HUB: Record<TourRole, Hub> = { teacher: "work", parent: "life" };
+const HOME_HUB: Record<TourRole, Hub> = { teacher: "work", parent: "life", personal: "life" };
 const SEEN_KEY = (id: number, role: TourRole) => `arise_todo_tour_v2_seen_${id}_${role}`;
 
 function tokenFromCookie(): string | null {
@@ -242,6 +252,7 @@ function tokenFromCookie(): string | null {
 function roleForUser(user: any): TourRole | null {
   if (!user) return null;
   if (user.role === "parent") return "parent";
+  if (user.role === "todo") return "personal";
   if (user.role === "teacher" || user.isAdmin) return "teacher";
   return null;
 }
@@ -289,7 +300,7 @@ export default function WorkHubTour() {
   const hub = hubAt(path);
   // The hub the tour was started in. It stays put if the page changes underneath it.
   const [tourHub, setTourHub] = useState<Hub | null>(null);
-  const steps = useMemo(() => (tourHub ? TOUR_STEPS[tourHub].filter((x) => !x.parentOnly || role === "parent") : []), [tourHub, role]);
+  const steps = useMemo(() => (tourHub ? TOUR_STEPS[tourHub].filter((x) => (!x.parentOnly || role === "parent") && (!x.teacherOnly || role === "teacher")) : []), [tourHub, role]);
   const current = steps[step];
   const onHub = !!tourHub && hub === tourHub;
 

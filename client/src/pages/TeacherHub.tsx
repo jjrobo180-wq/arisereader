@@ -1054,7 +1054,8 @@ function TeacherHubPage() {
               return foldMenu(menu, layout.folders).map((entry) => {
                 // A.R.I.S.E. Reader lives in the Arise Learning section, right below Home.
                 if (entry.kind === "item" && entry.item.id === "arise") return null;
-                if (entry.kind === "item" && entry.item.id === "home") return <Fragment key="home-and-learning">{navItem(entry.item, menu.indexOf(entry.item))}{learning}</Fragment>;
+                // Teachers and admins get Arise Learning here, right below Home (parents have it in LifeHub).
+                if (entry.kind === "item" && entry.item.id === "home") return <Fragment key="home-and-learning">{navItem(entry.item, menu.indexOf(entry.item))}{(user.role === "teacher" || user.isAdmin) && learning}</Fragment>;
                 if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
                 const f = entry.folder, here = entry.items.some((x) => x.id === group.id) && !kitOpen;
                 const open = openFolders.includes(f.id) || here;

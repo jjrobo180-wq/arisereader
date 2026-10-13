@@ -670,6 +670,8 @@ export default function AriseTodo() {
     closeApps(); setSection("reader");
     window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
   } : undefined;
+  /** Arise Learning (Reader, Math, History, Connect) sits in LifeHub for parents. Teachers and admins have it in WorkHub. */
+  const learningHere = user?.role === "parent" && !user?.isAdmin;
   /** A.R.I.S.E. Reader: a parent's own Reader page here; for a teacher or admin, their Reader in WorkHub. */
   const readerHere = sections.includes("reader");
   const openReader = () => {
@@ -681,7 +683,7 @@ export default function AriseTodo() {
   const phoneItems: PhoneMenuItem[] = [
     // Right below Home: A.R.I.S.E. Reader, then Arise Learning (Math, History, Connect), for everyone.
     ...sections.filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); setSection(id); } };
-      return id !== "home" ? [item] : [item,
+      return id !== "home" || !learningHere ? [item] : [item,
         { id: "reader", label: "Reader", icon: <BookOpen className="text-violet-700" />, active: !notesAppOpen && shown === "reader", color: "#6d28d9", onClick: openReader },
         ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
@@ -916,7 +918,7 @@ export default function AriseTodo() {
           <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">To Do</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
-          {(user.role === "teacher" || user.role === "parent" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
+          {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <HubSearchButton onOpen={() => setSearching(true)} />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
           <button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} aria-label="Notification settings"><Bell size={17} /></button>
@@ -1019,7 +1021,8 @@ export default function AriseTodo() {
               </div>
             );
             // Right below Home: A.R.I.S.E. Reader and the Arise Learning programs.
-            return id === "home" ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
+            // Parents get Arise Learning here; teachers and admins have it in WorkHub instead.
+            return id === "home" && learningHere ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
           })}
         </nav>
         {(pinnableApps.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
