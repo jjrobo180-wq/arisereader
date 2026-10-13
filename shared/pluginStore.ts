@@ -81,6 +81,10 @@ export type Plugin = {
   needsNote?: string;
   /** For a connection: a CSS selector for its setup box, which Start setup scrolls to and highlights. */
   anchor?: string;
+  /** Needs A.R.I.S.E. To-Do Unlimited before it can be added at all. Shown to everyone, so people
+   *  can see what Unlimited gets them, but the button offers the upgrade instead of an Add that
+   *  would do nothing. */
+  needsUnlimited?: boolean;
   /** A paid add-on, billed on its own instead of being part of a plan. Shown as a price badge on its
    *  tile and card; "Add" sends to Billing to subscribe instead of switching the plugin on directly.
    *  $ is per month, per hub (one subscription covers everyone in that WorkHub or LifeHub). */
@@ -139,23 +143,14 @@ const WIDGETS_PLUGIN = (hub: PluginHub): Plugin => ({
 export const PLUGINS: readonly Plugin[] = [
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
   { id: "work-assistant-pro", hub: "work", name: "Arise AI Pro", tagline: "The premium AI assistant: more context, longer answers", category: "Premium", icon: "Sparkles", color: "#9333ea", featured: true, teacherOnly: true,
-    premium: { priceMonthly: 10, note: "500 messages a month included" },
-    description: "The same chat button, with real headroom: longer answers, more conversation history, and help with multi-step work — a full unit plan across several lessons, a detailed IEP goal with accommodations, a staff email that needs real nuance.",
+    needsUnlimited: true, premium: { priceMonthly: 10, note: "Needs A.R.I.S.E. To-Do Unlimited; 500 messages a month included" },
+    description: "Built on A.R.I.S.E. To-Do Unlimited, which includes the everyday AI. Arise AI Pro is the same chat button with real headroom: longer answers, more conversation history, and help with multi-step work — a full unit plan across several lessons, a detailed IEP goal with accommodations, a staff email that needs real nuance.",
     features: ["Longer, more detailed answers", "Remembers more of the conversation", "500 messages a month", "Priced to stay fast even at busy times"], target: { kind: "assistantPro" } },
   WIDGETS_PLUGIN("work"),
   BRIEF_PLUGIN("work"),
   { id: "work-assistant", hub: "work", name: "AI assistant", tagline: "Chat with AI about lessons, IEPs, emails and more", category: "Teaching tools", icon: "Sparkles", color: "#0f766e", featured: true, teacherOnly: true,
     description: "A chat button on every page of WorkHub. Ask for lesson ideas, help wording an IEP goal or accommodation, a parent email draft, or a quick explanation, and get a clear answer right away.",
     features: ["A chat button on every page", "Quick ideas to start with", "Copy any answer in one tap", "Free, with no monthly cap"], target: { kind: "assistant" } },
-  { id: "work-calendar", hub: "work", name: "Calendar", tagline: "Your school days, meetings and events", category: "Planning", icon: "CalendarDays", color: "#0f766e", featured: true, target: tab("calendar"),
-    description: "One calendar for meetings, deadlines and events, with repeating events and the calendars you already use pulled in.",
-    features: ["Day, week and month views", "Repeating events", "Google, Outlook and Apple calendars", "Meetings land here when booked"] },
-  { id: "work-tasks", hub: "work", name: "Tasks", tagline: "To-dos with due dates and repeats", category: "Planning", icon: "CheckSquare", color: "#0d9488", featured: true, target: tab("tasks"),
-    description: "A to-do list that keeps up with school life: due dates, repeating to-dos and importance.",
-    features: ["Due dates and repeats", "Mark what's important", "Undo a check-off", "Forwarded emails become to-dos"] },
-  { id: "work-notes", hub: "work", name: "Work Notes", tagline: "Notes about students and meetings", category: "Planning", icon: "StickyNote", color: "#ca8a04", target: tab("notes"),
-    description: "Keep notes by student or on their own: staff meetings, trainings, phone calls.",
-    features: ["Notes by student", "Notes on their own", "Search everything"] },
   { id: "work-lifehub-notes", hub: "work", name: "LifeHub Notes", tagline: "Quick pinnable notes, the LifeHub way", category: "Planning", icon: "StickyNote", color: "#e5b04f", target: { kind: "notesApp", id: "work-lifehub-notes", label: "LifeHub Notes" },
     description: "The same simple, colorful note cards LifeHub users keep for codes, lists and ideas — now in WorkHub too. A separate set of notes from Work Notes, just for the quick stuff you'd normally jot on a sticky note.",
     features: ["Color-coded note cards", "Pin your most-used notes to the top", "Search across every note", "Its own notes, separate from Work Notes"] },
@@ -219,8 +214,8 @@ export const PLUGINS: readonly Plugin[] = [
 
   // ── Arise LifeHub ──────────────────────────────────────────────────────────
   { id: "life-assistant-pro", hub: "life", name: "Arise AI Pro", tagline: "The premium AI assistant: more context, longer answers", category: "Premium", icon: "Sparkles", color: "#9333ea", featured: true,
-    premium: { priceMonthly: 10, note: "500 messages a month included" },
-    description: "The same chat button, with real headroom: longer answers, more conversation history, and help with multi-step planning — a week of meals and the grocery list in one go, a detailed budget walkthrough, a family trip planned day by day.",
+    needsUnlimited: true, premium: { priceMonthly: 10, note: "Needs A.R.I.S.E. To-Do Unlimited; 500 messages a month included" },
+    description: "Built on A.R.I.S.E. To-Do Unlimited, which includes the everyday AI. Arise AI Pro is the same chat button with real headroom: longer answers, more conversation history, and help with multi-step planning — a week of meals and the grocery list in one go, a detailed budget walkthrough, a family trip planned day by day.",
     features: ["Longer, more detailed answers", "Remembers more of the conversation", "500 messages a month", "Priced to stay fast even at busy times"], target: { kind: "assistantPro" } },
   { id: "life-drive", hub: "life", name: "Drive", tagline: "Upload photos from your camera roll", category: "Premium", icon: "FolderOpen", color: "#2563eb", featured: true,
     description: "A simple photo drive for the family: upload pictures straight from a phone's camera roll or a computer, browse them in one place, and share what you need. 500MB free, with paid storage tiers for more room.",
@@ -231,9 +226,6 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-drop", hub: "life", name: "Drop", tagline: "Send a file to another device, AirDrop-style", category: "Premium", icon: "QrCode", color: "#db2777", featured: true,
     description: "Send a file from this device to another with a 6-character code, a QR code to scan, or a link — whichever's easiest. No account needed on the receiving end. Files stay for one hour and can be picked up as many times as you need, up to 200MB each.",
     features: ["Code, QR, or link — receiver picks what's easiest", "No sign-in needed to receive", "Up to 200MB per file", "Stays an hour — download it as often as you need"], target: { kind: "dropApp" } },
-  { id: "life-calendar", hub: "life", name: "Family calendar", tagline: "Everyone's plans in one place", category: "Family", icon: "CalendarRange", color: "#7c6be6", featured: true, target: section("calendar"),
-    description: "Shared family calendars with repeating events, and your tasks, bills, trips and chores laid on top.",
-    features: ["A calendar per person or group", "Repeating events", "Tasks, bills and trips on top"] },
   { id: "life-chores", hub: "life", name: "Chores", tagline: "Chore chart, rotations and stars", category: "Family", icon: "Sparkles", color: "#f59e72", featured: true, target: section("chores"),
     description: "A chore chart that rotates on its own, with stars kids can spend on rewards.",
     features: ["Rotations by day", "Stars for every chore", "Rewards to spend them on"] },
@@ -261,9 +253,6 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "life-money", hub: "life", name: "Budget & bills", tagline: "Bills, budget and spending", category: "Money & home", icon: "Wallet", color: "#16a34a", featured: true, target: section("money"),
     description: "Every bill with its due day, a monthly budget and where the money went.",
     features: ["Bill due dates", "Budget by category", "Spending this month"] },
-  { id: "life-notes", hub: "life", name: "LifeHub Notes", tagline: "Codes, contacts, lists and ideas", category: "Money & home", icon: "StickyNote", color: "#e5b04f", target: section("notes"),
-    description: "Colourful notes for the things you keep looking up: codes, contacts, lists and ideas.",
-    features: ["Pin what matters", "Colours", "Search"] },
   { id: "life-work-notes", hub: "life", name: "Work Notes", tagline: "A second, separate set of notes", category: "Money & home", icon: "StickyNote", color: "#ca8a04", target: { kind: "notesApp", id: "life-work-notes", label: "Work Notes" },
     description: "The same note-card feature as LifeHub Notes, as a second, separate app. Handy if you want to keep work-related notes apart from everything else in LifeHub Notes.",
     features: ["Color-coded note cards", "Pin your most-used notes to the top", "Search across every note", "Its own notes, separate from LifeHub Notes"] },
