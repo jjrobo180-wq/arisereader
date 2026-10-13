@@ -995,11 +995,44 @@ function TeacherHubPage() {
                 </div>
               );
               /** "Arise Learning": Math, History and Connect, each in its own color, right under A.R.I.S.E. Reader. */
+              const readerBlock = (() => {
+                  const tabs = groupTabs("arise", visible);
+                  const here = group.id === "arise" && !kitOpen;
+                  const open = ariseOpen || here;
+                  return <Fragment key="group-arise">
+                    <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                      {/* Same style as the other Arise Learning programs (a colored icon tile). Pressing it
+                          jumps straight to the Reader Overview, so a teacher always lands somewhere. */}
+                      <button type="button" onClick={() => { setTab("reader"); setAriseOpen(true); closeApps(); afterPick(); }} aria-expanded={open} aria-current={here ? "page" : undefined} data-testid="hub-menu-arise" data-hub-nav
+                        className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm ${here ? "bg-violet-50 text-violet-900 md:font-bold" : "text-slate-700 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}>{GROUP_ICON.arise}</span>
+                        <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:hidden`}>Reader</span>
+                        <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+                        <FolderChevron
+                          onClick={(e) => { e.stopPropagation(); setAriseOpen((v) => !v); }}
+                          role="button" aria-label={`${open ? "Collapse" : "Expand"} A.R.I.S.E. Reader tabs`}
+                          className={`hidden h-3.5 w-3.5 shrink-0 text-slate-400 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
+                      </button>
+                    </div>
+                    {open && tabs.map((t) => <Fragment key={t}>
+                      {subItem(t, true)}
+                      {/* The admin console's sections (and Settings' own parts) open up right under
+                          Admin console here, so on desktop they sit with the rest of the Reader's
+                          items instead of in a bar across the top of the page. Phones keep the bar,
+                          since their menu is a strip along the edge with no room to nest. */}
+                      {t === "admin" && tab === "admin" && ADMIN_SECTIONS.map((s) => <Fragment key={`admin-${s.id}`}>
+                        {adminItem(s, 2, tab === "admin" && adminSection === s.id && !kitOpen, () => { setAdminSection(s.id); setTab("admin"); }, s.id === "overview" ? "hub-menu-admin-overview" : `hub-menu-admin-${s.id}`)}
+                        {s.id === "settings" && adminSection === "settings" && SETTINGS_SECTIONS.map((p) => adminItem(p, 3, adminSettings === p.id && !kitOpen, () => { setAdminSettings(p.id); setAdminSection("settings"); setTab("admin"); }, `hub-menu-admin-settings-${p.id}`))}
+                      </Fragment>)}
+                    </Fragment>)}
+                  </Fragment>;
+              })();
               const learning = <Fragment key="learning">
                 <div className={`hidden items-center gap-2 px-3 pb-1 pt-4 ${deskTop || deskCompact ? "" : "md:flex"}`} data-testid="hub-learning-heading">
                   <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Arise Learning</span>
                   <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
                 </div>
+                {readerBlock}
                 {LEARNING_APPS.map((a) => {
                   const has = learningAccess[a.id];
                   return (
@@ -1017,40 +1050,9 @@ function TeacherHubPage() {
                 })}
               </Fragment>;
               return foldMenu(menu, layout.folders).map((entry) => {
-                if (entry.kind === "item" && entry.item.id === "arise") {
-                  const tabs = groupTabs("arise", visible);
-                  const here = group.id === "arise" && !kitOpen;
-                  const open = ariseOpen || here;
-                  return <Fragment key="group-arise">
-                    <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
-                      {/* A.R.I.S.E. Reader is the core product, so its nav item is unmissable: a
-                          solid violet pill with a white icon badge, bigger than the rest of the
-                          menu. Pressing it jumps straight to the Reader Overview (not just
-                          expand/collapse) so a teacher always lands somewhere, never just a toggle. */}
-                      <button type="button" onClick={() => { setTab("reader"); setAriseOpen(true); closeApps(); afterPick(); }} aria-expanded={open} aria-current={here ? "page" : undefined} data-testid="hub-menu-arise" data-hub-nav
-                        className={`flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-center text-[10px] font-bold transition md:min-h-12 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3.5 md:py-2.5 md:text-left md:text-sm shadow-sm ${here ? "bg-violet-700 text-white md:shadow-md md:shadow-violet-200" : "bg-violet-100 text-violet-900 hover:bg-violet-200"}`}>
-                        <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${here ? "bg-white text-violet-700" : "bg-violet-700 text-white"}`}>{GROUP_ICON.arise}</span>
-                        <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:max-w-none ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
-                        <FolderChevron
-                          onClick={(e) => { e.stopPropagation(); setAriseOpen((v) => !v); }}
-                          role="button" aria-label={`${open ? "Collapse" : "Expand"} A.R.I.S.E. Reader tabs`}
-                          className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
-                      </button>
-                    </div>
-                    {open && tabs.map((t) => <Fragment key={t}>
-                      {subItem(t, true)}
-                      {/* The admin console's sections (and Settings' own parts) open up right under
-                          Admin console here, so on desktop they sit with the rest of the Reader's
-                          items instead of in a bar across the top of the page. Phones keep the bar,
-                          since their menu is a strip along the edge with no room to nest. */}
-                      {t === "admin" && tab === "admin" && ADMIN_SECTIONS.map((s) => <Fragment key={`admin-${s.id}`}>
-                        {adminItem(s, 2, tab === "admin" && adminSection === s.id && !kitOpen, () => { setAdminSection(s.id); setTab("admin"); }, s.id === "overview" ? "hub-menu-admin-overview" : `hub-menu-admin-${s.id}`)}
-                        {s.id === "settings" && adminSection === "settings" && SETTINGS_SECTIONS.map((p) => adminItem(p, 3, adminSettings === p.id && !kitOpen, () => { setAdminSettings(p.id); setAdminSection("settings"); setTab("admin"); }, `hub-menu-admin-settings-${p.id}`))}
-                      </Fragment>)}
-                    </Fragment>)}
-                    {learning}
-                  </Fragment>;
-                }
+                // A.R.I.S.E. Reader lives in the Arise Learning section, right below Home.
+                if (entry.kind === "item" && entry.item.id === "arise") return null;
+                if (entry.kind === "item" && entry.item.id === "home") return <Fragment key="home-and-learning">{navItem(entry.item, menu.indexOf(entry.item))}{learning}</Fragment>;
                 if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
                 const f = entry.folder, here = entry.items.some((x) => x.id === group.id) && !kitOpen;
                 const open = openFolders.includes(f.id) || here;
@@ -1063,7 +1065,7 @@ function TeacherHubPage() {
                       <FolderChevron className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
                     </button>
                   </div>
-                  {open && entry.items.map((item) => navItem(item, menu.indexOf(item), true))}
+                  {open && entry.items.filter((item) => item.id !== "arise").map((item) => navItem(item, menu.indexOf(item), true))}
                 </Fragment>;
               });
             })()}

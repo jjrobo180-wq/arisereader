@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
@@ -670,10 +670,20 @@ export default function AriseTodo() {
     closeApps(); setSection("reader");
     window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
   } : undefined;
+  /** A.R.I.S.E. Reader: a parent's own Reader page here; for a teacher or admin, their Reader in WorkHub. */
+  const readerHere = sections.includes("reader");
+  const openReader = () => {
+    closeApps();
+    if (readerHere) { setSection("reader"); return; }
+    try { sessionStorage.setItem("workhub_tab", "reader"); } catch { /* fine */ }
+    window.location.hash = "#/workhub";
+  };
   const phoneItems: PhoneMenuItem[] = [
-    ...sections.flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); setSection(id); } };
-      // Arise Learning (Math, History, Connect) sits right after A.R.I.S.E. Reader.
-      return id !== "reader" ? [item] : [item, ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
+    // Right below Home: A.R.I.S.E. Reader, then Arise Learning (Math, History, Connect), for everyone.
+    ...sections.filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); setSection(id); } };
+      return id !== "home" ? [item] : [item,
+        { id: "reader", label: "Reader", icon: <BookOpen className="text-violet-700" />, active: !notesAppOpen && shown === "reader", color: "#6d28d9", onClick: openReader },
+        ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
@@ -764,6 +774,29 @@ export default function AriseTodo() {
   </div>;
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
+  /** Arise Learning, right below Home: A.R.I.S.E. Reader, then Math, History and Connect, each in its own color. */
+  const lifeLearning = <div className={dsk === "top" ? "flex shrink-0 items-center gap-1" : "pb-1 pt-2"} data-testid="life-learning">
+    {dsk !== "top" && dsk !== "compact" && <div className="flex items-center gap-2 px-1 pb-1.5 pt-1">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Arise Learning</span>
+      <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
+    </div>}
+    <div className={dsk === "top" ? "flex items-center gap-1" : "space-y-0.5"}>
+      <button type="button" onClick={openReader} aria-current={shown === "reader" ? "page" : undefined} data-testid="life-section-reader" title="A.R.I.S.E. Reader"
+        className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold transition ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""} ${shown === "reader" ? "bg-violet-50 text-violet-900" : "text-slate-700 hover:bg-slate-50 hover:text-slate-950"}`}>
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}><BookOpen className="h-4 w-4" /></span>
+        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+      </button>
+      {LEARNING_APPS.map((a) => {
+        const has = learningAccess[a.id];
+        return <button key={a.id} type="button" onClick={() => openLearning(a.id, has, getLearning)} data-testid={`life-learning-${a.id}`} title={has ? `Open ${a.label}` : `${a.label}: add it from your plan page`}
+          className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
+          <LearningIcon id={a.id} />
+          <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>{a.label}</span>
+          {!has && dsk !== "compact" && <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: a.soft, color: a.color }}>Add-on</span>}
+        </button>;
+      })}
+    </div>
+  </div>;
   return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
     <UpgradeHost hub="life" />
     {store && <PluginStore
@@ -943,7 +976,7 @@ export default function AriseTodo() {
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
       <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside}`}>
         <nav aria-label="Family Hub" className={`hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
-          {foldMenu(sections.map((id) => ({ id })), layout.folders).flatMap((entry) => {
+          {foldMenu(sections.filter((id) => id !== "reader").map((id) => ({ id })), layout.folders).flatMap((entry) => {
             if (entry.kind === "item") return [entry.item.id];
             const f = entry.folder, here = entry.items.some((x) => x.id === shown), open = openFolders.includes(f.id) || here;
             return [<button key={`folder-${f.id}`} type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`life-folder-${f.id}`}
@@ -957,7 +990,7 @@ export default function AriseTodo() {
             const movable = (TOGGLEABLE as readonly FamilySection[]).includes(id);
             const toggleableShown = sections.filter((s) => (TOGGLEABLE as readonly FamilySection[]).includes(s));
             const posInToggleable = toggleableShown.indexOf(id);
-            return (
+            const el = (
               <div
                 key={id}
                 draggable={movable}
@@ -983,26 +1016,10 @@ export default function AriseTodo() {
                 )}
               </div>
             );
+            // Right below Home: A.R.I.S.E. Reader and the Arise Learning programs.
+            return id === "home" ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
           })}
         </nav>
-        {/* Arise Learning: Math, History and Connect, each in its own color, so they stand out from the family sections. */}
-        <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`} data-testid="life-learning">
-          <div className="flex items-center gap-2 px-1 pb-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Arise Learning</span>
-            <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
-          </div>
-          <div className="space-y-0.5">
-            {LEARNING_APPS.map((a) => {
-              const has = learningAccess[a.id];
-              return <button key={a.id} type="button" onClick={() => openLearning(a.id, has, getLearning)} data-testid={`life-learning-${a.id}`} title={has ? `Open ${a.label}` : `${a.label}: add it from your plan page`}
-                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950">
-                <LearningIcon id={a.id} />
-                <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                {!has && <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: a.soft, color: a.color }}>Add-on</span>}
-              </button>;
-            })}
-          </div>
-        </div>
         {(pinnableApps.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
           <div className="space-y-0.5">
