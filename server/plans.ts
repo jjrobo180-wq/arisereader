@@ -638,7 +638,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
         body.school = schoolId ? { id: schoolId, name: await deps.schoolName(schoolId), students: await deps.countSchoolStudents(schoolId), plan: grantView(schoolPlan) } : null;
       }
-      if (user.role === "teacher" || user.role === "parent" || user.isAdmin) {
+      // Personal A.R.I.S.E. To-Do accounts have WorkHub too, so their plan page must say so.
+      if (user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) {
         const h = await hubAccess(user);
         const isTeacher = user.role === "teacher" && !user.isAdmin;
         body.hub = {

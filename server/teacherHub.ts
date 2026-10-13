@@ -119,8 +119,14 @@ export function createSupabaseWorkspaceStore(client?: any): WorkspaceStore {
 }
 
 function teacherAccess(req: any) {
+  // Arise WorkHub is for anyone with an adult account — teachers, parents and personal A.R.I.S.E.
+  // To-Do accounts alike — which is what hubAccessFor in shared/plans.ts has always said. The
+  // "todo" role was missing here, so a personal account got "Parent or teacher account required"
+  // the moment the hub tried to load its workspace. What stays paid is the A.R.I.S.E. programs
+  // inside the hub, not the hub itself.
   // An admin previewing the site as someone else is not that teacher.
-  return !!req.user && !req.adminPreview && (req.user.role === "teacher" || req.user.role === "parent" || req.user.isAdmin === true);
+  return !!req.user && !req.adminPreview
+    && (req.user.role === "teacher" || req.user.role === "parent" || req.user.role === "todo" || req.user.isAdmin === true);
 }
 
 /** How many students are in a saved workspace's caseload. */
