@@ -47,7 +47,7 @@ function ResultTree({ value, label, depth = 0 }: { value: unknown; label?: strin
 export default function PremiumStudio() {
   const { user, token } = useAuth();
   const { data, setData, state, loaded } = useAppData("premium-studio-v1", cleanHistory);
-  const [activeId, setActiveId] = useState("meeting-agenda");
+  const [activeId, setActiveId] = useState(() => { const requested = new URLSearchParams(window.location.hash.split("?")[1] || "").get("task"); return TOOLS.some((t) => t.id === requested) ? requested! : "meeting-agenda"; });
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
