@@ -2062,36 +2062,33 @@ export async function registerRoutes(
       const teacherId = req.body.teacherId ? parseInt(req.body.teacherId) : null;
       const directoryTeacherId = typeof req.body.directoryTeacherId === "string" ? req.body.directoryTeacherId : "";
       if (directoryTeacherId) {
-        // A name from the school directory is not a user account. Save the chosen
-        // teacher for follow-up, but never grant class access or invent a teacher_id.
         const requests = await readUnlistedSignups();
-        const entry = requests.find((r) => Number(r.userId) === studentId && !r.resolved);
-        if (!entry) return res.status(404).json({ message: "This student is no longer waiting for a teacher assignment." });
-        const targetSchool = schoolId || entry.schoolId;
-        if (!targetSchool || !Number.isSafeInteger(targetSchool)) return res.status(400).json({ message: "Select the student's school first." });
-        const raw = await storage.getSetting(`school_teacher_directory_${targetSchool}`);
-        let directory: Array<{ name: string; grades?: string[] }> = [];
-        try { const parsed = raw ? JSON.parse(raw) : []; if (Array.isArray(parsed)) directory = parsed; } catch {}
-        const selected = directory.find((t) =>
-          t && typeof t.name === "string" &&
-          directoryTeacherId === `directory:${targetSchool}:${encodeURIComponent(t.name.trim().toLowerCase())}` &&
-          (!Array.isArray(t.grades) || !t.grades.length || !entry.gradeLevel || t.grades.includes(String(entry.gradeLevel)))
-        );
+        const entry = requests.find(r => Number(r.userId) === studentId && !r.resolved);
+        if (!entry) return res.status(404).json({ message: "This student is no longer awaiting assignment." });
+        const student = await storage.getUser(studentId);
+        if (!student || student.role !== "student") return res.status(404).json({ message: "Student not found." });
+        const targetSchool = Number(schoolId || entry.schoolId || student.school_id);
+        const selected = await getDirectoryTeacher(targetSchool, directoryTeacherId, entry.gradeLevel);
         if (!selected) return res.status(400).json({ message: "That teacher is not listed for this school and grade." });
-        if (schoolId) await storage.assignStudentToSchool(studentId, schoolId);
+        const { error } = await supabase.from("users").update({
+          school_id: targetSchool, teacher_id: null,
+          directory_teacher_name: selected.name.trim(), approved_by_teacher: true,
+        }).eq("id", studentId).eq("role", "student");
+        if (error) throw new Error(error.message);
+        clearCache("allUsers");
         entry.teacherName = selected.name.trim();
-        entry.pendingTeacherName = selected.name.trim();
-        entry.pendingTeacherSchoolId = targetSchool;
-        entry.schoolId = targetSchool;
+        entry.resolved = true;
+        entry.resolvedAt = new Date().toISOString();
+        entry.resolvedSchoolId = targetSchool;
         await storage.upsertSetting(UNLISTED_SIGNUPS_KEY, JSON.stringify(requests));
-        return res.json({ success: true, pending: true, teacherName: entry.teacherName, message: `${entry.teacherName} saved as the pending teacher. Connect the student when that teacher signs up.` });
+        return res.json({ success: true, teacherName: selected.name.trim(), message: `${selected.name.trim()} assigned to this student.` });
       }
       if (schoolId) await storage.assignStudentToSchool(studentId, schoolId);
       if (teacherId) {
         const teacher = await storage.getUser(teacherId);
         if (!teacher || teacher.role !== "teacher") return res.status(400).json({ message: "That teacher was not found." });
         // Keep the student approved so they never lose access while being moved.
-        const { error } = await supabase.from("users").update({ teacher_id: teacherId, approved_by_teacher: true }).eq("id", studentId);
+        const { error } = await supabase.from("users").update({ teacher_id: teacherId, directory_teacher_name: null, approved_by_teacher: true }).eq("id", studentId);
         if (error) throw new Error(error.message);
         const rawLinks = await storage.getSetting("teacher_students");
         let teacherStudents: Record<string, number[]> = {};
@@ -4264,7 +4261,7 @@ export async function registerRoutes(
       const attempts = attemptsMap.get(s.id) || [];
       const totalPoints = Math.max(s.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.points_earned || 0), 0));
       const quizzesMastered = attempts.filter(a => (a.points_earned || 0) > 0).length;
-      const teacherName = s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null;
+      const teacherName = s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : (s.directoryTeacherName || null);
       result.push({
         id: s.id,
         username: s.username,
@@ -4275,6 +4272,8 @@ export async function registerRoutes(
         totalPoints,
         approvedByTeacher: s.approvedByTeacher,
         teacherId: s.teacherId,
+        directoryTeacherName: s.directoryTeacherName || null,
+        schoolId: s.school_id || null,
         teacherName,
       });
     }
@@ -5151,19 +5150,14 @@ export async function registerRoutes(
       // names, never user accounts: no password, permissions or teacher ID is created.
       // Registration records a chosen directory name as an unlisted-teacher request
       // so an administrator can link the student when that teacher joins.
-      const directoryRaw = schoolId ? await storage.getSetting(`school_teacher_directory_${schoolId}`) : "";
-      let directory: Array<{ name: string; grades?: string[] }> = [];
-      try {
-        const parsed = directoryRaw ? JSON.parse(directoryRaw) : [];
-        if (Array.isArray(parsed)) directory = parsed;
-      } catch { /* An invalid directory should not stop student sign-up. */ }
+      const directory = schoolId ? await directoryTeachers(Number(schoolId)) : [];
       const registeredNames = new Set(registered.map((t: any) => String(t.display_name || "").trim().toLowerCase()));
       const pending = directory
         .filter((t) => t && typeof t.name === "string" && t.name.trim().length > 0)
         .filter((t) => !grade || !Array.isArray(t.grades) || !t.grades.length || t.grades.includes(String(grade)))
         .filter((t) => !registeredNames.has(t.name.trim().toLowerCase()))
         .map((t) => ({
-          id: `directory:${schoolId}:${encodeURIComponent(t.name.trim().toLowerCase())}`,
+          id: directoryId(Number(schoolId), t.name),
           display_name: t.name.trim(),
           directory: true,
         }));
@@ -10456,7 +10450,9 @@ Important:
           totalPoints,
           approvedByTeacher: s.approvedByTeacher,
           teacherId: s.teacherId,
-          teacherName: s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null,
+          teacherName: s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : (s.directoryTeacherName || null),
+          directoryTeacherName: s.directoryTeacherName || null,
+          schoolId: s.school_id || null,
           isEyeGazeUser: !!s.is_eye_gaze_user,
         };
       });
