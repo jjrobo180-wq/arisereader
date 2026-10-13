@@ -5,7 +5,7 @@ import { Suspense, lazy, useEffect, useMemo, useState, type ComponentType } from
 import { ArrowLeft, Search } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
-import { PRO_APPS, PRO_GROUPS, proApp, type ProGroup } from "@shared/pro/apps";
+import { PRO_GROUPS, PRO_LIVE_GROUPS, liveProApps, proApp, type ProGroup } from "@shared/pro/apps";
 
 type Bundle = Record<string, ComponentType>;
 const LOADERS: Record<ProGroup, () => Promise<Bundle>> = {
@@ -34,7 +34,8 @@ export default function ProApps() {
   const [id, setId] = useState(readApp);
   useEffect(() => { const on = () => setId(readApp()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   const hub = user?.role === "parent" ? "#/lifehub" : "#/workhub";
-  const meta = id ? proApp(id) : undefined;
+  const found = id ? proApp(id) : undefined;
+  const meta = found && PRO_LIVE_GROUPS.includes(found.group) ? found : undefined;
   const App = id ? appComponent(id) : null;
   const go = (next: string) => { window.location.hash = next ? `#/pro?app=${next}` : "#/pro"; window.scrollTo({ top: 0 }); };
   return <main className="min-h-screen bg-slate-50 px-3 py-4 text-slate-900 sm:px-6 sm:py-6">
@@ -62,10 +63,11 @@ export function AppBadge({ icon, color, size = 40 }: { icon: string; color: stri
 
 function Gallery({ onOpen }: { onOpen: (id: string) => void }) {
   const [q, setQ] = useState("");
-  const groups = useMemo(() => (Object.keys(PRO_GROUPS) as ProGroup[]).map((g) => ({ g, apps: PRO_APPS.filter((a) => a.group === g && (!q || `${a.name} ${a.tagline} ${a.description}`.toLowerCase().includes(q.toLowerCase()))) })).filter((x) => x.apps.length), [q]);
+  const live = useMemo(liveProApps, []);
+  const groups = useMemo(() => (Object.keys(PRO_GROUPS) as ProGroup[]).map((g) => ({ g, apps: live.filter((a) => a.group === g && (!q || `${a.name} ${a.tagline} ${a.description}`.toLowerCase().includes(q.toLowerCase()))) })).filter((x) => x.apps.length), [q, live]);
   return <div className="space-y-6">
     <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><h1 className="text-3xl font-black">Arise Apps</h1><p className="text-sm text-slate-500">{PRO_APPS.length} apps for health, fitness, calm, work, meetings, school, teaching, money and making things. Everything saves to your account.</p></div>
+      <div><h1 className="text-3xl font-black">Arise Apps</h1><p className="text-sm text-slate-500">{live.length} apps for health, fitness, calm, work, meetings and school — more on the way. Everything saves to your account.</p></div>
       <div className="relative w-full sm:w-72"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search apps" aria-label="Search apps" className="h-10 w-full rounded-full border border-slate-200 bg-white pl-9 pr-3 text-sm focus:border-slate-400 focus:outline-none" /></div>
     </div>
     {groups.map(({ g, apps }) => <section key={g}>

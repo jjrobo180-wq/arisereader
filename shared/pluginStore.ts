@@ -18,6 +18,7 @@ import { isOn, type Family, type FamilySection } from "./familyHub";
 import { KIT_DEFS, type KitDef } from "./pluginKit";
 import { showSection } from "./hubLayout";
 import { cleanLifeLayout } from "./lifeLayout";
+import { AI_TOOL_TO_PRO, PRO_GROUPS, liveProApps, type ProApp } from "./pro/apps";
 
 export type PluginHub = "work" | "life";
 
@@ -89,9 +90,10 @@ export type Plugin = {
   premium?: { priceMonthly: number; note?: string };
 };
 
+const PRO_CATEGORIES = Object.values(PRO_GROUPS).map((g) => g.category);
 export const PLUGIN_CATEGORIES: Record<PluginHub, readonly string[]> = {
-  work: ["Premium", "Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps"],
-  life: ["Premium", "Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
+  work: ["Premium", ...PRO_CATEGORIES, "Planning", "Students & IEPs", "Classroom", "Families", "Teaching tools", "Checklists", "Ideas", "Wellness", "Connections", "Arise apps"],
+  life: ["Premium", ...PRO_CATEGORIES, "Family", "Kitchen", "Health & wellness", "Money & home", "Everyday", "Checklists", "Fun", "Tools", "Inspiration", "Discover", "Connections", "Arise apps"],
 };
 
 const tab = (t: HubTab): PluginTarget => ({ kind: "tab", tab: t });
@@ -166,9 +168,32 @@ const OFFICE_APPS = (hub: PluginHub): Plugin[] => [
   { id: `${hub}-ai-party-plan`, hub, name: "Party Planner", tagline: "Organize a celebration checklist", description: "Organize a celebration checklist. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "PartyPopper", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-party-plan`, href: "#/ai-apps?task=party-plan" } },
 ];
 
+/** A premium app (shared/pro/apps.ts) as a store listing. It opens its own page, #/pro?app=<id>. */
+function proPlugin(hub: PluginHub, a: ProApp, id = `${hub}-pro-${a.id}`): Plugin {
+  return {
+    id, hub, name: a.name, tagline: a.tagline, description: a.description, features: a.features,
+    category: PRO_GROUPS[a.group].category, icon: a.icon, color: a.color,
+    target: { kind: "officeApp", id, href: `#/pro?app=${a.id}` },
+    ...(a.teacher && hub === "life" ? { recommendedFor: "work" as const } : {}),
+  };
+}
+/** Office editors, AI tools and premium apps. An AI tool that a premium app has replaced keeps its
+ *  id but shows and opens the premium app; that premium app then isn't listed a second time. */
+const PREMIUM_APPS = (hub: PluginHub): Plugin[] => {
+  const live = liveProApps(); const taken = new Set<string>();
+  const office = OFFICE_APPS(hub).map((p) => {
+    const task = p.id.replace(`${hub}-ai-`, ""); const proId = p.id.startsWith(`${hub}-ai-`) ? AI_TOOL_TO_PRO[task] : undefined;
+    const app = proId ? live.find((x) => x.id === proId) : undefined;
+    if (!app) return p;
+    taken.add(app.id);
+    return proPlugin(hub, app, p.id);
+  });
+  return [...office, ...live.filter((x) => !taken.has(x.id)).map((x) => proPlugin(hub, x))];
+};
+
 export const PLUGINS: readonly Plugin[] = [
-  ...OFFICE_APPS("work"),
-  ...OFFICE_APPS("life"),
+  ...PREMIUM_APPS("work"),
+  ...PREMIUM_APPS("life"),
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
   WIDGETS_PLUGIN("work"),
   BRIEF_PLUGIN("work"),

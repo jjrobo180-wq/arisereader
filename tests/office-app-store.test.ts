@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { liveProApps, AI_TOOL_TO_PRO } from "../shared/pro/apps";
 import { pluginsFor, workInstalled, lifeInstalled, officeAppPlugin, setWorkSheetsApp, setLifeSheetsApp, isAddable } from "../shared/pluginStore";
 import { countsAsApp, workApps, lifeApps } from "../shared/todoPlan";
 import { emptyWorkspace } from "../shared/teacherHub";
@@ -11,14 +12,17 @@ for (const hub of ["work", "life"] as const) {
   test(`${hub} App Store lists working, individually installable Office & AI tools`, () => {
     const catalog = pluginsFor(hub, { teacher: hub === "work" });
     const office = catalog.filter((p) => p.target.kind === "officeApp");
-    assert.equal(office.length, 23, "Three editors plus twenty AI apps");
+    const replaced = Object.values(AI_TOOL_TO_PRO).filter((id) => liveProApps().some((a) => a.id === id)).length;
+    assert.equal(office.length, 23 + liveProApps().length - replaced, "Three editors, twenty AI tools and the premium apps, none twice");
+    assert.equal(new Set(office.map((p) => p.name)).size, office.length, "No two listings with the same name");
+    for (const a of liveProApps()) assert.ok(office.some((p) => p.target.kind === "officeApp" && p.target.href === `#/pro?app=${a.id}`), a.id);
     assert.equal(new Set(office.map((p) => p.id)).size, office.length);
     for (const slug of wanted) {
       const p = officeAppPlugin(hub, `${hub}-${slug}`);
       assert.ok(p, slug);
       assert.ok(isAddable(p));
       assert.ok(countsAsApp(hub, p));
-      assert.equal(p.category, "Premium");
+      assert.ok(p.category.startsWith("Premium"));
       assert.ok(p.target.kind === "officeApp" && p.target.href.startsWith("#/"));
     }
   });

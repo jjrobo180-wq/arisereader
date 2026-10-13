@@ -17,6 +17,16 @@ export const PRO_GROUPS: Record<ProGroup, { label: string; category: string; col
   create: { label: "Create & play", category: "Premium · Create", color: "#db2777" },
 };
 
+/** Groups whose apps are built and listed in the App Store. Groups are added as they're finished. */
+export const PRO_LIVE_GROUPS: readonly ProGroup[] = ["health", "fitness", "mind", "work", "meetings", "school"];
+
+/** Older single-purpose AI tools in the App Store that a premium app now does (with the same AI
+ *  built in). Their store entries open the premium app and keep their ids, so existing installs stay. */
+export const AI_TOOL_TO_PRO: Readonly<Record<string, string>> = {
+  "meeting-agenda": "agenda", "meeting-summary": "minutes", flashcards: "flashcards", quiz: "quiz-maker", "essay-outline": "essay", vocab: "vocab",
+  "journal-reflect": "journal", "thought-reframe": "thoughts", "workout-plan": "workouts",
+};
+
 const a = (group: ProGroup, id: string, name: string, icon: string, color: string, tagline: string, description: string, features: string[], extra: Partial<ProApp> = {}): ProApp => ({ id, name, icon, color, group, tagline, description, features, ...extra });
 
 export const PRO_APPS: ProApp[] = [
@@ -83,7 +93,7 @@ export const PRO_APPS: ProApp[] = [
 
   // ─── Meetings ───
   a("meetings", "agenda", "Meeting Agenda", "ClipboardList", "#0891b2", "Timed agendas that keep meetings short", "Build an agenda with times and owners, then run the meeting with a live timer for each item. AI can draft it for you.", ["Timed items and owners", "Live meeting timer", "AI draft", "Print or copy to share"], { ai: true }),
-  a("meetings", "minutes", "Meeting Minutes", "MessageSquareText", "#0e7490", "Notes, decisions and action items", "Take minutes with attendees, notes, decisions and action items with owners and due dates. Export a clean summary.", ["Attendees and notes", "Decisions", "Action items with owners", "Copy, print or email summary"]),
+  a("meetings", "minutes", "Meeting Minutes", "MessageSquareText", "#0e7490", "Notes, decisions and action items", "Take minutes with attendees, notes, decisions and action items with owners and due dates. AI can pull the decisions and action items out of your notes. Export a clean summary.", ["Attendees and notes", "Decisions", "Action items with owners", "AI pulls decisions and actions from notes", "Copy, print or email summary"], { ai: true }),
   a("meetings", "standup", "Stand-up Timer", "Users", "#2563eb", "Everyone speaks, nobody rambles", "Go around the room with a timer for each person, in random order. Shows who's next.", ["Random order", "Per-person timer", "Skip and add time", "Team lists"]),
   a("meetings", "poll", "Quick Poll", "BarChart3", "#7c3aed", "Vote in seconds", "Ask a question with choices and pass the device around or show it on the board. Results update live.", ["Multiple choice or yes/no", "Pass-around voting", "Live results chart", "Hide results until the end"]),
   a("meetings", "icebreakers", "Icebreakers", "MessageCircle", "#f59e0b", "Questions that get people talking", "Hundreds of icebreaker questions for teams, classes and families. Draw one at random or pick a category.", ["Fun, deep and work decks", "Kid-friendly deck", "Full-screen for the room", "Add your own"]),
@@ -142,3 +152,5 @@ export const PRO_APPS: ProApp[] = [
 ];
 
 export const proApp = (id: string) => PRO_APPS.find((x) => x.id === id);
+
+export const liveProApps = (): ProApp[] => PRO_APPS.filter((x) => PRO_LIVE_GROUPS.includes(x.group));

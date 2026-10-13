@@ -106,6 +106,7 @@ const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
 const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
+const ProApps = lazyPage(() => import("./pages/ProApps"));
 // A.R.I.S.E. Reader for teachers and parents, on its own page outside both hubs (pages/AriseReader.tsx).
 const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
@@ -463,6 +464,9 @@ function AppRoutes() {
       </Route>
       <Route path="/office">
         {user && (user.isAdmin || user.role === "teacher" || user.role === "parent") ? <ProtectedRoute><AriseOffice /></ProtectedRoute> : <Redirect to="/signin" replace />}
+      </Route>
+      <Route path="/pro">
+        {user && (user.isAdmin || user.role === "teacher" || user.role === "parent") ? <ProtectedRoute><ProApps /></ProtectedRoute> : <Redirect to="/signin" replace />}
       </Route>
       <Route path="/workhub">
         {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}
