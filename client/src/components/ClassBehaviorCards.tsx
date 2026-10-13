@@ -2,7 +2,7 @@
 // StudentBehaviorCard: a student's points from their teacher, and asking for a hall pass with a live timer.
 // ParentBehaviorCard: what each linked child's teacher shared (points, notes) and their hall passes.
 import { useCallback, useEffect, useState } from "react";
-import { DoorOpen, Loader2, Send, Sparkles } from "lucide-react";
+import { Send, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { minutesOut } from "@shared/classBehavior";
@@ -25,32 +25,25 @@ function useApi() {
 
 export function StudentBehaviorCard() {
   const api = useApi();
-  const [d, setD] = useState<{ hasClass: boolean; points?: Totals; recent?: Ev[]; canAsk?: boolean; places?: { id: string; label: string; minutes: number }[]; pass?: Pass | null; serverNow?: number } | null>(null);
-  const [offset, setOffset] = useState(0);
-  const [now, setNow] = useState(Date.now());
-  const [picking, setPicking] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
-  const load = useCallback(async () => { try { const x = await api("/api/behavior/me"); setD(x); if (x.serverNow) setOffset(x.serverNow - Date.now()); } catch { setD(null); } }, [api]);
-  useEffect(() => { void load(); const t = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 8000); return () => window.clearInterval(t); }, [load]);
-  useEffect(() => { if (!d?.pass) return; const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, [d?.pass]);
+  const [d, setD] = useState<{ hasClass: boolean; points?: Totals; recent?: Ev[] } | null>(null);
+  const load = useCallback(async () => {
+    try { setD(await api("/api/behavior/me")); }
+    catch { setD(null); }
+  }, [api]);
+  useEffect(() => {
+    void load();
+    const t = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 30000);
+    return () => window.clearInterval(t);
+  }, [load]);
   if (!d?.hasClass) return null;
-  const act = async (path: string, body?: object) => { setBusy(true); setMsg(""); try { await api(path, { method: "POST", body: JSON.stringify(body || {}) }); setPicking(false); await load(); } catch (e: any) { setMsg(e.message); } finally { setBusy(false); } };
-  const p = d.pass, m = p ? minutesOut({ out_at: p.outAt, back_at: null }, now + offset) : 0;
+  // Hall passes are intentionally not available in the student profile yet.
   return <section className="mb-5 rounded-2xl border border-border bg-card p-4 shadow-sm" data-testid="student-behavior">
-    <div className="flex flex-wrap items-center gap-4">
-      <div className="flex items-center gap-3"><span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><Sparkles className="h-5 w-5" /></span>
-        <div><div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Class points</div><div className="text-xl font-black">{d.points?.week ?? 0} this week <span className="text-sm font-semibold text-muted-foreground">· {sign(d.points?.today ?? 0)} today</span></div></div></div>
-      <div className="ml-auto flex flex-wrap gap-2">
-        {p?.status === "out" ? <div className={`flex items-center gap-3 rounded-xl px-3 py-2 ${m > p.limit ? "bg-rose-100 text-rose-900" : "bg-amber-100 text-amber-950"}`}><DoorOpen className="h-5 w-5" /><span className="text-sm font-semibold">{p.place}</span><span className="text-xl font-black tabular-nums">{clock(m)}</span>
-            <button type="button" disabled={busy} onClick={() => void act("/api/behavior/me/pass/back")} className="min-h-10 rounded-lg bg-black px-3 text-sm font-bold text-white">I'm back</button></div>
-          : p?.status === "asked" ? <div className="flex items-center gap-2 rounded-xl bg-sky-100 px-3 py-2 text-sm font-semibold text-sky-950"><Loader2 className="h-4 w-4 animate-spin" />Asked for {p.place}. Waiting for your teacher…
-            <button type="button" disabled={busy} onClick={() => void act("/api/behavior/me/pass/cancel")} className="min-h-9 rounded-lg px-2 underline">Cancel</button></div>
-          : d.canAsk && <button type="button" onClick={() => setPicking((x) => !x)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-bold text-background"><DoorOpen className="h-4 w-4" />Hall pass</button>}
+    <div className="flex items-center gap-3">
+      <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><Sparkles className="h-5 w-5" /></span>
+      <div><div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Class points</div>
+        <div className="text-xl font-black">{d.points?.week ?? 0} this week <span className="text-sm font-semibold text-muted-foreground">· {sign(d.points?.today ?? 0)} today</span></div>
       </div>
     </div>
-    {picking && !p && <div className="mt-3 flex flex-wrap gap-2">{d.places?.map((pl) => <button key={pl.id} type="button" disabled={busy} onClick={() => void act("/api/behavior/me/pass", { place: pl.id })} className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-muted">{pl.label}</button>)}</div>}
-    {msg && <p className="mt-2 text-sm text-rose-600" role="alert">{msg}</p>}
     {!!d.recent?.length && <ul className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">{d.recent.slice(0, 6).map((e) => <li key={e.id} className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${e.points >= 0 ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>{e.points !== 0 && `${sign(e.points)} `}{e.label}</li>)}</ul>}
   </section>;
 }
