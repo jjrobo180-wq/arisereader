@@ -18,15 +18,22 @@ const people: Record<number, SocialUser & { grade?: string }> = {
 };
 const links: Record<number, number[]> = { 21: [16] };
 
-function setup(opts: { paid?: number[] } = {}) {
+function setup(opts: { paid?: number[]; locked?: number[] } = {}) {
   const routes: Record<string, Function> = {};
   const add = (method: string) => (path: string, ...handlers: Function[]) => { routes[`${method} ${path}`] = handlers[handlers.length - 1]; };
   const app: any = { get: add("GET"), post: add("POST"), put: add("PUT"), delete: add("DELETE") };
   let clock = Date.parse("2026-10-08T18:00:00Z");
   const notes: { id: number; body: string }[] = [];
   const store = createMemorySocialStore(() => clock);
+  // Existing test users have already been approved for Connect, except when a test locks one.
+  const approvals = new Map(Object.values(people).filter(p => p.role === "student" && p.teacherId && p.approvedByTeacher && !opts.locked?.includes(p.id))
+    .map(p => [p.id, { teacherId: p.teacherId!, status: "approved" as const }]));
   registerAriseSocialRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, {
     store, now: () => clock, random: () => 0,
+    approvals: {
+      get: async (id) => approvals.get(id) ?? null,
+      save: async (id, record) => { approvals.set(id, record); },
+    },
     ...(opts.paid ? { access: { self: async (req: any) => opts.paid!.includes(Number(req.user?.id)), user: async (id: number) => opts.paid!.includes(id) } } : {}),
     directory: {
       user: async (id) => people[id] ?? null,
@@ -213,4 +220,34 @@ test("a student whose teacher hasn't added Arise Social can't post, since nobody
   assert.equal(kenji.body.user.canPost, false);
   assert.match(kenji.body.user.postBlock, /teacher hasn’t added Arise Social/);
   assert.equal((await t.as(13)("POST /api/social/posts", { body: { text: "hi" } })).code, 403);
+});
+
+
+test("Connect stays locked until the assigned teacher explicitly approves the student's entry", async () => {
+  const t = setup({ locked: [11] });
+  const student = t.as(11), teacher = t.as(1), otherTeacher = t.as(2);
+  const first = await student("GET /api/social/me");
+  assert.equal(first.body.approvalStatus, "not_requested");
+  assert.equal(first.body.profile, undefined, "don't expose the Connect profile while locked");
+  assert.equal((await student("GET /api/social/feed")).code, 403);
+  assert.equal((await student("POST /api/social/collect", { body: { careerId: "plumber" } })).code, 403);
+  const requested = await student("POST /api/social/access/request");
+  assert.equal(requested.body.approvalStatus, "pending");
+  assert.equal((await student("GET /api/social/me")).body.approvalStatus, "pending");
+  assert.equal((await student("GET /api/social/feed")).code, 403);
+  assert.equal((await otherTeacher("GET /api/social/access/requests")).body.requests.length, 0);
+  assert.equal((await otherTeacher("POST /api/social/access/requests/:id/review", { params: { id: 11 }, body: { decision: "approve" } })).code, 404);
+  assert.equal((await teacher("GET /api/social/access/requests")).body.requests.length, 1);
+  assert.equal((await teacher("POST /api/social/access/requests/:id/review", { params: { id: 11 }, body: { decision: "approve" } })).body.approvalStatus, "approved");
+  assert.equal((await student("GET /api/social/me")).body.approvalStatus, "approved");
+  assert.equal((await student("GET /api/social/feed")).code, 200);
+});
+
+test("teacher denial keeps Connect closed until the student requests approval again", async () => {
+  const t = setup({ locked: [12] }), student = t.as(12), teacher = t.as(1);
+  await student("POST /api/social/access/request");
+  assert.equal((await teacher("POST /api/social/access/requests/:id/review", { params: { id: 12 }, body: { decision: "deny" } })).body.approvalStatus, "denied");
+  assert.equal((await student("GET /api/social/me")).body.approvalStatus, "denied");
+  assert.equal((await student("GET /api/social/feed")).code, 403);
+  assert.equal((await student("POST /api/social/access/request")).body.approvalStatus, "pending");
 });
