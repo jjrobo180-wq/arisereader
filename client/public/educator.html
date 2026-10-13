@@ -200,6 +200,26 @@
    window.location.replace('/app'+window.location.hash);
    return;
  }
+ // A "#pricing"-style address only scrolls: re-entering it in the address bar never reloads the page,
+ // so a refresh looked like it did nothing. Once the page has scrolled to the section, drop the
+ // "#section" from the address, and let in-page links scroll without adding one.
+ const sectionId=h=>/^#[A-Za-z][\w-]*$/.test(h||'')?h.slice(1):'';
+ const plainAddress=()=>{try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}};
+ const startAt=sectionId(location.hash);
+ if(startAt&&document.getElementById(startAt)){
+   // Scroll there ourselves (the page above it can still be settling), then tidy the address.
+   const go=()=>{const t=document.getElementById(startAt);if(t)t.scrollIntoView({block:'start'})};
+   go();plainAddress();
+   if(document.readyState!=='complete')window.addEventListener('load',go,{once:true});
+   setTimeout(go,300);
+ }
+ document.addEventListener('click',e=>{
+   const a=e.target&&e.target.closest?e.target.closest('a[href^="#"]'):null;
+   if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+   const id=sectionId(a.getAttribute('href'));const t=id&&document.getElementById(id);
+   if(!t)return;
+   e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'});plainAddress();
+ });
  // Already signed in on this site: "Sign in" opens the hub straight away, so say so.
  if(/(?:^|;\s*)arise_session=/.test(document.cookie)){
    Array.from(document.querySelectorAll('a[href="/app#/signin"]')).forEach(a=>{ if(/^\s*sign in\s*$/i.test(a.textContent)) a.textContent='Open my hub'; });
