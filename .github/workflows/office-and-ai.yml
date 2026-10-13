@@ -7,6 +7,12 @@ on:
       - "client/src/lib/cloudDocs.ts"
       - "client/src/App.tsx"
       - "client/src/pages/TeacherHub.tsx"
+      - "client/src/components/teacher-hub/HubQuickAddStudent.tsx"
+      - "client/src/components/teacher-hub/HubMeetingPoll.tsx"
+      - "client/src/components/teacher-hub/HubMeetingSteps.tsx"
+      - "client/src/pages/Billing.tsx"
+      - "client/src/pages/Pricing.tsx"
+      - "tests/iep-meetings-quick-add.test.ts"
       - "client/src/pages/AriseTodo.tsx"
       - "server/userDocs.ts"
       - "server/proAppsAI.ts"
@@ -29,5 +35,7 @@ jobs:
       - name: Type check (existing repository errors reported separately)
         continue-on-error: true
         run: npm run check
+      - name: IEP student synchronization test
+        run: npx tsx --test tests/iep-meetings-quick-add.test.ts
       - name: Production build
         run: npm run build
