@@ -52,8 +52,14 @@ export function supabaseDocStore(getAdminSupabase: () => any): DocStore {
   return {
     async read(path) {
       const { data, error } = await (await bucket()).download(path);
-      if (error || !data) return null;
-      return await data.text();
+      if (error) {
+        const status = String((error as any).statusCode || (error as any).status || "");
+        if (status === "404" || /not found|does not exist/i.test(error.message || "")) return null;
+        // A temporary storage failure is NOT the same thing as an empty account.
+        // Returning null here could cause the next save to overwrite the file index.
+        throw new Error(error.message || "Document storage unavailable");
+      }
+      return data ? await data.text() : null;
     },
     async write(path, body) {
       const { error } = await (await bucket()).upload(path, Buffer.from(body, "utf8"), { contentType: "application/json", upsert: true, cacheControl: "0" });
@@ -94,7 +100,7 @@ export function registerUserDocRoutes(app: Express, authMiddleware: RequestHandl
   const verDir = (u: string, id: string) => `${u}/versions/${id}`;
 
   async function readIndex(u: string): Promise<DocEntry[]> {
-    const raw = await store.read(indexPath(u)).catch(() => null);
+    const raw = await store.read(indexPath(u));
     if (!raw) return [];
     try {
       const list = JSON.parse(raw);
