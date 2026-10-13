@@ -12,6 +12,7 @@ export default function ParentSignup() {
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [parentCode, setParentCode] = useState("");
+  const [linkNow, setLinkNow] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export default function ParentSignup() {
     try {
       const query = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
       const code = new URLSearchParams(query).get("code");
-      if (code) setParentCode(code.toUpperCase());
+      if (code) { setParentCode(code.toUpperCase()); setLinkNow(true); }
     } catch {}
   }, []);
 
@@ -38,7 +39,7 @@ export default function ParentSignup() {
           password,
           displayName,
           email,
-          parentCode: parentCode.trim(),
+          parentCode: linkNow ? parentCode.trim() : "",
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -62,37 +63,28 @@ export default function ParentSignup() {
         {submitted ? (
           <div style={styles.success} role="status" data-testid="status-parent-signup-success">
             <CheckCircle2 size={28} aria-hidden="true" />
-            <p style={{ margin: 0 }}>Your account is ready and connected to your child. Log in to see your Parent Proctor Code for quizzes and reading tests.</p>
+            <p style={{ margin: 0 }}>{linkNow ? "Your account is ready and connected to your child." : "Your parent account is ready! Open A.R.I.S.E. Reader from LifeHub to create your child’s independent reader account or connect an existing student."}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.infoBox}>
               <Info size={22} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>Use the student connection code from your child, email invitation, or school handout. Your account will connect to your child automatically.</span>
+              <span>You can create a parent account without a code. Then set up a new independent reader for your child. Have a school code already? You can link that account instead.</span>
             </div>
             <Field id="parent-display-name" label="Your Name" value={displayName} onChange={setDisplayName} autoComplete="name" />
             <Field id="parent-username" label="Username" value={username} onChange={setUsername} autoComplete="username" />
             <Field id="parent-email" label="Email (for activation notification)" value={email} onChange={setEmail} type="email" autoComplete="email" />
             <Field id="parent-password" label="Password" value={password} onChange={setPassword} type="password" autoComplete="new-password" />
-            <div>
-              <label htmlFor="parent-code" style={{ ...styles.label, display: "block", marginBottom: 6 }}>
-                <Link2 size={14} style={{ display: "inline", marginRight: 4 }} />
-                Your Parent Code
-              </label>
-              <input
-                id="parent-code"
-                type="text"
-                value={parentCode}
-                onChange={(e) => setParentCode(e.target.value.toUpperCase())}
-                required
-                placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
-                style={styles.input}
-                data-testid="input-parent-code"
-              />
-              <p style={{ fontSize: 13, color: "hsl(0 0% 60%)", marginTop: 4 }}>
-                Your child's teacher can give you a new handout if you need the code.
-              </p>
-            </div>
+            <fieldset style={styles.codeChoice} data-testid="parent-link-choice">
+              <legend style={styles.label}>How would you like to start?</legend>
+              <label style={styles.choice}><input type="radio" name="family-mode" checked={!linkNow} onChange={() => setLinkNow(false)} /><span><strong>Set up my child myself</strong><small style={styles.hint}>No code needed. Create an independent reader after signup.</small></span></label>
+              <label style={styles.choice}><input type="radio" name="family-mode" checked={linkNow} onChange={() => setLinkNow(true)} /><span><strong>Connect an existing student</strong><small style={styles.hint}>Use a parent code from your child's school or A.R.I.S.E. account.</small></span></label>
+              {linkNow && <div style={{ marginTop: 14 }}>
+                <label htmlFor="parent-code" style={styles.label}><Link2 size={14} style={{ display: "inline", marginRight: 4 }} /> Parent connection code</label>
+                <input id="parent-code" type="text" value={parentCode} onChange={(e) => setParentCode(e.target.value.toUpperCase())} required placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" style={styles.input} data-testid="input-parent-code" />
+                <p style={styles.hint}>No code? Choose “Set up my child myself.” You can connect an existing student later too.</p>
+              </div>}
+            </fieldset>
             {error && <div style={styles.error} role="alert" data-testid="text-parent-signup-error">{error}</div>}
             <button type="submit" disabled={loading} style={{ ...styles.primaryButton, opacity: loading ? 0.7 : 1 }} data-testid="button-request-parent-account">
               <UserPlus size={20} aria-hidden="true" /> {loading ? "Creating Account..." : "Create Parent Account"}
@@ -154,6 +146,9 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "-0.035em",
   },
   form: { display: "grid", gap: 18 },
+  codeChoice: { border: "1px solid rgba(167,139,250,.26)", borderRadius: 16, padding: 15, margin: 0 },
+  choice: { display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 3px", color: "#f1f5f9", cursor: "pointer" },
+  hint: { display: "block", color: "#adb4c8", fontSize: 13, marginTop: 5, lineHeight: 1.5 },
   label: { display: "grid", gap: 8, color: "#e2e8f0", fontWeight: 750, fontSize: 15 },
   input: {
     width: "100%",
