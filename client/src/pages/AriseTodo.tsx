@@ -71,6 +71,8 @@ import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
 import { cleanDriveFiles } from "@shared/driveApp";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
+import { PlanCard, UpgradeHost, openUpgrade, spaceBlocked, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
+import { spaceOf } from "@shared/todoPlan";
 import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
@@ -267,8 +269,22 @@ export default function AriseTodo() {
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
   const rawSet = sync.setWorkspace;
+  // A.R.I.S.E. To-Do Free: ¼ MB shared across LifeHub and WorkHub (shared/todoPlan.ts). A change
+  // that would grow a full free account is held back here (so a save never fails over it), and the
+  // upgrade box opens, at most once every ten minutes so a background sync can't keep popping it.
+  const todoPlan = useTodoPlan();
+  const todoPlanRef = useRef(todoPlan);
+  todoPlanRef.current = todoPlan;
+  const upgradeShownAt = useRef(0);
   const setData = useCallback((next: Data | ((previous: Data) => Data)) => {
-    rawSet(previous => typeof next === "function" ? next(upgrade(previous)) : next);
+    rawSet(previous => {
+      const value = typeof next === "function" ? next(upgrade(previous)) : next;
+      const plan = todoPlanRef.current;
+      if ((value as unknown) === previous || !plan || plan.unlimited) return value;
+      if (!spaceBlocked(plan, "life", spaceOf(previous), spaceOf(value))) return value;
+      if (Date.now() - upgradeShownAt.current > 10 * 60_000) { upgradeShownAt.current = Date.now(); queueMicrotask(() => openUpgrade("space")); }
+      return previous;
+    });
   }, [rawSet]);
   const setFamily = useCallback((update: (family: Family) => Family) => {
     // Unchanged family (e.g. an Apple Health check with nothing new) is not saved again.
@@ -749,6 +765,7 @@ export default function AriseTodo() {
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
   return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
+    <UpgradeHost hub="life" />
     {store && <PluginStore
       hub="life"
       night={night}
@@ -813,6 +830,7 @@ export default function AriseTodo() {
     />}
     {customizing && <Modal title="Customize" eyebrow="LifeHub" onClose={() => setCustomizing(false)} wide>
       <div className="space-y-6" data-testid="life-customize-panel">
+        <PlanCard hub="life" hubBytes={spaceOf(data)} />
         <button type="button" onClick={() => { setCustomizing(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100" data-testid="life-take-tour">Take the tour again</button>
         <section>
           <h3 className="text-sm font-black text-slate-900">Menu on your phone</h3>

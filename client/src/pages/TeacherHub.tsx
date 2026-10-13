@@ -131,6 +131,8 @@ import HubSwitch from "@/components/HubSwitch";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
+import { PlanCard, UpgradeHost, openUpgrade, spaceBlocked, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
+import { spaceOf } from "@shared/todoPlan";
 import { ADMIN_SECTIONS, SETTINGS_SECTIONS, adminSectionLabel, settingsSectionLabel, type AdminSection, type SettingsSection } from "@/lib/adminSections";
 import HubBehavior from "@/components/teacher-hub/HubBehavior";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
@@ -420,7 +422,24 @@ function TeacherHubPage() {
   const canUseHub = !!user && (user.role === "teacher" || user.role === "parent" || user.isAdmin);
   // Opening the Hub and keeping it saved (see useHubWorkspace).
   const sync = useHubWorkspace({ enabled: canUseHub, token, userId: user?.id });
-  const { workspace, setWorkspace, loaded, loadError, needsPlan, seats, view, bytes } = sync;
+  const { workspace, setWorkspace: setWorkspaceRaw, loaded, loadError, needsPlan, seats, view, bytes } = sync;
+  // A.R.I.S.E. To-Do Free: ¼ MB shared across WorkHub and LifeHub (shared/todoPlan.ts). A change
+  // that would grow a full free account is held back here (so a save never fails over it), and the
+  // upgrade box opens, at most once every ten minutes so a background refresh can't keep popping it.
+  const todoPlan = useTodoPlan();
+  const todoPlanRef = useRef(todoPlan);
+  todoPlanRef.current = todoPlan;
+  const upgradeShownAt = useRef(0);
+  const setWorkspace = useCallback((next: Workspace | ((prev: Workspace) => Workspace)) => setWorkspaceRaw((prev) => {
+    const value = typeof next === "function" ? next(prev) : next;
+    const plan = todoPlanRef.current;
+    if (value === prev || !plan || plan.unlimited) return value;
+    if (!spaceBlocked(plan, "work", spaceOf(prev), spaceOf(value))) return value;
+    if (Date.now() - upgradeShownAt.current > 10 * 60_000) { upgradeShownAt.current = Date.now(); queueMicrotask(() => openUpgrade("space")); }
+    return prev;
+  }), [setWorkspaceRaw]);
+  /** "Add with AI" is part of Unlimited: on Free it opens the upgrade box instead. */
+  const startAdding = (x: { start?: any }) => { if (todoPlan && !todoPlan.unlimited) openUpgrade("ai"); else setAdding(x); };
   // The teacher's accent, handed to the stylesheet as a pair of custom properties.
   const accent = cleanAccent(workspace.profile.accent) || DEFAULT_ACCENT;
   const trial = useHubTrial(token, "work", canUseHub && !user?.isAdmin);
@@ -738,6 +757,7 @@ function TeacherHubPage() {
   return (
     <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
+      <UpgradeHost hub="work" />
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
         night={night}
@@ -789,7 +809,7 @@ function TeacherHubPage() {
             <HubPollBell token={token} userId={user?.id} enabled={canUseHub && loaded && !loadError && !needsPlan} onOpenMeetings={() => setTab("iep")} />
             <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
             {/* On a phone this lives in the floating add button instead, so the header stays clear. */}
-            <button type="button" onClick={() => setAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4" data-testid="hub-add-with-ai">
+            <button type="button" onClick={() => startAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
             <button type="button" onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-plugin-store"><ShoppingBag className="h-4 w-4" /> <span className="hidden lg:inline">App Store</span></button>
@@ -1172,6 +1192,7 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize" right={<button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button>}>
+              <PlanCard hub="work" hubBytes={bytes} />
               <button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm font-semibold text-violet-900 hover:bg-violet-100" data-testid="hub-take-tour"><Sparkles className="h-4 w-4 shrink-0" /> Take the tour: see where everything is in your WorkHub</button>
               <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
               <div className="mb-6 grid gap-5 lg:grid-cols-2" data-testid="customize-layout">
@@ -1329,9 +1350,9 @@ function TeacherHubPage() {
               <Card title="Add things fast" collapseKey="home-add">
                 <p className="mb-4 text-sm text-slate-600">Skip the typing. AI reads what you give it and sorts it into your Hub, and you check it before anything is saved.</p>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                  <QuickAdd icon={<WandSparkles className="h-5 w-5" />} title="Paste or ask" detail="A list, notes, an email, or “plan my week”" onClick={() => setAdding({})} />
-                  <QuickAdd icon={<ImagePlus className="h-5 w-5" />} title="Photo or screenshot" detail="Reminders, notes or a calendar" onClick={() => setAdding({ start: "photo" })} />
-                  <QuickAdd icon={<Upload className="h-5 w-5" />} title="Upload a file" detail="Excel, Word, PDF or CSV" onClick={() => setAdding({ start: "file" })} />
+                  <QuickAdd icon={<WandSparkles className="h-5 w-5" />} title="Paste or ask" detail="A list, notes, an email, or “plan my week”" onClick={() => startAdding({})} />
+                  <QuickAdd icon={<ImagePlus className="h-5 w-5" />} title="Photo or screenshot" detail="Reminders, notes or a calendar" onClick={() => startAdding({ start: "photo" })} />
+                  <QuickAdd icon={<Upload className="h-5 w-5" />} title="Upload a file" detail="Excel, Word, PDF or CSV" onClick={() => startAdding({ start: "file" })} />
                   <QuickAdd icon={<Link2 className="h-5 w-5" />} title="Connect a calendar" detail="Google, Outlook or Apple" onClick={() => setTab("calendar")} />
                 </div>
               </Card>
@@ -1441,7 +1462,7 @@ function TeacherHubPage() {
             <div role="menu" aria-label="Add to your Hub" data-testid="quick-add-menu"
               className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
               {[
-                { key: "ai", label: "With AI", detail: "Paste, photo or file", icon: <WandSparkles className="h-4 w-4" />, go: () => setAdding({}) },
+                { key: "ai", label: "With AI", detail: "Paste, photo or file", icon: <WandSparkles className="h-4 w-4" />, go: () => startAdding({}) },
                 { key: "event", label: "Event or reminder", detail: "", icon: <Calendar className="h-4 w-4" />, go: () => setQuickEvent(true) },
                 { key: "task", label: "To-do", detail: "", icon: <CheckSquare className="h-4 w-4" />, go: () => setTab("tasks"), tab: "tasks" as HubTab },
                 { key: "student", label: "Student", detail: "", icon: <Users className="h-4 w-4" />, go: () => setTab("caseload"), tab: "caseload" as HubTab },

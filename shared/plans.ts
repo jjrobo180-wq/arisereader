@@ -16,6 +16,8 @@
 // This file is the single place the numbers live: the pricing page, the
 // server's plan checks and billing all read them from here.
 
+import { UNLIMITED_MONTHLY_CENTS } from "./todoPlan";
+
 export const PLANS = {
   teacher: {
     /** $10 a month covers one block of students. */
@@ -124,8 +126,8 @@ export function clampBlocks(blocks: unknown): number {
  * What a plan is for. "teacher" and "school" are A.R.I.S.E. Premium;
  * "hub_teacher" and "hub_school" are the Arise WorkHub add-on.
  */
-export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb";
-export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb"];
+export type PlanKind = "teacher" | "school" | "hub_teacher" | "hub_school" | "social" | "bundle_family" | "bundle_teacher" | "todo_family" | "math_class" | "history_class" | "social_class" | "ai_pro" | "storage_20gb" | "storage_100gb" | "storage_500gb" | "todo_unlimited";
+export const PLAN_KINDS: readonly PlanKind[] = ["school", "teacher", "hub_school", "hub_teacher", "social", "bundle_family", "bundle_teacher", "todo_family", "math_class", "history_class", "social_class", "ai_pro", "storage_20gb", "storage_100gb", "storage_500gb", "todo_unlimited"];
 /** The three paid Drive storage tiers, by plan kind. */
 export const STORAGE_PLAN_KINDS: readonly PlanKind[] = ["storage_20gb", "storage_100gb", "storage_500gb"];
 export const isStoragePlanKind = (kind: PlanKind): boolean => (STORAGE_PLAN_KINDS as readonly string[]).includes(kind);
@@ -145,7 +147,7 @@ export const appOfClassKind = (kind: PlanKind): AppId | null => (kind === "math_
 export const isClassAppKind = (kind: PlanKind) => appOfClassKind(kind) !== null;
 export const classAppCents = (app: AppId) => (app === "math" ? PLANS.classApps.mathCents : app === "history" ? PLANS.classApps.historyCents : PLANS.classApps.socialCents);
 /** Plans bought for one person (or one family, or one teacher's class), not sized in blocks of students. */
-export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind);
+export const isAddonKind = (kind: PlanKind) => kind === "social" || kind === "bundle_family" || kind === "bundle_teacher" || kind === "todo_family" || kind === "todo_unlimited" || kind === "ai_pro" || isStoragePlanKind(kind) || isClassAppKind(kind);
 export const isPlanKind = (v: unknown): v is PlanKind => typeof v === "string" && (PLAN_KINDS as readonly string[]).includes(v);
 export const isSchoolKind = (kind: PlanKind) => kind === "school" || kind === "hub_school";
 export const isHubKind = (kind: PlanKind) => kind === "hub_teacher" || kind === "hub_school";
@@ -161,6 +163,7 @@ export function priceOf(kind: PlanKind): { cents: number; interval: "month" | "y
   if (kind === "bundle_teacher") return { cents: PLANS.bundle.teacherMonthlyCents, interval: "month", seats: () => PLANS.bundle.teacherSeats };
   if (kind === "todo_family") return { cents: PLANS.todo.familyMonthlyCents, interval: "month", seats: () => 1 };
   if (kind === "ai_pro") return { cents: PLANS.aiPro.monthlyCents, interval: "month", seats: () => 1 };
+  if (kind === "todo_unlimited") return { cents: UNLIMITED_MONTHLY_CENTS, interval: "month", seats: () => 1 };
   if (isStoragePlanKind(kind)) { const tier = PLANS.storage.tiers.find((t) => t.id === kind)!; return { cents: tier.monthlyCents, interval: "month", seats: () => 1 }; }
   const app = appOfClassKind(kind);
   if (app) return { cents: classAppCents(app), interval: "month", seats: () => PLANS.classApps.seats };
@@ -455,6 +458,22 @@ export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { n
   const none: AddonAccess = { access: false, via: null, endsAt: null };
   if (!person) return none;
   return { ...none, access: true, via: person.isAdmin || person.role === "admin" ? "admin" : "free" };
+}
+
+/**
+ * Is this person on A.R.I.S.E. To-Do Unlimited ($5 a month: unlimited space, and AI to the fair-use ceiling)?
+ * Admins and sample accounts always are; anyone else needs a live Unlimited plan, or a LifeHub
+ * plan bought before Unlimited existed.
+ */
+export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: { unlimited?: PlanGrant | null; oldLifeHub?: PlanGrant | null }, now = Date.now()): { unlimited: boolean; via: "admin" | "demo" | "plan" | "old-plan" | null; endsAt: string | null } {
+  if (!person) return { unlimited: false, via: null, endsAt: null };
+  if (person.isAdmin || person.role === "admin") return { unlimited: true, via: "admin", endsAt: null };
+  if (isDemoAccount(person.username)) return { unlimited: true, via: "demo", endsAt: null };
+  const g = grants.unlimited;
+  if (g && g.kind === "todo_unlimited" && grantLive(g, now)) return { unlimited: true, via: "plan", endsAt: g.endsAt ?? null };
+  const old = grants.oldLifeHub;
+  if (old && old.kind === "todo_family" && grantLive(old, now)) return { unlimited: true, via: "old-plan", endsAt: old.endsAt ?? null };
+  return { unlimited: false, via: null, endsAt: null };
 }
 
 export const BUNDLE_REQUIRED = "bundle_required";
