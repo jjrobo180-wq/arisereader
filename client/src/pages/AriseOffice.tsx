@@ -227,7 +227,7 @@ export default function AriseOffice() {
   const { token, user } = useAuth();
   const [entries, setEntries] = useState<DocEntry[]>([]);
   const [trash, setTrash] = useState(false);
-  const [kind, setKind] = useState<DocKind | "all">("all");
+  const [kind, setKind] = useState<DocKind | "all">(() => { const requested = new URLSearchParams(window.location.hash.split("?")[1] || "").get("kind"); return requested === "sheet" || requested === "doc" || requested === "slides" ? requested : "all"; });
   const [open, setOpen] = useState<DocEntry | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
