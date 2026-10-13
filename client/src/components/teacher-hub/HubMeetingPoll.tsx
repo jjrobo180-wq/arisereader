@@ -52,8 +52,8 @@ const blankTime = () => ({ date: "", start: "", end: "" });
 type Guest = { name: string; email: string; phone: string; role: string };
 const blankGuest = (role = "Parent or guardian"): Guest => ({ name: "", email: "", phone: "", role });
 
-export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId, start, onStarted, account, wizard, setWizard, studentOptions }: {
-  token: string | null; workspace: Workspace; setWorkspace: Setter; makeId: () => string; start: PollStart; onStarted: () => void; account: { name: string; email: string };
+export default function HubMeetingPolls({ token, workspace, setWorkspace, seats, makeId, start, onStarted, account, wizard, setWizard, studentOptions }: {
+  token: string | null; workspace: Workspace; setWorkspace: Setter; seats: number | null; makeId: () => string; start: PollStart; onStarted: () => void; account: { name: string; email: string };
   wizard: WizardState | null; setWizard: (next: WizardState | null) => void; studentOptions: () => ReactNode;
 }) {
   const [polls, setPolls] = useState<PollView[] | null>(null);
@@ -107,7 +107,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
         <InvitedPolls token={token} setNotice={setNotice} />
         {wizard && (
           <MeetingWizard
-            workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} sender={{ name: cleanSenderName(workspace.profile.senderName || account.name), school: workspace.profile.school }}
+            workspace={workspace} setWorkspace={setWorkspace} seats={seats} makeId={makeId} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} sender={{ name: cleanSenderName(workspace.profile.senderName || account.name), school: workspace.profile.school }}
             showPolls={() => { setWizard(null); window.setTimeout(() => document.querySelector('[data-testid="meeting-polls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
             pollBody={(meeting, onSent) => (
               <Composer embedded box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account}
