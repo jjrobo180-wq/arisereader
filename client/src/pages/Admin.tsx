@@ -2606,7 +2606,9 @@ Generate exactly 10 questions.`;
     if (filterBand && gradeToBandLabel(sGrade) !== filterBand) return false;
     if (filterSchool && String(s.schoolId || '') !== filterSchool) return false;
     if (filterGrade && sGrade !== filterGrade) return false;
-    if (filterTeacher && String(s.teacherId || '') !== filterTeacher) return false;
+    if (filterTeacher && !(filterTeacher.startsWith("directory:")
+      ? !s.teacherId && "directory:" + String(s.directoryTeacherName || "").toLowerCase().replace(/[^a-z0-9]/g, "") === filterTeacher
+      : String(s.teacherId || "") === filterTeacher)) return false;
     return true;
   });
   const activeFilterCount = [filterBand, filterSchool, filterGrade, filterTeacher].filter(Boolean).length;
@@ -3173,6 +3175,9 @@ Generate exactly 10 questions.`;
               <select value={filterTeacher} onChange={(e) => setFilterTeacher(e.target.value)} className={SELECT_CLASS} aria-label="Teacher">
                 <option value="">All teachers</option>
                 {allTeachers.map(t => <option key={t.id} value={String(t.id)}>{t.display_name || t.username}</option>)}
+                {Array.from(new Set(students.filter(s => !s.teacherId && s.directoryTeacherName).map(s => s.directoryTeacherName!))).sort().map(name => (
+                  <option key={name} value={"directory:" + name.toLowerCase().replace(/[^a-z0-9]/g, "")}>{name} (no account)</option>
+                ))}
               </select>
               {activeFilterCount > 0 && (
                 <button type="button" onClick={() => { setFilterBand(""); setFilterSchool(""); setFilterGrade(""); setFilterTeacher(""); }} className="text-left text-sm font-semibold text-primary hover:underline sm:col-span-2 lg:col-span-4">Clear filters</button>
