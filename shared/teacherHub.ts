@@ -38,7 +38,7 @@ export type Meeting = { id: string; student: string; type: string; date: string;
   /** YYYY-MM-DD: the IEP (or reevaluation) deadline the meeting has to happen before (shared/meetingDeadline.ts). */
   deadline?: string };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
-export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
+export type Task = { id: string; title: string; dueDate: string; /** Optional HH:MM local time on the due date. */ dueTime?: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
   notes?: string;
   /** Set when the to-do came from the Apple Reminders app (see shared/appleReminders.ts): which reminder it is. */
@@ -337,7 +337,7 @@ export const HUB_IMPORT = {
   tasks: {
     label: "To-dos and reminders", tab: "tasks",
     hint: "Something the teacher has to do or remember. Use this for reminders and checklists.",
-    fields: { title: text("To-do", 200, { required: true }), dueDate: date("Due"), recurring: choice("Repeats", HUB_CHOICES.recurring) },
+    fields: { title: text("To-do", 200, { required: true }), dueDate: date("Due"), dueTime: time("Time (optional)"), recurring: choice("Repeats", HUB_CHOICES.recurring) },
   },
   events: {
     label: "Calendar", tab: "calendar",
