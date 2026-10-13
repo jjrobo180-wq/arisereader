@@ -153,8 +153,6 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const [openId, setOpenId] = useState<string | null>(null);
   const [openTemplateId, setOpenTemplateId] = useState<string | null>(null);
   const [apps, setApps] = useState<AppAccess | null>(null);
-  /** Whether this account is on A.R.I.S.E. To-Do Unlimited (/api/todo-plan). null until known. */
-  const [unlimited, setUnlimited] = useState<boolean | null>(null);
   const [note, setNote] = useState("");
   // A WorkHub kit app being used, shown over the store.
   const [running, setRunning] = useState<string | null>(null);
@@ -192,16 +190,6 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     return () => { gone = true; };
   }, [token]);
 
-  // Arise AI Pro needs Unlimited, so the store has to know which plan this is before offering it.
-  useEffect(() => {
-    if (!token) return;
-    let gone = false;
-    fetch(`${API_BASE}/api/todo-plan`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!gone && d) setUnlimited(!!d.unlimited); })
-      .catch(() => { /* the card offers the upgrade, which is the safe way round */ });
-    return () => { gone = true; };
-  }, [token]);
 
   // Escape closes the detail first, then the store. The page behind is held still, iPhone included:
   // fixing the body in place is the only thing Safari respects, so the hub can't slide under the store.
@@ -278,13 +266,6 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
       // Set up explains the steps first; the popup's own button then goes to the place to do them.
       if (big) return <button type="button" className={`${base} ${solid}`} onClick={(e) => { e.stopPropagation(); onOpen(p); if (p.anchor) goToSetup(p.anchor); }} data-testid="plugin-start-setup">Start setup <ArrowUpRight className="h-4 w-4" /></button>;
       return <button type="button" className={`${base} ${quiet}`} onClick={(e) => { e.stopPropagation(); setOpenId(p.id); }} data-testid={`plugin-setup-${p.id}`}>Set up</button>;
-    }
-    // Needs Unlimited: offer the upgrade instead of an Add that could not work. Until the plan is
-    // known, the upgrade is what shows — better than an Add that turns out to be refused.
-    if (p.needsUnlimited && unlimited !== true) {
-      return <a href="/#/billing" className={`${base} ${solid}`} onClick={(e) => e.stopPropagation()} data-testid={`plugin-upgrade-${p.id}`}>
-        {big ? "Get Unlimited" : "Upgrade"}
-      </a>;
     }
     const on = isInstalled(p);
     return on

@@ -81,10 +81,6 @@ export type Plugin = {
   needsNote?: string;
   /** For a connection: a CSS selector for its setup box, which Start setup scrolls to and highlights. */
   anchor?: string;
-  /** Needs A.R.I.S.E. To-Do Unlimited before it can be added at all. Shown to everyone, so people
-   *  can see what Unlimited gets them, but the button offers the upgrade instead of an Add that
-   *  would do nothing. */
-  needsUnlimited?: boolean;
   /** A paid add-on, billed on its own instead of being part of a plan. Shown as a price badge on its
    *  tile and card; "Add" sends to Billing to subscribe instead of switching the plugin on directly.
    *  $ is per month, per hub (one subscription covers everyone in that WorkHub or LifeHub). */
@@ -142,10 +138,6 @@ const WIDGETS_PLUGIN = (hub: PluginHub): Plugin => ({
 
 export const PLUGINS: readonly Plugin[] = [
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
-  { id: "work-assistant-pro", hub: "work", name: "Arise AI Pro", tagline: "The premium AI assistant: more context, longer answers", category: "Premium", icon: "Sparkles", color: "#9333ea", featured: true, teacherOnly: true,
-    needsUnlimited: true, premium: { priceMonthly: 10, note: "Needs A.R.I.S.E. To-Do Unlimited; 500 messages a month included" },
-    description: "Built on A.R.I.S.E. To-Do Unlimited, which includes the everyday AI. Arise AI Pro is the same chat button with real headroom: longer answers, more conversation history, and help with multi-step work — a full unit plan across several lessons, a detailed IEP goal with accommodations, a staff email that needs real nuance.",
-    features: ["Longer, more detailed answers", "Remembers more of the conversation", "500 messages a month", "Priced to stay fast even at busy times"], target: { kind: "assistantPro" } },
   WIDGETS_PLUGIN("work"),
   BRIEF_PLUGIN("work"),
   { id: "work-assistant", hub: "work", name: "AI assistant", tagline: "Chat with AI about lessons, IEPs, emails and more", category: "Teaching tools", icon: "Sparkles", color: "#0f766e", featured: true, teacherOnly: true,
@@ -213,10 +205,6 @@ export const PLUGINS: readonly Plugin[] = [
   ...ARISE_APPS("work"),
 
   // ── Arise LifeHub ──────────────────────────────────────────────────────────
-  { id: "life-assistant-pro", hub: "life", name: "Arise AI Pro", tagline: "The premium AI assistant: more context, longer answers", category: "Premium", icon: "Sparkles", color: "#9333ea", featured: true,
-    needsUnlimited: true, premium: { priceMonthly: 10, note: "Needs A.R.I.S.E. To-Do Unlimited; 500 messages a month included" },
-    description: "Built on A.R.I.S.E. To-Do Unlimited, which includes the everyday AI. Arise AI Pro is the same chat button with real headroom: longer answers, more conversation history, and help with multi-step planning — a week of meals and the grocery list in one go, a detailed budget walkthrough, a family trip planned day by day.",
-    features: ["Longer, more detailed answers", "Remembers more of the conversation", "500 messages a month", "Priced to stay fast even at busy times"], target: { kind: "assistantPro" } },
   { id: "life-drive", hub: "life", name: "Drive", tagline: "Upload photos from your camera roll", category: "Premium", icon: "FolderOpen", color: "#2563eb", featured: true,
     description: "A simple photo drive for the family: upload pictures straight from a phone's camera roll or a computer, browse them in one place, and share what you need. 500MB free, with paid storage tiers for more room.",
     features: ["Upload from camera roll or files", "500MB free storage", "More space in Billing when you need it", "Private to your hub"], target: { kind: "driveApp" } },
