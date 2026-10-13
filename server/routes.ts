@@ -1524,6 +1524,22 @@ export async function registerRoutes(
     schoolId: u.school_id ? Number(u.school_id) : null, approvedByTeacher: u.approvedByTeacher !== false, archived: !!u.archivedAt,
   }) : null;
   registerAriseSocialRoutes(app, authMiddleware, {
+    // Each student has an individual, persistent approval record. A changed teacher
+    // invalidates the old permission; this requires no new database tables.
+    approvals: {
+      get: async (studentId) => {
+        const raw = await storage.getSetting(`arise_connect_access_${studentId}`);
+        if (!raw) return null;
+        try {
+          const data = JSON.parse(raw);
+          if (!Number.isSafeInteger(data.teacherId) || !["pending", "approved", "denied"].includes(data.status)) return null;
+          return { teacherId: Number(data.teacherId), status: data.status };
+        } catch { return null; }
+      },
+      save: async (studentId, record) => {
+        await storage.upsertSetting(`arise_connect_access_${studentId}`, JSON.stringify(record));
+      },
+    },
     // Arise Social is a $5/month add-on for each account (shared/plans.ts). An admin previewing as a student gets in.
     access: {
       self: async (req: any) => !!(req.adminPreview || req.realUser?.isAdmin) || plans.socialAccess(req.user),
