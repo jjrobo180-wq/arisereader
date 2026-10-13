@@ -356,6 +356,10 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   if (!user) return null;
   if (isHubAccount(user)) {
     if (onReaderDomain) return <ReaderToHubHandoff />;
+    // A new sign-in always opens the person's hub Home, with Reader available
+    // from that hub's menu; saved subpages remain available after they enter.
+    if (user.role === "teacher") return <OpenHubTab to="/workhub" storageKey="workhub_tab" value="overview" />;
+    if (user.role === "parent") return <OpenHubTab to="/lifehub" storageKey="lifehub_tab" value="home" />;
     return <Redirect to={hubPathFor(user)} replace />;
   }
   if (onTodoDomain) return <StudentOnTodo />;
