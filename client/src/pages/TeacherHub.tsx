@@ -70,7 +70,7 @@ import { cleanWidgets } from "@shared/widgets";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { useAuth } from "@/context/AuthContext";
 import { Redirect, useLocation } from "wouter";
-import { goToReader, goToSignIn } from "@/lib/hubs";
+import { goToReader, goToSignIn, isHubAccount } from "@/lib/hubs";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
 import { TASK_SORTS, arrangeTasks, clearDone, restoreTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
@@ -420,7 +420,11 @@ function TeacherHubPage() {
   }, [subMenu]);
   useEffect(() => { setLastInGroup((prev) => (prev[groupOf(tab).id] === tab ? prev : { ...prev, [groupOf(tab).id]: tab })); }, [tab]);
 
-  const canUseHub = !!user && (user.role === "teacher" || user.role === "parent" || user.isAdmin);
+  // WorkHub is for anyone with an adult account, personal A.R.I.S.E. To-Do accounts included —
+  // which is what the server has always said (hubAccessFor in shared/plans.ts: "Both hubs are for
+  // anyone with an adult account"). This gate disagreed and turned those people away at the door.
+  // What stays paid is the A.R.I.S.E. programs inside, not the hub itself.
+  const canUseHub = isHubAccount(user);
   // Opening the Hub and keeping it saved (see useHubWorkspace).
   const sync = useHubWorkspace({ enabled: canUseHub, token, userId: user?.id });
   const { workspace, setWorkspace: setWorkspaceRaw, loaded, loadError, needsPlan, seats, view, bytes } = sync;
@@ -670,11 +674,11 @@ function TeacherHubPage() {
       <div className="min-h-screen bg-slate-100 px-5 py-16">
         <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
-          <h1 className="mt-4 text-2xl font-bold text-slate-950">Teacher accounts only</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Sign in with an approved teacher account to open the Arise WorkHub.</p>
+          <h1 className="mt-4 text-2xl font-bold text-slate-950">This one's for grown-ups</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Arise WorkHub comes with any A.R.I.S.E. To-Do account — yours, a parent's or a teacher's. Student accounts are for reading, so sign in with an adult account to open it.</p>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <GhostButton onClick={() => { logout(); goToSignIn(); }}><LogOut className="h-4 w-4" /> Sign out</GhostButton>
-            <a href="#/teacher-signup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create teacher account</a>
+            <a href="#/signin?mode=signup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create an account</a>
           </div>
         </div>
       </div>

@@ -28,7 +28,7 @@ import { registerPrizeRoutes } from "./prizes";
 import { transferIndependentStudents } from "./independentTransfer";
 import { registerSchoolPickerRoutes, SchoolPickError } from "./schoolPicker";
 import { checkSchoolEmail } from "../shared/schoolEmail";
-import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teacherEmailCodeEmail, teacherWelcomeEmail, type TeacherAccount, type TeacherConfirmDeps } from "./teacherSignup";
+import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teacherEmailCodeEmail, teacherWelcomeEmail, todoEmailCodeEmail, type TeacherAccount, type TeacherConfirmDeps } from "./teacherSignup";
 import { usSchoolDirectory } from "./schoolDirectory";
 import { isIndependentSchoolName } from "../shared/independent";
 import { registerBoardQuestRoutes } from "./boardQuest";
@@ -1273,7 +1273,17 @@ export async function registerRoutes(
       res.status(500).json({ message: "Your plan could not be loaded." });
     }
   });
-  registerAriseTodoRoutes(app, authMiddleware);
+  // The personal A.R.I.S.E. To-Do sign-up confirms its email with the same 6-digit code the teacher
+  // sign-up uses, so there is one mechanism to get right rather than two.
+  registerAriseTodoRoutes(app, authMiddleware, {
+    codes: teacherEmailCodes,
+    turnOn: (userId) => storage.approveTeacherAccount(userId),
+    sendCode: async ({ email, displayName }, code) => {
+      const result = await sendEmail(email, `${code} is your A.R.I.S.E. To-Do code`, todoEmailCodeEmail(displayName, code));
+      if (!result.sent) console.error("[arise-todo] could not email a code:", result.error);
+      return result.sent;
+    },
+  });
   // Share links from LifeHub (a poll to vote in, a list, the calendar, bills, a trip...) that family open without an account.
   const todoOwnerAllowed = async (id: number) => {
     const owner: any = await storage.getUser(id);
@@ -2287,6 +2297,20 @@ export async function registerRoutes(
             username: user.username,
           });
         }
+      }
+
+      // A personal A.R.I.S.E. To-Do account that hasn't confirmed its email yet.
+      if (user.role === 'todo' && !user.accountApproved) {
+        let waitingForCode = false;
+        try { waitingForCode = await teacherEmailCodes.waiting(user.id); } catch {}
+        return res.status(403).json({
+          message: waitingForCode
+            ? "Almost there. Enter the 6-digit code we emailed you to turn on your account."
+            : "Your account needs its email confirmed. Ask for a new code to finish.",
+          confirmEmail: true,
+          todo: true,
+          username: user.username,
+        });
       }
 
       // Teachers from before school emails were required, and parents, must be approved by admin

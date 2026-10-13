@@ -71,8 +71,28 @@ function rejectPreview(req: any, res: any): boolean {
   return false;
 }
 
-export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHandler) {
+/** What the sign-up needs to confirm an email, handed in from routes.ts so the rules here can be
+ *  tested on their own. The 6-digit code machinery is the teacher sign-up's, reused as it is. */
+export type TodoSignupDeps = {
+  codes: { issue(userId: number): Promise<{ ok: true; code: string } | { ok: false; why: "wait"; waitSeconds: number } | { ok: false; why: "limit" }>;
+    check(userId: number, typed: unknown): Promise<"ok" | "wrong" | "expired" | "locked" | "none">;
+    waiting(userId: number): Promise<boolean>;
+    forget(userId: number): Promise<void> };
+  /** Emails the code. False when it could not be sent. */
+  sendCode(to: { email: string; displayName: string }, code: string): Promise<boolean>;
+  turnOn(userId: number): Promise<void>;
+};
+
+/** An email address good enough to send to. Deliberately permissive: any real address should work,
+ *  and the code that follows is what actually proves the address is theirs. */
+const validEmail = (value: unknown): value is string =>
+  typeof value === "string" && value.length <= 160 && /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(value.trim());
+
+export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHandler, signup: TodoSignupDeps) {
   // Separate signup for adults / workers / individuals: no student or teacher fields.
+  // The account is made switched off and a 6-digit code goes to the email; typing it back turns the
+  // account on. Without a confirmed address nobody could be told their account exists, reset a
+  // password, or be reached about their own data.
   app.post("/api/arise-todo/register", async (req: any, res) => {
     const address = clientAddress(req);
     const wait = signupLimits.retryAfter(address);
@@ -93,19 +113,84 @@ export function registerAriseTodoRoutes(app: Express, authMiddleware: RequestHan
     if (displayName.length < 2 || displayName.length > 80) {
       return res.status(400).json({ message: "Enter your name (2–80 characters)." });
     }
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    if (!validEmail(email)) {
+      return res.status(400).json({ message: "Enter an email address we can send your code to." });
+    }
     try {
       if (await storage.getUserByUsername(username)) return res.status(409).json({ message: "Username already taken." });
-      await storage.createUser({
-        username, password: await bcrypt.hash(password, 10), displayName,
-        role: "todo", approvedByTeacher: true, accountApproved: true,
+      const created: any = await storage.createUser({
+        username, password: await bcrypt.hash(password, 10), displayName, email,
+        role: "todo", approvedByTeacher: true, accountApproved: false,
       });
-      return res.status(201).json({ success: true });
+      const userId = Number(created?.id);
+      if (!Number.isFinite(userId)) throw new Error("the new account has no id");
+      const issued = await signup.codes.issue(userId);
+      if (!issued.ok || !(await signup.sendCode({ email, displayName }, issued.code))) {
+        // The account exists but nothing was sent, so turn it on rather than stranding someone
+        // behind a code they never received. The address stays on the account, unconfirmed.
+        if (issued.ok) await signup.codes.forget(userId).catch(() => {});
+        await signup.turnOn(userId).catch(() => {});
+        return res.status(201).json({ success: true, confirmEmail: false, message: "Your account is ready. We couldn't email a code just now, so we've let you straight in." });
+      }
+      return res.status(201).json({ success: true, confirmEmail: true, username, message: `We sent a 6-digit code to ${email}. Enter it to finish.` });
     } catch (error: any) {
       if (error?.code === "23505" || /duplicate key|unique constraint/i.test(String(error?.message || ""))) {
         return res.status(409).json({ message: "Username already taken." });
       }
       console.error("[arise-todo] registration:", error?.message);
       return res.status(500).json({ message: "Could not create your account. Please try again." });
+    }
+  });
+
+  /** The account waiting on a code, by username. Only an unconfirmed personal account qualifies. */
+  const pendingTodo = async (username: unknown) => {
+    const name = String(username ?? "").trim().toLowerCase();
+    if (!name || name.length > 80) return null;
+    const user: any = await storage.getUserByUsername(name);
+    return user && user.role === "todo" && !user.archivedAt ? user : null;
+  };
+
+  // Typing the code back turns the account on.
+  app.post("/api/arise-todo/confirm-email", async (req: any, res) => {
+    try {
+      const user = await pendingTodo(req.body?.username);
+      if (!user) return res.status(400).json({ message: "We couldn't find a sign-up with that username. Please check it and try again." });
+      if (user.accountApproved !== false) return res.json({ success: true, alreadyOn: true, message: "Your account is ready. You can log in." });
+      const result = await signup.codes.check(Number(user.id), req.body?.code);
+      if (result === "wrong") return res.status(400).json({ message: "That code isn't right. Check the email and try again." });
+      if (result === "expired") return res.status(400).json({ message: "That code has run out. Ask for a new one." });
+      if (result === "locked") return res.status(429).json({ message: "Too many wrong tries. Ask for a new code." });
+      if (result === "none") return res.status(400).json({ message: "There is no code waiting for this account. Ask for a new one." });
+      await signup.turnOn(Number(user.id));
+      return res.json({ success: true, message: "Your email is confirmed and your account is ready." });
+    } catch (error: any) {
+      console.error("[arise-todo] confirm:", error?.message);
+      return res.status(500).json({ message: "Could not confirm that code. Please try again." });
+    }
+  });
+
+  // Another code, for an email that never arrived.
+  app.post("/api/arise-todo/resend-code", async (req: any, res) => {
+    try {
+      const user = await pendingTodo(req.body?.username);
+      if (!user) return res.status(400).json({ message: "We couldn't find a sign-up with that username. Please check it and try again." });
+      if (user.accountApproved !== false) return res.json({ success: true, alreadyOn: true, message: "Your account is ready. You can log in." });
+      if (!user.email) return res.status(400).json({ message: "This account has no email address on it. Ask the site admin to turn it on." });
+      const issued = await signup.codes.issue(Number(user.id));
+      if (!issued.ok) {
+        if (issued.why === "wait") return res.status(429).json({ message: `Please wait ${issued.waitSeconds} seconds before asking for another code.` });
+        return res.status(429).json({ message: "That's the most codes we can send in one day. Please try again tomorrow." });
+      }
+      if (!(await signup.sendCode({ email: user.email, displayName: user.displayName || user.username }, issued.code))) {
+        // nothing went out, so this try doesn't count against the wait or the day's limit
+        await signup.codes.forget(Number(user.id)).catch(() => {});
+        return res.status(503).json({ message: "We couldn't send the email just now. Please try again in a few minutes." });
+      }
+      return res.json({ success: true, message: "A new code is on its way." });
+    } catch (error: any) {
+      console.error("[arise-todo] resend:", error?.message);
+      return res.status(500).json({ message: "Could not send a new code. Please try again." });
     }
   });
 

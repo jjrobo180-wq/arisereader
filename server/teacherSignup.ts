@@ -218,6 +218,20 @@ const frame = (inner: string) => `
   `;
 const P = 'style="color: #ccc; font-size: 16px; line-height: 1.6;"';
 
+/** To someone signing up for A.R.I.S.E. To-Do: the code that proves the email is theirs. */
+export function todoEmailCodeEmail(displayName: string, code: string): string {
+  return frame(`
+      <h2 style="color: #FF5900; font-size: 22px;">Confirm your email</h2>
+      <p ${P}>Hi ${esc(displayName)},</p>
+      <p ${P}>Type this code on the sign-up page to finish setting up your A.R.I.S.E. To-Do account:</p>
+      <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <p style="color: #FF5900; font-size: 34px; letter-spacing: 8px; margin: 0; font-weight: bold;">${esc(code)}</p>
+      </div>
+      <p ${P}>The code works for ${CODE_MINUTES} minutes. Confirming your email is how we can reach you about your account and let you reset your password.</p>
+      <p style="color: #666; font-size: 14px; margin-top: 30px;">If you didn't sign up, you can ignore this email.</p>
+  `);
+}
+
 /** To the teacher: the code that proves the school email is theirs. */
 export function teacherEmailCodeEmail(displayName: string, code: string): string {
   return frame(`

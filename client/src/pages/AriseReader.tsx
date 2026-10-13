@@ -94,6 +94,21 @@ function ReaderPage() {
     </div>;
   }
 
+  // A.R.I.S.E. Reader is one of the paid programs, so a personal To-Do account has WorkHub but not
+  // this. Said plainly, with the way to get it, rather than an empty screen or a wall of errors.
+  if (!isParent && user.role !== "teacher" && !user.isAdmin) {
+    return <div className="grid min-h-screen place-items-center bg-slate-100 px-5">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-violet-700"><BookHeart className="h-7 w-7" /></span>
+        <h1 className="mt-4 text-2xl font-bold text-slate-950">A.R.I.S.E. Reader</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">The Reader's class tools come with a teacher or parent account. Your account has Arise WorkHub and A.R.I.S.E. To-Do, which stay free.</p>
+        <a href={back.href} className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">
+          <ArrowLeft className="h-4 w-4" /> Back to {back.label}
+        </a>
+      </div>
+    </div>;
+  }
+
   // Every Reader screen, Live quiz and Scenes included: the hub only links here now, so one left
   // out of this row would have no way in at all.
   const screens = READER_TABS;

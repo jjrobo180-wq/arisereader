@@ -31,6 +31,11 @@ export default function SignIn() {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [personalSignup, setPersonalSignup] = useState(false);
+  const [email, setEmail] = useState("");
+  /** Set once the sign-up has sent a code: the form becomes "type the code we emailed you". */
+  const [codeFor, setCodeFor] = useState("");
+  const [code, setCode] = useState("");
+  const [notice, setNotice] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -70,6 +75,40 @@ export default function SignIn() {
     }
   };
 
+  /** Typing the emailed code back. A right code turns the account on and signs the person in. */
+  const confirmCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
+    setError(""); setSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/arise-todo/confirm-email`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: codeFor, code }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || "That code didn't work.");
+      await login(codeFor, password);
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : "That code didn't work.");
+    } finally { setSubmitting(false); }
+  };
+
+  const resendCode = async () => {
+    if (submitting) return;
+    setError(""); setNotice(""); setSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/arise-todo/resend-code`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: codeFor }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || "Couldn't send another code.");
+      setNotice(data?.message || "A new code is on its way.");
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : "Couldn't send another code.");
+    } finally { setSubmitting(false); }
+  };
+
   const handlePersonalSignup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submitting) return;
@@ -86,13 +125,19 @@ export default function SignIn() {
       if (password.length < 8) {
         throw new Error("Use a password with at least 8 characters.");
       }
+      if (!/^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(email.trim())) {
+        throw new Error("Enter an email address we can send your code to.");
+      }
       const response = await fetch(`${API_BASE}/api/arise-todo/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: cleanUsername, displayName: displayName.trim(), password }),
+        body: JSON.stringify({ username: cleanUsername, displayName: displayName.trim(), password, email: email.trim() }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.message || "Couldn't create your account.");
+      // The account is made switched off until the emailed code is typed back. If no code could be
+      // sent, the server lets the person straight in rather than stranding them.
+      if (data?.confirmEmail) { setCodeFor(cleanUsername); setNotice(data?.message || ""); return; }
       await login(cleanUsername, password);
       // The sign-in route opens the newly created person's LifeHub after authentication.
     } catch (err: any) {
@@ -177,7 +222,32 @@ export default function SignIn() {
         <section className="relative order-1 z-10 lg:order-2">
           <div className="pointer-events-none absolute -inset-5 -z-10 rounded-[40px] bg-gradient-to-br from-[#e5ddff] via-[#f4f1ff] to-[#dcf8f9] blur-lg"/>
           <div className="rounded-[28px] border border-[#e3e5f6] bg-white p-6 shadow-[0_24px_70px_rgba(65,51,139,.10)] sm:p-8">
-            {personalSignup ? (
+            {codeFor ? (
+              /* The account exists but is switched off until this code is typed back. */
+              <section aria-label="Confirm your email">
+                <div className="mb-7">
+                  <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">Last step</p>
+                  <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">Check your email</h2>
+                  <p className="mt-2 text-sm leading-6 text-[#737b94]">{notice || `We sent a 6-digit code to ${email}. Enter it to finish setting up your account.`} It can take a minute, and it's worth a look in your junk folder.</p>
+                </div>
+                <form onSubmit={confirmCode} className="space-y-5">
+                  <div>
+                    <label htmlFor="personal-code" className="mb-2 block text-sm font-bold text-[#2e3653]">6-digit code</label>
+                    <input id="personal-code" required autoFocus inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code"
+                      value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} data-testid="personal-code"
+                      className="h-14 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-center text-2xl font-black tracking-[0.4em] text-[#17213b] outline-none focus:border-[#665ae6]"/>
+                  </div>
+                  {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
+                  <button type="submit" disabled={submitting || code.length < 6} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5b53df] px-5 text-sm font-black text-white transition hover:bg-[#4941cb] disabled:opacity-60">
+                    {submitting ? "Checking…" : "Confirm and open my hubs"} <ArrowRight size={18}/>
+                  </button>
+                </form>
+                <div className="mt-5 flex flex-col gap-2 text-center text-sm">
+                  <button type="button" onClick={resendCode} disabled={submitting} className="min-h-11 font-bold text-[#5b53df] hover:underline disabled:opacity-60">Send a new code</button>
+                  <button type="button" onClick={() => { setCodeFor(""); setCode(""); setError(""); setNotice(""); }} className="min-h-11 text-[#7d839d] hover:underline">Use a different email</button>
+                </div>
+              </section>
+            ) : personalSignup ? (
               <section aria-label="Create your personal A.R.I.S.E. account">
                 <div className="mb-7">
                   <p className="text-xs font-black uppercase tracking-[.13em] text-[#695ede]">{onTodo ? "A.R.I.S.E. To-Do" : "Personal Life Hub"}</p>
@@ -192,6 +262,11 @@ export default function SignIn() {
                   <div>
                     <label htmlFor="personal-username" className="mb-2 block text-sm font-bold text-[#2e3653]">Username</label>
                     <input id="personal-username" required autoComplete="username" autoCapitalize="none" spellCheck={false} minLength={3} maxLength={30} value={username} onChange={e => setUsername(e.target.value)} placeholder="Choose a username" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none focus:border-[#665ae6]"/>
+                  </div>
+                  <div>
+                    <label htmlFor="personal-email" className="mb-2 block text-sm font-bold text-[#2e3653]">Email</label>
+                    <input id="personal-email" required type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={160} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none focus:border-[#665ae6]" data-testid="personal-email"/>
+                    <p className="mt-1.5 text-xs leading-5 text-[#7d839d]">We'll send a 6-digit code to confirm it. This is how you reset your password later.</p>
                   </div>
                   <div>
                     <label htmlFor="personal-password" className="mb-2 block text-sm font-bold text-[#2e3653]">Password</label>
