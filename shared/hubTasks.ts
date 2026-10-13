@@ -109,7 +109,7 @@ export function saveTask(tasks: Task[], id: string | null, fields: TaskFields, m
   const title = fields.title.trim().slice(0, 200).trim();
   if (!title) return tasks;
   const notes = (fields.notes || "").trim().slice(0, 1000);
-  const dueTime = fields.dueDate && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(fields.dueTime || "") ? fields.dueTime : undefined;
+  const dueTime = fields.dueDate && /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(fields.dueTime || "") ? fields.dueTime : undefined;
   const changes = { title, dueDate: fields.dueDate, ...(dueTime ? { dueTime } : {}), recurring: fields.recurring, ...(fields.priority ? { priority: "high" as const } : {}), ...(notes ? { notes } : {}) };
   if (!id) return [...tasks, { id: makeId(), ...changes, done: false }];
   if (!tasks.some((t) => t.id === id)) return tasks;
