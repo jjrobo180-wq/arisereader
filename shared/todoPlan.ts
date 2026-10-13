@@ -7,12 +7,14 @@
 //
 // An "app" is something added from the App Store beyond what a hub comes with: a LifeHub add-on
 // section (a calorie counter, habits, recipes, a kit...), or a Notes, Sheets, Drive, Drop or Kit app.
-// The built-in sections (Calendar, Tasks, Notes, Chores, the WorkHub tabs...) never count.
+// What each hub comes with never counts: Home, Calendar, Tasks and Notes in WorkHub, and Home,
+// Tasks, Calendar, Notes, Notifications and Settings in LifeHub.
 //
 // Nothing is ever taken away: someone over 3 (an account from before) keeps every app they have;
 // they just can't add another until they're back under 3 or on Unlimited. The page and the server
 // both count with these functions, so they always agree.
 import { ADD_ON_SECTIONS, cleanFamily, isOn, type Family } from "./familyHub";
+import { WORK_ADD_ON_TABS, isTabOn, type HubTab } from "./teacherHub";
 import { kitDef } from "./pluginKit";
 import { notesAppPlugin, sheetsAppPlugin, type Plugin } from "./pluginStore";
 
@@ -49,10 +51,13 @@ export function lifeApps(workspace: unknown): string[] {
   ];
 }
 
-/** The App Store apps a WorkHub workspace has added. (Its tabs are built in and never count.) */
+/** The App Store apps a WorkHub workspace has added. WorkHub comes with Home, Calendar, Tasks and
+ *  Notes; every other screen is added from the App Store and counts, the same as a LifeHub add-on. */
 export function workApps(workspace: unknown): string[] {
   const w: any = workspace && typeof workspace === "object" ? workspace : {};
+  const visible = (w.visibleTabs || {}) as Partial<Record<HubTab, boolean>>;
   return [
+    ...WORK_ADD_ON_TABS.filter((tab) => isTabOn(tab, visible)).map((tab) => `tab:${tab}`),
     ...uniq(w.notesInstalled).filter((id) => !!notesAppPlugin("work", id)).map((id) => `notes:${id}`),
     ...uniq(w.sheetsInstalled).filter((id) => !!sheetsAppPlugin("work", id)).map((id) => `sheets:${id}`),
     ...(w.driveInstalled ? ["drive"] : []),
@@ -65,6 +70,7 @@ export function workApps(workspace: unknown): string[] {
 export function countsAsApp(hub: "work" | "life", p: Plugin): boolean {
   const t = p.target;
   if (t.kind === "notesApp" || t.kind === "sheetsApp" || t.kind === "driveApp" || t.kind === "dropApp" || t.kind === "kit") return true;
+  if (hub === "work" && t.kind === "tab") return WORK_ADD_ON_TABS.includes(t.tab);
   return hub === "life" && t.kind === "section" && ADD_ON_SECTIONS.includes(t.section);
 }
 

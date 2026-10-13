@@ -180,10 +180,36 @@ export const HUB_TABS = [
 ] as const;
 export type HubTab = (typeof HUB_TABS)[number];
 
+/** The WorkHub screens every account comes with, free and never counted against the App Store's
+ *  free apps: Home, Calendar, Tasks and Notes. Everything else is added from the App Store. */
+export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "calendar", "tasks", "notes"];
+
+/** WorkHub screens added from the App Store. Off until the teacher adds one, and each counts
+ *  towards the free plan's apps (shared/todoPlan.ts), the same way a LifeHub add-on section does.
+ *  The Reader's own screens and the admin console aren't here: those are decided by role and plan,
+ *  not by the App Store. */
+export const WORK_ADD_ON_TABS: readonly HubTab[] = [
+  "caseload", "goals", "minutes", "iep", "lessons", "arise", "behavior", "attendance",
+  "gradebook", "parents", "schedules", "email",
+];
+
+/** Whether a WorkHub screen shows. The built-in four unless switched off; an App Store screen only
+ *  once it has been added. An administrator sees everything, so nothing is hidden while running
+ *  the site. (The Reader and admin screens are gated elsewhere, by role and plan.) */
+export const isTabOn = (tab: HubTab, visible: Partial<Record<HubTab, boolean>>, isAdmin = false): boolean => {
+  // An App Store screen shows once it has been added — and always for an administrator, who needs
+  // every screen to run the site. (Checking `!== false` wouldn't do for an admin: a new workspace
+  // writes these as false, which is the default rather than a choice anyone made.)
+  if (WORK_ADD_ON_TABS.includes(tab)) return isAdmin || visible[tab] === true;
+  return visible[tab] !== false;
+};
+
 export type Workspace = {
   version: number;
   profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** The one colour the Hub is tinted with (see shared/hubAccent.ts). */ accent?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
   visibleTabs: Record<HubTab, boolean>;
+  /** Set once this workspace's tabs have been read under the App Store rules (see cleanWorkspace). */
+  tabsV2?: boolean;
   /** The order the menu's groups show in, Home aside: group ids as strings, kept loose here to
    *  avoid a circular import with shared/hubTabGroups.ts. See cleanGroupOrder there. */
   groupOrder?: string[];
@@ -224,7 +250,8 @@ export function emptyWorkspace(): Workspace {
   return {
     version: 1,
     profile: { school: "", gradeBand: "", subject: "" },
-    visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, true])) as Record<HubTab, boolean>,
+    visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, !WORK_ADD_ON_TABS.includes(tab)])) as Record<HubTab, boolean>,
+    tabsV2: true,
     groupOrder: [],
     students: [], meetings: [], lessons: [], tasks: [], notes: [], ariseRecords: [], behavior: [], attendance: [],
     assignments: [], gradeScores: [], parentLogs: [], schedules: [], emails: [], goals: [], services: [], serviceLogs: [], events: [], calendars: [],
@@ -242,7 +269,14 @@ export function normalizeWorkspace(raw: any): Workspace {
     ...base,
     ...raw,
     profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}), accent: cleanAccent(raw.profile?.accent) || undefined },
-    visibleTabs: { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true },
+    // Workspaces saved before the App Store had WorkHub screens had every tab written as `true`
+    // by the old default, which would read as "already added" and leave nothing to add. Those are
+    // taken back to the built-in four once, marked with tabsV2 so it happens only that once.
+    // Nothing is deleted by hiding a screen: adding it back from the App Store brings it all back.
+    visibleTabs: raw.tabsV2 === true
+      ? { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true }
+      : { ...base.visibleTabs, ...Object.fromEntries(Object.entries(raw.visibleTabs || {}).filter(([tab]) => !WORK_ADD_ON_TABS.includes(tab as HubTab))), overview: true },
+    tabsV2: true,
     groupOrder: Array.isArray(raw.groupOrder) ? raw.groupOrder.filter((x: unknown) => typeof x === "string") : [],
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];

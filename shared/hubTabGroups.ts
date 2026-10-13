@@ -1,7 +1,7 @@
 // Arise WorkHub: tabs that belong together share one place in the menu (goals and minutes, tasks and notes...). Inside, a row of buttons switches
 // between them. The tabs themselves (and "Customize tabs") are unchanged, so a link to
 // "tasks" still opens Tasks, now inside "Tasks & Notes".
-import type { HubTab } from "./teacherHub";
+import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
   | "home" | "arise" | "records" | "admin" | "calendar" | "schedules" | "caseload" | "iep" | "goals" | "minutes"
@@ -67,21 +67,22 @@ export function cleanGroupOrder(v: unknown): HubGroupId[] {
 
 /** Home and the Reader's teacher tools always show; the admin console only when the page says so (admins). */
 export const ALWAYS_SHOWN: readonly HubTab[] = ["overview", "reader", "readerLive", "readerScenes", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"];
-const shown = (visible: Partial<Record<HubTab, boolean>>, tab: HubTab) => ALWAYS_SHOWN.includes(tab) || (tab === "admin" ? visible.admin === true : visible[tab] !== false);
+const shown = (visible: Partial<Record<HubTab, boolean>>, tab: HubTab, isAdmin = false) =>
+  ALWAYS_SHOWN.includes(tab) || (tab === "admin" ? visible.admin === true : isTabOn(tab, visible, isAdmin));
 
 /** The tabs of a group the teacher has not hidden. */
-export function groupTabs(groupId: HubGroupId, visible: Partial<Record<HubTab, boolean>>): HubTab[] {
+export function groupTabs(groupId: HubGroupId, visible: Partial<Record<HubTab, boolean>>, isAdmin = false): HubTab[] {
   const g = HUB_GROUPS.find((x) => x.id === groupId);
-  return g ? g.tabs.filter((t) => shown(visible, t)) : [];
+  return g ? g.tabs.filter((t) => shown(visible, t, isAdmin)) : [];
 }
 
 /** The groups in the menu: those with at least one tab showing, in the teacher's chosen order
  *  (Home always first, whatever order is passed). */
-export function visibleGroups(visible: Partial<Record<HubTab, boolean>>, order?: readonly string[]) {
+export function visibleGroups(visible: Partial<Record<HubTab, boolean>>, order?: readonly string[], isAdmin = false) {
   const ids = order?.length ? ["home", ...cleanGroupOrder(order)] : HUB_GROUPS.map((g) => g.id);
   return ids
     .map((id) => HUB_GROUPS.find((g) => g.id === id))
-    .filter((g): g is (typeof HUB_GROUPS)[number] => !!g && groupTabs(g.id, visible).length > 0);
+    .filter((g): g is (typeof HUB_GROUPS)[number] => !!g && groupTabs(g.id, visible, isAdmin).length > 0);
 }
 
 /** Where tapping a group goes: the tab used last in it, if it still shows, else its first tab. */

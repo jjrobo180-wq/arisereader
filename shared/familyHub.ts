@@ -13,8 +13,14 @@ export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", 
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
 export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
-/** Sections added from the Plugin Store: off until the family adds them (the others start on). */
-export const ADD_ON_SECTIONS: readonly FamilySection[] = ["journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
+/** Sections added from the Plugin Store: off until the family adds them (the others start on).
+ *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
+ *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
+ *  plan's apps (shared/todoPlan.ts). Nothing is deleted by not having one: adding it back brings
+ *  everything in it back. */
+export const ADD_ON_SECTIONS: readonly FamilySection[] = [
+  "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
+  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
 
 /** A family's `sectionOrder` (only the toggleable sections can be reordered) made safe to use:
  *  every toggleable section appears exactly once, keeping the saved order where valid and

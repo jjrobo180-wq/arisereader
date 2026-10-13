@@ -716,7 +716,7 @@ function TeacherHubPage() {
 
   // The admin console shows for admins only.
   const visible = { ...workspace.visibleTabs, admin: !!user.isAdmin };
-  const menu = visibleGroups(visible, workspace.groupOrder);
+  const menu = visibleGroups(visible, workspace.groupOrder, !!user.isAdmin);
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
   /** Opening a menu item. A.R.I.S.E. Reader is a page of its own now (/reader), so that one item
@@ -731,7 +731,7 @@ function TeacherHubPage() {
     if (!searching) return [];
     const out: HubSearchEntry[] = [];
     const dateWord = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
-    for (const g of menu) for (const t of groupTabs(g.id, visible)) out.push({ id: `tab-${t}`, kind: "Section", title: TAB_META.find((m) => m.id === t)?.label || t, sub: groupLabel(g.id, visible), open: () => goTab(t) });
+    for (const g of menu) for (const t of groupTabs(g.id, visible, !!user.isAdmin)) out.push({ id: `tab-${t}`, kind: "Section", title: TAB_META.find((m) => m.id === t)?.label || t, sub: groupLabel(g.id, visible), open: () => goTab(t) });
     // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
     if (!(workspace as any).briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomize(true) });
@@ -766,7 +766,7 @@ function TeacherHubPage() {
     current.splice(at, 0, id);
     return { ...prev, groupOrder: current };
   });
-  const subTabs = groupTabs(group.id, visible);
+  const subTabs = groupTabs(group.id, visible, !!user.isAdmin);
 
   return (
     <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}

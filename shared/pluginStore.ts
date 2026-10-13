@@ -13,7 +13,7 @@
 // it back brings everything back. What is added is saved with the hub itself, so it syncs between
 // devices like any other change. The store page is client/src/components/plugin-store/PluginStore.tsx.
 
-import type { HubTab } from "./teacherHub";
+import { isTabOn, type HubTab } from "./teacherHub";
 import { isOn, type Family, type FamilySection } from "./familyHub";
 import { KIT_DEFS, type KitDef } from "./pluginKit";
 import { showSection } from "./hubLayout";
@@ -159,6 +159,11 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "work-lifehub-notes", hub: "work", name: "LifeHub Notes", tagline: "Quick pinnable notes, the LifeHub way", category: "Planning", icon: "StickyNote", color: "#e5b04f", target: { kind: "notesApp", id: "work-lifehub-notes", label: "LifeHub Notes" },
     description: "The same simple, colorful note cards LifeHub users keep for codes, lists and ideas — now in WorkHub too. A separate set of notes from Work Notes, just for the quick stuff you'd normally jot on a sticky note.",
     features: ["Color-coded note cards", "Pin your most-used notes to the top", "Search across every note", "Its own notes, separate from Work Notes"] },
+  // Reading records stayed in WorkHub when A.R.I.S.E. Reader moved to its own page. It is an
+  // App Store screen now like the rest, so it needs to be here or there would be no way to add it.
+  { id: "work-arise-records", hub: "work", name: "Reading records", tagline: "What your class has read, at a glance", category: "Students & IEPs", icon: "BookOpen", color: "#6d28d9", target: tab("arise"),
+    description: "Your class's A.R.I.S.E. Reader activity kept in WorkHub: what each student has read, their quizzes and how they're doing over time.",
+    features: ["Each student's reading in one place", "Quizzes and scores", "Progress over the year"] },
   { id: "work-lessons", hub: "work", name: "Lessons", tagline: "Plan lessons by subject and group", category: "Planning", icon: "BookOpenCheck", color: "#2563eb", target: tab("lessons"),
     description: "Plan lessons with their objective, materials and the group they're for.",
     features: ["Objective and materials", "By subject and group", "Dated, so you can plan ahead"] },
@@ -548,8 +553,9 @@ export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boo
   if (t.kind === "sheetsApp") return !!sheetsInstalled?.includes(t.id);
   if (t.kind === "driveApp") return !!driveInstalled;
   if (t.kind === "dropApp") return !!dropInstalled;
-  if (t.kind === "tab") return visibleTabs[t.tab] !== false;
-  if (t.kind === "connection" && "tab" in t.needs) return visibleTabs[t.needs.tab] !== false;
+  // An App Store screen counts as added only once it is on; the built-in four always are.
+  if (t.kind === "tab") return isTabOn(t.tab, visibleTabs);
+  if (t.kind === "connection" && "tab" in t.needs) return isTabOn(t.needs.tab, visibleTabs);
   return false;
 }
 
