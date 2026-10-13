@@ -506,7 +506,7 @@ function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/socia
 let CAT = null;                 // catalog: careers, quests, roadmap...
 let ME = null;                  // /me response
 let PLAN = null;                // /api/addons: the Learning Bundle, its trial and prices
-const S = { tab:'feed', filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
+const S = { tab:'feed', filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
 const C = id => CAT.careers.find(c => c.id === id);
 const role = () => ME?.user.role || 'guest';
 const P = () => ME?.profile;
@@ -532,7 +532,9 @@ const fail = e => toast(e?.message || 'Something went wrong. Please try again.')
 /* ================= NAV ================= */
 function tabs(){
   const r = role();
-  if (ME && !ME.access) return [];
+  if (ME && r==='student' && ME.approvalStatus!=='approved') return [];
+  if (ME && !ME.access && r!=='teacher') return [];
+  if (r==='teacher' && !ME.access) return [['approvals','Approvals','inbox']];
   if (r==='student') return [['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]).concat([['profile','Achievements','passport']]);
   if (r==='teacher') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['events','Events','event'],['explore','Explore','explore']];
   if (r==='admin') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
@@ -543,7 +545,7 @@ function badgeFor(id){ return id==='approvals' && S.approvals ? S.approvals.leng
 function renderChrome(){
   const t = tabs();
   if (t.length && !t.find(x=>x[0]===S.tab)) S.tab = t[0][0];
-  document.getElementById('searchWrap').hidden = !CAT || !ME;
+  document.getElementById('searchWrap').hidden = !CAT || !ME || !ME.access || (role()==='student' && ME.approvalStatus!=='approved');
   document.getElementById('nav').innerHTML = t.map(([id,l,ic])=>{const n=badgeFor(id);return `<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${n?`<span class="dot">${n}</span>`:''}</button>`}).join('');
   document.getElementById('bottom').innerHTML = t.map(([id,l,ic])=>`<button data-act="tab" data-v="${id}" ${S.tab===id?'aria-current="page"':''}>${svg(ic)}<span>${l}</span>${badgeFor(id)?'<i class="dot"></i>':''}</button>`).join('');
   const me = document.getElementById('me');
@@ -873,11 +875,15 @@ function viewFamily(){
 /* ================= TEACHER ================= */
 function viewApprovals(){
   const list = S.approvals;
-  return `<div class="card"><h2>Approvals</h2><p class="muted small" style="margin-top:2px">Your students’ posts wait here until you approve them. Nobody else sees them before that.</p></div>
+  const requests = S.accessRequests;
+  const entry = role()==='teacher' ? `<div class="card"><h2>Student Connect access requests</h2><p class="muted small" style="margin-top:4px">Students cannot enter A.R.I.S.E. Connect until you approve them here. This is separate from normal A.R.I.S.E. Reader class approval.</p></div>
+    ${requests===null?'<div class="skeleton"></div>':requests.length?requests.map(p=>`<div class="card row" style="justify-content:space-between"><div class="row">${av(p.name)}<b>${esc(p.name)}</b></div><div class="row"><button class="btn ok sm" data-act="review-access" data-id="${p.id}" data-v="approve">${svg('check')}Approve access</button><button class="btn sm" data-act="review-access" data-id="${p.id}" data-v="deny">Deny</button></div></div>`).join(''):'<div class="card empty">No student access requests waiting.</div>'}` : '';
+  if (!ME.access) return entry;
+  return entry + `<div class="card"><h2>Post approvals</h2><p class="muted small" style="margin-top:2px">Your students’ posts wait here until you approve them. Nobody else sees them before that.</p></div>
   ${list===null?'<div class="skeleton"></div>':list.length?list.map(p=>`<div class="card stack"><div class="post-head" style="padding:0">${av(p.author)}<div class="who"><b>${esc(p.author)}</b><span class="hl">${p.scope==='school'?'Wants to share with the whole school':'Post to class'} · ${ago(p.createdAt)}</span></div></div>
     ${p.body?`<p>${esc(p.body)}</p>`:''}${p.quest?`<span class="chip cl" style="--c:${cc(p.quest.c)};align-self:flex-start">Quest: ${esc(p.quest.title)}</span>`:''}
     <div class="row"><button class="btn ok sm" data-act="review" data-id="${p.id}" data-v="approve">${svg('check')}Approve</button><button class="btn sm" data-act="review" data-id="${p.id}" data-v="reject">Send back</button></div></div>`).join('')
-  : `<div class="card empty">You’re all caught up.</div>`}`;
+  : `<div class="card empty">You’re all caught up on posts.</div>`}`;
 }
 function viewClass(){
   const ci = S.classInfo;
@@ -891,6 +897,20 @@ function viewClass(){
   <div class="card"><h2 style="margin-bottom:10px">Students</h2>${ci.students.length?`<div class="table-wrap"><table class="roster"><thead><tr><th>Student</th><th class="tnum">Level</th><th class="tnum">Careers</th><th class="tnum">Quests</th><th class="tnum">Streak</th></tr></thead><tbody>${ci.students.map(s=>`<tr><td>${esc(s.name)}</td><td class="tnum">${s.level}</td><td class="tnum">${s.collected}</td><td class="tnum">${s.questsDone}</td><td class="tnum">${s.streak}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Students appear here once you’ve approved them in A.R.I.S.E. Reader.</p>'}</div>`;
 }
 
+/* ================= STUDENT CONNECT LOCK ================= */
+function connectLockHTML(){
+  const status = ME.approvalStatus;
+  const teacher = ME.user.teacherName;
+  const headline = status==='pending' ? 'Waiting for your teacher' : status==='needs_class' ? 'Connect needs a teacher' : status==='denied' ? 'Access not approved yet' : 'Ask to join A.R.I.S.E. Connect';
+  const detail = status==='pending' ? `Your request was sent to ${esc(teacher||'your teacher')}. You'll be able to use Connect once they approve it.`
+    : status==='needs_class' ? 'First, join a teacher’s class in A.R.I.S.E. Reader and get approved there.'
+    : status==='denied' ? 'Your teacher has not approved Connect access. You can send another request.'
+    : `Send a request to ${esc(teacher||'your teacher')} to unlock A.R.I.S.E. Connect.`;
+  return `<div class="center-page"><div class="card stack" style="width:min(100%,520px);text-align:center;padding:28px"><div style="font-size:2rem">🔒</div><span class="eyebrow">A.R.I.S.E. Connect</span><h1 style="margin-top:0">${headline}</h1><p class="muted">${detail}</p>
+  ${status==='not_requested'||status==='denied'?'<button class="btn primary" data-act="request-access" style="align-self:center;min-height:44px">Request teacher approval</button>':''}
+  <a class="btn" href="/" style="align-self:center">Back to A.R.I.S.E. Reader</a></div></div>`;
+}
+
 /* ================= RENDER ================= */
 const VIEWS = { feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
 function render(){
@@ -898,7 +918,8 @@ function render(){
   const root = document.getElementById('root');
   if (!CAT) { root.innerHTML = `<div class="center-page"><div class="skeleton"></div></div>`; return; }
   if (!ME) { root.innerHTML = landingHTML(); document.getElementById('bottom').hidden = true; return; }
-  if (!ME.access) { document.getElementById('bottom').hidden = true; root.innerHTML = joinHTML(); return; }
+  if (role()==='student' && ME.approvalStatus!=='approved') { document.getElementById('bottom').hidden = true; root.innerHTML = connectLockHTML(); return; }
+  if (!ME.access && role()!=='teacher') { document.getElementById('bottom').hidden = true; root.innerHTML = joinHTML(); return; }
   document.getElementById('bottom').hidden = false;
   root.innerHTML = `<div class="app"><aside class="left" id="left">${leftHTML()}</aside><main id="main">${(VIEWS[S.tab]||viewFeed)()}</main><aside class="rail" id="rail">${railHTML()}</aside></div>`;
 }
@@ -914,15 +935,19 @@ async function load(what){
   try {
     if (what==='feed') { S.feed = (await api('/feed')).posts; }
     if (what==='approvals') { S.approvals = (await api('/approvals')).posts; }
+    if (what==='accessRequests') { S.accessRequests = (await api('/access/requests')).requests; }
     if (what==='events') { S.events = (await api('/events')).events; }
     if (what==='children') { S.children = (await api('/children')).children; if (!S.childId && S.children[0]) S.childId = S.children[0].id; }
     if (what==='class') { S.classInfo = await api('/class'); }
-  } catch (e) { if (e.code===401) return signedOut(); if (e.code===402) { ME.access = false; await loadPlan(); return render(); } fail(e); }
+  } catch (e) { if (e.code===401) return signedOut(); if (e.code===402) { ME.access = false; await loadPlan(); return render(); } if (e.body?.code==='connect_teacher_approval_required') { ME.approvalStatus = e.body.approvalStatus; return render(); } fail(e); }
   render();
 }
 async function loadPlan(){ try { PLAN = await apiAt('/api/addons'); } catch { PLAN = null; } }
 function loadForRole(){
   const r = role();
+  if (r==='student' && ME.approvalStatus!=='approved') return;
+  if (r==='teacher') load('accessRequests');
+  if (!ME.access) return;
   if (r==='parent') return load('children');
   load('feed'); load('events');
   if (r==='teacher' || r==='admin') load('approvals');
@@ -951,7 +976,9 @@ document.addEventListener('click', async e=>{
       case 'menu': S.menu = !S.menu; renderChrome(); break;
       case 'buy': el.disabled = true; await buySocial(id ? Number(id) : null).finally(()=>{ el.disabled = false; }); break;
       case 'manage': await manageSocial(id ? Number(id) : null); break;
-      case 'tab': S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') load('approvals'); break;
+      case 'tab': S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') { if (role()==='teacher') load('accessRequests'); if (ME.access) load('approvals'); } break;
+       case 'request-access': { el.disabled = true; const r = await api('/access/request',{method:'POST'}).finally(()=>{el.disabled=false;}); ME.approvalStatus = r.approvalStatus; toast('Request sent to your teacher'); render(); break; }
+       case 'review-access': { el.disabled = true; await api(`/access/requests/${encodeURIComponent(id)}/review`,{method:'POST',body:{decision:v}}); S.accessRequests = (S.accessRequests||[]).filter(p=>String(p.id)!==String(id)); toast(v==='approve'?'Student approved for Connect':'Request denied'); render(); break; }
       case 'fc': S.filterC=v; renderMain(); break;
       case 'fp': S.filterP=v; renderMain(); break;
       case 'open': openModal(id); break;
@@ -1059,7 +1086,7 @@ function burst(){
   await loadPlan();
   S.tab = role()==='parent' ? 'family' : 'feed';
   render();
-  if (ME.access) loadForRole();
+  if (ME.access || role()==='teacher') loadForRole();
 })();
 </script>
 
