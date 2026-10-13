@@ -1119,6 +1119,7 @@ function TeacherHubPage() {
                 {renderSidebarGroups(coreMenu, true)}
                 {hasMyApps && <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskCompact ? "md:sr-only" : ""}`} data-testid="hub-my-apps-heading">My apps</p>}
                 {renderSidebarGroups(installedMenu, false)}
+                <a href="#/office" data-testid="hub-office-link" className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Table className="h-4 w-4" /> Office · Sheets, Docs &amp; Slides</a>
               </>;
             })()}
             {myKits.map((d) => {
