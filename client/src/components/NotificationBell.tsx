@@ -206,19 +206,19 @@ export function NotificationBell({
           <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl ${style.tone}`}><Icon className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">
             <span className="flex items-start gap-2">
-              <span className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-foreground [overflow-wrap:anywhere]">{item.title}</span>
-              <span className="shrink-0 pt-0.5 text-[11px] font-semibold text-muted-foreground">{relativeTime(item.createdAt)}</span>
+              <span className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-[#f5f3ff] [overflow-wrap:anywhere]">{item.title}</span>
+              <span className="shrink-0 pt-0.5 text-[11px] font-semibold text-[#c4c0dc]">{relativeTime(item.createdAt)}</span>
             </span>
-            {item.body && <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{item.body}</span>}
+            {item.body && <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-[#c4c0dc] [overflow-wrap:anywhere]">{item.body}</span>}
             {item.kind === "action" && linked && (
-              <span className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-primary">Open <ChevronRight className="h-3 w-3" /></span>
+              <span className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-[#fb923c]">Open <ChevronRight className="h-3 w-3" /></span>
             )}
           </span>
         </button>
         <button
           type="button"
           onClick={() => void markSeen([item.key])}
-          className="grid w-11 shrink-0 place-items-center text-muted-foreground transition hover:bg-white/[.05] hover:text-foreground"
+          className="grid w-11 shrink-0 place-items-center text-[#c4c0dc] transition hover:bg-white/[.05] hover:text-[#ffffff]"
           aria-label={item.kind === "action" ? `Dismiss: ${item.title}` : `Mark as read: ${item.title}`}
           title={item.kind === "action" ? "Dismiss" : "Mark as read"}
         >
@@ -232,8 +232,8 @@ export function NotificationBell({
     <section aria-label={label}>
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/[.08] bg-[#151326]/95 px-3 py-2 backdrop-blur">
         <span className={`h-2 w-2 rounded-full ${dot}`} />
-        <span className="text-[11px] font-black uppercase tracking-[.14em] text-muted-foreground">{label}</span>
-        <span className="text-[11px] font-bold text-muted-foreground">· {list.length}</span>
+        <span className="text-[11px] font-black uppercase tracking-[.14em] text-[#c4c0dc]">{label}</span>
+        <span className="text-[11px] font-bold text-[#c4c0dc]">· {list.length}</span>
         <span className="ml-auto">{extra}</span>
       </div>
       <ul>{list.map(renderItem)}</ul>
@@ -246,21 +246,21 @@ export function NotificationBell({
       role="dialog"
       aria-label="Notifications"
       style={position.mobile ? { top: position.top, left: 8, right: 8 } : { top: position.top, right: position.right, width: 420 }}
-      className="fixed z-[10000] flex max-h-[min(78vh,640px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151326] shadow-[0_28px_90px_rgba(0,0,0,.55)] ring-1 ring-violet-400/10"
+      className="fixed z-[10000] flex max-h-[min(78vh,640px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151326] text-[#f5f3ff] shadow-[0_28px_90px_rgba(0,0,0,.55)] ring-1 ring-violet-400/10"
     >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/[.06] to-cyan-400/[.07] px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-black">Notifications</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="text-sm font-black text-[#f5f3ff]">Notifications</p>
+          <p className="mt-0.5 text-xs text-[#c4c0dc]">
             {!loaded ? "Checking…" : badge === 0 ? "Nothing new" : [actions.length && `${actions.length} need${actions.length === 1 ? "s" : ""} you`, updates.length && `${updates.length} update${updates.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-white/[.07] hover:text-foreground" aria-label="Check for new notifications" title="Check now">
+          <button type="button" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-lg text-[#c4c0dc] hover:bg-white/[.07] hover:text-[#ffffff]" aria-label="Check for new notifications" title="Check now">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
           {items.length > 0 && (
-            <button type="button" onClick={() => void clearAll()} className="rounded-lg px-2 py-1.5 text-xs font-bold text-muted-foreground hover:bg-white/[.07] hover:text-foreground">Clear all</button>
+            <button type="button" onClick={() => void clearAll()} className="rounded-lg px-2 py-1.5 text-xs font-bold text-[#c4c0dc] hover:bg-white/[.07] hover:text-[#ffffff]">Clear all</button>
           )}
         </div>
       </div>
@@ -274,25 +274,25 @@ export function NotificationBell({
 
       <div className="flex-1 overflow-y-auto overscroll-contain">
         {!loaded ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Checking notifications…</p>
+          <p className="py-10 text-center text-sm text-[#c4c0dc]">Checking notifications…</p>
         ) : items.length === 0 ? (
           <div className="px-5 py-10 text-center">
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-cyan-500/10 text-cyan-300"><CheckCircle2 className="h-6 w-6" /></div>
-            <p className="mt-3 text-sm font-black">You're all caught up</p>
-            <p className="mt-1 text-xs text-muted-foreground">New tasks and updates show up here.</p>
+            <p className="mt-3 text-sm font-black text-[#f5f3ff]">You're all caught up</p>
+            <p className="mt-1 text-xs text-[#c4c0dc]">New tasks and updates show up here.</p>
           </div>
         ) : (
           <>
             {actions.length > 0 && section("Needs you", actions, "bg-fuchsia-400")}
             {updates.length > 0 && section("Updates", updates, "bg-cyan-400", (
-              <button type="button" onClick={() => void markSeen(updates.map((u) => u.key))} className="text-[11px] font-bold text-muted-foreground hover:text-foreground">Mark all read</button>
+              <button type="button" onClick={() => void markSeen(updates.map((u) => u.key))} className="text-[11px] font-bold text-[#c4c0dc] hover:text-[#ffffff]">Mark all read</button>
             ))}
           </>
         )}
       </div>
 
       {actions.length > 0 && (
-        <p className="shrink-0 border-t border-white/10 bg-white/[.03] px-4 py-2 text-[11px] leading-4 text-muted-foreground">
+        <p className="shrink-0 border-t border-white/10 bg-white/[.03] px-4 py-2 text-[11px] leading-4 text-[#c4c0dc]">
           Tasks clear by themselves once they're done. Use × to hide one for now.
         </p>
       )}
