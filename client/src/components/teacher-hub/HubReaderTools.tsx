@@ -25,6 +25,7 @@ import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextAr
 import { HubModal } from "./HubModal";
 import { ProgramLinks } from "./HubReader";
 import AddStudentsModal from "./AddStudentsModal";
+import HubAdvisoryLit from "./HubAdvisoryLit";
 
 const LiveQuizPage = lazy(() => import("@/pages/LiveQuiz"));
 const ScenesPage = lazy(() => import("@/pages/TeacherScenes"));
@@ -50,7 +51,7 @@ function Embedded({ children }: { children: ReactNode }) {
 }
 
 /** The WorkHub tabs that make up the teacher's A.R.I.S.E. Reader account. */
-export const READER_TABS = ["reader", "readerLive", "readerScenes", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"] as const satisfies readonly HubTab[];
+export const READER_TABS = ["reader", "readerLive", "readerScenes", "readerStudents", "readerAdvisory", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"] as const satisfies readonly HubTab[];
 export type ReaderTab = (typeof READER_TABS)[number];
 export const isReaderTab = (tab: HubTab): tab is ReaderTab => (READER_TABS as readonly HubTab[]).includes(tab);
 
@@ -318,6 +319,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       onAction={openAction} request={request}
       onDone={(text, reload) => { done(text); if (reload) { void loadSchool(); void loadClass(); } }} />}
 
+    {tab === "readerAdvisory" && <HubAdvisoryLit />}
     {tab === "readerLive" && <>
       <Card title="Live quiz"><p className="text-sm text-slate-600">Host a game your whole class plays at once. Pick a ready-made quiz or make one, then show the join code on the board.</p></Card>
       <Embedded><LiveQuizPage /></Embedded>

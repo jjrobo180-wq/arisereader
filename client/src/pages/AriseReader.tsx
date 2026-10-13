@@ -11,7 +11,7 @@
 // screens, and the paper look the hub uses (hubPaper.css), carried over so a teacher arriving from
 // WorkHub lands somewhere that feels like where they came from.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, BookHeart, CheckCircle2, ClipboardCheck, Clapperboard, LogOut, MessageSquare, Moon, Sparkles, Sun, Timer, Trophy, Users } from "lucide-react";
+import { ArrowLeft, BookHeart, CheckCircle2, ClipboardCheck, Clapperboard, LogOut, MessageSquare, Moon, School, Sparkles, Sun, Timer, Trophy, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { appHref, goToSignIn } from "@/lib/hubs";
 import HubMark from "@/components/HubMark";
@@ -34,7 +34,7 @@ const hubFor = (role: string | undefined) =>
 /** The same icons WorkHub gives these screens, so the two read as one product. */
 const ICONS: Partial<Record<HubTab, ReactNode>> = {
   reader: <BookHeart className="h-4 w-4" />, readerLive: <Trophy className="h-4 w-4" />, readerScenes: <Clapperboard className="h-4 w-4" />,
-  readerStudents: <Users className="h-4 w-4" />, readerApprovals: <CheckCircle2 className="h-4 w-4" />, readerParents: <MessageSquare className="h-4 w-4" />,
+  readerStudents: <Users className="h-4 w-4" />, readerAdvisory: <School className="h-4 w-4" />, readerApprovals: <CheckCircle2 className="h-4 w-4" />, readerParents: <MessageSquare className="h-4 w-4" />,
   readerQuizzes: <ClipboardCheck className="h-4 w-4" />, readerGames: <Timer className="h-4 w-4" />, readerPrizes: <Sparkles className="h-4 w-4" />,
 };
 

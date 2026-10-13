@@ -190,12 +190,13 @@ export function teacherKey(side: { teacherId: number | null; name: string }): st
 
 /** Students grouped under each teacher for one subject, teachers in name order; unanswered students left out. */
 export function groupBy(entries: readonly RosterEntry[], subject: ClassSubject): Array<{ key: string; teacher: string; onSite: boolean; students: RosterEntry[] }> {
-  const groups = new Map<string, { key: string; teacher: string; onSite: boolean; students: RosterEntry[]; spellings: Map<string, number> }>();
+  type Building = { key: string; teacher: string; onSite: boolean; students: RosterEntry[]; spellings: Map<string, number> };
+  const groups = new Map<string, Building>();
   for (const e of entries) {
     const side = e[subject];
     if (!side) continue;
     const key = teacherKey(side);
-    const g = groups.get(key) || { key, teacher: side.name, onSite: side.onSite, students: [], spellings: new Map() };
+    const g: Building = groups.get(key) || { key, teacher: side.name, onSite: side.onSite, students: [], spellings: new Map<string, number>() };
     g.students.push(e);
     g.spellings.set(side.name, (g.spellings.get(side.name) || 0) + 1);
     groups.set(key, g);
