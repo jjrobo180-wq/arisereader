@@ -2202,70 +2202,113 @@ export async function registerRoutes(
     }
   });
 
+  // Families may create a parent account before their children have an A.R.I.S.E.
+  // account. A valid invitation is required only when linking an existing child.
   app.post("/api/auth/register-parent", async (req, res) => {
     try {
-      const { username, password, displayName, email, parentCode } = req.body;
-      if (!username || !password || !displayName) {
-        return res.status(400).json({ message: "All fields are required" });
+      const { username, password, displayName, email, parentCode } = req.body || {};
+      if (typeof username !== "string" || !/^[a-z0-9_-]{3,30}$/.test(username.trim().toLowerCase()) ||
+          typeof password !== "string" || password.length < 6 ||
+          typeof displayName !== "string" || displayName.trim().length < 2 || displayName.trim().length > 100) {
+        return res.status(400).json({ message: "Enter your name, a username (3–30 letters/numbers), and a password with at least 6 characters." });
       }
-      if (username.length < 3) {
-        return res.status(400).json({ message: "Username must be at least 3 characters" });
+      const normalizedCode = typeof parentCode === "string" ? parentCode.replace(/[-\\s]/g, "").toUpperCase() : "";
+      let student: any = null;
+      if (normalizedCode) {
+        if (!/^[A-F0-9]{20}$/.test(normalizedCode)) {
+          return res.status(400).json({ message: "Check the parent code, or leave it blank and connect your child later." });
+        }
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Parent codes are unavailable right now. Please try again." });
+        const { data: invite, error } = await getAdminSupabase().from("parent_invite_codes")
+          .select("student_id").eq("code", normalizedCode).maybeSingle();
+        if (error) return res.status(503).json({ message: "Parent codes are unavailable right now." });
+        if (!invite) return res.status(400).json({ message: "That parent code was not found. Check it or leave it blank and connect your child later." });
+        student = await storage.getUser(invite.student_id);
+        if (!student || student.role !== "student") {
+          return res.status(400).json({ message: "That parent code was not found. Check it or connect your child later." });
+        }
       }
-      if (password.length < 6) {
-        return res.status(400).json({ message: "Password must be at least 6 characters" });
-      }
-      const normalizedCode = typeof parentCode === 'string' ? parentCode.replace(/[-\s]/g, '').toUpperCase() : '';
-      if (!/^[A-F0-9]{20}$/.test(normalizedCode)) {
-        return res.status(400).json({ message: "Enter the parent code from your child's school handout." });
-      }
-
-      const existing = await storage.getUserByUsername(username.toLowerCase());
-      if (existing) {
-        return res.status(409).json({ message: "Username already taken" });
-      }
-
-      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Parent codes are not configured yet." });
-      const { data: invite, error: inviteError } = await getAdminSupabase().from('parent_invite_codes')
-        .select('student_id').eq('code', normalizedCode).maybeSingle();
-      if (inviteError) return res.status(503).json({ message: "Parent codes are unavailable right now." });
-      if (!invite) return res.status(400).json({ message: "That parent code was not found. Please check the handout." });
-      const student = await storage.getUser(invite.student_id);
-      if (!student || student.role !== 'student') return res.status(400).json({ message: "That parent code was not found. Please check the handout." });
-
-      const hashedPassword = bcrypt.hashSync(password, 10);
+      const cleanUsername = username.trim().toLowerCase();
+      if (await storage.getUserByUsername(cleanUsername)) return res.status(409).json({ message: "Username already taken" });
       const user = await storage.createUser({
-        username: username.toLowerCase(),
-        password: hashedPassword,
-        displayName,
-        role: 'parent',
+        username: cleanUsername,
+        password: bcrypt.hashSync(password, 10),
+        displayName: displayName.trim(),
+        role: "parent",
         accountApproved: true,
-        email: email || null,
-        schoolId: student.school_id || null,
-        teacherId: student.teacherId || null,
+        email: typeof email === "string" && email.trim() ? email.trim() : null,
+        schoolId: student?.school_id || null,
+        teacherId: student?.teacherId || null,
       });
-      if (!user) throw new Error('Could not create parent account.');
-
-      // Link parent to student by storing parent_id in a setting
-      const rawLinks = await storage.getSetting('parent_student_links');
-      let parentLinks: ParentStudentLinks = {};
-      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
-      parentLinks[String(user.id)] = [student.id];
-      await storage.upsertSetting('parent_student_links', JSON.stringify(parentLinks));
-
+      if (!user) throw new Error("Could not create parent account.");
+      if (student) {
+        const links = await readParentStudentLinks();
+        links[String(user.id)] = [student.id];
+        await storage.upsertSetting("parent_student_links", JSON.stringify(links));
+      }
       alertAdmin("parent_signup", {
-        title: `New parent: ${displayName}`,
-        summary: [`@${user.username}`, `Parent of ${student.displayName}`, email].filter(Boolean).join(" · "),
-        lines: [["Parent", `${displayName} (@${user.username})`], ["Email", email || ""], ["Student", `${student.displayName} (@${student.username})`]],
-        note: "They used the parent code from the student's handout, so the account is already connected.",
+        title: `New parent: ${user.displayName}`,
+        summary: [`@${user.username}`, student ? `Parent of ${student.displayName}` : "Independent family — child not added yet"].join(" · "),
+        lines: [["Parent", `${user.displayName} (@${user.username})`], ["Email", user.email || ""], ["Student", student ? `${student.displayName} (@${student.username})` : "Will add or link a child later"]],
+        note: student ? "Parent and student were securely linked using the invitation code." : "Parent signed up without a student code; they can create an independent child reader or link an existing child later.",
         ref: `u${user.id}`,
       });
-
       res.status(201).json({
         success: true,
-        message: "Your account is ready and connected to your student. You can log in now.",
+        linked: !!student,
+        message: student ? "Your parent account is ready and linked to your child." : "Your parent account is ready. You can set up your child's independent reader account or link a school account from A.R.I.S.E. Reader.",
       });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      console.error("[parent-signup] failed:", err?.message);
+      res.status(500).json({ message: "We couldn't create your parent account. Please try again." });
+    }
+  });
+
+  // The parent creates an independent student's account without signing out.
+  // Child credentials stay separate; the parent-child link is established server-side.
+  app.post("/api/parent/create-independent-student", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user?.role !== "parent" || req.user?.accountApproved === false || isDemoStudent(req.user)) {
+        return res.status(403).json({ message: "Sign into your own parent account to add a child." });
+      }
+      const { displayName, username, password, gradeLevel, isEyeGazeUser } = req.body || {};
+      if (typeof displayName !== "string" || displayName.trim().length < 2 || displayName.trim().length > 100 ||
+          typeof username !== "string" || !/^[a-z0-9_-]{3,30}$/.test(username.trim().toLowerCase()) ||
+          typeof password !== "string" || password.length < 6 ||
+          !["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].includes(String(gradeLevel))) {
+        return res.status(400).json({ message: "Enter your child's name, a username, a password of at least 6 characters, and their grade." });
+      }
+      const links = await readParentStudentLinks();
+      const ids = normalizeLinkedIds(links[String(req.user.id)]);
+      // Check the family seat allowance before creating an account.
+      const room = await plans.parentLinkAllowed(ids, 2147483647);
+      if (!room.ok) return res.status(409).json({ message: room.message || "Your parent plan has reached its child limit." });
+      const cleanUsername = username.trim().toLowerCase();
+      if (await storage.getUserByUsername(cleanUsername)) return res.status(409).json({ message: "This username is already taken." });
+      const child = await storage.createUser({
+        username: cleanUsername, password: bcrypt.hashSync(password, 10),
+        displayName: displayName.trim(), role: "student",
+        isEyeGazeUser: isEyeGazeUser === true,
+        teacherId: null, schoolId: null, approvedByTeacher: true,
+      });
+      if (!child) throw new Error("Child account wasn't created");
+      const rawGrades = await storage.getSetting("user_grades");
+      let grades: Record<string, string> = {};
+      if (rawGrades) { try { grades = JSON.parse(rawGrades); } catch { /* create a new map */ } }
+      grades[String(child.id)] = String(gradeLevel);
+      await storage.upsertSetting("user_grades", JSON.stringify(grades));
+      const rawTypes = await storage.getSetting("student_signup_types");
+      let types: Record<string, string> = {};
+      if (rawTypes) { try { types = JSON.parse(rawTypes); } catch { /* create a new map */ } }
+      types[String(child.id)] = "independent";
+      await storage.upsertSetting("student_signup_types", JSON.stringify(types));
+      ids.push(child.id);
+      links[String(req.user.id)] = ids;
+      await storage.upsertSetting("parent_student_links", JSON.stringify(links));
+      res.status(201).json({ success: true, studentId: child.id, displayName: child.displayName, username: child.username, message: `${child.displayName}'s independent reader is ready and linked to your family.` });
+    } catch (err: any) {
+      console.error("[parent-independent-student] failed:", err?.message);
+      res.status(500).json({ message: "We couldn't set up your child's account. Please try again." });
     }
   });
 
