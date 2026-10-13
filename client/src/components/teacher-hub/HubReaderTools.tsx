@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { appHref, isReaderPage } from "@/lib/hubs";
 import BannerTap from "@/components/BannerTap";
 import HubAddons from "@/components/hub-pieces/HubAddons";
 import HubPlayTime from "@/components/hub-pieces/HubPlayTime";
@@ -92,6 +93,12 @@ const badBtn = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded
 export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; openTab: (tab: HubTab) => void; night: boolean }) {
   const { user, token } = useAuth();
   const [, navigate] = useLocation();
+  // /reader is a standalone page outside the hash router. Changing its hash
+  // alone leaves the Reader shell mounted and makes Profile buttons seem broken.
+  const openPage = useCallback((path: string) => {
+    if (isReaderPage()) window.location.assign(appHref(path));
+    else navigate(path);
+  }, [navigate]);
   const approved = user?.accountApproved !== false;
   const isTeacher = user?.role === "teacher";
 
@@ -279,11 +286,11 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       <Card title="Start something" collapseKey="reader-start">
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           <Launch icon={<Trophy className="h-5 w-5" />} title="Host a live quiz" detail="Your class plays together" onClick={() => openTab("readerLive")} main />
-          <Launch icon={<GraduationCap className="h-5 w-5" />} title="Study Squad sets" detail="Practice sets for your class" onClick={() => navigate("/study")} />
-          <Launch icon={<Trophy className="h-5 w-5" />} title="Leaderboard" detail="See who's reading the most" onClick={() => navigate("/leaderboard")} />
+          <Launch icon={<GraduationCap className="h-5 w-5" />} title="Study Squad sets" detail="Practice sets for your class" onClick={() => openPage("/study")} />
+          <Launch icon={<Trophy className="h-5 w-5" />} title="Leaderboard" detail="See who's reading the most" onClick={() => openPage("/leaderboard")} />
           <Launch icon={<BookOpen className="h-5 w-5" />} title="Scenes" detail="Live reading scenes" onClick={() => openTab("readerScenes")} />
-          <Launch icon={<Sparkles className="h-5 w-5" />} title="What A.R.I.S.E. 2.0 can do" detail="Live games, game time and quiz tracking" onClick={() => navigate("/teacher-arise-2")} />
-          {!user?.isAdmin && <Launch icon={<Award className="h-5 w-5" />} title="Your plan" detail="Plans, add-ons and billing" onClick={() => navigate("/billing")} />}
+          <Launch icon={<Sparkles className="h-5 w-5" />} title="What A.R.I.S.E. 2.0 can do" detail="Live games, game time and quiz tracking" onClick={() => openPage("/teacher-arise-2")} />
+          {!user?.isAdmin && <Launch icon={<Award className="h-5 w-5" />} title="Your plan" detail="Plans, add-ons and billing" onClick={() => openPage("/billing")} />}
         </div>
       </Card>
 
@@ -307,7 +314,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
     {tab === "readerStudents" && <StudentsTab isAdmin={!!user?.isAdmin}
       students={students} loading={loading} loadError={loadError} school={school} schoolBusy={schoolBusy}
-      onView={(id) => navigate(`/student-profile/${id}`)} onMessage={(id) => navigate(`/messages/${id}`)} onCertificates={(id) => navigate(`/student-certificates/${id}`)}
+      onView={(id) => openPage(`/student-profile/${id}`)} onMessage={(id) => openPage(`/messages/${id}`)} onCertificates={(id) => openPage(`/student-certificates/${id}`)}
       onAction={openAction} request={request}
       onDone={(text, reload) => { done(text); if (reload) { void loadSchool(); void loadClass(); } }} />}
 
