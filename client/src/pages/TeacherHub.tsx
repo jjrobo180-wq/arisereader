@@ -76,7 +76,8 @@ import { cleanWidgets } from "@shared/widgets";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { useAuth } from "@/context/AuthContext";
 import { Redirect, useLocation } from "wouter";
-import { goToReader, goToSignIn, isHubAccount } from "@/lib/hubs";
+import { appHref, goToReader, goToSignIn, isHubAccount } from "@/lib/hubs";
+import { usePlan } from "@/lib/plan";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
 import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, arrangeTasks, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskFilter, type TaskSort, type TaskView } from "@shared/hubTasks";
@@ -554,6 +555,11 @@ function TeacherHubPage() {
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
   const learningAccess = useLearningAccess(token);
+  const { plan: readerPlan } = usePlan(token);
+  // Reader classroom tools are part of the Class/School Premium plan. The free
+  // student book library is unchanged; only teacher navigation shows its Add-on.
+  const readerNeedsPremium = user?.role === "teacher" && !user?.isAdmin && !!readerPlan?.enforced && !readerPlan.premium;
+  const openReaderOrPlan = () => { if (readerNeedsPremium) window.location.href = appHref("/billing"); else goToReader(); };
   // The guided tour (WorkHubTour) opens real sections as it goes, so a step can point at the
   // actual screen instead of describing it. It asks with this event; the menu is shown too, so
   // the item it highlights is on screen even when the phone menu was tucked away.
@@ -740,7 +746,7 @@ function TeacherHubPage() {
    *  leaves the hub rather than switching tab; everything else behaves as it always did. */
   const goGroup = (id: HubGroupId) => {
     // A.R.I.S.E. Reader is its own address, not a route inside this app, so this leaves for it.
-    if (id === "arise") { goToReader(); return; }
+    if (id === "arise") { openReaderOrPlan(); return; }
     setTab(openGroup(id, visible, lastInGroup, !!user.isAdmin));
     closeApps();
   };
@@ -1050,11 +1056,13 @@ function TeacherHubPage() {
                     <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                       {/* Same style as the other Arise Learning programs (a colored icon tile). Pressing it
                           jumps straight to the Reader Overview, so a teacher always lands somewhere. */}
-                      <button type="button" onClick={goToReader} data-testid="hub-menu-arise" data-hub-nav
+                      <button type="button" onClick={() => { afterPick(); openReaderOrPlan(); }} data-testid="hub-menu-arise" data-hub-nav
+                        title={readerNeedsPremium ? "A.R.I.S.E. Reader: add it from the Class plan" : "Open A.R.I.S.E. Reader"}
                         className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm text-slate-700 hover:text-slate-950 md:hover:bg-slate-100`}>
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}>{GROUP_ICON.arise}</span>
                         <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:hidden`}>Reader</span>
                         <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+                        {readerNeedsPremium && <span className={`hidden shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-800 md:ml-auto ${deskCompact || deskTop ? "" : "md:inline"}`} data-testid="hub-reader-addon">Add-on</span>}
                       </button>
                     </div>
                   </Fragment>;
