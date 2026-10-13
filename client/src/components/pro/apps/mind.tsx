@@ -6,7 +6,7 @@ import { Heart, Pause, Play, Plus, Search, Sparkles, Trash2 } from "lucide-react
 import { useAuth } from "@/context/AuthContext";
 import { askAppAi } from "@/lib/cloudDocs";
 import { SequencePlayer } from "../Sequence";
-import { Btn, Card, Chart, Empty, Field, Heatmap, Modal, Stat, Tabs, addDays, audio, bell, fmtDay, fmtDuration, fmtTime, inputCls, lastDays, nowTime, randInt, shuffle, streak, today, uid, usePro, useTick, useWakeLock, vibrate } from "../kit";
+import { Btn, Card, Chart, Empty, Field, Heatmap, Modal, Stat, Tabs, addDays, audio, bell, fmtDay, fmtDuration, fmtTime, fit, inputCls, lastDays, nowTime, randInt, shuffle, streak, today, uid, usePro, useTick, useWakeLock, vibrate } from "../kit";
 
 const PURPLE = "#7c3aed";
 
@@ -45,7 +45,7 @@ function Breathe() {
         <div className="relative text-center text-white drop-shadow"><p className="text-xl font-black">{run !== null ? phase[0] : "Ready"}</p>{run !== null && <p className="text-4xl font-black">{Math.ceil(phase[1] - into)}</p>}</div>
       </div>
       <p className="max-w-md text-center text-sm text-slate-600">{pat.why}</p>
-      <div className="flex items-center gap-3">{run === null ? <><select value={mins} onChange={(e) => setMins(Number(e.target.value))} className={`${inputCls} w-28`}>{[1, 2, 3, 5, 10].map((m) => <option key={m} value={m}>{m} min</option>)}</select><Btn kind="primary" color="#0891b2" big onClick={() => { audio(); setRun(Date.now()); }}><Play size={18} />Start</Btn></> : <><span className="font-mono text-sm text-slate-500">{fmtDuration(mins * 60 - elapsed)} left</span><Btn onClick={() => setRun(null)}><Pause size={16} />Stop</Btn></>}</div>
+      <div className="flex items-center gap-3">{run === null ? <><select value={mins} onChange={(e) => setMins(Number(e.target.value))} className={`${fit("w-28")}`}>{[1, 2, 3, 5, 10].map((m) => <option key={m} value={m}>{m} min</option>)}</select><Btn kind="primary" color="#0891b2" big onClick={() => { audio(); setRun(Date.now()); }}><Play size={18} />Start</Btn></> : <><span className="font-mono text-sm text-slate-500">{fmtDuration(mins * 60 - elapsed)} left</span><Btn onClick={() => setRun(null)}><Pause size={16} />Stop</Btn></>}</div>
     </Card>
     <div className="grid grid-cols-3 gap-2"><Stat label="Today" value={data.log[today()] || 0} sub="sessions" color="#0891b2" /><Stat label="This week" value={lastDays(7).reduce((a, d) => a + (data.log[d] || 0), 0)} /><Stat label="Streak" value={`${streak((d) => !!data.log[d])} days`} /></div>
   </div>;

@@ -75,11 +75,13 @@ export function Btn({ children, onClick, kind = "ghost", color, disabled, classN
   return <button type={type} title={title} aria-label={title} disabled={disabled} onClick={onClick} className={`${base} ${cls} ${className}`} style={style}>{children}</button>;
 }
 export const inputCls = "h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100";
+/** An input with its own width instead of the full row. */
+export const fit = (w: string) => inputCls.replace("w-full", w);
 export function Field({ label, children, hint, className = "" }: { label: string; children: ReactNode; hint?: string; className?: string }) {
   return <label className={`block ${className}`}><span className="mb-1 block text-xs font-bold text-slate-600">{label}</span>{children}{hint && <span className="mt-0.5 block text-[11px] text-slate-500">{hint}</span>}</label>;
 }
 export function NumIn({ value, onChange, min, max, step, placeholder, className = "" }: { value: number | ""; onChange: (n: number | "") => void; min?: number; max?: number; step?: number; placeholder?: string; className?: string }) {
-  return <input type="number" inputMode="decimal" value={value} min={min} max={max} step={step ?? "any"} placeholder={placeholder} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} className={`${inputCls} ${className}`} />;
+  return <input type="number" inputMode="decimal" value={value} min={min} max={max} step={step ?? "any"} placeholder={placeholder} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} className={/\bw-/.test(className) ? `${fit("")} ${className}` : `${inputCls} ${className}`} />;
 }
 export function Tabs<T extends string>({ value, onChange, items, color }: { value: T; onChange: (v: T) => void; items: { id: T; label: ReactNode }[]; color?: string }) {
   return <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1" role="tablist">{items.map((it) => <button key={it.id} type="button" role="tab" aria-selected={value === it.id} onClick={() => onChange(it.id)} className={`rounded-lg px-3 py-1.5 text-sm font-bold ${value === it.id ? "bg-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`} style={value === it.id && color ? { color } : undefined}>{it.label}</button>)}</div>;
