@@ -84,7 +84,7 @@ export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, se
     </div>
     {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" data-testid="iep-quick-add-error">{error}</p>}
     <div className="flex flex-wrap gap-2">
-      <PrimaryButton type="button" onClick={add} disabled={full} data-testid="iep-quick-add-save"><Plus className="h-4 w-4"/> Add to caseload</PrimaryButton>
+      <span data-testid="iep-quick-add-save"><PrimaryButton type="button" onClick={add} disabled={full}><Plus className="h-4 w-4"/> Add to caseload</PrimaryButton></span>
       {onCancel && <button type="button" onClick={onCancel} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>}
     </div>
   </div>;
