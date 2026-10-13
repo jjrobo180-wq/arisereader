@@ -2,6 +2,7 @@ import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useS
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
+import { useSavedChoice } from "@/lib/useSavedChoice";
 
 import { goToReader, goToSignIn } from "@/lib/hubs";
 import {
@@ -356,8 +357,9 @@ export default function AriseTodo() {
     return old.tasks.length || old.lists.some(list => !DEFAULT_LISTS.some(def => def.id === list.id && def.name === list.name)) ? old : null;
   });
   const [skipLegacy, setSkipLegacy] = useState(false);
-  const [selectedList, setSelectedList] = useState("all");
-  const [view, setView] = useState<View>("all");
+  // The list and view picked stay picked (on this device) until they're changed.
+  const [selectedList, setSelectedList] = useSavedChoice<string>("life-todo-list", "all");
+  const [view, setView] = useSavedChoice<View>("life-todo-view", "all", ["all", "today", "upcoming", "completed", "archived"]);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
   const [newListName, setNewListName] = useState("");

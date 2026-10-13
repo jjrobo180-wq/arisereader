@@ -58,6 +58,7 @@ import { registerAppleHealthRoutes } from "./appleHealth";
 import { registerTodoNewsRoutes } from "./todoNews";
 import { registerLifehubPluginRoutes } from "./lifehubPlugins";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
+import { registerLessonPlannerRoutes } from "./lessonPlanner";
 import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
@@ -1357,6 +1358,8 @@ export async function registerRoutes(
   registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
+  // The Lesson Planner's AI helper: ideas, full plans, standards, worksheets, slides, units and reteaches.
+  registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
   // A teacher can connect their own Gmail or Outlook so those emails come from their real address.
   const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });

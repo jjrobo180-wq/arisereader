@@ -10,7 +10,7 @@ function countFor(tab: HubTab, w: Workspace): number | null {
     case "minutes": return w.services.length;
     case "iep": return w.meetings.filter((m) => !m.done).length;
     case "lessons": return w.lessons.length;
-    case "tasks": return w.tasks.filter((t) => !t.done).length;
+    case "tasks": return w.tasks.filter((t) => !t.done && !t.archived).length;
     case "notes": return w.notes.length;
     case "behavior": return w.behavior.length;
     case "attendance": return w.attendance.length;

@@ -1,3 +1,4 @@
+import { useSavedChoice } from "@/lib/useSavedChoice";
 import BannerTap from "@/components/BannerTap";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -156,7 +157,7 @@ export default function Library() {
   const [bookBands, setBookBands] = useState<Record<string, string>>({});
   const [userBand, setUserBand] = useState("");
   const [showBandInfo, setShowBandInfo] = useState(false);
-  const [sortBy, setSortBy] = useState<"points" | "popular" | "recent" | "classics" | "new">("points");
+  const [sortBy, setSortBy] = useSavedChoice<"points" | "popular" | "recent" | "classics" | "new">("library-sort", "points", ["points", "popular", "recent", "classics", "new"]);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -249,7 +250,7 @@ export default function Library() {
   const [customQuizzes, setCustomQuizzes] = useState<any[]>([]);
   const [regularCustomQuizzes, setRegularCustomQuizzes] = useState<any[]>([]);
   const [showEyeGaze, setShowEyeGaze] = useState(false);
-  const [eyeGazeSortBy, setEyeGazeSortBy] = useState<"new" | "title" | "level">("new");
+  const [eyeGazeSortBy, setEyeGazeSortBy] = useSavedChoice<"new" | "title" | "level">("library-eyegaze-sort", "new", ["new", "title", "level"]);
   const [eyeGazeView, setEyeGazeView] = useState<"quizzes" | "games">("quizzes");
   const [eyeGazeSearch, setEyeGazeSearch] = useState("");
 

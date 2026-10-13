@@ -38,7 +38,7 @@ export type Meeting = { id: string; student: string; type: string; date: string;
   /** YYYY-MM-DD: the IEP (or reevaluation) deadline the meeting has to happen before (shared/meetingDeadline.ts). */
   deadline?: string };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
-export type Task = { id: string; title: string; dueDate: string; /** Optional HH:MM local time on the due date. */ dueTime?: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
+export type Task = { id: string; title: string; dueDate: string; /** Optional HH:MM local time on the due date. */ dueTime?: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The to-do list it is on (workspace.taskLists), like LifeHub's lists. Not set means no list. */ listId?: string; /** Tucked away out of every view (Archived shows it) without being deleted. */ archived?: boolean; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
   notes?: string;
   /** Set when the to-do came from the Apple Reminders app (see shared/appleReminders.ts): which reminder it is. */
@@ -245,7 +245,13 @@ export type Workspace = {
   guideLinks: HubLink[];
   /** Up to five pinned banners (see shared/hubPins.ts). */
   pins: Pin[];
+  /** The teacher's to-do lists (Tasks), each with a colour, like LifeHub's lists. See shared/hubTasks.ts. */
+  taskLists?: TaskList[];
+  /** The Lesson Planner's classes (periods/blocks) and the state its standards come from. See shared/lessonPlanner.ts. */
+  lessonClasses?: unknown[];
+  lessonState?: string;
 };
+export type TaskList = { id: string; name: string; color: string };
 
 export function emptyWorkspace(): Workspace {
   return {

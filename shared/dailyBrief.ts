@@ -24,7 +24,7 @@ export function buildWorkBrief(w: Workspace, today: string, hour: number, name: 
     ...(w.events || []).filter((e) => e.date === today && !e.meetingId).map((e) => ({ text: e.title, sub: e.location || undefined, when: clock12(e.start) || "All day", at: e.start || "" })),
     ...(w.meetings || []).filter((m) => m.date === today && !m.done).map((m) => ({ text: `${m.type}: ${m.student}`, sub: m.room || undefined, when: clock12(m.time) || "Today", at: m.time || "" })),
   ].sort((a, b) => (a.at || "99").localeCompare(b.at || "99"));
-  const open = (w.tasks || []).filter((t) => !t.done);
+  const open = (w.tasks || []).filter((t) => !t.done && !(t as any).archived);
   const due = open.filter((t) => t.dueDate && t.dueDate <= today).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const high = open.filter((t) => t.priority === "high" && !(t.dueDate && t.dueDate <= today));
   const meetings = (w.meetings || []).filter((m) => !m.done && m.date && m.date > today && m.date <= week).sort((a, b) => a.date.localeCompare(b.date));

@@ -30,7 +30,7 @@ export default function HubDayHead({ workspace, firstName, onOpenCalendar }: {
 
   const busiest = Math.max(1, ...strip.map((d) => d.n));
   const todayLoad = strip[0]?.n ?? 0;
-  const openTasks = workspace.tasks.filter((t) => !t.done).length;
+  const openTasks = workspace.tasks.filter((t) => !t.done && !t.archived).length;
   const meetings = workspace.meetings.filter((m) => !m.done).length;
   const stats = [
     { label: "Students", value: workspace.students.length },

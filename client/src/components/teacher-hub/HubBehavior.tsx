@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, Check, CheckSquare, Clock3, DoorOpen, Plus, Send, Settings2, Trash2, Undo2, Users, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useSavedChoice } from "@/lib/useSavedChoice";
 import { API_BASE } from "@/lib/queryClient";
 import { minutesOut, positiveRate, type BehaviorSettings } from "@shared/classBehavior";
 import { Card, Empty, Field, PrimaryButton } from "./ui";
@@ -203,7 +204,7 @@ function StartPass({ students, places, onStart }: { students: Student[]; places:
 }
 
 function Reports({ students, request }: { students: Student[]; request: (p: string) => Promise<any> }) {
-  const [sort, setSort] = useState<"week" | "all" | "name">("week");
+  const [sort, setSort] = useSavedChoice<"week" | "all" | "name">("hub-behavior-sort", "week", ["week", "all", "name"]);
   const [open, setOpen] = useState<Student | null>(null);
   const [hist, setHist] = useState<{ events: Ev[]; passes: Pass[] } | null>(null);
   useEffect(() => { if (!open) return; setHist(null); request(`/api/behavior/students/${open.id}`).then(setHist).catch(() => setHist({ events: [], passes: [] })); }, [open, request]);

@@ -10,7 +10,7 @@ import type { ToastAction } from "./HubToast";
 import { Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
 
-export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDelete }: {
+export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDelete, lists, startList = "" }: {
   /** The to-do being changed, or null for a new one. */
   task: Task | null;
   startTitle?: string;
@@ -19,10 +19,14 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
   onClose: () => void;
   /** Shown as Delete when a to-do is being changed. */
   onDelete?: () => void;
+  /** The teacher's to-do lists, to pick one. Left out, there is no list picker. */
+  lists?: { id: string; name: string; color: string }[];
+  /** The list a new to-do starts on (the one being looked at). */
+  startList?: string;
 }) {
   const [draft, setDraft] = useState<TaskFields>(() => (task
-    ? { title: task.title, dueDate: task.dueDate, dueTime: task.dueTime || "", recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "" }
-    : { title: startTitle, dueDate: "", dueTime: "", recurring: "", priority: false, notes: "" }));
+    ? { title: task.title, dueDate: task.dueDate, dueTime: task.dueTime || "", recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "", ...(lists ? { listId: task.listId || "" } : {}) }
+    : { title: startTitle, dueDate: "", dueTime: "", recurring: "", priority: false, notes: "", ...(lists ? { listId: startList } : {}) }));
   function save(e?: FormEvent) {
     e?.preventDefault();
     if (!draft.title.trim()) return;
@@ -44,6 +48,15 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
           {[["Today", today], ["Tomorrow", addDays(today, 1)], ["Next week", addDays(today, 7)]].map(([label, value]) => <button key={label} type="button" className={chip(draft.dueDate === value)} onClick={() => setDraft({ ...draft, dueDate: value })}>{label}</button>)}
           {draft.dueDate && <button type="button" className={chip(false)} onClick={() => setDraft({ ...draft, dueDate: "", dueTime: "" })}>No date</button>}
         </div>
+        {lists && lists.length > 0 && (
+          <div role="group" aria-label="List">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">List</span>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" className={chip(!draft.listId)} onClick={() => setDraft({ ...draft, listId: "" })}>No list</button>
+              {lists.map((l) => <button key={l.id} type="button" className={chip(draft.listId === l.id)} onClick={() => setDraft({ ...draft, listId: l.id })}><span className="h-2.5 w-2.5 rounded-full" style={{ background: l.color }} />{l.name}</button>)}
+            </div>
+          </div>
+        )}
         <Labeled label="Repeats"><Select value={draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value })}><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option></Select></Labeled>
         <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-1 text-sm font-semibold text-slate-900" data-testid="task-important-label"><input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /><span className="text-slate-900">Mark as important</span></label>
         <Labeled label="Notes"><TextArea value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} maxLength={1000} placeholder="Details, a phone number, a link (optional)" /></Labeled>

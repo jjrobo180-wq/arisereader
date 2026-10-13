@@ -2,6 +2,7 @@
 // any one student (a staff meeting, a team meeting, a training). Notes can be searched and changed.
 import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Check, Pencil, Plus, Search, Trash2, User, Users } from "lucide-react";
+import { useSavedChoice } from "@/lib/useSavedChoice";
 import { GENERAL_NOTE_KINDS, STUDENT_NOTE_KINDS, NOTE_TITLE_MAX, arrangeNotes, cleanNote, noteCounts, noteFields, noteHeading, noteScope, saveNote, type NoteFields, type NoteFilter, type NoteScope } from "@shared/hubNotes";
 import type { NoteItem, Workspace } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
@@ -87,7 +88,7 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
   const students = useMemo(() => workspace.students.map((s) => s.name), [workspace.students]);
   const [form, setForm] = useState<NoteFields>(() => blank("student"));
   const [adding, setAdding] = useState(false);
-  const [filter, setFilter] = useState<NoteFilter>("all");
+  const [filter, setFilter] = useSavedChoice<NoteFilter>("hub-notes-filter", "all", ["all", "student", "general"] as NoteFilter[]);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<NoteItem | null>(null);
   const counts = noteCounts(workspace.notes);

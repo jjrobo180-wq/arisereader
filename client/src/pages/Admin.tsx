@@ -1,3 +1,4 @@
+import { useSavedChoice } from "@/lib/useSavedChoice";
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import MonthCountdown from "@/components/MonthCountdown";
 import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
@@ -250,7 +251,7 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
   const [rejectReason, setRejectReason] = useState("");
   const [rejectingQuizId, setRejectingQuizId] = useState<number | null>(null);
   const [showAddQuiz, setShowAddQuiz] = useState(false);
-  const [adminSortBy, setAdminSortBy] = useState<"points" | "popular" | "recent" | "classics" | "new">("points");
+  const [adminSortBy, setAdminSortBy] = useSavedChoice<"points" | "popular" | "recent" | "classics" | "new">("admin-books-sort", "points", ["points", "popular", "recent", "classics", "new"]);
   const [showAdminSortMenu, setShowAdminSortMenu] = useState(false);
   const [announcementText, setAnnouncementText] = useState("");
   const [announcementMsg, setAnnouncementMsg] = useState("");
