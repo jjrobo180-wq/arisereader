@@ -21,8 +21,8 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
   onDelete?: () => void;
 }) {
   const [draft, setDraft] = useState<TaskFields>(() => (task
-    ? { title: task.title, dueDate: task.dueDate, recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "" }
-    : { title: startTitle, dueDate: "", recurring: "", priority: false, notes: "" }));
+    ? { title: task.title, dueDate: task.dueDate, dueTime: task.dueTime || "", recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "" }
+    : { title: startTitle, dueDate: "", dueTime: "", recurring: "", priority: false, notes: "" }));
   function save(e?: FormEvent) {
     e?.preventDefault();
     if (!draft.title.trim()) return;
@@ -36,10 +36,13 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
         {task && onDelete && <button type="button" onClick={() => { onDelete(); onClose(); }} className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-red-600 hover:bg-red-50" data-testid="task-delete"><Trash2 className="h-4 w-4" /> Delete</button>}</div>}>
       <form onSubmit={save} className="grid gap-3" data-testid="task-form">
         <Labeled label="To-do"><Field data-autofocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required maxLength={200} /></Labeled>
-        <Labeled label="Due"><Field type="date" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /></Labeled>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Labeled label="Due date"><Field type="date" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value, dueTime: e.target.value ? draft.dueTime : "" })} /></Labeled>
+          <Labeled label="Due time (optional)"><Field type="time" aria-label="Due time (optional)" disabled={!draft.dueDate} value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></Labeled>
+        </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Quick due dates">
           {[["Today", today], ["Tomorrow", addDays(today, 1)], ["Next week", addDays(today, 7)]].map(([label, value]) => <button key={label} type="button" className={chip(draft.dueDate === value)} onClick={() => setDraft({ ...draft, dueDate: value })}>{label}</button>)}
-          {draft.dueDate && <button type="button" className={chip(false)} onClick={() => setDraft({ ...draft, dueDate: "" })}>No date</button>}
+          {draft.dueDate && <button type="button" className={chip(false)} onClick={() => setDraft({ ...draft, dueDate: "", dueTime: "" })}>No date</button>}
         </div>
         <Labeled label="Repeats"><Select value={draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value })}><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option></Select></Labeled>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /> Mark as important</label>
