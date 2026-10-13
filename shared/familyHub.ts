@@ -628,7 +628,8 @@ export function cleanFamily(input: unknown): Family {
       }
       return out;
     })(),
-    sheetsInstalled: Array.isArray(raw.sheetsInstalled) ? [...new Set(raw.sheetsInstalled.filter((x: unknown): x is string => typeof x === "string" && !!x && x.length <= 60))].slice(0, 20) : [],
+    // Legacy Sheets and new Office/AI installs share this synchronized ID list. Do not truncate at 20: Office alone has 23 tools.
+    sheetsInstalled: Array.isArray(raw.sheetsInstalled) ? [...new Set(raw.sheetsInstalled.filter((x: unknown): x is string => typeof x === "string" && !!x && x.length <= 60))].slice(0, 100) : [],
     sheets: (() => {
       const out: Record<string, Spreadsheet[]> = {};
       for (const [pid, list] of Object.entries(obj(raw.sheets) || {}).slice(0, 20)) {

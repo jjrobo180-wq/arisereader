@@ -65,7 +65,7 @@ import DriveApp from "@/components/family-hub/DriveApp";
 import DropApp from "@/components/family-hub/DropApp";
 import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
 import { cleanDriveFiles } from "@shared/driveApp";
-import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, notesAppPlugin, pluginOpens, pluginsFor, setKitInstalled, setWorkKit, setWorkNotesApp, setWorkPlugin, setWorkSheetsApp, sheetsAppPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, notesAppPlugin, pluginOpens, pluginsFor, setKitInstalled, setWorkKit, setWorkNotesApp, setWorkPlugin, setWorkSheetsApp, sheetsAppPlugin, officeAppPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
 import { cleanNotesApp } from "@shared/notesApp";
 import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
@@ -76,7 +76,8 @@ import { cleanWidgets } from "@shared/widgets";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { useAuth } from "@/context/AuthContext";
 import { Redirect, useLocation } from "wouter";
-import { goToReader, goToSignIn, isHubAccount } from "@/lib/hubs";
+import { appHref, goToReader, goToSignIn, isHubAccount } from "@/lib/hubs";
+import { usePlan } from "@/lib/plan";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
 import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, arrangeTasks, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskFilter, type TaskSort, type TaskView } from "@shared/hubTasks";
@@ -108,6 +109,7 @@ import { useHubWorkspace } from "@/components/teacher-hub/useHubWorkspace";
 import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
+import HubQuickAddStudent from "@/components/teacher-hub/HubQuickAddStudent";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
 import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
@@ -514,6 +516,7 @@ function TeacherHubPage() {
     setWorkspace((prev) => ({ ...prev, notesApps: { ...(prev as any).notesApps, [pid]: update(cleanNotesApp(((prev as any).notesApps ?? {})[pid])) } }));
   const openNotesApp = (k: string | null) => { setNotesAppOpen(k); if (k) window.scrollTo({ top: 0 }); };
   const mySheetsApps = ((workspace as any).sheetsInstalled as string[] | undefined ?? []).map((id) => sheetsAppPlugin("work", id)).filter((p): p is Plugin => !!p);
+  const myOfficeApps = ((workspace as any).sheetsInstalled as string[] | undefined ?? []).map((id) => officeAppPlugin("work", id)).filter((p): p is Plugin => !!p);
   const drivePlugin = (workspace as any).driveInstalled ? driveAppPlugin("work") : undefined;
   const dropPlugin = (workspace as any).dropInstalled ? dropAppPlugin("work") : undefined;
   const hubSheets = cleanSpreadsheets(((workspace as any).sheets ?? {})["work-sheets"]);
@@ -553,6 +556,11 @@ function TeacherHubPage() {
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
   const learningAccess = useLearningAccess(token);
+  const { plan: readerPlan } = usePlan(token);
+  // Reader classroom tools are part of the Class/School Premium plan. The free
+  // student book library is unchanged; only teacher navigation shows its Add-on.
+  const readerNeedsPremium = user?.role === "teacher" && !user?.isAdmin && !!readerPlan?.enforced && !readerPlan.premium;
+  const openReaderOrPlan = () => { if (readerNeedsPremium) window.location.href = appHref("/billing"); else goToReader(); };
   // The guided tour (WorkHubTour) opens real sections as it goes, so a step can point at the
   // actual screen instead of describing it. It asks with this event; the menu is shown too, so
   // the item it highlights is on screen even when the phone menu was tucked away.
@@ -739,7 +747,7 @@ function TeacherHubPage() {
    *  leaves the hub rather than switching tab; everything else behaves as it always did. */
   const goGroup = (id: HubGroupId) => {
     // A.R.I.S.E. Reader is its own address, not a route inside this app, so this leaves for it.
-    if (id === "arise") { goToReader(); return; }
+    if (id === "arise") { openReaderOrPlan(); return; }
     setTab(openGroup(id, visible, lastInGroup, !!user.isAdmin));
     closeApps();
   };
@@ -799,7 +807,7 @@ function TeacherHubPage() {
           if (on && countsAsApp("work", p) && appsFull(todoPlan, "work", appsIn("work", workspace))) { openUpgrade("apps"); return; }
           // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
           setWorkspace((prev) => (p.target.kind === "brief" ? { ...prev, briefOff: !on }
-            : p.target.kind === "sheetsApp" ? { ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, on) }
+            : (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") ? { ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, on) }
             : p.target.kind === "driveApp" ? { ...prev, driveInstalled: on }
             : p.target.kind === "dropApp" ? { ...prev, dropInstalled: on }
             : p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
@@ -810,7 +818,7 @@ function TeacherHubPage() {
           if (p.target.kind === "widget" && on) toasts.show("Widgets added to Home. Tap Add widget to pick your first one.", []);
           if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
           if (p.target.kind === "notesApp" && on) toasts.show(`${p.name} added. Find it in your menu.`, []);
-          if (p.target.kind === "sheetsApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp") {
+          if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp") {
             if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else closeApps();
           }
         }}
@@ -825,7 +833,7 @@ function TeacherHubPage() {
           setNotes: setNotesAppRecords,
           makeId: id,
         }}
-        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
+        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
         onClose={() => setStore(false)}
       />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -945,6 +953,7 @@ function TeacherHubPage() {
                     ))}
                     {!hubOpenFolder && [
                       ...mySheetsApps.map((a) => ({ key: `sheets-app-${a.id}`, name: a.name, color: a.color, icon: <Table className="h-7 w-7" />, open: () => setSheetsAppOpen(a.id) })),
+                      ...myOfficeApps.map((a) => ({ key: `office-app-${a.id}`, name: a.name, color: a.color, icon: <Sparkles className="h-7 w-7" />, open: () => { if (a.target.kind === "officeApp") window.location.hash = a.target.href; } })),
                       ...(drivePlugin ? [{ key: "drive-app", name: drivePlugin.name, color: drivePlugin.color, icon: <FolderOpen className="h-7 w-7" />, open: () => setDriveOpen(true) }] : []),
                       ...(dropPlugin ? [{ key: "drop-app", name: dropPlugin.name, color: dropPlugin.color, icon: <QrCode className="h-7 w-7" />, open: () => setDropOpen(true) }] : []),
                     ].filter((a) => a.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => (
@@ -960,7 +969,7 @@ function TeacherHubPage() {
                       <li key={entry.item.id}>
                         <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { goGroup(entry.item.id); setApps(false); }} data-testid={`hub-app-${entry.item.id}`}
                           className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
-                          <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === entry.item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[entry.item.id]}</span>
+                          <span className={`relative inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === entry.item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[entry.item.id]}{entry.item.id === "arise" && readerNeedsPremium && <span className="absolute -right-2 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold text-violet-800 shadow">Add-on</span>}</span>
                           <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{groupLabel(entry.item.id, visible)}</span>
                         </button>
                       </li>
@@ -1047,11 +1056,14 @@ function TeacherHubPage() {
                     <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                       {/* Same style as the other Arise Learning programs (a colored icon tile). Pressing it
                           jumps straight to the Reader Overview, so a teacher always lands somewhere. */}
-                      <button type="button" onClick={goToReader} data-testid="hub-menu-arise" data-hub-nav
+                      <button type="button" onClick={() => { afterPick(); openReaderOrPlan(); }} data-testid="hub-menu-arise" data-hub-nav
+                        title={readerNeedsPremium ? "A.R.I.S.E. Reader: add it from the Class plan" : "Open A.R.I.S.E. Reader"}
                         className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm text-slate-700 hover:text-slate-950 md:hover:bg-slate-100`}>
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}>{GROUP_ICON.arise}</span>
                         <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:hidden`}>Reader</span>
+                        {readerNeedsPremium && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-800 md:hidden">Add-on</span>}
                         <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+                        {readerNeedsPremium && <span className={`hidden shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-800 md:ml-auto ${deskCompact || deskTop ? "" : "md:inline"}`} data-testid="hub-reader-addon">Add-on</span>}
                       </button>
                     </div>
                   </Fragment>;
@@ -1114,11 +1126,12 @@ function TeacherHubPage() {
                   {open && entry.items.filter((item) => item.id !== "arise" && item.id !== "admin").map((item) => navItem(item, menu.indexOf(item), true))}
                 </Fragment>;
               });
-              const hasMyApps = installedMenu.length > 0 || myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || !!drivePlugin || !!dropPlugin;
+              const hasMyApps = installedMenu.length > 0 || myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || myOfficeApps.length > 0 || !!drivePlugin || !!dropPlugin;
               return <>
                 {renderSidebarGroups(coreMenu, true)}
                 {hasMyApps && <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskCompact ? "md:sr-only" : ""}`} data-testid="hub-my-apps-heading">My apps</p>}
                 {renderSidebarGroups(installedMenu, false)}
+                {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Sparkles className="h-4 w-4" />{a.name}</a>)}
               </>;
             })()}
             {myKits.map((d) => {
@@ -1142,6 +1155,7 @@ function TeacherHubPage() {
                 </button>
               </div>
             ))}
+            {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-installed-office-${a.id}`} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Sparkles className="h-4 w-4" />{a.name}</a>)}
             {mySheetsApps.map((a) => (
               <div key={`sheets-app-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(a.id); afterPick(); }} aria-current={sheetsAppOpen === a.id ? "page" : undefined} data-testid={`hub-sheets-app-${a.id}`} data-hub-nav
@@ -1490,7 +1504,7 @@ function TeacherHubPage() {
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
-          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
+          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
@@ -1863,12 +1877,16 @@ function Info({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div><div className="mt-1 text-slate-700">{value}</div></div>;
 }
 
-function Meetings({ workspace, setWorkspace, remove, studentOptions, token, makeId, account }: SectionProps & { studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string } }) {
+function Meetings({ workspace, setWorkspace, remove, seats, studentOptions, token, makeId, account }: SectionProps & { seats: number | null; studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string } }) {
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
   const [pollStart, setPollStart] = useState<PollStart>(null);
   const [wizard, setWizard] = useState<WizardState | null>(null);
   return (
     <>
-      <Card title="IEP, reevaluation & meeting timeline" right={<PrimaryButton onClick={() => setWizard({ step: 1, meetingId: null })}><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>}>
+      <Card title="IEP, reevaluation & meeting timeline" right={<div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => setAddStudentOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-teal-300 px-4 text-sm font-semibold text-teal-800 hover:bg-teal-50" data-testid="iep-add-student-open"><Plus className="h-4 w-4" /> Add student</button>
+        <PrimaryButton onClick={() => setWizard({ step: 1, meetingId: null })}><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>
+      </div>}>
         <p className="text-sm text-slate-600">Tap “Add meeting”. A short guide walks you through the steps, from picking a time with everyone to sending the final copy. You can skip any step and come back to it.</p>
       </Card>
       <Card title="Timeline">
@@ -1894,7 +1912,10 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
           </div>
         ))}</div> : <Empty>No meetings added.</Empty>}
       </Card>
-      <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} account={account} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} />
+      {addStudentOpen && <HubModal title="Add student to IEP & Meetings" size="lg" closeOnBackdrop onClose={() => setAddStudentOpen(false)}>
+        <HubQuickAddStudent workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} seats={seats} onCancel={() => setAddStudentOpen(false)} onAdded={() => setAddStudentOpen(false)} />
+      </HubModal>}
+      <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} seats={seats} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} account={account} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} />
     </>
   );
 }

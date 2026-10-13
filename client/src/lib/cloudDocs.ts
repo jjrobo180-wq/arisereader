@@ -63,16 +63,19 @@ export function useCloudDoc<C>(id: string | null, clean: (raw: unknown) => C) {
       if (!alive) return;
       const pending = readPending<C>(id);
       // A save that never reached the server (closed tab, no signal) comes back and goes out now.
-      const usePending = pending && pending.base === doc.updatedAt;
+      const diverged = !!pending && pending.base !== doc.updatedAt;
       base.current = doc.updatedAt;
-      const c = clean(usePending ? pending!.content : doc.content);
-      latest.current = { content: c, name: usePending ? pending!.name : doc.name };
+      // Never discard unsent edits just because another device saved first.
+      const c = clean(pending ? pending.content : doc.content);
+      latest.current = { content: c, name: pending ? pending.name : doc.name };
       setContentState(c); setNameState(latest.current.name);
-      if (usePending) { dirty.current = true; schedule(50); } else { clearPending(id); setState("saved"); }
+      if (diverged) { dirty.current = true; setState("conflict"); }
+      else if (pending) { dirty.current = true; schedule(50); }
+      else { clearPending(id); setState("saved"); }
     }).catch((e) => {
       if (!alive) return;
       const pending = readPending<C>(id);
-      if (pending) { const c = clean(pending.content); latest.current = { content: c, name: pending.name }; setContentState(c); setNameState(pending.name); base.current = pending.base; setState("offline"); }
+      if (pending) { const c = clean(pending.content); latest.current = { content: c, name: pending.name }; setContentState(c); setNameState(pending.name); base.current = pending.base; dirty.current = true; setState("offline"); }
       else setError(e.message);
     }).finally(() => alive && setLoading(false));
     return () => { alive = false; };
@@ -113,11 +116,11 @@ export function useCloudDoc<C>(id: string | null, clean: (raw: unknown) => C) {
     schedule();
   };
   const setContent = useCallback((update: C | ((prev: C) => C)) => {
-    setContentState((prev) => {
-      const next = typeof update === "function" ? (update as (p: C) => C)(prev as C) : update;
-      latest.current = { ...latest.current, content: next };
-      return next;
-    });
+    // Update the ref synchronously. React may defer a functional state updater:
+    // writing the pending backup before it runs used to back up the OLD value.
+    const next = typeof update === "function" ? (update as (p: C) => C)(latest.current.content as C) : update;
+    latest.current = { ...latest.current, content: next };
+    setContentState(next);
     touch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -149,22 +152,34 @@ export function saveLabel(s: SaveState): string {
 
 // ─── A premium app's own data ───────────────────────────────────────────────
 
-const appKey = (app: string) => `arise-app-data:${app}`;
+const appKey = (app: string, userId: string | number | undefined) => `arise-app-data:${userId ?? "guest"}:${app}`;
 
 /**
  * State for a premium app that saves itself to the account (and to this device, so it opens
  * instantly and works offline). `clean` makes whatever comes back safe to use.
  */
 export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const cacheKey = appKey(app, user?.id);
   const [data, setDataState] = useState<T>(() => {
-    try { const raw = localStorage.getItem(appKey(app)); return clean(raw ? JSON.parse(raw).data : null); } catch { return clean(null); }
+    try { const raw = localStorage.getItem(cacheKey); return clean(raw ? JSON.parse(raw).data : null); } catch { return clean(null); }
   });
   const [state, setState] = useState<SaveState>("saved");
   const [loaded, setLoaded] = useState(false);
   const latest = useRef(data);
   const timer = useRef<number | null>(null);
   const dirty = useRef(false);
+  const sending = useRef(false);
+
+  useEffect(() => {
+    // Account changes must not expose another person's previously cached content.
+    let cached: T;
+    try { const raw = localStorage.getItem(cacheKey); cached = clean(raw ? JSON.parse(raw).data : null); }
+    catch { cached = clean(null); }
+    latest.current = cached;
+    setDataState(cached);
+    setLoaded(false);
+  }, [cacheKey]);
 
   useEffect(() => {
     let alive = true;
@@ -172,46 +187,53 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
     call<{ data: unknown; updatedAt: string | null }>(token, `/api/app-data/${app}`).then((r) => {
       if (!alive) return;
       let localAt = "";
-      try { localAt = JSON.parse(localStorage.getItem(appKey(app)) || "{}").at || ""; } catch { /* none */ }
-      const unsent = (() => { try { return !!JSON.parse(localStorage.getItem(appKey(app)) || "{}").unsent; } catch { return false; } })();
+      try { localAt = JSON.parse(localStorage.getItem(cacheKey) || "{}").at || ""; } catch { /* none */ }
+      const unsent = (() => { try { return !!JSON.parse(localStorage.getItem(cacheKey) || "{}").unsent; } catch { return false; } })();
       if (r.data !== null && !(unsent && localAt > (r.updatedAt || ""))) {
         const c = clean(r.data);
         latest.current = c; setDataState(c);
-        try { localStorage.setItem(appKey(app), JSON.stringify({ data: r.data, at: r.updatedAt })); } catch { /* fine */ }
+        try { localStorage.setItem(cacheKey, JSON.stringify({ data: r.data, at: r.updatedAt })); } catch { /* fine */ }
       } else if (unsent) { dirty.current = true; void push(); }
     }).catch(() => setState("offline")).finally(() => alive && setLoaded(true));
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [app, token]);
+  }, [app, token, cacheKey]);
 
   const push = useCallback(async () => {
-    if (!dirty.current || !token) return;
+    if (!dirty.current || !token || sending.current) return;
+    sending.current = true;
     dirty.current = false;
+    const snapshot = latest.current;
     setState("saving");
     try {
-      const r = await call<{ updatedAt: string }>(token, `/api/app-data/${app}`, { method: "PUT", body: JSON.stringify({ data: latest.current }) });
-      try { localStorage.setItem(appKey(app), JSON.stringify({ data: latest.current, at: r.updatedAt })); } catch { /* fine */ }
-      if (!dirty.current) setState("saved");
+      const r = await call<{ updatedAt: string }>(token, `/api/app-data/${app}`, { method: "PUT", body: JSON.stringify({ data: snapshot }) });
+      // Only mark the specific sent snapshot as saved. Later edits stay pending.
+      if (!dirty.current) {
+        try { localStorage.setItem(cacheKey, JSON.stringify({ data: snapshot, at: r.updatedAt })); } catch { /* fine */ }
+        setState("saved");
+      }
     } catch (e: any) {
       dirty.current = true;
       setState(e.status === 413 ? "error" : "offline");
-      if (timer.current) window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => void push(), 10_000);
+    } finally {
+      sending.current = false;
+      if (dirty.current) {
+        if (timer.current) window.clearTimeout(timer.current);
+        timer.current = window.setTimeout(() => void push(), 3000);
+      }
     }
-  }, [app, token]);
+  }, [app, token, cacheKey]);
 
   const setData = useCallback((update: T | ((prev: T) => T)) => {
-    setDataState((prev) => {
-      const next = typeof update === "function" ? (update as (p: T) => T)(prev) : update;
-      latest.current = next;
-      try { localStorage.setItem(appKey(app), JSON.stringify({ data: next, at: new Date().toISOString(), unsent: true })); } catch { /* fine */ }
-      return next;
-    });
+    const next = typeof update === "function" ? (update as (p: T) => T)(latest.current) : update;
+    latest.current = next;
+    setDataState(next);
+    try { localStorage.setItem(cacheKey, JSON.stringify({ data: next, at: new Date().toISOString(), unsent: true })); } catch { /* fine */ }
     dirty.current = true;
     setState("unsaved");
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => void push(), 800);
-  }, [app, push]);
+  }, [app, push, cacheKey]);
 
   useEffect(() => {
     const go = () => { if (dirty.current) void push(); };

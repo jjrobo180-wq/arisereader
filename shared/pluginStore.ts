@@ -34,6 +34,8 @@ export type PluginTarget =
   | { kind: "notesApp"; id: string; label: string }
   /** The Sheets app (shared/sheetsApp.ts): added to family.sheetsInstalled, opened from the store. */
   | { kind: "sheetsApp"; id: string; label: string }
+  /** A cloud-saved Office editor or standalone AI utility, installed from the App Store. */
+  | { kind: "officeApp"; id: string; href: string }
   /** The Drive app (shared/driveApp.ts): added to family.driveInstalled, opened from the store. */
   | { kind: "driveApp" }
   /** The Drop app (shared/dropApp.ts): added to family.dropInstalled, opened from the store. */
@@ -136,7 +138,37 @@ const WIDGETS_PLUGIN = (hub: PluginHub): Plugin => ({
   features: ["34 widgets: clocks, calendars, countdowns, fun and focus", "11 themes, from Classic and Paper to Neon and Terminal", "Small, wide or large", "Saved to your account on every device"],
 });
 
+
+/** Office editors and AI utilities appear as individual installable App Store apps in BOTH hubs. */
+const OFFICE_APPS = (hub: PluginHub): Plugin[] => [
+  { id: `${hub}-office-sheet`, hub, name: "A.R.I.S.E. Sheets", tagline: "Cloud spreadsheets with formulas", description: "Cloud spreadsheets with formulas. Your files are saved to your A.R.I.S.E. account and are available on your other devices.", features: ["Private account-saved files", "Available in My Apps after adding", "Access from phone or computer"], category: "Premium", icon: "Table", color: "#16a34a", featured: true, target: { kind: "officeApp", id: `${hub}-office-sheet`, href: "#/office?kind=sheet" } },
+  { id: `${hub}-office-doc`, hub, name: "A.R.I.S.E. Docs", tagline: "Write, edit and save documents", description: "Write, edit and save documents. Your files are saved to your A.R.I.S.E. account and are available on your other devices.", features: ["Private account-saved files", "Available in My Apps after adding", "Access from phone or computer"], category: "Premium", icon: "FileText", color: "#2563eb", featured: true, target: { kind: "officeApp", id: `${hub}-office-doc`, href: "#/office?kind=doc" } },
+  { id: `${hub}-office-slides`, hub, name: "A.R.I.S.E. Slides", tagline: "Build and present slide decks", description: "Build and present slide decks. Your files are saved to your A.R.I.S.E. account and are available on your other devices.", features: ["Private account-saved files", "Available in My Apps after adding", "Access from phone or computer"], category: "Premium", icon: "Presentation", color: "#d97706", featured: true, target: { kind: "officeApp", id: `${hub}-office-slides`, href: "#/office?kind=slides" } },
+  { id: `${hub}-ai-meeting-agenda`, hub, name: "Meeting Agenda", tagline: "Plan and time team meetings", description: "Plan and time team meetings. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "ClipboardList", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-meeting-agenda`, href: "#/ai-apps?task=meeting-agenda" } },
+  { id: `${hub}-ai-meeting-summary`, hub, name: "Meeting Minutes", tagline: "Organize meeting notes and actions", description: "Organize meeting notes and actions. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "FileClock", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-meeting-summary`, href: "#/ai-apps?task=meeting-summary" } },
+  { id: `${hub}-ai-email-rewrite`, hub, name: "Email Helper", tagline: "Polish a message in your voice", description: "Polish a message in your voice. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "Mail", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-email-rewrite`, href: "#/ai-apps?task=email-rewrite" } },
+  { id: `${hub}-ai-resume-bullets`, hub, name: "Résumé Builder", tagline: "Write compelling experience bullets", description: "Write compelling experience bullets. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "BriefcaseBusiness", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-resume-bullets`, href: "#/ai-apps?task=resume-bullets" } },
+  { id: `${hub}-ai-cover-letter`, hub, name: "Cover Letter", tagline: "Draft a job application letter", description: "Draft a job application letter. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "FileUser", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-cover-letter`, href: "#/ai-apps?task=cover-letter" } },
+  { id: `${hub}-ai-brainstorm`, hub, name: "Idea Generator", tagline: "Brainstorm ideas for any project", description: "Brainstorm ideas for any project. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "Lightbulb", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-brainstorm`, href: "#/ai-apps?task=brainstorm" } },
+  { id: `${hub}-ai-rubric`, hub, name: "Rubric Builder", tagline: "Create a classroom grading rubric", description: "Create a classroom grading rubric. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "ClipboardCheck", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-rubric`, href: "#/ai-apps?task=rubric" } },
+  { id: `${hub}-ai-newsletter`, hub, name: "Newsletter Writer", tagline: "Create school and family updates", description: "Create school and family updates. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "Newspaper", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-newsletter`, href: "#/ai-apps?task=newsletter" } },
+  { id: `${hub}-ai-flashcards`, hub, name: "Flashcards", tagline: "Generate question-and-answer study cards", description: "Generate question-and-answer study cards. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "BookCopy", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-flashcards`, href: "#/ai-apps?task=flashcards" } },
+  { id: `${hub}-ai-quiz`, hub, name: "Quiz Builder", tagline: "Build multiple-choice practice questions", description: "Build multiple-choice practice questions. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "ListChecks", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-quiz`, href: "#/ai-apps?task=quiz" } },
+  { id: `${hub}-ai-essay-outline`, hub, name: "Essay Outline", tagline: "Organize essay topics and paragraphs", description: "Organize essay topics and paragraphs. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "NotebookPen", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-essay-outline`, href: "#/ai-apps?task=essay-outline" } },
+  { id: `${hub}-ai-study-guide`, hub, name: "Study Guide", tagline: "Turn notes into a study plan", description: "Turn notes into a study plan. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "BookOpenCheck", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-study-guide`, href: "#/ai-apps?task=study-guide" } },
+  { id: `${hub}-ai-vocab`, hub, name: "Vocabulary Helper", tagline: "Definitions, examples and synonyms", description: "Definitions, examples and synonyms. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "BookOpenText", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-vocab`, href: "#/ai-apps?task=vocab" } },
+  { id: `${hub}-ai-mnemonic`, hub, name: "Memory Tricks", tagline: "Create memorable study aids", description: "Create memorable study aids. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "Brain", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-mnemonic`, href: "#/ai-apps?task=mnemonic" } },
+  { id: `${hub}-ai-workout-plan`, hub, name: "Workout Planner", tagline: "Plan workouts for your goals", description: "Plan workouts for your goals. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "Dumbbell", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-workout-plan`, href: "#/ai-apps?task=workout-plan" } },
+  { id: `${hub}-ai-meal-plan`, hub, name: "Meal Planner", tagline: "Make a weekly menu and grocery list", description: "Make a weekly menu and grocery list. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "UtensilsCrossed", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-meal-plan`, href: "#/ai-apps?task=meal-plan" } },
+  { id: `${hub}-ai-journal-reflect`, hub, name: "Journal Reflection", tagline: "Reflect on a journal entry", description: "Reflect on a journal entry. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "Heart", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-journal-reflect`, href: "#/ai-apps?task=journal-reflect" } },
+  { id: `${hub}-ai-thought-reframe`, hub, name: "Thought Reframer", tagline: "Find a balanced way to view challenges", description: "Find a balanced way to view challenges. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "Sun", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-thought-reframe`, href: "#/ai-apps?task=thought-reframe" } },
+  { id: `${hub}-ai-gift-ideas`, hub, name: "Gift Ideas", tagline: "Find thoughtful gifts within a budget", description: "Find thoughtful gifts within a budget. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "Gift", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-gift-ideas`, href: "#/ai-apps?task=gift-ideas" } },
+  { id: `${hub}-ai-party-plan`, hub, name: "Party Planner", tagline: "Organize a celebration checklist", description: "Organize a celebration checklist. A.R.I.S.E. AI generation uses the Unlimited plan allowance; drafts are saved privately to your account.", features: ["AI-generated drafts and ideas", "Your creations saved across devices", "Uses your A.R.I.S.E. To-Do AI allowance"], category: "Premium", icon: "PartyPopper", color: "#7c3aed", target: { kind: "officeApp", id: `${hub}-ai-party-plan`, href: "#/ai-apps?task=party-plan" } },
+];
+
 export const PLUGINS: readonly Plugin[] = [
+  ...OFFICE_APPS("work"),
+  ...OFFICE_APPS("life"),
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
   WIDGETS_PLUGIN("work"),
   BRIEF_PLUGIN("work"),
@@ -490,6 +522,10 @@ export function notesAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
 export function sheetsAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
   return allPlugins().find((p) => p.hub === hub && p.id === id && p.target.kind === "sheetsApp");
 }
+/** An installed A.R.I.S.E. Office or AI tool, stored in the same synchronized plugin-id list. */
+export function officeAppPlugin(hub: PluginHub, id: string): Plugin | undefined {
+  return allPlugins().find((p) => p.hub === hub && p.id === id && p.target.kind === "officeApp");
+}
 
 /** The Drive-app plugin (see shared/driveApp.ts) in the given hub, if that hub offers one. */
 export function driveAppPlugin(hub: PluginHub): Plugin | undefined {
@@ -502,7 +538,7 @@ export function dropAppPlugin(hub: PluginHub): Plugin | undefined {
 }
 
 /** Plugins that can be added and removed from the store (the rest open somewhere instead). */
-export const isAddable = (p: Plugin) => p.target.kind === "brief" || p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp" || p.target.kind === "sheetsApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp";
+export const isAddable = (p: Plugin) => p.target.kind === "brief" || p.target.kind === "tab" || p.target.kind === "section" || p.target.kind === "layer" || p.target.kind === "widget" || p.target.kind === "assistant" || p.target.kind === "kit" || p.target.kind === "notesApp" || p.target.kind === "sheetsApp" || p.target.kind === "officeApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp";
 
 /** Where a plugin opens in its hub: a WorkHub tab or a LifeHub section. null for an Arise app. */
 export function pluginOpens(p: Plugin): { tab: HubTab } | { section: FamilySection } | null {
@@ -527,7 +563,7 @@ export function workInstalled(p: Plugin, visibleTabs: Partial<Record<HubTab, boo
   if (t.kind === "kit") return !!kitInstalled?.includes(t.id);
   if (t.kind === "notesApp") return !!notesInstalled?.includes(t.id);
   // Sheets, Drive and Drop were built for LifeHub and are offered here too (see CROSS_APPS).
-  if (t.kind === "sheetsApp") return !!sheetsInstalled?.includes(t.id);
+  if (t.kind === "sheetsApp" || t.kind === "officeApp") return !!sheetsInstalled?.includes(t.id);
   if (t.kind === "driveApp") return !!driveInstalled;
   if (t.kind === "dropApp") return !!dropInstalled;
   // An App Store screen counts as added only once it is on; the built-in four always are.
@@ -548,7 +584,7 @@ export function setKitInstalled(list: readonly string[] | undefined, p: Plugin, 
 /** Add or remove a Sheets-app install in a WorkHub workspace's list (same shape as the Notes one). */
 export function setWorkSheetsApp(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
   const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
-  if (p.target.kind !== "sheetsApp") return cur;
+  if (p.target.kind !== "sheetsApp" && p.target.kind !== "officeApp") return cur;
   const id = p.target.id;
   return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
 }
@@ -589,7 +625,7 @@ export function lifeInstalled(p: Plugin, family: Pick<Family, "sections" | "laye
   // A Kit plugin from WorkHub's shelf, added here. LifeHub's own kits are sections instead.
   if (t.kind === "kit") return !!family.kitInstalled?.includes(t.id);
   if (t.kind === "notesApp") return !!notesInstalled?.includes(t.id);
-  if (t.kind === "sheetsApp") return !!sheetsInstalled?.includes(t.id);
+  if (t.kind === "sheetsApp" || t.kind === "officeApp") return !!sheetsInstalled?.includes(t.id);
   if (t.kind === "driveApp") return !!family.driveInstalled;
   if (t.kind === "dropApp") return !!family.dropInstalled;
   if (t.kind === "connection" && "section" in t.needs) return sectionOn(t.needs.section);
@@ -617,7 +653,7 @@ export function setLifePlugin<F extends Pick<Family, "sections" | "layers"> & Pa
 /** LifeHub's added Sheets-app installs with this one added or removed. Removing keeps its saved sheets. */
 export function setLifeSheetsApp(list: readonly string[] | undefined, p: Plugin, on: boolean): string[] {
   const cur = Array.isArray(list) ? list.filter((x) => typeof x === "string") : [];
-  if (p.target.kind !== "sheetsApp") return cur;
+  if (p.target.kind !== "sheetsApp" && p.target.kind !== "officeApp") return cur;
   const id = p.target.id;
   return on ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
 }

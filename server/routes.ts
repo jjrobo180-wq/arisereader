@@ -1363,7 +1363,7 @@ export async function registerRoutes(
   // The Lesson Planner's AI helper: ideas, full plans, standards, worksheets, slides, units and reteaches.
   // Arise Office (Sheets, Docs, Slides) and the premium apps: each person's own files and app data.
   registerUserDocRoutes(app, authMiddleware, supabaseDocStore(getAdminSupabase));
-  registerProAppsAI(app, authMiddleware);
+  registerProAppsAI(app, authMiddleware, plans.aiMeter);
   registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
   // A teacher can connect their own Gmail or Outlook so those emails come from their real address.

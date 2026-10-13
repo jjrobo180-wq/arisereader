@@ -16,7 +16,7 @@
 import { ADD_ON_SECTIONS, cleanFamily, isOn, type Family } from "./familyHub";
 import { WORK_ADD_ON_TABS, isTabOn, type HubTab } from "./teacherHub";
 import { kitDef } from "./pluginKit";
-import { notesAppPlugin, sheetsAppPlugin, type Plugin } from "./pluginStore";
+import { notesAppPlugin, officeAppPlugin, sheetsAppPlugin, type Plugin } from "./pluginStore";
 
 export const FREE_APPS = 3;
 /** Unlimited's AI is for everyday use; this ceiling only stops runaway use (see FAIR_USE). */
@@ -50,7 +50,7 @@ export function lifeApps(workspace: unknown): string[] {
     ...(family.widgets?.chat ? ["assistant"] : []),
     ...(family.layers?.hub ? ["layer:hub"] : []),
     ...uniq(family.notesInstalled).filter((id) => !!notesAppPlugin("life", id)).map((id) => `notes:${id}`),
-    ...uniq(family.sheetsInstalled).filter((id) => !!sheetsAppPlugin("life", id)).map((id) => `sheets:${id}`),
+    ...uniq(family.sheetsInstalled).filter((id) => !!sheetsAppPlugin("life", id) || !!officeAppPlugin("life", id)).map((id) => `sheets:${id}`),
     ...(family.driveInstalled ? ["drive"] : []),
     ...(family.dropInstalled ? ["drop"] : []),
     ...uniq(family.kitInstalled).filter((id) => !!kitDef(id)).map((id) => `kit:${id}`),
@@ -67,7 +67,7 @@ export function workApps(workspace: unknown): string[] {
     ...(w.widgetsOn ? ["widget:board"] : []),
     ...(w.aiChat ? ["assistant"] : []),
     ...uniq(w.notesInstalled).filter((id) => !!notesAppPlugin("work", id)).map((id) => `notes:${id}`),
-    ...uniq(w.sheetsInstalled).filter((id) => !!sheetsAppPlugin("work", id)).map((id) => `sheets:${id}`),
+    ...uniq(w.sheetsInstalled).filter((id) => !!sheetsAppPlugin("work", id) || !!officeAppPlugin("work", id)).map((id) => `sheets:${id}`),
     ...(w.driveInstalled ? ["drive"] : []),
     ...(w.dropInstalled ? ["drop"] : []),
     ...uniq(w.kitInstalled).filter((id) => kitDef(id)?.hub === "work").map((id) => `kit:${id}`),
@@ -77,7 +77,7 @@ export function workApps(workspace: unknown): string[] {
 /** Does adding this App Store item use one of Free's 3 apps? (Built-in sections and tabs don't.) */
 export function countsAsApp(hub: "work" | "life", p: Plugin): boolean {
   const t = p.target;
-  if (t.kind === "notesApp" || t.kind === "sheetsApp" || t.kind === "driveApp" || t.kind === "dropApp" || t.kind === "kit") return true;
+  if (t.kind === "notesApp" || t.kind === "sheetsApp" || t.kind === "officeApp" || t.kind === "driveApp" || t.kind === "dropApp" || t.kind === "kit") return true;
   if (t.kind === "widget" || t.kind === "assistant" || t.kind === "layer") return true;
   if (hub === "work" && t.kind === "tab") return WORK_ADD_ON_TABS.includes(t.tab);
   return hub === "life" && t.kind === "section" && ADD_ON_SECTIONS.includes(t.section);
