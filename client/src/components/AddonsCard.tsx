@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BookOpen, Calculator, CheckCircle2, CheckSquare, ClipboardList, Landmark, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { appHref } from "@/lib/hubs";
 
 type Access = { access: boolean; via: string | null; endsAt: string | null; plan: { live: boolean; endsAt: string | null } | null; paidByYou: boolean; oldBundle?: boolean };
 type AppId = "math" | "history" | "social";
@@ -115,7 +116,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
           <h2 className="text-[11px] font-black uppercase tracking-[.2em] text-muted-foreground">Add-ons</h2>
           <p className="text-xs text-muted-foreground">
             {status}
-            {!user.isAdmin && <>{status && " · "}<a href="/#/billing" className="font-bold text-violet-300 underline-offset-4 hover:underline">Prices</a></>}
+            {!user.isAdmin && <>{status && " · "}<a href={appHref("/billing")} className="font-bold text-violet-300 underline-offset-4 hover:underline">Prices</a></>}
           </p>
         </div>
         <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -166,7 +167,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
         </span>
         {a.access
           ? <span className="text-xs font-bold text-emerald-700">Included</span>
-          : <a className={ghost} href="/#/billing">Get the Class plan</a>}
+          : <a className={ghost} href={appHref("/billing")}>Get the Class plan</a>}
       </div>
     );
   };
