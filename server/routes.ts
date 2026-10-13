@@ -5332,6 +5332,79 @@ export async function registerRoutes(
     res.json({ message: "Class updated" });
   });
 
+  // Directory teachers are selectable for students even when they never register.
+  // A directory teacher has a display name, not a teacher account or access to data.
+  app.post("/api/admin/schools/:id/directory-teachers", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const schoolId = Number(req.params.id);
+      const school = (await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId);
+      if (!school) return res.status(404).json({ message: "School not found." });
+      const name = typeof req.body.name === "string" ? req.body.name.trim().slice(0, 120) : "";
+      if (name.length < 2) return res.status(400).json({ message: "Enter a teacher's name." });
+      const grades = Array.isArray(req.body.grades)
+        ? Array.from(new Set(req.body.grades.map((g: any) => String(g)).filter((g: string) => /^(K|[1-9]|1[0-2])$/.test(g)))) as string[]
+        : [];
+      const directory = await directoryTeachers(schoolId);
+      const sameName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "") === name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (directory.some((t) => sameName(t.name))) return res.status(409).json({ message: "That teacher is already listed for this school." });
+      const registered = (await storage.getApprovedTeachers()).filter((u: any) => Number(u.school_id) === schoolId);
+      if (registered.some((t: any) => sameName(String(t.displayName || t.display_name || "")))) return res.status(409).json({ message: "That teacher already has an account for this school." });
+      directory.push({ name, grades });
+      await storage.upsertSetting(directoryTeacherKey(schoolId), JSON.stringify(directory));
+      res.status(201).json({ id: directoryId(schoolId, name), display_name: name, directory: true, grades });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not add teacher." });
+    }
+  });
+
+  app.post("/api/admin/students/:id/assign-teacher", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const studentId = Number(req.params.id);
+      if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message: "Invalid student." });
+      const student = await storage.getUser(studentId);
+      if (!student || student.role !== "student") return res.status(404).json({ message: "Student not found." });
+      const schoolId = Number(student.school_id);
+      const directoryTeacherId = typeof req.body?.directoryTeacherId === "string" ? req.body.directoryTeacherId : "";
+      const requestedTeacherId = req.body?.teacherId ? Number(req.body.teacherId) : null;
+      if (directoryTeacherId && requestedTeacherId) return res.status(400).json({ message: "Choose one teacher." });
+      let teacherId: number | null = null;
+      let directoryTeacherName: string | null = null;
+      if (directoryTeacherId) {
+        if (!schoolId) return res.status(400).json({ message: "Assign the student's school first." });
+        const rawGrades = await storage.getSetting("user_grades");
+        let grade: string | null = null;
+        try { grade = String(JSON.parse(rawGrades || "{}")[String(studentId)] || "") || null; } catch {}
+        const picked = await getDirectoryTeacher(schoolId, directoryTeacherId, grade);
+        if (!picked) return res.status(400).json({ message: "That teacher is not listed for this student's school and grade." });
+        directoryTeacherName = picked.name.trim();
+      } else if (requestedTeacherId !== null) {
+        if (!Number.isSafeInteger(requestedTeacherId) || requestedTeacherId < 1) return res.status(400).json({ message: "Invalid teacher." });
+        const teacher = await storage.getUser(requestedTeacherId);
+        if (!teacher || teacher.role !== "teacher" || teacher.accountApproved === false) return res.status(400).json({ message: "That teacher does not have an active teacher account." });
+        if (!schoolId || Number(teacher.school_id) !== schoolId) return res.status(400).json({ message: "That teacher belongs to a different school." });
+        teacherId = requestedTeacherId;
+      }
+      const { data, error } = await supabase.from("users").update({
+        teacher_id: teacherId, directory_teacher_name: directoryTeacherName, approved_by_teacher: true,
+      }).eq("id", studentId).eq("role", "student")
+        .select("id, teacher_id, directory_teacher_name").single();
+      if (error) throw new Error(error.message);
+      const rawLinks = await storage.getSetting("teacher_students");
+      let teacherStudents: Record<string, number[]> = {};
+      try { teacherStudents = rawLinks ? JSON.parse(rawLinks) : {}; } catch {}
+      for (const [key, ids] of Object.entries(teacherStudents)) {
+        if (Array.isArray(ids)) teacherStudents[key] = ids.filter((id) => Number(id) !== studentId);
+      }
+      if (teacherId) teacherStudents[String(teacherId)] = [...new Set([...(teacherStudents[String(teacherId)] || []), studentId])];
+      await storage.upsertSetting("teacher_students", JSON.stringify(teacherStudents));
+      clearCache("allUsers");
+      res.json({ success: true, teacherId: data.teacher_id, directoryTeacherName: data.directory_teacher_name,
+        teacherName: directoryTeacherName || (teacherId ? (await storage.getUser(teacherId))?.displayName : null) || null });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not save teacher assignment." });
+    }
+  });
+
   // Admin: assign school to a teacher
   app.post("/api/admin/teachers/:id/assign-school", authMiddleware, adminMiddleware, async (req, res) => {
     const userId = parseInt(req.params.id);
