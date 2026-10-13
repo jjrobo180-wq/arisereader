@@ -16,6 +16,7 @@ import { ArrowLeftRight as ArrowLeftRightTile, BookOpen as BookOpenTile, Cake as
 import { Coins as CoinsTile2, Dumbbell as DumbbellTile2, Gauge as GaugeTile2, Globe as GlobeTile2, Hammer as HammerTile2, HandCoins as HandCoinsTile2, ListChecks as ListChecksTile2, Moon as MoonTile2, ShieldCheck as ShieldCheckTile2, Star as StarTile2, Stethoscope as StethoscopeTile2, Utensils as UtensilsTile2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { appHref } from "@/lib/hubs";
 import HubMark from "@/components/HubMark";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
@@ -256,7 +257,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
       const has = apps?.[t.app] ?? true;
       return has
         ? <a href={t.href} className={`${base} ${quiet}`} onClick={(e) => e.stopPropagation()}>Open{big && <ArrowUpRight className="h-4 w-4" />}</a>
-        : <a href="/#/billing" className={`${base} ${solid}`} onClick={(e) => e.stopPropagation()}>{big ? "See plans" : "Plans"}</a>;
+        : <a href={appHref("/billing")} className={`${base} ${solid}`} onClick={(e) => e.stopPropagation()}>{big ? "See plans" : "Plans"}</a>;
     }
     if (t.kind === "connection") {
       const need = connectionNeeds(p);
