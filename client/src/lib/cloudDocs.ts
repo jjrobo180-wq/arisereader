@@ -63,16 +63,19 @@ export function useCloudDoc<C>(id: string | null, clean: (raw: unknown) => C) {
       if (!alive) return;
       const pending = readPending<C>(id);
       // A save that never reached the server (closed tab, no signal) comes back and goes out now.
-      const usePending = pending && pending.base === doc.updatedAt;
+      const diverged = !!pending && pending.base !== doc.updatedAt;
       base.current = doc.updatedAt;
-      const c = clean(usePending ? pending!.content : doc.content);
-      latest.current = { content: c, name: usePending ? pending!.name : doc.name };
+      // Never discard unsent edits just because another device saved first.
+      const c = clean(pending ? pending.content : doc.content);
+      latest.current = { content: c, name: pending ? pending.name : doc.name };
       setContentState(c); setNameState(latest.current.name);
-      if (usePending) { dirty.current = true; schedule(50); } else { clearPending(id); setState("saved"); }
+      if (diverged) { dirty.current = true; setState("conflict"); }
+      else if (pending) { dirty.current = true; schedule(50); }
+      else { clearPending(id); setState("saved"); }
     }).catch((e) => {
       if (!alive) return;
       const pending = readPending<C>(id);
-      if (pending) { const c = clean(pending.content); latest.current = { content: c, name: pending.name }; setContentState(c); setNameState(pending.name); base.current = pending.base; setState("offline"); }
+      if (pending) { const c = clean(pending.content); latest.current = { content: c, name: pending.name }; setContentState(c); setNameState(pending.name); base.current = pending.base; dirty.current = true; setState("offline"); }
       else setError(e.message);
     }).finally(() => alive && setLoading(false));
     return () => { alive = false; };
@@ -113,11 +116,11 @@ export function useCloudDoc<C>(id: string | null, clean: (raw: unknown) => C) {
     schedule();
   };
   const setContent = useCallback((update: C | ((prev: C) => C)) => {
-    setContentState((prev) => {
-      const next = typeof update === "function" ? (update as (p: C) => C)(prev as C) : update;
-      latest.current = { ...latest.current, content: next };
-      return next;
-    });
+    // Update the ref synchronously. React may defer a functional state updater:
+    // writing the pending backup before it runs used to back up the OLD value.
+    const next = typeof update === "function" ? (update as (p: C) => C)(latest.current.content as C) : update;
+    latest.current = { ...latest.current, content: next };
+    setContentState(next);
     touch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -201,12 +204,10 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
   }, [app, token]);
 
   const setData = useCallback((update: T | ((prev: T) => T)) => {
-    setDataState((prev) => {
-      const next = typeof update === "function" ? (update as (p: T) => T)(prev) : update;
-      latest.current = next;
-      try { localStorage.setItem(appKey(app), JSON.stringify({ data: next, at: new Date().toISOString(), unsent: true })); } catch { /* fine */ }
-      return next;
-    });
+    const next = typeof update === "function" ? (update as (p: T) => T)(latest.current) : update;
+    latest.current = next;
+    setDataState(next);
+    try { localStorage.setItem(appKey(app), JSON.stringify({ data: next, at: new Date().toISOString(), unsent: true })); } catch { /* fine */ }
     dirty.current = true;
     setState("unsaved");
     if (timer.current) window.clearTimeout(timer.current);
