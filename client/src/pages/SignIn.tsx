@@ -52,6 +52,13 @@ export default function SignIn() {
 
   const pick = (next: Who) => { setWho(next); setError(""); setShowAccounts(false); setShowSamples(false); };
   const goHome = () => { if (onTodo) window.location.assign("/"); else navigate("/"); };
+  const showHubMenuOnLogin = () => {
+    if (!onTodo) return; // Reader-domain sign-in uses the secure To-Do handoff.
+    try {
+      localStorage.setItem("arise-hub-rail", "open");
+      localStorage.setItem("arise-life-rail", "open");
+    } catch { /* the hubs still show their default menus */ }
+  };
   // A personal LifeHub account (no school needed) is made on arisetodo.com.
   const lifeHubSignup = () => { if (!onTodo) { window.location.assign("https://arisetodo.com/app#/signin"); return; } setPersonalSignup(true); setShowAccounts(false); setShowSamples(false); setError(""); };
 
@@ -62,6 +69,7 @@ export default function SignIn() {
     setError("");
     try {
       await login(username.trim(), password);
+      showHubMenuOnLogin();
       // AuthContext updates the user; the /signin route then opens their hub (or their library).
     } catch (err: any) {
       if (err?.confirmEmail) {
@@ -88,6 +96,7 @@ export default function SignIn() {
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.message || "That code didn't work.");
       await login(codeFor, password);
+      showHubMenuOnLogin();
     } catch (err: any) {
       setError(err instanceof Error ? err.message : "That code didn't work.");
     } finally { setSubmitting(false); }
@@ -139,6 +148,7 @@ export default function SignIn() {
       // sent, the server lets the person straight in rather than stranding them.
       if (data?.confirmEmail) { setCodeFor(cleanUsername); setNotice(data?.message || ""); return; }
       await login(cleanUsername, password);
+      showHubMenuOnLogin();
       // The sign-in route opens the newly created person's LifeHub after authentication.
     } catch (err: any) {
       setError(err instanceof Error ? err.message : "Couldn't create your account.");
@@ -158,6 +168,7 @@ export default function SignIn() {
     };
     try {
       await login(accounts[type][0], accounts[type][1]);
+      showHubMenuOnLogin();
     } catch (err: any) {
       setError(err instanceof Error ? err.message : "Unable to open the sample account.");
     } finally {
