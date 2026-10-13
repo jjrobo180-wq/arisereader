@@ -79,6 +79,11 @@ export type SocialDeps = {
    * user: does this account have it (used to check a student's teacher)? Left out, everyone may.
    */
   access?: { self(req: any): Promise<boolean>; user(id: number): Promise<boolean> };
+  /** Separate teacher permission to enter Connect, not the student's normal classroom approval. */
+  approvals?: {
+    get(studentId: number): Promise<{ teacherId: number; status: "pending" | "approved" | "denied" } | null>;
+    save(studentId: number, record: { teacherId: number; status: "pending" | "approved" | "denied" }): Promise<void>;
+  };
 };
 
 /* ------------------------------------------------------------------ stores */
@@ -273,6 +278,11 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
   const dir = deps.directory;
   const now = deps.now ?? Date.now;
   const random = deps.random ?? Math.random;
+  // Fail closed if persistence is not configured; student access is never silently granted.
+  const approvals = deps.approvals ?? {
+    get: async (_id: number) => null,
+    save: async () => { throw new Error("Connect access approval storage is not configured."); },
+  };
   const today = () => dayKey(now());
   const postsToday = createAttemptLimiter({ max: LIMITS.postsPerDay, windowMs: 24 * 3600_000, now });
   const eventsToday = createAttemptLimiter({ max: LIMITS.eventsPerDay, windowMs: 24 * 3600_000, now });
@@ -291,11 +301,19 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
   }
   const hasAccess = (req: any) => (deps.access ? deps.access.self(req) : Promise.resolve(true));
   const userHasAccess = (id: number) => (deps.access ? deps.access.user(id).catch(() => false) : Promise.resolve(true));
+  async function studentApproval(v: SocialUser): Promise<"approved" | "pending" | "denied" | "not_requested" | "needs_class"> {
+    if (v.role !== "student") return "approved";
+    if (!v.teacherId || !v.approvedByTeacher) return "needs_class";
+    const saved = await approvals.get(v.id);
+    // A previous teacher's approval is not permission in the student's new class.
+    return saved?.teacherId === v.teacherId ? saved.status : "not_requested";
+  }
   /** Why a student can't post yet, or null when they can. */
   async function postBlock(v: SocialUser): Promise<string | null> {
     if (v.role !== "student") return null;
     if (!v.teacherId) return "Posting opens once you join a teacher’s class.";
     if (!v.approvedByTeacher) return "Posting opens once your teacher approves your account.";
+    if ((await studentApproval(v)) !== "approved") return "Your teacher must approve your A.R.I.S.E. Connect request first.";
     if (!(await userHasAccess(v.teacherId))) return "Your teacher hasn’t added A.R.I.S.E. Connect yet, so nobody can approve posts. Ask them about it!";
     return null;
   }
@@ -308,8 +326,16 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     }
   };
   const noStore = (res: any) => res.set?.("Cache-Control", "no-store");
-  /** Every route but the catalog and "who am I" needs the add-on. */
+  /** Student permission is checked on every protected route, including direct API requests. */
   const paid = (fn: (req: any, res: any) => Promise<unknown>) => handle(async (req, res) => {
+    const v = await viewer(req);
+    if (v.role === "student" && !req.adminPreview) {
+      const status = await studentApproval(v);
+      if (status !== "approved") {
+        noStore(res);
+        return res.status(403).json({ message: "Your teacher must approve A.R.I.S.E. Connect access first.", code: "connect_teacher_approval_required", approvalStatus: status });
+      }
+    }
     if (!(await hasAccess(req))) return res.status(402).json({ message: "A.R.I.S.E. Connect is a paid add-on. Add it to keep going.", code: "social_required" });
     return fn(req, res);
   });
@@ -364,17 +390,62 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     const v = await viewer(req);
     noStore(res);
     const teacher = v.role === "student" && v.teacherId ? await dir.user(v.teacherId) : null;
-    const block = await postBlock(v);
+    const approvalStatus = req.adminPreview ? "approved" : await studentApproval(v);
+    const block = approvalStatus === "approved" ? await postBlock(v) : "Your teacher must approve your A.R.I.S.E. Connect request first.";
     const base = {
       access: await hasAccess(req),
+      approvalStatus,
       user: {
         id: v.id, role: v.role, name: v.role === "student" ? studentName(v.displayName) : v.displayName, band: v.band, grade: v.grade,
         schoolId: v.schoolId, teacherName: teacher ? teacher.displayName : null, canPost: v.role === "teacher" || (v.role === "student" && !block), postBlock: v.role === "admin" ? "Admins approve and remove posts; teachers and students post." : block,
       },
       today: today(),
     };
-    if (v.role === "student") return res.json({ ...base, profile: await profileOut(v.id) });
+    if (v.role === "student") return res.json(approvalStatus === "approved" ? { ...base, profile: await profileOut(v.id) } : base);
     res.json(base);
+  }));
+
+  /* ---------- Connect entry approval: separate from ordinary Reader class enrollment ---------- */
+  app.post("/api/social/access/request", auth, handle(async (req, res) => {
+    const v = await viewer(req);
+    if (v.role !== "student" || req.adminPreview) return res.status(403).json({ message: "Students only." });
+    noStore(res);
+    if (!v.teacherId || !v.approvedByTeacher) return res.status(403).json({ message: "Join an approved teacher's class before requesting Connect.", approvalStatus: "needs_class" });
+    const current = await studentApproval(v);
+    if (current === "approved") return res.json({ approvalStatus: "approved" });
+    if (current === "pending") return res.json({ approvalStatus: "pending" });
+    await approvals.save(v.id, { teacherId: v.teacherId, status: "pending" });
+    notify(v.teacherId, "A.R.I.S.E. Connect access request", `${studentName(v.displayName)} wants to join Connect. Open Connect → Approvals to review.`);
+    return res.json({ approvalStatus: "pending" });
+  }));
+
+  app.get("/api/social/access/requests", auth, handle(async (req, res) => {
+    const v = await viewer(req);
+    if (v.role !== "teacher") return res.status(403).json({ message: "Teachers only." });
+    noStore(res);
+    const students = (await dir.studentsOf(v.id)).filter(s => s.role === "student" && !s.archived && s.approvedByTeacher && s.teacherId === v.id);
+    const records = await Promise.all(students.map(async (s) => ({ student: s, record: await approvals.get(s.id) })));
+    return res.json({ requests: records.filter(({ record }) => record?.teacherId === v.id && record.status === "pending")
+      .map(({ student }) => ({ id: student.id, name: studentName(student.displayName) })) });
+  }));
+
+  app.post("/api/social/access/requests/:id/review", auth, handle(async (req, res) => {
+    const v = await viewer(req);
+    if (v.role !== "teacher") return res.status(403).json({ message: "Teachers only." });
+    const id = Number(req.params.id);
+    const student = Number.isSafeInteger(id) && id > 0 ? await dir.user(id) : null;
+    if (!student || student.role !== "student" || student.teacherId !== v.id || !student.approvedByTeacher || student.archived)
+      return res.status(404).json({ message: "This student is not in your approved class." });
+    const current = await approvals.get(id);
+    if (!current || current.teacherId !== v.id || current.status !== "pending")
+      return res.status(409).json({ message: "There is no pending Connect request for this student." });
+    const decision = String(req.body?.decision || "");
+    if (decision !== "approve" && decision !== "deny") return res.status(400).json({ message: "Choose approve or deny." });
+    const status = decision === "approve" ? "approved" : "denied";
+    await approvals.save(id, { teacherId: v.id, status });
+    notify(id, "A.R.I.S.E. Connect", status === "approved" ? "Your teacher approved your Connect access. You can open Connect now!" : "Your teacher did not approve Connect access yet. You can request access again later.");
+    noStore(res);
+    return res.json({ approvalStatus: status });
   }));
 
   /* ---------- feed */
