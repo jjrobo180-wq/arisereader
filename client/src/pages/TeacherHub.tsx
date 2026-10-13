@@ -1023,6 +1023,18 @@ function TeacherHubPage() {
                     </div>
                   </Fragment>;
               })();
+              /** The admin console, with its sections nested under it on desktop. It used to live
+               *  inside the Reader group; when the Reader moved out to its own page it became its
+               *  own item, and was landing at the bottom of the menu where nobody could find it.
+               *  It is drawn here instead, right below Arise Learning, where it has always been. */
+              const adminBlock = user.isAdmin ? <Fragment key="group-admin">
+                {navItem({ id: "admin", label: "Admin console", tabs: ["admin"] } as (typeof menu)[number], menu.findIndex((g) => g.id === "admin"))}
+                {tab === "admin" && ADMIN_SECTIONS.map((sec) => <Fragment key={`admin-${sec.id}`}>
+                  {adminItem(sec, 2, adminSection === sec.id && !kitOpen, () => { setAdminSection(sec.id); setTab("admin"); }, sec.id === "overview" ? "hub-menu-admin-overview" : `hub-menu-admin-${sec.id}`)}
+                  {sec.id === "settings" && adminSection === "settings" && SETTINGS_SECTIONS.map((part) =>
+                    adminItem(part, 3, adminSettings === part.id && !kitOpen, () => { setAdminSettings(part.id); setAdminSection("settings"); setTab("admin"); }, `hub-menu-admin-settings-${part.id}`))}
+                </Fragment>)}
+              </Fragment> : null;
               const learning = <Fragment key="learning">
                 <div className={`hidden items-center gap-2 px-3 pb-1 pt-4 ${deskTop || deskCompact ? "" : "md:flex"}`} data-testid="hub-learning-heading">
                   <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Arise Learning</span>
@@ -1048,8 +1060,10 @@ function TeacherHubPage() {
               return foldMenu(menu, layout.folders).map((entry) => {
                 // A.R.I.S.E. Reader lives in the Arise Learning section, right below Home.
                 if (entry.kind === "item" && entry.item.id === "arise") return null;
+                // Drawn right below Arise Learning instead, not wherever the saved order put it.
+                if (entry.kind === "item" && entry.item.id === "admin") return null;
                 // Teachers and admins get Arise Learning here, right below Home (parents have it in LifeHub).
-                if (entry.kind === "item" && entry.item.id === "home") return <Fragment key="home-and-learning">{navItem(entry.item, menu.indexOf(entry.item))}{(user.role === "teacher" || user.isAdmin) && learning}</Fragment>;
+                if (entry.kind === "item" && entry.item.id === "home") return <Fragment key="home-and-learning">{navItem(entry.item, menu.indexOf(entry.item))}{(user.role === "teacher" || user.isAdmin) && learning}{adminBlock}</Fragment>;
                 if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
                 const f = entry.folder, here = entry.items.some((x) => x.id === group.id) && !kitOpen;
                 const open = openFolders.includes(f.id) || here;
@@ -1062,7 +1076,7 @@ function TeacherHubPage() {
                       <FolderChevron className={`hidden h-3.5 w-3.5 shrink-0 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
                     </button>
                   </div>
-                  {open && entry.items.filter((item) => item.id !== "arise").map((item) => navItem(item, menu.indexOf(item), true))}
+                  {open && entry.items.filter((item) => item.id !== "arise" && item.id !== "admin").map((item) => navItem(item, menu.indexOf(item), true))}
                 </Fragment>;
               });
             })()}
