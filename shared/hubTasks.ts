@@ -17,7 +17,7 @@ export function arrangeTasks(tasks: Task[], filter: TaskFilter, sort: TaskSort, 
   const q = search.trim().toLowerCase();
   const indexed = tasks.map((task, index) => ({ task, index }))
     .filter(({ task }) => (filter === "all" || (filter === "done") === !!task.done) && (!q || task.title.toLowerCase().includes(q)));
-  const due = (t: Task) => (t.dueDate ? t.dueDate : "9999-99-99");
+  const due = (t: Task) => (t.dueDate ? `${t.dueDate}T${t.dueTime || "23:59"}` : "9999-99-99T99:99");
   const high = (t: Task) => (t.priority === "high" ? 0 : 1);
   indexed.sort((a, b) => {
     if (!!a.task.done !== !!b.task.done) return a.task.done ? 1 : -1;
@@ -99,7 +99,7 @@ export function undoTask(tasks: Task[], id: string, nowMs: number): Task[] {
 }
 
 /** The boxes of the to-do pop-up. */
-export type TaskFields = { title: string; dueDate: string; recurring: string; priority: boolean; notes?: string };
+export type TaskFields = { title: string; dueDate: string; dueTime?: string; recurring: string; priority: boolean; notes?: string };
 
 /**
  * Saves the to-do pop-up. A new to-do goes at the end. An edited one stays the same to-do: same place,
@@ -109,11 +109,12 @@ export function saveTask(tasks: Task[], id: string | null, fields: TaskFields, m
   const title = fields.title.trim().slice(0, 200).trim();
   if (!title) return tasks;
   const notes = (fields.notes || "").trim().slice(0, 1000);
-  const changes = { title, dueDate: fields.dueDate, recurring: fields.recurring, ...(fields.priority ? { priority: "high" as const } : {}), ...(notes ? { notes } : {}) };
+  const dueTime = fields.dueDate && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(fields.dueTime || "") ? fields.dueTime : undefined;
+  const changes = { title, dueDate: fields.dueDate, ...(dueTime ? { dueTime } : {}), recurring: fields.recurring, ...(fields.priority ? { priority: "high" as const } : {}), ...(notes ? { notes } : {}) };
   if (!id) return [...tasks, { id: makeId(), ...changes, done: false }];
   if (!tasks.some((t) => t.id === id)) return tasks;
   // A repeating to-do's "where it was" only makes sense while its due date and rhythm are untouched.
-  return tasks.map((t) => { if (t.id !== id) return t; const { priority: _drop, notes: _notes, rolled, ...rest } = t; return { ...rest, ...changes, ...(rolled && t.dueDate === changes.dueDate && t.recurring === changes.recurring ? { rolled } : {}) }; });
+  return tasks.map((t) => { if (t.id !== id) return t; const { priority: _drop, notes: _notes, dueTime: _time, rolled, ...rest } = t; return { ...rest, ...changes, ...(rolled && t.dueDate === changes.dueDate && t.recurring === changes.recurring ? { rolled } : {}) }; });
 }
 
 /** A to-do that was cleared away, with the place it had, so it can be put back. */
