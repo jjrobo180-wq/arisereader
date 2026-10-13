@@ -316,6 +316,7 @@ function TeacherHubPage() {
       const asked = sessionStorage.getItem("workhub_tab");
       sessionStorage.removeItem("workhub_tab");
       if (asked === "admin") return asked;
+      if (asked === "overview") return "overview";
       // Nothing asks for a Reader tab any more: the Reader has its own page (/reader).
       const remembered = sessionStorage.getItem(lastTabKey);
       if (remembered) return remembered as HubTab;
