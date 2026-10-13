@@ -86,8 +86,11 @@ export function visibleGroups(visible: Partial<Record<HubTab, boolean>>, order?:
 }
 
 /** Where tapping a group goes: the tab used last in it, if it still shows, else its first tab. */
-export function openGroup(groupId: HubGroupId, visible: Partial<Record<HubTab, boolean>>, last: Partial<Record<HubGroupId, HubTab>>): HubTab {
-  const tabs = groupTabs(groupId, visible);
+export function openGroup(groupId: HubGroupId, visible: Partial<Record<HubTab, boolean>>, last: Partial<Record<HubGroupId, HubTab>>, isAdmin = false): HubTab {
+  // Admins can see every WorkHub app without installing it. Match the
+  // visibility rule that built their menu; otherwise clicking a visible admin
+  // app silently falls back to Home when its saved visible flag is false.
+  const tabs = groupTabs(groupId, visible, isAdmin);
   const remembered = last[groupId];
   return remembered && tabs.includes(remembered) ? remembered : tabs[0] ?? "overview";
 }
