@@ -12,6 +12,7 @@ import type { GuideSender } from "@shared/hubGuide";
 import { GuideChecklist, GuideDetails } from "./HubGuide";
 import type { Meeting, Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
+import HubQuickAddStudent from "./HubQuickAddStudent";
 
 export type WizardState = { step: number; meetingId: string | null };
 type Setter = Dispatch<SetStateAction<Workspace>>;
@@ -25,8 +26,8 @@ const HELP: Record<number, { text: string; todo?: string }> = {
   10: { text: "Finish the paperwork, send the final copy to the parents and the team, and file everything.", todo: "Finish paperwork and send the final copy" },
 };
 
-export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard, setWizard, studentOptions, sender, showPolls, pollBody }: {
-  workspace: Workspace; setWorkspace: Setter; makeId: () => string; wizard: WizardState; setWizard: (next: WizardState | null) => void;
+export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, wizard, setWizard, studentOptions, sender, showPolls, pollBody }: {
+  workspace: Workspace; setWorkspace: Setter; seats: number | null; makeId: () => string; wizard: WizardState; setWizard: (next: WizardState | null) => void;
   studentOptions: () => ReactNode; sender: GuideSender; showPolls: () => void;
   pollBody: (meeting: Meeting, onSent: () => void) => ReactNode;
 }) {
@@ -37,6 +38,7 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
   const [form, setForm] = useState({ student: "", type: "Annual IEP", deadline: "", date: "", time: "", room: "", notes: "" });
   // The deadline fills in from the student's caseload date until the teacher types their own.
   const [typedDeadline, setTypedDeadline] = useState(false);
+  const [addStudent, setAddStudent] = useState(false);
   const [knowTime, setKnowTime] = useState(false);
   const [prep, setPrep] = useState(true);
   const saved = studentDeadline(workspace, form.student, form.type);
@@ -142,7 +144,17 @@ export default function MeetingWizard({ workspace, setWorkspace, makeId, wizard,
 
           {step === 1 && !meeting && (
             <form id="wizard-add" onSubmit={addMeeting} className="grid gap-3">
-              <Select aria-label="Student" value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required autoFocus>{studentOptions()}</Select>
+              <div className="space-y-2">
+                <Select aria-label="Student" value={form.student} onChange={(e) => { setForm({ ...form, student: e.target.value }); setTypedDeadline(false); }} required autoFocus>{studentOptions()}</Select>
+                <button type="button" onClick={() => setAddStudent((v) => !v)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-teal-200 px-3 text-sm font-semibold text-teal-800 hover:bg-teal-50" data-testid="wizard-add-student-open">
+                  <Plus className="h-4 w-4" /> {addStudent ? "Hide student form" : "Student not listed? Add student"}
+                </button>
+                {addStudent && <div className="rounded-2xl border border-teal-100 bg-teal-50/40 p-3" data-testid="wizard-add-student">
+                  <HubQuickAddStudent workspace={workspace} setWorkspace={setWorkspace} seats={seats} makeId={makeId}
+                    onAdded={(name) => { setTypedDeadline(false); setForm((f) => ({ ...f, student: name })); setAddStudent(false); }}
+                    onCancel={() => setAddStudent(false)} />
+                </div>}
+              </div>
               <div role="radiogroup" aria-label="Meeting type" className="flex flex-wrap gap-2">
                 {["Annual IEP", "Reevaluation", "Planning meeting", "Parent meeting", "Progress review", "Other"].map((t) => <button key={t} type="button" role="radio" aria-checked={form.type === t} onClick={() => setForm({ ...form, type: t })}
                   className={`min-h-11 rounded-xl border px-3 text-sm font-semibold ${form.type === t ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>{t}</button>)}
