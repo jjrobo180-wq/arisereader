@@ -41,6 +41,8 @@ export default function Register({ independent = false }: { independent?: boolea
   const schoolNotListed = school?.kind === "unlisted";
   const schoolNewToSite = !!school && !schoolNotListed && !selectedSchoolId;
   // If the school isn't on the site yet, its teachers can't be either.
+  const selectedTeacher = teachers.find((t) => String(t.id) === selectedTeacherId);
+  const directoryTeacher = !!selectedTeacher?.directory;
   const teacherNotListed = schoolNotListed || schoolNewToSite || selectedTeacherId === NOT_LISTED;
 
   useEffect(() => {
@@ -75,13 +77,13 @@ export default function Register({ independent = false }: { independent?: boolea
         password,
         `${firstName.trim()} ${lastName.trim()}`,
         isEyeGaze,
-        independentStudent || teacherNotListed ? null : Number(selectedTeacherId),
+        independentStudent || teacherNotListed || directoryTeacher ? null : Number(selectedTeacherId),
         independentStudent ? null : selectedSchoolId,
         selectedGrade,
         independentStudent ? { independent: true } : {
           schoolName: schoolFields(school).unlistedSchoolName,
           directorySchool: schoolFields(school).directorySchool,
-          teacherName: teacherNotListed ? unlistedTeacherName.trim() : undefined,
+          teacherName: directoryTeacher ? String(selectedTeacher.display_name).trim() : teacherNotListed ? unlistedTeacherName.trim() : undefined,
         },
       );
     } catch (err: any) { setError(err.message || "Could not create account."); }
@@ -162,6 +164,7 @@ export default function Register({ independent = false }: { independent?: boolea
                 : selectedSchoolId && selectedGrade && <button type="button" onClick={() => setSelectedTeacherId(NOT_LISTED)} className={`w-full rounded-xl border p-3 text-sm font-black transition ${teachers.length === 0 ? "border-fuchsia-300/40 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/20" : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"}`}>
                     {teachers.length === 0 ? "No teachers listed yet — tap here: Teacher not listed" : "Teacher not listed?"}
                   </button>}
+              {directoryTeacher && <p className="rounded-xl border border-cyan-300/20 bg-cyan-500/5 p-3 text-xs font-semibold leading-5 text-cyan-100">This teacher is listed for your school but does not have a linked A.R.I.S.E. Reader account yet. You can sign up and read right away. An administrator can link you to their class when the teacher joins.</p>}
               {teacherNotListed && <p className="rounded-xl border border-cyan-300/20 bg-cyan-500/5 p-3 text-xs font-semibold leading-5 text-cyan-100">{schoolNewToSite ? "No teachers from this school are on A.R.I.S.E. yet. " : "No problem. "}You'll get full access right away. We'll connect you to your {schoolNotListed ? "school and teacher" : "teacher"} for you.</p>}
             </div>}
 
