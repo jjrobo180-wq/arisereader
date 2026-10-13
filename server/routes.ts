@@ -2212,7 +2212,7 @@ export async function registerRoutes(
           typeof displayName !== "string" || displayName.trim().length < 2 || displayName.trim().length > 100) {
         return res.status(400).json({ message: "Enter your name, a username (3–30 letters/numbers), and a password with at least 6 characters." });
       }
-      const normalizedCode = typeof parentCode === "string" ? parentCode.replace(/[-\\s]/g, "").toUpperCase() : "";
+      const normalizedCode = typeof parentCode === "string" ? parentCode.replace(/[-\s]/g, "").toUpperCase() : "";
       let student: any = null;
       if (normalizedCode) {
         if (!/^[A-F0-9]{20}$/.test(normalizedCode)) {
