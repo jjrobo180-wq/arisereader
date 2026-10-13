@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Calculator, CheckCircle2, CheckSquare, Landmark, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
+import { appHref } from "@/lib/hubs";
 import { Pill, fmtDay, kit, type Which } from "./kit";
 
 type Access = { access: boolean; via: string | null; endsAt: string | null; plan: { live: boolean; endsAt: string | null } | null; paidByYou: boolean; oldBundle?: boolean };
@@ -95,7 +96,7 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
       if (teacher) {
         if (a.paidByYou && live) right = <button type="button" className={k.ghost} disabled={!!busy} onClick={() => go(`m-${app.id}`, "/api/billing/addon-portal", { product: app.id, returnPath })}>Manage previous plan</button>;
         else if (live || data.premium) right = <Pill which={which} tone="green">Included with Class</Pill>;
-        else if (!data.premium) right = <a className={k.ghost} href="/#/billing">Get the Class plan first</a>;
+        else if (!data.premium) right = <a className={k.ghost} href={appHref("/billing")}>Get the Class plan first</a>;
         else right = <button type="button" className={k.primary} disabled={!!busy || !data.payment} onClick={() => go(app.id, "/api/billing/addon-checkout", { product: app.id, returnPath })} data-testid={`addons-buy-${app.id}`}>{busy === app.id ? "Opening…" : `Add · ${money(data.prices.classApps[app.id])}/mo`}</button>;
       }
       const status = teacher && data.premium ? "Included with Class" : teacher ? (live ? (a.oldBundle ? "On with your class bundle" : `On for your class${a.plan?.endsAt ? ` · renews ${fmtDay(a.plan.endsAt)}` : ""}`) : "Off") : app.sub;
