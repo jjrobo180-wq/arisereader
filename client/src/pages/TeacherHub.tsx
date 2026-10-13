@@ -65,7 +65,7 @@ import DriveApp from "@/components/family-hub/DriveApp";
 import DropApp from "@/components/family-hub/DropApp";
 import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
 import { cleanDriveFiles } from "@shared/driveApp";
-import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, notesAppPlugin, pluginOpens, pluginsFor, setKitInstalled, setWorkKit, setWorkNotesApp, setWorkPlugin, setWorkSheetsApp, sheetsAppPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, notesAppPlugin, pluginOpens, pluginsFor, setKitInstalled, setWorkKit, setWorkNotesApp, setWorkPlugin, setWorkSheetsApp, sheetsAppPlugin, officeAppPlugin, workInstalled, type Plugin } from "@shared/pluginStore";
 import { cleanNotesApp } from "@shared/notesApp";
 import { cleanKit, kitDef, type KitRecord } from "@shared/pluginKit";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
@@ -516,6 +516,7 @@ function TeacherHubPage() {
     setWorkspace((prev) => ({ ...prev, notesApps: { ...(prev as any).notesApps, [pid]: update(cleanNotesApp(((prev as any).notesApps ?? {})[pid])) } }));
   const openNotesApp = (k: string | null) => { setNotesAppOpen(k); if (k) window.scrollTo({ top: 0 }); };
   const mySheetsApps = ((workspace as any).sheetsInstalled as string[] | undefined ?? []).map((id) => sheetsAppPlugin("work", id)).filter((p): p is Plugin => !!p);
+  const myOfficeApps = ((workspace as any).sheetsInstalled as string[] | undefined ?? []).map((id) => officeAppPlugin("work", id)).filter((p): p is Plugin => !!p);
   const drivePlugin = (workspace as any).driveInstalled ? driveAppPlugin("work") : undefined;
   const dropPlugin = (workspace as any).dropInstalled ? dropAppPlugin("work") : undefined;
   const hubSheets = cleanSpreadsheets(((workspace as any).sheets ?? {})["work-sheets"]);
@@ -806,7 +807,7 @@ function TeacherHubPage() {
           if (on && countsAsApp("work", p) && appsFull(todoPlan, "work", appsIn("work", workspace))) { openUpgrade("apps"); return; }
           // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
           setWorkspace((prev) => (p.target.kind === "brief" ? { ...prev, briefOff: !on }
-            : p.target.kind === "sheetsApp" ? { ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, on) }
+            : (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") ? { ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, on) }
             : p.target.kind === "driveApp" ? { ...prev, driveInstalled: on }
             : p.target.kind === "dropApp" ? { ...prev, dropInstalled: on }
             : p.target.kind === "widget" ? { ...prev, widgetsOn: on, layout: showSection(cleanLayout(prev.layout), "widgets", on) } : p.target.kind === "assistant" ? { ...prev, aiChat: on } : p.target.kind === "kit"
@@ -817,7 +818,7 @@ function TeacherHubPage() {
           if (p.target.kind === "widget" && on) toasts.show("Widgets added to Home. Tap Add widget to pick your first one.", []);
           if (p.target.kind === "kit") { if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else if (kitOpen === p.target.id) setKitOpen(null); }
           if (p.target.kind === "notesApp" && on) toasts.show(`${p.name} added. Find it in your menu.`, []);
-          if (p.target.kind === "sheetsApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp") {
+          if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp" || p.target.kind === "driveApp" || p.target.kind === "dropApp") {
             if (on) toasts.show(`${p.name} added. Find it in your menu.`, []); else closeApps();
           }
         }}
@@ -832,7 +833,7 @@ function TeacherHubPage() {
           setNotes: setNotesAppRecords,
           makeId: id,
         }}
-        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
+        onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
         onClose={() => setStore(false)}
       />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -952,8 +953,7 @@ function TeacherHubPage() {
                     ))}
                     {!hubOpenFolder && [
                       ...mySheetsApps.map((a) => ({ key: `sheets-app-${a.id}`, name: a.name, color: a.color, icon: <Table className="h-7 w-7" />, open: () => setSheetsAppOpen(a.id) })),
-                      { key: "arise-office", name: "Office", color: "#4f46e5", icon: <Table className="h-7 w-7" />, open: () => { window.location.hash = "#/office"; } },
-                      { key: "arise-ai-apps", name: "AI Apps", color: "#7c3aed", icon: <Sparkles className="h-7 w-7" />, open: () => { window.location.hash = "#/ai-apps"; } },
+                      ...myOfficeApps.map((a) => ({ key: `office-app-${a.id}`, name: a.name, color: a.color, icon: <Sparkles className="h-7 w-7" />, open: () => { if (a.target.kind === "officeApp") window.location.hash = a.target.href; } })),
                       ...(drivePlugin ? [{ key: "drive-app", name: drivePlugin.name, color: drivePlugin.color, icon: <FolderOpen className="h-7 w-7" />, open: () => setDriveOpen(true) }] : []),
                       ...(dropPlugin ? [{ key: "drop-app", name: dropPlugin.name, color: dropPlugin.color, icon: <QrCode className="h-7 w-7" />, open: () => setDropOpen(true) }] : []),
                     ].filter((a) => a.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => (
@@ -1126,13 +1126,12 @@ function TeacherHubPage() {
                   {open && entry.items.filter((item) => item.id !== "arise" && item.id !== "admin").map((item) => navItem(item, menu.indexOf(item), true))}
                 </Fragment>;
               });
-              const hasMyApps = installedMenu.length > 0 || myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || !!drivePlugin || !!dropPlugin;
+              const hasMyApps = installedMenu.length > 0 || myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || myOfficeApps.length > 0 || !!drivePlugin || !!dropPlugin;
               return <>
                 {renderSidebarGroups(coreMenu, true)}
                 {hasMyApps && <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskCompact ? "md:sr-only" : ""}`} data-testid="hub-my-apps-heading">My apps</p>}
                 {renderSidebarGroups(installedMenu, false)}
-                <a href="#/office" data-testid="hub-office-link" className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Table className="h-4 w-4" /> Office · Sheets, Docs &amp; Slides</a>
-                <a href="#/ai-apps" data-testid="hub-ai-apps-link" className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700">✦ AI Apps</a>
+                {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Sparkles className="h-4 w-4" />{a.name}</a>)}
               </>;
             })()}
             {myKits.map((d) => {
@@ -1156,6 +1155,7 @@ function TeacherHubPage() {
                 </button>
               </div>
             ))}
+            {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-installed-office-${a.id}`} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Sparkles className="h-4 w-4" />{a.name}</a>)}
             {mySheetsApps.map((a) => (
               <div key={`sheets-app-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(a.id); afterPick(); }} aria-current={sheetsAppOpen === a.id ? "page" : undefined} data-testid={`hub-sheets-app-${a.id}`} data-hub-nav
