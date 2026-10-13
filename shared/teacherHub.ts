@@ -50,7 +50,15 @@ export type Task = { id: string; title: string; dueDate: string; /** Optional HH
   /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
   rolled?: { dueDate: string; lastDone?: string; at: string };
 };
-export type NoteItem = { id: string; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string };
+export type NoteItem = { id: string; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string;
+  /** More students the note is about (a group check-in, a meeting about several students). `student` stays the first. */
+  students?: string[];
+  /** The card's colour on the notes board, like LifeHub's notes. */
+  color?: string;
+  /** Pinned notes stay at the top. */
+  pinned?: boolean;
+  /** When it was last changed. */
+  updatedAt?: string };
 export type AriseRecord = { id: string; student: string; book: string; score: string; points: string; date: string };
 export type BehaviorEntry = { id: string; student: string; points: number; reason: string; date: string };
 export type AttendanceEntry = { id: string; student: string; date: string; status: "Present" | "Absent" | "Tardy" | "Excused"; className: string };
@@ -115,6 +123,8 @@ export type HubEvent = {
   calendarId?: string;
   /** Set when the event is the booked time of a meeting; the meeting owns it. */
   meetingId?: string;
+  /** Students the event is about (a parent conference, a group session), so the calendar can be filtered by student. */
+  students?: string[];
   /** The teacher checked it off: it happened. */
   done?: boolean;
   /** How it repeats ("Weekly", "Monthly", ...). `date` is then its first day. See shared/hubRepeat.ts. */
@@ -183,14 +193,14 @@ export type HubTab = (typeof HUB_TABS)[number];
 
 /** The WorkHub screens every account comes with, free and never counted against the App Store's
  *  free apps: Home, Calendar, Tasks and Notes. Everything else is added from the App Store. */
-export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "calendar", "tasks", "notes"];
+export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "calendar", "tasks", "notes", "goals"];
 
 /** WorkHub screens added from the App Store. Off until the teacher adds one, and each counts
  *  towards the free plan's apps (shared/todoPlan.ts), the same way a LifeHub add-on section does.
  *  The Reader's own screens and the admin console aren't here: those are decided by role and plan,
  *  not by the App Store. */
 export const WORK_ADD_ON_TABS: readonly HubTab[] = [
-  "caseload", "goals", "minutes", "iep", "lessons", "arise", "behavior", "attendance",
+  "caseload", "minutes", "iep", "lessons", "arise", "behavior", "attendance",
   "gradebook", "parents", "schedules", "email",
 ];
 
@@ -284,9 +294,13 @@ export function normalizeWorkspace(raw: any): Workspace {
       ? { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true }
       : { ...base.visibleTabs, ...Object.fromEntries(Object.entries(raw.visibleTabs || {}).filter(([tab]) => !WORK_ADD_ON_TABS.includes(tab as HubTab))), overview: true },
     tabsV2: true,
+    // Goals became a standard screen (October 2026): switched on once for everyone, after which it
+    // can be hidden like Calendar or Notes.
+    goalsStd: true,
     groupOrder: Array.isArray(raw.groupOrder) ? raw.groupOrder.filter((x: unknown) => typeof x === "string") : [],
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
+  if (raw.goalsStd !== true) out.visibleTabs = { ...out.visibleTabs, goals: true };
   out.pins = cleanPins(raw.pins);
   out.hiddenEvents = (Array.isArray(raw.hiddenEvents) ? raw.hiddenEvents : [])
     .filter((r: any) => r && typeof r === "object" && typeof r.id === "string" && typeof r.title === "string" && r.title.trim())

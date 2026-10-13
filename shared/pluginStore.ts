@@ -163,7 +163,7 @@ export const PLUGINS: readonly Plugin[] = [
   { id: "work-meetings", hub: "work", name: "IEP & Meetings", tagline: "Meetings, deadlines and the ten steps", category: "Students & IEPs", icon: "Handshake", color: "#c026d3", featured: true, target: tab("iep"),
     description: "Plan every IEP meeting from first notice to signatures, with the deadline it has to beat and polls to find a time.",
     features: ["Ten-step meeting plan", "Deadline warnings", "Find a time with a poll", "Booked meetings go on your calendar"] },
-  { id: "work-goals", hub: "work", name: "Goals", tagline: "Track IEP goals over time", category: "Students & IEPs", icon: "Target", color: "#db2777", target: tab("goals"),
+  { id: "work-goals", hub: "work", name: "Goals", tagline: "Goals board for students and class, plus IEP goal tracking", category: "Students & IEPs", icon: "Target", color: "#db2777", target: tab("goals"),
     description: "Track each IEP goal from baseline to target with a reading every time you check.",
     features: ["Baseline and target", "A chart of progress", "Up or down goals"] },
   { id: "work-minutes", hub: "work", name: "Minutes", tagline: "Service minutes, owed and given", category: "Students & IEPs", icon: "Timer", color: "#e11d48", target: tab("minutes"),

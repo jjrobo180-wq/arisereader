@@ -1,9 +1,9 @@
 // Arise WorkHub: the Notes tab. A note is about a student (a check-in, a concern) or it is not about
 // any one student (a staff meeting, a team meeting, a training). Notes can be searched and changed.
 import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { Check, Pencil, Plus, Search, Trash2, User, Users } from "lucide-react";
+import { Check, Pencil, Pin, PinOff, Plus, Search, Trash2, User, Users } from "lucide-react";
 import { useSavedChoice } from "@/lib/useSavedChoice";
-import { GENERAL_NOTE_KINDS, STUDENT_NOTE_KINDS, NOTE_TITLE_MAX, arrangeNotes, cleanNote, noteCounts, noteFields, noteHeading, noteScope, saveNote, type NoteFields, type NoteFilter, type NoteScope } from "@shared/hubNotes";
+import { GENERAL_NOTE_KINDS, STUDENT_NOTE_KINDS, NOTE_TITLE_MAX, arrangeNotes, cleanNote, noteCounts, noteFields, noteHeading, noteScope, noteStudents, pinNote, saveNote, NOTE_CARD_COLORS, type NoteFields, type NoteFilter, type NoteScope } from "@shared/hubNotes";
 import type { NoteItem, Workspace } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { localDay } from "./HubImport";
@@ -35,7 +35,24 @@ function NoteBoxes({ form, setForm, students, lockStudent = false }: { form: Not
       <Labeled label={general ? "What it was" : "Title (optional)"} className={general ? "sm:col-span-2" : ""}><Field value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={NOTE_TITLE_MAX} placeholder={general ? "Staff meeting, PLC, training..." : ""} aria-label="Title" /></Labeled>
       <Labeled label="Kind"><Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} aria-label="Kind">{(general ? GENERAL_NOTE_KINDS : STUDENT_NOTE_KINDS).map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
       <Labeled label="Date"><Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label="Date" /></Labeled>
-      <Labeled label="Note" className="sm:col-span-2"><TextArea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder={general ? "What was said, what was decided, what you need to do..." : "Write note..."} required aria-label="Note" className="min-h-32" /></Labeled>
+      <Labeled label="Note" className="sm:col-span-2"><TextArea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder={general ? "What was said, what was decided, what you need to do..." : "Write note..."} required aria-label="Note" className="min-h-32" style={{ background: form.color || undefined }} /></Labeled>
+      {!general && !lockStudent && (
+        <div className="sm:col-span-2" data-testid="note-more-students">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Also about <span className="font-normal normal-case">(optional, for a group or a meeting about several students)</span></span>
+          <div className="flex flex-wrap gap-1.5">
+            {students.filter((n) => n !== form.student).map((n) => { const on = (form.students || []).includes(n); return (
+              <button key={n} type="button" aria-pressed={on} onClick={() => setForm({ ...form, students: on ? (form.students || []).filter((x) => x !== n) : [...(form.students || []), n] })}
+                className={`min-h-9 rounded-full border px-3 text-xs font-semibold ${on ? "border-teal-600 bg-teal-600 text-white" : "border-slate-200 bg-white text-slate-600"}`}>{n}</button>
+            ); })}
+            {students.length <= 1 && <span className="text-xs text-slate-500">Add students to your caseload to attach more than one.</span>}
+          </div>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Colour</span>
+        {NOTE_CARD_COLORS.map((c) => <button key={c} type="button" onClick={() => setForm({ ...form, color: c })} aria-pressed={(form.color || "#ffffff") === c} aria-label={`Colour ${c}`} className={`h-8 w-8 rounded-full border-2 ${(form.color || "#ffffff") === c ? "border-teal-600" : "border-slate-200"}`} style={{ background: c }} />)}
+        <button type="button" onClick={() => setForm({ ...form, pinned: !form.pinned })} aria-pressed={!!form.pinned} className={`ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold ${form.pinned ? "border-violet-300 bg-violet-50 text-violet-800" : "border-slate-200 text-slate-600"}`}>{form.pinned ? <><PinOff className="h-4 w-4" /> Unpin</> : <><Pin className="h-4 w-4" /> Pin to top</>}</button>
+      </div>
     </div>
   );
 }
@@ -58,29 +75,34 @@ export function NoteModal({ note, student, students, onSave, onClose }: { note?:
   );
 }
 
-/** One saved note. */
-export function NoteCard({ note, onEdit, onDelete }: { note: NoteItem; onEdit?: () => void; onDelete?: () => void }) {
+/** One saved note: a coloured card like LifeHub's notes, with the students it is about. */
+export function NoteCard({ note, onEdit, onDelete, onPin, onStudent }: { note: NoteItem; onEdit?: () => void; onDelete?: () => void; onPin?: () => void; onStudent?: (name: string) => void }) {
   const general = noteScope(note) === "general";
+  const who = noteStudents(note);
   return (
-    <div className="rounded-2xl border border-slate-200 p-4" data-testid="note-row">
-      <div className="flex items-start justify-between gap-3">
+    <article className="note-card group break-inside-avoid rounded-2xl border border-black/5 p-4 text-slate-900 shadow-[0_3px_16px_#17152b0a]" style={{ background: note.color || "#ffffff" }} data-testid="note-row">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="break-words font-semibold">{noteHeading(note)}</div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-            <span className={`rounded-full px-2 py-0.5 font-medium ${general ? "bg-sky-100 text-sky-800" : "bg-teal-50 text-teal-800"}`}>{general ? note.type : note.student}</span>
-            {!general && note.title && <span>{note.type}</span>}
-            <span>{note.date}</span>
+          <div className="break-words text-base font-black text-slate-800">{noteHeading(note)}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+            {general ? <span className="rounded-full bg-sky-100 px-2 py-0.5 font-semibold text-sky-800">{note.type}</span>
+              : who.map((n) => onStudent
+                ? <button key={n} type="button" onClick={() => onStudent(n)} title={`Only ${n}'s notes`} className="rounded-full bg-teal-600/10 px-2 py-0.5 font-semibold text-teal-800 hover:bg-teal-600/20">{n}</button>
+                : <span key={n} className="rounded-full bg-teal-600/10 px-2 py-0.5 font-semibold text-teal-800">{n}</span>)}
+            {!general && <span>{note.type}</span>}
+            {note.date && <span>{note.date}</span>}
           </div>
         </div>
-        {(onEdit || onDelete) && (
-          <div className="-m-2 flex shrink-0 items-center">
-            {onEdit && <button type="button" aria-label={`Edit note: ${noteHeading(note)}`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-950" onClick={onEdit} data-testid="note-edit"><Pencil className="h-4 w-4" /></button>}
-            {onDelete && <button type="button" aria-label={`Delete note: ${noteHeading(note)}`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={onDelete}><Trash2 className="h-4 w-4" /></button>}
+        {(onEdit || onDelete || onPin) && (
+          <div className="-m-1.5 flex shrink-0 items-center">
+            {onPin && <button type="button" aria-pressed={!!note.pinned} aria-label={note.pinned ? `Unpin ${noteHeading(note)}` : `Pin ${noteHeading(note)}`} onClick={onPin} className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${note.pinned ? "text-violet-700" : "text-slate-400 opacity-70 hover:opacity-100"}`}><Pin className={`h-4 w-4 ${note.pinned ? "fill-current" : ""}`} /></button>}
+            {onEdit && <button type="button" aria-label={`Edit note: ${noteHeading(note)}`} className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-black/5 hover:text-slate-950" onClick={onEdit} data-testid="note-edit"><Pencil className="h-4 w-4" /></button>}
+            {onDelete && <button type="button" aria-label={`Delete note: ${noteHeading(note)}`} className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={onDelete}><Trash2 className="h-4 w-4" /></button>}
           </div>
         )}
       </div>
-      <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{note.body}</p>
-    </div>
+      <button type="button" onClick={onEdit} disabled={!onEdit} className="mt-2 block w-full text-left"><p className="line-clamp-[12] whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{note.body}</p></button>
+    </article>
   );
 }
 
@@ -90,15 +112,17 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useSavedChoice<NoteFilter>("hub-notes-filter", "all", ["all", "student", "general"] as NoteFilter[]);
   const [search, setSearch] = useState("");
+  const [who, setWho] = useSavedChoice<string>("hub-notes-student", "");
   const [editing, setEditing] = useState<NoteItem | null>(null);
   const counts = noteCounts(workspace.notes);
-  const shown = useMemo(() => arrangeNotes(workspace.notes, filter, search), [workspace.notes, filter, search]);
+  const student = who && students.includes(who) ? who : "";
+  const shown = useMemo(() => arrangeNotes(workspace.notes, filter, search, student), [workspace.notes, filter, search, student]);
   const ready = !!cleanNote(form);
   function add(e?: FormEvent) {
     e?.preventDefault();
     if (!ready) return;
     setWorkspace((p) => saveNote(p, null, form, makeId));
-    setForm(blank("student"));
+    setForm(blank("student", student));
     setAdding(false);
   }
   const chip = (active: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
@@ -107,7 +131,7 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
       <section className="min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
           <h2 className="hub-card-title font-semibold text-slate-900">Notes</h2>
-          <button type="button" onClick={() => { setForm(blank("student")); setAdding(true); }} data-testid="add-card-add-note"
+          <button type="button" onClick={() => { setForm(blank("student", student)); setAdding(true); }} data-testid="add-card-add-note"
             className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700">
             <Plus className="h-4 w-4" /> Add note
           </button>
@@ -121,6 +145,11 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
               <button type="button" className={chip(filter === "student")} aria-pressed={filter === "student"} onClick={() => setFilter("student")}>Students <span className="opacity-70">{counts.student}</span></button>
               <button type="button" className={chip(filter === "general")} aria-pressed={filter === "general"} onClick={() => setFilter("general")}>Meetings &amp; general <span className="opacity-70">{counts.general}</span></button>
             </div>
+            {students.length > 0 && (
+              <select value={student} onChange={(e) => { setWho(e.target.value); if (e.target.value) setFilter("student"); }} aria-label="Notes about" className="min-h-11 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700" data-testid="note-student-filter">
+                <option value="">Every student</option>{students.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            )}
             <div className="relative min-w-0 flex-1 sm:max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Field type="search" placeholder="Search notes" aria-label="Search notes" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
@@ -128,7 +157,7 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
           </div>
         )}
         {shown.length
-          ? <div className="space-y-3">{shown.map((n) => <NoteCard key={n.id} note={n} onEdit={() => setEditing(n)} onDelete={() => remove("notes", n.id)} />)}</div>
+          ? <div className="columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">{shown.map((n) => <NoteCard key={n.id} note={n} onEdit={() => setEditing(n)} onDelete={() => remove("notes", n.id)} onPin={() => setWorkspace((p) => pinNote(p, n.id))} onStudent={(name) => { setWho(name); setFilter("student"); }} />)}</div>
           : <Empty>{workspace.notes.length ? "No notes match." : "No notes yet. Tap “Add note” to write the first one."}</Empty>}
       </Card>
       {adding && (

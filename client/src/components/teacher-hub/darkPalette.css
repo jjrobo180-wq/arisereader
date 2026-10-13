@@ -123,3 +123,9 @@
 .hub-night .from-rose-50, .todo-night .from-rose-50, .hub-theme-tile .from-rose-50, .hub-theme-crt .from-rose-50, .hub-night .to-rose-50, .todo-night .to-rose-50, .hub-theme-tile .to-rose-50, .hub-theme-crt .to-rose-50 { --tw-gradient-from: rgba(244,63,94,0.14); --tw-gradient-to: rgba(244,63,94,0.08); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
 .hub-night .ring-slate-200, .todo-night .ring-slate-200, .hub-theme-tile .ring-slate-200, .hub-theme-crt .ring-slate-200, .hub-night .ring-slate-100, .todo-night .ring-slate-100, .hub-theme-tile .ring-slate-100, .hub-theme-crt .ring-slate-100 { --tw-ring-color: #26334f; }
 .hub-night .bg-slate-200, .todo-night .bg-slate-200, .hub-theme-tile .bg-slate-200, .hub-theme-crt .bg-slate-200 { background-color: #26334f; }
+/* Note cards keep their soft paper colour in every dark mode, so their words stay dark. */
+.hub-night .note-card, .hub-theme-tile .note-card, .hub-theme-crt .note-card { color: #1e1b33; }
+.hub-night .note-card .text-slate-800, .hub-night .note-card .text-slate-700, .hub-night .note-card .text-slate-600, .hub-night .note-card .text-slate-900,
+.hub-theme-tile .note-card .text-slate-800, .hub-theme-tile .note-card .text-slate-700, .hub-theme-tile .note-card .text-slate-600 { color: #1e1b33; }
+.hub-night .note-card .text-slate-500, .hub-night .note-card .text-slate-400 { color: #6b6890; }
+.hub-night .note-card .text-teal-800 { color: #115e59; } .hub-night .note-card .text-sky-800 { color: #075985; }

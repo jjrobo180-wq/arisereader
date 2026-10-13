@@ -44,10 +44,10 @@ export function supabaseDocStore(getAdminSupabase: () => any): DocStore {
   let ready: Promise<void> | null = null;
   const bucket = () => {
     const db = getAdminSupabase();
-    ready ??= db.storage.createBucket(BUCKET, { public: false, fileSizeLimit: "12MB" })
+    const r: Promise<void> = ready ??= db.storage.createBucket(BUCKET, { public: false, fileSizeLimit: "12MB" })
       .then(({ error }: any) => { if (error && !/already exists|duplicate/i.test(error.message || "")) console.error("[docs] bucket:", error.message); })
       .catch((e: any) => console.error("[docs] bucket check failed:", e?.message || e));
-    return ready.then(() => db.storage.from(BUCKET));
+    return r.then(() => db.storage.from(BUCKET));
   };
   return {
     async read(path) {

@@ -79,7 +79,7 @@ export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Pro
 
   return (
     <>
-      <Card title="Goals & progress monitoring" right={<PrimaryButton onClick={() => setDraft(blank())}><Plus className="h-4 w-4" /> New goal</PrimaryButton>}>
+      <Card title="IEP goals & progress monitoring" right={<PrimaryButton onClick={() => setDraft(blank())}><Plus className="h-4 w-4" /> New IEP goal</PrimaryButton>}>
         <p className="text-sm text-slate-600">Track each IEP goal over time. Add a data point whenever you check progress and the trend line shows whether the student is on track for the target date.</p>
         {names.length > 1 && <div className="mt-3"><Select aria-label="Show goals for" value={student} onChange={(e) => setStudent(e.target.value)}><option value="">All students</option>{names.map((n) => <option key={n}>{n}</option>)}</Select></div>}
       </Card>

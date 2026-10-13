@@ -18,6 +18,8 @@ export type QuickForm = {
   /** For an event: how it repeats ("" for once), and the last day it can fall on ("" to go on). */
   repeat?: string;
   until?: string;
+  /** Students the event is about. */
+  students?: string[];
 };
 
 /** What the form adds: an event, a reminder (a to-do), or both. */
@@ -40,7 +42,8 @@ export function quickItems(form: QuickForm): QuickItems | null {
   const end = start && TIME.test(form.end) ? form.end : "";
   const repeat = isRepeat(form.repeat) ? form.repeat : "";
   const until = repeat && DAY.test(form.until || "") && form.until! >= date ? form.until! : "";
-  const event: Omit<HubEvent, "id"> = { title, date, start, end, location: form.location.trim(), notes: "", ...(repeat ? { repeat } : {}), ...(until ? { until } : {}) };
+  const students = [...new Set((form.students || []).map((s) => String(s).trim()).filter(Boolean))].slice(0, 40);
+  const event: Omit<HubEvent, "id"> = { title, date, start, end, location: form.location.trim(), notes: "", ...(repeat ? { repeat } : {}), ...(until ? { until } : {}), ...(students.length ? { students } : {}) };
   // A to-do has a day but no time, so the reminder for a timed event carries the time in its name.
   return form.alsoRemind ? { event, task: reminder(start ? `${title} (${clock12(start)})` : title) } : { event };
 }
@@ -62,7 +65,7 @@ export function quickAddedMessage(items: QuickItems): string {
 }
 
 /** The boxes of the "Edit event" pop-up. */
-export type EventEdit = { title: string; date: string; start: string; end: string; location: string; notes: string; repeat?: string; until?: string };
+export type EventEdit = { title: string; date: string; start: string; end: string; location: string; notes: string; repeat?: string; until?: string; students?: string[] };
 
 /** An edited event tidied up, or null while it can't be saved (no name, or no day). */
 export function eventEdit(form: EventEdit): Omit<HubEvent, "id"> | null {
@@ -84,7 +87,7 @@ export function updateEvent(workspace: Workspace, eventId: string, form: EventEd
     events: workspace.events.map((e) => {
       if (e.id !== eventId) return e;
       // How it repeats is set fresh from the form. Its skipped and checked-off days only mean something while it still repeats from the same first day.
-      const { done, repeat: _repeat, until: _until, skip, doneOn, ...rest } = e;
+      const { done, repeat: _repeat, until: _until, skip, doneOn, students: _students, ...rest } = e;
       const same = e.date === fields.date && e.start === fields.start;
       const keeps = !!fields.repeat && e.date === fields.date;
       return { ...rest, ...fields, ...(done && same && !fields.repeat ? { done } : {}), ...(keeps && skip?.length ? { skip } : {}), ...(keeps && doneOn?.length ? { doneOn } : {}) };

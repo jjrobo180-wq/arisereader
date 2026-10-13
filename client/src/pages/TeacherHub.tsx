@@ -82,6 +82,7 @@ import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@s
 import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, arrangeTasks, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskFilter, type TaskSort, type TaskView } from "@shared/hubTasks";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import HubLessons from "@/components/teacher-hub/HubLessons";
+import HubGoalBoard from "@/components/teacher-hub/HubGoalBoard";
 import { cleanSenderName } from "@shared/hubMeetings";
 import { deadlineLabel, meetingDeadline } from "@shared/meetingDeadline";
 import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs, openGroup, visibleGroups, type HubGroupId } from "@shared/hubTabGroups";
@@ -1487,7 +1488,7 @@ function TeacherHubPage() {
 
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
-          {tab === "goals" && <GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} />}
+          {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}

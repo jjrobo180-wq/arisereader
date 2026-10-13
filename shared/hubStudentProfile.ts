@@ -69,7 +69,8 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
   const optional = optionalDays(workspace);
   const services = mine(workspace.services).map((saved) => countedPlan(saved, optional)).map((plan) => ({ plan, status: serviceStatus(plan, workspace.serviceLogs || [], today) }));
   const guides = mine(workspace.guides).map((guide) => ({ guide, ...guideProgress(guide) }));
-  const notes = newest(mine(workspace.notes));
+  // A note about several students shows for each of them.
+  const notes = newest((workspace.notes || []).filter((n) => fold(n.student) === name || (n.students || []).some((s) => fold(s) === name)));
   const parentLogs = newest(mine(workspace.parentLogs));
   const reading = newest(mine(workspace.ariseRecords));
 

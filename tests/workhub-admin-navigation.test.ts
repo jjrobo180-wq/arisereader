@@ -5,8 +5,9 @@ import assert from "node:assert/strict";
 import { groupTabs, openGroup, visibleGroups } from "../shared/hubTabGroups";
 import { HUB_TABS } from "../shared/teacherHub";
 
+// (Goals is a standard screen since October 2026, so it is on by default like Calendar and Notes.)
 const defaultWorkspace = Object.fromEntries(HUB_TABS.map((tab) => [tab, ![
-  "caseload", "goals", "minutes", "iep", "lessons", "arise", "behavior",
+  "caseload", "minutes", "iep", "lessons", "arise", "behavior",
   "attendance", "gradebook", "parents", "schedules", "email",
 ].includes(tab)])) as Record<(typeof HUB_TABS)[number], boolean>;
 
