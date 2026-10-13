@@ -731,7 +731,7 @@ function TeacherHubPage() {
   const goGroup = (id: HubGroupId) => {
     // A.R.I.S.E. Reader is its own address, not a route inside this app, so this leaves for it.
     if (id === "arise") { goToReader(); return; }
-    setTab(openGroup(id, visible, lastInGroup));
+    setTab(openGroup(id, visible, lastInGroup, !!user.isAdmin));
     closeApps();
   };
   const searchEntries = ((): HubSearchEntry[] => {
