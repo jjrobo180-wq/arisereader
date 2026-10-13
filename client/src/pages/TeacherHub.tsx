@@ -108,6 +108,7 @@ import { useHubWorkspace } from "@/components/teacher-hub/useHubWorkspace";
 import HubSetupBanner from "@/components/teacher-hub/HubSetupBanner";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "@/components/teacher-hub/ui";
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
+import HubQuickAddStudent from "@/components/teacher-hub/HubQuickAddStudent";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
 import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
@@ -1494,7 +1495,7 @@ function TeacherHubPage() {
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}
           {tab === "minutes" && <MinutesTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} token={token} />}
-          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
+          {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
@@ -1867,12 +1868,16 @@ function Info({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div><div className="mt-1 text-slate-700">{value}</div></div>;
 }
 
-function Meetings({ workspace, setWorkspace, remove, studentOptions, token, makeId, account }: SectionProps & { studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string } }) {
+function Meetings({ workspace, setWorkspace, remove, seats, studentOptions, token, makeId, account }: SectionProps & { seats: number | null; studentOptions: () => ReactNode; token: string | null; makeId: () => string; account: { name: string; email: string } }) {
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
   const [pollStart, setPollStart] = useState<PollStart>(null);
   const [wizard, setWizard] = useState<WizardState | null>(null);
   return (
     <>
-      <Card title="IEP, reevaluation & meeting timeline" right={<PrimaryButton onClick={() => setWizard({ step: 1, meetingId: null })}><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>}>
+      <Card title="IEP, reevaluation & meeting timeline" right={<div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => setAddStudentOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-teal-300 px-4 text-sm font-semibold text-teal-800 hover:bg-teal-50" data-testid="iep-add-student-open"><Plus className="h-4 w-4" /> Add student</button>
+        <PrimaryButton onClick={() => setWizard({ step: 1, meetingId: null })}><Plus className="h-4 w-4" /> Add meeting</PrimaryButton>
+      </div>}>
         <p className="text-sm text-slate-600">Tap “Add meeting”. A short guide walks you through the steps, from picking a time with everyone to sending the final copy. You can skip any step and come back to it.</p>
       </Card>
       <Card title="Timeline">
@@ -1898,7 +1903,10 @@ function Meetings({ workspace, setWorkspace, remove, studentOptions, token, make
           </div>
         ))}</div> : <Empty>No meetings added.</Empty>}
       </Card>
-      <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} account={account} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} />
+      {addStudentOpen && <HubModal title="Add student to IEP & Meetings" size="lg" closeOnBackdrop onClose={() => setAddStudentOpen(false)}>
+        <HubQuickAddStudent workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} seats={seats} onCancel={() => setAddStudentOpen(false)} onAdded={() => setAddStudentOpen(false)} />
+      </HubModal>}
+      <HubMeetingPolls token={token} workspace={workspace} setWorkspace={setWorkspace} seats={seats} makeId={makeId} start={pollStart} onStarted={() => setPollStart(null)} account={account} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} />
     </>
   );
 }
