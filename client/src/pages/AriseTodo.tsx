@@ -292,9 +292,16 @@ export default function AriseTodo() {
   }, [setData]);
   const [section, setSectionState] = useState<FamilySection>(() => {
     // The old parent dashboard address opens the Reader tab (see OpenHubTab in App.tsx).
-    try { if (sessionStorage.getItem("lifehub_tab") === "reader") { sessionStorage.removeItem("lifehub_tab"); return "reader"; } } catch { /* fine */ }
-    // Parents start on their A.R.I.S.E. Reader tab (the parent portal) until they pick another.
-    const first: FamilySection = user?.role === "parent" ? "reader" : "home";
+    try {
+      const requested = sessionStorage.getItem("lifehub_tab");
+      if (requested === "home" || requested === "reader") {
+        sessionStorage.removeItem("lifehub_tab");
+        return requested;
+      }
+    } catch { /* fine */ }
+    // Sign-in opens LifeHub Home with its Reader menu visible; the user can
+    // enter Reader from the navigation rather than losing the hub sidebar.
+    const first: FamilySection = "home";
     try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
   const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
