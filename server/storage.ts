@@ -134,6 +134,7 @@ function mapUser(row: any) {
     is_eye_gaze_user: row.is_eye_gaze_user,
     role: row.role || 'student',
     teacherId: row.teacher_id || null,
+    directoryTeacherName: row.directory_teacher_name || null,
     approvedByTeacher: row.approved_by_teacher !== false,
     accountApproved: row.account_approved !== false,
     email: row.email || null,
@@ -360,7 +361,7 @@ export class DatabaseStorage implements IStorage {
     return mapUser(data);
   }
 
-  async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null; studentNumber?: string | null; mustChangePassword?: boolean }) {
+  async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; directoryTeacherName?: string | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null; studentNumber?: string | null; mustChangePassword?: boolean }) {
     const { data, error } = await supabase
       .from("users")
       .insert({
@@ -371,6 +372,7 @@ export class DatabaseStorage implements IStorage {
         is_eye_gaze_user: user.isEyeGazeUser || false,
         role: user.role || 'student',
         teacher_id: user.teacherId ?? null,
+        directory_teacher_name: user.directoryTeacherName ?? null,
         approved_by_teacher: user.approvedByTeacher ?? true,
         account_approved: user.accountApproved ?? true,
         email: user.email || null,
