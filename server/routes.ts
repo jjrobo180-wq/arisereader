@@ -1873,6 +1873,22 @@ export async function registerRoutes(
     } catch (e) {}
   }, 300000);
 
+  // School directory teachers are names, never login accounts or authorization IDs.
+  const directoryTeacherKey = (schoolId: number) => `school_teacher_directory_${schoolId}`;
+  const directoryId = (schoolId: number, name: string) =>
+    `directory:${schoolId}:${encodeURIComponent(name.trim().toLowerCase())}`;
+  const directoryTeachers = async (schoolId: number): Promise<Array<{ name: string; grades?: string[] }>> => {
+    if (!Number.isSafeInteger(schoolId) || schoolId < 1) return [];
+    const raw = await storage.getSetting(directoryTeacherKey(schoolId));
+    try {
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data.filter((t) => t && typeof t.name === "string" && t.name.trim()) : [];
+    } catch { return []; }
+  };
+  const getDirectoryTeacher = async (schoolId: number, selectedId: string, grade?: string | null) =>
+    (await directoryTeachers(schoolId)).find(t => directoryId(schoolId, t.name) === selectedId &&
+      (!grade || !t.grades?.length || t.grades.includes(String(grade)))) || null;
+
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
@@ -1917,6 +1933,19 @@ export async function registerRoutes(
         }
       }
 
+      // Resolve the student's teacher into a permanent, data-only assignment.
+      // No teacher login, password or teacher_id is created for directory names.
+      let directoryTeacherName: string | null = null;
+      const requestedDirectory = typeof req.body.directoryTeacherId === "string" ? req.body.directoryTeacherId : "";
+      if (requestedDirectory) {
+        const sid = Number(schoolId);
+        const selected = await getDirectoryTeacher(sid, requestedDirectory, gradeLevel);
+        if (!selected || !sid || req.body.independent) return res.status(400).json({ message: "That teacher is not listed for this school and grade." });
+        directoryTeacherName = selected.name.trim();
+        teacherId = null;
+      } else if (!teacherId && schoolId && typeof req.body.unlistedTeacherName === "string") {
+        directoryTeacherName = req.body.unlistedTeacherName.trim().slice(0, 120) || null;
+      }
       const hashedPassword = bcrypt.hashSync(password, 10);
       const user = await storage.createUser({
         username: username.toLowerCase(),
@@ -1925,6 +1954,7 @@ export async function registerRoutes(
         isEyeGazeUser: !!isEyeGazeUser,
         role: 'student',
         teacherId: teacherId ? parseInt(teacherId) : null,
+        directoryTeacherName,
         approvedByTeacher: teacherId ? false : true,
         schoolId: schoolId ? parseInt(schoolId) : null,
       });
@@ -1951,7 +1981,7 @@ export async function registerRoutes(
       try {
         const signupType = req.body.independent || pickedIndependentSchool ? "independent"
           : unlistedSchoolName ? "school_not_listed"
-          : unlistedTeacherName ? "teacher_not_listed"
+          : unlistedTeacherName && !requestedDirectory ? "teacher_not_listed"
           : "school";
         const rawTypes = await storage.getSetting("student_signup_types");
         let signupTypes: Record<string, string> = {};
@@ -1960,7 +1990,7 @@ export async function registerRoutes(
         await storage.upsertSetting("student_signup_types", JSON.stringify(signupTypes));
       } catch {}
 
-      if (unlistedSchoolName || unlistedTeacherName) {
+      if (unlistedSchoolName || (unlistedTeacherName && !requestedDirectory)) {
         try {
           const requests = await readUnlistedSignups();
           requests.push({
@@ -1987,7 +2017,7 @@ export async function registerRoutes(
         const schoolText = noSchool ? "Independent reader (no school)" : facts.school || (unlistedSchoolName ? `Not listed: “${unlistedSchoolName}”` : "");
         const teacherText = facts.teacher
           ? `${facts.teacher}${user.approvedByTeacher === false ? " (waiting for their OK)" : ""}`
-          : unlistedTeacherName ? `Not listed: “${unlistedTeacherName}”` : "";
+          : directoryTeacherName || (unlistedTeacherName ? `Not listed: “${unlistedTeacherName}”` : "");
         await adminAlerts.notify("student_signup", {
           title: `New student: ${user.displayName}`,
           summary: [`@${user.username}`, (gradeLevel || facts.grade) && `Grade ${gradeLevel || facts.grade}`, schoolText, teacherText && `Teacher: ${teacherText}`].filter(Boolean).join(" · "),
@@ -1998,7 +2028,7 @@ export async function registerRoutes(
             ["Teacher", teacherText],
             ["Account", isEyeGazeUser ? "Eye Gazer" : "Reader"],
           ],
-          note: unlistedSchoolName || unlistedTeacherName ? "Their school or teacher wasn't in the list. Connect them under Admin → People → Students." : undefined,
+          note: unlistedSchoolName || (unlistedTeacherName && !requestedDirectory) ? "Their school or teacher wasn't in the list. Connect them under Admin → People → Students." : undefined,
           ref: `u${user.id}`,
         });
       })();
