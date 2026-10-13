@@ -806,7 +806,12 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     const asked = String(req.body?.returnPath || "/billing");
     const target = ADDON_PAGES[asked] ?? ADDON_PAGES["/billing"];
     const [path, hash] = target.split("#");
-    return { done: `${origin}${path}?paid={CHECKOUT_SESSION_ID}${hash ? `#${hash}` : ""}`, back: `${origin}${target}` };
+    // On arisetodo.com the app is served at /app and "/" is the educator landing page, so a
+    // hash-routed page has to be sent back to /app — otherwise someone who has just paid lands on
+    // marketing, the "?paid=" confirmation never runs, and the app goes on asking them to pay.
+    const onTodoSite = /^https:\/\/(www\.)?arisetodo\.com$/i.test(origin);
+    const base = onTodoSite && hash && (path === "" || path === "/") ? "/app" : path;
+    return { done: `${origin}${base}?paid={CHECKOUT_SESSION_ID}${hash ? `#${hash}` : ""}`, back: `${origin}${base}${hash ? `#${hash}` : ""}` };
   };
   const firstAndInitial = (name: unknown) => {
     const w = String(name || "").trim().split(/\s+/).filter(Boolean);
@@ -1106,7 +1111,12 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
   // can read the hubs.)
   const todoUnlimited = async (user: AnyUser) => {
-    const [unlimited, yearly, oldLifeHub] = await Promise.all([readGrant("todo_unlimited", user.id), readGrant("todo_unlimited_year", user.id), readGrant("todo_family", user.id)]);
+    // `current`, not `readGrant`: it looks up an unfinished Checkout with Stripe and syncs a
+    // subscription whose period has lapsed. Reading the saved grant alone meant a payment that
+    // the webhook never delivered — late, lost, or a webhook that was never set up — left someone
+    // who had paid being told to pay again, with nothing in the app ever going back to ask Stripe.
+    // Every other plan goes through `current`; To-Do Unlimited was the one that didn't.
+    const [unlimited, yearly, oldLifeHub] = await Promise.all([current("todo_unlimited", user.id), current("todo_unlimited_year", user.id), current("todo_family", user.id)]);
     return todoUnlimitedFor(user as PlanPerson, { unlimited, yearly, oldLifeHub }, now());
   };
   const AI_KEY = (id: number) => `todo_ai_usage_u${id}`;
