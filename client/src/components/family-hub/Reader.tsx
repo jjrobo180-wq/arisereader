@@ -136,8 +136,8 @@ export default function Reader({ say, night = false }: { say: (message: string) 
 
       {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>}
 
-      {!children.length ? <Panel><Empty icon={<Users size={26} />} title="Connect your first child" action={<button type="button" onClick={() => setAdding(true)} className={primary}><UserPlus size={16} /> Add child</button>}>
-        Enter the parent code from your child's account or school letter. Then you'll see their reading, quizzes and certificates, and set their game time.
+      {!children.length ? <Panel><Empty icon={<Users size={26} />} title="Set up your first reader" action={<button type="button" onClick={() => setAdding(true)} className={primary}><UserPlus size={16} /> Add child</button>}>
+        Create an independent reader for your child without a school or code, or connect their existing school account using a parent code.
       </Empty></Panel>
         : switching || !profile ? <Panel><p className="py-8 text-center text-sm font-semibold text-slate-500">Loading {children.find((c) => c.id === childId)?.displayName || "your child"}…</p></Panel>
         : <>
@@ -269,22 +269,62 @@ function LinkTile({ icon, title, detail, href }: { icon: ReactNode; title: strin
   </a>;
 }
 
+
 function AddChild({ get, onClose, onAdded }: { get: (path: string, init?: RequestInit) => Promise<any>; onClose: () => void; onAdded: () => Promise<void> }) {
+  const [mode, setMode] = useState<"create" | "link">("create");
   const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [grade, setGrade] = useState("");
+  const [eyeGaze, setEyeGaze] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setBusy(true); setError("");
+    try {
+      if (mode === "link") {
+        await get("/api/parent/link-code", { method: "POST", body: JSON.stringify({ parentCode: code }) });
+      } else {
+        await get("/api/parent/create-independent-student", {
+          method: "POST",
+          body: JSON.stringify({ displayName: name.trim(), username: username.trim().toLowerCase(), password, gradeLevel: grade, isEyeGazeUser: eyeGaze }),
+        });
+      }
+      await onAdded();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't set up this child. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
   return <Modal eyebrow="A.R.I.S.E. Reader" title="Add a child" onClose={onClose}>
-    <form className="space-y-4" onSubmit={async (e) => {
-      e.preventDefault(); setBusy(true); setError("");
-      try { await get("/api/parent/link-code", { method: "POST", body: JSON.stringify({ parentCode: code }) }); await onAdded(); }
-      catch (err) { setError(err instanceof Error ? err.message : "That code didn't work."); }
-      finally { setBusy(false); }
-    }}>
-      <p className="text-sm leading-6 text-slate-600">Enter the parent code from your child's account or the letter from school. One parent account can hold all your children.</p>
-      <Label text="Parent code"><input autoFocus required className={inputClass + " font-mono uppercase tracking-wider"} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Label>
+    <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1" role="group" aria-label="Choose how to add your child">
+      <button type="button" onClick={() => { setMode("create"); setError(""); }} aria-pressed={mode === "create"} className={"min-h-11 rounded-lg px-2 text-sm font-bold " + (mode === "create" ? "bg-white text-violet-800 shadow-sm" : "text-slate-600")}>Create new reader</button>
+      <button type="button" onClick={() => { setMode("link"); setError(""); }} aria-pressed={mode === "link"} className={"min-h-11 rounded-lg px-2 text-sm font-bold " + (mode === "link" ? "bg-white text-violet-800 shadow-sm" : "text-slate-600")}>Link school account</button>
+    </div>
+    <form className="space-y-4" onSubmit={submit}>
+      {mode === "create" ? <>
+        <p className="text-sm leading-6 text-slate-600">Set up your child's own independent A.R.I.S.E. Reader account. No teacher, school, or parent code needed. It will connect to your family automatically.</p>
+        <Label text="Child's name"><input autoFocus required minLength={2} maxLength={100} className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="First and last name" /></Label>
+        <Label text="Child's username"><input required minLength={3} maxLength={30} autoCapitalize="none" autoComplete="off" spellCheck={false} className={inputClass} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Choose a username" /></Label>
+        <Label text="Child's password"><input required minLength={6} type="password" autoComplete="new-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" /></Label>
+        <Label text="Child's grade"><select required value={grade} onChange={(e) => setGrade(e.target.value)} className={inputClass}>
+          <option value="">Select grade</option>
+          {["K","1","2","3","4","5","6","7","8","9","10","11","12"].map((g) => <option value={g} key={g}>{g === "K" ? "Kindergarten" : "Grade " + g}</option>)}
+        </select></Label>
+        <label className="flex items-start gap-3 rounded-xl bg-violet-50 p-3 text-sm text-violet-900"><input type="checkbox" checked={eyeGaze} onChange={(e) => setEyeGaze(e.target.checked)} className="mt-1" /><span><strong>Eye Gazer reader</strong><span className="block text-xs text-violet-700">Use the accessible Eye Gazer experience instead of the regular reader.</span></span></label>
+      </> : <>
+        <p className="text-sm leading-6 text-slate-600">For a child who already has an A.R.I.S.E. account, use their school handout or parent connection code. This keeps their existing books, quizzes and progress.</p>
+        <Label text="Parent connection code"><input autoFocus required className={inputClass + " font-mono uppercase tracking-wider"} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Label>
+      </>}
       {error && <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
-      <div className="flex gap-2"><button type="submit" disabled={busy || !code.trim()} className={primary + " flex-1"}>{busy ? "Connecting…" : "Connect child"}</button><button type="button" onClick={onClose} className={plain}>Cancel</button></div>
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" disabled={busy || (mode === "link" ? !code.trim() : !name.trim() || !username.trim() || !password || !grade)} className={primary + " flex-1"}>{busy ? "Setting up…" : mode === "link" ? "Connect child" : "Create and connect child"}</button>
+        <button type="button" onClick={onClose} className={plain}>Cancel</button>
+      </div>
     </form>
   </Modal>;
 }
-
