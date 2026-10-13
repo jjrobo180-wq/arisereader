@@ -73,7 +73,7 @@ import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
 import { appsIn, countsAsApp } from "@shared/todoPlan";
-import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
+import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -528,6 +528,8 @@ export default function AriseTodo() {
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
   const sections = sectionOrderFor(family).filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
+  const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id));
   // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
   // Home, Reader, Tasks, Notifications and Family & settings stay put.
   const moveSectionBy = (id: FamilySection, dir: -1 | 1) => setFamily((f) => {
@@ -685,7 +687,7 @@ export default function AriseTodo() {
   const openReader = () => { closeApps(); goToReader(); };
   const phoneItems: PhoneMenuItem[] = [
     // Right below Home: A.R.I.S.E. Reader, then Arise Learning (Math, History, Connect), for everyone.
-    ...sections.filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
+    ...[...builtInSections, ...installedSections].filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
       return id !== "home" || !learningHere ? [item] : [item,
         { id: "reader", label: "Reader", icon: <BookOpen className="text-violet-700" />, active: !notesAppOpen && shown === "reader", color: "#6d28d9", onClick: openReader },
         ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
@@ -802,6 +804,54 @@ export default function AriseTodo() {
       })}
     </div>
   </div>;
+  /** One sidebar renderer for built-in navigation and installed App Store sections.
+   *  Store apps stay out of the built-in list, even if a saved folder previously mixed them. */
+  const renderSectionItems = (ids: FamilySection[], useFolders: boolean) => <>
+    {foldMenu(ids.filter((id) => id !== "reader").map((id) => ({ id })), useFolders ? layout.folders : []).filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0).flatMap((entry) => {
+            if (entry.kind === "item") return [entry.item.id];
+            const f = entry.folder, here = entry.items.some((x) => x.id === shown), open = openFolders.includes(f.id) || here;
+            return [<button key={`folder-${f.id}`} type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`life-folder-${f.id}`}
+              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${here ? "text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+              <Folder className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{f.name}</span><ChevronRight className={`ml-auto h-4 w-4 transition ${open ? "rotate-90" : ""} ${dsk === "compact" ? "lg:hidden" : ""}`} />
+            </button>, ...(open ? entry.items.map((x) => `nested:${x.id}`) : [])];
+          }).map((raw, i) => {
+            if (typeof raw !== "string") return raw;
+            const nested = raw.startsWith("nested:"), id = (nested ? raw.slice(7) : raw) as FamilySection;
+            const Icon = SECTION_ICONS[id];
+            const movable = (TOGGLEABLE as readonly FamilySection[]).includes(id);
+            const toggleableShown = sections.filter((s) => (TOGGLEABLE as readonly FamilySection[]).includes(s));
+            const posInToggleable = toggleableShown.indexOf(id);
+            const el = (
+              <div
+                key={id}
+                draggable={movable}
+                onDragStart={movable ? (e) => { setDraggingSection(id); e.dataTransfer.effectAllowed = "move"; } : undefined}
+                onDragEnd={movable ? () => setDraggingSection(null) : undefined}
+                onDragOver={movable && draggingSection && draggingSection !== id ? (e) => e.preventDefault() : undefined}
+                onDrop={movable && draggingSection && draggingSection !== id ? (e) => { e.preventDefault(); moveSectionTo(draggingSection, id); setDraggingSection(null); } : undefined}
+                className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
+              >
+                <button
+                  onClick={() => { closeApps(); goSection(id); }}
+                  aria-current={shown === id ? "page" : undefined}
+                  data-testid={`life-section-${id}`}
+                  className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
+                >
+                  <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
+                </button>
+                {movable && (
+                  <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${dsk === "left" || dsk === "right" ? "lg:flex" : ""}`}>
+                    <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveSectionBy(id, 1)} disabled={posInToggleable >= toggleableShown.length - 1} aria-label={`Move ${SECTION_INFO[id].label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
+                  </span>
+                )}
+              </div>
+            );
+            // Right below Home: A.R.I.S.E. Reader and the Arise Learning programs.
+            // Parents get Arise Learning here; teachers and admins have it in WorkHub instead.
+            return id === "home" && learningHere ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
+          })}
+  </>;
   return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
     <UpgradeHost hub="life" />
     {store && <PluginStore
@@ -983,54 +1033,12 @@ export default function AriseTodo() {
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
       <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside}`}>
         <nav aria-label="Family Hub" className={`hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
-          {foldMenu(sections.filter((id) => id !== "reader").map((id) => ({ id })), layout.folders).flatMap((entry) => {
-            if (entry.kind === "item") return [entry.item.id];
-            const f = entry.folder, here = entry.items.some((x) => x.id === shown), open = openFolders.includes(f.id) || here;
-            return [<button key={`folder-${f.id}`} type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`life-folder-${f.id}`}
-              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${here ? "text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-              <Folder className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{f.name}</span><ChevronRight className={`ml-auto h-4 w-4 transition ${open ? "rotate-90" : ""} ${dsk === "compact" ? "lg:hidden" : ""}`} />
-            </button>, ...(open ? entry.items.map((x) => `nested:${x.id}`) : [])];
-          }).map((raw, i) => {
-            if (typeof raw !== "string") return raw;
-            const nested = raw.startsWith("nested:"), id = (nested ? raw.slice(7) : raw) as FamilySection;
-            const Icon = SECTION_ICONS[id];
-            const movable = (TOGGLEABLE as readonly FamilySection[]).includes(id);
-            const toggleableShown = sections.filter((s) => (TOGGLEABLE as readonly FamilySection[]).includes(s));
-            const posInToggleable = toggleableShown.indexOf(id);
-            const el = (
-              <div
-                key={id}
-                draggable={movable}
-                onDragStart={movable ? (e) => { setDraggingSection(id); e.dataTransfer.effectAllowed = "move"; } : undefined}
-                onDragEnd={movable ? () => setDraggingSection(null) : undefined}
-                onDragOver={movable && draggingSection && draggingSection !== id ? (e) => e.preventDefault() : undefined}
-                onDrop={movable && draggingSection && draggingSection !== id ? (e) => { e.preventDefault(); moveSectionTo(draggingSection, id); setDraggingSection(null); } : undefined}
-                className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
-              >
-                <button
-                  onClick={() => { closeApps(); goSection(id); }}
-                  aria-current={shown === id ? "page" : undefined}
-                  data-testid={`life-section-${id}`}
-                  className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
-                >
-                  <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
-                </button>
-                {movable && (
-                  <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${dsk === "left" || dsk === "right" ? "lg:flex" : ""}`}>
-                    <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => moveSectionBy(id, 1)} disabled={posInToggleable >= toggleableShown.length - 1} aria-label={`Move ${SECTION_INFO[id].label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
-                  </span>
-                )}
-              </div>
-            );
-            // Right below Home: A.R.I.S.E. Reader and the Arise Learning programs.
-            // Parents get Arise Learning here; teachers and admins have it in WorkHub instead.
-            return id === "home" && learningHere ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
-          })}
+          {renderSectionItems(builtInSections, true)}
         </nav>
-        {(pinnableApps.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
+        {(installedSections.length > 0 || pinnableApps.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 lg:block ${dsk === "top" ? "lg:border-t lg:border-slate-100" : ""}`} data-testid="lifehub-my-apps">
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
-          <div className="space-y-0.5">
+          <div className={`space-y-0.5 ${dsk === "top" ? "lg:flex lg:flex-wrap lg:items-center lg:gap-1" : ""}`}>
+            {renderSectionItems(installedSections, false)}
             {myNotesApps.map((p) => (
               <button key={`notes-app-${p.id}`} type="button" onClick={() => { closeApps(); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
