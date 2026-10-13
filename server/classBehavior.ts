@@ -166,22 +166,14 @@ export function registerClassBehaviorRoutes(app: Express, auth: RequestHandler, 
   app.get("/api/behavior/me", auth, handle(async (req, res) => {
     const u = await me(req); if (u.role !== "student") return res.status(403).json({ message: "Students only." });
     if (!u.teacherId || !u.approvedByTeacher) return res.json({ hasClass: false });
-    const [settings, events, passes] = await Promise.all([store.getSettings(u.teacherId), store.events({ teacherId: u.teacherId, studentIds: [u.id], since: daysAgo(120), limit: 300 }), store.passes({ teacherId: u.teacherId, studentIds: [u.id], since: daysAgo(1) })]);
+    const events = await store.events({ teacherId: u.teacherId, studentIds: [u.id], since: daysAgo(120), limit: 300 });
     const tot = totals(events, now())[u.id] ?? { all: 0, week: 0, today: 0, pos: 0, neg: 0 };
-    res.json({ hasClass: true, serverNow: now(), points: tot, recent: events.slice(0, 10).map(eventOut), canAsk: settings.studentAsk, places: settings.places,
-      pass: (() => { const p = passes.find((x) => x.status === "asked" || x.status === "out"); return p ? passOut(p) : null; })() });
+    // Student hall passes are pre-launch: do not expose controls or pass details.
+    res.json({ hasClass: true, points: tot, recent: events.slice(0, 10).map(eventOut), canAsk: false });
   }));
-  app.post("/api/behavior/me/pass", auth, handle(async (req, res) => {
-    const u = await me(req); if (u.role !== "student" || !u.teacherId || !u.approvedByTeacher) return res.status(403).json({ message: "Join a teacher's class first." });
-    const settings = await store.getSettings(u.teacherId);
-    if (!settings.studentAsk) return res.status(403).json({ message: "Your teacher gives passes in class." });
-    const open = await store.passes({ teacherId: u.teacherId, studentIds: [u.id], statuses: ["asked", "out"] });
-    if (open.length) return res.status(409).json({ message: open[0].status === "out" ? "You're already out on a pass." : "You already asked. Wait for your teacher." });
-    const place = settings.places.find((p) => p.id === req.body?.place); if (!place) return res.status(400).json({ message: "Pick where you're going." });
-    const p: HallPass = { id: randomUUID(), teacher_id: u.teacherId, student_id: u.id, place: place.label, status: "asked", limit_min: place.minutes, asked_at: iso(), out_at: null, back_at: null };
-    await store.addPass(p);
-    void dir.notify?.(u.teacherId, { title: "Hall pass request", body: `${shortName(u.displayName)} asked to go to the ${place.label.toLowerCase()}.`, url: "/#/workhub" });
-    res.json({ pass: passOut(p) });
+  app.post("/api/behavior/me/pass", auth, handle(async (_req, res) => {
+    // This feature has not launched for student accounts.
+    return res.status(403).json({ message: "Student hall passes aren't available yet." });
   }));
   app.post("/api/behavior/me/pass/:act", auth, handle(async (req, res) => {
     const u = await me(req); if (u.role !== "student" || !u.teacherId) return res.status(403).json({ message: "Students only." });
