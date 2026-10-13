@@ -43,6 +43,12 @@ export function lifeApps(workspace: unknown): string[] {
   const family: Family = cleanFamily(w.family);
   return [
     ...ADD_ON_SECTIONS.filter((id) => isOn(id, family)).map((id) => `section:${id}`),
+    // The App Store also offers independent widgets, the AI toggle and a
+    // WorkHub calendar layer. They count just like any other installed app.
+    ...(family.widgets?.board ? ["widget:board"] : []),
+    ...(family.widgets?.stickies ? ["widget:stickies"] : []),
+    ...(family.widgets?.chat ? ["assistant"] : []),
+    ...(family.layers?.hub ? ["layer:hub"] : []),
     ...uniq(family.notesInstalled).filter((id) => !!notesAppPlugin("life", id)).map((id) => `notes:${id}`),
     ...uniq(family.sheetsInstalled).filter((id) => !!sheetsAppPlugin("life", id)).map((id) => `sheets:${id}`),
     ...(family.driveInstalled ? ["drive"] : []),
@@ -58,6 +64,8 @@ export function workApps(workspace: unknown): string[] {
   const visible = (w.visibleTabs || {}) as Partial<Record<HubTab, boolean>>;
   return [
     ...WORK_ADD_ON_TABS.filter((tab) => isTabOn(tab, visible)).map((tab) => `tab:${tab}`),
+    ...(w.widgetsOn ? ["widget:board"] : []),
+    ...(w.aiChat ? ["assistant"] : []),
     ...uniq(w.notesInstalled).filter((id) => !!notesAppPlugin("work", id)).map((id) => `notes:${id}`),
     ...uniq(w.sheetsInstalled).filter((id) => !!sheetsAppPlugin("work", id)).map((id) => `sheets:${id}`),
     ...(w.driveInstalled ? ["drive"] : []),
@@ -70,6 +78,7 @@ export function workApps(workspace: unknown): string[] {
 export function countsAsApp(hub: "work" | "life", p: Plugin): boolean {
   const t = p.target;
   if (t.kind === "notesApp" || t.kind === "sheetsApp" || t.kind === "driveApp" || t.kind === "dropApp" || t.kind === "kit") return true;
+  if (t.kind === "widget" || t.kind === "assistant" || t.kind === "layer") return true;
   if (hub === "work" && t.kind === "tab") return WORK_ADD_ON_TABS.includes(t.tab);
   return hub === "life" && t.kind === "section" && ADD_ON_SECTIONS.includes(t.section);
 }
