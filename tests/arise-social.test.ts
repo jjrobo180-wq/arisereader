@@ -26,7 +26,7 @@ function setup(opts: { paid?: number[]; locked?: number[] } = {}) {
   const notes: { id: number; body: string }[] = [];
   const store = createMemorySocialStore(() => clock);
   // Existing test users have already been approved for Connect, except when a test locks one.
-  const approvals = new Map(Object.values(people).filter(p => p.role === "student" && p.teacherId && p.approvedByTeacher && !opts.locked?.includes(p.id))
+  const approvals = new Map<number, { teacherId: number; status: "pending" | "approved" | "denied" }>(Object.values(people).filter(p => p.role === "student" && p.teacherId && p.approvedByTeacher && !opts.locked?.includes(p.id))
     .map(p => [p.id, { teacherId: p.teacherId!, status: "approved" as const }]));
   registerAriseSocialRoutes(app, ((_q: any, _s: any, n: any) => n()) as any, {
     store, now: () => clock, random: () => 0,
