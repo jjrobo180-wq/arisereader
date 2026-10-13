@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { Calculator, Landmark, Users, type LucideIcon } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
+import { appHref } from "@/lib/hubs";
 
 export type LearningId = "math" | "history" | "social";
 
@@ -15,7 +16,7 @@ export const LEARNING_APPS: { id: LearningId; label: string; short: string; href
 ];
 
 /** Where a teacher goes to add a program they don't have yet. (Parents get theirs on LifeHub's Reader page.) */
-export const LEARNING_PLAN_PAGE = "/#/billing";
+export const LEARNING_PLAN_PAGE = "/app#/billing";
 
 /** Which programs this person can open. Unknown (still loading, or offline) counts as open, so nothing is wrongly tagged. */
 export function useLearningAccess(token: string | null | undefined): Record<LearningId, boolean> {
@@ -40,7 +41,7 @@ export function openLearning(id: LearningId, has: boolean, onLocked?: () => void
   const app = LEARNING_APPS.find((a) => a.id === id);
   if (!app) return;
   if (has) { window.location.href = app.href; return; }
-  if (onLocked) onLocked(); else window.location.href = LEARNING_PLAN_PAGE;
+  if (onLocked) onLocked(); else window.location.href = appHref("/billing");
 }
 
 /** The program's colored icon tile. */
