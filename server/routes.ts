@@ -5085,7 +5085,28 @@ export async function registerRoutes(
         return schoolMatch && gradeMatch;
       });
       
-      res.json(filtered.map(publicTeacher));
+      const registered = filtered.map(publicTeacher);
+      // A school can list teachers who have not signed up yet. These are directory
+      // names, never user accounts: no password, permissions or teacher ID is created.
+      // Registration records a chosen directory name as an unlisted-teacher request
+      // so an administrator can link the student when that teacher joins.
+      const directoryRaw = schoolId ? await storage.getSetting(`school_teacher_directory_${schoolId}`) : "";
+      let directory: Array<{ name: string; grades?: string[] }> = [];
+      try {
+        const parsed = directoryRaw ? JSON.parse(directoryRaw) : [];
+        if (Array.isArray(parsed)) directory = parsed;
+      } catch { /* An invalid directory should not stop student sign-up. */ }
+      const registeredNames = new Set(registered.map((t: any) => String(t.display_name || "").trim().toLowerCase()));
+      const pending = directory
+        .filter((t) => t && typeof t.name === "string" && t.name.trim().length > 0)
+        .filter((t) => !grade || !Array.isArray(t.grades) || !t.grades.length || t.grades.includes(String(grade)))
+        .filter((t) => !registeredNames.has(t.name.trim().toLowerCase()))
+        .map((t) => ({
+          id: `directory:${schoolId}:${encodeURIComponent(t.name.trim().toLowerCase())}`,
+          display_name: t.name.trim(),
+          directory: true,
+        }));
+      res.json([...registered, ...pending]);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
