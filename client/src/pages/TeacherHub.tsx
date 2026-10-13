@@ -746,7 +746,7 @@ function TeacherHubPage() {
     for (const d of myKits) out.push({ id: `kit-${d.id}`, kind: "Plugins", title: d.name, open: () => openKit(d.id) });
     for (const p of myNotesApps) out.push({ id: `notes-app-${p.id}`, kind: "Plugins", title: p.name, open: () => openNotesApp(p.id) });
     for (const st of workspace.students) out.push({ id: st.id, kind: "Students", title: st.name, sub: [st.grade && `Grade ${st.grade}`, st.iepDate && `IEP ${dateWord(st.iepDate)}`].filter(Boolean).join(" · "), keywords: `${st.disability1 || ""} ${st.disability2 || ""}`, open: () => goTab("caseload") });
-    for (const t of workspace.tasks) out.push({ id: t.id, kind: "To-dos", title: t.title, sub: [t.done ? "Done" : "", t.dueDate && `Due ${dateWord(t.dueDate)}`].filter(Boolean).join(" · "), keywords: t.notes || "", open: () => goTab("tasks") });
+    for (const t of workspace.tasks) out.push({ id: t.id, kind: "To-dos", title: t.title, sub: [t.done ? "Done" : "", t.dueDate && `Due ${dateWord(t.dueDate)}${t.dueTime ? ` at ${clock12(t.dueTime)}` : ""}`].filter(Boolean).join(" · "), keywords: t.notes || "", open: () => goTab("tasks") });
     for (const m of workspace.meetings) out.push({ id: m.id, kind: "Meetings", title: `${m.type}: ${m.student}`, sub: [m.date && dateWord(m.date), m.room].filter(Boolean).join(" · "), keywords: m.notes, open: () => goTab("iep") });
     for (const e of workspace.events) out.push({ id: e.id, kind: "Calendar", title: e.title, sub: [dateWord(e.date), e.location].filter(Boolean).join(" · "), keywords: e.notes, open: () => goTab("calendar") });
     for (const n of workspace.notes) out.push({ id: n.id, kind: "Notes", title: n.title || (n.body || "").slice(0, 60) || "Note", sub: [n.student, dateWord(n.date)].filter(Boolean).join(" · "), keywords: n.body.slice(0, 400), open: () => goTab("notes") });
@@ -1545,8 +1545,8 @@ function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdi
           </>
         ) : task.notes && <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-slate-500 [overflow-wrap:anywhere]" data-testid="task-notes">{task.notes}</p>}
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-          {!task.done && <DueChip date={task.dueDate} today={today} />}
-          {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}</span>}
+          {!task.done && <DueChip date={task.dueDate} time={task.dueTime} today={today} />}
+          {task.done && task.dueDate && <span>Was due {friendlyDate(task.dueDate, today)}{task.dueTime ? ` · ${clock12(task.dueTime)}` : ""}</span>}
           {!task.dueDate && !task.done && <span>No due date</span>}
           {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
           {task.emailId && <span className="inline-flex items-center gap-1" data-testid="task-from-email"><Mail className="h-3.5 w-3.5" />From an email</span>}
@@ -1907,10 +1907,10 @@ function Lessons({ workspace, setWorkspace, remove }: SectionProps) {
 
 const DUE_STYLE: Record<DueState, string> = { none: "bg-slate-100 text-slate-500", overdue: "bg-red-100 text-red-700", today: "bg-amber-100 text-amber-800", soon: "bg-sky-100 text-sky-800", later: "bg-slate-100 text-slate-600" };
 
-function DueChip({ date, today }: { date: string; today: string }) {
+function DueChip({ date, time, today }: { date: string; time?: string; today: string }) {
   if (!date) return null;
   const state = dueState(date, today);
-  return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${DUE_STYLE[state]}`}>{state === "overdue" ? "Overdue · " : ""}{friendlyDate(date, today)}</span>;
+  return <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${DUE_STYLE[state]}`}>{state === "overdue" ? "Overdue · " : ""}{friendlyDate(date, today)}{time ? ` · ${clock12(time)}` : ""}</span>;
 }
 
 function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps & { makeId: () => string; toast: (text: string, actions?: ToastAction[]) => void }) {
