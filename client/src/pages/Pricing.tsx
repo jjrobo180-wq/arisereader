@@ -65,7 +65,7 @@ export default function Pricing() {
           <h2 className="mt-3 text-2xl font-black">Class Learning</h2>
           <p className="mt-3 text-5xl font-black">{perBlock} <span className="text-sm font-semibold text-slate-500">/ month</span></p>
           <p className="mt-4 text-sm leading-6 text-slate-600">Includes A.R.I.S.E. Reader, Math, History and Connect for up to {block} students. Add another {block} students for {perBlock} more per month.</p>
-          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ Reader classroom dashboard &amp; quizzes</li><li>✓ Math, History &amp; Connect included</li><li>✓ {block} students per paid block</li><li>✓ Parent accounts remain free</li><li>✓ A.R.I.S.E. To-Do (Work &amp; Life hubs) free plan included</li></ul>
+          <ul className="mt-6 space-y-3 text-sm font-semibold"><li>✓ A.R.I.S.E. Reader included — library, book quizzes &amp; classroom dashboard</li><li>✓ Math, History &amp; Connect included</li><li>✓ {block} students per paid block</li><li>✓ Parent accounts remain free</li><li>✓ A.R.I.S.E. To-Do (Work &amp; Life hubs) free plan included</li></ul>
           <ToDoAddOn base={PLANS.teacher.monthlyCents} />
           <button onClick={teacherPlan} className="mt-7 w-full rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white" data-testid="pricing-get-premium">View class plan</button>
         </article>
