@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do's Free plan and $8 Unlimited upgrade in the hubs (rules in shared/todoPlan.ts):
+// A.R.I.S.E. To-Do's Free plan and $5 Unlimited upgrade in the hubs (rules in shared/todoPlan.ts):
 //  - useTodoPlan: Free or Unlimited, apps added in each hub, and this month's AI, from the server.
 //  - openUpgrade(...): opens the "Get Unlimited" box from anywhere (a 4th app, AI tapped on Free).
 //  - appsBlocked(...): would a change add an app past Free's 3? (The hubs ask before saving.)
@@ -117,7 +117,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   };
 
   if (!reason) return null;
-  const price = usd(plan?.priceCents ?? 800);
+  const price = usd(plan?.priceCents ?? 500);
   const yearly = plan?.yearlyCents ?? null;
   const saves = yearly && plan ? Math.round((1 - yearly / (plan.priceCents * 12)) * 100) : 0;
   const title = plan?.unlimited ? "You're on Unlimited"

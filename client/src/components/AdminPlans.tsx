@@ -31,7 +31,7 @@ const select = "h-10 w-full rounded-md border border-input bg-background px-3 te
 const KIND_LABEL: Record<PlanKind, string> = {
   school: "Premium · School", teacher: "Premium · Teacher", hub_school: "Arise WorkHub · School", hub_teacher: "Arise WorkHub · Teacher",
   social: "A.R.I.S.E. Connect · Account (old)", bundle_family: "Learning Bundle · Family", bundle_teacher: "Learning Bundle · Class (old)",
-  todo_family: "LifeHub · Family", math_class: "Arise Math · Class", history_class: "Arise History · Class", social_class: "A.R.I.S.E. Connect · Class", ai_pro: "Arise AI Pro", storage_20gb: "Storage · 20 GB", storage_100gb: "Storage · 100 GB", storage_500gb: "Storage · 500 GB", todo_unlimited: "To-Do Unlimited · Monthly ($8)", todo_unlimited_year: "To-Do Unlimited · Yearly ($60)",
+  todo_family: "LifeHub · Family", math_class: "Arise Math · Class", history_class: "Arise History · Class", social_class: "A.R.I.S.E. Connect · Class", ai_pro: "Arise AI Pro", storage_20gb: "Storage · 20 GB", storage_100gb: "Storage · 100 GB", storage_500gb: "Storage · 500 GB", todo_unlimited: "To-Do Unlimited · Monthly ($5)", todo_unlimited_year: "To-Do Unlimited · Yearly ($50)",
 };
 /** Plans given to one parent account, picked by its ID. */
 const byAccountId = (k: PlanKind) => k === "social" || k === "bundle_family" || k === "todo_family";

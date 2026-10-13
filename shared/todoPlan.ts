@@ -1,8 +1,8 @@
-// A.R.I.S.E. To-Do: Free, and the $8 Unlimited upgrade.
+// A.R.I.S.E. To-Do: Free, and the $5 Unlimited upgrade.
 //
 // Free (for everyone, including people on a $10 Arise Reader plan): every built-in section, plus up
-// to 3 apps from the App Store (across WorkHub and LifeHub together), and no AI. Unlimited, $8 a
-// month or $60 a year (the yearly price is a limited-time offer): every app in the App Store, and
+// to 3 apps from the App Store (across WorkHub and LifeHub together), and no AI. Unlimited, $5 a
+// month or $50 a year (the yearly price is a limited-time offer): every app in the App Store, and
 // AI (under a fair-use policy).
 //
 // An "app" is something added from the App Store beyond what a hub comes with: a LifeHub add-on
@@ -19,9 +19,9 @@ import { notesAppPlugin, sheetsAppPlugin, type Plugin } from "./pluginStore";
 export const FREE_APPS = 3;
 /** Unlimited's AI is for everyday use; this ceiling only stops runaway use (see FAIR_USE). */
 export const UNLIMITED_AI_PER_MONTH = 300;
-export const UNLIMITED_MONTHLY_CENTS = 800;
+export const UNLIMITED_MONTHLY_CENTS = 500;
 /** The yearly price, sold as a limited-time offer. Set UNLIMITED_YEARLY_OFFER to false to stop selling it (anyone on it keeps it). */
-export const UNLIMITED_YEARLY_CENTS = 6000;
+export const UNLIMITED_YEARLY_CENTS = 5000;
 export const UNLIMITED_YEARLY_OFFER = true;
 
 export const UNLIMITED_NAME = "A.R.I.S.E. To-Do Unlimited (every app, and AI)";
