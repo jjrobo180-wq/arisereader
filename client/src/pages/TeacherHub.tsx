@@ -945,6 +945,8 @@ function TeacherHubPage() {
                     ))}
                     {!hubOpenFolder && [
                       ...mySheetsApps.map((a) => ({ key: `sheets-app-${a.id}`, name: a.name, color: a.color, icon: <Table className="h-7 w-7" />, open: () => setSheetsAppOpen(a.id) })),
+                      { key: "arise-office", name: "Office", color: "#4f46e5", icon: <Table className="h-7 w-7" />, open: () => { window.location.hash = "#/office"; } },
+                      { key: "arise-ai-apps", name: "AI Apps", color: "#7c3aed", icon: <Sparkles className="h-7 w-7" />, open: () => { window.location.hash = "#/ai-apps"; } },
                       ...(drivePlugin ? [{ key: "drive-app", name: drivePlugin.name, color: drivePlugin.color, icon: <FolderOpen className="h-7 w-7" />, open: () => setDriveOpen(true) }] : []),
                       ...(dropPlugin ? [{ key: "drop-app", name: dropPlugin.name, color: dropPlugin.color, icon: <QrCode className="h-7 w-7" />, open: () => setDropOpen(true) }] : []),
                     ].filter((a) => a.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => (
