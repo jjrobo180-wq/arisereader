@@ -105,6 +105,7 @@ const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
+const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
 // A.R.I.S.E. Reader for teachers and parents, on its own page outside both hubs (pages/AriseReader.tsx).
 const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
@@ -456,6 +457,9 @@ function AppRoutes() {
           Signing in still happens in the hub, so a signed-out visitor goes to the sign-in screen. */}
       <Route path="/reader">
         {!user ? <Redirect to="/signin" replace /> : <AriseReader />}
+      </Route>
+      <Route path="/ai-apps">
+        {user && (user.isAdmin || user.role === "teacher" || user.role === "parent") ? <ProtectedRoute><PremiumStudio /></ProtectedRoute> : <Redirect to="/signin" replace />}
       </Route>
       <Route path="/office">
         {user && (user.isAdmin || user.role === "teacher" || user.role === "parent") ? <ProtectedRoute><AriseOffice /></ProtectedRoute> : <Redirect to="/signin" replace />}
