@@ -16,5 +16,5 @@ test("QR codes: right size, finder patterns, Wi-Fi payload", () => {
   assert.equal(m.length, 21);
   for (const [x, y] of [[0, 0], [14, 0], [0, 14]]) { assert.equal(m[y][x], true); assert.equal(m[y + 1][x + 1], false); assert.equal(m[y + 3][x + 3], true); }
   assert.equal(qrMatrix("https://example.com/a-somewhat-longer-link", "M").length, 29);
-  assert.equal(wifiPayload("My;Net", "p:w", "WPA"), "WIFI:T:WPA;S:My\;Net;P:p\\:w;;");
+  assert.equal(wifiPayload("My;Net", "p:w", "WPA"), String.raw`WIFI:T:WPA;S:My\;Net;P:p\:w;;`);
 });
