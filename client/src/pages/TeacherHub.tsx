@@ -60,7 +60,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import SheetsApp from "@/components/family-hub/SheetsApp";
+import OfficeApp from "@/components/office/OfficeApp";
+import { SHEETS, legacySheets } from "@/components/office/officeKinds";
 import DriveApp from "@/components/family-hub/DriveApp";
 import DropApp from "@/components/family-hub/DropApp";
 import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
@@ -1219,7 +1220,7 @@ function TeacherHubPage() {
                 <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
                 <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
               </div>
-              <SheetsApp name="Sheets" blurb="A real spreadsheet: text or number cells, and formulas like SUM and AVERAGE." sheets={hubSheets} setSheets={setHubSheets} makeId={id} say={(m) => toasts.show(m, [])} />
+              <OfficeApp config={SHEETS} legacy={legacySheets(hubSheets, (sid) => setHubSheets((all) => all.filter((x) => x.id !== sid)))} say={(m) => toasts.show(m, [])} />
             </div>
           )}
           {driveOpen && (

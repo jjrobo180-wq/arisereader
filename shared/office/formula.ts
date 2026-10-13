@@ -653,6 +653,7 @@ export const FUNCTION_HELP: Record<string, string> = {
 
 /** Formats a number with an Excel-style code: 0.00, #,##0, $#,##0.00, 0%, 0.0E+00, mm/dd/yyyy, mmm d, yyyy, h:mm AM/PM, dddd… */
 export function formatCode(n: number, code: string): string {
+  code = code.replace(/_.|\*./g, "").replace(/\?/g, "#").replace(/\[(Red|Black|Blue|Green|Color\d+)\]/gi, "");
   const c = code.split(";")[n < 0 && code.includes(";") ? 1 : 0] ?? code;
   if (/[dmyhs]/i.test(c.replace(/"[^"]*"/g, "")) && !/[0#]/.test(c.replace(/"[^"]*"/g, ""))) return formatDate(n, c);
   if (/E\+/i.test(c)) { const d = (c.split(".")[1]?.match(/0/g) || []).length; return n.toExponential(d).toUpperCase().replace(/E\+?(-?)(\d)$/, "E+$10$2").replace("E+-", "E-"); }
@@ -660,7 +661,9 @@ export function formatCode(n: number, code: string): string {
   let x = pct ? n * 100 : n;
   const neg = x < 0 && !code.includes(";");
   x = Math.abs(x);
-  const m = /([#0,]*)(?:\.([0#]*))?/.exec(c.replace(/"[^"]*"|[$€£%]/g, "")) || ["", "", ""];
+  const body = c.replace(/"[^"]*"|[$€£%]/g, "");
+  const at = body.search(/[#0.]/);
+  const m = (at < 0 ? null : /([#0,]*)(?:\.([0#]*))?/.exec(body.slice(at))) || ["", "", ""];
   const decimals = (m[2] || "").length, minDec = ((m[2] || "").match(/0/g) || []).length;
   let s = x.toFixed(decimals);
   if (decimals > minDec) s = s.replace(new RegExp(`0{1,${decimals - minDec}}$`), "").replace(/\.$/, "");

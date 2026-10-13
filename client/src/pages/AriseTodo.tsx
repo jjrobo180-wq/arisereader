@@ -65,7 +65,8 @@ import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
 import PluginStore from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, lifeInstalled, notesAppPlugin, officeAppPlugin, pluginOpens, setKitInstalled, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
-import SheetsApp from "@/components/family-hub/SheetsApp";
+import OfficeApp from "@/components/office/OfficeApp";
+import { SHEETS, legacySheets } from "@/components/office/officeKinds";
 import DriveApp from "@/components/family-hub/DriveApp";
 import DropApp from "@/components/family-hub/DropApp";
 import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
@@ -1152,7 +1153,7 @@ export default function AriseTodo() {
               <button type="button" onClick={() => setSheetsAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
               <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
             </div>
-            <SheetsApp name="Sheets" blurb="A real spreadsheet: text or number cells, and formulas like SUM and AVERAGE." sheets={sheets} setSheets={setSheets} makeId={makeId} say={setMessage} />
+            <OfficeApp config={SHEETS} legacy={legacySheets(sheets, (sid) => setSheets((all) => all.filter((x) => x.id !== sid)))} say={setMessage} />
           </div>}
           {driveOpen && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">
