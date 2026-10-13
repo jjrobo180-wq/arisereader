@@ -83,7 +83,8 @@ export default function Register({ independent = false }: { independent?: boolea
         independentStudent ? { independent: true } : {
           schoolName: schoolFields(school).unlistedSchoolName,
           directorySchool: schoolFields(school).directorySchool,
-          teacherName: directoryTeacher ? String(selectedTeacher.display_name).trim() : teacherNotListed ? unlistedTeacherName.trim() : undefined,
+          teacherName: teacherNotListed ? unlistedTeacherName.trim() : undefined,
+          directoryTeacherId: directoryTeacher ? selectedTeacherId : undefined,
         },
       );
     } catch (err: any) { setError(err.message || "Could not create account."); }
