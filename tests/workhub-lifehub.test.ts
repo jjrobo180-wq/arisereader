@@ -9,16 +9,30 @@ import { FAMILY_SECTIONS, TOGGLEABLE } from "../shared/familyHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("WorkHub: the Reader group comes right after Home with its own WorkHub tabs; admin console only for admins", () => {
+test("WorkHub: A.R.I.S.E. Reader is a way out to its own page; the admin console stands alone", () => {
+  // The Reader's teacher tools moved to /reader (client/src/pages/AriseReader.tsx), so this menu
+  // item leaves the hub instead of opening tabs inside it. One tab is kept so the item still shows.
   assert.equal(HUB_GROUPS[1].id, "arise");
   assert.equal(HUB_GROUPS[1].label, "A.R.I.S.E. Reader");
-  const reader = ["reader", "readerLive", "readerScenes", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"];
+  assert.deepEqual(HUB_GROUPS[1].tabs, ["reader"], "the Reader group is a link now, not nine tabs");
   const visible = emptyWorkspace().visibleTabs;
-  assert.deepEqual(groupTabs("arise", { ...visible, admin: false }), [...reader, "arise"]);
-  assert.deepEqual(groupTabs("arise", { ...visible, admin: true }), [...reader, "arise", "admin"]);
-  const hidden = Object.fromEntries(reader.map((t) => [t, false]));
-  assert.deepEqual(groupTabs("arise", { ...visible, ...hidden, arise: false, admin: false }), reader, "the Reader tabs can't be hidden");
-  assert.ok(visibleGroups({ ...visible, arise: false }).some((g) => g.id === "arise"));
+  assert.ok(visibleGroups({ ...visible, arise: false }).some((g) => g.id === "arise"), "it can't be hidden away");
+
+  // The admin console used to live inside the Reader group, so it needed somewhere of its own.
+  const admin = HUB_GROUPS.find((g) => g.id === "admin");
+  assert.ok(admin, "the admin console has its own menu item");
+  assert.deepEqual(admin!.tabs, ["admin"]);
+  assert.deepEqual(groupTabs("admin", { ...visible, admin: true }), ["admin"], "admins see it");
+  assert.deepEqual(groupTabs("admin", { ...visible, admin: false }), [], "nobody else does");
+
+  // Tapping it goes to the page, and the old addresses land there too rather than on a hub tab.
+  const hub = read("client/src/pages/TeacherHub.tsx");
+  assert.match(hub, /if \(id === "arise"\) \{ navigate\("\/reader"\); return; \}/);
+  const app = read("client/src/App.tsx");
+  assert.match(app, /<Route path="\/teacher-dashboard">\s*<Redirect to="\/reader" replace \/>/);
+  assert.match(app, /<Route path="\/parent-dashboard">\s*<Redirect to="\/reader" replace \/>/);
+  // LifeHub's Reading section leaves for the same page.
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /if \(id === "reader"\) \{ navigate\("\/reader"\); return; \}/);
 });
 
 test("LifeHub: a Reader tab (the parent portal) that can't be switched off", () => {

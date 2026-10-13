@@ -103,6 +103,8 @@ const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
+// A.R.I.S.E. Reader for teachers and parents, on its own page outside both hubs (pages/AriseReader.tsx).
+const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
 import { READER_APP, hubPathFor, isHubAccount } from "@/lib/hubs";
@@ -432,10 +434,15 @@ function AppRoutes() {
       </Route>
       {/* The parent portal and the teacher dashboard now live inside the hubs (Arise LifeHub and Arise WorkHub). */}
       <Route path="/parent-dashboard">
-        <OpenHubTab to="/lifehub" storageKey="lifehub_tab" value="reader" />
+        <Redirect to="/reader" replace />
       </Route>
       <Route path="/teacher-dashboard">
-        <OpenHubTab to="/workhub" storageKey="workhub_tab" value="reader" />
+        <Redirect to="/reader" replace />
+      </Route>
+      {/* A.R.I.S.E. Reader's teacher and parent tools, on their own page rather than inside a hub.
+          Signing in still happens in the hub, so a signed-out visitor goes to the sign-in screen. */}
+      <Route path="/reader">
+        {!user ? <Redirect to="/signin" replace /> : <AriseReader />}
       </Route>
       <Route path="/workhub">
         {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}

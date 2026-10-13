@@ -4,14 +4,21 @@
 import type { HubTab } from "./teacherHub";
 
 export type HubGroupId =
-  | "home" | "arise" | "calendar" | "schedules" | "caseload" | "iep" | "goals" | "minutes"
+  | "home" | "arise" | "records" | "admin" | "calendar" | "schedules" | "caseload" | "iep" | "goals" | "minutes"
   | "tasks" | "notes" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
   { id: "home", label: "Home", tabs: ["overview"] },
-  // Arise WorkHub is the space for every A.R.I.S.E. program: the Reader's teacher tools come first,
-  // and stay together behind one menu item, since there are nine of them.
-  { id: "arise", label: "A.R.I.S.E. Reader", tabs: ["reader", "readerLive", "readerScenes", "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "arise", "admin"] },
+  // A.R.I.S.E. Reader has its own page now (/reader, client/src/pages/AriseReader.tsx), so this is
+  // a way out of the hub rather than a group of tabs: tapping it leaves for that page. One tab is
+  // kept so the item still shows, and can be hidden in Customize like any other.
+  { id: "arise", label: "A.R.I.S.E. Reader", tabs: ["reader"] },
+  // Reading records is a WorkHub screen (the class's reading at a glance), not one of the Reader's
+  // own, so it stayed behind when the Reader left — and needed its own item rather than vanishing.
+  { id: "records", label: "Reading records", tabs: ["arise"] },
+  // The admin console used to sit inside the Reader group. It is not a Reader screen, and with the
+  // Reader gone it would have had nowhere to live, so it stands on its own (admins only).
+  { id: "admin", label: "Admin console", tabs: ["admin"] },
   // Everything else stands on its own, so the menu names the screen you are going to.
   { id: "calendar", label: "Calendar", tabs: ["calendar"] },
   { id: "schedules", label: "Student schedules", tabs: ["schedules"] },

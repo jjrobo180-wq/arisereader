@@ -582,7 +582,13 @@ export default function AriseTodo() {
   const [customizing, setCustomizing] = useState(false);
   const [searching, setSearching] = useState(false);
   const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user && !family.briefOff);
-  const goSection = (id: string) => { setSection(id as FamilySection); window.scrollTo({ top: 0 }); };
+  /** Opening a menu section. Reading is a page of its own now (/reader), so that one leaves
+   *  LifeHub rather than switching section; everything else behaves as it always did. */
+  const goSection = (id: string) => {
+    if (id === "reader") { navigate("/reader"); return; }
+    setSection(id as FamilySection);
+    window.scrollTo({ top: 0 });
+  };
   const searchEntries = ((): HubSearchEntry[] => {
     if (!searching) return [];
     const out: HubSearchEntry[] = [], f = family;
@@ -674,15 +680,12 @@ export default function AriseTodo() {
   const learningHere = user?.role === "parent" && !user?.isAdmin;
   /** A.R.I.S.E. Reader: a parent's own Reader page here; for a teacher or admin, their Reader in WorkHub. */
   const readerHere = sections.includes("reader");
-  const openReader = () => {
-    closeApps();
-    if (readerHere) { setSection("reader"); return; }
-    try { sessionStorage.setItem("workhub_tab", "reader"); } catch { /* fine */ }
-    window.location.hash = "#/workhub";
-  };
+  // A.R.I.S.E. Reader is its own page now (/reader), the same one for a parent and a teacher, so
+  // this no longer forks between a section here and a tab over in WorkHub.
+  const openReader = () => { closeApps(); navigate("/reader"); };
   const phoneItems: PhoneMenuItem[] = [
     // Right below Home: A.R.I.S.E. Reader, then Arise Learning (Math, History, Connect), for everyone.
-    ...sections.filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); setSection(id); } };
+    ...sections.filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
       return id !== "home" || !learningHere ? [item] : [item,
         { id: "reader", label: "Reader", icon: <BookOpen className="text-violet-700" />, active: !notesAppOpen && shown === "reader", color: "#6d28d9", onClick: openReader },
         ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
@@ -1005,7 +1008,7 @@ export default function AriseTodo() {
                 className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
               >
                 <button
-                  onClick={() => { closeApps(); setSection(id); }}
+                  onClick={() => { closeApps(); goSection(id); }}
                   aria-current={shown === id ? "page" : undefined}
                   data-testid={`life-section-${id}`}
                   className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}

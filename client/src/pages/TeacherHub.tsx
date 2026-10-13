@@ -50,7 +50,7 @@ import {
   MoreHorizontal,
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
-  Table, FolderOpen, QrCode,
+  Table, FolderOpen, QrCode, ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import PluginStore from "@/components/plugin-store/PluginStore";
@@ -183,6 +183,8 @@ const GROUP_ICON: Record<HubGroupId, ReactNode> = {
   iep: <CalendarDays className="h-4 w-4" />, tasks: <CheckSquare className="h-4 w-4" />,
   behavior: <Sparkles className="h-4 w-4" />,
   arise: <BookHeart className="h-4 w-4" />,
+  records: <BookHeart className="h-4 w-4" />,
+  admin: <ShieldCheck className="h-4 w-4" />,
 };
 const tabIcon = (tab: HubTab) => TAB_META.find((t) => t.id === tab)?.icon;
 
@@ -314,7 +316,7 @@ function TeacherHubPage() {
       const asked = sessionStorage.getItem("workhub_tab");
       sessionStorage.removeItem("workhub_tab");
       if (asked === "admin") return asked;
-      if (asked === "reader") return readerTabFor(sessionStorage.getItem("teacher_dashboard_tab"));
+      // Nothing asks for a Reader tab any more: the Reader has its own page (/reader).
       const remembered = sessionStorage.getItem(lastTabKey);
       if (remembered) return remembered as HubTab;
     } catch { /* Home */ }
@@ -328,14 +330,13 @@ function TeacherHubPage() {
     });
   }, [lastTabKey]);
   // Going to an old address (the old dashboard, #/admin, or back to one) while WorkHub is open picks the tab here.
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   useEffect(() => {
     try {
       const asked = sessionStorage.getItem("workhub_tab");
       if (!asked) return;
       sessionStorage.removeItem("workhub_tab");
       if (asked === "admin") setTab("admin");
-      else if (asked === "reader") setTab(readerTabFor(sessionStorage.getItem("teacher_dashboard_tab")));
     } catch { /* stays where it is */ }
   }, [location]);
   const [customize, setCustomize] = useState(false);
@@ -442,6 +443,8 @@ function TeacherHubPage() {
   const startAdding = (x: { start?: any }) => { if (todoPlan && !todoPlan.unlimited) openUpgrade("ai"); else setAdding(x); };
   // The teacher's accent, handed to the stylesheet as a pair of custom properties.
   const accent = cleanAccent(workspace.profile.accent) || DEFAULT_ACCENT;
+  // Left for pages outside the hub (the Reader page reads it as ACCENT_KEY) so they can match.
+  useEffect(() => { try { localStorage.setItem("arise-hub-accent", accent); } catch { /* they use the default */ } }, [accent]);
   const trial = useHubTrial(token, "work", canUseHub && !user?.isAdmin);
   const toasts = useToasts();
   const latest = useRef(workspace);
@@ -713,6 +716,13 @@ function TeacherHubPage() {
   const menu = visibleGroups(visible, workspace.groupOrder);
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
+  /** Opening a menu item. A.R.I.S.E. Reader is a page of its own now (/reader), so that one item
+   *  leaves the hub rather than switching tab; everything else behaves as it always did. */
+  const goGroup = (id: HubGroupId) => {
+    if (id === "arise") { navigate("/reader"); return; }
+    setTab(openGroup(id, visible, lastInGroup));
+    closeApps();
+  };
   const searchEntries = ((): HubSearchEntry[] => {
     if (!searching) return [];
     const out: HubSearchEntry[] = [];
@@ -915,7 +925,7 @@ function TeacherHubPage() {
                     ))}
                     {hubEntries.map((entry) => entry.kind === "item" ? (
                       <li key={entry.item.id}>
-                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { setTab(openGroup(entry.item.id, visible, lastInGroup)); closeApps(); setApps(false); }} data-testid={`hub-app-${entry.item.id}`}
+                        <button type="button" tabIndex={apps ? 0 : -1} onClick={() => { goGroup(entry.item.id); setApps(false); }} data-testid={`hub-app-${entry.item.id}`}
                           className="flex w-full flex-col items-center gap-1.5 rounded-2xl p-1 text-center transition active:scale-90">
                           <span className={`inline-flex h-14 w-14 items-center justify-center rounded-[1.1rem] shadow-sm [&_svg]:h-7 [&_svg]:w-7 ${group.id === entry.item.id ? "bg-teal-700 text-white" : "bg-slate-950 text-white"}`}>{GROUP_ICON[entry.item.id]}</span>
                           <span className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-800">{groupLabel(entry.item.id, visible)}</span>
@@ -958,7 +968,7 @@ function TeacherHubPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => { setTab(openGroup(item.id, visible, lastInGroup)); closeApps(); afterPick(); }}
+                    onClick={() => { goGroup(item.id); afterPick(); }}
                     aria-current={group.id === item.id && !kitOpen ? "page" : undefined}
                     data-testid={`hub-menu-${item.id}`}
                     data-hub-nav
