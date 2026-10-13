@@ -24,6 +24,7 @@ import { competitionWindow } from "../shared/timedCompetitions";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
+import { registerClassTeacherRoutes, supabaseClassTeacherStore } from "./classTeachers";
 import { registerPrizeRoutes } from "./prizes";
 import { transferIndependentStudents } from "./independentTransfer";
 import { registerSchoolPickerRoutes, SchoolPickError } from "./schoolPicker";
@@ -1200,6 +1201,9 @@ export async function registerRoutes(
     envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
   });
+  // Students' Advisory and Literature teachers: the sign-in pop-up, and the school's list on the
+  // Reader page's "Advisory & Lit" tab (server/classTeachers.ts).
+  registerClassTeacherRoutes(app, { auth: authMiddleware, ...supabaseClassTeacherStore(supabase) });
   // Private LifeHub accounts and cross-device task syncing (for anyone, not just teachers).
   // Paid add-ons (shared/plans.ts): a request without the add-on gets 402 and the page shows how to get it.
   // An admin, or an admin previewing the site as a student, always gets in.
