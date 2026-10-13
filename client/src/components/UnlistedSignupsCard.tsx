@@ -8,7 +8,57 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 type UnlistedSignup = {
   userId: number; username: string; displayName: string; gradeLevel: string | null;
   schoolId: number | null; schoolName: string | null; teacherName: string | null; createdAt: string;
+  pendingTeacherName?: string | null;
 };
+
+type SchoolTeacher = { id: number | string; display_name?: string; displayName?: string; directory?: boolean };
+
+/** Use the same school-and-grade directory as student sign-up, including pending teachers. */
+function SchoolTeacherSelect({ schoolId, grade, value, suggestedName, onChange }: {
+  schoolId: string; grade: string | null; value: string; suggestedName: string | null;
+  onChange: (value: string) => void;
+}) {
+  const [teachers, setTeachers] = useState<SchoolTeacher[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!schoolId) { setTeachers([]); setError(""); return; }
+    const controller = new AbortController();
+    setLoading(true); setError(""); setTeachers([]);
+    const params = new URLSearchParams({ schoolId, ...(grade ? { grade } : {}) });
+    fetch(`${API_BASE}/api/teachers/by-school-grade?${params}`, { signal: controller.signal, cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Teachers could not be loaded");
+        return r.json();
+      })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        const list: SchoolTeacher[] = Array.isArray(data) ? data : [];
+        setTeachers(list);
+        // Match the teacher the family typed during signup (Ms.Waldek = Ms. Waldek).
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (suggestedName && !value) {
+          const match = list.find((t) => norm(t.display_name || t.displayName || "") === norm(suggestedName));
+          if (match) onChange(String(match.id));
+        }
+      })
+      .catch((e) => { if (!controller.signal.aborted) setError(e.message || "Teachers could not be loaded"); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [schoolId, grade]);
+  return <div className="min-w-0">
+    <select value={teachers.some((t) => String(t.id) === value) ? value : ""} onChange={(e) => onChange(e.target.value)}
+      disabled={!schoolId || loading}
+      aria-label="Assign teacher"
+      className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm disabled:opacity-60">
+      <option value="">{!schoolId ? "Choose school first…" : loading ? "Loading teachers…" : "Teacher…"}</option>
+      {teachers.map((t) => <option key={String(t.id)} value={String(t.id)}>
+        {t.display_name || t.displayName}{t.directory ? " (not signed up yet)" : ""}
+      </option>)}
+    </select>
+    {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+  </div>;
+}
 
 function cookieToken(): string | null {
   try {
@@ -24,7 +74,7 @@ export default function UnlistedSignupsCard() {
   const { token } = useAuth();
   const [requests, setRequests] = useState<UnlistedSignup[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
+  const [notice, setNotice] = useState<Record<number, string>>({});
   const [picks, setPicks] = useState<Record<number, { schoolId: string; teacherId: string }>>({});
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -33,14 +83,12 @@ export default function UnlistedSignupsCard() {
 
   const load = async () => {
     try {
-      const [r, s, t] = await Promise.all([
+      const [r, s] = await Promise.all([
         fetch(`${API_BASE}/api/admin/unlisted-signups`, { headers: authHeaders(), cache: "no-store" }),
         fetch(`${API_BASE}/api/schools`),
-        fetch(`${API_BASE}/api/teacher-admin/teachers`, { headers: authHeaders() }),
       ]);
       if (r.ok) setRequests(await r.json());
       if (s.ok) setSchools(await s.json());
-      if (t.ok) setTeachers(await t.json());
     } catch {}
   };
 
@@ -48,16 +96,28 @@ export default function UnlistedSignupsCard() {
 
   const resolve = async (req: UnlistedSignup, pick: { schoolId: string; teacherId: string }, dismiss = false) => {
     if (!dismiss && !pick.schoolId && !pick.teacherId) { setError("Pick a school or teacher first, or tap Dismiss."); return; }
+    if (!dismiss && !req.schoolName && !pick.teacherId) { setError("Select a teacher before connecting this student."); return; }
     setBusy(req.userId); setError("");
+    setNotice((prev) => ({ ...prev, [req.userId]: "" }));
     try {
       const res = await fetch(`${API_BASE}/api/admin/unlisted-signups/${req.userId}/resolve`, {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify(dismiss ? {} : { schoolId: pick.schoolId || null, teacherId: pick.teacherId || null }),
+        body: JSON.stringify(dismiss ? {} : {
+          schoolId: pick.schoolId || null,
+          ...(pick.teacherId.startsWith("directory:") ? { directoryTeacherId: pick.teacherId } : { teacherId: pick.teacherId || null }),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Could not save.");
-      setRequests(prev => prev.filter(r => r.userId !== req.userId));
+      if (data.pending) {
+        setRequests(prev => prev.map(r => r.userId === req.userId ? {
+          ...r, teacherName: data.teacherName, pendingTeacherName: data.teacherName,
+        } : r));
+        setNotice(prev => ({ ...prev, [req.userId]: data.message || "Pending teacher saved." }));
+      } else {
+        setRequests(prev => prev.filter(r => r.userId !== req.userId));
+      }
     } catch (e: any) { setError(e.message || "Could not save."); }
     finally { setBusy(null); }
   };
@@ -84,25 +144,26 @@ export default function UnlistedSignupsCard() {
             {schoolLabel && <p className="text-xs text-muted-foreground">School: <strong className="text-foreground">{schoolLabel}</strong></p>}
             {req.schoolName && <p className="text-xs text-fuchsia-300">School they typed: <strong>{req.schoolName}</strong></p>}
             {req.teacherName && <p className="text-xs text-fuchsia-300">Teacher they typed: <strong>{req.teacherName}</strong></p>}
+            {req.pendingTeacherName && <p className="text-xs font-semibold text-amber-600">Pending assignment: {req.pendingTeacherName} — waiting for a teacher account</p>}
             <p className="text-[11px] text-muted-foreground">Signed up {new Date(req.createdAt).toLocaleDateString()}</p>
           </div>
         </div>
         <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
-          <select value={pick.schoolId} onChange={e => setPick(req.userId, { ...pick, schoolId: e.target.value })} className="px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm">
+          <select value={pick.schoolId} onChange={e => setPick(req.userId, { schoolId: e.target.value, teacherId: "" })} className="px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm">
             <option value="">School…</option>
             {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select value={pick.teacherId} onChange={e => setPick(req.userId, { ...pick, teacherId: e.target.value })} className="px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm">
-            <option value="">Teacher…</option>
-            {teachers.map(t => <option key={t.id} value={t.id}>{t.displayName} (@{t.username})</option>)}
-          </select>
+          <SchoolTeacherSelect key={`${pick.schoolId}:${req.gradeLevel || "all"}`} schoolId={pick.schoolId} grade={req.gradeLevel}
+            value={pick.teacherId} suggestedName={req.pendingTeacherName || req.teacherName}
+            onChange={teacherId => setPick(req.userId, { teacherId })} />
           <Button size="sm" disabled={busy === req.userId} onClick={() => void resolve(req, pick)} className="bg-green-600 hover:bg-green-700 text-white">
-            <Check className="w-3.5 h-3.5" /><span className="ml-1">Connect</span>
+            <Check className="w-3.5 h-3.5" /><span className="ml-1">{pick.teacherId.startsWith("directory:") ? "Save pending" : "Connect"}</span>
           </Button>
           <Button size="sm" variant="ghost" disabled={busy === req.userId} onClick={() => void resolve(req, pick, true)}>
             <X className="w-3.5 h-3.5" /><span className="ml-1">Dismiss</span>
           </Button>
         </div>
+        {notice[req.userId] && <p role="status" className="text-sm font-medium text-amber-700">{notice[req.userId]}</p>}
       </div>
     );
   };
@@ -118,7 +179,7 @@ export default function UnlistedSignupsCard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-muted-foreground mb-4">These students are already connected to their school but couldn't find their teacher. They have full student access. Pick their teacher and tap Connect (have the teacher sign up first if they aren't on A.R.I.S.E. yet).</p>
+            <p className="text-xs text-muted-foreground mb-4">These students are already connected to their school. Select a registered teacher and click Connect, or choose a teacher marked "not signed up yet" and click Save pending. Pending assignments won't grant teacher access until that teacher registers.</p>
             {error && <p className="mb-3 text-xs font-semibold text-red-400">{error}</p>}
             <div className="space-y-3">{teacherOnly.map(renderRow)}</div>
           </CardContent>
