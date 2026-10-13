@@ -16,7 +16,7 @@ test("admin sidebar and opened tab use the same visibility rules", () => {
   for (const group of groups) {
     const target = openGroup(group.id, visible, {}, true);
     assert.ok(groupTabs(group.id, visible, true).includes(target), `${group.id} opens an allowed tab`);
-    assert.notEqual(target, "overview", `${group.id} must not silently return Home`);
+    if (group.id !== "home") assert.notEqual(target, "overview", `${group.id} must not silently return Home`);
   }
 });
 
