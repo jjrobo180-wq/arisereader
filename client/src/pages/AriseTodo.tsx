@@ -64,7 +64,7 @@ import Quotes from "@/components/family-hub/Quotes";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
 import PluginStore from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, lifeInstalled, notesAppPlugin, pluginOpens, setKitInstalled, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, lifeInstalled, notesAppPlugin, officeAppPlugin, pluginOpens, setKitInstalled, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
 import SheetsApp from "@/components/family-hub/SheetsApp";
 import DriveApp from "@/components/family-hub/DriveApp";
 import DropApp from "@/components/family-hub/DropApp";
@@ -569,6 +569,7 @@ export default function AriseTodo() {
   // Installed Sheets apps and Drive (App Store add-ons) may also be pinned to Home and need a
   // menu entry, the same as a Notes-app install — see myNotesApps/phoneItems below.
   const pinnableSheets = (family.sheetsInstalled ?? []).map((id) => sheetsAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const installedOffice = (family.sheetsInstalled ?? []).map((id) => officeAppPlugin("life", id)).filter((p): p is Plugin => !!p);
   const drivePlugin = family.driveInstalled ? driveAppPlugin("life") : undefined;
   const dropPlugin = family.dropInstalled ? dropAppPlugin("life") : undefined;
   /** Kit plugins added from WorkHub's shelf. LifeHub's own kits are sections, so these are only
@@ -703,6 +704,7 @@ export default function AriseTodo() {
         ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
+    ...installedOffice.map((p) => ({ id: `office-app-${p.id}`, label: p.name, icon: <Sparkles />, active: false, color: p.color, onClick: () => { closeApps(); if (p.target.kind === "officeApp") window.location.hash = p.target.href; } })),
     { id: "arise-office", label: "Office", icon: <Table />, active: false, color: "#4f46e5", onClick: () => { window.location.hash = "#/office"; } },
     { id: "arise-ai-apps", label: "AI Apps", icon: <Sparkles />, active: false, color: "#7c3aed", onClick: () => { window.location.hash = "#/ai-apps"; } },
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
@@ -890,10 +892,10 @@ export default function AriseTodo() {
           else if (notesAppOpen === p.target.id) setNotesAppOpen(null);
           return;
         }
-        if (p.target.kind === "sheetsApp") {
+        if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") {
           setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, on) }));
           if (on) setMessage(`${p.name} added. Find it in your menu.`);
-          else if (sheetsAppOpen === p.target.id) setSheetsAppOpen(null);
+          else if (p.target.kind === "sheetsApp" && sheetsAppOpen === p.target.id) setSheetsAppOpen(null);
           return;
         }
         setFamily((f) => setLifePlugin(f, p, on));
@@ -913,6 +915,7 @@ export default function AriseTodo() {
         if (at && "section" in at) setSection(at.section);
         if (p.target.kind === "brief") { setBriefOpen(true); setStore(false); return; }
         if (p.target.kind === "sheetsApp") { setSheetsAppOpen(p.target.id); setStore(false); return; }
+        if (p.target.kind === "officeApp") { setStore(false); window.location.hash = p.target.href; return; }
         if (p.target.kind === "driveApp") { setDriveOpen(true); setStore(false); return; }
         if (p.target.kind === "dropApp") { setDropOpen(true); setStore(false); return; }
         if (p.target.kind === "kit") { closeApps(); setKitOpen(p.target.id); setStore(false); return; }
@@ -1046,10 +1049,9 @@ export default function AriseTodo() {
       <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside}`}>
         <nav aria-label="Family Hub" className={`hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
           {renderSectionItems(builtInSections, true)}
-          <a href="#/office" data-testid="lifehub-office-link" className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Table className="h-4 w-4" /> Office · Sheets, Docs &amp; Slides</a>
-          <a href="#/ai-apps" data-testid="lifehub-ai-apps-link" className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700">✦ AI Apps</a>
+
         </nav>
-        {(installedSections.length > 0 || pinnableApps.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 lg:block ${dsk === "top" ? "lg:border-t lg:border-slate-100" : ""}`} data-testid="lifehub-my-apps">
+        {(installedSections.length > 0 || pinnableApps.length > 0 || installedOffice.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 lg:block ${dsk === "top" ? "lg:border-t lg:border-slate-100" : ""}`} data-testid="lifehub-my-apps">
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
           <div className={`space-y-0.5 ${dsk === "top" ? "lg:flex lg:flex-wrap lg:items-center lg:gap-1" : ""}`}>
             {renderSectionItems(installedSections, false)}
@@ -1059,6 +1061,7 @@ export default function AriseTodo() {
                 <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
               </button>
             ))}
+            {installedOffice.map((p) => <a key={p.id} href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Sparkles className="h-4 w-4" />{p.name}</a>)}
             {pinnableSheets.map((p) => (
               <button key={`sheets-app-${p.id}`} type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
