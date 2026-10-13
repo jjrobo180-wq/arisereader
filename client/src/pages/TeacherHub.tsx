@@ -70,7 +70,7 @@ import { cleanWidgets } from "@shared/widgets";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { useAuth } from "@/context/AuthContext";
 import { Redirect, useLocation } from "wouter";
-import { goToSignIn } from "@/lib/hubs";
+import { goToReader, goToSignIn } from "@/lib/hubs";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
 import { TASK_SORTS, arrangeTasks, clearDone, restoreTasks, saveTask, taskCounts, undoTask, type TaskFilter, type TaskSort } from "@shared/hubTasks";
@@ -536,7 +536,6 @@ function TeacherHubPage() {
   const deskList = deskTop ? "md:h-auto md:flex-row md:items-center md:gap-1 md:overflow-x-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-1.5 md:shadow-sm" : "md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm";
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
-  const [ariseOpen, setAriseOpen] = useState(false);
   const learningAccess = useLearningAccess(token);
   // The guided tour (WorkHubTour) opens real sections as it goes, so a step can point at the
   // actual screen instead of describing it. It asks with this event; the menu is shown too, so
@@ -719,7 +718,8 @@ function TeacherHubPage() {
   /** Opening a menu item. A.R.I.S.E. Reader is a page of its own now (/reader), so that one item
    *  leaves the hub rather than switching tab; everything else behaves as it always did. */
   const goGroup = (id: HubGroupId) => {
-    if (id === "arise") { navigate("/reader"); return; }
+    // A.R.I.S.E. Reader is its own address, not a route inside this app, so this leaves for it.
+    if (id === "arise") { goToReader(); return; }
     setTab(openGroup(id, visible, lastInGroup));
     closeApps();
   };
@@ -1006,37 +1006,21 @@ function TeacherHubPage() {
                   </button>
                 </div>
               );
-              /** "Arise Learning": Math, History and Connect, each in its own color, right under A.R.I.S.E. Reader. */
+              /** A.R.I.S.E. Reader, at the top of Arise Learning. It is a page of its own now
+               *  (/reader), so this leaves the hub rather than opening tabs inside it — there is
+               *  nothing left to expand underneath, which is why the chevron is gone. */
               const readerBlock = (() => {
-                  const tabs = groupTabs("arise", visible);
-                  const here = group.id === "arise" && !kitOpen;
-                  const open = ariseOpen || here;
                   return <Fragment key="group-arise">
                     <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                       {/* Same style as the other Arise Learning programs (a colored icon tile). Pressing it
                           jumps straight to the Reader Overview, so a teacher always lands somewhere. */}
-                      <button type="button" onClick={() => { setTab("reader"); setAriseOpen(true); closeApps(); afterPick(); }} aria-expanded={open} aria-current={here ? "page" : undefined} data-testid="hub-menu-arise" data-hub-nav
-                        className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm ${here ? "bg-violet-50 text-violet-900 md:font-bold" : "text-slate-700 hover:text-slate-950 md:hover:bg-slate-100"}`}>
+                      <button type="button" onClick={goToReader} data-testid="hub-menu-arise" data-hub-nav
+                        className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm text-slate-700 hover:text-slate-950 md:hover:bg-slate-100`}>
                         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}>{GROUP_ICON.arise}</span>
                         <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate whitespace-nowrap md:hidden`}>Reader</span>
                         <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>A.R.I.S.E. Reader</span>
-                        <FolderChevron
-                          onClick={(e) => { e.stopPropagation(); setAriseOpen((v) => !v); }}
-                          role="button" aria-label={`${open ? "Collapse" : "Expand"} A.R.I.S.E. Reader tabs`}
-                          className={`hidden h-3.5 w-3.5 shrink-0 text-slate-400 transition md:ml-auto ${deskCompact || deskTop ? "" : "md:block"} ${open ? "rotate-90" : ""}`} />
                       </button>
                     </div>
-                    {open && tabs.map((t) => <Fragment key={t}>
-                      {subItem(t, true)}
-                      {/* The admin console's sections (and Settings' own parts) open up right under
-                          Admin console here, so on desktop they sit with the rest of the Reader's
-                          items instead of in a bar across the top of the page. Phones keep the bar,
-                          since their menu is a strip along the edge with no room to nest. */}
-                      {t === "admin" && tab === "admin" && ADMIN_SECTIONS.map((s) => <Fragment key={`admin-${s.id}`}>
-                        {adminItem(s, 2, tab === "admin" && adminSection === s.id && !kitOpen, () => { setAdminSection(s.id); setTab("admin"); }, s.id === "overview" ? "hub-menu-admin-overview" : `hub-menu-admin-${s.id}`)}
-                        {s.id === "settings" && adminSection === "settings" && SETTINGS_SECTIONS.map((p) => adminItem(p, 3, adminSettings === p.id && !kitOpen, () => { setAdminSettings(p.id); setAdminSection("settings"); setTab("admin"); }, `hub-menu-admin-settings-${p.id}`))}
-                      </Fragment>)}
-                    </Fragment>)}
                   </Fragment>;
               })();
               const learning = <Fragment key="learning">
@@ -1456,7 +1440,6 @@ function TeacherHubPage() {
           {tab === "lessons" && <Lessons workspace={workspace} setWorkspace={setWorkspace} remove={remove} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
-          {isReaderTab(tab) && <ReaderTools tab={tab} openTab={setTab} night={night} />}
           {tab === "admin" && user.isAdmin && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <HubBehavior legacy={<Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />} />}

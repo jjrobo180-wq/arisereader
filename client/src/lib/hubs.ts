@@ -26,10 +26,37 @@ export function hubPathFor(user: HubUser): "/workhub" | "/lifehub" {
   return user?.role === "teacher" ? "/workhub" : "/lifehub";
 }
 
-/** The sign-in screen's address on this site (the app lives at /app on arisetodo.com). */
+/** A.R.I.S.E. Reader for teachers and parents: its own address, not a hash route inside the app.
+ *  That is the point of it — opening the Reader must leave the To-Do app behind, shell and all,
+ *  the way /math/ is its own page rather than a screen inside something else. Any unknown path
+ *  serves the app's index.html (server/static.ts), so this address works on both sites. */
+export const READER_PAGE = "/reader";
+
+/** Is the page being shown right now the Reader's own page? */
+export const isReaderPage = (): boolean =>
+  typeof window !== "undefined" && /^\/reader\/?$/.test(window.location.pathname);
+
+/** Opens the Reader's own page. A real navigation, not a hash change: the To-Do app must unload. */
+export function goToReader(): void {
+  try { window.location.assign(READER_PAGE); } catch { window.location.href = READER_PAGE; }
+}
+
+/** Where the app itself is served on this site: /app on arisetodo.com, the root elsewhere.
+ *  Never the current path — from the Reader's own page (/reader) that would point every hub link
+ *  back at /reader, and sending a signed-out visitor there would loop forever. */
+export function appBase(): string {
+  if (isTodoHost()) return "/app";
+  if (typeof window === "undefined" || isReaderPage()) return "/";
+  return window.location.pathname || "/";
+}
+
+/** A page of the app, as an address that works from anywhere — including the Reader's own page,
+ *  which is outside the app's router, so a bare "#/workhub" there would change nothing. */
+export const appHref = (hashPath: string): string => `${appBase()}#${hashPath}`;
+
+/** The sign-in screen's address on this site. */
 export function signInHref(student = false): string {
-  const base = isTodoHost() ? "/app" : (typeof window !== "undefined" ? window.location.pathname : "/") || "/";
-  return `${base}#/signin${student ? "?as=student" : ""}`;
+  return `${appBase()}#/signin${student ? "?as=student" : ""}`;
 }
 
 /** After signing out: back to the sign-in screen, on whichever site this is. */

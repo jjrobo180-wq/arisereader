@@ -107,7 +107,7 @@ const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
 const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
-import { READER_APP, hubPathFor, isHubAccount } from "@/lib/hubs";
+import { READER_APP, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -386,6 +386,13 @@ function AppRoutes() {
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
+  }
+  // A.R.I.S.E. Reader has its own address (/reader), so it is answered here, before the hash
+  // router — a page of its own rather than a screen inside the To-Do app. Signing in is still the
+  // hub's, so a signed-out visitor is sent to that screen.
+  if (isReaderPage()) {
+    if (!user) { goToSignIn(); return null; }
+    return <AriseReader />;
   }
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>

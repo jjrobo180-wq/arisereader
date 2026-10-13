@@ -11,9 +11,9 @@
 // screens, and the paper look the hub uses (hubPaper.css), carried over so a teacher arriving from
 // WorkHub lands somewhere that feels like where they came from.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useLocation } from "wouter";
 import { ArrowLeft, BookHeart, CheckCircle2, ClipboardCheck, Clapperboard, LogOut, MessageSquare, Moon, Sparkles, Sun, Timer, Trophy, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { appHref, goToSignIn } from "@/lib/hubs";
 import HubMark from "@/components/HubMark";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
@@ -27,7 +27,10 @@ const TAB_KEY = "reader_page_tab";
 /** The accent the teacher picked, left here by WorkHub (shared/hubAccent.ts) for pages outside it. */
 export const ACCENT_KEY = "arise-hub-accent";
 /** Where to go back to, and what to call it, for whoever is reading. */
-const hubFor = (role: string | undefined) => (role === "parent" ? { href: "#/lifehub", label: "To Do" } : { href: "#/workhub", label: "WorkHub" });
+/** Where "back" goes, and what to call it. A full address, not a bare hash: this page sits outside
+ *  the app's router, so "#/workhub" alone would change the address and leave the page as it was. */
+const hubFor = (role: string | undefined) =>
+  role === "parent" ? { href: appHref("/lifehub"), label: "To Do" } : { href: appHref("/workhub"), label: "WorkHub" };
 /** The same icons WorkHub gives these screens, so the two read as one product. */
 const ICONS: Partial<Record<HubTab, ReactNode>> = {
   reader: <BookHeart className="h-4 w-4" />, readerLive: <Trophy className="h-4 w-4" />, readerScenes: <Clapperboard className="h-4 w-4" />,
@@ -57,7 +60,6 @@ export default function AriseReader() {
 
 function ReaderPage() {
   const { user, logout } = useAuth();
-  const [, navigate] = useLocation();
   const [tab, setTabState] = useState<ReaderTab>(firstTab);
   const [night, setNight] = useState(() => { try { return localStorage.getItem("arise-hub-night") === "1"; } catch { return false; } });
   const isParent = user?.role === "parent";
@@ -82,8 +84,9 @@ function ReaderPage() {
   // here once they are in, so a bookmarked /reader link still lands where it says it will.
   useEffect(() => {
     if (user) return;
-    navigate("/signin", { replace: true });
-  }, [user, navigate]);
+    goToSignIn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   if (!user) {
     return <div className="grid min-h-screen place-items-center bg-slate-100 text-slate-600">
@@ -113,7 +116,7 @@ function ReaderPage() {
               className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="reader-night-toggle">
               {night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <button type="button" onClick={() => { logout(); navigate("/"); }} aria-label="Sign out" title="Sign out"
+            <button type="button" onClick={() => { logout(); goToSignIn(); }} aria-label="Sign out" title="Sign out"
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50">
               <LogOut className="h-4 w-4" />
             </button>

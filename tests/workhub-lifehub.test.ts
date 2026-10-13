@@ -27,12 +27,19 @@ test("WorkHub: A.R.I.S.E. Reader is a way out to its own page; the admin console
 
   // Tapping it goes to the page, and the old addresses land there too rather than on a hub tab.
   const hub = read("client/src/pages/TeacherHub.tsx");
-  assert.match(hub, /if \(id === "arise"\) \{ navigate\("\/reader"\); return; \}/);
+  assert.match(hub, /if \(id === "arise"\) \{ goToReader\(\); return; \}/);
+  assert.match(hub, /onClick=\{goToReader\}/, "the sidebar's Reader button leaves too");
+  // The point of the move: the hub must not be able to draw Reader screens inside itself.
+  assert.doesNotMatch(hub, /isReaderTab\(tab\) && <ReaderTools/, "no Reader screens inside the hub");
+  assert.doesNotMatch(hub, /setTab\("reader"\)/, "nothing switches the hub to a Reader tab");
   const app = read("client/src/App.tsx");
   assert.match(app, /<Route path="\/teacher-dashboard">\s*<Redirect to="\/reader" replace \/>/);
   assert.match(app, /<Route path="\/parent-dashboard">\s*<Redirect to="\/reader" replace \/>/);
   // LifeHub's Reading section leaves for the same page.
-  assert.match(read("client/src/pages/AriseTodo.tsx"), /if \(id === "reader"\) \{ navigate\("\/reader"\); return; \}/);
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /if \(id === "reader"\) \{ goToReader\(\); return; \}/);
+  // /reader is a real address, answered before the hash router, so the To-Do app unloads.
+  assert.match(app, /if \(isReaderPage\(\)\) \{/);
+  assert.match(read("client/src/lib/hubs.ts"), /window\.location\.assign\(READER_PAGE\)/);
 });
 
 test("LifeHub: a Reader tab (the parent portal) that can't be switched off", () => {

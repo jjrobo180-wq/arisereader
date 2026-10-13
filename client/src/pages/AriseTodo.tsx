@@ -3,7 +3,7 @@ import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
 
-import { goToSignIn } from "@/lib/hubs";
+import { goToReader, goToSignIn } from "@/lib/hubs";
 import {
   ArrowLeft, CalendarDays, Check, CheckCircle2, CheckSquare,
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
@@ -585,7 +585,7 @@ export default function AriseTodo() {
   /** Opening a menu section. Reading is a page of its own now (/reader), so that one leaves
    *  LifeHub rather than switching section; everything else behaves as it always did. */
   const goSection = (id: string) => {
-    if (id === "reader") { navigate("/reader"); return; }
+    if (id === "reader") { goToReader(); return; }
     setSection(id as FamilySection);
     window.scrollTo({ top: 0 });
   };
@@ -682,7 +682,7 @@ export default function AriseTodo() {
   const readerHere = sections.includes("reader");
   // A.R.I.S.E. Reader is its own page now (/reader), the same one for a parent and a teacher, so
   // this no longer forks between a section here and a tab over in WorkHub.
-  const openReader = () => { closeApps(); navigate("/reader"); };
+  const openReader = () => { closeApps(); goToReader(); };
   const phoneItems: PhoneMenuItem[] = [
     // Right below Home: A.R.I.S.E. Reader, then Arise Learning (Math, History, Connect), for everyone.
     ...sections.filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
