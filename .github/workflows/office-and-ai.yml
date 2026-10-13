@@ -13,6 +13,9 @@ on:
       - "client/src/pages/Billing.tsx"
       - "client/src/pages/Pricing.tsx"
       - "tests/iep-meetings-quick-add.test.ts"
+      - "tests/office-app-store.test.ts"
+      - "shared/pluginStore.ts"
+      - "shared/todoPlan.ts"
       - "tests/user-docs-routes.test.ts"
       - "client/src/pages/AriseTodo.tsx"
       - "server/userDocs.ts"
@@ -40,5 +43,7 @@ jobs:
         run: npx tsx --test tests/iep-meetings-quick-add.test.ts
       - name: Office saving and user isolation tests
         run: npx tsx --test tests/user-docs-routes.test.ts
+      - name: Office/AI App Store integration tests
+        run: npx tsx --test tests/office-app-store.test.ts
       - name: Production build
         run: npm run build
