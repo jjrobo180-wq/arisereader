@@ -4,8 +4,9 @@
 // own drops from the last hour ("Waiting for you") as a tap-to-grab shortcut between two of your
 // own devices, without retyping a code. A drop lasts an hour and downloading leaves it in place.
 import { useEffect, useRef, useState } from "react";
-import { Upload, Copy, Check, QrCode, Download, Clock, Link2 } from "lucide-react";
-import { DROP_MAX_BYTES, isDropCode } from "@shared/dropApp";
+import { Upload, Copy, Check, QrCode, Download, Clock, Link2, ExternalLink } from "lucide-react";
+import { DROP_KEEP, DROP_MAX_BYTES, isDropCode } from "@shared/dropApp";
+import { useSavedChoice } from "@/lib/useSavedChoice";
 import { API_BASE } from "@/lib/queryClient";
 
 type Props = {
@@ -23,7 +24,8 @@ const fmtBytes = (n: number) => n >= 1024 * 1024 ? `${(n / (1024 * 1024)).toFixe
 const fmtLeft = (iso: string) => {
   const ms = Date.parse(iso) - Date.now();
   if (ms <= 0) return "expired";
-  const h = Math.floor(ms / 3_600_000), m = Math.floor((ms % 3_600_000) / 60_000);
+  const d = Math.floor(ms / 86_400_000), h = Math.floor(ms / 3_600_000), m = Math.floor((ms % 3_600_000) / 60_000);
+  if (d >= 1) return `${d}d ${h - d * 24}h left`;
   return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
 };
 
@@ -45,6 +47,10 @@ export default function DropApp({ say, token }: Props) {
    *  that shows "Opening…" rather than every row at once. */
   const [claiming, setClaiming] = useState("");
 
+  // How long a new drop stays up (1 hour, 1 day or 7 days), remembered for next time.
+  const [keep, setKeep] = useSavedChoice<string>("drop-keep", "1h", Object.keys(DROP_KEEP));
+  // The link opens a plain page the server makes (server/dropApp.ts): no account, no app to load,
+  // and pictures, PDFs and Office files show right there.
   const link = (code: string) => `${window.location.origin}/drop/${code}`;
 
   const loadMine = () => {
@@ -87,7 +93,7 @@ export default function DropApp({ say, token }: Props) {
       const body = await file.arrayBuffer();
       const res = await fetch(`${API_BASE}/api/lifehub/drop/upload`, {
         method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream", "x-drop-name": encodeURIComponent(file.name), Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": file.type || "application/octet-stream", "x-drop-name": encodeURIComponent(file.name), "x-drop-keep": keep, Authorization: `Bearer ${token}` },
         body,
       });
       const j = await res.json().catch(() => null);
@@ -149,7 +155,7 @@ export default function DropApp({ say, token }: Props) {
   return <div className="space-y-6" data-testid="drop-app">
     <div>
       <h2 className="text-lg font-black text-slate-900">Drop</h2>
-      <p className="mt-1 text-sm text-slate-500">Send a file to another device with a code, a QR code, or a link. Files stay for one hour, and you can pick one up as many times as you need.</p>
+      <p className="mt-1 text-sm text-slate-500">Send a file to anyone with a code, a QR code, or a link. They don't need an Arise account: the link opens the picture or document right in their browser, ready to view or download, as many times as they need until it expires.</p>
     </div>
 
     {/* ---- Send ---- */}
@@ -157,6 +163,10 @@ export default function DropApp({ say, token }: Props) {
       <h3 className="text-sm font-black uppercase tracking-wide text-slate-400">Send a file</h3>
       {!sent ? <>
         <input ref={inputRef} type="file" className="hidden" onChange={(e) => upload(e.target.files)} />
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600" role="group" aria-label="Keep it for">
+          <span className="font-semibold">Keep it for</span>
+          {Object.entries(DROP_KEEP).map(([k, v]) => <button key={k} type="button" aria-pressed={keep === k} onClick={() => setKeep(k)} className={`min-h-9 rounded-lg border px-3 text-xs font-bold ${keep === k ? "border-[#292446] bg-[#292446] text-white" : "border-slate-200 text-slate-600"}`}>{v.label}</button>)}
+        </div>
         <button type="button" onClick={pick} disabled={busy} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white disabled:opacity-60" data-testid="drop-upload">
           <Upload size={16} /> {busy ? "Preparing…" : "Choose a file"}
         </button>
@@ -172,11 +182,12 @@ export default function DropApp({ say, token }: Props) {
               <button type="button" onClick={() => copyLink(sent.code)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
                 {copied ? <Check size={15} /> : <Link2 size={15} />} {copied ? "Copied" : "Copy link"}
               </button>
+              <a href={link(sent.code)} target="_blank" rel="noopener" className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-600 hover:bg-slate-50"><ExternalLink size={15} /> Open page</a>
               <button type="button" onClick={() => { setSent(null); }} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-slate-500 hover:bg-slate-50">Send another</button>
             </div>
           </div>
         </div>
-        <p className="flex items-center gap-1.5 text-xs text-slate-400"><QrCode size={13} /> Scan the QR, type the code, or send the link — any one works on the other device.</p>
+        <p className="flex items-center gap-1.5 text-xs text-slate-400"><QrCode size={13} /> Scan the QR, type the code, or send the link. No account needed to view or download. {fmtLeft(sent.expiresAt)}.</p>
       </div>}
     </div>
 

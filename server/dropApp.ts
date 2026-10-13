@@ -19,7 +19,7 @@
 // (bytes and lookup row both) when the next upload comes in — see sweepExpired.
 import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
-import { DROP_MAX_BYTES, DROP_TTL_MS, cleanDropMeta, isDropCode, isDropExpired, makeDropCode, type DropMeta } from "@shared/dropApp";
+import { DROP_KEEP, DROP_MAX_BYTES, cleanDropMeta, dropKeepMs, dropPreviewKind, isDropCode, isDropExpired, makeDropCode, type DropMeta } from "@shared/dropApp";
 
 const BUCKET = "life-drop-files";
 const SETTING_PREFIX = "drop_";
@@ -154,7 +154,7 @@ export function registerDropAppRoutes(app: Express, authMiddleware: RequestHandl
       if (error) throw error;
 
       const now = Date.now();
-      const drop: StoredDrop = { code, name, size: body.length, contentType, createdAt: new Date(now).toISOString(), expiresAt: new Date(now + DROP_TTL_MS).toISOString(), claimed: false, path, ownerId: userId };
+      const drop: StoredDrop = { code, name, size: body.length, contentType, createdAt: new Date(now).toISOString(), expiresAt: new Date(now + dropKeepMs(req.headers["x-drop-keep"])).toISOString(), claimed: false, path, ownerId: userId };
       await writeDrop(deps, drop);
       res.json({ code, name, size: drop.size, expiresAt: drop.expiresAt });
       // After answering, so clearing out old drops never delays the send that just happened.
@@ -162,6 +162,61 @@ export function registerDropAppRoutes(app: Express, authMiddleware: RequestHandl
     } catch (error: any) {
       console.error("[drop-app] upload failed:", error?.message || error);
       res.status(500).json({ message: "Could not create that drop. Try again." });
+    }
+  });
+
+  // The page a Drop link and QR code open: /drop/CODE. It is plain HTML made here on the server,
+  // not part of the app, so it opens instantly on any phone or computer with no account and no
+  // sign-in. (The link used to open the app itself, which routes by "#/…" and, for someone not
+  // signed in, never got as far as showing the file — it just kept loading.) Pictures, videos,
+  // audio and PDFs show right on the page; Word, Excel and PowerPoint files open in Microsoft's
+  // free web viewer; everything can be downloaded.
+  app.get("/drop/:code", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    const code = String(req.params.code || "").toUpperCase();
+    const send = (status: number, body: string) => res.status(status).type("html").send(dropPage(body));
+    try {
+      if (!isDropCode(code)) return send(404, notice("That link isn't a valid Drop code.", "Check the link, or ask the sender for a new one."));
+      const drop = await readDrop(deps, code);
+      if (!drop || isDropExpired(drop)) return send(404, notice("This drop has expired.", "Ask the sender to drop it again."));
+      const adminDb = deps.getAdminSupabase();
+      const view = await adminDb.storage.from(BUCKET).createSignedUrl(drop.path, 3600);
+      const viewUrl: string = view?.data?.signedUrl || "";
+      const kind = dropPreviewKind(drop.contentType, drop.name);
+      const e = escapeHtml, u = escapeHtml(viewUrl);
+      const preview = !viewUrl ? "" :
+        kind === "image" ? `<a href="${u}" target="_blank" rel="noopener"><img class="pv" src="${u}" alt="${e(drop.name)}"></a>` :
+        kind === "video" ? `<video class="pv" src="${u}" controls playsinline preload="metadata"></video>` :
+        kind === "audio" ? `<audio src="${u}" controls preload="metadata" style="width:100%"></audio>` :
+        kind === "pdf" ? `<iframe class="doc" src="${u}" title="${e(drop.name)}"></iframe><a class="ghost" href="${u}" target="_blank" rel="noopener">Open the PDF full screen</a>` :
+        kind === "office" ? `<iframe class="doc" src="https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewUrl)}" title="${e(drop.name)}"></iframe><a class="ghost" href="https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(viewUrl)}" target="_blank" rel="noopener">Open it full screen</a>` :
+        kind === "text" ? `<iframe class="doc" src="${u}" title="${e(drop.name)}"></iframe>` : "";
+      const left = Math.max(0, Date.parse(drop.expiresAt) - Date.now());
+      const leftWords = left > 36 * 3600_000 ? `${Math.round(left / 86_400_000)} days` : left > 90 * 60_000 ? `${Math.round(left / 3600_000)} hours` : `${Math.max(1, Math.round(left / 60_000))} minutes`;
+      return send(200, `<h1>${e(drop.name)}</h1><p class="meta">${fmtBytes(drop.size)} · available for about ${leftWords} more</p>${preview}
+        <a class="btn" href="/drop/${code}/download">Download</a>
+        <p class="small">No account needed. Anyone with this link can view and download this file until it expires.</p>`);
+    } catch (error: any) {
+      console.error("[drop-app] page failed:", error?.message || error);
+      return send(500, notice("Couldn't open this drop right now.", "Refresh the page in a moment."));
+    }
+  });
+
+  // The Download button on that page: marks the drop as picked up and hands over the file.
+  app.get("/drop/:code/download", async (req, res) => {
+    const code = String(req.params.code || "").toUpperCase();
+    try {
+      if (!isDropCode(code)) return res.redirect(302, `/drop/${encodeURIComponent(code)}`);
+      const drop = await readDrop(deps, code);
+      if (!drop || isDropExpired(drop)) return res.redirect(302, `/drop/${code}`);
+      const { data, error } = await deps.getAdminSupabase().storage.from(BUCKET).createSignedUrl(drop.path, 300, { download: drop.name });
+      if (error || !data?.signedUrl) throw error || new Error("no url");
+      await writeDrop(deps, { ...drop, claimed: true }).catch(() => {});
+      res.setHeader("Cache-Control", "no-store");
+      res.redirect(302, data.signedUrl);
+    } catch {
+      res.redirect(302, `/drop/${code}`);
     }
   });
 
@@ -217,4 +272,25 @@ export function registerDropAppRoutes(app: Express, authMiddleware: RequestHandl
       res.status(500).json({ message: "Could not load your drops." });
     }
   });
+}
+
+const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const fmtBytes = (n: number) => (n >= 1024 * 1024 ? `${(n / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+const notice = (title: string, line: string) => `<h1>${escapeHtml(title)}</h1><p class="meta">${escapeHtml(line)}</p>`;
+export const DROP_KEEP_CHOICES = Object.keys(DROP_KEEP);
+
+/** The whole Drop page around its content: small, fast, readable on a phone, no scripts. */
+export function dropPage(body: string): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>A.R.I.S.E. Drop</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#f6f7fc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#0f172a;padding:16px}
+main{width:100%;max-width:760px;background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:24px;text-align:center;box-shadow:0 8px 30px #0f172a0d}
+.logo{display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:14px;letter-spacing:.02em;color:#292446;margin-bottom:12px}.logo span{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#292446;color:#fff}
+h1{font-size:20px;margin:4px 0;word-break:break-word}.meta{color:#64748b;font-size:14px;margin:4px 0 16px}
+.pv{max-width:100%;max-height:70vh;border-radius:16px;border:1px solid #e2e8f0;display:block;margin:0 auto 16px;background:#f1f5f9}
+.doc{width:100%;height:70vh;border:1px solid #e2e8f0;border-radius:16px;margin-bottom:8px;background:#fff}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:14px;background:#292446;color:#fff;font-weight:800;text-decoration:none;margin-top:8px}
+.ghost{display:inline-block;margin:4px 0 12px;color:#5b47d6;font-weight:700;font-size:14px}
+.small{color:#94a3b8;font-size:12px;margin-top:16px}
+</style></head><body><main><div class="logo"><span>⇣</span>A.R.I.S.E. Drop</div>${body}</main></body></html>`;
 }

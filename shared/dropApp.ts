@@ -30,6 +30,27 @@ export type DropMeta = {
  *  hours *or* a single download, whichever came first — so a file vanished the moment it was
  *  fetched once, and a second device, or a retry after a failed save, found nothing there.) */
 export const DROP_TTL_MS = 60 * 60 * 1000;
+
+/** How long the sender can choose to keep a drop up, so a link sent to someone else can still be
+ *  opened later in the day or week. One hour stays the default. */
+export const DROP_KEEP: Record<string, { ms: number; label: string }> = {
+  "1h": { ms: DROP_TTL_MS, label: "1 hour" },
+  "1d": { ms: 24 * 60 * 60 * 1000, label: "1 day" },
+  "7d": { ms: 7 * 24 * 60 * 60 * 1000, label: "7 days" },
+};
+export const dropKeepMs = (key: unknown): number => DROP_KEEP[String(key)]?.ms ?? DROP_TTL_MS;
+
+/** What a browser can show for this file right on the drop page, with no app and no account. */
+export function dropPreviewKind(contentType: string, name: string): "image" | "video" | "audio" | "pdf" | "office" | "text" | "none" {
+  const t = contentType.toLowerCase(), ext = (name.match(/\.([a-z0-9]{1,5})$/i)?.[1] || "").toLowerCase();
+  if (t.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "heic", "svg"].includes(ext)) return t === "image/heic" || ext === "heic" ? "none" : "image";
+  if (t.startsWith("video/") || ["mp4", "mov", "webm"].includes(ext)) return "video";
+  if (t.startsWith("audio/") || ["mp3", "m4a", "wav"].includes(ext)) return "audio";
+  if (t === "application/pdf" || ext === "pdf") return "pdf";
+  if (/officedocument|msword|ms-excel|ms-powerpoint/.test(t) || ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext)) return "office";
+  if (t.startsWith("text/") || ["txt", "csv", "md"].includes(ext)) return "text";
+  return "none";
+}
 export const DROP_MAX_BYTES = 200 * 1024 * 1024; // 200MB
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I — easy to read aloud or type
