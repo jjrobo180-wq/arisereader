@@ -41,17 +41,23 @@ export function useTodoPlan(): TodoPlan | null {
 
 /**
  * Would this change add an app past Free's 3? `before` and `after` are this hub's app counts; the
- * other hub's comes from the plan. Unknown plan (loading, offline): never blocked here; the server still checks.
+ * other hub's comes from the plan. Before loading finishes, the local free allowance is enforced.
  */
 export function appsBlocked(plan: TodoPlan | null, hub: "work" | "life", before: number, after: number): boolean {
-  if (!plan || plan.unlimited || after <= before) return false;
-  const other = hub === "work" ? plan.apps.life : plan.apps.work;
-  return growsPastFree(before + other, after + other, plan.apps.limit ?? FREE_APPS);
+  if (plan?.unlimited || after <= before) return false;
+  // Before /api/todo-plan finishes, enforce the free allowance locally rather
+  // than allowing unlimited installs during a slow initial request. Paid accounts
+  // become unrestricted immediately when their entitlement is confirmed.
+  const other = plan ? (hub === "work" ? plan.apps.life : plan.apps.work) : 0;
+  return growsPastFree(before + other, after + other, plan?.apps.limit ?? FREE_APPS);
 }
 /** Is a free account already at its 3 apps (counting this hub's `here` apps now)? */
 export function appsFull(plan: TodoPlan | null, hub: "work" | "life", here: number): boolean {
-  if (!plan || plan.unlimited) return false;
-  return here + (hub === "work" ? plan.apps.life : plan.apps.work) >= (plan.apps.limit ?? FREE_APPS);
+  if (plan?.unlimited) return false;
+  // Do not treat "still loading" as Unlimited; otherwise a fast sequence of
+  // installs can slip well beyond the three-app allowance before the plan loads.
+  const other = plan ? (hub === "work" ? plan.apps.life : plan.apps.work) : 0;
+  return here + other >= (plan?.apps.limit ?? FREE_APPS);
 }
 
 /** Watches every answer from the site: a "free plan is full" one opens the upgrade box. Installed once. */
