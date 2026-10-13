@@ -70,24 +70,18 @@ test("teachers give points to their own students only; shared notes reach parent
   assert.equal(undo.removed, true);
 });
 
-test("hall passes: a student asks, the teacher approves within the limit, and the student comes back", async () => {
-  const t = setup(), chen = t.as(1), mateo = t.as(11), aria = t.as(12);
-  await chen("PUT /api/behavior/settings", { body: { maxOut: 1, places: [{ id: "restroom", label: "Restroom", minutes: 5 }] } });
+test("student Hall Pass requests stay disabled before launch, while teacher-created passes still work", async () => {
+  const t = setup(), chen = t.as(1), mateo = t.as(11);
+  const studentView = await mateo("GET /api/behavior/me");
+  assert.equal(studentView.body.hasClass, true);
+  assert.equal(studentView.body.canAsk, false);
+  assert.equal(studentView.body.pass, undefined);
   const ask = await mateo("POST /api/behavior/me/pass", { body: { place: "restroom" } });
-  assert.equal(ask.body.pass.status, "asked");
-  assert.ok(t.notes.some((n) => n.id === 1 && /Mateo R\. asked/.test(n.body)));
-  assert.equal((await mateo("POST /api/behavior/me/pass", { body: { place: "restroom" } })).code, 409, "one at a time");
-  const ok = await chen("POST /api/behavior/passes/:id/:act", { params: { id: ask.body.pass.id, act: "approve" } });
-  assert.equal(ok.body.pass.status, "out");
-  const second = await aria("POST /api/behavior/me/pass", { body: { place: "restroom" } });
-  const full = await chen("POST /api/behavior/passes/:id/:act", { params: { id: second.body.pass.id, act: "approve" } });
-  assert.equal(full.code, 409); assert.equal(full.body.full, true);
-  assert.equal((await chen("POST /api/behavior/passes/:id/:act", { params: { id: second.body.pass.id, act: "approve" }, body: { force: true } })).body.pass.status, "out");
-  t.tick(6 * 60_000);
-  assert.equal((await mateo("POST /api/behavior/me/pass/:act", { params: { act: "back" } })).body.ok, true);
-  assert.equal((await mateo("GET /api/behavior/me")).body.pass, null);
+  assert.equal(ask.code, 403);
+  assert.match(ask.body.message, /aren't available yet/);
+  assert.equal(t.notes.some(n => /Hall pass request/.test(n.body)), false);
+  const made = await chen("POST /api/behavior/passes", { body: { studentId: 11, place: "restroom" } });
+  assert.equal(made.body.pass.status, "out");
   const parent = (await t.as(21)("GET /api/behavior/children")).body.children[0];
-  assert.equal(parent.passes[0].status, "back");
-  assert.equal((await t.as(13)("POST /api/behavior/passes/:id/:act", { params: { id: second.body.pass.id, act: "back" } })).code, 403);
-  assert.equal((await t.as(2)("POST /api/behavior/passes/:id/:act", { params: { id: second.body.pass.id, act: "back" } })).code, 404);
+  assert.equal(parent.passes[0].status, "out");
 });
