@@ -293,7 +293,6 @@ export default function WorkHubTour() {
   const [hit, setHit] = useState<{ target: Target; fallback: boolean } | null>(null);
   const [vw, setVw] = useState(() => (typeof window === "undefined" ? 1024 : window.innerWidth));
   const [vh, setVh] = useState(() => (typeof window === "undefined" ? 768 : window.innerHeight));
-  const checked = useRef(false);
   const elRef = useRef<HTMLElement | null>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
 
@@ -310,35 +309,50 @@ export default function WorkHubTour() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  // First visit: show once, unless this person already finished or closed it (here or on another device).
+  // First visit: introduce the hub as soon as the signed-in user reaches it.
+  // The status endpoint can take many seconds (or time out); it must never delay
+  // the tour while someone stares at an empty page. A local seen flag prevents
+  // repeat intros on this device; the server remains the cross-device source.
   useEffect(() => {
-    if (!user || !role || checked.current) return;
-    checked.current = true;
-    // Admins only see it when they ask for it (Customize → Take the tour), to check what teachers see.
+    if (!user || !role) return;
+    const key = SEEN_KEY(user.id, role);
     if (user.isAdmin && user.role !== "teacher" && user.role !== "parent") return;
-    try { if (localStorage.getItem(SEEN_KEY(user.id, role)) === "true") return; } catch { /* private window */ }
-    (async () => {
-      try {
-        const token = tokenFromCookie();
-        if (token) {
-          const res = await fetch(`${API_BASE}/api/todo-tour/status`, { headers: { Authorization: `Bearer ${token}` } });
-          const data = await res.json().catch(() => ({ shown: false }));
-          if (data?.shown) { try { localStorage.setItem(SEEN_KEY(user.id, role), "true"); } catch { /* fine */ } return; }
-        }
-      } catch { /* show it anyway */ }
-      // Wait until they're in their own hub (they may sign in on another page first).
-      const home = HOME_HUB[role];
-      const tryShow = () => {
-        if (hubAt(hashPath()) !== home) return false;
-        setTourHub(home); setStep(0); setShow(true);
-        return true;
-      };
-      setTimeout(() => {
-        if (tryShow()) return;
-        const onHash = () => { if (tryShow()) window.removeEventListener("hashchange", onHash); };
-        window.addEventListener("hashchange", onHash);
-      }, 900);
-    })();
+    try { if (localStorage.getItem(key) === "true") return; } catch { /* private browsing */ }
+
+    const home = HOME_HUB[role];
+    let cancelled = false;
+    let serverSeen = false;
+    let opened = false;
+    const openAtHome = () => {
+      if (cancelled || serverSeen || opened || hubAt(hashPath()) !== home) return;
+      opened = true;
+      setTourHub(home);
+      setStep(0);
+      setShow(true);
+    };
+    // React has to mount the hub first, but an intro never waits on the network.
+    const timer = window.setTimeout(openAtHome, 100);
+    window.addEventListener("hashchange", openAtHome);
+
+    const token = tokenFromCookie();
+    if (token) {
+      fetch(`${API_BASE}/api/todo-tour/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(2500),
+      }).then((res) => res.ok ? res.json() : null).then((data) => {
+        if (cancelled || !data?.shown) return;
+        serverSeen = true;
+        try { localStorage.setItem(key, "true"); } catch { /* private browsing */ }
+        // If their first visit was already completed on another device, do
+        // not keep a stale first-step tour visible here.
+        if (opened) setShow((wasOpen) => wasOpen && step === 0 ? false : wasOpen);
+      }).catch(() => { /* The local first-visit tour still works offline. */ });
+    }
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener("hashchange", openAtHome);
+    };
   }, [user?.id, role]);
 
   // "Take the tour" in Customize starts it again from the top.
