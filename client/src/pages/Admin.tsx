@@ -82,6 +82,7 @@ interface Student {
   approvedByTeacher?: boolean;
   teacherId?: number;
   teacherName?: string | null;
+  directoryTeacherName?: string | null;
   quizzesMastered?: number;
   schoolId?: number | null;
 }
@@ -210,6 +211,10 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
   const [studentDetail, setStudentDetail] = useState<StudentDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailTeacherOptions, setDetailTeacherOptions] = useState<Array<{ id: number | string; display_name: string; directory?: boolean }>>([]);
+  const [detailTeacherBusy, setDetailTeacherBusy] = useState(false);
+  const [detailTeacherName, setDetailTeacherName] = useState("");
+  const [detailTeacherError, setDetailTeacherError] = useState("");
   const [books, setBooks] = useState<BookItem[]>(adminCache.books);
   const [quizCount, setQuizCount] = useState(0);
   const [coverBook, setCoverBook] = useState<BookItem | null>(null);
@@ -2046,11 +2051,63 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
     } catch (e) {}
   };
 
+  // Real teacher accounts and account-free school-directory teachers share one picker.
+  const refreshDetailTeachers = async (schoolId: number | null | undefined, grade?: string) => {
+    if (!schoolId) { setDetailTeacherOptions([]); return; }
+    const params = new URLSearchParams({ schoolId: String(schoolId), ...(grade ? { grade } : {}) });
+    const res = await fetch(`${API_BASE}/api/teachers/by-school-grade?${params.toString()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Could not load teachers for this school.");
+    const data = await res.json();
+    setDetailTeacherOptions(Array.isArray(data) ? data : []);
+  };
+
+  const saveDetailTeacher = async (student: Student, choice: string) => {
+    setDetailTeacherBusy(true); setDetailTeacherError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${student.id}/assign-teacher`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(choice.startsWith("directory:") ? { directoryTeacherId: choice } : { teacherId: choice ? Number(choice) : null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not save teacher.");
+      setDetailStudent(prev => prev?.id === student.id ? { ...prev, teacherId: data.teacherId, teacherName: data.teacherName, directoryTeacherName: data.directoryTeacherName } : prev);
+      void fetchStudents();
+      say("Student teacher assignment saved.");
+    } catch (e: any) { setDetailTeacherError(e.message || "Could not save teacher."); }
+    finally { setDetailTeacherBusy(false); }
+  };
+
+  const addDetailTeacher = async (student: Student) => {
+    if (!student.schoolId || !detailTeacherName.trim()) return;
+    setDetailTeacherBusy(true); setDetailTeacherError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/schools/${student.schoolId}/directory-teachers`, {
+        method: "POST", headers: { "Authorization": `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: detailTeacherName.trim() }),
+      });
+      const added = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(added.message || "Could not add teacher.");
+      setDetailTeacherName("");
+      await refreshDetailTeachers(student.schoolId, userGradesMap[String(student.id)]);
+      await saveDetailTeacher(student, String(added.id));
+    } catch (e: any) { setDetailTeacherError(e.message || "Could not add teacher."); setDetailTeacherBusy(false); }
+  };
+
+  useEffect(() => {
+    if (!detailStudent) { setDetailTeacherOptions([]); return; }
+    setDetailTeacherError("");
+    void refreshDetailTeachers(detailStudent.schoolId, userGradesMap[String(detailStudent.id)])
+      .catch((error) => setDetailTeacherError(error.message || "Could not load teachers."));
+  }, [detailStudent?.id, detailStudent?.schoolId, userGradesMap[String(detailStudent?.id ?? "")]]);
+
   const handleViewStudent = async (student: Student) => {
     setDetailStudent(student);
     setStudentDetail(null);
     setDetailLoading(true);
     setIreadyGrade("");
+    setDetailTeacherName("");
+    setDetailTeacherError("");
     setIreadyScore("");
     setIreadyComp("");
     setIreadyVocab("");
@@ -4838,6 +4895,41 @@ Generate exactly 10 questions.`;
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Assign a registered teacher or an account-free teacher name. */}
+              <div className="rounded-xl border border-border bg-muted/30 p-3">
+                <Label className="mb-2 block text-xs text-muted-foreground">Assign Teacher</Label>
+                <select
+                  aria-label="Student's assigned teacher"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground"
+                  disabled={detailTeacherBusy || !detailStudent?.schoolId}
+                  value={detailStudent?.teacherId ? String(detailStudent.teacherId) :
+                    detailStudent?.directoryTeacherName
+                      ? detailTeacherOptions.find(t => t.directory && String(t.display_name).toLowerCase().replace(/[^a-z0-9]/g, "") ===
+                          String(detailStudent.directoryTeacherName).toLowerCase().replace(/[^a-z0-9]/g, ""))?.id?.toString() || ""
+                      : ""}
+                  onChange={(e) => { if (detailStudent) void saveDetailTeacher(detailStudent, e.target.value); }}
+                >
+                  <option value="">{detailStudent?.schoolId ? "No teacher assigned" : "Assign a school first"}</option>
+                  {detailTeacherOptions.map(t => <option key={String(t.id)} value={String(t.id)}>
+                    {t.display_name}{t.directory ? " (no account)" : ""}
+                  </option>)}
+                </select>
+                {detailStudent?.directoryTeacherName && <p className="mt-2 text-xs text-muted-foreground">
+                  Saved teacher: <strong>{detailStudent.directoryTeacherName}</strong>. No account required.
+                </p>}
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Input aria-label="Add teacher name without an account" value={detailTeacherName}
+                    onChange={e => setDetailTeacherName(e.target.value)} placeholder="Add a teacher by name (no account)"
+                    maxLength={120} disabled={detailTeacherBusy || !detailStudent?.schoolId} />
+                  <Button type="button" variant="outline" className="shrink-0"
+                    disabled={detailTeacherBusy || !detailStudent?.schoolId || detailTeacherName.trim().length < 2}
+                    onClick={() => { if (detailStudent) void addDetailTeacher(detailStudent); }}>
+                    {detailTeacherBusy ? "Saving…" : "Add & assign"}
+                  </Button>
+                </div>
+                {detailTeacherError && <p className="mt-2 text-xs text-red-500" role="alert">{detailTeacherError}</p>}
               </div>
 
               {/* Assign Grade */}
