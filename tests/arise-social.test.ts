@@ -84,7 +84,7 @@ test("a teacher's post is live at once; school-wide posts reach the whole school
   assert.equal((await t.as(14)("GET /api/social/feed")).body.posts.length, 0, "a different school");
 });
 
-test("students without an approved class can explore but not post", async () => {
+test("students without an approved class cannot enter Connect or post", async () => {
   const t = setup();
   const r = await t.as(15)("POST /api/social/posts", { body: { text: "hi" } });
   assert.equal(r.code, 403);
@@ -218,7 +218,7 @@ test("a student whose teacher hasn't added Arise Social can't post, since nobody
   assert.equal(me.body.user.canPost, true);
   const kenji = await t.as(13)("GET /api/social/me");
   assert.equal(kenji.body.user.canPost, false);
-  assert.match(kenji.body.user.postBlock, /teacher hasn’t added Arise Social/);
+  assert.match(kenji.body.user.postBlock, /teacher hasn’t added A.R.I.S.E. Connect/);
   assert.equal((await t.as(13)("POST /api/social/posts", { body: { text: "hi" } })).code, 403);
 });
 
