@@ -13,6 +13,7 @@ on:
       - "client/src/pages/Billing.tsx"
       - "client/src/pages/Pricing.tsx"
       - "tests/iep-meetings-quick-add.test.ts"
+      - "tests/user-docs-routes.test.ts"
       - "client/src/pages/AriseTodo.tsx"
       - "server/userDocs.ts"
       - "server/proAppsAI.ts"
@@ -37,5 +38,7 @@ jobs:
         run: npm run check
       - name: IEP student synchronization test
         run: npx tsx --test tests/iep-meetings-quick-add.test.ts
+      - name: Office saving and user isolation tests
+        run: npx tsx --test tests/user-docs-routes.test.ts
       - name: Production build
         run: npm run build
