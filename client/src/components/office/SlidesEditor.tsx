@@ -4,9 +4,9 @@
 // and out. Saves by itself to the person's account.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
-  AlignCenter, AlignLeft, AlignRight, ArrowLeft, ArrowDownToLine, ArrowUpToLine, Bold, BringToFront, Copy, Image as ImageIcon, Italic, List, MoveVertical, Play, Plus,
-  Presentation, Redo2, SendToBack, Shapes, Sparkles, Star, Trash2, Type, Underline, Undo2, Baseline, PaintBucket, ChevronLeft, ChevronRight, X, StickyNote,
+  AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Copy, Image as ImageIcon, Italic, List, Play, Plus, Presentation, Sparkles, Star, Trash2, Type, Underline, ChevronLeft, ChevronRight, X, StickyNote,
 } from "lucide-react";
+import { ArrowDownToLine, ArrowUpToLine, BringToFront, MoveVertical, Redo2, SendToBack, Shapes, Undo2, Baseline, PaintBucket } from "./icons";
 import { useAuth } from "@/context/AuthContext";
 import { askAppAi, docsApi, saveLabel, useCloudDoc } from "@/lib/cloudDocs";
 import { sanitizeHtml } from "@shared/office/docModel";

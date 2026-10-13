@@ -2,7 +2,10 @@
 // template), import one, and find files again (recent, starred, trash). Files live in the person's
 // account (server/userDocs.ts), so they open on every device. Opening one shows its editor.
 import { Suspense, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
-import { FileText, Grid3x3, LayoutGrid, List as ListIcon, MoreVertical, Plus, Presentation, Search, Star, Trash2, Upload, RotateCcw } from "lucide-react";
+import {
+  FileText, LayoutGrid, List as ListIcon, MoreVertical, Plus, Presentation, Search, Star, Trash2, Upload, RotateCcw,
+} from "lucide-react";
+import { Grid3x3 } from "./icons";
 import { useAuth } from "@/context/AuthContext";
 import { docsApi, type DocEntry, type DocKind } from "@/lib/cloudDocs";
 import { useSavedChoice } from "@/lib/useSavedChoice";

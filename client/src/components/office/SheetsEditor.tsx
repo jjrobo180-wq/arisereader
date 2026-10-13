@@ -5,10 +5,9 @@
 // formula helper. Saves by itself to the person's account (lib/cloudDocs.ts).
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
-  AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowLeft, ArrowUpToLine, BarChart3, Bold, Combine, DollarSign, Filter, Italic, Link as LinkIcon,
-  Lock, MessageSquare, MoveVertical, PaintBucket, Paintbrush, Percent, Plus, Printer, Redo2, RotateCw, Sigma, Sparkles, Strikethrough, Underline, Undo2,
-  WrapText, Grid3x3, ChevronDown, List, Baseline, Star,
+  AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Filter, Italic, Link as LinkIcon, Lock, MessageSquare, Paintbrush, Percent, Plus, Printer, Sparkles, Underline, ChevronDown, List, Star,
 } from "lucide-react";
+import { ArrowDownToLine, ArrowUpToLine, BarChart3, Combine, DollarSign, MoveVertical, PaintBucket, Redo2, RotateCw, Sigma, Strikethrough, Undo2, WrapText, Grid3x3, Baseline } from "./icons";
 import { flushSync } from "react-dom";
 import { useAuth } from "@/context/AuthContext";
 import { docsApi, saveLabel, useCloudDoc } from "@/lib/cloudDocs";

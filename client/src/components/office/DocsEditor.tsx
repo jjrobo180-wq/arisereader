@@ -4,9 +4,9 @@
 // shortcuts, version history, Word/PDF/HTML/text in and out, and an AI writing helper.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowLeft, Bold, CheckSquare, Highlighter, Image as ImageIcon, Indent, Italic, Link as LinkIcon, List, ListOrdered,
-  Outdent, Printer, Redo2, RemoveFormatting, Sparkles, Star, Strikethrough, Table as TableIcon, Underline, Undo2, Baseline, FileText, PanelLeft,
+  AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Image as ImageIcon, Italic, Link as LinkIcon, List, Printer, Sparkles, Star, Table as TableIcon, Underline, FileText,
 } from "lucide-react";
+import { AlignJustify, CheckSquare, Highlighter, Indent, ListOrdered, Outdent, Redo2, RemoveFormatting, Strikethrough, Undo2, Baseline, PanelLeft } from "./icons";
 import { useAuth } from "@/context/AuthContext";
 import { askAppAi, docsApi, saveLabel, useCloudDoc } from "@/lib/cloudDocs";
 import { useSavedChoice } from "@/lib/useSavedChoice";
