@@ -71,8 +71,8 @@ import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
 import { cleanDriveFiles } from "@shared/driveApp";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
-import { PlanCard, UpgradeHost, openUpgrade, spaceBlocked, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
-import { spaceOf } from "@shared/todoPlan";
+import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
+import { appsIn, countsAsApp } from "@shared/todoPlan";
 import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
@@ -269,8 +269,8 @@ export default function AriseTodo() {
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
   const rawSet = sync.setWorkspace;
-  // A.R.I.S.E. To-Do Free: ¼ MB shared across LifeHub and WorkHub (shared/todoPlan.ts). A change
-  // that would grow a full free account is held back here (so a save never fails over it), and the
+  // A.R.I.S.E. To-Do Free: up to 3 App Store apps across LifeHub and WorkHub (shared/todoPlan.ts). A
+  // change that would add a 4th is held back here (so a save never fails over it), and the
   // upgrade box opens, at most once every ten minutes so a background sync can't keep popping it.
   const todoPlan = useTodoPlan();
   const todoPlanRef = useRef(todoPlan);
@@ -281,8 +281,8 @@ export default function AriseTodo() {
       const value = typeof next === "function" ? next(upgrade(previous)) : next;
       const plan = todoPlanRef.current;
       if ((value as unknown) === previous || !plan || plan.unlimited) return value;
-      if (!spaceBlocked(plan, "life", spaceOf(previous), spaceOf(value))) return value;
-      if (Date.now() - upgradeShownAt.current > 10 * 60_000) { upgradeShownAt.current = Date.now(); queueMicrotask(() => openUpgrade("space")); }
+      if (!appsBlocked(plan, "life", appsIn("life", previous), appsIn("life", value))) return value;
+      if (Date.now() - upgradeShownAt.current > 10 * 60_000) { upgradeShownAt.current = Date.now(); queueMicrotask(() => openUpgrade("apps")); }
       return previous;
     });
   }, [rawSet]);
@@ -806,6 +806,8 @@ export default function AriseTodo() {
       isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)}
       kit={{ records: family.kit, setRecords: (update) => setFamily((f) => ({ ...f, kit: update(f.kit) })), today: currentDay, makeId }}
       onToggle={(p: Plugin, on: boolean) => {
+        // Free has room for 3 App Store apps (across both hubs): a 4th opens the upgrade box instead.
+        if (on && countsAsApp("life", p) && appsFull(todoPlan, "life", appsIn("life", data))) { openUpgrade("apps"); return; }
         // A Kit plugin from WorkHub's shelf. LifeHub's own kits are sections and fall through to
         // setLifePlugin below, the same as before.
         if (p.target.kind === "kit") {
@@ -863,7 +865,7 @@ export default function AriseTodo() {
     />}
     {customizing && <Modal title="Customize" eyebrow="LifeHub" onClose={() => setCustomizing(false)} wide>
       <div className="space-y-6" data-testid="life-customize-panel">
-        <PlanCard hub="life" hubBytes={spaceOf(data)} />
+        <PlanCard hub="life" hubApps={appsIn("life", data)} />
         <button type="button" onClick={() => { setCustomizing(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100" data-testid="life-take-tour">Take the tour again</button>
         <section>
           <h3 className="text-sm font-black text-slate-900">Menu on your phone</h3>

@@ -12,7 +12,7 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
-import { FAIR_USE, FREE_SPACE_BYTES, SPACE_FULL, UNLIMITED_MONTHLY_CENTS, growsPastFree, spaceOf } from "../shared/todoPlan";
+import { APPS_FULL, FAIR_USE, FREE_APPS, UNLIMITED_MONTHLY_CENTS, appsIn, growsPastFree } from "../shared/todoPlan";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
@@ -1222,9 +1222,9 @@ export async function registerRoutes(
   registerAdminHandoffRoutes(app, authMiddleware);
   registerClientErrorRoutes(app);
   // A.R.I.S.E. To-Do Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
-  // guard. Free has no AI, and ¼ MB of space shared across WorkHub and LifeHub: a save that would
-  // grow a free account past it is refused. Nothing is ever deleted, and an account already over
-  // keeps everything it has; it just can't grow.
+  // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would
+  // add a 4th is refused. Nothing is ever taken away, and an account already over keeps every app
+  // it has; it just can't add more.
   const HUB_TABLES = { work: { table: "teacher_hub_workspaces", id: "teacher_id" }, life: { table: "arise_todo_workspaces", id: "user_id" } } as const;
   const savedHub = async (hub: "work" | "life", userId: number): Promise<unknown | null> => {
     const t = HUB_TABLES[hub];
@@ -1240,17 +1240,19 @@ export async function registerRoutes(
       if (!user || !workspace || typeof workspace !== "object") return next();
       const hub = req.path.startsWith("/api/teacher-hub") ? "work" : "life";
       const other = hub === "work" ? "life" : "work";
-      const mine = spaceOf(workspace);
+      const mine = appsIn(hub, workspace);
+      // No apps in this hub: this save can't be adding one, so skip the lookups.
+      if (mine === 0) return next();
       if ((await plans.todoUnlimited(user)).unlimited) return next();
       const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
-      const otherBytes = spaceOf(otherSaved);
-      if (growsPastFree(spaceOf(before) + otherBytes, mine + otherBytes)) {
-        return res.status(402).json({ code: SPACE_FULL, limit: FREE_SPACE_BYTES, message: `Your free space is full. Clear some space, or get Unlimited for $${UNLIMITED_MONTHLY_CENTS / 100} a month for unlimited space and AI.` });
+      const otherApps = appsIn(other, otherSaved);
+      if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one, or get Unlimited for $${UNLIMITED_MONTHLY_CENTS / 100} a month for every app and AI.` });
       }
       next();
     } catch { next(); }
   });
-  /** Free or Unlimited, space used across both hubs, and this month's AI, for the hubs' plan card and upgrade box. */
+  /** Free or Unlimited, apps added in each hub, and this month's AI, for the hubs' plan card and upgrade box. */
   app.get("/api/todo-plan", authMiddleware, async (req: any, res) => {
     try {
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
@@ -1262,7 +1264,7 @@ export async function registerRoutes(
       res.set("Cache-Control", "no-store");
       res.json({
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
-        space: { work: spaceOf(work), life: spaceOf(life), limit: plan.unlimited ? null : FREE_SPACE_BYTES },
+        apps: { work: appsIn("work", work), life: appsIn("life", life), limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
         priceCents: UNLIMITED_MONTHLY_CENTS, payment, paidByYou, fairUse: FAIR_USE,
       });

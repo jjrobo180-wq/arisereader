@@ -131,8 +131,8 @@ import HubSwitch from "@/components/HubSwitch";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
-import { PlanCard, UpgradeHost, openUpgrade, spaceBlocked, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
-import { spaceOf } from "@shared/todoPlan";
+import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
+import { appsIn, countsAsApp } from "@shared/todoPlan";
 import { ADMIN_SECTIONS, SETTINGS_SECTIONS, adminSectionLabel, settingsSectionLabel, type AdminSection, type SettingsSection } from "@/lib/adminSections";
 import HubBehavior from "@/components/teacher-hub/HubBehavior";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
@@ -423,8 +423,8 @@ function TeacherHubPage() {
   // Opening the Hub and keeping it saved (see useHubWorkspace).
   const sync = useHubWorkspace({ enabled: canUseHub, token, userId: user?.id });
   const { workspace, setWorkspace: setWorkspaceRaw, loaded, loadError, needsPlan, seats, view, bytes } = sync;
-  // A.R.I.S.E. To-Do Free: ¼ MB shared across WorkHub and LifeHub (shared/todoPlan.ts). A change
-  // that would grow a full free account is held back here (so a save never fails over it), and the
+  // A.R.I.S.E. To-Do Free: up to 3 App Store apps across WorkHub and LifeHub (shared/todoPlan.ts). A
+  // change that would add a 4th is held back here (so a save never fails over it), and the
   // upgrade box opens, at most once every ten minutes so a background refresh can't keep popping it.
   const todoPlan = useTodoPlan();
   const todoPlanRef = useRef(todoPlan);
@@ -434,8 +434,8 @@ function TeacherHubPage() {
     const value = typeof next === "function" ? next(prev) : next;
     const plan = todoPlanRef.current;
     if (value === prev || !plan || plan.unlimited) return value;
-    if (!spaceBlocked(plan, "work", spaceOf(prev), spaceOf(value))) return value;
-    if (Date.now() - upgradeShownAt.current > 10 * 60_000) { upgradeShownAt.current = Date.now(); queueMicrotask(() => openUpgrade("space")); }
+    if (!appsBlocked(plan, "work", appsIn("work", prev), appsIn("work", value))) return value;
+    if (Date.now() - upgradeShownAt.current > 10 * 60_000) { upgradeShownAt.current = Date.now(); queueMicrotask(() => openUpgrade("apps")); }
     return prev;
   }), [setWorkspaceRaw]);
   /** "Add with AI" is part of Unlimited: on Free it opens the upgrade box instead. */
@@ -765,6 +765,8 @@ function TeacherHubPage() {
         teacher
         isInstalled={(p: Plugin) => workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn, (workspace as any).notesInstalled, !!(workspace as any).briefOff, (workspace as any).sheetsInstalled, !!(workspace as any).driveInstalled, !!(workspace as any).dropInstalled)}
         onToggle={(p: Plugin, on: boolean) => {
+          // Free has room for 3 App Store apps (across both hubs): a 4th opens the upgrade box instead.
+          if (on && countsAsApp("work", p) && appsFull(todoPlan, "work", appsIn("work", workspace))) { openUpgrade("apps"); return; }
           // The Widgets board is a part of Home: adding it shows that part, removing it hides it again.
           setWorkspace((prev) => (p.target.kind === "brief" ? { ...prev, briefOff: !on }
             : p.target.kind === "sheetsApp" ? { ...prev, sheetsInstalled: setWorkSheetsApp((prev as any).sheetsInstalled, p, on) }
@@ -1194,7 +1196,7 @@ function TeacherHubPage() {
           )}
           {customize && (
             <Card title="Customize" right={<button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button>}>
-              <PlanCard hub="work" hubBytes={bytes} />
+              <PlanCard hub="work" hubApps={appsIn("work", workspace)} />
               <button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm font-semibold text-violet-900 hover:bg-violet-100" data-testid="hub-take-tour"><Sparkles className="h-4 w-4 shrink-0" /> Take the tour: see where everything is in your WorkHub</button>
               <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
               <div className="mb-6 grid gap-5 lg:grid-cols-2" data-testid="customize-layout">

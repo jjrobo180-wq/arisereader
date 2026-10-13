@@ -461,7 +461,7 @@ export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { n
 }
 
 /**
- * Is this person on A.R.I.S.E. To-Do Unlimited ($5 a month: unlimited space, and AI to the fair-use ceiling)?
+ * Is this person on A.R.I.S.E. To-Do Unlimited ($5 a month: every App Store app, and AI to the fair-use ceiling)?
  * Admins and sample accounts always are; anyone else needs a live Unlimited plan, or a LifeHub
  * plan bought before Unlimited existed.
  */

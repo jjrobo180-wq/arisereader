@@ -1,21 +1,21 @@
 // A.R.I.S.E. To-Do's Free plan and $5 Unlimited upgrade in the hubs (rules in shared/todoPlan.ts):
-//  - useTodoPlan: Free or Unlimited, space used in each hub, and this month's AI, from the server.
-//  - openUpgrade(...): opens the "Get Unlimited" box from anywhere (space full, AI tapped on Free).
-//  - spaceBlocked(...): would a change take a free account past its space? (The hubs ask before saving.)
+//  - useTodoPlan: Free or Unlimited, apps added in each hub, and this month's AI, from the server.
+//  - openUpgrade(...): opens the "Get Unlimited" box from anywhere (a 4th app, AI tapped on Free).
+//  - appsBlocked(...): would a change add an app past Free's 3? (The hubs ask before saving.)
 //  - <UpgradeHost>: the box itself. It also opens on its own when the server answers that the free
 //    plan is full (any 402 with the plan's codes), and finishes a checkout when the page comes back.
-//  - <PlanCard>: Free or Unlimited, space and AI used, for the Customize panel.
+//  - <PlanCard>: Free or Unlimited, and apps used, for the Customize panel and the App Store.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Infinity as InfinityIcon, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { AI_LIMIT, FREE_SPACE_BYTES, SPACE_FULL, growsPastFree, spaceWords } from "@shared/todoPlan";
+import { AI_LIMIT, APPS_FULL, FREE_APPS, growsPastFree } from "@shared/todoPlan";
 
 export type TodoPlan = {
-  unlimited: boolean; via: string | null; endsAt: string | null; space: { work: number; life: number; limit: number | null };
+  unlimited: boolean; via: string | null; endsAt: string | null; apps: { work: number; life: number; limit: number | null };
   ai: { limit: number; used: number; left: number }; priceCents: number; payment: boolean; paidByYou: boolean; fairUse: string;
 };
-type Reason = "space" | "ai" | "plan";
+type Reason = "apps" | "ai" | "plan";
 
 const OPEN = "arise-upgrade";
 const REFRESH = "arise-plan:refresh";
@@ -40,13 +40,18 @@ export function useTodoPlan(): TodoPlan | null {
 }
 
 /**
- * Would this change take a free account past its space? `before` and `after` are this hub's sizes;
- * the other hub's comes from the plan. Unknown plan (loading, offline): never blocked here; the server still checks.
+ * Would this change add an app past Free's 3? `before` and `after` are this hub's app counts; the
+ * other hub's comes from the plan. Unknown plan (loading, offline): never blocked here; the server still checks.
  */
-export function spaceBlocked(plan: TodoPlan | null, hub: "work" | "life", before: number, after: number): boolean {
+export function appsBlocked(plan: TodoPlan | null, hub: "work" | "life", before: number, after: number): boolean {
   if (!plan || plan.unlimited || after <= before) return false;
-  const other = hub === "work" ? plan.space.life : plan.space.work;
-  return growsPastFree(before + other, after + other, plan.space.limit ?? FREE_SPACE_BYTES);
+  const other = hub === "work" ? plan.apps.life : plan.apps.work;
+  return growsPastFree(before + other, after + other, plan.apps.limit ?? FREE_APPS);
+}
+/** Is a free account already at its 3 apps (counting this hub's `here` apps now)? */
+export function appsFull(plan: TodoPlan | null, hub: "work" | "life", here: number): boolean {
+  if (!plan || plan.unlimited) return false;
+  return here + (hub === "work" ? plan.apps.life : plan.apps.work) >= (plan.apps.limit ?? FREE_APPS);
 }
 
 /** Watches every answer from the site: a "free plan is full" one opens the upgrade box. Installed once. */
@@ -60,7 +65,7 @@ function watchForLimits() {
     if (res.status === 402) {
       res.clone().json().then((d: any) => {
         if (d?.code === AI_LIMIT) { refreshTodoPlan(); openUpgrade("ai"); }
-        else if (d?.code === SPACE_FULL) { refreshTodoPlan(); openUpgrade("space"); }
+        else if (d?.code === APPS_FULL) { refreshTodoPlan(); openUpgrade("apps"); }
       }).catch(() => {});
     }
     return res;
@@ -114,13 +119,13 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   if (!reason) return null;
   const price = usd(plan?.priceCents ?? 500);
   const title = plan?.unlimited ? "You're on Unlimited"
-    : reason === "space" ? "Your free space is full"
+    : reason === "apps" ? `You're using your ${FREE_APPS} free apps`
     : reason === "ai" ? "AI is part of Unlimited"
     : "Get A.R.I.S.E. To-Do Unlimited";
-  const lead = plan?.unlimited ? "Unlimited space and AI for everyday use, in WorkHub and LifeHub."
-    : reason === "space" ? "Everything you've saved is safe and you can keep using it. To add more, clear some space (like finished to-dos or old notes), or go Unlimited."
-    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Unlimited, along with unlimited space, for ${price} a month.`
-    : "Unlimited space and AI, across WorkHub and LifeHub.";
+  const lead = plan?.unlimited ? "Every app in the App Store, and AI for everyday use, in WorkHub and LifeHub."
+    : reason === "apps" ? `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one to make room, or go Unlimited for all 450+.`
+    : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Unlimited, along with every app in the App Store, for ${price} a month.`
+    : "Every app in the App Store (450+), and AI, across WorkHub and LifeHub.";
 
   return (
     <div className="fixed inset-0 z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
@@ -137,7 +142,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               <p className="font-bold text-slate-900">Free</p>
               <p className="text-xs text-slate-500">$0</p>
               <ul className="mt-2 space-y-1 text-slate-600">
-                <li>{spaceWords(FREE_SPACE_BYTES)} of space</li>
+                <li>Up to {FREE_APPS} apps</li>
                 <li>No AI</li>
               </ul>
             </div>
@@ -145,13 +150,13 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               <p className="font-bold text-violet-900">Unlimited</p>
               <p className="text-xs text-violet-700">{price} a month</p>
               <ul className="mt-2 space-y-1 text-violet-900">
-                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Unlimited space</li>
+                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All 450+ apps</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />AI every day</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Both hubs</li>
               </ul>
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Your space is shared by WorkHub and LifeHub. Nothing is ever deleted, even if you go back to Free. Already on a $10 Arise Reader plan? Unlimited is the same {price} on top.</p>
+          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} apps are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. Already on a $10 Arise Reader plan? Unlimited is the same {price} on top.</p>
           {note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">{note}</p>}
           <div className="mt-4">
             {plan?.unlimited
@@ -172,18 +177,17 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   );
 }
 
-/** Free or Unlimited, with the space used across both hubs and this month's AI, for the Customize panel. `hubBytes` is this hub's size now. */
-export function PlanCard({ hub, hubBytes }: { hub: "work" | "life"; hubBytes: number }) {
+/** Free or Unlimited, with the apps added across both hubs, for the Customize panel and the App Store. `hubApps` is this hub's count now. */
+export function PlanCard({ hub, hubApps }: { hub: "work" | "life"; hubApps: number }) {
   const plan = useTodoPlan();
   if (!plan) return null;
-  const used = hubBytes + (hub === "work" ? plan.space.life : plan.space.work);
   if (plan.unlimited) {
     return <button type="button" onClick={() => openUpgrade("plan")} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm text-violet-900" data-testid="todo-plan-card">
-      <InfinityIcon className="h-5 w-5 shrink-0" /><span className="min-w-0 flex-1"><span className="block font-bold">Unlimited</span><span className="block text-xs text-violet-700">Unlimited space ({spaceWords(used)} used) · {plan.ai.left} AI uses left this month</span></span>
+      <InfinityIcon className="h-5 w-5 shrink-0" /><span className="min-w-0 flex-1"><span className="block font-bold">Unlimited</span><span className="block text-xs text-violet-700">Every app in the App Store · {plan.ai.left} AI uses left this month</span></span>
     </button>;
   }
-  const limit = plan.space.limit ?? FREE_SPACE_BYTES;
-  const pct = Math.min(100, Math.round((used / limit) * 100));
+  const used = hubApps + (hub === "work" ? plan.apps.life : plan.apps.work);
+  const limit = plan.apps.limit ?? FREE_APPS;
   const full = used >= limit;
   return <div className="mb-3 rounded-xl border border-slate-200 p-3 text-sm" data-testid="todo-plan-card">
     <div className="flex items-center justify-between gap-3">
@@ -191,9 +195,9 @@ export function PlanCard({ hub, hubBytes }: { hub: "work" | "life"; hubBytes: nu
       <button type="button" onClick={() => openUpgrade("plan")} className="min-h-10 rounded-xl bg-violet-600 px-3 text-xs font-bold text-white hover:bg-violet-700" data-testid="todo-plan-upgrade">Get Unlimited</button>
     </div>
     <div className="mt-2 flex items-center gap-2">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Free space used"><div className={`h-full rounded-full ${full ? "bg-amber-500" : pct >= 80 ? "bg-amber-400" : "bg-violet-500"}`} style={{ width: `${pct}%` }} /></div>
-      <span className={`shrink-0 text-xs font-semibold ${full ? "text-amber-700" : "text-slate-600"}`}>{pct}% of free space</span>
+      <div className="flex flex-1 gap-1" aria-hidden>{Array.from({ length: limit }, (_, i) => <span key={i} className={`h-2 flex-1 rounded-full ${i < used ? (full ? "bg-amber-500" : "bg-violet-500") : "bg-slate-100"}`} />)}</div>
+      <span className={`shrink-0 text-xs font-semibold ${full ? "text-amber-700" : "text-slate-600"}`}>{Math.min(used, 99)} of {limit} apps</span>
     </div>
-    <p className="mt-1.5 text-xs text-slate-500">{spaceWords(used)} of {spaceWords(limit)}, shared by WorkHub and LifeHub · No AI on Free</p>
+    <p className="mt-1.5 text-xs text-slate-500">{used > limit ? "You can keep every app you have. To add another, remove one or go Unlimited." : "Apps from the App Store, shared by WorkHub and LifeHub. Built-in sections are always free."} · No AI on Free</p>
   </div>;
 }

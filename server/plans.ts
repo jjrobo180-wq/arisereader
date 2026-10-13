@@ -1096,9 +1096,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   });
 
   // ─── A.R.I.S.E. To-Do: Free and the $5 upgrade ────────────────────────────
-  // Free: ¼ MB shared across both hubs, and no AI. Unlimited ($5 a month): unlimited space, and AI
-  // up to a fair-use ceiling. See shared/todoPlan.ts. (The space check is in routes.ts, which can
-  // read the hubs.)
+  // Free: up to 3 App Store apps across both hubs, and no AI. Unlimited ($5 a month): every app,
+  // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
+  // can read the hubs.)
   const todoUnlimited = async (user: AnyUser) => {
     const [unlimited, oldLifeHub] = await Promise.all([readGrant("todo_unlimited", user.id), readGrant("todo_family", user.id)]);
     return todoUnlimitedFor(user as PlanPerson, { unlimited, oldLifeHub }, now());
@@ -1136,7 +1136,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           code: AI_LIMIT, limit: usage.limit, used: usage.used, unlimited: usage.unlimited,
           message: usage.unlimited
             ? `You've reached this month's fair-use limit of ${usage.limit} AI uses. It resets on the 1st.`
-            : `AI is part of A.R.I.S.E. To-Do Unlimited: $${UNLIMITED_MONTHLY_CENTS / 100} a month for AI and unlimited space.`,
+            : `AI is part of A.R.I.S.E. To-Do Unlimited: $${UNLIMITED_MONTHLY_CENTS / 100} a month for every app and AI.`,
         });
       }
       res.on("finish", () => { if (res.statusCode < 400) void countAiUse(user).catch(() => {}); });

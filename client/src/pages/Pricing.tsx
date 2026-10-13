@@ -39,7 +39,7 @@ export default function Pricing() {
       <section className="mx-auto max-w-4xl px-5 pb-8 pt-10 text-center">
         <p className="text-xs font-black uppercase tracking-[.22em] text-violet-700">Simple, straightforward pricing</p>
         <h1 className="mt-4 text-4xl font-black leading-tight tracking-tight sm:text-5xl">A.R.I.S.E. Reader stays free.<br/><span className="text-violet-700">Pay only for extra learning.</span></h1>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600">Parents and teachers use one secure A.R.I.S.E. portal to open their learning programs. Your A.R.I.S.E. To-Do Work and Life hubs are free to start, with Unlimited (AI and unlimited space) for $5 a month.</p>
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600">Parents and teachers use one secure A.R.I.S.E. portal to open their learning programs. Your A.R.I.S.E. To-Do Work and Life hubs are free to start, with Unlimited (every app and AI) for $5 a month.</p>
       </section>
       <section className="mx-auto grid max-w-6xl gap-5 px-5 pb-12 lg:grid-cols-3" aria-label="Plans">
         <article className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm" data-testid="pricing-free">
@@ -69,7 +69,7 @@ export default function Pricing() {
       </section>
       <section className="mx-auto mb-16 max-w-6xl rounded-[1.75rem] border border-indigo-100 bg-white px-6 py-9 shadow-sm sm:px-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="max-w-2xl"><p className="text-xs font-black uppercase tracking-widest text-violet-600">Free to start · Unlimited $5/month</p><h2 className="mt-2 text-2xl font-black">A.R.I.S.E. To-Do — Work &amp; Life hubs</h2><p className="mt-3 text-sm leading-7 text-slate-600">Your portal for tasks, calendars, family planning, educator tools and access to your A.R.I.S.E. programs. The free plan includes both hubs with 256 KB of space and no AI. A.R.I.S.E. To-Do Unlimited adds AI and unlimited space for $5 a month, or $15 total alongside a $10 plan. Cancel anytime; nothing is deleted.</p></div>
+          <div className="max-w-2xl"><p className="text-xs font-black uppercase tracking-widest text-violet-600">Free to start · Unlimited $5/month</p><h2 className="mt-2 text-2xl font-black">A.R.I.S.E. To-Do — Work &amp; Life hubs</h2><p className="mt-3 text-sm leading-7 text-slate-600">Your portal for tasks, calendars, family planning, educator tools and access to your A.R.I.S.E. programs. The free plan includes both hubs and up to 3 apps from the App Store. A.R.I.S.E. To-Do Unlimited adds all 450+ apps and AI for $5 a month, or $15 total alongside a $10 plan. Cancel anytime; nothing is deleted.</p></div>
           <button onClick={todo} className="rounded-xl bg-[#1b1842] px-6 py-3 font-bold text-white">Open A.R.I.S.E. To-Do</button>
         </div>
       </section>
