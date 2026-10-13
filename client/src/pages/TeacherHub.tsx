@@ -87,7 +87,7 @@ import { HOME_SECTIONS, MENU_CLOSES, MENU_SIDES, cleanLayout, isPinId, moveSecti
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
-  type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Task, type Workspace,
+  WORK_ADD_ON_TABS, type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Task, type Workspace,
 } from "@shared/teacherHub";
 import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, teamDraft, teamMembers, updateStudentWithTeam, type StudentDetails, type TeamDraft } from "@shared/hubStudentTeam";
 import { StudentTeamFields, StudentTeamSummary } from "@/components/teacher-hub/HubStudentTeam";
@@ -717,6 +717,11 @@ function TeacherHubPage() {
   // The admin console shows for admins only.
   const visible = { ...workspace.visibleTabs, admin: !!user.isAdmin };
   const menu = visibleGroups(visible, workspace.groupOrder, !!user.isAdmin);
+  // App Store tab groups belong below My Apps, not among the hub’s built-in navigation.
+  // This is a presentation split only: existing visibility, order, folders and saved data stay intact.
+  const isStoreGroup = (entry: (typeof menu)[number]) => entry.tabs.some((t) => WORK_ADD_ON_TABS.includes(t));
+  const coreMenu = menu.filter((entry) => !isStoreGroup(entry));
+  const installedMenu = menu.filter(isStoreGroup);
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
   /** Opening a menu item. A.R.I.S.E. Reader is a page of its own now (/reader), so that one item
@@ -1061,7 +1066,9 @@ function TeacherHubPage() {
                   );
                 })}
               </Fragment>;
-              return foldMenu(menu, layout.folders).map((entry) => {
+              const renderSidebarGroups = (groups: typeof menu, keepFolders: boolean) => foldMenu(groups, keepFolders ? layout.folders : [])
+                .filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0)
+                .map((entry) => {
                 // A.R.I.S.E. Reader lives in the Arise Learning section, right below Home.
                 if (entry.kind === "item" && entry.item.id === "arise") return null;
                 // Drawn right below Arise Learning instead, not wherever the saved order put it.
@@ -1083,8 +1090,13 @@ function TeacherHubPage() {
                   {open && entry.items.filter((item) => item.id !== "arise" && item.id !== "admin").map((item) => navItem(item, menu.indexOf(item), true))}
                 </Fragment>;
               });
+              const hasMyApps = installedMenu.length > 0 || myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || !!drivePlugin || !!dropPlugin;
+              return <>
+                {renderSidebarGroups(coreMenu, true)}
+                {hasMyApps && <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskCompact ? "md:sr-only" : ""}`} data-testid="hub-my-apps-heading">My apps</p>}
+                {renderSidebarGroups(installedMenu, false)}
+              </>;
             })()}
-            {(myKits.length > 0 || myNotesApps.length > 0 || mySheetsApps.length > 0 || drivePlugin || dropPlugin) && <p className={`hidden px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskTop || deskCompact ? "" : "md:block"}`}>My apps</p>}
             {myKits.map((d) => {
               const Icon = kitIcon(d.icon);
               return (
