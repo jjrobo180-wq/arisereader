@@ -59,6 +59,8 @@ import { registerTodoNewsRoutes } from "./todoNews";
 import { registerLifehubPluginRoutes } from "./lifehubPlugins";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerLessonPlannerRoutes } from "./lessonPlanner";
+import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
+import { registerProAppsAI } from "./proAppsAI";
 import { notifyUser, registerPushRoutes } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
@@ -1359,6 +1361,9 @@ export async function registerRoutes(
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // The Lesson Planner's AI helper: ideas, full plans, standards, worksheets, slides, units and reteaches.
+  // Arise Office (Sheets, Docs, Slides) and the premium apps: each person's own files and app data.
+  registerUserDocRoutes(app, authMiddleware, supabaseDocStore(getAdminSupabase));
+  registerProAppsAI(app, authMiddleware);
   registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
   // A teacher can connect their own Gmail or Outlook so those emails come from their real address.

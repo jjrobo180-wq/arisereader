@@ -79,7 +79,7 @@ export function HubModal({
         aria-label={label || title}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className={`flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl outline-none sm:max-h-[90dvh] sm:rounded-3xl ${width}`}
+        className={`flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white text-slate-900 shadow-2xl outline-none sm:max-h-[90dvh] sm:rounded-3xl ${width}`}
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <h2 className="min-w-0 break-words text-lg font-bold text-slate-950">{title}</h2>

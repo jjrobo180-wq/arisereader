@@ -10,6 +10,7 @@
 // `workspace.lessons` (older lessons, made before this, still open), classes in `workspace.lessonClasses`.
 
 import type { Lesson } from "./teacherHub";
+import { cleanVisual, type WsVisual } from "./worksheetVisuals";
 
 // ─── Kinds ──────────────────────────────────────────────────────────────────
 
@@ -28,10 +29,43 @@ export const MATERIAL_KINDS = ["worksheet", "slides", "answerKey", "other"] as c
 export type MaterialKind = (typeof MATERIAL_KINDS)[number];
 export const MATERIAL_LABEL: Record<MaterialKind, string> = { worksheet: "Worksheets", slides: "PowerPoints & slides", answerKey: "Answer keys", other: "Other files" };
 
-export type WorksheetItem = { prompt: string; choices?: string[]; answer: string; /** Lines to leave for writing. */ lines?: number };
-export type WorksheetSection = { heading: string; directions?: string; items: WorksheetItem[] };
+/** How a question is answered on paper. */
+export type ItemKind = "choice" | "short" | "work" | "blank" | "truefalse" | "graph" | "match";
+export type WorksheetItem = {
+  /** The question. Maths goes between $ signs in LaTeX: $\frac{3}{4}+\frac{1}{8}$, $2\frac{1}{3}$, $x^2$. */
+  prompt: string;
+  kind?: ItemKind;
+  choices?: string[];
+  /** The answer (or a model answer), shown only on the answer key. Can hold $maths$ too. */
+  answer: string;
+  /** Lines to leave for writing. */
+  lines?: number;
+  /** Room to show work: none, small, medium or large. */
+  space?: "small" | "medium" | "large";
+  /** A picture with the question: a graph, number line, fraction bar, clock, shape… (shared/worksheetVisuals.ts). */
+  visual?: WsVisual;
+  /** The same picture as it should look when answered, for the answer key (points plotted, bars drawn). */
+  keyVisual?: WsVisual;
+  /** For matching: the right-hand column, in the order shown. */
+  matches?: string[];
+};
+export type WorksheetSection = { heading: string; directions?: string; items: WorksheetItem[];
+  /** A reading passage the questions are about. */
+  passage?: string;
+  /** Lay the problems out in 1 to 4 columns (handy for computation practice). */
+  columns?: number;
+  /** A word bank shown above the questions. */
+  wordBank?: string[];
+};
 /** A worksheet made with AI. Its answer key is the same worksheet shown with the answers. */
-export type GenWorksheet = { title: string; instructions: string; sections: WorksheetSection[] };
+export type GenWorksheet = { title: string; instructions: string; sections: WorksheetSection[];
+  /** Bigger print for young students. */
+  large?: boolean;
+  /** Print a score line in the header. */
+  score?: boolean;
+  grade?: string;
+  subject?: string;
+};
 export type GenSlide = { title: string; bullets: string[]; notes?: string };
 
 /** One file in a lesson's slots: uploaded (kept in the Hub's Drive storage), a link, or made with AI. */
@@ -49,6 +83,8 @@ export type LessonMaterial = {
   worksheet?: GenWorksheet;
   slides?: GenSlide[];
   addedAt?: string;
+  /** A worksheet and its answer key share this, so editing one updates the other. */
+  pair?: string;
 };
 
 /** The full plan: every part of a lesson a teacher fills in. All are optional so older lessons still open. */
@@ -176,25 +212,36 @@ export function cleanClasses(raw: unknown): LessonClass[] {
 
 export function cleanWorksheet(raw: any): GenWorksheet | undefined {
   if (!raw || typeof raw !== "object") return undefined;
+  const KINDS: ItemKind[] = ["choice", "short", "work", "blank", "truefalse", "graph", "match"];
   const sections: WorksheetSection[] = [];
   for (const s of Array.isArray(raw.sections) ? raw.sections : []) {
     if (!s || typeof s !== "object") continue;
     const items: WorksheetItem[] = [];
     for (const it of Array.isArray(s.items) ? s.items : []) {
       if (!it || typeof it !== "object") continue;
-      const prompt = str(it.prompt, 1200).trim();
-      if (!prompt) continue;
+      const prompt = str(it.prompt, 1500).trim();
+      const visual = cleanVisual(it.visual);
+      if (!prompt && !visual) continue;
       const choices = strings(it.choices, 6, 300);
       const lines = Math.max(0, Math.min(12, Math.round(Number(it.lines) || 0)));
-      items.push({ prompt, answer: str(it.answer, 1200).trim(), ...(choices.length >= 2 ? { choices } : {}), ...(lines ? { lines } : {}) });
+      const kind = KINDS.includes(it.kind) ? it.kind as ItemKind : choices.length >= 2 ? "choice" : undefined;
+      const keyVisual = cleanVisual(it.keyVisual);
+      const matches = strings(it.matches, 12, 200);
+      const space = ["small", "medium", "large"].includes(it.space) ? it.space : undefined;
+      items.push({ prompt, answer: str(it.answer, 1500).trim(), ...(kind ? { kind } : {}), ...(choices.length >= 2 ? { choices } : {}), ...(lines ? { lines } : {}), ...(space ? { space } : {}), ...(visual ? { visual } : {}), ...(keyVisual ? { keyVisual } : {}), ...(matches.length ? { matches } : {}) });
       if (items.length >= LIMITS.worksheetItems) break;
     }
     if (!items.length) continue;
-    sections.push({ heading: line(s.heading, 160) || `Part ${sections.length + 1}`, ...(line(s.directions, 600) ? { directions: line(s.directions, 600) } : {}), items });
+    const passage = str(s.passage, 6000).trim();
+    const wordBank = strings(s.wordBank, 30, 60);
+    const columns = Math.max(1, Math.min(4, Math.round(Number(s.columns) || 1)));
+    sections.push({ heading: line(s.heading, 160) || `Part ${sections.length + 1}`, ...(line(s.directions, 600) ? { directions: line(s.directions, 600) } : {}), items,
+      ...(passage ? { passage } : {}), ...(wordBank.length ? { wordBank } : {}), ...(columns > 1 ? { columns } : {}) });
     if (sections.length >= LIMITS.worksheetSections) break;
   }
   if (!sections.length) return undefined;
-  return { title: line(raw.title, 160) || "Worksheet", instructions: str(raw.instructions, 800).trim(), sections };
+  return { title: line(raw.title, 160) || "Worksheet", instructions: str(raw.instructions, 800).trim(), sections,
+    ...(raw.large ? { large: true } : {}), ...(raw.score === false ? { score: false } : {}), ...(line(raw.grade, 20) ? { grade: line(raw.grade, 20) } : {}), ...(line(raw.subject, 60) ? { subject: line(raw.subject, 60) } : {}) };
 }
 
 export function cleanSlides(raw: unknown): GenSlide[] | undefined {
@@ -230,6 +277,7 @@ export function cleanMaterial(raw: any): LessonMaterial | null {
     ...(worksheet ? { worksheet } : {}),
     ...(slides ? { slides } : {}),
     ...(line(raw.addedAt, 40) ? { addedAt: line(raw.addedAt, 40) } : {}),
+    ...(line(raw.pair, 60) ? { pair: line(raw.pair, 60) } : {}),
   };
 }
 

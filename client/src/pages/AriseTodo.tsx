@@ -115,6 +115,7 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 import "./hubThemes.css";
+import "@/components/teacher-hub/darkPalette.css";
 
 type Priority = "low" | "normal" | "high";
 type Repeat = "none" | "daily" | "weekly" | "monthly";

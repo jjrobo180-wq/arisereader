@@ -20,6 +20,7 @@ import {
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { HubModal } from "./HubModal";
 import HubLessonEditor from "./HubLessonEditor";
+import { WorksheetMaker } from "./HubWorksheet";
 import { COLOR, NO_CLASS, STATUS_STYLE, Segmented, Spinner, aiBtn, askLessonAi, smallBtn } from "./HubLessonParts";
 
 type View = "week" | "day" | "month" | "year" | "list" | "students";
@@ -57,6 +58,7 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
   const [classesOpen, setClassesOpen] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
+  const [makerOpen, setMakerOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   const activeClass = classes.find((c) => c.id === classFilter);
@@ -113,11 +115,12 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
   const openReteaches = useMemo(() => studentRecords(lessons, classes, activeClass?.id || "").reduce((n, r) => n + (r.openReteach.length ? 1 : 0), 0), [lessons, classes, activeClass]);
 
   return (
-    <div className="space-y-4" data-testid="lesson-planner">
+    <div className="space-y-4 text-slate-900" data-testid="lesson-planner">
       {/* Stats + main actions */}
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => newLesson()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"><Plus className="h-4 w-4" /> New lesson</button>
         <button type="button" onClick={() => setUnitOpen(true)} className={aiBtn + " min-h-11"}><Sparkles className="h-4 w-4" /> Plan a unit with AI</button>
+        <button type="button" onClick={() => setMakerOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><FileStack className="h-4 w-4" /> Worksheet maker</button>
         <button type="button" onClick={() => setClassesOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"}><Settings2 className="h-4 w-4" /> Classes & periods</button>
         <button type="button" onClick={() => setShiftOpen(true)} className={smallBtn + " min-h-11 px-3 text-sm"} title="Snow day, assembly, ran long — push lessons back"><CloudSnow className="h-4 w-4" /> Shift lessons</button>
         <div className="ml-auto flex flex-wrap gap-2 text-xs">
@@ -193,6 +196,10 @@ export default function HubLessons({ workspace, setWorkspace, token, makeId, say
       {classesOpen && <ClassesManager classes={classes} setClasses={setClasses} caseload={caseload} blocks={blocks} makeId={makeId} lessons={lessons} onClose={() => setClassesOpen(false)} />}
       {unitOpen && <UnitPlanner token={token} classes={classes} lessons={lessons} state={state} onState={setState} defaultClass={activeClass?.id || classes[0]?.id || ""} today={today}
         onAdd={(made) => { setLessons((all) => [...made, ...all]); say(`${made.length} lessons added to your plan.`); setView("year"); }} onClose={() => setUnitOpen(false)} makeId={makeId} />}
+      {makerOpen && <WorksheetMaker token={token} state={state} className={activeClass?.name || ""}
+        lessons={[...lessons].filter((l) => !l.date || l.date >= addDays(today, -30)).sort((a, b) => (a.date || "9").localeCompare(b.date || "9")).slice(0, 200).map((l) => ({ id: l.id, label: `${l.date ? nice(l.date, { month: "short", day: "numeric" }) + " · " : ""}${l.title}${classOf(l, classes) ? ` (${classOf(l, classes)!.name})` : ""}` }))}
+        onSave={(lessonId, ws) => { const pair = makeId(), at = new Date().toISOString(); setLessons((all) => all.map((l) => l.id !== lessonId ? l : { ...l, files: [...(l.files || []), { id: makeId(), kind: "worksheet", name: ws.title, worksheet: ws, addedAt: at, pair }, { id: makeId(), kind: "answerKey", name: `${ws.title} — answer key`, worksheet: ws, addedAt: at, pair }] })); say("Worksheet and answer key saved to the lesson."); }}
+        onClose={() => setMakerOpen(false)} />}
       {shiftOpen && <ShiftLessons classes={classes} today={today} onShift={(classIds, from, by) => {
         setLessons((all) => classIds.reduce((acc, id) => bumpLessons(acc, classes, id, from, by), all));
         say(`Lessons moved ${by > 0 ? "later" : "earlier"} by ${Math.abs(by)} class day${Math.abs(by) === 1 ? "" : "s"}.`);

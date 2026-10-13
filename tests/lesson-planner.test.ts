@@ -136,3 +136,26 @@ test("worksheet, answer key and PowerPoint downloads", () => {
   assert.equal(pptx[1], 0x4b);
   assert.ok(Buffer.from(pptx).includes("find &lt;it&gt; &amp; say why"));
 });
+
+test("worksheets print real maths and pictures, with the answers only on the key", async () => {
+  const { cleanWorksheet } = await import("../shared/lessonPlanner");
+  const { renderVisual, cleanVisual, compileExpr } = await import("../shared/worksheetVisuals");
+  const { mathHtml, latexToSimpleHtml } = await import("../client/src/lib/lessonExport");
+  assert.ok(mathHtml("Add $\\frac{1}{2}+\\frac{1}{4}$").includes("frac-line"), "a stacked fraction, not 1/2");
+  assert.equal(latexToSimpleHtml("\\frac{3}{4}"), "<sup>3</sup>&frasl;<sub>4</sub>");
+  const ws = cleanWorksheet({ title: "T", sections: [{ heading: "A", columns: 3, items: [
+    { kind: "graph", prompt: "Plot A(2,3)", answer: "see graph", visual: { type: "coordinate-plane", xMin: -5, xMax: 5, yMin: -5, yMax: 5 }, keyVisual: { type: "coordinate-plane", xMin: -5, xMax: 5, yMin: -5, yMax: 5, points: [{ x: 2, y: 3, label: "A" }] } },
+    { prompt: "Shade", answer: "", visual: { type: "fraction-circle", parts: 8, shaded: 0 } },
+    { prompt: "x", answer: "1", visual: { type: "nonsense" } },
+  ] }] })!;
+  assert.equal(ws.sections[0].columns, 3);
+  assert.equal(ws.sections[0].items[0].keyVisual?.type, "coordinate-plane");
+  assert.equal(ws.sections[0].items[2].visual, undefined);
+  const student = worksheetHtml(ws, { answers: false }), key = worksheetHtml(ws, { answers: true });
+  assert.ok(!student.includes(">A</text>") && key.includes(">A</text>"), "the plotted point is only on the key");
+  assert.ok(key.includes("ANSWER KEY") && !student.includes("ANSWER KEY"));
+  assert.ok(worksheetHtml(ws, { answers: false, both: true }).includes("break-before:page"));
+  assert.ok(renderVisual(cleanVisual({ type: "number-line", min: 0, max: 1, denominator: 4 })!).includes("<svg"));
+  assert.equal(compileExpr("2x+1")!(3), 7);
+  assert.equal(compileExpr("alert(1)"), null);
+});

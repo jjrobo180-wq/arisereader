@@ -87,6 +87,10 @@ app.use("/api/lifehub/drop/upload", express.raw({ type: "*/*", limit: "205mb" })
 // Arise WorkHub: a workspace with a full caseload and connected calendars is bigger than the usual
 // request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));
+// Arise Office files and premium-app data: big workbooks and documents are saved here whole.
+app.use("/api/docs", express.json({ limit: "11mb" }));
+app.use("/api/app-data", express.json({ limit: "2500kb" }));
+app.use("/api/apps/ai", express.json({ limit: "200kb" }));
 // LifeHub workspaces can exceed the default 100 KB JSON request size.
 app.use("/api/arise-todo/workspace", express.json({ limit: "6mb" }));
 // A meal photo for the food diary's calorie estimate (shrunk on the phone first).

@@ -2,6 +2,8 @@
 //  - a PowerPoint (.pptx) from slides made with AI, speaker notes included;
 //  - a worksheet or its answer key as a printable page, or as a file Word opens (.doc).
 import type { GenSlide, GenWorksheet } from "@shared/lessonPlanner";
+import { renderVisual } from "@shared/worksheetVisuals";
+import katex from "@/vendor/katex.mjs";
 
 // ─── A small ZIP writer (files are stored, not squeezed; PowerPoint is happy with that) ───
 
@@ -135,59 +137,130 @@ export function buildPptx(deckTitle: string, slides: GenSlide[], color = "teal")
 }
 
 // ─── Worksheets and answer keys ─────────────────────────────────────────────
+//
+// A worksheet prints like one bought from a teacher store: a name/date/score header, numbered
+// questions, real maths (stacked fractions, exponents, roots — typeset with KaTeX), pictures drawn
+// exactly (graphs, number lines, fraction bars, clocks, shapes…), answer lines and work boxes. The
+// answer key is the same pages with the answers filled in and the pictures completed.
 
 const h = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const LETTERS = "ABCDEF";
 
-/** A worksheet as a full page to print or open in Word. With `answers` it is the answer key. */
-export function worksheetHtml(ws: GenWorksheet, opts: { answers: boolean; className?: string; teacher?: string }): string {
-  let n = 0;
-  const sections = ws.sections.map((s) => {
-    const items = s.items.map((it) => {
-      n++;
-      const choices = it.choices?.length
-        ? `<ol class="choices">${it.choices.map((c, i) => `<li class="${opts.answers && c.trim().toLowerCase() === it.answer.trim().toLowerCase() ? "right" : ""}"><b>${LETTERS[i]}.</b> ${h(c)}</li>`).join("")}</ol>`
-        : "";
-      const lines = !opts.answers && !it.choices?.length ? `<div class="lines">${"<div class=\"line\"></div>".repeat(it.lines || 2)}</div>` : "";
-      const answer = opts.answers ? `<div class="answer"><b>Answer:</b> ${h(it.answer || "—")}</div>` : "";
-      return `<li class="item"><div class="prompt">${h(it.prompt).replace(/\n/g, "<br>")}</div>${choices}${lines}${answer}</li>`;
-    }).join("");
-    const start = n - s.items.length + 1;
-    return `<section><h2>${h(s.heading)}</h2>${s.directions ? `<p class="dir">${h(s.directions)}</p>` : ""}<ol class="items" start="${start}">${items}</ol></section>`;
+/** Text with $maths$ in it, as HTML: the maths typeset by KaTeX, everything else escaped. */
+export function mathHtml(text: string, mode: "katex" | "word" = "katex"): string {
+  const parts = String(text || "").split(/(\$\$[^$]+\$\$|\$[^$\n]+\$)/g);
+  return parts.map((p) => {
+    const m = /^\$\$?([^$]+)\$\$?$/.exec(p);
+    if (!m) return h(p).replace(/\n/g, "<br>");
+    const tex = m[1];
+    if (mode === "word") return latexToSimpleHtml(tex);
+    // Worksheet fractions are printed full size (\dfrac), the way they look in a textbook.
+    try { return katex.renderToString(tex.replace(/\\frac/g, "\\dfrac"), { throwOnError: false, displayMode: p.startsWith("$$"), strict: false }); } catch { return h(tex); }
   }).join("");
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${h(ws.title)}${opts.answers ? " — Answer key" : ""}</title><style>
-  @page { margin: 0.6in; }
-  body { font-family: Calibri, "Segoe UI", Arial, sans-serif; color: #111827; font-size: 12pt; line-height: 1.45; max-width: 7.5in; margin: 0 auto; padding: 16px; }
-  .top { display: flex; gap: 24px; justify-content: space-between; border-bottom: 2px solid #111827; padding-bottom: 8px; font-size: 11pt; }
-  .top span { flex: 1; border-bottom: 1px solid #9ca3af; min-height: 18px; }
-  h1 { font-size: 20pt; margin: 18px 0 4px; }
-  .key { display: inline-block; background: #fee2e2; color: #991b1b; font-weight: 700; font-size: 10pt; padding: 2px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle; }
-  .inst { color: #374151; margin: 0 0 12px; }
-  h2 { font-size: 13pt; margin: 20px 0 4px; padding: 4px 8px; background: #f3f4f6; border-left: 4px solid #0f766e; }
+}
+
+/** LaTeX as plain HTML Word understands: ³⁄₄-style fractions, superscripts, √, ×, ÷. */
+export function latexToSimpleHtml(tex: string): string {
+  let s = tex;
+  for (let i = 0; i < 6; i++) s = s.replace(/\\[dt]?frac\{([^{}]*)\}\{([^{}]*)\}/g, "<sup>$1</sup>&frasl;<sub>$2</sub>");
+  s = s.replace(/\\sqrt\{([^{}]*)\}/g, "&radic;($1)").replace(/\^\{([^{}]*)\}/g, "<sup>$1</sup>").replace(/\^(\w)/g, "<sup>$1</sup>").replace(/_\{([^{}]*)\}/g, "<sub>$1</sub>")
+    .replace(/\\times/g, "&times;").replace(/\\div/g, "&divide;").replace(/\\cdot/g, "&middot;").replace(/\\le(q)?/g, "&le;").replace(/\\ge(q)?/g, "&ge;").replace(/\\ne(q)?/g, "&ne;")
+    .replace(/\\pi/g, "&pi;").replace(/\\pm/g, "&plusmn;").replace(/\\circ|\\degree/g, "&deg;").replace(/\\(text|mathrm)\{([^{}]*)\}/g, "$2").replace(/\\(?:left|right|[,;!])/g, "")
+    .replace(/\\begin\{array\}\{[a-z]*\}|\\end\{array\}|\\hline/g, "").replace(/\\\\/g, "<br>").replace(/[{}]/g, "");
+  return s;
+}
+
+const WS_CSS = `
+  @page { size: letter; margin: 0.55in; }
+  * { box-sizing: border-box; }
+  body { font-family: "Century Gothic", "Avenir Next", "Segoe UI", Arial, sans-serif; color: #111827; background: #fff; font-size: 12.5pt; line-height: 1.45; max-width: 7.6in; margin: 0 auto; padding: 14px; }
+  body.large { font-size: 15pt; }
+  .top { display: flex; align-items: flex-end; gap: 14px; border-bottom: 2.5px solid #111827; padding-bottom: 6px; font-size: 10.5pt; }
+  .top b { white-space: nowrap; } .top span { flex: 1; border-bottom: 1px solid #6b7280; min-height: 18px; }
+  .score { margin-left: auto; border: 2px solid #111827; border-radius: 10px; padding: 3px 12px; white-space: nowrap; }
+  h1 { font-size: 21pt; margin: 14px 0 2px; letter-spacing: -0.01em; }
+  .tag { display: inline-block; font-size: 9pt; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: .06em; }
+  .key { display: inline-block; background: #dc2626; color: #fff; font-weight: 800; font-size: 10pt; padding: 3px 10px; border-radius: 6px; margin-left: 10px; vertical-align: middle; letter-spacing: .04em; }
+  .inst { color: #374151; margin: 4px 0 10px; }
+  h2 { font-size: 13pt; margin: 18px 0 4px; padding: 5px 10px; background: #f3f4f6; border-left: 5px solid #111827; border-radius: 4px; break-after: avoid; }
   .dir { font-style: italic; color: #4b5563; margin: 4px 0 8px; }
-  .items { padding-left: 24px; }
-  .item { margin: 0 0 14px; break-inside: avoid; page-break-inside: avoid; }
-  .choices { list-style: none; padding-left: 8px; margin: 6px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 24px; }
-  .choices .right { background: #dcfce7; font-weight: 700; border-radius: 4px; }
-  .lines .line { border-bottom: 1px solid #9ca3af; height: 26px; }
-  .answer { margin-top: 4px; color: #b91c1c; }
-  .foot { margin-top: 24px; font-size: 9pt; color: #9ca3af; text-align: right; }
-  </style></head><body>
-  <div class="top"><b>Name</b><span></span><b>Date</b><span style="flex:.5"></span>${opts.className ? `<b>${h(opts.className)}</b>` : "<b>Class</b><span style=\"flex:.4\"></span>"}</div>
-  <h1>${h(ws.title)}${opts.answers ? '<span class="key">ANSWER KEY</span>' : ""}</h1>
-  ${ws.instructions ? `<p class="inst">${h(ws.instructions)}</p>` : ""}
-  ${sections}
-  <div class="foot">${opts.teacher ? `${h(opts.teacher)} · ` : ""}Made with Arise WorkHub</div>
-  </body></html>`;
+  .passage { border: 1.5px solid #9ca3af; border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; line-height: 1.6; text-indent: 1.4em; }
+  .bank { border: 2px dashed #6b7280; border-radius: 10px; padding: 6px 12px; margin: 6px 0 10px; display: flex; flex-wrap: wrap; gap: 6px 22px; justify-content: center; font-weight: 700; }
+  .items { display: grid; gap: 12px 26px; padding: 0; margin: 0; list-style: none; }
+  .cols-2 { grid-template-columns: 1fr 1fr; } .cols-3 { grid-template-columns: 1fr 1fr 1fr; } .cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .item { break-inside: avoid; page-break-inside: avoid; display: flex; gap: 8px; }
+  .num { font-weight: 800; min-width: 1.6em; }
+  .body { flex: 1; min-width: 0; }
+  .prompt .katex { font-size: 1.12em; }
+  .vis { margin: 8px 0 4px; } .vis svg { display: block; max-width: 100%; height: auto; }
+  .choices { list-style: none; padding: 0; margin: 6px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; }
+  .choices li { display: flex; gap: 6px; align-items: baseline; } .bub { display: inline-flex; width: 1.35em; height: 1.35em; border: 1.5px solid #111827; border-radius: 50%; align-items: center; justify-content: center; font-size: .78em; font-weight: 700; flex-shrink: 0; }
+  .choices .right .bub { background: #dc2626; border-color: #dc2626; color: #fff; }
+  .tf { margin-top: 4px; font-weight: 700; } .tf .on { color: #dc2626; text-decoration: underline; }
+  .lines .line { border-bottom: 1.2px solid #9ca3af; height: 30px; }
+  body.large .lines .line { height: 38px; }
+  .work { border: 1.5px solid #cbd5e1; border-radius: 8px; margin-top: 6px; position: relative; }
+  .work::before { content: "Show your work"; position: absolute; top: 4px; left: 8px; font-size: 8pt; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; }
+  .work.small { height: 70px; } .work.medium { height: 120px; } .work.large { height: 190px; }
+  .match { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 30px; margin-top: 6px; } .match div { padding: 3px 0; }
+  .ans { margin-top: 6px; color: #b91c1c; font-weight: 700; } .ans .katex { color: #b91c1c; }
+  .blank-ans { color: #b91c1c; font-weight: 700; }
+  .foot { margin-top: 26px; font-size: 8.5pt; color: #9ca3af; display: flex; justify-content: space-between; }
+`;
+
+function itemHtml(it: GenWorksheet["sections"][number]["items"][number], n: number, answers: boolean, word: boolean): string {
+  const M = (s: string) => mathHtml(s, word ? "word" : "katex");
+  const kind = it.kind || (it.choices?.length ? "choice" : it.visual && !it.lines && !it.space ? "graph" : it.lines ? "short" : "short");
+  // The right choice: the answer matches its text, or the answer is just its letter ("B", "B.", "B) 3/4").
+  const ansLetter = /^([A-F])(?:[.)]|\s|$)/.exec(it.answer.trim())?.[1];
+  const isRight = (c: string) => norm(c) === norm(it.answer) || (!!ansLetter && (it.choices || []).indexOf(c) === LETTERS.indexOf(ansLetter) && !(it.choices || []).some((x) => norm(x) === norm(it.answer)));
+  let prompt = M(it.prompt);
+  if (kind === "blank") prompt = prompt.replace(/_{3,}/g, () => (answers ? `<span class="blank-ans">${M(it.answer)}</span>` : "<span style=\"display:inline-block;min-width:4.5em;border-bottom:1.2px solid #111827\">&nbsp;</span>"));
+  const visual = answers && it.keyVisual ? it.keyVisual : it.visual;
+  let body = `<div class="prompt">${prompt}</div>`;
+  if (visual) body += `<div class="vis">${renderVisual(visual, { answers })}</div>`;
+  if (kind === "choice" && it.choices?.length) body += `<ul class="choices">${it.choices.map((c, i) => `<li class="${answers && isRight(c) ? "right" : ""}"><span class="bub">${LETTERS[i]}</span><span>${M(c)}</span></li>`).join("")}</ul>`;
+  if (kind === "truefalse") { const t = /^t/i.test(it.answer.trim()); body += `<div class="tf"><span class="${answers && t ? "on" : ""}">True</span> &nbsp;&nbsp; / &nbsp;&nbsp; <span class="${answers && !t ? "on" : ""}">False</span></div>`; }
+  if (kind === "match" && it.matches?.length) body += `<div class="match">${it.matches.map((m) => `<div>____ ${M(m)}</div>`).join("")}</div>`;
+  if (!answers) {
+    if (kind === "short" || (it.lines && kind !== "choice")) body += `<div class="lines">${'<div class="line"></div>'.repeat(Math.max(1, it.lines || 2))}</div>`;
+    if (kind === "work" || it.space) body += `<div class="work ${it.space || "medium"}"></div>`;
+  }
+  if (answers && kind !== "choice" && kind !== "truefalse" && kind !== "blank" && it.answer) body += `<div class="ans">Answer: ${M(it.answer)}</div>`;
+  if (answers && kind === "choice" && it.answer && !(it.choices || []).some(isRight)) body += `<div class="ans">Answer: ${M(it.answer)}</div>`;
+  return `<li class="item"><span class="num">${n}.</span><div class="body">${body}</div></li>`;
+}
+const norm = (s: string) => String(s || "").replace(/\$/g, "").replace(/^[A-F][.)]\s*/i, "").replace(/\s+/g, " ").trim().toLowerCase();
+
+/** A worksheet as a full page to print, save as PDF or open in Word. With `answers` it is the answer key. */
+export function worksheetHtml(ws: GenWorksheet, opts: { answers: boolean; className?: string; teacher?: string; word?: boolean; both?: boolean }): string {
+  const page = (answers: boolean) => {
+    let n = 0;
+    const sections = ws.sections.map((s) => {
+      const items = s.items.map((it) => itemHtml(it, ++n, answers, !!opts.word)).join("");
+      const cols = s.columns && s.columns > 1 ? ` cols-${Math.min(4, s.columns)}` : "";
+      return `<section><h2>${h(s.heading)}</h2>${s.directions ? `<p class="dir">${mathHtml(s.directions, opts.word ? "word" : "katex")}</p>` : ""}${s.passage ? `<div class="passage">${h(s.passage).replace(/\n{2,}/g, "</div><div class=\"passage\" style=\"border:0;padding-top:0;margin-top:-8px\">").replace(/\n/g, "<br>")}</div>` : ""}${s.wordBank?.length ? `<div class="bank">${s.wordBank.map(h).join("<span>•</span>")}</div>` : ""}<ol class="items${cols}">${items}</ol></section>`;
+    }).join("");
+    return `<div class="top"><b>Name</b><span></span><b>Date</b><span style="flex:.45"></span>${opts.className ? `<b>${h(opts.className)}</b>` : "<b>Class</b><span style=\"flex:.35\"></span>"}${ws.score !== false ? `<span class="score" style="border-bottom:2px solid #111827;flex:none">Score: ______ / ${n || ws.sections.reduce((a, s) => a + s.items.length, 0)}</span>` : ""}</div>
+      ${ws.subject || ws.grade ? `<div class="tag" style="margin-top:10px">${h([ws.subject, ws.grade && `Grade ${ws.grade}`].filter(Boolean).join(" · "))}</div>` : ""}
+      <h1>${h(ws.title)}${answers ? '<span class="key">ANSWER KEY</span>' : ""}</h1>
+      ${ws.instructions ? `<p class="inst">${mathHtml(ws.instructions, opts.word ? "word" : "katex")}</p>` : ""}
+      ${sections}
+      <div class="foot"><span>${opts.teacher ? h(opts.teacher) : ""}</span><span>Made with Arise WorkHub</span></div>`;
+  };
+  const katexCss = opts.word ? "" : `<link rel="stylesheet" href="${typeof location !== "undefined" ? location.origin : ""}/vendor/katex/katex.min.css">`;
+  const content = opts.both ? `${page(false)}<div style="page-break-before:always;break-before:page"></div>${page(true)}` : page(opts.answers);
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${h(ws.title)}${opts.answers && !opts.both ? " — Answer key" : ""}</title>${katexCss}<style>${WS_CSS}</style></head><body class="${ws.large ? "large" : ""}">${content}</body></html>`;
 }
 
 /** A plain-text answer key (for copying into a gradebook or an LMS). */
 export function answerKeyText(ws: GenWorksheet): string {
   let n = 0;
+  const plain = (s: string) => s.replace(/\$([^$]+)\$/g, (_m, tex: string) => latexToSimpleHtml(tex).replace(/<sup>([^<]*)<\/sup>&frasl;<sub>([^<]*)<\/sub>/g, "$1/$2").replace(/<[^>]+>/g, "").replace(/&times;/g, "×").replace(/&divide;/g, "÷").replace(/&radic;/g, "√").replace(/&[a-z]+;/g, ""));
   return [`${ws.title} — Answer key`, ...ws.sections.flatMap((s) => [``, s.heading, ...s.items.map((it) => {
     n++;
-    const letter = it.choices ? it.choices.findIndex((c) => c.trim().toLowerCase() === it.answer.trim().toLowerCase()) : -1;
-    return `${n}. ${letter >= 0 ? `${LETTERS[letter]}. ` : ""}${it.answer}`;
+    const letter = it.choices ? it.choices.findIndex((c) => norm(c) === norm(it.answer)) : -1;
+    return `${n}. ${letter >= 0 ? `${LETTERS[letter]}. ` : ""}${plain(it.answer)}`;
   })])].join("\n");
 }
 
@@ -212,7 +285,7 @@ export function downloadPptx(title: string, slides: GenSlide[], color?: string) 
 
 /** Saves a worksheet as a file Word opens. */
 export function downloadWorksheetDoc(ws: GenWorksheet, answers: boolean, className?: string) {
-  const html = worksheetHtml(ws, { answers, className }).replace("<html>", '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">');
+  const html = worksheetHtml(ws, { answers, className, word: true }).replace("<html>", '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">');
   download(`${safeFileName(ws.title)}${answers ? " - Answer key" : ""}.doc`, "﻿" + html, "application/msword");
 }
 

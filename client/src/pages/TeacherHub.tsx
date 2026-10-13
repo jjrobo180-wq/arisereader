@@ -88,6 +88,7 @@ import { cleanGroupOrder, HUB_GROUPS, SUB_LABELS, groupLabel, groupOf, groupTabs
 import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
 import "@/components/teacher-hub/hubPaper.css";
+import "@/components/teacher-hub/darkPalette.css";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
 import { HomeParts, WORK_PARTS, type HomePart } from "@/components/teacher-hub/HubHomeEdit";

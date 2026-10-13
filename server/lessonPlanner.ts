@@ -106,6 +106,24 @@ const standardsRule = (state: string) => state
   ? `Use the standards ${state} actually uses, with their real codes (for example, states that use the Common Core use codes like "RL.5.2" or "5.NF.A.1"; Texas uses TEKS like "5.3(A)"; Virginia uses SOL). Write each standard as "CODE — short description". Only give codes you are confident are real; if unsure of an exact code, give the closest real one.`
   : `If no state is given, use Common Core codes for ELA and math (like "RL.5.2") and NGSS for science. Write each standard as "CODE — short description".`;
 
+const WORKSHEET_RULES = `Worksheet rules:
+- Write ALL maths in LaTeX between single $ signs so it prints as real maths: fractions as $\\frac{3}{4}$ (never 3/4), mixed numbers as $2\\frac{1}{3}$, exponents $x^2$, roots $\\sqrt{49}$, times $\\times$, divide $\\div$, $\\le$ $\\ge$, decimals and money plainly ($4.25). Stacked problems: $\\begin{array}{r} 345 \\\\ +\\,128 \\\\ \\hline \\end{array}$.
+- Use "visual" whenever a picture helps. Types (all numbers are plain JSON numbers):
+  {"type":"coordinate-plane","xMin":-10,"xMax":10,"yMin":-10,"yMax":10,"points":[{"x":2,"y":3,"label":"A"}],"lines":["2x+1"],"segments":[{"x1":0,"y1":0,"x2":3,"y2":4}]}
+  {"type":"number-line","min":0,"max":2,"step":0.25,"denominator":4,"points":[{"x":0.75,"label":"P"}],"blankLabels":false}
+  {"type":"bar-graph" or "line-graph","title":"","labels":["Mon","Tue"],"values":[4,7],"yLabel":"","xLabel":"","blank":false}
+  {"type":"pie-chart","labels":[],"values":[]}  {"type":"picture-graph","labels":[],"values":[],"key":2,"symbol":"★"}  {"type":"tally","labels":[],"values":[]}
+  {"type":"fraction-bar" or "fraction-circle","parts":8,"shaded":3,"count":1}  {"type":"array","rows":3,"cols":5}  {"type":"ten-frame","filled":7}
+  {"type":"base-ten","hundreds":1,"tens":4,"ones":2}  {"type":"clock","hour":3,"minute":45,"hands":true}  {"type":"angle","degrees":65,"protractor":true}
+  {"type":"shape","shape":"rectangle|square|triangle|right-triangle|circle|trapezoid|parallelogram|rectangular-prism","labels":["8 cm","5 cm"]}
+  {"type":"table","headers":["x","y"],"rows":[["1","3"],["2",""]]}  {"type":"grid-paper","rows":10,"cols":10}  {"type":"money","coins":[{"kind":"quarter","count":2}]}
+- When students must draw or plot (plot points, draw the bars, shade the fraction, draw the hands), give the empty "visual" (no points, "blank": true, "shaded": 0, "hands": false) and put the finished picture in "keyVisual" for the answer key.
+- "kind" is one of: "choice" (give 4 "choices"), "short" (give "lines"), "work" (room to show work, give "space": "small|medium|large"), "blank" (fill in the blank: put ____ in the prompt), "truefalse", "graph" (a visual to complete), "match" (give "matches", the right-hand column).
+- Every question has a correct "answer" (with $maths$ when it is maths; for written answers a model answer).
+- For computation practice set the section's "columns" to 2 or 3. For reading, put the passage in the section's "passage". A "wordBank" list is allowed.
+- Age-appropriate wording, accurate maths, no trick questions.`;
+const WORKSHEET_SHAPE = `{"title": string, "instructions": string, "large": boolean (true for grades K-2), "sections": [{"heading": string, "directions": string, "columns": number, "passage": string (optional), "wordBank": string[] (optional), "items": [{"kind": string, "prompt": string, "choices": string[] (optional), "answer": string, "lines": number (optional), "space": string (optional), "visual": object (optional), "keyVisual": object (optional), "matches": string[] (optional)}]}]}`;
+
 /** The system and user messages for each job, and how long the answer may be. */
 export function lessonPrompt(a: CleanAsk): { system: string; user: string; maxTokens: number } {
   const ctx = context(a);
@@ -121,7 +139,7 @@ export function lessonPrompt(a: CleanAsk): { system: string; user: string; maxTo
       return { maxTokens: 1600, system: `${BASE}\n${standardsRule(a.state)}`, user: `${ctx}\n\nList up to 10 ${a.state || "Common Core / national"} standards that best match this${a.grade ? ` for grade ${a.grade}` : ""}${a.subject ? ` in ${a.subject}` : ""}, best match first. Return {"standards": [{"code": string, "text": string}]}.` };
     case "worksheet": {
       const kind = a.kind || "practice worksheet";
-      return { maxTokens: 4000, system: BASE, user: `${ctx}\n\nMake a printable ${kind} for this lesson with about ${Math.min(a.count, 30)} questions${a.level ? `, ${a.level} level` : ""}. Group questions into 1-4 sections (for example: vocabulary, multiple choice, show your work, short answer). Every question needs its correct answer (for short answers, a model answer). For multiple choice give 4 choices and make the answer exactly one of them. Give "lines" (1-8) for questions students write out.\nReturn {"title": string, "instructions": string, "sections": [{"heading": string, "directions": string, "items": [{"prompt": string, "choices": string[] (optional), "answer": string, "lines": number (optional)}]}]}.` };
+      return { maxTokens: 7000, system: `${BASE}\n${WORKSHEET_RULES}`, user: `${ctx}\n\nMake a printable ${kind} for this lesson with about ${Math.min(a.count, 30)} questions${a.level ? `, ${a.level} level` : ""}${a.grade ? `, for grade ${a.grade}` : ""}. Group the questions into 1-4 sections (for example: warm-up, practice, word problems, show your work, challenge). Make it look and work like a real worksheet a teacher would buy: varied question types, real numbers, pictures where they help.\nReturn ${WORKSHEET_SHAPE}.` };
     }
     case "slides":
       return { maxTokens: 4000, system: BASE, user: `${ctx}\n\nMake a slide deck the teacher can present for this lesson, about ${Math.min(a.count, 20)} slides: a title slide, the learning objective ("I can…"), warm-up, vocabulary, teaching slides with worked examples, guided practice, independent practice directions, and an exit ticket. Keep bullets short (under 15 words each, at most 6 per slide). Put what the teacher says in notes.\nReturn {"slides": [{"title": string, "bullets": string[], "notes": string}]}.` };

@@ -3,7 +3,7 @@
 // slideshow and the worksheet preview.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  BookCheck, ChevronLeft, ChevronRight, Download, ExternalLink, FileText, Link2, Loader2, Maximize2, Plus, Presentation, Printer,
+  BookCheck, Pencil, ChevronLeft, ChevronRight, Download, ExternalLink, FileText, Link2, Loader2, Maximize2, Plus, Presentation, Printer,
   Search, Sparkles, Trash2, Upload, X,
 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -14,6 +14,7 @@ import {
   type ClassColor, type FoundStandard, type GenSlide, type GenWorksheet, type LessonMaterial, type MaterialKind,
 } from "@shared/lessonPlanner";
 import { HubModal } from "./HubModal";
+import { WorksheetStudio } from "./HubWorksheet";
 
 // ─── Colours ────────────────────────────────────────────────────────────────
 
@@ -189,7 +190,7 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
   const [error, setError] = useState("");
   const [linkFor, setLinkFor] = useState<MaterialKind | null>(null);
   const [link, setLink] = useState({ name: "", url: "" });
-  const [preview, setPreview] = useState<{ ws: GenWorksheet; answers: boolean } | null>(null);
+  const [preview, setPreview] = useState<{ id: string; answers: boolean } | null>(null);
   const [present, setPresent] = useState<GenSlide[] | null>(null);
   const [opts, setOpts] = useState({ kind: "practice worksheet", count: 12, level: "on grade level", slides: 12 });
 
@@ -222,7 +223,7 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
   async function open(m: LessonMaterial) {
     if (m.url) { window.open(m.url, "_blank", "noopener"); return; }
     if (m.slides) { setPresent(m.slides); return; }
-    if (m.worksheet) { setPreview({ ws: m.worksheet, answers: m.kind === "answerKey" }); return; }
+    if (m.worksheet) { setPreview({ id: m.id, answers: m.kind === "answerKey" }); return; }
     if (!m.path) return;
     const w = window.open("", "_blank");
     try {
@@ -251,9 +252,10 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
         const ws: GenWorksheet = data.worksheet;
         const now = new Date().toISOString();
         // A worksheet always comes with its answer key, filed in the answer key slot.
+        const pair = makeId();
         onChange([...files,
-          { id: makeId(), kind: "worksheet", name: ws.title, worksheet: ws, addedAt: now },
-          { id: makeId(), kind: "answerKey", name: `${ws.title} — answer key`, worksheet: ws, addedAt: now }]);
+          { id: makeId(), kind: "worksheet", name: ws.title, worksheet: ws, addedAt: now, pair },
+          { id: makeId(), kind: "answerKey", name: `${ws.title} — answer key`, worksheet: ws, addedAt: now, pair }]);
         say("Worksheet and its answer key are ready.");
       }
       setMaking(null);
@@ -310,7 +312,7 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
                 ) : (
                   <div className="grid gap-2 sm:grid-cols-3">
                     <select aria-label="Kind" value={opts.kind} onChange={(e) => setOpts({ ...opts, kind: e.target.value })} className="min-h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm">
-                      {["practice worksheet", "quiz", "exit ticket", "homework", "vocabulary practice", "reading comprehension questions", "test review"].map((k) => <option key={k}>{k}</option>)}
+                      {["practice worksheet", "quiz", "unit test", "exit ticket", "homework", "warm-up", "graphing practice", "word problems", "reading comprehension with a passage", "vocabulary practice", "test review"].map((k) => <option key={k}>{k}</option>)}
                     </select>
                     <select aria-label="Level" value={opts.level} onChange={(e) => setOpts({ ...opts, level: e.target.value })} className="min-h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm">
                       {["on grade level", "below grade level (scaffolded, with word bank and examples)", "above grade level (challenge)", "modified for students with IEPs (simplified language, fewer choices, visuals described)"].map((k) => <option key={k} value={k}>{k.split(" (")[0]}</option>)}
@@ -338,6 +340,7 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
                         <button type="button" className={smallBtn} onClick={() => downloadPptx(m.name, m.slides!, color)}><Download className="h-3.5 w-3.5" /> .pptx</button>
                       </>}
                       {m.worksheet && <>
+                        <button type="button" className={smallBtn} onClick={() => setPreview({ id: m.id, answers: m.kind === "answerKey" })}><Pencil className="h-3.5 w-3.5" /> View & edit</button>
                         <button type="button" className={smallBtn} onClick={() => { if (!printHtml(worksheetHtml(m.worksheet!, { answers: m.kind === "answerKey", className }))) setError("Allow pop-ups for this site to print."); }}><Printer className="h-3.5 w-3.5" /> Print</button>
                         <button type="button" className={smallBtn} onClick={() => downloadWorksheetDoc(m.worksheet!, m.kind === "answerKey", className)}><Download className="h-3.5 w-3.5" /> Word</button>
                       </>}
@@ -351,26 +354,15 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
           </section>
         );
       })}
-      {preview && <WorksheetPreview ws={preview.ws} answers={preview.answers} className={className} onClose={() => setPreview(null)} />}
+      {preview && (() => {
+        const m = files.find((f) => f.id === preview.id);
+        if (!m?.worksheet) return null;
+        // Editing a worksheet changes its answer key too (and the other way round): they're one worksheet.
+        const save = (ws: GenWorksheet) => onChange(files.map((f) => (f.id === m.id || (m.pair && f.pair === m.pair) ? { ...f, worksheet: ws, name: f.kind === "answerKey" ? `${ws.title} — answer key` : ws.title } : f)));
+        return <WorksheetStudio ws={m.worksheet} startView={preview.answers ? "key" : "student"} className={className} onChange={save} onClose={() => setPreview(null)} />;
+      })()}
       {present && <Slideshow slides={present} onClose={() => setPresent(null)} />}
     </div>
-  );
-}
-
-export function WorksheetPreview({ ws, answers: startAnswers, className, onClose }: { ws: GenWorksheet; answers: boolean; className: string; onClose: () => void }) {
-  const [answers, setAnswers] = useState(startAnswers);
-  const [copied, setCopied] = useState(false);
-  return (
-    <HubModal title={ws.title} onClose={onClose} size="lg" closeOnBackdrop footer={
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => setAnswers(!answers)}>{answers ? "Hide answers" : "Show answer key"}</button>
-        <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => printHtml(worksheetHtml(ws, { answers, className }))}><Printer className="h-4 w-4" /> Print / PDF</button>
-        <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => downloadWorksheetDoc(ws, answers, className)}><Download className="h-4 w-4" /> Word</button>
-        <button type="button" className={smallBtn + " min-h-10 px-3"} onClick={() => { void navigator.clipboard?.writeText(answerKeyText(ws)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}>{copied ? "Copied" : "Copy answers"}</button>
-      </div>
-    }>
-      <iframe title={ws.title} srcDoc={worksheetHtml(ws, { answers, className })} className="h-[65vh] w-full rounded-xl border border-slate-200 bg-white" />
-    </HubModal>
   );
 }
 
