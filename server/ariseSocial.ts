@@ -391,7 +391,9 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     noStore(res);
     const teacher = v.role === "student" && v.teacherId ? await dir.user(v.teacherId) : null;
     const approvalStatus = req.adminPreview ? "approved" : await studentApproval(v);
-    const block = approvalStatus === "approved" ? await postBlock(v) : "Your teacher must approve your A.R.I.S.E. Connect request first.";
+    const block = approvalStatus === "approved" || approvalStatus === "needs_class"
+      ? await postBlock(v)
+      : "Your teacher must approve your A.R.I.S.E. Connect request first.";
     const base = {
       access: await hasAccess(req),
       approvalStatus,
