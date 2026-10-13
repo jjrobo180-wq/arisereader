@@ -103,6 +103,7 @@ type UnlistedSignup = {
   schoolId: number | null; schoolName: string | null; teacherName: string | null;
   createdAt: string; resolved: boolean; resolvedAt?: string;
   resolvedTeacherId?: number | null; resolvedSchoolId?: number | null;
+  pendingTeacherName?: string | null; pendingTeacherSchoolId?: number | null;
 };
 async function readUnlistedSignups(): Promise<UnlistedSignup[]> {
   const stored = await storage.getSetting(UNLISTED_SIGNUPS_KEY);
@@ -2025,6 +2026,32 @@ export async function registerRoutes(
       const studentId = parseInt(req.params.userId);
       const schoolId = req.body.schoolId ? parseInt(req.body.schoolId) : null;
       const teacherId = req.body.teacherId ? parseInt(req.body.teacherId) : null;
+      const directoryTeacherId = typeof req.body.directoryTeacherId === "string" ? req.body.directoryTeacherId : "";
+      if (directoryTeacherId) {
+        // A name from the school directory is not a user account. Save the chosen
+        // teacher for follow-up, but never grant class access or invent a teacher_id.
+        const requests = await readUnlistedSignups();
+        const entry = requests.find((r) => Number(r.userId) === studentId && !r.resolved);
+        if (!entry) return res.status(404).json({ message: "This student is no longer waiting for a teacher assignment." });
+        const targetSchool = schoolId || entry.schoolId;
+        if (!targetSchool || !Number.isSafeInteger(targetSchool)) return res.status(400).json({ message: "Select the student's school first." });
+        const raw = await storage.getSetting(`school_teacher_directory_${targetSchool}`);
+        let directory: Array<{ name: string; grades?: string[] }> = [];
+        try { const parsed = raw ? JSON.parse(raw) : []; if (Array.isArray(parsed)) directory = parsed; } catch {}
+        const selected = directory.find((t) =>
+          t && typeof t.name === "string" &&
+          directoryTeacherId === `directory:${targetSchool}:${encodeURIComponent(t.name.trim().toLowerCase())}` &&
+          (!Array.isArray(t.grades) || !t.grades.length || !entry.gradeLevel || t.grades.includes(String(entry.gradeLevel)))
+        );
+        if (!selected) return res.status(400).json({ message: "That teacher is not listed for this school and grade." });
+        if (schoolId) await storage.assignStudentToSchool(studentId, schoolId);
+        entry.teacherName = selected.name.trim();
+        entry.pendingTeacherName = selected.name.trim();
+        entry.pendingTeacherSchoolId = targetSchool;
+        entry.schoolId = targetSchool;
+        await storage.upsertSetting(UNLISTED_SIGNUPS_KEY, JSON.stringify(requests));
+        return res.json({ success: true, pending: true, teacherName: entry.teacherName, message: `${entry.teacherName} saved as the pending teacher. Connect the student when that teacher signs up.` });
+      }
       if (schoolId) await storage.assignStudentToSchool(studentId, schoolId);
       if (teacherId) {
         const teacher = await storage.getUser(teacherId);
