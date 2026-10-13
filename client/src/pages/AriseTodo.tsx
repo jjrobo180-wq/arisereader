@@ -142,7 +142,9 @@ const uid = () => typeof crypto !== "undefined" && "randomUUID" in crypto
   ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const short = (value: unknown, max: number) => typeof value === "string" ? value.slice(0, max) : "";
 const isDate = (value: unknown) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value + "T12:00:00"));
-const fresh = (): Data => ({ version: 2, lists: DEFAULT_LISTS.map(list => ({ ...list })), tasks: [], family: emptyFamily() });
+// A brand-new LifeHub starts small: one list and the Calendar, leaving room to try three more menu
+// buttons on the free plan (shared/todoPlan.ts). Everything else is one tap away in Customize or the App Store.
+const fresh = (): Data => ({ version: 2, lists: DEFAULT_LISTS.slice(0, 1).map(list => ({ ...list })), tasks: [], family: { ...emptyFamily(), sections: lifeStarterSections() } });
 const validate = (value: unknown): Data => {
   if (!value || typeof value !== "object") throw new Error("This is not an Arise LifeHub backup.");
   const raw = value as Record<string, unknown>;

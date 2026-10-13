@@ -27,7 +27,9 @@ import {
   type AddonAccess, type AppId,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
+  todoUnlimitedFor,
 } from "../shared/plans";
+import { AI_LIMIT, FAIR_USE, FREE_AI_PER_MONTH, FREE_MENU_BUTTONS, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, aiMonth } from "../shared/todoPlan";
 
 type AnyUser = {
   id: number; username?: string; displayName?: string; role?: string; isAdmin?: boolean; email?: string | null;
@@ -797,7 +799,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // A teacher's class plan replaces a family's plan once it covers every child in the
   // family: the family plan is cancelled and the unused days refunded to the card.
 
-  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing" };
+  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub" };
   const addonReturn = (req: any) => {
     const origin = new URL(siteOf(req)).origin;
     const asked = String(req.body?.returnPath || "/billing");
@@ -955,6 +957,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (user.role !== "parent") throw new Refused("LifeHub plans are for parent accounts.", 403);
       return "todo_family";
     }
+    if (product === "unlimited") {
+      if (user.role === "student" || (!user.role && !user.isAdmin)) throw new Refused("A.R.I.S.E. To-Do Unlimited is for adult accounts.", 403);
+      return "todo_unlimited";
+    }
     if (product === "bundle") {
       if (user.role === "teacher") throw new Refused("Teachers add Arise Math, Arise History and Arise Social for their class one at a time.", 400);
       if (user.role === "parent") return "bundle_family";
@@ -1049,6 +1055,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       let customer: string | undefined;
       for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
+        : kind === "todo_unlimited" ? UNLIMITED_NAME
         : kind === "bundle_family" ? "A.R.I.S.E. Learning Bundle for a family (History, Math, Social)"
         : "Arise LifeHub for a family";
       const back = addonReturn(req);
@@ -1056,7 +1063,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         mode: "subscription",
         client_reference_id: `${kind}:${buyer.id}`,
         ...(customer ? { customer } : email ? { customer_email: email } : {}),
-        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: "month" }, product_data: { name } } }],
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: "month" }, product_data: kind === "todo_unlimited" ? { name, description: FAIR_USE.slice(0, 480) } : { name } } }],
         metadata,
         subscription_data: { metadata },
         success_url: back.done,
@@ -1086,6 +1093,73 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (typeof session?.url !== "string" || !session.url.startsWith("https://")) throw new Refused("The billing page could not be opened.", 502);
       res.json({ url: session.url });
     } catch (e) { fail(res, e, "add-on portal"); }
+  });
+
+  // ─── A.R.I.S.E. To-Do: Free and Unlimited ──────────────────────────────────
+  // Free: 5 menu buttons in each hub and 5 AI uses a month. Unlimited ($10 a month): every
+  // button, and AI up to a fair-use ceiling. See shared/todoPlan.ts.
+  const todoUnlimited = async (user: AnyUser) => {
+    const [unlimited, oldLifeHub] = await Promise.all([readGrant("todo_unlimited", user.id), readGrant("todo_family", user.id)]);
+    return todoUnlimitedFor(user as PlanPerson, { unlimited, oldLifeHub }, now());
+  };
+  const AI_KEY = (id: number) => `todo_ai_usage_u${id}`;
+  /** This month's AI uses for this person: the allowance, how many are used, and how many are left. */
+  const aiUsage = async (user: AnyUser) => {
+    const plan = await todoUnlimited(user);
+    const limit = plan.unlimited ? UNLIMITED_AI_PER_MONTH : FREE_AI_PER_MONTH;
+    const saved = parse<{ month?: string; count?: number }>(await read(AI_KEY(user.id)), {});
+    const used = saved.month === aiMonth(now()) ? Math.max(0, Number(saved.count) || 0) : 0;
+    return { limit, used, left: Math.max(0, limit - used), unlimited: plan.unlimited, admin: plan.via === "admin" };
+  };
+  /** Counts one AI use (after it worked). */
+  const countAiUse = async (user: AnyUser) => {
+    await serial(async () => {
+      const month = aiMonth(now());
+      const saved = parse<{ month?: string; count?: number }>(await read(AI_KEY(user.id)), {});
+      const count = saved.month === month ? Math.max(0, Number(saved.count) || 0) + 1 : 1;
+      await write(AI_KEY(user.id), JSON.stringify({ month, count }));
+    });
+  };
+  /**
+   * Express step in front of every hub AI route: answers 402 when this month's AI uses are gone,
+   * and counts a use once the route has answered successfully. Admins are never limited.
+   */
+  const aiMeter: RequestHandler = async (req: any, res: any, next: any) => {
+    try {
+      const user: AnyUser | undefined = req.adminPreview && req.realUser ? req.realUser : req.user;
+      if (!user) return next();
+      const usage = await aiUsage(user);
+      if (usage.admin) return next();
+      if (usage.left <= 0) {
+        return res.status(402).json({
+          code: AI_LIMIT, limit: usage.limit, used: usage.used, unlimited: usage.unlimited,
+          message: usage.unlimited
+            ? `You've reached this month's fair-use limit of ${usage.limit} AI uses. It resets on the 1st.`
+            : `You've used your ${FREE_AI_PER_MONTH} free AI uses this month. Get Unlimited for $${UNLIMITED_MONTHLY_CENTS / 100} a month for more, or wait until the 1st.`,
+        });
+      }
+      res.on("finish", () => { if (res.statusCode < 400) void countAiUse(user).catch(() => {}); });
+      next();
+    } catch (e) { next(); }
+  };
+
+  /** Free or Unlimited, this month's AI uses, and the price, for the hubs' plan card and upgrade box. */
+  app.get("/api/todo-plan", auth, async (req: any, res: any) => {
+    try {
+      const user: AnyUser = req.adminPreview && req.realUser ? req.realUser : req.user;
+      const plan = await todoUnlimited(user);
+      const ai = await aiUsage(user);
+      const g = await readGrant("todo_unlimited", user.id);
+      res.set("Cache-Control", "no-store");
+      res.json({
+        unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
+        buttons: plan.unlimited ? null : FREE_MENU_BUTTONS,
+        ai: { limit: ai.limit, used: ai.used, left: ai.left },
+        priceCents: UNLIMITED_MONTHLY_CENTS, payment: !!(await stripeKey()),
+        paidByYou: !!g && g.buyerId === user.id && !!g.stripeCustomerId,
+        fairUse: FAIR_USE,
+      });
+    } catch (e) { fail(res, e, "plan"); }
   });
 
   // ─── Admin ─────────────────────────────────────────────────────────────────
@@ -1232,7 +1306,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, hubAccess, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
+  return { entitlement, hubAccess, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiMeter };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

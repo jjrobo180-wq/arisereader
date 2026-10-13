@@ -8,6 +8,7 @@
 // started from, so a phone or computer that has been sitting open can't quietly
 // save over newer work done somewhere else. Before the first change of each day a
 // copy is also kept (the last 14 days), so a mistake can be taken back.
+import { workStarterVisibleTabs } from "../shared/todoPlan";
 import type { Express, RequestHandler } from "express";
 import { HUB_REQUIRED, hubMessage, type HubAccess } from "../shared/plans";
 import { HUB_CONFLICT, HUB_SEATS_FULL, MAX_WORKSPACE_BYTES, sameInstant } from "../shared/hubSave";
@@ -184,7 +185,9 @@ export function registerTeacherHubRoutes(app: Express, authMiddleware: RequestHa
       if (row && typeof req.query?.since === "string" && sameInstant(req.query.since, row.updatedAt)) {
         return res.json({ unchanged: true, updatedAt: row.updatedAt, seats: hub.seats });
       }
-      return res.json({ workspace: row?.workspace ?? {}, updatedAt: row?.updatedAt || null, seats: hub.seats });
+      // A brand-new WorkHub starts small (Calendar and Tasks, beside Home and A.R.I.S.E. Reader), leaving
+      // room to try three more on the free plan (shared/todoPlan.ts). Everything else is one tap away.
+      return res.json({ workspace: row?.workspace ?? { visibleTabs: workStarterVisibleTabs() }, updatedAt: row?.updatedAt || null, seats: hub.seats });
     } catch (error: any) {
       console.error("[teacher-hub] failed to load workspace", error);
       return res.status(500).json({ message: "Could not load your Arise WorkHub workspace." });

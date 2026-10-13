@@ -12,6 +12,7 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
+import { BUTTONS_FULL, FREE_MENU_BUTTONS, buttonsIn } from "../shared/todoPlan";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
@@ -1220,6 +1221,31 @@ export async function registerRoutes(
   ));
   registerAdminHandoffRoutes(app, authMiddleware);
   registerClientErrorRoutes(app);
+  // A.R.I.S.E. To-Do Free and Unlimited (shared/todoPlan.ts). These run before the routes they
+  // guard: Free gets 5 AI uses a month, and 5 menu buttons in each hub. A save that would add a
+  // button past 5 is refused (a hub already over keeps everything it has; it just can't grow).
+  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate"], authMiddleware, plans.aiMeter);
+  app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
+    try {
+      const user = req.adminPreview && req.realUser ? req.realUser : req.user;
+      const workspace = req.body?.workspace;
+      if (!user || !workspace || typeof workspace !== "object") return next();
+      const hub = req.path.startsWith("/api/teacher-hub") ? "work" : "life";
+      const after = buttonsIn(hub, workspace);
+      if (after <= FREE_MENU_BUTTONS) return next();
+      if ((await plans.todoUnlimited(user)).unlimited) return next();
+      const table = hub === "work" ? "teacher_hub_workspaces" : "arise_todo_workspaces";
+      const idColumn = hub === "work" ? "teacher_id" : "user_id";
+      const { data, error } = await getAdminSupabase().from(table).select("workspace").eq(idColumn, Number(user.id)).maybeSingle();
+      if (error) return next();
+      // A brand-new hub's first save is let through (an old page may still start with the old defaults).
+      if (!data) return next();
+      if (after > buttonsIn(hub, data.workspace)) {
+        return res.status(402).json({ code: BUTTONS_FULL, limit: FREE_MENU_BUTTONS, message: `The free plan has room for ${FREE_MENU_BUTTONS} menu buttons in each hub. Remove one, or get Unlimited for $10 a month.` });
+      }
+      next();
+    } catch { next(); }
+  });
   registerAriseTodoRoutes(app, authMiddleware);
   // Share links from LifeHub (a poll to vote in, a list, the calendar, bills, a trip...) that family open without an account.
   const todoOwnerAllowed = async (id: number) => {
