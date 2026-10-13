@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do's Free plan and $5 Unlimited upgrade in the hubs (rules in shared/todoPlan.ts):
+// A.R.I.S.E. To-Do's Free plan and $8 Unlimited upgrade in the hubs (rules in shared/todoPlan.ts):
 //  - useTodoPlan: Free or Unlimited, apps added in each hub, and this month's AI, from the server.
 //  - openUpgrade(...): opens the "Get Unlimited" box from anywhere (a 4th app, AI tapped on Free).
 //  - appsBlocked(...): would a change add an app past Free's 3? (The hubs ask before saving.)
@@ -13,7 +13,7 @@ import { AI_LIMIT, APPS_FULL, FREE_APPS, growsPastFree } from "@shared/todoPlan"
 
 export type TodoPlan = {
   unlimited: boolean; via: string | null; endsAt: string | null; apps: { work: number; life: number; limit: number | null };
-  ai: { limit: number; used: number; left: number }; priceCents: number; payment: boolean; paidByYou: boolean; fairUse: string;
+  ai: { limit: number; used: number; left: number }; priceCents: number; yearlyCents: number | null; payment: boolean; paidByYou: boolean; paidProduct: "unlimited" | "unlimited_year" | null; fairUse: string;
 };
 type Reason = "apps" | "ai" | "plan";
 
@@ -104,11 +104,11 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
       .finally(() => { refreshTodoPlan(); setReason("plan"); });
   }, [token, hub]);
 
-  const go = async (path: string) => {
+  const go = async (path: string, product: "unlimited" | "unlimited_year" = "unlimited") => {
     if (!token) return;
     setBusy(true); setNote("");
     try {
-      const r = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ product: "unlimited", returnPath: hub === "work" ? "/workhub" : "/lifehub" }) });
+      const r = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ product, returnPath: hub === "work" ? "/workhub" : "/lifehub" }) });
       const d = await r.json().catch(() => ({}));
       if (r.ok && typeof d.url === "string" && d.url.startsWith("https://")) { window.location.href = d.url; return; }
       setNote(d.message || "That didn't work. Please try again.");
@@ -117,7 +117,9 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   };
 
   if (!reason) return null;
-  const price = usd(plan?.priceCents ?? 500);
+  const price = usd(plan?.priceCents ?? 800);
+  const yearly = plan?.yearlyCents ?? null;
+  const saves = yearly && plan ? Math.round((1 - yearly / (plan.priceCents * 12)) * 100) : 0;
   const title = plan?.unlimited ? "You're on Unlimited"
     : reason === "apps" ? `You're using your ${FREE_APPS} free apps`
     : reason === "ai" ? "AI is part of Unlimited"
@@ -148,7 +150,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
             </div>
             <div className="rounded-2xl border-2 border-violet-500 bg-violet-50 p-3">
               <p className="font-bold text-violet-900">Unlimited</p>
-              <p className="text-xs text-violet-700">{price} a month</p>
+              <p className="text-xs text-violet-700">{price} a month{yearly ? ` or ${usd(yearly)} a year` : ""}</p>
               <ul className="mt-2 space-y-1 text-violet-900">
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All 450+ apps</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />AI every day</li>
@@ -156,16 +158,23 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               </ul>
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} apps are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. Already on a $10 Arise Reader plan? Unlimited is the same {price} on top.</p>
+          <p className="mt-3 text-xs text-slate-500">Built-in sections like Calendar, Tasks and Notes are always free. Your {FREE_APPS} apps are shared by WorkHub and LifeHub, and nothing is ever deleted, even if you go back to Free. Already on a $10 Arise Reader plan? Unlimited is the same price on top.</p>
           {note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">{note}</p>}
           <div className="mt-4">
             {plan?.unlimited
               ? (plan.paidByYou
-                ? <button type="button" disabled={busy} onClick={() => go("/api/billing/addon-portal")} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50" data-testid="todo-upgrade-manage">{busy ? "Opening…" : "Manage billing"}</button>
+                ? <button type="button" disabled={busy} onClick={() => go("/api/billing/addon-portal", plan.paidProduct ?? "unlimited")} className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50" data-testid="todo-upgrade-manage">{busy ? "Opening…" : "Manage billing"}</button>
                 : <button type="button" onClick={() => setReason(null)} className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">Done</button>)
-              : <button type="button" disabled={busy || plan?.payment === false} onClick={() => go("/api/billing/addon-checkout")} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60" data-testid="todo-upgrade-buy">
-                  <Sparkles className="h-4 w-4" />{busy ? "Opening checkout…" : plan?.payment === false ? "Payments aren't set up yet" : `Get Unlimited for ${price} a month`}
-                </button>}
+              : <div className="space-y-2">
+                  {yearly && plan?.payment !== false && <button type="button" disabled={busy} onClick={() => go("/api/billing/addon-checkout", "unlimited_year")} className="relative flex min-h-14 w-full flex-col items-center justify-center rounded-2xl bg-violet-600 px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60" data-testid="todo-upgrade-buy-year">
+                    <span className="absolute -top-2 right-3 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950">Limited time</span>
+                    <span className="flex items-center gap-2"><Sparkles className="h-4 w-4" />{busy ? "Opening checkout…" : `${usd(yearly)} a year`}</span>
+                    {!busy && <span className="text-[11px] font-semibold text-white/85">Save {saves}% vs. monthly</span>}
+                  </button>}
+                  <button type="button" disabled={busy || plan?.payment === false} onClick={() => go("/api/billing/addon-checkout", "unlimited")} className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold disabled:opacity-60 ${yearly ? "border border-violet-300 bg-white text-violet-800 hover:bg-violet-50" : "bg-violet-600 text-white shadow-sm hover:bg-violet-700"}`} data-testid="todo-upgrade-buy">
+                    {!yearly && <Sparkles className="h-4 w-4" />}{busy ? "Opening checkout…" : plan?.payment === false ? "Payments aren't set up yet" : `${price} a month`}
+                  </button>
+                </div>}
           </div>
           <details className="mt-3 text-xs text-slate-500">
             <summary className="cursor-pointer font-semibold">Fair use</summary>

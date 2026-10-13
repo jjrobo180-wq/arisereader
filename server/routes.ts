@@ -12,7 +12,7 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
-import { APPS_FULL, FAIR_USE, FREE_APPS, UNLIMITED_MONTHLY_CENTS, appsIn, growsPastFree } from "../shared/todoPlan";
+import { APPS_FULL, FAIR_USE, FREE_APPS, UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS, UNLIMITED_YEARLY_OFFER, appsIn, growsPastFree } from "../shared/todoPlan";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
@@ -1247,7 +1247,7 @@ export async function registerRoutes(
       const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
       const otherApps = appsIn(other, otherSaved);
       if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
-        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one, or get Unlimited for $${UNLIMITED_MONTHLY_CENTS / 100} a month for every app and AI.` });
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one, or get Unlimited ($${UNLIMITED_MONTHLY_CENTS / 100} a month) for every app and AI.` });
       }
       next();
     } catch { next(); }
@@ -1257,7 +1257,7 @@ export async function registerRoutes(
     try {
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
       const id = Number(user.id);
-      const [plan, ai, work, life, payment, paidByYou] = await Promise.all([
+      const [plan, ai, work, life, payment, paidProduct] = await Promise.all([
         plans.todoUnlimited(user), plans.aiUsage(user), savedHub("work", id).catch(() => null), savedHub("life", id).catch(() => null),
         plans.stripeReady(), plans.unlimitedPaidBy(id),
       ]);
@@ -1266,7 +1266,8 @@ export async function registerRoutes(
         unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
         apps: { work: appsIn("work", work), life: appsIn("life", life), limit: plan.unlimited ? null : FREE_APPS },
         ai: { limit: ai.limit, used: ai.used, left: ai.left },
-        priceCents: UNLIMITED_MONTHLY_CENTS, payment, paidByYou, fairUse: FAIR_USE,
+        priceCents: UNLIMITED_MONTHLY_CENTS, yearlyCents: UNLIMITED_YEARLY_OFFER ? UNLIMITED_YEARLY_CENTS : null,
+        payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
       });
     } catch (error: any) {
       res.status(500).json({ message: "Your plan could not be loaded." });

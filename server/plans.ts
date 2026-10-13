@@ -29,7 +29,7 @@ import {
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
   todoUnlimitedFor,
 } from "../shared/plans";
-import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, aiMonth } from "../shared/todoPlan";
+import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, UNLIMITED_YEARLY_OFFER, aiMonth } from "../shared/todoPlan";
 
 type AnyUser = {
   id: number; username?: string; displayName?: string; role?: string; isAdmin?: boolean; email?: string | null;
@@ -591,7 +591,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
             await applyStripeGrant({
               kind: m.kind, ownerId: m.ownerId, source: "stripe", status: "active",
               seats: priceOf(m.kind).seats(clampBlocks(obj?.metadata?.blocks)),
-              endsAt: iso(at + (isSchoolKind(m.kind) ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
+              endsAt: iso(at + (isSchoolKind(m.kind) || priceOf(m.kind).interval === "year" ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
               stripeCustomerId: typeof obj.customer === "string" ? obj.customer : undefined, stripeSubscriptionId: obj.subscription,
             });
           }
@@ -957,9 +957,9 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (user.role !== "parent") throw new Refused("LifeHub plans are for parent accounts.", 403);
       return "todo_family";
     }
-    if (product === "unlimited") {
+    if (product === "unlimited" || product === "unlimited_year") {
       if (user.role === "student" || (!user.role && !user.isAdmin)) throw new Refused("A.R.I.S.E. To-Do Unlimited is for adult accounts.", 403);
-      return "todo_unlimited";
+      return product === "unlimited_year" ? "todo_unlimited_year" : "todo_unlimited";
     }
     if (product === "bundle") {
       if (user.role === "teacher") throw new Refused("Teachers add Arise Math, Arise History and Arise Social for their class one at a time.", 400);
@@ -1040,6 +1040,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (req.body?.product === "todo") throw new Refused("A.R.I.S.E. To-Do is free. No checkout is needed.", 409);
       const kind = productKind(buyer, req.body?.product);
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have this add-on. Use Manage billing to change it.", 409);
+      if (kind === "todo_unlimited" || kind === "todo_unlimited_year") {
+        if ((await todoUnlimited(buyer)).unlimited) throw new Refused("You're already on Unlimited. Use Manage billing to change it.", 409);
+        if (kind === "todo_unlimited_year" && !UNLIMITED_YEARLY_OFFER) throw new Refused("The yearly offer has ended. Unlimited is still available monthly.", 409);
+      }
       const app = appOfClassKind(kind);
       if (app) {
         // The Class plan now includes Math, History and Connect for every student it covers —
@@ -1056,6 +1060,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
         : kind === "todo_unlimited" ? UNLIMITED_NAME
+        : kind === "todo_unlimited_year" ? `${UNLIMITED_NAME}, yearly`
         : kind === "bundle_family" ? "A.R.I.S.E. Learning Bundle for a family (History, Math, Social)"
         : "Arise LifeHub for a family";
       const back = addonReturn(req);
@@ -1063,7 +1068,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         mode: "subscription",
         client_reference_id: `${kind}:${buyer.id}`,
         ...(customer ? { customer } : email ? { customer_email: email } : {}),
-        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: "month" }, product_data: kind === "todo_unlimited" ? { name, description: FAIR_USE.slice(0, 480) } : { name } } }],
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: priceOf(kind).interval }, product_data: kind === "todo_unlimited" || kind === "todo_unlimited_year" ? { name, description: FAIR_USE.slice(0, 480) } : { name } } }],
         metadata,
         subscription_data: { metadata },
         success_url: back.done,
@@ -1100,8 +1105,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
   // can read the hubs.)
   const todoUnlimited = async (user: AnyUser) => {
-    const [unlimited, oldLifeHub] = await Promise.all([readGrant("todo_unlimited", user.id), readGrant("todo_family", user.id)]);
-    return todoUnlimitedFor(user as PlanPerson, { unlimited, oldLifeHub }, now());
+    const [unlimited, yearly, oldLifeHub] = await Promise.all([readGrant("todo_unlimited", user.id), readGrant("todo_unlimited_year", user.id), readGrant("todo_family", user.id)]);
+    return todoUnlimitedFor(user as PlanPerson, { unlimited, yearly, oldLifeHub }, now());
   };
   const AI_KEY = (id: number) => `todo_ai_usage_u${id}`;
   /** This month's AI uses for this person: the allowance, how many are used, and how many are left. */
@@ -1288,7 +1293,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, hubAccess, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { const g = await readGrant("todo_unlimited", userId); return !!g && g.buyerId === userId && !!g.stripeCustomerId; } };
+  return { entitlement, hubAccess, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;
