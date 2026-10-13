@@ -703,6 +703,8 @@ export default function AriseTodo() {
         ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
+    { id: "arise-office", label: "Office", icon: <Table />, active: false, color: "#4f46e5", onClick: () => { window.location.hash = "#/office"; } },
+    { id: "arise-ai-apps", label: "AI Apps", icon: <Sparkles />, active: false, color: "#7c3aed", onClick: () => { window.location.hash = "#/ai-apps"; } },
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
     ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, active: dropOpen, color: dropPlugin.color, onClick: () => { closeApps(); setDropOpen(true); } }] : []),
     ...myKits.map((d) => ({ id: `kit-${d.id}`, label: d.name, icon: <Puzzle />, active: kitOpen === d.id, color: d.color, onClick: () => { closeApps(); setKitOpen(d.id); } })),
