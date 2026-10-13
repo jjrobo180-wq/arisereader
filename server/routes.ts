@@ -1215,7 +1215,13 @@ export async function registerRoutes(
     };
   // Arise LifeHub: $10 a month for parents after their 30 free days; teachers get it with Arise WorkHub.
   app.use("/api/arise-todo", addonGate(
-    (method, path) => method === "POST" && path === "/api/arise-todo/register",
+    // Signing up is open, and so are the two steps that finish it. They happen before anyone can
+    // be signed in — the account is switched off until the emailed code is typed back — so putting
+    // them behind this gate answered "not authenticated" to the very person it was made for.
+    (method, path) => method === "POST" && (
+      path === "/api/arise-todo/register" ||
+      path === "/api/arise-todo/confirm-email" ||
+      path === "/api/arise-todo/resend-code"),
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
     "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
