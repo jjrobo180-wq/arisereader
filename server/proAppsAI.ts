@@ -20,8 +20,9 @@ const askOpenAI: ProAsk = async (system, user, maxTokens) => {
   return String(payload?.choices?.[0]?.message?.content || "");
 };
 
-export function registerProAppsAI(app: Express, authMiddleware: RequestHandler, ask: ProAsk = askOpenAI, configured = () => !!process.env.OPENAI_API_KEY) {
-  app.post("/api/apps/ai", authMiddleware, async (req: any, res) => {
+export function registerProAppsAI(app: Express, authMiddleware: RequestHandler, aiMeter: RequestHandler, ask: ProAsk = askOpenAI, configured = () => !!process.env.OPENAI_API_KEY) {
+  // Apply the same paid Unlimited allowance and monthly AI meter as other hub AI tools.
+  app.post("/api/apps/ai", authMiddleware, aiMeter, async (req: any, res) => {
     if (!req.user?.id) return res.status(401).json({ message: "Sign in first." });
     if (!configured()) return res.status(503).json({ message: "The AI helper isn't set up on this site yet." });
     const task = AI_TASKS[String(req.body?.task || "")];
