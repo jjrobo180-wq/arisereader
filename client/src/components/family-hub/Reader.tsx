@@ -214,7 +214,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
                       <Toggle on={controls.weeklyUnlimitedOnPass} label="Unlimited week after a passed quiz" onChange={(on) => void saveControls({ ...controls, weeklyUnlimitedOnPass: on })} />
                     </ControlRow>
                     <ControlRow icon={<Gamepad2 size={18} />} title="Games a day" detail="Leave blank for no limit">
-                      <input type="number" min={0} max={180} placeholder="No limit" value={controls.dailyGameLimit ?? ""} aria-label="Games a day" className={inputClass + " !w-24 text-right"}
+                      <input type="number" min={0} max={100} placeholder="No limit" value={controls.dailyGameLimit ?? ""} aria-label="Games a day" className={inputClass + " !w-24 text-right"}
                         onChange={(e) => setControls({ ...controls, dailyGameLimit: e.target.value === "" ? null : Math.max(0, Number(e.target.value) || 0) })} onBlur={() => void saveControls(controls)} />
                     </ControlRow>
                     <ControlRow icon={<Sparkles size={18} />} title="Games earned per passed quiz" detail="0 turns this off">
