@@ -8884,7 +8884,7 @@ Important:
     try {
       const { style } = req.body;
       if (!style) return res.status(400).json({ message: "style is required" });
-      await storage.saveSetting(`celebration_style_${req.user.id}`, style);
+      await storage.upsertSetting(`celebration_style_${req.user.id}`, String(style).slice(0, 40));
       res.json({ success: true, style });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

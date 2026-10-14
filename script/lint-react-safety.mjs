@@ -155,7 +155,7 @@ function checkUndefinedComponents(src, file) {
 }
 
 for (const file of files(SRC)) {
-  const src = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const src = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const visit = (node) => {
     if (isFunctionLike(node)) checkBody(node.body, file, src);
     node.forEachChild(visit);

@@ -167,7 +167,6 @@ export const LEARN: Record<string, Learn> = {
   g7prop: { idea: "In a proportion, both fractions are equal. Find what the denominator was multiplied by and do the same to the top.", remember: "Same scale factor top and bottom." },
   g7muldiv: { idea: "Multiply or divide the numbers, then decide the sign: same signs give positive, different signs give negative.", remember: "Same = +, different = −." },
   g7percent: { idea: "A discount subtracts a percent of the price; a tip or tax adds one. Find the percent amount first.", remember: "Find the %, then add or subtract." },
-  g7circle: { idea: "Circumference is the distance around: 2 × π × r. Area is the space inside: π × r × r.", remember: "C = 2πr. A = πr²." },
   g7prob: { idea: "Probability = favorable outcomes ÷ all outcomes. It is always between 0 (impossible) and 1 (certain).", remember: "What you want ÷ everything." },
   g7combine: { idea: "Like terms have the same variable part. Add their coefficients; add the plain numbers separately.", remember: "x's with x's, numbers with numbers." },
   g7ineq: { idea: "Solve an inequality like an equation. If you multiply or divide by a negative, flip the sign.", remember: "Negative? Flip the sign." },
