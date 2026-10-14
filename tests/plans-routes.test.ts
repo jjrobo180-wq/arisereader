@@ -40,7 +40,9 @@ async function setup(t: any, opts: { enforced?: boolean; stripeKey?: string; str
   if (opts.enforced !== false) settings.set("plans_enforced", "1");
   const calls: Call[] = [];
   const app = express();
-  app.use(express.json());
+  // Match the production request parser: Stripe signatures must be checked
+  // against the exact bytes received, not JSON that Express parsed/re-encoded.
+  app.use(express.json({ verify: (req, _res, buf) => { (req as any).rawBody = Buffer.from(buf); } }));
   const auth = (req: any, res: any, next: any) => {
     const user = USERS[Number(String(req.headers.authorization || "").replace("Bearer ", ""))];
     if (!user) return res.status(401).json({ message: "Not authenticated" });
@@ -144,25 +146,25 @@ test("student extras follow the teacher's plan", async (t) => {
   assert.equal((await call(10, "POST", "/api/student/iarise-quiz", {})).status, 200, "teacher now has Premium");
 });
 
-test("a parent profile follows up to five children on Free", async (t) => {
+test("a parent profile follows the current Free children limit", async (t) => {
   const { plans } = await setup(t);
   assert.deepEqual(await plans.parentLinkAllowed([11], 11), { ok: true });
-  assert.equal((await plans.parentLinkAllowed([11, 21, 22, 23], 24)).ok, true, "the fifth child");
-  const full = await plans.parentLinkAllowed([11, 21, 22, 23, 24], 25);
+  assert.equal((await plans.parentLinkAllowed([11, 21], 22)).ok, true, "the third child");
+  const full = await plans.parentLinkAllowed([11, 21, 22], 23);
   assert.equal(full.ok, false);
-  assert.match(full.message!, /up to 5 children/);
-  assert.equal((await plans.parentLinkAllowed([11, 21, 22, 23, 24], 12)).ok, true, "a child in a Premium class lifts the limit");
+  assert.match(full.message!, /up to 3 children/);
+  assert.equal((await plans.parentLinkAllowed([11, 21, 22], 12)).ok, false, "the current limit also applies when a child has Premium through school");
 
   const off = await setup(t, { enforced: false });
   assert.equal((await off.plans.parentLinkAllowed([11, 21, 22, 23, 24, 25], 26)).ok, true);
 });
 
 test("a paid teacher plan covers a set number of students", async (t) => {
-  const { plans, hook } = await setup(t, { students: 200 });
-  await hook(event("customer.subscription.created", subscription()));           // 2 blocks = 200 students
+  const { plans, hook } = await setup(t, { students: 60 });
+  await hook(event("customer.subscription.created", subscription()));           // 2 blocks = 60 students
   const full = await plans.seatCheck(USERS[50]);
   assert.equal(full.ok, false);
-  assert.match(full.message!, /covers 200 students/);
+  assert.match(full.message!, /covers 60 students/);
   assert.equal((await plans.seatCheck(USERS[51])).ok, true, "a grandfathered teacher has no seat limit");
   assert.equal((await plans.seatCheck(USERS[1])).ok, true);
 });
@@ -178,7 +180,7 @@ test("the webhook only accepts messages signed by Stripe", async (t) => {
 
   assert.equal((await hook(sub)).status, 200);
   const plan = (await call(50, "GET", "/api/plan")).body;
-  assert.deepEqual([plan.premium, plan.via, plan.seats, plan.teacherPlan.paidOnline], [true, "teacher-plan", 200, true]);
+  assert.deepEqual([plan.premium, plan.via, plan.seats, plan.teacherPlan.paidOnline], [true, "teacher-plan", 60, true]);
   assert.equal((await call(50, "GET", "/api/teacher/students")).status, 200);
 });
 
@@ -332,13 +334,13 @@ test("a teacher can add blocks and open billing, for their own plan only", async
   assert.equal(tooFew.status, 409);
   assert.match(tooFew.body.message, /150 students/);
 
-  const more = await call(50, "POST", "/api/billing/blocks", { blocks: 4 });
+  const more = await call(50, "POST", "/api/billing/blocks", { blocks: 6 });
   assert.equal(more.status, 200);
   const f = calls.at(-1)!;
   assert.equal(f.url, "https://api.stripe.com/v1/subscriptions/sub_123");
   assert.equal(f.form.get("items[0][id]"), "si_1");
-  assert.equal(f.form.get("items[0][quantity]"), "4");
-  assert.equal((await call(50, "GET", "/api/plan")).body.seats, 400);
+  assert.equal(f.form.get("items[0][quantity]"), "6");
+  assert.equal((await call(50, "GET", "/api/plan")).body.seats, 180);
 
   const portal = await call(50, "POST", "/api/billing/portal", { kind: "teacher" });
   assert.deepEqual(portal.body, { url: "https://billing.stripe.com/p/session/1" });
@@ -394,7 +396,7 @@ test("the admin switches rules on, grants plans by hand and stores keys safely",
   assert.equal((await call(50, "GET", "/api/teacher/students")).status, 200);
   let list = (await call(1, "GET", "/api/admin/plans")).body;
   assert.equal(list.enforced, true);
-  assert.deepEqual(list.plans.map((p: any) => [p.kind, p.name, p.source, p.seats, p.endsAt, p.live, p.note]), [["teacher", "Ms. New", "admin", 200, null, true, "Pilot class"]]);
+  assert.deepEqual(list.plans.map((p: any) => [p.kind, p.name, p.source, p.seats, p.endsAt, p.live, p.note]), [["teacher", "Ms. New", "admin", 60, null, true, "Pilot class"]]);
 
   assert.equal((await call(1, "POST", "/api/admin/plans/revoke", { kind: "teacher", ownerId: 50 })).status, 200);
   assert.equal((await call(50, "GET", "/api/teacher/students")).status, 402);
@@ -465,7 +467,7 @@ test("without a key, an unfinished first payment is not recorded as a cancelled 
   assert.equal((await call(50, "GET", "/api/plan")).body.premium, true);
 });
 
-test("a missed payment gets one week of grace, and re-checking does not extend it", async (t) => {
+test("a missed payment gets the configured grace period, and re-checking does not extend it", async (t) => {
   const state = { status: "active", periodEnd: NOW + 30 * DAY };
   const { call, hook, clock } = await setup(t, {
     stripeKey: "sk_test_abcdefghijklmnop",
@@ -479,10 +481,10 @@ test("a missed payment gets one week of grace, and re-checking does not extend i
   clock.now = NOW + 30 * DAY + 3_600_000;
   state.status = "past_due"; state.periodEnd = NOW + 60 * DAY;
   await hook(event("customer.subscription.updated", subscription(), clock.now), { at: clock.now });
-  assert.equal(await premium(), true, "inside the week of grace");
+  assert.equal(await premium(), true, "inside the configured grace period");
   for (const days of [5, 9, 12, 20, 40]) {
     clock.now = NOW + 30 * DAY + days * DAY;
-    const expected = days < 10;            // a week, plus the three days every plan gets
+    const expected = days < 7 + PLANS.graceDays; // seven-day retry window plus current grace period
     assert.equal(await premium(), expected, `${days} days after the missed payment`);
   }
   // paying brings it straight back
@@ -584,8 +586,8 @@ test("an admin previewing the site as a student does not change what the admin s
 });
 
 test("moving a student onto a full plan is refused", async (t) => {
-  const { plans, hook } = await setup(t, { students: 200 });
-  await hook(event("customer.subscription.created", subscription()));           // 200 seats, 200 students
+  const { plans, hook } = await setup(t, { students: 60 });
+  await hook(event("customer.subscription.created", subscription()));           // 60 seats, 60 students
   assert.equal((await plans.seatCheckFor(50)).ok, false);
   assert.equal((await plans.seatCheckFor(51)).ok, true);
   assert.equal((await plans.seatCheckFor("not a teacher")).ok, true);

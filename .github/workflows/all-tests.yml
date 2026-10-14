@@ -6,6 +6,11 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+# If several fixes are pushed quickly, finish only the newest run of this workflow.
+# This avoids redundant test runs and duplicate failure emails without skipping tests.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
