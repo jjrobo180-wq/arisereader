@@ -59,7 +59,7 @@ import {
   Table, FolderOpen, QrCode, ShieldCheck, School,
   type LucideIcon,
 } from "lucide-react";
-import PluginStore from "@/components/plugin-store/PluginStore";
+import PluginStore, { ICONS as STORE_ICONS } from "@/components/plugin-store/PluginStore";
 import OfficeApp from "@/components/office/OfficeApp";
 import { SHEETS, legacySheets } from "@/components/office/officeKinds";
 import DriveApp from "@/components/family-hub/DriveApp";
@@ -310,6 +310,9 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
     </div>
   );
 }
+
+/** An App Store app's own icon (a cloud and sun for Atmosphere, a moon for Sleep Studio…), not a generic sparkle. */
+function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
 
 export default function TeacherHub() {
   const { user } = useAuth();
@@ -958,7 +961,7 @@ function TeacherHubPage() {
                     ))}
                     {!hubOpenFolder && [
                       ...mySheetsApps.map((a) => ({ key: `sheets-app-${a.id}`, name: a.name, color: a.color, icon: <Table className="h-7 w-7" />, open: () => setSheetsAppOpen(a.id) })),
-                      ...myOfficeApps.map((a) => ({ key: `office-app-${a.id}`, name: a.name, color: a.color, icon: <Sparkles className="h-7 w-7" />, open: () => { if (a.target.kind === "officeApp") window.location.hash = a.target.href; } })),
+                      ...myOfficeApps.map((a) => ({ key: `office-app-${a.id}`, name: a.name, color: a.color, icon: <OfficeAppIcon icon={a.icon} className="h-7 w-7" />, open: () => { if (a.target.kind === "officeApp") window.location.hash = a.target.href; } })),
                       ...(drivePlugin ? [{ key: "drive-app", name: drivePlugin.name, color: drivePlugin.color, icon: <FolderOpen className="h-7 w-7" />, open: () => setDriveOpen(true) }] : []),
                       ...(dropPlugin ? [{ key: "drop-app", name: dropPlugin.name, color: dropPlugin.color, icon: <QrCode className="h-7 w-7" />, open: () => setDropOpen(true) }] : []),
                     ].filter((a) => a.name.toLowerCase().includes(appsQuery.trim().toLowerCase())).map((a) => (
@@ -1136,7 +1139,7 @@ function TeacherHubPage() {
                 {renderSidebarGroups(coreMenu, true)}
                 {hasMyApps && <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 ${deskCompact ? "md:sr-only" : ""}`} data-testid="hub-my-apps-heading">My apps</p>}
                 {renderSidebarGroups(installedMenu, false)}
-                {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Sparkles className="h-4 w-4" />{a.name}</a>)}
+                {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-office-app-${a.id}`} className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{a.name}</span></a>)}
               </>;
             })()}
             {myKits.map((d) => {
@@ -1160,7 +1163,7 @@ function TeacherHubPage() {
                 </button>
               </div>
             ))}
-            {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-installed-office-${a.id}`} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Sparkles className="h-4 w-4" />{a.name}</a>)}
+            {myOfficeApps.map((a) => <a key={a.id} href={a.target.kind === "officeApp" ? a.target.href : "#/workhub"} data-testid={`hub-installed-office-${a.id}`} className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={a.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{a.name}</span></a>)}
             {mySheetsApps.map((a) => (
               <div key={`sheets-app-${a.id}`} className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
                 <button type="button" onClick={() => { closeApps(); setSheetsAppOpen(a.id); afterPick(); }} aria-current={sheetsAppOpen === a.id ? "page" : undefined} data-testid={`hub-sheets-app-${a.id}`} data-hub-nav

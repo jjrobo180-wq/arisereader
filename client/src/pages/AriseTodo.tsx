@@ -63,7 +63,7 @@ import Bible from "@/components/family-hub/Bible";
 import Quotes from "@/components/family-hub/Quotes";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
-import PluginStore from "@/components/plugin-store/PluginStore";
+import PluginStore, { ICONS as STORE_ICONS } from "@/components/plugin-store/PluginStore";
 import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, lifeInstalled, notesAppPlugin, officeAppPlugin, pluginOpens, setKitInstalled, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
 import OfficeApp from "@/components/office/OfficeApp";
 import { SHEETS, legacySheets } from "@/components/office/officeKinds";
@@ -263,6 +263,9 @@ const emptyTask = (listId: string): Task => ({
 const prettyDate = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 const inputClass = "w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
 const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500";
+
+/** An App Store app's own icon (a cloud and sun for Atmosphere, a moon for Sleep Studio…), not a generic sparkle. */
+function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
 
 export default function AriseTodo() {
   const [location, navigate] = useLocation();
@@ -705,7 +708,7 @@ export default function AriseTodo() {
         ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
     ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
     ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
-    ...installedOffice.map((p) => ({ id: `office-app-${p.id}`, label: p.name, icon: <Sparkles />, active: false, color: p.color, onClick: () => { closeApps(); if (p.target.kind === "officeApp") window.location.hash = p.target.href; } })),
+    ...installedOffice.map((p) => ({ id: `office-app-${p.id}`, label: p.name, icon: <OfficeAppIcon icon={p.icon} />, active: false, color: p.color, onClick: () => { closeApps(); if (p.target.kind === "officeApp") window.location.hash = p.target.href; } })),
     { id: "arise-office", label: "Office", icon: <Table />, active: false, color: "#4f46e5", onClick: () => { window.location.hash = "#/office"; } },
     { id: "arise-ai-apps", label: "AI Apps", icon: <Sparkles />, active: false, color: "#7c3aed", onClick: () => { window.location.hash = "#/ai-apps"; } },
     ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
@@ -1062,7 +1065,7 @@ export default function AriseTodo() {
                 <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
               </button>
             ))}
-            {installedOffice.map((p) => <a key={p.id} href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><Sparkles className="h-4 w-4" />{p.name}</a>)}
+            {installedOffice.map((p) => <a key={p.id} href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></a>)}
             {pinnableSheets.map((p) => (
               <button key={`sheets-app-${p.id}`} type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
