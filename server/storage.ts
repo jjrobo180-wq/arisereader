@@ -1888,7 +1888,7 @@ export class DatabaseStorage implements IStorage {
     if (error) throw new Error(error.message);
 
     // Send notification message to student
-    await this.sendMessage(userId, undefined, "system", "You have been assigned a reading assessment retake. Visit the Progress Monitor to take it.");
+    await this.createMessage(userId, "system", "You have been assigned a reading assessment retake. Visit the Progress Monitor to take it.").catch(() => {});
     clearCache(`reading_profile_${userId}`);
     clearCache(`reading_recommendations_${userId}`);
     return data;

@@ -685,11 +685,6 @@ export const SKILLS = {
     return { ask: off ? `A $${price} jacket is ${p}% off. What is the sale price in dollars?` : `A $${price} bill gets a ${p}% tip. What is the total in dollars?`, prompt: `$<span class="blank">?</span>`, plain: off ? `${p}% off ${price}` : `${price} plus ${p}%`, viz: tape([{ parts: [{ label: `${p}%`, size: p, fill: true }, { label: `${100 - p}%`, size: 100 - p }], whole: `$${price}` }]), answer: ans,
       steps: [`${p}% of ${price} = ${change}.`, off ? `${price} ${MINUS} ${change} = ${ans}.` : `${price} + ${change} = ${ans}.`] };
   } },
-  g7circle: { name: "Circles: area and circumference", std: "7.G.B.4", glyph: "○", c: "coral", band: "g68", gen(r) {
-    const rnd = rndWith(r); const rad = rnd(2, 12), area = r() < 0.5, hundredths = area ? 314 * rad * rad : 628 * rad, exact = hundredths / 100, ans = Math.round(hundredths / 100);
-    return { ask: `A circle has a radius of ${rad} cm. Using π ≈ 3.14, find its ${area ? "area" : "circumference"}, rounded to the nearest whole number.`, prompt: area ? `3.14 × ${rad}² ≈ <span class="blank">?</span>` : `2 × 3.14 × ${rad} ≈ <span class="blank">?</span>`, plain: `${area ? "area" : "circumference"}, radius ${rad}`, long: true, viz: circleSvg(`r = ${rad} cm`), answer: ans,
-      steps: [area ? "Area = π × r × r." : "Circumference = 2 × π × r.", `${area ? `3.14 × ${rad * rad}` : `2 × 3.14 × ${rad}`} = ${Math.round(exact * 100) / 100}.`, `Rounded: ${ans}.`] };
-  } },
   g7prob: { name: "Simple probability", std: "7.SP.C.5", glyph: "🎲", c: "fly", band: "g68", gen(r) {
     const rnd = rndWith(r), pick = pickWith(r); const red = rnd(1, 8), blue = rnd(1, 8), green = rnd(0, 6), total = red + blue + green, color = pick(["red", "blue"] as const), k = color === "red" ? red : blue;
     const opts = [...new Set([`${k}/${total}`, `${total - k}/${total}`, `${k}/${Math.max(1, total - k)}`, `${Math.min(total, k + 1)}/${total}`, `1/${total}`])].filter((o, i, all) => all.indexOf(o) === i).slice(0, 4);
