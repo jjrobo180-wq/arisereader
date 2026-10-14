@@ -26,8 +26,8 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Production build
+        run: npm run build
       - name: TypeScript diagnostics
         continue-on-error: true
         run: npm run check
-      - name: Production build
-        run: npm run build
