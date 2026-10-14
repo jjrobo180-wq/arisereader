@@ -12,8 +12,8 @@ type Quality = "cinematic" | "balanced";
 type Scene = "clear" | "clouds" | "rain" | "snow" | "storm" | "fog";
 type Mode = "standby" | "sleep";
 type Source = "life" | "work";
-type Prefs = { city: string; unit: "F" | "C"; mode: Mode; source: Source; quality: Quality; rain: number; sound: number; thunder: boolean; wind: boolean; minutes: number; showClock: boolean };
-const DEFAULT: Prefs = { city: "", unit: "F", mode: "standby", source: "life", quality: "cinematic", rain: 80, sound: 55, thunder: false, wind: false, minutes: 60, showClock: true };
+type Prefs = { city: string; unit: "F" | "C"; mode: Mode; source: Source; quality: Quality; rain: number; sound: number; thunder: boolean; wind: boolean; minutes: number; showClock: boolean; keepAwake: boolean };
+const DEFAULT: Prefs = { city: "", unit: "F", mode: "standby", source: "life", quality: "cinematic", rain: 80, sound: 55, thunder: false, wind: false, minutes: 60, showClock: true, keepAwake: true };
 const ICON = { clear: Sun, clouds: Cloud, rain: CloudRain, snow: CloudSnow, storm: CloudLightning, fog: CloudDrizzle };
 const localDay = (d: Date) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
 const safeRead = (key: string): Prefs => { try { return { ...DEFAULT, ...JSON.parse(localStorage.getItem(key) || "{}") }; } catch { return DEFAULT; } };
@@ -182,9 +182,21 @@ export default function AmbientStandby() {
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [full, setFull] = useState(false);
   const sound = useRainAudio();
+  const wake = useRef<{ release: () => Promise<void> } | null>(null);
   const update = (p: Partial<Prefs>) => setPrefs(s => ({ ...s, ...p }));
   const city = prefs.city.trim();
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(prefs)); } catch {} }, [key, prefs]);
+  useEffect(() => {
+    let alive = true;
+    const request = async () => {
+      if (!prefs.keepAwake || document.visibilityState !== "visible" || !(navigator as any).wakeLock) return;
+      try { const lock = await (navigator as any).wakeLock.request("screen"); if (!alive) await lock.release(); else wake.current = lock; } catch { /* browser may disallow wake locks */ }
+    };
+    void request();
+    const visible = () => { if (document.visibilityState === "visible") void request(); };
+    document.addEventListener("visibilitychange", visible);
+    return () => { alive = false; document.removeEventListener("visibilitychange", visible); void wake.current?.release(); wake.current = null; };
+  }, [prefs.keepAwake]);
   useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
   useEffect(() => { setCityDraft(prefs.city); }, [prefs.city]);
   useEffect(() => {
@@ -342,6 +354,7 @@ export default function AmbientStandby() {
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-wind">Layer soft wind ambience</label><input id="ambient-wind" type="checkbox" checked={prefs.wind} onChange={e => update({ wind: e.target.checked })}/></div>
         <div className="ambient-field"><label htmlFor="ambient-duration">Sound sleep timer</label><select id="ambient-duration" value={prefs.minutes} onChange={e => { const m = Number(e.target.value); update({ minutes: m }); if (sound.playing) setEndsAt(m ? Date.now() + m * 60000 : null); }}><option value={0}>Play until I stop it</option><option value={15}>15 minutes</option><option value={30}>30 minutes</option><option value={60}>1 hour</option><option value={120}>2 hours</option><option value={240}>4 hours</option><option value={480}>8 hours</option></select></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-clock-toggle">Clock visible in Sleep Studio</label><input id="ambient-clock-toggle" type="checkbox" checked={prefs.showClock} onChange={e => update({ showClock: e.target.checked })}/></div>
+        <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-awake">Keep screen awake when supported</label><input id="ambient-awake" type="checkbox" checked={prefs.keepAwake} onChange={e => update({ keepAwake: e.target.checked })}/></div>
         <p className="ambient-help">Weather reflects Open-Meteo forecasts, refreshed approximately every five minutes while the app is open. Sleep rain is a separate cinematic simulation. Audio begins only after you press Play. Browser fullscreen and landscape locking depend on the device.</p>
       </div>
     </aside></div>}
