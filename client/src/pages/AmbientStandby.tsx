@@ -109,7 +109,7 @@ function AtmosphereCanvas({ scene, sleep, quality, intensity }: { scene: Scene; 
           if (d.y > height + 25) { d.y = -25; d.x = random(0, width); }
         }
       }
-      if (scene === "storm" && !sleep && frame % 570 >= 558 && frame % 570 <= 560) {
+      if (scene === "storm" && frame % 570 >= 558 && frame % 570 <= 560) {
         ctx.fillStyle = "rgba(226,241,255,.24)"; ctx.fillRect(0, 0, width, height);
       }
       if (!reduced) raf = requestAnimationFrame(paint);
@@ -162,8 +162,25 @@ function useRainAudio() {
     n.windGain.gain.setTargetAtTime(windOn ? .42 : 0, n.master.context.currentTime, .08);
     n.rainGain.gain.setTargetAtTime(.3 + rain / 135, n.master.context.currentTime, .08);
   }, []);
+  const rumble = useCallback(() => {
+    const ac = ctxRef.current, nodes = nodesRef.current;
+    if (!ac || !nodes) return;
+    const len = Math.floor(ac.sampleRate * 3.6);
+    const buffer = ac.createBuffer(1, len, ac.sampleRate);
+    const samples = buffer.getChannelData(0); let low = 0;
+    for (let i = 0; i < len; i++) { low = (low + (Math.random() * 2 - 1) * .085) / 1.018; samples[i] = Math.max(-1, Math.min(1, low * 3)); }
+    const src = ac.createBufferSource(); src.buffer = buffer;
+    const filter = ac.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = 105;
+    const gain = ac.createGain(), time = ac.currentTime;
+    gain.gain.setValueAtTime(.0001, time);
+    gain.gain.exponentialRampToValueAtTime(.72, time + .35);
+    gain.gain.exponentialRampToValueAtTime(.0001, time + 3.5);
+    src.connect(filter).connect(gain).connect(nodes.master);
+    src.start(time); src.stop(time + 3.6);
+    src.onended = () => { try { src.disconnect(); filter.disconnect(); gain.disconnect(); } catch {} };
+  }, []);
   useEffect(() => () => { const n = nodesRef.current; try { n?.src.stop(); n?.wind.stop(); } catch {} void ctxRef.current?.close(); }, []);
-  return { playing, error, start, stop, setLevels };
+  return { playing, error, start, stop, setLevels, rumble };
 }
 export default function AmbientStandby() {
   const { user, token } = useAuth();
@@ -246,6 +263,8 @@ export default function AmbientStandby() {
     return () => { active = false; clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [prefs.source, token, user?.displayName, city]);
   useEffect(() => { sound.setLevels(prefs.sound, prefs.wind, prefs.rain); }, [prefs.sound, prefs.wind, prefs.rain, sound.setLevels]);
+  useEffect(() => { if (prefs.mode !== "sleep" && sound.playing) { void sound.stop(); setEndsAt(null); } }, [prefs.mode]);
+  useEffect(() => { if (!prefs.thunder || !sound.playing || prefs.mode !== "sleep") return; const first = window.setTimeout(sound.rumble, 6000); const loop = window.setInterval(sound.rumble, 26000); return () => { clearTimeout(first); clearInterval(loop); }; }, [prefs.thunder, prefs.mode, sound.playing, sound.rumble]);
   useEffect(() => {
     if (!endsAt || !sound.playing) return;
     if (Date.now() >= endsAt) { void sound.stop(); setEndsAt(null); return; }
@@ -253,7 +272,7 @@ export default function AmbientStandby() {
     return () => window.clearInterval(timer);
   }, [endsAt, sound.playing, sound.stop]);
   const liveScene: Scene = weather ? sceneFor(weather.current.code) : "clear";
-  const scene = prefs.mode === "sleep" ? "rain" : liveScene;
+  const scene = prefs.mode === "sleep" ? (prefs.thunder ? "storm" : "rain") : liveScene;
   const IconNow = weather ? ICON[liveScene] : CloudSun;
   const formattedTime = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   const [clockText, ampm] = formattedTime.split(" ");
@@ -352,6 +371,7 @@ export default function AmbientStandby() {
         <div className="ambient-field"><label>Rain intensity <strong>{prefs.rain}%</strong></label><input type="range" min="20" max="100" value={prefs.rain} onChange={e => update({ rain: Number(e.target.value) })}/></div>
         <div className="ambient-field"><label>Audio volume <strong>{prefs.sound}%</strong></label><input type="range" min="0" max="100" value={prefs.sound} onChange={e => update({ sound: Number(e.target.value) })}/></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-wind">Layer soft wind ambience</label><input id="ambient-wind" type="checkbox" checked={prefs.wind} onChange={e => update({ wind: e.target.checked })}/></div>
+        <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-thunder">Distant thunder and storm flashes</label><input id="ambient-thunder" type="checkbox" checked={prefs.thunder} onChange={e => update({ thunder: e.target.checked })}/></div>
         <div className="ambient-field"><label htmlFor="ambient-duration">Sound sleep timer</label><select id="ambient-duration" value={prefs.minutes} onChange={e => { const m = Number(e.target.value); update({ minutes: m }); if (sound.playing) setEndsAt(m ? Date.now() + m * 60000 : null); }}><option value={0}>Play until I stop it</option><option value={15}>15 minutes</option><option value={30}>30 minutes</option><option value={60}>1 hour</option><option value={120}>2 hours</option><option value={240}>4 hours</option><option value={480}>8 hours</option></select></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-clock-toggle">Clock visible in Sleep Studio</label><input id="ambient-clock-toggle" type="checkbox" checked={prefs.showClock} onChange={e => update({ showClock: e.target.checked })}/></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-awake">Keep screen awake when supported</label><input id="ambient-awake" type="checkbox" checked={prefs.keepAwake} onChange={e => update({ keepAwake: e.target.checked })}/></div>
