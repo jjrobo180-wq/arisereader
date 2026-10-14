@@ -1,0 +1,45 @@
+name: Site audit
+# A full check of both sites, run by hand or on the audit branch: TypeScript errors, the React
+# safety lint, every test, the production build, and a phone-sized crawl of every public page of
+# the live sites. Results are uploaded as the "site-audit" artifact.
+on:
+  workflow_dispatch:
+  push:
+    branches: [audit]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: mkdir -p audit-out
+      - name: TypeScript
+        continue-on-error: true
+        run: npx tsc --noEmit -p . > audit-out/tsc.txt 2>&1; echo "exit $?" >> audit-out/tsc.txt; tail -5 audit-out/tsc.txt
+      - name: React safety lint
+        continue-on-error: true
+        run: npm run lint:safety > audit-out/lint.txt 2>&1; echo "exit $?" >> audit-out/lint.txt; tail -5 audit-out/lint.txt
+      - name: Tests
+        continue-on-error: true
+        run: npx tsx --test tests/*.test.ts > audit-out/tests.txt 2>&1; echo "exit $?" >> audit-out/tests.txt; tail -15 audit-out/tests.txt
+      - name: Build
+        continue-on-error: true
+        run: npm run build > audit-out/build.txt 2>&1; echo "exit $?" >> audit-out/build.txt; tail -15 audit-out/build.txt
+      - name: Install a browser
+        run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
+      - name: Crawl the live sites
+        continue-on-error: true
+        env:
+          ROUTES: /signin,/register,/register-independent,/teacher-signup,/parent-signup,/pricing,/for-teachers,/for-parents,/about,/tutorial,/tutorial/student,/tutorial/teacher,/tutorial/parent,/tutorial/eye-gaze,/leaderboard,/reading-club,/competition,/news,/reads,/explore-reader,/to-do,/lifehub,/workhub,/library,/games,/fall-break
+        run: node script/audit/crawl-live.mjs > audit-out/live.txt 2>&1; tail -60 audit-out/live.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site-audit
+          path: audit-out
+          retention-days: 7
