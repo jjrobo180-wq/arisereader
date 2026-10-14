@@ -352,12 +352,12 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: number) {
-    const data = await fetchSingle(supabase.from("users").select("*").eq("id", id).single());
+    const data = await fetchSingle(supabase.from("users").select("*").eq("id", id).maybeSingle());
     return mapUser(data);
   }
 
   async getUserByUsername(username: string) {
-    const data = await fetchSingle(supabase.from("users").select("*").eq("username", username).single());
+    const data = await fetchSingle(supabase.from("users").select("*").eq("username", username).maybeSingle());
     return mapUser(data);
   }
 
@@ -417,7 +417,7 @@ export class DatabaseStorage implements IStorage {
   async createSession(userId: number) {
     const token = crypto.randomUUID();
     const data = await fetchSingle(
-      supabase.from("sessions").insert({ token, user_id: userId }).select().single()
+      supabase.from("sessions").insert({ token, user_id: userId }).select().maybeSingle()
     );
     if (!data) throw new Error("Failed to create session");
     cache.delete('session_' + token);
@@ -427,11 +427,11 @@ export class DatabaseStorage implements IStorage {
   async getSession(token: string) {
     return cached('session_' + token, 120000, async () => {
       const session = await fetchSingle(
-        supabase.from("sessions").select("*").eq("token", token).single()
+        supabase.from("sessions").select("*").eq("token", token).maybeSingle()
       );
       if (!session) return null;
       const user = await fetchSingle(
-        supabase.from("users").select("*").eq("id", session.user_id).single()
+        supabase.from("users").select("*").eq("id", session.user_id).maybeSingle()
       );
       // An archived profile is signed out everywhere.
       if (!user || user.archived_at) return null;
@@ -476,7 +476,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBook(id: number) {
-    const data = await fetchSingle(supabase.from("books").select("*").eq("id", id).single());
+    const data = await fetchSingle(supabase.from("books").select("*").eq("id", id).maybeSingle());
     return mapBook(data);
   }
 
@@ -489,7 +489,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAttempt(userId: number, bookId: number) {
     const data = await fetchSingle(
-      supabase.from("attempts").select("*").eq("user_id", userId).eq("book_id", bookId).single()
+      supabase.from("attempts").select("*").eq("user_id", userId).eq("book_id", bookId).maybeSingle()
     );
     return mapAttempt(data);
   }
@@ -508,7 +508,7 @@ export class DatabaseStorage implements IStorage {
     if (effectivePoints !== undefined && effectivePoints !== null) {
       bookPoints = Number(effectivePoints);
     } else {
-      const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).single());
+      const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).maybeSingle());
       bookPoints = Number(book?.points_value ?? 0);
     }
     const passingScore = Math.ceil(total * 0.70);
@@ -525,7 +525,7 @@ export class DatabaseStorage implements IStorage {
         proctor_type: proctor?.type || null,
         proctor_user_id: proctor?.userId ?? null,
         proctor_name: proctor?.name || null,
-      }).select().single()
+      }).select().maybeSingle()
     );
     if (!data) throw new Error("Failed to create attempt");
     // Update user's total_points
@@ -544,7 +544,7 @@ export class DatabaseStorage implements IStorage {
 
   /** Sets one attempt's points (for example when a reviewer removes them) and moves the student's total by the difference. */
   async setAttemptPoints(attemptId: number, points: number) {
-    const row = await fetchSingle(supabase.from("attempts").select("user_id, points_earned").eq("id", attemptId).single());
+    const row = await fetchSingle(supabase.from("attempts").select("user_id, points_earned").eq("id", attemptId).maybeSingle());
     if (!row) return null;
     const before = Number(row.points_earned || 0);
     const after = Math.max(0, Number(points) || 0);
@@ -582,7 +582,7 @@ export class DatabaseStorage implements IStorage {
         sender_type: senderType,
         message_text: text,
         link_url: linkUrl || null,
-      }).select().single()
+      }).select().maybeSingle()
     );
     if (!data) throw new Error("Failed to create message");
     return mapMessage(data);
@@ -812,7 +812,7 @@ export class DatabaseStorage implements IStorage {
 
   async getStudentDetail(userId: number) {
     const user = await fetchSingle(
-      supabase.from("users").select("*").eq("id", userId).single()
+      supabase.from("users").select("*").eq("id", userId).maybeSingle()
     );
     if (!user) return null;
 
@@ -961,7 +961,7 @@ export class DatabaseStorage implements IStorage {
 
   // Change password
   async changePassword(userId: number, currentPassword: string, newPassword: string) {
-    const user = await fetchSingle(supabase.from("users").select("password").eq("id", userId).single());
+    const user = await fetchSingle(supabase.from("users").select("password").eq("id", userId).maybeSingle());
     if (!user) throw new Error("User not found");
     const valid = await bcrypt.compare(currentPassword, user.password);
     if (!valid) throw new Error("Current password is incorrect");
@@ -997,7 +997,7 @@ export class DatabaseStorage implements IStorage {
 
   // Proctor password
   async getNotifsSeenAt(): Promise<string> {
-    const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "notifs_seen_at").single());
+    const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "notifs_seen_at").maybeSingle());
     return data?.value || "";
   }
 
@@ -1010,7 +1010,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNotifSeenAt(key: string): Promise<string> {
-    const data = await fetchSingle(supabase.from("settings").select("value").eq("key", `${key}_seen_at`).single());
+    const data = await fetchSingle(supabase.from("settings").select("value").eq("key", `${key}_seen_at`).maybeSingle());
     return data?.value || "";
   }
 
@@ -1027,7 +1027,7 @@ export class DatabaseStorage implements IStorage {
 
   async getProctorPassword(): Promise<string> {
     return cached('proctorPassword', 300000, async () => {
-      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "proctor_password").single());
+      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "proctor_password").maybeSingle());
       return data?.value || "";
     });
   }
@@ -1045,7 +1045,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAnnouncement(): Promise<string> {
     return cached('announcement', 300000, async () => {
-      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "announcement").single());
+      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "announcement").maybeSingle());
       return data?.value || "";
     });
   }
@@ -1062,7 +1062,7 @@ export class DatabaseStorage implements IStorage {
 
   async getSetting(key: string): Promise<string> {
     return cached(`setting_${key}`, 300000, async () => {
-      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", key).single());
+      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", key).maybeSingle());
       return data?.value || "";
     });
   }
@@ -1378,7 +1378,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPassage(passageId: number): Promise<any | null> {
     return cached(`passage_${passageId}`, 300000, async () => {
-      return fetchSingle(supabase.from("reading_passages").select("*").eq("id", passageId).single());
+      return fetchSingle(supabase.from("reading_passages").select("*").eq("id", passageId).maybeSingle());
     });
   }
 
@@ -1513,7 +1513,7 @@ export class DatabaseStorage implements IStorage {
 
   async getReadingProfile(userId: number): Promise<any | null> {
     return cached(`reading_profile_${userId}`, 120000, async () => {
-      return fetchSingle(supabase.from("reading_profiles").select("*").eq("user_id", userId).single());
+      return fetchSingle(supabase.from("reading_profiles").select("*").eq("user_id", userId).maybeSingle());
     });
   }
 
@@ -1556,7 +1556,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAssessmentAttempt(attemptId: number): Promise<any | null> {
-    return fetchSingle(supabase.from("reading_assessment_attempts").select("*").eq("id", attemptId).single());
+    return fetchSingle(supabase.from("reading_assessment_attempts").select("*").eq("id", attemptId).maybeSingle());
   }
 
   // Set reading level from i-Ready scores (bypasses initial assessment)
@@ -1719,7 +1719,7 @@ export class DatabaseStorage implements IStorage {
         .in("status", ["reading", "questions"])
         .order("created_at", { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
     );
     if (existing) {
       let activeAttempt = existing;
@@ -2029,7 +2029,7 @@ export class DatabaseStorage implements IStorage {
         .eq("status", "in_progress")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
     );
     if (existing) {
       if (proctor && (!existing.proctor_type || !existing.proctor_name)) {
@@ -2483,7 +2483,7 @@ export class DatabaseStorage implements IStorage {
         .eq("status", "in_progress")
         .order("id", { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
     );
     if (existing) {
       if (proctor && (!existing.proctor_type || !existing.proctor_name)) {
@@ -3202,9 +3202,9 @@ export class DatabaseStorage implements IStorage {
     // Get quiz accuracy trend
     const { data: quizAttempts } = await supabase
       .from('attempts')
-      .select('score, total, created_at')
+      .select('score, total, completed_at')
       .eq('user_id', studentId)
-      .order('created_at', { ascending: true });
+      .order('completed_at', { ascending: true });
     const quizAccuracy = quizAttempts && quizAttempts.length > 0
       ? Math.round((quizAttempts.reduce((sum: number, a: any) => sum + (a.score / a.total), 0) / quizAttempts.length) * 100)
       : 0;

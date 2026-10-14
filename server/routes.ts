@@ -10783,7 +10783,7 @@ Important:
           message: `Your quiz "${pending.book_title}" has been approved and is ready to take!`
         });
       }
-      await supabase.from('pending_ai_quizzes').update({ status: 'approved', reviewed_by: req.user.id, reviewed_at: new Date().toISOString() }).eq('id', req.params.id);
+      await supabase.from('pending_ai_quizzes').update({ status: 'approved', reviewer_id: req.user.id, reviewed_at: new Date().toISOString() }).eq('id', req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -10795,8 +10795,8 @@ Important:
     try {
       const { reason } = req.body;
       await supabase.from('pending_ai_quizzes').update({
-        status: 'rejected', reviewed_by: req.user.id,
-        reviewed_at: new Date().toISOString(), rejection_reason: reason || null
+        status: 'rejected', reviewer_id: req.user.id,
+        reviewed_at: new Date().toISOString(), review_reason: reason || "Not specified"
       }).eq('id', req.params.id);
       const { data: pendingRows } = await supabase.from('pending_ai_quizzes').select('student_id, book_title').eq('id', req.params.id);
       if (pendingRows && pendingRows[0]) {
@@ -11411,7 +11411,7 @@ Important:
       const rawLimit = req.body?.dailyGameLimit;
       const dailyGameLimit = rawLimit === null || rawLimit === "" || rawLimit === undefined
         ? null
-        : Math.max(0, Math.min(180, Math.floor(Number(rawLimit) || 0)));
+        : Math.max(0, Math.min(100, Math.floor(Number(rawLimit) || 0)));
       const gamesPerPassedQuiz = Math.max(0, Math.min(20, Math.floor(Number(req.body?.gamesPerPassedQuiz) || 0)));
       const weeklyUnlimitedOnPass = req.body?.weeklyUnlimitedOnPass !== false;
       const row = {
@@ -11683,8 +11683,6 @@ Important:
         { table: "notifications", column: "user_id" },
         { table: "quiz_requests", column: "user_id" },
         { table: "easter_egg_claims", column: "user_id" },
-        { table: "custom_quizzes", column: "creator_id" },
-        { table: "eye_gaze_quizzes", column: "creator_id" },
       ];
 
       for (const { table, column } of tables) {
