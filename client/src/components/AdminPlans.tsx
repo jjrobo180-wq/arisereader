@@ -86,7 +86,7 @@ export default function AdminPlans() {
     const freeNames = (data.freeSchools || []).filter((f) => f.free).map((f) => f.name).join(", ");
     const noPayment = turnOn && !data.stripe.keySet ? "Online payment is not set up yet, so a new teacher would have no way to pay. Set the Stripe key first, or switch Premium on by hand for each teacher.\n\n" : "";
     const question = turnOn
-      ? noPayment + "Turn plan rules ON?\n\n" + (freeNames ? `Teachers at ${freeNames} always have Premium at no charge.\n\n` : "") + "Other teachers who signed up on or after October 1, 2026 will need Premium to use their account once their 30-day free trial is over. Students on Free lose AI study sets and lessons from their own topics. Parents can follow up to 5 children.\n\nTeachers and school students who signed up before October 1, 2026 keep everything until July 1, 2027."
+      ? noPayment + "Turn plan rules ON?\n\n" + (freeNames ? `Teachers at ${freeNames} always have Premium at no charge.\n\n` : "") + "Other teachers who signed up on or after October 1, 2026 will need Premium to use their account once their 30-day free trial is over. Students on Free lose AI study sets and lessons from their own topics. Parents can follow up to 3 children.\n\nTeachers and school students who signed up before October 1, 2026 keep everything until July 1, 2027."
       : "Turn plan rules OFF?\n\nEverything opens up for everyone again. Paid plans keep running and keep being charged.";
     if (!window.confirm(question)) return;
     await post("rules", "/api/admin/plans/enforce", { enforced: turnOn }, turnOn ? "Plan rules are on." : "Plan rules are off.");
@@ -141,7 +141,7 @@ export default function AdminPlans() {
               </div>
               <p className="text-sm text-muted-foreground">
                 {data.enforced
-                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Every teacher gets a 30-day free trial, with Arise WorkHub included. Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 5 children."
+                  ? "Teacher accounts need Premium, unless they teach at an always-free school below or signed up before October 1, 2026 (free until July 1, 2027). Every teacher gets a 30-day free trial, with Arise WorkHub included. Students get AI study sets and lessons from their own topics only through a Premium teacher or school. Parents can follow up to 3 children."
                   : "Nothing is locked for anyone. Turn the rules on when you are ready for the Free and Premium plans to apply."}
               </p>
             </div>

@@ -10468,7 +10468,7 @@ Important:
       const links = await readParentStudentLinks();
       const ids = normalizeLinkedIds(links[String(req.user.id)]);
       if (!ids.includes(Number(invite.student_id))) {
-        // One parent profile follows up to five children on the Free plan.
+        // One parent profile follows up to PLANS.parentMaxChildren (three) children.
         const room = await plans.parentLinkAllowed(ids, Number(invite.student_id));
         if (!room.ok) return res.status(409).json({ message: room.message });
         ids.push(Number(invite.student_id));

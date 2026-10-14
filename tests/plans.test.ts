@@ -20,22 +20,22 @@ const on = { enforced: true, now: NOW };
 
 test("the prices are the ones on the pricing page", () => {
   assert.equal(usd(PLANS.teacher.monthlyCents), "$10");
-  assert.equal(PLANS.teacher.studentsPerBlock, 100);
+  assert.equal(PLANS.teacher.studentsPerBlock, 30);
   assert.equal(usd(PLANS.school.yearlyCents), "$700");
   assert.equal(PLANS.school.studentCap, 1000);
-  assert.equal(PLANS.parentMaxChildren, 5);
+  assert.equal(PLANS.parentMaxChildren, 3);
   assert.equal(usd(1250), "$12.50");
 });
 
-test("a teacher pays for one block of 100 students, then one more per extra 100", () => {
+test("a teacher pays for one block of 30 students, then one more per extra 30", () => {
   assert.equal(blocksFor(0), 1);
   assert.equal(blocksFor(1), 1);
-  assert.equal(blocksFor(100), 1);
-  assert.equal(blocksFor(101), 2);
-  assert.equal(blocksFor(250), 3);
+  assert.equal(blocksFor(30), 1);
+  assert.equal(blocksFor(31), 2);
+  assert.equal(blocksFor(75), 3);
   assert.equal(blocksFor(-5), 1);
   assert.equal(blocksFor(1e9), PLANS.teacher.maxBlocks);
-  assert.equal(seatsFor(3), 300);
+  assert.equal(seatsFor(3), 90);
   assert.equal(teacherMonthlyCents(3), 3000);
   assert.equal(clampBlocks("2"), 2);
   assert.equal(clampBlocks("abc"), 1);
@@ -133,13 +133,14 @@ test("a student gets the Premium extras through the teacher who approved them", 
   assert.equal(entitlementFor({ id: 12, createdAt: LATE }, on).premium, false, "no role means student");
 });
 
-test("parents are free, and a profile follows up to five children", () => {
+test("parents are free, and a profile follows up to three children", () => {
   assert.equal(entitlementFor({ id: 80, role: "parent", createdAt: EARLY }, on).premium, false);
   assert.equal(parentCanLink(0, { enforced: true }), true);
-  assert.equal(parentCanLink(4, { enforced: true }), true);
-  assert.equal(parentCanLink(5, { enforced: true }), false);
-  assert.equal(parentCanLink(9, { enforced: false }), true, "rules off");
-  assert.equal(parentCanLink(9, { enforced: true, premiumFamily: true }), true, "a family in a Premium class");
+  assert.equal(parentCanLink(2, { enforced: true }), true);
+  assert.equal(parentCanLink(3, { enforced: true }), false);
+  // three is the limit for every parent account, always (set Oct 11, 2026)
+  assert.equal(parentCanLink(3, { enforced: false }), false, "rules off");
+  assert.equal(parentCanLink(3, { enforced: true, premiumFamily: true }), false, "a family in a Premium class");
 });
 
 test("CGMS is recognised by its short name or its full name, and other schools are not", () => {
@@ -187,8 +188,9 @@ test("a plan or the free year is what gives a teacher Premium; there is no trial
   const late = { id: 50, role: "teacher", createdAt: LATE };
   const own = grant({ endsAt: new Date(during.now + 20 * DAY).toISOString() });
   assert.deepEqual([entitlementFor(late, { ...during, teacherGrant: own }).via, entitlementFor(late, { ...during, teacherGrant: own }).seats], ["teacher-plan", 100]);
+  // an old WorkHub plan from when it was sold changes nothing: the hub is free for everyone
   const hub = grant({ kind: "hub_teacher", seats: 200, endsAt: new Date(during.now + 20 * DAY).toISOString() });
-  assert.deepEqual([hubAccessFor(late, { now: during.now, teacherGrant: hub }).via, hubAccessFor(late, { now: during.now, teacherGrant: hub }).seats], ["hub-teacher-plan", 200]);
+  assert.equal(hubAccessFor(late, { now: during.now, teacherGrant: hub }).via, "free");
   // a teacher who joins next school year, after the free year, has no Premium without a plan
   const next = { id: 61, role: "teacher", createdAt: "2027-09-01T15:00:00.000Z" };
   assert.equal(entitlementFor(next, { enforced: true, now: Date.parse("2027-09-15T15:00:00.000Z") }).premium, false);
@@ -217,5 +219,5 @@ test("the admin has every program free, always: no plan, no trial, nothing that 
   }
   // The same account without the admin flag is back to the ordinary rules.
   assert.equal(entitlementFor({ id: 2, role: "teacher", createdAt: LATE }, { enforced: true, now: later }).premium, false);
-  assert.equal(hubAccessFor({ id: 2, role: "teacher", createdAt: LATE }, { now: later }).access, false);
+  assert.equal(hubAccessFor({ id: 2, role: "teacher", createdAt: LATE }, { now: later }).via, "free", "the hubs are free for every teacher");
 });

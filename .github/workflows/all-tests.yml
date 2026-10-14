@@ -1,0 +1,23 @@
+name: All tests and build
+# Every check in tests/ plus the production build, on each push to master and on pull requests.
+# (Some test files need the server's packages, so they can only run where `npm ci` works.)
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: All tests
+        run: npx tsx --test tests/*.test.ts
+      - name: Production build
+        run: npm run build

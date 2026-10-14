@@ -459,14 +459,17 @@ function AppRoutes() {
       <Route path="/reader">
         {!user ? <Redirect to="/signin" replace /> : <AriseReader />}
       </Route>
+      {/* Office, the AI tools and the premium apps open from the hubs' App Store, so they let in
+          whoever the hubs do: teachers, parents, personal accounts and admins. They don't use
+          ProtectedRoute, which sends parents to the Reader and plan-less teachers to Billing. */}
       <Route path="/ai-apps">
-        {user && (user.isAdmin || user.role === "teacher" || user.role === "parent") ? <ProtectedRoute><PremiumStudio /></ProtectedRoute> : <Redirect to="/signin" replace />}
+        {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <PremiumStudio /> : <Redirect to="/" replace />}
       </Route>
       <Route path="/office">
-        {user && (user.isAdmin || user.role === "teacher" || user.role === "parent") ? <ProtectedRoute><AriseOffice /></ProtectedRoute> : <Redirect to="/signin" replace />}
+        {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <AriseOffice /> : <Redirect to="/" replace />}
       </Route>
       <Route path="/pro">
-        {user && (user.isAdmin || user.role === "teacher" || user.role === "parent") ? <ProtectedRoute><ProApps /></ProtectedRoute> : <Redirect to="/signin" replace />}
+        {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <ProApps /> : <Redirect to="/" replace />}
       </Route>
       <Route path="/workhub">
         {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : !user ? <Redirect to="/signin" replace /> : <TeacherHub />}

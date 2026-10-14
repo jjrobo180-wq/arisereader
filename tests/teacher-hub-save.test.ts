@@ -241,3 +241,19 @@ test("A.R.I.S.E. To-Do reads the teacher's own Hub calendar: repeats worked out,
   assert.equal((await call("GET", "/api/teacher-hub/calendar", {}, { from: "2026-01-01", to: "2026-12-31" })).status, 400, "at most 100 days");
   assert.equal((await call("GET", "/api/teacher-hub/calendar", {}, { from: "nope", to: "2026-10-31" })).status, 400);
 });
+
+test("screens a teacher was using come back once after the Oct 12 App Store change; empty ones stay off", async () => {
+  const { normalizeWorkspace, isTabOn } = await import("../shared/teacherHub");
+  // Saved after the tabsV2 step had hidden every App Store screen, with a caseload and minutes in it.
+  const saved = { tabsV2: true, visibleTabs: { caseload: false, minutes: false, email: false }, students: [{ id: "s1", name: "Maya" }], serviceLogs: [{ id: "l1" }] };
+  const ws = normalizeWorkspace(saved);
+  assert.equal(isTabOn("caseload", ws.visibleTabs), true);
+  assert.equal(isTabOn("minutes", ws.visibleTabs), true);
+  assert.equal(isTabOn("email", ws.visibleTabs), false, "nothing saved in it");
+  assert.equal(ws.tabsV3, true);
+  // After that one time, removing a screen sticks.
+  const later = normalizeWorkspace({ ...ws, visibleTabs: { ...ws.visibleTabs, minutes: false } });
+  assert.equal(isTabOn("minutes", later.visibleTabs), false);
+  // A brand-new workspace starts with no App Store screens.
+  assert.equal(isTabOn("caseload", normalizeWorkspace(undefined).visibleTabs), false);
+});

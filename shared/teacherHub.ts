@@ -221,6 +221,8 @@ export type Workspace = {
   visibleTabs: Record<HubTab, boolean>;
   /** Set once this workspace's tabs have been read under the App Store rules (see cleanWorkspace). */
   tabsV2?: boolean;
+  /** Set once screens in use were put back after the tabsV2 step (see restoreUsedTabs). */
+  tabsV3?: boolean;
   /** The order the menu's groups show in, Home aside: group ids as strings, kept loose here to
    *  avoid a circular import with shared/hubTabGroups.ts. See cleanGroupOrder there. */
   groupOrder?: string[];
@@ -269,11 +271,35 @@ export function emptyWorkspace(): Workspace {
     profile: { school: "", gradeBand: "", subject: "" },
     visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, !WORK_ADD_ON_TABS.includes(tab)])) as Record<HubTab, boolean>,
     tabsV2: true,
+    tabsV3: true,
     groupOrder: [],
     students: [], meetings: [], lessons: [], tasks: [], notes: [], ariseRecords: [], behavior: [], attendance: [],
     assignments: [], gradeScores: [], parentLogs: [], schedules: [], emails: [], goals: [], services: [], serviceLogs: [], events: [], calendars: [],
     guides: [], spedContacts: [], guideLinks: [], pins: [],
   };
+}
+
+/** The saved lists behind each App Store screen: if any has something in it, the screen is in use. */
+const TAB_DATA: Partial<Record<HubTab, readonly string[]>> = {
+  caseload: ["students"], minutes: ["services", "serviceLogs"], iep: ["meetings", "guides"], lessons: ["lessons", "lessonClasses"],
+  arise: ["ariseRecords"], behavior: ["behavior"], attendance: ["attendance"], gradebook: ["assignments", "gradeScores"],
+  parents: ["parentLogs"], schedules: ["schedules"], email: ["emails"],
+};
+/** Screens with something saved in them, judged from a raw saved workspace. */
+export function usedTabs(raw: any): HubTab[] {
+  return WORK_ADD_ON_TABS.filter((tab) => (TAB_DATA[tab] || []).some((k) => Array.isArray(raw?.[k]) && raw[k].length > 0));
+}
+/**
+ * When the App Store screens became add-ons (Oct 12, 2026), the one-time tabsV2 step hid every one
+ * of them, including screens a teacher was using: their caseload and minutes were still saved but
+ * the screens were gone. This puts back, once (tabsV3), every screen that has something saved in it.
+ * Screens with nothing in them stay as they are, and anything removed after this sticks.
+ */
+function restoreUsedTabs(raw: any, visible: Record<HubTab, boolean>): Record<HubTab, boolean> {
+  if (raw.tabsV3 === true) return visible;
+  const out = { ...visible };
+  for (const tab of usedTabs(raw)) out[tab] = true;
+  return out;
 }
 
 const LISTS = ["students", "meetings", "lessons", "tasks", "notes", "ariseRecords", "behavior", "attendance", "assignments", "gradeScores", "parentLogs", "schedules", "emails", "goals", "services", "serviceLogs", "events", "calendars", "guides", "spedContacts", "guideLinks"] as const;
@@ -290,10 +316,11 @@ export function normalizeWorkspace(raw: any): Workspace {
     // by the old default, which would read as "already added" and leave nothing to add. Those are
     // taken back to the built-in four once, marked with tabsV2 so it happens only that once.
     // Nothing is deleted by hiding a screen: adding it back from the App Store brings it all back.
-    visibleTabs: raw.tabsV2 === true
+    visibleTabs: restoreUsedTabs(raw, raw.tabsV2 === true
       ? { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true }
-      : { ...base.visibleTabs, ...Object.fromEntries(Object.entries(raw.visibleTabs || {}).filter(([tab]) => !WORK_ADD_ON_TABS.includes(tab as HubTab))), overview: true },
+      : { ...base.visibleTabs, ...Object.fromEntries(Object.entries(raw.visibleTabs || {}).filter(([tab]) => !WORK_ADD_ON_TABS.includes(tab as HubTab))), overview: true }),
     tabsV2: true,
+    tabsV3: true,
     // Goals became a standard screen (October 2026): switched on once for everyone, after which it
     // can be hidden like Calendar or Notes.
     goalsStd: true,

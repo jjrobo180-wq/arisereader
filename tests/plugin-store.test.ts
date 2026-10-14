@@ -8,6 +8,7 @@ import {
 } from "../shared/pluginStore";
 import { HUB_TABS, emptyWorkspace } from "../shared/teacherHub";
 import { ALWAYS_SHOWN } from "../shared/hubTabGroups";
+import { WORK_BUILT_IN_TABS } from "../shared/teacherHub";
 import { TOGGLEABLE, emptyFamily } from "../shared/familyHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -24,26 +25,29 @@ test("every plugin has a unique id, a known category and real features", () => {
   }
 });
 
-test("WorkHub: every tab a teacher can hide is in the store, and no always-on tab is", () => {
+test("WorkHub: every App Store screen is in the store, and no built-in or always-on tab is", () => {
+  // Since Oct 12, 2026 WorkHub comes with Home, Calendar, Tasks, Notes and Goals (hidden or shown
+  // in Settings); the rest are added from the App Store.
   const tabs = PLUGINS.flatMap((p) => (p.target.kind === "tab" ? [p.target.tab] : []));
-  const optional = HUB_TABS.filter((t) => !ALWAYS_SHOWN.includes(t) && t !== "admin" && t !== "arise");
+  const optional = HUB_TABS.filter((t) => !ALWAYS_SHOWN.includes(t) && t !== "admin" && (!WORK_BUILT_IN_TABS.includes(t) || t === "goals"));
+  // (Goals became built-in later but keeps its listing, shown as already added and never counted.)
   assert.deepEqual([...tabs].sort(), [...optional].sort());
   for (const t of tabs) assert.ok(!ALWAYS_SHOWN.includes(t), t);
 });
 
-test("LifeHub: every section a family can switch off is in the store", () => {
+test("LifeHub: every section a family can switch off is in the store, except the built-in Calendar and Notes", () => {
   const sections = PLUGINS.flatMap((p) => (p.target.kind === "section" ? [p.target.section] : []));
-  assert.deepEqual([...sections].sort(), [...TOGGLEABLE].sort());
+  assert.deepEqual([...sections].sort(), TOGGLEABLE.filter((s) => s !== "calendar" && s !== "notes").sort());
 });
 
 test("adding and removing a WorkHub tab only changes that tab", () => {
   const ws = emptyWorkspace();
   const gradebook = PLUGINS.find((p) => p.id === "work-gradebook")!;
-  assert.equal(workInstalled(gradebook, ws.visibleTabs), true, "tabs start added");
-  const off = setWorkPlugin(ws.visibleTabs, gradebook, false);
-  assert.equal(workInstalled(gradebook, off), false);
-  assert.deepEqual({ ...off, gradebook: true }, ws.visibleTabs, "nothing else changed");
-  assert.equal(workInstalled(gradebook, setWorkPlugin(off, gradebook, true)), true);
+  assert.equal(workInstalled(gradebook, ws.visibleTabs), false, "App Store screens start off");
+  const on = setWorkPlugin(ws.visibleTabs, gradebook, true);
+  assert.equal(workInstalled(gradebook, on), true);
+  assert.deepEqual({ ...on, gradebook: false }, ws.visibleTabs, "nothing else changed");
+  assert.equal(workInstalled(gradebook, setWorkPlugin(on, gradebook, false)), false);
 });
 
 test("adding and removing a LifeHub section keeps the family's data", () => {
@@ -70,7 +74,7 @@ test("connections open where they're set up, after the tab they live in", () => 
   const apple = PLUGINS.find((p) => p.id === "work-apple-reminders")!;
   assert.equal(isAddable(apple), false);
   assert.deepEqual(pluginOpens(apple), { tab: "tasks" });
-  assert.equal(connectionNeeds(apple)?.id, "work-tasks");
+  assert.equal(connectionNeeds(apple), null, "Tasks comes with every WorkHub, so there's nothing to add first");
   assert.equal(workInstalled(apple, { ...emptyWorkspace().visibleTabs, tasks: false }), false);
   const health = PLUGINS.find((p) => p.id === "life-apple-health")!;
   assert.equal(connectionNeeds(health)?.id, "life-health");

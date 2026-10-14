@@ -22,6 +22,18 @@ export const ADD_ON_SECTIONS: readonly FamilySection[] = [
   "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
   "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
 
+/** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
+const some = (v: unknown) => Array.isArray(v) && v.length > 0;
+const WAS_STANDARD: Partial<Record<FamilySection, (raw: any) => boolean>> = {
+  goals: (r) => some(r.goals), chores: (r) => some(r.chores), behavior: (r) => some(r.behavior),
+  // Health is in use if anything is logged, or a health reminder was switched on (all start off).
+  health: (r) => (!!r.health && typeof r.health === "object" && Object.values(r.health).some(some))
+    || ["water", "meals", "workout", "weighIn"].some((k) => r.notify?.[k]?.on === true),
+  cycle: (r) => some(r.cycleLogs), pills: (r) => some(r.pills), mood: (r) => some(r.moods), polls: (r) => some(r.polls),
+  trips: (r) => some(r.trips), money: (r) => some(r.bills) || some(r.expenses),
+};
+
+
 /** A family's `sectionOrder` (only the toggleable sections can be reordered) made safe to use:
  *  every toggleable section appears exactly once, keeping the saved order where valid and
  *  appending anything missing (new sections, or a section dropped from a stale save) at the end. */
@@ -346,6 +358,13 @@ export function cleanFamily(input: unknown): Family {
   const sections: Partial<Record<FamilySection, boolean>> = {};
   const rawSections = obj(raw.sections) || {};
   for (const key of TOGGLEABLE) if (typeof rawSections[key] === "boolean") sections[key] = rawSections[key];
+  // These were on for every family until Oct 12, 2026, when they became App Store add-ons that
+  // start off. A family already using one never chose to add it, so it would have vanished with
+  // their data still inside (and pill reminders stopped). One that has something saved in it
+  // counts as added; one they remove is saved as false, so that still sticks.
+  for (const [key, has] of Object.entries(WAS_STANDARD) as [FamilySection, (r: any) => boolean][]) {
+    if (sections[key] === undefined && has(raw)) sections[key] = true;
+  }
   const rawLayers = obj(raw.layers) || {};
   const layers: Layers = {
     tasks: bool(rawLayers.tasks, true), bills: bool(rawLayers.bills, true), trips: bool(rawLayers.trips, true), chores: bool(rawLayers.chores, false), hub: bool(rawLayers.hub, false),

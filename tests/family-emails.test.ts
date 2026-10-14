@@ -246,7 +246,9 @@ test("the admin's screen: only the admin, the counts, saving, and previews", asy
 test("the pieces are connected: routes, the timer, and the admin's Settings tab", () => {
   const routes = read("server/routes.ts"), admin = read("client/src/pages/Admin.tsx"), box = read("client/src/components/FamilyEmailSettings.tsx");
   for (const part of ["registerFamilyEmailRoutes(app, authMiddleware, {", "readParentStudentLinks()", "storage.getMonthlyLeaderboard(schoolYearMonth(nowMs))", "monthStanding(month, c.id, bandOf)", 'hkdfSync("sha256", source, "arise-family-email"']) assert.ok(routes.includes(part), part);
-  for (const part of ['{ value: "family-emails", label: "Family emails", icon: Mail }', '{settingsSection === "family-emails" && (', "<FamilyEmailSettings />"]) assert.ok(admin.includes(part), part);
+  // The Settings menu's list lives in client/src/lib/adminSections.ts.
+  assert.ok(read("client/src/lib/adminSections.ts").includes('{ id: "family-emails", label: "Family emails", icon: Mail }'));
+  for (const part of ['{settingsSection === "family-emails" && (', "<FamilyEmailSettings />"]) assert.ok(admin.includes(part), part);
   for (const part of ['testId="family-emails-main"', "Weekly progress update", '"Time to read" reminder', "Email it to me", 'sandbox=""', "Students don't have email addresses on the site"]) assert.ok(box.includes(part), part);
   assert.ok(read("server/familyEmails.ts").includes("if (options.startTimer !== false) startFamilyEmailTimer(deps);"));
 });

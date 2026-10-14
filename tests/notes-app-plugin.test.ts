@@ -7,17 +7,14 @@ import { readFileSync } from "node:fs";
 import { PLUGINS, lifeInstalled, notesAppPlugin, setLifeNotesApp, setWorkNotesApp, workInstalled } from "../shared/pluginStore";
 import { cleanNotesApp, pinNotesAppNote, removeNotesAppNote, saveNotesAppNote } from "../shared/notesApp";
 import { emptyFamily, cleanFamily } from "../shared/familyHub";
-import { emptyWorkspace } from "../shared/teacherHub";
+import { WORK_BUILT_IN_TABS, emptyWorkspace } from "../shared/teacherHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("the hubs' own built-in notes are renamed: LifeHub Notes and Work Notes", () => {
-  const life = PLUGINS.find((p) => p.id === "life-notes")!;
-  assert.equal(life.name, "LifeHub Notes");
-  assert.equal(life.target.kind, "section");
-  const work = PLUGINS.find((p) => p.id === "work-notes")!;
-  assert.equal(work.name, "Work Notes");
-  assert.equal(work.target.kind, "tab");
+test("each hub's own Notes is built in (no store entry since Oct 12); the cross-over apps are in the store", () => {
+  assert.equal(PLUGINS.find((p) => p.id === "life-notes"), undefined, "LifeHub Notes comes with LifeHub");
+  assert.equal(PLUGINS.find((p) => p.id === "work-notes"), undefined, "Notes comes with WorkHub");
+  assert.ok(WORK_BUILT_IN_TABS.includes("notes"));
 });
 
 test("LifeHub Notes can be installed into WorkHub, and Work Notes into LifeHub, as separate apps", () => {

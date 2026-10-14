@@ -53,7 +53,7 @@ test("suggested items are made safe before a teacher sees them", () => {
     secrets: [{ title: "not a list the Hub has" }],
     emails: { subject: "not a list" },
   }, TODAY);
-  assert.deepEqual(items.tasks, [{ title: "Email Mr. Diaz", dueDate: "2026-10-09", recurring: "Weekly" }, { title: "Call home", dueDate: "", recurring: "" }]);
+  assert.deepEqual(items.tasks, [{ title: "Email Mr. Diaz", dueDate: "2026-10-09", dueTime: "", recurring: "Weekly" }, { title: "Call home", dueDate: "", dueTime: "", recurring: "" }]);
   assert.deepEqual(items.events, [{ title: "Staff meeting", date: "2026-10-08", start: "15:30", end: "16:30", location: "Library", notes: "" }], "an event needs a day");
   assert.deepEqual(items.meetings.map((m) => [m.student, m.type, m.date]), [["Jordan Lee", "Annual IEP", "2026-10-09"], ["", "Other", ""]]);
   assert.deepEqual(items.notes, [{ student: "42", type: "Teacher note", date: TODAY, body: "Line one\n\nLine two" }], "a note with no date is today's");
@@ -411,7 +411,7 @@ test("typed or pasted text is read by the AI and comes back as checked suggestio
   assert.equal(r.status, 200);
   assert.equal(r.body.usedAI, true);
   assert.equal(r.body.summary, "Two to-dos and a meeting.");
-  assert.deepEqual(r.body.items.tasks, [{ title: "Email Mr. Diaz", dueDate: "2026-10-09", recurring: "Weekly" }]);
+  assert.deepEqual(r.body.items.tasks, [{ title: "Email Mr. Diaz", dueDate: "2026-10-09", dueTime: "", recurring: "Weekly" }]);
   assert.deepEqual(r.body.items.meetings, [{ student: "Jordan Lee", type: "Annual IEP", date: "2026-10-09", notes: "" }]);
   assert.deepEqual(Object.keys(r.body.items), HUB_IMPORT_KINDS);
   // what the AI was told

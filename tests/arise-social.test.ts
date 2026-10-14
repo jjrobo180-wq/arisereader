@@ -76,11 +76,14 @@ test("a student's post stays private until their own teacher approves it, then o
   assert.equal((await kenji("GET /api/social/feed")).body.posts.length, 0, "another class in the same school does not see class posts");
 });
 
-test("a teacher's post is live at once; school-wide posts reach the whole school only", async () => {
+test("a teacher's post is live at once and stays in their own class, even if school-wide is asked for", async () => {
+  // Connect is class-only since Oct 11, 2026: nothing is shared school-wide.
   const t = setup();
   const r = await t.as(1)("POST /api/social/posts", { body: { text: "Career day is Friday!", scope: "school" } });
   assert.equal(r.body.post.status, "approved");
-  assert.equal((await t.as(13)("GET /api/social/feed")).body.posts.length, 1);
+  assert.equal(r.body.post.scope, "class");
+  assert.equal((await t.as(11)("GET /api/social/feed")).body.posts.length, 1, "her own student");
+  assert.equal((await t.as(13)("GET /api/social/feed")).body.posts.length, 0, "another class in the same school");
   assert.equal((await t.as(14)("GET /api/social/feed")).body.posts.length, 0, "a different school");
 });
 
@@ -162,7 +165,8 @@ test("a K–5 RSVP waits for a parent; parents only manage their own child", asy
   const kids = await t.as(21)("GET /api/social/children");
   assert.equal(kids.body.children[0].events[0].status, "going");
   assert.equal((await t.as(21)("PUT /api/social/children/:id/settings", { params: { id: 11 }, body: { postScope: "school" } })).code, 404);
-  assert.equal((await t.as(21)("PUT /api/social/children/:id/settings", { params: { id: 16 }, body: { postScope: "school" } })).code, 200);
+  assert.equal((await t.as(21)("PUT /api/social/children/:id/settings", { params: { id: 16 }, body: { postScope: "school" } })).code, 400, "school-wide sharing is off");
+  assert.equal((await t.as(21)("PUT /api/social/children/:id/settings", { params: { id: 16 }, body: { postScope: "class" } })).code, 200);
   // Seats: Jaylen joins (2 of 2), then the event is full for Destiny.
   await t.as(11)("POST /api/social/events/:id/rsvp", { params: { id }, body: { action: "join" } });
   assert.equal((await t.as(12)("POST /api/social/events/:id/rsvp", { params: { id }, body: { action: "join" } })).code, 409);

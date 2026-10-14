@@ -15,7 +15,7 @@ test("the new sections start off, and adding one from the store turns it on", ()
     assert.equal(lifeInstalled(p!, f), false);
     assert.equal(isOn(s, setLifePlugin(f, p!, true)), true);
   }
-  assert.equal(isOn("chores", f), true, "the usual sections still start on");
+  assert.equal(isOn("calendar", f), true, "the built-in sections still start on");
 });
 
 test("a saved family keeps journal, countdowns, groceries, verses, meditation and quotes, cleaned", () => {
