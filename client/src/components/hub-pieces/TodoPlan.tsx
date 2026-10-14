@@ -158,7 +158,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
               <p className="font-bold text-violet-900">Unlimited</p>
               <p className="text-xs text-violet-700">{price} a month{yearly ? ` or ${usd(yearly)} a year` : ""}</p>
               <ul className="mt-2 space-y-1 text-violet-900">
-                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All 450+ apps</li>
+                <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />All 575+ apps</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />AI every day</li>
                 <li className="flex gap-1"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />Both hubs</li>
               </ul>
