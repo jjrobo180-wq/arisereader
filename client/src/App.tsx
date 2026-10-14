@@ -104,6 +104,7 @@ const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
+const AmbientStandby = lazyPage(() => import("./pages/AmbientStandby"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
 const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
 const ProApps = lazyPage(() => import("./pages/ProApps"));
@@ -464,6 +465,9 @@ function AppRoutes() {
           ProtectedRoute, which sends parents to the Reader and plan-less teachers to Billing. */}
       <Route path="/ai-apps">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <PremiumStudio /> : <Redirect to="/" replace />}
+      </Route>
+      <Route path="/ambient">
+        {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <AmbientStandby /> : <Redirect to="/" replace />}
       </Route>
       <Route path="/office">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <AriseOffice /> : <Redirect to="/" replace />}
