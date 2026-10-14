@@ -324,6 +324,21 @@
 #studio .demo-dashboard-title h3{font-size:20px!important}
 }
 @media(prefers-reduced-motion:reduce){#studio.mobile-editor-open .premium-controls{animation:none}}
+</style><style>
+/* Dedicated task-demo rail layout; prevent narrow sidebar and vertical text. */
+#demo .demo-shell{display:grid;grid-template-columns:minmax(220px,255px) minmax(0,1fr);min-width:0}
+#demo .demo-rail{min-width:0;width:auto;box-sizing:border-box;padding:27px 20px}
+#demo .demo-filters{min-width:0}
+#demo .demo-filter{display:flex;align-items:center;gap:11px;width:100%;min-width:0;white-space:nowrap;padding:12px 11px;box-sizing:border-box}
+#demo .demo-filter .count{flex:0 0 auto;margin-left:auto}
+#demo .demo-aside{margin-top:24px;min-width:0;overflow-wrap:normal;word-break:normal;padding:17px}
+#demo .demo-aside strong,#demo .demo-aside p{white-space:normal;word-break:normal;overflow-wrap:normal;line-height:1.5}
+#demo .demo-aside strong{font-size:13px}
+#demo .demo-aside p{font-size:12px}
+#demo .demo-board{min-width:0}
+@media(min-width:851px) and (max-width:1100px){#demo .demo-shell{grid-template-columns:minmax(205px,235px) minmax(0,1fr)}#demo .demo-rail{padding:23px 14px}#demo .demo-board{padding:26px 24px}}
+@media(max-width:850px){#demo .demo-shell{grid-template-columns:1fr!important;min-height:0}#demo .demo-rail{display:block;border-right:0;border-bottom:1px solid #e9edf5;padding:20px!important}#demo .demo-rail h3{margin:6px 0 13px;font-size:20px}#demo .demo-filters{display:flex;flex-wrap:wrap;gap:7px}#demo .demo-filter{width:auto;flex:0 0 auto;min-height:38px;padding:9px 12px;font-size:12px}#demo .demo-filter .count{margin-left:5px}#demo .demo-aside{display:none}#demo .demo-board{padding:22px 17px}}
+@media(min-width:851px){#demo .demo-aside{display:block}}
 </style></head>
 <body>
 <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden">
