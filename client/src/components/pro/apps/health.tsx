@@ -1,8 +1,10 @@
 // Health apps: trackers for water, sleep, weight, steps, blood pressure, symptoms, food and
 // caffeine; a medication schedule; a screen-break timer; first aid; medical ID cards; doctor
 // visits; health calculators; and a toothbrush timer for kids.
-import { useEffect, useState, type ComponentType } from "react";
-import { PottyTraining } from "./potty";
+import { Suspense, lazy, useEffect, useState, type ComponentType } from "react";
+// Potty Training is a big app of its own; its code loads only when it's opened.
+const PottyLazy = lazy(() => import("../potty/PottyApp"));
+const PottyTraining = () => <Suspense fallback={<p className="py-12 text-center text-sm font-semibold text-slate-500">Opening Potty Training…</p>}><PottyLazy /></Suspense>;
 import { Check, Pencil, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { LogTracker, type Entry, type TrackerConfig } from "../LogTracker";
 import { SequencePlayer } from "../Sequence";
