@@ -339,6 +339,17 @@
 @media(min-width:851px) and (max-width:1100px){#demo .demo-shell{grid-template-columns:minmax(205px,235px) minmax(0,1fr)}#demo .demo-rail{padding:23px 14px}#demo .demo-board{padding:26px 24px}}
 @media(max-width:850px){#demo .demo-shell{grid-template-columns:1fr!important;min-height:0}#demo .demo-rail{display:block;border-right:0;border-bottom:1px solid #e9edf5;padding:20px!important}#demo .demo-rail h3{margin:6px 0 13px;font-size:20px}#demo .demo-filters{display:flex;flex-wrap:wrap;gap:7px}#demo .demo-filter{width:auto;flex:0 0 auto;min-height:38px;padding:9px 12px;font-size:12px}#demo .demo-filter .count{margin-left:5px}#demo .demo-aside{display:none}#demo .demo-board{padding:22px 17px}}
 @media(min-width:851px){#demo .demo-aside{display:block}}
+</style><style>
+/* Pricing cards: responsive columns with no fixed inline desktop grid. */
+#pricing .pricing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;width:100%;max-width:960px;margin:0 auto;align-items:stretch}
+#pricing .pricing-card{min-width:0;width:100%;box-sizing:border-box;overflow-wrap:break-word;word-break:normal;padding:30px;display:flex;flex-direction:column}
+#pricing .pricing-card li{min-width:0;display:flex;align-items:flex-start;gap:11px;overflow-wrap:break-word;word-break:normal;line-height:1.5}
+#pricing .pricing-card li:before{flex:0 0 16px}
+#pricing .pricing-card .button{width:100%;min-height:52px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;margin-top:auto;white-space:normal}
+#pricing .pricing-card ul{margin-bottom:28px}
+#pricing .pricing-note{padding-inline:12px;max-width:760px}
+@media(max-width:850px){#pricing .pricing-grid{grid-template-columns:minmax(0,1fr);max-width:530px;gap:18px}#pricing .pricing-card{padding:26px 24px}#pricing .pricing-card li{font-size:14px;line-height:1.55}#pricing .pricing-card .button{min-height:52px}#pricing .pricing-card ul{gap:15px}}
+@media(max-width:430px){#pricing .pricing-grid{max-width:100%}#pricing .pricing-card{padding:24px 20px;border-radius:20px}#pricing .pricing-card h3{font-size:22px}#pricing .pricing-card .price{font-size:42px}#pricing .pricing-card li{font-size:13px}#pricing .pricing-note{font-size:12px;line-height:1.65}}
 </style></head>
 <body>
 <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden">
@@ -484,7 +495,7 @@
    <h2 class="section-heading" id="pricing-title">Start free. <span class="gradient-text">Go Unlimited for $5.</span></h2>
    <p>Both hubs, Work and Life, for parents, teachers and anyone who wants their day in one place. Start free with 3 apps from the App Store, and go Unlimited for all 450+ apps and AI.</p>
   </div>
-  <div class="pricing-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+  <div class="pricing-grid">
    <article class="pricing-card">
     <div class="plan-label">For everyone</div>
     <h3>A.R.I.S.E. To-Do · Free</h3>
@@ -506,7 +517,7 @@
     <p style="margin:6px 0 0;font-weight:800;color:#b45309">Limited time: $50 a year (save 17%)</p>
     <p>Everything in Free, plus every app and AI to help.</p>
     <ul>
-     <li>All 450+ apps in the App Store</li>
+     <li>All 500+ apps in the App Store</li>
      <li>Add with AI: paste notes or a photo and get tasks and events</li>
      <li>The AI assistant and meal estimates</li>
      <li>Already on a $10 Arise Reader plan? Add it for $5 ($15 total)</li>
