@@ -37,9 +37,12 @@ const server = http.createServer((req, res) => {
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", () => {
-      const role = String(req.headers.authorization || "").replace("Bearer qa-", "");
+      const cookieTok = (() => { try { const c = /arise_session=([^;]+)/.exec(String(req.headers.cookie || ""))?.[1]; return c ? JSON.parse(Buffer.from(decodeURIComponent(c), "base64").toString()).token : ""; } catch { return ""; } })();
+      const tok = String(req.headers.authorization || "").replace("Bearer ", "") || cookieTok;
+      const role = tok.replace(/^qa-/, "").replace(/-\d+$/, "");
+      const visit = Number(/-(\d+)$/.exec(tok)?.[1] ?? -1);
       const json = (status: number, data: unknown) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(data)); };
-      if (url.pathname === "/api/client-error") { try { crashes.push({ ...JSON.parse(body || "{}"), at: currentPage }); } catch {} return json(204, {}); }
+      if (url.pathname === "/api/client-error") { try { crashes.push({ ...JSON.parse(body || "{}"), visit }); } catch {} return json(204, {}); }
       if (url.pathname === "/api/me") return USERS[role] ? json(200, USERS[role]) : json(401, { message: "Not signed in" });
       if (url.pathname === "/api/schools") return json(200, []);
       if (/\/workspace$/.test(url.pathname) && req.method === "GET") return json(200, { workspace: {} });
@@ -57,7 +60,6 @@ const server = http.createServer((req, res) => {
 });
 await new Promise<void>((r) => server.listen(PORT, r));
 
-let currentPage = "";
 const appRoutes = [...fs.readFileSync("client/src/App.tsx", "utf8").matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1].replace(/:[a-zA-Z]+/g, "1"));
 const routes = [...new Set(appRoutes)];
 
@@ -73,11 +75,12 @@ visits.push({ role: "guest", hash: "/signin", label: "guest signin" });
 
 const browser = await chromium.launch();
 const results: any[] = [];
-let n = 0;
-for (const v of visits) {
+let n = 0, next = 0;
+async function visitOne(i: number) {
+  const v = visits[i];
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
   if (USERS[v.role]) {
-    const cookie = Buffer.from(JSON.stringify({ user: USERS[v.role], token: `qa-${v.role}` })).toString("base64");
+    const cookie = Buffer.from(JSON.stringify({ user: USERS[v.role], token: `qa-${v.role}-${i}` })).toString("base64");
     await ctx.addCookies([{ name: "arise_session", value: cookie, domain: "localhost", path: "/" }]);
   }
   await ctx.addInitScript(({ session, local }) => {
@@ -87,29 +90,29 @@ for (const v of visits) {
   const issues: string[] = [];
   page.on("pageerror", (e) => issues.push("script-error: " + String(e.message).slice(0, 300)));
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|404|Not available in the audit/.test(m.text())) issues.push("console: " + m.text().slice(0, 300)); });
-  currentPage = v.label;
-  const before = crashes.length;
   try {
     await page.goto(`http://localhost:${PORT}/#${v.hash}`, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(2200);
     const info = await page.evaluate(() => {
       const t = document.body?.innerText || "";
       const W = innerWidth;
       return { crash: /Something went wrong/.test(t) && /couldn.t finish loading/.test(t), hscroll: document.documentElement.scrollWidth > W + 2 ? document.documentElement.scrollWidth : 0, blank: t.trim().length < 15, finalHash: location.hash };
     });
+    await page.waitForTimeout(300);
     if (info.crash) issues.push("CRASH SCREEN");
     if (info.hscroll) issues.push("sideways-scroll " + info.hscroll + "px");
     if (info.blank) issues.push("blank page");
-    const newCrashes = crashes.slice(before);
-    for (const c of newCrashes) issues.push(`crash-report: ${c.name}: ${c.message} @ ${c.where}`);
-    if (issues.length) await page.screenshot({ path: `${OUT}/${String(++n).padStart(3, "0")}.png` }).catch(() => {});
-    results.push({ ...v, finalHash: info.finalHash, issues, shot: issues.length ? `${String(n).padStart(3, "0")}.png` : "" });
+    for (const c of crashes.filter((c) => c.visit === i)) issues.push(`crash-report: ${c.name}: ${c.message} @ ${c.where}`);
+    let shot = "";
+    if (issues.length) { shot = `${String(++n).padStart(3, "0")}.png`; await page.screenshot({ path: `${OUT}/${shot}` }).catch(() => {}); }
+    results.push({ ...v, finalHash: info.finalHash, issues, shot });
   } catch (e) {
     results.push({ ...v, issues: [...issues, "load-failed: " + String(e).slice(0, 200)] });
   }
   await ctx.close();
-  fs.writeFileSync("audit-out/app.json", JSON.stringify({ results, crashes, api: Object.fromEntries([...apiSeen].sort((a, b) => b[1] - a[1])) }, null, 1));
 }
+await Promise.all(Array.from({ length: 6 }, async () => { while (next < visits.length) { const i = next++; await visitOne(i); if (i % 25 === 0) fs.writeFileSync("audit-out/app.json", JSON.stringify({ results, crashes }, null, 1)); } }));
+fs.writeFileSync("audit-out/app.json", JSON.stringify({ results, crashes, api: Object.fromEntries([...apiSeen].sort((a, b) => b[1] - a[1])) }, null, 1));
 await browser.close();
 server.close();
 const bad = results.filter((r) => r.issues.length);
