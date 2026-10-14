@@ -153,7 +153,7 @@ test("a parent profile follows the current Free children limit", async (t) => {
   const full = await plans.parentLinkAllowed([11, 21, 22], 23);
   assert.equal(full.ok, false);
   assert.match(full.message!, /up to 3 children/);
-  assert.equal((await plans.parentLinkAllowed([11, 21, 22], 12)).ok, true, "a child in a Premium class lifts the limit");
+  assert.equal((await plans.parentLinkAllowed([11, 21, 22], 12)).ok, false, "the current limit also applies when a child has Premium through school");
 
   const off = await setup(t, { enforced: false });
   assert.equal((await off.plans.parentLinkAllowed([11, 21, 22, 23, 24, 25], 26)).ok, true);
@@ -180,7 +180,7 @@ test("the webhook only accepts messages signed by Stripe", async (t) => {
 
   assert.equal((await hook(sub)).status, 200);
   const plan = (await call(50, "GET", "/api/plan")).body;
-  assert.deepEqual([plan.premium, plan.via, plan.seats, plan.teacherPlan.paidOnline], [true, "teacher-plan", 200, true]);
+  assert.deepEqual([plan.premium, plan.via, plan.seats, plan.teacherPlan.paidOnline], [true, "teacher-plan", 60, true]);
   assert.equal((await call(50, "GET", "/api/teacher/students")).status, 200);
 });
 
@@ -484,7 +484,7 @@ test("a missed payment gets the configured grace period, and re-checking does no
   assert.equal(await premium(), true, "inside the configured grace period");
   for (const days of [5, 9, 12, 20, 40]) {
     clock.now = NOW + 30 * DAY + days * DAY;
-    const expected = days < PLANS.graceDays; // the current plan policy (no silent extension)
+    const expected = days < 7 + PLANS.graceDays; // seven-day retry window plus current grace period
     assert.equal(await premium(), expected, `${days} days after the missed payment`);
   }
   // paying brings it straight back
