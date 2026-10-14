@@ -92,7 +92,7 @@
 .showcase-card-copy strong{font:800 13px/1.35 Manrope,system-ui,sans-serif;color:#27314a;overflow-wrap:break-word}
 .showcase-card-copy small{font-size:10.5px;line-height:1.5;color:#8793a8}
 .showcase-arrow{width:17px;flex:none;color:#a4b1c8}.showcase-arrow svg{width:17px;height:17px}
-.showcase-stage{position:sticky;top:104px;background:#fff;border:1px solid #e6eaf4;border-radius:28px;overflow:hidden;box-shadow:0 26px 68px #243c7515,0 2px 9px #243c7507}
+.showcase-stage{scroll-margin-top:90px;position:sticky;top:104px;background:#fff;border:1px solid #e6eaf4;border-radius:28px;overflow:hidden;box-shadow:0 26px 68px #243c7515,0 2px 9px #243c7507}
 .showcase-stage-top{height:55px;background:#f8faff;border-bottom:1px solid #edf0f6;display:flex;gap:8px;align-items:center;padding:0 25px;font-size:10px;letter-spacing:1.1px;font-weight:800;color:#8692a7}
 .showcase-dot{height:8px;width:8px;background:#22beac;box-shadow:0 0 0 4px #e0f9f5;border-radius:100%;margin-right:4px}
 .showcase-stage-step{margin-left:auto;white-space:nowrap;font-size:11px;color:#5d71a6}
@@ -469,7 +469,7 @@ function showFiltered(category){
 }
 appButtons.forEach(function(btn){btn.addEventListener("click",function(){var idx=sampleApps.findIndex(function(a){return a[0]===btn.dataset.app});if(idx>=0)showApp(idx,true);});});
 filterButtons.forEach(function(btn){btn.addEventListener("click",function(){showFiltered(btn.dataset.filter);});});
-sampleButton.addEventListener("click",function(){var a=sampleApps[activeApp];sampleSteps[a[0]]= ((sampleSteps[a[0]]||0)+1)%5;showApp(activeApp,false);});
+sampleButton.addEventListener("click",function(){var a=sampleApps[activeApp];sampleSteps[a[0]]= ((sampleSteps[a[0]]||0)+1)%4;showApp(activeApp,false);});
 nextButton.addEventListener("click",function(){var filter=filterButtons.find(function(b){return b.classList.contains("is-active")});var category=filter?filter.dataset.filter:"All apps";var eligible=sampleApps.map(function(a,i){return {a:a,i:i}}).filter(function(item){return category==="All apps"||item.a[3]===category});if(!eligible.length)return;var pos=eligible.findIndex(function(x){return x.i===activeApp});showApp(eligible[(pos+1)%eligible.length].i,false);});
 showApp(0,false);
 })();</script>
