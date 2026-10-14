@@ -204,7 +204,11 @@ test("sea battle: fleets stay hidden, ready starts battle, sinking all ships win
   assert.deepEqual(e.toAct(s), [1, 2]);
   const view = e.view(s, 1) as any;
   assert.equal(view.revealedShips.length, 0);
-  assert.equal(JSON.stringify(view).includes(JSON.stringify(s.fleets[1][0].cells)), false);
+  // Your own fleet is yours to see; nothing else in your view may carry the other fleet's squares.
+  // (Fleets are random, so a ship of yours can sit on the same squares as one of theirs.)
+  assert.deepEqual(view.myFleet.map((sh: any) => sh.cells), s.fleets[0].map((sh: any) => sh.cells));
+  const { myFleet: _mine, ...rest } = view;
+  for (const sh of s.fleets[1]) assert.equal(JSON.stringify(rest).includes(JSON.stringify(sh.cells)), false);
   s = e.play(s, 1, { type: "ready" });
   s = e.play(s, 2, { type: "ready" });
   assert.equal(s.phase, "battle");
