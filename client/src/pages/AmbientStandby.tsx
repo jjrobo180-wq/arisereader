@@ -136,15 +136,16 @@ function useRainAudio() {
     try {
       const ac = new AudioContext(); ctxRef.current = ac;
       const seconds = 7; const len = Math.floor(ac.sampleRate * seconds);
-      const buffer = ac.createBuffer(2, len, ac.sampleRate);
+      const rainBuffer = ac.createBuffer(2, len, ac.sampleRate);
+      const windBuffer = ac.createBuffer(2, len, ac.sampleRate);
       for (let ch = 0; ch < 2; ch++) {
-        const data = buffer.getChannelData(ch); let brown = 0;
-        for (let i = 0; i < len; i++) { brown = (brown + (Math.random() * 2 - 1) * .09) / 1.018; data[i] = Math.max(-1, Math.min(1, brown * 3.6)); }
+        const rainSamples = rainBuffer.getChannelData(ch), windSamples = windBuffer.getChannelData(ch); let brown = 0;
+        for (let i = 0; i < len; i++) { const white = Math.random() * 2 - 1; brown = (brown + white * .09) / 1.018; rainSamples[i] = white * .5; windSamples[i] = Math.max(-1, Math.min(1, brown * 3.6)); }
       }
-      const src = ac.createBufferSource(); src.buffer = buffer; src.loop = true;
-      const rainFilter = ac.createBiquadFilter(); rainFilter.type = "highpass"; rainFilter.frequency.value = 380;
+      const src = ac.createBufferSource(); src.buffer = rainBuffer; src.loop = true;
+      const rainFilter = ac.createBiquadFilter(); rainFilter.type = "highpass"; rainFilter.frequency.value = 460;
       const rainGain = ac.createGain(); rainGain.gain.value = .8;
-      const wind = ac.createBufferSource(); wind.buffer = buffer; wind.loop = true;
+      const wind = ac.createBufferSource(); wind.buffer = windBuffer; wind.loop = true;
       const lowpass = ac.createBiquadFilter(); lowpass.type = "lowpass"; lowpass.frequency.value = 230;
       const windGain = ac.createGain(); windGain.gain.value = windOn ? .42 : 0;
       const master = ac.createGain(); master.gain.value = Math.min(1, volume / 100) * .38;
@@ -167,7 +168,7 @@ function useRainAudio() {
 export default function AmbientStandby() {
   const { user, token } = useAuth();
   const key = "arise-atmosphere-prefs:" + (user?.id ?? "guest");
-  const [prefs, setPrefs] = useState<Prefs>(() => safeRead(key));
+  const [prefs, setPrefs] = useState<Prefs>(() => ({ ...safeRead(key), mode: window.location.hash.includes("mode=sleep") ? "sleep" : window.location.hash.includes("mode=standby") ? "standby" : safeRead(key).mode }));
   const [now, setNow] = useState(() => new Date());
   const [weather, setWeather] = useState<Forecast | null>(null);
   const [weatherError, setWeatherError] = useState("");
@@ -259,9 +260,6 @@ export default function AmbientStandby() {
     if (!navigator.geolocation) { setWeatherError("Location is not supported; enter a city instead."); return; }
     navigator.geolocation.getCurrentPosition(async ({ coords }) => {
       try {
-        const response = await fetch("https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(city || "Denver") + "&count=1");
-        // The coordinates are used directly for selecting a nearby weather location through reverse geocoding.
-        void response; 
         const geo = await fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + coords.latitude + "&lon=" + coords.longitude + "&zoom=10");
         const data = await geo.json();
         const place = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county;
