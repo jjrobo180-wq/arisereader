@@ -2,6 +2,7 @@
 // caffeine; a medication schedule; a screen-break timer; first aid; medical ID cards; doctor
 // visits; health calculators; and a toothbrush timer for kids.
 import { useEffect, useState, type ComponentType } from "react";
+import { PottyTraining } from "./potty";
 import { Check, Pencil, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { LogTracker, type Entry, type TrackerConfig } from "../LogTracker";
 import { SequencePlayer } from "../Sequence";
@@ -351,6 +352,7 @@ function Toothbrush() {
 }
 
 export const HEALTH: Record<string, ComponentType> = {
+  potty: PottyTraining,
   water: () => <LogTracker cfg={WATER} />,
   sleep: () => <LogTracker cfg={SLEEP} />,
   weight: () => <LogTracker cfg={WEIGHT} />,
