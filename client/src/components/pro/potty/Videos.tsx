@@ -19,7 +19,7 @@ function Player({ list, start, onClose }: { list: V[]; start: number; onClose: (
   const isSit = data.sitVideo === v.yt;
   return createPortal(<div className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/85 p-3" role="dialog" aria-modal="true" aria-label={v.title}>
     <div className="w-full max-w-4xl">
-      <div className="mb-2 flex items-center justify-between gap-3 text-white"><div className="min-w-0"><p className="truncate font-extrabold">{v.title}</p><p className="truncate text-xs text-white/60">{v.channel}</p></div><button type="button" onClick={onClose} aria-label="Close video" className="rounded-full bg-white/15 p-2 hover:bg-white/25"><X size={20} /></button></div>
+      <div className="mb-2 flex items-center justify-between gap-3 text-white"><div className="min-w-0"><p className="font-extrabold leading-snug">{v.title}</p><p className="text-xs text-white/60">{v.channel}</p></div><button type="button" onClick={onClose} aria-label="Close video" className="rounded-full bg-white/15 p-2 hover:bg-white/25"><X size={20} /></button></div>
       <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black"><iframe key={v.yt} title={v.title} src={ytEmbed(v, true)} className="h-full w-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /></div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Btn2 kind="plain" disabled={i === 0} onClick={() => setI(i - 1)} title="Previous video"><ChevronLeft size={16} /></Btn2><Btn2 kind="plain" disabled={i >= list.length - 1} onClick={() => setI(i + 1)} title="Next video"><ChevronRight size={16} /></Btn2>
@@ -39,7 +39,7 @@ function Card({ v, onPlay, fav, onFav, sit }: { v: V; onPlay: () => void; fav: b
       {v.playlist && <span className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-bold text-white">Series</span>}
       {sit && <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-extrabold" style={{ background: C.duck, color: C.ink }}>Sit-time video</span>}
     </button>
-    <div className="flex items-start gap-2 p-3"><div className="min-w-0 flex-1"><p className="ph text-[14px] font-extrabold leading-snug">{v.title}</p><p className="mt-0.5 truncate text-xs" style={{ color: C.muted }}>{v.channel}</p>{v.about && <p className="mt-1 line-clamp-2 text-[12.5px]" style={{ color: C.inkSoft }}>{v.about}</p>}</div>
+    <div className="flex items-start gap-2 p-3"><div className="min-w-0 flex-1"><p className="ph text-[14px] font-extrabold leading-snug">{v.title}</p><p className="mt-0.5 text-xs leading-snug" style={{ color: C.muted }}>{v.channel}</p>{v.about && <p className="mt-1 leading-snug text-[12.5px]" style={{ color: C.inkSoft }}>{v.about}</p>}</div>
       <button type="button" onClick={onFav} aria-pressed={fav} aria-label={fav ? "Remove from favourites" : "Add to favourites"} className="p-1" style={{ color: fav ? "#E5484D" : C.muted }}><Heart size={18} fill={fav ? "currentColor" : "none"} /></button></div>
   </div>;
 }
@@ -76,7 +76,7 @@ export default function Videos() {
     {tab === "mine" && <>
       <Section title="Add any YouTube video" sub="Paste a link to a video you love — a song your child knows, a book read-aloud, a video model of your own bathroom routine.">
         <Panel className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]"><Label text="YouTube link"><input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={field} style={fieldStyle} /></Label><Label text="Name it"><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Potty song" className={field} style={fieldStyle} maxLength={80} /></Label></div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"><Label text="YouTube link"><input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={field} style={fieldStyle} /></Label><Label text="Name it"><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Potty song" className={field} style={fieldStyle} maxLength={80} /></Label></div>
           <div className="flex flex-wrap items-center gap-2"><Chip on={aud === "kids"} onClick={() => setAud("kids")}>For my child</Chip><Chip on={aud === "parents"} onClick={() => setAud("parents")}>For me</Chip><span className="flex-1" />
             <Btn2 kind="ink" disabled={!ytFromLink} onClick={() => { if (!ytFromLink) return; set((d) => ({ ...d, myVideos: [{ id: uid(), yt: ytFromLink, title: title.trim() || "My video", audience: aud, added: Date.now() }, ...d.myVideos].slice(0, 100) })); setLink(""); setTitle(""); }}><Plus size={15} />Add video</Btn2></div>
           {link && !ytFromLink && <p className="text-sm" style={{ color: C.accident }}>That doesn't look like a YouTube link.</p>}

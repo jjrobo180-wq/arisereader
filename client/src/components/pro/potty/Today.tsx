@@ -87,7 +87,7 @@ export default function Today() {
       <div className="space-y-2">{flags.filter((f) => f.level !== "info").map((f) => <Note key={f.title} tone={f.level === "doctor" ? "doctor" : "warn"}><b>{f.title}.</b> {f.text} {f.article && <button type="button" onClick={() => go("learn", `a:${f.article}`)} className="font-bold underline">Read more</button>}</Note>)}</div>
     </Section>}
 
-    <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       {/* Stage */}
       <Section title={<span>{stage.emoji} {stage.title}</span>} sub={stage.summary} action={<Btn2 onClick={() => go("plan")}>Open the plan <ChevronRight size={15} /></Btn2>}>
         <Panel>
@@ -103,7 +103,7 @@ export default function Today() {
         <div className="mb-3 grid grid-cols-3 gap-2">{[["Success", pct(s.rate)], ["Self-started", pct(s.selfRate)], ["Drinks", data.units === "oz" ? `${Math.round(s.drinksMl / 29.57)} oz` : `${s.drinksMl} ml`], ["Poops", String(s.poops)], ["No-accident days", String(accidentFreeDays(data.logs, kid.id))], ["Dry nights", String(dryNights(data.logs, kid.id))]].map(([l, v]) => <div key={l} className="rounded-2xl bg-white px-3 py-2.5" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><p className="ph text-xl font-extrabold">{v}</p><p className="text-[11px] font-bold" style={{ color: C.muted }}>{l}</p></div>)}</div>
         {entries.length ? <ul className="divide-y divide-[#E3E8F1] overflow-hidden rounded-[22px] bg-white" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>{[...entries].reverse().map((e) => <li key={e.id}><button type="button" onClick={() => openLog({ edit: e })} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50">
           <span className="w-16 text-[13px] font-bold tabular-nums" style={{ color: C.muted }}>{clockOf(e.at)}</span><span className="text-xl">{KINDS[e.kind].emoji}</span>
-          <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{KINDS[e.kind].label}{e.kind === "drink" && e.ml ? ` · ${data.units === "oz" ? `${Math.round(e.ml / 29.57)} oz` : `${e.ml} ml`}` : ""}{isPoopEvent(e.kind) && e.bristol ? ` · type ${e.bristol}` : ""}</span>{(e.note || e.init === "self") && <span className="block truncate text-xs" style={{ color: C.muted }}>{e.init === "self" ? "Started by your child. " : ""}{e.note}</span>}</span>
+          <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{KINDS[e.kind].label}{e.kind === "drink" && e.ml ? ` · ${data.units === "oz" ? `${Math.round(e.ml / 29.57)} oz` : `${e.ml} ml`}` : ""}{isPoopEvent(e.kind) && e.bristol ? ` · type ${e.bristol}` : ""}</span>{(e.note || e.init === "self") && <span className="block text-xs leading-snug" style={{ color: C.muted }}>{e.init === "self" ? "Started by your child. " : ""}{e.note}</span>}</span>
         </button></li>)}</ul> : <p className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm" style={{ color: C.muted, boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><Info size={15} />Nothing logged yet today. Log drinks and meals too — that's how the predictions learn.</p>}
       </Section>
     </div>

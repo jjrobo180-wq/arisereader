@@ -44,7 +44,7 @@ export default function TryLearn() {
     </Section>}
 
     {detail ? <Section title={detail.title} action={<Btn2 kind="ghost" onClick={() => setOpen("")}>All strategies</Btn2>}>
-      <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <Panel><p className="text-[15px] leading-relaxed">{detail.why}</p><p className="mb-2 mt-4 text-[13px] font-bold" style={{ color: C.muted }}>How</p><ol className="space-y-2">{detail.how.map((h, i) => <li key={h} className="flex gap-3 text-[15px]"><span className="font-extrabold" style={{ color: C.duckDeep }}>{i + 1}</span>{h}</li>)}</ol>
           <div className="mt-4 flex flex-wrap gap-1.5">{detail.problems.map((p) => <span key={p} className="rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: C.ground }}>{PROBLEMS.find((x) => x.id === p)?.emoji} {PROBLEMS.find((x) => x.id === p)?.label}</span>)}</div></Panel>
         <Panel tone="soft"><p className="text-[13px] font-bold" style={{ color: C.muted }}>Evidence</p><p className="ph text-lg font-extrabold">{EVIDENCE[detail.evidence].label}</p><p className="text-sm">{EVIDENCE[detail.evidence].text}</p>
@@ -56,7 +56,7 @@ export default function TryLearn() {
       <div className="mb-5 flex flex-wrap gap-1.5"><Chip on={!problem} onClick={() => setProblem("")}>Everything</Chip>{PROBLEMS.map((p) => <Chip key={p.id} on={problem === p.id} onClick={() => setProblem(p.id)}>{p.emoji} {p.label}</Chip>)}</div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{list.map((s) => { const t = tried(s.id); return <button key={s.id} type="button" onClick={() => setOpen(s.id)} className="flex flex-col rounded-[20px] bg-white p-4 text-left transition hover:-translate-y-0.5" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>
         <div className="flex items-start justify-between gap-2"><p className="ph font-extrabold leading-snug">{s.title}</p>{t && <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-extrabold text-white" style={{ background: STATUS[t.status].color }}>{STATUS[t.status].label}</span>}</div>
-        <p className="mt-1 line-clamp-2 text-[13px]" style={{ color: C.muted }}>{s.why}</p>
+        <p className="mt-1 text-[13px] leading-snug" style={{ color: C.muted }}>{s.why}</p>
         <p className="mt-auto pt-2 text-[12px] font-bold" style={{ color: s.evidence === "research" ? C.good : s.evidence === "clinical" ? C.pee : C.duckDeep }}>{EVIDENCE[s.evidence].label} · {s.days} days</p></button>; })}</div>
     </Section>}
 

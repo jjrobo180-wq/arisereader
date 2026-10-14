@@ -31,7 +31,7 @@ function Guides() {
   const { kid, go } = usePotty();
   const [id, setId] = useState<NeedId>(kid.needs[0] || "autism");
   const g = NEEDS.find((n) => n.id === id)!;
-  return <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+  return <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
     <div className="flex flex-wrap gap-1.5 lg:flex-col">{NEEDS.map((n) => <button key={n.id} type="button" onClick={() => setId(n.id)} aria-pressed={id === n.id} className="flex items-center gap-2 rounded-2xl px-3 py-2.5 text-left text-sm font-bold transition" style={id === n.id ? { background: C.ink, color: "#fff" } : { background: "#fff", boxShadow: `inset 0 0 0 1.5px ${kid.needs.includes(n.id) ? C.duck : C.line}` }}><span className="text-lg">{n.emoji}</span>{n.label}{kid.needs.includes(n.id) && <span className="ml-auto text-[10px]" style={{ color: id === n.id ? C.duck : C.duckDeep }}>{kid.name}</span>}</button>)}</div>
     <div className="space-y-5">
       <Section title={<span className="text-2xl">{g.emoji} {g.label}</span>}><p className="text-[16px] leading-relaxed">{g.about}</p></Section>
@@ -53,7 +53,7 @@ function Steps() {
   const on = steps.filter((s) => s.on);
   const move = (i: number, by: number) => { const s = [...steps]; const j = i + by; if (j < 0 || j >= s.length) return; [s[i], s[j]] = [s[j], s[i]]; put(s); };
   const print = () => printPage(`${kid.name}'s potty steps`, `<h1 style="text-align:center">${esc(kid.name)}'s potty steps</h1><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px">${on.map((s, i) => `<div style="border:3px solid #1F2544;border-radius:18px;padding:14px;text-align:center;page-break-inside:avoid"><div style="font-size:14px;font-weight:bold;color:#B7860B">${i + 1}</div><div style="font-size:64px;line-height:1.1">${esc(s.emoji)}</div><div style="font:800 18px Arial;margin-top:6px">${esc(s.label)}</div></div>`).join("")}</div><p class="muted" style="text-align:center;margin-top:14px">Cut out the cards for a strip by the toilet, or tape the whole sheet at eye level.</p>`);
-  return <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+  return <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
     <Section title="Picture steps" sub="ERIC's toilet routine as picture cards. Turn steps on or off, reorder, rename them in your words, add your own." action={<div className="flex gap-2"><Btn2 kind="duck" onClick={() => setShow(0)}>Show step by step</Btn2><Btn2 onClick={print}><Printer size={15} />Print</Btn2></div>}>
       <Panel pad={false}>{steps.map((s, i) => <div key={s.id} className="flex items-center gap-2 border-b px-3 py-2 last:border-0" style={{ borderColor: C.line, opacity: s.on ? 1 : 0.45 }}>
         <input type="checkbox" checked={s.on} onChange={() => put(steps.map((x) => (x.id === s.id ? { ...x, on: !x.on } : x)))} className="h-5 w-5" aria-label={`Use step ${s.label}`} />
@@ -127,7 +127,7 @@ function Story() {
     } catch (e: any) { setErr(e?.message || "Couldn't write a story right now."); } finally { setBusy(false); }
   };
   const print = () => printPage(story.title, `<h1 style="text-align:center;font-size:30px">${esc(story.title)}</h1>${story.pages.map((p, n) => `<div style="border:2px solid #cbd5e1;border-radius:16px;padding:22px;margin:12px 0;page-break-inside:avoid;display:flex;gap:18px;align-items:center"><div style="font-size:70px">${esc(p.emoji)}</div><div style="font:600 22px Arial;line-height:1.4">${esc(p.text)}</div><div style="margin-left:auto;color:#94a3b8">${n + 1}</div></div>`).join("")}`);
-  return <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+  return <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
     <Section title={story.title} sub="A social story explains what happens and why, in calm first-person sentences — read it together before sits, every day for a while." action={<div className="flex gap-2"><Btn2 kind="duck" onClick={() => { setI(0); say(story.pages[0].text, data.voice); }}>Read it together</Btn2><Btn2 onClick={print}><Printer size={15} />Print booklet</Btn2></div>}>
       <Panel pad={false}><ol>{story.pages.map((p, n) => <li key={n} className="flex items-center gap-4 border-b px-4 py-3 last:border-0" style={{ borderColor: C.line }}><span className="text-4xl">{p.emoji}</span><span className="text-[15px] leading-snug">{p.text}</span></li>)}</ol></Panel>
     </Section>
@@ -151,7 +151,7 @@ function Sensory() {
   const { data, set, kid } = usePotty();
   const picked = data.sensory[kid.id] || [];
   const toggle = (id: string) => set((d) => ({ ...d, sensory: { ...d.sensory, [kid.id]: picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id] } }));
-  return <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+  return <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
     <Section title="What bothers your child?" sub="The AAP suggests finding what's uncomfortable in the bathroom — noise, cold, smell — and changing it. Tick anything you've noticed.">
       <div className="space-y-2">{SENSORY.map((s) => { const on = picked.includes(s.id); return <label key={s.id} className="flex cursor-pointer items-start gap-3 rounded-2xl p-3" style={on ? { background: C.duckSoft } : { background: "#fff", boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><input type="checkbox" checked={on} onChange={() => toggle(s.id)} className="mt-0.5 h-5 w-5" /><span><span className="block font-bold">{s.trigger}</span><span className="text-[13px]" style={{ color: C.muted }}>{s.signs}</span></span></label>; })}</div>
     </Section>

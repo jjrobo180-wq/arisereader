@@ -100,7 +100,7 @@ function ListView({ entries, vol }: { entries: Entry[]; vol: (ml: number) => str
     <div className="mb-3 flex flex-wrap gap-1.5">{([["all", "All"], ["potty", "Potty"], ["accident", "Accidents"], ["diaper", "Diapers"], ["sleep", "Naps & nights"], ["intake", "Food & drink"]] as const).map(([v, l]) => <Chip key={v} on={f === v} onClick={() => setF(v)}>{l}</Chip>)}</div>
     <Panel pad={false}><ul className="divide-y divide-[#E3E8F1]">{shown.slice(0, n).map((e) => <li key={e.id}><button type="button" onClick={() => openLog({ edit: e })} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50">
       <span className="w-28 text-xs font-bold" style={{ color: C.muted }}>{fmt(dayOf(e.at), { month: "short", day: "numeric" })}, {clockOf(e.at)}</span><span className="text-lg">{KINDS[e.kind].emoji}</span>
-      <span className="min-w-0 flex-1 truncate text-sm"><b>{KINDS[e.kind].label}</b>{e.ml ? ` · ${vol(e.ml)}` : ""}{e.bristol ? ` · type ${e.bristol}` : ""}{e.note ? ` — ${e.note}` : ""}</span></button></li>)}</ul></Panel>
+      <span className="min-w-0 flex-1 text-sm leading-snug"><b>{KINDS[e.kind].label}</b>{e.ml ? ` · ${vol(e.ml)}` : ""}{e.bristol ? ` · type ${e.bristol}` : ""}{e.note ? ` — ${e.note}` : ""}</span></button></li>)}</ul></Panel>
     {shown.length > n && <Btn2 className="mt-3" onClick={() => setN(n + 100)}>Show more</Btn2>}
   </Section>;
 }

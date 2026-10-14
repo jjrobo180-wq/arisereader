@@ -27,7 +27,7 @@ export default function Program() {
         <span className="flex w-full items-center justify-between"><span className="text-xl">{s.emoji}</span>{past ? <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px]" style={{ background: C.good, color: "#fff" }}>✓</span> : mine ? <span className="rounded-full px-1.5 text-[10px] font-extrabold" style={{ background: C.duck, color: C.ink }}>Now</span> : null}</span>
         <span className="ph mt-1.5 text-[13px] font-extrabold leading-tight">{s.title}</span><span className="mt-0.5 text-[11px] opacity-60">Stage {i + 1}</span></button></li>; })}</ol></div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="space-y-6">
           <Section title={<span className="text-2xl">{stage.emoji} {stage.title}</span>} sub={stage.summary}>
             <div className="grid gap-2 sm:grid-cols-2"><Note tone="info"><b>When:</b> {stage.when}</Note><Note tone="tip"><b>Goal:</b> {stage.goal}</Note></div>
@@ -54,7 +54,7 @@ export default function Program() {
           </Section>
           <Section title="Avoid"><ul className="space-y-1.5">{stage.avoid.map((a) => <li key={a} className="flex gap-2 text-sm"><span style={{ color: C.accident }}>✕</span>{a}</li>)}</ul></Section>
           <Section title="Read and watch">
-            <div className="space-y-2">{stage.articles.map((id) => { const a = articleById(id); return a ? <button key={id} type="button" onClick={() => go("learn", `a:${id}`)} className="flex w-full items-center gap-3 rounded-2xl bg-white px-3 py-2.5 text-left" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><span className="text-lg">📖</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{a.title}</span><span className="text-xs" style={{ color: C.muted }}>{a.minutes} min read</span></span><ChevronRight size={16} /></button> : null; })}</div>
+            <div className="space-y-2">{stage.articles.map((id) => { const a = articleById(id); return a ? <button key={id} type="button" onClick={() => go("learn", `a:${id}`)} className="flex w-full items-center gap-3 rounded-2xl bg-white px-3 py-2.5 text-left" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><span className="text-lg">📖</span><span className="min-w-0 flex-1"><span className="block text-sm font-bold leading-snug">{a.title}</span><span className="text-xs" style={{ color: C.muted }}>{a.minutes} min read</span></span><ChevronRight size={16} /></button> : null; })}</div>
             <div className="mt-3 grid grid-cols-2 gap-2">{stage.videos.slice(0, 4).map((id) => { const v = videoById(id); return v ? <button key={id} type="button" onClick={() => go("videos", `v:${id}`)} className="overflow-hidden rounded-2xl bg-white text-left" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><img src={ytThumb(v.playlist ? "QeDuo3ZjVl4" : v.yt)} alt="" loading="lazy" className="aspect-video w-full object-cover" /><span className="block p-2 text-xs font-bold leading-tight">{v.title}</span></button> : null; })}</div>
             <div className="mt-3 flex flex-wrap gap-1.5">{stage.strategies.slice(0, 6).map((id) => { const s = strategyById(id); return s ? <Chip key={id} onClick={() => go("try", `s:${id}`)}>💡 {s.title}</Chip> : null; })}</div>
           </Section>
@@ -62,7 +62,7 @@ export default function Program() {
       </div>
     </>}
 
-    {view === "ready" && (() => { const v = readinessVerdict(ready.length, months); return <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+    {view === "ready" && (() => { const v = readinessVerdict(ready.length, months); return <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <Section title={`Is ${kid.name} ready?`} sub="Tick what's true most days. Readiness depends on skills, not age (Mayo Clinic).">
         <div className="space-y-2">{READINESS.map((r) => { const on = ready.includes(r.id); return <label key={r.id} className="flex cursor-pointer items-start gap-3 rounded-2xl p-3.5 transition" style={on ? { background: "#E6F6EE" } : { background: "#fff", boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><input type="checkbox" checked={on} onChange={() => set((d) => ({ ...d, ready: { ...d.ready, [kid.id]: on ? ready.filter((x) => x !== r.id) : [...ready, r.id] } }))} className="mt-0.5 h-5 w-5" style={{ accentColor: C.good }} /><span><span className="block text-[15px] font-bold">{r.sign}</span><span className="text-[13px]" style={{ color: C.muted }}>{r.why}</span></span></label>; })}</div>
       </Section>

@@ -14,7 +14,7 @@ export default function Rewards() {
   const prizes = data.prizes.filter((p) => p.kid === kid.id).sort((a, b) => b.at - a.at);
   const full = board.length >= kid.goal;
   const print = () => printPage(`${kid.name}'s potty chart`, `<div style="text-align:center"><div style="font-size:60px">${esc(kid.avatar)} 🚽 ⭐</div><h1 style="font-size:34px">${esc(kid.name)}'s Potty Chart</h1><p style="font-size:18px">Every time I use the ${esc(kid.words.potty)}, I get a sticker!</p></div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:22px 0">${Array.from({ length: kid.goal }, (_, i) => `<div style="border:3px dashed #B7860B;border-radius:22px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font:900 22px Arial;color:#E8C977">${i + 1}</div>`).join("")}</div><div style="text-align:center;font-size:24px;border:3px solid #1F2544;border-radius:22px;padding:14px">🏆 When my chart is full: <b>${esc(kid.prize)}</b></div>`);
-  return <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+  return <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
     <div className="space-y-6">
       <Panel tone="night" className="overflow-hidden">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm text-white/60">{kid.name}'s sticker chart</p><h2 className="mt-1 text-2xl font-extrabold">{full ? `${kid.name} earned: ${kid.prize}!` : `${kid.goal - board.length} more to ${kid.prize}`}</h2></div><Btn2 kind="plain" onClick={print}><Printer size={15} />Print a chart</Btn2></div>
@@ -27,7 +27,7 @@ export default function Rewards() {
     <div className="space-y-6">
       <Section title="The prize">
         <Panel className="space-y-4">
-          <div className="grid grid-cols-[1fr_110px] gap-3"><Label text="Prize"><input value={kid.prize} onChange={(e) => putKid({ ...kid, prize: e.target.value.slice(0, 60) })} className={field} style={fieldStyle} /></Label><Label text="Stickers"><input type="number" min={3} max={40} value={kid.goal} onChange={(e) => putKid({ ...kid, goal: Math.max(3, Math.min(40, Number(e.target.value) || 10)) })} className={field} style={fieldStyle} /></Label></div>
+          <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-3"><Label text="Prize"><input value={kid.prize} onChange={(e) => putKid({ ...kid, prize: e.target.value.slice(0, 60) })} className={field} style={fieldStyle} /></Label><Label text="Stickers"><input type="number" min={3} max={40} value={kid.goal} onChange={(e) => putKid({ ...kid, goal: Math.max(3, Math.min(40, Number(e.target.value) || 10)) })} className={field} style={fieldStyle} /></Label></div>
           <div className="flex flex-wrap gap-1.5">{PRIZE_IDEAS.map((p) => <Chip key={p} on={kid.prize === p} onClick={() => putKid({ ...kid, prize: p })}>{p}</Chip>)}</div>
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={kid.tryStickers} onChange={(e) => putKid({ ...kid, tryStickers: e.target.checked })} className="mt-0.5 h-4 w-4" />Stickers for sitting and trying too (great at the start; turn off once they go regularly)</label>
         </Panel>

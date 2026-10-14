@@ -19,6 +19,9 @@ export const FONT_BODY = "'DM Sans', system-ui, sans-serif";
 export const PottyStyles = () => <style>{`
 .potty-app { font-family: ${FONT_BODY}; color: ${C.ink}; }
 .potty-app h1, .potty-app h2, .potty-app h3, .potty-app .ph { font-family: ${FONT_HEAD}; letter-spacing: -0.01em; }
+/* Phones: grid columns shrink to the screen instead of growing to their longest line, and a long word wraps rather than pushing past the edge. */
+.potty-app .grid > * { min-width: 0; }
+.potty-app { overflow-wrap: break-word; }
 .potty-app :focus-visible { outline: 3px solid ${C.duck}; outline-offset: 2px; border-radius: 10px; }
 @keyframes pt-fall { 0% { transform: translateY(-10vh) rotate(0) } 100% { transform: translateY(110vh) rotate(720deg) } }
 @keyframes pt-rise { 0% { transform: translateY(0); opacity: .9 } 100% { transform: translateY(-70vh); opacity: 0 } }
