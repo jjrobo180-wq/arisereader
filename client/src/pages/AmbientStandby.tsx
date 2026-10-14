@@ -17,13 +17,13 @@ type Soundscape = "rain" | "ocean" | "breeze" | "deep";
 type Layout = "full" | "weather" | "clock";
 type SleepScene = "rain" | "lantern" | "theme";
 type Prefs = {
-  city: string; unit: "F" | "C"; mode: Mode; source: Source; quality: Quality; rain: number; sound: number; thunder: boolean; wind: boolean;
+  city: string; coords: string; unit: "F" | "C"; mode: Mode; source: Source; quality: Quality; rain: number; sound: number; thunder: boolean; wind: boolean;
   minutes: number; showClock: boolean; keepAwake: boolean;
   theme: ThemeId; kites: number; breeze: number; strings: boolean; layout: Layout; hour24: boolean; seconds: boolean;
   font: "modern" | "elegant"; soundscape: Soundscape; sleepScene: SleepScene; nightDim: boolean; autoHide: boolean;
 };
 const DEFAULT: Prefs = {
-  city: "", unit: "F", mode: "standby", source: "life", quality: "cinematic", rain: 80, sound: 55, thunder: false, wind: false, minutes: 60, showClock: true, keepAwake: true,
+  city: "", coords: "", unit: "F", mode: "standby", source: "life", quality: "cinematic", rain: 80, sound: 55, thunder: false, wind: false, minutes: 60, showClock: true, keepAwake: true,
   theme: "festival", kites: 7, breeze: 50, strings: true, layout: "full", hour24: false, seconds: false, font: "modern", soundscape: "rain", sleepScene: "rain", nightDim: true, autoHide: true,
 };
 const ICON = { clear: Sun, clouds: Cloud, rain: CloudRain, snow: CloudSnow, storm: CloudLightning, fog: CloudDrizzle };
@@ -311,8 +311,10 @@ export default function AmbientStandby() {
     const read = async () => {
       setWeatherBusy(true); setWeatherError("");
       try {
-        const response = await fetch(API_BASE + "/api/lifehub/weather?place=" + encodeURIComponent(city) + "&unit=" + prefs.unit, { cache: "no-store", signal: controller.signal });
-        if (!response.ok) throw new Error("Weather is unavailable for this place.");
+        const [lat, lon] = prefs.coords.split(",");
+        const response = await fetch(API_BASE + "/api/lifehub/weather?place=" + encodeURIComponent(city) + "&unit=" + prefs.unit + (lat && lon ? "&lat=" + lat + "&lon=" + lon : ""), { cache: "no-store", signal: controller.signal, headers: token ? { Authorization: "Bearer " + token } : undefined });
+        if (response.status === 404) throw new Error("Couldn't find that place. Try a city and state, like Denver, Colorado.");
+        if (!response.ok) throw new Error("Weather is unavailable right now. Try again in a minute.");
         const result: Forecast = await response.json();
         if (!controller.signal.aborted) { setWeather(result); setWeatherUpdated(new Date()); }
       } catch (err) { if (!controller.signal.aborted) { setWeather(null); setWeatherError(err instanceof Error ? err.message : "Unable to load weather."); } }
@@ -322,7 +324,7 @@ export default function AmbientStandby() {
     const onFocus = () => { if (document.visibilityState === "visible") void read(); };
     document.addEventListener("visibilitychange", onFocus);
     return () => { controller.abort(); window.clearInterval(interval); document.removeEventListener("visibilitychange", onFocus); };
-  }, [city, prefs.unit, weatherRound]);
+  }, [city, prefs.coords, prefs.unit, weatherRound, token]);
   useEffect(() => {
     if (!token) return;
     let active = true;
@@ -340,7 +342,7 @@ export default function AmbientStandby() {
         } else if (workspace?.family && Array.isArray(workspace?.tasks)) {
           const family = workspace.family as Family;
           setBrief(buildLifeBrief(family, workspace.tasks, localDay(new Date()), new Date().getHours(), (user?.displayName || "").split(" ")[0]));
-          if (!city && family.weather?.place) update({ city: family.weather.place, unit: family.weather.unit || "F" });
+          if (!city && family.weather?.place) update({ city: family.weather.place, coords: "", unit: family.weather.unit || "F" });
         } else setBrief(null);
       } catch { if (active) setBrief(null); }
       finally { if (active) setBriefBusy(false); }
@@ -409,17 +411,27 @@ export default function AmbientStandby() {
     window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
   }, [focus]);
 
+  const [locating, setLocating] = useState(false);
   const requestLocation = () => {
-    if (!navigator.geolocation) { setWeatherError("Location is not supported; enter a city instead."); return; }
+    if (!navigator.geolocation) { setWeatherError("This device can't share its location. Type your city instead."); return; }
+    setLocating(true); setWeatherError("");
     navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      const at = coords.latitude.toFixed(2) + "," + coords.longitude.toFixed(2);
+      // The town name is only a label; weather comes from the coordinates even if no name is found.
+      let place = "";
       try {
-        const geo = await fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + coords.latitude + "&lon=" + coords.longitude + "&zoom=10");
-        const data = await geo.json();
-        const place = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county;
-        if (place) update({ city: place + (data?.address?.state ? ", " + data.address.state : "") });
-        else setWeatherError("Could not find a nearby city. Enter one below.");
-      } catch { setWeatherError("Location lookup failed. Enter your city manually."); }
-    }, () => setWeatherError("Location permission was not granted. Enter a city instead."), { timeout: 12000 });
+        const ctl = new AbortController(); const t = window.setTimeout(() => ctl.abort(), 6000);
+        const data = await (await fetch("https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat=" + coords.latitude + "&lon=" + coords.longitude, { signal: ctl.signal })).json();
+        window.clearTimeout(t);
+        const a = data?.address || {};
+        const town = a.city || a.town || a.village || a.suburb || a.county;
+        if (town) place = town + (a.state ? ", " + a.state : "");
+      } catch { /* no name; coordinates still work */ }
+      update({ city: place || "My location", coords: at }); setWeatherRound(r => r + 1); setLocating(false);
+    }, (err) => {
+      setLocating(false);
+      setWeatherError(err.code === 1 ? "Location is turned off for this site. Allow it in your browser settings, or type your city." : "Couldn't get your location. Type your city instead.");
+    }, { timeout: 15000, maximumAge: 10 * 60000 });
   };
 
   const liveScene: Scene = weather ? sceneFor(weather.current.code) : "clear";
@@ -559,7 +571,7 @@ export default function AmbientStandby() {
         <div className="ambient-field"><label>Brief from</label><div className="ambient-choice"><button className={prefs.source === "life" ? "selected" : ""} onClick={() => update({ source: "life" })}>LifeHub</button><button className={prefs.source === "work" ? "selected" : ""} onClick={() => update({ source: "work" })}>WorkHub</button></div></div>
 
         <h3 className="ambient-settings-section">Weather</h3>
-        <div className="ambient-field"><label htmlFor="ambient-place">Your city <span>Live weather</span></label><form className="ambient-location" onSubmit={e => { e.preventDefault(); if (cityDraft.trim()) { update({ city: cityDraft.trim() }); setWeatherRound(r => r + 1); } }}><input id="ambient-place" placeholder="Denver, Colorado" value={cityDraft} onChange={e => setCityDraft(e.target.value)} maxLength={80} /><button type="submit">Save</button></form><button className="ambient-location-link" onClick={requestLocation}><MapPin size={14} /> Use my location</button>{weatherError && <p className="ambient-error" role="alert">{weatherError}</p>}</div>
+        <div className="ambient-field"><label htmlFor="ambient-place">Your city <span>Live weather</span></label><form className="ambient-location" onSubmit={e => { e.preventDefault(); if (cityDraft.trim()) { update({ city: cityDraft.trim(), coords: "" }); setWeatherRound(r => r + 1); } }}><input id="ambient-place" placeholder="Denver, Colorado" value={cityDraft} onChange={e => setCityDraft(e.target.value)} maxLength={80} /><button type="submit">Save</button></form><button className="ambient-location-link" onClick={requestLocation} disabled={locating}><MapPin size={14} /> {locating ? "Finding you…" : "Use my location"}</button>{weatherError && <p className="ambient-error" role="alert">{weatherError}</p>}</div>
         <div className="ambient-field"><label>Temperature</label><div className="ambient-choice"><button className={prefs.unit === "F" ? "selected" : ""} onClick={() => update({ unit: "F" })}>°F</button><button className={prefs.unit === "C" ? "selected" : ""} onClick={() => update({ unit: "C" })}>°C</button></div></div>
 
         <h3 className="ambient-settings-section">Sound and sleep</h3>

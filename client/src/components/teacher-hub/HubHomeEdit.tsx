@@ -32,6 +32,7 @@ export type HomePart = { id: string; label: string; icon?: LucideIcon };
 export const WORK_PARTS: HomePart[] = HOME_SECTIONS.map((s) => ({ id: s.id, label: s.label, icon: PART_ICON[s.id] }));
 const CAP: Record<HomeSize, string> = { small: "max-h-[26rem] overflow-y-auto overscroll-contain rounded-3xl", medium: "max-h-[22rem] overflow-y-auto overscroll-contain rounded-3xl", large: "" };
 /** How tall a part's picture is while arranging. */
+// Edit mode shows each part at its real size, so every widget in it stays visible while you arrange.
 const PREVIEW: Record<HomeSize, string> = { small: "aspect-square", medium: "h-36", large: "h-52" };
 const GLIDE = { type: "spring", stiffness: 520, damping: 42, mass: 0.8 } as const;
 
@@ -292,7 +293,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
                 {tileHere
                   ? <div className="pointer-events-none" aria-hidden>{tileOf(id)}</div>
                   : parts[id] == null ? <div className={`pointer-events-none flex ${PREVIEW[sz]} items-center justify-center rounded-3xl bg-slate-50 text-sm text-slate-400`} aria-hidden>Nothing here right now</div>
-                  : <div className={`pointer-events-none ${PREVIEW[sz]} overflow-hidden rounded-3xl [mask-image:linear-gradient(to_bottom,black_70%,transparent)]`} aria-hidden>{parts[id]}</div>}
+                  : <div className="pointer-events-none overflow-hidden rounded-3xl" aria-hidden>{parts[id]}</div>}
                 {!tileHere && <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-white">{label(id)}</span>}
                 <button type="button" onClick={() => onChange({ ...layout, home: full(order), homeHidden: [...new Set([...hidden, id])] } as L)} aria-label={`Remove ${label(id)} from Home`}
                   className="absolute -left-2 -top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-700 text-white shadow-md transition active:scale-90" data-testid={`home-remove-${id}`}><X className="h-4 w-4" /></button>

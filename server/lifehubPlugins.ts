@@ -116,9 +116,12 @@ export function registerLifehubPluginRoutes(app: Express, authMiddleware: Reques
   app.get("/api/lifehub/weather", authMiddleware, async (req: any, res) => {
     const place = cleanPlace(req.query?.place);
     const unit = req.query?.unit === "C" ? "C" : "F";
-    if (!place) return res.status(400).json({ message: "Type your town or city." });
+    // "Use my location" sends coordinates, so it works even when no town name could be found for them.
+    const lat = Number(req.query?.lat), lon = Number(req.query?.lon);
+    const coords = Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && req.query?.lat !== "" ? { lat: Math.round(lat * 100) / 100, lon: Math.round(lon * 100) / 100 } : null;
+    if (!place && !coords) return res.status(400).json({ message: "Type your town or city." });
     try {
-      const where = await cached(`geo:${place.toLowerCase()}`, 30 * 86_400_000, async () => {
+      const where = coords ? { value: { ...coords, name: place || "Your location" } } : await cached(`geo:${place.toLowerCase()}`, 30 * 86_400_000, async () => {
         const json: any = await (await get(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place.split(",")[0])}&count=10&language=en&format=json`)).json();
         const results: any[] = Array.isArray(json?.results) ? json.results : [];
         // "Denver, CO" or "Paris, France": prefer the result whose state or country matches the part after the comma.
