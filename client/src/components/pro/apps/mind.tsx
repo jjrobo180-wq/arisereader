@@ -1,7 +1,7 @@
 // Mind & wellbeing apps: breathing, mood, gratitude, a journal with AI reflection, a CBT thought
 // record, worry time, a meditation timer, a calm corner for kids, affirmation cards, calm sounds,
 // self-care bingo and a kindness challenge.
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { Heart, Pause, Play, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { askAppAi } from "@/lib/cloudDocs";
@@ -341,7 +341,12 @@ function Kindness() {
   </div>;
 }
 
+// The Book Store is a big app of its own; its code (and its book list) loads only when it's opened.
+const BookStoreLazy = lazy(() => import("../bookstore/BookStore"));
+const BookStore = () => <Suspense fallback={<p className="py-12 text-center text-sm font-semibold text-slate-500">Opening the Book Store…</p>}><BookStoreLazy /></Suspense>;
+
 export const MIND: Record<string, ComponentType> = {
+  bookstore: BookStore,
   breathe: Breathe, mood: Mood, gratitude: Gratitude, journal: Journal, thoughts: Thoughts, worry: WorryTime, meditate: Meditate,
   "calm-corner": CalmCorner, affirmations: Affirmations, sounds: Sounds, "self-care": SelfCare, kindness: Kindness,
 };
