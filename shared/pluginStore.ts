@@ -175,7 +175,7 @@ function proPlugin(hub: PluginHub, a: ProApp, id = `${hub}-pro-${a.id}`): Plugin
   return {
     id, hub, name: a.name, tagline: a.tagline, description: a.description, features: a.features,
     category: PRO_GROUPS[a.group].category, icon: a.icon, color: a.color,
-    target: { kind: "officeApp", id, href: `#/pro?app=${a.id}` },
+    target: { kind: "officeApp", id, href: `#/pro?app=${a.id}&hub=${hub}` },
     ...(a.teacher && hub === "life" ? { recommendedFor: "work" as const } : {}),
   };
 }

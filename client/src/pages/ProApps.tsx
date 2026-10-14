@@ -27,23 +27,29 @@ function appComponent(id: string): ComponentType | null {
   return cache.get(id)!;
 }
 const Missing = () => <p className="text-sm text-slate-500">This app isn't available yet.</p>;
-const readApp = () => new URLSearchParams(window.location.hash.split("?")[1] || "").get("app") || "";
+const params = () => new URLSearchParams(window.location.hash.split("?")[1] || "");
+const readApp = () => params().get("app") || "";
 
 export default function ProApps() {
   const { user } = useAuth();
   const [id, setId] = useState(readApp);
   useEffect(() => { const on = () => setId(readApp()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
-  const hub = user?.role === "parent" ? "#/lifehub" : "#/workhub";
+  // Back goes where the app was opened from: the hub (WorkHub or LifeHub) that launched it, or
+  // the apps list when it was picked there. The list is never an unexpected stop on the way back.
+  const fromHub = params().get("hub");
+  const hub = fromHub === "work" ? "#/workhub" : fromHub === "life" ? "#/lifehub" : user?.role === "teacher" ? "#/workhub" : "#/lifehub";
+  const fromList = params().get("from") === "apps";
   const found = id ? proApp(id) : undefined;
   const meta = found && PRO_LIVE_GROUPS.includes(found.group) ? found : undefined;
   const App = id ? appComponent(id) : null;
-  const go = (next: string) => { window.location.hash = next ? `#/pro?app=${next}` : "#/pro"; window.scrollTo({ top: 0 }); };
+  const hubQ = fromHub ? `&hub=${fromHub}` : "";
+  const go = (next: string) => { window.location.hash = next ? `#/pro?app=${next}&from=apps${hubQ}` : `#/pro${fromHub ? `?hub=${fromHub}` : ""}`; window.scrollTo({ top: 0 }); };
   return <main className="min-h-screen bg-slate-50 px-3 py-4 text-slate-900 sm:px-6 sm:py-6">
     <div className="mx-auto max-w-5xl space-y-4">
       <header className="flex flex-wrap items-center gap-3">
-        {meta ? <button type="button" onClick={() => go("")} className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-700 hover:underline"><ArrowLeft size={15} />All apps</button>
-          : <a href={hub} className="text-sm font-semibold text-indigo-700 hover:underline">← Back to my hub</a>}
-        {meta && <a href={hub} className="text-sm font-semibold text-slate-500 hover:underline">My hub</a>}
+        {meta && fromList ? <button type="button" onClick={() => go("")} className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-700 hover:underline"><ArrowLeft size={15} />All apps</button>
+          : <a href={hub} className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-700 hover:underline"><ArrowLeft size={15} />Back to {hub === "#/workhub" ? "WorkHub" : "LifeHub"}</a>}
+        {meta && fromList && <a href={hub} className="text-sm font-semibold text-slate-500 hover:underline">{hub === "#/workhub" ? "WorkHub" : "LifeHub"}</a>}
       </header>
       {meta && App ? <>
         <div className="flex items-center gap-3">
