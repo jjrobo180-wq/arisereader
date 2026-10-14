@@ -68,6 +68,73 @@
 .pricing-note{text-align:center;font-size:13px;color:#7f8aa1;max-width:720px;margin:26px auto 0;line-height:1.6}
 @media(min-width:1121px){.nav-links a[href="#pricing"]{display:none}}
 @media(max-width:680px){.pricing-section{padding:65px 0 75px}.pricing-grid{grid-template-columns:1fr;gap:16px}.pricing-card{padding:25px 23px}.pricing-card .price{font-size:44px}}
+</style>
+<style>
+/* A.R.I.S.E. To-Do public app showcase: safely scoped to the homepage. */
+.app-showcase{padding:96px 0 100px;background:linear-gradient(180deg,#fff 0%,#f7f9ff 100%);border-block:1px solid #e7edf6}
+.showcase-intro{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:30px}
+.showcase-intro .section-desc{max-width:720px}
+.showcase-total{display:flex;align-items:center;gap:13px;flex:none;padding:13px 20px;background:#f1f7fc;border:1px solid #e3edf5;border-radius:20px;color:#6a7792;font-size:12px;font-weight:800;line-height:1.5}
+.showcase-total-number{font-size:40px;letter-spacing:-2px;font-family:Manrope,system-ui,sans-serif;color:#4b70d9;line-height:1.1}
+.showcase-filter-row{display:flex;gap:9px;padding:3px 0 21px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.showcase-filter-row::-webkit-scrollbar{display:none}
+.showcase-filter{flex:none;min-height:40px;border:1px solid #e3e9f3;background:#fff;border-radius:999px;padding:9px 17px;color:#64728c;font-size:12px;font-weight:800;transition:background .2s,transform .2s,color .2s}
+.showcase-filter:hover{transform:translateY(-1px);background:#f0f5fc}.showcase-filter.is-active{border-color:#4868d8;background:#516eeb;color:white;box-shadow:0 6px 16px #516eeb24}
+.showcase-layout{display:grid;grid-template-columns:minmax(0,1.13fr) minmax(340px,.87fr);align-items:start;gap:23px}
+.showcase-library{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.showcase-card{min-width:0;display:flex;align-items:center;gap:13px;padding:15px;text-align:left;background:white;border:1px solid #e6ebf3;border-radius:19px;box-shadow:0 5px 14px #26365805;min-height:92px;transition:transform .18s,border-color .18s,box-shadow .18s;cursor:pointer}
+.showcase-card:hover{transform:translateY(-3px);border-color:#bdcaf5;box-shadow:0 12px 22px #26365812}
+.showcase-card.is-selected{border-color:#a4b7f6;box-shadow:0 0 0 2px #829bf51b,0 11px 25px #475eb516;background:linear-gradient(120deg,#fff 60%,#f7f9ff)}
+.showcase-card[hidden]{display:none}
+.showcase-icon{flex:none;width:48px;height:48px;border-radius:15px;background:color-mix(in srgb,var(--app-accent),white 88%);color:var(--app-accent);display:grid;place-items:center}
+.showcase-icon svg{height:23px;width:23px}
+.showcase-card-copy{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+.showcase-card-copy strong{font:800 13px/1.35 Manrope,system-ui,sans-serif;color:#27314a;overflow-wrap:break-word}
+.showcase-card-copy small{font-size:10.5px;line-height:1.5;color:#8793a8}
+.showcase-arrow{width:17px;flex:none;color:#a4b1c8}.showcase-arrow svg{width:17px;height:17px}
+.showcase-stage{position:sticky;top:104px;background:#fff;border:1px solid #e6eaf4;border-radius:28px;overflow:hidden;box-shadow:0 26px 68px #243c7515,0 2px 9px #243c7507}
+.showcase-stage-top{height:55px;background:#f8faff;border-bottom:1px solid #edf0f6;display:flex;gap:8px;align-items:center;padding:0 25px;font-size:10px;letter-spacing:1.1px;font-weight:800;color:#8692a7}
+.showcase-dot{height:8px;width:8px;background:#22beac;box-shadow:0 0 0 4px #e0f9f5;border-radius:100%;margin-right:4px}
+.showcase-stage-step{margin-left:auto;white-space:nowrap;font-size:11px;color:#5d71a6}
+.showcase-screen{padding:26px 26px 15px;--current-accent:#4e76ef}
+.showcase-app-header{display:flex;align-items:center;gap:15px;min-width:0}
+.showcase-screen-icon{display:grid;place-items:center;flex:none;width:57px;height:57px;border-radius:17px;background:color-mix(in srgb,var(--current-accent),white 88%);color:var(--current-accent)}
+.showcase-screen-icon svg{width:28px;height:28px}.showcase-screen-overline{font-size:9px;letter-spacing:1.15px;font-weight:800;color:#a0aabd}
+.showcase-screen-overline span{color:#15a696}
+.showcase-app-header h3{font:800 23px/1.3 Manrope,system-ui,sans-serif;letter-spacing:-.7px;margin:3px 0 3px;color:#1e2941}
+.showcase-app-header p{font-size:11px;margin:0;color:#909bb1;line-height:1.45}
+.showcase-summary{margin-top:23px;background:linear-gradient(130deg,#f5f7ff 0%,#f0f9f8 100%);border:1px solid #e7edf6;border-radius:18px;padding:19px 19px 17px}
+.showcase-summary-label{font-size:11px;font-weight:800;color:#71809d;display:block}
+.showcase-summary strong{display:block;color:#25314c;font:800 29px/1.25 Manrope,system-ui,sans-serif;letter-spacing:-1px;margin:6px 0 15px}
+.showcase-progress-track{height:7px;overflow:hidden;background:#dfe8f5;border-radius:20px}
+.showcase-progress-track span{display:block;height:100%;background:linear-gradient(90deg,#18bbaa,#607bf0);border-radius:20px;transition:width .2s}
+.showcase-summary small{display:block;margin-top:9px;font-size:10px;color:#8b98ad}
+.showcase-detail-label{font-size:10px;letter-spacing:1px;color:#99a4b9;font-weight:800;margin:22px 0 11px}
+.showcase-rows{display:grid;gap:9px;min-height:198px}
+.showcase-preview-row{display:flex;align-items:center;gap:11px;border-radius:12px;border:1px solid #e9edf5;background:#fff;padding:13px;min-height:56px}
+.showcase-row-check{display:grid;place-items:center;flex:none;height:25px;width:25px;border:1px solid #d9e3f1;border-radius:9px;background:#f4f7fc;color:#99a8bf;font-weight:800;font-size:12px}
+.showcase-preview-row.is-done .showcase-row-check{background:#e4f8f3;border-color:#9bdcd2;color:#15a69d}
+.showcase-row-text{font-size:12px;line-height:1.45;font-weight:750;color:#3b4963;flex:1}
+.showcase-preview-row.is-done .showcase-row-text{color:#68798d}
+.showcase-row-index{color:#a7b3c7;font-size:10px}
+.showcase-stage-actions{display:flex;gap:10px;padding:10px 26px 22px}
+.showcase-try{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;background:linear-gradient(105deg,#20b9ad,#5375e7 65%,#8270db);color:#fff;font:800 12px 'DM Sans',sans-serif;border:0;border-radius:13px;padding:11px 13px;flex:1;transition:filter .2s,transform .2s}
+.showcase-try:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.showcase-try svg{height:16px;width:16px}
+.showcase-next{display:grid;place-items:center;flex:none;width:48px;height:48px;border:1px solid #dce4f2;border-radius:13px;background:#fff;color:#5773d2}
+.showcase-next:hover{background:#eff4ff}
+.showcase-next svg{width:19px;height:19px}
+.showcase-stage-footer{border-top:1px solid #edf0f5;background:#fbfcff;padding:15px 25px;display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;font-size:10px;color:#8390a5;line-height:1.5}
+.showcase-stage-footer span,.showcase-stage-footer a{display:inline-flex;align-items:center;gap:6px}
+.showcase-stage-footer svg{width:14px;height:14px}.showcase-stage-footer span svg{color:#16ad9d}
+.showcase-stage-footer a{color:#4569d3;font-weight:800}
+.showcase-bottom{margin-top:28px;display:flex;justify-content:space-between;align-items:center;gap:20px;font-size:12px;color:#7f8ba2;line-height:1.55}
+.showcase-bottom a{display:flex;align-items:center;gap:7px;flex:none;font-weight:800;color:#4b68d7}
+.showcase-bottom svg{width:15px;height:15px}
+@media(max-width:1000px){.showcase-layout{grid-template-columns:1fr}.showcase-stage{position:static;grid-row:1}.showcase-library{grid-template-columns:repeat(3,minmax(0,1fr))}.showcase-rows{min-height:0}.showcase-screen{max-width:760px;margin:auto}.showcase-stage-actions{max-width:760px;margin:auto}.showcase-stage-footer{justify-content:center}}
+@media(max-width:700px){.app-showcase{padding:66px 0 72px}.showcase-intro{align-items:flex-start}.showcase-total{padding:10px 12px;border-radius:13px}.showcase-total-number{font-size:30px}.showcase-total span:last-child{font-size:10px}.showcase-library{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.showcase-card{min-height:87px;padding:11px;gap:9px;border-radius:15px}.showcase-icon{height:39px;width:39px;border-radius:12px}.showcase-icon svg{height:20px;width:20px}.showcase-card-copy strong{font-size:12px}.showcase-card-copy small{font-size:10px}.showcase-arrow{display:none}.showcase-layout{gap:18px}.showcase-stage{border-radius:21px}.showcase-screen{padding:21px 18px 11px}.showcase-stage-top{padding:0 18px}.showcase-stage-actions{padding:10px 18px 20px}.showcase-stage-footer{padding:14px 18px}.showcase-bottom{flex-wrap:wrap;gap:10px}}
+@media(max-width:420px){.showcase-intro{display:block}.showcase-total{display:none}.showcase-card{align-items:flex-start}.showcase-icon{width:36px;height:36px;flex:none}.showcase-card-copy strong{font-size:11.5px}.showcase-app-header h3{font-size:21px}.showcase-summary strong{font-size:25px}.showcase-stage-footer{justify-content:flex-start}.showcase-filter{padding:8px 12px}}
+@media(max-width:335px){.showcase-library{grid-template-columns:1fr}.showcase-card{min-height:72px}.showcase-card-copy strong{font-size:13px}}
 </style></head>
 <body>
 <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden">
@@ -91,7 +158,7 @@
 <header class="site-header">
  <div class="container nav-inner">
   <a class="logo" href="#top" aria-label="A.R.I.S.E. To-Do home"><img class="logo-symbol" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2310C8B3%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23527BED%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23955FE5%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2262%22%20height%3D%2262%22%20rx%3D%2218%22%20fill%3D%22url%28%23g%29%22%2F%3E%0A%20%3Crect%20x%3D%2213%22%20y%3D%2215%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%20opacity%3D%22.95%22%2F%3E%0A%20%3Cpath%20d%3D%22M17%2022.3l4%203.8%208-10%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%3Cpath%20d%3D%22M36%2023h14M17%2043h12M36%2043h14%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.96%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt="" /><span>A.R.I.S.E<span class="period">.</span> <span class="todo">To-Do</span></span></a>
-  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="#features">Features</a><a href="#studio">App Store & Themes</a><a href="#features">For educators</a><a href="#life">Everyday life</a><a href="#demo">Try it</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a class="mobile-auth" href="/app#/signin">Sign in</a><a class="mobile-auth" href="/app#/signin">Create account</a></nav>
+  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="#features">Features</a><a href="#app-showcase">Explore apps</a><a href="#features">For educators</a><a href="#life">Everyday life</a><a href="#demo">Try it</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a class="mobile-auth" href="/app#/signin">Sign in</a><a class="mobile-auth" href="/app#/signin">Create account</a></nav>
   <div class="nav-auth"><a class="header-signin" href="#pricing">Pricing</a><a class="header-signin" href="/app#/signin">Sign in</a><a class="button button-primary" href="/app#/signin">Get started <svg><use href="#i-arrow"/></svg></a></div>
   <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg><use href="#i-menu"/></svg></button>
  </div>
@@ -103,7 +170,7 @@
   <div class="eyebrow"><i class="dot"></i> A little more organized. A lot more you.</div>
   <h1>Over 1 trillion ways<span class="gradient-text">to make it yours.</span></h1>
   <p class="lede">Tasks, calendar, chores, meals, budget, habits and 100+ add-on apps — turn on what you need, hide what you don't, and arrange it all your way. Built for families and individuals. Just as fantastic for teachers.</p>
-  <div class="hero-actions"><a class="button button-primary" href="/app#/signin">Create a free account <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="/app#/signin">Already a member? Sign in</a><a class="hero-demo-link" href="#demo">Try the demo first ↓</a></div>
+  <div class="hero-actions"><a class="button button-primary" href="/app#/signin">Create a free account <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="/app#/signin">Already a member? Sign in</a><a class="hero-demo-link" href="#app-showcase">Explore 15 app demos ↓</a></div>
   <div class="hero-micro"><span class="mini-mark"><svg><use href="#i-check"/></svg> Built your way</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> One simple place</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> For every kind of busy day</span></div>
  </div>
  <div class="hero-art" aria-label="A.R.I.S.E. To-Do dashboard preview"><div class="halo"></div>
@@ -123,6 +190,66 @@
  </div>
 </section>
 <div class="intro-strip"><div class="container intro-strip-inner"><span class="intro-strip-title">Built for every kind of day</span><span class="strip-item"><svg><use href="#i-check"/></svg> Tasks & routines</span><span class="strip-item"><svg><use href="#i-check"/></svg> Calendar & chores</span><span class="strip-item"><svg><use href="#i-check"/></svg> Family, work & teaching</span><span class="strip-item"><svg><use href="#i-check"/></svg> App Store add-ons</span></div></div>
+
+<section class="app-showcase" id="app-showcase" aria-labelledby="app-showcase-title">
+ <div class="container">
+  <div class="showcase-intro">
+   <div><div class="section-kicker">Meet the A.R.I.S.E. apps</div><h2 class="section-heading" id="app-showcase-title">Find your tools. <span class="gradient-text">Make them yours.</span></h2>
+   <p class="section-desc">From fitness and finances to flash cards and IEP meetings, your everyday essentials are right here. Select any app to try an interactive, sample-data preview.</p></div>
+   <span class="showcase-total"><span class="showcase-total-number">15</span><span>apps to discover<br/>in one place</span></span>
+  </div>
+  <div class="showcase-filter-row" role="group" aria-label="Filter preview apps"><button type="button" class="showcase-filter is-active" data-filter="All apps" aria-pressed="true">All apps</button><button type="button" class="showcase-filter" data-filter="Wellness" aria-pressed="false">Wellness</button><button type="button" class="showcase-filter" data-filter="Everyday" aria-pressed="false">Everyday</button><button type="button" class="showcase-filter" data-filter="Money" aria-pressed="false">Money</button><button type="button" class="showcase-filter" data-filter="Tools" aria-pressed="false">Tools</button><button type="button" class="showcase-filter" data-filter="Learning" aria-pressed="false">Learning</button></div>
+  <div class="showcase-layout">
+   <div class="showcase-library" id="showcaseLibrary" aria-label="Apps to preview">
+    <button type="button" class="showcase-card is-selected" data-app="fitness" data-category="Wellness" aria-pressed="true" style="--app-accent:#4e76ef">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-target"></use></svg></span><span class="showcase-card-copy"><strong>Fitness</strong><small>Workouts, movement and progress</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="food" data-category="Wellness" aria-pressed="false" style="--app-accent:#e99b5f">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-list"></use></svg></span><span class="showcase-card-copy"><strong>Food Tracker</strong><small>Meals, nutrition and daily logs</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="budget" data-category="Money" aria-pressed="false" style="--app-accent:#26a580">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-chart"></use></svg></span><span class="showcase-card-copy"><strong>Budget & Bills</strong><small>Spending, budgets and due dates</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="period" data-category="Wellness" aria-pressed="false" style="--app-accent:#dc779f">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-calendar"></use></svg></span><span class="showcase-card-copy"><strong>Period Reminder</strong><small>Cycle dates and gentle reminders</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="drop" data-category="Tools" aria-pressed="false" style="--app-accent:#be67b2">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-cloud"></use></svg></span><span class="showcase-card-copy"><strong>Drop</strong><small>Transfer files between devices</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="sheets" data-category="Tools" aria-pressed="false" style="--app-accent:#23a99d">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-chart"></use></svg></span><span class="showcase-card-copy"><strong>Sheets</strong><small>Spreadsheets for every project</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="mental" data-category="Wellness" aria-pressed="false" style="--app-accent:#6e83c9">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-heart"></use></svg></span><span class="showcase-card-copy"><strong>Mental Health</strong><small>Mindful moments and self-care</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="journal" data-category="Everyday" aria-pressed="false" style="--app-accent:#9676d5">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-notes"></use></svg></span><span class="showcase-card-copy"><strong>Daily Journal</strong><small>Thoughts, gratitude and reflection</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="iep" data-category="Learning" aria-pressed="false" style="--app-accent:#6375d8">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-calendar"></use></svg></span><span class="showcase-card-copy"><strong>IEP Meeting Manager</strong><small>Prepare, schedule and follow up</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="water" data-category="Wellness" aria-pressed="false" style="--app-accent:#35aeca">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-cloud"></use></svg></span><span class="showcase-card-copy"><strong>Water Tracker</strong><small>Daily hydration made easy</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="couch" data-category="Wellness" aria-pressed="false" style="--app-accent:#de895e">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-target"></use></svg></span><span class="showcase-card-copy"><strong>Couch to 5K</strong><small>A gentle start to running</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="mood" data-category="Wellness" aria-pressed="false" style="--app-accent:#e6a55e">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-heart"></use></svg></span><span class="showcase-card-copy"><strong>Mood Tracker</strong><small>Check-ins and mood patterns</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="flash" data-category="Learning" aria-pressed="false" style="--app-accent:#54a579">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-notes"></use></svg></span><span class="showcase-card-copy"><strong>Flash Cards</strong><small>Review, learn and remember</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="goals" data-category="Everyday" aria-pressed="false" style="--app-accent:#8070da">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-target"></use></svg></span><span class="showcase-card-copy"><strong>Goals</strong><small>Small steps toward bigger things</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button><button type="button" class="showcase-card" data-app="chores" data-category="Everyday" aria-pressed="false" style="--app-accent:#e5a16d">
+      <span class="showcase-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-check"></use></svg></span><span class="showcase-card-copy"><strong>Chores</strong><small>Shared routines and rewards</small></span><span class="showcase-arrow"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></span>
+     </button>
+   </div>
+   <div class="showcase-stage" id="showcaseStage">
+     <div class="showcase-stage-top"><span class="showcase-dot"></span><span>INTERACTIVE APP PREVIEW</span><span class="showcase-stage-step" id="showcaseStep">01 / 15</span></div>
+     <div class="showcase-screen" id="showcaseScreen" aria-live="polite" aria-atomic="true">
+       <div class="showcase-app-header"><span class="showcase-screen-icon" id="showcaseScreenIcon"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-target"></use></svg></span><div><div class="showcase-screen-overline">A.R.I.S.E. APPS <span>· SAMPLE</span></div><h3 id="showcaseAppTitle">Fitness</h3><p id="showcaseAppSubtitle">Workouts, movement and progress</p></div></div>
+       <div class="showcase-summary"><span class="showcase-summary-label" id="showcaseSummaryLabel">Today's movement</span><strong id="showcaseSummaryValue">25 min</strong><div class="showcase-progress-track"><span id="showcaseProgressBar" style="width:33%"></span></div><small id="showcaseSummaryHint">Explore this sample</small></div>
+       <div class="showcase-detail-label">A LITTLE LOOK INSIDE</div><div class="showcase-rows" id="showcaseRows"></div>
+     </div>
+     <div class="showcase-stage-actions">
+       <button type="button" class="showcase-try" id="showcaseTry">Log a sample workout <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></button>
+       <button type="button" class="showcase-next" id="showcaseNext" aria-label="Preview the next app"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></button>
+     </div>
+     <div class="showcase-stage-footer"><span><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-check"></use></svg> Example only — no account data is changed.</span><a href="/app#/signin">Open my workspace <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></a></div>
+   </div>
+  </div>
+  <div class="showcase-bottom"><span>Different tools, one familiar place. Your real apps and data live in your signed-in workspace.</span><a href="/app#/signin">Get started with A.R.I.S.E. <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#i-arrow"></use></svg></a></div>
+ </div>
+</section>
 <section class="studio" id="studio"><div class="container"><div class="center"><div class="section-kicker">Build your own space</div><h2 class="section-heading">100+ apps. <span class="gradient-text">Your style.</span></h2><p class="section-desc">Browse the App Store, add the apps for family, work, personal life or the classroom, and personalize your dashboard with themes and layouts.</p></div><div class="studio-grid"><div class="studio-panel"><h3>✦ A.R.I.S.E. App Store</h3><p>Build a workspace around the tools you actually use — at home, at work, or in the classroom. Add or remove apps anytime.</p><div class="app-grid" id="appGrid"></div><div class="studio-status" id="storeStatus" role="status"></div></div><div class="studio-panel"><h3>🎨 Make it yours</h3><p>Personalize your workspace with colors, layouts, and widgets.</p><span class="studio-label">Accent color</span><div class="swatches" id="themeSwatches"></div><label class="studio-label" for="layoutSelect">Dashboard layout</label><select id="layoutSelect" class="studio-select"><option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="spacious">Spacious</option></select><div class="widget-preview" id="widgetPreview"><h4>Your dashboard preview</h4><div class="widget-pills" id="widgetPills"></div></div><div class="studio-hint">Explore customization here. Sign in to the real A.R.I.S.E. LifeHub to save your settings to your account.</div><button type="button" class="app-action" id="resetStudio" style="margin-top:14px">Reset customization</button></div></div></div></section>
 <section class="section" id="features"><div class="container"><div class="features-header center"><div class="section-kicker">Everything in its place</div><h2 class="section-heading">A thousand things to track.<br /><span class="gradient-text">One organized space.</span></h2><p class="section-desc">Not a template — a hub you build. Turn on the 70+ sections you need, hide the rest, and add from 100+ apps in the App Store.</p></div>
 <div class="features-grid">
@@ -269,4 +396,81 @@
  renderLife('Personal');render();
 })();
 </script>
+<script>
+(function(){
+"use strict";
+var sampleApps=[["fitness","Fitness","Workouts, movement and progress","Wellness","i-target","#4e76ef","Today's movement","25 min","Warm-up and mobility","Strength circuit","Cool down and stretch","Log a sample workout"],["food","Food Tracker","Meals, nutrition and daily logs","Wellness","i-list","#e99b5f","Today's food diary","3 meals","Breakfast · Oatmeal & berries","Lunch · Chicken salad","Dinner · Make a plan","Log a sample meal"],["budget","Budget & Bills","Spending, budgets and due dates","Money","i-chart","#26a580","Monthly budget","$680 left","Housing · Paid","Internet · Due Friday","Groceries · On track","Mark a sample bill paid"],["period","Period Reminder","Cycle dates and gentle reminders","Wellness","i-calendar","#dc779f","Cycle calendar","Day 12","Track a cycle date","Log how you're feeling","Review next reminder","Advance sample day"],["drop","Drop","Transfer files between devices","Tools","i-cloud","#be67b2","Send something, simply","Ready to send","Choose a file","Get a sharing code","Receive on another device","See next transfer step"],["sheets","Sheets","Spreadsheets for every project","Tools","i-chart","#23a99d","Your mini spreadsheet","3 rows","Plan your week","Track a simple budget","Update the totals","Update sample sheet"],["mental","Mental Health","Mindful moments and self-care","Wellness","i-heart","#6e83c9","A moment to reset","1 minute","Take a calming breath","Choose one small pause","Return when you're ready","Start sample breathing"],["journal","Daily Journal","Thoughts, gratitude and reflection","Everyday","i-notes","#9676d5","Today's reflection","A fresh page","What went well today?","Something I'm grateful for","One thing for tomorrow","Show another journal prompt"],["iep","IEP Meeting Manager","Prepare, schedule and follow up","Learning","i-calendar","#6375d8","Meeting checklist","2 of 3 steps","Draft the meeting invitation","Invite the school team","Review next meeting steps","Complete a sample step"],["water","Water Tracker","Daily hydration made easy","Wellness","i-cloud","#35aeca","Today's hydration","3 of 8 cups","Morning glass","Midday refill","Afternoon water break","Add a sample glass"],["couch","Couch to 5K","A gentle start to running","Wellness","i-target","#de895e","Your running journey","Week 1 · Day 1","5-minute warm-up walk","Alternate walk and run","5-minute cool-down","Complete a sample interval"],["mood","Mood Tracker","Check-ins and mood patterns","Wellness","i-heart","#e6a55e","How are you feeling?","Feeling okay","Happy and energized","Calm and steady","Tired, need a rest","Change sample mood"],["flash","Flash Cards","Review, learn and remember","Learning","i-notes","#54a579","Your study deck","Card 1 of 3","What is a main idea?","A story's central message","Tap to review the next card","Flip sample flash card"],["goals","Goals","Small steps toward bigger things","Everyday","i-target","#8070da","Your next milestone","60% there","Read a little every day","Track three weekly walks","Finish a personal project","Complete a sample goal step"],["chores","Chores","Shared routines and rewards","Everyday","i-check","#e5a16d","Around the home","1 of 3 done","Make the bed","Tidy the living room","Take out the recycling","Check off a sample chore"]];
+var activeApp=0;
+var sampleSteps=Object.create(null);
+var chooser=document.getElementById("showcaseLibrary");
+var filterButtons=Array.from(document.querySelectorAll(".showcase-filter"));
+var appButtons=Array.from(document.querySelectorAll(".showcase-card"));
+var stepText=document.getElementById("showcaseStep");
+var preview=document.getElementById("showcaseScreen");
+var rows=document.getElementById("showcaseRows");
+var sampleButton=document.getElementById("showcaseTry");
+var nextButton=document.getElementById("showcaseNext");
+if(!chooser||!stepText||!preview||!rows||!sampleButton||!nextButton)return;
+function svgFor(id){var svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("aria-hidden","true");svg.setAttribute("viewBox","0 0 24 24");var use=document.createElementNS("http://www.w3.org/2000/svg","use");use.setAttribute("href","#"+id);svg.appendChild(use);return svg;}
+function child(tag,cls,str){var e=document.createElement(tag);if(cls)e.className=cls;if(str!==undefined)e.textContent=str;return e;}
+function sampleMetric(a,n){
+ switch(a[0]){
+ case "water": return Math.min(8,3+n)+" of 8 cups";
+ case "budget": return n?"$"+(680+Math.min(n,3)*20)+" left":"$680 left";
+ case "period": return "Day "+(12+n);
+ case "fitness": return (25+Math.min(n,3)*5)+" min";
+ case "food": return (3+Math.min(n,3))+" meals";
+ case "iep": return Math.min(3,2+n)+" of 3 steps";
+ case "couch": return "Week 1 · Day "+Math.min(3,1+n);
+ case "mood": return ["Feeling okay","Feeling calm","Feeling great","Feeling hopeful"][Math.min(n,3)];
+ case "flash": return "Card "+(1+(n%3))+" of 3";
+ case "goals": return (60+Math.min(n,3)*10)+"% there";
+ case "chores": return Math.min(3,1+n)+" of 3 done";
+ case "drop": return ["Ready to send","File selected","Code prepared","Ready to receive"][Math.min(n,3)];
+ case "sheets": return (3+Math.min(n,3))+" rows";
+ case "mental": return (1+Math.min(n,3))+" mindful minute"+(n?"s":"");
+ case "journal": return ["A fresh page","A little gratitude","Your small win","A new beginning"][Math.min(n,3)];
+ default: return a[7];
+ }
+}
+function showApp(i,scroll){
+ activeApp=i;
+ var a=sampleApps[i],n=sampleSteps[a[0]]||0;
+ appButtons.forEach(function(btn){var selected=btn.dataset.app===a[0];btn.classList.toggle("is-selected",selected);btn.setAttribute("aria-pressed",String(selected));});
+ stepText.textContent=String(i+1).padStart(2,"0")+" / "+sampleApps.length;
+ preview.style.setProperty("--current-accent",a[5]);
+ var badge=document.getElementById("showcaseScreenIcon");badge.replaceChildren(svgFor(a[4]));
+ document.getElementById("showcaseAppTitle").textContent=a[1];
+ document.getElementById("showcaseAppSubtitle").textContent=a[2];
+ document.getElementById("showcaseSummaryLabel").textContent=a[6];
+ document.getElementById("showcaseSummaryValue").textContent=sampleMetric(a,n);
+ document.getElementById("showcaseProgressBar").style.width=Math.min(100,32+n*19)+"%";
+ document.getElementById("showcaseSummaryHint").textContent="Sample only · tap below to explore";
+ rows.replaceChildren();
+ [a[8],a[9],a[10]].forEach(function(text,index){
+  var done=index<Math.min(3,n+(a[0]==="chores"||a[0]==="iep"?1:0));
+  var r=child("div","showcase-preview-row"+(done?" is-done":""));
+  r.appendChild(child("span","showcase-row-check",done?"✓":"·"));
+  r.appendChild(child("span","showcase-row-text",text));
+  r.appendChild(child("span","showcase-row-index",String(index+1).padStart(2,"0")));
+  rows.appendChild(r);
+ });
+ sampleButton.replaceChildren(document.createTextNode(n>=3?"Reset sample":a[11]+" "));
+ sampleButton.appendChild(svgFor("i-arrow"));
+ if(scroll && window.matchMedia("(max-width:1000px)").matches){
+  document.getElementById("showcaseStage").scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"});
+ }
+}
+function showFiltered(category){
+ filterButtons.forEach(function(btn){var sel=btn.dataset.filter===category;btn.classList.toggle("is-active",sel);btn.setAttribute("aria-pressed",String(sel));});
+ appButtons.forEach(function(btn){btn.hidden=category!=="All apps"&&btn.dataset.category!==category;});
+ var selected=appButtons.find(function(btn){return btn.dataset.app===sampleApps[activeApp][0]&&!btn.hidden;});
+ if(!selected){var first=appButtons.find(function(btn){return !btn.hidden;});if(first){var idx=sampleApps.findIndex(function(a){return a[0]===first.dataset.app});if(idx>=0)showApp(idx,false);}}
+}
+appButtons.forEach(function(btn){btn.addEventListener("click",function(){var idx=sampleApps.findIndex(function(a){return a[0]===btn.dataset.app});if(idx>=0)showApp(idx,true);});});
+filterButtons.forEach(function(btn){btn.addEventListener("click",function(){showFiltered(btn.dataset.filter);});});
+sampleButton.addEventListener("click",function(){var a=sampleApps[activeApp];sampleSteps[a[0]]= ((sampleSteps[a[0]]||0)+1)%5;showApp(activeApp,false);});
+nextButton.addEventListener("click",function(){var filter=filterButtons.find(function(b){return b.classList.contains("is-active")});var category=filter?filter.dataset.filter:"All apps";var eligible=sampleApps.map(function(a,i){return {a:a,i:i}}).filter(function(item){return category==="All apps"||item.a[3]===category});if(!eligible.length)return;var pos=eligible.findIndex(function(x){return x.i===activeApp});showApp(eligible[(pos+1)%eligible.length].i,false);});
+showApp(0,false);
+})();</script>
 </body></html>
