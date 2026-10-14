@@ -1,0 +1,6 @@
+
+> rest-express@1.0.0 lint:safety
+> node script/lint-react-safety.mjs
+
+No hook-order or use-before-declaration problems found.
+exit 0

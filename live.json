@@ -1,0 +1,624 @@
+[
+ {
+  "url": "https://www.arisereader.com/",
+  "finalUrl": "https://www.arisereader.com/#/",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/001.png",
+  "issues": [
+   {
+    "type": "blank-page",
+    "detail": "https://www.arisereader.com/#/"
+   }
+  ]
+ },
+ {
+  "url": "https://www.arisereader.com/#/signin",
+  "finalUrl": "https://www.arisereader.com/#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/002.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/register",
+  "finalUrl": "https://www.arisereader.com/#/register",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/003.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/register-independent",
+  "finalUrl": "https://www.arisereader.com/#/register-independent",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/004.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/teacher-signup",
+  "finalUrl": "https://www.arisereader.com/#/teacher-signup",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/005.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/parent-signup",
+  "finalUrl": "https://www.arisereader.com/#/parent-signup",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/006.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/pricing",
+  "finalUrl": "https://www.arisereader.com/#/pricing",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/007.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/for-teachers",
+  "finalUrl": "https://www.arisereader.com/#/for-teachers",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/008.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/for-parents",
+  "finalUrl": "https://www.arisereader.com/#/for-parents",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/009.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/about",
+  "finalUrl": "https://www.arisereader.com/#/about",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/010.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/tutorial",
+  "finalUrl": "https://www.arisereader.com/#/tutorial",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/011.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/tutorial/student",
+  "finalUrl": "https://www.arisereader.com/#/tutorial/student",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/012.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/tutorial/teacher",
+  "finalUrl": "https://www.arisereader.com/#/tutorial/teacher",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/013.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/tutorial/parent",
+  "finalUrl": "https://www.arisereader.com/#/tutorial/parent",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/014.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/tutorial/eye-gaze",
+  "finalUrl": "https://www.arisereader.com/#/tutorial/eye-gaze",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/015.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/leaderboard",
+  "finalUrl": "https://www.arisereader.com/#/leaderboard",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/016.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/reading-club",
+  "finalUrl": "https://www.arisereader.com/#/reading-club",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/017.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/competition",
+  "finalUrl": "https://www.arisereader.com/#/competition",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/018.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/news",
+  "finalUrl": "https://www.arisereader.com/#/",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/019.png",
+  "issues": [
+   {
+    "type": "blank-page",
+    "detail": "https://www.arisereader.com/#/"
+   }
+  ]
+ },
+ {
+  "url": "https://www.arisereader.com/#/reads",
+  "finalUrl": "https://www.arisereader.com/#/",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/020.png",
+  "issues": [
+   {
+    "type": "blank-page",
+    "detail": "https://www.arisereader.com/#/"
+   }
+  ]
+ },
+ {
+  "url": "https://www.arisereader.com/#/explore-reader",
+  "finalUrl": "https://www.arisereader.com/#/",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/021.png",
+  "issues": [
+   {
+    "type": "blank-page",
+    "detail": "https://www.arisereader.com/#/"
+   }
+  ]
+ },
+ {
+  "url": "https://www.arisereader.com/#/to-do",
+  "finalUrl": "https://www.arisereader.com/#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/022.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/lifehub",
+  "finalUrl": "https://www.arisereader.com/#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/023.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/workhub",
+  "finalUrl": "https://www.arisereader.com/#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/024.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/library",
+  "finalUrl": "https://www.arisereader.com/#/",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/025.png",
+  "issues": [
+   {
+    "type": "blank-page",
+    "detail": "https://www.arisereader.com/#/"
+   }
+  ]
+ },
+ {
+  "url": "https://www.arisereader.com/#/games",
+  "finalUrl": "https://www.arisereader.com/#/",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/026.png",
+  "issues": [
+   {
+    "type": "blank-page",
+    "detail": "https://www.arisereader.com/#/"
+   }
+  ]
+ },
+ {
+  "url": "https://www.arisereader.com/#/fall-break",
+  "finalUrl": "https://www.arisereader.com/#/fall-break",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/027.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/reading-quizzes/",
+  "finalUrl": "https://www.arisereader.com/reading-quizzes/",
+  "title": "Reading Comprehension Quizzes for Students | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/028.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/for-teachers/",
+  "finalUrl": "https://www.arisereader.com/for-teachers/",
+  "title": "Classroom Reading Quizzes & Games for Teachers | A.R.I.S.E.",
+  "status": 200,
+  "shot": "audit-out/live/029.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/for-parents/",
+  "finalUrl": "https://www.arisereader.com/for-parents/",
+  "title": "Reading Motivation & Progress for Parents | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/030.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/reading-rewards/",
+  "finalUrl": "https://www.arisereader.com/reading-rewards/",
+  "title": "Reading Rewards & Incentive Program for Students | A.R.I.S.E.",
+  "status": 200,
+  "shot": "audit-out/live/031.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/special-education-reading/",
+  "finalUrl": "https://www.arisereader.com/special-education-reading/",
+  "title": "Special Education Reading Activities | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/032.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/teacher-workspace/",
+  "finalUrl": "https://www.arisereader.com/teacher-workspace/",
+  "title": "Special Education Teacher Workspace | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/033.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/math/",
+  "finalUrl": "https://www.arisereader.com/math/",
+  "title": "Arise Math",
+  "status": 200,
+  "shot": "audit-out/live/034.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/history/",
+  "finalUrl": "https://www.arisereader.com/history/",
+  "title": "Arise History",
+  "status": 200,
+  "shot": "audit-out/live/035.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/",
+  "finalUrl": "https://arisetodo.com/",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/036.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/signin",
+  "finalUrl": "https://arisetodo.com/app#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/037.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/register",
+  "finalUrl": "https://arisetodo.com/#/register",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/038.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/register-independent",
+  "finalUrl": "https://arisetodo.com/#/register-independent",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/039.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/teacher-signup",
+  "finalUrl": "https://arisetodo.com/#/teacher-signup",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/040.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/parent-signup",
+  "finalUrl": "https://arisetodo.com/#/parent-signup",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/041.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/pricing",
+  "finalUrl": "https://arisetodo.com/#/pricing",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/042.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/for-teachers",
+  "finalUrl": "https://arisetodo.com/#/for-teachers",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/043.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/for-parents",
+  "finalUrl": "https://arisetodo.com/#/for-parents",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/044.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/about",
+  "finalUrl": "https://arisetodo.com/#/about",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/045.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/tutorial",
+  "finalUrl": "https://arisetodo.com/#/tutorial",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/046.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/tutorial/student",
+  "finalUrl": "https://arisetodo.com/#/tutorial/student",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/047.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/tutorial/teacher",
+  "finalUrl": "https://arisetodo.com/#/tutorial/teacher",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/048.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/tutorial/parent",
+  "finalUrl": "https://arisetodo.com/#/tutorial/parent",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/049.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/tutorial/eye-gaze",
+  "finalUrl": "https://arisetodo.com/#/tutorial/eye-gaze",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/050.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/leaderboard",
+  "finalUrl": "https://arisetodo.com/#/leaderboard",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/051.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/reading-club",
+  "finalUrl": "https://arisetodo.com/#/reading-club",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/052.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/competition",
+  "finalUrl": "https://arisetodo.com/#/competition",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/053.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/news",
+  "finalUrl": "https://arisetodo.com/#/news",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/054.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/reads",
+  "finalUrl": "https://arisetodo.com/#/reads",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/055.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/explore-reader",
+  "finalUrl": "https://arisetodo.com/#/explore-reader",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/056.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/to-do",
+  "finalUrl": "https://arisetodo.com/app#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/057.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/lifehub",
+  "finalUrl": "https://arisetodo.com/app#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/058.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/workhub",
+  "finalUrl": "https://arisetodo.com/app#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/059.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/library",
+  "finalUrl": "https://arisetodo.com/#/library",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/060.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/games",
+  "finalUrl": "https://arisetodo.com/#/games",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/061.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#/fall-break",
+  "finalUrl": "https://arisetodo.com/#/fall-break",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/062.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/social/",
+  "finalUrl": "https://www.arisereader.com/social/",
+  "title": "A.R.I.S.E. Connect",
+  "status": 200,
+  "shot": "audit-out/live/063.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/teacher-hub",
+  "finalUrl": "https://www.arisereader.com/#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/064.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#top",
+  "finalUrl": "https://arisetodo.com/",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/065.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#features",
+  "finalUrl": "https://arisetodo.com/",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/066.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#app-showcase",
+  "finalUrl": "https://arisetodo.com/",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/067.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#life",
+  "finalUrl": "https://arisetodo.com/",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/068.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#demo",
+  "finalUrl": "https://arisetodo.com/",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/069.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#how",
+  "finalUrl": "https://arisetodo.com/",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/070.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/#pricing",
+  "finalUrl": "https://arisetodo.com/",
+  "title": "A.R.I.S.E. To-Do — Over 1 trillion ways to make it yours.",
+  "status": 200,
+  "shot": "audit-out/live/071.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/app#/signin",
+  "finalUrl": "https://arisetodo.com/app#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/072.png",
+  "issues": []
+ },
+ {
+  "url": "https://arisetodo.com/app#/lifehub",
+  "finalUrl": "https://arisetodo.com/app#/signin",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/073.png",
+  "issues": []
+ },
+ {
+  "url": "https://www.arisereader.com/#/signin?as=student",
+  "finalUrl": "https://www.arisereader.com/#/signin?as=student",
+  "title": "Reading Comprehension Quizzes & Rewards | A.R.I.S.E. Reader",
+  "status": 200,
+  "shot": "audit-out/live/074.png",
+  "issues": []
+ }
+]

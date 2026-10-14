@@ -1,0 +1,7 @@
+Pages: 74, with issues: 6
+https://www.arisereader.com/ → blank-page: https://www.arisereader.com/#/
+https://www.arisereader.com/#/news → blank-page: https://www.arisereader.com/#/
+https://www.arisereader.com/#/reads → blank-page: https://www.arisereader.com/#/
+https://www.arisereader.com/#/explore-reader → blank-page: https://www.arisereader.com/#/
+https://www.arisereader.com/#/library → blank-page: https://www.arisereader.com/#/
+https://www.arisereader.com/#/games → blank-page: https://www.arisereader.com/#/

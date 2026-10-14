@@ -1,0 +1,658 @@
+client/src/arcade/covers/styles.ts(55,39): error TS2802: Type 'string' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/Celebration.tsx(2,22): error TS7016: Could not find a declaration file for module 'canvas-confetti'. '/home/runner/work/arisereader/arisereader/node_modules/canvas-confetti/src/confetti.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/canvas-confetti` if it exists or add a new declaration (.d.ts) file containing `declare module 'canvas-confetti';`
+client/src/components/HubSearch.tsx(47,21): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/LeaderboardPopup.tsx(142,44): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(timeout: string | number | Timeout | undefined): void', gave the following error.
+    Argument of type 'Timeout | null' is not assignable to parameter of type 'string | number | Timeout | undefined'.
+      Type 'null' is not assignable to type 'string | number | Timeout | undefined'.
+  Overload 2 of 2, '(id: number | undefined): void', gave the following error.
+    Argument of type 'Timeout | null' is not assignable to parameter of type 'number | undefined'.
+      Type 'null' is not assignable to type 'number | undefined'.
+client/src/components/MobileJoystick.tsx(31,22): error TS2802: Type 'Set<MoveKey>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/MobileJoystick.tsx(32,22): error TS2802: Type 'Set<MoveKey>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/MobileJoystick.tsx(37,22): error TS2802: Type 'Set<MoveKey>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/ParentConnectionBanner.tsx(29,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ Authorization: string; } | { Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ Authorization?: undefined; }' is not assignable to type 'Record<string, string>'.
+          Property 'Authorization' is incompatible with index signature.
+            Type 'undefined' is not assignable to type 'string'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ Authorization: string; } | { Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ Authorization?: undefined; }' is not assignable to type 'Record<string, string>'.
+          Property 'Authorization' is incompatible with index signature.
+            Type 'undefined' is not assignable to type 'string'.
+client/src/components/ParentConnectionBanner.tsx(70,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "Content-Type": string; Authorization: string; } | { "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'undefined'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "Content-Type": string; Authorization: string; } | { "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "Content-Type": string; Authorization?: undefined; }' is not assignable to type 'undefined'.
+client/src/components/ProfileSetupOverlay.tsx(69,22): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'className' does not exist on type 'IntrinsicAttributes'.
+client/src/components/QuizGeneratingOverlay.tsx(97,22): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'className' does not exist on type 'IntrinsicAttributes'.
+client/src/components/SchoolPicker.tsx(85,40): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+client/src/components/UnlistedSignupsCard.tsx(128,46): error TS2783: 'schoolId' is specified more than once, so this usage will be overwritten.
+client/src/components/UnlistedSignupsCard.tsx(128,60): error TS2783: 'teacherId' is specified more than once, so this usage will be overwritten.
+client/src/components/board-quest/BoardScene.ts(31,26): error TS2802: Type 'Map<number, { r: number; label: string; color: number; temple?: boolean | undefined; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/board-quest/BoardScene.ts(71,416): error TS18047: 'introPlayer' is possibly 'null'.
+client/src/components/family-hub/Allowance.tsx(10,20): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Allowance.tsx(13,19): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/CareTracker.tsx(38,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Ious.tsx(21,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Ious.tsx(37,40): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Mileage.tsx(23,21): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Milestones.tsx(10,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Milestones.tsx(24,21): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Mood.tsx(23,22): error TS2802: Type 'MapIterator<[string, number[]]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Mood.tsx(23,113): error TS7006: Parameter 'a' implicitly has an 'any' type.
+client/src/components/family-hub/Mood.tsx(23,116): error TS7006: Parameter 'b' implicitly has an 'any' type.
+client/src/components/family-hub/Pills.tsx(105,99): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Polls.tsx(41,118): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/Trips.tsx(57,24): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/WorkoutLog.tsx(26,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/WorkoutLog.tsx(38,39): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/family-hub/WorkoutLog.tsx(41,114): error TS2802: Type 'MapIterator<Workout>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/office/SheetsDialogs.tsx(147,18): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/office/SheetsDialogs.tsx(287,64): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/office/SheetsEditor.tsx(395,161): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/office/SheetsEditor.tsx(396,114): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/office/SheetsEditor.tsx(1295,16): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/office/SheetsEditor.tsx(1311,99): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/office/SlidesEditor.tsx(175,26): error TS2802: Type 'Map<string, El>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/office/SlidesEditor.tsx(365,216): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/plugin-kit/KitPlugin.tsx(24,34): error TS2802: Type 'string' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/LogTracker.tsx(71,88): error TS2802: Type 'MapIterator<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/LogTracker.tsx(118,64): error TS2802: Type 'MapIterator<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/apps/fitness.tsx(162,168): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/apps/fitness.tsx(251,212): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/apps/fitness.tsx(346,21): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/apps/health.tsx(104,21): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/apps/health.tsx(104,77): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/apps/meetings.tsx(217,134): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/apps/school.tsx(350,31): error TS2802: Type 'MapIterator<{ word: string; pos: string; meaning: string; example: string; synonym: string; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/apps/school2.tsx(137,513): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/pro/potty/PottyApp.tsx(27,34): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(27,83): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(27,134): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(28,37): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(28,97): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(28,145): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(29,34): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(29,94): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(29,153): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/pro/potty/PottyApp.tsx(29,207): error TS2322: Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'ComponentType<{ size?: number | undefined; }>'.
+  Type 'ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'FunctionComponent<{ size?: number | undefined; }>'.
+    Types of property 'propTypes' are incompatible.
+      Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>> | undefined' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }> | undefined'.
+        Type 'WeakValidationMap<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>' is not assignable to type 'WeakValidationMap<{ size?: number | undefined; }>'.
+          Types of property 'size' are incompatible.
+            Type 'Validator<string | number | null | undefined> | undefined' is not assignable to type 'Validator<number | null | undefined> | undefined'.
+              Type 'Validator<string | number | null | undefined>' is not assignable to type 'Validator<number | null | undefined>'.
+                Type 'string | number | null | undefined' is not assignable to type 'number | null | undefined'.
+                  Type 'string' is not assignable to type 'number'.
+client/src/components/teacher-hub/HubCalendar.tsx(735,87): error TS2802: Type 'Uint8Array' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubHomeEdit.tsx(360,326): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubImport.tsx(58,83): error TS2802: Type 'Uint8Array' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubLessons.tsx(425,22): error TS2802: Type 'MapIterator<[string, LessonPlan[]]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubLessons.tsx(429,44): error TS7006: Parameter 'l' implicitly has an 'any' type.
+client/src/components/teacher-hub/HubLessons.tsx(734,278): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubMinutesBulk.tsx(55,14): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubMinutesBulk.tsx(335,21): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubOthersCalendars.tsx(65,28): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubProgress.tsx(115,188): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubProgress.tsx(395,217): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/teacher-hub/HubProgress.tsx(420,318): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/components/widgets/WidgetBoard.tsx(68,24): error TS2802: Type 'NodeListOf<HTMLElement>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/context/AuthContext.tsx(194,13): error TS2345: Argument of type '(res: Response) => Promise<{ ok: true; userData: any; }> | { ok: true; userData: null; } | { ok: false; userData: null; }' is not assignable to parameter of type '(value: Response) => { ok: true; userData: any; } | PromiseLike<{ ok: true; userData: any; }>'.
+  Type 'Promise<{ ok: true; userData: any; }> | { ok: true; userData: null; } | { ok: false; userData: null; }' is not assignable to type '{ ok: true; userData: any; } | PromiseLike<{ ok: true; userData: any; }>'.
+    Type '{ ok: false; userData: null; }' is not assignable to type '{ ok: true; userData: any; } | PromiseLike<{ ok: true; userData: any; }>'.
+      Type '{ ok: false; userData: null; }' is not assignable to type '{ ok: true; userData: any; }'.
+        Types of property 'ok' are incompatible.
+          Type 'false' is not assignable to type 'true'.
+client/src/context/AuthContext.tsx(204,20): error TS2339: Property 'userData' does not exist on type 'Response'.
+client/src/game/build/build.ts(367,23): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(253,33): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(627,27): error TS2802: Type 'Map<number, Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(827,67): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(947,21): error TS2802: Type 'MapIterator<Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(962,21): error TS2802: Type 'MapIterator<Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(1005,25): error TS2802: Type 'MapIterator<Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/game.ts(1180,21): error TS2802: Type 'MapIterator<Remote>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/models.ts(173,25): error TS2802: Type 'ArrayIterator<[number, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/city/venues.ts(592,30): error TS2802: Type 'Map<string, Group<Object3DEventMap>>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/game/smash/smash.ts(502,29): error TS2802: Type 'Map<Mat, InstancedMesh<BufferGeometry<NormalBufferAttributes, BufferGeometryEventMap>, Material | Material[], InstancedMeshEventMap>>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/lib/halloread.ts(164,25): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(iterable: Iterable<string> | ArrayLike<string>): string[]', gave the following error.
+    Argument of type 'string | null | undefined' is not assignable to parameter of type 'Iterable<string> | ArrayLike<string>'.
+      Type 'undefined' is not assignable to type 'Iterable<string> | ArrayLike<string>'.
+  Overload 2 of 4, '(arrayLike: ArrayLike<string>): string[]', gave the following error.
+    Argument of type 'string | null | undefined' is not assignable to parameter of type 'ArrayLike<string>'.
+      Type 'undefined' is not assignable to type 'ArrayLike<string>'.
+client/src/pages/ARISECity.tsx(941,23): error TS2339: Property 'id' does not exist on type 'never'.
+client/src/pages/ARISECity.tsx(961,21): error TS2339: Property 'name' does not exist on type 'never'.
+client/src/pages/AriseTodo.tsx(160,27): error TS2802: Type 'MapIterator<{ id: string; name: string; color: string; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/AriseTodo.tsx(179,55): error TS2802: Type 'MapIterator<{ id: string; title: string; notes: string; listId: any; assignee: string; due: string; time: string; priority: Priority; repeat: Repeat; done: boolean; createdAt: string; completedAt: string | undefined; archived: boolean; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/CoursePage.tsx(69,78): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/CustomEyeGazeQuiz.tsx(132,24): error TS2339: Property 'visual' does not exist on type 'CustomQuestion'.
+client/src/pages/CustomEyeGazeQuiz.tsx(237,45): error TS18047: 'quiz' is possibly 'null'.
+client/src/pages/CustomEyeGazeQuiz.tsx(515,32): error TS2339: Property 'visual' does not exist on type 'CustomQuestion'.
+client/src/pages/EyeGazeFarmWorld.tsx(642,24): error TS2339: Property 'canRoam' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(643,14): error TS2339: Property 'foodTarget' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(644,14): error TS2339: Property 'target' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(645,14): error TS2339: Property 'pausedUntil' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(646,52): error TS2339: Property 'def' does not exist on type 'never'.
+client/src/pages/EyeGazeFarmWorld.tsx(648,25): error TS2339: Property 'def' does not exist on type 'never'.
+client/src/pages/EyeGazeMyWorld.tsx(342,11): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; "X-My-World-Label": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'undefined'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; "X-My-World-Label": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; "X-My-World-Label": string; }' is not assignable to type 'undefined'.
+client/src/pages/EyeGazeMyWorld.tsx(370,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'undefined'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'undefined'.
+client/src/pages/EyeGazeMyWorld.tsx(678,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'undefined'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type '{ "X-My-World-Grownup-Token": string; Authorization: string; "Content-Type": string; } | { "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+      Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'HeadersInit | undefined'.
+        Type '{ "X-My-World-Grownup-Token"?: undefined; Authorization: string; "Content-Type": string; }' is not assignable to type 'undefined'.
+client/src/pages/EyeGazePottyCoach.tsx(102,20): error TS2802: Type 'MapIterator<[number, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/Games.tsx(115,22): error TS1261: Already included file name '/home/runner/work/arisereader/arisereader/client/src/pages/AriseCity.tsx' differs from file name '/home/runner/work/arisereader/arisereader/client/src/pages/ARISECity.tsx' only in casing.
+  The file is in the program because:
+    Imported via "./AriseCity" from file '/home/runner/work/arisereader/arisereader/client/src/pages/Games.tsx'
+    Imported via "./pages/AriseCity" from file '/home/runner/work/arisereader/arisereader/client/src/App.tsx'
+    Matched by include pattern 'client/src/**/*' in 'tsconfig.json'
+    Matched by include pattern 'client/src/**/*' in 'tsconfig.json'
+client/src/pages/Games.tsx(231,16): error TS2802: Type 'Set<WorldId>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/Games.tsx(231,56): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<WorldId, World>'.
+client/src/pages/Library.tsx(1321,68): error TS2540: Cannot assign to 'current' because it is a read-only property.
+client/src/pages/Library.tsx(2172,44): error TS2339: Property 'passed' does not exist on type 'QuizResult'.
+client/src/pages/Library.tsx(2460,44): error TS2339: Property 'passed' does not exist on type 'QuizResult'.
+client/src/pages/Profile.tsx(264,13): error TS2461: Type 'unknown' is not an array type.
+client/src/pages/QuizBuilder.tsx(313,1): error TS2322: Type '{ children: string; n: true; type: "button"; onClick: () => void; style: { flex: number; padding: string; borderRadius: string; border: string; background: string; color: "hsl(21 100% 50%)" | "hsl(0 0% 66%)"; cursor: "pointer"; fontWeight: number; fontSize: string; }; }' is not assignable to type 'DetailedHTMLProps<ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>'.
+  Property 'n' does not exist on type 'DetailedHTMLProps<ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>'.
+client/src/pages/StudentProfileView.tsx(213,69): error TS2367: This comparison appears to be unintentional because the types '"teacher" | "parent"' and '"camera"' have no overlap.
+client/src/pages/StudentProfileView.tsx(214,28): error TS2367: This comparison appears to be unintentional because the types '"teacher" | "parent"' and '"paper"' have no overlap.
+client/src/pages/StudentProfileView.tsx(214,90): error TS2367: This comparison appears to be unintentional because the types '"teacher" | "parent"' and '"camera"' have no overlap.
+client/src/pages/StudentProfileView.tsx(215,45): error TS2367: This comparison appears to be unintentional because the types '"teacher" | "parent"' and '"camera"' have no overlap.
+client/src/pages/TeacherHub.tsx(630,16): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+client/src/pages/UltimateChess.tsx(188,68): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/adminHandoff.ts(49,34): error TS2802: Type 'Map<string, Ticket>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/appleHealth.ts(82,55): error TS18047: 'link.data' is possibly 'null'.
+server/appleHealth.ts(82,85): error TS18047: 'link.data' is possibly 'null'.
+server/appleHealth.ts(91,25): error TS2802: Type 'MapIterator<Record<string, unknown>[]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseHistory.ts(216,43): error TS2802: Type 'MapIterator<LiveRow>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseHistory.ts(217,36): error TS2802: Type 'MapIterator<LiveRow>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseMath.ts(215,43): error TS2802: Type 'MapIterator<LiveRow>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseMath.ts(216,36): error TS2802: Type 'MapIterator<LiveRow>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseMath.ts(359,56): error TS2802: Type 'Set<"div" | "slope" | "linear" | "pct" | "frac" | "tens" | "add20" | "sub20" | "mult" | "int" | "eq2" | "quad" | "kcount" | "kadd10" | "kmake10" | "kcompare" | "g1add2d" | "g2addsub" | ... 204 more ... | "hscircle2">' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseMath.ts(926,23): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseMath.ts(927,89): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseMath.ts(932,25): error TS2802: Type 'Set<"div" | "slope" | "linear" | "pct" | "frac" | "tens" | "add20" | "sub20" | "mult" | "int" | "eq2" | "quad" | "kcount" | "kadd10" | "kmake10" | "kcompare" | "g1add2d" | "g2addsub" | ... 204 more ... | "hscircle2">' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseMath.ts(934,133): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ add20: { name: string; std: string; glyph: string; c: string; band: "k2"; gen(r: Rng): { ask: string; prompt: string; plain: string; viz: string; answer: number; steps: string[]; }; }; sub20: { name: string; ... 4 more ...; gen(r: Rng): { ...; }; }; ... 220 more ...; hscircle2: { ...; }; }'.
+server/ariseMath.ts(937,101): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ add20: { name: string; std: string; glyph: string; c: string; band: "k2"; gen(r: Rng): { ask: string; prompt: string; plain: string; viz: string; answer: number; steps: string[]; }; }; sub20: { name: string; ... 4 more ...; gen(r: Rng): { ...; }; }; ... 220 more ...; hscircle2: { ...; }; }'.
+server/ariseMathPhoto.ts(66,27): error TS2802: Type 'Map<string, Saved>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseNews.ts(22,26): error TS2322: Type 'Promise<({ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined)[]>' is not assignable to type 'Promise<{ id: number; title: string; author: string; }[]>'.
+  Type '({ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined)[]' is not assignable to type '{ id: number; title: string; author: string; }[]'.
+    Type '{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined' is not assignable to type '{ id: number; title: string; author: string; }'.
+      Type 'undefined' is not assignable to type '{ id: number; title: string; author: string; }'.
+server/ariseNews.ts(23,42): error TS2322: Type 'Promise<{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined>' is not assignable to type 'Promise<{ id: number; }>'.
+  Type '{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined' is not assignable to type '{ id: number; }'.
+    Type 'undefined' is not assignable to type '{ id: number; }'.
+server/ariseSocial.ts(359,21): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/ariseSocial.ts(656,50): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/bookPages.ts(10,87): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+server/bookPoints.ts(123,90): error TS2802: Type 'MapIterator<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/chessArena.ts(219,21): error TS2802: Type 'MapIterator<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/chessArena.ts(219,82): error TS2802: Type 'MapIterator<{ userId: number; wins: number; draws: number; losses: number; games: number; points: number; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/chessCompetition.ts(122,43): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/chessCompetition.ts(135,29): error TS2802: Type 'Map<number, Person>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/classBehavior.ts(117,21): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/clubPlay.ts(353,9): error TS2322: Type 'unknown[]' is not assignable to type 'number[]'.
+  Type 'unknown' is not assignable to type 'number'.
+server/clubPlay.ts(353,53): error TS18046: 'a' is of type 'unknown'.
+server/clubPlay.ts(353,55): error TS18046: 'b' is of type 'unknown'.
+server/clubPlay.ts(397,84): error TS2322: Type 'unknown[]' is not assignable to type 'number[]'.
+  Type 'unknown' is not assignable to type 'number'.
+server/clubPlay.ts(397,127): error TS18046: 'a' is of type 'unknown'.
+server/clubPlay.ts(397,129): error TS18046: 'b' is of type 'unknown'.
+server/clubPlay.ts(431,9): error TS2322: Type 'unknown[]' is not assignable to type 'number[]'.
+  Type 'unknown' is not assignable to type 'number'.
+server/clubPlay.ts(431,53): error TS18046: 'a' is of type 'unknown'.
+server/clubPlay.ts(431,55): error TS18046: 'b' is of type 'unknown'.
+server/comprehension.ts(85,24): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/comprehension.ts(131,30): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/comprehension.ts(134,72): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(67,35): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(72,19): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(80,7): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(120,22): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(124,19): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(137,23): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(160,22): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(161,32): error TS2802: Type 'ArrayIterator<[number, any]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/hubFiles.ts(186,19): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/independentTransfer.ts(72,20): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/independentTransfer.ts(95,23): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/meetingPoll.ts(395,26): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/plans.ts(190,57): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/plans.ts(207,57): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/plans.ts(536,23): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/plans.ts(949,25): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/quizIntegrity.ts(334,40): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/quizIntegrity.ts(334,101): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/readsSync.ts(21,26): error TS2322: Type 'Promise<({ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined)[]>' is not assignable to type 'Promise<{ id: number; title: string; author: string; }[]>'.
+  Type '({ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined)[]' is not assignable to type '{ id: number; title: string; author: string; }[]'.
+    Type '{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined' is not assignable to type '{ id: number; title: string; author: string; }'.
+      Type 'undefined' is not assignable to type '{ id: number; title: string; author: string; }'.
+server/readsSync.ts(34,42): error TS2322: Type 'Promise<{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined>' is not assignable to type 'Promise<{ id: number; }>'.
+  Type '{ id: any; title: any; author: any; ageGroup: any; coverUrl: any; description: any; pointsValue: number; readUrl: any; } | undefined' is not assignable to type '{ id: number; }'.
+    Type 'undefined' is not assignable to type '{ id: number; }'.
+server/routes.ts(760,11): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+server/routes.ts(761,11): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+server/routes.ts(762,11): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+server/routes.ts(763,11): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+server/routes.ts(1375,5): error TS2322: Type '(req: any, res: any) => Promise<HubAccess | null>' is not assignable to type 'Gate'.
+  Type 'Promise<HubAccess | null>' is not assignable to type 'Promise<boolean>'.
+    Type 'HubAccess | null' is not assignable to type 'boolean'.
+      Type 'null' is not assignable to type 'boolean'.
+server/routes.ts(1975,27): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(1997,28): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2005,21): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2006,23): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2007,26): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2044,51): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2046,16): error TS18048: 'session' is possibly 'undefined'.
+server/routes.ts(2047,21): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,40): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,68): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,95): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,127): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,156): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,178): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,213): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,254): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,286): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2047,315): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(2475,16): error TS18048: 'session' is possibly 'undefined'.
+server/routes.ts(2721,45): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(2725,29): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(2726,30): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(2771,41): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(3054,45): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(3057,32): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3058,45): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3059,22): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3061,17): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3067,16): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3068,16): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3069,23): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3072,22): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3073,22): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3074,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3075,22): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3629,37): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3629,75): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3724,13): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3724,53): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(3726,26): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(4046,47): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(4049,34): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4050,47): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4051,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4053,19): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4059,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4060,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4061,25): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4064,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4068,98): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(4266,11): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(4266,48): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(4266,54): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(4269,40): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4270,36): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4270,73): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/routes.ts(4270,78): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/routes.ts(4271,47): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/routes.ts(4272,27): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4272,57): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4272,87): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4274,13): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4275,19): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4276,22): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4277,20): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4281,28): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4282,20): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4283,31): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(4284,19): error TS18048: 's' is possibly 'undefined'.
+server/routes.ts(5152,60): error TS2345: Argument of type 'string | ParsedQs | (string | ParsedQs)[]' is not assignable to parameter of type 'string'.
+  Type 'ParsedQs' is not assignable to type 'string'.
+server/routes.ts(5406,63): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(5606,56): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5615,26): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5619,74): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5619,96): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(5956,58): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(5965,78): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(5965,115): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(5968,76): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(5968,113): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(6426,30): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(6495,28): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(6507,30): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(6515,32): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(6522,32): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(7038,28): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7046,65): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7078,35): error TS2339: Property 'user' does not exist on type 'Request<{ attemptId: string; }, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7100,59): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7110,62): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7120,64): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7130,16): error TS2339: Property 'user' does not exist on type 'Request<{ id: string; }, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7143,16): error TS2339: Property 'user' does not exist on type 'Request<{ id: string; }, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7229,55): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7241,67): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7250,49): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7263,54): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7316,85): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7342,73): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(7356,71): error TS2339: Property 'user' does not exist on type 'Request<{ id: string; }, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(8687,43): error TS2802: Type 'MapIterator<[string, { audio: Buffer; lastUsed: number; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(9058,46): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(9074,63): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(9078,21): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(9177,15): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(9177,47): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(9232,15): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(9232,47): error TS2339: Property 'user' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/routes.ts(9478,25): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(9757,17): error TS7006: Parameter 'label' implicitly has an 'any' type.
+server/routes.ts(10272,113): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(10276,91): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(10280,101): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(10285,32): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(10285,57): error TS18048: 'student' is possibly 'undefined'.
+server/routes.ts(10503,13): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(10503,50): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(10503,56): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(10568,13): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(10568,50): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(10568,56): error TS18048: 'u' is possibly 'undefined'.
+server/routes.ts(10693,65): error TS2339: Property 'message' does not exist on type '{ ok: boolean; message?: string | undefined; } | { ok: boolean; }'.
+  Property 'message' does not exist on type '{ ok: boolean; }'.
+server/routes.ts(10728,30): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(10777,28): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(10938,49): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(10938,77): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11018,47): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(11020,34): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11021,47): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11022,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11024,19): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11030,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11031,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11032,25): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11035,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11036,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11037,26): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11038,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11042,97): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11108,47): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(11111,49): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11112,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11115,36): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11117,21): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11119,27): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11120,26): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11316,47): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(11318,34): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11319,47): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11320,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11322,19): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11328,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11329,18): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11330,25): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11333,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11334,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11335,26): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11336,24): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11339,97): error TS18048: 'a' is possibly 'undefined'.
+server/routes.ts(11626,76): error TS18046: 'createErr' is of type 'unknown'.
+server/routes.ts(11628,57): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11628,81): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11628,100): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11628,128): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11628,153): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11631,13): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11633,13): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11635,46): error TS18048: 'user' is possibly 'undefined'.
+server/routes.ts(11823,29): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(12051,25): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13166,25): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13233,33): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13234,20): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13235,39): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13236,43): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13331,27): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13449,49): error TS18048: 'b' is possibly 'undefined'.
+server/routes.ts(13454,29): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13455,30): error TS18048: 'book' is possibly 'undefined'.
+server/routes.ts(13501,41): error TS18048: 'book' is possibly 'undefined'.
+server/schoolDirectory.ts(53,19): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/schoolDirectory.ts(65,21): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/schoolDirectory.ts(246,23): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(69,21): error TS2802: Type 'MapIterator<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(1163,9): error TS18047: 'schools' is possibly 'null'.
+server/storage.ts(1166,26): error TS18047: 'schools' is possibly 'null'.
+server/storage.ts(1198,9): error TS18047: 'classes' is possibly 'null'.
+server/storage.ts(1201,23): error TS18047: 'classes' is possibly 'null'.
+server/storage.ts(1537,61): error TS18048: 'a' is possibly 'undefined'.
+server/storage.ts(1537,96): error TS18048: 'a' is possibly 'undefined'.
+server/storage.ts(1539,44): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1539,96): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1540,42): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1540,96): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1540,105): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1541,50): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(1541,93): error TS18048: 'b' is possibly 'undefined'.
+server/storage.ts(2833,24): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/studentActivity.ts(60,88): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/studentActivity.ts(61,91): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/supabase.ts(19,5): error TS2322: Type 'typeof WebSocket' is not assignable to type 'WebSocketLikeConstructor'.
+  Types of parameters 'address' and 'address' are incompatible.
+    Type 'string | URL' is not assignable to type 'null'.
+      Type 'string' is not assignable to type 'null'.
+shared/appleHealth.ts(98,14): error TS2802: Type 'MapIterator<[string, { steps: number | null; activeCalories: number | null; weight: number | null; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/arcade/games/learning.ts(136,46): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/arcade/games/logic.ts(141,33): error TS2802: Type 'MapIterator<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/arcade/games/seabattle.ts(138,21): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/ariseHistory.ts(234,59): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/ariseHistory.ts(236,61): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/ariseMath.ts(690,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/ariseMath.ts(1137,22): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/ariseMath.ts(1397,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/ariseMath.ts(1416,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/ariseMath.ts(1575,20): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/ariseSocial.ts(153,79): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/bookPoints.ts(132,39): error TS2802: Type 'Map<number, number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/chessCompetition.ts(217,22): error TS2802: Type 'MapIterator<ClashRow>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/city/navigate.ts(34,21): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/city/navigate.ts(50,27): error TS2802: Type 'Map<number, { to: number; d: number; }[]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/city/navigate.ts(87,26): error TS2802: Type 'Map<number, number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/classTeachers.ts(50,27): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/classTeachers.ts(51,41): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/classTeachers.ts(60,39): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/classTeachers.ts(205,53): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/classTeachers.ts(206,14): error TS2802: Type 'MapIterator<Building>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyCycle.ts(13,20): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(372,68): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(393,48): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(458,48): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(475,56): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(488,50): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(489,48): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(502,48): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(517,57): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(566,48): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(627,45): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(634,55): error TS2802: Type 'Set<any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(635,61): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/familyHub.ts(651,63): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/foodSpelling.ts(68,19): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubBlocks.ts(54,72): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/hubClassMinutes.ts(83,14): error TS2802: Type 'MapIterator<ClassGroup & { rank: number; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubClassMinutes.ts(85,73): error TS7006: Parameter 'x' implicitly has an 'any' type.
+shared/hubClassMinutes.ts(85,76): error TS7006: Parameter 'y' implicitly has an 'any' type.
+shared/hubGoalBoard.ts(49,49): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubGuide.ts(247,14): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubLayout.ts(147,62): error TS2802: Type 'Set<Id>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubLayout.ts(178,82): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubMinutesBulk.ts(36,72): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/hubMinutesBulk.ts(49,14): error TS2802: Type 'MapIterator<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubMinutesBulk.ts(217,14): error TS2802: Type 'MapIterator<[string, { rank: number; teacher: string; students: Set<string>; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubOthers.ts(18,72): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/hubOthers.ts(62,14): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubQuickAdd.ts(45,24): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubRepeat.ts(77,38): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/hubSubjects.ts(65,14): error TS2802: Type 'MapIterator<SubjectMinutes>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/lessonPlanner.ts(449,14): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/lifePlugins.ts(554,40): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/meetingSteps.ts(22,71): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/docModel.ts(112,45): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/office/docModel.ts(295,206): error TS2802: Type 'Uint8Array' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/formula.ts(403,38): error TS1501: This regular expression flag is only available when targeting 'es2018' or later.
+shared/office/slidesModel.ts(252,20): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/slidesModel.ts(276,206): error TS2802: Type 'Uint8Array' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/slidesModel.ts(346,26): error TS2802: Type 'Map<string, string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(157,67): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(309,28): error TS2802: Type 'Generator<{ r: number; c: number; }, void, unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(325,28): error TS2802: Type 'Generator<{ r: number; c: number; }, void, unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(351,28): error TS2802: Type 'Generator<{ r: number; c: number; }, void, unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(550,26): error TS2802: Type 'Generator<{ r: number; c: number; }, void, unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(576,28): error TS2802: Type 'Map<number, { r: number; c: number; v: string; }[]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(627,49): error TS2802: Type 'Generator<{ r: number; c: number; }, void, unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(651,28): error TS2802: Type 'Generator<{ r: number; c: number; }, void, unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/workbook.ts(738,26): error TS2802: Type 'Generator<{ r: number; c: number; }, void, unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/xlsx.ts(250,22): error TS2802: Type 'MapIterator<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/office/xlsx.ts(269,24): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/parentInvites.ts(82,14): error TS2802: Type 'MapIterator<{ email: string; sentAt: string; byName: string; times: number; child?: string | undefined; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/pro/school.ts(231,20): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/pro/school.ts(283,29): error TS2802: Type 'Map<string, { ch: string; a: boolean; d: boolean; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/pro/school.ts(322,22): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/pro/school.ts(383,14): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/schoolNames.ts(44,14): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/schoolNames.ts(82,70): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/schoolNames.ts(85,32): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/timedCompetitions.ts(120,20): error TS2802: Type 'MapIterator<[number, { points: number; quizzesPassed: number; quizzesTaken: number; lastScoredAt: number; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/todoNews.ts(13,49): error TS1501: This regular expression flag is only available when targeting 'es6' or later.
+shared/todoNews.ts(29,19): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/todoNotify.ts(58,9): error TS2802: Type 'Set<Weekday>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/todoReminders.ts(117,34): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/widgets.ts(302,19): error TS2802: Type 'RegExpStringIterator<RegExpExecArray>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+shared/widgets.ts(311,14): error TS2802: Type 'Set<number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
