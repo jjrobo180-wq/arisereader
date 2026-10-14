@@ -157,9 +157,10 @@ test("a Widgets plugin in each hub, added like any other", () => {
 test("Home has a Widgets part, hidden until the plugin is added", () => {
   assert.ok(DEFAULT_LAYOUT.homeHidden.includes("widgets"));
   assert.ok(!homeShown(cleanLayout(undefined)).includes("widgets"));
-  // A layout saved before widgets existed: Widgets slots in after the greeting, hidden; everything else as saved.
+  // A layout saved before widgets existed: Widgets slots in after the greeting, hidden, then the
+  // Quick counts (LifeHub's, added later) after it, shown; everything else as saved.
   const old = cleanLayout({ menuSide: "left", menuClose: "button", home: ["day", "picture", "agenda", "todo"], homeHidden: [], homeSize: { agenda: "small" } });
-  assert.deepEqual(old.home.slice(0, 3), ["day", "widgets", "picture"]);
+  assert.deepEqual(old.home.slice(0, 4), ["day", "widgets", "stats", "picture"]);
   assert.deepEqual(old.homeHidden, ["widgets"]);
   assert.equal(old.homeSize.agenda, "small");
   // Once someone has seen it and chosen to show it, it stays shown.

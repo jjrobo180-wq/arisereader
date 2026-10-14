@@ -92,6 +92,8 @@ import "@/components/teacher-hub/hubNight.css";
 import "./hubThemes.css";
 import "@/components/teacher-hub/hubPaper.css";
 import "@/components/teacher-hub/darkPalette.css";
+import "@/components/teacher-hub/hubLifeLook.css";
+import { Stat as LifeStat } from "@/components/family-hub/ui";
 import { GoalsTab, MinutesTab } from "@/components/teacher-hub/HubProgress";
 import WorkspaceBanner from "@/components/teacher-hub/HubBanner";
 import { HomeParts, WORK_PARTS, type HomePart } from "@/components/teacher-hub/HubHomeEdit";
@@ -118,7 +120,6 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
-import HubDayHead from "@/components/teacher-hub/HubDayHead";
 import HubAgenda from "@/components/teacher-hub/HubAgenda";
 import HubPageHead from "@/components/teacher-hub/HubPageHead";
 import { weekStart, weeklyMinutes } from "@shared/hubProgress";
@@ -551,9 +552,12 @@ function TeacherHubPage() {
   // Where the menu sits on a computer (Customize): sidebar left or right, icons only, a top bar, or the app drawer.
   const desk = layout.deskSide;
   const deskDrawer = desk === "drawer", deskTop = desk === "top", deskCompact = desk === "compact";
-  const deskGrid = deskDrawer || deskTop ? "md:grid-cols-[minmax(0,1fr)]" : deskCompact ? "md:grid-cols-[76px_minmax(0,1fr)]" : desk === "right" ? "md:grid-cols-[minmax(0,1fr)_220px]" : "md:grid-cols-[220px_minmax(0,1fr)]";
-  const deskAside = deskDrawer ? "md:hidden" : deskTop ? "md:top-[65px] md:h-auto md:self-auto" : `md:top-[73px] md:h-[calc(100vh-90px)] md:self-start ${desk === "right" ? "md:order-2" : ""}`;
-  const deskList = deskTop ? "md:h-auto md:flex-row md:items-center md:gap-1 md:overflow-x-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-1.5 md:shadow-sm" : "md:h-full md:flex-col md:gap-2 md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-2 md:shadow-sm";
+  // On a computer the sidebar sits like LifeHub's: full height, flush to the edge, white with a hairline,
+  // and the page beside it gets LifeHub's roomy padding. The top bar and app drawer keep the centred page.
+  const deskSidebar = !deskDrawer && !deskTop;
+  const deskGrid = deskDrawer || deskTop ? "md:grid-cols-[minmax(0,1fr)]" : deskCompact ? "md:grid-cols-[76px_minmax(0,1fr)]" : desk === "right" ? "md:grid-cols-[minmax(0,1fr)_240px] lg:grid-cols-[minmax(0,1fr)_256px] xl:grid-cols-[minmax(0,1fr)_288px]" : "md:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[256px_minmax(0,1fr)] xl:grid-cols-[288px_minmax(0,1fr)]";
+  const deskAside = deskDrawer ? "md:hidden" : deskTop ? "md:top-[65px] md:h-auto md:self-auto" : `md:top-[65px] md:h-[calc(100vh-65px)] md:self-start ${desk === "right" ? "md:order-2" : ""}`;
+  const deskList = deskTop ? "md:h-auto md:flex-row md:items-center md:gap-1 md:overflow-x-auto md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-1.5 md:shadow-sm" : `md:h-full md:flex-col md:gap-0.5 md:overflow-y-auto md:rounded-none md:border-0 md:bg-white md:px-3 md:pb-3 md:pt-6 ${desk === "right" ? "md:border-l" : "md:border-r"} md:border-[#e4e6f0]`;
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   /** Whether "A.R.I.S.E. Reader" is expanded in the sidebar to show its tabs (Live quiz, Scenes, Students...) nested underneath, folder-style. */
   const learningAccess = useLearningAccess(token);
@@ -794,7 +798,7 @@ function TeacherHubPage() {
   const subTabs = groupTabs(group.id, visible, !!user.isAdmin);
 
   return (
-    <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}
+    <div className={`hub-paper hub-lifelook min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
@@ -877,7 +881,7 @@ function TeacherHubPage() {
         </div>
       </header>
 
-      <div className={`mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} ${deskGrid} md:px-6`}>
+      <div className={`mx-auto grid grid-cols-[minmax(0,1fr)] gap-3 py-3 transition-[padding] duration-200 sm:gap-4 sm:py-4 ${pagePad} ${deskGrid} ${deskSidebar ? "md:!gap-0 md:!px-0 md:!py-0" : "max-w-[1500px] md:px-6"}`}>
         {!menuOpen && !drawerMenu && <button type="button" onClick={() => setRail(true)} aria-label="Show menu" data-testid="hub-rail-show"
           className={`fixed z-30 inline-flex items-center justify-center border border-slate-200 bg-white text-slate-600 shadow-md md:hidden ${side === "top" ? "left-1/2 top-[65px] h-7 w-14 -translate-x-1/2 rounded-b-xl border-t-0" : side === "bottom" ? "bottom-0 left-1/2 h-7 w-14 -translate-x-1/2 rounded-t-xl border-b-0 pb-[env(safe-area-inset-bottom)]" : side === "right" ? "right-0 top-[77px] h-14 w-7 rounded-l-xl border-r-0" : "left-0 top-[77px] h-14 w-7 rounded-r-xl border-l-0"}`}>
           {side === "top" ? <ChevronDown className="h-5 w-5" /> : side === "bottom" ? <ChevronUp className="h-5 w-5" /> : side === "right" ? <RailHide className="h-5 w-5" /> : <RailShow className="h-5 w-5" />}</button>}
@@ -1194,7 +1198,7 @@ function TeacherHubPage() {
           </div>
         </aside>
 
-        <main data-tour="hub-content" className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
+        <main data-tour="hub-content" className={`min-w-0 space-y-7 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-9 ${deskSidebar ? "md:px-7 md:pt-6 lg:px-9 lg:pt-10 xl:px-12" : ""} ${(kitOpen && kitDef(kitOpen)) || (notesAppOpen && notesAppPlugin("work", notesAppOpen)) || sheetsAppOpen || driveOpen || dropOpen ? "[&>*:not([data-kit-view])]:hidden" : ""}`}>
           {kitOpen && kitDef(kitOpen) && (
             <div data-kit-view className="space-y-3" data-testid="hub-kit-view">
               <div className="flex items-center justify-between gap-2">
@@ -1405,9 +1409,30 @@ function TeacherHubPage() {
                 // Home in the teacher's order. Press and hold (or Edit Home) to arrange it right here; Customize sets the same order.
                 // Widened past Record<HomeSection, ...> below so a pinned Kit plugin or Notes app (see pinId) can add its own entry.
                 const part: Record<string, ReactNode> = {
-                  day: (
-              <HubDayHead workspace={workspace} firstName={user.displayName.split(" ")[0]} onOpenCalendar={() => setTab("calendar")} />
-                  ),
+                  // The same greeting as LifeHub's Home: the date, a hello and one line on the day.
+                  day: (() => {
+                    const hour = new Date().getHours();
+                    const hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+                    const first = user.displayName.split(" ")[0];
+                    return <header className="flex flex-wrap items-start justify-between gap-4" data-testid="home-greeting">
+                      <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+                        <h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{hello}{first ? `, ${first}` : ""}<span className="text-[#7866e1]">.</span></h1>
+                        <p className="mt-1.5 text-sm leading-6 text-slate-500 sm:mt-2">Here's what's happening in your workspace today.</p></div>
+                    </header>;
+                  })(),
+                  // LifeHub's quick counts, with WorkHub's numbers. Each one opens its screen.
+                  stats: (() => {
+                    const today = TODAY();
+                    const eventsToday = workspace.events.filter((e) => e.date === today).length + workspace.meetings.filter((m) => !m.done && m.date === today).length;
+                    const tile = (label: string, value: number, icon: ReactNode, tint: string, go: () => void, testid: string) =>
+                      <button type="button" onClick={go} className="text-left" data-testid={testid}><LifeStat label={label} value={value} icon={icon} tint={tint} /></button>;
+                    return <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
+                      {tile("To-dos open", openTasks, <CheckSquare size={17} />, "bg-violet-50 text-violet-600", () => setTab("tasks"), "home-stat-tasks")}
+                      {tile("Events today", eventsToday, <CalendarDays size={17} />, "bg-sky-50 text-sky-600", () => setTab("calendar"), "home-stat-events")}
+                      {tile("Students", workspace.students.length, <Users size={17} />, "bg-emerald-50 text-emerald-600", () => setTab("caseload"), "home-stat-students")}
+                      {tile("Meetings ahead", workspace.meetings.filter((m) => !m.done).length, <Calendar size={17} />, "bg-rose-50 text-rose-600", () => setTab("iep"), "home-stat-meetings")}
+                    </div>;
+                  })(),
                   picture: (
               <WorkspaceBanner workspace={workspace} setWorkspace={setWorkspace} firstName={user.displayName.split(" ")[0]} stats={[{ label: "Students", value: workspace.students.length }, { label: "Open to-dos", value: openTasks }, { label: "Meetings ahead", value: upcomingMeetings.length }]} />
                   ),
@@ -1492,7 +1517,8 @@ function TeacherHubPage() {
                     setWorkspace((prev) => (plugin.target.kind === "widget" ? { ...prev, widgetsOn: true, layout: showSection(cleanLayout(prev.layout), "widgets", true) } : plugin.target.kind === "assistant" ? { ...prev, aiChat: true } : plugin.target.kind === "kit" ? { ...prev, kitInstalled: setWorkKit((prev as any).kitInstalled, plugin, true) } : { ...prev, visibleTabs: setWorkPlugin(prev.visibleTabs, plugin, true) }));
                     toasts.show(plugin.target.kind === "widget" ? "Widgets added to Home." : `${plugin.name} added to your menu.`, []);
                   } }));
-                return <HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} homeLayout={hubThemeOf(layout.theme).homeLayout} />;
+                // LifeHub's Home look (see hubLifeLook.css): soft white cards on the same ground.
+                return <div className="hub-home-life"><HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
               })()}
             </>
           )}

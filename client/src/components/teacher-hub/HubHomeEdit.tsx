@@ -8,7 +8,7 @@
 // layout (shared/hubLayout.ts), the same one Customize sets.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { AlarmClock, Bell, CalendarDays, Check, CheckSquare, Image as ImageIcon, ListChecks, Plus, Puzzle, School, Sun, Users, WandSparkles, X, type LucideIcon } from "lucide-react";
+import { AlarmClock, Bell, CalendarDays, Check, CheckSquare, Image as ImageIcon, LayoutGrid, ListChecks, Plus, Puzzle, School, Sun, Users, WandSparkles, X, type LucideIcon } from "lucide-react";
 import { HubModal } from "./HubModal";
 import { HOME_SECTIONS, HOME_SIZES, homeShown, resizeSection, sizeOf, type AnyLayout, type HomeSection, type HomeSize } from "@shared/hubLayout";
 import type { Plugin } from "@shared/pluginStore";
@@ -25,7 +25,7 @@ const isControl = (el: EventTarget | null) => el instanceof HTMLElement && !!el.
 const GRID = "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-5 md:grid-cols-5 xl:grid-cols-6";
 const SPAN: Record<HomeSize, string> = { small: "col-span-1", medium: "col-span-full", large: "col-span-full" };
 /** The picture on each part's small tile. */
-const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, widgets: AlarmClock, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, notifications: Bell, profile: School };
+const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, widgets: AlarmClock, stats: LayoutGrid, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, notifications: Bell, profile: School };
 /** One part of a hub's Home: its name and the picture on its small tile. */
 export type HomePart = { id: string; label: string; icon?: LucideIcon };
 /** WorkHub's parts of Home. */

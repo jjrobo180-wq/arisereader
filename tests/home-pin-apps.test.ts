@@ -63,7 +63,7 @@ test("LifeHub's cleanLifeLayout accepts pinnable ids the same way WorkHub's clea
 test("cleanLayout with no pinnable argument at all behaves exactly as it always did (every existing call site)", () => {
   const layout = cleanLayout({});
   assert.ok(!layout.home.some((id) => isPinId(id)), "no pins appear unless a pinnable list is passed");
-  assert.equal(layout.home.length, 10, "the usual 10 built-in WorkHub Home parts, nothing more");
+  assert.equal(layout.home.length, 11, "the usual 11 built-in WorkHub Home parts, nothing more");
 });
 
 test("WorkHub wires pinned Kit plugins and Notes apps into Home: catalog, tiles and the open actions they reuse", () => {
@@ -83,4 +83,16 @@ test("LifeHub wires pinned Notes apps into Home the same way", () => {
   assert.match(home, /for \(const p of myNotesApps\) part\[pinId\(p\.id\)\] = \(/);
   assert.match(home, /onClick=\{\(\) => openNotesApp\(p\.id\)\}/);
   assert.match(home, /catalog=\{\[\.\.\.CATALOG, \.\.\.pinnedCatalog\]\}/);
+});
+
+test("WorkHub Home looks like LifeHub's: greeting, quick counts, soft cards, and keeps the picture box", () => {
+  const hub = read("client/src/pages/TeacherHub.tsx");
+  assert.match(hub, /data-testid="home-greeting"/);
+  assert.match(hub, /Here's what's happening in your workspace today\./);
+  assert.match(hub, /home-stat-tasks/);
+  assert.match(hub, /picture: \(\s*<WorkspaceBanner/);
+  assert.match(hub, /className="hub-home-life"/);
+  assert.match(hub, /hub-paper hub-lifelook/);
+  assert.ok(cleanLayout({}).home.includes("picture"), "the picture box is still a Home part");
+  assert.ok(cleanLayout({}).home.includes("stats"));
 });

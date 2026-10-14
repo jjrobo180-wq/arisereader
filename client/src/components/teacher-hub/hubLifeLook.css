@@ -1,0 +1,22 @@
+/* Arise WorkHub dressed like LifeHub (AriseTodo + family-hub/FamilyHome): the same lavender-grey
+   ground, and on Home the same soft white rounded cards with bold titles and purple accents.
+   Scoped to the WorkHub root (.hub-lifelook) and to Home (.hub-home-life), and to the day look
+   only: night mode and the Tile/Old Computer themes keep their own styling. */
+
+.hub-paper.hub-lifelook:not(.hub-night):not(.hub-theme-tile):not(.hub-theme-crt) { background: #f6f7fc; }
+.hub-paper.hub-lifelook:not(.hub-night):not(.hub-theme-tile):not(.hub-theme-crt) .bg-slate-100,
+.hub-paper.hub-lifelook:not(.hub-night):not(.hub-theme-tile):not(.hub-theme-crt) .bg-slate-100\/95 { background-color: #f6f7fc; }
+
+/* Home: every part except the greeting, the counts, the picture and the widgets sits in a card. */
+.hub-lifelook:not(.hub-night):not(.hub-theme-tile):not(.hub-theme-crt) .hub-home-life [data-home-part]:not([data-home-part="day"]):not([data-home-part="stats"]):not([data-home-part="picture"]):not([data-home-part="widgets"]) > :is(section, div):first-child {
+  border: 1px solid #e7e8f0; border-radius: 1.5rem; background: #ffffff;
+  padding: 1rem; box-shadow: 0 8px 28px #17152b08;
+}
+@media (min-width: 640px) {
+  .hub-lifelook:not(.hub-night):not(.hub-theme-tile):not(.hub-theme-crt) .hub-home-life [data-home-part]:not([data-home-part="day"]):not([data-home-part="stats"]):not([data-home-part="picture"]):not([data-home-part="widgets"]) > :is(section, div):first-child { padding: 1.25rem; }
+}
+/* Card titles read like LifeHub's panel titles, without the rule underneath. */
+.hub-lifelook:not(.hub-night):not(.hub-theme-tile):not(.hub-theme-crt) .hub-home-life [data-home-part] .hub-card-title { font-size: 1.125rem; font-weight: 900; color: #232139; letter-spacing: -0.01em; }
+.hub-lifelook:not(.hub-night):not(.hub-theme-tile):not(.hub-theme-crt) .hub-home-life [data-home-part] .border-b:has(.hub-card-title) { border-bottom-color: transparent; }
+/* Links and small actions in LifeHub's purple. */
+.hub-lifelook:not(.hub-night):not(.hub-theme-tile):not(.hub-theme-crt) .hub-home-life .text-teal-800 { color: #7c3aed; text-decoration-color: #ddd6fe; }

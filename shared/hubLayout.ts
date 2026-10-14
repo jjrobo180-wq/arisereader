@@ -22,6 +22,7 @@ export const MENU_CLOSES: { id: MenuClose; label: string; detail: string }[] = [
 export const HOME_SECTIONS = [
   { id: "day", label: "Today's greeting" },
   { id: "widgets", label: "Widgets" },
+  { id: "stats", label: "Quick counts" },
   { id: "picture", label: "Picture box" },
   { id: "agenda", label: "Today's agenda" },
   { id: "add", label: "Add things fast" },
