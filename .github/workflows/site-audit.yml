@@ -37,6 +37,12 @@ jobs:
         env:
           ROUTES: /signin,/register,/register-independent,/teacher-signup,/parent-signup,/pricing,/for-teachers,/for-parents,/about,/tutorial,/tutorial/student,/tutorial/teacher,/tutorial/parent,/tutorial/eye-gaze,/leaderboard,/reading-club,/competition,/news,/reads,/explore-reader,/to-do,/lifehub,/workhub,/library,/games,/fall-break
         run: node script/audit/crawl-live.mjs > audit-out/live.txt 2>&1; tail -60 audit-out/live.txt
+      - name: Readable build for crash reports
+        continue-on-error: true
+        run: npx vite build --minify false > audit-out/vite-readable.txt 2>&1; tail -3 audit-out/vite-readable.txt
+      - name: Open every signed-in screen
+        continue-on-error: true
+        run: npx tsx script/audit/crawl-app.mts > audit-out/app.txt 2>&1; tail -80 audit-out/app.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
