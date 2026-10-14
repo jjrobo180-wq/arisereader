@@ -22,6 +22,7 @@ import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
 import { KIT_ICONS } from "@/components/plugin-kit/kitIcons";
 import { kitDef, type KitRecord } from "@shared/pluginKit";
+import { countsAsApp } from "@shared/todoPlan";
 import type { Note } from "@shared/notesApp";
 import {
   HUB_TEMPLATES, PLUGIN_CATEGORIES, connectionNeeds, isAddable, pluginsFor, searchPlugins, templatePlugins, OPEN_STORE_KEY, type HubTemplate, type Plugin, type PluginHub,
@@ -172,6 +173,8 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   openTemplateIdRef.current = openTemplateId;
 
   const all = useMemo(() => pluginsFor(hub, { teacher }), [hub, teacher]);
+  /** How many apps this hub's store has (built-in tools that are always there aren't counted). */
+  const appCount = useMemo(() => all.filter((p) => countsAsApp(hub, p)).length, [all, hub]);
   /** The running plugin's definition: either a Kit plugin, or a Notes-app install (by its store id).
    *  Must stay below `all`: read above it, opening a Kit or Notes app threw a ReferenceError. */
   const runningNotesApp = running ? all.find((p) => p.id === running && p.target.kind === "notesApp") : null;
@@ -391,7 +394,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
       <div className="relative mx-auto flex h-14 max-w-[1100px] items-center gap-2.5 px-3 sm:h-16 sm:px-6">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.75rem] bg-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.4)] backdrop-blur-sm" aria-hidden><ShoppingBag className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block text-[10px] font-extrabold uppercase tracking-[.2em] text-white/75">Arise</span>
+          <span className="block text-[10px] font-extrabold uppercase tracking-[.2em] text-white/75" data-testid="store-app-count">Arise · {appCount.toLocaleString()} apps</span>
           <span className="block truncate text-[17px] font-black tracking-tight text-white">{STORE_NAME}</span>
         </span>
         {teacher && <nav aria-label="Which hub" className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-black/15 p-0.5 backdrop-blur-sm">
@@ -406,7 +409,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
         <span className="sr-only">Search apps</span>
         <Search className="pointer-events-none absolute left-7 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--s-faint)] sm:left-9" />
         {/* 16px text, so an iPhone doesn't zoom the page when the box is tapped. */}
-        <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${HUB_NAME[hub]} apps`}
+        <input value={query} onChange={(e) => setQuery(e.target.value)} type="search" enterKeyHint="search" placeholder={`Search ${appCount.toLocaleString()} ${HUB_NAME[hub]} apps`}
           className={`h-12 w-full rounded-2xl border pl-11 pr-3 text-base shadow-[0_8px_24px_-10px_rgba(0,0,0,.45)] outline-none ${ring}`}
           style={{ background: pal.surface, color: pal.text, borderColor: pal.line }} data-testid="plugin-search" />
       </label>
@@ -449,7 +452,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
                 const inCat = all.filter((p) => p.category === c);
                 return <section key={c} aria-labelledby={`ps-${c}`}>
                   <div className="mb-3 flex items-center justify-between gap-3">
-                    <h2 id={`ps-${c}`} className="min-w-0 truncate text-lg font-black tracking-tight text-[var(--s-text)]">{c}</h2>
+                    <h2 id={`ps-${c}`} className="min-w-0 truncate text-lg font-black tracking-tight text-[var(--s-text)]">{c}<span className="ml-2 text-sm font-semibold text-[var(--s-sub)]">{inCat.length}</span></h2>
                     {inCat.length > PER_CATEGORY && <button type="button" onClick={() => setCategory(c)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-[var(--s-accent-text)] transition-colors hover:bg-[var(--s-accent-soft)] ${ring}`}>See all {inCat.length} <ArrowUpRight className="h-3.5 w-3.5" /></button>}
                   </div>
                   {posterRail(inCat.slice(0, PER_CATEGORY))}
