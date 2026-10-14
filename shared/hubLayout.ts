@@ -111,6 +111,11 @@ export type AnyLayout = {
 export const pinId = (pluginId: string): string => `pin:${pluginId}`;
 export const isPinId = (id: string): boolean => id.startsWith("pin:");
 export const unpinId = (id: string): string => id.slice("pin:".length);
+/** One widget from the Widgets board, placed on Home as its own part. Kept in `home` under this id so each
+ *  widget remembers its own place. A saved id for a widget that no longer exists is simply skipped on Home. */
+export const widgetHomeId = (widgetId: string): string => `w:${widgetId}`;
+export const isWidgetHomeId = (id: string): boolean => /^w:[A-Za-z0-9_-]{1,64}$/.test(id);
+export const widgetIdOf = (id: string): string => id.slice(2);
 
 /** WorkHub's layout. */
 export type HubLayout = AnyLayout & { home: HomeSection[]; homeHidden: HomeSection[]; homeSize: Partial<Record<HomeSection, HomeSize>> };
@@ -126,7 +131,7 @@ export const DEFAULT_LAYOUT: HubLayout = { menuSide: "left", deskSide: "left", f
 export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly Id[], defaults: { menuSide: MenuSide; menuClose: MenuClose; homeHidden: Id[] }, pinnable: readonly string[] = []) {
   const r: any = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   const isPinned = (x: unknown): x is string => typeof x === "string" && isPinId(x) && pinnable.includes(unpinId(x));
-  const isPart = (x: unknown): x is Id => typeof x === "string" && ((parts as readonly string[]).includes(x) || isPinned(x));
+  const isPart = (x: unknown): x is Id => typeof x === "string" && ((parts as readonly string[]).includes(x) || isPinned(x) || isWidgetHomeId(x));
   const menuSide: MenuSide = MENU_SIDES.some((s) => s.id === r.menuSide) ? r.menuSide : defaults.menuSide;
   const menuClose: MenuClose = MENU_CLOSES.some((c) => c.id === r.menuClose) ? r.menuClose : defaults.menuClose;
   const home: Id[] = [];

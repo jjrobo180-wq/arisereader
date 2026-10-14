@@ -8,9 +8,11 @@
 // layout (shared/hubLayout.ts), the same one Customize sets.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { AlarmClock, Bell, CalendarDays, Check, CheckSquare, Image as ImageIcon, LayoutGrid, ListChecks, Plus, Puzzle, School, Sun, Users, WandSparkles, X, type LucideIcon } from "lucide-react";
+import { AlarmClock, Bell, CalendarDays, Check, CheckSquare, Image as ImageIcon, LayoutGrid, ListChecks, Pencil, Plus, Puzzle, School, Sun, Users, WandSparkles, X, type LucideIcon } from "lucide-react";
 import { HubModal } from "./HubModal";
-import { HOME_SECTIONS, HOME_SIZES, homeShown, resizeSection, sizeOf, type AnyLayout, type HomeSection, type HomeSize } from "@shared/hubLayout";
+import { HOME_SECTIONS, HOME_SIZES, homeShown, isWidgetHomeId, resizeSection, sizeOf, widgetHomeId, widgetIdOf, type AnyLayout, type HomeSection, type HomeSize } from "@shared/hubLayout";
+import type { WidgetItem, WidgetSize } from "@shared/widgets";
+import { ROW as WIDGET_ROW, WidgetCell, useWidgetKit } from "@/components/widgets/WidgetBoard";
 import type { Plugin } from "@shared/pluginStore";
 import { ICONS } from "@/components/plugin-store/PluginStore";
 
@@ -22,8 +24,9 @@ const HOLD_DRAG_MS = 220;
 const isControl = (el: EventTarget | null) => el instanceof HTMLElement && !!el.closest("a, button, input, textarea, select, label, [role='button'], [role='radio'], [contenteditable='true']");
 /** Where a part sits in the grid, and how tall it may be. Small is half width from tablet size up. */
 // The grid has 3 columns on a phone and more on wider screens. Small is one square, like an app icon but bigger.
-const GRID = "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-5 md:grid-cols-5 xl:grid-cols-6";
-const SPAN: Record<HomeSize, string> = { small: "col-span-1", medium: "col-span-full", large: "col-span-full" };
+// Columns are doubled (6 on a phone) so a small widget can take half the width while small parts stay a third.
+const GRID = "grid grid-cols-6 gap-3 sm:grid-cols-8 sm:gap-5 md:grid-cols-10 xl:grid-cols-12";
+const SPAN: Record<HomeSize, string> = { small: "col-span-2", medium: "col-span-full", large: "col-span-full" };
 /** The picture on each part's small tile. */
 const PART_ICON: Record<HomeSection, LucideIcon> = { day: Sun, widgets: AlarmClock, stats: LayoutGrid, picture: ImageIcon, agenda: ListChecks, add: WandSparkles, calendar: CalendarDays, meetings: Users, todo: CheckSquare, notifications: Bell, profile: School };
 /** One part of a hub's Home: its name and the picture on its small tile. */
@@ -34,6 +37,13 @@ const CAP: Record<HomeSize, string> = { small: "max-h-[26rem] overflow-y-auto ov
 /** How tall a part's picture is while arranging. */
 // Edit mode shows each part at its real size, so every widget in it stays visible while you arrange.
 const PREVIEW: Record<HomeSize, string> = { small: "aspect-square", medium: "h-36", large: "h-52" };
+/** A widget on Home: its width by its own size, and a fixed height like on the Widgets board. */
+const W_SPAN: Record<WidgetSize, string> = { small: "col-span-3 sm:col-span-4 md:col-span-5 xl:col-span-4", wide: "col-span-full md:col-span-10 xl:col-span-8", large: "col-span-full md:col-span-10 xl:col-span-8" };
+const W_HEIGHT: Record<WidgetSize, string> = { small: WIDGET_ROW, wide: WIDGET_ROW, large: `calc(2 * ${WIDGET_ROW} + 0.75rem)` };
+const W_TO_HOME: Record<WidgetSize, HomeSize> = { small: "small", wide: "medium", large: "large" };
+const HOME_TO_W: Record<HomeSize, WidgetSize> = { small: "small", medium: "wide", large: "large" };
+/** The widgets a hub keeps on Home, so each one can be its own part (see shared/hubLayout's widgetHomeId). */
+export type HomeWidgets = { items: unknown; setItems: (update: (items: WidgetItem[]) => WidgetItem[]) => void; makeId: () => string };
 const GLIDE = { type: "spring", stiffness: 520, damping: 42, mass: 0.8 } as const;
 
 /** Which Home layout a theme uses (see shared/appThemes.ts's HomeLayout). Only the presentation
@@ -89,7 +99,7 @@ type Drag = {
   last: string | null;
 };
 
-export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950", homeLayout = "cards" }: {
+export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugins = [], onOpenStore, catalog = WORK_PARTS, accent = "bg-slate-950", homeLayout = "cards", widgets }: {
   /** Each part's content. null is a part with nothing to show right now: it is left out of Home, and shown as its tile while editing. */
   parts: Record<string, ReactNode | null>; layout: L; onChange: (next: L) => void;
   /** The hub's parts of Home, for their names and tile pictures. */
@@ -102,20 +112,58 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   /** The current theme's Home structure (see shared/appThemes.ts). Changes the grid shape and
    *  tile rendering only — every drag/reorder/resize/hide behavior below is identical regardless. */
   homeLayout?: HubHomeLayout;
+  /** The hub's widgets. Given, each widget is its own part of Home — moved, resized and removed on its own —
+   *  instead of the whole Widgets board being one part. */
+  widgets?: HomeWidgets;
 }) {
+  const kit = useWidgetKit(widgets?.items ?? [], widgets?.setItems ?? (() => {}), widgets?.makeId ?? (() => String(Date.now())), accent);
+  /** Widgets show on Home when the hub has them on (its Widgets part has something) and they aren't hidden. */
+  const widgetsOn = !!widgets && parts.widgets != null;
+  const widgetOf = (id: string) => (isWidgetHomeId(id) ? kit.items.find((w) => w.id === widgetIdOf(id)) : undefined);
+  /** The Home order with the Widgets part opened up into one part per widget. A widget that has its own
+   *  saved place goes there; a new one goes where the Widgets part is. With no widgets yet, the Widgets part
+   *  stays, showing "Add your first widget". */
+  const expand = (ids: readonly string[]): string[] => {
+    if (!widgets) return [...ids];
+    const placed = new Set(layout.home.filter(isWidgetHomeId));
+    const out: string[] = [];
+    for (const id of ids) {
+      if (id === "widgets") {
+        if (!widgetsOn) { out.push(id); continue; }
+        const fresh = kit.items.filter((w) => !placed.has(widgetHomeId(w.id))).map((w) => widgetHomeId(w.id));
+        out.push(...fresh);
+        if (!kit.items.length) out.push(id);
+      } else if (isWidgetHomeId(id)) { if (widgetsOn && widgetOf(id)) out.push(id); }
+      else out.push(id);
+    }
+    return out;
+  };
+  /** A Home order (with widget parts) back to the saved layout: widgets keep their own places, the
+   *  Widgets part sits right after the last widget (that's where a new one appears), and the rest of the
+   *  saved order follows. Ids of widgets that were removed are dropped. */
+  const collapse = (shown: string[]): string[] => {
+    const live = new Set(kit.items.map((w) => widgetHomeId(w.id)));
+    const out = shown.filter((id) => !isWidgetHomeId(id) || live.has(id));
+    if (widgets && !out.includes("widgets")) {
+      const lastW = out.map((id, i) => (isWidgetHomeId(id) ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+      if (lastW >= 0) out.splice(lastW + 1, 0, "widgets");
+    }
+    for (const id of layout.home) if (!out.includes(id) && (!isWidgetHomeId(id) || live.has(id))) out.push(id);
+    return out;
+  };
   const [editing, setEditing] = useState(false);
   /** A small tile tapped open: its whole part in a pop-up. */
   const [opened, setOpened] = useState<string | null>(null);
   const hidden = layout.homeHidden;
-  const label = (id: string) => catalog.find((p) => p.id === id)?.label ?? id;
+  const label = (id: string) => (isWidgetHomeId(id) ? kit.nameOf(widgetIdOf(id)) : catalog.find((p) => p.id === id)?.label ?? id);
   const gridClass = LAYOUT_GRID[homeLayout], spanOf = LAYOUT_SPAN[homeLayout], capOf = LAYOUT_CAP[homeLayout];
-  const partOf = (id: string) => catalog.find((p) => p.id === id) ?? { id, label: id };
+  const partOf = (id: string): HomePart => (isWidgetHomeId(id) ? { id, label: label(id), icon: AlarmClock } : catalog.find((p) => p.id === id) ?? { id, label: id });
   const tileOf = (id: string) => <PartTile part={partOf(id)} accent={accent} layout={homeLayout} />;
   // "tiles" (Windows-Phone-style) always shows every part as a tile that opens in a pop-up, not
   // just the "small"-sized ones cards mode reserves tiles for — that dense tap-grid is the look.
   const alwaysTile = TILE_LAYOUTS.includes(homeLayout);
   /** The parts on Home in order, while editing. */
-  const [order, setOrder] = useState<string[]>(() => homeShown(layout));
+  const [order, setOrder] = useState<string[]>(() => expand(homeShown(layout)));
   const orderRef = useRef(order);
   orderRef.current = order;
   const [dragId, setDragId] = useState<string | null>(null);
@@ -125,7 +173,8 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   const press = useRef<{ timer: number; x: number; y: number; id: string | null } | null>(null);
   const scrollLoop = useRef(0);
 
-  useEffect(() => { if (!drag.current) setOrder(homeShown(layout)); }, [layout.home.join(","), hidden.join(",")]);
+  const widgetKey = kit.items.map((w) => w.id).join(",") + (widgetsOn ? "+" : "-");
+  useEffect(() => { if (!drag.current) setOrder(expand(homeShown(layout))); }, [layout.home.join(","), hidden.join(","), widgetKey]);
   useEffect(() => {
     if (!editing) return;
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setEditing(false); };
@@ -134,7 +183,17 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   }, [editing]);
 
   /** The full order: the parts on Home as arranged, then the hidden ones. */
-  const full = (shown: string[]) => [...shown, ...layout.home.filter((id) => !shown.includes(id))];
+  const full = (shown: string[]) => collapse(shown);
+  /** A part's size: a widget's own size, or the part's size on Home. */
+  const sizeHere = (id: string): HomeSize => { const w = widgetOf(id); return w ? W_TO_HOME[w.size] : sizeOf(layout, id); };
+  /** Where a part sits in the grid. Widgets get their own widths in the usual (cards) layout. */
+  const spanHere = (id: string) => { const w = widgetOf(id); return w && homeLayout === "cards" ? W_SPAN[w.size] : spanOf[sizeHere(id)]; };
+  const widgetBox = (w: WidgetItem, live: boolean) => <div className="min-w-0" style={{ height: W_HEIGHT[w.size] }}><WidgetCell item={w} now={kit.now} onChange={live ? (p) => kit.patch(w.id, p) : undefined} /></div>;
+  const emptyWidgets = <button type="button" onClick={kit.openGallery} className="flex w-full flex-col items-center gap-2 rounded-[1.6rem] border-2 border-dashed border-slate-300 bg-white/60 px-6 py-8 text-center transition hover:bg-white" data-testid="widget-empty">
+    <span className="text-3xl" aria-hidden>🕰️</span><span className="text-base font-bold text-slate-900">Add your first widget</span>
+    <span className="max-w-sm text-sm text-slate-600">Clocks, calendars, countdowns, fun ones and timers, in eleven themes.</span></button>;
+  /** What a part shows on Home: a widget's face, the empty Widgets card, or the part itself. */
+  const contentOf = (id: string, live = true): ReactNode => { const w = widgetOf(id); if (w) return widgetBox(w, live); if (widgets && id === "widgets") return widgetsOn ? emptyWidgets : null; return parts[id]; };
 
   // ─── While a part is held, the page does not scroll under the finger ───────
   // The listener is there the whole time Home is being edited, so it is ready the moment a part is picked up.
@@ -249,23 +308,25 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
 
   // ─── Not editing: Home as usual, each part at its size ─────────────────────
   if (!editing) {
-    const shown = (homeShown(layout) as string[]).filter((id) => parts[id] != null);
+    const shown = expand(homeShown(layout) as string[]).filter((id) => contentOf(id) != null);
     return (
       <>
         <div className={gridClass} data-testid="home-grid">
           {shown.map((id) => (
-            <div key={id} {...holdProps} className={`${spanOf[sizeOf(layout, id)]} min-w-0`} data-home-part={id}>
-              {sizeOf(layout, id) === "small" || alwaysTile
+            <div key={id} {...holdProps} className={`${spanHere(id)} min-w-0`} data-home-part={id}>
+              {alwaysTile || (sizeHere(id) === "small" && !widgetOf(id))
                 ? <button type="button" onClick={() => setOpened(id)} className="w-full transition active:scale-95" aria-label={`Open ${label(id)}`} data-testid={`home-tile-${id}`}>{tileOf(id)}</button>
-                : <div className={capOf[sizeOf(layout, id)]}>{parts[id]}</div>}
+                : widgetOf(id) ? contentOf(id) : <div className={capOf[sizeOf(layout, id)]}>{contentOf(id)}</div>}
             </div>
           ))}
           {!shown.length && <p className="col-span-full py-4 text-sm text-slate-500">Everything on Home is hidden.</p>}
         </div>
-        <div className="flex justify-center">
+        <div className="flex flex-wrap justify-center gap-2">
+          {widgetsOn && kit.items.length > 0 && <button type="button" onClick={kit.openGallery} disabled={kit.full} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95 disabled:opacity-50" data-testid="widget-add"><Plus className="h-4 w-4" /> Widget</button>}
           <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95" data-testid="home-edit">Edit Home</button>
         </div>
-        {opened && <HubModal title={label(opened)} size="lg" onClose={() => setOpened(null)}>{parts[opened]}</HubModal>}
+        {opened && <HubModal title={label(opened)} size="lg" onClose={() => setOpened(null)}>{(() => { const w = widgetOf(opened); return w ? <div style={{ height: `calc(2 * ${WIDGET_ROW})` }}><WidgetCell item={w} now={kit.now} onChange={(p) => kit.patch(w.id, p)} /></div> : contentOf(opened); })()}</HubModal>}
+        {widgets && kit.modals}
       </>
     );
   }
@@ -282,24 +343,25 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
 
       <div ref={grid} className={`relative ${gridClass}`}>
         {order.map((id, i) => {
-          const sz = sizeOf(layout, id), held = dragId === id, tileHere = sz === "small" || alwaysTile;
+          const w = widgetOf(id), sz = sizeHere(id), held = dragId === id, tileHere = alwaysTile || (sz === "small" && !w), content = contentOf(id, false);
           return (
             <motion.div key={id} ref={ref(id)} layout={held ? false : "position"} transition={GLIDE} data-home-edit={id}
               {...partHandlers(id)}
-              className={`${spanOf[sz]} relative min-w-0 select-none [-webkit-touch-callout:none] ${held ? "z-40 cursor-grabbing" : "z-0 cursor-grab"}`}
+              className={`${spanHere(id)} relative min-w-0 select-none [-webkit-touch-callout:none] ${held ? "z-40 cursor-grabbing" : "z-0 cursor-grab"}`}
               style={held ? { willChange: "transform" } : undefined}>
               <div className={`hub-jiggle relative rounded-3xl bg-white transition-shadow duration-150 ${held ? "shadow-2xl ring-2 ring-slate-900" : "shadow-sm ring-1 ring-slate-300"}`}
                 style={{ animation: held ? "none" : `hub-jiggle .3s ease-in-out ${i % 2 ? "-.15s" : "0s"} infinite` }}>
                 {tileHere
                   ? <div className="pointer-events-none" aria-hidden>{tileOf(id)}</div>
-                  : parts[id] == null ? <div className={`pointer-events-none flex ${PREVIEW[sz]} items-center justify-center rounded-3xl bg-slate-50 text-sm text-slate-400`} aria-hidden>Nothing here right now</div>
-                  : <div className="pointer-events-none overflow-hidden rounded-3xl" aria-hidden>{parts[id]}</div>}
-                {!tileHere && <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-white">{label(id)}</span>}
-                <button type="button" onClick={() => onChange({ ...layout, home: full(order), homeHidden: [...new Set([...hidden, id])] } as L)} aria-label={`Remove ${label(id)} from Home`}
+                  : content == null ? <div className={`pointer-events-none flex ${PREVIEW[sz]} items-center justify-center rounded-3xl bg-slate-50 text-sm text-slate-400`} aria-hidden>Nothing here right now</div>
+                  : <div className="pointer-events-none overflow-hidden rounded-3xl" aria-hidden>{content}</div>}
+                {!tileHere && !(w && w.size === "small") && <span className="pointer-events-none absolute bottom-2 left-1/2 max-w-[calc(100%-1rem)] -translate-x-1/2 truncate rounded-full bg-slate-950/80 px-3 py-1 text-xs font-semibold text-white">{label(id)}</span>}
+                {w && <button type="button" onClick={() => kit.openSettings(w.id)} aria-label={`Change ${label(id)}`} className={`absolute ${w.size === "small" ? "right-2 top-2" : "bottom-2 right-2"} z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-800 shadow-md ring-1 ring-slate-200 transition active:scale-90`} data-testid={`home-widget-settings-${w.id}`}><Pencil className="h-4 w-4" /></button>}
+                <button type="button" onClick={() => { if (w) { const last = kit.items.length <= 1; const next = order.flatMap((x) => (x !== id ? [x] : last ? ["widgets"] : [])); setOrder(next); kit.remove(w.id); onChange({ ...layout, home: full(next) } as L); } else onChange({ ...layout, home: full(order), homeHidden: [...new Set([...hidden, id])] } as L); }} aria-label={w ? `Delete ${label(id)} widget` : `Remove ${label(id)} from Home`}
                   className="absolute -left-2 -top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-700 text-white shadow-md transition active:scale-90" data-testid={`home-remove-${id}`}><X className="h-4 w-4" /></button>
-                <div className={`absolute z-10 flex rounded-full bg-white/95 p-0.5 shadow-md ring-1 ring-slate-200 ${tileHere ? "-bottom-3 left-1/2 -translate-x-1/2" : "right-2 top-2"}`} role="radiogroup" aria-label={`Size of ${label(id)}`}>
-                  {HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => onChange(resizeSection({ ...layout, home: full(order) } as L, id, z.id))}
-                    className={`inline-flex ${tileHere ? "h-7 w-7" : "h-8 w-8"} items-center justify-center rounded-full text-xs font-bold transition ${sz === z.id ? "bg-slate-950 text-white" : "text-slate-600"}`} data-testid={`home-size-${id}-${z.id}`}>{z.short}</button>)}
+                <div className={`absolute z-10 flex rounded-full bg-white/95 p-0.5 shadow-md ring-1 ring-slate-200 ${tileHere || w?.size === "small" ? "-bottom-3 left-1/2 -translate-x-1/2" : "right-2 top-2"}`} role="radiogroup" aria-label={`Size of ${label(id)}`}>
+                  {HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => { if (w) kit.patch(w.id, { size: HOME_TO_W[z.id] }); else onChange(resizeSection({ ...layout, home: full(order) } as L, id, z.id)); }}
+                    className={`inline-flex ${tileHere || w?.size === "small" ? "h-7 w-7" : "h-8 w-8"} items-center justify-center rounded-full text-xs font-bold transition ${sz === z.id ? "bg-slate-950 text-white" : "text-slate-600"}`} data-testid={`home-size-${id}-${z.id}`}>{z.short}</button>)}
                 </div>
               </div>
             </motion.div>
@@ -308,6 +370,11 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
         {!order.length && <p className="col-span-full rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Home is empty. Add parts back below.</p>}
       </div>
 
+      {widgetsOn && (
+        <button type="button" onClick={kit.openGallery} disabled={kit.full} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[.99] disabled:opacity-50" data-testid="home-add-widget">
+          <Plus className="h-4 w-4" /> {kit.full ? "Widget limit reached" : "Add a widget"}</button>
+      )}
+      {widgets && kit.modals}
       {(off.length > 0 || plugins.length > 0 || onOpenStore) && (
         <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4" data-testid="home-tray">
           {off.length > 0 && (

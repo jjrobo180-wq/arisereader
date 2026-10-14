@@ -1521,7 +1521,7 @@ function TeacherHubPage() {
                     toasts.show(plugin.target.kind === "widget" ? "Widgets added to Home." : `${plugin.name} added to your menu.`, []);
                   } }));
                 // LifeHub's Home look (see hubLifeLook.css): soft white cards on the same ground.
-                return <div className="hub-home-life"><HomeParts parts={part} layout={layout} onChange={setLayout} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
+                return <div className="hub-home-life"><HomeParts parts={part} layout={layout} onChange={setLayout} widgets={{ items: (workspace as any).widgetItems, makeId: id, setItems: (update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) })) }} plugins={quick} onOpenStore={() => setStore(true)} catalog={[...WORK_PARTS, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} /></div>;
               })()}
             </>
           )}

@@ -6,7 +6,7 @@
 // In Edit mode, a widget can also be dragged by its body to reorder it, and dragged by its corner
 // handle to resize it (small → wide → large), with no library: plain pointer events, since the
 // board is a fixed-row CSS grid and a drag only ever needs to land on another widget's cell.
-import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   MAX_WIDGETS, WIDGET_CITIES, WIDGET_DEFS, WIDGET_GROUPS, WIDGET_SIZES, WIDGET_THEMES, cleanWidgets, dayKey, newWidget, themeOf, widgetDef,
@@ -16,7 +16,7 @@ import { WIDGET_CSS, WidgetFace, fontOf, useNow } from "./WidgetFace";
 
 const SPAN: Record<WidgetSize, string> = { small: "col-span-1 row-span-1", wide: "col-span-2 row-span-1", large: "col-span-2 row-span-2" };
 /** One grid row: small widgets are about square on a phone. */
-const ROW = "clamp(8.5rem, 22vw, 10.5rem)";
+export const ROW = "clamp(8.5rem, 22vw, 10.5rem)";
 /** Sizes in order, for the resize handle to step through. */
 const SIZE_ORDER: WidgetSize[] = ["small", "wide", "large"];
 /** How many pixels of drag it takes to step the resize handle to the next size. */
@@ -30,7 +30,7 @@ const GROUP_NOTE: Record<WidgetGroup, string> = {
 };
 
 /** A widget's outside: its theme's background, text colour, border and typeface. */
-function Shell({ item, children, className = "", style, onPointerDown }: { item: WidgetItem; children: React.ReactNode; className?: string; style?: CSSProperties; onPointerDown?: (e: ReactPointerEvent<HTMLDivElement>) => void }) {
+export function Shell({ item, children, className = "", style, onPointerDown }: { item: WidgetItem; children: React.ReactNode; className?: string; style?: CSSProperties; onPointerDown?: (e: ReactPointerEvent<HTMLDivElement>) => void }) {
   const t = themeOf(item.theme);
   return (
     <div className={`relative h-full overflow-hidden rounded-[1.6rem] p-4 ${className}`} onPointerDown={onPointerDown}
@@ -236,6 +236,47 @@ export default function WidgetBoard({ items: raw, setItems, makeId, accent = "bg
       )}
     </section>
   );
+}
+
+// ── One widget at a time, for Home ──────────────────────────────────────────
+
+/**
+ * Everything Home needs to show each widget as its own part: the cleaned list, the live clock, and
+ * add / change / remove / reorder, plus the Add-a-widget gallery and a widget's settings as pop-ups
+ * (render `modals` once). The Widgets board below uses the same saving rules.
+ */
+export function useWidgetKit(raw: unknown, setItems: (update: (items: WidgetItem[]) => WidgetItem[]) => void, makeId: () => string, accent = "bg-slate-950") {
+  const items = useMemo(() => cleanWidgets(raw), [raw]);
+  const now = useNow(1000);
+  const [gallery, setGallery] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const save = (update: (items: WidgetItem[]) => WidgetItem[]) => setItems((cur) => cleanWidgets(update(cleanWidgets(cur))));
+  const patch = (id: string, p: Partial<WidgetItem>) => save((all) => all.map((w) => (w.id === id ? { ...w, ...p } : w)));
+  const remove = (id: string) => { save((all) => all.filter((w) => w.id !== id)); if (editing === id) setEditing(null); };
+  const reorder = (ids: string[]) => save((all) => [...ids.map((id) => all.find((w) => w.id === id)).filter((w): w is WidgetItem => !!w), ...all.filter((w) => !ids.includes(w.id))]);
+  const add = (type: string) => {
+    const w = newWidget(type, makeId(), dayKey(new Date()));
+    if (!w) return;
+    save((all) => [...all, w]);
+    setGallery(false);
+    if (widgetDef(type)?.options.length) setEditing(w.id);
+  };
+  const editingItem = items.find((w) => w.id === editing);
+  const nameOf = (id: string) => { const w = items.find((x) => x.id === id); return (w && (w.label?.trim() || widgetDef(w.type)?.name)) || "Widget"; };
+  const modals: ReactNode = <>
+    <style>{WIDGET_CSS}</style>
+    {gallery && <Gallery now={now} onAdd={add} onClose={() => setGallery(false)} accent={accent} />}
+    {editingItem && <Settings item={editingItem} now={now} onChange={(p) => patch(editingItem.id, p)} accent={accent}
+      onRemove={() => remove(editingItem.id)}
+      onMove={(by) => save((all) => { const i = all.findIndex((w) => w.id === editingItem.id), j = i + by; if (i < 0 || j < 0 || j >= all.length) return all; const next = [...all]; [next[i], next[j]] = [next[j], next[i]]; return next; })}
+      onClose={() => setEditing(null)} />}
+  </>;
+  return { items, now, full: items.length >= MAX_WIDGETS, add, patch, remove, reorder, openGallery: () => setGallery(true), openSettings: setEditing, nameOf, modals };
+}
+
+/** One widget's face in its themed shell, filling whatever box it is put in. */
+export function WidgetCell({ item, now, onChange }: { item: WidgetItem; now: Date; onChange?: (p: Partial<WidgetItem>) => void }) {
+  return <Shell item={item}><WidgetFace item={item} theme={themeOf(item.theme)} now={now} size={item.size} onChange={onChange ?? (() => {})} /></Shell>;
 }
 
 // ── Gallery ──────────────────────────────────────────────────────────────────
