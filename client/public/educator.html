@@ -243,6 +243,48 @@
 #studio .drawer-empty{grid-column:1/-1;color:#65758f;font-size:12px}
 @media(max-width:640px){#studio .preview-app-drawer{padding:17px 12px}#studio .drawer-app-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px 4px}#studio .drawer-app-icon{width:40px;height:40px;font-size:19px;border-radius:12px}#studio .drawer-app-name{font-size:9px}#studio .drawer-head h4{font-size:20px}#studio .drawer-search-label{margin:14px 0}}
 @media(prefers-reduced-motion:reduce){#studio .preview-app-drawer{animation:none}}
+</style><style>
+/* Mobile-first customization studio: preview remains visible while changing controls. */
+@media(max-width:850px){
+#studio .premium-studio-grid{display:flex;flex-direction:column;gap:14px;align-items:stretch}
+#studio .premium-preview-panel{order:0;position:sticky;top:8px;z-index:20;padding:10px!important;border-radius:18px!important;box-shadow:0 14px 32px #1c355b24!important;background:#eef3fb}
+#studio .premium-controls{order:1}
+#studio .premium-preview-caption{padding:2px 7px 9px}
+#studio .premium-preview-caption strong{font-size:12px}
+#studio .premium-preview-caption span{font-size:10px}
+#studio .demo-dashboard{min-height:0!important;max-height:280px;overflow:auto;overscroll-behavior:contain}
+#studio .demo-shell,#studio .demo-dashboard[data-menu=drawer] .demo-shell{min-height:265px!important}
+#studio .demo-main,#studio .demo-dashboard[data-menu=drawer] .demo-main{min-height:265px!important;padding:12px!important}
+#studio .demo-sidebar{padding:11px 6px!important}
+#studio .demo-brand{padding:5px 2px 14px!important;font-size:10px!important}
+#studio .demo-sidebar-item{padding:8px 5px!important;font-size:10px!important}
+#studio .demo-dashboard-top{padding:8px!important}
+#studio .demo-dashboard-nav{margin:9px 0 5px!important}
+#studio .demo-dashboard-title{margin:12px 0 9px!important}
+#studio .demo-dashboard-title h3{font-size:18px!important}
+#studio .demo-custom-card{padding:9px!important;min-height:58px!important}
+#studio .demo-custom-card:last-child{min-height:68px!important}
+#studio .demo-custom-card strong{font-size:12px!important}
+#studio .demo-mini-bars{height:25px!important}
+#studio .preview-app-drawer{min-height:265px;padding:12px!important}
+#studio .drawer-head h4{font-size:18px!important}
+#studio .drawer-search-label{margin:9px 0!important;padding:8px!important}
+#studio .drawer-app-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:9px 4px}
+#studio .drawer-app-icon{width:35px;height:35px;font-size:17px}
+#studio .drawer-app-name{font-size:9px}
+#studio .drawer-footer{margin-top:12px}
+#studio .premium-controls{padding:20px!important}
+#studio .studio-label{margin-top:16px}
+}
+@media(max-width:400px){
+#studio .demo-dashboard{max-height:245px}
+#studio .demo-shell,#studio .demo-dashboard[data-menu=drawer] .demo-shell{min-height:230px!important}
+#studio .demo-main,#studio .demo-dashboard[data-menu=drawer] .demo-main{min-height:230px!important}
+#studio .demo-dashboard-nav span{padding:5px!important;font-size:8px!important}
+#studio .demo-custom-panels{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+#studio .demo-custom-card:last-child{grid-column:1/-1!important}
+#studio .drawer-app-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 </style></head>
 <body>
 <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden">
