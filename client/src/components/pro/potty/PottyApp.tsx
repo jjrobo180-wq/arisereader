@@ -2,17 +2,19 @@
 // profile, setup for a new child, navigation, reminders (timer and today's schedule) and the
 // child-facing overlays. Each screen lives in its own file.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { BookOpen, CalendarDays, Clock, HeartHandshake, Lightbulb, MessageCircle, PlayCircle, Route, Settings, Star, Sun, Volume2, VolumeX, X } from "lucide-react";
+import { BookOpen, CalendarDays, Clock, HeartHandshake, Lightbulb, ListChecks, MessageCircle, PlayCircle, Route, Settings, Star, Sun, Timer, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAppData } from "@/lib/cloudDocs";
 import { Modal, fmtDuration, uid, useTick } from "../kit";
-import { DEFAULT_DATA, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
+import { DEFAULT_DATA, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
 import { Ctx, type LogPrefill, type PottyCtx, type Tab } from "./ctx";
 import { Alert, Celebrate, SitTimer } from "./KidMode";
 import { LogSheet } from "./LogSheet";
 import { Btn2, C, Chip, FONT_HEAD, Label, Panel, PottyStyles, field, fieldStyle, say } from "./theme";
 import Today from "./Today";
 
+const Simple = lazy(() => import("./Simple"));
+const Agenda = lazy(() => import("./Agenda"));
 const History = lazy(() => import("./History"));
 const Program = lazy(() => import("./Program"));
 const Coach = lazy(() => import("./Coach"));
@@ -24,7 +26,7 @@ const TryLearn = lazy(() => import("./TryLearn"));
 const Rewards = lazy(() => import("./Rewards"));
 
 const TABS: { id: Tab; label: string; icon: ComponentType<{ size?: number }> }[] = [
-  { id: "today", label: "Today", icon: Sun }, { id: "log", label: "Log & charts", icon: CalendarDays }, { id: "plan", label: "Plan", icon: Route },
+  { id: "simple", label: "Simple", icon: Timer }, { id: "today", label: "Today", icon: Sun }, { id: "agenda", label: "Agenda", icon: ListChecks }, { id: "log", label: "Log & charts", icon: CalendarDays }, { id: "plan", label: "Plan", icon: Route },
   { id: "coach", label: "AI coach", icon: MessageCircle }, { id: "schedule", label: "Schedule", icon: Clock }, { id: "videos", label: "Videos", icon: PlayCircle },
   { id: "learn", label: "Learn", icon: BookOpen }, { id: "needs", label: "Additional needs", icon: HeartHandshake }, { id: "try", label: "Try & learn", icon: Lightbulb }, { id: "rewards", label: "Rewards", icon: Star },
 ];
@@ -35,7 +37,7 @@ export default function PottyApp() {
   const { token } = useAuth();
   const { data, setData, state } = useAppData("pro-potty", cleanData);
   const set = useCallback((fn: (d: typeof DEFAULT_DATA) => typeof DEFAULT_DATA) => setData((d) => fn(d)), [setData]);
-  const [tab, setTab] = useState<Tab>("today"); const [sub, setSub] = useState("");
+  const [tab, setTab] = useState<Tab>("simple"); const [sub, setSub] = useState("");
   const [logPre, setLogPre] = useState<LogPrefill | null>(null);
   const [party, setParty] = useState<string | null>(null);
   const [sit, setSit] = useState(false);
@@ -48,7 +50,7 @@ export default function PottyApp() {
 
   const putKid = useCallback((k: Child) => set((d) => ({ ...d, kids: d.kids.some((x) => x.id === k.id) ? d.kids.map((x) => (x.id === k.id ? k : x)) : [...d.kids, k], cur: k.id })), [set]);
   const startTimer = useCallback((minutes: number, kidId: string) => set((d) => ({ ...d, timer: { kid: kidId, endAt: Date.now() + minutes * 60_000, minutes } })), [set]);
-  const intervalOf = (k: Child) => k.interval || (k.stage === "launch" ? 30 : 90);
+  const intervalOf = (k: Child) => tripInterval(data.logs, k);
 
   const log = useCallback((kind: Kind, extra: Partial<Entry> = {}) => {
     if (!kid) return;
@@ -78,11 +80,11 @@ export default function PottyApp() {
   // Keep the current tab visible in the scrolling menu on a phone.
   useEffect(() => { document.querySelector<HTMLElement>(`[data-potty-tab="${tab}"]`)?.scrollIntoView?.({ inline: "center", block: "nearest", behavior: "smooth" }); }, [tab]);
   const go = useCallback((t: Tab, s = "") => { setTab(t); setSub(s); top.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, []);
-  const ctx: PottyCtx | null = useMemo(() => kid ? ({ data, set, kid, months, log, openLog: (p = {}) => setLogPre(p), celebrate: setParty, startSit: () => setSit(true), go, sub, putKid, editKid: () => setEditing(kid), token }) : null, [data, set, kid, months, log, go, sub, putKid, token]);
+  const ctx: PottyCtx | null = useMemo(() => kid ? ({ data, set, kid, months, log, openLog: (p = {}) => setLogPre(p), celebrate: setParty, startSit: () => setSit(true), startTimer: (m: number) => startTimer(m, kid.id), interval: intervalOf(kid), go, sub, putKid, editKid: () => setEditing(kid), token }) : null, [data, set, kid, months, log, go, sub, putKid, token, startTimer]);
 
   if (!kid || adding) return <div className="potty-app"><PottyStyles /><Setup first={!kid} onCancel={kid ? () => setAdding(false) : undefined} onDone={(k) => { putKid(k); setAdding(false); setTab("today"); }} n={data.kids.length} /></div>;
 
-  const Screen = { today: Today, log: History, plan: Program, coach: Coach, schedule: Schedule, videos: Videos, learn: Learn, needs: Needs, try: TryLearn, rewards: Rewards }[tab];
+  const Screen = { simple: Simple, today: Today, agenda: Agenda, log: History, plan: Program, coach: Coach, schedule: Schedule, videos: Videos, learn: Learn, needs: Needs, try: TryLearn, rewards: Rewards }[tab];
   const stage = stageById(kid.stage);
   const timerKid = data.timer ? data.kids.find((k) => k.id === data.timer!.kid) : null;
   return <Ctx.Provider value={ctx}>
@@ -119,7 +121,7 @@ export default function PottyApp() {
       if (a === "snooze") { startTimer(5, ak.id); return; }
       if (data.timer) startTimer(intervalOf(ak), ak.id);
       if (ak.id !== kid.id) set((d) => ({ ...d, cur: ak.id }));
-      if (a === "sit") setSit(true); else if (a === "went") log("pee", { init: "schedule" }); else if (a === "tried") log("try", { init: "schedule" }); else log("acc-pee");
+      if (a === "sit") setSit(true); else if (a === "went") log("pee", { init: "schedule" }); else if (a === "pooped") log("poop", { init: "schedule" }); else if (a === "tried") log("try", { init: "schedule" }); else log("acc-pee");
     }} />; })()}
     {editing && <KidEditor k={editing} units={data.units} onUnits={(u) => set((d) => ({ ...d, units: u }))} onSave={(k) => { putKid(k); setEditing(null); }} onClose={() => setEditing(null)}
       onDelete={data.kids.length ? () => { if (window.confirm(`Remove ${editing.name} and everything logged for them? This can't be undone.`)) { set((d) => ({ ...d, kids: d.kids.filter((x) => x.id !== editing.id), logs: d.logs.filter((x) => x.kid !== editing.id), stickers: d.stickers.filter((x) => x.kid !== editing.id), cur: d.kids.find((x) => x.id !== editing.id)?.id || "", timer: d.timer?.kid === editing.id ? null : d.timer })); setEditing(null); } } : undefined} />}
