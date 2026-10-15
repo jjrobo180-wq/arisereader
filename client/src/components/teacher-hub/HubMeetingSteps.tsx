@@ -5,12 +5,12 @@
 // this screen. Any step can be skipped and come back to; the progress is kept on the meeting.
 import { useEffect, useState, type FormEvent, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import { ArrowLeft, Check, ChevronRight, Plus, SkipForward, Undo2, X } from "lucide-react";
-import { MEETING_STEPS, STEP_COUNT, cleanPlan, emptyPlan, firstOpen, markDone, markSkipped, prepTodos, stepState } from "@shared/meetingSteps";
+import { MEETING_STEPS, STEP_COUNT, cleanPlan, emptyPlan, firstOpen, markDone, markOpen, markSkipped, prepTodos, stepState, withAt } from "@shared/meetingSteps";
 import { addMeetingWithDeadline, changeMeetingBasics, deadlineLabel, deadlineWords, meetingDeadline, planningDeadlineFor, savesToStudent, studentDeadline } from "@shared/meetingDeadline";
 import { newGuideFor } from "@shared/hubStudentTeam";
 import type { GuideSender } from "@shared/hubGuide";
 import { GuideChecklist } from "./HubGuide";
-import type { Meeting, Workspace } from "@shared/teacherHub";
+import { clock12, type Meeting, type Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton, Select } from "./ui";
 import HubQuickAddStudent from "./HubQuickAddStudent";
 import GenEdCoverage from "./HubGenEdCoverage";
@@ -58,13 +58,19 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
     return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const go = (n: number, id = wizard.meetingId) => setWizard({ step: Math.min(Math.max(n, 1), STEP_COUNT), meetingId: id });
   const setPlan = (change: (p: ReturnType<typeof cleanPlan>) => ReturnType<typeof cleanPlan>, id = wizard.meetingId) => {
     if (!id) return;
     setWorkspace((p) => ({ ...p, meetings: p.meetings.map((m) => (m.id === id ? { ...m, plan: change(cleanPlan(m.plan)) } : m)) }));
   };
+  // Wherever the teacher goes is remembered on the meeting, so the steps open back on it, not on "the first step not done".
+  const go = (n: number, id = wizard.meetingId) => {
+    const next = Math.min(Math.max(n, 1), STEP_COUNT);
+    setWizard({ step: next, meetingId: id });
+    setPlan((p) => withAt(p, next), id);
+  };
   const done = () => { setPlan((p) => markDone(p, step)); if (step >= STEP_COUNT) setWizard(null); else go(step + 1); };
   const skip = () => { setPlan((p) => markSkipped(p, step)); if (step >= STEP_COUNT) setWizard(null); else go(step + 1); };
+  const reopen = () => setPlan((p) => markOpen(p, step));
 
   function addMeeting(e: FormEvent) {
     e.preventDefault();
@@ -116,7 +122,16 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
     setWorkspace((p) => (p.guides.some((g) => g.student === meeting.student) ? p : { ...p, guides: [...p.guides, newGuideFor(p, meeting.student, kind, makeId)] }));
   }, [meeting?.id, !!guide]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A time booked (from the polls list, or here) means finding and booking are over: mark them, so nothing is left hanging.
+  const booked = !!meeting?.date;
+  useEffect(() => {
+    if (!meeting?.date) return;
+    const p = cleanPlan(meeting.plan);
+    if (p.done.includes(2) && p.done.includes(3)) return;
+    setPlan((pl) => markDone(markDone(pl, 2), 3), meeting.id);
+  }, [meeting?.id, meeting?.date]); // eslint-disable-line react-hooks/exhaustive-deps
   const skippedList = plan.skipped.filter((n) => n !== step);
+  const marked = plan.done.includes(step) || plan.skipped.includes(step);
   const pill = "inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold";
 
   return (
@@ -201,6 +216,7 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
           {step === 1 && meeting && <MeetingBasics key={meeting.id} workspace={workspace} meeting={meeting} onSave={(change) => setWorkspace((p) => changeMeetingBasics(p, meeting.id, change))} />}
 
           {step === 2 && (meeting ? <div className="min-w-0 space-y-4">
+            {booked && <BookedBanner meeting={meeting} onGenEd={() => go(4)} />}
             <div role="radiogroup" aria-label="Meeting time" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button type="button" role="radio" aria-checked={!haveTime} onClick={() => setHaveTime(false)} className={`rounded-2xl border-2 p-3 text-left ${!haveTime ? "border-teal-700 bg-teal-50" : "border-slate-200"}`}><b className="block text-sm">Find a time with everyone</b><span className="text-xs text-slate-600">Pick who is coming, then ask them which times work.</span></button>
               <button type="button" role="radio" aria-checked={haveTime} onClick={() => setHaveTime(true)} className={`rounded-2xl border-2 p-3 text-left ${haveTime ? "border-teal-700 bg-teal-50" : "border-slate-200"}`}><b className="block text-sm">I already have a time</b><span className="text-xs text-slate-600">Enter it and skip to the checklist.</span></button>
@@ -218,8 +234,11 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
           </div> : <NeedMeeting go={() => go(1)} />)}
 
           {step === 3 && <>
-            <p className="text-sm text-slate-600">When people answer, their answers show in “Find a time with everyone”. Pick the best time there and tap Book this time. It goes on your calendar.</p>
+            {booked && meeting
+              ? <BookedBanner meeting={meeting} onGenEd={() => go(4)} />
+              : <p className="text-sm text-slate-600">When people answer, their answers show in “Find a time with everyone”. Pick the best time there and tap Book this time. It goes on your calendar.</p>}
             <GhostButton onClick={showPolls}>Open my polls</GhostButton>
+            {booked && meeting && <GenEdCoverage workspace={workspace} setWorkspace={setWorkspace} meeting={meeting} senderName={sender.name || workspace.profile.senderName || ""} makeId={makeId} />}
           </>}
           {step === 4 && <>
             <p className="text-sm text-slate-600">Booking a time tells everyone for you. If you chose to send things yourself, open the poll and use “Tell everyone” to send the final time from your own email or phone.</p>
@@ -243,13 +262,27 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
             {step === 1 && !meeting
               ? <PrimaryButton onClick={() => (document.getElementById("wizard-add") as HTMLFormElement | null)?.requestSubmit()}>Next <ChevronRight className="h-4 w-4" /></PrimaryButton>
               : <>
-                {meeting && step > 1 && <button type="button" onClick={skip} className={`${pill} border border-slate-200 text-slate-600 hover:bg-slate-50`}><SkipForward className="h-4 w-4" /> Skip for now</button>}
-                {meeting && step !== 1 && step !== 2 && <PrimaryButton onClick={done}>{step === STEP_COUNT ? "Finish" : "Done, next"} <ChevronRight className="h-4 w-4" /></PrimaryButton>}
+                {meeting && step > 1 && marked && <button type="button" onClick={reopen} className={`${pill} border border-slate-200 text-slate-600 hover:bg-slate-50`} data-testid="wizard-reopen"><Undo2 className="h-4 w-4" /> Mark step {step} not done</button>}
+                {meeting && step > 1 && !marked && <button type="button" onClick={skip} className={`${pill} border border-slate-200 text-slate-600 hover:bg-slate-50`}><SkipForward className="h-4 w-4" /> Skip for now</button>}
+                {meeting && step !== 1 && step !== 2 && (marked
+                  ? (step < STEP_COUNT && <PrimaryButton onClick={() => go(step + 1)}>Next step <ChevronRight className="h-4 w-4" /></PrimaryButton>)
+                  : <PrimaryButton onClick={done}>{step === STEP_COUNT ? "Finish" : "Done, next"} <ChevronRight className="h-4 w-4" /></PrimaryButton>)}
                 {meeting && step === 1 && <PrimaryButton onClick={() => go(firstOpen(plan) > 1 ? firstOpen(plan) : 2)}>Next <ChevronRight className="h-4 w-4" /></PrimaryButton>}
               </>}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Shown once a time is booked: what it is, and a one-tap way to the gen ed teacher's note. */
+function BookedBanner({ meeting, onGenEd }: { meeting: Meeting; onGenEd: () => void }) {
+  const when = [new Date(`${meeting.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }), meeting.time ? clock12(meeting.time) : ""].filter(Boolean).join(" · ");
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900" data-testid="wizard-booked">
+      <span className="min-w-0"><b>Time booked:</b> {when}</span>
+      <button type="button" onClick={onGenEd} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-700 px-3 font-bold text-white hover:bg-emerald-800">Gen ed teacher note <ChevronRight className="h-4 w-4" /></button>
     </div>
   );
 }
