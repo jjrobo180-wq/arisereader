@@ -123,7 +123,7 @@ function Macros({ rows, daily, goals, tick, weekly }: { rows: HealthDay[]; daily
   const pie = (["carbs", "fat", "protein"] as const).map((k) => ({ key: k, name: k[0].toUpperCase() + k.slice(1), value: cal[k] }));
   return <div className="space-y-5">
     <Panel eyebrow={logged.length ? `Average of ${logged.length} day${logged.length === 1 ? "" : "s"} logged` : "Macros"} title="Nutrition split">
-      {total > 0 ? <div className="grid items-center gap-5 sm:grid-cols-[180px_minmax(0,1fr)]">
+      {total > 0 ? <div className="grid grid-cols-1 items-center gap-5 sm:grid-cols-[180px_minmax(0,1fr)]">
         <div className="mx-auto h-44 w-44" role="img" aria-label={`Calories from carbs ${Math.round(cal.carbs / total * 100)}%, fat ${Math.round(cal.fat / total * 100)}%, protein ${Math.round(cal.protein / total * 100)}%`}>
           <ResponsiveContainer><PieChart>
             <Pie data={pie} dataKey="value" innerRadius="62%" outerRadius="96%" startAngle={90} endAngle={-270} paddingAngle={2} stroke="none" isAnimationActive={false}>

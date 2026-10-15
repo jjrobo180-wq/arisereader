@@ -89,7 +89,7 @@ export default function ParentConnectionBanner() {
   return (
     <aside className="fixed inset-x-3 bottom-3 z-[240] mx-auto max-w-3xl overflow-hidden rounded-[1.35rem] border border-violet-400/25 bg-[#151326]/98 text-white shadow-[0_28px_90px_rgba(0,0,0,.48)] ring-1 ring-white/[.04] backdrop-blur-xl sm:bottom-5">
       <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 shadow-lg shadow-violet-500/15">
+        <div className="grid grid-cols-1 h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 shadow-lg shadow-violet-500/15">
           <UserRoundPlus className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
@@ -109,7 +109,7 @@ export default function ParentConnectionBanner() {
 
       {expanded && (
         <div className="border-t border-violet-400/20 bg-[#0d0b1a] p-4 sm:p-5">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-violet-400/20 bg-[#19152b] p-4 shadow-inner">
               <div className="flex items-center gap-2">
                 <Link2 className="h-4 w-4 text-violet-300" />

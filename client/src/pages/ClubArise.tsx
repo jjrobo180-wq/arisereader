@@ -666,19 +666,19 @@ export default function ClubArise(){
 
   return <main className="club-world-root relative h-[100dvh] overflow-hidden bg-slate-950 text-white">
     <div ref={mountRef} className="absolute inset-0"/>
-    {!self&&<div className="absolute inset-0 z-[80] grid place-items-center bg-slate-950/96 p-6 text-center backdrop-blur-sm">
+    {!self&&<div className="absolute inset-0 z-[80] grid grid-cols-1 place-items-center bg-slate-950/96 p-6 text-center backdrop-blur-sm">
       <div className="max-w-sm">
         <div className="mx-auto h-14 w-14 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent"/>
         <h2 className="mt-5 text-2xl font-black">{bootstrapError?"Arcade connection snagged":"Entering A.R.I.S.E Arcade…"}</h2>
         <p className="mt-2 text-sm font-bold text-white/65">{bootstrapError||"Loading your avatar, games, and readers online."}</p>
-        {bootstrapError&&<div className="mt-5 grid gap-2 sm:grid-cols-2">
+        {bootstrapError&&<div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button type="button" onClick={()=>setBootstrapRetry(v=>v+1)} className="min-h-12 rounded-xl bg-cyan-300 px-4 font-black text-slate-950">Retry Arcade</button>
           <button type="button" onClick={()=>navigate("/worlds")} className="min-h-12 rounded-xl bg-white/10 px-4 font-black text-white">Back to Worlds</button>
         </div>}
       </div>
     </div>}
     <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 bg-gradient-to-b from-black/80 via-black/45 to-transparent px-2 py-2 sm:p-3">
-      <button onClick={()=>setLeavingWorld(true)} className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/70 font-black backdrop-blur sm:flex sm:min-h-12 sm:w-auto sm:gap-2 sm:px-4" aria-label="Exit to worlds"><ArrowLeft className="h-5 w-5"/><span className="hidden sm:inline">Exit to worlds</span></button>
+      <button onClick={()=>setLeavingWorld(true)} className="pointer-events-auto grid grid-cols-1 h-11 w-11 shrink-0 place-items-center rounded-2xl bg-black/70 font-black backdrop-blur sm:flex sm:min-h-12 sm:w-auto sm:gap-2 sm:px-4" aria-label="Exit to worlds"><ArrowLeft className="h-5 w-5"/><span className="hidden sm:inline">Exit to worlds</span></button>
       <div className="min-w-0 flex-1 text-center sm:text-left"><h1 className="truncate text-base font-black sm:text-xl">{HALLOREAD_ACTIVE?"Halloread Arcade":"A.R.I.S.E Arcade"}</h1><p className="hidden text-xs font-bold text-white/70 sm:block">{HALLOREAD_ACTIVE?"After-hours arcade takeover · spooky, not gory":"Learn · play · meet readers safely"}</p></div>
       <button type="button" onClick={()=>{setShowReaders(value=>!value);setSelectedPlayer(null);setSelectedPlayerId(null);setShowMobileChat(false);setShowMobileCamera(false);}} className="pointer-events-auto flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-black/70 px-3 font-black backdrop-blur sm:min-h-11 sm:gap-2 sm:py-2" aria-expanded={showReaders} aria-label="Show readers online"><Users className="h-4 w-4"/><span>{onlineReaders.length}</span><span className="hidden sm:inline">readers</span></button>
     </header>
@@ -693,12 +693,12 @@ export default function ClubArise(){
     </div>}
 
     {!showReaders&&!selectedPlayer&&!playerLoading&&showMobileChat&&<div className="absolute left-3 top-20 z-40 w-[min(310px,calc(100%-1.5rem))] rounded-2xl bg-black/88 p-3 shadow-2xl backdrop-blur">
-      <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase tracking-wider text-white/60"><span className="flex items-center gap-2"><MessageCircle className="h-4 w-4"/> Safe chat</span><button type="button" onClick={()=>setShowMobileChat(false)} className="grid h-8 w-8 place-items-center rounded-lg bg-white/10" aria-label="Close safe chat"><X className="h-4 w-4"/></button></div>
+      <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black uppercase tracking-wider text-white/60"><span className="flex items-center gap-2"><MessageCircle className="h-4 w-4"/> Safe chat</span><button type="button" onClick={()=>setShowMobileChat(false)} className="grid grid-cols-1 h-8 w-8 place-items-center rounded-lg bg-white/10" aria-label="Close safe chat"><X className="h-4 w-4"/></button></div>
       <div className="flex flex-wrap gap-2">{phrases.slice(0,10).map(p=><button key={p} onClick={()=>{void sendPhrase(p);setShowMobileChat(false);}} className="min-h-10 rounded-xl bg-white/10 px-3 text-xs font-black hover:bg-white/20">{p}</button>)}</div>
     </div>}
 
     {showReaders&&!arcadeCovered&&<aside className="absolute right-3 top-20 z-40 max-h-[55dvh] w-[min(340px,calc(100%-1.5rem))] overflow-y-auto rounded-2xl border border-cyan-300/25 bg-slate-950/95 p-3 shadow-2xl backdrop-blur">
-      <div className="mb-3 flex items-center justify-between"><h2 className="font-black">Readers online</h2><button type="button" onClick={()=>setShowReaders(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close readers list"><X className="h-4 w-4"/></button></div>
+      <div className="mb-3 flex items-center justify-between"><h2 className="font-black">Readers online</h2><button type="button" onClick={()=>setShowReaders(false)} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close readers list"><X className="h-4 w-4"/></button></div>
       {onlineReaders.length===0?<p className="text-sm text-white/65">No other readers are here yet.</p>:<div className="space-y-2">{onlineReaders.map(player=><div key={player.user_id} className="flex items-center gap-2 rounded-xl bg-white/10 p-2">
         <button type="button" onClick={()=>void viewPlayer(player.user_id)} className="min-h-11 min-w-0 flex-1 truncate rounded-lg px-2 text-left font-bold hover:bg-white/10" aria-label={"View "+player.display_name+"'s stats"}>{player.display_name}<span className="block text-xs font-medium text-cyan-200">View stats</span></button>
         <button type="button" onClick={()=>challengeReader(player.user_id,player.display_name)} className="min-h-11 shrink-0 rounded-lg bg-fuchsia-400 px-3 text-sm font-black text-slate-950">Challenge</button>
@@ -710,14 +710,14 @@ export default function ClubArise(){
 
     <MobileJoystick onMove={move} className="bottom-24 left-3" label="Arcade movement controls"/>
     <div className="absolute bottom-3 right-3 z-40 flex flex-col gap-1.5 rounded-2xl border border-white/15 bg-slate-950/88 p-1.5 shadow-2xl backdrop-blur-xl">
-      <button type="button" onClick={()=>{setShowMobileChat(value=>!value);setShowMobileCamera(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 hover:bg-white/20" aria-label="Safe chat"><MessageCircle className="h-4 w-4"/></button>
-      <button type="button" onClick={()=>{setShowMobileCamera(value=>!value);setShowMobileChat(false);setShowEmotes(false);setShowReaders(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-xs font-black hover:bg-white/20" aria-label="Camera controls">⌖</button>
-      <button type="button" onClick={()=>{setShowEmotes(value=>!value);setShowMobileChat(false);setShowMobileCamera(false);}} className="grid h-10 w-10 place-items-center rounded-xl bg-fuchsia-500/20 text-lg hover:bg-fuchsia-500/35" aria-label="Moves">💃</button>
-      <button type="button" onClick={()=>openRoom("all")} className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35" aria-label="Open the Game Room"><Gamepad2 className="h-4 w-4"/></button>
+      <button type="button" onClick={()=>{setShowMobileChat(value=>!value);setShowMobileCamera(false);setShowEmotes(false);setShowReaders(false);}} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-white/10 hover:bg-white/20" aria-label="Safe chat"><MessageCircle className="h-4 w-4"/></button>
+      <button type="button" onClick={()=>{setShowMobileCamera(value=>!value);setShowMobileChat(false);setShowEmotes(false);setShowReaders(false);}} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-white/10 text-xs font-black hover:bg-white/20" aria-label="Camera controls">⌖</button>
+      <button type="button" onClick={()=>{setShowEmotes(value=>!value);setShowMobileChat(false);setShowMobileCamera(false);}} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-fuchsia-500/20 text-lg hover:bg-fuchsia-500/35" aria-label="Moves">💃</button>
+      <button type="button" onClick={()=>openRoom("all")} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35" aria-label="Open the Game Room"><Gamepad2 className="h-4 w-4"/></button>
     </div>
 
     <div className={"absolute left-3 top-20 z-40 flex flex-col gap-2 rounded-2xl border border-white/15 bg-slate-950/95 p-2 shadow-xl backdrop-blur "+(showMobileCamera?"flex":"hidden")} aria-label="Camera controls">
-      <div className="flex items-center justify-between gap-3 px-1"><span className="text-[10px] font-black uppercase tracking-widest text-white/50">Camera</span><button type="button" onClick={()=>setShowMobileCamera(false)} className="grid h-7 w-7 place-items-center rounded-lg bg-white/10" aria-label="Close camera controls"><X className="h-3.5 w-3.5"/></button></div><button type="button" onClick={()=>setCameraMode("pan")} aria-pressed={cameraMode==="pan"} className={"min-h-10 rounded-xl px-3 text-xs font-black "+(cameraMode==="pan"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Move</button>
+      <div className="flex items-center justify-between gap-3 px-1"><span className="text-[10px] font-black uppercase tracking-widest text-white/50">Camera</span><button type="button" onClick={()=>setShowMobileCamera(false)} className="grid grid-cols-1 h-7 w-7 place-items-center rounded-lg bg-white/10" aria-label="Close camera controls"><X className="h-3.5 w-3.5"/></button></div><button type="button" onClick={()=>setCameraMode("pan")} aria-pressed={cameraMode==="pan"} className={"min-h-10 rounded-xl px-3 text-xs font-black "+(cameraMode==="pan"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Move</button>
       <button type="button" onClick={()=>setCameraMode("rotate")} aria-pressed={cameraMode==="rotate"} className={"min-h-10 rounded-xl px-3 text-xs font-black "+(cameraMode==="rotate"?"bg-cyan-300 text-slate-950":"bg-white/10 text-white")}>Rotate</button>
       <button type="button" onClick={()=>{centerOnMe();setShowMobileCamera(false);}} className="min-h-10 rounded-xl bg-white/10 px-3 text-xs font-black text-white">Center</button>
       <p className="max-w-32 px-1 text-center text-[10px] text-white/60">{cameraMode==="pan"?"Drag to slide the view":"Drag to turn the view"}</p>
@@ -741,14 +741,14 @@ export default function ClubArise(){
     {(selectedPlayer||playerLoading)&&!arcadeCovered&&(
       <aside className="absolute right-3 top-20 z-40 max-h-[65dvh] w-[min(330px,calc(100%-1.5rem))] overflow-y-auto rounded-[1.8rem] border border-white/15 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl">
         <div className="flex items-start gap-3">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
+          <div className="grid grid-cols-1 h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
             <UserRound className="h-6 w-6" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[.18em] text-white/45">Player profile</p>
             <h2 className="truncate text-xl font-black">{playerLoading?"Loading…":selectedPlayer?.displayName}</h2>
           </div>
-          <button type="button" onClick={()=>{setSelectedPlayer(null);setSelectedPlayerId(null);}} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close player stats"><X className="h-4 w-4"/></button>
+          <button type="button" onClick={()=>{setSelectedPlayer(null);setSelectedPlayerId(null);}} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close player stats"><X className="h-4 w-4"/></button>
         </div>
         {selectedPlayer&&(
           <>

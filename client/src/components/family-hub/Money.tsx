@@ -66,7 +66,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     </div>
     {late.length > 0 && <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700" role="alert"><AlertCircle size={17} /> {late.length === 1 ? `${late[0].name} is` : `${late.length} bills are`} past due and not marked paid.</div>}
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Panel eyebrow={label} title="Bills" right={<div className="flex flex-wrap items-center gap-1.5"><ShareButton target="bills" title="Our bills" say={say} compact /><button onClick={() => setBill(blankBill(makeId()))} className={soft}><Plus size={16} /> Add bill</button></div>}>
         {bills.length ? <><ul className="divide-y divide-slate-100">{bills.map((b) => {
           const state = billState(b, month, refDay);
@@ -110,7 +110,7 @@ export default function Money({ family, setFamily, today, makeId, say }: Section
     </div>
 
     <Panel eyebrow="Spending" title="Log what you spend">
-      <form onSubmit={addExpense} className="grid gap-2 sm:grid-cols-[120px_minmax(0,1fr)_minmax(0,1.3fr)_150px_auto]">
+      <form onSubmit={addExpense} className="grid grid-cols-1 gap-2 sm:grid-cols-[120px_minmax(0,1fr)_minmax(0,1.3fr)_150px_auto]">
         <input type="number" min={0} step="0.01" value={expense.amount} onChange={(e) => setExpense({ ...expense, amount: e.target.value })} placeholder="$ 0.00" aria-label="Amount" className={inputClass} />
         <select value={expense.categoryId} onChange={(e) => setExpense({ ...expense, categoryId: e.target.value })} aria-label="Category" className={inputClass}>{family.budget.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="">Other</option></select>
         <input value={expense.note} maxLength={120} onChange={(e) => setExpense({ ...expense, note: e.target.value })} placeholder="What for? (optional)" aria-label="Note" className={inputClass} />

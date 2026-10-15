@@ -285,7 +285,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       {banner?.active && banner.text && <BannerTap link={banner.link} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 16px", borderRadius: 16, fontSize: 15, fontWeight: 600, background: banner.bgColor, color: banner.textColor }}><span style={{ minWidth: 0 }}>{banner.text}</span></BannerTap>}
 
       <Card title="Start something" collapseKey="reader-start">
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           <Launch icon={<Trophy className="h-5 w-5" />} title="Host a live quiz" detail="Your class plays together" onClick={() => openTab("readerLive")} main />
           <Launch icon={<GraduationCap className="h-5 w-5" />} title="Study Squad sets" detail="Practice sets for your class" onClick={() => openPage("/study")} />
           <Launch icon={<Trophy className="h-5 w-5" />} title="Leaderboard" detail="See who's reading the most" onClick={() => openPage("/leaderboard")} />
@@ -295,7 +295,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
         </div>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="Needs you" collapseKey="reader-needs">
           <ul className="space-y-2">
             <NeedRow icon={<UserRound className="h-4 w-4" />} label="Students waiting to join" count={pending.length} onOpen={() => openTab("readerApprovals")} />
@@ -376,7 +376,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       <Card title="Your students' families">
         {!parents ? <Empty>Loading…</Empty> : parents.length ? <ul className="space-y-3">{parents.map((s) =>
           <Row key={s.id} title={s.displayName} sub={`@${s.username}`} right={<Pill tone={s.parents.length ? "green" : "amber"}>{s.parents.length ? `${s.parents.length} linked` : "Not linked"}</Pill>}>
-            <div className="mt-3 grid gap-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
+            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
               <div className="flex items-center gap-2"><code className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-base font-semibold tracking-wider text-slate-900">{s.code}</code><button type="button" className={smallBtn} onClick={() => void copy(s.code, "Parent code")}><Copy className="h-4 w-4" /> Copy</button></div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
                 <button type="button" className={smallBtn} onClick={() => printLetters(s.id)}><Printer className="h-4 w-4" /> Letter</button>
@@ -393,7 +393,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
     {tab === "readerQuizzes" && <>
       <SubTabs value={qSub} onChange={setQSub} items={[{ id: "grade", label: "To grade", count: toGrade }, { id: "camera", label: "Camera quizzes" }, { id: "proctor", label: "Proctor & growth" }]} />
-      {qSub === "proctor" && <div className="grid gap-4 xl:grid-cols-2">
+      {qSub === "proctor" && <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="Proctor code"><ProctorCode code={proctor} onCopy={() => proctor && void copy(proctor, "Proctor code")} />
           <p className="mt-3 text-sm text-slate-600">After every book quiz, students can also write about the book for up to 10 extra points, with your code or on their own with the camera on. You grade those below.</p>
         </Card>
@@ -414,7 +414,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
         {!closing ? <Empty>Loading…</Empty> : <div className="space-y-4">
           {closing.adminOverrideClosedNow && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Club A.R.I.S.E. is closed by the administrator right now. Your hours can't reopen it until that ends.</div>}
           <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-slate-800"><input type="checkbox" className="h-5 w-5" checked={closing.enabled} onChange={(e) => setClosing({ ...closing, enabled: e.target.checked })} /> Close Club A.R.I.S.E. for my class at set times</label>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Labeled label="Closes at"><Field type="time" value={closing.start} onChange={(e) => setClosing({ ...closing, start: e.target.value })} /></Labeled>
             <Labeled label="Opens again at"><Field type="time" value={closing.end} onChange={(e) => setClosing({ ...closing, end: e.target.value })} /></Labeled>
           </div>
@@ -425,11 +425,11 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
         </div>}
       </Card>}
       <Card title="Each student">
-        {!controls ? <Empty>Loading…</Empty> : controls.length ? <ul className="grid gap-3 xl:grid-cols-2">{controls.map((s: any) => {
+        {!controls ? <Empty>Loading…</Empty> : controls.length ? <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">{controls.map((s: any) => {
           const c = s.control || {}, a = s.access || {};
           return <Row key={s.id} title={s.display_name || s.username} sub={`@${s.username} · ${a.allowed ? "Can play now" : a.locked ? "Locked by you" : a.dailyRemaining === 0 ? "Used today's games" : "Needs another passed quiz"}`}
             right={<button type="button" className={c.locked ? goodBtn : badBtn} onClick={() => void saveControl(s.id, { locked: !c.locked })}>{c.locked ? <><Unlock className="h-4 w-4" /> Unlock</> : <><Lock className="h-4 w-4" /> Lock</>}</button>}>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Labeled label="Passed quiz reward"><Select value={(c.weekly_unlimited_on_pass ?? true) ? "on" : "off"} onChange={(e) => void saveControl(s.id, { weeklyUnlimitedOnPass: e.target.value === "on" })}><option value="on">Unlimited that week</option><option value="off">Off</option></Select></Labeled>
               <Labeled label="Games a day"><Select value={c.daily_game_limit ?? ""} onChange={(e) => void saveControl(s.id, { dailyGameLimit: e.target.value === "" ? null : Number(e.target.value) })}><option value="">No limit</option>{[1, 2, 3, 5, 10, 20].map((n) => <option key={n} value={n}>{n} a day</option>)}</Select></Labeled>
               <Labeled label="Games per passed quiz"><Select value={c.games_per_passed_quiz ?? 0} onChange={(e) => void saveControl(s.id, { gamesPerPassedQuiz: Number(e.target.value) })}><option value={0}>Off</option>{[1, 2, 3, 5].map((n) => <option key={n} value={n}>{n}</option>)}</Select></Labeled>
@@ -493,7 +493,7 @@ function StudentsTab({ isAdmin = false, students, loading, loadError, school, sc
       </div>}
     </div>}>
     {adding && <AddStudentsModal onClose={() => setAdding(false)} request={request} onDone={(text) => onDone(text, true)} />}
-    <div className="mb-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
       <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Field value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or username" className="pl-9" aria-label="Search students" /></label>
       {which === "school" && <Select value={teacher} onChange={(e) => setTeacher(e.target.value)} aria-label="Teacher" className="sm:w-56"><option value="">Every teacher</option>{(school?.teachers || []).map((t) => <option key={t.id} value={t.id}>{t.displayName}</option>)}</Select>}
     </div>

@@ -116,7 +116,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
     <PageHead eyebrow="Calendar" title="Family calendar" blurb="Everyone's practices, appointments and plans in one place. Switch calendars and people on or off to see just what you need."
       action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="calendar" title="Family calendar" say={say} /><button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button></div>} />
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Panel className="self-start" title={first.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
         right={<><button onClick={() => shiftMonth(-1)} className={plain} aria-label="Previous month"><ChevronLeft size={17} /></button><button onClick={() => { setMonth(today.slice(0, 7)); setPicked(today); }} className={plain}>Today</button><button onClick={() => shiftMonth(1)} className={plain} aria-label="Next month"><ChevronRight size={17} /></button></>}>
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 text-xs">

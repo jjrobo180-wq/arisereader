@@ -337,14 +337,14 @@ function DayView({ day, today, classes, allClasses, lessons, blocks, onOpen, onN
               </div>
               {meets ? <button type="button" onClick={() => onNew(day, c.id)} className={smallBtn}><Plus className="h-3.5 w-3.5" /> Lesson</button> : <span className="text-xs text-slate-400">Doesn't meet today</span>}
             </div>
-            {here.length ? <div className="mt-3 grid gap-2 md:grid-cols-2">{here.map((l) => <DayLesson key={l.id} l={l} lessons={lessons} onOpen={onOpen} />)}</div> : meets && <p className="mt-3 text-sm text-slate-400">Nothing planned yet.</p>}
+            {here.length ? <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">{here.map((l) => <DayLesson key={l.id} l={l} lessons={lessons} onOpen={onOpen} />)}</div> : meets && <p className="mt-3 text-sm text-slate-400">Nothing planned yet.</p>}
           </section>
         );
       })}
       {showUnassigned && (loose.length > 0 || !classes.length) && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex items-center justify-between"><div className="font-semibold text-slate-900">No class</div><button type="button" onClick={() => onNew(day, "")} className={smallBtn}><Plus className="h-3.5 w-3.5" /> Lesson</button></div>
-          {loose.length ? <div className="mt-3 grid gap-2 md:grid-cols-2">{loose.map((l) => <DayLesson key={l.id} l={l} lessons={lessons} onOpen={onOpen} />)}</div> : <p className="mt-3 text-sm text-slate-400">Nothing planned.</p>}
+          {loose.length ? <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">{loose.map((l) => <DayLesson key={l.id} l={l} lessons={lessons} onOpen={onOpen} />)}</div> : <p className="mt-3 text-sm text-slate-400">Nothing planned.</p>}
         </section>
       )}
     </div>
@@ -407,7 +407,7 @@ function YearView({ cursor, classes, lessons, onOpen, onMonth, onUnit }: { curso
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-500">Your plan, months ahead, grouped by unit. Tap a month to open it, or a lesson to plan it.</p>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {months.map((m) => {
           const key = m.slice(0, 7);
           const here = lessons.filter((l) => l.date.startsWith(key)).sort((a, b) => a.date.localeCompare(b.date));
@@ -511,7 +511,7 @@ function StudentsView({ lessons, classes, classId, onOpen, onReteach, onPickClas
     </div>
   );
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,22rem)]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(0,22rem)]">
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-2">Student</th><th className="px-2 py-2 text-center">{CHECK_LABEL.mastered}</th><th className="px-2 py-2 text-center">{CHECK_LABEL.good}</th><th className="px-2 py-2 text-center">{CHECK_LABEL.reteach}</th><th className="px-2 py-2 text-center">{CHECK_LABEL.absent}</th><th className="px-3 py-2">Open reteach</th></tr></thead>
@@ -581,7 +581,7 @@ function ClassesManager({ classes, setClasses, caseload, blocks, makeId, lessons
   const lessonCount = (id: string) => lessons.filter((l) => l.classId === id).length;
   return (
     <HubModal title="Classes & periods" onClose={onClose} size="lg" footer={<div className="flex justify-end"><button type="button" onClick={onClose} className="inline-flex min-h-10 items-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">Done</button></div>}>
-      <div className="grid gap-4 md:grid-cols-[14rem_1fr]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[14rem_1fr]">
         <div className="space-y-1.5">
           {classes.map((c) => (
             <button key={c.id} type="button" onClick={() => setEditId(c.id)} className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm ${c.id === editId ? `${COLOR[c.color].chip} ring-2 ${COLOR[c.color].ring}` : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
@@ -594,7 +594,7 @@ function ClassesManager({ classes, setClasses, caseload, blocks, makeId, lessons
         </div>
         {editing ? (
           <div className="space-y-3">
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <label className="text-xs font-semibold text-slate-500 sm:col-span-2">Name<input value={editing.name} onChange={(e) => update({ name: e.target.value })} placeholder="e.g. Period 2 – 7th Grade ELA" className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-900" /></label>
               <label className="text-xs font-semibold text-slate-500">Block / period<select value={editing.block} onChange={(e) => update({ block: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900"><option value="">None</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
               <label className="text-xs font-semibold text-slate-500">Room<input value={editing.room} onChange={(e) => update({ room: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-900" /></label>
@@ -685,12 +685,12 @@ function UnitPlanner({ token, classes, lessons, state, onState, defaultClass, to
         <div className="space-y-3">
           <p className="text-sm text-slate-600">Tell the AI what the unit covers. It writes the lessons in teaching order and puts them on the days your class meets, so you can plan weeks or months ahead and fill in each one later.</p>
           <label className="block text-xs font-semibold text-slate-500">Unit topic<input value={f.topic} onChange={(e) => setF({ ...f, topic: e.target.value })} placeholder="e.g. Adding and subtracting fractions with unlike denominators" className="mt-1 block min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-900" autoFocus /></label>
-          <div className="grid gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
             <label className="text-xs font-semibold text-slate-500 sm:col-span-2">Class<select value={f.classId} onChange={(e) => setF({ ...f, classId: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900"><option value="">No class</option>{classes.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
             <label className="text-xs font-semibold text-slate-500">Starting<input type="date" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-2 text-sm font-normal text-slate-900" /></label>
             <label className="text-xs font-semibold text-slate-500">Lessons<input type="number" min={2} max={30} value={f.count} onChange={(e) => setF({ ...f, count: Number(e.target.value) || 10 })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-2 text-sm font-normal text-slate-900" /></label>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="text-xs font-semibold text-slate-500">State standards<select value={state} onChange={(e) => onState(e.target.value)} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900"><option value="">Common Core / national</option>{US_STATES.map((s) => <option key={s}>{s}</option>)}</select></label>
             <label className="text-xs font-semibold text-slate-500">Minutes per lesson<input type="number" min={10} max={240} value={f.minutes} onChange={(e) => setF({ ...f, minutes: Number(e.target.value) || 45 })} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-2 text-sm font-normal text-slate-900" /></label>
           </div>
@@ -736,7 +736,7 @@ function ShiftLessons({ classes, today, onShift, onClose }: { classes: LessonCla
         <p className="text-sm text-slate-600">Snow day, assembly, or a lesson ran long? Move every lesson from a day on back (or forward) by class days. They keep their order and land only on days each class meets.</p>
         {!classes.length && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Add your classes first — lessons are shifted class by class.</p>}
         <div className="flex flex-wrap gap-1.5">{classes.map((c) => { const on = picked.has(c.id); return <button key={c.id} type="button" aria-pressed={on} onClick={() => { const n = new Set(picked); on ? n.delete(c.id) : n.add(c.id); setPicked(n); }} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold ${on ? COLOR[c.color].chip : "border-slate-200 text-slate-400"}`}><span className={`h-2 w-2 rounded-full ${COLOR[c.color].dot}`} />{c.name}</button>; })}</div>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="text-xs font-semibold text-slate-500">Starting with lessons on<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 px-2 text-sm font-normal text-slate-900" /></label>
           <label className="text-xs font-semibold text-slate-500">Move by<select value={by} onChange={(e) => setBy(Number(e.target.value))} className="mt-1 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-2 text-sm font-normal text-slate-900">{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n} class day{n > 1 ? "s" : ""} later</option>)}{[-1, -2].map((n) => <option key={n} value={n}>{-n} class day{n < -1 ? "s" : ""} earlier</option>)}</select></label>
         </div>

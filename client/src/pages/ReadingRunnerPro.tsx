@@ -127,7 +127,7 @@ function TargetToken({ item }: { item: FallingThing }) {
   return (
     <div className={"relative transition-all " + (item.handled ? "opacity-25 scale-75" : "")}>
       <div className="absolute -inset-2 rounded-[1.5rem] blur-md opacity-40 bg-white" />
-      <div className="relative w-17 h-17 sm:w-21 sm:h-21 rounded-[1.4rem] border-4 shadow-2xl grid place-items-center text-4xl sm:text-5xl bg-gradient-to-br from-white to-slate-200 border-white">
+      <div className="relative w-17 h-17 sm:w-21 sm:h-21 rounded-[1.4rem] border-4 shadow-2xl grid grid-cols-1 place-items-center text-4xl sm:text-5xl bg-gradient-to-br from-white to-slate-200 border-white">
         <span className="drop-shadow">{item.emoji}</span>
         <div className="absolute inset-x-2 top-1 h-2 rounded-full bg-white/70 blur-[1px]" />
       </div>
@@ -359,10 +359,10 @@ export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
           <div className="flex items-center justify-between gap-2 flex-shrink-0">
             <button type="button" onClick={onBack} className="min-h-11 px-3 sm:px-4 rounded-2xl bg-slate-950/80 border border-white/20 font-black flex items-center gap-2 shadow-xl"><ArrowLeft className="w-5 h-5"/> Games</button>
             <div className="rounded-full bg-white/10 border border-white/15 px-3 py-2 text-xs font-black">READING RUNNER</div>
-            <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-2xl bg-slate-950/80 border border-white/20 grid place-items-center" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
+            <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-2xl bg-slate-950/80 border border-white/20 grid grid-cols-1 place-items-center" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
           </div>
 
-          <div className="flex-1 min-h-0 grid place-items-center py-3">
+          <div className="flex-1 min-h-0 grid grid-cols-1 place-items-center py-3">
             {setupStep==="difficulty" ? (
               <section key="difficulty" className="runner-setup-in w-full max-w-3xl rounded-[2rem] bg-white text-slate-950 border-4 border-cyan-400 p-5 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,.45)]">
                 <p className="text-xs font-black uppercase tracking-[.18em] text-cyan-700">Step 1 of 2</p>
@@ -411,7 +411,7 @@ export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
   }
 
   if(gameOver){
-    return <div className="fixed inset-0 z-[120] h-[100dvh] bg-[#050914] text-white grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🏁</div><h1 className="text-4xl font-black mt-3">Run it again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl font-black text-amber-300 mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-cyan-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>openSetup("level")} className="mt-2 w-full min-h-12 rounded-2xl bg-violet-600 font-black">☰ Choose level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
+    return <div className="fixed inset-0 z-[120] h-[100dvh] bg-[#050914] text-white grid grid-cols-1 place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🏁</div><h1 className="text-4xl font-black mt-3">Run it again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl font-black text-amber-300 mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-cyan-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>openSetup("level")} className="mt-2 w-full min-h-12 rounded-2xl bg-violet-600 font-black">☰ Choose level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
   }
 
   return(
@@ -424,7 +424,7 @@ export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
             <div className="text-[9px] sm:text-xs uppercase tracking-wider font-black text-cyan-300 truncate">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div>
             <div className="text-xs sm:text-base font-black truncate">{mission.target.emoji} {mission.action}</div>
           </button>
-          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 border border-white/15 grid place-items-center flex-shrink-0" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
+          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 border border-white/15 grid grid-cols-1 place-items-center flex-shrink-0" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
         </div>
 
         <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2 flex-shrink-0 text-center">
@@ -456,9 +456,9 @@ export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
 
           <div className="absolute z-40 -translate-x-1/2 transition-[left] duration-150 ease-out" style={{left:["24%","50%","76%"][lane],bottom:"4%"}}><RunnerAvatar jumping={jumping}/></div>
 
-          {captureBurst&&<div className="absolute inset-0 z-45 pointer-events-none grid place-items-center"><div className="rounded-[2rem] bg-emerald-500/95 border-4 border-white text-white px-7 py-5 text-center shadow-[0_0_55px_rgba(52,211,153,.8)] animate-bounce"><div className="text-7xl">{captureBurst.emoji}</div><div className="text-3xl sm:text-4xl font-black">✓ CAPTURED!</div><div className="text-xl font-black uppercase">{captureBurst.label}</div></div></div>}
+          {captureBurst&&<div className="absolute inset-0 z-45 pointer-events-none grid grid-cols-1 place-items-center"><div className="rounded-[2rem] bg-emerald-500/95 border-4 border-white text-white px-7 py-5 text-center shadow-[0_0_55px_rgba(52,211,153,.8)] animate-bounce"><div className="text-7xl">{captureBurst.emoji}</div><div className="text-3xl sm:text-4xl font-black">✓ CAPTURED!</div><div className="text-xl font-black uppercase">{captureBurst.label}</div></div></div>}
           {difficulty==="easy"&&<div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-emerald-100/95 text-emerald-900 border-2 border-white px-4 py-2 text-xs sm:text-sm font-black shadow-lg">🧸 TODDLER ASSIST ON · targets gently pull into your lane</div>}
-                    {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-amber-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-violet-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You found all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play World 1 again":"Next world →"}</button></div></div>}
+                    {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid grid-cols-1 place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-amber-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-violet-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You found all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play World 1 again":"Next world →"}</button></div></div>}
         </div>
 
         <div className="hidden sm:grid mt-3 grid-cols-3 gap-2 text-center text-xs sm:text-sm font-black text-white/70"><div className="rounded-xl bg-slate-900 p-2">← Swipe left</div><div className="rounded-xl bg-slate-900 p-2">↑ Jump</div><div className="rounded-xl bg-slate-900 p-2">Swipe right →</div></div>

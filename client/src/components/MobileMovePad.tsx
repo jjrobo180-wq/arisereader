@@ -14,7 +14,7 @@ export default function MobileMovePad({onMove,className="",label="Move"}:Props){
       onPointerUp={e=>{e.preventDefault();onMove(key,false);}}
       onPointerCancel={()=>onMove(key,false)}
       onLostPointerCapture={()=>onMove(key,false)}
-      className="grid h-12 w-12 touch-none select-none place-items-center rounded-2xl border border-white/15 bg-slate-950/88 text-xl font-black text-white shadow-xl backdrop-blur active:bg-cyan-300 active:text-slate-950 sm:h-14 sm:w-14"
+      className="grid grid-cols-1 h-12 w-12 touch-none select-none place-items-center rounded-2xl border border-white/15 bg-slate-950/88 text-xl font-black text-white shadow-xl backdrop-blur active:bg-cyan-300 active:text-slate-950 sm:h-14 sm:w-14"
     >{symbol}</button>
   );
   return <div className={"absolute z-40 lg:hidden "+className} aria-label={label}>

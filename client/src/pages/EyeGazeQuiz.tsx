@@ -293,7 +293,7 @@ export default function EyeGazeQuiz() {
     return (
       <div className="min-h-screen bg-background p-4 flex items-center justify-center">
         <div className="w-full max-w-lg rounded-[1.75rem] border border-violet-400/20 bg-card p-6 text-center shadow-2xl sm:p-8">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white">
+          <div className="mx-auto grid grid-cols-1 h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-400 text-white">
             <Lock className="h-8 w-8" />
           </div>
           <p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-violet-400">Parent or Teacher Proctor</p>

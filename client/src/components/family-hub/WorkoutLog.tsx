@@ -28,7 +28,7 @@ export default function WorkoutLog({ family, setFamily, today, makeId, say }: Se
   return <div className="space-y-6">
     <PageHead eyebrow="Workout log" title="Get stronger" blurb="Log sets, reps and weight for each exercise. Your personal bests are kept for you." />
     <Panel title="Log an exercise">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1.5fr)_5rem_5rem_6rem_5rem_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.5fr)_5rem_5rem_6rem_5rem_auto]">
         <input value={exercise} onChange={(e) => setExercise(e.target.value)} list="exercises" maxLength={60} placeholder="Exercise" className={inputClass} aria-label="Exercise" />
         <label className="text-[11px] font-bold text-slate-500">Sets<input type="number" min={0} value={sets} onChange={(e) => setSets(Math.max(0, Math.trunc(Number(e.target.value) || 0)))} className={inputClass + " px-2"} /></label>
         <label className="text-[11px] font-bold text-slate-500">Reps<input type="number" min={0} value={reps} onChange={(e) => setReps(Math.max(0, Math.trunc(Number(e.target.value) || 0)))} className={inputClass + " px-2"} /></label>
@@ -38,7 +38,7 @@ export default function WorkoutLog({ family, setFamily, today, makeId, say }: Se
         <datalist id="exercises">{[...new Set([...family.workouts.map((w) => w.exercise), ...COMMON])].map((x) => <option key={x} value={x} />)}</datalist>
       </form>
     </Panel>
-    {prs.size > 0 && <Panel title="Personal bests"><ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{[...prs.values()].map((w) => <li key={w.id} className="flex items-center gap-3 rounded-2xl bg-amber-50 p-3"><Trophy size={18} className="shrink-0 text-amber-500" /><span className="min-w-0"><span className="block truncate text-sm font-extrabold">{w.exercise}</span><span className="text-xs font-bold text-amber-800">{w.weight ? `${w.weight} ${w.unit} × ${w.reps}` : `${w.reps} reps`}</span></span></li>)}</ul></Panel>}
+    {prs.size > 0 && <Panel title="Personal bests"><ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">{[...prs.values()].map((w) => <li key={w.id} className="flex items-center gap-3 rounded-2xl bg-amber-50 p-3"><Trophy size={18} className="shrink-0 text-amber-500" /><span className="min-w-0"><span className="block truncate text-sm font-extrabold">{w.exercise}</span><span className="text-xs font-bold text-amber-800">{w.weight ? `${w.weight} ${w.unit} × ${w.reps}` : `${w.reps} reps`}</span></span></li>)}</ul></Panel>}
     <Panel title="History">
       {byDate.length ? <div className="space-y-4">{byDate.map((d) => <div key={d}><p className="mb-1 text-xs font-black uppercase tracking-wide text-slate-400">{d === today ? "Today" : new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</p>
         <ul className="divide-y divide-slate-100">{family.workouts.filter((w) => w.date === d).map((w) => <li key={w.id} className="flex items-center gap-3 py-2 text-sm"><span className="flex-1 font-bold">{w.exercise}</span><span className="text-slate-500">{w.sets} × {w.reps}{w.weight ? ` @ ${w.weight} ${w.unit}` : ""}</span>

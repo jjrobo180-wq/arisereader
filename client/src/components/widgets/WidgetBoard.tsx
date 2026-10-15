@@ -300,7 +300,7 @@ function Gallery({ now, onAdd, onClose, accent }: { now: Date; onAdd: (type: str
             {(["all", "fun", "serious"] as const).map((m) => <button key={m} type="button" role="radio" aria-checked={mood === m} onClick={() => setMood(m)} className={`min-h-8 rounded-full px-3 ${mood === m ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{m === "all" ? "All" : m === "fun" ? "Fun" : "Serious"}</button>)}
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {list.map((d) => {
             const sample = newWidget(d.id, `preview-${d.id}`, dayKey(now))!;
             return (
@@ -372,7 +372,7 @@ function Settings({ item, now, onChange, onRemove, onMove, onClose, accent }: {
         {has("label") && <label className="block text-sm font-semibold text-slate-700">{item.type === "workday" ? "Name" : "What it's for"}<input value={item.label ?? ""} maxLength={60} onChange={(e) => onChange({ label: e.target.value })} className={field} placeholder={item.type === "since" ? "Last day off" : item.type === "workday" ? "School day" : "Summer break"} /></label>}
         {has("date") && <label className="block text-sm font-semibold text-slate-700">{item.type === "since" ? "Since" : "Date"}<input type="date" value={item.date ?? ""} onChange={(e) => onChange({ date: e.target.value || undefined })} className={field} /></label>}
         {has("tz") && citySelect(item.tz ?? "Europe/London", (tz) => onChange({ tz }), "City")}
-        {has("tz3") && <div className="grid gap-3 sm:grid-cols-3">{[0, 1, 2].map((i) => <div key={i}>{citySelect(tzs[i], (tz) => onChange({ tzs: tzs.map((x, j) => (j === i ? tz : x)) }), `City ${i + 1}`)}</div>)}</div>}
+        {has("tz3") && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{[0, 1, 2].map((i) => <div key={i}>{citySelect(tzs[i], (tz) => onChange({ tzs: tzs.map((x, j) => (j === i ? tz : x)) }), `City ${i + 1}`)}</div>)}</div>}
         {has("workday") && <div className="grid grid-cols-2 gap-3">
           <label className="block text-sm font-semibold text-slate-700">Starts<input type="time" value={item.start ?? "08:00"} onChange={(e) => onChange({ start: e.target.value })} className={field} /></label>
           <label className="block text-sm font-semibold text-slate-700">Ends<input type="time" value={item.end ?? "15:00"} onChange={(e) => onChange({ end: e.target.value })} className={field} /></label>

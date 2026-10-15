@@ -25,14 +25,14 @@ export default function GiftCards({ family, setFamily, today, makeId }: SectionP
     <PageHead eyebrow="Gift cards" title="Money you forgot you had" blurb="Track the balance on each gift card and when it expires, so none go to waste. Keep card numbers on the card itself." />
     {list.length > 0 && <p className="text-sm font-bold text-slate-500">Total on all cards: <span className="text-lg font-black text-emerald-700">{money(total)}</span></p>}
     <Panel title="Add a card">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_10rem_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_10rem_auto]">
         <input value={store} onChange={(e) => setStore(e.target.value)} maxLength={60} placeholder="Store" className={inputClass} aria-label="Store" />
         <input value={balance} onChange={(e) => setBalance(e.target.value)} inputMode="decimal" placeholder="$ balance" className={inputClass} aria-label="Balance" />
         <input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} className={inputClass} aria-label="Expires (optional)" title="Expires (optional)" />
         <button type="submit" className={primary} disabled={!store.trim()}>Add</button>
       </form>
     </Panel>
-    {list.length ? <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{list.map((g) => { const left = g.expires ? daysUntil(g.expires, today) : null; return <li key={g.id} className={`rounded-[1.5rem] bg-gradient-to-br p-5 text-white shadow-[0_12px_28px_#17152b22] ${g.balance <= 0 ? "from-slate-400 to-slate-500" : "from-[#4b3fa0] to-[#7c6be6]"}`}>
+    {list.length ? <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{list.map((g) => { const left = g.expires ? daysUntil(g.expires, today) : null; return <li key={g.id} className={`rounded-[1.5rem] bg-gradient-to-br p-5 text-white shadow-[0_12px_28px_#17152b22] ${g.balance <= 0 ? "from-slate-400 to-slate-500" : "from-[#4b3fa0] to-[#7c6be6]"}`}>
       <div className="flex items-start justify-between"><p className="text-lg font-black">{g.store}</p><button type="button" onClick={() => setFamily((f) => ({ ...f, giftCards: f.giftCards.filter((x) => x.id !== g.id) }))} className="rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white" aria-label={`Delete ${g.store}`}><Trash2 size={14} /></button></div>
       <p className="mt-3 text-3xl font-black">{money(g.balance)}</p>
       {left !== null && <p className={`text-xs font-bold ${left < 0 ? "text-rose-200" : left <= 30 ? "text-amber-200" : "text-violet-100"}`}>{left < 0 ? "Expired" : left === 0 ? "Expires today" : `Expires in ${left} day${left === 1 ? "" : "s"}`}</p>}

@@ -69,7 +69,7 @@ export function WorksheetEditor({ ws, onChange }: { ws: GenWorksheet; onChange: 
   const input = "w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900";
   return (
     <div className="space-y-4 text-slate-900">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label className="text-xs font-semibold text-slate-500 sm:col-span-2">Title<input value={ws.title} onChange={(e) => onChange({ ...ws, title: e.target.value })} className={input + " mt-1 text-base font-semibold"} /></label>
         <label className="text-xs font-semibold text-slate-500 sm:col-span-2">Directions<textarea value={ws.instructions} onChange={(e) => onChange({ ...ws, instructions: e.target.value })} rows={2} className={input + " mt-1"} /></label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!ws.large} onChange={(e) => onChange({ ...ws, large: e.target.checked })} /> Large print (K–2)</label>
@@ -92,7 +92,7 @@ export function WorksheetEditor({ ws, onChange }: { ws: GenWorksheet; onChange: 
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <textarea value={it.prompt} onChange={(e) => setItem(si, ii, { prompt: e.target.value })} rows={2} className={input} aria-label="Question" />
                     {it.choices && (
-                      <div className="grid gap-1 sm:grid-cols-2">{it.choices.map((c, ci) => <input key={ci} value={c} onChange={(e) => setItem(si, ii, { choices: it.choices!.map((x, k) => (k === ci ? e.target.value : x)) })} className={input} aria-label={`Choice ${"ABCD"[ci]}`} />)}</div>
+                      <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{it.choices.map((c, ci) => <input key={ci} value={c} onChange={(e) => setItem(si, ii, { choices: it.choices!.map((x, k) => (k === ci ? e.target.value : x)) })} className={input} aria-label={`Choice ${"ABCD"[ci]}`} />)}</div>
                     )}
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-rose-700">Answer</span>
@@ -179,7 +179,7 @@ export function WorksheetMaker({ token, state, className, lessons, onSave, onClo
       <div className="space-y-3 text-slate-900">
         <p className="text-sm text-slate-600">Printable worksheets with real maths, graphs, number lines, fraction pictures, reading passages and an answer key. Change anything before you print.</p>
         <label className="block text-xs font-semibold text-slate-500">Topic or skill<input value={f.topic} onChange={(e) => setF({ ...f, topic: e.target.value })} placeholder="e.g. adding fractions with unlike denominators; plotting points in all four quadrants; main idea of a nonfiction passage" className={field + " px-3"} autoFocus /></label>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <label className="text-xs font-semibold text-slate-500">Grade<select value={f.grade} onChange={(e) => setF({ ...f, grade: e.target.value })} className={field}><option value="">Any</option>{GRADES.map((g) => <option key={g} value={g}>Grade {g}</option>)}</select></label>
           <label className="text-xs font-semibold text-slate-500">Subject<select value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} className={field}>{LESSON_SUBJECTS.map((s) => <option key={s}>{s}</option>)}</select></label>
           <label className="text-xs font-semibold text-slate-500">Questions<input type="number" min={3} max={30} value={f.count} onChange={(e) => setF({ ...f, count: Number(e.target.value) || 12 })} className={field} /></label>

@@ -459,7 +459,7 @@ export default function ReadingLevelUp() {
             </div>
 
             <div className="mt-7 text-xl sm:text-2xl font-black">{item.prompt}</div>
-            <div className="mt-4 grid gap-3">
+            <div className="mt-4 grid grid-cols-1 gap-3">
               {item.choices.map((choice, index) => (
                 <button key={choice} disabled={!!feedback} onClick={() => answerObjective(index === item.answer, data.items.length)} className="min-h-[64px] rounded-2xl border-2 border-slate-200 bg-slate-50 hover:border-cyan-400 hover:bg-cyan-50 px-5 text-left text-lg font-black disabled:opacity-70">
                   {choice}
@@ -495,7 +495,7 @@ export default function ReadingLevelUp() {
             </div>
 
             <div className="mt-6 text-xl sm:text-2xl font-black">{item.q}</div>
-            <div className="mt-4 grid gap-3">
+            <div className="mt-4 grid grid-cols-1 gap-3">
               {item.choices.map((choice, index) => (
                 <button key={choice} disabled={!!feedback} onClick={() => answerObjective(index === item.answer, items.length)} className="min-h-[64px] rounded-2xl border-2 border-slate-200 bg-slate-50 hover:border-violet-400 hover:bg-violet-50 px-5 text-left text-lg font-black disabled:opacity-70">
                   {choice}
@@ -534,7 +534,7 @@ export default function ReadingLevelUp() {
             </button>
 
             <div className="mt-7 text-xl sm:text-2xl font-black">{item.q}</div>
-            <div className="mt-4 grid gap-3">
+            <div className="mt-4 grid grid-cols-1 gap-3">
               {item.choices.map((choice, index) => (
                 <button key={choice} disabled={!!feedback} onClick={() => answerObjective(index === item.answer, data.questions.length)} className="min-h-[64px] rounded-2xl border-2 border-slate-200 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50 px-5 text-left text-lg font-black disabled:opacity-70">
                   {choice}
@@ -553,7 +553,7 @@ export default function ReadingLevelUp() {
       return (
         <MissionShell title={activeMission.title} track="fluency" onBack={finishAndReturn}>
           <div className="rounded-[2rem] bg-white text-slate-900 p-5 sm:p-8 shadow-2xl">
-            <div className="grid sm:grid-cols-[1fr_auto] gap-4 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-4 items-start">
               <div>
                 <div className="text-sm font-black text-amber-700 uppercase tracking-widest">Round {fluencyRound} of 3</div>
                 <h2 className="mt-1 text-2xl sm:text-3xl font-black">Read it out loud.</h2>
@@ -695,7 +695,7 @@ export default function ReadingLevelUp() {
         <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-blue-700 via-violet-700 to-fuchsia-700 p-6 sm:p-9 shadow-2xl border border-white/10">
           <div className="absolute -right-16 -bottom-20 w-80 h-80 rounded-full bg-cyan-300/20 blur-3xl" />
           <div className="absolute right-5 top-5 text-7xl opacity-25">📈</div>
-          <div className="relative grid lg:grid-cols-[1fr_360px] gap-7 items-center">
+          <div className="relative grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-7 items-center">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/15 px-3 py-1.5 text-xs font-black uppercase tracking-widest">
                 <Sparkles className="w-4 h-4" /> Reading Level Up
@@ -728,7 +728,7 @@ export default function ReadingLevelUp() {
           </div>
         </section>
 
-        <div className="grid sm:grid-cols-3 gap-3 mt-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
           <div className="rounded-3xl bg-white/5 border border-white/10 p-4">
             <Trophy className="w-6 h-6 text-amber-300" />
             <div className="mt-2 text-3xl font-black">{completedCount}/15</div>
@@ -773,7 +773,7 @@ export default function ReadingLevelUp() {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {trackMissions.map((mission, index) => {
                       const prior = trackMissions[index - 1];
                       const unlocked = index === 0 || !!progress.completed[prior.id];

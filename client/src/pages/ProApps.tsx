@@ -78,7 +78,7 @@ function Gallery({ onOpen }: { onOpen: (id: string) => void }) {
     </div>
     {groups.map(({ g, apps }) => <section key={g}>
       <h2 className="mb-2 text-sm font-black uppercase tracking-wide" style={{ color: PRO_GROUPS[g].color }}>{PRO_GROUPS[g].label}</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{apps.map((a) => <button key={a.id} type="button" onClick={() => onOpen(a.id)} data-testid={`pro-open-${a.id}`} className="flex items-start gap-3 rounded-2xl bg-white p-3.5 text-left shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{apps.map((a) => <button key={a.id} type="button" onClick={() => onOpen(a.id)} data-testid={`pro-open-${a.id}`} className="flex items-start gap-3 rounded-2xl bg-white p-3.5 text-left shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
         <AppBadge icon={a.icon} color={a.color} />
         <span className="min-w-0"><span className="block font-black">{a.name}{a.ai && <span className="ml-1.5 rounded-full bg-violet-100 px-1.5 py-0.5 align-middle text-[10px] font-bold text-violet-700">AI</span>}</span><span className="block text-xs text-slate-500">{a.tagline}</span></span>
       </button>)}</div>

@@ -88,7 +88,7 @@ export function HubPrizeManager({ which, token, role }: { which: Which; token: s
     <p className={k.text}>{isParent ? "Put up a prize for your child. They see it on their rewards page, and you hand it over yourself."
       : "Put up a prize for your class or your whole school. Students see it on their rewards page and beside the leaderboards. You hand it over yourself."}</p>
 
-    {noKids ? <p className={k.empty}>Connect your child first. Then you can add a prize for them here.</p> : <form onSubmit={add} className={`${k.soft} grid gap-3 sm:grid-cols-2`}>
+    {noKids ? <p className={k.empty}>Connect your child first. Then you can add a prize for them here.</p> : <form onSubmit={add} className={`${k.soft} grid grid-cols-1 gap-3 sm:grid-cols-2`}>
       <label className="block"><span className={k.label}>Prize</span><input className={k.input} value={form.title} maxLength={PRIZE_LIMITS.title} required placeholder={isParent ? "Pizza night" : "Homework pass"} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="input-prize-title" /></label>
       <label className="block"><span className={k.label}>Last day to win it (optional)</span><input type="date" className={k.input} value={form.endsOn} min={today()} onChange={(e) => setForm({ ...form, endsOn: e.target.value })} data-testid="input-prize-ends" /></label>
       <label className="block sm:col-span-2"><span className={k.label}>How to win it</span><textarea rows={2} className={k.input + " py-2"} value={form.how} maxLength={PRIZE_LIMITS.how} placeholder={isParent ? "Finish your book and pass the quiz" : "Top of the class leaderboard on Friday"} onChange={(e) => setForm({ ...form, how: e.target.value })} data-testid="input-prize-how" /></label>
@@ -103,7 +103,7 @@ export function HubPrizeManager({ which, token, role }: { which: Which; token: s
 
     {message && <p className={message.bad ? k.bad : k.ok} role={message.bad ? "alert" : "status"}>{message.text}</p>}
 
-    {mine.prizes.length > 0 && <ul className="grid gap-3 lg:grid-cols-2">{mine.prizes.map((p) => {
+    {mine.prizes.length > 0 && <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">{mine.prizes.map((p) => {
       const busy = busyId === p.id, open = giving?.id === p.id ? giving : null;
       const people = open?.people?.filter((c) => c.name.toLowerCase().includes(open.filter.trim().toLowerCase())) || [];
       return <li key={p.id} className={`${p.state === "given" ? k.rowGood : k.row} space-y-2`}>
@@ -160,7 +160,7 @@ export function HubPrizeBoard({ which, token, studentId, childName, scopes, empt
   if (!token || !prizes) return <p className={k.small}>Loading…</p>;
   const shown = prizes.filter((p) => !scopes || scopes.includes(p.scope));
   if (!shown.length) return <p className={k.empty}>{emptyHint || `Nothing up for ${childName} at school right now.`}</p>;
-  return <ul className="grid gap-3" data-testid="hub-prize-board">{shown.map((p) => {
+  return <ul className="grid grid-cols-1 gap-3" data-testid="hub-prize-board">{shown.map((p) => {
     const giver = p.by || p.from;
     const line = p.state === "yours" ? `${childName} won this.` : p.state === "won" ? `Won by ${p.winner || "another reader"}.` : p.state === "reached" ? `${childName} reached the goal.` : p.state === "ended" ? `The last day has passed. ${giver} decides who gets it.` : p.endsOn ? `Last day: ${prettyDay(p.endsOn)}` : "";
     return <li key={p.id} className={`${p.state === "yours" || p.state === "reached" ? k.rowGood : k.row} space-y-1`}>

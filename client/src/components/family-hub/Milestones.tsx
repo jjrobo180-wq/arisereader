@@ -26,7 +26,7 @@ export default function Milestones({ family, setFamily, today, makeId, say }: Se
   return <div className="space-y-6">
     <PageHead eyebrow="Milestones" title="The moments that matter" blurb="First words, first steps, first day of school. A timeline of the big little moments." />
     <Panel title="Add a milestone">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_10rem]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_10rem]">
         <input value={who} onChange={(e) => setWho(e.target.value)} list="milestone-people" maxLength={60} placeholder="Who" className={inputClass} aria-label="Who" />
         <input value={title} onChange={(e) => setTitle(e.target.value)} list="milestone-ideas" maxLength={120} placeholder="What happened" className={inputClass} aria-label="What happened" />
         <input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value || today)} className={inputClass} aria-label="When" />

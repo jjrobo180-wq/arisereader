@@ -84,7 +84,7 @@ export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Pro
         {names.length > 1 && <div className="mt-3"><Select aria-label="Show goals for" value={student} onChange={(e) => setStudent(e.target.value)}><option value="">All students</option>{names.map((n) => <option key={n}>{n}</option>)}</Select></div>}
       </Card>
       {goals.length ? (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {goals.map((g) => {
             const pr = goalProgress(g, today);
             const st = STATUS[pr.status];
@@ -111,7 +111,7 @@ export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Pro
       {draft && (
         <HubModal title={draft.id ? "Edit goal" : "New goal"} onClose={() => setDraft(null)}
           footer={<div className="flex flex-wrap gap-2"><PrimaryButton onClick={() => (document.getElementById("goal-form") as HTMLFormElement | null)?.requestSubmit()}>Save goal</PrimaryButton><GhostButton onClick={() => setDraft(null)}>Cancel</GhostButton>{draft.id && <button type="button" onClick={() => { remove("goals", draft.id!); setDraft(null); }} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Delete</button>}</div>}>
-          <form id="goal-form" onSubmit={saveGoal} className="grid gap-3 sm:grid-cols-2">
+          <form id="goal-form" onSubmit={saveGoal} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Labeled label="Student"><Select value={draft.student} onChange={(e) => setDraft({ ...draft, student: e.target.value })} required><option value="">Choose student</option>{[...new Set([...names, draft.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}</Select></Labeled>
             <Labeled label="Area"><Select value={draft.area} onChange={(e) => setDraft({ ...draft, area: e.target.value })}>{GOAL_AREAS.map((a) => <option key={a}>{a}</option>)}</Select></Labeled>
             <Labeled label="Goal" className="sm:col-span-2"><TextArea value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} placeholder="By June, Jordan will read 60 words per minute…" required maxLength={600} /></Labeled>
@@ -128,7 +128,7 @@ export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Pro
       {adding && editing && (
         <HubModal title={`Add data · ${editing.student}`} onClose={() => setAdding(null)} size="sm"
           footer={<div className="flex gap-2"><PrimaryButton onClick={() => (document.getElementById("point-form") as HTMLFormElement | null)?.requestSubmit()} disabled={num(adding.value) === null}>Save</PrimaryButton><GhostButton onClick={() => setAdding(null)}>Cancel</GhostButton></div>}>
-          <form id="point-form" onSubmit={savePoint} className="grid gap-3">
+          <form id="point-form" onSubmit={savePoint} className="grid grid-cols-1 gap-3">
             <p className="text-sm text-slate-600">{editing.text}</p>
             <Labeled label={`Score${editing.unit ? ` (${editing.unit})` : ""}`}><Field data-autofocus type="number" inputMode="decimal" step="any" value={adding.value} onChange={(e) => setAdding({ ...adding, value: e.target.value })} required /></Labeled>
             <Labeled label="Date"><Field type="date" value={adding.date} onChange={(e) => setAdding({ ...adding, date: e.target.value })} /></Labeled>
@@ -333,7 +333,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
         </div>
       )}
       {look === "students" && (plans.length ? (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {shown.map((p) => {
             const s = serviceStatus(p, workspace.serviceLogs, today);
             return (
@@ -376,7 +376,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
         return (
         <HubModal title={log.id ? "Change session" : log.notMet ? "Did not meet" : "Log minutes"} size="sm" onClose={() => setLog(null)}
           footer={<div className="flex flex-wrap gap-2"><PrimaryButton onClick={() => (document.getElementById("log-form") as HTMLFormElement | null)?.requestSubmit()} disabled={!canSaveLog}>{log.notMet && notMet.length > 1 ? `Save for ${notMet.length} students` : "Save"}</PrimaryButton><GhostButton onClick={() => setLog(null)}>Cancel</GhostButton>{log.id && <button type="button" onClick={() => { remove("serviceLogs", log.id!); setLog(null); }} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50" data-testid="log-remove"><Trash2 className="h-4 w-4" /> Remove</button>}</div>}>
-          <form id="log-form" onSubmit={saveLog} className="grid gap-3" data-testid="log-form">
+          <form id="log-form" onSubmit={saveLog} className="grid grid-cols-1 gap-3" data-testid="log-form">
             <div role="tablist" aria-label="Did you meet" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="log-met">
               {([[false, "Met"], [true, "Did not meet"]] as const).map(([value, label]) => (
                 <button key={label} type="button" role="tab" aria-selected={log.notMet === value} onClick={() => setLog({ ...log, notMet: value })} className={`min-h-11 flex-1 rounded-xl px-2 text-sm font-semibold ${log.notMet === value ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
@@ -416,7 +416,7 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
       {plan && (
         <HubModal title={plan.id ? "Change required minutes" : "Required minutes"} size="sm" onClose={() => setPlan(null)}
           footer={<div className="flex flex-wrap gap-2"><PrimaryButton onClick={() => (document.getElementById("plan-form") as HTMLFormElement | null)?.requestSubmit()} disabled={!planReady}>Save</PrimaryButton><GhostButton onClick={() => setPlan(null)}>Cancel</GhostButton>{plan.id && <button type="button" onClick={() => { remove("services", plan.id!); setPlan(null); }} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Remove</button>}</div>}>
-          <form id="plan-form" onSubmit={savePlan} className="grid gap-3" data-testid="plan-form">
+          <form id="plan-form" onSubmit={savePlan} className="grid grid-cols-1 gap-3" data-testid="plan-form">
             <Labeled label="Student"><Select value={plan.other ? OTHER_NAME : plan.student} onChange={(e) => setPlan(e.target.value === OTHER_NAME ? { ...plan, other: true, student: "" } : { ...plan, other: false, student: e.target.value })} required aria-label="Student"><option value="">Choose student</option>{[...new Set([...names, plan.other ? "" : plan.student].filter(Boolean))].map((n) => <option key={n}>{n}</option>)}<option value={OTHER_NAME}>Another name…</option></Select></Labeled>
             {plan.other && <Labeled label="Student's name"><Field value={plan.student} onChange={(e) => setPlan({ ...plan, student: e.target.value })} maxLength={80} autoCapitalize="words" placeholder="Type the name" aria-label="Student's name" data-testid="plan-other-name" /></Labeled>}
             <Labeled label="Kind"><Select value={plan.kind} onChange={(e) => setPlan({ ...plan, kind: e.target.value })} aria-label="Kind">{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>

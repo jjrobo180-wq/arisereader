@@ -132,7 +132,7 @@ export default function PlayTimeManager() {
     <Card className="border-cyan-400/20 bg-gradient-to-br from-cyan-500/[.08] via-violet-500/[.05] to-fuchsia-500/[.06] shadow-md">
       <CardContent className="p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
+          <div className="grid grid-cols-1 h-11 w-11 shrink-0 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
             <Clock3 className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">

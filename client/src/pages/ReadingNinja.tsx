@@ -197,10 +197,10 @@ export default function ReadingNinja({onBack}:{onBack:()=>void}){
         <div className="flex items-center justify-between gap-2 flex-shrink-0">
           <button type="button" onClick={onBack} className="min-h-11 px-3 sm:px-4 rounded-2xl bg-slate-950/85 border border-white/20 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> Games</button>
           <div className="rounded-full bg-white/10 border border-white/15 px-3 py-2 text-xs font-black">READING NINJA</div>
-          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-2xl bg-slate-950/85 border border-white/20 grid place-items-center" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
+          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-2xl bg-slate-950/85 border border-white/20 grid grid-cols-1 place-items-center" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
         </div>
 
-        <div className="flex-1 min-h-0 grid place-items-center py-3">
+        <div className="flex-1 min-h-0 grid grid-cols-1 place-items-center py-3">
           {setupStep==="difficulty" ? (
             <section key="difficulty" className="ninja-setup-in w-full max-w-3xl rounded-[2rem] bg-white text-slate-950 border-4 border-fuchsia-400 p-5 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,.45)]">
               <p className="text-xs font-black uppercase tracking-[.18em] text-fuchsia-700">Step 1 of 2</p>
@@ -250,7 +250,7 @@ export default function ReadingNinja({onBack}:{onBack:()=>void}){
   }
 
   if(gameOver){
-    return <div className="fixed inset-0 z-[120] h-[100dvh] bg-[#070611] text-white grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🥷</div><h1 className="text-4xl font-black mt-3">Try the arena again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl text-amber-300 font-black mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-pink-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>openSetup("level")} className="mt-2 w-full min-h-12 rounded-2xl bg-fuchsia-600 font-black">☰ Choose level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
+    return <div className="fixed inset-0 z-[120] h-[100dvh] bg-[#070611] text-white grid grid-cols-1 place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🥷</div><h1 className="text-4xl font-black mt-3">Try the arena again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl text-amber-300 font-black mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-pink-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>openSetup("level")} className="mt-2 w-full min-h-12 rounded-2xl bg-fuchsia-600 font-black">☰ Choose level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
   }
 
   return <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-[#050611] text-white p-2 sm:p-5 select-none">
@@ -262,7 +262,7 @@ export default function ReadingNinja({onBack}:{onBack:()=>void}){
           <div className="text-[9px] sm:text-xs uppercase tracking-wider font-black text-pink-300 truncate">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div>
           <div className="text-xs sm:text-base font-black truncate">{mission.target.emoji} {mission.prompt}</div>
         </button>
-        <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 border border-white/15 grid place-items-center flex-shrink-0" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
+        <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 border border-white/15 grid grid-cols-1 place-items-center flex-shrink-0" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
       </div>
 
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2 flex-shrink-0 text-center">
@@ -297,7 +297,7 @@ export default function ReadingNinja({onBack}:{onBack:()=>void}){
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 rounded-full bg-slate-950/85 border border-white/20 px-4 py-2 font-black text-sm sm:text-base whitespace-nowrap shadow-xl">{mission.target.emoji} {mission.prompt}</div>
 
         {difficulty==="easy"&&<div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-pink-100/95 text-fuchsia-900 border-2 border-white px-4 py-2 text-xs sm:text-sm font-black shadow-lg">🧸 EASY MODE · bigger target hit area · no lost hearts</div>}
-                {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-pink-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-fuchsia-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You completed the challenge and found all the {mission.target.label}s!</p><button
+                {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid grid-cols-1 place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-pink-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-fuchsia-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You completed the challenge and found all the {mission.target.label}s!</p><button
   type="button"
   onClick={nextMission}
   className="mt-6 w-full min-h-[88px] sm:min-h-[76px] rounded-[1.75rem] bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white text-xl sm:text-2xl font-black shadow-xl ring-4 ring-fuchsia-200/70 touch-manipulation active:scale-[0.98] transition-transform px-5"

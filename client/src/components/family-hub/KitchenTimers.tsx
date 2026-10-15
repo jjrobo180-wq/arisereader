@@ -49,14 +49,14 @@ export default function KitchenTimers({ makeId, say }: SectionProps) {
   return <div className="space-y-6">
     <PageHead eyebrow="Kitchen timers" title="Timers for everything" blurb="Run as many timers as you need at once. Keep this page open and an alarm sounds when each is done." />
     <Panel title="New timer">
-      <form onSubmit={(e) => { e.preventDefault(); start(name, mins); setName(""); }} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto]">
+      <form onSubmit={(e) => { e.preventDefault(); start(name, mins); setName(""); }} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto]">
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="What's it for?" className={inputClass} aria-label="Timer name" />
         <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500"><input type="number" min={1} max={600} value={mins} onChange={(e) => setMins(Math.max(1, Math.min(600, Number(e.target.value) || 1)))} className={inputClass + " px-2"} aria-label="Minutes" />min</label>
         <button type="submit" className={primary}><Play size={15} />Start</button>
       </form>
       <div className="mt-3 flex flex-wrap gap-1.5">{QUICK.map(([n, m]) => <button key={n} type="button" onClick={() => start(n, m)} className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-violet-50 hover:text-violet-700">{n} · {m}m</button>)}</div>
     </Panel>
-    {timers.length ? <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{timers.map((x) => <li key={x.id} className={`rounded-[1.5rem] p-5 shadow-[0_8px_28px_#17152b14] ${x.done ? "animate-pulse bg-rose-500 text-white" : "bg-white ring-1 ring-[#e7e8f0]"}`}>
+    {timers.length ? <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{timers.map((x) => <li key={x.id} className={`rounded-[1.5rem] p-5 shadow-[0_8px_28px_#17152b14] ${x.done ? "animate-pulse bg-rose-500 text-white" : "bg-white ring-1 ring-[#e7e8f0]"}`}>
       <div className="flex items-center justify-between"><p className="font-extrabold">{x.done && <BellRing size={16} className="mr-1 inline" />}{x.name}</p><button type="button" onClick={() => setTimers((l) => l.filter((y) => y.id !== x.id))} className={`rounded-lg p-1.5 ${x.done ? "text-white/80 hover:bg-white/10" : "text-slate-300 hover:text-slate-600"}`} aria-label={`Remove ${x.name}`}><X size={15} /></button></div>
       <p className="mt-2 text-5xl font-black tabular-nums tracking-tight">{x.done ? "Done!" : fmt(x.left)}</p>
       {!x.done && <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${(1 - x.left / x.total) * 100}%` }} /></div>}

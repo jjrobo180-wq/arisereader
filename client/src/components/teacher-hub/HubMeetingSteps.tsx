@@ -160,7 +160,7 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
           )}
 
           {step === 1 && !meeting && (
-            <form id="wizard-add" onSubmit={addMeeting} className="grid min-w-0 gap-4">
+            <form id="wizard-add" onSubmit={addMeeting} className="grid grid-cols-1 min-w-0 gap-4">
               <div className="min-w-0 space-y-2">
                 <Select aria-label="Student" value={form.student} onChange={(e) => { setForm({ ...form, student: e.target.value }); setTypedDeadline(false); }} required autoFocus>{studentOptions()}</Select>
                 <button type="button" onClick={() => setAddStudent((v) => !v)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-teal-200 px-3 text-sm font-semibold text-teal-800 hover:bg-teal-50" data-testid="wizard-add-student-open">
@@ -200,12 +200,12 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
           {step === 1 && meeting && <MeetingBasics key={meeting.id} workspace={workspace} meeting={meeting} onSave={(change) => setWorkspace((p) => changeMeetingBasics(p, meeting.id, change))} />}
 
           {step === 2 && (meeting ? <div className="min-w-0 space-y-4">
-            <div role="radiogroup" aria-label="Meeting time" className="grid gap-2 sm:grid-cols-2">
+            <div role="radiogroup" aria-label="Meeting time" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button type="button" role="radio" aria-checked={!haveTime} onClick={() => setHaveTime(false)} className={`rounded-2xl border-2 p-3 text-left ${!haveTime ? "border-teal-700 bg-teal-50" : "border-slate-200"}`}><b className="block text-sm">Find a time with everyone</b><span className="text-xs text-slate-600">Pick who is coming, then ask them which times work.</span></button>
               <button type="button" role="radio" aria-checked={haveTime} onClick={() => setHaveTime(true)} className={`rounded-2xl border-2 p-3 text-left ${haveTime ? "border-teal-700 bg-teal-50" : "border-slate-200"}`}><b className="block text-sm">I already have a time</b><span className="text-xs text-slate-600">Enter it and skip to the checklist.</span></button>
             </div>
             {haveTime
-              ? <form onSubmit={saveTime} className="grid min-w-0 gap-3" data-testid="wizard-have-time">
+              ? <form onSubmit={saveTime} className="grid grid-cols-1 min-w-0 gap-3" data-testid="wizard-have-time">
                   <div className="grid grid-cols-2 gap-3">
                     <Field aria-label="Meeting date" type="date" required value={when.date} onChange={(e) => setWhen({ ...when, date: e.target.value })} />
                     <Field aria-label="Meeting time (optional)" type="time" value={when.time} onChange={(e) => setWhen({ ...when, time: e.target.value })} />

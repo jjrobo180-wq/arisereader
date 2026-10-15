@@ -38,7 +38,7 @@ export default function AvatarWorldSideTab(){
             <button
               type="button"
               onClick={(e)=>{e.stopPropagation();setOpen(false);}}
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/10 hover:bg-white/20"
+              className="grid grid-cols-1 h-7 w-7 shrink-0 place-items-center rounded-full bg-white/10 hover:bg-white/20"
               aria-label="Close Avatar World tab"
             >
               <X className="h-4 w-4"/>
@@ -57,7 +57,7 @@ export default function AvatarWorldSideTab(){
       <button
         type="button"
         onClick={()=>setOpen(v=>!v)}
-        className="relative grid h-[58px] w-[42px] place-items-center rounded-l-2xl border border-r-0 border-cyan-300/40 bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-950 text-white shadow-[-6px_8px_24px_rgba(49,46,129,.35)] transition-transform active:scale-95"
+        className="relative grid grid-cols-1 h-[58px] w-[42px] place-items-center rounded-l-2xl border border-r-0 border-cyan-300/40 bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-950 text-white shadow-[-6px_8px_24px_rgba(49,46,129,.35)] transition-transform active:scale-95"
         aria-label={open ? "Close Avatar World menu" : "Open Avatar World menu"}
         aria-expanded={open}
       >

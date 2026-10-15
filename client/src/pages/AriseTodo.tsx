@@ -738,7 +738,7 @@ export default function AriseTodo() {
     : shown === "mood" ? <Mood {...common} />
     : shown === "news" ? <News {...common} />
     : shown === "notifications" ? <NotificationSettings {...common} />
-    : shown === "reader" ? <Suspense fallback={<div className="grid min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
+    : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "polls" ? <Polls {...common} />
     : shown === "trips" ? <Trips {...common} />
     : shown === "money" ? <Money {...common} />
@@ -956,7 +956,7 @@ export default function AriseTodo() {
               className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${layout.menuSide === o.id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{o.label}</button>)}
           </div>
           {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p>
-            : <div role="radiogroup" aria-label="How the menu closes" className="grid gap-2">
+            : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
               {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); phone.setRail(true); }} data-testid={`life-menu-close-${o.id}`}
                 className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-[#292446] bg-slate-50" : "border-slate-200 bg-white"}`}>
                 <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-[#292446]" : "border-slate-300"}`} aria-hidden />
@@ -1200,7 +1200,7 @@ export default function AriseTodo() {
             ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 shadow-[0_3px_16px_#17152b08] sm:p-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">{stat.label}</span><span className={`rounded-xl p-2 ${stat.bg} ${stat.tint}`}><Icon size={17} /></span></div><p className="text-3xl font-black text-[#242238]">{stat.count}</p></div>; })}
           </div>
 
-          <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
             <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{selectedName}</p><h2 className="mt-1 text-xl font-black">{viewTabs.find(tab => tab.id === view)?.title}</h2></div>

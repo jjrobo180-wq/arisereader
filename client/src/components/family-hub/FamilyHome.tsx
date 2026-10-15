@@ -74,7 +74,7 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           </ul> : <p className="text-sm text-slate-500">A clear day. Nothing scheduled and no tasks due.</p>}
         </Panel></>,
     chores: (on("chores") && chores.length > 0 && <Panel eyebrow="Chores" title={choresLeft.length ? `${choresLeft.length} left today` : "All chores done! 🎉"} right={<button onClick={() => go("chores")} className="text-xs font-bold text-violet-600">Chore chart</button>} collapseKey="home-chores">
-          <div className="grid gap-2 sm:grid-cols-2">{chores.map((c) => {
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{chores.map((c) => {
             const done = !!choreDoneOn(family, c.id, today);
             const owner = memberOf(family, choreOwner(c, today));
             return <button key={c.id} onClick={() => { setFamily((f) => toggleChore(f, c, today, makeId)); if (!done) say(`${c.title} done${c.points ? ` · +${c.points} ⭐` : ""}`); }} aria-pressed={done} className={`flex items-center gap-3 rounded-xl border p-2.5 text-left ${done ? "border-emerald-200 bg-emerald-50" : "border-slate-100 hover:border-violet-200"}`}>

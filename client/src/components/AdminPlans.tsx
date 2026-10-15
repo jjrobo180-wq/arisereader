@@ -201,7 +201,7 @@ export default function AdminPlans() {
             <div className="space-y-3 pt-4 border-t border-border">
               <Label className="text-sm font-medium">Switch a plan on by hand</Label>
               <p className="text-sm text-muted-foreground">For a school paying by check or purchase order, a pilot, or a gift. Nobody is charged.</p>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">For</Label>
                   <select className={select} value={kind} onChange={(e) => { setKind(e.target.value as PlanKind); setOwnerId(""); }}>

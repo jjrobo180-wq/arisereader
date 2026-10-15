@@ -68,7 +68,7 @@ export default function Today() {
         </div>
       </div>
       <div className="mt-9"><Ribbon entries={entries} windows={windows} wake={kid.routine.wake} bed={kid.routine.bed} /></div>
-      {windows.length > 0 ? <div className="mt-5 grid gap-2 sm:grid-cols-2">{windows.map((w) => <div key={w.kind} className="rounded-2xl bg-white/[.07] p-3.5">
+      {windows.length > 0 ? <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">{windows.map((w) => <div key={w.kind} className="rounded-2xl bg-white/[.07] p-3.5">
         <div className="flex items-start justify-between gap-2"><p className="font-extrabold"><span className="mr-1">{w.kind === "pee" ? "💧" : "💩"}</span>{w.kind === "pee" ? "Pee" : "Poop"} likely {clock12(new Date(w.from).toTimeString().slice(0, 5))}–{clock12(new Date(w.to).toTimeString().slice(0, 5))}</p><span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold" style={{ background: C.duck, color: C.ink }}>{until(w.from)}</span></div>
         <p className="mt-1 text-[13px] leading-snug text-white/65">Because {w.why}.{w.confidence === "learning" ? " Still learning your child's pattern." : ""}</p>
         <button type="button" onClick={() => remind(w)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-bold" style={{ color: C.duck }}><Bell size={14} />Remind me 5 minutes before</button>

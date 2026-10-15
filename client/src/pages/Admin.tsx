@@ -2637,7 +2637,7 @@ Generate exactly 10 questions.`;
         data-testid="open-stats"
         className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-violet-500/25 bg-violet-500/[.07] p-3 text-left transition-colors hover:bg-violet-500/[.12] sm:p-4"
       >
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300"><BarChart3 className="h-5 w-5" /></span>
+        <span className="grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300"><BarChart3 className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
           <span className="block font-bold">Stats and charts</span>
           <span className="block text-xs text-muted-foreground">Growth over time, who's online, sign-ins, quizzes and the students who haven't been on lately.</span>
@@ -2656,15 +2656,15 @@ Generate exactly 10 questions.`;
         {attention.length === 0 ? (
           <EmptyState icon={CheckCircle2} title="You're all caught up" hint="New requests, messages and approvals will show up here." />
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {attention.map((item) => (
               <li key={item.label}>
                 <button type="button" onClick={item.go} className="flex w-full items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5 text-left transition-colors hover:bg-muted/40">
-                  <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", item.tone === "violet" ? "bg-violet-500/15 text-violet-300" : item.tone === "orange" ? "bg-orange-500/15 text-orange-300" : item.tone === "amber" ? "bg-amber-500/15 text-amber-300" : item.tone === "emerald" ? "bg-emerald-500/15 text-emerald-300" : item.tone === "cyan" ? "bg-cyan-500/15 text-cyan-300" : "bg-blue-500/15 text-blue-300")}>
+                  <span className={cn("grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-lg", item.tone === "violet" ? "bg-violet-500/15 text-violet-300" : item.tone === "orange" ? "bg-orange-500/15 text-orange-300" : item.tone === "amber" ? "bg-amber-500/15 text-amber-300" : item.tone === "emerald" ? "bg-emerald-500/15 text-emerald-300" : item.tone === "cyan" ? "bg-cyan-500/15 text-cyan-300" : "bg-blue-500/15 text-blue-300")}>
                     <item.icon className="h-[18px] w-[18px]" />
                   </span>
                   <span className="min-w-0 flex-1 text-sm font-medium leading-snug">{item.label}</span>
-                  <span className="grid h-7 min-w-7 shrink-0 place-items-center rounded-full bg-fuchsia-500/15 px-2 text-sm font-black tabular-nums text-fuchsia-200">{item.count}</span>
+                  <span className="grid grid-cols-1 h-7 min-w-7 shrink-0 place-items-center rounded-full bg-fuchsia-500/15 px-2 text-sm font-black tabular-nums text-fuchsia-200">{item.count}</span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </button>
               </li>
@@ -2724,7 +2724,7 @@ Generate exactly 10 questions.`;
           <ol className="space-y-2">
             {adminLeaderboard.slice(0, lbExpanded ? 20 : 5).map((entry: any, idx: number) => (
               <li key={entry.id} className="grid grid-cols-[auto,minmax(0,1fr),auto] items-center gap-3 rounded-xl bg-muted/30 p-3">
-                <span className={cn("grid h-9 w-9 place-items-center rounded-full text-sm font-bold", idx === 0 ? "bg-amber-400/20 text-amber-300" : idx === 1 ? "bg-slate-300/15 text-slate-200" : idx === 2 ? "bg-orange-500/15 text-orange-300" : "bg-muted text-muted-foreground")}>{idx + 1}</span>
+                <span className={cn("grid grid-cols-1 h-9 w-9 place-items-center rounded-full text-sm font-bold", idx === 0 ? "bg-amber-400/20 text-amber-300" : idx === 1 ? "bg-slate-300/15 text-slate-200" : idx === 2 ? "bg-orange-500/15 text-orange-300" : "bg-muted text-muted-foreground")}>{idx + 1}</span>
                 <span className="min-w-0">
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate text-sm font-medium sm:text-base">{entry.displayName}</span>
@@ -2777,7 +2777,7 @@ Generate exactly 10 questions.`;
                 <div className="flex items-center gap-2 font-semibold text-foreground"><Trophy className="w-5 h-5 text-primary" /> Hallway Poster Setup</div>
                 <p className="mt-1 text-xs text-muted-foreground">Make the printed leaderboard feel like an awards poster. Add a headline and tell everyone exactly what the top winners earned.</p>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
                   <Label className="text-xs font-bold">Poster headline</Label>
                   <Input value={adminLbPosterTitle} onChange={(e) => setAdminLbPosterTitle(e.target.value)} maxLength={45} placeholder="READING CHAMPIONS" className="mt-1 font-bold" />
@@ -2803,7 +2803,7 @@ Generate exactly 10 questions.`;
                     .map((entry: any, idx: number) => {
                       const rewardKey = String(entry.id ?? idx + 1);
                       return (
-                        <div key={rewardKey} className="grid gap-2 sm:grid-cols-[44px_minmax(0,1fr)_minmax(190px,1fr)] items-center p-3">
+                        <div key={rewardKey} className="grid grid-cols-1 gap-2 sm:grid-cols-[44px_minmax(0,1fr)_minmax(190px,1fr)] items-center p-3">
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-foreground">#{idx + 1}</div>
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-foreground truncate">{entry.displayName || "Reader"}</div>
@@ -3345,7 +3345,7 @@ Generate exactly 10 questions.`;
                     />
                   </>}
                 >
-                  <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 min-w-0 gap-2 sm:grid-cols-2">
                     <label className="min-w-0 text-xs text-muted-foreground">School
                       <select className={cn(SELECT_CLASS, "mt-1")} value={t.school_id || ""} onChange={(e) => void assignTeacherSchool(t.id, e.target.value)}>
                         <option value="">No school</option>
@@ -3945,7 +3945,7 @@ Generate exactly 10 questions.`;
             <CardContent className="p-4 sm:p-5">
               <div className="flex flex-col gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl arise-icon-tile">
+                  <div className="grid grid-cols-1 h-11 w-11 shrink-0 place-items-center rounded-2xl arise-icon-tile">
                     <Clock3 className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -3968,7 +3968,7 @@ Generate exactly 10 questions.`;
                   <span className="text-sm font-bold">Enable automatic closing hours</span>
                 </label>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label className="space-y-1.5">
                     <span className="text-xs font-black uppercase tracking-wide text-slate-400">Close games at</span>
                     <input type="time" value={clubClosingHours.start} onChange={(e) => setClubClosingHours(s => ({...s,start:e.target.value}))} className="min-h-11 w-full rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white" />
@@ -4009,7 +4009,7 @@ Generate exactly 10 questions.`;
                           <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${schedule.enabled ? (schedule.closedNow ? "bg-fuchsia-500/15 text-fuchsia-200" : "bg-cyan-500/15 text-cyan-200") : "bg-white/[.06] text-slate-400"}`}>{!schedule.enabled ? "OFF" : schedule.closedNow ? "CLOSED NOW" : "OPEN NOW"}</span>
                         </div>
                         <label className="mb-3 flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={!!schedule.enabled} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,enabled:e.target.checked}}:item))}/> Use class hours</label>
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           <label className="text-xs font-bold text-slate-400">Close at<input type="time" value={schedule.start} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,start:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
                           <label className="text-xs font-bold text-slate-400">Reopen at<input type="time" value={schedule.end} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,end:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
                         </div>
@@ -4313,30 +4313,30 @@ Generate exactly 10 questions.`;
       <header className={embedded ? "w-full border-b border-border bg-card/85" : "sticky top-0 z-40 w-full border-b border-border bg-card/85 backdrop-blur-md"}>
         <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-3 sm:px-4 lg:px-6">
           <button type="button" onClick={() => { setTab("overview"); window.scrollTo({ top: 0 }); }} className="flex min-w-0 items-center gap-2.5" aria-label="Admin overview">
-            <span className="arise-icon-tile grid h-9 w-9 shrink-0 place-items-center rounded-xl"><ShieldCheck className="h-[18px] w-[18px]" /></span>
+            <span className="arise-icon-tile grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl"><ShieldCheck className="h-[18px] w-[18px]" /></span>
             <span className="min-w-0 text-left leading-tight">
               <span className="block truncate text-[15px] font-black">Admin</span>
               <span className="hidden truncate text-[11px] text-muted-foreground sm:block">A.R.I.S.E. Reader</span>
             </span>
           </button>
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
-            {!embedded && <button type="button" onClick={() => navigate("/workhub")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Arise WorkHub" title="Your Arise WorkHub" data-testid="button-admin-teacher-hub">
+            {!embedded && <button type="button" onClick={() => navigate("/workhub")} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Arise WorkHub" title="Your Arise WorkHub" data-testid="button-admin-teacher-hub">
               <ClipboardList className="h-5 w-5 text-teal-400" />
               <span className="hidden text-sm font-semibold sm:inline">Arise WorkHub</span>
             </button>}
-            <button type="button" onClick={() => navigate("/leaderboard")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Leaderboard" title="Leaderboard" data-testid="button-admin-leaderboard">
+            <button type="button" onClick={() => navigate("/leaderboard")} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Leaderboard" title="Leaderboard" data-testid="button-admin-leaderboard">
               <Trophy className="h-5 w-5 text-amber-400" />
               <span className="hidden text-sm font-semibold sm:inline">Leaderboard</span>
             </button>
             <NotificationBell onNavigate={handleNotifNavigate} onCounts={handleBellCounts} />
-            <button type="button" onClick={() => { setTab("inbox"); window.scrollTo({ top: 0 }); }} className="relative grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label={unreadMsgCount ? `Inbox, ${unreadMsgCount} unread` : "Inbox"} data-testid="button-admin-inbox">
+            <button type="button" onClick={() => { setTab("inbox"); window.scrollTo({ top: 0 }); }} className="relative grid grid-cols-1 h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label={unreadMsgCount ? `Inbox, ${unreadMsgCount} unread` : "Inbox"} data-testid="button-admin-inbox">
               <Inbox className="h-5 w-5" />
               {unreadMsgCount > 0 && <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-background">{unreadMsgCount > 9 ? "9+" : unreadMsgCount}</span>}
             </button>
             <div className="hidden sm:flex"><ReportProblemButton variant="ghost" size="sm" /></div>
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label="More">
+                <button type="button" className="grid grid-cols-1 h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label="More">
                   <MoreVertical className="h-5 w-5" />
                 </button>
               </DropdownMenuTrigger>

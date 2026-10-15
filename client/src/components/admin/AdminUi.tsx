@@ -49,7 +49,7 @@ export function AdminSection({
   return (
     <section id={id} data-section={id} className={cn("min-w-0 scroll-mt-32 rounded-2xl border border-card-border bg-card shadow-sm lg:scroll-mt-20", className)}>
       <header className="flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-border/60 px-4 py-3.5 sm:px-5">
-        {Icon && <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", TONE_TILE[tone])}><Icon className="h-[18px] w-[18px]" /></span>}
+        {Icon && <span className={cn("grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl", TONE_TILE[tone])}><Icon className="h-[18px] w-[18px]" /></span>}
         <div className="min-w-0 flex-1">
           <h2 className="flex flex-wrap items-center gap-2 text-base font-bold leading-tight sm:text-[17px]">
             <span className="min-w-0 [overflow-wrap:anywhere]">{title}</span>
@@ -67,7 +67,7 @@ export function AdminSection({
 export function EmptyState({ icon: Icon, title, hint, className }: { icon?: LucideIcon; title: string; hint?: ReactNode; className?: string }) {
   return (
     <div className={cn("flex flex-col items-center rounded-xl border border-dashed border-border/70 px-4 py-8 text-center", className)}>
-      {Icon && <span className="grid h-10 w-10 place-items-center rounded-full bg-muted text-muted-foreground"><Icon className="h-5 w-5" /></span>}
+      {Icon && <span className="grid grid-cols-1 h-10 w-10 place-items-center rounded-full bg-muted text-muted-foreground"><Icon className="h-5 w-5" /></span>}
       <p className="mt-2 text-sm font-semibold">{title}</p>
       {hint && <p className="mt-1 max-w-sm text-xs text-muted-foreground">{hint}</p>}
     </div>
@@ -77,7 +77,7 @@ export function EmptyState({ icon: Icon, title, hint, className }: { icon?: Luci
 export function StatTile({ icon: Icon, tone = "violet", label, value, hint }: { icon: LucideIcon; tone?: Tone; label: string; value: ReactNode; hint?: string }) {
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-card-border bg-card p-3 shadow-sm sm:p-4">
-      <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl", TONE_TILE[tone])}><Icon className="h-5 w-5" /></span>
+      <span className={cn("grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-xl", TONE_TILE[tone])}><Icon className="h-5 w-5" /></span>
       <div className="min-w-0">
         <div className="text-xl font-black leading-none tabular-nums sm:text-2xl">{value}</div>
         <div className="mt-1 truncate text-xs text-muted-foreground" title={hint || label}>{label}</div>
@@ -89,7 +89,7 @@ export function StatTile({ icon: Icon, tone = "violet", label, value, hint }: { 
 export function Avatar({ name, tone = "violet", size = "md" }: { name?: string | null; tone?: Tone; size?: "sm" | "md" }) {
   const letter = String(name || "?").trim().charAt(0).toUpperCase() || "?";
   return (
-    <span aria-hidden className={cn("grid shrink-0 place-items-center rounded-full font-bold", TONE_TILE[tone], size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm")}>
+    <span aria-hidden className={cn("grid grid-cols-1 shrink-0 place-items-center rounded-full font-bold", TONE_TILE[tone], size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm")}>
       {letter}
     </span>
   );

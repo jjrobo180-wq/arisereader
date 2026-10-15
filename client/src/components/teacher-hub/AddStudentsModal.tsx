@@ -150,7 +150,7 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
 
         {rows.length > 0 && (
           <Card title={`Preview (${rows.length})`}>
-            <div className="max-h-64 overflow-y-auto">
+            <div className="max-h-64 overflow-auto">
               <table className="w-full text-left text-sm">
                 <thead><tr className="text-xs font-semibold uppercase tracking-wide text-slate-500"><th className="py-1 pr-3">First name</th><th className="py-1 pr-3">Last name</th><th className="py-1">Student number</th></tr></thead>
                 <tbody>{rows.slice(0, 200).map((r, i) => <tr key={i} className="border-t border-slate-100"><td className="py-1.5 pr-3 text-slate-900">{r.firstName}</td><td className="py-1.5 pr-3 text-slate-900">{r.lastName}</td><td className="py-1.5 font-mono text-slate-700">{r.studentNumber}</td></tr>)}</tbody>

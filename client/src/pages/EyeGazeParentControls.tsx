@@ -131,10 +131,10 @@ export default function EyeGazeParentControls() {
     });
   };
 
-  if (loading) return <main className="min-h-screen bg-slate-50 grid place-items-center font-black text-slate-700">Loading grown-up controls…</main>;
+  if (loading) return <main className="min-h-screen bg-slate-50 grid grid-cols-1 place-items-center font-black text-slate-700">Loading grown-up controls…</main>;
 
   if (!verified) {
-    return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center p-5">
+    return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid grid-cols-1 place-items-center p-5">
       <section className="w-full max-w-md rounded-[2rem] bg-white text-slate-950 p-6 shadow-2xl text-center">
         <div className="text-6xl">👨‍👩‍👧</div>
         <h1 className="text-3xl font-black mt-3">Grown-up check</h1>
@@ -166,7 +166,7 @@ export default function EyeGazeParentControls() {
         <h2 className="text-2xl font-black">Child profile access</h2>
         <p className="font-bold text-slate-600 mt-1">Turn limits on, then decide exactly which areas your child can see. Hidden areas also stay blocked if someone types the direct address.</p>
         <button onClick={()=>setControls(c=>({...c,enabled:!c.enabled}))} className={`mt-5 w-full min-h-16 rounded-2xl text-xl font-black border-4 ${controls.enabled?"bg-emerald-100 border-emerald-400 text-emerald-950":"bg-slate-100 border-slate-300"}`}>{controls.enabled?"✓ Profile limits are ON":"Profile limits are OFF"}</button>
-        <div className="grid sm:grid-cols-2 gap-3 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
           {CONTROLLED_FEATURES.map(feature=>{const on=controls.allowedPaths.includes(feature.path);return <button key={feature.path} onClick={()=>toggle(feature.path)} disabled={!controls.enabled} className={`min-h-24 rounded-3xl border-4 p-4 text-left flex items-center gap-4 disabled:opacity-45 ${on?"bg-white border-emerald-400":"bg-slate-100 border-slate-300"}`}><span className="text-4xl">{feature.emoji}</span><span className="flex-1"><strong className="block text-xl">{feature.label}</strong><small className="font-black text-slate-500">{on?"ALLOWED":"HIDDEN"}</small></span><span className="text-2xl">{on?"✓":"—"}</span></button>})}
         </div>
       </section>
@@ -177,7 +177,7 @@ export default function EyeGazeParentControls() {
 
         <div className="mt-5">
           <h3 className="text-lg font-black">1. Age range</h3>
-          <div className="grid sm:grid-cols-2 gap-2 mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
             {SHORT_AGE_OPTIONS.map(option => (
               <button
                 key={option.id}
@@ -225,7 +225,7 @@ export default function EyeGazeParentControls() {
             <button type="button" onClick={()=>setControls(c=>({...c,tvChannels:YOUTUBE_CHANNEL_OPTIONS.map(ch=>ch.id)}))} className="min-h-12 rounded-xl bg-teal-100 px-4 font-black">Select all</button>
             <button type="button" onClick={()=>setControls(c=>({...c,tvChannels:[]}))} className="min-h-12 rounded-xl bg-slate-100 px-4 font-black">Clear channels</button>
           </div>
-          <div className="grid sm:grid-cols-2 gap-3 mt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             {YOUTUBE_CHANNEL_OPTIONS.map(channel=>{
               const selected=controls.tvChannels.includes(channel.id);
               return <button key={channel.id} type="button" aria-pressed={selected} onClick={()=>setControls(c=>({...c,tvChannels:selected?c.tvChannels.filter(id=>id!==channel.id):[...c.tvChannels,channel.id]}))} className={`min-h-24 rounded-2xl border-4 p-4 text-left ${selected?"bg-teal-50 border-teal-600":"bg-white border-slate-200"}`}>
@@ -239,7 +239,7 @@ export default function EyeGazeParentControls() {
         <div className="mt-6 rounded-3xl bg-slate-50 border-2 border-slate-200 p-4">
           <h3 className="text-lg font-black">4. Optional: add specific YouTube Shorts</h3>
           <p className="text-sm font-bold text-slate-500 mt-1">These get mixed into the automatic YouTube Shorts feed. Paste a specific Short you approve.</p>
-        <div className="grid sm:grid-cols-2 gap-3 mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
           <label className="font-black sm:col-span-2">YouTube Short link<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/shorts/…" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
           <label className="font-black">Title<input value={videoTitle} onChange={e=>setVideoTitle(e.target.value)} placeholder="Counting to 10" className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
           <label className="font-black">Channel/source<input value={videoChannel} onChange={e=>setVideoChannel(e.target.value)} className="mt-1 w-full min-h-14 rounded-2xl border-2 border-slate-200 px-4" /></label>
@@ -251,7 +251,7 @@ export default function EyeGazeParentControls() {
           {controls.videos.map((video,index)=><div key={video.id} className="rounded-2xl border-2 border-slate-200 p-3 flex items-center gap-3">
             <img src={`https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`} alt="" className="w-28 aspect-video rounded-xl object-cover bg-slate-100" />
             <div className="flex-1 min-w-0"><strong className="block truncate">{video.title}</strong><span className="text-sm font-bold text-slate-500">{video.topic}</span></div>
-            <div className="grid gap-1">
+            <div className="grid grid-cols-1 gap-1">
               <button onClick={()=>moveVideo(index,-1)} disabled={index===0} className="w-10 h-9 rounded-lg bg-slate-100 font-black disabled:opacity-30">↑</button>
               <button onClick={()=>moveVideo(index,1)} disabled={index===controls.videos.length-1} className="w-10 h-9 rounded-lg bg-slate-100 font-black disabled:opacity-30">↓</button>
               <button onClick={()=>setControls(c=>({...c,videos:c.videos.filter((_,i)=>i!==index)}))} className="w-10 h-9 rounded-lg bg-rose-100 text-rose-800 font-black">×</button>

@@ -588,7 +588,7 @@ export default function EyeGazeGames() {
           className="relative overflow-hidden w-full rounded-[2.2rem] border-4 border-emerald-300 bg-gradient-to-br from-[#24492d] via-[#2f6b3b] to-[#7bbf52] p-6 sm:p-8 text-left text-white shadow-xl hover:-translate-y-1 transition-all mb-5 min-h-[230px]"
         >
           <div className="absolute inset-y-0 right-0 w-[42%] bg-[radial-gradient(circle_at_60%_40%,rgba(255,255,255,.18),transparent_55%)]" />
-          <div className="absolute right-7 top-7 grid h-24 w-24 place-items-center rounded-full border border-white/20 bg-white/10 backdrop-blur">
+          <div className="absolute right-7 top-7 grid grid-cols-1 h-24 w-24 place-items-center rounded-full border border-white/20 bg-white/10 backdrop-blur">
             <PawPrint className="h-12 w-12 text-white" />
           </div>
           <div className="relative max-w-2xl">
@@ -618,7 +618,7 @@ export default function EyeGazeGames() {
           </div>
         </button>
 
-        <div className="grid lg:grid-cols-2 gap-5 mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
           <button
             type="button"
             onClick={() => setGame("runner")}

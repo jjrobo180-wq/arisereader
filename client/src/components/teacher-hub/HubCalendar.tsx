@@ -137,7 +137,7 @@ export function AddEventModal({ onClose, onAdd, date, start, end, event, onSave,
               </div>
             )}
             {!reschedule && (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="text-xs font-medium text-slate-500">Repeats
                   <Select value={form.repeat || ""} onChange={(e) => setForm({ ...form, repeat: e.target.value, until: e.target.value ? form.until : "" })} aria-label="Repeats" data-testid="event-repeat">
                     <option value="">Does not repeat</option>
@@ -548,7 +548,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
         )}
 
         {view === "week" && (
-          <div className="grid gap-2 md:grid-cols-7" data-testid="week-view">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-7" data-testid="week-view">
             {weekOf(anchor).map((date) => {
               const list = onDay(date);
               const over = date < today;
@@ -786,7 +786,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
             <label className="flex min-h-11 items-start gap-3 text-sm text-slate-700"><input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={busyOnly} onChange={(e) => setBusyOnly(e.target.checked)} data-testid="calendar-busy-only" /><span>Only keep when they are busy, not what their events are. <span className="text-slate-500">Each one shows as “Busy”. Their calendar may name students or families.</span></span></label>
           </div>
         )}
-        <form onSubmit={connect} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+        <form onSubmit={connect} className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <Field type="url" inputMode="url" placeholder={whose === "other" ? "Paste their calendar's link (it ends in .ics)" : "Paste your calendar's link (it ends in .ics)"} value={link} onChange={(e) => setLink(e.target.value)} disabled={full} aria-label="Calendar link" data-testid="hub-calendar-link" />
           <PrimaryButton type="submit" disabled={!link.trim() || !!busy || full}>
             {busy === "connect" ? <><Loader2 className="h-4 w-4 animate-spin" /> Connecting…</> : <><Link2 className="h-4 w-4" /> Connect</>}

@@ -251,7 +251,7 @@ export function ClassTeachersCard() {
           <button type="button" onClick={() => setEditing(false)} className="mt-2 min-h-11 w-full text-sm text-muted-foreground hover:text-foreground">Cancel</button>
         </div>
       ) : current ? (
-        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+        <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           {CLASS_SUBJECTS.map((s) => (
             <div key={s} className="rounded-xl bg-muted/40 px-3 py-2">
               <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{SUBJECT_LABEL[s]}</dt>

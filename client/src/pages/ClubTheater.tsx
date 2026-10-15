@@ -895,7 +895,7 @@ export default function ClubTheater(){
       {seat?("Seated in "+seat+" · "):""}WASD/arrows walk · drag to look · tap a seat to sit {videoReady?"· show playing":""}
     </div>
 
-    {picker&&payload&&<div className="absolute inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm">
+    {picker&&payload&&<div className="absolute inset-0 z-50 grid grid-cols-1 place-items-center bg-black/75 p-4 backdrop-blur-sm">
       <section className="max-h-[88dvh] w-[min(620px,94vw)] overflow-auto rounded-[1.7rem] border border-white/10 bg-slate-950 p-4 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -903,7 +903,7 @@ export default function ClubTheater(){
             <h2 className="text-2xl font-black">Choose a channel or show</h2>
             <p className="mt-1 text-sm font-semibold text-white/55">Switching is free. The cinema screen changes for everyone currently watching.</p>
           </div>
-          <button onClick={()=>setPicker(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10">×</button>
+          <button onClick={()=>setPicker(false)} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-white/10">×</button>
         </div>
         <div className="mt-4 space-y-5">
           {guideCategories.map(category=>{
@@ -911,7 +911,7 @@ export default function ClubTheater(){
             if(!shows.length)return null;
             return <div key={category}>
               <div className="mb-2 flex items-center gap-2"><span className="text-xs font-black uppercase tracking-[.2em] text-amber-300">{category}</span><div className="h-px flex-1 bg-white/10"/></div>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {shows.map(movie=><button
                   key={movie.id}
                   onClick={()=>void changeMovie(movie.id)}
@@ -919,7 +919,7 @@ export default function ClubTheater(){
                   className="min-h-[100px] w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-left hover:border-fuchsia-300/50 hover:bg-white/10 disabled:opacity-55"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-400/15 ring-1 ring-white/10">{movie.category==="Live"?<Radio className="h-5 w-5 text-fuchsia-200"/>:movie.kind==="channel"?<Tv className="h-5 w-5 text-cyan-200"/>:<PlayCircle className="h-5 w-5 text-violet-200"/>}</div>
+                    <div className="grid grid-cols-1 h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-400/15 ring-1 ring-white/10">{movie.category==="Live"?<Radio className="h-5 w-5 text-fuchsia-200"/>:movie.kind==="channel"?<Tv className="h-5 w-5 text-cyan-200"/>:<PlayCircle className="h-5 w-5 text-violet-200"/>}</div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-black leading-tight">{movie.title}</p>

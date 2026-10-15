@@ -30,13 +30,13 @@ export default function Birthdays({ family, setFamily, today, makeId, say }: Sec
 
   return <div className="space-y-6">
     <PageHead eyebrow="Birthdays" title="Never miss a big day" blurb="Birthdays and anniversaries, soonest first, with how old everyone's turning." />
-    {soon.length > 0 && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{soon.map((b) => <div key={b.id} className="rounded-[1.5rem] bg-gradient-to-br from-pink-50 to-amber-50 p-5 ring-1 ring-pink-100">
+    {soon.length > 0 && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{soon.map((b) => <div key={b.id} className="rounded-[1.5rem] bg-gradient-to-br from-pink-50 to-amber-50 p-5 ring-1 ring-pink-100">
       <p className="text-3xl" aria-hidden>{ICON[b.kind]}</p>
       <p className="mt-2 text-lg font-black">{b.name}</p>
       <p className="text-sm font-bold text-pink-700">{b.days === 0 ? "Today! 🎉" : b.days === 1 ? "Tomorrow" : `In ${b.days} days`}{b.turns != null && b.turns > 0 ? ` · ${b.kind === "birthday" ? `turns ${b.turns}` : `${ord(b.turns)} anniversary`}` : ""}</p>
     </div>)}</div>}
     <Panel title="Add a date">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_5rem_6rem_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_5rem_6rem_auto]">
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Name (Grandma, Maya & Leo)" className={inputClass} aria-label="Name" />
         <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={inputClass} aria-label="Month">{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
         <select value={day} onChange={(e) => setDay(Number(e.target.value))} className={inputClass} aria-label="Day">{Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select>

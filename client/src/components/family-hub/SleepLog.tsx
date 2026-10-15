@@ -25,7 +25,7 @@ export default function SleepLog({ family, setFamily, today, makeId, say }: Sect
 
   return <div className="space-y-6">
     <PageHead eyebrow="Sleep log" title="How you're sleeping" blurb="Log when you went to bed and woke up. Most adults do best with 7 to 9 hours." />
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <Panel title="Last 2 weeks" right={avg ? <span className="text-sm font-black text-indigo-700">Avg {avg.toFixed(1)} h this week</span> : undefined}>
         <div className="flex h-48 items-end gap-1.5" role="img" aria-label="Hours slept each night for two weeks">
           {days.map((d) => { const s = byDay.get(d); const h = s ? sleepHours(s.bed, s.wake) : 0; return <div key={d} className="flex flex-1 flex-col items-center gap-1">

@@ -74,19 +74,19 @@ export default function Cycle({ family, setFamily, today, say }: SectionProps) {
         <section className="rounded-[1.5rem] border p-5 sm:p-6" style={{ borderColor: guide.color + "55", background: guide.color + "12" }} data-testid="cycle-insight">
           <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.15em]" style={{ color: guide.color }}><Lightbulb size={15} /> Today's insight · {guide.name}, day {now.day}</p>
           <p className="mt-2 text-lg font-bold leading-7 text-[#232139]">{dailyInsight(now.phase, now.day)}</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><p className="text-xs font-bold text-slate-500">What's happening</p><p className="mt-1 text-sm leading-6 text-slate-700">{guide.happening}</p></div>
             <div><p className="text-xs font-bold text-slate-500">How you may feel</p><p className="mt-1 text-sm leading-6 text-slate-700">{guide.feel}</p></div>
           </div>
         </section>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-6">
             <Panel eyebrow={guide.name} title="Tips and tricks" right={<Sparkles size={18} style={{ color: guide.color }} />}>
               <ul className="space-y-2">{guide.tips.map((t) => <li key={t} className="flex gap-2.5 text-sm leading-6 text-slate-700"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: guide.color }} />{t}</li>)}</ul>
               <p className="mt-4 flex gap-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><Dumbbell size={16} className="mt-0.5 shrink-0 text-violet-500" />{guide.move}</p>
             </Panel>
             <Panel eyebrow={guide.name} title="Food for this phase" right={<Apple size={18} className="text-emerald-500" />}>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FoodList title="Eat more" tone="good" items={guide.eat} />
                 <FoodList title="Go easy on" tone="limit" items={guide.limit} />
               </div>
@@ -94,7 +94,7 @@ export default function Cycle({ family, setFamily, today, say }: SectionProps) {
           </div>
           <DayLog date={today} entry={logFor(today)} save={saveOn(today)} memberId={memberId} />
         </div>
-      </> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      </> : <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Panel eyebrow="Getting started" title="Your daily insight starts after your first period is logged">
           <p className="text-sm leading-6 text-slate-600">Tap "Period started today", or open the Calendar and tap the first day of your last period. Then each day you'll see what's happening in your body, tips and tricks, and foods to eat and go easy on.</p>
           <button type="button" onClick={() => setView("learn")} className={plain + " mt-4"}><BookOpen size={16} /> Learn the basics</button>
@@ -103,7 +103,7 @@ export default function Cycle({ family, setFamily, today, say }: SectionProps) {
       </div>}
     </>}
 
-    {view === "calendar" && <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    {view === "calendar" && <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="space-y-6">
         <Panel className="self-start" title={first.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
           right={<><button onClick={() => shift(-1)} className={plain} aria-label="Previous month"><ChevronLeft size={17} /></button><button onClick={() => { setMonth(today.slice(0, 7)); setSelected(today); }} className={plain}>Today</button><button onClick={() => shift(1)} className={plain} aria-label="Next month"><ChevronRight size={17} /></button></>}>
@@ -135,7 +135,7 @@ export default function Cycle({ family, setFamily, today, say }: SectionProps) {
       <DayLog date={selected} entry={logFor(selected)} save={saveOn(selected)} memberId={memberId} today={today} />
     </div>}
 
-    {view === "learn" && <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    {view === "learn" && <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <Panel eyebrow="Learn" title="Readings">
         <ul className="space-y-2">{READINGS.map((r, i) => <Reading key={r.id} title={r.title} minutes={r.minutes} open={i === 0}>{r.paragraphs.map((p, j) => <p key={j} className="text-sm leading-6 text-slate-700">{p}</p>)}</Reading>)}</ul>
       </Panel>
@@ -161,7 +161,7 @@ export default function Cycle({ family, setFamily, today, say }: SectionProps) {
 
 function Hero({ s, onStart }: { s: CycleSummary; onStart: () => void }) {
   const color = s.phase ? PHASE_GUIDE[s.phase as PhaseId].color : "#e0566b";
-  return <section className="grid gap-5 rounded-[1.5rem] bg-[#2b1f3f] p-6 text-white shadow-[0_12px_24px_#2924461f] md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+  return <section className="grid grid-cols-1 gap-5 rounded-[1.5rem] bg-[#2b1f3f] p-6 text-white shadow-[0_12px_24px_#2924461f] md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
     <div className="relative mx-auto h-36 w-36">
       <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="10" />
         {s.dayOfCycle && <circle cx="60" cy="60" r="52" fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" strokeDasharray={`${Math.min(1, s.dayOfCycle / s.cycleLength) * 326.7} 326.7`} />}</svg>
@@ -221,12 +221,12 @@ function DayLog({ date, entry, save, memberId, today }: { date: string; entry?: 
         <Chips value={entry?.discharge || undefined} options={DISCHARGES.map((d) => ({ id: d, label: DISCHARGE.find((x) => x.id === d)!.label }))} onChange={(v) => save({ discharge: (v || "") as Discharge })} tone="teal" />
         {discharge && <p className={`mt-2 rounded-xl p-2.5 text-xs leading-5 ${discharge.id === "unusual" ? "bg-rose-50 text-rose-800" : "bg-slate-50 text-slate-600"}`}>{discharge.means}</p>}</div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
         <div><p className="mb-2 text-xs font-bold text-slate-600">Pain</p><Chips value={entry?.pain || undefined} options={PAIN.slice(1).map((label, i) => ({ id: i + 1, label }))} onChange={(v) => save({ pain: v || 0 })} tone="rose" /></div>
         <div><p className="mb-2 text-xs font-bold text-slate-600">Energy</p><Chips value={entry?.energy || undefined} options={ENERGY} onChange={(v) => save({ energy: (v || "") as Energy })} /></div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
         <label className="block text-xs font-bold text-slate-600"><span className="flex items-center gap-1.5"><Thermometer size={14} /> Basal temperature (°F)</span>
           <input key={`t${date}${memberId}`} type="number" step="0.01" min={90} max={105} inputMode="decimal" defaultValue={entry?.temp || ""} placeholder="97.8"
             onBlur={(e) => { const v = Number(e.target.value); const t = v >= 90 && v <= 105 ? Math.round(v * 100) / 100 : 0; if (t !== (entry?.temp || 0)) save({ temp: t }); }} className={inputClass + " mt-1.5"} /></label>

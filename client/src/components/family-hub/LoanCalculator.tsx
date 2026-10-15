@@ -27,7 +27,7 @@ export default function LoanCalculator(_: SectionProps) {
   return <div className="space-y-6">
     <PageHead eyebrow="Loan calculator" title="What will it cost?" blurb="See the monthly payment and total interest for a car, home or any loan, and what paying a little extra saves. Estimates only." />
     <div className="flex flex-wrap gap-1.5">{PRESETS.map((p) => <button key={p.label} type="button" onClick={() => { setAmount(p.amount); setRate(p.rate); setYears(p.years); }} className="min-h-10 rounded-xl bg-white px-4 text-sm font-bold text-slate-600 ring-1 ring-slate-200 hover:text-slate-900">{p.label} loan</button>)}</div>
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Panel>
         <div className="space-y-4">
           <label className="block text-xs font-bold text-slate-500">Loan amount<input type="number" min={0} value={amount} onChange={(e) => setAmount(num(e.target.value))} className={inputClass + " mt-1 text-lg font-black"} /></label>

@@ -214,7 +214,7 @@ export default function HubImport({ token, students, onAdd, onClose, start }: Pr
                 aria-label="Type or paste here"
                 data-testid="hub-import-text"
               />
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <button type="button" onClick={() => photoRef.current?.click()} className="flex min-h-14 items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-left hover:bg-slate-50">
                   <ImagePlus className="h-5 w-5 shrink-0 text-teal-600" />
                   <span><span className="block text-sm font-semibold text-slate-900">Photo or screenshot</span><span className="block text-xs text-slate-500">Reminders, notes, a calendar, a whiteboard</span></span>
@@ -290,7 +290,7 @@ export default function HubImport({ token, students, onAdd, onClose, start }: Pr
                             </button>
                           </div>
                           {editing === key && (
-                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {Object.entries(HUB_IMPORT[kind].fields as Record<string, HubField>).map(([name, field]) => (
                                 <ItemField key={name} field={field} value={item[name]} onChange={(value) => change(kind, index, name, value)} />
                               ))}

@@ -185,7 +185,7 @@ export default function EyeGazePottyCoach(){
         </section>
       </div>}
 
-      {tab==="plan"&&<div className="mt-5 grid lg:grid-cols-2 gap-5">
+      {tab==="plan"&&<div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
         <section className="rounded-[2rem] bg-white border-2 border-cyan-100 p-5 sm:p-6">
           <div className="flex items-center gap-3"><Clock3 className="w-7 h-7 text-cyan-600"/><h3 className="text-2xl font-black">Next potty check</h3></div>
           <p className="font-bold text-slate-600 mt-2">A reminder to calmly offer the bathroom. Adjust the interval from your child's real patterns—not from a rigid universal schedule.</p>
@@ -237,11 +237,11 @@ export default function EyeGazePottyCoach(){
         <section className="rounded-[2rem] bg-white border-2 border-sky-100 p-5 sm:p-6">
           <h3 className="text-2xl font-black">1. Check readiness, not just age</h3>
           <p className="font-bold text-slate-600 mt-1">AAP guidance emphasizes body awareness, communication, movement, and ability to follow routines. Check what you are seeing now.</p>
-          <div className="grid sm:grid-cols-2 gap-2 mt-4">{readinessItems.map((item,i)=><button key={item} onClick={()=>{const next=[...readiness];next[i]=!next[i];setReadiness(next);}} className={"min-h-16 rounded-2xl border-2 p-3 text-left font-black flex items-center gap-3 "+(readiness[i]?"bg-emerald-50 border-emerald-300":"bg-white border-slate-200")}><span className="text-2xl">{readiness[i]?"✅":"○"}</span>{item}</button>)}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">{readinessItems.map((item,i)=><button key={item} onClick={()=>{const next=[...readiness];next[i]=!next[i];setReadiness(next);}} className={"min-h-16 rounded-2xl border-2 p-3 text-left font-black flex items-center gap-3 "+(readiness[i]?"bg-emerald-50 border-emerald-300":"bg-white border-slate-200")}><span className="text-2xl">{readiness[i]?"✅":"○"}</span>{item}</button>)}</div>
           <p className="mt-3 text-sm font-bold text-slate-500">This checklist is for planning, not a pass/fail test. Development can be uneven, especially for children with disabilities.</p>
         </section>
 
-        <section className="grid lg:grid-cols-3 gap-4">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <article className="rounded-3xl bg-white border-2 border-violet-100 p-5"><div className="text-4xl">👀</div><h3 className="text-xl font-black mt-2">Observe first</h3><p className="font-bold text-slate-600 mt-2">For several days, notice wet/dry times, poop times, body signals, meals, and transitions. Use those patterns to time potty opportunities.</p></article>
           <article className="rounded-3xl bg-white border-2 border-teal-100 p-5"><div className="text-4xl">🖼️</div><h3 className="text-xl font-black mt-2">Use visuals + same steps</h3><p className="font-bold text-slate-600 mt-2">Keep the sequence predictable. Picture steps can reduce language load and support autistic children who respond better to visual cues.</p></article>
           <article className="rounded-3xl bg-white border-2 border-amber-100 p-5"><div className="text-4xl">👏</div><h3 className="text-xl font-black mt-2">Praise the exact skill</h3><p className="font-bold text-slate-600 mt-2">Use calm, specific praise for cooperation and progress. Avoid shame, punishment, begging, or power struggles after accidents.</p></article>
@@ -257,7 +257,7 @@ export default function EyeGazePottyCoach(){
 
         <section className="rounded-[2rem] bg-white border-2 border-slate-200 p-5 sm:p-6">
           <h3 className="text-xl font-black">Evidence & parent reading</h3>
-          <div className="grid sm:grid-cols-2 gap-3 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             <a href="https://www.healthychildren.org/English/ages-stages/toddler/toilet-training/Pages/Cognitive-and-Verbal-Skills-Needed-for-Toilet-Training.aspx" target="_blank" rel="noopener noreferrer" className="rounded-2xl bg-sky-50 border p-4 font-black flex items-center justify-between">AAP: Potty training readiness <ExternalLink className="w-5 h-5"/></a>
             <a href="https://www.healthychildren.org/English/ages-stages/toddler/toilet-training/Pages/Praise-and-Reward-Your-Childs-Success.aspx" target="_blank" rel="noopener noreferrer" className="rounded-2xl bg-emerald-50 border p-4 font-black flex items-center justify-between">AAP: Keep potty training positive <ExternalLink className="w-5 h-5"/></a>
             <a href="https://www.healthychildren.org/English/health-issues/conditions/abdominal/Pages/constipation.aspx" target="_blank" rel="noopener noreferrer" className="rounded-2xl bg-amber-50 border p-4 font-black flex items-center justify-between">AAP: Constipation in children <ExternalLink className="w-5 h-5"/></a>
@@ -270,7 +270,7 @@ export default function EyeGazePottyCoach(){
         <section className="rounded-[2rem] bg-white border-2 border-fuchsia-100 p-5 sm:p-6">
           <h3 className="text-2xl font-black">Potty songs & practice videos</h3>
           <p className="font-bold text-slate-600 mt-1">Use media as a short routine cue, not as a requirement to sit. Pick one or two favorites and keep the language consistent.</p>
-          <div className="grid md:grid-cols-3 gap-4 mt-5">{media.map(item=><a key={item.title} href={item.url} target="_blank" rel="noopener noreferrer" className="rounded-3xl bg-gradient-to-br from-fuchsia-50 to-sky-50 border-2 border-fuchsia-100 p-5 hover:shadow-lg transition-shadow">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">{media.map(item=><a key={item.title} href={item.url} target="_blank" rel="noopener noreferrer" className="rounded-3xl bg-gradient-to-br from-fuchsia-50 to-sky-50 border-2 border-fuchsia-100 p-5 hover:shadow-lg transition-shadow">
             <span className="text-5xl">{item.emoji}</span><p className="text-xs font-black text-fuchsia-700 mt-3">{item.source}</p><h4 className="text-xl font-black mt-1">{item.title}</h4><p className="text-sm font-bold text-slate-600 mt-2">{item.why}</p><span className="mt-4 inline-flex items-center gap-2 font-black text-blue-700">Open <ExternalLink className="w-4 h-4"/></span>
           </a>)}</div>
         </section>
@@ -278,7 +278,7 @@ export default function EyeGazePottyCoach(){
         <section className="rounded-[2rem] bg-gradient-to-br from-amber-100 to-emerald-100 p-5 sm:p-6">
           <h3 className="text-2xl font-black">A.R.I.S.E. potty language</h3>
           <p className="font-bold text-slate-700 mt-2">Short scripts help every caregiver use the same calm words.</p>
-          <div className="grid sm:grid-cols-2 gap-3 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             {[
               ["Body cue","Your body is telling you it might be potty time."],
               ["Transition","We can come back to play after the bathroom."],

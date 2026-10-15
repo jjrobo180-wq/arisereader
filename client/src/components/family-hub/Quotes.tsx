@@ -28,7 +28,7 @@ export default function Quotes({ family, setFamily, today, say }: SectionProps) 
       </div>
     </section>
     <Panel title={`Saved · ${favorites.length}`}>
-      {favorites.length ? <ul className="grid gap-3 md:grid-cols-2">{favorites.map((q) => <li key={q.id} className="rounded-2xl border border-slate-100 p-4">
+      {favorites.length ? <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">{favorites.map((q) => <li key={q.id} className="rounded-2xl border border-slate-100 p-4">
         <p className="text-sm font-bold leading-6 text-[#232139]">“{q.text}”</p>
         <div className="mt-2 flex items-center justify-between gap-2"><span className="text-xs text-slate-500">— {q.by}</span>
           <span className="flex gap-1"><button type="button" onClick={() => copy(q)} className={plain + " px-2"} aria-label="Copy quote"><Copy size={14} /></button><button type="button" onClick={() => toggleSave(q)} className={soft + " px-2"} aria-label="Remove from saved"><Heart size={14} className="fill-current" /></button></span>

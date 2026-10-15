@@ -81,7 +81,7 @@ export function LogTracker({ cfg, intro }: { cfg: TrackerConfig; intro?: ReactNo
     </div>
     {intro}
     {view === "today" && <>
-      <div className="grid gap-4 md:grid-cols-[auto_1fr]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[auto_1fr]">
         <Card className="flex flex-col items-center justify-center gap-3 md:min-w-[240px]">
           <Ring value={todayVal ?? 0} max={cfg.goal ? goal : Math.max(1, todayVal ?? 1)} color={cfg.color} size={150}>
             <span className="text-3xl font-black" style={{ color: cfg.color }}>{todayVal === null ? "—" : fmtNum(todayVal, dec)}</span>
@@ -122,7 +122,7 @@ export function LogTracker({ cfg, intro }: { cfg: TrackerConfig; intro?: ReactNo
       </Card>
     </>}
     {view === "settings" && <Card title="Settings">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {cfg.goal && <Field label={cfg.goal.label}><NumIn value={data.goal} onChange={(n) => setData((dd) => ({ ...dd, goal: n === "" ? 0 : n }))} /></Field>}
         {(cfg.settings || []).map((f) => <Field key={f.key} label={f.label + (f.unit ? ` (${f.unit})` : "")}><FieldInput f={f} value={s[f.key]} onChange={(v) => setData((dd) => ({ ...dd, settings: { ...dd.settings, [f.key]: v } }))} /></Field>)}
       </div>

@@ -40,7 +40,7 @@ export default function Recipes({ family, setFamily, makeId, say }: SectionProps
   return <div className="space-y-6">
     <PageHead eyebrow="Recipe box" title="Family recipes" blurb="Keep your go-to recipes in one place. One tap puts the ingredients on your Grocery list." action={<button type="button" onClick={() => setEditing({ ...blank(), ingredientText: "" })} className={primary}><ChefHat size={16} />New recipe</button>} />
     <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search recipes, tags or ingredients" className={inputClass + " pl-9"} aria-label="Search recipes" /></label>
-    {list.length ? <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{list.map((r) => <li key={r.id}>
+    {list.length ? <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{list.map((r) => <li key={r.id}>
       <button type="button" onClick={() => setOpen(r.id)} className="h-full w-full rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 text-left shadow-[0_8px_28px_#17152b08] transition hover:shadow-lg">
         <p className="text-lg font-black text-[#232139]">{r.title}</p>
         <p className="mt-1 flex flex-wrap gap-3 text-xs font-bold text-slate-500">{r.minutes > 0 && <span className="flex items-center gap-1"><Clock size={13} />{r.minutes} min</span>}{r.servings > 0 && <span className="flex items-center gap-1"><Users size={13} />Serves {r.servings}</span>}<span>{r.ingredients.length} ingredients</span></p>
@@ -54,7 +54,7 @@ export default function Recipes({ family, setFamily, makeId, say }: SectionProps
         <button type="button" onClick={() => { setEditing({ ...viewing, ingredientText: viewing.ingredients.join("\n") }); setOpen(null); }} className={plain}><Pencil size={15} />Edit</button>
         <button type="button" onClick={() => { if (window.confirm(`Delete ${viewing.title}?`)) { setFamily((f) => ({ ...f, recipes: f.recipes.filter((r) => r.id !== viewing.id) })); setOpen(null); } }} className={danger}><Trash2 size={15} />Delete</button>
       </div>
-      <div className="mt-5 grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div><h3 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-400">Ingredients</h3><ul className="space-y-1.5 text-sm">{viewing.ingredients.map((i, n) => <li key={n} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-orange-400" />{i}</li>)}</ul></div>
         <div><h3 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-400">Steps</h3><p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{viewing.steps || "No steps written yet."}</p></div>
       </div>

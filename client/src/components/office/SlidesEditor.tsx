@@ -522,7 +522,7 @@ function AiDeck({ token, theme, onClose, onDone }: { token: string | null; theme
     } catch (e: any) { setErr(e.message || "The AI couldn't make the deck. Try again."); } finally { setBusy(false); }
   };
   return <Dialog title="AI presentation builder" onClose={onClose} wide footer={<><button type="button" className={btnGhost} onClick={onClose}>Cancel</button><button type="button" className={btnPrimary} onClick={() => void go()} disabled={busy || !topic.trim()}><Sparkles size={14} />{busy ? "Building your slides…" : "Make slides"}</button></>}>
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="sm:col-span-2"><Label text="What is the presentation about?"><textarea autoFocus value={topic} onChange={(e) => setTopic(e.target.value)} rows={2} placeholder="e.g. The water cycle for 5th graders, with a quick check at the end" className={`${field} h-auto py-2`} /></Label></div>
       <Label text="Audience"><input value={audience} onChange={(e) => setAudience(e.target.value)} className={field} /></Label>
       <Label text="Slides"><select value={count} onChange={(e) => setCount(e.target.value)} className={field}>{["5", "6", "8", "10", "12", "15"].map((c) => <option key={c}>{c}</option>)}</select></Label>

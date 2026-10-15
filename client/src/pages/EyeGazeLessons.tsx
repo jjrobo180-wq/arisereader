@@ -90,7 +90,7 @@ export default function EyeGazeLessons({ embedded = false }: { embedded?: boolea
         </div>
       </section>}
 
-      {!embedded && <section className="grid sm:grid-cols-2 gap-3">
+      {!embedded && <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <button type="button" onClick={() => navigate("/my-world")} className="rounded-3xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-100 to-sky-50 p-4 flex items-center gap-4 text-left hover:border-emerald-400">
           <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-4xl flex-shrink-0">🏠</div>
           <div>
@@ -134,11 +134,11 @@ export default function EyeGazeLessons({ embedded = false }: { embedded?: boolea
           </div>
 
           {loading ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-40 rounded-3xl bg-white animate-pulse" />)}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-40 rounded-3xl bg-white animate-pulse" />)}</div>
           ) : filteredLessons.length === 0 ? (
             <div className="rounded-3xl bg-white border border-sky-100 p-8 text-center font-bold text-slate-500">No lessons found.</div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {filteredLessons.map((item: any) => {
                 const picture = lessonVisual(item.title);
                 return (

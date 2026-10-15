@@ -195,7 +195,7 @@ function TripsView({ view }: { view: Extract<SharedView, { kind: "trips" }> }) {
     <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-slate-500">{t.destination && <span className="inline-flex items-center gap-1"><MapPin size={14} />{t.destination}</span>}<span>{t.start ? `${day(t.start)}${t.end && t.end !== t.start ? ` – ${day(t.end)}` : ""}` : "No dates yet"}</span></p>
     {t.notes && <p className="mt-3 whitespace-pre-wrap rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">{t.notes}</p>}
     {t.stops.length > 0 && <><h3 className="mt-4 text-sm font-black">Plan</h3><ul className="mt-2 space-y-1.5">{t.stops.map((s, j) => <li key={j} className="text-sm"><span className="font-semibold text-slate-500">{[s.date && day(s.date), s.time && clock(s.time)].filter(Boolean).join(" ")}</span> {s.title}</li>)}</ul></>}
-    {t.packing.length > 0 && <><h3 className="mt-4 text-sm font-black">Packing list</h3><div className="mt-2 grid gap-3 sm:grid-cols-2">{t.packing.map((p) => <div key={p.person} className="rounded-2xl bg-slate-50 p-3">
+    {t.packing.length > 0 && <><h3 className="mt-4 text-sm font-black">Packing list</h3><div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">{t.packing.map((p) => <div key={p.person} className="rounded-2xl bg-slate-50 p-3">
       <p className="text-xs font-black uppercase tracking-wider text-slate-500">{p.person}</p>
       <ul className="mt-1 space-y-1">{p.items.map((it, k) => <li key={k} className={`flex items-center gap-2 text-sm ${it.packed ? "text-slate-400 line-through" : ""}`}>{it.packed ? <Check size={13} className="text-emerald-600" /> : <span className="h-3 w-3 rounded-sm border border-slate-300" />}{it.item}</li>)}</ul>
     </div>)}</div></>}
@@ -227,7 +227,7 @@ function LinksView({ view }: { view: Extract<SharedView, { kind: "links" }> }) {
 
 function GoalsView({ view }: { view: Extract<SharedView, { kind: "goals" }> }) {
   if (!view.goals.length) return <Empty>No goals yet.</Empty>;
-  return <div className="grid gap-3 sm:grid-cols-2">{view.goals.map((g, i) => <Card key={i} className="!p-4">
+  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{view.goals.map((g, i) => <Card key={i} className="!p-4">
     <h2 className="flex items-start gap-2 font-black"><Target size={17} className={`mt-0.5 shrink-0 ${g.done ? "text-emerald-600" : "text-violet-600"}`} />{g.title}</h2>
     <p className="mt-1 text-xs text-slate-500">{[g.person, g.due && `by ${day(g.due)}`, g.done && "Done!"].filter(Boolean).join(" · ")}</p>
     {g.why && <p className="mt-2 text-sm text-slate-600">{g.why}</p>}

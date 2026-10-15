@@ -34,7 +34,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
   }, [gated, token]);
 
   if (!gated || failed) return <>{children}</>;
-  if (!todo) return <div className="min-h-screen grid place-items-center bg-[#f6f7fc]"><div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>;
+  if (!todo) return <div className="min-h-screen grid grid-cols-1 place-items-center bg-[#f6f7fc]"><div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>;
   if (!todo.access) {
     const parent = user!.role === "parent";
     return (
@@ -48,7 +48,7 @@ export default function TodoGate({ children }: { children: ReactNode }) {
         <main className="mx-auto max-w-6xl space-y-5 px-4 py-6">
           {parent ? <>
             <HubEndedNote which="life" onUpgrade={() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" })} />
-            <Suspense fallback={<div className="grid min-h-[40vh] place-items-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>}>
+            <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>}>
               <Reader say={setNote} />
             </Suspense>
           </> : <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

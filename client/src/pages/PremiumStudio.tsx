@@ -76,7 +76,7 @@ export default function PremiumStudio() {
   return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-8"><div className="mx-auto max-w-6xl space-y-6">
     <header><a href={user?.role === "parent" ? "#/lifehub" : "#/workhub"} className="text-sm font-semibold text-indigo-700 hover:underline"><ArrowLeft size={16} className="inline"/> Back to my hub</a>
       <h1 className="mt-3 text-3xl font-extrabold">A.R.I.S.E. AI Apps</h1><p className="mt-1 text-sm text-slate-600">Plan, write and create. Your generated work is saved to your account.</p></header>
-    <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[240px_1fr]">
       <nav aria-label="AI tools" className="rounded-2xl border border-slate-200 bg-white p-3">
         {["Work", "Teaching", "Life"].map((group) => <div key={group} className="mb-3"><h2 className="px-2 pb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{group}</h2>
           {TOOLS.filter((t) => t.group === group).map((t) => <button key={t.id} onClick={() => changeTool(t.id)} aria-current={tool.id === t.id ? "page" : undefined} className={"mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold " + (tool.id === t.id ? "bg-indigo-100 text-indigo-900" : "text-slate-700 hover:bg-slate-100")}>{t.name}</button>)}</div>)}
@@ -84,7 +84,7 @@ export default function PremiumStudio() {
       <div className="space-y-5">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap justify-between gap-2"><div><h2 className="text-xl font-bold">{tool.name}</h2><p className="mt-1 text-sm text-slate-500">{tool.description}</p></div><span role="status" className="text-xs text-slate-500">{saveLabel(state)}</span></div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">{tool.fields.map((f) => <label key={f.key} className={"block text-sm font-semibold " + (f.large ? "sm:col-span-2" : "")}>{f.label}
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">{tool.fields.map((f) => <label key={f.key} className={"block text-sm font-semibold " + (f.large ? "sm:col-span-2" : "")}>{f.label}
             {f.large ? <textarea rows={5} className={fieldClass + " mt-1"} value={values[f.key] || ""} placeholder={f.placeholder} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}/> :
               <input className={fieldClass + " mt-1"} value={values[f.key] || ""} placeholder={f.placeholder} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}/>}</label>)}</div>
           <div className="mt-5 flex flex-wrap items-center gap-3"><button disabled={busy || !loaded} onClick={() => void generate()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-indigo-700 px-5 py-2 text-sm font-bold text-white disabled:opacity-50"><Sparkles size={16}/>{busy ? "Creating…" : "Generate"}</button>

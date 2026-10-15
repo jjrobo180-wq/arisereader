@@ -118,7 +118,7 @@ function WorldFace({ t, item, now, size }: { t: WidgetTheme; item: WidgetItem; n
 function World3Face({ t, item, now }: { t: WidgetTheme; item: WidgetItem; now: Date }) {
   const tzs = item.tzs?.length ? item.tzs : ["America/New_York", "Europe/London", "Asia/Tokyo"];
   return (
-    <div className="grid h-full gap-2" style={{ gridTemplateColumns: `repeat(${tzs.length}, minmax(0,1fr))` }}>
+    <div className="grid grid-cols-1 h-full gap-2" style={{ gridTemplateColumns: `repeat(${tzs.length}, minmax(0,1fr))` }}>
       {tzs.map((tz) => {
         const x = timeIn(tz, now);
         return (

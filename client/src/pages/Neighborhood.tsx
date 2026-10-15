@@ -509,7 +509,7 @@ export default function Neighborhood() {
         : <p className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-amber-300/20 p-2 text-sm font-black text-amber-200"><Lock className="h-4 w-4" /> Locked — only {nearDoor.displayName} can open it</p>}
     </div>}
     {showReaders && <aside className="absolute right-3 top-20 z-40 max-h-[62dvh] w-[min(320px,calc(100%-1.5rem))] overflow-y-auto rounded-2xl bg-slate-950/95 p-3 shadow-xl">
-      <div className="flex items-center justify-between"><h2 className="font-black">Neighbors here</h2><button onClick={() => setShowReaders(false)} className="grid h-10 w-10 place-items-center rounded-lg bg-white/10" aria-label="Close"><X className="h-4 w-4" /></button></div>
+      <div className="flex items-center justify-between"><h2 className="font-black">Neighbors here</h2><button onClick={() => setShowReaders(false)} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-lg bg-white/10" aria-label="Close"><X className="h-4 w-4" /></button></div>
       {neighbors.length ? neighbors.map(p => <button key={p.userId} onClick={() => walkTo(p)} className="mt-2 min-h-12 w-full rounded-xl bg-white/10 p-3 text-left text-sm font-bold">{p.displayName}<span className="block text-xs text-cyan-200">Walk over</span></button>) : <p className="mt-3 text-sm text-white/70">You are the first reader here right now.</p>}
       <div className="mt-3 border-t border-white/10 pt-3"><p className="text-xs font-black uppercase tracking-widest text-white/45">Homes on the block</p>
         {homes.map(home => <button key={home.propertyId} onClick={() => { walkToDoor(home); setShowReaders(false); setNotice("Walking to " + (home.ownerId === self?.userId ? "your" : home.displayName + "'s") + " house…"); }} className="mt-2 flex min-h-11 w-full items-center gap-2 rounded-xl bg-white/5 px-3 text-left text-xs font-bold">{home.unlocked ? <Unlock className="h-4 w-4 shrink-0 text-emerald-300" /> : <Lock className="h-4 w-4 shrink-0 text-amber-300" />}<span className="min-w-0 flex-1 truncate">{home.ownerId === self?.userId ? "My home" : home.displayName + "'s home"}</span><span className="text-[10px] text-white/50">{homeInfo(home.homeId).name}</span></button>)}
@@ -517,7 +517,7 @@ export default function Neighborhood() {
     </aside>}
     <MobileJoystick onMove={move} className="bottom-24 left-3" label="Neighborhood movement controls" />
     {!nearDoor && <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 max-w-[88vw] -translate-x-1/2 rounded-xl bg-slate-950/78 px-4 py-2 text-center text-xs font-bold backdrop-blur">{notice}</div>}
-    {!self && <div className="absolute inset-0 z-40 grid place-items-center bg-slate-950/70 p-5 text-center"><div><MapIcon className="mx-auto h-12 w-12 text-cyan-300" /><p className="mt-3 text-xl font-black">Opening The Block…</p><p className="mt-1 text-sm text-white/70">{notice}</p></div></div>}
+    {!self && <div className="absolute inset-0 z-40 grid grid-cols-1 place-items-center bg-slate-950/70 p-5 text-center"><div><MapIcon className="mx-auto h-12 w-12 text-cyan-300" /><p className="mt-3 text-xl font-black">Opening The Block…</p><p className="mt-1 text-sm text-white/70">{notice}</p></div></div>}
     {leavingWorld && <WorldLoadingOverlay tone="block" label="Leaving The Block…" />}
   </main>;
 }

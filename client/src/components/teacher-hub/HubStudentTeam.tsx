@@ -78,7 +78,7 @@ export function StudentTeamFields({ details, onDetails, draft, onDraft, contacts
   return (
     <div className="space-y-4" data-testid="student-team-fields">
       <div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Labeled label="Disability 1"><Field list={listId} value={details.disability1 || ""} onChange={(e) => onDetails({ disability1: e.target.value })} placeholder="As it is on the IEP" maxLength={DISABILITY_MAX} autoComplete="off" autoFocus={autoFocus} /></Labeled>
           <Labeled label="Disability 2"><Field list={listId} value={details.disability2 || ""} onChange={(e) => onDetails({ disability2: e.target.value })} placeholder="Only if there is a second one" maxLength={DISABILITY_MAX} autoComplete="off" /></Labeled>
         </div>
@@ -87,7 +87,7 @@ export function StudentTeamFields({ details, onDetails, draft, onDraft, contacts
       <div>
         <div className="text-sm font-semibold text-slate-800">IEP team for meetings</div>
         <p className="mb-3 mt-1 text-xs text-slate-500">Fill in only the people this student has, and leave the rest. They are picked for you when you start this student's IEP guide or ask for meeting times.</p>
-        <div className="grid items-start gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
           {STUDENT_TEAM_ROLES.map((role) => <RoleField key={role.id} role={role} pick={draft[role.id]} contacts={contacts} onPick={(pick) => pickFor(role.id, pick)} />)}
         </div>
       </div>
@@ -102,7 +102,7 @@ export function StudentTeamSummary({ workspace, student, emails = false }: { wor
   return (
     <section className="mt-3 rounded-xl bg-slate-50 p-3" aria-label="IEP team" data-testid="student-team-summary">
       <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">IEP team</h3>
-      <ul className="mt-2 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+      <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
         {members.map(({ role, person }) => {
           const email = emails ? cleanEmail(person.email) : "";
           return (

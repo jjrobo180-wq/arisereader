@@ -172,7 +172,7 @@ function Review({ which, id, headers, onClose, onChanged }: { which: Which; id: 
             </button>)}</div> : <p className={k.small}>No pictures came through for this quiz.</p>}
         </section>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <section><h3 className={`mb-2 ${k.h}`}>What happened</h3>
             <ol className="space-y-1">{detail.timeline.map((e, i) => { const d = describe(e); return <li key={i} className="flex gap-3 text-sm"><time className="w-12 shrink-0 font-mono text-xs text-slate-500">{clock(offset(e, s.startedAt))}</time><span className={TONE[d.tone]}>{d.text}</span></li>; })}</ol>
           </section>

@@ -28,10 +28,10 @@ export default function HalloreadWelcome(){
     playHalloreadStinger();
   },[]);
   if(!show)return null;
-  return <button type="button" onClick={()=>setShow(false)} className="fixed inset-0 z-[360] grid cursor-pointer place-items-center overflow-hidden bg-[#050108]/88 p-5 text-white backdrop-blur-sm" aria-label="Close Halloread welcome">
+  return <button type="button" onClick={()=>setShow(false)} className="fixed inset-0 z-[360] grid grid-cols-1 cursor-pointer place-items-center overflow-hidden bg-[#050108]/88 p-5 text-white backdrop-blur-sm" aria-label="Close Halloread welcome">
     <div className="halloread-flash absolute inset-0"/>
     <div className="relative max-w-2xl text-center">
-      <div className="halloread-pumpkin mx-auto grid h-28 w-28 place-items-center rounded-[42%] border-4 border-orange-300/70 bg-orange-500 text-6xl shadow-[0_0_70px_rgba(249,115,22,.55)] sm:h-36 sm:w-36 sm:text-7xl">🎃</div>
+      <div className="halloread-pumpkin mx-auto grid grid-cols-1 h-28 w-28 place-items-center rounded-[42%] border-4 border-orange-300/70 bg-orange-500 text-6xl shadow-[0_0_70px_rgba(249,115,22,.55)] sm:h-36 sm:w-36 sm:text-7xl">🎃</div>
       <p className="mt-7 text-xs font-black uppercase tracking-[.42em] text-orange-300">October takeover</p>
       <h2 className="halloread-laugh mt-2 text-5xl font-black tracking-tight sm:text-7xl">HA… HA… HALLOREAD!</h2>
       <p className="mx-auto mt-4 max-w-xl text-sm font-bold text-violet-100/80 sm:text-base">Spooky books, haunted worlds, midnight games, costumes and surprises are live — creepy fun, never gory.</p>

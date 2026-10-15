@@ -29,7 +29,7 @@ export default function Weather({ family, setFamily }: SectionProps) {
           <div className="mt-2 flex flex-wrap items-center gap-6">
             <span className="text-7xl" aria-hidden>{now.icon}</span>
             <div><p className="text-7xl font-black tracking-tighter">{w.current.temp}°</p><p className="text-lg font-bold">{now.text}</p></div>
-            <dl className="ml-auto grid gap-1 text-sm font-bold text-sky-50">
+            <dl className="ml-auto grid grid-cols-1 gap-1 text-sm font-bold text-sky-50">
               <div>Feels like {w.current.feels}°</div>
               <div className="flex items-center gap-1.5"><Wind size={15} />{w.current.wind} {w.unit === "F" ? "mph" : "km/h"}</div>
               <div className="flex items-center gap-1.5"><Droplets size={15} />{w.current.humidity}% humidity</div>

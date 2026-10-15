@@ -385,7 +385,7 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
         <section className="rounded-[2rem] bg-white p-5 sm:p-8 text-center">
           <h3 className="text-3xl font-black">Look at {lesson.word}</h3>
           <p className="font-bold text-slate-500 mt-1">Tap a picture to hear what you see.</p>
-          <div className="grid sm:grid-cols-3 gap-3 mt-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
             {lesson.pictures.map((picture, index) => (
               <button data-talker-dwell key={index} type="button" onClick={() => say(picture.caption)} className="relative min-h-48 rounded-3xl bg-[#eff8f8] border-2 border-teal-100 flex flex-col items-center justify-center gap-3 p-3">
                 <span className="text-7xl">{picture.icon}</span><span className="font-black text-lg">{picture.caption}</span>
@@ -408,7 +408,7 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
       {step === 4 && (
         <section className="rounded-[2rem] bg-sky-50 p-6 sm:p-10 text-center">
           <h3 className="text-3xl font-black">Hear {lesson.word} in a sentence</h3>
-          <div className="grid gap-3 mt-5">
+          <div className="grid grid-cols-1 gap-3 mt-5">
             {lesson.phrases.map((phrase, index) => (
               <button data-talker-dwell key={phrase} type="button" disabled={busy} onClick={() => advanceAfterSpeech(phrase, index === 0 ? 5 : 4)} className="relative min-h-20 rounded-3xl bg-white border-2 border-sky-100 p-4 text-xl font-black disabled:opacity-50">
                 🔊 {phrase}
@@ -452,7 +452,7 @@ export default function EyeGazeLearningZone({ say, onBack }: Props) {
           <div className="text-8xl">🌟</div>
           <h3 className="text-4xl sm:text-5xl font-black mt-3">You said {lesson.word}!</h3>
           <p className="text-xl font-bold text-slate-600 mt-2">Great work listening, finding, and talking.</p>
-          <div className="grid sm:grid-cols-2 gap-3 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
             <button data-talker-dwell type="button" onClick={() => { setStep(1); setFeedback(""); setHeard(""); }} className="relative min-h-16 rounded-2xl bg-white font-black">Practice {lesson.word} again</button>
             <button data-talker-dwell type="button" onClick={restart} className="relative min-h-16 rounded-2xl bg-emerald-600 text-white font-black">Learn another word →</button>
           </div>

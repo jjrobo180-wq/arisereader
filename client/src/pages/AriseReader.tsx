@@ -89,7 +89,7 @@ function ReaderPage() {
   }, [user]);
 
   if (!user) {
-    return <div className="grid min-h-screen place-items-center bg-slate-100 text-slate-600">
+    return <div className="grid grid-cols-1 min-h-screen place-items-center bg-slate-100 text-slate-600">
       <p className="text-sm">Taking you to sign in…</p>
     </div>;
   }
@@ -97,7 +97,7 @@ function ReaderPage() {
   // A.R.I.S.E. Reader is one of the paid programs, so a personal To-Do account has WorkHub but not
   // this. Said plainly, with the way to get it, rather than an empty screen or a wall of errors.
   if (!isParent && user.role !== "teacher" && !user.isAdmin) {
-    return <div className="grid min-h-screen place-items-center bg-slate-100 px-5">
+    return <div className="grid grid-cols-1 min-h-screen place-items-center bg-slate-100 px-5">
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-violet-700"><BookHeart className="h-7 w-7" /></span>
         <h1 className="mt-4 text-2xl font-bold text-slate-950">A.R.I.S.E. Reader</h1>

@@ -55,14 +55,14 @@ export default function News({ family, setFamily }: SectionProps) {
 
     {needsPlace ? <Panel><Empty icon={<MapPin size={26} />} title="Where are you?" action={<form onSubmit={(e) => { e.preventDefault(); if (placeDraft.trim()) setPrefs({ place: placeDraft.trim().slice(0, 60) }); }} className="flex gap-2"><input value={placeDraft} onChange={(e) => setPlaceDraft(e.target.value)} placeholder="Denver, CO" aria-label="Your town" className={inputClass} /><button type="submit" className={primary}>Show</button></form>}>Type your town or city to see local news.</Empty></Panel>
       : state.error ? <Panel><Empty icon={<Newspaper size={26} />} title="No news right now" action={<button onClick={() => setRound((r) => r + 1)} className={soft}>Try again</button>}>{state.error}</Empty></Panel>
-      : state.busy && !state.items.length ? <div className="grid gap-3 md:grid-cols-2">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white" />)}</div>
+      : state.busy && !state.items.length ? <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white" />)}</div>
       : !state.items.length ? <Panel><Empty icon={<Newspaper size={26} />} title="No stories found">Try another topic or search.</Empty></Panel>
       : <div className="space-y-4">
         {lead && <a href={lead.link} target="_blank" rel="noopener noreferrer" className="block rounded-[1.5rem] bg-[#292446] p-6 text-white shadow-[0_12px_24px_#2924461f] hover:bg-[#332d57]">
           <p className="text-[11px] font-black uppercase tracking-wider text-[#bcb2ff]">{lead.source}{lead.published ? ` · ${ago(lead.published)}` : ""}</p>
           <p className="mt-2 text-2xl font-black leading-tight">{lead.title}</p>
           <p className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-white/70">Read the story <ExternalLink size={12} /></p></a>}
-        <div className="grid gap-3 md:grid-cols-2">{rest.map((h) => <a key={h.link} href={h.link} target="_blank" rel="noopener noreferrer" className="group flex flex-col rounded-2xl border border-[#e7e8f0] bg-white p-4 shadow-[0_3px_16px_#17152b08] hover:border-violet-200">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{rest.map((h) => <a key={h.link} href={h.link} target="_blank" rel="noopener noreferrer" className="group flex flex-col rounded-2xl border border-[#e7e8f0] bg-white p-4 shadow-[0_3px_16px_#17152b08] hover:border-violet-200">
           <p className="text-[11px] font-bold text-slate-500">{h.source}{h.published ? ` · ${ago(h.published)}` : ""}</p>
           <p className="mt-1 text-sm font-bold leading-snug text-slate-800 group-hover:text-violet-700">{h.title}</p></a>)}</div>
         <p className="text-[11px] text-slate-400">Headlines via Google News. Stories belong to their publishers.</p>

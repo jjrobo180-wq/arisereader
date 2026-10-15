@@ -109,7 +109,7 @@ export default function StudentActivity({ studentId, token, refreshKey = 0 }: { 
                   const Icon = ICON[it.kind];
                   return (
                     <li key={i} className="flex gap-2.5 p-2 rounded-lg bg-muted/20">
-                      <span className={`mt-0.5 grid place-items-center w-7 h-7 rounded-full flex-shrink-0 ${TINT[it.kind]}`}><Icon className="w-3.5 h-3.5" /></span>
+                      <span className={`mt-0.5 grid grid-cols-1 place-items-center w-7 h-7 rounded-full flex-shrink-0 ${TINT[it.kind]}`}><Icon className="w-3.5 h-3.5" /></span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium leading-snug">{it.title}</p>
                         {it.detail && <p className="text-xs text-muted-foreground break-words">{it.detail}</p>}

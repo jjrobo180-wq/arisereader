@@ -48,7 +48,7 @@ export default function HubQuickAddStudent({ workspace, setWorkspace, makeId, se
   return <div className="space-y-3" data-testid="iep-quick-add-student">
     <p className="text-sm text-slate-600">Add the student once. Their information will also appear in Caseload, meeting guides and scheduling.</p>
     {full && <div role="alert" className="rounded-xl bg-amber-50 px-3 py-3 text-sm text-amber-900">Your caseload is full ({seats} seats). <a href="#/billing" className="font-bold underline">View billing to add seats</a>.</div>}
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <label className="text-xs font-bold text-slate-700">Student name
         <Field value={form.name} autoFocus maxLength={80} onChange={(e) => update({ name: e.target.value })} placeholder="First and last name" aria-label="New student name" data-testid="iep-new-student-name" />
       </label>

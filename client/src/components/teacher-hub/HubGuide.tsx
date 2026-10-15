@@ -96,7 +96,7 @@ function Contacts({ workspace, setWorkspace, makeId }: Shared) {
   return (
     <Card title="Sped team contacts" right={<span className="shrink-0 text-xs font-medium text-slate-500">{contacts.length} saved</span>}>
       <p className="mb-4 text-sm text-slate-600">Save the people you work with once. On each student's guide you pick who is assigned, because not every student has the same team.</p>
-      <form onSubmit={add} className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto]" data-testid="hub-contact-form">
+      <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto]" data-testid="hub-contact-form">
         <Field placeholder="Name" aria-label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={80} required />
         <Select aria-label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{roles}</Select>
         <Field type="email" inputMode="email" placeholder="Email (optional)" aria-label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} maxLength={120} />
@@ -106,7 +106,7 @@ function Contacts({ workspace, setWorkspace, makeId }: Shared) {
       {contacts.length > 0 && (
         <ul className="mt-4 space-y-2">
           {contacts.map((c) => editing === c.id ? (
-            <li key={c.id} className="grid gap-3 rounded-2xl border border-slate-300 p-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto]">
+            <li key={c.id} className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-300 p-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto]">
               <Field aria-label="Name" value={c.name} onChange={(e) => change(c.id, { name: e.target.value })} maxLength={80} autoFocus />
               <Select aria-label="Role" value={GUIDE_ROLES.some((r) => r.id === c.role) ? c.role : "other"} onChange={(e) => change(c.id, { role: e.target.value })}>{roles}</Select>
               <Field type="email" inputMode="email" placeholder="Email (optional)" aria-label="Email" value={c.email || ""} onChange={(e) => change(c.id, { email: e.target.value })} maxLength={120} />
@@ -154,7 +154,7 @@ function Links({ workspace, setWorkspace, makeId }: Shared) {
   return (
     <Card title="Links I use for every IEP">
       <p className="mb-4 text-sm text-slate-600">Save a link once (your room reservation form, IEP folder, deadlines list) and it shows at the top of every student's guide.</p>
-      <form onSubmit={add} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_auto]" data-testid="hub-link-form">
+      <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_auto]" data-testid="hub-link-form">
         <Field placeholder="Name, like Reserve Room" aria-label="Link name" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} maxLength={60} />
         <Field inputMode="url" placeholder="Paste the link" aria-label="Link" value={form.url} onChange={(e) => { setForm({ ...form, url: e.target.value }); setError(""); }} maxLength={600} required />
         <PrimaryButton type="submit" disabled={full}><Plus className="h-4 w-4" /> Save link</PrimaryButton>
@@ -256,7 +256,7 @@ function AddStep({ onAdd, full }: { onAdd: (text: string) => void; full: boolean
   }
   if (full) return <p className="mt-3 text-sm text-slate-600">This part is full. Delete a step to add another.</p>;
   return (
-    <form onSubmit={add} className="mt-3 grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+    <form onSubmit={add} className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">
       <Field placeholder="Add a step of your own" aria-label="Add a step" value={text} onChange={(e) => setText(e.target.value)} maxLength={GUIDE_LIMITS.step} />
       <GhostButton onClick={() => { if (text.trim()) { onAdd(text); setText(""); } }}><Plus className="h-4 w-4" /> Add step</GhostButton>
     </form>
@@ -297,7 +297,7 @@ export function GuideDetails({ guide, workspace, setWorkspace, makeId }: Shared 
             </Fact>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Labeled label="Planning meeting date"><Field type="date" value={guide.planningDate || ""} onChange={(e) => set({ planningDate: e.target.value })} /></Labeled>
             <Labeled label={meetingLabel}><Field type="date" value={guide.meetingDate || ""} onChange={(e) => set({ meetingDate: e.target.value })} /></Labeled>
             <Labeled label="Time"><Field type="time" value={guide.meetingTime || ""} onChange={(e) => set({ meetingTime: e.target.value })} /></Labeled>
@@ -329,7 +329,7 @@ export function GuideDetails({ guide, workspace, setWorkspace, makeId }: Shared 
         ) : (
         <>
         {contacts.length === 0 && <p className="mb-4 text-sm text-slate-600">No one is saved yet. Add the people you work with under Sped team contacts, then choose who is assigned to {guide.student}.</p>}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="hub-guide-team">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="hub-guide-team">
           {GUIDE_ROLES.map((role) => {
             const { first, rest } = contactsFor(role.id, contacts);
             const chosen = teamMember(guide, role.id, contacts);
@@ -402,7 +402,7 @@ export function GuideChecklist({ guide, workspace, setWorkspace, makeId, sender 
 
       <Card title="Messages to send">
         <p className="mb-4 text-sm text-slate-600">These fill in from this guide. Copy one, paste it where you send it, and finish it there.</p>
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <Message title="First text to a parent" text={parentText(guide, sender)} />
           <Message title="Feedback email to the student's teachers" text={feedbackEmail(guide, sender, contacts)} />
         </div>

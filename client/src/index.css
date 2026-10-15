@@ -154,6 +154,28 @@
     @apply border-border;
   }
 
+  /* Safety net for every page and hub: nothing is allowed to make a phone's page slide sideways. `clip` (unlike `hidden`)
+     does not turn the page into a scroll box, so sticky headers keep working; boxes that scroll on purpose (tables, chip rows) still do. */
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  /* iPhone Safari gives date and time fields a width of their own and ignores the box they sit in. */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+  }
+
   /* A drop-down with a long option (a school name) must never be wider than the box it sits in, or a phone's page slides sideways. */
   select {
     max-width: 100%;

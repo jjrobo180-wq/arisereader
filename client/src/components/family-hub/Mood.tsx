@@ -60,7 +60,7 @@ export default function Mood({ family, setFamily, today, say }: SectionProps) {
       className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-2.5 pr-3 text-xs font-bold text-slate-600 ring-1 ring-slate-200"
       style={m.id === memberId ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span className="text-base leading-none">{m.emoji || "🙂"}</span>{m.name}</button>)}</div>}
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="space-y-5">
         <Panel eyebrow={date === today ? "Today" : shortDate(date)} title={kid ? `How is ${member?.name} feeling?` : member?.id === "me" ? "How are you feeling?" : `How is ${member?.name} feeling?`}
           right={<input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Day" className={inputClass + " min-h-10 w-auto"} />}>

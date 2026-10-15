@@ -148,7 +148,7 @@ function Setup({ first, n, onDone, onCancel }: { first: boolean; n: number; onDo
       {step === 0 && <div className="space-y-4">
         <Label text="Name or nickname"><input autoFocus value={k.name} onChange={(e) => setK({ ...k, name: e.target.value })} className={field} style={fieldStyle} maxLength={40} /></Label>
         <Label text="Picture"><div className="flex flex-wrap gap-1.5">{AVATARS.map((a) => <button key={a} type="button" onClick={() => setK({ ...k, avatar: a })} aria-pressed={k.avatar === a} className="h-12 w-12 rounded-2xl text-2xl" style={k.avatar === a ? { background: C.duck } : { background: C.ground }}>{a}</button>)}</div></Label>
-        <div className="grid gap-4 sm:grid-cols-2"><Label text="Birth month" hint={months !== null ? `${ageText(months)} old` : "Used for sit length, timing and age-right advice."}><input type="month" value={k.birth.slice(0, 7)} onChange={(e) => setK({ ...k, birth: e.target.value })} className={field} style={fieldStyle} /></Label>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><Label text="Birth month" hint={months !== null ? `${ageText(months)} old` : "Used for sit length, timing and age-right advice."}><input type="month" value={k.birth.slice(0, 7)} onChange={(e) => setK({ ...k, birth: e.target.value })} className={field} style={fieldStyle} /></Label>
           <Label text="For boy- or girl-specific tips (optional)"><div className="flex gap-1.5"><Chip on={k.sex === "boy"} onClick={() => setK({ ...k, sex: k.sex === "boy" ? "" : "boy" })}>Boy</Chip><Chip on={k.sex === "girl"} onClick={() => setK({ ...k, sex: k.sex === "girl" ? "" : "girl" })}>Girl</Chip><Chip on={!k.sex} onClick={() => setK({ ...k, sex: "" })}>Skip</Chip></div></Label></div>
       </div>}
       {step === 1 && <div className="space-y-4">
@@ -164,7 +164,7 @@ function Setup({ first, n, onDone, onCancel }: { first: boolean; n: number; onDo
       {step === 3 && <RoutineEditor k={k} onChange={setK} />}
       {step === 4 && <div className="space-y-4">
         <p className="text-sm" style={{ color: C.muted }}>The words your family uses. The app, the sit timer and the social story use them, so everything sounds familiar.</p>
-        <div className="grid gap-3 sm:grid-cols-3">{(["pee", "poop", "potty"] as const).map((w) => <Label key={w} text={`For "${w}"`}><input value={k.words[w]} onChange={(e) => setK({ ...k, words: { ...k.words, [w]: e.target.value.slice(0, 20) } })} className={field} style={fieldStyle} /></Label>)}</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{(["pee", "poop", "potty"] as const).map((w) => <Label key={w} text={`For "${w}"`}><input value={k.words[w]} onChange={(e) => setK({ ...k, words: { ...k.words, [w]: e.target.value.slice(0, 20) } })} className={field} style={fieldStyle} /></Label>)}</div>
         <Label text="Method (you can change it any time)"><select value={k.method} onChange={(e) => setK({ ...k, method: e.target.value as Child["method"] })} className={field} style={fieldStyle}>{METHOD_LIST.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></Label>
       </div>}
       <div className="mt-6 flex flex-wrap gap-2">
@@ -201,12 +201,12 @@ function KidEditor({ k, units, onUnits, onSave, onClose, onDelete }: { k: Child;
     <div className="potty-app space-y-4">
       <div className="flex gap-1.5">{([["about", "About"], ["routine", "Daily routine"], ["plan", "Plan & settings"]] as const).map(([id, l]) => <Chip key={id} on={tab === id} onClick={() => setTab(id)}>{l}</Chip>)}</div>
       {tab === "about" && <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2"><Label text="Name"><input value={v.name} onChange={(e) => setV({ ...v, name: e.target.value.slice(0, 40) })} className={field} style={fieldStyle} /></Label><Label text="Birth month"><input type="month" value={v.birth.slice(0, 7)} onChange={(e) => setV({ ...v, birth: e.target.value })} className={field} style={fieldStyle} /></Label></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><Label text="Name"><input value={v.name} onChange={(e) => setV({ ...v, name: e.target.value.slice(0, 40) })} className={field} style={fieldStyle} /></Label><Label text="Birth month"><input type="month" value={v.birth.slice(0, 7)} onChange={(e) => setV({ ...v, birth: e.target.value })} className={field} style={fieldStyle} /></Label></div>
         <div className="flex flex-wrap gap-1.5">{AVATARS.map((a) => <button key={a} type="button" onClick={() => setV({ ...v, avatar: a })} aria-pressed={v.avatar === a} className="h-11 w-11 rounded-2xl text-2xl" style={v.avatar === a ? { background: C.duck } : { background: C.ground }}>{a}</button>)}</div>
         <Label text="Boy/girl tips"><div className="flex gap-1.5"><Chip on={v.sex === "boy"} onClick={() => setV({ ...v, sex: "boy" })}>Boy</Chip><Chip on={v.sex === "girl"} onClick={() => setV({ ...v, sex: "girl" })}>Girl</Chip><Chip on={!v.sex} onClick={() => setV({ ...v, sex: "" })}>Skip</Chip></div></Label>
         <Label text="Additional needs"><div className="flex flex-wrap gap-1.5">{NEEDS.map((x) => { const on = v.needs.includes(x.id); return <Chip key={x.id} on={on} color={C.sleep} onClick={() => setV({ ...v, needs: on ? v.needs.filter((y) => y !== x.id) : [...v.needs, x.id] })}>{x.emoji} {x.label}</Chip>; })}</div></Label>
         <Label text="Communicates with"><div className="flex flex-wrap gap-1.5">{COMMS.map((c) => <Chip key={c.id} on={v.comms === c.id} onClick={() => setV({ ...v, comms: c.id })}>{c.label}</Chip>)}</div></Label>
-        <div className="grid gap-3 sm:grid-cols-3">{(["pee", "poop", "potty"] as const).map((w) => <Label key={w} text={`Word for "${w}"`}><input value={v.words[w]} onChange={(e) => setV({ ...v, words: { ...v.words, [w]: e.target.value.slice(0, 20) } })} className={field} style={fieldStyle} /></Label>)}</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{(["pee", "poop", "potty"] as const).map((w) => <Label key={w} text={`Word for "${w}"`}><input value={v.words[w]} onChange={(e) => setV({ ...v, words: { ...v.words, [w]: e.target.value.slice(0, 20) } })} className={field} style={fieldStyle} /></Label>)}</div>
       </div>}
       {tab === "routine" && <RoutineEditor k={v} onChange={setV} />}
       {tab === "plan" && <div className="space-y-4">

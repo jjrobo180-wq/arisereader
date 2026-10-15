@@ -63,7 +63,7 @@ export function ParentBehaviorCard() {
     </div>
     <div className="mt-4 grid grid-cols-3 gap-2 text-center">{([["Today", k.points.today], ["This week", k.points.week], ["Positive", `${k.points.pos + k.points.neg ? Math.round((100 * k.points.pos) / (k.points.pos + k.points.neg)) : 100}%`]] as const).map(([l, v]) =>
       <div key={l} className="rounded-2xl bg-slate-50 p-3"><div className="text-2xl font-black">{typeof v === "number" ? sign(v) : v}</div><div className="text-xs font-semibold text-slate-500">{l}</div></div>)}</div>
-    <div className="mt-4 grid gap-4 md:grid-cols-2">
+    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
       <div><p className="mb-2 text-sm font-bold">From the teacher</p>
         {k.recent.length ? <ul className="space-y-1.5">{k.recent.slice(0, 10).map((e) => <li key={e.id} className="flex gap-2 text-sm"><span className={`w-9 shrink-0 font-bold ${e.points > 0 ? "text-emerald-600" : e.points < 0 ? "text-rose-600" : "text-slate-400"}`}>{e.points ? sign(e.points) : <Send className="h-3.5 w-3.5" />}</span><span className="min-w-0 flex-1">{e.label}{e.note && <span className="text-slate-500"> — {e.note}</span>}</span><span className="shrink-0 text-xs text-slate-400">{new Date(e.at).toLocaleDateString([], { month: "short", day: "numeric" })}</span></li>)}</ul>
           : <p className="text-sm text-slate-500">Nothing shared yet.</p>}</div>

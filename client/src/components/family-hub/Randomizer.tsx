@@ -47,7 +47,7 @@ export default function Randomizer({ family, setFamily, makeId, say }: SectionPr
   return <div className="space-y-6">
     <PageHead eyebrow="Randomizer" title="Let chance decide" blurb="Who picks the movie, what's for dinner, heads or tails. Fair every time." />
     <div className="flex flex-wrap gap-1.5">{MODES.map(([id, label, Icon]) => <button key={id} type="button" onClick={() => { setMode(id); setResult(""); }} aria-pressed={mode === id} className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold ${mode === id ? "bg-[#292446] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:text-slate-900"}`}><Icon size={16} />{label}</button>)}</div>
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Panel title="Set it up">
         {mode === "list" && <div className="space-y-3">
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={7} placeholder={"One per line:\nMaya\nLeo\nDad"} className={inputClass + " py-3 leading-6"} aria-label="Things to pick from" />

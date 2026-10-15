@@ -26,12 +26,12 @@ export default function Subscriptions({ family, setFamily, today, makeId }: Sect
 
   return <div className="space-y-6">
     <PageHead eyebrow="Subscriptions" title="Where the monthly money goes" blurb="Every subscription in one list, with the real monthly and yearly cost, and which ones renew soon." />
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {[["Each month", money(perMonth)], ["Each year", money(perMonth * 12)], ["Subscriptions", String(list.length)]].map(([k, v]) => <div key={k} className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08]"><p className="text-2xl font-black tracking-tight">{v}</p><p className="text-xs font-bold uppercase tracking-wide text-slate-400">{k}</p></div>)}
     </div>
     {soon.length > 0 && <p className="rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-900">Renewing this week: {soon.map((s) => `${s.name} (${s.days === 0 ? "today" : `in ${s.days}d`}, ${money(s.amount)})`).join(", ")}</p>}
     <Panel title="Add a subscription">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_7rem_8rem_minmax(0,1fr)_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_7rem_8rem_minmax(0,1fr)_auto]">
         <input value={name} onChange={(e) => setName(e.target.value)} list="sub-ideas" maxLength={80} placeholder="Name" className={inputClass} aria-label="Name" />
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="$ cost" className={inputClass} aria-label="Cost" />
         <select value={cycle} onChange={(e) => setCycle(e.target.value as Subscription["cycle"])} className={inputClass} aria-label="How often"><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="weekly">Weekly</option></select>

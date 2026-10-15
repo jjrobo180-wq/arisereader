@@ -230,7 +230,7 @@ export default function EyeGazeProfileDashboard({
     <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7 pb-8 space-y-5">
       <section className="relative overflow-hidden rounded-[2.25rem] border border-teal-200 bg-[#fffaf0] shadow-sm">
         <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-teal-500 via-cyan-400 to-amber-300" />
-        <div className="relative grid lg:grid-cols-[330px_1fr] items-center gap-5 p-5 sm:p-7 lg:p-8">
+        <div className="relative grid grid-cols-1 lg:grid-cols-[330px_1fr] items-center gap-5 p-5 sm:p-7 lg:p-8">
           <button
             type="button"
             onClick={() => speak(`Hi ${firstName}! I'm ${heroBuddy.name}. Let's learn together!`)}
@@ -390,7 +390,7 @@ export default function EyeGazeProfileDashboard({
           </label>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-3 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
           <button
             type="button"
             onClick={() => setDraft(prev => ({ ...prev, voiceEnabled: !prev.voiceEnabled }))}
@@ -436,7 +436,7 @@ export default function EyeGazeProfileDashboard({
       <section
         className={`rounded-[2rem] overflow-hidden border-2 transition-colors ${lessonState === "correct" ? "border-emerald-300 bg-emerald-50" : lessonState === "retry" ? "border-amber-300 bg-amber-50" : "border-amber-200 bg-[#fffaf0]"}`}
       >
-        <div className="grid lg:grid-cols-[330px_1fr]">
+        <div className="grid grid-cols-1 lg:grid-cols-[330px_1fr]">
           <div className="p-5 sm:p-6 bg-gradient-to-br from-amber-100 to-orange-50 flex flex-col justify-center">
             <div className="inline-flex self-start rounded-full bg-amber-300 text-slate-950 px-4 py-2 text-xs font-black uppercase tracking-wider">
               Try it with my buddy

@@ -110,7 +110,7 @@ export function StandardsPicker({ token, chosen, onChange, state, onState, grade
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800"><Sparkles className="h-4 w-4 text-violet-600" /> Find state standards</div>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <select aria-label="State" value={state} onChange={(e) => onState(e.target.value)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-2 text-sm">
             <option value="">Common Core / national</option>
             {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -310,7 +310,7 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
                     <input type="number" min={4} max={20} value={opts.slides} onChange={(e) => setOpts({ ...opts, slides: Number(e.target.value) || 12 })} className="min-h-9 w-20 rounded-lg border border-slate-200 px-2" /> slides, with speaker notes
                   </label>
                 ) : (
-                  <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <select aria-label="Kind" value={opts.kind} onChange={(e) => setOpts({ ...opts, kind: e.target.value })} className="min-h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm">
                       {["practice worksheet", "quiz", "unit test", "exit ticket", "homework", "warm-up", "graphing practice", "word problems", "reading comprehension with a passage", "vocabulary practice", "test review"].map((k) => <option key={k}>{k}</option>)}
                     </select>
