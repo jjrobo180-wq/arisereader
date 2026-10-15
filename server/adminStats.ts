@@ -492,10 +492,10 @@ export function buildAdminStats(
 // ─── Reading the database ────────────────────────────────────────────────────
 
 type Db = { from: (table: string) => any };
-type Page<T> = PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
+export type Page<T> = PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
 
 /** Every row of a query, a page at a time (the database hands back at most 1,000 rows per request). */
-async function fetchAll<T>(make: (start: number, end: number) => Page<T>, pageSize = 1000, maxRows = 100_000): Promise<T[]> {
+export async function fetchAll<T>(make: (start: number, end: number) => Page<T>, pageSize = 1000, maxRows = 100_000): Promise<T[]> {
   const out: T[] = [];
   for (let start = 0; start < maxRows; start += pageSize) {
     const { data, error } = await make(start, start + pageSize - 1);

@@ -999,6 +999,7 @@ export default function AriseTodo() {
           <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">To Do</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
+          {user.isAdmin && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 hover:bg-violet-100" data-testid="todo-admin-link"><ShieldCheck size={16} /> <span className="hidden lg:inline">Admin</span></a>}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <HubSearchButton onOpen={() => setSearching(true)} />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
