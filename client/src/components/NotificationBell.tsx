@@ -40,7 +40,7 @@ const CATEGORY_STYLE: Record<FeedCategory, { icon: typeof Bell; tone: string }> 
 const EMPTY: FeedResponse = { type: "student", items: [], actionCount: 0, updateCount: 0, unreadCount: 0 };
 
 /** Items made on this device (LifeHub's tasks, bills…) have keys like this; they are hidden here only, never sent to the server. */
-const isLocalKey = (key: string) => key.startsWith("life:");
+const isLocalKey = (key: string) => key.startsWith("life:") || key.startsWith("work:");
 
 export function NotificationBell({
   refreshKey = 0,

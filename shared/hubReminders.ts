@@ -1,8 +1,10 @@
 // Arise WorkHub reminders: what is worth a phone notification right now.
-//  - A morning summary (7:00 to noon, once a day) of what is on today.
-//  - A heads-up 15 minutes before an event that has a start time.
+//  - A morning summary (by default 7:00 to noon, once a day) of what is on today.
+//  - A heads-up (by default 15 minutes) before an event, a to-do or a meeting that has a start time.
+//  The teacher's choices are in workspace.notify (see shared/hubNotify.ts).
 import { calendarEvents } from "./hubHidden";
 import { clock12, type Workspace } from "./teacherHub";
+import { HUB_MORNING_WINDOW_MINUTES, cleanHubNotify } from "./hubNotify";
 
 export type HubReminder = { key: string; title: string; body: string; url: string };
 
@@ -32,21 +34,45 @@ const toMinutes = (hm: string) => {
 /** Reminders due now that have not been sent (`sent` holds the keys already sent). */
 export function dueHubReminders(workspace: Workspace, nowMs: number, timeZone: string, sent: Record<string, unknown> = {}): HubReminder[] {
   const { date, minutes } = localParts(nowMs, timeZone);
+  const prefs = cleanHubNotify(workspace.notify);
+  const ahead = prefs.headsUp.minutes;
   const out: HubReminder[] = [];
+  const soon = (start: number | null) => start !== null && minutes < start && start - minutes <= ahead;
 
   // Repeating events count on the days they fall on; hidden ones do not count at all.
   const todays = calendarEvents(workspace, date, date);
-  for (const event of todays) {
-    if (event.date !== date || !event.start || event.done) continue;
-    const start = toMinutes(event.start);
-    if (start === null || minutes >= start || start - minutes > EVENT_HEADS_UP_MINUTES) continue;
-    const key = `event:${event.id}:${event.date}:${event.start}`;
-    if (sent[key]) continue;
-    const where = event.location ? ` · ${event.location}` : "";
-    out.push({ key, title: event.title || "Event", body: `Starts at ${clock12(event.start)}${where}`, url: HUB_REMINDER_URL });
+  if (prefs.headsUp.on && prefs.headsUp.events) {
+    for (const event of todays) {
+      if (event.date !== date || !event.start || event.done) continue;
+      if (!soon(toMinutes(event.start))) continue;
+      const key = `event:${event.id}:${event.date}:${event.start}`;
+      if (sent[key]) continue;
+      const where = event.location ? ` · ${event.location}` : "";
+      out.push({ key, title: event.title || "Event", body: `Starts at ${clock12(event.start)}${where}`, url: HUB_REMINDER_URL });
+    }
   }
 
-  if (minutes >= MORNING_FROM_HOUR * 60 && minutes < MORNING_UNTIL_HOUR * 60) {
+  if (prefs.headsUp.on && prefs.headsUp.meetings) {
+    for (const meeting of workspace.meetings || []) {
+      if (meeting.done || (meeting.date || "").slice(0, 10) !== date || !meeting.time || !soon(toMinutes(meeting.time))) continue;
+      const key = `meeting:${meeting.id}:${date}:${meeting.time}`;
+      if (sent[key]) continue;
+      const where = meeting.room ? ` · ${meeting.room}` : "";
+      out.push({ key, title: `${meeting.type || "Meeting"}${meeting.student ? `: ${meeting.student}` : ""}`, body: `Starts at ${clock12(meeting.time)}${where}`, url: HUB_REMINDER_URL });
+    }
+  }
+
+  if (prefs.headsUp.on && prefs.headsUp.tasks) {
+    for (const task of workspace.tasks || []) {
+      if (task.done || (task.dueDate || "").slice(0, 10) !== date || !task.dueTime || !soon(toMinutes(task.dueTime))) continue;
+      const key = `task:${task.id}:${date}:${task.dueTime}`;
+      if (sent[key]) continue;
+      out.push({ key, title: task.title || "To-do", body: `Due at ${clock12(task.dueTime)}`, url: HUB_REMINDER_URL });
+    }
+  }
+
+  const from = toMinutes(prefs.morning.time) ?? MORNING_FROM_HOUR * 60;
+  if (prefs.morning.on && minutes >= from && minutes < Math.min(from + HUB_MORNING_WINDOW_MINUTES, 24 * 60)) {
     const key = `morning:${date}`;
     if (!sent[key]) {
       const events = todays.filter((e) => e.date === date);
