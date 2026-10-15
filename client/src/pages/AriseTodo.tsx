@@ -104,6 +104,8 @@ import { hubThemeOf } from "@shared/appThemes";
 import { tileColorOf } from "@/components/teacher-hub/HubHomeEdit";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
+import { NotificationBell } from "@/components/NotificationBell";
+import { lifeAlerts } from "@shared/lifeAlerts";
 import { buildLifeBrief } from "@shared/dailyBrief";
 import { HubChat } from "@/components/HubChat";
 import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
@@ -1000,7 +1002,11 @@ export default function AriseTodo() {
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <HubSearchButton onOpen={() => setSearching(true)} />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
-          <button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} aria-label="Notification settings"><Bell size={17} /></button>
+          <NotificationBell
+            extraItems={lifeAlerts(family, calendarTasks, currentDay, Date.now(), pillsDue)}
+            onNavigate={(type) => { if (type.startsWith("life:")) setSection(type.slice(5) as FamilySection); else navigate(user.isAdmin ? "/admin" : "/profile"); }}
+            onSettings={() => setSection("notifications")}
+            triggerClassName={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} />
           <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex">{night ? <Sun size={16} /> : <Moon size={16} />}</button>
           <button onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="lifehub-plugin-store-header"><ShoppingBag size={16} /> <span className="hidden lg:inline">App Store</span></button>
           <button onClick={() => setCustomizing(true)} aria-label="Customize your LifeHub" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="life-customize"><Settings2 size={16} /> <span className="hidden lg:inline">Customize</span></button>

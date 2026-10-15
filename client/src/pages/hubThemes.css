@@ -23,6 +23,10 @@
 .hub-theme-tile .shadow-sm, .hub-theme-tile .shadow, .hub-theme-tile .shadow-md, .hub-theme-tile .shadow-lg, .hub-theme-tile .shadow-xl { box-shadow: none; }
 .hub-theme-tile .text-slate-900, .hub-theme-tile .text-slate-800, .hub-theme-tile .text-slate-700 { color: #ffffff; }
 .hub-theme-tile .text-slate-500, .hub-theme-tile .text-slate-400 { color: #9fcbe8; }
+/* The in-between greys were left dark on the black page (slate-600, and the pale 70% white boxes): readable now. */
+.hub-theme-tile .text-slate-600 { color: #d6e8f5; }
+.hub-theme-tile .text-slate-300, .hub-theme-tile .text-slate-200 { color: #7fa7c2; }
+.hub-theme-tile .bg-white\/95, .hub-theme-tile .bg-white\/90, .hub-theme-tile .bg-white\/80, .hub-theme-tile .bg-white\/70, .hub-theme-tile .bg-white\/60, .hub-theme-tile .bg-white\/50 { background-color: #141414; }
 .hub-theme-tile .text-violet-600, .hub-theme-tile .text-violet-700 { color: #00a2e8; }
 .hub-theme-tile .bg-violet-700, .hub-theme-tile .bg-emerald-700 { background-color: #f2600c; }
 .hub-theme-tile .bg-violet-50, .hub-theme-tile .bg-indigo-50 { background-color: #142230; }
@@ -43,6 +47,9 @@
 .hub-theme-crt .shadow-sm, .hub-theme-crt .shadow, .hub-theme-crt .shadow-md, .hub-theme-crt .shadow-lg, .hub-theme-crt .shadow-xl { box-shadow: 0 0 8px rgba(51, 255, 51, 0.35); }
 .hub-theme-crt .text-slate-900, .hub-theme-crt .text-slate-800, .hub-theme-crt .text-slate-700 { color: #33ff33; }
 .hub-theme-crt .text-slate-500, .hub-theme-crt .text-slate-400 { color: #1f9e1f; }
+.hub-theme-crt .text-slate-600 { color: #2fd62f; }
+.hub-theme-crt .text-slate-300, .hub-theme-crt .text-slate-200 { color: #1a8a1a; }
+.hub-theme-crt .bg-white\/95, .hub-theme-crt .bg-white\/90, .hub-theme-crt .bg-white\/80, .hub-theme-crt .bg-white\/70, .hub-theme-crt .bg-white\/60, .hub-theme-crt .bg-white\/50 { background-color: #0d140d; }
 .hub-theme-crt .text-violet-600, .hub-theme-crt .text-violet-700, .hub-theme-crt .text-indigo-700 { color: #33ff33; }
 .hub-theme-crt .bg-violet-50, .hub-theme-crt .bg-indigo-50 { background-color: #0f1f0f; }
 .hub-theme-crt .bg-violet-700, .hub-theme-crt .bg-emerald-700 { background-color: #1f4d1f; color: #33ff33; }

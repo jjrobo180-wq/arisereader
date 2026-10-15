@@ -39,14 +39,26 @@ const CATEGORY_STYLE: Record<FeedCategory, { icon: typeof Bell; tone: string }> 
 
 const EMPTY: FeedResponse = { type: "student", items: [], actionCount: 0, updateCount: 0, unreadCount: 0 };
 
+/** Items made on this device (LifeHub's tasks, bills…) have keys like this; they are hidden here only, never sent to the server. */
+const isLocalKey = (key: string) => key.startsWith("life:");
+
 export function NotificationBell({
   refreshKey = 0,
   onNavigate,
   onCounts,
+  extraItems,
+  triggerClassName,
+  onSettings,
 }: {
   refreshKey?: number;
   onNavigate?: (type: ActionableType, id: number) => void;
   onCounts?: (counts: NotificationCounts) => void;
+  /** More items for this hub, listed with the account's own (see shared/lifeAlerts.ts). */
+  extraItems?: FeedItem[];
+  /** Replaces the bell button's look, for a header that has its own style. */
+  triggerClassName?: string;
+  /** Adds a "Notification settings" row at the bottom of the dropdown. */
+  onSettings?: () => void;
 }) {
   const { token } = useAuth();
   const [feed, setFeed] = useState<FeedResponse>(EMPTY);
@@ -82,7 +94,7 @@ export function NotificationBell({
       setHidden((current) => {
         if (!current.size) return current;
         const live = new Set(next.items.map((item) => item.key));
-        const kept = new Set(Array.from(current).filter((key) => live.has(key)));
+        const kept = new Set(Array.from(current).filter((key) => live.has(key) || isLocalKey(key)));
         return kept.size === current.size ? current : kept;
       });
     } catch {
@@ -112,7 +124,7 @@ export function NotificationBell({
 
   useEffect(() => { if (refreshKey > 0) void load(); }, [refreshKey, load]);
 
-  const items = useMemo(() => feed.items.filter((item) => !hidden.has(item.key)), [feed.items, hidden]);
+  const items = useMemo(() => [...(extraItems ?? []), ...feed.items].filter((item) => !hidden.has(item.key)), [extraItems, feed.items, hidden]);
   const actions = items.filter((item) => item.kind === "action");
   const updates = items.filter((item) => item.kind === "update");
   const badge = actions.length + updates.length;
@@ -154,11 +166,13 @@ export function NotificationBell({
     if (!auth || (!keys.length && !all)) return false;
     setActionError("");
     setHidden((current) => new Set([...Array.from(current), ...keys]));
+    const mine = keys.filter((key) => !isLocalKey(key));
+    if (!all && !mine.length) return true; // only this-device items: hidden above, nothing to save
     try {
       const res = await fetch(`${API_BASE}/api/notifications/mark-seen`, {
         method: "POST",
         headers: { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" },
-        body: JSON.stringify(all ? { all: true } : { keys }),
+        body: JSON.stringify(all ? { all: true } : { keys: mine }),
       });
       if (!res.ok) throw new Error(String(res.status));
       void load();
@@ -291,6 +305,11 @@ export function NotificationBell({
         )}
       </div>
 
+      {onSettings && (
+        <button type="button" onClick={() => { setOpen(false); onSettings(); }} className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-white/[.03] px-4 text-left text-xs font-bold text-[#e6e3f7] hover:bg-white/[.07]" data-testid="notification-settings-link">
+          Notification settings <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
       {actions.length > 0 && (
         <p className="shrink-0 border-t border-white/10 bg-white/[.03] px-4 py-2 text-[11px] leading-4 text-[#c4c0dc]">
           Tasks clear by themselves once they're done. Use × to hide one for now.
@@ -306,12 +325,12 @@ export function NotificationBell({
         type="button"
         onClick={toggle}
         data-testid="notification-bell"
-        className="relative grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-muted"
+        className={triggerClassName ?? "relative grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-muted"}
         aria-label={badge ? `Notifications, ${badge} new` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
-        <Bell className="h-5 w-5 text-foreground" />
+        <Bell className={triggerClassName ? "h-[17px] w-[17px]" : "h-5 w-5 text-foreground"} />
         {badge > 0 && (
           <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-black leading-none text-white ring-2 ring-background">
             {badge > 99 ? "99+" : badge}

@@ -76,6 +76,7 @@
 /* Found by checking every LifeHub screen at night (October 2026). */
 /* The header stayed light, with pale words on it. */
 .todo-night .bg-white\/95, .todo-night .bg-white\/90, .todo-night .bg-white\/80 { background-color: rgba(23, 22, 43, 0.95); }
+.todo-night .bg-white\/70, .todo-night .bg-white\/60, .todo-night .bg-white\/50 { background-color: rgba(23, 22, 43, 0.8); }
 .todo-night .text-violet-800 { color: #b9b0ff; }
 /* Pale words on the dark ink panels stay pale. */
 .todo-night .bg-\[\#292446\] .text-slate-300, .todo-night .bg-\[\#292446\] .text-slate-400, .todo-night .bg-slate-900 .text-slate-300 { color: #cfcce3; }
