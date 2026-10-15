@@ -113,3 +113,21 @@ test("the reminder rings for the planned sit when it comes before the regular tr
   assert.ok(r.sit && r.minutes < 180 && r.minutes >= 40 && r.minutes <= 60, `rings in ${r.minutes}`);
   assert.match(r.sit!.why, /juice/);
 });
+
+test("overdue sit and a new drink read as one ordered plan, and the banner and list agree", async () => {
+  const { nextRing, comingText } = await import("../shared/pro/potty/agenda");
+  const now = at(DAY, 21, 55);
+  const k = { ...kid(), stage: "ready" as const, routine: { ...kid().routine, bed: "23:30" } };
+  const logs = [E(DAY, 19, 30, "poop"), E(DAY, 19, 45, "pee"), E(DAY, 21, 55, "drink", { ml: 118, drink: "juice" })];
+  const sits = planSits(logs, k, now);
+  const lines = comingText(sits);
+  assert.ok(lines.length >= 2, lines.join(" | "));
+  assert.match(lines[0], /^Sit on the toilet now/); assert.match(lines[0], /last pee at 7:45 PM/);
+  assert.match(lines[1], /^Then at /); assert.match(lines[1], /juice at 9:55 PM/); assert.match(lines[1], /clears/);
+  // the timer is for the later sit, and the overdue one is reported, not dropped
+  const r = nextRing(logs, k, 180, now);
+  assert.equal(r.due?.state, "due"); assert.ok(r.sit && /juice/.test(r.sit.why));
+  // once she goes after sitting now, the follow-up clears
+  const after = planSits([...logs, E(DAY, 22, 5, "pee")], k, at(DAY, 22, 6));
+  assert.ok(!comingText(after).some((t) => /juice/.test(t)), comingText(after).join(" | "));
+});
