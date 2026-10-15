@@ -103,3 +103,22 @@ test("three times are suggested from the free times, around what is already book
   assert.deepEqual(suggestTimes(weekly, { ...base, until: "2026-12-31" }).map((t) => t.date), ["2026-10-08", "2026-10-13", "2026-10-15"], "a far deadline changes nothing");
   assert.deepEqual(suggestTimes(weekly, { ...base, until: "2026-10-16", skip: 1 }), [], "no second set past the deadline");
 });
+
+test("suggested times start on the hour or half hour, with several a day and a date range", () => {
+  // A window that opens at 8:50 still offers 9:00, not 8:50.
+  const odd = [{ day: 2, start: "08:50", end: "12:00" }, { day: 4, start: "13:10", end: "16:00" }];
+  const base = { from: "2026-10-07", minutes: 60 };
+  for (const t of suggestTimes(odd, { ...base, count: 8 })) assert.match(t.start, /^\d\d:(00|30)$/, t.start);
+  assert.deepEqual(suggestTimes(odd, base)[0], { date: "2026-10-08", start: "13:30", end: "14:30" });
+  // Several times on one day, spaced apart: 9:00, then 11:00 (an hour after the first one ends).
+  const tue = [{ day: 2, start: "08:00", end: "15:00" }];
+  assert.deepEqual(suggestTimes(tue, { ...base, perDay: 3, count: 4 }).map((t) => `${t.date} ${t.start}`), ["2026-10-13 08:00", "2026-10-13 10:00", "2026-10-13 12:00", "2026-10-20 08:00"]);
+  assert.equal(suggestTimes(tue, { ...base, perDay: 1, count: 4 }).length, 4, "one a day still reaches four");
+  // Something already on the calendar is skipped within the day.
+  assert.deepEqual(suggestTimes(tue, { ...base, perDay: 2, count: 2, busy: [{ date: "2026-10-13", start: "08:00", end: "09:30" }] }).map((t) => t.start), ["09:30", "11:30"]);
+  // The count and the date range are the user's.
+  assert.equal(suggestTimes(tue, { ...base, count: 6 }).length, 6);
+  assert.deepEqual(suggestTimes(tue, { ...base, count: 6, through: "2026-10-20" }).map((t) => t.date), ["2026-10-13", "2026-10-20"], "through is inclusive");
+  assert.deepEqual(suggestTimes(tue, { ...base, count: 6, through: "2026-10-12" }), []);
+  assert.equal(suggestTimes(tue, { ...base, perDay: 2, count: 3, skip: 1 })[0].date, "2026-10-20", "a second set carries on");
+});

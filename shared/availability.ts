@@ -58,32 +58,46 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const clock = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 const nextDay = (date: string, n: number) => new Date(Date.parse(`${date}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
+/** Meeting times start on the hour or half hour (9:00, 9:30), never 8:50 or 9:15. */
+export const TIME_STEP = 30;
+/** More than one time on the same day are at least this long apart (after the earlier one ends). */
+const SAME_DAY_GAP = 60;
+const snapUp = (m: number) => Math.ceil(m / TIME_STEP) * TIME_STEP;
+
 /**
- * Times to offer in a poll, taken from the weekly free times: the first open stretch of each free day,
- * skipping anything that overlaps something already on the calendar. One time per day, so the choices are
- * spread out. With `before` (a meeting date), days before it come first. With `until` (an IEP deadline),
- * only days before it are offered. `skip` moves on to the next set.
+ * Times to offer in a poll, taken from the weekly free times, starting on the hour or half hour and skipping
+ * anything that overlaps something already on the calendar. `perDay` (default 1) offers several different
+ * times on the same day, spaced apart, so one day can have a morning and an afternoon choice. `through`
+ * (inclusive) and `until` (exclusive, an IEP deadline) end the search; `count` is how many to return. With
+ * `before` (a meeting date), days before it come first. `skip` moves on to the next set.
  */
-export function suggestTimes(weekly: FreeWindow[], opts: { from: string; count?: number; minutes?: number; before?: string; busy?: Busy[]; skip?: number; until?: string }): TimeSlot[] {
+export function suggestTimes(weekly: FreeWindow[], opts: { from: string; count?: number; minutes?: number; before?: string; busy?: Busy[]; skip?: number; until?: string; through?: string; perDay?: number }): TimeSlot[] {
   const free = cleanWeekly(weekly);
-  const count = opts.count ?? 3;
+  const count = Math.max(1, Math.min(20, opts.count ?? 3));
+  const perDay = Math.max(1, Math.min(6, opts.perDay ?? 1));
   const length = Math.max(15, Math.min(480, opts.minutes ?? 60));
   if (!free.length || Number.isNaN(Date.parse(`${opts.from}T12:00:00Z`))) return [];
   const found: TimeSlot[] = [];
-  for (let i = 0; i < 56; i++) {
+  for (let i = 0; i < 120; i++) {
     const date = nextDay(opts.from, i);
+    if (opts.through && date > opts.through) break;
+    if (opts.until && date >= opts.until) break;
     const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
     const taken = (opts.busy || []).filter((b) => b.date === date && TIME.test(b.start || "")).map((b) => [minutes(b.start), b.end && TIME.test(b.end) && minutes(b.end) > minutes(b.start) ? minutes(b.end) : minutes(b.start) + 60] as const);
-    let slot: TimeSlot | null = null;
-    for (const w of free.filter((x) => x.day === dow)) {
-      for (let s = minutes(w.start); s + length <= minutes(w.end) && !slot; s += 15) {
-        if (!taken.some(([from, to]) => s < to && from < s + length)) slot = { date, start: clock(s), end: clock(s + length) };
+    const today: TimeSlot[] = [];
+    let nextFree = 0; // the earliest the next time that day may start
+    for (const w of free.filter((x) => x.day === dow).sort((x, y) => minutes(x.start) - minutes(y.start))) {
+      for (let s = snapUp(Math.max(minutes(w.start), nextFree)); s + length <= minutes(w.end) && today.length < perDay; s += TIME_STEP) {
+        if (taken.some(([from, to]) => s < to && from < s + length)) continue;
+        today.push({ date, start: clock(s), end: clock(s + length) });
+        nextFree = s + length + SAME_DAY_GAP;
+        s = snapUp(nextFree) - TIME_STEP; // the loop adds the step back
       }
-      if (slot) break;
     }
-    if (slot) found.push(slot);
+    found.push(...today);
+    if (i >= 56 && found.length >= (opts.skip ?? 0) * count + count) break; // far enough ahead
   }
-  const open = opts.until ? found.filter((s) => s.date < opts.until!) : found;
+  const open = found;
   const ordered = opts.before ? [...open.filter((s) => s.date < opts.before!), ...open.filter((s) => s.date >= opts.before!)] : open;
   const from = (opts.skip ?? 0) * count;
   return ordered.slice(from, from + count);
