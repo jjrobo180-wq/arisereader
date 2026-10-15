@@ -40,3 +40,43 @@ test("prep to-dos are dated back from the meeting, and never in the past", async
   assert.equal(prepTodos("Ava M.", "2026-10-15", "2026-10-11")[0].dueDate, "2026-10-11");
   assert.deepEqual(prepTodos("Ava", "", "2026-10-11"), []);
 });
+
+import { markOpen, resumeStep, withAt } from "../shared/meetingSteps";
+
+test("the steps open on the step the teacher was last on, not the first one not done", () => {
+  let p = markDone(markDone(markDone(emptyPlan(), 1), 2), 3);
+  p = markSkipped(p, 4); // skipped by accident
+  assert.equal(resumeStep(p), 5); // never been moved around: the old rule
+  p = withAt(p, 4); // went back to step 4 and left it there
+  assert.equal(resumeStep(p), 4);
+  assert.equal(resumeStep(withAt(p, 5)), 5);
+});
+
+test("a step marked done or skipped by accident can be taken back", () => {
+  let p = markSkipped(markDone(emptyPlan(), 1), 4);
+  p = markDone(p, 5);
+  p = markOpen(p, 5);
+  p = markOpen(p, 4);
+  assert.deepEqual(p, { done: [1], skipped: [] });
+  assert.equal(firstOpen(p), 2);
+});
+
+test("marking steps never loses where the teacher is", () => {
+  const p = markSkipped(markDone(withAt(emptyPlan(), 4), 4), 6);
+  assert.equal(p.at, 4);
+  assert.equal(markOpen(p, 4).at, 4);
+});
+
+test("once a time is booked, a meeting left on finding or booking opens at telling everyone", () => {
+  assert.equal(resumeStep(withAt(emptyPlan(), 2), true), 4);
+  assert.equal(resumeStep(withAt(emptyPlan(), 3), true), 4);
+  assert.equal(resumeStep(withAt(emptyPlan(), 3), false), 3);
+  assert.equal(resumeStep(withAt(emptyPlan(), 5), true), 5);
+  assert.equal(resumeStep(withAt(emptyPlan(), 1), true), 1);
+});
+
+test("a saved plan keeps a good position and drops a bad one", () => {
+  assert.equal(cleanPlan({ done: [], skipped: [], at: 7 }).at, 7);
+  assert.equal("at" in cleanPlan({ at: 99 }), false);
+  assert.equal("at" in cleanPlan({ at: "x" }), false);
+});

@@ -114,7 +114,7 @@ import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextAr
 import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMeetingPoll";
 import HubQuickAddStudent from "@/components/teacher-hub/HubQuickAddStudent";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
-import { STEP_COUNT, firstOpen, stepsDone } from "@shared/meetingSteps";
+import { STEP_COUNT, resumeStep, stepsDone } from "@shared/meetingSteps";
 import HubNotifications from "@/components/teacher-hub/HubNotifications";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
@@ -1934,7 +1934,7 @@ function Meetings({ workspace, setWorkspace, remove, seats, studentOptions, toke
               <div className={`font-semibold ${m.done ? "text-slate-400 line-through" : ""}`}>{m.student} · {m.type}</div>
               <div className="mt-1 text-sm text-slate-500">{m.date ? `${friendlyDate(m.date, TODAY())}${m.date >= TODAY() ? ` (${relativeDays(m.date, TODAY())})` : ""}` : "No meeting date yet"}{m.time ? ` · ${clock12(m.time)}` : ""}{m.room ? ` · ${m.room}` : ""}{m.notes ? ` · ${m.notes}` : ""}</div>
               {meetingDeadline(workspace, m) && <div className="mt-0.5 text-xs font-medium text-slate-600" data-testid="meeting-deadline">{deadlineLabel(m.type).replace(/ date$/, "")}: {friendlyDate(meetingDeadline(workspace, m), TODAY())}{!m.done && meetingDeadline(workspace, m) >= TODAY() ? ` (${relativeDays(meetingDeadline(workspace, m), TODAY())})` : ""}</div>}
-              <button type="button" onClick={() => setWizard({ step: firstOpen(m.plan), meetingId: m.id })} className="mt-1 mr-4 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="open-steps">{stepsDone(m.plan) ? `Steps: ${stepsDone(m.plan)} of ${STEP_COUNT} done` : "Start the steps"}</button>
+              <button type="button" onClick={() => setWizard({ step: resumeStep(m.plan, !!m.date), meetingId: m.id })} className="mt-1 mr-4 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="open-steps">{stepsDone(m.plan) ? `Steps: ${stepsDone(m.plan)} of ${STEP_COUNT} done` : "Start the steps"}</button>
               {!m.done && <button type="button" onClick={() => setPollStart({ meetingId: m.id, title: `${m.type}${m.student ? ` for ${m.student.split(" ")[0]}` : ""}` })} className="mt-1 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4">Find a time with everyone</button>}
             </div>
             <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="meeting" refId={m.id} title={`${m.student} ${m.type}`} makeId={makeId} />

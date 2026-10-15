@@ -1,7 +1,8 @@
 // Arise WorkHub: the ten steps of getting an IEP or re-evaluation meeting done.
 // A teacher can skip a step and come back to it; the meeting remembers where they are.
 
-export type StepPlan = { done: number[]; skipped: number[] };
+/** `at` is the step the teacher last had open, so the steps open right back where they left them. */
+export type StepPlan = { done: number[]; skipped: number[]; at?: number };
 export const STEP_COUNT = 10;
 
 export const MEETING_STEPS: readonly { n: number; title: string; short: string }[] = [
@@ -24,19 +25,32 @@ const clean = (list: unknown): number[] => (Array.isArray(list) ? [...new Set(li
 /** A saved plan made safe. */
 export function cleanPlan(raw: any): StepPlan {
   const done = clean(raw?.done);
-  return { done, skipped: clean(raw?.skipped).filter((n) => !done.includes(n)) };
+  const at = Number(raw?.at);
+  return { done, skipped: clean(raw?.skipped).filter((n) => !done.includes(n)), ...(Number.isInteger(at) && at >= 1 && at <= STEP_COUNT ? { at } : {}) };
 }
 
 export const emptyPlan = (): StepPlan => ({ done: [], skipped: [] });
 
 export function markDone(plan: StepPlan | undefined, n: number): StepPlan {
   const p = cleanPlan(plan);
-  return cleanPlan({ done: [...p.done, n], skipped: p.skipped.filter((s) => s !== n) });
+  return cleanPlan({ ...p, done: [...p.done, n], skipped: p.skipped.filter((s) => s !== n) });
 }
 
 export function markSkipped(plan: StepPlan | undefined, n: number): StepPlan {
   const p = cleanPlan(plan);
-  return p.done.includes(n) ? p : cleanPlan({ done: p.done, skipped: [...p.skipped, n] });
+  return p.done.includes(n) ? p : cleanPlan({ ...p, skipped: [...p.skipped, n] });
+}
+
+/** Takes a step back to "not done yet": for a step that was marked done or skipped by accident. */
+export function markOpen(plan: StepPlan | undefined, n: number): StepPlan {
+  const p = cleanPlan(plan);
+  return cleanPlan({ ...p, done: p.done.filter((d) => d !== n), skipped: p.skipped.filter((s) => s !== n) });
+}
+
+/** Remembers the step the teacher is on. */
+export function withAt(plan: StepPlan | undefined, n: number): StepPlan {
+  const p = cleanPlan(plan);
+  return p.at === n ? p : cleanPlan({ ...p, at: n });
 }
 
 export function stepState(plan: StepPlan | undefined, n: number, current: number): StepState {
@@ -51,6 +65,18 @@ export function firstOpen(plan: StepPlan | undefined): number {
   const p = cleanPlan(plan);
   for (let n = 1; n <= STEP_COUNT; n++) if (!p.done.includes(n) && !p.skipped.includes(n)) return n;
   return p.skipped[0] ?? STEP_COUNT;
+}
+
+/**
+ * Where the steps open: the step the teacher was last on, so going back to a step and leaving it there sticks.
+ * Finding and booking a time are over once a time is booked (the booking marks them done), so a meeting left on
+ * one of those goes straight to telling everyone and the gen ed teacher. A meeting never opened before starts at
+ * the first step not done.
+ */
+export function resumeStep(plan: StepPlan | undefined, booked = false): number {
+  const p = cleanPlan(plan);
+  if (!p.at) return firstOpen(p);
+  return booked && (p.at === 2 || p.at === 3) ? 4 : p.at;
 }
 
 export const stepsDone = (plan: StepPlan | undefined) => cleanPlan(plan).done.length;
