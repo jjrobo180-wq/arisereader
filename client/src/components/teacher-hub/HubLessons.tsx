@@ -468,7 +468,7 @@ function ListView({ lessons, classes, search, setSearch, sort, setSort, status, 
       : (a.date || "9999").localeCompare(b.date || "9999"));
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
         <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search lessons, standards, units" className="min-h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm" /></div>
         <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value as any)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-2 text-sm"><option value="">Every status</option>{LESSON_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select>
         <select aria-label="Sort lessons" value={sort} onChange={(e) => setSort(e.target.value as ListSort)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-2 text-sm">{LIST_SORTS.map((s) => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}</select>

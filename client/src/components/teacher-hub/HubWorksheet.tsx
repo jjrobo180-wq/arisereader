@@ -78,7 +78,7 @@ export function WorksheetEditor({ ws, onChange }: { ws: GenWorksheet; onChange: 
       <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">Maths goes between $ signs: <code>$\frac{"{3}{4}"}$</code> prints as a stacked fraction, <code>$2\frac{"{1}{3}"}$</code> as a mixed number, <code>$x^2$</code> with an exponent, <code>$\sqrt{"{49}"}$</code> as a root. Leave ____ for a fill-in blank.</p>
       {ws.sections.map((s, si) => (
         <section key={si} className="rounded-2xl border border-slate-200 p-3">
-          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <input value={s.heading} onChange={(e) => setSection(si, { heading: e.target.value })} className={input + " font-semibold"} aria-label="Section heading" />
             <select value={s.columns || 1} onChange={(e) => setSection(si, { columns: Number(e.target.value) })} className={input} aria-label="Columns">{[1, 2, 3, 4].map((c) => <option key={c} value={c}>{c} column{c > 1 ? "s" : ""}</option>)}</select>
             <input value={s.directions || ""} onChange={(e) => setSection(si, { directions: e.target.value })} placeholder="Section directions (optional)" className={input + " sm:col-span-2"} />
