@@ -1,7 +1,7 @@
 // Arise WorkHub: asking everyone which times work for an IEP or re-evaluation meeting.
 // The teacher offers a few times and picks the people (parents, staff, anyone else).
 // Each gets an email with their own link; answers show up here, and the teacher books a time.
-import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import MeetingWizard, { type WizardState } from "./HubMeetingSteps";
 import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, Trash2, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
@@ -16,7 +16,7 @@ import { deadlineName as nameOfDeadline, deadlineWords, meetingDeadline } from "
 import type { Workspace } from "@shared/teacherHub";
 import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from "./HubAvailability";
 import { localDay } from "./HubImport";
-import { FIT_WORDS, cleanWeekly, fitOption, suggestTimes, type Fit, type FreeWindow } from "@shared/availability";
+import { FIT_WORDS, cleanWeekly, fitOption, openTimes, suggestTimes, type Fit, type FreeWindow } from "@shared/availability";
 import { Card, Empty, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
 
 type PollView = {
@@ -224,12 +224,29 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const people = othersCalendars(workspace);
   const [skipPeople, setSkipPeople] = useState<string[]>([]);
   const theirEvents = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !skipPeople.includes(c.id)).map((c) => c.id));
+  // Repeating events are busy on every day they fall on (looking four months ahead); hidden events are not busy.
+  function busyTimes(without: string[]) {
+    const theirs = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !without.includes(c.id)).map((c) => c.id));
+    return [...calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.meetingId !== initial.meetingId), ...theirs].filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end }));
+  }
+  // Every open day and time (on the hour or half hour), for the pick lists on each row.
+  const pickGroups = useMemo(() => {
+    if (!weekly?.length) return [] as { date: string; label: string; slots: { start: string; end: string }[] }[];
+    const tomorrow = new Date(`${today}T12:00:00Z`); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const tomorrowDay = tomorrow.toISOString().slice(0, 10);
+    const slots = openTimes(weekly, { from: rangeFrom && rangeFrom > tomorrowDay ? rangeFrom : tomorrowDay, minutes: length, busy: busyTimes(skipPeople), until: deadline && deadline > tomorrowDay ? deadline : undefined, through: rangeThrough || undefined, days: 42, limit: 160 });
+    const groups: { date: string; label: string; slots: { start: string; end: string }[] }[] = [];
+    for (const t of slots) {
+      let g = groups[groups.length - 1];
+      if (!g || g.date !== t.date) { g = { date: t.date, label: new Date(`${t.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" }), slots: [] }; groups.push(g); }
+      g.slots.push({ start: t.start, end: t.end });
+    }
+    return groups;
+  }, [weekly, length, rangeFrom, rangeThrough, skipPeople, workspace, deadline, today]); // eslint-disable-line react-hooks/exhaustive-deps
   function suggest(free: FreeWindow[], skip: number, over: { minutes?: number; without?: string[]; count?: number; perDay?: number; from?: string; through?: string } = {}) {
     const minutes = over.minutes ?? length, without = over.without ?? skipPeople, wanted = over.count ?? count, per = over.perDay ?? perDay;
     const startOn = over.from ?? rangeFrom, through = over.through ?? rangeThrough;
-    // Repeating events are busy on every day they fall on (looking four months ahead); hidden events are not busy.
-    const theirs = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !without.includes(c.id)).map((c) => c.id));
-    const busy = [...calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.meetingId !== initial.meetingId), ...theirs].filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end }));
+    const busy = busyTimes(without);
     const before = meeting?.date && meeting.date > today ? meeting.date : undefined;
     const tomorrow = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
     const from = startOn && startOn > tomorrow ? startOn : tomorrow; // never in the past
@@ -356,7 +373,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
                   <input type="date" value={rangeThrough} min={rangeFrom || today} onChange={(e) => { setRangeThrough(e.target.value); setRound(0); suggest(weekly, 0, { through: e.target.value }); }} className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-normal text-slate-900 sm:text-sm" />
                 </label>
               </div>
-              <p className="text-xs text-slate-600">Times start on the hour or half hour. Leave the dates empty to start with the soonest open days.</p>
+              <p className="text-xs text-slate-600">Times start on the hour or half hour. Use the drop-down on each time to pick any open day and time. Leave the dates empty to start with the soonest open days.</p>
               {suggestNote && <p className="text-xs text-amber-800" role="status">{suggestNote}</p>}
             </div>
           )}
@@ -364,6 +381,18 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         <div className="space-y-2">
           {times.map((t, index) => (
             <div key={index} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2.5 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:border-0 sm:bg-transparent sm:p-0">
+              {pickGroups.length > 0 && (
+                <select aria-label={`Pick an open day and time for time ${index + 1}`} data-testid={`pick-time-${index}`} value={`${t.date}|${t.start}`}
+                  onChange={(e) => { const [date, start] = e.target.value.split("|"); const slot = pickGroups.find((g) => g.date === date)?.slots.find((x) => x.start === start); if (slot) setTimes(times.map((x, i) => (i === index ? { date, start: slot.start, end: slot.end } : x))); }}
+                  className="col-span-full min-h-11 w-full min-w-0 rounded-xl border border-teal-200 bg-teal-50 px-3 text-base font-semibold text-teal-950 sm:text-sm">
+                  {!pickGroups.some((g) => g.date === t.date && g.slots.some((x) => x.start === t.start)) && <option value={`${t.date}|${t.start}`}>{t.date && t.start ? describeOption(t) : "Pick an open day and time…"}</option>}
+                  {pickGroups.map((g) => (
+                    <optgroup key={g.date} label={g.label}>
+                      {g.slots.map((x) => <option key={x.start} value={`${g.date}|${x.start}`}>{describeOption({ date: g.date, start: x.start, end: x.end }).split(" · ")[1]}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              )}
               <Field type="date" aria-label={`Date ${index + 1}`} value={t.date} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, date: e.target.value } : x)))} />
               <button type="button" aria-label={`Remove time ${index + 1}`} disabled={times.length <= 2} onClick={() => setTimes(times.filter((_, i) => i !== index))} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 sm:order-last"><Trash2 className="h-4 w-4" /></button>
               <div className="col-span-2 grid min-w-0 grid-cols-2 gap-2 sm:col-span-2">
