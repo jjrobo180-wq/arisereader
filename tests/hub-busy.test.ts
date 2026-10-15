@@ -50,3 +50,9 @@ test("suggested times stay off everything booked", () => {
   assert.deepEqual(starts, ["08:00", "15:00"]); // 13:00 is another meeting (m-self)
   assert.ok(!starts.includes("09:00") && !starts.includes("10:30") && !starts.includes("12:00") && !starts.includes("14:00"));
 });
+
+test("all-day items warn, and ones that sound like being away block the day", async () => {
+  const { allDayItems } = await import("../shared/hubBusy");
+  const list = allDayItems({ ...ws, events: [ev({ id: "x", title: "Spirit week" }), ev({ id: "y", title: "PD day", date: "2026-10-14" }), ev({ id: "z", title: "Lunch", start: "12:00" })] }, "2026-10-07", "2026-11-30");
+  assert.deepEqual(list.map((a) => [a.title, a.blocks]), [["Spirit week", false], ["PD day", true]]);
+});
