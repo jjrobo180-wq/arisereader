@@ -48,11 +48,14 @@ export function Card({ title, children, right, collapseKey }: { title?: string; 
   );
 }
 
+/** Date and time boxes: on an iPhone they ignore the width they are given and push the page sideways unless told to behave. */
+const PICKER = /^(date|time|datetime-local|month|week)$/;
 export function Field(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const picker = PICKER.test(String(props.type || ""));
   return (
     <input
       {...props}
-      className={`w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:min-h-10 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${props.className || ""}`}
+      className={`w-full min-w-0 max-w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 sm:min-h-10 sm:text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 ${picker ? "block appearance-none text-left [&::-webkit-date-and-time-value]:min-w-0 [&::-webkit-date-and-time-value]:text-left" : ""} ${props.className || ""}`}
     />
   );
 }

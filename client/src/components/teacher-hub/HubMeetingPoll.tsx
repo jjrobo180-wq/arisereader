@@ -6,13 +6,13 @@ import MeetingWizard, { type WizardState } from "./HubMeetingSteps";
 import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, Trash2, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
-import { roleLabel } from "@shared/hubGuide";
+import { rememberParents, roleLabel } from "@shared/hubGuide";
 import { meetingPeople } from "@shared/hubStudentTeam";
 import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import { addDays } from "@shared/hubDates";
 import { calendarEvents } from "@shared/hubHidden";
 import { busyPeople, othersCalendars, othersEvents } from "@shared/hubOthers";
-import { deadlineLabel, deadlineWords, meetingDeadline } from "@shared/meetingDeadline";
+import { deadlineName as nameOfDeadline, deadlineWords, meetingDeadline } from "@shared/meetingDeadline";
 import type { Workspace } from "@shared/teacherHub";
 import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from "./HubAvailability";
 import { localDay } from "./HubImport";
@@ -181,6 +181,15 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const noEmail: Guest[] = asked.filter(({ person }) => !team.some((c) => c.id === person.id)).map(({ person, role }) => ({ name: person.name, email: "", phone: "", role: roleLabel(role) }));
   const parents: Guest[] = [...[[guide?.parent1, guide?.parent1Phone, guide?.parent1Email], [guide?.parent2, guide?.parent2Phone, guide?.parent2Email]].filter(([n, ph, em]) => (n || "").trim() || (ph || "").trim() || (em || "").trim()).map(([n, ph, em]) => ({ name: (n || "").trim(), email: (em || "").trim(), phone: (ph || "").trim(), role: "Parent or guardian" })), ...noEmail];
   const [guests, setGuests] = useState<Guest[]>(parents.length ? parents : [blankGuest()]);
+  // This student's team first; everyone else on the contact list stays one tap away. Without a meeting, all contacts are listed.
+  const teamHere = meeting ? team.filter((c) => asked.some(({ person }) => person.id === c.id)) : team;
+  const othersTeam = meeting ? team.filter((c) => !asked.some(({ person }) => person.id === c.id)) : [];
+  const personRow = (c: (typeof team)[number]) => (
+    <label key={c.id} className="flex min-h-11 min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+      <input type="checkbox" className="h-5 w-5 shrink-0" checked={!!picked[c.id]} onChange={() => setPicked({ ...picked, [c.id]: !picked[c.id] })} />
+      <span className="min-w-0 text-sm"><span className="block truncate font-medium">{c.name}</span><span className="block truncate text-xs text-slate-500">{roleLabel(c.role)} · {c.email}</span></span>
+    </label>
+  );
   const mailboxReady = !!box?.connected && !box.connected.needsReconnect;
   type Via = "self" | "mailbox" | "site";
   const [sendVia, setSendVia] = useState<Via>("self");
@@ -205,7 +214,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
 
   // The meeting's IEP deadline (from step 1 or the student's caseload date): times are suggested before it.
   const deadline = meeting ? meetingDeadline(workspace, meeting) : "";
-  const deadlineName = meeting && deadlineLabel(meeting.type).startsWith("Reevaluation") ? "reevaluation deadline" : "IEP deadline";
+  const deadlineName = meeting ? nameOfDeadline(meeting.type) : "deadline";
   // The people whose calendars are followed (a social worker, another teacher): times are suggested when they are not busy either.
   const people = othersCalendars(workspace);
   const [skipPeople, setSkipPeople] = useState<string[]>([]);
@@ -262,7 +271,8 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         options: times.filter((t) => t.date || t.start), invitees,
       });
       // Remember the choice for next time.
-      setWorkspace((prev) => ({ ...prev, profile: { ...prev.profile, senderName, replyEmail: replyTo } }));
+      setWorkspace((prev) => ({ ...prev, profile: { ...prev.profile, senderName, replyEmail: replyTo },
+        guides: meeting ? prev.guides.map((g) => (g.student === meeting.student ? rememberParents(g, guests) : g)) : prev.guides }));
       const fell = data.mailboxProblem ? " Your connected email could not send, so these went out from A.R.I.S.E. Reader instead. Reconnect your email in the box above." : "";
       if (via === "self") return onSent("Your poll is ready. Send each person their link from the window that just opened, or later with “Send links” on the poll.", data.poll);
       onSent((data.notSent ? `Sent, but ${data.notSent} ${data.notSent === 1 ? "email" : "emails"} did not go through. Open the poll to see who.` : `Sent to ${invitees.length} ${invitees.length === 1 ? "person" : "people"}. Their answers will show up here.`) + fell);
@@ -279,7 +289,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
           <button type="button" onClick={onClose} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
         </div>
       )}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
         <Field placeholder="Meeting name, like IEP meeting for Jordan" aria-label="Meeting name" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={POLL_LIMITS.title} />
         <Field placeholder="Where (room or video link)" aria-label="Where" value={location} onChange={(e) => setLocation(e.target.value)} maxLength={POLL_LIMITS.location} />
       </div>
@@ -324,10 +334,10 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         </div>
         <div className="space-y-2">
           {times.map((t, index) => (
-            <div key={index} className="grid grid-cols-[1fr_auto] items-center gap-2 sm:grid-cols-[1.4fr_1fr_1fr_auto]">
+            <div key={index} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2.5 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:border-0 sm:bg-transparent sm:p-0">
               <Field type="date" aria-label={`Date ${index + 1}`} value={t.date} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, date: e.target.value } : x)))} />
               <button type="button" aria-label={`Remove time ${index + 1}`} disabled={times.length <= 2} onClick={() => setTimes(times.filter((_, i) => i !== index))} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 sm:order-last"><Trash2 className="h-4 w-4" /></button>
-              <div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-2">
+              <div className="col-span-2 grid min-w-0 grid-cols-2 gap-2 sm:col-span-2">
                 <Field type="time" aria-label={`Start ${index + 1}`} value={t.start} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, start: e.target.value } : x)))} />
                 <Field type="time" aria-label={`End ${index + 1} (optional)`} value={t.end} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, end: e.target.value } : x)))} />
               </div>
@@ -340,39 +350,45 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         {times.length < POLL_LIMITS.options && <div className="mt-2"><GhostButton onClick={() => setTimes([...times, blankTime()])}><Plus className="h-4 w-4" /> Add another time</GhostButton></div>}
       </div>
 
-      <div>
-        <div className="mb-2 text-sm font-semibold text-slate-800">Who should be asked?</div>
-        {team.length > 0 && (
-          <div className="mb-3 grid gap-2 sm:grid-cols-2">
-            {team.map((c) => (
-              <label key={c.id} className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <input type="checkbox" className="h-5 w-5 shrink-0" checked={!!picked[c.id]} onChange={() => setPicked({ ...picked, [c.id]: !picked[c.id] })} />
-                <span className="min-w-0 text-sm"><span className="block truncate font-medium">{c.name}</span><span className="block truncate text-xs text-slate-500">{roleLabel(c.role)} · {c.email}</span></span>
-              </label>
-            ))}
+      <div className="min-w-0" data-testid="poll-people">
+        <div className="mb-1 text-sm font-semibold text-slate-800">{meeting ? `Who is coming to ${meeting.student.split(" ")[0]}'s ${meeting.type.toLowerCase()}?` : "Who should be asked?"}</div>
+        <p className="mb-3 text-xs text-slate-500">Tick everyone who should be asked for times. {meeting ? "Parents and this student's team are filled in for you. Change anyone you like." : ""}</p>
+        {teamHere.length > 0 && (
+          <div className="mb-4">
+            <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{meeting ? `${meeting.student.split(" ")[0]}'s team` : "My contacts"}</div>
+            <div className="grid gap-2 sm:grid-cols-2">{teamHere.map(personRow)}</div>
           </div>
         )}
+        <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Parents and anyone else</div>
         <div className="space-y-2">
           {guests.map((g, index) => (
-            <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1.3fr_1fr_1fr_auto]">
-              <Field placeholder="Name" aria-label={`Name ${index + 1}`} value={g.name} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, name: e.target.value } : x)))} maxLength={POLL_LIMITS.name} />
-              <Field type="email" inputMode="email" placeholder={via === "self" ? "Email (optional)" : "Email"} aria-label={`Email ${index + 1}`} value={g.email} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, email: e.target.value } : x)))} maxLength={120} />
-              <Field type="tel" inputMode="tel" placeholder="Phone (optional)" aria-label={`Phone ${index + 1}`} value={g.phone} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, phone: e.target.value } : x)))} maxLength={30} />
-              <select aria-label={`Role ${index + 1}`} value={g.role} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, role: e.target.value } : x)))} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:min-h-10 sm:text-sm">
+            <div key={index} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-2.5">
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1"><Field placeholder="Name" aria-label={`Name ${index + 1}`} value={g.name} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, name: e.target.value } : x)))} maxLength={POLL_LIMITS.name} /></div>
+                <button type="button" aria-label={`Remove person ${index + 1}`} onClick={() => setGuests(guests.filter((_, i) => i !== index))} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+              </div>
+              <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-2">
+                <Field type="email" inputMode="email" placeholder={via === "self" ? "Email (optional)" : "Email"} aria-label={`Email ${index + 1}`} value={g.email} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, email: e.target.value } : x)))} maxLength={120} />
+                <Field type="tel" inputMode="tel" placeholder="Phone (optional)" aria-label={`Phone ${index + 1}`} value={g.phone} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, phone: e.target.value } : x)))} maxLength={30} />
+              </div>
+              <select aria-label={`Role ${index + 1}`} value={g.role} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, role: e.target.value } : x)))} className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-base sm:min-h-10 sm:text-sm">
                 {INVITEE_ROLES.map((r) => <option key={r}>{r}</option>)}
               </select>
-              <button type="button" aria-label={`Remove person ${index + 1}`} onClick={() => setGuests(guests.filter((_, i) => i !== index))} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
         </div>
-        <div className="mt-2"><GhostButton onClick={() => setGuests([...guests, blankGuest()])}><Plus className="h-4 w-4" /> Add another person</GhostButton></div>
         <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Add a person by role">
           {QUICK_ROLES.map((role) => (
             <button key={role} type="button" onClick={() => { setGuests((prev) => [...(seed && prev.length === 1 && !prev[0].name && !prev[0].email ? [] : prev), blankGuest(role)]); setSeed(false); }} className="min-h-11 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ {role}</button>
           ))}
         </div>
+        {meeting && othersTeam.length > 0 && (
+          <details className="mt-4 rounded-2xl border border-slate-200 p-2.5">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-slate-800">More people from my contacts ({othersTeam.length})</summary>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">{othersTeam.map(personRow)}</div>
+          </details>
+        )}
         {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add each student's team on the Caseload (press Edit on a student), with emails, and they'll be picked here for you.</p>}
-        {(parents.length > 0 || Object.keys(picked).length > 0) && <p className="mt-2 text-xs text-slate-500">This student's parents and team are already filled in. Change anyone you like.</p>}
       </div>
 
       <div>
