@@ -486,6 +486,14 @@ export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: 
   return { unlimited: false, via: null, endsAt: null };
 }
 
+/** Is a Stripe secret key a live one, a test one, or missing? The key alone decides: Stripe keeps test and live
+ *  money, customers and subscriptions completely apart, and this site stores no Stripe price ids. */
+export function stripeMode(key: unknown): "live" | "test" | "unset" {
+  const k = String(key ?? "").trim();
+  if (!k) return "unset";
+  return /^(sk|rk)_test_/.test(k) ? "test" : "live";
+}
+
 // ─── VIP list: people the admin gives To-Do Unlimited to, no payment ──────────────────────────
 
 /** One person on the VIP list. By email, so it works for someone who has not signed up yet; by account id, for an

@@ -27,7 +27,7 @@ import {
   type AddonAccess, type AppId,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
-  todoUnlimitedFor, cleanVipEmail, cleanVipList, onVipList, VIP_MAX, type VipEntry,
+  todoUnlimitedFor, stripeMode, cleanVipEmail, cleanVipList, onVipList, VIP_MAX, type VipEntry,
 } from "../shared/plans";
 import { TODO_PLAN_KINDS, infoFromGrant, stripeKeyMode, type PlanInfo } from "../shared/todoAdmin";
 import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, UNLIMITED_YEARLY_OFFER, aiMonth } from "../shared/todoPlan";
@@ -1227,7 +1227,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       res.set("Cache-Control", "no-store");
       res.json({
         enforced: await enforced(), plans: rows, freeSchools,
-        stripe: { keySet: !!key, keyPreview: mask(key), keyFromHosting: !!deps.envStripeKey?.(), webhookSet: !!secret, webhookPreview: mask(secret), webhookFromHosting: !!deps.envWebhookSecret?.() },
+        stripe: { mode: stripeMode(key), keySet: !!key, keyPreview: mask(key), keyFromHosting: !!deps.envStripeKey?.(), webhookSet: !!secret, webhookPreview: mask(secret), webhookFromHosting: !!deps.envWebhookSecret?.() },
         grandfather: { before: PLANS.grandfatherBefore, until: PLANS.grandfatherUntil },
       });
     } catch (e) { fail(res, e, "admin plans"); }
