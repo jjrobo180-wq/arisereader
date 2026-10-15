@@ -14,6 +14,7 @@ import { localDay, localZone } from "./HubImport";
 import { HubModal } from "./HubModal";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { MyAvailability } from "./HubAvailability";
+import AbDays from "./HubAbDays";
 import { AskForCalendar, OthersSchedule } from "./HubOthersCalendars";
 import { OWNER_NAME_MAX, cleanOwner } from "@shared/hubOthers";
 import type { FreeWindow } from "@shared/availability";
@@ -753,6 +754,8 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
   return (
     <>
       <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={makeId} onReminderAdded={onReminderAdded} />
+
+      <AbDays workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} />
 
       <OthersSchedule workspace={workspace} today={today} />
 
