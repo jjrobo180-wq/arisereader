@@ -117,3 +117,13 @@ test("the rules: admin and paid plans still work, and the list is checked alongs
   assert.equal(todoUnlimitedFor({ id: 1, role: "admin" } as any, { vip: true }).via, "admin");
   assert.equal(onVipList([], USERS[10]), false);
 });
+
+import { stripeMode } from "../shared/plans";
+test("the Stripe key alone says whether payments are live or test", () => {
+  assert.equal(stripeMode("sk_test_abcdefghijk"), "test");
+  assert.equal(stripeMode("rk_test_abcdefghijk"), "test");
+  assert.equal(stripeMode("sk_live_abcdefghijk"), "live");
+  assert.equal(stripeMode("rk_live_abcdefghijk"), "live");
+  assert.equal(stripeMode(""), "unset");
+  assert.equal(stripeMode(undefined), "unset");
+});
