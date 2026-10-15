@@ -1,13 +1,17 @@
 // Family Hub home: today across every switched-on part of the hub.
 // Its parts can be arranged right here, like WorkHub's Home: press and hold (or Edit Home) to drag, resize or remove them.
-import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, LayoutGrid, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
-import type { ReactNode } from "react";
+import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, Clock, CloudSun, LayoutGrid, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { HomeParts, type HomePart, type StartTile } from "@/components/teacher-hub/HubHomeEdit";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
 import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
 import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
 import { hubThemeOf } from "@shared/appThemes";
+import { liveFaces } from "@shared/liveTiles";
+import type { Forecast } from "@shared/lifePlugins";
+import { useLifeFeed } from "./useLifeFeed";
+import { ClockBody, WeatherBody, useDrivePhotos } from "./LiveBodies";
 import { pollIsOpen } from "./Polls";
 import { MOODS } from "./Mood";
 import { goalProgress } from "./Goals";
@@ -152,6 +156,29 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   );
   const pinnedCatalog: HomePart[] = myNotesApps.map((p) => ({ id: pinId(p.id), label: p.name, icon: StickyNote }));
   const tileMode = hubThemeOf(layout.theme).homeLayout === "tiles";
+  // ─── The Tile theme's live tiles ───
+  // A beat each minute keeps "next event" and the like current; the clock inside its tile ticks by itself.
+  const [, beat] = useState(0);
+  useEffect(() => { if (!tileMode) return; const t = window.setInterval(() => beat((n) => n + 1), 60_000); return () => clearInterval(t); }, [tileMode]);
+  const place = family.weather.place;
+  const weatherOn = on("weather");
+  const feed = useLifeFeed<Forecast>(tileMode && weatherOn && place ? `/api/lifehub/weather?place=${encodeURIComponent(place)}&unit=${family.weather.unit}` : null);
+  const photos = useDrivePhotos(family.drive, tileMode && !!family.driveInstalled);
+  const faces = tileMode ? liveFaces(family, tasks, today, Date.now()) : {};
+  const openWeather = () => { if (!weatherOn) setFamily((f) => ({ ...f, sections: { ...f.sections, weather: true } })); go("weather"); };
+  const clockTile: StartTile = { id: "live-clock", label: "Clock", icon: <Clock />, size: "medium", color: "#1b6ec2", onClick: () => go(on("clocks") ? "clocks" : "calendar"), body: (size) => <ClockBody size={size} /> };
+  const weatherTile: StartTile = { id: "live-weather", label: "Weather", icon: <CloudSun />, size: "medium", color: "#0e8a8a", onClick: openWeather,
+    body: (size) => <WeatherBody size={size} w={weatherOn ? { data: feed.data, busy: feed.busy, error: feed.error, place } : { data: null, busy: false, error: "", place: "" }} /> };
+  const startLeads: StartTile[] = [
+    ...(!family.members.length ? [{ id: "setup-family", label: "Set up your family", sub: "Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.", icon: <UserPlus />, size: "large" as const, color: "#f2600c", onClick: () => go("family") }] : []),
+    clockTile, weatherTile,
+  ];
+  /** Each app's tile with what it has to say; the weather is its own tile above, and Drive's tile becomes the photo slideshow. */
+  const liveApps = (appTiles ?? []).filter((t) => t.id !== "app-weather").map((t) => {
+    const key = t.id.replace(/^app-/, "");
+    const shots = key === "drive-app" ? photos : undefined;
+    return { ...t, faces: faces[key], photos: shots?.length ? shots : undefined };
+  });
   return <div className="space-y-4 sm:space-y-6">
     {!family.members.length && !tileMode && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
       <span className="rounded-2xl bg-white/10 p-3 text-[#bcb2ff]"><UserPlus size={26} /></span>
@@ -159,6 +186,6 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}
     <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} widgets={{ items: family.widgetBoard, makeId, setItems: (update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) })) }} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout}
-      leadTiles={tileMode && !family.members.length ? [{ id: "setup-family", label: "Set up your family", sub: "Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.", icon: <UserPlus />, size: "large", color: "#f2600c", onClick: () => go("family") }] : undefined} appTiles={tileMode ? appTiles : undefined} />
+      leadTiles={tileMode ? startLeads : undefined} appTiles={tileMode ? liveApps : undefined} />
   </div>;
 }
