@@ -61,7 +61,7 @@ import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerLessonPlannerRoutes } from "./lessonPlanner";
 import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
 import { registerProAppsAI } from "./proAppsAI";
-import { notifyUser, registerPushRoutes } from "./pushNotifications";
+import { notifyUser, registerPushRoutes, setNudgeSource } from "./pushNotifications";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
@@ -1362,7 +1362,14 @@ export async function registerRoutes(
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // The Lesson Planner's AI helper: ideas, full plans, standards, worksheets, slides, units and reteaches.
   // Arise Office (Sheets, Docs, Slides) and the premium apps: each person's own files and app data.
-  registerUserDocRoutes(app, authMiddleware, supabaseDocStore(getAdminSupabase));
+  const userDocStore = supabaseDocStore(getAdminSupabase);
+  registerUserDocRoutes(app, authMiddleware, userDocStore);
+  // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
+  setNudgeSource(async (userId) => {
+    const raw = await userDocStore.read(`${userId}/apps/pro-health-nudges.json`);
+    if (!raw) return null;
+    try { const data = JSON.parse(raw)?.data; return data && data.push === true ? data : null; } catch { return null; }
+  });
   registerProAppsAI(app, authMiddleware, plans.aiMeter);
   registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
