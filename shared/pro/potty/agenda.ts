@@ -171,3 +171,14 @@ export function agendaText(a: Agenda, child: Child, units: "oz" | "ml", usual: s
   const tot = [i.totalMl ? `${volume(i.totalMl, units)} to drink` : "", i.bottles ? `${i.bottles} bottle${i.bottles === 1 ? "" : "s"} (${volume(i.bottleMl, units)})` : "", i.juiceMl ? `juice ${volume(i.juiceMl, units)}` : ""].filter(Boolean);
   return [head, "", ...body, "", tot.length ? `Drinks today: ${tot.join(", ")}.` : "", "", "Usual times:", ...usual.map((u) => `- ${u}`)].join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
+
+/**
+ * Minutes between toilet trips for the reminder: what the parent set, otherwise 30 at the very
+ * start of training, otherwise this child's own usual gap between pees (20–180), otherwise 90.
+ */
+export function tripInterval(logs: Entry[], child: Child, now = Date.now()): number {
+  if (child.interval) return child.interval;
+  if (child.stage === "launch") return 30;
+  const gap = rhythm(logs, child.id, now).peeGap;
+  return gap ? Math.max(20, Math.min(180, gap)) : 90;
+}

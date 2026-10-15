@@ -92,3 +92,13 @@ test("the agenda copies out as plain text", () => {
   const t = agendaText(a, kid(), "oz", usualTimes(logs, kid(), at(DAY, 8, 5)).lines);
   assert.match(t, /^Ari's agenda/); assert.match(t, /8:00 AM {2}Drank a bottle · 4 oz/); assert.match(t, /Sit on the toilet at/); assert.match(t, /Drinks today: 4 oz to drink, 1 bottle \(4 oz\)/);
 });
+
+test("trip reminder interval: the parent's setting, then early training, then her own gap, then 90", async () => {
+  const { tripInterval } = await import("../shared/pro/potty/agenda");
+  const k = { ...kid(), stage: "ready" as const, interval: 0 };
+  assert.equal(tripInterval([], k), 90);
+  assert.equal(tripInterval([], { ...k, interval: 45 }), 45);
+  assert.equal(tripInterval([], { ...k, stage: "launch" }), 30);
+  const logs: Entry[] = []; for (let i = 0; i < 6; i++) logs.push(E(DAY, 7 + i, 0, "pee"));
+  assert.equal(tripInterval(logs, k, at(DAY, 14, 0)), 60);
+});

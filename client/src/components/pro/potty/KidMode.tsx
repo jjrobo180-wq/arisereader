@@ -53,7 +53,7 @@ export function Celebrate({ kid, voice, title, onPick, onClose }: { kid: Child; 
   </FullScreen>;
 }
 
-export function Alert({ kid, voice, onAnswer, onClose }: { kid: Child; voice: boolean; onAnswer: (a: "sit" | "went" | "tried" | "accident" | "snooze") => void; onClose: () => void }) {
+export function Alert({ kid, voice, onAnswer, onClose }: { kid: Child; voice: boolean; onAnswer: (a: "sit" | "went" | "pooped" | "tried" | "accident" | "snooze") => void; onClose: () => void }) {
   useEffect(() => {
     const ring = () => { chime(); vibrate([200, 100, 200]); say(`${kid.words.potty[0].toUpperCase()}${kid.words.potty.slice(1)} time, ${kid.name}!`, voice); };
     ring(); notify("Potty time!", `Time for ${kid.name} to try the potty.`);
@@ -65,7 +65,8 @@ export function Alert({ kid, voice, onAnswer, onClose }: { kid: Child; voice: bo
       <span className="pt-bob text-8xl">🚽</span><p className="mt-3 text-5xl font-extrabold">Potty time, {kid.name}!</p>
       <div className="mt-8 grid w-full max-w-lg grid-cols-2 gap-3">
         <button type="button" onClick={() => onAnswer("sit")} className="col-span-2 rounded-2xl py-4 text-xl font-extrabold text-white" style={{ background: C.ink }}>Start the sit timer</button>
-        <button type="button" onClick={() => onAnswer("went")} className="rounded-2xl bg-white py-3 font-bold">💧 Went in the potty</button>
+        <button type="button" onClick={() => onAnswer("went")} className="rounded-2xl bg-white py-3 font-bold">💧 Peed in the potty</button>
+        <button type="button" onClick={() => onAnswer("pooped")} className="rounded-2xl bg-white py-3 font-bold">💩 Pooped in the potty</button>
         <button type="button" onClick={() => onAnswer("tried")} className="rounded-2xl bg-white py-3 font-bold">🪑 Tried</button>
         <button type="button" onClick={() => onAnswer("accident")} className="rounded-2xl bg-white/50 py-3 font-bold">💦 Had an accident</button>
         <button type="button" onClick={() => onAnswer("snooze")} className="rounded-2xl bg-white/50 py-3 font-bold">⏰ 5 more minutes</button>
