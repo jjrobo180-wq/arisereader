@@ -13,6 +13,7 @@ import { HubModal } from "./HubModal";
 import { HOME_SECTIONS, HOME_SIZES, homeShown, isWidgetHomeId, resizeSection, sizeOf, widgetHomeId, widgetIdOf, type AnyLayout, type HomeSection, type HomeSize } from "@shared/hubLayout";
 import type { WidgetItem, WidgetSize } from "@shared/widgets";
 import { startSize } from "@shared/startScreen";
+import { arrangeLive, type LiveFace } from "@shared/liveTiles";
 import { ROW as WIDGET_ROW, WidgetCell, useWidgetKit } from "@/components/widgets/WidgetBoard";
 import type { Plugin } from "@shared/pluginStore";
 import { ICONS } from "@/components/plugin-store/PluginStore";
@@ -83,10 +84,18 @@ const TILE_LAYOUTS: readonly HubHomeLayout[] = ["tiles"];
  *  wide one is four by two — on any screen, with no gaps. It never grows wider than a big phone. */
 const START_CSS = ".hub-start{container-type:inline-size;width:100%;max-width:40rem;margin-inline:auto}"
   + ".hub-start-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;grid-auto-flow:dense;grid-auto-rows:calc((100cqw - 15px) / 4)}"
-  + ".hub-start-grid>*{min-width:0;min-height:0}";
+  + ".hub-start-grid>*{min-width:0;min-height:0}"
+  // A live tile's fact slides up into place when it changes (and just appears for people who asked for less motion).
+  + ".tile-in{animation:tile-in .55s cubic-bezier(.2,.8,.2,1) both}@keyframes tile-in{from{opacity:0;transform:translateY(35%)}to{opacity:1;transform:none}}"
+  + "@media (prefers-reduced-motion:reduce){.tile-in{animation:none}}";
 
 /** A tile that is not one of the parts of Home: the app shortcuts (and a call to action) that fill the start screen. */
-export type StartTile = { id: string; label: string; icon: ReactNode; color?: string; sub?: string; size?: HomeSize; badge?: number; onClick: () => void };
+export type StartTile = {
+  id: string; label: string; icon: ReactNode; color?: string; sub?: string; size?: HomeSize; badge?: number; onClick: () => void;
+  /** A live tile: short facts it flips between (see shared/liveTiles.ts), pictures it fades between, or a face of its own that fills it (a clock, the weather). */
+  faces?: LiveFace[]; photos?: string[]; body?: (size: HomeSize) => ReactNode;
+};
+const isLive = (t: StartTile) => !!(t.faces?.length || t.photos?.length || t.body);
 
 /** Tile's real live-tile palette: the Windows-Phone/Windows-8 set of flat, saturated tile
  *  colors. Each part gets one of these — picked deterministically from its id, so a given part
@@ -219,9 +228,16 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
   const shownIds = () => (shownCache ??= expand(homeShown(layout) as string[]).filter((id) => contentOf(id) != null));
   const frame = (n: ReactNode) => (isTiles ? <div className="hub-start"><style>{START_CSS}</style>{n}</div> : n);
   const fill = isTiles ? " h-full" : "";
+  const tileProps = (t: StartTile, size: HomeSize) => ({ label: t.label, icon: t.icon, color: t.color ?? tileColorOf(t.id), size, sub: t.sub, badge: t.badge, faces: t.faces, photos: t.photos, body: t.body });
   const tileBtn = (t: StartTile, size: HomeSize) => <div key={`t-${t.id}`} {...holdProps} className={`${spanOf[size]} h-full min-w-0`}>
-    <button type="button" onClick={t.onClick} aria-label={t.label} className="block h-full w-full transition active:scale-95" data-testid={`home-tile-${t.id}`}><TileFace label={t.label} icon={t.icon} color={t.color ?? tileColorOf(t.id)} size={size} sub={t.sub} badge={t.badge} /></button></div>;
-  const tileStatic = (t: StartTile, size: HomeSize) => <div key={`s-${t.id}`} className={`${spanOf[size]} h-full min-w-0 pointer-events-none opacity-50`} aria-hidden><TileFace label={t.label} icon={t.icon} color={t.color ?? tileColorOf(t.id)} size={size} sub={t.sub} badge={t.badge} /></div>;
+    <button type="button" onClick={t.onClick} aria-label={t.label} className="block h-full w-full transition active:scale-95" data-testid={`home-tile-${t.id}`}><TileFace {...tileProps(t, size)} /></button></div>;
+  /** While arranging, tapping an app tile leaves arranging and opens that app. */
+  const tileEdit = (t: StartTile, size: HomeSize) => <div key={`e-${t.id}`} className={`${spanOf[size]} h-full min-w-0`}>
+    <button type="button" onClick={() => { setEditing(false); t.onClick(); }} aria-label={`${t.label}: leave customize and open`} className="block h-full w-full transition active:scale-95" data-testid={`home-tile-${t.id}`}><TileFace {...tileProps(t, size)} /></button></div>;
+  /** The app tiles: the ones with something to say are given the bigger squares. */
+  const arranged = (start: number): StartTile[] => arrangeLive(apps.map((t) => ({ t, live: isLive(t) })), (i) => startSize(start + i)).map((x) => x.t);
+  /** When the last drag ended, so the tap that ends a drag is not taken for a tap on the tile. */
+  const lastDrag = useRef(0);
 
   // ─── While a part is held, the page does not scroll under the finger ───────
   // The listener is there the whole time Home is being edited, so it is ready the moment a part is picked up.
@@ -281,6 +297,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
     cancelAnimationFrame(scrollLoop.current);
     if (!d) return;
     drag.current = null;
+    lastDrag.current = Date.now();
     const el = els.current.get(d.id);
     if (el) { el.style.transition = "transform 220ms cubic-bezier(.2,.8,.2,1)"; el.style.transform = ""; setTimeout(() => { el.style.transition = ""; }, 240); }
     setDragId(null);
@@ -348,7 +365,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
                 : widgetOf(id) ? contentOf(id) : <div className={capOf[sizeOf(layout, id)]}>{contentOf(id)}</div>}
             </div>
           ))}
-          {apps.map((t, i) => tileBtn(t, t.size ?? startSize(shown.length + i)))}
+          {arranged(shown.length).map((t, i) => tileBtn(t, t.size ?? startSize(shown.length + i)))}
           {!shown.length && !leads.length && !apps.length && <p className="col-span-full py-4 text-sm text-slate-500">Everything on Home is hidden.</p>}
         </div>)}
         <div className="flex flex-wrap justify-center gap-2">
@@ -368,17 +385,21 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
       {isTiles && <style>{START_CSS}</style>}
       <style>{`@keyframes hub-jiggle{0%{transform:rotate(-.4deg)}50%{transform:rotate(.4deg)}100%{transform:rotate(-.4deg)}}@media (prefers-reduced-motion:reduce){.hub-jiggle{animation:none!important}}`}</style>
       <div className="sticky top-[72px] z-30 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-2 shadow-lg backdrop-blur">
-        <p className="min-w-0 text-sm text-slate-600">Hold a part and drag it · <X className="inline h-3.5 w-3.5" /> removes · S M L resizes</p>
-        <button type="button" onClick={() => setEditing(false)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition active:scale-95" data-testid="home-edit-done"><Check className="h-4 w-4" /> Done</button>
+        <p className="min-w-0 text-sm text-slate-600">{isTiles ? "Hold a tile and drag it · tap an app to open it" : "Hold a part and drag it"} · <X className="inline h-3.5 w-3.5" /> removes · S M L resizes</p>
+        <span className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={() => setEditing(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition active:scale-95" data-testid="home-edit-done"><Check className="h-4 w-4" /> Done</button>
+          {isTiles && <button type="button" onClick={() => setEditing(false)} aria-label="Exit customize mode" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition active:scale-90" data-testid="home-edit-exit"><X className="h-5 w-5" /></button>}
+        </span>
       </div>
 
       <div ref={grid} className={`relative ${gridClass}`}>
-        {leads.map((t) => tileStatic(t, t.size ?? "large"))}
+        {leads.map((t) => tileEdit(t, t.size ?? "large"))}
         {order.map((id, i) => {
           const w = widgetOf(id), sz = sizeHere(id), held = dragId === id, tileHere = alwaysTile || (sz === "small" && !w), content = contentOf(id, false);
           return (
             <motion.div key={id} ref={ref(id)} layout={held ? false : "position"} transition={GLIDE} data-home-edit={id}
               {...partHandlers(id)}
+              onClick={isTiles ? (e) => { if (isControl(e.target) || drag.current || Date.now() - lastDrag.current < 400) return; setEditing(false); setOpened(id); } : undefined}
               className={`${spanHere(id)} relative min-w-0 select-none [-webkit-touch-callout:none]${fill} ${held ? "z-40 cursor-grabbing" : "z-0 cursor-grab"}`}
               style={held ? { willChange: "transform" } : undefined}>
               <div className={`hub-jiggle relative ${isTiles ? "h-full" : "rounded-3xl bg-white"} transition-shadow duration-150 ${held ? "shadow-2xl ring-2 ring-slate-900" : "shadow-sm ring-1 ring-slate-300"}`}
@@ -399,7 +420,7 @@ export function HomeParts<L extends AnyLayout>({ parts, layout, onChange, plugin
             </motion.div>
           );
         })}
-        {apps.map((t, i) => tileStatic(t, t.size ?? startSize(order.length + i)))}
+        {arranged(order.length).map((t, i) => tileEdit(t, t.size ?? startSize(order.length + i)))}
         {!order.length && <p className="col-span-full rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">Home is empty. Add parts back below.</p>}
       </div>
 
@@ -473,21 +494,62 @@ function PartTile({ part, accent, layout = "cards", size = "small" }: { part: Ho
   );
 }
 
+/** Which of `n` things to show now: it moves on every few seconds, each tile on its own beat so the screen never flips all at once. */
+function useCycle(n: number, seed: string, every = 5200) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (n < 2) return;
+    let timer = 0;
+    const start = window.setTimeout(() => { setI((x) => x + 1); timer = window.setInterval(() => setI((x) => x + 1), every); }, 1800 + (tileHash(seed) % 3200));
+    return () => { clearTimeout(start); clearInterval(timer); };
+  }, [n, seed, every]);
+  return n < 2 ? 0 : i % n;
+}
+/** How big a tile's big word may be, in container-width units, so a long one ("3:30 PM") still fits its tile. */
+const bigSize = (big: string, size: HomeSize) => `${Math.min({ small: 9, medium: 17, large: 21 }[size], { small: 20, medium: 42, large: 70 }[size] / (0.56 * Math.max(1, big.length)))}cqw`;
+
 /** One tile of the start screen: a flat colour block that fills its cell, the picture top-left and the
  *  name bottom-left (a Windows Phone tile). Small is 1×1 (picture and a one-line name), medium 2×2,
- *  wide 4×2 (a bigger picture, and a line of detail when there is one). */
-function TileFace({ label, icon, color, size, sub, badge }: { label: string; icon: ReactNode; color: string; size: HomeSize; sub?: string; badge?: number }) {
+ *  wide 4×2 (a bigger picture, and a line of detail when there is one). A live tile also flips between
+ *  its facts and its picture, shows photos, or draws its own face (a clock). */
+function TileFace({ label, icon, color, size, sub, badge, faces, photos, body }: { label: string; icon: ReactNode; color: string; size: HomeSize; sub?: string; badge?: number; faces?: LiveFace[]; photos?: string[]; body?: (size: HomeSize) => ReactNode }) {
   const px = size === "small" ? "[&_svg]:h-6 [&_svg]:w-6" : size === "medium" ? "[&_svg]:h-10 [&_svg]:w-10" : "[&_svg]:h-12 [&_svg]:w-12";
+  const facts = faces ?? [];
+  // The facts, then the plain picture once, like a live tile flipping back to its icon.
+  const at = useCycle(facts.length ? facts.length + 1 : 0, label), face = facts[at];
+  const shot = useCycle(photos?.length ?? 0, `${label}-photo`, 6500);
+  const sheen = <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/10" />;
+  const badgeEl = badge ? <span className="absolute right-1.5 top-1.5 z-10 min-w-[18px] rounded-full bg-white px-1 text-center text-[10px] font-bold leading-[18px] text-slate-900">{badge > 99 ? "99+" : badge}</span> : null;
+  const name = <span className={`block font-semibold leading-tight ${size === "small" ? "truncate text-[10px] sm:text-xs" : "line-clamp-2 text-sm sm:text-base"}`}>{label}</span>;
+
+  if (photos?.length) {
+    return (
+      <span className="relative block h-full w-full overflow-hidden text-left text-white" style={{ backgroundColor: color }}>
+        {photos.map((u, i) => <img key={u} src={u} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000" style={{ opacity: i === shot ? 1 : 0 }} />)}
+        <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/65 to-transparent" />
+        <span className="absolute inset-x-0 bottom-0 p-2 sm:p-3">{name}</span>
+        {badgeEl}
+      </span>
+    );
+  }
+  if (body) {
+    return <span className="relative block h-full w-full overflow-hidden text-left text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]" style={{ backgroundColor: color }}>{sheen}{body(size)}{badgeEl}</span>;
+  }
   return (
     <span className="relative flex h-full w-full flex-col justify-between overflow-hidden p-2 text-left text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] sm:p-3" style={{ backgroundColor: color }}>
       {/* A soft diagonal sheen, like real live tiles: decorative only, never affects contrast. */}
-      <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/10" />
-      <span className={`relative inline-flex ${px} [&_svg]:text-white`}>{icon}</span>
+      {sheen}
+      {face
+        ? <span key={at} className="tile-in relative block min-w-0">
+            {face.big && <span className="block truncate font-light leading-none tracking-tight tabular-nums" style={{ fontSize: bigSize(face.big, size) }}>{face.big}</span>}
+            {size !== "small" && <span className="mt-1.5 line-clamp-2 block text-sm leading-snug text-white/90 sm:text-base">{face.text}</span>}
+          </span>
+        : <span key="icon" className={`${facts.length ? "tile-in " : ""}relative inline-flex ${px} [&_svg]:text-white`}>{icon}</span>}
       <span className="relative block w-full min-w-0">
-        <span className={`block font-semibold leading-tight ${size === "small" ? "truncate text-[10px] sm:text-xs" : "line-clamp-2 text-sm sm:text-base"}`}>{label}</span>
+        {name}
         {sub && size === "large" && <span className="mt-0.5 line-clamp-2 block text-xs text-white/85 sm:text-sm">{sub}</span>}
       </span>
-      {badge ? <span className="absolute right-1.5 top-1.5 min-w-[18px] rounded-full bg-white px-1 text-center text-[10px] font-bold leading-[18px] text-slate-900">{badge > 99 ? "99+" : badge}</span> : null}
+      {badgeEl}
     </span>
   );
 }
