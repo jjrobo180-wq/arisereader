@@ -3,7 +3,7 @@
 // when to expect the pee or poop. When it rings, snooze it until she goes.
 import { useState } from "react";
 import { useTick, fmtDuration } from "../kit";
-import { DRINK_TYPES, clockOf, dayOf, isPeeEvent, isPoopEvent, mlToOz, nextRing, ozToMl, planSits, sitText, type DrinkType, type Entry, type Kind } from "@shared/pro/potty";
+import { DRINK_TYPES, clockOf, dayOf, isPeeEvent, isPoopEvent, comingText, mlToOz, nextRing, ozToMl, planSits, type DrinkType, type Entry, type Kind } from "@shared/pro/potty";
 import { usePotty } from "./ctx";
 import { Btn2, C, Chip, Panel } from "./theme";
 
@@ -43,13 +43,16 @@ export default function Simple() {
   const arm = (fake: Entry) => {
     const r = nextRing([...data.logs, fake], kid, interval, Date.now());
     startTimer(r.minutes);
-    return { at: Date.now() + r.minutes * 60_000, sit: r.sit };
+    return { at: Date.now() + r.minutes * 60_000, sit: r.sit, due: r.due };
   };
+  /** The banner is short on purpose: what to do first and when the timer rings. The reasons live in "What to expect" below, built from the same plan. */
+  const savedText = (at: number, r: ReturnType<typeof arm>) =>
+    `Saved at ${clockOf(at)}. ${r.due ? "Sit on the toilet now. " : ""}${r.sit ? `${r.due ? "Then the" : "The"} timer rings at ${clockOf(r.sit.at)}.` : `Timer set for ${clockOf(r.at)}.`}`;
   const mark = (w: "pee" | "poop") => {
     const kind = KIND[where][w], at = Date.now();
     log(kind, { at });
     const r = arm({ id: "tmp", kid: kid.id, at, kind });
-    setLast({ kind, at, text: `Saved at ${clockOf(at)}. ${r.sit ? sitText(r.sit) : `Next trip at ${clockOf(r.at)}.`}` });
+    setLast({ kind, at, text: savedText(at, r) });
   };
   const isDrink = pick !== "meal" && pick !== "snack";
   const add = () => {
@@ -59,10 +62,12 @@ export default function Simple() {
     const extra: Partial<Entry> = isDrink ? { at, drink: pick as DrinkType, ml } : { at, size: pick as "meal" | "snack", note };
     log(kind, extra);
     const r = arm({ id: "tmp", kid: kid.id, at, kind, ...extra });
-    setLast({ kind, at, text: `Saved at ${clockOf(at)}. ${r.sit ? sitText(r.sit) : `Next trip at ${clockOf(r.at)}.`}` });
+    setLast({ kind, at, text: savedText(at, r) });
     setMl(undefined); setFoods([]); setWhat(""); setAgo(0);
   };
-  const coming = planSits(data.logs, kid, now).filter((s) => s.state === "upcoming" || s.state === "due");
+  const plan = planSits(data.logs, kid, now);
+  const coming = comingText(plan);
+  const dueNow = plan.some((s) => s.state === "due");
   const undo = () => {
     if (!last) return;
     set((d) => ({ ...d, logs: d.logs.filter((x) => !(x.kid === kid.id && x.kind === last.kind && x.at === last.at)) }));
@@ -75,6 +80,7 @@ export default function Simple() {
     <Panel tone="night" className="text-center">
       <p className="text-sm text-white/60">{kid.name}'s next trip to the toilet</p>
       {timer ? <>
+        {dueNow && <p className="mt-2 rounded-xl bg-white/15 px-3 py-2 text-base font-extrabold" style={{ color: C.duck }}>🚽 Sit her on the toilet now. Next timer:</p>}
         <p className="ph mt-2 text-6xl font-extrabold tabular-nums" style={{ color: C.duck }}>{fmtDuration(left)}</p>
         <p className="mt-1 text-lg font-bold">at {clockOf(timer.endAt)}</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5"><span className="mr-1 text-[13px] text-white/60">Snooze</span>{SNOOZE.map((m) => <button key={m} type="button" onClick={() => startTimer(m)} className="rounded-full bg-white/15 px-3.5 py-2 text-sm font-bold text-white">{m} min</button>)}
@@ -107,8 +113,8 @@ export default function Simple() {
     </Panel>
 
     {coming.length > 0 && <Panel>
-      <p className="ph text-lg font-extrabold">What to expect</p>
-      <ul className="mt-2 space-y-2">{coming.slice(0, 4).map((s) => <li key={s.id} className="flex gap-2 text-sm leading-snug"><span>🚽</span><span>{sitText(s)}</span></li>)}</ul>
+      <p className="ph text-lg font-extrabold">What to expect, in order</p>
+      <ol className="mt-2 space-y-2">{coming.slice(0, 4).map((t, i) => <li key={i} className="flex gap-2 text-sm leading-snug"><span>{i === 0 ? "🚽" : "➡️"}</span><span className={i === 0 ? "font-bold" : undefined}>{t}</span></li>)}</ol>
     </Panel>}
 
     <p className="text-center text-sm" style={{ color: C.muted }}>

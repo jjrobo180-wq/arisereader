@@ -128,6 +128,11 @@ export function sitText(s: Sit): string {
   return `Sit on the toilet at ${when} — expect ${wantText(s)} around ${window}, because of ${s.why}.`;
 }
 
+/** A later sit, worded as the follow-up to an earlier one so the two never read as a contradiction. */
+export function thenText(s: Sit): string {
+  return `Then at ${clockOf(s.at)} — expect ${wantText(s)} around ${clockOf(s.expectFrom)}–${clockOf(s.expectTo)}, because of ${s.why}. If ${wantText(s)} happens first, this one clears.`;
+}
+
 // ─── Usual times, in words ───
 const hourLabel = (h: number) => clock12(hmOf(h * 60));
 /** Busy stretches of the day: hours with at least 40% of the busiest hour's count, joined when side by side. */
@@ -187,8 +192,15 @@ export function tripInterval(logs: Entry[], child: Child, now = Date.now()): num
  * When the reminder should ring next: the regular trip interval, or sooner if a planned sit
  * (after a drink or meal) comes before that. `sit` is set when a planned sit is what rings.
  */
-export function nextRing(logs: Entry[], child: Child, interval: number, now = Date.now()): { minutes: number; sit?: Sit } {
-  const sit = planSits(logs, child, now).find((s) => s.state === "upcoming" && s.at - now > 60_000);
+export function nextRing(logs: Entry[], child: Child, interval: number, now = Date.now()): { minutes: number; sit?: Sit; due?: Sit } {
+  const sits = planSits(logs, child, now);
+  const due = sits.find((s) => s.state === "due"); // already time to sit: said first, never hidden behind a later sit
+  const sit = sits.find((s) => s.state === "upcoming" && s.at - now > 60_000);
   const minutes = sit ? Math.ceil((sit.at - now) / MIN) : Infinity;
-  return sit && minutes < interval ? { minutes, sit } : { minutes: interval };
+  return sit && minutes < interval ? { minutes, sit, due } : { minutes: interval, due };
+}
+
+/** The sits still ahead (or due now), as plain sentences in order: the first says what to do, the rest say "then". */
+export function comingText(sits: Sit[]): string[] {
+  return sits.filter((s) => s.state === "due" || s.state === "upcoming").map((s, i) => (i === 0 ? sitText(s) : thenText(s)));
 }
