@@ -306,3 +306,20 @@ export function feedbackEmail(guide: IepGuide, sender: GuideSender, contacts: Hu
     sender.name.trim(),
   ].join("\n").trimEnd();
 }
+
+/** The parents typed into a poll's list of people go on the meeting's guide too (the first two not already there), so the checklist and messages have them. */
+export function rememberParents(guide: IepGuide, people: { name: string; email: string; phone: string; role: string }[]): IepGuide {
+  const has = (n: string, e: string) => !!(n.trim() || e.trim());
+  const slots = [
+    { name: guide.parent1 || "", email: guide.parent1Email || "", phone: guide.parent1Phone || "" },
+    { name: guide.parent2 || "", email: guide.parent2Email || "", phone: guide.parent2Phone || "" },
+  ];
+  for (const p of people) {
+    if (p.role !== "Parent or guardian" || !(p.name.trim() || p.email.trim() || p.phone.trim())) continue;
+    const key = (x: { name: string; email: string }) => (x.email.trim() || x.name.trim()).toLowerCase();
+    if (slots.some((s) => has(s.name, s.email) && key(s) === key(p))) continue;
+    const free = slots.find((s) => !s.name.trim() && !s.email.trim() && !s.phone.trim());
+    if (free) { free.name = p.name.trim(); free.email = p.email.trim(); free.phone = p.phone.trim(); }
+  }
+  return { ...guide, parent1: slots[0].name, parent1Email: slots[0].email, parent1Phone: slots[0].phone, parent2: slots[1].name, parent2Email: slots[1].email, parent2Phone: slots[1].phone };
+}

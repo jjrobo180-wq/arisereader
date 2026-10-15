@@ -183,7 +183,21 @@ test("a Hub saved before the guide existed still opens, and a renamed student ke
 test("the guide is part of the meeting steps, on one screen", () => {
   const page = read("client/src/pages/TeacherHub.tsx"), guide = read("client/src/components/teacher-hub/HubGuide.tsx"), steps = read("client/src/components/teacher-hub/HubMeetingSteps.tsx");
   assert.ok(!page.includes('id: "guide"') && !page.includes("HubGuideTab"), "no separate IEP Guide tab");
-  assert.ok(steps.includes("<GuideDetails ") && steps.includes("<GuideChecklist "), "step 1 holds the team and details, step 5 the checklist");
+  assert.ok(!steps.includes("<GuideDetails ") && steps.includes("<GuideChecklist "), "step 1 only asks for the meeting kind and deadline; step 5 holds the checklist");
   for (const part of ['data-testid="hub-guide-step"', 'data-testid="hub-guide-team"', 'data-testid="hub-contact-form"', 'rel="noopener noreferrer"']) assert.ok(guide.includes(part), part);
   assert.ok(!/dangerouslySetInnerHTML/.test(guide), "notes and names are shown as text, never as HTML");
+});
+
+test("parents typed into the poll's people list land on the guide (first two, no duplicates)", async () => {
+  const { rememberParents } = await import("../shared/hubGuide");
+  const { newGuide } = await import("../shared/hubGuide");
+  const g = newGuide("Jordan Lee", "IEP meeting", () => "id");
+  const person = (name: string, email: string, role = "Parent or guardian", phone = "") => ({ name, email, phone, role });
+  const one = rememberParents(g, [person("Maria Lee", "maria@x.com", "Parent or guardian", "555-1"), person("Social Worker", "sw@x.com", "Social worker")]);
+  assert.deepEqual([one.parent1, one.parent1Email, one.parent1Phone, one.parent2], ["Maria Lee", "maria@x.com", "555-1", ""]);
+  const two = rememberParents(one, [person("Maria Lee", "MARIA@x.com"), person("Tom Lee", "tom@x.com")]);
+  assert.deepEqual([two.parent1, two.parent2, two.parent2Email], ["Maria Lee", "Tom Lee", "tom@x.com"], "the same parent is not added twice");
+  const three = rememberParents(two, [person("Third Parent", "third@x.com")]);
+  assert.equal(three.parent1, "Maria Lee"); assert.equal(three.parent2, "Tom Lee", "nobody already on the guide is replaced");
+  assert.deepEqual(rememberParents(g, [person("", "", "Parent or guardian")]).parent1, "", "blank rows are ignored");
 });

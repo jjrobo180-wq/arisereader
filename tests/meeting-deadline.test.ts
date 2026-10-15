@@ -2,7 +2,7 @@
 // Run: npx tsx --test tests/meeting-deadline.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addMeetingWithDeadline, deadlineField, deadlineLabel, deadlineWords, meetingDeadline, savesToStudent, studentDeadline } from "../shared/meetingDeadline";
+import { addMeetingWithDeadline, changeMeetingBasics, deadlineField, deadlineLabel, deadlineName, planningDeadlineFor, deadlineWords, meetingDeadline, savesToStudent, studentDeadline } from "../shared/meetingDeadline";
 import { emptyWorkspace, normalizeWorkspace } from "../shared/teacherHub";
 import { markDone, emptyPlan } from "../shared/meetingSteps";
 
@@ -13,7 +13,9 @@ const form = (patch: Partial<Parameters<typeof addMeetingWithDeadline>[1]> = {})
 test("step 1 asks for the IEP deadline, or the reevaluation deadline for a reevaluation", () => {
   assert.equal(deadlineLabel("Annual IEP"), "IEP deadline date");
   assert.equal(deadlineLabel("Reevaluation"), "Reevaluation deadline date");
-  assert.equal(deadlineLabel("Parent meeting"), "IEP deadline date");
+  assert.equal(deadlineLabel("Parent meeting"), "Deadline for this meeting (optional)");
+  assert.equal(deadlineLabel("Planning meeting"), "Planning meeting deadline", "a planning meeting is not asked for the IEP deadline");
+  assert.equal(deadlineName("Annual IEP"), "IEP deadline"); assert.equal(deadlineName("Reevaluation"), "reevaluation deadline"); assert.equal(deadlineName("Planning meeting"), "planning meeting deadline");
   assert.equal(deadlineField("Re-evaluation"), "reevalDate");
   assert.equal(savesToStudent("Annual IEP"), true);
   assert.equal(savesToStudent("Reevaluation"), true);
@@ -68,4 +70,21 @@ test("the scheduler uses the caseload date, so a later change there counts", () 
   assert.equal(meetingDeadline(w, { student: "Jordan Lee", type: "Parent meeting", deadline: "2026-10-30" }), "2026-10-30");
   assert.equal(meetingDeadline(w, { student: "Jordan Lee", type: "Annual IEP" }), "", "an older meeting with no deadline");
   assert.equal(meetingDeadline(w, { student: "X", type: "Annual IEP", deadline: "not a date" }), "");
+});
+
+test("the planning meeting's deadline is two weeks before the IEP's, or the IEP's own when that is too close", () => {
+  assert.equal(planningDeadlineFor("2026-11-20", "2026-10-14"), "2026-11-06");
+  assert.equal(planningDeadlineFor("2026-10-20", "2026-10-14"), "2026-10-20", "two weeks earlier is already past");
+  assert.equal(planningDeadlineFor("", "2026-10-14"), "");
+});
+
+test("changing a meeting's type or deadline keeps the caseload date in step", () => {
+  const base = addMeetingWithDeadline(ws(), form({ deadline: "2026-12-01" }), "m1", emptyPlan());
+  const changed = changeMeetingBasics(base, "m1", { type: "Annual IEP", deadline: "2026-12-15" });
+  assert.equal(changed.meetings[0].deadline, "2026-12-15"); assert.equal(changed.students.find((s) => s.name === "Jordan Lee")!.iepDate, "2026-12-15");
+  const parent = changeMeetingBasics(changed, "m1", { type: "Parent meeting", deadline: "2027-01-05" });
+  assert.equal(parent.meetings[0].type, "Parent meeting"); assert.equal(parent.students.find((s) => s.name === "Jordan Lee")!.iepDate, "2026-12-15", "a parent meeting's date is not the IEP's");
+  const cleared = changeMeetingBasics(parent, "m1", { type: "Parent meeting", deadline: "" });
+  assert.equal(cleared.meetings[0].deadline, undefined);
+  assert.equal(changeMeetingBasics(base, "nope", { type: "x", deadline: "" }), base);
 });
