@@ -3,6 +3,7 @@ import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
 import { useSavedChoice } from "@/lib/useSavedChoice";
+import { useBackToStart } from "@/lib/useBackToStart";
 
 import { goToReader, goToSignIn } from "@/lib/hubs";
 import {
@@ -669,6 +670,10 @@ export default function AriseTodo() {
    *  one more app can never leave a stale one showing — which is what made tapping Home while Drop
    *  was open look like a frozen screen. */
   const closeApps = () => { setNotesAppOpenState(null); setSheetsAppOpenState(null); setDriveOpenState(false); setDropOpenState(false); setKitOpenState(null); };
+  // Tile theme: anything open on top of the start screen (a section, an app, the store) is "away" from Start.
+  // The Start button, the phone's back button and the edge swipe all return to Home.
+  const awayFromStart = tileMode && (shown !== "home" || !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen || store);
+  const backToStart = useBackToStart(awayFromStart, () => { closeApps(); setStore(false); setSection("home"); });
   // The guided tour (WorkHubTour) opens real sections as it goes so each step points at the
   // actual screen; it asks with this event.
   useEffect(() => {
@@ -1050,7 +1055,9 @@ export default function AriseTodo() {
       </button>
     </div>
     {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
-    <PhoneMenu items={phoneItems} side={tileMode ? "drawer" : layout.menuSide} hideLauncher={tileMode && shown === "home" && !notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />
+    {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-testid="life-start-back"
+      className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
+    <PhoneMenu items={phoneItems} side={tileMode ? "drawer" : layout.menuSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />
     <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
       <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside}`}>
         <nav aria-label="Family Hub" className={`hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
