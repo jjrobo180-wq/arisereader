@@ -44,7 +44,7 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
         style={m.id === member?.id ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span className="text-base leading-none">{m.emoji || "🙂"}</span>{m.name}</button>)}</div>
     </Panel>}
 
-    <div className="grid gap-6 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
       <Panel eyebrow="Everyday" title="Your day">
         <ul className="divide-y divide-slate-100">
           <Row icon={<Sun size={18} />} tint="bg-amber-50 text-amber-600" title="Morning summary" detail="Today's tasks, events, chores and bills in one note"

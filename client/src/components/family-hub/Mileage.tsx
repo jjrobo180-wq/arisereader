@@ -30,13 +30,13 @@ export default function Mileage({ family, setFamily, today, makeId, say }: Secti
 
   return <div className="space-y-6">
     <PageHead eyebrow="Mileage log" title="Every mile counts" blurb="Log business, medical or volunteer miles as you go, so tax time is easy." action={trips.length > 0 ? <button type="button" onClick={copy} className={plain}><Copy size={15} />Copy for a spreadsheet</button> : undefined} />
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <div className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5"><p className="text-2xl font-black">{total.toLocaleString()} mi</p><p className="text-xs font-bold uppercase tracking-wide text-slate-400">{shown} so far</p></div>
       <div className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5"><p className="text-2xl font-black text-emerald-700">{money(total * family.mileageRate)}</p><p className="text-xs font-bold uppercase tracking-wide text-slate-400">At your rate</p></div>
       <label className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 text-xs font-bold uppercase tracking-wide text-slate-400">Rate per mile<div className="mt-1 flex items-center gap-1 text-2xl font-black normal-case tracking-normal text-slate-900">$<input value={family.mileageRate} onChange={(e) => setFamily((f) => ({ ...f, mileageRate: Math.max(0, Math.min(10, Number(e.target.value) || 0)) }))} type="number" step="0.005" min={0} className="w-24 rounded-lg border border-slate-200 px-2 text-xl" aria-label="Rate per mile" /></div><span className="mt-1 block normal-case tracking-normal font-medium">Check the current IRS rate each year.</span></label>
     </div>
     <Panel title="Log a trip">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[10rem_7rem_minmax(0,1fr)_minmax(0,1fr)_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[10rem_7rem_minmax(0,1fr)_minmax(0,1fr)_auto]">
         <input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value || today)} className={inputClass} aria-label="Date" />
         <input value={miles} onChange={(e) => setMiles(e.target.value)} inputMode="decimal" placeholder="Miles" className={inputClass} aria-label="Miles" />
         <input value={purpose} onChange={(e) => setPurpose(e.target.value)} maxLength={120} placeholder="Purpose (client visit…)" className={inputClass} aria-label="Purpose" />

@@ -1181,7 +1181,7 @@ export default function Tutorial() {
                     <div className="space-y-3">
                       <div className="p-3 rounded-lg bg-white/[.04] border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="grid h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Dog className="h-5 w-5" /></span>
+                          <span className="grid grid-cols-1 h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Dog className="h-5 w-5" /></span>
                           <span className="text-sm font-medium">Question 1: What animal is this?</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -1197,7 +1197,7 @@ export default function Tutorial() {
                       </div>
                       <div className="p-3 rounded-lg bg-white/[.04] border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="grid h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Cat className="h-5 w-5" /></span>
+                          <span className="grid grid-cols-1 h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Cat className="h-5 w-5" /></span>
                           <span className="text-sm font-medium">Question 2: What animal is this?</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -1742,14 +1742,14 @@ function CurrentFeatureShowcase({ mode }: { mode: TutorialRole }) {
   return (
     <section className="mt-8 rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-7 shadow-xl">
       <div className="mb-5 flex items-start gap-3">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-500/15 text-2xl">✨</div>
+        <div className="grid grid-cols-1 h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-500/15 text-2xl">✨</div>
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Explore A.R.I.S.E.</p>
           <h2 className="mt-1 text-2xl font-bold text-white">More tools in your A.R.I.S.E. experience</h2>
           <p className="mt-1 text-sm text-muted-foreground">These features are part of the platform. Use the cards below to learn what each tool does and where it fits into reading, learning, family support, and play.</p>
         </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <article key={item.title} className="group rounded-2xl border border-white/10 bg-background/70 p-4 transition hover:-translate-y-0.5 hover:border-violet-400/40/50 hover:shadow-lg">
             <div className="flex items-start gap-3">
@@ -1786,23 +1786,23 @@ function ParentTutorialContent({ step, onNext }: { step: number; onNext: () => v
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/10 via-card to-card">
         <div className="border-b border-white/10 p-5 sm:p-6">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-300">{current.subtitle}</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {current.details.map((detail, index) => (
               <div key={detail} className="rounded-2xl border border-purple-400/20 bg-background/70 p-4">
-                <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-purple-500/20 font-black text-purple-200">{index + 1}</div>
+                <div className="mb-3 grid grid-cols-1 h-9 w-9 place-items-center rounded-xl bg-purple-500/20 font-black text-purple-200">{index + 1}</div>
                 <p className="text-sm leading-6 text-muted-foreground">{detail}</p>
               </div>
             ))}
           </div>
         </div>
-        <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
+        <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 sm:p-6">
           <div className="rounded-2xl border border-white/10 bg-[#151326] p-4">
-            <div className="grid h-10 w-10 place-items-center rounded-xl arise-icon-tile"><BarChart3 className="h-5 w-5" /></div>
+            <div className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl arise-icon-tile"><BarChart3 className="h-5 w-5" /></div>
             <h4 className="mt-2 font-bold text-white">Linked child view</h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">See reading progress, quizzes, points, certificates, and messages without entering the student competition.</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-[#151326] p-4">
-            <div className="grid h-10 w-10 place-items-center rounded-xl arise-icon-tile"><Eye className="h-5 w-5" /></div>
+            <div className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl arise-icon-tile"><Eye className="h-5 w-5" /></div>
             <h4 className="mt-2 font-bold text-white">Eye Gazer family tools</h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">Personalize My Talker, My World, Life Skills, videos, flash cards, and supported access settings for a linked learner.</p>
           </div>

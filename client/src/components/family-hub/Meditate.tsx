@@ -78,7 +78,7 @@ export default function Meditate({ family, setFamily, today, makeId, say }: Sect
 
   return <div className="space-y-6">
     <PageHead eyebrow="Meditate" title="Take a breath" blurb="Follow the circle, or sit quietly until the bell. A few minutes a day adds up." />
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <Panel>
         <div className="flex flex-col items-center py-6 text-center">
           <div className="relative flex h-64 w-64 items-center justify-center">

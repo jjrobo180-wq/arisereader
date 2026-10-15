@@ -917,13 +917,13 @@ export default function EyeGazeFarmWorld() {
           <h1 className="text-lg font-black drop-shadow sm:text-2xl">A.R.I.S.E. Farm World</h1>
           <p className="hidden text-xs font-bold text-white/75 sm:block">{ANIMALS.length} animals · huge open farm · authentic sounds · feeding · free exploration</p>
         </div>
-        <button type="button" onClick={() => setMuted(v => !v)} className="pointer-events-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-black/55 shadow-xl backdrop-blur focus:outline-none focus:ring-4 focus:ring-emerald-300" aria-label={muted ? "Turn sound on" : "Mute sound"}>
+        <button type="button" onClick={() => setMuted(v => !v)} className="pointer-events-auto grid grid-cols-1 h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-black/55 shadow-xl backdrop-blur focus:outline-none focus:ring-4 focus:ring-emerald-300" aria-label={muted ? "Turn sound on" : "Mute sound"}>
           {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
         </button>
       </header>
 
       {loading && (
-        <div className="absolute inset-0 z-40 grid place-items-center bg-slate-950">
+        <div className="absolute inset-0 z-40 grid grid-cols-1 place-items-center bg-slate-950">
           <div className="w-[min(440px,86vw)] text-center">
             <div className="mx-auto mb-5 h-14 w-14 animate-spin rounded-full border-4 border-white/20 border-t-emerald-400" />
             <h2 className="text-2xl font-black">Opening Expanded Farm</h2>
@@ -949,11 +949,11 @@ export default function EyeGazeFarmWorld() {
         </div>
         <div className="grid w-fit grid-cols-3 gap-2">
           <div />
-          <button type="button" onClick={() => moveCamera(1,0)} className="grid h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-black/60 shadow-xl backdrop-blur"><ArrowUp className="h-7 w-7"/></button>
+          <button type="button" onClick={() => moveCamera(1,0)} className="grid grid-cols-1 h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-black/60 shadow-xl backdrop-blur"><ArrowUp className="h-7 w-7"/></button>
           <div />
-          <button type="button" onClick={() => moveCamera(0,-1)} className="grid h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-black/60 shadow-xl backdrop-blur"><ArrowLeft className="h-7 w-7"/></button>
-          <button type="button" onClick={() => moveCamera(-1,0)} className="grid h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-black/60 shadow-xl backdrop-blur"><ArrowDown className="h-7 w-7"/></button>
-          <button type="button" onClick={() => moveCamera(0,1)} className="grid h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-black/60 shadow-xl backdrop-blur"><ArrowRight className="h-7 w-7"/></button>
+          <button type="button" onClick={() => moveCamera(0,-1)} className="grid grid-cols-1 h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-black/60 shadow-xl backdrop-blur"><ArrowLeft className="h-7 w-7"/></button>
+          <button type="button" onClick={() => moveCamera(-1,0)} className="grid grid-cols-1 h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-black/60 shadow-xl backdrop-blur"><ArrowDown className="h-7 w-7"/></button>
+          <button type="button" onClick={() => moveCamera(0,1)} className="grid grid-cols-1 h-14 w-14 place-items-center rounded-2xl border border-white/25 bg-black/60 shadow-xl backdrop-blur"><ArrowRight className="h-7 w-7"/></button>
         </div>
       </section>
 

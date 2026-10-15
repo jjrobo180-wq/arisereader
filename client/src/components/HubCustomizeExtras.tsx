@@ -10,7 +10,7 @@ export function ThemePicker<L extends AnyLayout>({ layout, setLayout, dark = "#2
   return <section>
     <h3 className="text-sm font-black text-slate-900">Theme</h3>
     <p className="mb-3 mt-1 text-sm text-slate-500">A different look for your whole hub. Extreme customization is the whole point — try a few.</p>
-    <div role="radiogroup" aria-label="Hub theme" className="grid gap-2 sm:grid-cols-2">
+    <div role="radiogroup" aria-label="Hub theme" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {HUB_THEMES.map((t) => {
         const on = (layout.theme || "classic") === t.id;
         return <button key={t.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout(setTheme(layout, t.id))} data-testid={`hub-theme-${t.id}`}
@@ -29,7 +29,7 @@ export function DeskSidePicker<L extends AnyLayout>({ layout, setLayout, dark = 
   return <section>
     <h3 className="text-sm font-black text-slate-900">Menu on a computer</h3>
     <p className="mb-3 mt-1 text-sm text-slate-500">Where the menu sits on a bigger screen.</p>
-    <div role="radiogroup" aria-label="Menu on a computer" className="grid gap-2 sm:grid-cols-2">
+    <div role="radiogroup" aria-label="Menu on a computer" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {DESK_SIDES.map((o) => { const on = layout.deskSide === o.id; return <button key={o.id} type="button" role="radio" aria-checked={on} onClick={() => setLayout({ ...layout, deskSide: o.id })} data-testid={`desk-side-${o.id}`}
         className={`flex min-h-12 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${on ? "bg-slate-50" : "border-slate-200 bg-white"}`} style={on ? { borderColor: dark } : undefined}>
         <DeskIcon side={o.id} on={on} dark={dark} />

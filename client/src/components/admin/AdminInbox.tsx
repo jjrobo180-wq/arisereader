@@ -208,7 +208,7 @@ export default function AdminInbox({
               {label}
             </button>
           ))}
-          <button type="button" onClick={() => void load()} className="ml-auto grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Check for new messages" title="Check now">
+          <button type="button" onClick={() => void load()} className="ml-auto grid grid-cols-1 h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Check for new messages" title="Check now">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -236,7 +236,7 @@ export default function AdminInbox({
                         {c.role !== "student" && <StatusPill tone={c.role === "parent" ? "cyan" : "amber"}>{c.role}</StatusPill>}
                         {label && !c.lastFromMe && <StatusPill tone="red">Report</StatusPill>}
                         <span className={cn("min-w-0 flex-1 truncate text-xs", c.unread ? "text-foreground" : "text-muted-foreground")}>{c.lastFromMe ? "You: " : ""}{body}</span>
-                        {c.unread > 0 && <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1 text-[10px] font-black text-primary-foreground">{c.unread}</span>}
+                        {c.unread > 0 && <span className="grid grid-cols-1 h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1 text-[10px] font-black text-primary-foreground">{c.unread}</span>}
                       </span>
                     </span>
                   </button>
@@ -312,7 +312,7 @@ export default function AdminInbox({
           <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://… (optional link)" className={INPUT_CLASS} aria-label="Link to include" />
         )}
         <div className="flex items-end gap-2">
-          <button type="button" onClick={() => setShowLink(!showLink)} className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:text-foreground", showLink && "border-primary/50 text-foreground")} aria-label="Add a link" title="Add a link">
+          <button type="button" onClick={() => setShowLink(!showLink)} className={cn("grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:text-foreground", showLink && "border-primary/50 text-foreground")} aria-label="Add a link" title="Add a link">
             <Link2 className="h-4 w-4" />
           </button>
           <textarea

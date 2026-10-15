@@ -91,7 +91,7 @@ export default function Health({ family, setFamily, today, makeId, say }: Sectio
     {kid ? <KidDay member={member} goals={goals} totals={totals} onFruit={(n) => setHealth((h) => setDay(h, member.id, date, { fruitVeg: totals.fruitVeg + n }))} />
       : <Summary goals={goals} totals={totals} />}
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="space-y-5">
         <Panel eyebrow={dateLabel} title="Food diary" right={!kid && <span className="text-sm font-black text-slate-700">{fmt(totals.food.calories)} cal</span>}>
           <div className="space-y-5">{MEALS.map((meal) => {
@@ -203,7 +203,7 @@ function Summary({ goals, totals }: { goals: HealthGoals; totals: ReturnType<typ
   const pct = budget > 0 ? Math.min(1, totals.food.calories / budget) : 0;
   const grams = macroGrams(goals);
   const over = left < 0;
-  return <section className="grid gap-5 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08] md:grid-cols-[auto_minmax(0,1fr)] md:items-center sm:p-6">
+  return <section className="grid grid-cols-1 gap-5 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08] md:grid-cols-[auto_minmax(0,1fr)] md:items-center sm:p-6">
     <div className="flex items-center gap-5">
       <svg viewBox="0 0 120 120" className="h-32 w-32 shrink-0 -rotate-90" aria-hidden="true">
         <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100" />
@@ -216,7 +216,7 @@ function Summary({ goals, totals }: { goals: HealthGoals; totals: ReturnType<typ
         {[["Goal", goals.calories, ""], ["Food", totals.food.calories, "−"], ["Exercise", totals.exercise, "+"], ["Remaining", left, "="]].map(([label, value, sign]) =>
           <div key={label as string}><p className="text-lg font-black text-slate-800 sm:text-xl"><span className="mr-0.5 text-slate-400">{sign}</span>{fmt(value as number)}</p><p className="text-[11px] font-bold text-slate-500">{label}</p></div>)}
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {([["Protein", totals.food.protein, grams.protein, "#36b6a5"], ["Carbs", totals.food.carbs, grams.carbs, "#619ee6"], ["Fat", totals.food.fat, grams.fat, "#e5b04f"]] as const).map(([label, value, target, color]) =>
           <div key={label}><div className="mb-1.5 flex justify-between text-xs font-bold"><span className="text-slate-600">{label}</span><span className="text-slate-500">{fmt(value)} / {target}g</span></div><Bar value={value} max={target} color={color} /></div>)}
       </div>
@@ -226,7 +226,7 @@ function Summary({ goals, totals }: { goals: HealthGoals; totals: ReturnType<typ
 
 function KidDay({ member, goals, totals, onFruit }: { member: Member; goals: HealthGoals; totals: ReturnType<typeof dayTotals>; onFruit: (n: number) => void }) {
   const fv = totals.fruitVeg;
-  return <section className="grid gap-5 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08] sm:p-6 md:grid-cols-3">
+  return <section className="grid grid-cols-1 gap-5 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08] sm:p-6 md:grid-cols-3">
     <div className="md:col-span-2">
       <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Fruits & veggies</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -236,7 +236,7 @@ function KidDay({ member, goals, totals, onFruit }: { member: Member; goals: Hea
       </div>
       <p className="mt-2 text-sm font-semibold text-slate-600">{fv >= goals.fruitVeg ? `Rainbow complete, ${member.name}! 🌈` : `${fv} of ${goals.fruitVeg} today`}</p>
     </div>
-    <div className="grid gap-3 self-start">
+    <div className="grid grid-cols-1 gap-3 self-start">
       <div className="rounded-2xl bg-violet-50 p-3"><p className="text-[11px] font-bold text-violet-600">Active</p><p className="text-xl font-black text-slate-800">{totals.minutes}/{goals.activeMinutes} <span className="text-xs font-bold text-slate-500">min</span></p></div>
     </div>
   </section>;
@@ -437,7 +437,7 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
         add({ name: name.slice(0, 100), serving: quick.serving.trim().slice(0, 60) || "1 serving", calories: n(quick.calories), protein: n(quick.protein), carbs: n(quick.carbs), fat: n(quick.fat) }, 1, !kid && quick.save);
         setQuick({ name: "", serving: "", calories: "", protein: "", carbs: "", fat: "", save: quick.save });
       }} className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Label text="Food"><input autoFocus required maxLength={100} value={quick.name} onChange={(e) => setQuick({ ...quick, name: e.target.value })} className={inputClass} placeholder={kid ? "Apple slices" : "Grandma's lasagna"} /></Label>
           {!kid && <Label text="Serving"><input maxLength={60} value={quick.serving} onChange={(e) => setQuick({ ...quick, serving: e.target.value })} className={inputClass} placeholder="1 piece" /></Label>}
         </div>

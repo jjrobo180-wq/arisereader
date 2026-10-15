@@ -48,13 +48,13 @@ export default function Pills({ family, setFamily, today, makeId, say }: Section
 
     {!family.pills.length ? <Panel><Empty icon={<PillIcon size={26} />} title="No pills yet" action={<button type="button" onClick={() => setEditing(newPill())} className={primary}><Plus size={16} /> Add a pill</button>}>
       Add a medicine or vitamin with its dose times. You'll get a reminder on your phone at each time, and you can check it off here.
-    </Empty></Panel> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    </Empty></Panel> : <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <Panel eyebrow={date === today ? "Today" : shortDate(date)} title={doses.length ? `${takenToday} of ${doses.length} taken` : "No doses this day"}
         right={<><button type="button" onClick={() => setDate(addDays(date, -1))} className={plain} aria-label="Previous day"><ChevronLeft size={17} /></button><button type="button" onClick={() => setDate(today)} className={plain}>Today</button><button type="button" onClick={() => setDate(addDays(date, 1))} disabled={date >= today} className={plain} aria-label="Next day"><ChevronRight size={17} /></button></>}>
         {doses.length ? <ul className="space-y-2">{doses.map((d) => {
           const late = date === today && !d.status && d.time < now;
           return <li key={d.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3 ${d.status === "taken" ? "border-emerald-200 bg-emerald-50" : d.status === "skipped" ? "border-slate-200 bg-slate-50" : late ? "border-amber-200 bg-amber-50" : "border-[#ececf3] bg-white"}`}>
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white" style={{ background: d.pill.color }}><PillIcon size={18} /></span>
+            <span className="grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-xl text-white" style={{ background: d.pill.color }}><PillIcon size={18} /></span>
             <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-800">{d.pill.name}{d.pill.dose ? <span className="font-semibold text-slate-500"> · {d.pill.dose}</span> : null}</span>
               <span className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500"><Clock3 size={12} /> {clock12(d.time)}{name(d.pill.memberId) && who === "all" ? ` · ${name(d.pill.memberId)}` : ""}{d.status === "taken" ? ` · taken ${d.at ? new Date(d.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}` : d.status === "skipped" ? " · skipped" : late ? " · not taken yet" : ""}</span></span>
             {d.status ? <button type="button" className={plain} onClick={() => mark(d.pill.id, d.time, null)} aria-label={`Undo ${d.pill.name} at ${clock12(d.time)}`}><RotateCcw size={15} /> Undo</button>
@@ -106,7 +106,7 @@ function PillEditor({ pill, people, isNew, onClose, onSave, onDelete }: { pill: 
   };
   return <Modal eyebrow="Pill reminders" title={isNew ? "Add a pill" : `Edit ${pill.name}`} onClose={onClose}>
     <form onSubmit={submit} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Label text="Name"><input autoFocus className={inputClass} value={p.name} maxLength={60} placeholder="Vitamin D" onChange={(e) => setP({ ...p, name: e.target.value })} /></Label>
         <Label text="Dose (optional)"><input className={inputClass} value={p.dose} maxLength={60} placeholder="1 tablet, 10 mg" onChange={(e) => setP({ ...p, dose: e.target.value })} /></Label>
       </div>
@@ -120,11 +120,11 @@ function PillEditor({ pill, people, isNew, onClose, onSave, onDelete }: { pill: 
           {p.times.length < 8 && <button type="button" className={soft + " min-h-10"} onClick={() => setP({ ...p, times: [...p.times, p.times.length ? "20:00" : "08:00"] })}><Plus size={14} /> Time</button>}</div></div>
       <div><p className="mb-1.5 text-xs font-bold text-slate-600">Days</p><div className="flex gap-1.5">{DAY_LETTERS.map((l, i) => { const on = p.days.includes(i); return <button key={i} type="button" aria-pressed={on} aria-label={DAY_NAMES[i]} onClick={() => setP({ ...p, days: on ? p.days.filter((d) => d !== i) : [...p.days, i].sort() })}
         className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-black ring-1 ${on ? "bg-[#6e5ae0] text-white ring-[#6e5ae0]" : "bg-white text-slate-500 ring-slate-200"}`}>{l}</button>; })}</div></div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Label text="Start"><input type="date" className={inputClass} value={p.start} onChange={(e) => setP({ ...p, start: e.target.value })} /></Label>
         <Label text="End (optional)"><input type="date" className={inputClass} value={p.end} min={p.start || undefined} onChange={(e) => setP({ ...p, end: e.target.value })} /></Label>
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Label text="Pills left (optional)"><input type="number" min={0} max={10000} className={inputClass} value={p.supply ?? ""} placeholder="30" onChange={(e) => setP({ ...p, supply: e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value) || 0)) })} /></Label>
         <Label text="Pills per dose"><input type="number" min={1} max={20} className={inputClass} value={p.perDose} onChange={(e) => setP({ ...p, perDose: Math.max(1, Math.min(20, Math.round(Number(e.target.value) || 1))) })} /></Label>
         <Label text="Remind to refill at"><input type="number" min={0} max={1000} className={inputClass} value={p.refillAt} onChange={(e) => setP({ ...p, refillAt: Math.max(0, Math.round(Number(e.target.value) || 0)) })} /></Label>

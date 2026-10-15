@@ -42,7 +42,7 @@ export default function Pricing() {
         <h1 className="mt-4 text-4xl font-black leading-tight tracking-tight sm:text-5xl">A.R.I.S.E. Reader stays free.<br/><span className="text-violet-700">Pay only for extra learning.</span></h1>
         <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600">Parents and teachers use one secure A.R.I.S.E. portal to open their learning programs.</p>
       </section>
-      <section className="mx-auto grid max-w-6xl gap-5 px-5 pb-12 lg:grid-cols-3" aria-label="Plans">
+      <section className="mx-auto grid grid-cols-1 max-w-6xl gap-5 px-5 pb-12 lg:grid-cols-3" aria-label="Plans">
         <article className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm" data-testid="pricing-free">
           <p className="text-xs font-black uppercase tracking-widest text-violet-600">Students &amp; parents</p>
           <h2 className="mt-3 text-2xl font-black">A.R.I.S.E. Reader</h2>

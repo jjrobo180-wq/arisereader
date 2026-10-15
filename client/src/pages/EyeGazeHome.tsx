@@ -87,7 +87,7 @@ export default function EyeGazeHome() {
 
       <section aria-label="Main choices">
         <h2 className="text-sm font-black tracking-widest text-slate-500 mb-3">START HERE</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {primary.map(action => (
             <button key={action.path} type="button" onClick={() => navigate(action.path)} className={"min-h-[185px] rounded-[2rem] border-2 bg-gradient-to-br " + action.tone + " p-5 text-left hover:-translate-y-1 hover:shadow-lg transition-all focus:outline-none focus:ring-4 focus:ring-blue-200"}>
               <div className="text-5xl mb-3">{action.emoji}</div>

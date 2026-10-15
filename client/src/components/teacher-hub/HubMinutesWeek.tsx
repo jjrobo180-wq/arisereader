@@ -157,7 +157,7 @@ export function MinutesWeekView({ workspace, today, onBlocks, ...handlers }: { w
       </div>
       {day.optional && <p className="mt-1.5 rounded-xl bg-sky-100 px-3 py-2 text-xs text-sky-800 lg:hidden" data-testid="minutes-optional-note">{DAY_NAMES[day.day]} is optional. Nothing is due. If you met with students, tap “Add if you met” in that block and the minutes count as extra.</p>}
 
-      <div className={`mt-2 grid gap-1.5 ${COLS[week.days.length] || COLS[5]}`} data-testid="minutes-grid">
+      <div className={`mt-2 grid grid-cols-1 gap-1.5 ${COLS[week.days.length] || COLS[5]}`} data-testid="minutes-grid">
         <div className="hidden lg:block" aria-hidden />
         {week.days.map((d) => (
           <div key={d.date} className="hidden min-w-0 px-1 lg:block" data-testid="minutes-day-head" data-date={d.date}>
@@ -179,7 +179,7 @@ export function MinutesWeekView({ workspace, today, onBlocks, ...handlers }: { w
       {week.anyDay.length > 0 && (
         <div className="mt-3 rounded-2xl border border-slate-200 p-2" data-testid="minutes-any-day">
           <h3 className="px-1 text-xs font-bold uppercase tracking-wide text-slate-600">Any day this week, no block</h3>
-          <ul className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+          <ul className="mt-1.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {week.anyDay.map((p) => (
               <li key={p.planId} className={`flex flex-wrap items-center gap-2 rounded-xl border px-2.5 py-2 ${p.remaining ? "border-slate-200 bg-white text-slate-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
                 <span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold">{p.student} · {p.kind}</span><span className="block text-xs">{p.done} of {p.required} min{p.remaining ? ` · ${p.remaining} left` : " · done"}</span></span>
@@ -210,12 +210,12 @@ export function BlocksModal({ blocks, optional, makeId, onSave, onClose }: { blo
   return (
     <HubModal title="Set up blocks" size="sm" onClose={onClose}
       footer={<div className="flex gap-2"><PrimaryButton onClick={() => (document.getElementById("blocks-form") as HTMLFormElement | null)?.requestSubmit()} disabled={!ready}>Save</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
-      <form id="blocks-form" onSubmit={save} className="grid gap-3" data-testid="blocks-form">
+      <form id="blocks-form" onSubmit={save} className="grid grid-cols-1 gap-3" data-testid="blocks-form">
         <p className="text-sm text-slate-600">These are the sections your minutes are sorted into each day. A block takes the place of a clock time.</p>
         <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">Name them:
           {["Block", "Period"].map((word) => <button key={word} type="button" className={smallBtn} onClick={() => setRows((list) => list.map((r, i) => ({ ...r, name: `${word} ${i + 1}` })))}>{word} 1, 2, 3…</button>)}
         </div>
-        <ul className="grid gap-2">
+        <ul className="grid grid-cols-1 gap-2">
           {rows.map((r, i) => (
             <li key={r.id} className="flex items-center gap-2" data-testid="blocks-row">
               <Field value={r.name} onChange={(e) => setRows((list) => list.map((x) => (x.id === r.id ? { ...x, name: e.target.value } : x)))} maxLength={BLOCK_NAME_MAX} aria-label={`Name of block ${i + 1}`} />

@@ -69,7 +69,7 @@ export function ClassFields({ hasBlock, pushIn, part, teacher, known, usual = fa
 }) {
   if (!hasBlock && !pushIn) return null;
   return (
-    <div className="grid gap-3" data-testid="class-fields">
+    <div className="grid grid-cols-1 gap-3" data-testid="class-fields">
       {hasBlock && (
         <div>
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Part of the block</span>
@@ -217,7 +217,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
   return (
     <HubModal title={title} label="Minutes for several students" onClose={reading ? undefined : onClose}
       footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => { if (ready) onSave(result); }} disabled={!ready}>{saveLabel}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>{waiting && <span className="text-xs text-slate-500" data-testid="bulk-waiting">{waiting}</span>}</div>}>
-      <div className={`grid gap-4 ${dragging ? "rounded-2xl ring-4 ring-teal-300" : ""}`} onPaste={onPaste} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop} data-testid="bulk-form">
+      <div className={`grid grid-cols-1 gap-4 ${dragging ? "rounded-2xl ring-4 ring-teal-300" : ""}`} onPaste={onPaste} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop} data-testid="bulk-form">
         <div>
           <div role="tablist" aria-label="What to do with the minutes" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="bulk-mode">
             {([["plan", "Every week"], ["log", "Just this day"]] as const).map(([mode, label]) => (

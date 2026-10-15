@@ -221,7 +221,7 @@ function Menu({ save, cc, setCc, onBack, onSettings, onGp, onRace, onTt, onGarag
           <span className="flex items-center gap-3"><Globe className="h-9 w-9" /><span><span className="block text-3xl font-black italic uppercase">Race online</span><span className="text-sm font-black opacity-90">Live races against readers from your school · win bonus coins</span></span></span>
           <Play className="h-8 w-8 fill-current" />
         </button>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <BigButton onClick={onGp} color="from-yellow-300 to-orange-500" shadow="#b45309" icon={<Trophy className="h-7 w-7" />} title="Grand Prix" sub={cup ? `Best: ${ordinal(cup)} place` : "4 races · win the Aurora Cup"} />
           <BigButton onClick={onRace} color="from-pink-400 to-fuchsia-600" shadow="#86198f" icon={<Flag className="h-7 w-7" />} title="Quick Race" sub="Pick any track" />
           <BigButton onClick={onTt} color="from-sky-400 to-blue-600" shadow="#1e3a8a" icon={<Gauge className="h-7 w-7" />} title="Time Trial" sub="Beat your best time" />
@@ -236,7 +236,7 @@ function Menu({ save, cc, setCc, onBack, onSettings, onGp, onRace, onTt, onGarag
       </section>
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-white/10 bg-black/25 p-5 text-sm font-bold text-slate-300">
         <h3 className="mb-2 text-xs font-black uppercase tracking-[.25em] text-slate-400">How to drive</h3>
-        <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
           {[["↑ / W", "Accelerate"], ["↓ / S", "Brake & reverse"], ["← → / A D", "Steer"], ["Space / Shift", "Hold while turning to drift — sparks = mini-turbo"], ["E / F", "Use item"], ["Esc", "Pause"]].map(([k, v]) => (
             <div key={k} className="flex items-center gap-2"><kbd className="min-w-[90px] rounded-lg border border-white/15 bg-white/10 px-2 py-0.5 text-center text-xs font-black text-white">{k}</kbd>{v}</div>
           ))}
@@ -287,8 +287,8 @@ function Garage({ save, act, notice, onBack }: { save: SaveData; act: (fn: (p: P
       </div>
       <h1 className="ar-glow mx-auto mt-4 max-w-6xl text-5xl font-black italic">Garage</h1>
       {notice && <p className="mx-auto mt-3 max-w-6xl rounded-2xl border border-red-400/30 bg-red-500/15 p-3 font-bold text-red-100">{notice}</p>}
-      <div className="mx-auto mt-4 grid max-w-6xl gap-4 lg:grid-cols-[1fr_1.1fr]">
-        <section className="grid content-start gap-2">
+      <div className="mx-auto mt-4 grid grid-cols-1 max-w-6xl gap-4 lg:grid-cols-[minmax(0,1fr)_1.1fr]">
+        <section className="grid grid-cols-1 content-start gap-2">
           {BODIES.map((b) => {
             const own = save.owned.includes(b.id), active = save.body === b.id;
             return (
@@ -306,14 +306,14 @@ function Garage({ save, act, notice, onBack }: { save: SaveData; act: (fn: (p: P
               <button onClick={() => act((p) => p.customize({ body: body.id }))} className="ar-btn rounded-xl bg-emerald-400 px-4 py-2 font-black text-slate-950">Drive this kart</button>) :
               <button disabled={save.coins < body.price} onClick={() => buyBody(body)} className="ar-btn rounded-xl bg-yellow-300 px-4 py-2 font-black text-slate-950 disabled:opacity-40">Buy · {body.price} coins</button>}
           </div>
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 grid grid-cols-1 gap-2">
             <StatBar label="Speed" value={body.base.speed} bonus={owned ? bonus.speed : 0} />
             <StatBar label="Accel" value={body.base.accel} bonus={owned ? bonus.accel : 0} />
             <StatBar label="Handling" value={body.base.handling} bonus={owned ? bonus.handling : 0} />
             <StatBar label="Weight" value={body.base.weight} bonus={0} />
           </div>
           {owned && (
-            <div className="mt-5 grid gap-2">
+            <div className="mt-5 grid grid-cols-1 gap-2">
               <h3 className="text-xs font-black uppercase tracking-[.25em] text-slate-400">Upgrades</h3>
               {UPGRADES.map((u) => {
                 const lvl = up[u.id], max = lvl >= MAX_UPGRADE, cost = UPGRADE_COST[lvl];
@@ -352,7 +352,7 @@ function TrackSelect({ save, mode, onBack, onPick }: { save: SaveData; mode: Mod
     <main className="ar-bg min-h-[100dvh] px-4 pb-10 pt-4 text-white sm:px-8">
       <button onClick={onBack} className="ar-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><ArrowLeft className="h-5 w-5" /> Back</button>
       <h1 className="ar-glow mx-auto mt-4 max-w-6xl text-5xl font-black italic">{mode === "tt" ? "Time Trial" : "Quick Race"} — pick a track</h1>
-      <div className="mx-auto mt-5 grid max-w-6xl gap-4 sm:grid-cols-2">
+      <div className="mx-auto mt-5 grid grid-cols-1 max-w-6xl gap-4 sm:grid-cols-2">
         {TRACKS.map((t) => (
           <button key={t.id} onClick={() => onPick(t.id)} className="ar-btn overflow-hidden rounded-3xl border border-white/10 text-left shadow-2xl">
             <div className="relative h-36 p-5" style={{ background: THEME_STYLE[t.theme] }}>
@@ -425,8 +425,8 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
   return (
     <main className="fixed inset-0 select-none overflow-hidden bg-black text-white" onPointerDown={() => race?.unlockAudio()}>
       <div ref={host} className="absolute inset-0" />
-      {!ready && !fatal && <div className="ar-bg absolute inset-0 grid place-items-center"><div className="text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-pink-300" /><p className="mt-3 text-lg font-black italic">Building the track…</p></div></div>}
-      {fatal && <div className="ar-bg absolute inset-0 grid place-items-center p-6"><div className="max-w-md rounded-3xl bg-black/50 p-6 text-center font-black">{fatal}<button onClick={onQuit} className="mt-4 block w-full rounded-2xl bg-white/15 py-3">Back</button></div></div>}
+      {!ready && !fatal && <div className="ar-bg absolute inset-0 grid grid-cols-1 place-items-center"><div className="text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-pink-300" /><p className="mt-3 text-lg font-black italic">Building the track…</p></div></div>}
+      {fatal && <div className="ar-bg absolute inset-0 grid grid-cols-1 place-items-center p-6"><div className="max-w-md rounded-3xl bg-black/50 p-6 text-center font-black">{fatal}<button onClick={onQuit} className="mt-4 block w-full rounded-2xl bg-white/15 py-3">Back</button></div></div>}
       {ready && (
         <>
           {hud.boosting && <div className="ar-boost pointer-events-none absolute inset-0" />}
@@ -443,7 +443,7 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
           {/* top-right: item & coins */}
           <div className="absolute right-3 top-3 flex items-start gap-2">
             <div className="flex flex-col items-end gap-2">
-              <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-2xl border-4 border-white/70 bg-gradient-to-br from-fuchsia-500/50 to-sky-500/50 text-4xl shadow-xl">
+              <div className="grid grid-cols-1 h-20 w-20 place-items-center overflow-hidden rounded-2xl border-4 border-white/70 bg-gradient-to-br from-fuchsia-500/50 to-sky-500/50 text-4xl shadow-xl">
                 {hud.rolling ? <span key={hud.rollIcon} className="ar-roll">{hud.rollIcon}</span> : hud.item ? <span>{ITEM_ICONS[hud.item]}{hud.itemCount > 1 && <sub className="text-base font-black">×{hud.itemCount}</sub>}</span> : <span className="text-base font-black text-white/50">—</span>}
               </div>
               <span className="flex items-center gap-1 rounded-xl bg-black/55 px-2 py-1 text-sm font-black text-yellow-200"><Coins className="h-4 w-4" /> {hud.coins}</span>
@@ -477,18 +477,18 @@ function RaceView({ trackId, mode, cc, racers, settings, onSettings, gp, onFinis
               {online ? <p className="mt-2 text-sm font-black text-white/80">Online race · {racers.length} racers</p> : <button onClick={() => race!.skipIntro()} className="mt-3 rounded-xl bg-white/20 px-4 py-2 text-sm font-black backdrop-blur">Skip ▸</button>}
             </div>
           )}
-          {hud.phase === "countdown" && <div className="pointer-events-none absolute inset-0 grid place-items-center"><p key={hud.countdown} className="ar-pop ar-glow text-[10rem] font-black italic text-yellow-300">{hud.countdown}</p></div>}
+          {hud.phase === "countdown" && <div className="pointer-events-none absolute inset-0 grid grid-cols-1 place-items-center"><p key={hud.countdown} className="ar-pop ar-glow text-[10rem] font-black italic text-yellow-300">{hud.countdown}</p></div>}
           {hud.toast && <div key={hud.toast.id} className="ar-toast ar-glow pointer-events-none absolute inset-x-0 top-[28%] text-center text-5xl font-black italic text-yellow-300 sm:text-6xl">{hud.toast.text}</div>}
           {hud.wrongWay && <div className="pointer-events-none absolute inset-x-0 top-[40%] text-center"><span className="rounded-2xl bg-red-600/85 px-6 py-3 text-3xl font-black italic">WRONG WAY!</span></div>}
           {touch && hud.phase !== "finished" && <TouchPad race={race!} autoGas={settings.autoGas} />}
           {touch && <RotateHint />}
           {hud.result && <Results result={hud.result} mode={mode} gp={gp} onRetry={onRetry} onNext={onNext} onQuit={onQuit} />}
           {paused && !hud.result && (
-            <div className="absolute inset-0 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+            <div className="absolute inset-0 grid grid-cols-1 place-items-center bg-black/60 p-4 backdrop-blur-sm">
               <div className="w-full max-w-sm rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5">
                 <h2 className="text-3xl font-black italic">Paused</h2>
                 <SettingsFields settings={settings} onChange={onSettings} note={`Graphics changes apply next race (running: ${hud.quality})`} />
-                <div className="mt-5 grid gap-2">
+                <div className="mt-5 grid grid-cols-1 gap-2">
                   <button onClick={() => setPaused(false)} className="ar-btn rounded-2xl bg-sky-400 py-3 font-black text-slate-950"><Play className="mr-1 inline h-4 w-4" /> Resume</button>
                   {!online && <button onClick={onRetry} className="ar-btn rounded-2xl border border-white/15 bg-white/10 py-3 font-black"><RotateCcw className="mr-1 inline h-4 w-4" /> Restart race</button>}
                   <button onClick={onQuit} className="ar-btn rounded-2xl bg-red-500 py-3 font-black"><X className="mr-1 inline h-4 w-4" /> {online ? "Leave room" : "Quit to menu"}</button>
@@ -533,7 +533,7 @@ function TouchPad({ race, autoGas }: { race: Race; autoGas: boolean }) {
 function Results({ result, mode, gp, onRetry, onNext, onQuit }: { result: RaceResult; mode: Mode; gp: { index: number } | null; onRetry: () => void; onNext?: () => void; onQuit: () => void }) {
   const lastGp = gp && gp.index + 1 >= TRACKS.length;
   return (
-    <div className="absolute inset-0 grid place-items-center overflow-y-auto bg-black/55 p-3 backdrop-blur-sm">
+    <div className="absolute inset-0 grid grid-cols-1 place-items-center overflow-y-auto bg-black/55 p-3 backdrop-blur-sm">
       <div className="w-full max-w-xl rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5 shadow-2xl">
         <p className="text-xs font-black uppercase tracking-[.3em] text-slate-400">{mode === "tt" ? "Time trial" : "Race finished"}</p>
         <h2 className="ar-glow text-6xl font-black italic" style={{ color: result.place === 1 ? "#fde047" : result.place <= 3 ? "#e2e8f0" : "#fff" }}>{mode === "tt" ? fmt(result.time) : ordinal(result.place) + " place!"}</h2>
@@ -552,7 +552,7 @@ function Results({ result, mode, gp, onRetry, onNext, onQuit }: { result: RaceRe
             ))}
           </div>
         )}
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {mode === "online" ? <p className="flex items-center justify-center gap-2 rounded-2xl bg-white/5 py-3 text-sm font-black text-slate-300 sm:col-span-2"><Loader2 className="h-4 w-4 animate-spin" /> Back to the lobby in a few seconds…</p> : onNext ? <button onClick={onNext} className="ar-btn rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 py-3 font-black text-slate-950 sm:col-span-3">{lastGp ? "See cup results" : "Next race ▸"}</button> : <button onClick={onRetry} className="ar-btn rounded-2xl bg-gradient-to-r from-yellow-300 to-orange-400 py-3 font-black text-slate-950"><RotateCcw className="mr-1 inline h-4 w-4" /> Race again</button>}
           {mode === "online" ? <button onClick={onQuit} className="ar-btn rounded-2xl border border-white/15 bg-white/10 py-3 font-black">Leave room</button> : !onNext && <button onClick={onQuit} className="ar-btn rounded-2xl border border-white/15 bg-white/10 py-3 font-black sm:col-span-2">Menu</button>}
           {onNext && <button onClick={onQuit} className="ar-btn rounded-2xl border border-white/15 bg-white/5 py-2 text-sm font-black sm:col-span-3">Quit Grand Prix</button>}
@@ -567,7 +567,7 @@ function GpStandings({ gp, racers, cc, onDone }: { gp: { points: Record<string, 
   const place = rows.findIndex((x) => x.r.isPlayer) + 1;
   const trophy = place === 1 ? "🏆 Gold" : place === 2 ? "🥈 Silver" : place === 3 ? "🥉 Bronze" : "";
   return (
-    <main className="ar-bg grid min-h-[100dvh] place-items-center p-4 text-white">
+    <main className="ar-bg grid grid-cols-1 min-h-[100dvh] place-items-center p-4 text-white">
       <div className="w-full max-w-lg rounded-[2rem] border border-white/15 bg-black/50 p-6 text-center shadow-2xl">
         <p className="text-xs font-black uppercase tracking-[.3em] text-pink-300">Aurora Cup · {cc}cc</p>
         <h1 className="ar-glow mt-2 text-5xl font-black italic">{trophy ? trophy + " Cup!" : ordinal(place) + " overall"}</h1>
@@ -585,10 +585,10 @@ function GpStandings({ gp, racers, cc, onDone }: { gp: { points: Record<string, 
 
 function SettingsFields({ settings, onChange, note }: { settings: Settings; onChange: (s: Settings) => void; note?: string }) {
   return (
-    <div className="mt-4 grid gap-4 text-sm font-bold">
-      <label className="grid gap-1"><span className="flex justify-between"><span>Sound effects</span><span>{Math.round(settings.sfx * 100)}%</span></span><input type="range" min={0} max={1} step={0.05} value={settings.sfx} onChange={(e) => onChange({ ...settings, sfx: Number(e.target.value) })} className="accent-pink-400" /></label>
-      <label className="grid gap-1"><span className="flex justify-between"><span>Music</span><span>{Math.round(settings.music * 100)}%</span></span><input type="range" min={0} max={1} step={0.05} value={settings.music} onChange={(e) => onChange({ ...settings, music: Number(e.target.value) })} className="accent-pink-400" /></label>
-      <div className="grid gap-1"><span>Graphics</span>
+    <div className="mt-4 grid grid-cols-1 gap-4 text-sm font-bold">
+      <label className="grid grid-cols-1 gap-1"><span className="flex justify-between"><span>Sound effects</span><span>{Math.round(settings.sfx * 100)}%</span></span><input type="range" min={0} max={1} step={0.05} value={settings.sfx} onChange={(e) => onChange({ ...settings, sfx: Number(e.target.value) })} className="accent-pink-400" /></label>
+      <label className="grid grid-cols-1 gap-1"><span className="flex justify-between"><span>Music</span><span>{Math.round(settings.music * 100)}%</span></span><input type="range" min={0} max={1} step={0.05} value={settings.music} onChange={(e) => onChange({ ...settings, music: Number(e.target.value) })} className="accent-pink-400" /></label>
+      <div className="grid grid-cols-1 gap-1"><span>Graphics</span>
         <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/40 p-1">{(["auto", "low", "medium", "high"] as Settings["quality"][]).map((q) => <button key={q} onClick={() => onChange({ ...settings, quality: q })} className={"rounded-lg py-2 text-xs font-black uppercase " + (settings.quality === q ? "bg-pink-400 text-slate-950" : "text-slate-300")}>{q}</button>)}</div>
         {note && <span className="text-xs text-slate-400">{note}</span>}
       </div>
@@ -599,7 +599,7 @@ function SettingsFields({ settings, onChange, note }: { settings: Settings; onCh
 
 function SettingsPanel({ settings, onChange, onClose }: { settings: Settings; onChange: (s: Settings) => void; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 text-white backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid grid-cols-1 place-items-center bg-black/60 p-4 text-white backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5">
         <div className="flex items-center justify-between"><h2 className="text-3xl font-black italic">Settings</h2><button onClick={onClose} className="rounded-xl bg-white/10 p-2"><X className="h-5 w-5" /></button></div>
         <SettingsFields settings={settings} onChange={onChange} />
@@ -636,7 +636,7 @@ function OnlineMenu({ token, notice, onBack, onEnter }: { token: string; notice:
         <button disabled={busy} onClick={() => go("quick")} className="ar-btn mt-5 flex min-h-[80px] w-full items-center justify-center gap-3 rounded-3xl bg-gradient-to-r from-yellow-300 to-orange-400 text-2xl font-black italic uppercase text-slate-950 disabled:opacity-60" style={{ boxShadow: "0 8px 0 #b45309" }}>
           {busy ? <Loader2 className="h-7 w-7 animate-spin" /> : <Play className="h-7 w-7 fill-current" />} Quick match
         </button>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button disabled={busy} onClick={() => go("create")} className="ar-btn min-h-12 rounded-2xl border border-white/15 bg-white/10 font-black">Create open room</button>
           <button disabled={busy} onClick={() => go("private")} className="ar-btn min-h-12 rounded-2xl border border-white/15 bg-white/10 font-black">Create private room</button>
         </div>
@@ -646,7 +646,7 @@ function OnlineMenu({ token, notice, onBack, onEnter }: { token: string; notice:
         </div>
         {notice && <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/15 p-3 font-bold text-red-100">{notice}</p>}
         {rooms.length > 0 && (
-          <div className="mt-5 grid gap-2">
+          <div className="mt-5 grid grid-cols-1 gap-2">
             <h3 className="text-xs font-black uppercase tracking-[.25em] text-slate-400">Open rooms</h3>
             {rooms.map((r) => (
               <button key={r.code} disabled={busy} onClick={() => go("join", r.code)} className="ar-btn flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
@@ -710,7 +710,7 @@ function OnlineRoom({ session, myId, token, settings, onSettings, onLeave, onRac
     );
   }
 
-  if (!meta) return <main className="ar-bg grid min-h-[100dvh] place-items-center text-white"><Loader2 className="h-10 w-10 animate-spin" /></main>;
+  if (!meta) return <main className="ar-bg grid grid-cols-1 min-h-[100dvh] place-items-center text-white"><Loader2 className="h-10 w-10 animate-spin" /></main>;
   const host = meta.hostId === myId;
   const copy = async () => { try { await navigator.clipboard.writeText(meta.code); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
   return (
@@ -719,11 +719,11 @@ function OnlineRoom({ session, myId, token, settings, onSettings, onLeave, onRac
         <button onClick={onLeave} className="ar-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><ArrowLeft className="h-5 w-5" /> Leave room</button>
         <button onClick={copy} className="ar-btn flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black"><Copy className="h-4 w-4" /> Code <span className="tracking-[.25em] text-fuchsia-300">{meta.code}</span>{copied && <span className="text-xs text-emerald-300">copied!</span>}</button>
       </div>
-      <section className="mx-auto mt-5 grid max-w-5xl gap-4 lg:grid-cols-[1.2fr_1fr]">
+      <section className="mx-auto mt-5 grid grid-cols-1 max-w-5xl gap-4 lg:grid-cols-[minmax(0,1.2fr)_1fr]">
         <div className="rounded-[2rem] border border-white/10 bg-black/35 p-5">
           <p className="text-xs font-black uppercase tracking-[.3em] text-fuchsia-300">{meta.publicRoom ? "Open room" : "Private room"} · {state.phase === "results" ? "race finishing" : state.phase === "lobby" ? "lobby" : "starting"}</p>
           <h1 className="ar-glow mt-1 text-4xl font-black italic">Racers</h1>
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 grid grid-cols-1 gap-2">
             {meta.players.map((p) => (
               <div key={p.id} className={"flex items-center justify-between rounded-2xl px-4 py-3 " + (p.id === myId ? "bg-white/15" : "bg-white/5")}>
                 <span className="flex items-center gap-2 font-black"><i className="h-3 w-3 rounded-full" style={{ background: hex(p.look.paint) }} />{p.id === meta.hostId && <Crown className="h-4 w-4 text-yellow-300" />}{p.name}{p.id === myId && <span className="rounded-md bg-white/15 px-1.5 text-[10px]">YOU</span>}</span>

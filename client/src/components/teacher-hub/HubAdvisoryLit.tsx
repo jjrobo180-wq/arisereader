@@ -248,7 +248,7 @@ export default function HubAdvisoryLit() {
               <button type="button" onClick={() => setShowMissing((v) => !v)} aria-expanded={showMissing} className={btn} data-testid="advisory-lit-missing-toggle">{showMissing ? "Hide" : "Show"}</button>
             }>
               {showMissing
-                ? <ul className="grid gap-x-4 pt-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3" data-testid="advisory-lit-missing">
+                ? <ul className="grid grid-cols-1 gap-x-4 pt-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3" data-testid="advisory-lit-missing">
                     {missingShown.map((e) => <li key={e.studentId} className="py-1.5">{e.name}</li>)}
                     {!missingShown.length && <li className="py-1.5 text-slate-500">No one matches that search.</li>}
                   </ul>

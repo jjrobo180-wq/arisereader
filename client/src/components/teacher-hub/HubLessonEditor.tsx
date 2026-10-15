@@ -157,7 +157,7 @@ export default function HubLessonEditor({
       </div>
     }>
       <div className={`-mx-1 mb-4 rounded-2xl border-l-4 ${color.bar} bg-white px-1`}>
-        <div className="grid gap-2 px-2 sm:grid-cols-6">
+        <div className="grid grid-cols-1 gap-2 px-2 sm:grid-cols-6">
           <label className="sm:col-span-6"><span className="sr-only">Lesson title</span>
             <input value={lesson.title === "Untitled lesson" ? "" : lesson.title} onChange={(e) => set({ title: e.target.value || "Untitled lesson" })} placeholder="Lesson title" className="min-h-11 w-full rounded-xl border border-transparent bg-transparent px-1 text-xl font-bold text-slate-900 outline-none focus:border-slate-200 focus:bg-white" data-autofocus />
           </label>
@@ -212,7 +212,7 @@ export default function HubLessonEditor({
                   {ai.busy && <div className="text-sm text-violet-800"><Spinner label={ai.busy} /></div>}
                   {ai.error && <p className="text-sm text-rose-700">{ai.error}</p>}
                   {ai.ideas && (
-                    <ul className="grid gap-2 sm:grid-cols-2">
+                    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {ai.ideas.map((idea) => (
                         <li key={idea.title} className="flex flex-col rounded-xl bg-white p-3 ring-1 ring-violet-100">
                           <div className="font-semibold text-slate-900">{idea.title}</div>
@@ -232,7 +232,7 @@ export default function HubLessonEditor({
                 <textarea value={lesson.summary} onChange={(e) => set({ summary: e.target.value })} rows={2} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
               </label>
             )}
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {PLAN_FIELDS.filter((k) => k !== "title").map((k) => {
                 const wide = k === "objective" || k === "iDo" || k === "weDo" || k === "youDo";
                 return (
@@ -269,7 +269,7 @@ export default function HubLessonEditor({
               {roster.map((name) => {
                 const m = marks[name] || {};
                 return (
-                  <li key={name} className="grid gap-2 p-3 lg:grid-cols-[minmax(0,10rem)_auto_1fr] lg:items-center">
+                  <li key={name} className="grid grid-cols-1 gap-2 p-3 lg:grid-cols-[minmax(0,10rem)_auto_1fr] lg:items-center">
                     <div className="truncate font-medium text-slate-900">{name}</div>
                     <div className="flex flex-wrap gap-1">
                       {CHECKS.map((c) => (

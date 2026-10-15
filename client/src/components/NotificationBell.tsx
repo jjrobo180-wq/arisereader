@@ -203,7 +203,7 @@ export function NotificationBell({
           onClick={() => openItem(item)}
           className="flex min-w-0 flex-1 items-start gap-3 px-3 py-3 text-left transition hover:bg-white/[.04] focus-visible:bg-white/[.06] focus-visible:outline-none"
         >
-          <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl ${style.tone}`}><Icon className="h-4 w-4" /></span>
+          <span className={`mt-0.5 grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl ${style.tone}`}><Icon className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">
             <span className="flex items-start gap-2">
               <span className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-[#f5f3ff] [overflow-wrap:anywhere]">{item.title}</span>
@@ -218,7 +218,7 @@ export function NotificationBell({
         <button
           type="button"
           onClick={() => void markSeen([item.key])}
-          className="grid w-11 shrink-0 place-items-center text-[#c4c0dc] transition hover:bg-white/[.05] hover:text-[#ffffff]"
+          className="grid grid-cols-1 w-11 shrink-0 place-items-center text-[#c4c0dc] transition hover:bg-white/[.05] hover:text-[#ffffff]"
           aria-label={item.kind === "action" ? `Dismiss: ${item.title}` : `Mark as read: ${item.title}`}
           title={item.kind === "action" ? "Dismiss" : "Mark as read"}
         >
@@ -256,7 +256,7 @@ export function NotificationBell({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-lg text-[#c4c0dc] hover:bg-white/[.07] hover:text-[#ffffff]" aria-label="Check for new notifications" title="Check now">
+          <button type="button" onClick={() => void load()} className="grid grid-cols-1 h-8 w-8 place-items-center rounded-lg text-[#c4c0dc] hover:bg-white/[.07] hover:text-[#ffffff]" aria-label="Check for new notifications" title="Check now">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
           {items.length > 0 && (
@@ -277,7 +277,7 @@ export function NotificationBell({
           <p className="py-10 text-center text-sm text-[#c4c0dc]">Checking notifications…</p>
         ) : items.length === 0 ? (
           <div className="px-5 py-10 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-cyan-500/10 text-cyan-300"><CheckCircle2 className="h-6 w-6" /></div>
+            <div className="mx-auto grid grid-cols-1 h-12 w-12 place-items-center rounded-full bg-cyan-500/10 text-cyan-300"><CheckCircle2 className="h-6 w-6" /></div>
             <p className="mt-3 text-sm font-black text-[#f5f3ff]">You're all caught up</p>
             <p className="mt-1 text-xs text-[#c4c0dc]">New tasks and updates show up here.</p>
           </div>
@@ -306,7 +306,7 @@ export function NotificationBell({
         type="button"
         onClick={toggle}
         data-testid="notification-bell"
-        className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-muted"
+        className="relative grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-muted"
         aria-label={badge ? `Notifications, ${badge} new` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"

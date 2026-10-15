@@ -47,7 +47,7 @@ export default function Behavior({ family, setFamily, today, makeId, say }: Sect
   return <div className="space-y-6">
     <PageHead eyebrow="Behavior" title="Behavior tracker" blurb="Tap to give a star when you catch something good. Stars from chores count too, and kids can spend them on rewards." />
 
-    <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
       {people.map((m) => {
         const stars = starBalance(family, m.id);
         const todayNet = family.behavior.filter((b) => b.memberId === m.id && b.date === today).reduce((s, b) => s + b.points, 0);
@@ -77,7 +77,7 @@ export default function Behavior({ family, setFamily, today, makeId, say }: Sect
       })}
     </div>
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Panel eyebrow="Log" title="Recent moments" right={<select value={focus} onChange={(e) => setFocus(e.target.value)} className={inputClass + " min-h-10 w-auto"} aria-label="Show moments for"><option value="">Everyone</option>{people.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}>
         {recent.length ? <ul className="divide-y divide-slate-100">{recent.map((b) => {
           const m = memberOf(family, b.memberId);

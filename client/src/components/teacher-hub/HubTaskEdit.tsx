@@ -38,9 +38,9 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
     <HubModal title={task ? "Edit to-do" : "New to-do"} onClose={onClose} size="sm"
       footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => save()} disabled={!draft.title.trim()}>{task ? "Save changes" : "Save"}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>
         {task && onDelete && <button type="button" onClick={() => { onDelete(); onClose(); }} className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-red-600 hover:bg-red-50" data-testid="task-delete"><Trash2 className="h-4 w-4" /> Delete</button>}</div>}>
-      <form onSubmit={save} className="grid gap-3" data-testid="task-form">
+      <form onSubmit={save} className="grid grid-cols-1 gap-3" data-testid="task-form">
         <Labeled label="To-do"><Field data-autofocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required maxLength={200} /></Labeled>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Labeled label="Due date"><Field type="date" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value, dueTime: e.target.value ? draft.dueTime : "" })} /></Labeled>
           <Labeled label="Due time (optional)"><Field type="time" aria-label="Due time (optional)" disabled={!draft.dueDate} value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></Labeled>
         </div>

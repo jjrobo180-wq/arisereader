@@ -124,7 +124,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
           return <button key={c.id} type="button" disabled={switching || saving} onClick={() => void openChild(c.id)} aria-pressed={on}
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-2.5 pr-3 text-sm font-bold text-slate-600 ring-1 ring-slate-200 disabled:opacity-60"
             style={on ? { background: color, color: "#fff", boxShadow: `0 0 0 1px ${color}` } : undefined}>
-            <span className="grid h-7 w-7 place-items-center rounded-full text-xs font-black" style={{ background: on ? "rgba(255,255,255,.22)" : color + "22", color: on ? "#fff" : color }}>{c.isEyeGazeUser ? <Eye size={14} /> : c.displayName.slice(0, 1).toUpperCase()}</span>
+            <span className="grid grid-cols-1 h-7 w-7 place-items-center rounded-full text-xs font-black" style={{ background: on ? "rgba(255,255,255,.22)" : color + "22", color: on ? "#fff" : color }}>{c.isEyeGazeUser ? <Eye size={14} /> : c.displayName.slice(0, 1).toUpperCase()}</span>
             {c.displayName}
           </button>;
         })}</div>
@@ -151,11 +151,11 @@ export default function Reader({ say, night = false }: { say: (message: string) 
               {profile.totalBooks > 0 && <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#a38cfa]" style={{ width: `${Math.min(100, (profile.quizzesTaken / profile.totalBooks) * 100)}%` }} /></div>}
             </section>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
               <Panel eyebrow={child!.displayName} title="Quiz history" right={<span className="text-sm font-black text-slate-700">{profile.quizResults.filter((r) => r.passed).length} passed</span>}>
                 {profile.quizResults.length ? <ul className="space-y-2">{profile.quizResults.map((r, i) =>
                   <li key={`${r.bookId}-${r.completedAt}-${i}`} className="flex items-center gap-3 rounded-2xl border border-[#ececf3] p-3">
-                    {r.coverUrl ? <img src={`${API_BASE}/api/book-cover/${r.bookId}`} alt="" className="h-14 w-10 shrink-0 rounded-lg object-cover" /> : <span className="grid h-14 w-10 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-500"><BookOpen size={16} /></span>}
+                    {r.coverUrl ? <img src={`${API_BASE}/api/book-cover/${r.bookId}`} alt="" className="h-14 w-10 shrink-0 rounded-lg object-cover" /> : <span className="grid grid-cols-1 h-14 w-10 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-500"><BookOpen size={16} /></span>}
                     <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-800">{r.title}</span><span className="block truncate text-xs text-slate-500">{r.author} · {new Date(r.completedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span></span>
                     <span className="shrink-0 text-right">
                       <span className="block text-sm font-black text-slate-800">{r.score}/{r.total}</span>
@@ -182,7 +182,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
           </>}
 
           {view === "controls" && <>
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
               <Panel eyebrow="Family" title="Proctor code" right={<KeyRound size={18} className="text-violet-500" />}>
                 <div className="flex flex-wrap items-center gap-3">
                   <code className="rounded-2xl border border-[#e7e8f0] bg-[#f6f7fc] px-4 py-3 font-mono text-2xl font-black tracking-[.2em] text-[#232139]">{proctor || "—"}</code>
@@ -226,7 +226,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
               </Panel>
             </div>
 
-            {child!.isEyeGazeUser && <div className="grid gap-3 md:grid-cols-3">
+            {child!.isEyeGazeUser && <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <LinkTile icon={<Settings2 size={20} />} title="Access & game controls" detail="Learning areas, games, Life Skills, progress and media" href="#/eye-gaze-parent-controls" />
               <LinkTile icon={<MessageSquareText size={20} />} title="My Talker" detail="Words, pictures, voice, categories and phrases" href="#/eye-gaze-parent" />
               <LinkTile icon={<Home size={20} />} title="My World" detail="Familiar rooms, labels and I-Spy prompts" href="#/my-world" />
@@ -235,7 +235,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
             <Panel eyebrow="Every child" title="Play time"><HubPlayTime which="life" /></Panel>
           </>}
 
-          {view === "prizes" && <div className="grid gap-6 xl:grid-cols-2">
+          {view === "prizes" && <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Panel eyebrow="From you" title="Family prizes"><HubPrizeManager which="life" token={token} role="parent" /></Panel>
             <Panel eyebrow="From school" title={`Up for ${child!.displayName} at school`}><HubPrizeBoard which="life" token={token} studentId={child!.id} childName={child!.displayName} scopes={["class", "school"]} /></Panel>
           </div>}

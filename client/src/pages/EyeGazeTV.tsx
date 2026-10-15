@@ -361,7 +361,7 @@ export default function EyeGazeTV() {
     if (next !== index) setIndex(next);
   };
 
-  if (limited) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center p-6">
+  if (limited) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid grid-cols-1 place-items-center p-6">
     <div className="max-w-lg text-center">
       <div className="text-8xl">🌙</div>
       <h1 className="text-4xl font-black mt-4">Shorts time is finished for today</h1>
@@ -370,13 +370,13 @@ export default function EyeGazeTV() {
     </div>
   </main>;
 
-  if (!settings) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center font-black p-6">
+  if (!settings) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid grid-cols-1 place-items-center font-black p-6">
     <div className="text-center"><p>{error || "Loading A.R.I.S.E. Shorts…"}</p>
       {error && <button onClick={()=>navigate("/eye-gaze-home")} className="mt-4 rounded-2xl bg-white text-slate-950 p-4">Back Home</button>}
     </div>
   </main>;
 
-  if (!shorts.length && !loadingMore) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid place-items-center p-6">
+  if (!shorts.length && !loadingMore) return <main className="fixed inset-0 z-[130] bg-slate-950 text-white grid grid-cols-1 place-items-center p-6">
     <div className="max-w-lg text-center">
       <div className="text-8xl">📱</div>
       <h1 className="text-4xl font-black mt-4">A.R.I.S.E. Shorts</h1>
@@ -395,7 +395,7 @@ export default function EyeGazeTV() {
         <div className="font-black text-lg">A.R.I.S.E. Shorts</div>
         <div className="text-[10px] font-black text-white/65">Real YouTube Shorts · Ages {settings.tvAgeRange}</div>
       </div>
-      <button onClick={toggleSound} className="pointer-events-auto w-12 h-12 rounded-full bg-black/70 border border-white/20 grid place-items-center" aria-label={muted?"Turn sound on":"Mute"}>
+      <button onClick={toggleSound} className="pointer-events-auto w-12 h-12 rounded-full bg-black/70 border border-white/20 grid grid-cols-1 place-items-center" aria-label={muted?"Turn sound on":"Mute"}>
         {muted?<VolumeX/>:<Volume2/>}
       </button>
     </header>
@@ -406,14 +406,14 @@ export default function EyeGazeTV() {
         const active = i === index;
         return <article key={item.feedKey || `${item.id}-${i}`} className={`relative h-[100dvh] snap-start snap-always overflow-hidden ${active ? "bg-transparent" : "bg-black"}`}>
           {!active && Math.abs(i - index) <= 2 ? <img loading="lazy" src={`https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" /> : null}
-          {active && !playerReady && !playerError && <div className="absolute inset-0 z-10 bg-black grid place-items-center pointer-events-none">
+          {active && !playerReady && !playerError && <div className="absolute inset-0 z-10 bg-black grid grid-cols-1 place-items-center pointer-events-none">
             <div className="text-center">
               <div className="w-12 h-12 mx-auto rounded-full border-4 border-cyan-300 border-t-transparent animate-spin" />
               <p className="mt-3 text-sm font-black text-white/80">Loading next Short…</p>
             </div>
           </div>}
           <div className="absolute inset-0 z-20 touch-pan-y" aria-hidden="true" />
-          {active && playerError && <div role="alert" className="absolute inset-0 z-30 grid place-items-center bg-black/90 p-6">
+          {active && playerError && <div role="alert" className="absolute inset-0 z-30 grid grid-cols-1 place-items-center bg-black/90 p-6">
             <div className="text-center max-w-sm"><p className="font-bold">{playerError}</p>
               <button onClick={()=>setPlayerAttempt(value=>value+1)} className="mt-4 min-h-14 rounded-2xl bg-cyan-300 text-slate-950 px-6 font-black">Try again</button>
             </div>
@@ -430,17 +430,17 @@ export default function EyeGazeTV() {
           </div>
 
           {active && <div className="absolute z-40 right-3 bottom-24 flex flex-col gap-3">
-            <button onClick={togglePlay} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid place-items-center shadow-xl" aria-label={playing?"Pause":"Play"}>
+            <button onClick={togglePlay} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid grid-cols-1 place-items-center shadow-xl" aria-label={playing?"Pause":"Play"}>
               {playing?<Pause className="w-7 h-7"/>:<Play className="w-7 h-7 fill-current ml-1"/>}
             </button>
-            <button onClick={toggleSound} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid place-items-center shadow-xl" aria-label={muted?"Turn sound on":"Mute"}>
+            <button onClick={toggleSound} className="w-16 h-16 rounded-full bg-black/70 border-2 border-white/25 grid grid-cols-1 place-items-center shadow-xl" aria-label={muted?"Turn sound on":"Mute"}>
               {muted?<VolumeX className="w-7 h-7"/>:<Volume2 className="w-7 h-7"/>}
             </button>
           </div>}
         </article>;
       })}
 
-      {loadingMore && <section className="h-[100dvh] snap-start grid place-items-center bg-slate-950">
+      {loadingMore && <section className="h-[100dvh] snap-start grid grid-cols-1 place-items-center bg-slate-950">
         <div className="text-center"><div className="w-12 h-12 mx-auto rounded-full border-4 border-cyan-300 border-t-transparent animate-spin"/><p className="mt-4 font-black">Finding more YouTube Shorts…</p></div>
       </section>}
     </div>

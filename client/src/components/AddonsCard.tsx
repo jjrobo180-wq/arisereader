@@ -217,7 +217,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
           {showTodo && todoRow()}
         </div>
       ) : (
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
         {apps.map((a) => (
           <a key={a.href} href={a.href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-violet-300 hover:bg-violet-50">
             <a.icon className={`h-6 w-6 shrink-0 ${a.tone}`} />

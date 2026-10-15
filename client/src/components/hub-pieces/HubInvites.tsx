@@ -46,7 +46,7 @@ export function HubFamilyInvite({ which }: { which: Which }) {
   };
   return <div className="space-y-3" data-testid="family-email-invite">
     <p className={k.text}>For a child who has no account yet. The parent gets an email explaining A.R.I.S.E. Reader and how to sign up: first the child's student account, then their own parent account.</p>
-    <form onSubmit={(e) => void send(email, child, e)} className="grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
+    <form onSubmit={(e) => void send(email, child, e)} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
       <input type="email" inputMode="email" autoComplete="off" placeholder="parent@example.com" aria-label="Parent or guardian email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} className={k.input} data-testid="family-email-input" />
       <input type="text" autoComplete="off" placeholder="Child's name" aria-label="Child's name (optional)" value={child} onChange={(e) => setChild(e.target.value)} maxLength={60} className={k.input} data-testid="family-child-input" />
       <button type="submit" disabled={busy || !email.trim()} className={k.primary} data-testid="family-email-send"><UserPlus className="h-4 w-4" /> {busy ? "Sending…" : "Send invitation"}</button>

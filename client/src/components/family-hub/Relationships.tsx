@@ -22,7 +22,7 @@ export default function Relationships({ today }: SectionProps) {
       <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.2em] text-rose-600"><Heart size={14} className="fill-current" />Today's tip</p>
       <p className="mt-3 text-xl font-black leading-snug text-[#2a2235] sm:text-2xl">{forDay(ALL_TIPS, today)}</p>
     </section>
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Panel title="Something to talk about" right={<button type="button" onClick={() => setStarter(pick(CONVERSATION_STARTERS, starter))} className={plain}><Shuffle size={15} />Another</button>}>
         <p className="flex gap-3 text-lg font-bold leading-snug text-[#232139]"><MessageCircleHeart className="mt-1 shrink-0 text-rose-500" size={20} />{starter}</p>
         <p className="mt-3 text-xs text-slate-500">Ask over dinner, on a walk or in the car. Listen more than you talk.</p>

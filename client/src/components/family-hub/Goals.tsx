@@ -77,17 +77,17 @@ export default function Goals({ family, setFamily, today, makeId, say }: Section
       <button onClick={() => setFilter("")} aria-pressed={!filter} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${!filter ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>All</button>
       {(Object.keys(CATS) as GoalCategory[]).filter((k) => family.goals.some((g) => g.category === k)).map((k) => <button key={k} onClick={() => setFilter(filter === k ? "" : k)} aria-pressed={filter === k} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${filter === k ? "bg-slate-800 text-white ring-slate-800" : "bg-white text-slate-500 ring-slate-200"}`}>{CATS[k].emoji} {CATS[k].label}</button>)}
     </div>}
-    {active.length ? <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{active.map(card)}</div>
+    {active.length ? <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">{active.map(card)}</div>
       : <Panel><Empty icon={<Target size={26} />} title={family.goals.length ? "No open goals here" : "Set your first goal"} action={<div className="flex flex-wrap justify-center gap-2">{IDEAS.map((i) => <button key={i.title} onClick={() => setEditing(blank(i))} className={soft + " min-h-9 text-xs"}>{CATS[i.category as GoalCategory].emoji} {i.title}</button>)}</div>}>Start with one of these or tap “New goal”.</Empty></Panel>}
     {done.length > 0 && <div><button onClick={() => setShowDone(!showDone)} className={plain}><Trophy size={15} /> {showDone ? "Hide" : "Show"} reached goals ({done.length})</button>
-      {showDone && <div className="mt-4 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{done.map(card)}</div>}</div>}
+      {showDone && <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">{done.map(card)}</div>}</div>}
 
     {editing && <Modal title={family.goals.some((g) => g.id === editing.id) ? "Edit goal" : "New goal"} onClose={() => setEditing(null)} wide>
       <form onSubmit={save} className="space-y-4">
         <Label text="Goal"><input autoFocus required maxLength={120} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} className={inputClass} placeholder="Pay off the credit card" /></Label>
         <Label text="Why it matters (optional)"><input maxLength={500} value={editing.why} onChange={(e) => setEditing({ ...editing, why: e.target.value })} className={inputClass} placeholder="So we can take a real vacation next summer" /></Label>
         <div><p className="mb-1.5 text-xs font-bold text-slate-600">Type</p><div className="flex flex-wrap gap-1.5">{(Object.keys(CATS) as GoalCategory[]).map((k) => <button type="button" key={k} onClick={() => setEditing({ ...editing, category: k })} aria-pressed={editing.category === k} className={`min-h-9 rounded-xl px-3 text-xs font-bold ring-1 ${editing.category === k ? "bg-violet-600 text-white ring-violet-600" : "bg-white text-slate-600 ring-slate-200"}`}>{CATS[k].emoji} {CATS[k].label}</button>)}</div></div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div><p className="mb-1.5 text-xs font-bold text-slate-600">Whose goal</p><MemberPicker members={family.members} value={editing.memberId ? [editing.memberId] : []} onChange={(ids) => setEditing({ ...editing, memberId: ids[0] || "" })} allowNone noneLabel="Mine / everyone" /></div>
           <Label text="Finish by (optional)"><input type="date" value={editing.due} onChange={(e) => setEditing({ ...editing, due: e.target.value })} className={inputClass} /></Label>
         </div>

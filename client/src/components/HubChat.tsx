@@ -80,7 +80,7 @@ export function HubChat({ hub, token, accent, lift = false, raiseRem = 0 }: { hu
         <div ref={list} className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
           {!turns.length && <div>
             <p className="mb-3 text-sm text-slate-600">Ask anything. A few ideas to start:</p>
-            <div className="grid gap-2">{STARTERS[hub].map((s) => <button key={s} type="button" onClick={() => void send(s)} className="min-h-11 rounded-2xl border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">{s}</button>)}</div>
+            <div className="grid grid-cols-1 gap-2">{STARTERS[hub].map((s) => <button key={s} type="button" onClick={() => void send(s)} className="min-h-11 rounded-2xl border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">{s}</button>)}</div>
           </div>}
           {turns.map((t, i) => t.role === "user"
             ? <div key={i} className="flex justify-end"><p className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md px-3.5 py-2 text-sm text-white ${accent}`}>{t.content}</p></div>

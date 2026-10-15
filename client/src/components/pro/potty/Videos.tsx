@@ -58,7 +58,7 @@ export default function Videos() {
   const toggleFav = (v: V) => set((d) => ({ ...d, favVideos: fav(v) ? d.favVideos.filter((x) => x !== v.yt) : [...d.favVideos, v.yt] }));
   const kids = VIDEOS.filter((v) => v.audience === "kids"); const parents = VIDEOS.filter((v) => v.audience === "parents" && (!topic || v.topic === topic));
   const featuredNeeds = kid.needs.length ? VIDEOS.filter((v) => v.audience === "parents" && ((kid.needs.includes("autism") && v.topic === "autism") || (kid.needs.includes("down") && v.topic === "down") || v.topic === "complex")) : [];
-  const grid = (list: V[]) => <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{list.map((v, i) => <Card key={v.id} v={v} fav={fav(v)} sit={data.sitVideo === v.yt} onFav={() => toggleFav(v)} onPlay={() => setPlay({ list, i })} />)}</div>;
+  const grid = (list: V[]) => <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{list.map((v, i) => <Card key={v.id} v={v} fav={fav(v)} sit={data.sitVideo === v.yt} onFav={() => toggleFav(v)} onPlay={() => setPlay({ list, i })} />)}</div>;
   const ytFromLink = youtubeId(link);
   return <div className="space-y-6">
     <div className="flex flex-wrap gap-1.5"><Chip on={tab === "kids"} onClick={() => setTab("kids")}>🧸 For {kid.name}</Chip><Chip on={tab === "parents"} onClick={() => setTab("parents")}>🎓 For you</Chip><Chip on={tab === "mine"} onClick={() => setTab("mine")}>⭐ Favourites & my videos</Chip></div>
@@ -82,7 +82,7 @@ export default function Videos() {
           {link && !ytFromLink && <p className="text-sm" style={{ color: C.accident }}>That doesn't look like a YouTube link.</p>}
         </Panel>
       </Section>
-      {mine.length ? <Section title="Your videos"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{mine.map((v, i) => <div key={v.id} className="relative"><Card v={v} fav={fav(v)} sit={data.sitVideo === v.yt} onFav={() => toggleFav(v)} onPlay={() => setPlay({ list: mine, i })} /><button type="button" aria-label="Remove video" onClick={() => set((d) => ({ ...d, myVideos: d.myVideos.filter((x) => x.id !== v.id), sitVideo: d.sitVideo === v.yt ? "" : d.sitVideo }))} className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5" style={{ color: C.accident }}><Trash2 size={15} /></button></div>)}</div></Section> : null}
+      {mine.length ? <Section title="Your videos"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{mine.map((v, i) => <div key={v.id} className="relative"><Card v={v} fav={fav(v)} sit={data.sitVideo === v.yt} onFav={() => toggleFav(v)} onPlay={() => setPlay({ list: mine, i })} /><button type="button" aria-label="Remove video" onClick={() => set((d) => ({ ...d, myVideos: d.myVideos.filter((x) => x.id !== v.id), sitVideo: d.sitVideo === v.yt ? "" : d.sitVideo }))} className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5" style={{ color: C.accident }}><Trash2 size={15} /></button></div>)}</div></Section> : null}
       {data.favVideos.length > 0 && <Section title="Favourites">{grid([...VIDEOS, ...mine].filter((v) => fav(v)))}</Section>}
       {!mine.length && !data.favVideos.length && <Empty2 icon="⭐" title="No favourites yet" text="Tap the heart on any video, or add your own YouTube links above." />}
     </>}

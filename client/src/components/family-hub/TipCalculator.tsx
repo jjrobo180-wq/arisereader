@@ -20,7 +20,7 @@ export default function TipCalculator(_: SectionProps) {
 
   return <div className="space-y-6">
     <PageHead eyebrow="Tip & split" title="Who owes what" blurb="Work out the tip and split the bill evenly, in seconds." />
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Panel>
         <label className="block text-xs font-bold text-slate-500">Bill
           <div className="relative mt-1"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg font-black text-slate-400">$</span><input value={bill} onChange={(e) => setBill(e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" placeholder="0.00" className={inputClass + " min-h-14 pl-8 text-2xl font-black"} aria-label="Bill amount" autoFocus /></div>

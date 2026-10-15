@@ -29,7 +29,7 @@ export default function Countdowns({ family, setFamily, today, makeId, say }: Se
   return <div className="space-y-6">
     <PageHead eyebrow="Countdowns" title="Something to look forward to" blurb="Birthdays, trips, holidays, the last day of school: see exactly how many days are left." />
     <Panel title="Add a countdown">
-      <form onSubmit={add} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
         <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder="What are you counting down to?" className={inputClass} aria-label="Countdown name" required />
         <input type="date" value={date} min={today} onChange={(e) => setDate(e.target.value)} className={inputClass} aria-label="Date" required />
         <button type="submit" className={primary} disabled={!title.trim() || !date}>Add</button>
@@ -38,7 +38,7 @@ export default function Countdowns({ family, setFamily, today, makeId, say }: Se
         {EMOJI.map((m) => <button key={m} type="button" onClick={() => setEmoji(m)} aria-pressed={emoji === m} className={`h-10 w-10 rounded-xl text-xl ${emoji === m ? "bg-violet-100 ring-2 ring-violet-400" : "hover:bg-slate-100"}`}>{m}</button>)}
       </div>
     </Panel>
-    {coming.length ? <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{coming.map((c) => <li key={c.id} className="relative overflow-hidden rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08]">
+    {coming.length ? <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{coming.map((c) => <li key={c.id} className="relative overflow-hidden rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08]">
       <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: c.color }} />
       <div className="flex items-start justify-between gap-3">
         <span className="text-3xl" aria-hidden>{c.emoji}</span>

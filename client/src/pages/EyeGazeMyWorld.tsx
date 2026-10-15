@@ -106,7 +106,7 @@ function DwellButton({
 }
 
 function Media({ item, className = "" }: { item: WorldItem; className?: string }) {
-  if (!item.mediaUrl) return <div className={`grid place-items-center bg-sky-100 text-5xl ${className}`}>📷</div>;
+  if (!item.mediaUrl) return <div className={`grid grid-cols-1 place-items-center bg-sky-100 text-5xl ${className}`}>📷</div>;
   if (item.mediaType === "video") {
     return <video src={item.mediaUrl} className={className} controls playsInline preload="metadata" />;
   }
@@ -791,11 +791,11 @@ export default function EyeGazeMyWorld() {
   if (!user) return <Redirect to="/" />;
   if (!isParent && !user.is_eye_gaze_user) return <Redirect to="/library" />;
 
-  if (loading) return <div className="min-h-screen grid place-items-center bg-sky-50"><div className="w-14 h-14 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" /></div>;
+  if (loading) return <div className="min-h-screen grid grid-cols-1 place-items-center bg-sky-50"><div className="w-14 h-14 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" /></div>;
 
   if (!isParent && gateOpen && !grownupToken) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-violet-100 via-white to-sky-100 grid place-items-center p-5 text-slate-900">
+      <div className="min-h-screen bg-gradient-to-b from-violet-100 via-white to-sky-100 grid grid-cols-1 place-items-center p-5 text-slate-900">
         <div className="w-full max-w-lg rounded-[2rem] bg-white border-2 border-violet-100 p-6 sm:p-8 text-center shadow-2xl">
           <div className="text-6xl" aria-hidden="true">🧑‍🧒</div>
           <p className="mt-3 text-xs font-black uppercase tracking-widest text-violet-600">Grown-up check</p>
@@ -849,7 +849,7 @@ export default function EyeGazeMyWorld() {
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-widest"><Sparkles className="w-4 h-4" /> First-time setup</div>
                 <h2 className="text-3xl sm:text-5xl font-black mt-4">Turn real life into the learning game.</h2>
                 <p className="mt-3 text-lg font-bold text-white/90">Take or upload a normal or panoramic photo of a real room. Tag the actual objects inside the photo—bed, shoes, TV, cup, toys—and My World turns those exact spots into interactive learning targets. AI Auto‑Tag can suggest objects for you to review.</p>
-                <div className="grid sm:grid-cols-3 gap-3 mt-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
                   <div className="rounded-2xl bg-white/15 p-4"><Camera className="w-7 h-7 mb-2" /><strong className="block">1. Photograph a place</strong><span className="text-sm">Bedroom, kitchen, bathroom, classroom area.</span></div>
                   <div className="rounded-2xl bg-white/15 p-4"><MapPin className="w-7 h-7 mb-2" /><strong className="block">2. Tap an object</strong><span className="text-sm">Tap the real bed, shoes, TV, cup, toothbrush, toys, and name what you tapped.</span></div>
                   <div className="rounded-2xl bg-white/15 p-4"><WandSparkles className="w-7 h-7 mb-2" /><strong className="block">3. Or let AI find them</strong><span className="text-sm">AI can find common objects for you. Keep, rename, resize, or delete a suggestion with one tap.</span></div>
@@ -865,7 +865,7 @@ export default function EyeGazeMyWorld() {
                 <button key={starter.name} type="button" onClick={() => addStarter(starter)} className="min-h-12 rounded-2xl bg-sky-50 border-2 border-sky-100 px-4 font-black">{starter.icon} {starter.name}</button>
               ))}
             </div>
-            <div className="grid sm:grid-cols-[100px_1fr_auto] gap-2 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-[100px_1fr_auto] gap-2 mt-4">
               <input value={newPlaceIcon} onChange={e => setNewPlaceIcon(e.target.value.slice(0, 8))} aria-label="Place icon" className="min-h-12 rounded-2xl border-2 border-slate-200 px-3 text-center text-2xl" />
               <input value={newPlaceName} onChange={e => setNewPlaceName(e.target.value)} placeholder="Custom place name" className="min-h-12 rounded-2xl border-2 border-slate-200 px-4 font-bold" />
               <button type="button" onClick={addCustomPlace} className="min-h-12 rounded-2xl bg-slate-900 text-white px-5 font-black"><Plus className="w-4 h-4 inline mr-1" /> Add</button>
@@ -873,7 +873,7 @@ export default function EyeGazeMyWorld() {
           </section>
 
           {worlds.length > 0 && (
-            <section className="grid lg:grid-cols-[260px_1fr] gap-4">
+            <section className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
               <aside className="rounded-[2rem] bg-white border border-sky-100 p-3 flex lg:block gap-2 overflow-x-auto lg:overflow-visible h-fit">
                 <div className="hidden lg:block px-2 py-1 text-xs font-black uppercase tracking-widest text-slate-400">My places</div>
                 {worlds.map(world => (
@@ -893,7 +893,7 @@ export default function EyeGazeMyWorld() {
                       <div className="flex items-start gap-3">
                         <div className="text-4xl">{builderWorld.icon}</div>
                         <div className="flex-1"><h2 className="text-2xl font-black text-blue-950">{builderWorld.name}</h2><p className="text-sm font-bold text-slate-500">Normal and panoramic room photos both work.</p></div>
-                        <button type="button" onClick={() => removeWorld(builderWorld.id)} className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 grid place-items-center" aria-label="Delete place"><Trash2 className="w-5 h-5" /></button>
+                        <button type="button" onClick={() => removeWorld(builderWorld.id)} className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 grid grid-cols-1 place-items-center" aria-label="Delete place"><Trash2 className="w-5 h-5" /></button>
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-2">
                         <label className={"min-h-14 rounded-2xl border-2 border-dashed border-blue-200 bg-sky-50 px-3 flex items-center justify-center gap-2 font-black cursor-pointer text-center " + (uploading ? "opacity-60 pointer-events-none" : "")}>
@@ -1011,7 +1011,7 @@ export default function EyeGazeMyWorld() {
                                       onPointerUp={finishTagGesture}
                                       onPointerCancel={finishTagGesture}
                                       style={{ left: "calc(" + (box.x + box.w) + "% - 24px)", top: "calc(" + (box.y + box.h) + "% - 24px)", touchAction: "none" }}
-                                      className="absolute z-40 w-12 h-12 rounded-full bg-cyan-500 text-white border-4 border-white shadow-2xl grid place-items-center text-xl font-black"
+                                      className="absolute z-40 w-12 h-12 rounded-full bg-cyan-500 text-white border-4 border-white shadow-2xl grid grid-cols-1 place-items-center text-xl font-black"
                                       aria-label={"Resize " + item.label}
                                     >↘</button>
                                   )}
@@ -1021,7 +1021,7 @@ export default function EyeGazeMyWorld() {
                                       type="button"
                                       onClick={event => { event.stopPropagation(); removeItem(item.id); }}
                                       style={{ left: "calc(" + (box.x + box.w) + "% - 18px)", top: "calc(" + box.y + "% - 10px)" }}
-                                      className="absolute z-30 w-9 h-9 rounded-full bg-rose-600 text-white border-2 border-white shadow-xl grid place-items-center text-lg font-black"
+                                      className="absolute z-30 w-9 h-9 rounded-full bg-rose-600 text-white border-2 border-white shadow-xl grid grid-cols-1 place-items-center text-lg font-black"
                                       aria-label={"Remove AI suggestion " + item.label}
                                       title="Remove this AI suggestion"
                                     >
@@ -1037,14 +1037,14 @@ export default function EyeGazeMyWorld() {
                                 className="absolute w-[18%] h-[18%] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[5px] border-cyan-300 bg-cyan-300/20 ring-4 ring-white/90 pointer-events-none animate-pulse shadow-2xl"
                                 style={{ left: tapTagPoint.x + "%", top: tapTagPoint.y + "%" }}
                               >
-                                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500 text-white w-12 h-12 grid place-items-center text-3xl font-black shadow-lg">✓</span>
+                                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500 text-white w-12 h-12 grid grid-cols-1 place-items-center text-3xl font-black shadow-lg">✓</span>
                               </div>
                             )}
                           </div>
                         </div>
 
                         {tapTagPoint && (
-                          <div className="fixed inset-0 z-[100] bg-slate-950/70 backdrop-blur-sm p-3 sm:p-6 grid place-items-center" onClick={() => { setTapTagPoint(null); setItemLabel(""); setItemPhrase(""); setItemFile(null); }}>
+                          <div className="fixed inset-0 z-[100] bg-slate-950/70 backdrop-blur-sm p-3 sm:p-6 grid grid-cols-1 place-items-center" onClick={() => { setTapTagPoint(null); setItemLabel(""); setItemPhrase(""); setItemFile(null); }}>
                             <div className="w-full max-w-2xl rounded-[2rem] bg-white border-4 border-cyan-300 shadow-2xl overflow-hidden" onClick={event => event.stopPropagation()}>
                               <div className="bg-cyan-500 text-white px-5 py-4 flex items-center justify-between gap-3">
                                 <div>
@@ -1054,7 +1054,7 @@ export default function EyeGazeMyWorld() {
                                 <button type="button" onClick={() => { setTapTagPoint(null); setItemLabel(""); setItemPhrase(""); setItemFile(null); }} className="w-12 h-12 rounded-full bg-white/20 text-3xl font-black" aria-label="Close">×</button>
                               </div>
 
-                              <div className="grid sm:grid-cols-[240px_1fr] gap-5 p-5">
+                              <div className="grid grid-cols-1 sm:grid-cols-[240px_1fr] gap-5 p-5">
                                 <div>
                                   <RoomCrop
                                     world={builderWorld}
@@ -1110,7 +1110,7 @@ export default function EyeGazeMyWorld() {
                                     <div><h4 className="text-xl font-black text-blue-950">Edit {item.label}</h4><p className="text-xs font-bold text-cyan-700">On the photo: drag the tag to move it · drag ↘ to resize</p></div>
                                     {item.source === "ai" && <span className="rounded-full bg-violet-100 text-violet-700 px-2 py-1 text-[10px] font-black uppercase">✨ AI found</span>}
                                   </div>
-                                  <div className="grid sm:grid-cols-2 gap-2">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <input value={item.label} onChange={e => updateItem(item.id, { label: e.target.value.slice(0,40) })} className="min-h-12 rounded-xl border-2 border-slate-200 px-3 font-black" aria-label="Object name" />
                                     <input value={item.phrase} onChange={e => updateItem(item.id, { phrase: e.target.value.slice(0,160) })} className="min-h-12 rounded-xl border-2 border-slate-200 px-3 font-bold" aria-label="Object sentence" />
                                   </div>
@@ -1163,7 +1163,7 @@ export default function EyeGazeMyWorld() {
 
   if (!data?.setupComplete || worlds.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-sky-100 via-white to-violet-100 grid place-items-center p-5">
+      <div className="min-h-screen bg-gradient-to-b from-sky-100 via-white to-violet-100 grid grid-cols-1 place-items-center p-5">
         <div className="max-w-xl rounded-[2rem] bg-white border-2 border-sky-100 p-7 text-center shadow-xl">
           <div className="text-7xl">🏠</div>
           <h1 className="text-4xl font-black text-blue-950 mt-4">Build My World</h1>
@@ -1187,11 +1187,11 @@ export default function EyeGazeMyWorld() {
             <div className="rounded-2xl bg-amber-100 px-4 py-2 font-black text-amber-700 flex items-center gap-2"><Star className="w-5 h-5 fill-current" /> {stars}</div>
           </header>
           <p className="text-center text-lg font-bold text-slate-600 mt-3">Choose a familiar place.</p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
             {worlds.map(world => (
               <DwellButton key={world.id} label={`Open ${world.name}`} onSelect={() => { setSelectedWorldId(world.id); setTargetIndex(0); setFeedback(""); }} className="min-h-[240px] rounded-[2rem] bg-white border-2 border-sky-100 shadow-lg text-left">
                 <div className="h-40 bg-sky-50 overflow-hidden rounded-t-[1.8rem]">
-                  {world.backgroundUrl ? <img src={world.backgroundUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full grid place-items-center text-7xl">{world.icon}</div>}
+                  {world.backgroundUrl ? <img src={world.backgroundUrl} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full grid grid-cols-1 place-items-center text-7xl">{world.icon}</div>}
                 </div>
                 <div className="p-4"><div className="text-3xl font-black text-blue-950">{world.icon} {world.name}</div><div className="font-bold text-slate-500 mt-1">{world.items.length} things to find</div></div>
               </DwellButton>
@@ -1246,9 +1246,9 @@ export default function EyeGazeMyWorld() {
                 })}
 
                 {focusedItem && (
-                  <div className="absolute inset-0 z-40 bg-slate-950/65 p-3 sm:p-6 grid place-items-center">
+                  <div className="absolute inset-0 z-40 bg-slate-950/65 p-3 sm:p-6 grid grid-cols-1 place-items-center">
                     <div className="w-full max-w-4xl rounded-[2rem] bg-white p-4 sm:p-6 shadow-2xl">
-                      <div className="grid md:grid-cols-[1.25fr_1fr] gap-5 items-stretch">
+                      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.25fr)_1fr] gap-5 items-stretch">
                         <div className="min-h-[260px] sm:min-h-[360px] rounded-3xl overflow-hidden border-4 border-sky-100 relative">
                           <RoomCrop world={selectedWorld} item={focusedItem} className="absolute inset-0 w-full h-full transition-all duration-500" />
                           <div className="absolute top-3 left-3 rounded-full bg-slate-950/80 text-white px-3 py-1 text-xs font-black uppercase tracking-widest flex items-center gap-2"><Focus className="w-4 h-4" /> Zoomed in</div>
@@ -1264,7 +1264,7 @@ export default function EyeGazeMyWorld() {
                             </div>
                           )}
 
-                          <div className="grid sm:grid-cols-2 gap-2 mt-5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-5">
                             <DwellButton label={`Hear ${focusedItem.label} again`} onSelect={() => speak(`${focusedItem.label}. ${focusedItem.phrase}`)} className="min-h-14 rounded-2xl bg-blue-600 text-white px-4 font-black">🔊 Hear it again</DwellButton>
                             {mode === "explore" ? (
                               <DwellButton label={`Play I Spy with ${focusedItem.label}`} onSelect={() => playIspyWith(focusedItem)} className="min-h-14 rounded-2xl bg-violet-600 text-white px-4 font-black">👁️ I‑Spy: find it</DwellButton>
@@ -1281,7 +1281,7 @@ export default function EyeGazeMyWorld() {
               </div>
             </div>
           ) : (
-            <div className="min-h-[420px] bg-gradient-to-br from-sky-100 to-violet-100 grid place-items-center text-[10rem]">{selectedWorld.icon}</div>
+            <div className="min-h-[420px] bg-gradient-to-br from-sky-100 to-violet-100 grid grid-cols-1 place-items-center text-[10rem]">{selectedWorld.icon}</div>
           )}
         </section>
 

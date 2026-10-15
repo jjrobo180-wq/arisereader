@@ -34,7 +34,7 @@ export default function ReadGamesRow({ games: half, covers, books, poems, articl
         <span className={`relative hidden h-16 w-28 shrink-0 ${half ? "xl:block" : "sm:block"}`} aria-hidden="true">
           {covers.map((src, i) => <img key={src} src={src} alt="" className="absolute top-0 h-16 w-11 rounded-md object-cover shadow-md ring-2 ring-white" style={{ left: i * 30, transform: `rotate(${(i - 1) * 6}deg)` }} />)}
         </span>
-        <span className={`grid shrink-0 place-items-center rounded-xl bg-[#17143b] text-white ${icon} ${half ? "xl:hidden" : "sm:hidden"}`}><BookOpen className={glyph} /></span>
+        <span className={`grid grid-cols-1 shrink-0 place-items-center rounded-xl bg-[#17143b] text-white ${icon} ${half ? "xl:hidden" : "sm:hidden"}`}><BookOpen className={glyph} /></span>
         <span className="min-w-0 flex-1">
           <span className={`flex flex-wrap items-center gap-x-2 font-black leading-tight ${title}`}>Read on Arise<span className={`rounded-full bg-[#7048e8] px-2 py-0.5 text-[10px] font-black text-white ${half ? "hidden sm:inline" : ""}`}>NEW</span></span>
           {half && <span className="mt-0.5 block text-[11px] font-bold leading-snug text-[#5d5a7a] sm:hidden">Books, poems &amp; articles</span>}
@@ -50,7 +50,7 @@ export default function ReadGamesRow({ games: half, covers, books, poems, articl
           data-testid="button-games"
           className={`club-entry-glow flex h-full w-full items-center rounded-2xl border border-indigo-300/30 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-left text-white shadow-lg transition hover:brightness-110 ${pad}`}
         >
-          <span className={`grid shrink-0 place-items-center rounded-xl bg-white/15 ${icon}`}><Gamepad2 className={glyph} /></span>
+          <span className={`grid grid-cols-1 shrink-0 place-items-center rounded-xl bg-white/15 ${icon}`}><Gamepad2 className={glyph} /></span>
           <span className="min-w-0 flex-1">
             <span className={`flex flex-wrap items-center gap-x-2 font-black leading-tight ${title}`}>Games<span className="hidden rounded-full bg-amber-300 px-2 py-0.5 text-[9px] font-black tracking-wide text-slate-950 shadow-[0_0_16px_rgba(253,224,71,.45)] sm:inline">NEW</span></span>
             <span className="mt-0.5 block text-[11px] font-bold leading-snug text-white/80 sm:hidden">10 min a day · more with quizzes</span>

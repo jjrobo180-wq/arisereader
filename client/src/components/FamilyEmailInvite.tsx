@@ -55,7 +55,7 @@ export default function FamilyEmailInvite() {
     <div className="rounded-xl border border-border p-3 text-left" data-testid="family-email-invite">
       <h4 className="flex items-center gap-2 text-sm font-semibold"><UserPlus className="h-4 w-4 shrink-0" /> Invite a family that isn't signed up yet</h4>
       <p className="mt-1 text-xs text-muted-foreground">For a child who has no account. The parent gets an email that explains A.R.I.S.E. Reader and how to sign up: first the child's student account, then their own parent account. You can send it before either of them has signed up.</p>
-      <form onSubmit={(e) => void send(email, child, e)} className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
+      <form onSubmit={(e) => void send(email, child, e)} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto]">
         <Input type="email" inputMode="email" autoComplete="off" placeholder="parent@example.com" aria-label="Parent or guardian email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} data-testid="family-email-input" />
         <Input type="text" autoComplete="off" placeholder="Child's name" aria-label="Child's name (optional)" value={child} onChange={(e) => setChild(e.target.value)} maxLength={60} data-testid="family-child-input" />
         <Button type="submit" disabled={busy || !email.trim()} className="shrink-0" data-testid="family-email-send">{busy ? "Sending..." : "Send invitation"}</Button>

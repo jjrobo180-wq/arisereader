@@ -30,7 +30,7 @@ export default function Program() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="space-y-6">
           <Section title={<span className="text-2xl">{stage.emoji} {stage.title}</span>} sub={stage.summary}>
-            <div className="grid gap-2 sm:grid-cols-2"><Note tone="info"><b>When:</b> {stage.when}</Note><Note tone="tip"><b>Goal:</b> {stage.goal}</Note></div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2"><Note tone="info"><b>When:</b> {stage.when}</Note><Note tone="tip"><b>Goal:</b> {stage.goal}</Note></div>
           </Section>
           <Section title="Do this" sub="Tick steps off as you go. The why is under each one.">
             <Panel pad={false}><ol>{stage.steps.map((st, i) => { const key = `${stage.id}:${i}`, on = done.includes(key); return <li key={key} className="flex gap-3 border-b px-4 py-3 last:border-0" style={{ borderColor: C.line }}>
@@ -73,7 +73,7 @@ export default function Program() {
     </div>; })()}
 
     {view === "methods" && <Section title="Methods" sub="Pick the one that fits your child and your week. Consistency matters more than which you choose.">
-      <div className="grid gap-4 lg:grid-cols-2">{METHOD_LIST.map((m) => { const mine = m.id === kid.method; return <Panel key={m.id} tone={mine ? "duck" : undefined}>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">{METHOD_LIST.map((m) => { const mine = m.id === kid.method; return <Panel key={m.id} tone={mine ? "duck" : undefined}>
         <div className="flex items-start justify-between gap-2"><div><h3 className="text-lg font-extrabold">{m.name}</h3><p className="text-xs font-bold" style={{ color: C.muted }}>{m.also}</p></div>{mine ? <span className="rounded-full px-2.5 py-1 text-xs font-extrabold" style={{ background: C.ink, color: "#fff" }}>{kid.name}'s method</span> : <Btn2 onClick={() => putKid({ ...kid, method: m.id })}>Use this</Btn2>}</div>
         <p className="mt-2 text-sm">{m.summary}</p>
         <p className="mt-2 text-[13px]"><b>Best for:</b> {m.bestFor}</p>

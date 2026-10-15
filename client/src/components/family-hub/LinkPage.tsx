@@ -29,7 +29,7 @@ export default function LinkPage({ family, setFamily, makeId, say }: SectionProp
 
   return <div className="space-y-6">
     <PageHead eyebrow="Link page" title="All your links, one page" blurb="Your socials, shop, calendar or favorite sites as one tidy page. Share it with a single link." action={<ShareButton target="links" title={page.title || "My links"} say={say} label="Share my page" />} />
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
         <Panel title="Your page">
           <div className="space-y-3">
@@ -39,7 +39,7 @@ export default function LinkPage({ family, setFamily, makeId, say }: SectionProp
         </Panel>
         <Panel title="Add a link">
           <form onSubmit={add} className="space-y-3">
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} placeholder="Name (My Instagram)" className={inputClass} aria-label="Link name" />
               <input value={url} onChange={(e) => setUrl(e.target.value)} maxLength={1000} placeholder="Address (instagram.com/you)" className={inputClass} aria-label="Web address" inputMode="url" autoCapitalize="none" />
             </div>

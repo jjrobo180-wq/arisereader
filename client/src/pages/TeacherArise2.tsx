@@ -175,11 +175,11 @@ export default function TeacherArise2() {
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-black uppercase tracking-[.25em] text-violet-300">What you get</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Four reasons teachers switch</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
             {features.map(({ icon: Icon, tag, title, pitch, points, win, accent, iconColor }) => (
               <article key={tag} className={`relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-br ${accent} p-6 sm:p-7`}>
                 <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-black/30 ring-1 ring-white/10">
+                  <div className="grid grid-cols-1 h-12 w-12 shrink-0 place-items-center rounded-2xl bg-black/30 ring-1 ring-white/10">
                     <Icon className={`h-6 w-6 ${iconColor}`} />
                   </div>
                   <span className={`text-[10px] font-black uppercase tracking-[.24em] ${iconColor}`}>{tag}</span>
@@ -207,7 +207,7 @@ export default function TeacherArise2() {
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-black uppercase tracking-[.25em] text-cyan-300">Also included</p>
           <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">The small things that save you time</h2>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {extras.map(({ icon: Icon, title, text }) => (
               <div key={title} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4">
                 <Icon className="mt-0.5 h-5 w-5 shrink-0 text-violet-300" />
@@ -226,10 +226,10 @@ export default function TeacherArise2() {
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-black uppercase tracking-[.25em] text-emerald-300">Start this week</p>
           <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Up and running in {isTeacher ? "three" : "four"} steps</h2>
-          <ol className={`mt-6 grid gap-3 ${isTeacher ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4"}`}>
+          <ol className={`mt-6 grid grid-cols-1 gap-3 ${isTeacher ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4"}`}>
             {(isTeacher ? steps : [{ title: "Create your teacher account", text: "Sign up in about a minute with your school email. No waiting for approval." }, ...steps]).map((s, i) => (
               <li key={s.title} className="rounded-2xl border border-white/10 bg-white/[.04] p-5">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 text-sm font-black">{i + 1}</div>
+                <div className="grid grid-cols-1 h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 text-sm font-black">{i + 1}</div>
                 <div className="mt-3 font-black">{s.title}</div>
                 <p className="mt-1 text-sm leading-6 text-slate-400">{s.text}</p>
               </li>

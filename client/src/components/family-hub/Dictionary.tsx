@@ -45,7 +45,7 @@ export default function Dictionary({ family, setFamily, today, makeId, say }: Se
         </section>)}</div>
       </article>}
     </Panel>
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <section className="rounded-[1.5rem] bg-gradient-to-br from-[#2d2555] to-[#6d5ce7] p-6 text-white shadow-[0_18px_40px_#4b3fa033]">
         <p className="text-[11px] font-extrabold uppercase tracking-[.2em] text-violet-200">Word of the day</p>
         <p className="mt-2 text-3xl font-black tracking-tight">{wotd.word} <span className="text-sm font-bold italic text-violet-200">{wotd.type}</span></p>

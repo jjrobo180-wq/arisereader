@@ -42,7 +42,7 @@ export default function CareTracker({ kind, family, setFamily, today, makeId, sa
     <PageHead eyebrow={c.eyebrow} title={c.title} blurb={c.blurb} />
     {items.length > 0 && <p className={`rounded-2xl p-4 text-sm font-bold ${overdue ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-800"}`}>{overdue ? `${overdue} thing${overdue === 1 ? " is" : "s are"} due now.` : "All caught up. Nice work!"}</p>}
     <Panel title="Add something">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8rem_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8rem_auto]">
         <input value={group} onChange={(e) => setGroup(e.target.value)} maxLength={60} placeholder={c.groupHint} className={inputClass} aria-label={c.group} />
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="What needs doing" className={inputClass} aria-label="What needs doing" />
         <label className="flex items-center gap-1.5 text-xs font-bold text-slate-500">Every<input type="number" min={1} max={3650} value={every} onChange={(e) => setEvery(Math.max(1, Math.min(3650, Math.trunc(Number(e.target.value) || 1))))} className={inputClass + " w-16 px-2"} aria-label="Every how many days" />days</label>

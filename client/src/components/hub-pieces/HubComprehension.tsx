@@ -77,7 +77,7 @@ function Answer({ which, item, headers, onGraded }: { which: Which; item: Item; 
 
   return <li className={`${k.row} space-y-3`} data-testid="comprehension-item">
     <div className="flex items-start gap-3">
-      {item.coverUrl ? <img src={item.coverUrl} alt="" className="h-16 w-11 shrink-0 rounded-lg object-cover" /> : <span className={`grid h-16 w-11 shrink-0 place-items-center ${k.tile}`}><BookOpen className="h-4 w-4" /></span>}
+      {item.coverUrl ? <img src={item.coverUrl} alt="" className="h-16 w-11 shrink-0 rounded-lg object-cover" /> : <span className={`grid grid-cols-1 h-16 w-11 shrink-0 place-items-center ${k.tile}`}><BookOpen className="h-4 w-4" /></span>}
       <div className="min-w-0 flex-1"><p className={k.h}>{item.studentName}</p><p className={k.text}>{item.bookTitle}</p>
         <p className={k.small}>{fmtWhen(item.createdAt)}{item.quiz ? ` · quiz ${item.quiz.score}/${item.quiz.total}` : ""} · {item.proctor}</p></div>
       {item.status === "graded" && !editing && <Pill which={which} tone="brand">{item.points}/{MAX}</Pill>}

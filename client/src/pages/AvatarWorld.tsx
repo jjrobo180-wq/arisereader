@@ -110,8 +110,8 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
   const getItem=(id:string)=>allItems.find(x=>x.id===id);
   const shopItems=(payload?.catalog||[]).filter(x=>["car","home","furniture","pet","character"].includes(x.type)&&(shopFilter==="all"||x.type===shopFilter));
 
-  if(loading)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center"><div className="text-center"><div className="w-14 h-14 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto"/><p className="font-black mt-4">Loading Avatar World…</p></div></main>;
-  if(!payload)return <main className="min-h-screen bg-slate-950 text-white grid place-items-center p-6"><div className="text-center"><p className="text-xl font-black">{message||"Avatar World is unavailable."}</p><button onClick={()=>navigate("/library")} className="mt-4 rounded-2xl bg-white text-slate-950 px-5 py-3 font-black">Back to Library</button></div></main>;
+  if(loading)return <main className="min-h-screen bg-slate-950 text-white grid grid-cols-1 place-items-center"><div className="text-center"><div className="w-14 h-14 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto"/><p className="font-black mt-4">Loading Avatar World…</p></div></main>;
+  if(!payload)return <main className="min-h-screen bg-slate-950 text-white grid grid-cols-1 place-items-center p-6"><div className="text-center"><p className="text-xl font-black">{message||"Avatar World is unavailable."}</p><button onClick={()=>navigate("/library")} className="mt-4 rounded-2xl bg-white text-slate-950 px-5 py-3 font-black">Back to Library</button></div></main>;
 
   const carId=payload.state.equipped.car||"car-none";
   const homeId=payload.state.equipped.home||"home-basic";
@@ -163,7 +163,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
     </section>
 
     {tab==="character"&&<section className="max-w-7xl mx-auto p-3 sm:p-5 pt-3">
-      <div className="grid xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,.92fr)] gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,.92fr)] gap-5 items-start">
         <div ref={previewRef} className="scroll-mt-24 rounded-[2rem] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
           <div className="px-5 pt-5 pb-3 border-b border-white/10 flex items-center justify-between gap-3">
             <div>
@@ -224,7 +224,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
           <section ref={petSectionRef} className="scroll-mt-28 rounded-[2rem] bg-white/5 border border-white/10 p-4 sm:p-5">
             <h3 className="text-xl font-black">My Club Pet</h3>
             <p className="text-sm text-white/65 font-bold mt-1">Your pet follows you through A.R.I.S.E. worlds and games. Happiness drops a little every few hours, even while you are offline. Play for free, or use coins for food, treats and vet visits. At 0% your pet runs away — you can rescue it from the pet shop for half price.</p>
-            <div className="mt-3 grid sm:grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {payload.catalog.filter(x=>x.type==="pet"&&owned(x.id)).map(pet=>{
                 const personality=PET_PERSONALITIES[pet.id];
                 const happiness=Math.max(0,Math.min(100,Math.round(payload.state.petCare[pet.id]?.happiness??90)));
@@ -251,13 +251,13 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
         <div className="rounded-2xl bg-amber-400 text-slate-950 px-4 py-3 font-black flex items-center gap-2"><Coins className="w-5 h-5"/>{payload.economy.wallet.toLocaleString()} coins</div>
       </div>
       <div className="flex gap-2 overflow-x-auto mt-4 pb-2">{["all","character","pet","car","home","furniture"].map(filter=><button key={filter} onClick={()=>setShopFilter(filter)} className={"min-w-max rounded-full px-4 py-2 font-black capitalize "+(shopFilter===filter?"bg-white text-slate-950":"bg-white/10 text-white/70")}>{filter}</button>)}</div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
         {shopItems.map(product=>{
           const isOwned=owned(product.id),price=priceFor(product),canAfford=payload.economy.wallet>=price;
           const wasLost=product.type==="pet"&&!!payload.state.lostPets?.includes(product.id);
           const icon=product.type==="pet"?PET_PERSONALITIES[product.id]?.emoji:product.type==="car"?"🚗":product.type==="home"?"🏠":product.type==="character"?"🧍":FURNITURE_INFO[product.id]?.emoji||"🛋️";
           return <article key={product.id} className={"rounded-[2rem] overflow-hidden border-2 bg-gradient-to-br "+(rarityClass[product.rarity]||rarityClass.common)}>
-            <div className="h-44 grid place-items-center bg-black/25 relative"><div className="text-7xl">{icon}</div><span className="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-[10px] font-black uppercase">{product.rarity}</span>{product.type==="character"?<button type="button" onClick={()=>{setPreviewCharacterId(product.id.replace(/^unlock-/,""));setTab("character");}} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview character</button>:["pet","car","home"].includes(product.type)&&<button type="button" onClick={()=>setPreviewProduct(product)} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview in 3D</button>}</div>
+            <div className="h-44 grid grid-cols-1 place-items-center bg-black/25 relative"><div className="text-7xl">{icon}</div><span className="absolute top-3 right-3 rounded-full bg-black/60 px-3 py-1 text-[10px] font-black uppercase">{product.rarity}</span>{product.type==="character"?<button type="button" onClick={()=>{setPreviewCharacterId(product.id.replace(/^unlock-/,""));setTab("character");}} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview character</button>:["pet","car","home"].includes(product.type)&&<button type="button" onClick={()=>setPreviewProduct(product)} className="absolute bottom-2 left-2 right-2 min-h-10 rounded-xl bg-white/90 px-3 text-sm font-black text-slate-950">Preview in 3D</button>}</div>
             <div className="p-4 bg-slate-950/85"><h3 className="text-lg font-black">{product.name}</h3><p className="text-xs font-black text-white/45 uppercase">{product.type}</p>
               {product.type==="pet"&&<p className="mt-2 text-xs text-white/70"><strong className="text-cyan-200">{PET_PERSONALITIES[product.id]?.trait}.</strong> {PET_PERSONALITIES[product.id]?.greeting} · Loves {PET_PERSONALITIES[product.id]?.favorite.toLowerCase()}. Keep happiness high with food, treats, walks, and play.</p>}
               {wasLost&&<p className="mt-2 rounded-lg bg-rose-500/20 px-2 py-1 text-xs font-black text-rose-200">💔 Ran away — rescue for half price!</p>}
@@ -275,11 +275,11 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
     </section>}
 
     {tab==="garage"&&<section className="max-w-7xl mx-auto p-3 sm:p-5">
-      <div className="grid lg:grid-cols-[1fr_360px] gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5">
         <div className="min-h-[680px] rounded-[2.5rem] overflow-hidden border border-white/10 bg-[radial-gradient(circle_at_50%_40%,#1e3a8a_0,#0f172a_45%,#020617_100%)] relative">
           <div className="absolute inset-x-0 bottom-0 h-[34%] bg-[linear-gradient(#334155,#111827)] opacity-85"/>
           <div className="absolute top-5 left-5 z-20"><p className="text-xs font-black text-cyan-300">MY GARAGE</p><h2 className="text-3xl font-black">{getItem(carId)?.name||"No car equipped"}</h2></div>
-          {carId==="car-none"?<div className="absolute inset-0 grid place-items-center"><div className="text-center"><div className="text-8xl">🏁</div><h3 className="text-2xl font-black mt-3">Your garage is empty.</h3><button onClick={()=>{setTab("shop");setShopFilter("car");}} className="mt-4 rounded-2xl bg-amber-400 text-slate-950 px-5 py-3 font-black">Shop Cars</button></div></div>:<>
+          {carId==="car-none"?<div className="absolute inset-0 grid grid-cols-1 place-items-center"><div className="text-center"><div className="text-8xl">🏁</div><h3 className="text-2xl font-black mt-3">Your garage is empty.</h3><button onClick={()=>{setTab("shop");setShopFilter("car");}} className="mt-4 rounded-2xl bg-amber-400 text-slate-950 px-5 py-3 font-black">Shop Cars</button></div></div>:<>
             <WorldModelPreview id={carId} className="absolute inset-x-0 top-[12%] h-[52%] z-10"/>
             <div className={"absolute left-[4%] bottom-[1%] w-[290px] h-[430px] z-10 transition-all duration-1000 "+(entering?"translate-x-[360px] scale-[.55] opacity-25":"")}><ARISEAvatar3D characterId={payload.state.selectedCharacter} equipped={payload.state.equipped} compact className="w-full h-full rounded-3xl overflow-hidden"/></div>
             {inCar&&<div className="absolute inset-x-0 bottom-[8%] z-20 flex justify-center"><div className="rounded-3xl bg-black/65 backdrop-blur px-6 py-4 text-center border border-cyan-300/20"><h3 className="text-xl font-black">Your character is in the car.</h3><p className="text-white/55 text-sm font-bold">Drag the model above to look around.</p></div></div>}
@@ -291,7 +291,7 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
     </section>}
 
     <footer className="max-w-7xl mx-auto px-5 py-8 text-center text-white/40 text-xs font-bold">A.R.I.S.E. Avatar World is built into A.R.I.S.E. Reader. No outside avatar account, no weapons, no fighting, and no real-money purchases.</footer>
-    {previewProduct&&<div className="fixed inset-0 z-[90] grid place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="model-preview-title">
+    {previewProduct&&<div className="fixed inset-0 z-[90] grid grid-cols-1 place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="model-preview-title">
       <div className="w-[min(560px,100%)] rounded-3xl border border-cyan-300/30 bg-slate-950 p-4 shadow-2xl">
         <div className="flex items-center justify-between"><h2 id="model-preview-title" className="text-xl font-black">{previewProduct.name}</h2><button type="button" onClick={()=>setPreviewProduct(null)} className="min-h-11 min-w-11 rounded-xl bg-white/10" aria-label="Close preview"><X className="mx-auto"/></button></div>
         <WorldModelPreview id={previewProduct.id} className="mt-2 h-[340px] rounded-2xl bg-cyan-900/15"/>
@@ -300,14 +300,14 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
         <button type="button" onClick={()=>setPreviewProduct(null)} className="mt-4 min-h-12 w-full rounded-xl bg-white/10 font-black">Close preview</button>
       </div>
     </div>}
-    {pendingCare&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="care-title">
+    {pendingCare&&<div className="fixed inset-0 z-[100] grid grid-cols-1 place-items-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-labelledby="care-title">
       <div className="w-[min(430px,100%)] rounded-3xl border border-amber-300/30 bg-slate-950 p-5 shadow-2xl">
         <h2 id="care-title" className="text-2xl font-black">{pendingCare.action==="feed"?"Buy food for":pendingCare.action==="treat"?"Give a treat to":"Take to the vet:"} {getItem(pendingCare.petId)?.name}?</h2>
         <p className="mt-2 text-sm text-white/70">{pendingCare.action==="feed"?`Food costs ${rules.feedCost} Reader Coins and adds ${rules.feedBoost} happiness.`:pendingCare.action==="treat"?`A treat costs ${rules.treatCost} Reader Coins and adds ${rules.treatBoost} happiness.`:`A vet visit costs ${rules.vetCost} Reader Coins and brings happiness back to 100%.`}</p>
         <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPendingCare(null)} className="min-h-12 rounded-xl bg-white/10 font-black">Cancel</button><button type="button" onClick={()=>void careForPet(pendingCare.petId,pendingCare.action)} disabled={!!busy} className="min-h-12 rounded-xl bg-amber-400 font-black text-slate-950 disabled:opacity-40">Confirm</button></div>
       </div>
     </div>}
-    {pendingPurchase&&<div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
+    {pendingPurchase&&<div className="fixed inset-0 z-[100] grid grid-cols-1 place-items-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
       <div className="w-[min(430px,100%)] rounded-3xl border border-amber-300/30 bg-slate-950 p-5 text-white shadow-2xl">
         <h2 id="purchase-title" className="text-2xl font-black">{pendingPurchase.type==="pet"?(payload.state.lostPets?.includes(pendingPurchase.id)?"Rescue ":"Adopt ")+pendingPurchase.name+"?":pendingPurchase.type==="home"?"Buy the "+pendingPurchase.name+"?":"Unlock "+pendingPurchase.name+"?"}</h2>
         {["pet","home","car"].includes(pendingPurchase.type)&&<WorldModelPreview id={pendingPurchase.id} className="mt-3 h-48 rounded-2xl bg-cyan-900/20"/>}
@@ -318,13 +318,13 @@ export default function AvatarWorld({initialTab="character"}:{initialTab?:Tab}){
         <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={()=>setPendingPurchase(null)} className="min-h-12 rounded-xl bg-white/10 font-black">Cancel</button><button type="button" onClick={()=>void purchase(pendingPurchase)} disabled={payload.economy.wallet<priceFor(pendingPurchase)||!!busy} className="min-h-12 rounded-xl bg-amber-400 px-3 font-black text-slate-950 disabled:opacity-50">{pendingPurchase.type==="pet"?"Adopt!":pendingPurchase.type==="home"?"Buy & move in":"Confirm unlock"}</button></div>
       </div>
     </div>}
-    {celebrate&&<div className="fixed inset-0 z-[110] grid place-items-center bg-black/85 p-4" role="dialog" aria-modal="true" aria-labelledby="celebrate-title">
+    {celebrate&&<div className="fixed inset-0 z-[110] grid grid-cols-1 place-items-center bg-black/85 p-4" role="dialog" aria-modal="true" aria-labelledby="celebrate-title">
       <div className="w-[min(480px,100%)] rounded-3xl border border-emerald-300/40 bg-gradient-to-b from-emerald-950 to-slate-950 p-5 text-center shadow-2xl">
         <p className="text-4xl">🎉</p>
         <h2 id="celebrate-title" className="mt-1 text-2xl font-black">{celebrate.type==="pet"?"Meet "+celebrate.name+"!":celebrate.type==="home"?"Welcome to your "+celebrate.name+"!":"Your "+celebrate.name+" is ready!"}</h2>
         <WorldModelPreview id={celebrate.id} className="mt-3 h-56 rounded-2xl bg-black/20"/>
         <p className="mt-2 text-sm font-bold text-white/75">{celebrate.type==="pet"?`“${PET_PERSONALITIES[celebrate.id]?.greeting||"Hi!"}” Your pet is following you now. Keep it happy with play, food and treats.`:celebrate.type==="home"?"You moved in! Your house on The Block has changed. Go inside to explore and decorate.":"It's parked in your garage and ready to drive."}</p>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {celebrate.type==="home"?<><button onClick={()=>navigate("/my-home?owner="+(user?.id||""))} className="min-h-12 rounded-xl bg-emerald-400 font-black text-slate-950">Go inside</button><button onClick={()=>navigate("/neighborhood")} className="min-h-12 rounded-xl bg-cyan-300 font-black text-slate-950">See it on The Block</button></>
             :celebrate.type==="pet"?<><button onClick={()=>{setCelebrate(null);showPets();}} className="min-h-12 rounded-xl bg-emerald-400 font-black text-slate-950">Care for my pet</button><button onClick={()=>navigate("/neighborhood")} className="min-h-12 rounded-xl bg-cyan-300 font-black text-slate-950">Take a walk on The Block</button></>
             :<button onClick={()=>{setCelebrate(null);setTab("garage");}} className="min-h-12 rounded-xl bg-emerald-400 font-black text-slate-950 sm:col-span-2">Open my garage</button>}

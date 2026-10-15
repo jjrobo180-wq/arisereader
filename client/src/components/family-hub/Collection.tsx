@@ -44,7 +44,7 @@ export default function Collection({ kind, family, setFamily, today, makeId }: S
   return <div className="space-y-6">
     <PageHead eyebrow={head.eyebrow} title={head.title} blurb={head.blurb} />
     <Panel>
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto]">
         <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder={head.placeholder} className={inputClass} aria-label={head.placeholder} />
         <input value={sub} onChange={(e) => setSub(e.target.value)} maxLength={120} placeholder={cfg.subLabel} className={inputClass} aria-label={cfg.subLabel} />
         <button type="submit" className={primary} disabled={!title.trim()}>Add to {cfg.statuses.find((s) => s.id === tab)?.label}</button>

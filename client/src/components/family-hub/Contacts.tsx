@@ -22,7 +22,7 @@ export default function Contacts({ family, setFamily, makeId }: SectionProps) {
   return <div className="space-y-6">
     <PageHead eyebrow="Important contacts" title="Who to call" blurb="Doctors, school, sitters and the plumber, one tap away. Star emergency contacts to keep them on top." />
     <Panel title="Add a contact">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-2">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={80} placeholder="Name" className={inputClass} aria-label="Name" />
         <input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} list="contact-roles" maxLength={60} placeholder="Who they are (Doctor, School…)" className={inputClass} aria-label="Role" />
         <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} maxLength={40} placeholder="Phone" inputMode="tel" className={inputClass} aria-label="Phone" />
@@ -33,7 +33,7 @@ export default function Contacts({ family, setFamily, makeId }: SectionProps) {
       </form>
     </Panel>
     {family.contacts.length > 3 && <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search contacts" className={inputClass + " pl-9"} aria-label="Search contacts" /></label>}
-    {list.length ? <ul className="grid gap-3 md:grid-cols-2">{list.map((c) => <li key={c.id} className={`rounded-[1.5rem] border bg-white p-4 shadow-[0_8px_28px_#17152b08] ${c.emergency ? "border-rose-200" : "border-[#e7e8f0]"}`}>
+    {list.length ? <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">{list.map((c) => <li key={c.id} className={`rounded-[1.5rem] border bg-white p-4 shadow-[0_8px_28px_#17152b08] ${c.emergency ? "border-rose-200" : "border-[#e7e8f0]"}`}>
       <div className="flex items-start gap-3">
         <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${c.emergency ? "bg-rose-50 text-rose-600" : "bg-violet-50 text-violet-600"}`}>{c.emergency ? <Siren size={20} /> : <UserRound size={20} />}</span>
         <span className="min-w-0 flex-1"><span className="block font-extrabold">{c.name}</span>{c.role && <span className="block text-xs font-bold text-slate-500">{c.role}{c.emergency ? " · Emergency" : ""}</span>}{c.note && <span className="mt-1 block text-xs text-slate-500">{c.note}</span>}</span>

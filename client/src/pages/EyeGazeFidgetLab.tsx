@@ -376,7 +376,7 @@ export default function EyeGazeFidgetLab(){
           onPointerMove={moveSpin}
           onPointerUp={endSpin}
           onPointerCancel={endSpin}
-          className="relative w-[min(76vw,520px)] aspect-square touch-none select-none cursor-grab active:cursor-grabbing grid place-items-center"
+          className="relative w-[min(76vw,520px)] aspect-square touch-none select-none cursor-grab active:cursor-grabbing grid grid-cols-1 place-items-center"
         >
           {spinSpeed>18&&<div className="absolute inset-[8%] rounded-full border-[10px] border-cyan-300/15 blur-sm" style={{boxShadow:"0 0 "+Math.round(25+spinSpeed*.7)+"px "+skin.glow}}/>}
           <div className="absolute inset-[8%]" style={{transform:"rotate("+spinAngle+"deg)",willChange:"transform"}}>
@@ -402,7 +402,7 @@ export default function EyeGazeFidgetLab(){
       </div>;
     }
 
-    if(selected==="slime")return <button onPointerMove={e=>{if(e.buttons){setSquish(v=>(v+5)%100);}}} onClick={()=>{setSquish(v=>(v+23)%100);feedback(180,.12,"sine");}} className="relative w-[min(76vw,560px)] h-[min(58vh,470px)] grid place-items-center">
+    if(selected==="slime")return <button onPointerMove={e=>{if(e.buttons){setSquish(v=>(v+5)%100);}}} onClick={()=>{setSquish(v=>(v+23)%100);feedback(180,.12,"sine");}} className="relative w-[min(76vw,560px)] h-[min(58vh,470px)] grid grid-cols-1 place-items-center">
       <div className="absolute w-[72%] h-[68%] bg-gradient-to-br from-fuchsia-400 via-violet-500 to-cyan-400 shadow-[0_30px_90px_rgba(109,40,217,.48),inset_0_10px_35px_rgba(255,255,255,.35)] transition-all duration-300" style={{borderRadius:(35+(squish%35))+"% "+(65-(squish%25))+"% "+(45+(squish%30))+"% "+(55-(squish%20))+"%",transform:"scale("+(1+(squish%9)/55)+","+(1-(squish%7)/70)+") rotate("+((squish%17)-8)+"deg)"}}/>
       <div className="relative text-7xl drop-shadow-2xl">✨</div>
     </button>;
@@ -415,7 +415,7 @@ export default function EyeGazeFidgetLab(){
     if(selected==="galaxy")return <div ref={stage} onPointerDown={e=>{const p=point(e);const id=Date.now();setStars(v=>[...v.slice(-79),{id,...p,s:16+Math.random()*36}]);feedback(720,.06,"triangle");}} className="relative w-full max-w-4xl h-[min(66vh,620px)] rounded-[3rem] overflow-hidden bg-[radial-gradient(circle_at_40%_30%,#312e81,#111827_48%,#020617_100%)] shadow-[0_35px_100px_rgba(49,46,129,.5)] border-8 border-violet-200/20">
       <div className="absolute inset-0 opacity-60 bg-[radial-gradient(circle_at_20%_80%,#ec4899_0,transparent_28%),radial-gradient(circle_at_80%_20%,#22d3ee_0,transparent_25%)]"/>
       {stars.map(s=><span key={s.id} className="absolute animate-pulse drop-shadow-[0_0_12px_white]" style={{left:s.x+"%",top:s.y+"%",fontSize:s.s}}>✦</span>)}
-      {!stars.length&&<div className="absolute inset-0 grid place-items-center text-white/70 font-black text-xl">Tap anywhere to make stars ✨</div>}
+      {!stars.length&&<div className="absolute inset-0 grid grid-cols-1 place-items-center text-white/70 font-black text-xl">Tap anywhere to make stars ✨</div>}
     </div>;
 
     if(selected==="reveal"){
@@ -444,11 +444,11 @@ export default function EyeGazeFidgetLab(){
           >{category}</button>)}
         </div>
 
-        <div className="grid xl:grid-cols-[minmax(0,1fr)_220px] gap-4 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_220px] gap-4 items-start">
           <div className="relative w-full max-w-[720px] aspect-square mx-auto rounded-[2.4rem] overflow-hidden border-[10px] border-slate-700/80 bg-slate-950 shadow-[0_35px_110px_rgba(0,0,0,.42)]">
             <div className="absolute inset-0 z-0 overflow-hidden" style={{background:revealItem.bg}}>
               <div className="absolute inset-[4%] rounded-[2rem] border-[5px] border-white/55 bg-white/16 shadow-[inset_0_0_80px_rgba(255,255,255,.38)]"/>
-              <div className="absolute inset-0 grid place-items-center select-none pointer-events-none">
+              <div className="absolute inset-0 grid grid-cols-1 place-items-center select-none pointer-events-none">
                 <span
                   aria-hidden="true"
                   className="leading-none drop-shadow-[0_22px_22px_rgba(15,23,42,.20)]"
@@ -481,7 +481,7 @@ export default function EyeGazeFidgetLab(){
               })}
             </div>
 
-            {opened===0&&<div className="absolute inset-0 z-30 pointer-events-none grid place-items-center">
+            {opened===0&&<div className="absolute inset-0 z-30 pointer-events-none grid grid-cols-1 place-items-center">
               <div className="rounded-full bg-slate-950/82 border border-white/15 px-5 py-3 text-center shadow-xl backdrop-blur">
                 <p className="text-lg sm:text-xl font-black">Tap any tile to start</p>
               </div>
@@ -541,7 +541,7 @@ export default function EyeGazeFidgetLab(){
 
     if(selected==="clicker")return <div className="text-center">
       <div className="text-7xl sm:text-9xl font-black text-white drop-shadow-2xl mb-5 tabular-nums">{count}</div>
-      <button onClick={()=>{setCount(v=>v+1);feedback(520+(count%4)*70,.045,"square");}} className="w-[min(72vw,430px)] aspect-square rounded-full bg-gradient-to-br from-amber-300 via-orange-500 to-rose-600 border-[16px] border-white/70 shadow-[inset_0_-28px_40px_rgba(127,29,29,.35),0_35px_70px_rgba(249,115,22,.45)] active:translate-y-3 active:shadow-[inset_0_-12px_20px_rgba(127,29,29,.35)] transition-all grid place-items-center">
+      <button onClick={()=>{setCount(v=>v+1);feedback(520+(count%4)*70,.045,"square");}} className="w-[min(72vw,430px)] aspect-square rounded-full bg-gradient-to-br from-amber-300 via-orange-500 to-rose-600 border-[16px] border-white/70 shadow-[inset_0_-28px_40px_rgba(127,29,29,.35),0_35px_70px_rgba(249,115,22,.45)] active:translate-y-3 active:shadow-[inset_0_-12px_20px_rgba(127,29,29,.35)] transition-all grid grid-cols-1 place-items-center">
         <span className="text-5xl sm:text-7xl font-black text-white drop-shadow-lg">CLICK</span>
       </button>
     </div>;
@@ -558,7 +558,7 @@ export default function EyeGazeFidgetLab(){
 
     if(selected==="liquid")return <button onClick={()=>{setLiquid(v=>v+1);feedback(240,.12,"sine");}} className="relative w-full max-w-4xl h-[min(66vh,620px)] rounded-[3rem] overflow-hidden bg-slate-950 shadow-[0_35px_100px_rgba(14,165,233,.3)] border-8 border-white/10">
       {Array.from({length:9}).map((_,i)=><span key={liquid+"-"+i} className="absolute rounded-full blur-sm mix-blend-screen animate-[pulse_2.8s_ease-in-out_infinite]" style={{width:(90+(i%4)*42)+"px",height:(90+(i%4)*42)+"px",left:((i*17+liquid*11)%88)+"%",top:((i*29+liquid*7)%78)+"%",background:["#22d3ee","#a855f7","#ec4899","#34d399","#fbbf24"][i%5],boxShadow:"0 0 45px currentColor",animationDelay:(i*.15)+"s"}}/>)}
-      <span className="absolute inset-0 grid place-items-center text-white font-black text-xl">Tap to remix</span>
+      <span className="absolute inset-0 grid grid-cols-1 place-items-center text-white font-black text-xl">Tap to remix</span>
     </button>;
 
     if(selected==="kaleido")return <button onClick={()=>{setKaleido(v=>v+1);feedback(460+(kaleido%5)*60,.08,"triangle");}} className="w-[min(80vw,620px)] aspect-square rounded-full border-[14px] border-white/40 shadow-[0_35px_100px_rgba(217,70,239,.35)] transition-transform duration-500" style={{transform:"rotate("+(kaleido*17)+"deg)",background:"repeating-conic-gradient(from "+(kaleido*23)+"deg,#22d3ee 0 12deg,#a855f7 12deg 24deg,#f472b6 24deg 36deg,#facc15 36deg 48deg,#34d399 48deg 60deg)"}}/>;
@@ -579,12 +579,12 @@ export default function EyeGazeFidgetLab(){
     <header className="flex items-center gap-2 p-3 sm:p-4 bg-slate-950/65 backdrop-blur border-b border-white/10">
       <button onClick={()=>navigate("/eye-gaze-games")} className="min-h-14 rounded-2xl bg-[#ffd766] border-4 border-white/80 text-slate-950 px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> BACK</button>
       <div className="flex-1 min-w-0"><p className="text-xs font-black tracking-widest text-cyan-300">A.R.I.S.E. GAMES</p><h1 className="text-xl sm:text-3xl font-black truncate">Fidget Lab ✨</h1></div>
-      <button onClick={()=>setSound(v=>!v)} className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 grid place-items-center" aria-label={sound?"Turn sound off":"Turn sound on"}>{sound?<Volume2/>:<VolumeX/>}</button>
-      <button onClick={()=>setHaptics(v=>!v)} className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 grid place-items-center" aria-label={haptics?"Turn haptics off":"Turn haptics on"}>{haptics?<Vibrate/>:<VibrateOff/>}</button>
-      <button onClick={reset} className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 grid place-items-center" aria-label="Reset fidget"><RotateCcw/></button>
+      <button onClick={()=>setSound(v=>!v)} className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 grid grid-cols-1 place-items-center" aria-label={sound?"Turn sound off":"Turn sound on"}>{sound?<Volume2/>:<VolumeX/>}</button>
+      <button onClick={()=>setHaptics(v=>!v)} className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 grid grid-cols-1 place-items-center" aria-label={haptics?"Turn haptics off":"Turn haptics on"}>{haptics?<Vibrate/>:<VibrateOff/>}</button>
+      <button onClick={reset} className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 grid grid-cols-1 place-items-center" aria-label="Reset fidget"><RotateCcw/></button>
     </header>
 
-    <div className="flex-1 min-h-0 grid lg:grid-cols-[250px_1fr]">
+    <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[250px_1fr]">
       <aside className="overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden p-3 bg-slate-950/30 border-b lg:border-b-0 lg:border-r border-white/10">
         <div className="flex lg:grid gap-2 min-w-max lg:min-w-0">
           {FIDGETS.map(item=><button key={item.id} onClick={()=>{setSelected(item.id);feedback(400,.035,"sine");}} className={"min-w-[150px] lg:min-w-0 lg:w-full rounded-2xl p-3 text-left border-2 transition-all "+(selected===item.id?"bg-white text-slate-950 border-cyan-300 shadow-lg":"bg-white/5 border-white/10 text-white")}>
@@ -592,7 +592,7 @@ export default function EyeGazeFidgetLab(){
           </button>)}
         </div>
       </aside>
-      <section className="min-h-0 overflow-auto p-4 sm:p-8 grid place-items-center relative">
+      <section className="min-h-0 overflow-auto p-4 sm:p-8 grid grid-cols-1 place-items-center relative">
         <div className="absolute top-4 left-4 inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-3 py-1 text-xs font-black"><Sparkles className="w-4 h-4"/> {FIDGETS.find(f=>f.id===selected)?.name}</div>
         {stageContent()}
       </section>

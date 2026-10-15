@@ -29,7 +29,7 @@ export default function Ious({ family, setFamily, today, makeId }: SectionProps)
       <div className="rounded-[1.5rem] bg-rose-50 p-5"><p className="text-2xl font-black text-rose-700">{money(iOwe)}</p><p className="text-xs font-bold uppercase tracking-wide text-rose-800">You owe</p></div>
     </div>
     <Panel title="Add an IOU">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_minmax(0,1fr)_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_minmax(0,1fr)_auto]">
         <input value={person} onChange={(e) => setPerson(e.target.value)} list="iou-people" maxLength={60} placeholder="Who" className={inputClass} aria-label="Who" />
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="$ amount" className={inputClass} aria-label="Amount" />
         <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder="For what (optional)" className={inputClass} aria-label="For what" />
@@ -38,7 +38,7 @@ export default function Ious({ family, setFamily, today, makeId }: SectionProps)
       </form>
       <div className="mt-3 inline-flex rounded-xl bg-slate-100 p-1">{([["they", "They owe me"], ["me", "I owe them"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => setDir(v)} aria-pressed={dir === v} className={`min-h-9 rounded-lg px-3 text-sm font-bold ${dir === v ? "bg-white shadow-sm" : "text-slate-500"}`}>{l}</button>)}</div>
     </Panel>
-    {people.length ? <div className="grid gap-4 md:grid-cols-2">{people.map(({ p, total }) => <Panel key={p} title={p} right={<button type="button" onClick={() => settle(p)} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 text-sm font-bold text-emerald-700 hover:bg-emerald-100"><Check size={15} />Settle up</button>}>
+    {people.length ? <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{people.map(({ p, total }) => <Panel key={p} title={p} right={<button type="button" onClick={() => settle(p)} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 text-sm font-bold text-emerald-700 hover:bg-emerald-100"><Check size={15} />Settle up</button>}>
       <p className={`text-xl font-black ${total > 0 ? "text-emerald-700" : total < 0 ? "text-rose-700" : "text-slate-500"}`}>{total > 0 ? `Owes you ${money(total)}` : total < 0 ? `You owe ${money(total)}` : "Even"}</p>
       <ul className="mt-2 divide-y divide-slate-100">{open.filter((i) => i.person === p).map((i) => <li key={i.id} className="flex items-center gap-2 py-2 text-sm"><span className="min-w-0 flex-1 truncate text-slate-600">{i.note || "—"}</span><span className={`font-bold ${i.amount > 0 ? "text-emerald-700" : "text-rose-700"}`}>{i.amount > 0 ? "+" : "−"}{money(i.amount)}</span>
         <button type="button" onClick={() => setFamily((f) => ({ ...f, ious: f.ious.filter((x) => x.id !== i.id) }))} className={danger + " px-2"} aria-label="Delete"><Trash2 size={13} /></button></li>)}</ul>

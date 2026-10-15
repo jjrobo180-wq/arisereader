@@ -43,7 +43,7 @@ export default function DropReceive() {
     }
   };
 
-  return <div className="grid min-h-dvh place-items-center bg-[#f6f7fc] px-4">
+  return <div className="grid grid-cols-1 min-h-dvh place-items-center bg-[#f6f7fc] px-4">
     <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">
       <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#292446] text-white"><QrCode size={22} /></div>
       <h1 className="text-lg font-black text-slate-900">A.R.I.S.E. Drop</h1>

@@ -120,18 +120,18 @@ export default function Polls({ family, setFamily, today, makeId, say }: Section
 
   return <div className="space-y-6">
     <PageHead eyebrow="Polls" title="Family polls" blurb="Settle “what's for dinner?” and “what are we doing Saturday?” with a quick vote. Hand the phone around, or tap Share on a poll to send family a link they can vote from without an account." />
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {(Object.keys(KIND_META) as PollKind[]).map((k) => { const m = KIND_META[k]; const Icon = m.icon; return <button key={k} onClick={() => start(k)} className="flex items-center gap-3 rounded-2xl border border-[#e7e8f0] bg-white p-4 text-left shadow-[0_3px_16px_#17152b08] transition hover:border-violet-200 hover:bg-[#fcfbff]">
         <span className="rounded-xl p-2.5 text-white" style={{ background: m.tint }}><Icon size={20} /></span>
         <span><span className="block text-sm font-black">{k === "dinner" ? "Dinner ideas poll" : k === "weekend" ? "Weekend activities poll" : "Custom poll"}</span><span className="text-xs text-slate-500">{k === "dinner" ? "Vote on tonight's meal" : k === "weekend" ? "Pick Saturday's plan" : "Ask the family anything"}</span></span>
       </button>; })}
     </div>
     {!family.members.length && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Add your family in “Family & settings” so everyone can vote.</p>}
-    {open.length ? <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">{open.map(card)}</div>
+    {open.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">{open.map(card)}</div>
       : <Panel><Empty icon={<Vote size={26} />} title="No open polls" action={<button onClick={() => start("dinner")} className={soft}><UtensilsCrossed size={16} /> Start a dinner poll</button>}>Start one above. Results show live as people vote.</Empty></Panel>}
     {closed.length > 0 && <div>
       <button onClick={() => setShowClosed(!showClosed)} className={plain}>{showClosed ? "Hide" : "Show"} past polls ({closed.length})</button>
-      {showClosed && <div className="mt-4 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">{closed.slice(0, 30).map(card)}</div>}
+      {showClosed && <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">{closed.slice(0, 30).map(card)}</div>}
     </div>}
 
     {draft && <Modal title="Start a poll" onClose={() => setDraft(null)}>

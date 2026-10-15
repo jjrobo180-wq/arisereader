@@ -225,7 +225,7 @@ function HubPaywall({ isAdmin, embedded = false }: { isAdmin: boolean; embedded?
   ];
   return (
     <div className={embedded ? "" : "min-h-screen bg-slate-100 px-3 py-6 sm:px-5 sm:py-12"}>
-      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:rounded-[2rem] md:grid-cols-[1.05fr_.95fr]">
+      <div className="mx-auto grid grid-cols-1 max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:rounded-[2rem] md:grid-cols-[minmax(0,1.05fr)_.95fr]">
         <div className="bg-slate-950 p-6 text-white sm:p-8 md:p-12">
           <div className="mb-6 flex flex-wrap items-center gap-3 md:mb-12">
             <span className="text-xs font-semibold uppercase tracking-[.28em] text-slate-400">A.R.I.S.E.</span>
@@ -1270,7 +1270,7 @@ function TeacherHubPage() {
               <PlanCard hub="work" hubApps={appsIn("work", workspace)} />
               <button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm font-semibold text-violet-900 hover:bg-violet-100" data-testid="hub-take-tour"><Sparkles className="h-4 w-4 shrink-0" /> Take the tour: see where everything is in your WorkHub</button>
               <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
-              <div className="mb-6 grid gap-5 lg:grid-cols-2" data-testid="customize-layout">
+              <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2" data-testid="customize-layout">
                 <div>
                   <h3 className="mb-1 text-sm font-semibold text-slate-900">Menu on your phone</h3>
                   <p className="mb-3 text-sm text-slate-600">Where it sits, and how it closes. The computer menu has its own choices below.</p>
@@ -1278,7 +1278,7 @@ function TeacherHubPage() {
                     {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
                       className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
                   </div>
-                  {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid gap-2">
+                  {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p> : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
                     {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); setRail(true); }} data-testid={`menu-close-${o.id}`}
                       className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-slate-950 bg-slate-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
                       <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-slate-950" : "border-slate-300"}`} aria-hidden />
@@ -1336,7 +1336,7 @@ function TeacherHubPage() {
               </div>
               <h3 className="mb-1 text-sm font-semibold text-slate-900">Tabs</h3>
               <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {cleanGroupOrder(workspace.groupOrder).map((id) => HUB_GROUPS.find((g) => g.id === id)!)
                   .map((g) => ({ ...g, tabs: g.tabs.filter((t) => !isReaderTab(t) && t !== "admin") })).filter((g) => g.tabs.length)
                   .map((g) => {
@@ -1445,7 +1445,7 @@ function TeacherHubPage() {
                   add: (
               <Card title="Add things fast" collapseKey="home-add">
                 <p className="mb-4 text-sm text-slate-600">Skip the typing. AI reads what you give it and sorts it into your Hub, and you check it before anything is saved.</p>
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   <QuickAdd icon={<WandSparkles className="h-5 w-5" />} title="Paste or ask" detail="A list, notes, an email, or “plan my week”" onClick={() => startAdding({})} />
                   <QuickAdd icon={<ImagePlus className="h-5 w-5" />} title="Photo or screenshot" detail="Reminders, notes or a calendar" onClick={() => startAdding({ start: "photo" })} />
                   <QuickAdd icon={<Upload className="h-5 w-5" />} title="Upload a file" detail="Excel, Word, PDF or CSV" onClick={() => startAdding({ start: "file" })} />
@@ -1493,7 +1493,7 @@ function TeacherHubPage() {
                   ),
                   profile: (
               <Card title="Workspace profile" collapseKey="home-profile">
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <Field placeholder="School" value={workspace.profile.school} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, school: e.target.value } }))} />
                   <Field placeholder="Grade / band" value={workspace.profile.gradeBand} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, gradeBand: e.target.value } }))} />
                   <Field placeholder="Subject / role" value={workspace.profile.subject} onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, subject: e.target.value } }))} />
@@ -1771,7 +1771,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
             <a href="#/billing" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">Add {PLANS.hub.studentsPerBlock} more</a>
           </div>
         )}
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
+        <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Field placeholder="Student name" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setAddError(""); }} required aria-label="Student name" aria-invalid={!!addError} />
           <Field placeholder="Grade" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />
           <Field placeholder="Reading level" value={form.readingLevel} onChange={(e) => setForm({ ...form, readingLevel: e.target.value })} />
@@ -1796,7 +1796,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
       <div className="min-w-0">
         {roster.length ? roster.map((s) => editing?.id === s.id ? (
           <Card key={s.id} title={`Edit ${s.name}`}>
-            <form onSubmit={saveEdit} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} className="grid gap-3 sm:grid-cols-2" data-testid="hub-student-edit-form">
+            <form onSubmit={saveEdit} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="hub-student-edit-form">
               <Labeled label="Student name"><Field value={editing.form.name} onChange={(e) => typed({ name: e.target.value })} required autoFocus={editing.start === "name"} /></Labeled>
               <Labeled label="Grade"><Field value={editing.form.grade} onChange={(e) => typed({ grade: e.target.value })} /></Labeled>
               <Labeled label="Reading level"><Field value={editing.form.readingLevel} onChange={(e) => typed({ readingLevel: e.target.value })} /></Labeled>
@@ -1854,7 +1854,7 @@ function Caseload({ workspace, setWorkspace, remove, seats, profileId, setProfil
               <button type="button" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950" onClick={() => startEdit(s)} data-testid="hub-student-edit"><Pencil className="h-4 w-4" /> Edit</button>
               <button type="button" aria-label="Delete" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("students", s.id)}><Trash2 className="h-4 w-4" /></button>
             </div>
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               <Info label="Grade" value={s.grade || "—"} />
               <Info label="Reading" value={s.readingLevel || "—"} />
               <Info label="Math" value={s.mathLevel || "—"} />
@@ -2025,7 +2025,7 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
   const navBtn = (active: boolean) => `flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:px-4 sm:text-sm lg:w-full ${active ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[13.5rem_minmax(0,1fr)]" data-testid="hub-todo">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[13.5rem_minmax(0,1fr)]" data-testid="hub-todo">
       {/* Views and lists: a column on a computer, two scrolling rows on a phone. */}
       <nav aria-label="To-do views and lists" className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-2 lg:self-start lg:p-3">
         <p className="hidden px-3 pb-2 pt-1 text-[11px] font-black uppercase tracking-[.16em] text-slate-400 lg:block">Tasks</p>
@@ -2051,7 +2051,7 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
           ].map((s) => <button key={s.label} type="button" onClick={() => setView(s.go)} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 text-left shadow-[0_3px_16px_#17152b08] transition hover:border-violet-200 sm:p-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">{s.label}</span><span className={`rounded-xl p-2 ${s.tint}`}>{s.icon}</span></div><p className="text-3xl font-black text-[#242238]">{s.count}</p></button>)}
         </div>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
           <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{listName}</p><h2 className="mt-1 text-xl font-black text-slate-900">{VIEW_INFO[view].title}</h2></div>
@@ -2063,7 +2063,7 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
                 <PrimaryButton type="submit" disabled={!quick.trim()}>Add</PrimaryButton>
               </form>
             )}
-            <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
               <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><Field type="search" placeholder="Search tasks and notes" aria-label="Search to-dos" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
               <Select aria-label="Sort to-dos" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)}>{TASK_SORTS.map((o) => <option key={o.id} value={o.id}>Sort: {o.label}</option>)}</Select>
             </div>
@@ -2114,7 +2114,7 @@ function Arise({ workspace, setWorkspace, remove, studentOptions }: SectionProps
   return (
     <>
       <AddCard title="A.R.I.S.E. reading records" label="Add record">
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-6">
+        <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-6">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions()}</Select>
           <Field placeholder="Book / text" value={form.book} onChange={(e) => setForm({ ...form, book: e.target.value })} className="md:col-span-2" required />
           <Field placeholder="Score" value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} />
@@ -2140,7 +2140,7 @@ function Behavior({ workspace, setWorkspace, remove, studentOptions, totals }: S
   return (
     <>
       <AddCard title="Behavior points" label="Record points">
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-5">
+        <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions(true)}</Select>
           <Field type="number" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} />
           <Field placeholder="Reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} className="md:col-span-2" />
@@ -2148,7 +2148,7 @@ function Behavior({ workspace, setWorkspace, remove, studentOptions, totals }: S
           <PrimaryButton type="submit"><Plus className="h-4 w-4" /> Record points</PrimaryButton>
         </form>
       </AddCard>
-      <div className="grid gap-4 lg:grid-cols-[.7fr_1.3fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,.7fr)_1.3fr]">
         <Card title="Totals">
           {Object.keys(totals).length ? <div className="space-y-2">{Object.entries(totals).sort((a,b)=>b[1]-a[1]).map(([name,total]) => <div key={name} className="flex justify-between rounded-xl bg-slate-50 px-3 py-2"><span>{name}</span><strong>{total > 0 ? "+" : ""}{total}</strong></div>)}</div> : <Empty>No points yet.</Empty>}
         </Card>
@@ -2169,7 +2169,7 @@ function Attendance({ workspace, setWorkspace, remove, studentOptions, exportAtt
   return (
     <>
       <Card title="Attendance" right={<GhostButton onClick={exportAttendance}>Export CSV</GhostButton>}>
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-5">
+        <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions()}</Select>
           <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <Field placeholder="Class / block" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} />
@@ -2211,9 +2211,9 @@ function Gradebook({ workspace, setWorkspace, remove, studentOptions }: SectionP
   });
   return (
     <>
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="Assignments">
-          <form onSubmit={addAssignment} className="grid gap-3 sm:grid-cols-2">
+          <form onSubmit={addAssignment} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field placeholder="Assignment" value={assignment.title} onChange={(e) => setAssignment({ ...assignment, title: e.target.value })} required />
             <Select value={assignment.category} onChange={(e) => setAssignment({ ...assignment, category: e.target.value })}><option>Classwork</option><option>Quiz</option><option>Test</option><option>Homework</option><option>Project</option></Select>
             <Field type="number" min="0" value={assignment.points} onChange={(e) => setAssignment({ ...assignment, points: Number(e.target.value) })} />
@@ -2223,7 +2223,7 @@ function Gradebook({ workspace, setWorkspace, remove, studentOptions }: SectionP
           <div className="mt-4 space-y-2">{workspace.assignments.map((a) => <div key={a.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm"><div><div className="font-medium">{a.title}</div><div className="text-xs text-slate-500">{a.category} · {a.points} pts · {a.date}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("assignments", a.id)}><Trash2 className="h-4 w-4" /></button></div>)}</div>
         </Card>
         <Card title="Enter score">
-          <form onSubmit={addScore} className="grid gap-3 sm:grid-cols-2">
+          <form onSubmit={addScore} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Select value={score.assignmentId} onChange={(e) => setScore({ ...score, assignmentId: e.target.value })} required><option value="">Choose assignment</option>{workspace.assignments.map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}</Select>
             <Select value={score.student} onChange={(e) => setScore({ ...score, student: e.target.value })} required>{studentOptions()}</Select>
             <Field type="number" placeholder="Points earned" value={score.score} onChange={(e) => setScore({ ...score, score: e.target.value })} />
@@ -2233,7 +2233,7 @@ function Gradebook({ workspace, setWorkspace, remove, studentOptions }: SectionP
         </Card>
       </div>
       <Card title="Student averages">
-        {averages.length ? <div className="grid gap-2 md:grid-cols-3">{averages.map((a) => <div key={a.student} className="rounded-xl bg-slate-50 p-4"><div className="font-medium">{a.student}</div><div className="mt-1 text-2xl font-bold">{a.average == null ? "—" : `${a.average}%`}</div></div>)}</div> : <Empty>Add students to see grade averages.</Empty>}
+        {averages.length ? <div className="grid grid-cols-1 gap-2 md:grid-cols-3">{averages.map((a) => <div key={a.student} className="rounded-xl bg-slate-50 p-4"><div className="font-medium">{a.student}</div><div className="mt-1 text-2xl font-bold">{a.average == null ? "—" : `${a.average}%`}</div></div>)}</div> : <Empty>Add students to see grade averages.</Empty>}
       </Card>
     </>
   );
@@ -2250,7 +2250,7 @@ function Parents({ workspace, setWorkspace, remove, studentOptions }: SectionPro
   return (
     <>
       <AddCard title="Parent communication" label="Log contact">
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
+        <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })}>{studentOptions()}</Select>
           <Field placeholder="Parent / guardian" value={form.guardian} onChange={(e) => setForm({ ...form, guardian: e.target.value })} />
           <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}><option>Sent</option><option>Called</option><option>Left voicemail</option><option>Replied</option><option>Acknowledged</option><option>Needs follow-up</option></Select>
@@ -2276,7 +2276,7 @@ function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }
   return (
     <>
       <AddCard title="Weekly student schedules" label="Add schedule">
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-6">
+        <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-6">
           <Select value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required>{studentOptions()}</Select>
           <Select value={form.day} onChange={(e) => setForm({ ...form, day: e.target.value })}><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option></Select>
           <Field type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
@@ -2287,7 +2287,7 @@ function Schedules({ workspace, setWorkspace, remove, studentOptions, warnings }
       </AddCard>
       {warnings.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex gap-2 font-semibold text-amber-900"><AlertTriangle className="h-5 w-5" /> Schedule overlap</div><div className="mt-2 space-y-1 text-sm text-amber-800">{warnings.map((w) => <div key={w}>{w}</div>)}</div></div>}
       <Card title="Schedule blocks">
-        {workspace.schedules.length ? <div className="grid gap-3 lg:grid-cols-2">{workspace.schedules.map((s) => <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><div className="font-medium">{s.student} · {s.label || "Schedule block"}</div><div className="text-xs text-slate-500">{s.day} · {s.start}–{s.end}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("schedules", s.id)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <Empty>No schedule blocks yet.</Empty>}
+        {workspace.schedules.length ? <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">{workspace.schedules.map((s) => <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><div className="font-medium">{s.student} · {s.label || "Schedule block"}</div><div className="text-xs text-slate-500">{s.day} · {s.start}–{s.end}</div></div><button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("schedules", s.id)}><Trash2 className="h-4 w-4" /></button></div>)}</div> : <Empty>No schedule blocks yet.</Empty>}
       </Card>
     </>
   );
@@ -2333,7 +2333,7 @@ function Emails({ workspace, setWorkspace, remove, toast, onViewTasks, openId }:
     <>
       <Card title="Email organizer">
         <p className="mb-4 text-sm text-slate-600">Paste important school emails here, pull out the action you need to take, and keep a reply draft beside it. Flag the ones that matter, or put them on your to-do list.</p>
-        <form onSubmit={add} className="grid gap-3 md:grid-cols-4">
+        <form onSubmit={add} className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Field placeholder="From" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
           <Field placeholder="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="md:col-span-2" />
           <Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />

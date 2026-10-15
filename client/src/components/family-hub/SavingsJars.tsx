@@ -32,7 +32,7 @@ export default function SavingsJars({ family, setFamily, makeId, say }: SectionP
   return <div className="space-y-6">
     <PageHead eyebrow="Savings jars" title="Saving up" blurb="Give each goal its own jar. Add money as you save and watch it fill. This tracks your plan; it doesn't move real money." />
     {family.jars.length > 0 && <p className="text-sm font-bold text-slate-500">Saved across all jars: <span className="text-lg font-black text-emerald-700">{money(total)}</span></p>}
-    {family.jars.length ? <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{family.jars.map((j) => { const pct = j.target > 0 ? Math.min(100, Math.max(0, (j.saved / j.target) * 100)) : 0; return <li key={j.id} className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08]">
+    {family.jars.length ? <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{family.jars.map((j) => { const pct = j.target > 0 ? Math.min(100, Math.max(0, (j.saved / j.target) * 100)) : 0; return <li key={j.id} className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08]">
       <div className="flex items-start gap-3">
         <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded-b-2xl rounded-t-lg border-2 border-slate-200 bg-slate-50" aria-hidden>
           <div className="absolute inset-x-0 bottom-0 transition-all duration-700" style={{ height: `${pct}%`, background: j.color, opacity: 0.85 }} />
@@ -52,7 +52,7 @@ export default function SavingsJars({ family, setFamily, makeId, say }: SectionP
       </div>
     </li>; })}</ul> : <Panel><Empty icon={<PiggyBank />} title="No jars yet.">Start one for something you're saving toward.</Empty></Panel>}
     <Panel title="New jar">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_auto]">
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="What are you saving for?" className={inputClass} aria-label="Jar name" />
         <input value={target} onChange={(e) => setTarget(e.target.value)} inputMode="decimal" placeholder="Goal $" className={inputClass} aria-label="Goal amount" />
         <button type="submit" className={primary} disabled={!name.trim()}>Create</button>

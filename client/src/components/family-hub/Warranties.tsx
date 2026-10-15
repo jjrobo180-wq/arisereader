@@ -26,7 +26,7 @@ export default function Warranties({ family, setFamily, today, makeId }: Section
   return <div className="space-y-6">
     <PageHead eyebrow="Warranties" title="Covered or not?" blurb="Log big purchases and their warranties, so when something breaks you know right away if it's covered." />
     <Panel title="Add a purchase">
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-2">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input value={item} onChange={(e) => setItem(e.target.value)} maxLength={100} placeholder="What (washer, laptop…)" className={inputClass} aria-label="Item" />
         <input value={store} onChange={(e) => setStore(e.target.value)} maxLength={60} placeholder="Where you bought it" className={inputClass} aria-label="Store" />
         <label className="text-xs font-bold text-slate-500">Bought on<input type="date" value={bought} max={today} onChange={(e) => setBought(e.target.value || today)} className={inputClass + " mt-1"} /></label>

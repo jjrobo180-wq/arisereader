@@ -444,7 +444,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
           {view === "templates" && <section aria-live="polite">
             <h2 className="mb-1 text-lg font-black tracking-tight text-[var(--s-text)]">Build a new hub</h2>
             <p className="mb-4 max-w-md text-sm text-[var(--s-sub)]">Each one adds a ready-made set of apps in a single tap. Add just the ones you want afterward, or remove any of them the same way you would on their own.</p>
-            <ul className="grid gap-3 sm:grid-cols-2">{templates.map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{templates.map((t) => <li key={t.id}>{templateCard(t)}</li>)}</ul>
           </section>}
 
           {view !== "templates" && (browsing

@@ -83,7 +83,7 @@ export default function EyeGazeProgress() {
         )}
 
         {tab==="rewards" && (
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {rewards.length===0 ? <div className="sm:col-span-2 rounded-3xl bg-white border border-sky-100 p-10 text-center font-bold text-slate-500">Keep learning to unlock rewards!</div> :
               rewards.map((r:any)=>(
                 <div key={r.id} className="rounded-3xl bg-white border-2 border-green-100 p-5">

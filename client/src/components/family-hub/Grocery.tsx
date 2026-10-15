@@ -36,13 +36,13 @@ export default function Grocery({ family, setFamily, makeId, say }: SectionProps
     <PageHead eyebrow="Grocery list" title="Shopping, sorted" blurb={`Add what you need and it sorts itself by aisle. Check things off as they go in the cart.${total ? ` Estimated total: $${total.toFixed(2)}.` : ""}`}
       action={open.length > 0 ? <button type="button" onClick={copy} className={plain}><Copy size={16} />Copy list</button> : undefined} />
     <Panel>
-      <form onSubmit={add} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto]">
+      <form onSubmit={add} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto]">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add items (milk, eggs, bread…)" className={inputClass} aria-label="Items to add" />
         <input value={qty} onChange={(e) => setQty(e.target.value)} maxLength={20} placeholder="How many" className={inputClass} aria-label="How many" />
         <button type="submit" className={primary} disabled={!name.trim()}>Add</button>
       </form>
     </Panel>
-    {open.length ? <div className="grid gap-4 lg:grid-cols-2">{aisles.map((a) => <Panel key={a} title={a} eyebrow={`${open.filter((i) => (i.aisle || "Other") === a).length} to get`}>
+    {open.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">{aisles.map((a) => <Panel key={a} title={a} eyebrow={`${open.filter((i) => (i.aisle || "Other") === a).length} to get`}>
       <ul className="divide-y divide-slate-100">{open.filter((i) => (i.aisle || "Other") === a).map((i) => <li key={i.id} className="flex items-center gap-3 py-2">
         <button type="button" onClick={() => toggle(i.id)} aria-label={`Got ${i.name}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-slate-300 text-transparent hover:border-violet-500"><Check size={15} /></button>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">{i.qty && <span className="text-violet-700">{i.qty} </span>}{i.name}</span>

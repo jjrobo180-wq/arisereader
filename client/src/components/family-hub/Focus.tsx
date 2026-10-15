@@ -54,7 +54,7 @@ export default function Focus({ family, setFamily, today, makeId, say }: Section
 
   return <div className="space-y-6">
     <PageHead eyebrow="Focus timer" title="One thing at a time" blurb="Work in focused blocks with short breaks between. A chime tells you when to switch." />
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <Panel>
         <div className="flex flex-col items-center py-4">
           <input value={task} onChange={(e) => setTask(e.target.value)} maxLength={80} placeholder="What are you working on?" className="mb-4 w-full max-w-sm border-b border-slate-200 bg-transparent py-2 text-center text-base font-bold outline-none focus:border-violet-400" aria-label="What you're working on" />

@@ -42,7 +42,7 @@ export function SheetDialogs(p: Props) {
     case "split": return <SplitDialog {...p} />;
     case "dedupe": return <DedupeDialog {...p} />;
     case "versions": return <VersionsDialog {...p} />;
-    case "shortcuts": return <Dialog title="Keyboard shortcuts" onClose={p.close} wide><div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">{SHORTCUTS.map(([k, d]) => <div key={k} className="flex justify-between gap-3 border-b border-slate-100 py-1"><span className="text-slate-700">{d}</span><kbd className="shrink-0 rounded bg-slate-100 px-1.5 font-mono text-xs text-slate-700">{k}</kbd></div>)}</div><p className="mt-3 text-xs text-slate-500">On a Mac, use ⌘ instead of Ctrl.</p></Dialog>;
+    case "shortcuts": return <Dialog title="Keyboard shortcuts" onClose={p.close} wide><div className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">{SHORTCUTS.map(([k, d]) => <div key={k} className="flex justify-between gap-3 border-b border-slate-100 py-1"><span className="text-slate-700">{d}</span><kbd className="shrink-0 rounded bg-slate-100 px-1.5 font-mono text-xs text-slate-700">{k}</kbd></div>)}</div><p className="mt-3 text-xs text-slate-500">On a Mac, use ⌘ instead of Ctrl.</p></Dialog>;
     case "functions": return <FunctionsDialog {...p} />;
     case "ai": return <AiDialog {...p} />;
     case "print": return <PrintDialog {...p} />;
@@ -198,7 +198,7 @@ function ChartDialog({ close, wb, si, calc, commit, chartId }: Props & { chartId
   const data = chartData(wb, si, calc, ch);
   const save = () => { commit((w) => updateSheet(w, si, (s) => ({ ...s, charts: s.charts.map((c) => (c.id === ch.id ? ch : c)) }))); close(); };
   return <Dialog title="Chart editor" onClose={close} wide testId="sheets-chart-dialog" footer={<><button type="button" className={btnGhost} onClick={close}>Cancel</button><button type="button" className={btnPrimary} onClick={save}>Done</button></>}>
-    <div className="grid gap-4 sm:grid-cols-[1fr_300px]">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_300px]">
       <div className="overflow-hidden rounded-xl ring-1 ring-slate-200"><ChartSvg kind={ch.kind} labels={data.labels} series={data.series} title={ch.title} legend={ch.legend} stacked={ch.stacked} width={420} height={280} /></div>
       <div className="space-y-3">
         <div><p className="mb-1 text-xs font-bold text-slate-600">Chart type</p><div className="grid grid-cols-4 gap-1">{CHART_KINDS.map((k) => <button key={k.id} type="button" onClick={() => setCh({ ...ch, kind: k.id })} className={`rounded-md px-1 py-1.5 text-xs font-bold ring-1 ${ch.kind === k.id ? "bg-sky-50 text-sky-800 ring-sky-300" : "ring-slate-200"}`}>{k.label}</button>)}</div></div>
@@ -324,7 +324,7 @@ function FunctionsDialog({ close, startFormula }: Props) {
   return <Dialog title="Functions" onClose={close} wide>
     <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search functions (sum, date, lookup…)" className={`${field} mb-3`} />
     <p className="mb-2 text-xs text-slate-500">{FUNCTION_NAMES.length} functions. Tap one to start a formula with it.</p>
-    <div className="grid gap-1 sm:grid-cols-2">{list.map((f) => <button key={f} type="button" onClick={() => startFormula(`=${f}(`)} className="rounded-lg px-2.5 py-1.5 text-left hover:bg-slate-50">
+    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{list.map((f) => <button key={f} type="button" onClick={() => startFormula(`=${f}(`)} className="rounded-lg px-2.5 py-1.5 text-left hover:bg-slate-50">
       <span className="font-mono text-sm font-bold">{f}</span>{FUNCTION_HELP[f] && <span className="block text-xs text-slate-500">{FUNCTION_HELP[f]}</span>}
     </button>)}</div>
   </Dialog>;

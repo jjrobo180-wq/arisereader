@@ -41,7 +41,7 @@ export default function ForcePasswordChange() {
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-slate-100 p-4">
       <form onSubmit={submit} className="w-full max-w-sm rounded-[1.75rem] bg-white p-7 shadow-[0_30px_90px_rgba(30,34,80,.18)]">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-violet-600 text-white">
+        <div className="mx-auto grid grid-cols-1 h-14 w-14 place-items-center rounded-2xl bg-violet-600 text-white">
           <KeyRound className="h-7 w-7" />
         </div>
         <h1 className="mt-5 text-center text-2xl font-extrabold tracking-tight text-slate-900">Set your password</h1>

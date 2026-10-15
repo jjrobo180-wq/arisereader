@@ -23,7 +23,7 @@ export default function Allowance({ family, setFamily, today, makeId, say }: Sec
 
   return <div className="space-y-6">
     <PageHead eyebrow="Allowance" title="Kids' money" blurb="Track each kid's allowance, chore money and spending. A simple way to learn about saving." />
-    {all.length ? <div className="grid gap-4 md:grid-cols-2">{all.map((k) => { const rows = family.allowance.filter((a) => a.who === k); const bal = rows.reduce((s, a) => s + a.amount, 0); return <Panel key={k} title={k}>
+    {all.length ? <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{all.map((k) => { const rows = family.allowance.filter((a) => a.who === k); const bal = rows.reduce((s, a) => s + a.amount, 0); return <Panel key={k} title={k}>
       <p className={`text-4xl font-black tracking-tight ${bal < 0 ? "text-rose-600" : "text-emerald-700"}`}>{money(bal)}</p>
       <div className="mt-4 grid grid-cols-[6rem_minmax(0,1fr)] gap-2">
         <input value={amount[k] || ""} onChange={(e) => setAmount((a) => ({ ...a, [k]: e.target.value }))} inputMode="decimal" placeholder="$" className={inputClass} aria-label={`Amount for ${k}`} />

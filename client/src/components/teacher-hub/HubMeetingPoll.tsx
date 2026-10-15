@@ -289,7 +289,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
           <button type="button" onClick={onClose} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
         </div>
       )}
-      <div className="grid min-w-0 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 min-w-0 gap-3 md:grid-cols-2">
         <Field placeholder="Meeting name, like IEP meeting for Jordan" aria-label="Meeting name" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={POLL_LIMITS.title} />
         <Field placeholder="Where (room or video link)" aria-label="Where" value={location} onChange={(e) => setLocation(e.target.value)} maxLength={POLL_LIMITS.location} />
       </div>
@@ -356,7 +356,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         {teamHere.length > 0 && (
           <div className="mb-4">
             <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{meeting ? `${meeting.student.split(" ")[0]}'s team` : "My contacts"}</div>
-            <div className="grid gap-2 sm:grid-cols-2">{teamHere.map(personRow)}</div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{teamHere.map(personRow)}</div>
           </div>
         )}
         <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Parents and anyone else</div>
@@ -367,7 +367,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
                 <div className="min-w-0 flex-1"><Field placeholder="Name" aria-label={`Name ${index + 1}`} value={g.name} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, name: e.target.value } : x)))} maxLength={POLL_LIMITS.name} /></div>
                 <button type="button" aria-label={`Remove person ${index + 1}`} onClick={() => setGuests(guests.filter((_, i) => i !== index))} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
               </div>
-              <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 min-w-0 gap-2 sm:grid-cols-2">
                 <Field type="email" inputMode="email" placeholder={via === "self" ? "Email (optional)" : "Email"} aria-label={`Email ${index + 1}`} value={g.email} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, email: e.target.value } : x)))} maxLength={120} />
                 <Field type="tel" inputMode="tel" placeholder="Phone (optional)" aria-label={`Phone ${index + 1}`} value={g.phone} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, phone: e.target.value } : x)))} maxLength={30} />
               </div>
@@ -385,7 +385,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         {meeting && othersTeam.length > 0 && (
           <details className="mt-4 rounded-2xl border border-slate-200 p-2.5">
             <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-slate-800">More people from my contacts ({othersTeam.length})</summary>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">{othersTeam.map(personRow)}</div>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">{othersTeam.map(personRow)}</div>
           </details>
         )}
         {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add each student's team on the Caseload (press Edit on a student), with emails, and they'll be picked here for you.</p>}
@@ -409,7 +409,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
             keep="People may not recognize the sender, and it can land in junk, so let them know to watch for it. Your name shows on it and replies go to the address you choose." />
         </div>
         {via !== "self" && (
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
             <label className="text-xs font-medium text-slate-600">Name on the message
               <Field className="mt-1" aria-label="Name on the email" value={senderName} onChange={(e) => setSenderName(e.target.value)} maxLength={POLL_LIMITS.senderName} />
             </label>

@@ -36,11 +36,11 @@ function Guides() {
     <div className="space-y-5">
       <Section title={<span className="text-2xl">{g.emoji} {g.label}</span>}><p className="text-[16px] leading-relaxed">{g.about}</p></Section>
       <Section title="What matters most"><Panel><ul className="space-y-2.5">{g.keys.map((k) => <li key={k} className="flex gap-3 text-[15px] leading-snug"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: C.duck }} />{k}</li>)}</ul></Panel></Section>
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <Section title="Adapt the plan"><ul className="space-y-1.5">{g.adapt.map((a) => <li key={a} className="text-sm">✓ {a}</li>)}</ul></Section>
         <Section title="Who can help"><ul className="space-y-1.5">{g.help.map((a) => <li key={a} className="text-sm">• {a}</li>)}</ul></Section>
       </div>
-      {g.videos.length > 0 && <Section title="Videos"><div className="grid gap-3 sm:grid-cols-3">{g.videos.map((vid) => { const v = videoById(vid); return v ? <button key={vid} type="button" onClick={() => go("videos", `v:${vid}`)} className="overflow-hidden rounded-2xl bg-white text-left" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><img src={ytThumb(v.yt)} alt="" loading="lazy" className="aspect-video w-full object-cover" /><span className="block p-2 text-[13px] font-bold leading-tight">{v.title}</span><span className="block px-2 pb-2 text-[11px]" style={{ color: C.muted }}>{v.channel}</span></button> : null; })}</div></Section>}
+      {g.videos.length > 0 && <Section title="Videos"><div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{g.videos.map((vid) => { const v = videoById(vid); return v ? <button key={vid} type="button" onClick={() => go("videos", `v:${vid}`)} className="overflow-hidden rounded-2xl bg-white text-left" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><img src={ytThumb(v.yt)} alt="" loading="lazy" className="aspect-video w-full object-cover" /><span className="block p-2 text-[13px] font-bold leading-tight">{v.title}</span><span className="block px-2 pb-2 text-[11px]" style={{ color: C.muted }}>{v.channel}</span></button> : null; })}</div></Section>}
     </div>
   </div>;
 }
@@ -99,7 +99,7 @@ function FirstThen() {
   const [f, setF] = useState(0); const [t, setT] = useState(0); const [custom, setCustom] = useState(""); const [full, setFull] = useState(false);
   const then = custom.trim() ? { e: "🎁", t: custom.trim() } : THENS[t];
   const board = (big: boolean) => <div className="grid grid-cols-2 gap-4" style={{ fontFamily: FONT_HEAD, color: C.ink }}>{[["First", FIRSTS[f]], ["Then", then]].map(([label, x]: any) => <div key={label} className="flex flex-col items-center rounded-[30px] bg-white p-5 text-center" style={{ boxShadow: `inset 0 0 0 4px ${label === "First" ? C.pee : C.duck}` }}><span className={`font-extrabold ${big ? "text-4xl" : "text-xl"}`}>{label}</span><span className={big ? "my-4 text-[9rem] leading-none" : "my-2 text-7xl"}>{x.e}</span><span className={`font-extrabold ${big ? "text-4xl" : "text-xl"}`}>{x.t}</span></div>)}</div>;
-  return <div className="grid gap-6 lg:grid-cols-2">
+  return <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
     <Section title="First–then board" sub="Makes what happens next predictable: first the potty, then something good. Widely used with autistic children and toddlers who resist transitions.">
       <Panel className="space-y-4"><Label text="First"><div className="flex flex-wrap gap-1.5">{FIRSTS.map((x, i) => <Chip key={x.t} on={f === i} onClick={() => setF(i)}>{x.e} {x.t}</Chip>)}</div></Label>
         <Label text="Then"><div className="flex flex-wrap gap-1.5">{THENS.map((x, i) => <Chip key={x.t} on={!custom && t === i} onClick={() => { setT(i); setCustom(""); }}>{x.e} {x.t}</Chip>)}</div></Label>

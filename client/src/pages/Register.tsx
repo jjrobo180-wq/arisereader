@@ -103,7 +103,7 @@ export default function Register({ independent = false }: { independent?: boolea
         <section className={`overflow-hidden rounded-[2rem] border shadow-2xl ${independentStudent ? "border-cyan-300/25 bg-[#111827]" : "border-violet-300/20 bg-[#151326]"}`}>
           <div className={`p-6 sm:p-8 ${independentStudent ? "bg-gradient-to-r from-cyan-500/14 via-violet-500/10 to-fuchsia-500/10" : "bg-gradient-to-r from-violet-500/12 via-fuchsia-500/8 to-cyan-500/8"}`}>
             <div className="flex items-start gap-4">
-              <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ${independentStudent ? "bg-cyan-400 text-slate-950" : "bg-violet-500 text-white"}`}>
+              <div className={`grid grid-cols-1 h-14 w-14 shrink-0 place-items-center rounded-2xl ${independentStudent ? "bg-cyan-400 text-slate-950" : "bg-violet-500 text-white"}`}>
                 {independentStudent ? <UserRound className="h-7 w-7" /> : <School className="h-7 w-7" />}
               </div>
               <div>
@@ -117,7 +117,7 @@ export default function Register({ independent = false }: { independent?: boolea
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5 p-6 sm:p-8">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2"><Label htmlFor="firstName">First name</Label><Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Alex" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>
               <div className="space-y-2"><Label htmlFor="lastName">Last name</Label><Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Martinez" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>
             </div>
@@ -128,7 +128,7 @@ export default function Register({ independent = false }: { independent?: boolea
               {!usernameEdited && firstName && lastName && <p className="text-xs text-slate-400">Suggested from your name. You can change it.</p>}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 4 characters" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>
               <div className="space-y-2"><Label htmlFor="confirm">Confirm password</Label><Input id="confirm" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Type it again" required className="h-12 border-white/10 bg-[#0f0d1d] text-white" /></div>
             </div>
@@ -179,7 +179,7 @@ export default function Register({ independent = false }: { independent?: boolea
           </form>
         </section>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {independentStudent ? <button type="button" onClick={() => navigate("/register")} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><School className="h-5 w-5 text-violet-300" /><p className="mt-2 font-black">Joining through a school?</p><p className="text-xs text-slate-400">Open the school-connected signup.</p></button> : <button type="button" onClick={() => navigate("/register-independent")} className="rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-4 text-left hover:bg-cyan-500/10"><UserRound className="h-5 w-5 text-cyan-300" /><p className="mt-2 font-black">Not joining through a school?</p><p className="text-xs text-slate-400">Use Independent Student Signup instead.</p></button>}
           <button type="button" onClick={() => navigate("/teacher-signup")} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:bg-white/10"><GraduationCap className="h-5 w-5 text-fuchsia-300" /><p className="mt-2 font-black">Are you a teacher?</p><p className="text-xs text-slate-400">Open teacher signup.</p></button>
         </div>

@@ -11,12 +11,12 @@ export default function WorldLoadingOverlay({ label = "Traveling to the next wor
       : "from-cyan-400 via-violet-500 to-fuchsia-500";
 
   return (
-    <div className="fixed inset-0 z-[1000] grid place-items-center overflow-hidden bg-[#050714] text-white">
+    <div className="fixed inset-0 z-[1000] grid grid-cols-1 place-items-center overflow-hidden bg-[#050714] text-white">
       <div className={"absolute inset-0 bg-gradient-to-br "+glow+" opacity-20"} />
       <div className="absolute -left-20 top-1/4 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl animate-pulse" />
       <div className="absolute -right-20 bottom-1/4 h-72 w-72 rounded-full bg-fuchsia-500/20 blur-3xl animate-pulse" />
       <div className="relative flex max-w-[90vw] flex-col items-center text-center">
-        <div className="relative mb-7 grid h-36 w-36 place-items-center">
+        <div className="relative mb-7 grid grid-cols-1 h-36 w-36 place-items-center">
           <div className={"absolute inset-0 rounded-full bg-gradient-to-r "+glow+" opacity-35 blur-xl animate-pulse"} />
           <div className={"absolute inset-1 rounded-full bg-gradient-to-r "+glow+" animate-spin [animation-duration:2.4s]"} />
           <div className="absolute inset-3 rounded-full bg-[#070b1b]" />

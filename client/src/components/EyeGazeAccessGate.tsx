@@ -59,11 +59,11 @@ export default function EyeGazeAccessGate({ path, anyOf, children }: { path: str
   }, [isChild, isGameArea, token, controls?.gameDailyMinutes]);
 
   if (!isChild) return <>{children}</>;
-  if (!controls) return <div className="min-h-screen grid place-items-center bg-slate-50 font-black text-slate-700">Loading your learning plan…</div>;
+  if (!controls) return <div className="min-h-screen grid grid-cols-1 place-items-center bg-slate-50 font-black text-slate-700">Loading your learning plan…</div>;
   if (!(anyOf || [path]).some(item => pathAllowed(item, controls))) return <Redirect to="/eye-gaze-home" />;
   if (isGameArea && controls.gameDailyMinutes > 0 && gameLimitReached) {
     return (
-      <main className="min-h-screen grid place-items-center bg-slate-50 p-6 text-slate-950">
+      <main className="min-h-screen grid grid-cols-1 place-items-center bg-slate-50 p-6 text-slate-950">
         <div className="max-w-lg rounded-[2rem] border-2 border-amber-200 bg-white p-7 text-center shadow-xl">
           <div className="text-5xl">⏰</div>
           <h1 className="mt-4 text-2xl font-black">Game time is finished for today</h1>

@@ -496,7 +496,7 @@ export default function EyeGazeBuddyWorld() {
 
           <section className="mt-5 rounded-[2rem] bg-white border-2 border-violet-100 p-5 shadow-lg">
             <div className="text-xs uppercase tracking-widest font-black text-violet-600">How do you want to play?</div>
-            <div className="mt-3 grid sm:grid-cols-3 gap-3">
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
               {([
                 ["explore", "👆", "Explore", "Pick anything. Buddy says the word and phrase."],
                 ["find", "👀", "Find It", "Buddy asks for a word. Find the right thing."],

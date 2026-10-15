@@ -74,7 +74,7 @@ function Kpi({ icon: Icon, tone, label, value, sub, delta, testId }: { icon: Luc
   return (
     <div data-stat={testId} className="min-w-0 rounded-2xl border border-card-border bg-card p-3 shadow-sm sm:p-4">
       <div className="flex items-center gap-2">
-        <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg", TONE_TILE[tone])}><Icon className="h-4 w-4" /></span>
+        <span className={cn("grid grid-cols-1 h-8 w-8 shrink-0 place-items-center rounded-lg", TONE_TILE[tone])}><Icon className="h-4 w-4" /></span>
         <span className="min-w-0 text-xs font-semibold leading-tight text-muted-foreground">{label}</span>
       </div>
       <div className="mt-2 text-2xl font-black leading-none tabular-nums sm:text-[28px]">{value}</div>
@@ -343,7 +343,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
         )}
       </ChartCard>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 min-w-0 gap-4 xl:grid-cols-2">
         <ChartCard
           id="stats-activity" icon={Activity} tone="emerald" title="Students using the app"
           description={`Active students and sign-ins ${week ? "each week" : "each day"}. A student is active if they opened the app or did anything in it.`}
@@ -384,7 +384,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
         </ChartCard>
       </div>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 min-w-0 gap-4 lg:grid-cols-2">
         <ChartCard
           id="stats-hours" icon={Clock} tone="blue" title="When students use it"
           description={`Students on the app in each hour of the day (Mountain Time), ${rangeLabel}.`}
@@ -434,7 +434,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
       </ChartCard>
 
       {/* people */}
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 min-w-0 gap-4 lg:grid-cols-2">
         <AdminSection id="stats-top" icon={Trophy} tone="amber" title="Most active students" description={`Days on the app, quizzes and points, ${rangeLabel}.`} bodyClassName="p-2 sm:p-3">
           {stats.topStudents.length === 0 ? <EmptyState title={`No student activity in the ${rangeLabel}.`} className="m-2" /> : (
             <ol className="space-y-0.5">
@@ -466,7 +466,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
         </AdminSection>
       </div>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 min-w-0 gap-4 lg:grid-cols-2">
         <AdminSection
           id="stats-quiet" icon={AlertCircle} tone="red" title="Haven't been on lately" count={stats.quietCount}
           description={`Students who haven't opened the app in ${QUIET_AFTER_DAYS}+ days. A good list for a nudge.`}
@@ -501,7 +501,7 @@ export default function AdminStats({ token, onOpenStudent }: { token: string; on
         </AdminSection>
       </div>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 min-w-0 gap-4 lg:grid-cols-3">
         <AdminSection id="stats-schools" icon={School} tone="violet" title="Schools" description={`Students active ${rangeLabel}, out of each school's students.`}>
           {stats.schools.length === 0 ? <EmptyState title="No schools yet." /> : (
             <div className="space-y-3">

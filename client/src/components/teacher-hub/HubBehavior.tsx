@@ -151,7 +151,7 @@ export default function HubBehavior({ legacy }: { legacy: ReactNode }) {
         </li>)}</ul> : <Empty>No one is asking. Students ask from their A.R.I.S.E. account{data.settings.studentAsk ? "" : " once you turn that on in Settings"}.</Empty>}
       </Card>
       <Card title={`Out now · ${out.length} of ${data.settings.maxOut}`}>
-        {out.length ? <ul className="grid gap-2 sm:grid-cols-2">{out.map((p) => { const m = minutesOut({ out_at: p.outAt, back_at: null }, serverNow), over = m > p.limit;
+        {out.length ? <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">{out.map((p) => { const m = minutesOut({ out_at: p.outAt, back_at: null }, serverNow), over = m > p.limit;
           return <li key={p.id} className={`flex items-center gap-3 rounded-2xl border-2 p-3 ${over ? "border-rose-400 bg-rose-50" : "border-amber-300 bg-amber-50"}`}>
             <div className="min-w-0 flex-1"><b>{nameOf(p.studentId)}</b><div className="text-sm">{p.place}</div></div>
             <div className={`text-2xl font-black tabular-nums ${over ? "text-rose-700" : "text-amber-900"}`}>{clock(m)}</div>
@@ -176,7 +176,7 @@ export default function HubBehavior({ legacy }: { legacy: ReactNode }) {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{data.settings.behaviors.filter((b) => b.points >= 0).map((b) => <button key={b.id} type="button" onClick={() => void give(sheet, { behaviorId: b.id })} className="flex min-h-16 items-center gap-2 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-2.5 text-left active:scale-95"><span className="text-2xl" aria-hidden>{b.emoji}</span><span className="min-w-0 flex-1 text-sm font-semibold leading-tight">{b.label}</span><span className="font-black text-emerald-700">+{b.points}</span></button>)}</div></div>
         <div><p className="mb-2 text-xs font-bold uppercase tracking-wide text-rose-700">Needs work</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{data.settings.behaviors.filter((b) => b.points < 0).map((b) => <button key={b.id} type="button" onClick={() => void give(sheet, { behaviorId: b.id })} className="flex min-h-16 items-center gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50 p-2.5 text-left active:scale-95"><span className="text-2xl" aria-hidden>{b.emoji}</span><span className="min-w-0 flex-1 text-sm font-semibold leading-tight">{b.label}</span><span className="font-black text-rose-700">{b.points}</span></button>)}</div></div>
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
           <Field placeholder="Add a note (optional)" value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} />
           <button type="button" disabled={!note.trim()} onClick={() => void give(sheet, { label: "Note", points: 0 })} className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-semibold disabled:opacity-40">Send note only</button>
         </div>
@@ -196,7 +196,7 @@ export default function HubBehavior({ legacy }: { legacy: ReactNode }) {
 function StartPass({ students, places, onStart }: { students: Student[]; places: BehaviorSettings["places"]; onStart: (studentId: number, place: string) => void }) {
   const [sid, setSid] = useState(0);
   const [place, setPlace] = useState(places[0]?.id ?? "");
-  return <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
     <select value={sid} onChange={(e) => setSid(Number(e.target.value))} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Student"><option value={0}>Pick a student</option>{students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
     <select value={place} onChange={(e) => setPlace(e.target.value)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Where">{places.map((p) => <option key={p.id} value={p.id}>{p.label} ({p.minutes} min)</option>)}</select>
     <PrimaryButton disabled={!sid} onClick={() => onStart(sid, place)}><DoorOpen className="h-4 w-4" /> Start pass</PrimaryButton>
@@ -245,7 +245,7 @@ function SettingsCard({ settings, save }: { settings: BehaviorSettings; save: (s
         <button type="button" onClick={() => setS({ ...s, places: s.places.filter((_, k) => k !== i) })} aria-label={`Remove ${p.label}`} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
       </li>)}</ul>
       <button type="button" onClick={() => setS({ ...s, places: [...s.places, { id: "", label: "New place", minutes: 5 }] })} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-teal-800"><Plus className="h-4 w-4" />Add a place</button>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm font-semibold">Students out at once<Field type="number" min={1} max={30} value={s.maxOut} onChange={(e) => setS({ ...s, maxOut: Number(e.target.value) })} className="mt-1" /></label>
       </div>
       <label className="mt-3 flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={s.studentAsk} onChange={(e) => setS({ ...s, studentAsk: e.target.checked })} />Students can ask for a pass from their own A.R.I.S.E. account</label>

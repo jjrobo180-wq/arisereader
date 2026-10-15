@@ -508,7 +508,7 @@ export default function WorkHubTour() {
         <div className="h-1 w-full bg-slate-100">
           <div className="h-full bg-violet-600 transition-all duration-300" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
         </div>
-        <button type="button" onClick={() => void finish()} aria-label="Close tour" className="absolute right-2 top-3 grid h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" data-testid="todo-tour-close">
+        <button type="button" onClick={() => void finish()} aria-label="Close tour" className="absolute right-2 top-3 grid grid-cols-1 h-9 w-9 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" data-testid="todo-tour-close">
           <X className="h-4 w-4" />
         </button>
         <div className="px-5 pb-1 pt-4">

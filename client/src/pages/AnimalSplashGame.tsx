@@ -112,11 +112,11 @@ export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
     <button type="button" onClick={onBack} className="min-h-12 rounded-2xl border-2 border-slate-200 bg-white px-4 font-black shadow-sm"><ArrowLeft className="mr-2 inline h-5 w-5"/> Games</button>
     <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.2em] text-sky-700">A.R.I.S.E. 2.0 · Eye Gazer Voice Play</p><h1 className="truncate text-xl font-black sm:text-2xl">Animal Splash 2.0</h1></div>
     <div className="hidden min-w-[210px] sm:block"><div className="flex justify-between text-[10px] font-black uppercase tracking-wider text-slate-500"><span>{completed} of {ANIMALS.length}</span><span>{progress}%</span></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all" style={{width:`${progress}%`}}/></div></div>
-    <button type="button" onClick={reset} className="grid h-12 w-12 place-items-center rounded-2xl border-2 border-slate-200 bg-white shadow-sm" aria-label="Start over"><RotateCcw className="h-5 w-5"/></button>
+    <button type="button" onClick={reset} className="grid grid-cols-1 h-12 w-12 place-items-center rounded-2xl border-2 border-slate-200 bg-white shadow-sm" aria-label="Start over"><RotateCcw className="h-5 w-5"/></button>
    </div>
   </header>
 
-  <section className="mx-auto grid w-full max-w-[1500px] gap-3 p-2 sm:p-3 md:grid-cols-[1.05fr_.95fr] md:gap-4 xl:grid-cols-[1.12fr_.88fr]">
+  <section className="mx-auto grid grid-cols-1 w-full max-w-[1500px] gap-3 p-2 sm:p-3 md:grid-cols-[minmax(0,1.05fr)_.95fr] md:gap-4 xl:grid-cols-[minmax(0,1.12fr)_.88fr]">
    <div className="min-w-0 rounded-[2.25rem] border-4 border-white/90 bg-white/88 p-3 shadow-2xl backdrop-blur-xl sm:p-5">
     <div className="mb-2 overflow-hidden rounded-[1.35rem] border-4 border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-2.5 text-center shadow-inner sm:mb-3 sm:rounded-[1.6rem] sm:p-3" aria-live="polite">
      <div className="flex items-center justify-center gap-2 text-sky-900">{status==="listening"?<Mic className="h-6 w-6 animate-pulse"/>:status==="asking"&&!micAvailable?<MicOff className="h-6 w-6"/>:<Volume2 className="h-6 w-6"/>}<p className="text-lg font-black sm:text-xl xl:text-2xl">{message}</p></div>
@@ -129,7 +129,7 @@ export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/65 to-transparent px-3 pb-3 pt-10 text-left text-white"><p className="text-lg font-black capitalize sm:text-xl">{animal.name}</p><p className="text-[9px] font-black uppercase tracking-wider text-white/75">gaze · tap · drag</p></div>
       {selectedNow&&<div className="absolute right-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-[10px] font-black text-slate-950 shadow">READY</div>}
      </button>})}
-    </div>:<div className="grid min-h-[430px] place-items-center rounded-[2rem] border-4 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-8 text-center"><div><Sparkles className="mx-auto h-16 w-16 text-amber-500"/><h2 className="mt-3 text-4xl font-black">All {ANIMALS.length} animals!</h2><p className="mt-2 text-lg font-bold text-slate-600">You listened, talked, and named the whole Animal Splash crew.</p><button type="button" onClick={reset} className="mt-6 min-h-16 rounded-2xl bg-emerald-600 px-8 text-xl font-black text-white shadow-lg">Play Again</button></div></div>}
+    </div>:<div className="grid grid-cols-1 min-h-[430px] place-items-center rounded-[2rem] border-4 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-8 text-center"><div><Sparkles className="mx-auto h-16 w-16 text-amber-500"/><h2 className="mt-3 text-4xl font-black">All {ANIMALS.length} animals!</h2><p className="mt-2 text-lg font-bold text-slate-600">You listened, talked, and named the whole Animal Splash crew.</p><button type="button" onClick={reset} className="mt-6 min-h-16 rounded-2xl bg-emerald-600 px-8 text-xl font-black text-white shadow-lg">Play Again</button></div></div>}
    </div>
 
    {selected && status==="choose" && (
@@ -148,7 +148,7 @@ export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
           <h2 className="truncate text-2xl font-black capitalize">{selected.name}</h2>
           <p className="mt-1 text-xs font-bold text-slate-600">Drag this big picture straight into the water below — or just tap the water.</p>
         </div>
-        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-sky-100 text-sky-700">
+        <div className="grid grid-cols-1 h-14 w-14 shrink-0 place-items-center rounded-full bg-sky-100 text-sky-700">
           <Waves className="h-7 w-7"/>
         </div>
       </div>
@@ -165,7 +165,7 @@ export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
       <div className="animal-water-surface absolute inset-x-[-8%] top-[1%] h-12 rounded-[50%] border-t-[5px] border-white/65 bg-gradient-to-b from-white/45 via-cyan-100/25 to-transparent"/>
       <div className="animal-water-wave absolute inset-x-[-5%] top-[9%] h-7 rounded-[50%] border-t-4 border-white/35"/>
       <div className="animal-water-wave animal-water-wave-2 absolute inset-x-[5%] top-[21%] h-6 rounded-[50%] border-t-4 border-cyan-50/25"/>
-      {!activeAnimal&&<div className="absolute inset-0 grid place-items-center p-5"><div className="rounded-[1.7rem] border-2 border-white/75 bg-white/88 px-5 py-4 text-center text-sky-950 shadow-xl backdrop-blur"><Waves className="mx-auto h-11 w-11"/><p className="mt-1 text-xl font-black sm:text-2xl">{selected?`Put the ${selected.name} in!`:"Pick an animal first"}</p><p className="mt-1 text-[10px] font-black uppercase tracking-wider">Drag here · tap water · or gaze</p></div></div>}
+      {!activeAnimal&&<div className="absolute inset-0 grid grid-cols-1 place-items-center p-5"><div className="rounded-[1.7rem] border-2 border-white/75 bg-white/88 px-5 py-4 text-center text-sky-950 shadow-xl backdrop-blur"><Waves className="mx-auto h-11 w-11"/><p className="mt-1 text-xl font-black sm:text-2xl">{selected?`Put the ${selected.name} in!`:"Pick an animal first"}</p><p className="mt-1 text-[10px] font-black uppercase tracking-wider">Drag here · tap water · or gaze</p></div></div>}
       {activeAnimal&&<div className={`animal-in-water absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2 ${status==="splash"?"animal-splash-enter":""}`}><img src={activeAnimal.image} alt={`Real ${activeAnimal.name} in the water`} className="h-44 w-44 rounded-[2rem] border-4 border-white object-cover shadow-2xl sm:h-52 sm:w-52"/><div className="animal-ripple absolute inset-x-[-42px] bottom-[-15px] h-10 rounded-[50%] border-4 border-white/55 bg-white/14"/></div>}
       {status==="splash"&&<><div className="animal-splash-ring absolute left-1/2 top-[55%] h-24 w-52 -translate-x-1/2 rounded-[50%] border-[9px] border-white/80"/>{Array.from({length:14}).map((_,i)=><span key={i} className="animal-droplet absolute left-1/2 top-[48%] h-3 w-3 rounded-full bg-white/90" style={{transform:`rotate(${i*25.7}deg) translateY(-70px)`}}/>)}</>}
     </button>
@@ -174,7 +174,7 @@ export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
    </div>
   </section>
 
-  <details className="mx-auto mb-6 max-w-[1500px] px-4 text-xs text-slate-600"><summary className="cursor-pointer font-bold">Photo & sound sources</summary><div className="mt-2 rounded-xl bg-white/80 p-3"><p>Real animal photographs are served from Wikimedia Commons. Splash audio uses the public-domain water recording from Wikimedia Commons/PDSounds.</p><ul className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">{ANIMALS.map(a=><li key={a.id}>{a.credit}</li>)}</ul></div></details>
+  <details className="mx-auto mb-6 max-w-[1500px] px-4 text-xs text-slate-600"><summary className="cursor-pointer font-bold">Photo & sound sources</summary><div className="mt-2 rounded-xl bg-white/80 p-3"><p>Real animal photographs are served from Wikimedia Commons. Splash audio uses the public-domain water recording from Wikimedia Commons/PDSounds.</p><ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">{ANIMALS.map(a=><li key={a.id}>{a.credit}</li>)}</ul></div></details>
 
   <style>{`
    .animal-caustics{background:repeating-radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.28) 0 1px,transparent 2px 26px);animation:animalCaustics 9s linear infinite}

@@ -79,9 +79,9 @@ export default function Trips({ family, setFamily, today, makeId, say }: Section
         {trip.notes && <p className="mt-4 whitespace-pre-wrap text-sm text-white/85">{trip.notes}</p>}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Panel eyebrow="Itinerary" title="Day-by-day plan">
-          <form onSubmit={addStop} className="mb-5 grid gap-2 sm:grid-cols-[150px_110px_minmax(0,1fr)_100px_auto]">
+          <form onSubmit={addStop} className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-[150px_110px_minmax(0,1fr)_100px_auto]">
             <input type="date" value={stop.date} min={trip.start || undefined} max={trip.end || undefined} onChange={(e) => setStop({ ...stop, date: e.target.value })} aria-label="Day" className={inputClass} />
             <input type="time" value={stop.time} onChange={(e) => setStop({ ...stop, time: e.target.value })} aria-label="Time" className={inputClass} />
             <input value={stop.title} maxLength={160} onChange={(e) => setStop({ ...stop, title: e.target.value })} placeholder="Aquarium, check in, dinner at…" aria-label="Plan" className={inputClass} />
@@ -139,9 +139,9 @@ export default function Trips({ family, setFamily, today, makeId, say }: Section
   return <div className="space-y-6">
     <PageHead eyebrow="Trips" title="Trip planner" blurb="Plan vacations and weekend getaways: dates, a day-by-day plan, a budget and a packing list for every person."
       action={<div className="flex flex-wrap items-center gap-2">{upcoming.length > 0 && <ShareButton target="trips" title="Our trips" say={say} />}<button onClick={() => setEditing(blankTrip(makeId()))} className={primary + " min-h-11 px-5"}><Plus size={18} /> Plan a trip</button></div>} />
-    {upcoming.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{upcoming.map(tripCard)}</div>
+    {upcoming.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{upcoming.map(tripCard)}</div>
       : <Panel><Empty icon={<Plane size={26} />} title="No trips planned" action={<button onClick={() => setEditing(blankTrip(makeId()))} className={soft}><Plus size={16} /> Plan a trip</button>}>Road trip, beach week or a visit to grandma's. Start with a name and dates.</Empty></Panel>}
-    {past.length > 0 && <Panel eyebrow="Memories" title="Past trips"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{past.map(tripCard)}</div></Panel>}
+    {past.length > 0 && <Panel eyebrow="Memories" title="Past trips"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{past.map(tripCard)}</div></Panel>}
     {editing && <TripModal trip={editing} setTrip={setEditing} onSave={saveBasics} onClose={() => setEditing(null)} />}
   </div>;
 }

@@ -266,7 +266,7 @@ function Menu(props: {
             ))}
           </div>
         </div>
-        <div className="relative mt-8 grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+        <div className="relative mt-8 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.25fr)_1fr]">
           <div>
             <button disabled={busy} onClick={props.onQuick} className="pb-btn group relative flex min-h-[86px] w-full items-center justify-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-r from-yellow-300 via-amber-300 to-orange-400 text-2xl font-black italic uppercase text-slate-950 shadow-[0_12px_0_#b45309,0_30px_60px_rgba(251,191,36,.35)] disabled:opacity-60 sm:text-3xl">
               {busy ? <Loader2 className="h-8 w-8 animate-spin" /> : <Play className="h-8 w-8 fill-current" />} Play now
@@ -275,7 +275,7 @@ function Menu(props: {
             {lobbies.length > 0 && (
               <div className="mt-5">
                 <h3 className="mb-2 text-xs font-black uppercase tracking-[.25em] text-slate-400">Open rooms</h3>
-                <div className="grid gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {lobbies.slice(0, 5).map((l) => (
                     <button key={l.code} disabled={busy} onClick={() => props.onJoin(l.code)} className="pb-btn flex min-h-14 items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 text-left backdrop-blur">
                       <span><b className="block">{l.hostName}'s {l.quick ? "match" : "room"}</b><small className="font-bold text-slate-400">{l.humans} reader{l.humans === 1 ? "" : "s"} · {l.phase === "lobby" ? "in lobby" : "match in progress"}</small></span>
@@ -308,7 +308,7 @@ function Menu(props: {
         </div>
         {error && <p className="relative mt-5 rounded-2xl border border-red-400/30 bg-red-500/15 p-3 font-bold text-red-100">{error}</p>}
       </section>
-      <section className="mx-auto mt-6 grid max-w-6xl gap-3 sm:grid-cols-3">
+      <section className="mx-auto mt-6 grid grid-cols-1 max-w-6xl gap-3 sm:grid-cols-3">
         {WEAPONS.map((w, i) => (
           <div key={w.id} className="rounded-3xl border border-white/10 bg-black/25 p-5 backdrop-blur">
             <p className="text-xs font-black uppercase tracking-[.2em] text-slate-400">Slot {i + 1}</p>
@@ -324,7 +324,7 @@ function Menu(props: {
       </section>
       <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-white/10 bg-black/25 p-5 text-sm font-bold text-slate-300 backdrop-blur">
         <h3 className="mb-2 text-xs font-black uppercase tracking-[.25em] text-slate-400">Controls</h3>
-        <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
           {[["WASD", "Move"], ["Mouse", "Aim"], ["Left click", "Fire"], ["Right click", "Aim down sights / scope"], ["Shift", "Sprint"], ["Space", "Jump"], ["C / Ctrl", "Crouch"], ["R", "Reload"], ["1 2 3 / wheel / Q", "Switch marker"], ["Tab", "Scoreboard"], ["Esc", "Pause & settings"], ["Touch", "Left stick moves · drag right side to aim"]].map(([k, v]) => (
             <div key={k} className="flex items-center gap-2"><kbd className="min-w-[64px] rounded-lg border border-white/15 bg-white/10 px-2 py-0.5 text-center text-xs font-black text-white">{k}</kbd>{v}</div>
           ))}
@@ -359,7 +359,7 @@ function LobbyView({ meta, myId, error, onAction, onLeave }: { meta: RoomMeta; m
       <section className="mx-auto mt-5 max-w-5xl rounded-[2rem] border border-white/10 bg-black/30 p-5 shadow-2xl backdrop-blur-xl sm:p-8">
         <p className="text-xs font-black uppercase tracking-[.3em] text-cyan-300">{meta.publicLobby ? "Open room" : "Private room"} · share the code with friends</p>
         <h1 className="mt-2 text-4xl font-black italic sm:text-5xl">Pick your squad</h1>
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           {([0, 1] as Team[]).map((team) => {
             const list = meta.players.filter((p) => p.team === team);
             return (
@@ -368,7 +368,7 @@ function LobbyView({ meta, myId, error, onAction, onLeave }: { meta: RoomMeta; m
                   <h2 className="text-2xl font-black italic uppercase" style={{ color: TEAM_CSS[team] }}>{TEAM_NAMES[team]}</h2>
                   <span className="text-sm font-black text-slate-300">{list.length}/{PB.MAX_PLAYERS / 2}</span>
                 </div>
-                <div className="mt-3 grid gap-2">
+                <div className="mt-3 grid grid-cols-1 gap-2">
                   {list.map((p) => (
                     <div key={p.id} className="flex items-center justify-between rounded-2xl bg-black/35 px-3 py-3">
                       <span className="flex items-center gap-2 font-black">
@@ -495,12 +495,12 @@ function GameView(props: {
       {hud.scoped && <ScopeOverlay />}
 
       {!game && !fatal && (
-        <div className="pb-bg absolute inset-0 grid place-items-center">
+        <div className="pb-bg absolute inset-0 grid grid-cols-1 place-items-center">
           <div className="text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-cyan-300" /><p className="mt-3 text-lg font-black italic">Inflating bunkers…</p></div>
         </div>
       )}
       {fatal && (
-        <div className="pb-bg absolute inset-0 grid place-items-center p-6">
+        <div className="pb-bg absolute inset-0 grid grid-cols-1 place-items-center p-6">
           <div className="max-w-md rounded-3xl border border-white/10 bg-black/50 p-6 text-center"><p className="text-lg font-black">{fatal}</p><button onClick={props.onLeave} className="pb-btn mt-4 rounded-2xl bg-cyan-300 px-6 py-3 font-black text-slate-950">Back</button></div>
         </div>
       )}
@@ -556,7 +556,7 @@ function GameView(props: {
 
           {/* countdown */}
           {hud.phase === "countdown" && secs > 0 && (
-            <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <div className="pointer-events-none absolute inset-0 grid grid-cols-1 place-items-center">
               <div className="text-center">
                 <p className="pb-glow text-lg font-black uppercase tracking-[.3em] text-white/90">Match starting</p>
                 <p key={secs} className="pb-count pb-glow text-[9rem] font-black italic leading-none text-yellow-300">{secs}</p>
@@ -587,9 +587,9 @@ function GameView(props: {
           )}
 
           {showClickToPlay && !paused && hud.phase !== "lobby" && (
-            <div className="absolute inset-0 grid place-items-center bg-black/35 backdrop-blur-[2px]" onClick={() => game.requestLock()}>
+            <div className="absolute inset-0 grid grid-cols-1 place-items-center bg-black/35 backdrop-blur-[2px]" onClick={() => game.requestLock()}>
               <div className="pointer-events-none text-center">
-                <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-white/90 text-slate-950 shadow-2xl"><Play className="h-9 w-9 fill-current" /></div>
+                <div className="mx-auto grid grid-cols-1 h-20 w-20 place-items-center rounded-full bg-white/90 text-slate-950 shadow-2xl"><Play className="h-9 w-9 fill-current" /></div>
                 <p className="pb-glow mt-4 text-3xl font-black italic uppercase">Click to play</p>
                 <p className="mt-1 text-sm font-bold text-white/80">WASD move · Mouse aim · Click fire · Right-click aim · Shift sprint · Space jump · C crouch · R reload · 1-3 markers</p>
                 <p className="mt-2 text-sm font-black text-yellow-200">Press Esc any time to open the menu or leave the match</p>
@@ -599,7 +599,7 @@ function GameView(props: {
           )}
 
           {confirmLeave && (
-            <div className="absolute inset-0 grid place-items-center bg-black/55 p-4 backdrop-blur-sm">
+            <div className="absolute inset-0 grid grid-cols-1 place-items-center bg-black/55 p-4 backdrop-blur-sm">
               <div className="w-full max-w-sm rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5 text-center shadow-2xl">
                 <h2 className="text-2xl font-black italic uppercase">Leave the match?</h2>
                 <p className="mt-1 text-sm font-bold text-slate-300">A bot will take your spot. You can jump back in any time.</p>
@@ -650,7 +650,7 @@ function ScoreTop({ scores, secs, myTeam }: { scores: [number, number]; secs: nu
           </div>
         </div>
       ))}
-      <div className="order-2 grid min-w-[70px] place-items-center rounded-xl border-2 border-white/25 bg-black/70 px-2 shadow-xl">
+      <div className="order-2 grid grid-cols-1 min-w-[70px] place-items-center rounded-xl border-2 border-white/25 bg-black/70 px-2 shadow-xl">
         <div className="text-center">
           <div className="text-[9px] font-black uppercase tracking-widest text-yellow-200">{secs === null ? "Prism" : "Time"}</div>
           <div className="text-lg font-black tabular-nums leading-none sm:text-xl">{secs === null ? "—" : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`}</div>
@@ -760,7 +760,7 @@ function Scoreboard({ meta, myId, scores, final, host, secs, onAction, onLeave }
             {mvp && mvp.tags > 0 && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow-300/20 px-3 py-1 text-sm font-black text-yellow-200"><Crown className="h-4 w-4" /> MVP: {mvp.name} · {mvp.tags} splats</p>}
           </div>
         )}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {([0, 1] as Team[]).map((t) => (
             <div key={t} className="overflow-hidden rounded-2xl border" style={{ borderColor: TEAM_CSS[t] + "66" }}>
               <div className="flex items-center justify-between px-3 py-2" style={{ background: TEAM_CSS[t] + "33" }}>
@@ -795,11 +795,11 @@ function Scoreboard({ meta, myId, scores, final, host, secs, onAction, onLeave }
 
 function PauseMenu({ settings, onSettings, onApplyQuality, onResume, onLeave, quality }: { settings: GameSettings; onSettings: (s: GameSettings) => void; onApplyQuality: (s: GameSettings) => void; onResume: () => void; onLeave: () => void; quality: string }) {
   return (
-    <div className="absolute inset-0 grid place-items-center bg-black/55 p-4 backdrop-blur-sm">
+    <div className="absolute inset-0 grid grid-cols-1 place-items-center bg-black/55 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5 shadow-2xl">
         <h2 className="text-3xl font-black italic uppercase">Paused</h2>
         <SettingsFields settings={settings} onChange={onSettings} onQuality={(q) => onApplyQuality({ ...settings, quality: q })} activeQuality={quality} />
-        <div className="mt-5 grid gap-2">
+        <div className="mt-5 grid grid-cols-1 gap-2">
           <button onClick={onResume} className="pb-btn flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-cyan-300 font-black uppercase text-slate-950"><Play className="h-4 w-4 fill-current" /> Resume</button>
           <button onClick={onLeave} className="pb-btn flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 font-black uppercase"><LogOut className="h-4 w-4" /> Leave match</button>
         </div>
@@ -810,7 +810,7 @@ function PauseMenu({ settings, onSettings, onApplyQuality, onResume, onLeave, qu
 
 function SettingsPanel({ settings, onChange, onClose }: { settings: GameSettings; onChange: (s: GameSettings) => void; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid grid-cols-1 place-items-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-[1.75rem] border border-white/15 bg-slate-950/95 p-5 text-white shadow-2xl">
         <div className="flex items-center justify-between"><h2 className="text-3xl font-black italic uppercase">Settings</h2><button onClick={onClose} className="rounded-xl bg-white/10 p-2"><X className="h-5 w-5" /></button></div>
         <SettingsFields settings={settings} onChange={onChange} onQuality={(q) => onChange({ ...settings, quality: q })} activeQuality="" />
@@ -822,16 +822,16 @@ function SettingsPanel({ settings, onChange, onClose }: { settings: GameSettings
 
 function SettingsFields({ settings, onChange, onQuality, activeQuality }: { settings: GameSettings; onChange: (s: GameSettings) => void; onQuality: (q: GameSettings["quality"]) => void; activeQuality: string }) {
   return (
-    <div className="mt-4 grid gap-4 text-sm font-bold">
-      <label className="grid gap-1.5">
+    <div className="mt-4 grid grid-cols-1 gap-4 text-sm font-bold">
+      <label className="grid grid-cols-1 gap-1.5">
         <span className="flex justify-between"><span>Aim sensitivity</span><span className="text-cyan-300">{settings.sensitivity.toFixed(2)}×</span></span>
         <input type="range" min={0.2} max={3} step={0.05} value={settings.sensitivity} onChange={(e) => onChange({ ...settings, sensitivity: Number(e.target.value) })} className="accent-cyan-300" />
       </label>
-      <label className="grid gap-1.5">
+      <label className="grid grid-cols-1 gap-1.5">
         <span className="flex justify-between"><span className="flex items-center gap-1"><Volume2 className="h-4 w-4" /> Volume</span><span className="text-cyan-300">{Math.round(settings.volume * 100)}%</span></span>
         <input type="range" min={0} max={1} step={0.05} value={settings.volume} onChange={(e) => onChange({ ...settings, volume: Number(e.target.value) })} className="accent-cyan-300" />
       </label>
-      <div className="grid gap-1.5">
+      <div className="grid grid-cols-1 gap-1.5">
         <span className="flex justify-between"><span className="flex items-center gap-1"><Zap className="h-4 w-4" /> Graphics</span>{activeQuality && <span className="text-xs uppercase text-slate-400">running: {activeQuality}</span>}</span>
         <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/40 p-1">
           {(["auto", "low", "medium", "high"] as GameSettings["quality"][]).map((q) => (

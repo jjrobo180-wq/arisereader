@@ -29,7 +29,7 @@ function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) 
   return createPortal(<div data-keep-menu-open="true" className="fixed inset-0 z-[300] overflow-y-auto bg-black/85 p-2 backdrop-blur-xl sm:p-6" onClick={onClose}>
     <div className="mx-auto min-h-full max-w-5xl py-2 sm:py-6" onClick={e => e.stopPropagation()}>
       <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#070912] text-white shadow-[0_30px_100px_rgba(0,0,0,.65)]">
-        <button onClick={onClose} className="absolute right-4 top-4 z-30 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/35 backdrop-blur hover:bg-white/15" aria-label="Close A.R.I.S.E. 2.0 update"><X className="h-5 w-5"/></button>
+        <button onClick={onClose} className="absolute right-4 top-4 z-30 grid grid-cols-1 h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/35 backdrop-blur hover:bg-white/15" aria-label="Close A.R.I.S.E. 2.0 update"><X className="h-5 w-5"/></button>
 
         <section className="relative overflow-hidden px-5 pb-14 pt-16 text-center sm:px-12 sm:pb-20 sm:pt-20">
           <div className="absolute left-1/2 top-[-180px] h-[430px] w-[430px] -translate-x-1/2 rounded-full bg-violet-600/35 blur-[110px]"/>
@@ -82,8 +82,8 @@ function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) 
 
             <div className="relative mt-4 overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_15%_15%,rgba(139,92,246,.24),transparent_30%),radial-gradient(circle_at_90%_80%,rgba(6,182,212,.12),transparent_30%),rgba(255,255,255,.04)] p-6 sm:p-8">
               <div className="absolute right-[-40px] top-[-50px] text-[180px] font-black leading-none text-white/[.025]">{activeIndex + 1}</div>
-              <div className="relative grid gap-6 md:grid-cols-[150px_1fr] md:items-center">
-                <div className="mx-auto grid h-32 w-32 place-items-center rounded-[34px] border border-white/15 bg-gradient-to-br from-violet-500/30 via-fuchsia-500/15 to-fuchsia-500/18 shadow-[0_20px_70px_rgba(124,58,237,.18)]">
+              <div className="relative grid grid-cols-1 gap-6 md:grid-cols-[150px_1fr] md:items-center">
+                <div className="mx-auto grid grid-cols-1 h-32 w-32 place-items-center rounded-[34px] border border-white/15 bg-gradient-to-br from-violet-500/30 via-fuchsia-500/15 to-fuchsia-500/18 shadow-[0_20px_70px_rgba(124,58,237,.18)]">
                   <ActiveIcon className="h-14 w-14 text-white"/>
                 </div>
                 <div>
@@ -98,11 +98,11 @@ function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) 
               </div>
 
               <div className="relative mt-6 flex items-center justify-between">
-                <button type="button" onClick={() => setActiveIndex(i => (i - 1 + updates.length) % updates.length)} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.06] hover:bg-white/[.12]" aria-label="Previous A.R.I.S.E. 2.0 feature"><ChevronLeft className="h-5 w-5"/></button>
+                <button type="button" onClick={() => setActiveIndex(i => (i - 1 + updates.length) % updates.length)} className="grid grid-cols-1 h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.06] hover:bg-white/[.12]" aria-label="Previous A.R.I.S.E. 2.0 feature"><ChevronLeft className="h-5 w-5"/></button>
                 <div className="flex gap-1.5">
                   {updates.map((_, index) => <button key={index} type="button" onClick={() => setActiveIndex(index)} aria-label={`Open feature ${index + 1}`} className={`h-2 rounded-full transition-all ${index === activeIndex ? "w-8 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-300" : "w-2 bg-white/20"}`}/>)}
                 </div>
-                <button type="button" onClick={() => setActiveIndex(i => (i + 1) % updates.length)} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.06] hover:bg-white/[.12]" aria-label="Next A.R.I.S.E. 2.0 feature"><ChevronRight className="h-5 w-5"/></button>
+                <button type="button" onClick={() => setActiveIndex(i => (i + 1) % updates.length)} className="grid grid-cols-1 h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.06] hover:bg-white/[.12]" aria-label="Next A.R.I.S.E. 2.0 feature"><ChevronRight className="h-5 w-5"/></button>
               </div>
             </div>
           </div>
@@ -115,10 +115,10 @@ function Arise2Modal({ open, onClose }: { open: boolean; onClose: () => void }) 
               <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">A completely bigger A.R.I.S.E.</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">Every major feature is connected to one idea: make students want to keep going while giving teachers and families more control and visibility.</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {updates.map(({icon: Icon,eyebrow,title,text,why}) => <article key={title} className="group rounded-[26px] border border-white/10 bg-white/[.045] p-5 transition hover:-translate-y-0.5 hover:border-violet-400/30 hover:bg-white/[.06]">
                 <div className="flex items-start gap-4">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/18 ring-1 ring-white/10"><Icon className="h-5 w-5"/></div>
+                  <div className="grid grid-cols-1 h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/18 ring-1 ring-white/10"><Icon className="h-5 w-5"/></div>
                   <div>
                     <div className="text-[9px] font-black uppercase tracking-[.22em] text-cyan-300">{eyebrow}</div>
                     <h3 className="mt-1 text-lg font-black">{title}</h3>
@@ -194,7 +194,7 @@ export function Arise2GlobalLauncher() {
       className="fixed right-3 top-[74px] z-[85] flex items-center gap-2 rounded-full border border-white/20 bg-slate-950/92 px-3 py-2 text-xs font-black text-white shadow-2xl backdrop-blur-xl transition hover:scale-[1.03] sm:right-5 sm:top-[78px]"
       aria-label="Open A.R.I.S.E. 2.0 launch experience"
     >
-      <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400"><Sparkles className="h-3.5 w-3.5"/></span>
+      <span className="grid grid-cols-1 h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400"><Sparkles className="h-3.5 w-3.5"/></span>
       <span>A.R.I.S.E. 2.0</span>
     </button>
     <Arise2Modal open={open} onClose={close}/>

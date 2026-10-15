@@ -20,7 +20,7 @@ function NoteBoxes({ form, setForm, students, lockStudent = false }: { form: Not
   // A student who has since left the caseload still has to show, or their note could not be saved again.
   const names = form.student && !students.includes(form.student) ? [form.student, ...students] : students;
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {!lockStudent && (
         <div role="tablist" aria-label="What the note is about" className="flex gap-1 rounded-2xl bg-slate-100 p-1 sm:col-span-2" data-testid="note-scope">
           {SCOPES.map(([scope, label, Icon]) => (

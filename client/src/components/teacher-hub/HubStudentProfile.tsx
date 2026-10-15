@@ -108,7 +108,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
         {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">Quick notes</div><p className="mt-1 whitespace-pre-wrap break-words text-slate-800">{s.notes}</p></div>}
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Part title="IEP goals" count={profile.goals.length} tab="goals" tabLabel="Goals" onOpenTab={onOpenTab}>
           <Rows rows={profile.goals} empty="No goals yet." render={({ goal, latest, percent, status }) => (
             <li key={goal.id} className={row}>
@@ -123,7 +123,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           {profile.subjects.length > 0 && (
             <div className="mb-3" data-testid="profile-subjects">
               <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Minutes by subject</div>
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {profile.subjects.map((x) => {
                   const pct = x.required ? Math.min(100, Math.round((x.thisWeek / x.required) * 100)) : 0;
                   return (

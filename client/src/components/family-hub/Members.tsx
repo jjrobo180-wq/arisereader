@@ -115,9 +115,9 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
 
   return <div className="space-y-6">
     <PageHead eyebrow="Family & settings" title="Your family" blurb="Add everyone once, then assign tasks, chores, events and votes to them. Turn off any part of the hub you don't need." />
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <Panel eyebrow="People" title={`${family.members.length} in the family`} right={<button onClick={() => setEditing(blank(makeId(), family.members.length))} className={primary}><UserPlus size={16} /> Add person</button>}>
-        {family.members.length ? <ul className="grid gap-3 sm:grid-cols-2">{family.members.map((m) => <li key={m.id}>
+        {family.members.length ? <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{family.members.map((m) => <li key={m.id}>
           <button onClick={() => setEditing({ ...m })} className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 p-3 text-left transition hover:border-violet-200" style={{ background: m.color + "10" }}>
             <Avatar member={m} size="lg" /><span className="min-w-0 flex-1"><span className="block truncate font-black">{m.name}</span><span className="text-xs font-semibold text-slate-500">{m.kind === "kid" ? "Kid" : "Adult"}</span></span><Pencil size={15} className="text-slate-400" />
           </button>
@@ -141,7 +141,7 @@ export default function Members({ family, setFamily, makeId, say }: SectionProps
         </div>
       </Panel>
     </div>
-    <div className="grid gap-6 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
       <SharedLinks say={say} />
     </div>
 

@@ -106,7 +106,7 @@ function TitleScreen({ onPlay, onHow, onSettings, onBack, shards }: { onPlay: ()
     <Sky>
       <div className="flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10 text-center">
         <button onClick={onBack} className="sk-btn absolute left-4 top-4 flex items-center gap-2 rounded-2xl bg-black/25 px-4 py-2.5 font-black backdrop-blur"><ArrowLeft className="h-5 w-5" />Games</button>
-        <button onClick={onSettings} className="sk-btn absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-2xl bg-black/25 backdrop-blur" aria-label="Settings"><Settings className="h-5 w-5" /></button>
+        <button onClick={onSettings} className="sk-btn absolute right-4 top-4 grid grid-cols-1 h-11 w-11 place-items-center rounded-2xl bg-black/25 backdrop-blur" aria-label="Settings"><Settings className="h-5 w-5" /></button>
         <div className="sk-bob text-7xl sm:text-8xl">🪂</div>
         <h1 className="sk-title mt-2 text-6xl font-black italic leading-[.9] tracking-tight sm:text-8xl"><span className="text-yellow-300">SKYBOUND</span><br /><span className="text-white">SPRINT</span></h1>
         <p className="mt-4 max-w-md rounded-2xl bg-indigo-950/35 px-4 py-2 text-lg font-bold text-white backdrop-blur-sm">Run, jump, glide and ground-pound across 8 sky worlds. Find every Star Shard and beat the Storm King!</p>
@@ -127,18 +127,18 @@ function WorldMap({ levels, progress, onPlay, onBack, onSettings, onHow }: { lev
     <Sky bg="linear-gradient(180deg,#2b6fd6 0%,#6fb8ff 50%,#c9e9ff 100%)">
       <div className="mx-auto max-w-6xl px-3 pb-10 pt-3 sm:px-5">
         <header className="sticky top-0 z-10 -mx-3 flex items-center gap-2 bg-gradient-to-b from-[#2b6fd6] via-[#2b6fd6]/90 to-transparent px-3 pb-4 pt-1 sm:-mx-5 sm:px-5">
-          <button onClick={onBack} className="sk-btn grid h-11 w-11 place-items-center rounded-2xl bg-black/25" aria-label="Back"><ArrowLeft className="h-5 w-5" /></button>
+          <button onClick={onBack} className="sk-btn grid grid-cols-1 h-11 w-11 place-items-center rounded-2xl bg-black/25" aria-label="Back"><ArrowLeft className="h-5 w-5" /></button>
           <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.3em] text-yellow-200">Skybound Sprint</p><h2 className="truncate text-2xl font-black sm:text-3xl">World Map</h2></div>
           <span className="flex items-center gap-1.5 rounded-2xl bg-black/25 px-3 py-2 text-sm font-black"><Star className="h-4 w-4 fill-yellow-300 text-yellow-300" />{save ? totalShards(save) : 0}/21</span>
           <span className="hidden items-center gap-1.5 rounded-2xl bg-black/25 px-3 py-2 text-sm font-black sm:flex"><Coins className="h-4 w-4 text-yellow-300" />{save?.coins || 0} earned</span>
           <button onClick={onHow} className="sk-btn hidden rounded-2xl bg-black/25 px-3 py-2 text-sm font-black sm:block">How to play</button>
-          <button onClick={onSettings} className="sk-btn grid h-11 w-11 place-items-center rounded-2xl bg-black/25" aria-label="Settings"><Settings className="h-5 w-5" /></button>
+          <button onClick={onSettings} className="sk-btn grid grid-cols-1 h-11 w-11 place-items-center rounded-2xl bg-black/25" aria-label="Settings"><Settings className="h-5 w-5" /></button>
         </header>
         {!progress && <p className="mt-10 text-center text-lg font-black">Loading your progress…</p>}
         {progress && <>
           {progress.mode === "local" && <p className="mb-3 rounded-2xl bg-amber-300/90 px-4 py-2 text-sm font-black text-amber-950">Playing offline — progress is saved on this device for now.</p>}
           <p className="mb-4 text-sm font-bold text-white/90 drop-shadow">Clear a level to unlock the next. First clear: <b>+{SKY_REWARDS.firstClear} Reader Coins</b> · each new Star Shard: <b>+{SKY_REWARDS.shard}</b> · beat the Storm King: <b>+{SKY_REWARDS.bossClear}</b></p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {levels.map((L, i) => {
               const lp = save!.levels[L.id]; const open = isUnlocked(save!, i); const shards = lp?.shards || 0;
               return (
@@ -153,7 +153,7 @@ function WorldMap({ levels, progress, onPlay, onBack, onSettings, onHow }: { lev
                     {lp?.best ? <span className="rounded-full bg-black/30 px-2 py-0.5">⏱ {fmt(lp.best)}</span> : null}
                     {lp?.gems ? <span className="rounded-full bg-black/30 px-2 py-0.5">💎 {lp.gems}/{totalGems(L) + (L.boss ? 16 : 0)}</span> : null}
                   </div>
-                  {!open && <div className="absolute inset-0 grid place-items-center bg-slate-950/55 backdrop-blur-[2px]"><div className="text-center"><Lock className="mx-auto h-9 w-9" /><p className="mt-1 text-sm font-black">Clear {levels[i - 1].num} to unlock</p></div></div>}
+                  {!open && <div className="absolute inset-0 grid grid-cols-1 place-items-center bg-slate-950/55 backdrop-blur-[2px]"><div className="text-center"><Lock className="mx-auto h-9 w-9" /><p className="mt-1 text-sm font-black">Clear {levels[i - 1].num} to unlock</p></div></div>}
                 </button>
               );
             })}
@@ -207,7 +207,7 @@ function PlayView({ level, settings, audio, onWin, onQuit, onSettings }: { level
   return (
     <div className="absolute inset-0 bg-black">
       <div ref={hostRef} className="absolute inset-0" />
-      {error && <div className="absolute inset-0 grid place-items-center bg-slate-950 p-6 text-center"><div><p className="text-lg font-black">{error}</p><button onClick={onQuit} className="mt-4 rounded-2xl bg-white px-5 py-3 font-black text-slate-950">Back to map</button></div></div>}
+      {error && <div className="absolute inset-0 grid grid-cols-1 place-items-center bg-slate-950 p-6 text-center"><div><p className="text-lg font-black">{error}</p><button onClick={onQuit} className="mt-4 rounded-2xl bg-white px-5 py-3 font-black text-slate-950">Back to map</button></div></div>}
       {/* HUD */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start gap-2 p-2 sm:p-3" style={{ paddingTop: "max(.5rem, env(safe-area-inset-top))" }}>
         <div className="flex flex-col gap-1.5">
@@ -216,7 +216,7 @@ function PlayView({ level, settings, audio, onWin, onQuit, onSettings }: { level
         </div>
         <div className="flex-1" />
         <div className="flex items-center gap-1.5 rounded-2xl bg-black/35 px-3 py-1.5 font-black tabular-nums backdrop-blur"><Timer className="h-4 w-4" />{fmt(hud?.time || 0)}</div>
-        <button onClick={() => { gameRef.current?.setPaused(true); setPaused(true); audio.play("pause"); }} className="pointer-events-auto grid h-11 w-11 place-items-center rounded-2xl bg-black/40 backdrop-blur" aria-label="Pause"><Pause className="h-5 w-5" /></button>
+        <button onClick={() => { gameRef.current?.setPaused(true); setPaused(true); audio.play("pause"); }} className="pointer-events-auto grid grid-cols-1 h-11 w-11 place-items-center rounded-2xl bg-black/40 backdrop-blur" aria-label="Pause"><Pause className="h-5 w-5" /></button>
       </div>
       {hud?.bossHp != null && <div className="pointer-events-none absolute left-1/2 top-16 w-[min(420px,70vw)] -translate-x-1/2 text-center"><p className="text-xs font-black uppercase tracking-widest text-yellow-200 drop-shadow">⚡ Storm King</p><div className="mt-1 flex gap-1.5">{[0, 1, 2].map(i => <div key={i} className={"h-3.5 flex-1 rounded-full border-2 border-white/60 " + (i < hud.bossHp! ? "bg-gradient-to-r from-violet-500 to-fuchsia-400" : "bg-black/40")} />)}</div></div>}
       <div key={"intro" + runKey} className="sk-intro pointer-events-none absolute inset-x-0 top-[22%] text-center">
@@ -238,11 +238,11 @@ function PlayView({ level, settings, audio, onWin, onQuit, onSettings }: { level
         </div>
       </>}
       {paused && (
-        <div className="absolute inset-0 grid place-items-center bg-black/55 p-4 backdrop-blur-sm">
+        <div className="absolute inset-0 grid grid-cols-1 place-items-center bg-black/55 p-4 backdrop-blur-sm">
           <div className="sk-pop w-full max-w-sm rounded-[1.8rem] border border-white/20 bg-slate-950/95 p-5 text-center shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[.3em] text-slate-400">World {level.num}</p>
             <h2 className="text-3xl font-black">Paused</h2>
-            <div className="mt-4 grid gap-2">
+            <div className="mt-4 grid grid-cols-1 gap-2">
               <button onClick={resume} className="sk-btn flex items-center justify-center gap-2 rounded-2xl bg-yellow-300 py-3.5 text-lg font-black text-amber-950"><Play className="h-5 w-5 fill-current" />Resume</button>
               <button onClick={restart} className="sk-btn flex items-center justify-center gap-2 rounded-2xl bg-white/10 py-3 font-black"><RotateCcw className="h-5 w-5" />Restart level</button>
               <button onClick={onQuit} className="sk-btn rounded-2xl bg-white/10 py-3 font-black">World map</button>
@@ -277,7 +277,7 @@ function Results({ clear, level, hasNext, onNext, onReplay, onMap }: { clear: Cl
           {clear.coins > 0 ? <p className="sk-pop mt-4 flex items-center justify-center gap-2 rounded-2xl bg-yellow-300 py-3 text-lg font-black text-amber-950"><Coins className="h-5 w-5" />+{clear.coins} Reader Coins!</p>
             : <p className="mt-4 text-sm font-bold text-slate-300">{countBits(r.shards) < 3 ? "Find the missing Star Shards to earn more Reader Coins." : "All rewards for this level collected — go for a faster time!"}</p>}
           {clear.error && <p className="mt-2 text-xs font-bold text-amber-300">{clear.error}</p>}
-          <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {hasNext && <button onClick={onNext} className="sk-btn rounded-2xl bg-yellow-300 py-3.5 font-black text-amber-950 sm:order-3">Next level ▶</button>}
             <button onClick={onReplay} className="sk-btn flex items-center justify-center gap-2 rounded-2xl bg-white/10 py-3 font-black"><RotateCcw className="h-4 w-4" />Replay</button>
             <button onClick={onMap} className="sk-btn rounded-2xl bg-white/10 py-3 font-black">World map</button>
@@ -291,9 +291,9 @@ function Results({ clear, level, hasNext, onNext, onReplay, onMap }: { clear: Cl
 
 function SettingsPanel({ settings, onChange, onClose }: { settings: SkySettings; onChange: (s: SkySettings) => void; onClose: () => void }) {
   return (
-    <div className="absolute inset-0 z-50 grid place-items-center bg-black/55 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="absolute inset-0 z-50 grid grid-cols-1 place-items-center bg-black/55 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="sk-pop w-full max-w-sm rounded-[1.8rem] border border-white/20 bg-slate-950/95 p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center"><h2 className="flex-1 text-2xl font-black">Settings</h2><button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close"><X className="h-5 w-5" /></button></div>
+        <div className="flex items-center"><h2 className="flex-1 text-2xl font-black">Settings</h2><button onClick={onClose} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close"><X className="h-5 w-5" /></button></div>
         <p className="mt-4 text-xs font-black uppercase tracking-widest text-slate-400">Graphics</p>
         <div className="mt-2 grid grid-cols-3 gap-2">{(["low", "medium", "high"] as const).map(q => <button key={q} onClick={() => onChange({ ...settings, quality: q })} className={"rounded-xl py-2.5 font-black capitalize " + (settings.quality === q ? "bg-yellow-300 text-amber-950" : "bg-white/10")}>{q}</button>)}</div>
         <p className="mt-1 text-xs font-bold text-slate-400">Use Low if the game feels slow on your device.</p>
@@ -320,9 +320,9 @@ function HowToPlay({ onClose }: { onClose: () => void }) {
     ["⭐", "Star Shards", "3 hidden in every level — they earn Reader Coins"],
   ];
   return (
-    <div className="absolute inset-0 z-50 grid place-items-center overflow-y-auto bg-black/55 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="absolute inset-0 z-50 grid grid-cols-1 place-items-center overflow-y-auto bg-black/55 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="sk-pop w-full max-w-lg rounded-[1.8rem] border border-white/20 bg-slate-950/95 p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center"><h2 className="flex-1 text-2xl font-black">How to play</h2><button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close"><X className="h-5 w-5" /></button></div>
+        <div className="flex items-center"><h2 className="flex-1 text-2xl font-black">How to play</h2><button onClick={onClose} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-white/10" aria-label="Close"><X className="h-5 w-5" /></button></div>
         <div className="mt-3 divide-y divide-white/10">{rows.map(([icon, name, how]) => <div key={name} className="flex items-center gap-3 py-2.5"><span className="w-9 text-center text-2xl">{icon}</span><div><p className="font-black">{name}</p><p className="text-sm font-bold text-slate-300">{how}</p></div></div>)}</div>
         <p className="mt-3 text-xs font-bold text-slate-400">Gamepads work too. Lanterns are checkpoints — lose all your hearts and you start again from the last one.</p>
       </div>

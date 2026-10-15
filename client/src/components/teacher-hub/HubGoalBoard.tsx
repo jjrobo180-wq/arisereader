@@ -129,7 +129,7 @@ export default function HubGoalBoard({ workspace, setWorkspace, makeId, today }:
           {GOAL_KINDS.filter((k) => goals.some((g) => g.kind === k)).map((k) => <button key={k} type="button" onClick={() => setKind(kind === k ? "" : k)} aria-pressed={kind === k} className={chip(kind === k)}>{GOAL_KIND_INFO[k].emoji} {GOAL_KIND_INFO[k].label}</button>)}
         </div>
       )}
-      {open.length ? <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{open.map(card)}</div> : (
+      {open.length ? <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">{open.map(card)}</div> : (
         <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center">
           <span className="rounded-2xl bg-violet-50 p-4 text-violet-600"><Target className="h-6 w-6" /></span>
           <p className="mt-3 text-base font-extrabold text-slate-900">{goals.length ? (student ? `No open goals for ${student}` : "No open goals here") : "Set your first goal"}</p>
@@ -137,7 +137,7 @@ export default function HubGoalBoard({ workspace, setWorkspace, makeId, today }:
         </div>
       )}
       {reached.length > 0 && <div><button type="button" onClick={() => setShowDone(!showDone)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><Trophy className="h-4 w-4" /> {showDone ? "Hide" : "Show"} reached goals ({reached.length})</button>
-        {showDone && <div className="mt-4 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{reached.map(card)}</div>}</div>}
+        {showDone && <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">{reached.map(card)}</div>}</div>}
 
       {editing && (
         <HubModal title={goals.some((g) => g.id === editing.id) ? "Edit goal" : "New goal"} onClose={() => setEditing(null)} size="lg" footer={

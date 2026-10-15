@@ -20,7 +20,7 @@ export function ClassMinutesView({ workspace, today, onOpen }: { workspace: Work
   const groups = useClassGroups(workspace, today);
   if (!groups.length) return <Empty>No classes yet. Give each student's required minutes a block (and, for push-in, whose class it is) with “Set required minutes” or “Add several students”, and each class shows up here to log with one touch.</Empty>;
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="class-cards">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="class-cards">
       {groups.map((g) => {
         const due = g.students.filter((s) => s.due);
         const left = due.filter(waiting).length;
@@ -77,7 +77,7 @@ export function ClassMinutesModal({ workspace, today, groupKey, onSave, onClose 
   return (
     <HubModal title={title} size="sm" onClose={onClose}
       footer={<div className="flex flex-wrap gap-2"><span data-testid="class-save"><PrimaryButton onClick={() => onSave(result, title)} disabled={!canSave}>{saveWords}</PrimaryButton></span><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
-      <div className="grid gap-4" data-testid="class-modal">
+      <div className="grid grid-cols-1 gap-4" data-testid="class-modal">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <p className="text-sm text-slate-600">{date === today ? "Today" : friendlyDate(date, today)}. Everyone is ticked. Untick anyone who didn't show up.</p>
           {open.length > 1 && <div className="flex gap-1.5">

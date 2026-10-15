@@ -178,7 +178,7 @@ export default function SignIn() {
 
   const accountButton = (label: string, description: string, Icon: typeof Users, onClick: () => void) => (
     <button key={label} type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-xl border border-[#e5e7f4] p-3 text-left transition hover:border-[#aba4f5] hover:bg-[#faf9ff]">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#eeebff] text-[#5b53df]"><Icon size={18}/></span>
+      <span className="grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#eeebff] text-[#5b53df]"><Icon size={18}/></span>
       <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{label}</span><span className="block text-xs text-[#717a93]">{description}</span></span><ArrowRight className="shrink-0 text-[#837da9]" size={16}/>
     </button>
   );
@@ -188,7 +188,7 @@ export default function SignIn() {
       <header className="border-b border-[#e8eafb] bg-white/90 backdrop-blur-lg">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <button type="button" onClick={goHome} className="flex items-center gap-3 text-left" aria-label="A.R.I.S.E. home">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#5b53df] text-white shadow-md shadow-violet-200"><BookOpen size={24} strokeWidth={2.3}/></span>
+            <span className="grid grid-cols-1 h-11 w-11 place-items-center rounded-2xl bg-[#5b53df] text-white shadow-md shadow-violet-200"><BookOpen size={24} strokeWidth={2.3}/></span>
             <span>
               <span className="block text-[19px] font-black leading-tight tracking-[-.05em]">A.R.I.S.E.</span>
               <span className="block text-[10px] font-bold uppercase tracking-[.13em] text-[#717a95]">Reader · WorkHub · LifeHub</span>
@@ -200,7 +200,7 @@ export default function SignIn() {
         </div>
       </header>
 
-      <main className="relative mx-auto grid min-h-[calc(100dvh-83px)] w-full max-w-6xl items-center gap-12 overflow-hidden px-5 py-12 sm:px-8 lg:grid-cols-[1fr_450px] lg:gap-20 lg:py-16">
+      <main className="relative mx-auto grid grid-cols-1 min-h-[calc(100dvh-83px)] w-full max-w-6xl items-center gap-12 overflow-hidden px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_450px] lg:gap-20 lg:py-16">
         <section className="relative order-2 max-w-xl lg:order-1">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#dcd7fd] bg-[#eeebff] px-4 py-2 text-[11px] font-black uppercase tracking-[.12em] text-[#6257d7]">
             <Sparkles size={15}/> {onTodo ? "One sign-in for everyone" : adult ? "One sign-in for teachers and families" : "Your reading adventure awaits"}
@@ -215,14 +215,14 @@ export default function SignIn() {
               ? "Teachers open Arise WorkHub. Parents open Arise LifeHub. Same username and password on arisereader.com and arisetodo.com."
               : "Your books, quizzes, rewards, and favorite learning spaces are all right where you left them."}
           </p>
-          <div className="mt-10 grid max-w-lg gap-4 sm:grid-cols-2">
+          <div className="mt-10 grid grid-cols-1 max-w-lg gap-4 sm:grid-cols-2">
             <div className="rounded-[22px] border border-[#deddf8] bg-white p-5 shadow-[0_12px_40px_rgba(68,56,122,.05)]">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e9f9ee] text-[#2f9967]">{adult ? <Briefcase size={21}/> : <BookOpen size={21}/>}</span>
+              <span className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-[#e9f9ee] text-[#2f9967]">{adult ? <Briefcase size={21}/> : <BookOpen size={21}/>}</span>
               <div className="mt-3 font-black">{onTodo ? "Work" : adult ? "Teachers" : "Read and discover"}</div>
               <p className="mt-1 text-xs leading-5 text-[#707992]">{onTodo ? "Projects, meetings, to-dos and your workday in WorkHub." : adult ? "Your class, caseload, plans and A.R.I.S.E. Reader tools in WorkHub." : "Find another great story."}</p>
             </div>
             <div className="rounded-[22px] border border-[#deddf8] bg-white p-5 shadow-[0_12px_40px_rgba(68,56,122,.05)]">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#f4eaff] text-[#795ed6]">{adult ? <Heart size={21}/> : <Sparkles size={21}/>}</span>
+              <span className="grid grid-cols-1 h-10 w-10 place-items-center rounded-xl bg-[#f4eaff] text-[#795ed6]">{adult ? <Heart size={21}/> : <Sparkles size={21}/>}</span>
               <div className="mt-3 font-black">{onTodo ? "Life" : adult ? "Parents" : "Keep growing"}</div>
               <p className="mt-1 text-xs leading-5 text-[#707992]">{onTodo ? "Home, family, calendar, health and everyday plans in LifeHub." : adult ? "Your family, to-dos, calendar and your child's reading in LifeHub." : "Celebrate every reading win."}</p>
             </div>
@@ -283,7 +283,7 @@ export default function SignIn() {
                     <label htmlFor="personal-password" className="mb-2 block text-sm font-bold text-[#2e3653]">Password</label>
                     <div className="relative">
                       <input id="personal-password" required type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 pr-12 text-base text-[#17213b] outline-none focus:border-[#665ae6]"/>
-                      <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(v => !v)} className="absolute inset-y-0 right-0 grid w-12 place-items-center text-[#788098]">{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
+                      <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(v => !v)} className="absolute inset-y-0 right-0 grid grid-cols-1 w-12 place-items-center text-[#788098]">{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
                     </div>
                   </div>
                   {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
@@ -317,7 +317,7 @@ export default function SignIn() {
                 <label htmlFor="reader-password" className="mb-2 block text-sm font-bold text-[#2e3653]">Password</label>
                 <div className="relative">
                   <input id="reader-password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 pr-12 text-base text-[#17213b] outline-none transition focus:border-[#665ae6] focus:ring-2 focus:ring-[#dfdcff]"/>
-                  <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(v => !v)} className="absolute inset-y-0 right-0 grid w-12 place-items-center text-[#788098] hover:text-[#5b53df]">
+                  <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(v => !v)} className="absolute inset-y-0 right-0 grid grid-cols-1 w-12 place-items-center text-[#788098] hover:text-[#5b53df]">
                     {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                   </button>
                 </div>
@@ -343,7 +343,7 @@ export default function SignIn() {
             <button type="button" aria-expanded={showAccounts} onClick={() => setShowAccounts(v => !v)} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#d9d5fb] bg-[#f5f3ff] text-sm font-black text-[#5b53df] hover:bg-[#eeebff]">
               Create an account <ChevronRight size={18} className={showAccounts ? "rotate-90 transition-transform" : "transition-transform"}/>
             </button>
-            {showAccounts && <div className="mt-3 grid gap-2">
+            {showAccounts && <div className="mt-3 grid grid-cols-1 gap-2">
               {adult ? <>
                 {accountButton("Teacher", "Your class, WorkHub and A.R.I.S.E. Reader tools", GraduationCap, () => navigate("/teacher-signup"))}
                 {accountButton("Parent or guardian", "LifeHub for your family and your reader", Heart, () => navigate("/parent-signup"))}
@@ -355,7 +355,7 @@ export default function SignIn() {
               <Sparkles size={17}/> Try a sample account
             </button>
             {showSamples && (adult
-              ? <div className="mt-2 grid gap-2">
+              ? <div className="mt-2 grid grid-cols-1 gap-2">
                   <button disabled={submitting} onClick={() => void trySample("parent")} className="min-h-12 rounded-lg border border-[#dfe1ee] bg-[#fbfbff] p-2 text-xs font-bold hover:border-[#9087eb] disabled:opacity-50">Sample parent</button>
                 </div>
               : <div className="mt-2 grid grid-cols-2 gap-2">

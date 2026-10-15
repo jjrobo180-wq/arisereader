@@ -170,16 +170,16 @@ export default function EyeGazeFlashcards(){
       {saving&&<span className="text-sm font-black text-slate-500">Saving…</span>}
     </header>
     <section className="max-w-4xl mx-auto p-4 space-y-4">
-      <div className="rounded-3xl bg-white p-4 grid sm:grid-cols-[90px_1fr] gap-3">
+      <div className="rounded-3xl bg-white p-4 grid grid-cols-1 sm:grid-cols-[90px_1fr] gap-3">
         <label className="font-black">Emoji<input value={deck.emoji} onChange={e=>updateDeck({...deck,emoji:e.target.value.slice(0,8)})} className="mt-1 w-full min-h-12 rounded-xl border-2 px-3"/></label>
         <label className="font-black">Set name<input value={deck.title} onChange={e=>updateDeck({...deck,title:e.target.value.slice(0,50)})} className="mt-1 w-full min-h-12 rounded-xl border-2 px-3"/></label>
       </div>
       <div className="space-y-3">
-        {deck.cards.map((item,cardIndex)=><div key={item.id} className="rounded-3xl bg-white p-4 grid sm:grid-cols-[80px_1fr_1.4fr_auto] gap-3 items-end">
+        {deck.cards.map((item,cardIndex)=><div key={item.id} className="rounded-3xl bg-white p-4 grid grid-cols-1 sm:grid-cols-[80px_1fr_1.4fr_auto] gap-3 items-end">
           <label className="font-black text-sm">Picture<input value={item.icon} onChange={e=>{const next=[...deck.cards];next[cardIndex]={...item,icon:e.target.value.slice(0,12)};updateDeck({...deck,cards:next});}} className="mt-1 w-full min-h-12 rounded-xl border-2 px-2 text-2xl"/></label>
           <label className="font-black text-sm">Word<input value={item.word} onChange={e=>{const next=[...deck.cards];next[cardIndex]={...item,word:e.target.value.slice(0,40)};updateDeck({...deck,cards:next});}} className="mt-1 w-full min-h-12 rounded-xl border-2 px-3"/></label>
           <label className="font-black text-sm">Sentence<input value={item.phrase} onChange={e=>{const next=[...deck.cards];next[cardIndex]={...item,phrase:e.target.value.slice(0,100)};updateDeck({...deck,cards:next});}} className="mt-1 w-full min-h-12 rounded-xl border-2 px-3"/></label>
-          <button aria-label={"Delete "+item.word} onClick={()=>updateDeck({...deck,cards:deck.cards.filter(card=>card.id!==item.id)})} className="min-h-12 w-12 rounded-xl bg-rose-50 text-rose-700 grid place-items-center"><Trash2 className="w-5 h-5"/></button>
+          <button aria-label={"Delete "+item.word} onClick={()=>updateDeck({...deck,cards:deck.cards.filter(card=>card.id!==item.id)})} className="min-h-12 w-12 rounded-xl bg-rose-50 text-rose-700 grid grid-cols-1 place-items-center"><Trash2 className="w-5 h-5"/></button>
         </div>)}
       </div>
       <button onClick={()=>updateDeck({...deck,cards:[...deck.cards,{id:"card-"+Date.now(),word:"New word",icon:"⭐",phrase:"This is a new word."}]})} className="w-full min-h-16 rounded-2xl bg-violet-600 text-white font-black text-lg flex items-center justify-center gap-2"><Plus/> Add a card</button>
@@ -193,7 +193,7 @@ export default function EyeGazeFlashcards(){
       <button onClick={()=>{setDeckId(null);setIndex(0);stopSpeaking();}} className="min-h-14 rounded-2xl bg-[#ffd766] border-4 border-[#193d57] px-4 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> SETS</button>
       <div className="flex-1 text-center"><div className="font-black text-lg sm:text-2xl">{deck.emoji} {deck.title}</div><div className="text-xs font-bold text-slate-500">{progress}</div></div>
       <button onClick={()=>setEditing(true)} className="min-h-12 rounded-2xl bg-white border-2 border-violet-200 px-3 font-black flex items-center gap-2"><Edit3 className="w-5 h-5"/><span className="hidden sm:inline">Edit</span></button>
-      {card&&<button onClick={()=>say(card.word+". "+card.phrase)} className="w-12 h-12 rounded-2xl bg-white border-2 border-sky-200 grid place-items-center" aria-label="Hear card"><Volume2 className="w-6 h-6"/></button>}
+      {card&&<button onClick={()=>say(card.word+". "+card.phrase)} className="w-12 h-12 rounded-2xl bg-white border-2 border-sky-200 grid grid-cols-1 place-items-center" aria-label="Hear card"><Volume2 className="w-6 h-6"/></button>}
     </header>
 
     <section ref={stripRef} onScroll={onScroll} className="flex-1 min-h-0 flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain scroll-smooth">
@@ -205,7 +205,7 @@ export default function EyeGazeFlashcards(){
           <p className="mt-6 rounded-full bg-sky-50 px-5 py-2 text-sm font-black text-sky-800">🔊 Tap to hear · Swipe for next</p>
         </button>
       </article>)}
-      {!cards.length&&<div className="w-full grid place-items-center p-8"><div className="text-center"><div className="text-7xl">🃏</div><h2 className="text-3xl font-black mt-3">This set is empty</h2><button onClick={()=>setEditing(true)} className="mt-4 min-h-14 rounded-2xl bg-violet-600 text-white px-5 font-black">Add a card</button></div></div>}
+      {!cards.length&&<div className="w-full grid grid-cols-1 place-items-center p-8"><div className="text-center"><div className="text-7xl">🃏</div><h2 className="text-3xl font-black mt-3">This set is empty</h2><button onClick={()=>setEditing(true)} className="mt-4 min-h-14 rounded-2xl bg-violet-600 text-white px-5 font-black">Add a card</button></div></div>}
     </section>
 
     {!!cards.length&&<nav className="grid grid-cols-2 gap-3 p-3 sm:p-4 flex-shrink-0">

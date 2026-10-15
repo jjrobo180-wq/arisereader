@@ -28,7 +28,7 @@ export default function Converter(_: SectionProps) {
     <PageHead eyebrow="Unit converter" title="Convert anything" blurb="Cups to tablespoons, miles to kilometers, oven temperatures and more." />
     <div className="flex flex-wrap gap-1.5">{GROUPS.map((g) => <button key={g} type="button" onClick={() => pickGroup(g)} aria-pressed={group === g} className={`min-h-10 rounded-xl px-4 text-sm font-bold ${group === g ? "bg-[#292446] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:text-slate-900"}`}>{g}</button>)}</div>
     <Panel>
-      <div className="grid items-end gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <div className="space-y-2"><input value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" className={inputClass + " min-h-14 text-2xl font-black"} aria-label="Amount" />
           <select value={from} onChange={(e) => setFrom(e.target.value)} className={inputClass} aria-label="From">{names.map((n) => <option key={n}>{n}</option>)}</select></div>
         <button type="button" onClick={() => { setFrom(to); setTo(from); }} className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-violet-50 text-violet-700 hover:bg-violet-100" aria-label="Swap"><ArrowLeftRight size={18} /></button>
@@ -37,7 +37,7 @@ export default function Converter(_: SectionProps) {
       </div>
     </Panel>
     {QUICK[group] && <Panel title="Handy ones">
-      <ul className="grid gap-2 sm:grid-cols-2">{QUICK[group].map(([v, a, b]) => <li key={`${v}${a}${b}`}><button type="button" onClick={() => { setValue(String(v)); setFrom(a); setTo(b); }} className="w-full rounded-xl bg-slate-50 px-3 py-2.5 text-left text-sm hover:bg-violet-50"><span className="font-bold">{v} {a.toLowerCase()}</span> = {fmt(convertUnit(group, v, a, b))} {b.toLowerCase()}</button></li>)}</ul>
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">{QUICK[group].map(([v, a, b]) => <li key={`${v}${a}${b}`}><button type="button" onClick={() => { setValue(String(v)); setFrom(a); setTo(b); }} className="w-full rounded-xl bg-slate-50 px-3 py-2.5 text-left text-sm hover:bg-violet-50"><span className="font-bold">{v} {a.toLowerCase()}</span> = {fmt(convertUnit(group, v, a, b))} {b.toLowerCase()}</button></li>)}</ul>
     </Panel>}
   </div>;
 }

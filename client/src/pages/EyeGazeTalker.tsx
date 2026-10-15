@@ -695,7 +695,7 @@ export default function EyeGazeTalker() {
         <header className="py-4 sm:py-5">
           <div className="flex flex-wrap items-center gap-3">
             <button data-talker-dwell type="button" onClick={() => navigate("/eye-gaze-home")} className="relative min-h-16 px-5 rounded-3xl bg-[#ffd766] border-4 border-[#193d57] text-lg sm:text-xl font-black shadow-sm">⬅ BACK</button>
-            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">My Talker</h1></div></div>
+            <div className="flex items-center gap-3 mr-auto"><span className="w-11 h-11 rounded-2xl bg-[#193d57] text-[#ffd766] grid grid-cols-1 place-items-center text-2xl" aria-hidden="true">✦</span><div><p className="text-xs font-black tracking-widest text-teal-700">A.R.I.S.E. READER</p><h1 className="font-black text-2xl sm:text-3xl tracking-tight">My Talker</h1></div></div>
             <button data-talker-dwell type="button" onClick={() => navigate(user?.role === "parent" ? "/parent-dashboard" : "/eye-gaze-account")} className="relative min-h-12 px-4 rounded-2xl bg-white border-2 border-slate-200 font-black">Profile</button>
           </div>
           <div className="mt-3 rounded-3xl bg-white border-2 border-teal-100 p-2 grid grid-cols-3 gap-2" role="tablist" aria-label="My Talker">
@@ -845,7 +845,7 @@ export default function EyeGazeTalker() {
 
               <div className={learningOpen ? "grid lg:grid-cols-[260px_1fr] gap-5 items-start text-left" : ""}>
                 <div className={learningOpen ? "lg:sticky lg:top-0" : ""}>
-                  <div className="h-44 sm:h-52 rounded-3xl bg-[#e0f3f0] grid place-items-center text-[7rem]" role="img" aria-label={`Picture for ${selected.label}`}>
+                  <div className="h-44 sm:h-52 rounded-3xl bg-[#e0f3f0] grid grid-cols-1 place-items-center text-[7rem]" role="img" aria-label={`Picture for ${selected.label}`}>
                     {picture(selected) ? <img src={picture(selected)!} alt="" className="w-full h-full rounded-3xl object-contain" /> : selected.picture}
                   </div>
                   <h2 id="talker-selected-word" className="text-4xl font-black mt-3 text-center">{selected.label}</h2>
@@ -938,7 +938,7 @@ export default function EyeGazeTalker() {
                       <p className="text-xs font-black tracking-widest text-emerald-700">USE THE WORD</p>
                       <h3 className="text-2xl font-black mt-1">Say it in a sentence</h3>
                       <div className="mt-3 rounded-2xl bg-white border-2 border-emerald-100 p-4 text-xl font-black">{selected.sentence}</div>
-                      <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
                         <button data-talker-dwell type="button" onClick={() => { sayWord(selected, "sentence"); recordLearning(selected.label, "practiced"); }} className="relative min-h-14 rounded-2xl bg-emerald-600 text-white font-black">▶ Hear sentence</button>
                         {sentenceBuilderEnabled && <button data-talker-dwell type="button" onClick={() => { setWords(previous => [...previous, selected.label]); say(`You added ${selected.label} to your words.`); }} className="relative min-h-14 rounded-2xl bg-white border-2 border-emerald-200 font-black">+ Use in My Words</button>}
                       </div>
@@ -984,7 +984,7 @@ export default function EyeGazeTalker() {
               <button type="button" onClick={closeEdit} className="w-12 h-12 rounded-full bg-[#eef4f6] text-2xl font-black">×</button>
             </div>
 
-            <div className="grid gap-4 mt-5">
+            <div className="grid grid-cols-1 gap-4 mt-5">
               <label className="font-black">Word / button label
                 <input value={editLabel} maxLength={40} onChange={event => setEditLabel(event.target.value)} className="mt-2 w-full min-h-14 rounded-2xl border-2 border-sky-100 px-4 text-lg font-black" />
               </label>
@@ -996,7 +996,7 @@ export default function EyeGazeTalker() {
             <section className="mt-5 rounded-3xl bg-violet-50 border-2 border-violet-100 p-4">
               <h3 className="text-xl font-black">🎙️ Family voice for the word</h3>
               <p className="text-sm font-bold text-[#547886] mt-1">Record yourself saying just the word. This replaces the AI voice for this word only.</p>
-              <div className="grid sm:grid-cols-3 gap-2 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
                 <button type="button" onClick={() => recordingKind === "word" ? stopParentRecording() : void startParentRecording("word")} className={"min-h-12 rounded-2xl font-black " + (recordingKind === "word" ? "bg-rose-500 text-white" : "bg-violet-600 text-white")}>{recordingKind === "word" ? "■ Stop" : "● Record word"}</button>
                 <button type="button" disabled={!recordingDrafts.word} onClick={() => previewRecording("word")} className="min-h-12 rounded-2xl bg-white border-2 border-violet-100 font-black disabled:opacity-40">▶ Preview</button>
                 <button type="button" onClick={() => setRecordingDrafts(previous => ({ ...previous, word: undefined }))} className="min-h-12 rounded-2xl bg-white border-2 border-violet-100 font-black">✨ Use AI voice</button>
@@ -1007,7 +1007,7 @@ export default function EyeGazeTalker() {
             <section className="mt-4 rounded-3xl bg-teal-50 border-2 border-teal-100 p-4">
               <h3 className="text-xl font-black">🎙️ Family voice for the sentence</h3>
               <p className="text-sm font-bold text-[#547886] mt-1">You can separately record the full sentence. Otherwise the sentence keeps using AI.</p>
-              <div className="grid sm:grid-cols-3 gap-2 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
                 <button type="button" onClick={() => recordingKind === "sentence" ? stopParentRecording() : void startParentRecording("sentence")} className={"min-h-12 rounded-2xl font-black " + (recordingKind === "sentence" ? "bg-rose-500 text-white" : "bg-teal-600 text-white")}>{recordingKind === "sentence" ? "■ Stop" : "● Record sentence"}</button>
                 <button type="button" disabled={!recordingDrafts.sentence} onClick={() => previewRecording("sentence")} className="min-h-12 rounded-2xl bg-white border-2 border-teal-100 font-black disabled:opacity-40">▶ Preview</button>
                 <button type="button" onClick={() => setRecordingDrafts(previous => ({ ...previous, sentence: undefined }))} className="min-h-12 rounded-2xl bg-white border-2 border-teal-100 font-black">✨ Use AI voice</button>
@@ -1015,7 +1015,7 @@ export default function EyeGazeTalker() {
               <p className="text-xs font-bold text-teal-700 mt-2">{recordingDrafts.sentence ? "Family recording selected." : "AI voice selected."}</p>
             </section>
 
-            <div className="grid sm:grid-cols-2 gap-2 mt-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-5">
               <button type="button" onClick={closeEdit} className="min-h-14 rounded-2xl bg-slate-100 font-black">Cancel</button>
               <button type="button" disabled={!editLabel.trim() || !editSentence.trim() || !!recordingKind} onClick={() => void saveWordEdit()} className="min-h-14 rounded-2xl bg-[#137f96] text-white font-black disabled:opacity-50">Save this word</button>
             </div>
