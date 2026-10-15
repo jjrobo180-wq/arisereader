@@ -10,7 +10,7 @@ import { rememberParents, roleLabel } from "@shared/hubGuide";
 import { meetingPeople } from "@shared/hubStudentTeam";
 import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import { addDays } from "@shared/hubDates";
-import { calendarEvents } from "@shared/hubHidden";
+import { bookedOn, bookedTimes, clashes } from "@shared/hubBusy";
 import { busyPeople, othersCalendars, othersEvents } from "@shared/hubOthers";
 import { deadlineName as nameOfDeadline, deadlineWords, meetingDeadline } from "@shared/meetingDeadline";
 import type { Workspace } from "@shared/teacherHub";
@@ -225,9 +225,11 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const [skipPeople, setSkipPeople] = useState<string[]>([]);
   const theirEvents = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !skipPeople.includes(c.id)).map((c) => c.id));
   // Repeating events are busy on every day they fall on (looking four months ahead); hidden events are not busy.
+  // Everything already booked on my own calendar (events and meetings with a time), so no suggested time lands on it.
+  const myBooked = useMemo(() => bookedTimes(workspace, today, addDays(today, 120), initial.meetingId || ""), [workspace, today, initial.meetingId]); // eslint-disable-line react-hooks/exhaustive-deps
   function busyTimes(without: string[]) {
     const theirs = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !without.includes(c.id)).map((c) => c.id));
-    return [...calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.meetingId !== initial.meetingId), ...theirs].filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end }));
+    return [...myBooked, ...theirs.filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end }))];
   }
   // Every open day and time (on the hour or half hour), for the pick lists on each row.
   const pickGroups = useMemo(() => {
@@ -238,11 +240,11 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
     const groups: { date: string; label: string; slots: { start: string; end: string }[] }[] = [];
     for (const t of slots) {
       let g = groups[groups.length - 1];
-      if (!g || g.date !== t.date) { g = { date: t.date, label: new Date(`${t.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" }), slots: [] }; groups.push(g); }
+      if (!g || g.date !== t.date) { g = { date: t.date, label: new Date(`${t.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" }) + (() => { const m = bookedOn(myBooked, t.date).filter((b) => b.meeting).length; return m ? ` · you have ${m} meeting${m === 1 ? "" : "s"}` : ""; })(), slots: [] }; groups.push(g); }
       g.slots.push({ start: t.start, end: t.end });
     }
     return groups;
-  }, [weekly, length, rangeFrom, rangeThrough, skipPeople, workspace, deadline, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [weekly, length, rangeFrom, rangeThrough, skipPeople, workspace, deadline, today, myBooked]); // eslint-disable-line react-hooks/exhaustive-deps
   function suggest(free: FreeWindow[], skip: number, over: { minutes?: number; without?: string[]; count?: number; perDay?: number; from?: string; through?: string } = {}) {
     const minutes = over.minutes ?? length, without = over.without ?? skipPeople, wanted = over.count ?? count, per = over.perDay ?? perDay;
     const startOn = over.from ?? rangeFrom, through = over.through ?? rangeThrough;
@@ -337,7 +339,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
             </div>
           ) : (
             <div className="space-y-2">
-              <div data-testid="suggest-why">Suggested from your availability{deadline && deadline > today ? <>, <b>before the {deadlineName} ({deadlineWords(deadline)})</b></> : ""}, and clear of anything already on your calendar{people.length > skipPeople.length ? " and on the calendars you follow" : ""}.</div>
+              <div data-testid="suggest-why">Suggested from your availability{deadline && deadline > today ? <>, <b>before the {deadlineName} ({deadlineWords(deadline)})</b></> : ""}, and clear of anything already booked on your calendar (events and meetings){people.length > skipPeople.length ? " and on the calendars you follow" : ""}.</div>
               {people.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Also keep clear of" data-testid="poll-clear-of">
                   <span className="font-semibold">Also keep clear of:</span>
@@ -401,6 +403,16 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
               </div>
               {/* The day spelled out, so "2026-10-13" reads as Tuesday. */}
               {t.date && t.start && <p className="col-span-full text-sm font-semibold text-teal-900" data-testid={`time-words-${index}`}>{describeOption(t)}</p>}
+              {/* What is already on my calendar that day: a clash first, then a heads-up about meetings, then anything else. */}
+              {(() => {
+                if (!t.date) return null;
+                const clash = clashes(myBooked, t), day = bookedOn(myBooked, t.date), meetings = day.filter((b) => b.meeting);
+                const words = (b: { start: string; title: string }) => `${b.title} at ${describeOption({ date: t.date, start: b.start, end: "" }).split(" · ")[1]}`;
+                if (clash.length) return <p className="col-span-full text-xs font-bold text-red-700" role="alert" data-testid={`time-clash-${index}`}>You already have {clash.map(words).join(" and ")}. Pick a different time.</p>;
+                if (meetings.length) return <p className="col-span-full text-xs font-semibold text-amber-800" role="status" data-testid={`time-meeting-${index}`}>Heads up: you already have {meetings.length === 1 ? "a meeting" : `${meetings.length} meetings`} this day: {meetings.map(words).join(", ")}.</p>;
+                if (day.length) return <p className="col-span-full text-xs text-slate-600" data-testid={`time-day-${index}`}>Also on your calendar that day: {day.slice(0, 3).map(words).join(", ")}{day.length > 3 ? ` and ${day.length - 3} more` : ""}.</p>;
+                return null;
+              })()}
               {/* A time that was typed in by hand may land on someone's busy time: say whose. */}
               {busyPeople(theirEvents, t).length > 0 && <p className="col-span-full text-xs font-medium text-amber-800" role="status" data-testid="poll-busy-people">{busyPeople(theirEvents, t).join(" and ")} {busyPeople(theirEvents, t).length > 1 ? "are" : "is"} busy then.</p>}
               {deadline && t.date && t.date >= deadline && <p className={`col-span-full text-xs font-medium ${t.date > deadline ? "text-red-700" : "text-amber-800"}`} role="status" data-testid="poll-after-deadline">This is {t.date === deadline ? "on" : "after"} the {deadlineName} ({deadlineWords(deadline)}).</p>}
