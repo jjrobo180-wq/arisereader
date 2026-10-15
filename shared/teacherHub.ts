@@ -36,7 +36,11 @@ export type Student = {
 
 export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;
   /** YYYY-MM-DD: the IEP (or reevaluation) deadline the meeting has to happen before (shared/meetingDeadline.ts). */
-  deadline?: string };
+  deadline?: string;
+  /** Gen ed teachers told about the meeting, and whether each needs their class covered (shared/genEdCoverage.ts). */
+  coverage?: { id: string; teacher: string; email: string; needs: "" | "yes" | "no"; from: string; to: string }[];
+  /** Who the coverage request goes to (a lead teacher or supervisor): a name or email. */
+  coverageTo?: string };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
 export type Task = { id: string; title: string; dueDate: string; /** Optional HH:MM local time on the due date. */ dueTime?: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The to-do list it is on (workspace.taskLists), like LifeHub's lists. Not set means no list. */ listId?: string; /** Tucked away out of every view (Archived shows it) without being deleted. */ archived?: boolean; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
