@@ -24,10 +24,11 @@ export function usePhoneMenu(side: MenuSide, close: MenuClose) {
 }
 
 /** The phone menu itself. `top` is how far below the top of the screen it starts (under the header). */
-export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 65, folders = [], deskDrawer = false }: {
+export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 65, folders = [], deskDrawer = false, hideLauncher = false }: {
   items: PhoneMenuItem[]; side: MenuSide; close: MenuClose; open: boolean; setRail: (open: boolean) => void; afterPick: () => void; top?: number;
   /** Menu folders from Customize. */ folders?: MenuFolder[];
   /** The app drawer is also the menu on a computer. */ deskDrawer?: boolean;
+  /** Leaves out the round button that opens the drawer (Home's start screen already shows every app). */ hideLauncher?: boolean;
 }) {
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   const toggleFolder = (id: string) => setOpenFolders((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]));
@@ -60,7 +61,7 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
     : openFolder ? openFolder.items.map((id) => items.find((i) => i.id === id)).filter((i): i is PhoneMenuItem => !!i).map((item) => ({ kind: "item" as const, item }))
     : foldMenu(items, folders);
   const drawer = !(onPhone || deskDrawer) ? null : <>
-      {!apps && <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="life-apps-open"
+      {!apps && !hideLauncher && <button type="button" onClick={() => setApps(true)} aria-label="Open all sections" data-testid="life-apps-open"
         onTouchStart={(e) => { swipe.current = e.touches[0].clientY; }} onTouchMove={(e) => { if (swipe.current !== null && swipe.current - e.touches[0].clientY > 30) { swipe.current = null; setApps(true); } }}
         className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-40 h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-[#292446] text-white shadow-xl transition active:scale-90 ${onPhone ? "inline-flex" : "hidden"} ${deskDrawer ? "lg:inline-flex" : "lg:hidden"}`}><LayoutGrid className="h-6 w-6" /></button>}
       <div className={`fixed inset-0 z-[480] ${onPhone ? "" : "max-lg:hidden"} ${deskDrawer ? "" : "lg:hidden"} ${apps ? "" : "pointer-events-none"}`} aria-hidden={!apps}>

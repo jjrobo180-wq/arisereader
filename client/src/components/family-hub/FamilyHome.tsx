@@ -2,7 +2,7 @@
 // Its parts can be arranged right here, like WorkHub's Home: press and hold (or Edit Home) to drag, resize or remove them.
 import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, LayoutGrid, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
 import type { ReactNode } from "react";
-import { HomeParts, type HomePart } from "@/components/teacher-hub/HubHomeEdit";
+import { HomeParts, type HomePart, type StartTile } from "@/components/teacher-hub/HubHomeEdit";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
 import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
@@ -20,10 +20,12 @@ import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type S
 const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets: AlarmClock, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote };
 const CATALOG: HomePart[] = LIFE_PARTS.map((p) => ({ id: p.id, label: p.label, icon: PART_ICONS[p.id] }));
 
-export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp }: SectionProps & {
+export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp, appTiles }: SectionProps & {
   tasks: CalendarTask[]; go: (section: FamilySection) => void; onToggleTask: (id: string) => void; name: string;
   /** Opens an installed Notes app (see shared/notesApp.ts) full-page, by its App Store plugin id. */
   openNotesApp: (id: string) => void;
+  /** The Tile theme's start screen: every app of the hub as a tile, so no menu is needed beside Home. */
+  appTiles?: StartTile[];
 }) {
   const on = (s: FamilySection) => isOn(s, family);
   const hour = new Date().getHours();
@@ -149,12 +151,14 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
     </button>
   );
   const pinnedCatalog: HomePart[] = myNotesApps.map((p) => ({ id: pinId(p.id), label: p.name, icon: StickyNote }));
+  const tileMode = hubThemeOf(layout.theme).homeLayout === "tiles";
   return <div className="space-y-4 sm:space-y-6">
-    {!family.members.length && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
+    {!family.members.length && !tileMode && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
       <span className="rounded-2xl bg-white/10 p-3 text-[#bcb2ff]"><UserPlus size={26} /></span>
       <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
       <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
     </section>}
-    <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} widgets={{ items: family.widgetBoard, makeId, setItems: (update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) })) }} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout} />
+    <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} widgets={{ items: family.widgetBoard, makeId, setItems: (update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) })) }} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout}
+      leadTiles={tileMode && !family.members.length ? [{ id: "setup-family", label: "Set up your family", sub: "Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.", icon: <UserPlus />, size: "large", color: "#f2600c", onClick: () => go("family") }] : undefined} appTiles={tileMode ? appTiles : undefined} />
   </div>;
 }
