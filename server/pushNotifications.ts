@@ -10,6 +10,7 @@ import { normalizeWorkspace } from "../shared/teacherHub";
 import { dueTodoReminders, TODO_REMINDER_URL, type TodoReminder } from "../shared/todoReminders";
 import { NEWS_TOPICS } from "../shared/todoNews";
 import { fetchHeadlines } from "./todoNews";
+import { dueNudges } from "../shared/healthNudges";
 
 type Gate = (req: any, res: any) => Promise<unknown | null>;
 type Row = { id: number; user_id: number; endpoint: string; p256dh: string; auth: string; time_zone: string; sent: Record<string, number> | null; hub?: boolean | null; todo?: boolean | null };
@@ -178,6 +179,40 @@ export async function sendDueTodoReminders(nowMs = Date.now(), rows?: Row[]): Pr
   return sentCount;
 }
 
+// ─── Health Nudges (a premium app): motivation sent through the day to the phones of people who turned it on ───
+
+let readNudgeSettings: (userId: number) => Promise<unknown | null> = async () => null;
+/** Where Health Nudges settings come from: the user's saved app data (set up in routes.ts; tests pass their own). */
+export function setNudgeSource(source: typeof readNudgeSettings) { readNudgeSettings = source; nudgeCache.clear(); }
+
+const NUDGE_CACHE_MS = 10 * 60_000;
+const NUDGE_READS_PER_PASS = 60;
+const nudgeCache = new Map<number, { at: number; settings: unknown | null }>();
+
+/** One pass: send the Health Nudges that are due. Anyone's phone that has any Arise reminders on can get them;
+ *  settings are read at most every ten minutes per person, and only a limited number of people per pass. */
+export async function sendDueNudges(nowMs = Date.now(), rows?: Row[]): Promise<number> {
+  const keys = await pushKeys();
+  if (!keys) return 0;
+  const devicesOf = new Map<number, Row[]>();
+  for (const row of rows || (await allSubscriptions())) devicesOf.set(Number(row.user_id), [...(devicesOf.get(Number(row.user_id)) || []), row]);
+  let reads = 0, sentCount = 0;
+  for (const [userId, devices] of Array.from(devicesOf)) {
+    let entry = nudgeCache.get(userId);
+    if (!entry || nowMs - entry.at >= NUDGE_CACHE_MS) {
+      if (reads >= NUDGE_READS_PER_PASS) continue; // the rest wait for the next minute
+      reads++;
+      try { entry = { at: nowMs, settings: await readNudgeSettings(userId) }; }
+      catch { continue; } // storage hiccup: try again next pass instead of caching "no settings"
+      nudgeCache.set(userId, entry);
+    }
+    if (!entry.settings) continue;
+    for (const row of devices) sentCount += await sendTo(row, dueNudges(entry.settings, nowMs, row.time_zone || "UTC", row.sent || {}), nowMs, keys);
+  }
+  if (nudgeCache.size > 20_000) nudgeCache.clear();
+  return sentCount;
+}
+
 let ticking = false;
 export function startHubReminderTicker() {
   const timer = setInterval(async () => {
@@ -186,6 +221,7 @@ export function startHubReminderTicker() {
     const now = Date.now();
     try { await sendDueHubReminders(now); } catch (error: any) { console.error("[push] reminder pass failed", error?.message); }
     try { await sendDueTodoReminders(now); } catch (error: any) { console.error("[push] LifeHub reminder pass failed", error?.message); }
+    try { await sendDueNudges(now); } catch (error: any) { console.error("[push] Health Nudges pass failed", error?.message); }
     finally { ticking = false; }
   }, TICK_MS);
   timer.unref?.();

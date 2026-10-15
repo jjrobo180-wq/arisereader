@@ -4,6 +4,8 @@
 import { Suspense, lazy, useEffect, useState, type ComponentType } from "react";
 // Potty Training is a big app of its own; its code loads only when it's opened.
 const PottyLazy = lazy(() => import("../potty/PottyApp"));
+const NudgesLazy = lazy(() => import("./healthNudges"));
+const HealthNudges = () => <Suspense fallback={<p className="py-12 text-center text-sm font-semibold text-slate-500">Opening Health Nudges…</p>}><NudgesLazy /></Suspense>;
 const PottyTraining = () => <Suspense fallback={<p className="py-12 text-center text-sm font-semibold text-slate-500">Opening Potty Training…</p>}><PottyLazy /></Suspense>;
 import { Check, Pencil, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { LogTracker, type Entry, type TrackerConfig } from "../LogTracker";
@@ -355,6 +357,7 @@ function Toothbrush() {
 
 export const HEALTH: Record<string, ComponentType> = {
   potty: PottyTraining,
+  "health-nudges": HealthNudges,
   water: () => <LogTracker cfg={WATER} />,
   sleep: () => <LogTracker cfg={SLEEP} />,
   weight: () => <LogTracker cfg={WEIGHT} />,
