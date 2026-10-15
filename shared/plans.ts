@@ -467,10 +467,11 @@ export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { n
  * Admins and sample accounts always are; anyone else needs a live Unlimited plan, or a LifeHub
  * plan bought before Unlimited existed.
  */
-export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: { unlimited?: PlanGrant | null; yearly?: PlanGrant | null; oldLifeHub?: PlanGrant | null }, now = Date.now()): { unlimited: boolean; via: "admin" | "demo" | "plan" | "old-plan" | null; endsAt: string | null } {
+export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: { unlimited?: PlanGrant | null; yearly?: PlanGrant | null; oldLifeHub?: PlanGrant | null; vip?: boolean }, now = Date.now()): { unlimited: boolean; via: "admin" | "demo" | "vip" | "plan" | "old-plan" | null; endsAt: string | null } {
   if (!person) return { unlimited: false, via: null, endsAt: null };
   if (person.isAdmin || person.role === "admin") return { unlimited: true, via: "admin", endsAt: null };
   if (isDemoAccount(person.username)) return { unlimited: true, via: "demo", endsAt: null };
+  if (grants.vip) return { unlimited: true, via: "vip", endsAt: null };
   const g = grants.unlimited;
   if (g && g.kind === "todo_unlimited" && grantLive(g, now)) return { unlimited: true, via: "plan", endsAt: g.endsAt ?? null };
   const y = grants.yearly;
@@ -478,6 +479,47 @@ export function todoUnlimitedFor(person: PlanPerson | null | undefined, grants: 
   const old = grants.oldLifeHub;
   if (old && old.kind === "todo_family" && grantLive(old, now)) return { unlimited: true, via: "old-plan", endsAt: old.endsAt ?? null };
   return { unlimited: false, via: null, endsAt: null };
+}
+
+// ─── VIP list: people the admin gives To-Do Unlimited to, no payment ──────────────────────────
+
+/** One person on the VIP list. By email, so it works for someone who has not signed up yet; by account id, for an
+ *  existing account of any kind (a parent, say). */
+export type VipEntry = { email?: string; userId?: number; label?: string; addedAt: string };
+export const VIP_MAX = 200;
+const VIP_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const cleanVipEmail = (v: unknown): string => { const e = String(v ?? "").trim().toLowerCase(); return e.length <= 254 && VIP_EMAIL.test(e) ? e : ""; };
+
+/** A saved VIP list made safe to use. */
+export function cleanVipList(raw: unknown): VipEntry[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const out: VipEntry[] = [];
+  const seen = new Set<string>();
+  for (const r of list) {
+    if (!r || typeof r !== "object") continue;
+    const email = cleanVipEmail((r as any).email);
+    const userId = Number.isInteger(Number((r as any).userId)) && Number((r as any).userId) > 0 ? Number((r as any).userId) : 0;
+    if (!email && !userId) continue;
+    const id = email ? `e:${email}` : `u:${userId}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ ...(email ? { email } : {}), ...(userId ? { userId } : {}), ...((r as any).label ? { label: String((r as any).label).replace(/\s+/g, " ").trim().slice(0, 80) } : {}), addedAt: typeof (r as any).addedAt === "string" ? (r as any).addedAt : "" });
+    if (out.length >= VIP_MAX) break;
+  }
+  return out;
+}
+
+/** Is this account on the list? By account id (any kind of account), or by email for accounts whose email was
+ *  confirmed with a code at sign-up (a To-Do or teacher account that is switched on). A parent account's email is
+ *  typed in and never checked, so an email alone never gives a parent account anything: someone could have signed up
+ *  with the address first. */
+export function onVipList(list: VipEntry[], user: { id?: unknown; email?: unknown; role?: unknown; accountApproved?: unknown } | null | undefined): boolean {
+  if (!user) return false;
+  const id = Number(user.id);
+  if (list.some((e) => e.userId && e.userId === id)) return true;
+  const email = cleanVipEmail(user.email);
+  if (!email || (user.role !== "todo" && user.role !== "teacher") || user.accountApproved === false) return false;
+  return list.some((e) => e.email === email);
 }
 
 export const BUNDLE_REQUIRED = "bundle_required";

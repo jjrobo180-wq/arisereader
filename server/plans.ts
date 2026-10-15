@@ -27,7 +27,7 @@ import {
   type AddonAccess, type AppId,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
-  todoUnlimitedFor,
+  todoUnlimitedFor, cleanVipEmail, cleanVipList, onVipList, VIP_MAX, type VipEntry,
 } from "../shared/plans";
 import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, UNLIMITED_YEARLY_OFFER, aiMonth } from "../shared/todoPlan";
 
@@ -49,6 +49,8 @@ export type PlanDeps = {
   /** The signed-in user for a session token, or null. Used to check teachers before a route runs. */
   userForToken(token: string): Promise<AnyUser | null>;
   getUser(id: number): Promise<AnyUser | null | undefined>;
+  /** An account by its username, for putting an existing account on the VIP list. */
+  findUserByUsername?(username: string): Promise<AnyUser | null | undefined>;
   /** Approved students on a teacher's roster. */
   countTeacherStudents(teacherId: number): Promise<number>;
   /** Students at a school. */
@@ -85,6 +87,8 @@ const KEY = {
   /** A Checkout page that was opened and may have been paid: checked with Stripe until it resolves. */
   pending: (kind: PlanKind, id: number) => `plan_pending_${kind}_${id}`,
   index: "plan_index",
+  /** People given To-Do Unlimited by the admin, no payment (see VipEntry in shared/plans.ts). */
+  vip: "todo_vip",
   /** Schools the admin has made always free ("on"), and name-matched ones the admin has taken off ("off"). */
   freeSchools: "plans_free_schools",
   stripeKey: "stripe_secret_key",
@@ -1110,14 +1114,28 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // Free: up to 3 App Store apps across both hubs, and no AI. Unlimited ($5 a month): every app,
   // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
   // can read the hubs.)
+  const readVip = async (fresh = false): Promise<VipEntry[]> => cleanVipList(parse<unknown>(await (fresh ? readFresh(KEY.vip) : read(KEY.vip)), []));
+  /** Is this person on the admin's VIP list? A failed read counts as "not on it" for the list, never as a crash. */
+  const onVip = async (user: AnyUser): Promise<boolean> => {
+    try {
+      const list = await readVip();
+      if (!list.length) return false;
+      // The session may carry only part of the account; the email and "switched on" flag come from the account itself.
+      const full = user.email === undefined || user.accountApproved === undefined ? ((await deps.getUser(user.id)) ?? user) : user;
+      return onVipList(list, full);
+    } catch (e: any) {
+      console.error("[plans] VIP list check failed:", e?.message);
+      return false;
+    }
+  };
   const todoUnlimited = async (user: AnyUser) => {
     // `current`, not `readGrant`: it looks up an unfinished Checkout with Stripe and syncs a
     // subscription whose period has lapsed. Reading the saved grant alone meant a payment that
     // the webhook never delivered — late, lost, or a webhook that was never set up — left someone
     // who had paid being told to pay again, with nothing in the app ever going back to ask Stripe.
     // Every other plan goes through `current`; To-Do Unlimited was the one that didn't.
-    const [unlimited, yearly, oldLifeHub] = await Promise.all([current("todo_unlimited", user.id), current("todo_unlimited_year", user.id), current("todo_family", user.id)]);
-    return todoUnlimitedFor(user as PlanPerson, { unlimited, yearly, oldLifeHub }, now());
+    const [unlimited, yearly, oldLifeHub, vip] = await Promise.all([current("todo_unlimited", user.id), current("todo_unlimited_year", user.id), current("todo_family", user.id), onVip(user)]);
+    return todoUnlimitedFor(user as PlanPerson, { unlimited, yearly, oldLifeHub, vip }, now());
   };
   const AI_KEY = (id: number) => `todo_ai_usage_u${id}`;
   /** This month's AI uses for this person: the allowance, how many are used, and how many are left. */
@@ -1242,6 +1260,56 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       });
       res.json({ ok: true, free });
     } catch (e) { fail(res, e, "free school"); }
+  });
+
+  // ─── VIP list ──────────────────────────────────────────────────────────────
+  // People who get To-Do Unlimited (every app, AI to the fair-use ceiling) with no payment. Added by email, so it
+  // works the moment they confirm their account, or by username for an account that exists already.
+  const vipRows = async (list: VipEntry[]) => Promise.all(list.map(async (e) => {
+    const u = e.userId ? await deps.getUser(e.userId) : null;
+    return { email: e.email || "", userId: e.userId || null, label: e.label || "", addedAt: e.addedAt, account: u ? { id: u.id, username: u.username || "", displayName: u.displayName || "", role: u.role || "" } : null };
+  }));
+  app.get("/api/admin/plans/vip", auth, admin, async (_req: any, res: any) => {
+    try { res.set("Cache-Control", "no-store"); res.json({ vip: await vipRows(await readVip(true)), max: VIP_MAX }); }
+    catch (e) { fail(res, e, "vip list"); }
+  });
+  app.post("/api/admin/plans/vip", auth, admin, async (req: any, res: any) => {
+    try {
+      const who = String(req.body?.who ?? "").trim().replace(/^@/, "");
+      if (!who) throw new Refused("Type their email, or the username of an account that already exists.");
+      const label = String(req.body?.label ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+      let entry: VipEntry;
+      if (who.includes("@")) {
+        const email = cleanVipEmail(who);
+        if (!email) throw new Refused("That does not look like an email address.");
+        entry = { email, ...(label ? { label } : {}), addedAt: iso(now()) };
+      } else {
+        const u = deps.findUserByUsername ? await deps.findUserByUsername(who.toLowerCase()) : null;
+        if (!u || !posInt(u.id)) throw new Refused("No account has that username. For someone who has not signed up yet, use their email.");
+        entry = { userId: Number(u.id), ...(label ? { label } : {}), addedAt: iso(now()) };
+      }
+      await serial(async () => {
+        const list = await readVip(true);
+        if (list.some((e) => (entry.email && e.email === entry.email) || (entry.userId && e.userId === entry.userId))) throw new Refused("They are on the list already.", 409);
+        if (list.length >= VIP_MAX) throw new Refused(`The list is full (${VIP_MAX}). Remove someone first.`);
+        await write(KEY.vip, JSON.stringify([...list, entry]));
+      });
+      res.json({ ok: true, vip: await vipRows(await readVip(true)) });
+    } catch (e) { fail(res, e, "vip add"); }
+  });
+  app.post("/api/admin/plans/vip/remove", auth, admin, async (req: any, res: any) => {
+    try {
+      const email = cleanVipEmail(req.body?.email);
+      const userId = posInt(req.body?.userId);
+      if (!email && !userId) throw new Refused("Choose who to take off the list.");
+      await serial(async () => {
+        const list = await readVip(true);
+        const next = list.filter((e) => !((email && e.email === email) || (userId && e.userId === userId)));
+        if (next.length === list.length) throw new Refused("They are not on the list.", 404);
+        await write(KEY.vip, JSON.stringify(next));
+      });
+      res.json({ ok: true, vip: await vipRows(await readVip(true)) });
+    } catch (e) { fail(res, e, "vip remove"); }
   });
 
   /** Switches Premium on by hand for a teacher or a school: a purchase order, a gift, a pilot. */

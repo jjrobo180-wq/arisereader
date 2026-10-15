@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { PLANS, usd, type PlanKind } from "@shared/plans";
 
 type PlanRow = { kind: PlanKind; ownerId: number; name: string; students: number; source: "stripe" | "admin"; status: string; seats: number; endsAt: string | null; live: boolean; note: string };
+type VipRow = { email: string; userId: number | null; label: string; addedAt: string; account: { id: number; username: string; displayName: string; role: string } | null };
 type FreeSchool = { id: number; name: string; free: boolean; byName: boolean };
 type AdminPlansData = {
   enforced: boolean;
@@ -52,6 +53,16 @@ export default function AdminPlans() {
   const [grantNote, setGrantNote] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
+  const [vip, setVip] = useState<VipRow[] | null>(null);
+  const [vipWho, setVipWho] = useState("");
+  const [vipLabel, setVipLabel] = useState("");
+
+  const loadVip = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/plans/vip`, { headers: auth(), cache: "no-store" });
+      if (res.ok) setVip((await res.json()).vip || []);
+    } catch { /* the list says so below */ }
+  };
 
   const load = async () => {
     try {
@@ -61,6 +72,7 @@ export default function AdminPlans() {
   };
   useEffect(() => {
     void load();
+    void loadVip();
     fetch(`${API_BASE}/api/admin/schools`, { headers: auth() }).then((r) => (r.ok ? r.json() : [])).then((d) => setSchools(Array.isArray(d) ? d : [])).catch(() => {});
     fetch(`${API_BASE}/api/teacher-admin/teachers`, { headers: auth() }).then((r) => (r.ok ? r.json() : [])).then((d) => setTeachers(Array.isArray(d) ? d : [])).catch(() => {});
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -105,6 +117,17 @@ export default function AdminPlans() {
   const setFree = async (school: FreeSchool, free: boolean) => {
     if (!free && !window.confirm(`Stop ${school.name} being free?\n\nIts teachers will need a paid plan once plan rules are on, unless they signed up before October 1, 2026.`)) return;
     await post(`free-${school.id}`, "/api/admin/plans/free-school", { schoolId: school.id, free }, free ? `${school.name} is always free now.` : `${school.name} is no longer free.`);
+  };
+  const addVip = async () => {
+    if (!vipWho.trim()) { setNote({ ok: false, text: "Type their email, or the username of an account that already exists." }); return; }
+    const ok = await post("vip", "/api/admin/plans/vip", { who: vipWho, label: vipLabel }, "They have Unlimited now. If they have not signed up yet, it switches on as soon as they confirm their email.");
+    if (ok) { setVipWho(""); setVipLabel(""); await loadVip(); }
+  };
+  const removeVip = async (row: VipRow) => {
+    const name = row.account?.displayName || row.email || `account ${row.userId}`;
+    if (!window.confirm(`Take Unlimited away from ${name}?\n\nThey go back to the free plan. Nothing they made is deleted.`)) return;
+    const ok = await post(`vip-${row.email || row.userId}`, "/api/admin/plans/vip/remove", { email: row.email || undefined, userId: row.userId || undefined }, `${name} is off the list.`);
+    if (ok) await loadVip();
   };
   const saveKeys = async () => {
     const ok = await post("keys", "/api/admin/plans/stripe", { secretKey: secretKey.trim() || undefined, webhookSecret: webhookSecret.trim() || undefined }, "Saved.");
@@ -249,6 +272,38 @@ export default function AdminPlans() {
               </div>
               <Input value={grantNote} onChange={(e) => setGrantNote(e.target.value)} maxLength={120} placeholder="Note for yourself (optional), such as PO 1234" />
               <Button size="sm" onClick={grant} disabled={busy === "grant"} data-testid="admin-plans-grant">{busy === "grant" ? "Saving…" : kind.startsWith("hub_") ? "Switch Arise WorkHub on" : kind === "teacher" || kind === "school" ? "Switch Premium on" : `Switch ${KIND_LABEL[kind].split(" · ")[0]} on`}</Button>
+            </div>
+
+            {/* Free Unlimited for chosen people */}
+            <div className="space-y-3 pt-4 border-t border-border" data-testid="admin-vip">
+              <Label className="text-sm font-medium">Free Unlimited for chosen people (arisetodo)</Label>
+              <p className="text-sm text-muted-foreground">
+                Everyone on this list gets every App Store app and AI (to the fair-use limit) in WorkHub and LifeHub, with no payment. Type an email and it switches on the moment they sign up and confirm it, or the username of an account that already exists, such as a parent. Take them off any time.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <Input value={vipWho} onChange={(e) => setVipWho(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void addVip(); }} placeholder="Email, or username" autoComplete="off" aria-label="Email or username" data-testid="admin-vip-who" />
+                <Input value={vipLabel} onChange={(e) => setVipLabel(e.target.value)} maxLength={80} placeholder="Name or note (optional)" aria-label="Name or note" />
+                <Button size="sm" onClick={addVip} disabled={busy === "vip"} data-testid="admin-vip-add">{busy === "vip" ? "Saving…" : "Give Unlimited"}</Button>
+              </div>
+              {vip === null ? <p className="text-sm text-muted-foreground">Loading the list…</p>
+                : vip.length === 0 ? <p className="text-sm text-muted-foreground">No one yet.</p>
+                : (
+                  <ul className="divide-y divide-border rounded-lg border border-border">
+                    {vip.map((row) => {
+                      const who = row.account ? `${row.account.displayName || row.account.username} (@${row.account.username})` : row.email;
+                      const state = row.account ? "Existing account" : "Switches on for a confirmed account with this email";
+                      return (
+                        <li key={row.email || row.userId} className="flex flex-wrap items-center gap-2 p-2 text-sm">
+                          <div className="min-w-0 flex-1">
+                            <div className="break-words font-medium">{who}{row.label ? ` · ${row.label}` : ""}</div>
+                            <div className="text-xs text-muted-foreground">{state}{row.account ? ` · ${row.account.role}` : ""}</div>
+                          </div>
+                          <Button size="sm" variant="outline" onClick={() => removeVip(row)} disabled={busy === `vip-${row.email || row.userId}`}>Remove</Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
             </div>
 
             {/* Online payment */}
