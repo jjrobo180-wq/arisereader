@@ -102,3 +102,14 @@ test("trip reminder interval: the parent's setting, then early training, then he
   const logs: Entry[] = []; for (let i = 0; i < 6; i++) logs.push(E(DAY, 7 + i, 0, "pee"));
   assert.equal(tripInterval(logs, k, at(DAY, 14, 0)), 60);
 });
+
+test("the reminder rings for the planned sit when it comes before the regular trip", async () => {
+  const { nextRing } = await import("../shared/pro/potty/agenda");
+  const now = at(DAY, 9, 0);
+  const none = nextRing([], { ...kid(), stage: "ready" as const }, 120, now);
+  assert.ok(none.minutes <= 120);
+  const logs = [E(DAY, 8, 58, "drink", { ml: 118, drink: "juice" })];
+  const r = nextRing(logs, { ...kid(), stage: "ready" as const }, 180, now);
+  assert.ok(r.sit && r.minutes < 180 && r.minutes >= 40 && r.minutes <= 60, `rings in ${r.minutes}`);
+  assert.match(r.sit!.why, /juice/);
+});

@@ -182,3 +182,13 @@ export function tripInterval(logs: Entry[], child: Child, now = Date.now()): num
   const gap = rhythm(logs, child.id, now).peeGap;
   return gap ? Math.max(20, Math.min(180, gap)) : 90;
 }
+
+/**
+ * When the reminder should ring next: the regular trip interval, or sooner if a planned sit
+ * (after a drink or meal) comes before that. `sit` is set when a planned sit is what rings.
+ */
+export function nextRing(logs: Entry[], child: Child, interval: number, now = Date.now()): { minutes: number; sit?: Sit } {
+  const sit = planSits(logs, child, now).find((s) => s.state === "upcoming" && s.at - now > 60_000);
+  const minutes = sit ? Math.ceil((sit.at - now) / MIN) : Infinity;
+  return sit && minutes < interval ? { minutes, sit } : { minutes: interval };
+}
