@@ -104,6 +104,7 @@ const AuroraRally = lazyPage(() => import("./pages/AuroraRally"));
 const StandaloneGame = lazyPage(() => import("./pages/StandaloneGame"));
 const TeacherHub = lazyPage(() => import("./pages/TeacherHub"));
 const AriseTodo = lazyPage(() => import("./pages/AriseTodo"));
+const TodoAdmin = lazyPage(() => import("./pages/TodoAdmin"));
 const AmbientStandby = lazyPage(() => import("./pages/AmbientStandby"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
 const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
@@ -415,6 +416,9 @@ function AppRoutes() {
       </Route>
       <Route path="/to-do">
         {onReaderDomain && isHubAccount(user) ? <ReaderToHubHandoff /> : onReaderDomain && !user ? <Redirect to="/signin" replace /> : onReaderDomain ? <ReaderToTodoRedirect /> : <TodoGate><AriseTodo /></TodoGate>}
+      </Route>
+      <Route path="/todo-admin">
+        {user?.isAdmin ? <ProtectedRoute><TodoAdmin /></ProtectedRoute> : user ? <Redirect to="/" replace /> : <Redirect to="/signin" replace />}
       </Route>
       <Route path="/admin-handoff">
         {onTodoDomain ? <TodoAdminHandoff /> : <Redirect to="/signin" replace />}

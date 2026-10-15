@@ -194,6 +194,10 @@ export type PlanGrant = {
   note?: string;
   /** A school that is always Premium at no charge: no student limit, no end date, nothing to pay. */
   free?: boolean;
+  /** A free trial or gift the admin gave: it ends on `endsAt` exactly, with no extra days of grace. */
+  trial?: boolean;
+  /** Paid online, and set to stop at the end of the period already paid for. */
+  cancelAtPeriodEnd?: boolean;
 };
 
 /** Is this plan in force right now? */
@@ -202,6 +206,7 @@ export function grantLive(grant: PlanGrant | null | undefined, now = Date.now())
   if (!grant.endsAt) return true;
   const end = Date.parse(grant.endsAt);
   if (!Number.isFinite(end)) return false;
+  if (grant.trial) return now < end;
   return now < end + PLANS.graceDays * 86_400_000;
 }
 

@@ -29,6 +29,7 @@ import {
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
   todoUnlimitedFor, cleanVipEmail, cleanVipList, onVipList, VIP_MAX, type VipEntry,
 } from "../shared/plans";
+import { TODO_PLAN_KINDS, infoFromGrant, stripeKeyMode, type PlanInfo } from "../shared/todoAdmin";
 import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, UNLIMITED_YEARLY_OFFER, aiMonth } from "../shared/todoPlan";
 
 type AnyUser = {
@@ -99,7 +100,7 @@ const KEY = {
 const TEACHER_OPEN = ["/api/social", "/api/addons", "/api/teacher-hub", "/api/arise-todo", "/api/lifehub", "/api/hub-chat", "/api/hub-calendar", "/api/hub-files", "/api/hub-inbox", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
 
 // Never 401 or 503 here: the app retries those for several seconds before showing the message.
-class Refused extends Error { constructor(message: string, readonly status = 400, readonly code?: string) { super(message); } }
+export class Refused extends Error { constructor(message: string, readonly status = 400, readonly code?: string) { super(message); } }
 
 const DAY = 86_400_000;
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -362,6 +363,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       endsAt: iso(endsAt), updatedAt: iso(at), buyerId: m.buyerId || undefined,
       stripeCustomerId: typeof sub.customer === "string" ? sub.customer : sub.customer?.id,
       stripeSubscriptionId: sub.id, stripeItemId: typeof item?.id === "string" ? item.id : undefined,
+      ...(sub.cancel_at_period_end === true && status === "active" ? { cancelAtPeriodEnd: true } : {}),
     };
   };
 
@@ -1372,7 +1374,157 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, hubAccess, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
+  // ─── For the To-Do admin screen (server/todoAdmin.ts) ──────────────────────
+  // Who is on which To-Do plan, what Stripe says people paid, and the actions: a free trial, ending one,
+  // cancelling a paid plan, and refunding the last payment.
+  const TODO_PAID_KINDS: PlanKind[] = ["todo_unlimited", "todo_unlimited_year"];
+  /** Every To-Do plan record, by person. */
+  const todoPlanInfos = async (): Promise<Map<number, PlanInfo[]>> => {
+    const index = await readIndex();
+    const out = new Map<number, PlanInfo[]>();
+    for (const kind of TODO_PLAN_KINDS) {
+      for (const id of index[kind as PlanKind] || []) {
+        const g = await readGrant(kind as PlanKind, id);
+        if (!g) continue;
+        out.set(id, [...(out.get(id) || []), infoFromGrant(g, now())]);
+      }
+    }
+    return out;
+  };
+  /** Which person each Stripe customer belongs to, from every plan anyone has bought. */
+  const customerOwners = async (): Promise<Map<string, number>> => {
+    const index = await readIndex();
+    const out = new Map<string, number>();
+    for (const kind of PLAN_KINDS) {
+      for (const id of index[kind]) {
+        const g = await readGrant(kind, id);
+        if (g?.stripeCustomerId) out.set(g.stripeCustomerId, posInt(g.buyerId) || (isSchoolKind(kind) ? 0 : id));
+      }
+    }
+    out.delete("");
+    return out;
+  };
+
+  type Paid = { cents: number; refunded: number; count: number; lastAt: string | null };
+  const PAID_TTL = 5 * 60_000, PAID_PAGES = 30;
+  let paidCache: { at: number; mode: "live" | "test"; byCustomer: Map<string, Paid>; cents: number; refunded: number; count: number; truncated: boolean } | null = null;
+  const chargeOk = (c: any) => c && c.status === "succeeded" && c.paid === true;
+  /** What Stripe has taken, in total and by customer. Counts the most recent 3,000 payments. */
+  const stripePayments = async (force = false) => {
+    if (!force && paidCache && now() - paidCache.at < PAID_TTL) return paidCache;
+    const key = await stripeKey();
+    if (!key) return null;
+    const byCustomer = new Map<string, Paid>();
+    let cents = 0, refunded = 0, count = 0, after = "", truncated = false;
+    for (let page = 0; ; page++) {
+      if (page >= PAID_PAGES) { truncated = true; break; }
+      const list = await stripe("GET", `/charges?limit=100${after ? `&starting_after=${encodeURIComponent(after)}` : ""}`);
+      const rows: any[] = Array.isArray(list?.data) ? list.data : [];
+      for (const c of rows) {
+        if (!chargeOk(c)) continue;
+        const amount = Math.max(0, Number(c.amount) || 0), back = Math.min(amount, Math.max(0, Number(c.amount_refunded) || 0));
+        cents += amount; refunded += back; count++;
+        const cus = typeof c.customer === "string" ? c.customer : c.customer?.id;
+        if (!cus) continue;
+        const at = Number(c.created) > 0 ? iso(Number(c.created) * 1000) : null;
+        const cur = byCustomer.get(cus) || { cents: 0, refunded: 0, count: 0, lastAt: null };
+        cur.cents += amount; cur.refunded += back; cur.count++;
+        if (at && (!cur.lastAt || at > cur.lastAt)) cur.lastAt = at;
+        byCustomer.set(cus, cur);
+      }
+      if (!list?.has_more || !rows.length) break;
+      after = String(rows[rows.length - 1].id);
+    }
+    paidCache = { at: now(), mode: stripeKeyMode(key) === "test" ? "test" : "live", byCustomer, cents, refunded, count, truncated };
+    return paidCache;
+  };
+  /** One person's payments, newest first. */
+  const personPayments = async (customerId: string) => {
+    if (!/^cus_[A-Za-z0-9]{6,100}$/.test(customerId)) return [];
+    const list = await stripe("GET", `/charges?customer=${customerId}&limit=24`);
+    return (Array.isArray(list?.data) ? list.data : []).filter(chargeOk).map((c: any) => ({
+      id: String(c.id), at: Number(c.created) > 0 ? iso(Number(c.created) * 1000) : "", cents: Number(c.amount) || 0, refundedCents: Number(c.amount_refunded) || 0,
+      description: String(c.description || "").slice(0, 120),
+    }));
+  };
+  const personCustomer = async (userId: number): Promise<string> => {
+    for (const kind of [...TODO_PAID_KINDS, "todo_family"] as PlanKind[]) {
+      const g = await readGrant(kind, userId, true);
+      if (g?.stripeCustomerId) return g.stripeCustomerId;
+    }
+    return "";
+  };
+
+  /** A free trial (days) or free access with no end (days = 0). Not while they are paying. */
+  const giveTrial = async (userId: number, days: number, note: string) => {
+    await serial(async () => {
+      for (const kind of TODO_PAID_KINDS) {
+        const held = await readGrant(kind, userId, true);
+        if (held?.source === "stripe" && grantLive(held, now())) throw new Refused("They are paying for Unlimited already. Cancel their plan first if you want to replace it.", 409);
+      }
+      const grant: PlanGrant = {
+        kind: "todo_unlimited", ownerId: userId, source: "admin", status: "active", seats: 1, trial: true,
+        endsAt: days > 0 ? iso(now() + days * DAY) : null, updatedAt: iso(now()),
+        note: note.replace(/\s+/g, " ").trim().slice(0, 120) || undefined,
+      };
+      await saveGrant(grant);
+    });
+  };
+  /** Ends a trial or free access the admin gave. */
+  const endTrial = async (userId: number) => {
+    await serial(async () => {
+      const held = await readGrant("todo_unlimited", userId, true);
+      if (!held || held.source !== "admin" || held.status === "canceled") throw new Refused("They have no free trial or free access to end.", 404);
+      await saveGrant({ ...held, status: "canceled", updatedAt: iso(now()) });
+    });
+  };
+  /** Cancels a paid plan: at the end of the period they paid for, or right now. */
+  const cancelPaid = async (userId: number, when: "period_end" | "now") => {
+    let sub = "";
+    for (const kind of TODO_PAID_KINDS) {
+      const held = await readGrant(kind, userId, true);
+      if (held?.source === "stripe" && held.stripeSubscriptionId && held.status !== "canceled" && grantLive(held, now())) { sub = held.stripeSubscriptionId; break; }
+    }
+    if (!sub) throw new Refused("They are not paying for a plan that can be cancelled.", 404);
+    if (when === "now") await stripe("DELETE", subscriptionPath(sub));
+    else await stripe("POST", subscriptionPath(sub), { cancel_at_period_end: true });
+    await syncSubscription(sub);
+    paidCache = null;
+  };
+  /** Puts a person on the VIP list (free Unlimited for good), or takes them off. Taking off also removes an email entry for them. */
+  const vipSet = async (who: { id: number; email: string }, on: boolean) => {
+    await serial(async () => {
+      const list = await readVip(true);
+      const email = cleanVipEmail(who.email);
+      const mine = (e: VipEntry) => e.userId === who.id || (!!email && e.email === email);
+      if (on && !list.some(mine) && list.length >= VIP_MAX) throw new Refused(`The VIP list is full (${VIP_MAX}). Remove someone first.`);
+      const next = on ? (list.some(mine) ? list : [...list, { userId: who.id, addedAt: iso(now()) }]) : list.filter((e) => !mine(e));
+      if (next.length !== list.length || on) await write(KEY.vip, JSON.stringify(next));
+    });
+  };
+  /** Takes back a cancel-at-period-end. */
+  const keepPlan = async (userId: number) => {
+    let sub = "";
+    for (const kind of TODO_PAID_KINDS) {
+      const held = await readGrant(kind, userId, true);
+      if (held?.source === "stripe" && held.stripeSubscriptionId && held.cancelAtPeriodEnd && grantLive(held, now())) { sub = held.stripeSubscriptionId; break; }
+    }
+    if (!sub) throw new Refused("Their plan is not set to cancel.", 404);
+    await stripe("POST", subscriptionPath(sub), { cancel_at_period_end: false });
+    await syncSubscription(sub);
+  };
+  /** Refunds the last payment that has not been refunded yet. Does not cancel the plan. */
+  const refundLast = async (userId: number) => {
+    const customer = await personCustomer(userId);
+    if (!customer) throw new Refused("There is no online payment to refund.", 404);
+    const charge = (await personPayments(customer)).find((c: any) => c.refundedCents < c.cents);
+    if (!charge) throw new Refused("There is no payment left to refund.", 404);
+    await stripe("POST", "/refunds", { charge: charge.id });
+    paidCache = null;
+    return { cents: charge.cents - charge.refundedCents, at: charge.at };
+  };
+
+  return { entitlement, hubAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

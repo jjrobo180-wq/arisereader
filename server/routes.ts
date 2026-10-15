@@ -80,6 +80,7 @@ import { createAdminAlerts, type Alert } from "./adminAlerts";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
 import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
+import { registerTodoAdminRoutes } from "./todoAdmin";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
@@ -967,6 +968,31 @@ function clubDeniedEmail(studentName: string): string {
 
 // Notes who used the app each day (first and last visit), for the admin Stats tab.
 // One save every half minute at most; see server/adminStats.ts.
+/**
+ * Archives a profile (signed out everywhere, hidden from lists, nothing deleted) or restores it.
+ * Used by the Reader admin and by the To-Do admin's on/off switch.
+ */
+async function archiveProfile(userId: number, archive: boolean, byUserId: number): Promise<"ok" | "missing" | "admin"> {
+  const adminDb = getAdminSupabase();
+  const { data: target, error: findError } = await adminDb.from("users").select("id, role, is_admin, archived_at").eq("id", userId).maybeSingle();
+  if (findError) throw new Error(findError.message);
+  if (!target) return "missing";
+  if (target.is_admin) return "admin";
+  const patch = archive ? { archived_at: new Date().toISOString(), archived_by: byUserId } : { archived_at: null, archived_by: null };
+  const { error } = await adminDb.from("users").update(patch).eq("id", userId);
+  if (error) throw new Error(error.message);
+  // Sign the person out everywhere.
+  if (archive) await adminDb.from("sessions").delete().eq("user_id", userId);
+  clearCache('session_');
+  clearCache('allUsers');
+  clearCache('teachers');
+  clearCache('leaderboard');
+  clearCache('monthlyLeaderboard_');
+  clearCache('eye_gaze_leaderboard');
+  clearCache('advisoryLeaderboard');
+  return "ok";
+}
+
 const presence = createPresenceTracker({
   readSetting: async (key) => {
     const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
@@ -4192,6 +4218,16 @@ export async function registerRoutes(
   // Admin routes
   registerStudentActivityRoutes(app, authMiddleware, adminMiddleware);
   registerAdminStatsRoutes(app, authMiddleware, adminMiddleware, { db: () => getAdminSupabase(), presence });
+  // The separate To-Do admin: people, plans, payments, trials and cancelling (client/src/pages/TodoAdmin.tsx).
+  registerTodoAdminRoutes(app, authMiddleware, adminMiddleware, {
+    db: () => getAdminSupabase(), plans, presence,
+    setArchived: async (userId, archive, byUserId) => {
+      const r = await archiveProfile(userId, archive, byUserId);
+      if (r === "missing") throw new Error("That person could not be found.");
+      if (r === "admin") throw new Error("Admin accounts can't be switched off.");
+    },
+    confirm: (userId) => storage.approveTeacherAccount(userId),
+  });
   app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
     const studentId = Number(req.params.id);
     const points = req.body?.points;
@@ -11793,23 +11829,9 @@ Important:
       const userId = parseInt(req.params.userId);
       if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ message: "Invalid user." });
       if (userId === req.user.id) return res.status(400).json({ message: "You can't archive your own account." });
-      const adminDb = getAdminSupabase();
-      const { data: target, error: findError } = await adminDb.from("users").select("id, role, is_admin, archived_at").eq("id", userId).maybeSingle();
-      if (findError) throw new Error(findError.message);
-      if (!target) return res.status(404).json({ message: "User not found." });
-      if (target.is_admin) return res.status(400).json({ message: "Admin accounts can't be archived." });
-      const patch = archive ? { archived_at: new Date().toISOString(), archived_by: req.user.id } : { archived_at: null, archived_by: null };
-      const { error } = await adminDb.from("users").update(patch).eq("id", userId);
-      if (error) throw new Error(error.message);
-      // Sign the person out everywhere.
-      if (archive) await adminDb.from("sessions").delete().eq("user_id", userId);
-      clearCache('session_');
-      clearCache('allUsers');
-      clearCache('teachers');
-      clearCache('leaderboard');
-      clearCache('monthlyLeaderboard_');
-      clearCache('eye_gaze_leaderboard');
-      clearCache('advisoryLeaderboard');
+      const result = await archiveProfile(userId, archive, req.user.id);
+      if (result === "missing") return res.status(404).json({ message: "User not found." });
+      if (result === "admin") return res.status(400).json({ message: "Admin accounts can't be archived." });
       res.json({ success: true, archived: archive });
     } catch (error: any) {
       console.error("[admin-archive] Failed:", error?.message);
