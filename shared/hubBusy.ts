@@ -43,3 +43,11 @@ export function clashes(items: Booked[], time: { date: string; start: string; en
   const to = time.end && TIME.test(time.end) && mins(time.end) > from ? mins(time.end) : from + 60;
   return bookedOn(items, time.date).filter((b) => mins(b.start) < to && (b.end ? mins(b.end) : mins(b.start) + 60) > from);
 }
+
+export type AllDay = { date: string; title: string; blocks: boolean };
+const BLOCKING = /out of office|\booo\b|no school|holiday|break\b|vacation|\bleave\b|sick|\bpd\b|professional development|field trip|training|conference|in-?service|teacher work day|testing/i;
+
+/** All-day items on the calendar (no start time). Ones that sound like the teacher is away (out of office, no school, training) block the whole day. */
+export function allDayItems(ws: Pick<Workspace, "events" | "hiddenEvents"> & { calendars?: Workspace["calendars"] }, from: string, to: string): AllDay[] {
+  return calendarEvents(ws, from, to).filter((e) => !e.start && !e.meetingId).map((e) => ({ date: e.date, title: e.title || "All day", blocks: BLOCKING.test(e.title || "") }));
+}
