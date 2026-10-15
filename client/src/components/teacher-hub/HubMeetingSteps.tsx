@@ -13,6 +13,7 @@ import { GuideChecklist } from "./HubGuide";
 import type { Meeting, Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton, Select } from "./ui";
 import HubQuickAddStudent from "./HubQuickAddStudent";
+import GenEdCoverage from "./HubGenEdCoverage";
 
 export type WizardState = { step: number; meetingId: string | null };
 type Setter = Dispatch<SetStateAction<Workspace>>;
@@ -99,8 +100,8 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
       meetings: p.meetings.map((m) => (m.id === meeting.id ? { ...m, date: when.date, time: when.time, room: when.room.trim() } : m)),
       guides: p.guides.map((g) => (g.student === meeting.student ? { ...g, meetingDate: when.date, meetingTime: when.time, room: when.room.trim() } : g)),
     }));
-    setPlan((pl) => [2, 3, 4].reduce((acc, n) => markDone(acc, n), pl));
-    go(5);
+    setPlan((pl) => [2, 3].reduce((acc, n) => markDone(acc, n), pl));
+    go(4);
   }
   function addTodo(title: string) {
     if (!meeting) return;
@@ -223,6 +224,7 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
           {step === 4 && <>
             <p className="text-sm text-slate-600">Booking a time tells everyone for you. If you chose to send things yourself, open the poll and use “Tell everyone” to send the final time from your own email or phone.</p>
             <GhostButton onClick={showPolls}>Open my polls</GhostButton>
+            {meeting && <GenEdCoverage workspace={workspace} setWorkspace={setWorkspace} meeting={meeting} senderName={sender.name || workspace.profile.senderName || ""} makeId={makeId} />}
           </>}
           {step === 5 && (meeting ? (guide
             ? <GuideChecklist guide={guide} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} sender={sender} />
