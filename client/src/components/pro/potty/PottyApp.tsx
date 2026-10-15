@@ -2,7 +2,7 @@
 // profile, setup for a new child, navigation, reminders (timer and today's schedule) and the
 // child-facing overlays. Each screen lives in its own file.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { BookOpen, CalendarDays, Clock, HeartHandshake, Lightbulb, MessageCircle, PlayCircle, Route, Settings, Star, Sun, Volume2, VolumeX, X } from "lucide-react";
+import { BookOpen, CalendarDays, Clock, HeartHandshake, Lightbulb, ListChecks, MessageCircle, PlayCircle, Route, Settings, Star, Sun, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAppData } from "@/lib/cloudDocs";
 import { Modal, fmtDuration, uid, useTick } from "../kit";
@@ -13,6 +13,7 @@ import { LogSheet } from "./LogSheet";
 import { Btn2, C, Chip, FONT_HEAD, Label, Panel, PottyStyles, field, fieldStyle, say } from "./theme";
 import Today from "./Today";
 
+const Agenda = lazy(() => import("./Agenda"));
 const History = lazy(() => import("./History"));
 const Program = lazy(() => import("./Program"));
 const Coach = lazy(() => import("./Coach"));
@@ -24,7 +25,7 @@ const TryLearn = lazy(() => import("./TryLearn"));
 const Rewards = lazy(() => import("./Rewards"));
 
 const TABS: { id: Tab; label: string; icon: ComponentType<{ size?: number }> }[] = [
-  { id: "today", label: "Today", icon: Sun }, { id: "log", label: "Log & charts", icon: CalendarDays }, { id: "plan", label: "Plan", icon: Route },
+  { id: "today", label: "Today", icon: Sun }, { id: "agenda", label: "Agenda", icon: ListChecks }, { id: "log", label: "Log & charts", icon: CalendarDays }, { id: "plan", label: "Plan", icon: Route },
   { id: "coach", label: "AI coach", icon: MessageCircle }, { id: "schedule", label: "Schedule", icon: Clock }, { id: "videos", label: "Videos", icon: PlayCircle },
   { id: "learn", label: "Learn", icon: BookOpen }, { id: "needs", label: "Additional needs", icon: HeartHandshake }, { id: "try", label: "Try & learn", icon: Lightbulb }, { id: "rewards", label: "Rewards", icon: Star },
 ];
@@ -82,7 +83,7 @@ export default function PottyApp() {
 
   if (!kid || adding) return <div className="potty-app"><PottyStyles /><Setup first={!kid} onCancel={kid ? () => setAdding(false) : undefined} onDone={(k) => { putKid(k); setAdding(false); setTab("today"); }} n={data.kids.length} /></div>;
 
-  const Screen = { today: Today, log: History, plan: Program, coach: Coach, schedule: Schedule, videos: Videos, learn: Learn, needs: Needs, try: TryLearn, rewards: Rewards }[tab];
+  const Screen = { today: Today, agenda: Agenda, log: History, plan: Program, coach: Coach, schedule: Schedule, videos: Videos, learn: Learn, needs: Needs, try: TryLearn, rewards: Rewards }[tab];
   const stage = stageById(kid.stage);
   const timerKid = data.timer ? data.kids.find((k) => k.id === data.timer!.kid) : null;
   return <Ctx.Provider value={ctx}>

@@ -20,6 +20,20 @@ export type Kind =
   | "food" | "drink" | "note";
 export type Init = "self" | "prompted" | "schedule" | "";
 export type Place = "home" | "daycare" | "out" | "";
+/** What was drunk: a bottle (breast milk or formula), juice, and the usual others. */
+export type DrinkType = "bottle" | "juice" | "water" | "milk" | "smoothie" | "other";
+export const DRINK_TYPES: { id: DrinkType; label: string; emoji: string }[] = [
+  { id: "bottle", label: "Bottle", emoji: "🍼" }, { id: "juice", label: "Juice", emoji: "🧃" }, { id: "water", label: "Water", emoji: "💧" },
+  { id: "milk", label: "Milk", emoji: "🥛" }, { id: "smoothie", label: "Smoothie", emoji: "🥤" }, { id: "other", label: "Other", emoji: "🥤" },
+];
+export const drinkInfo = (t?: DrinkType | "") => DRINK_TYPES.find((d) => d.id === t);
+/** Entries made before drink types existed carried the type in the note ("Juice, Water"). */
+export function drinkTypeOf(e: { kind: string; drink?: DrinkType; note?: string }): DrinkType | undefined {
+  if (e.kind !== "drink") return undefined;
+  if (e.drink) return e.drink;
+  const n = (e.note || "").toLowerCase();
+  return DRINK_TYPES.find((d) => n.includes(d.id))?.id;
+}
 export type Entry = {
   id: string; kid: string; at: number; kind: Kind;
   /** Who started a potty trip: the child (told you / went alone), you asked, or the schedule/timer. */
@@ -28,6 +42,8 @@ export type Entry = {
   bristol?: number;
   /** Drink size in millilitres. */
   ml?: number;
+  /** Drinks: bottle, juice, water… */
+  drink?: DrinkType;
   /** Food: a snack or a meal. */
   size?: "snack" | "meal";
   where?: Place;
@@ -181,6 +197,7 @@ export function cleanData(raw: unknown): PottyData {
     if (typeof e.bristol === "number" && e.bristol >= 1 && e.bristol <= 7) out.bristol = Math.round(e.bristol);
     if (typeof e.ml === "number" && e.ml > 0) out.ml = Math.min(2000, Math.round(e.ml));
     if (e.size === "snack" || e.size === "meal") out.size = e.size;
+    if (e.kind === "drink" && DRINK_TYPES.some((d) => d.id === e.drink)) out.drink = e.drink;
     if (e.where === "home" || e.where === "daycare" || e.where === "out") out.where = e.where;
     if (e.pain === true) out.pain = true;
     if (typeof e.note === "string" && e.note.trim()) out.note = e.note.slice(0, 500);

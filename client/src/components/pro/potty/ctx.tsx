@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react";
 import type { Child, Entry, Kind, PottyData } from "@shared/pro/potty";
 
-export type Tab = "today" | "log" | "plan" | "coach" | "schedule" | "videos" | "learn" | "needs" | "try" | "rewards";
+export type Tab = "today" | "agenda" | "log" | "plan" | "coach" | "schedule" | "videos" | "learn" | "needs" | "try" | "rewards";
 export type LogPrefill = Partial<Entry> & { edit?: Entry };
 export type PottyCtx = {
   data: PottyData;

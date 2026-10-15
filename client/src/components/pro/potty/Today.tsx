@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Bell, ChevronRight, Info } from "lucide-react";
 import { useTick } from "../kit";
-import { KINDS, accidentFreeDays, atTime, clock12, clockOf, dayOf, dayStats, dryNights, healthFlags, isPoopEvent, minsOf, predict, stageById, stageChecks, type Entry, type Kind, type Window } from "@shared/pro/potty";
+import { KINDS, labelOf, accidentFreeDays, atTime, clock12, clockOf, dayOf, dayStats, dryNights, healthFlags, isPoopEvent, minsOf, predict, stageById, stageChecks, type Entry, type Kind, type Window } from "@shared/pro/potty";
 import { usePotty } from "./ctx";
 import { Btn2, C, Note, Panel, Section, pct } from "./theme";
 
@@ -34,9 +34,10 @@ function Ribbon({ entries, windows, wake, bed }: { entries: Entry[]; windows: Wi
   </div>;
 }
 
-const QUICK: { kind: Kind; label: string; sheet?: boolean }[] = [
+const QUICK: { kind: Kind; label: string; sheet?: boolean; pre?: Partial<Entry>; emoji?: string }[] = [
   { kind: "pee", label: "Pee in potty" }, { kind: "poop", label: "Poop in potty" }, { kind: "both", label: "Both" }, { kind: "try", label: "Sat, nothing" },
-  { kind: "acc-pee", label: "Pee accident" }, { kind: "acc-poop", label: "Poop accident" }, { kind: "drink", label: "Drink", sheet: true }, { kind: "food", label: "Food", sheet: true },
+  { kind: "acc-pee", label: "Pee accident" }, { kind: "acc-poop", label: "Poop accident" }, { kind: "drink", label: "Bottle", sheet: true, pre: { drink: "bottle" }, emoji: "🍼" }, { kind: "drink", label: "Juice", sheet: true, pre: { drink: "juice" }, emoji: "🧃" },
+  { kind: "drink", label: "Drink", sheet: true }, { kind: "food", label: "Food", sheet: true },
 ];
 
 export default function Today() {
@@ -76,11 +77,11 @@ export default function Today() {
 
     {/* Logging */}
     <Section title="Log it" sub="One tap. Use “More” for any time, poop type, drink size or notes." action={<label className="inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-bold" style={{ background: self ? C.good : "#fff", color: self ? "#fff" : C.inkSoft, boxShadow: self ? undefined : `inset 0 0 0 1.5px ${C.line}` }}><input type="checkbox" checked={self} onChange={(e) => setSelf(e.target.checked)} className="sr-only" />🙋 {kid.name} started this trip</label>}>
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">{QUICK.map((q) => <button key={q.kind} type="button" onClick={() => { if (q.sheet) openLog({ kind: q.kind }); else { log(q.kind, { init: self ? "self" : "" }); setSelf(false); } }}
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 lg:grid-cols-10">{QUICK.map((q) => <button key={q.label} type="button" onClick={() => { if (q.sheet) openLog({ kind: q.kind, ...q.pre }); else { log(q.kind, { init: self ? "self" : "" }); setSelf(false); } }}
         className="group flex min-h-[92px] flex-col items-center justify-center gap-1 rounded-[20px] bg-white px-1 py-3 text-center transition active:scale-95" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>
-        <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl" style={{ background: `${KINDS[q.kind].color}1F` }}>{KINDS[q.kind].emoji}</span>
+        <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl" style={{ background: `${KINDS[q.kind].color}1F` }}>{q.emoji || KINDS[q.kind].emoji}</span>
         <span className="text-[12px] font-bold leading-tight" style={{ color: C.ink }}>{q.label}</span></button>)}</div>
-      <div className="mt-3 flex flex-wrap gap-2"><Btn2 kind="duck" onClick={startSit}>▶ Start a sit</Btn2><Btn2 onClick={() => openLog({})}>More…</Btn2><Btn2 kind="ghost" onClick={() => log("dry")}>✅ Dry check</Btn2><Btn2 kind="ghost" onClick={() => openLog({ kind: "diaper-wet" })}>🩲 Diaper</Btn2><Btn2 kind="ghost" onClick={() => openLog({ kind: "night-dry" })}>🌙 Night / nap</Btn2></div>
+      <div className="mt-3 flex flex-wrap gap-2"><Btn2 kind="duck" onClick={startSit}>▶ Start a sit</Btn2><Btn2 onClick={() => go("agenda")}>🗒️ Agenda</Btn2><Btn2 onClick={() => openLog({})}>More…</Btn2><Btn2 kind="ghost" onClick={() => log("dry")}>✅ Dry check</Btn2><Btn2 kind="ghost" onClick={() => openLog({ kind: "diaper-wet" })}>🩲 Diaper</Btn2><Btn2 kind="ghost" onClick={() => openLog({ kind: "night-dry" })}>🌙 Night / nap</Btn2></div>
     </Section>
 
     {flags.filter((f) => f.level !== "info").length > 0 && <Section title="Worth a look">
@@ -103,7 +104,7 @@ export default function Today() {
         <div className="mb-3 grid grid-cols-3 gap-2">{[["Success", pct(s.rate)], ["Self-started", pct(s.selfRate)], ["Drinks", data.units === "oz" ? `${Math.round(s.drinksMl / 29.57)} oz` : `${s.drinksMl} ml`], ["Poops", String(s.poops)], ["No-accident days", String(accidentFreeDays(data.logs, kid.id))], ["Dry nights", String(dryNights(data.logs, kid.id))]].map(([l, v]) => <div key={l} className="rounded-2xl bg-white px-3 py-2.5" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><p className="ph text-xl font-extrabold">{v}</p><p className="text-[11px] font-bold" style={{ color: C.muted }}>{l}</p></div>)}</div>
         {entries.length ? <ul className="divide-y divide-[#E3E8F1] overflow-hidden rounded-[22px] bg-white" style={{ boxShadow: `inset 0 0 0 1.5px ${C.line}` }}>{[...entries].reverse().map((e) => <li key={e.id}><button type="button" onClick={() => openLog({ edit: e })} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50">
           <span className="w-16 text-[13px] font-bold tabular-nums" style={{ color: C.muted }}>{clockOf(e.at)}</span><span className="text-xl">{KINDS[e.kind].emoji}</span>
-          <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{KINDS[e.kind].label}{e.kind === "drink" && e.ml ? ` · ${data.units === "oz" ? `${Math.round(e.ml / 29.57)} oz` : `${e.ml} ml`}` : ""}{isPoopEvent(e.kind) && e.bristol ? ` · type ${e.bristol}` : ""}</span>{(e.note || e.init === "self") && <span className="block text-xs leading-snug" style={{ color: C.muted }}>{e.init === "self" ? "Started by your child. " : ""}{e.note}</span>}</span>
+          <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{labelOf(e, KINDS[e.kind].label)}{e.kind === "drink" && e.ml ? ` · ${data.units === "oz" ? `${Math.round(e.ml / 29.57)} oz` : `${e.ml} ml`}` : ""}{isPoopEvent(e.kind) && e.bristol ? ` · type ${e.bristol}` : ""}</span>{(e.note || e.init === "self") && <span className="block text-xs leading-snug" style={{ color: C.muted }}>{e.init === "self" ? "Started by your child. " : ""}{e.note}</span>}</span>
         </button></li>)}</ul> : <p className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm" style={{ color: C.muted, boxShadow: `inset 0 0 0 1.5px ${C.line}` }}><Info size={15} />Nothing logged yet today. Log drinks and meals too — that's how the predictions learn.</p>}
       </Section>
     </div>
