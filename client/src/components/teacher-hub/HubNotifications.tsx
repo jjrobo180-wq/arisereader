@@ -28,7 +28,7 @@ async function api(token: string | null, path: string, body?: unknown) {
   return data;
 }
 
-export default function HubNotifications({ token }: { token: string | null }) {
+export default function HubNotifications({ token, collapseKey = "home-notifications" }: { token: string | null; /** Leave empty where the card is not allowed to fold shut (inside a pop-up). */ collapseKey?: string }) {
   const [phase, setPhase] = useState<Phase>("checking");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -93,7 +93,7 @@ export default function HubNotifications({ token }: { token: string | null }) {
   }
 
   return (
-    <Card title="Phone app and notifications" collapseKey="home-notifications">
+    <Card title="Phone app and notifications" collapseKey={collapseKey || undefined}>
       <div className="space-y-3 text-sm text-slate-600">
         {phase === "checking" && <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Checking…</div>}
 
@@ -115,7 +115,7 @@ export default function HubNotifications({ token }: { token: string | null }) {
 
         {phase === "off" && (
           <>
-            <p>Get a morning summary of what's on today, and a heads-up 15 minutes before a timed event on your calendar.</p>
+            <p>Get a morning summary of what's on today, and a heads-up before events, meetings and to-dos that have a start time. You choose which ones below.</p>
             <PrimaryButton onClick={turnOn} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />} Turn on notifications</PrimaryButton>
           </>
         )}

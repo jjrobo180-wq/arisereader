@@ -115,7 +115,9 @@ import HubMeetingPolls, { type PollStart } from "@/components/teacher-hub/HubMee
 import HubQuickAddStudent from "@/components/teacher-hub/HubQuickAddStudent";
 import type { WizardState } from "@/components/teacher-hub/HubMeetingSteps";
 import { STEP_COUNT, resumeStep, stepsDone } from "@shared/meetingSteps";
-import HubNotifications from "@/components/teacher-hub/HubNotifications";
+import HubNotifySettings from "@/components/teacher-hub/HubNotifySettings";
+import { NotificationBell } from "@/components/NotificationBell";
+import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import HubNotes from "@/components/teacher-hub/HubNotes";
@@ -136,7 +138,7 @@ const tintFor = (area: string) => AREA_TINT[area] || { bg: "#f1f0f4", ink: "#4d4
 import { HUB_ACCENTS, DEFAULT_ACCENT, cleanAccent, deepenAccent } from "@shared/hubAccent";
 import { textOn } from "@shared/hubPins";
 import AppleRemindersCard, { useAppleInbox } from "@/components/teacher-hub/HubApple";
-import HubPollBell from "@/components/teacher-hub/HubPollBell";
+import PollAnswers, { usePollAnswers } from "@/components/teacher-hub/HubPollBell";
 import HubCalendarTab, { AddEventModal, CalendarPanel, useCalendarRefresh } from "@/components/teacher-hub/HubCalendar";
 import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQuickAdd";
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
@@ -585,6 +587,10 @@ function TeacherHubPage() {
     return () => window.removeEventListener("arise-tour:open", open);
   }); // eslint-disable-line react-hooks/exhaustive-deps
   const [searching, setSearching] = useState(false);
+  const [pollsOpen, setPollsOpen] = useState(false);
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const hubReady = canUseHub && loaded && !loadError && !needsPlan;
+  const pollAnswers = usePollAnswers(token, user?.id, hubReady);
   const [briefOpen, setBriefOpen] = useMorningBrief("work", TODAY(), loaded && !loadError && !needsPlan && !(workspace as any).briefOff);
   const listPhone = across ? "snap-x gap-1 overflow-x-auto" : "h-full touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain px-1 py-1.5";
   /** A reminder added from the pop-up lands on another screen, so say where it went. */
@@ -759,6 +765,22 @@ function TeacherHubPage() {
     setTab(openGroup(id, visible, lastInGroup, !!user.isAdmin));
     closeApps();
   };
+  // The bell: what needs doing today, the answers to meeting polls, and the Reader's own notifications.
+  const openAlert = (type: string) => {
+    if (type.startsWith("work:")) {
+      const where = type.slice(5);
+      if (where === "polls") setPollsOpen(true); else setTab(where as HubTab);
+      closeApps();
+      return;
+    }
+    // Anything else is the account's own (the Reader's approvals, quizzes, messages), or the admin's.
+    if (user?.isAdmin) { try { sessionStorage.setItem("admin_notif", JSON.stringify({ type, id: 0 })); } catch { /* fine */ } navigate("/admin"); return; }
+    if (readerNeedsPremium) { window.location.href = appHref("/billing"); return; }
+    const reader: Record<string, ReaderTab> = { user: "readerApprovals", request: "readerApprovals", grade_change: "readerApprovals", unlisted: "readerApprovals", ai_quiz: "readerQuizzes", review: "readerQuizzes", club: "readerGames", message: "readerStudents", eye_gaze: "readerStudents" };
+    setTab(reader[type] ?? "reader");
+    closeApps();
+  };
+
   const searchEntries = ((): HubSearchEntry[] => {
     if (!searching) return [];
     const out: HubSearchEntry[] = [];
@@ -767,6 +789,7 @@ function TeacherHubPage() {
     // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
     if (!(workspace as any).briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomize(true) });
+    out.push({ id: "notify", kind: "Section", title: "Notification settings", sub: "Morning summary and heads-ups", keywords: "notifications reminders alerts push phone bell", open: () => setNotifyOpen(true) });
     out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", open: () => setStore(true) });
     for (const d of myKits) out.push({ id: `kit-${d.id}`, kind: "Plugins", title: d.name, open: () => openKit(d.id) });
     for (const p of myNotesApps) out.push({ id: `notes-app-${p.id}`, kind: "Plugins", title: p.name, open: () => openNotesApp(p.id) });
@@ -854,7 +877,11 @@ function TeacherHubPage() {
             <HubSwitch current="hub" night={night} />
             <HubSearchButton onOpen={() => setSearching(true)} />
             <span className="hidden sm:contents"><SaveBadge view={view} /></span>
-            <HubPollBell token={token} userId={user?.id} enabled={canUseHub && loaded && !loadError && !needsPlan} onOpenMeetings={() => setTab("iep")} />
+            <NotificationBell
+              extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread) : undefined}
+              onNavigate={openAlert}
+              onSettings={() => setNotifyOpen(true)}
+              triggerClassName="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" />
             <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
             {/* On a phone this lives in the floating add button instead, so the header stays clear. */}
             <button type="button" onClick={() => startAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4" data-testid="hub-add-with-ai">
@@ -1489,7 +1516,7 @@ function TeacherHubPage() {
                 setItems={(update) => setWorkspace((prev) => ({ ...prev, widgetItems: update(cleanWidgets((prev as any).widgetItems)) }))} />
                   ) : null,
                   notifications: (
-              <HubNotifications token={token} />
+              <HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} />
                   ),
                   profile: (
               <Card title="Workspace profile" collapseKey="home-profile">
@@ -1551,6 +1578,8 @@ function TeacherHubPage() {
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift raiseRem={side === "bottom" && menuOpen ? 4.9 : 0} />}
       {searching && <HubSearch entries={searchEntries} hubName="WorkHub" accent="bg-teal-700" onClose={() => setSearching(false)} />}
+      {pollsOpen && <PollAnswers replies={pollAnswers.replies} markRead={pollAnswers.markRead} onClose={() => setPollsOpen(false)} onOpenMeetings={() => setTab("iep")} />}
+      {notifyOpen && <HubModal title="Notification settings" onClose={() => setNotifyOpen(false)} closeOnBackdrop size="lg"><HubNotifySettings token={token} workspace={workspace} setWorkspace={setWorkspace} inModal /></HubModal>}
       {briefOpen && canUseHub && loaded && !loadError && <DailyBrief hub="work" brief={buildWorkBrief(workspace, TODAY(), new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={(t) => goTab(t as HubTab)} tint="from-teal-900 via-teal-700 to-amber-500" />}
       {canUseHub && loaded && !loadError && !needsPlan && (
         <div ref={addRef} className={`fixed z-50 md:bottom-[max(1.25rem,env(safe-area-inset-bottom))] md:right-4 ${side === "bottom" && menuOpen ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${side === "right" && menuOpen ? "right-[88px]" : "right-4"}`}>

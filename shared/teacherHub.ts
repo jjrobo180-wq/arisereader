@@ -10,6 +10,7 @@ import { cleanPins, type Pin } from "./hubPins";
 import { cleanBanner } from "./hubBanner";
 import type { StepPlan } from "./meetingSteps";
 import { cleanAccent } from "./hubAccent";
+import { cleanHubNotify } from "./hubNotify";
 
 /** The longest a disability can be typed. */
 export const DISABILITY_MAX = 120;
@@ -256,6 +257,8 @@ export type Workspace = {
   minuteOptionalDays?: string[];
   /** How the teacher arranged the Hub in Customize (see shared/hubLayout.ts): the phone menu and Home. */
   layout?: import("./hubLayout").HubLayout;
+  /** Which phone reminders to send, and when (see shared/hubNotify.ts). Not set means the defaults. */
+  notify?: import("./hubNotify").HubNotify;
   guides: IepGuide[];
   spedContacts: HubContact[];
   guideLinks: HubLink[];
@@ -341,6 +344,8 @@ export function normalizeWorkspace(raw: any): Workspace {
   if (blocks) out.minuteBlocks = blocks; else delete out.minuteBlocks;
   const optional = cleanOptionalDays(raw.minuteOptionalDays);
   if (optional) out.minuteOptionalDays = optional; else delete out.minuteOptionalDays;
+  // Phone reminder choices (shared/hubNotify.ts). Not set means the defaults.
+  if (raw.notify && typeof raw.notify === "object") out.notify = cleanHubNotify(raw.notify); else delete out.notify;
   return out as Workspace;
 }
 
