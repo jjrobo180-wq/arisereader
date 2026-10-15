@@ -50,7 +50,7 @@ function SchoolTeacherSelect({ schoolId, grade, value, suggestedName, onChange }
     <select value={teachers.some((t) => String(t.id) === value) ? value : ""} onChange={(e) => onChange(e.target.value)}
       disabled={!schoolId || loading}
       aria-label="Assign teacher"
-      className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm disabled:opacity-60">
+      className="w-full min-w-0 max-w-full truncate px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm disabled:opacity-60">
       <option value="">{!schoolId ? "Choose school first…" : loading ? "Loading teachers…" : "Teacher…"}</option>
       {teachers.map((t) => <option key={String(t.id)} value={String(t.id)}>
         {t.display_name || t.displayName}{t.directory ? " (not signed up yet)" : ""}
@@ -148,8 +148,8 @@ export default function UnlistedSignupsCard() {
             <p className="text-[11px] text-muted-foreground">Signed up {new Date(req.createdAt).toLocaleDateString()}</p>
           </div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
-          <select value={pick.schoolId} onChange={e => setPick(req.userId, { schoolId: e.target.value, teacherId: "" })} className="px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
+          <select value={pick.schoolId} onChange={e => setPick(req.userId, { schoolId: e.target.value, teacherId: "" })} className="w-full min-w-0 max-w-full truncate px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm">
             <option value="">School…</option>
             {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>

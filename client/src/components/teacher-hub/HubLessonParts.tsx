@@ -290,7 +290,7 @@ export function MaterialSlots({ token, files, onChange, makeId, drive, lessonTit
             </div>
 
             {linkFor === kind && (
-              <form className="mt-2 grid gap-2 sm:grid-cols-[1fr_2fr_auto]" onSubmit={(e) => {
+              <form className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]" onSubmit={(e) => {
                 e.preventDefault();
                 const url = link.url.trim();
                 if (!/^https?:\/\//i.test(url)) { setError("A link starts with https://"); return; }
