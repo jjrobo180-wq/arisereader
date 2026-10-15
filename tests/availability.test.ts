@@ -1,7 +1,7 @@
 // Run with: npx tsx --test tests/availability.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanWeekly, fitOption, suggestAnswers, suggestTimes } from "../shared/availability";
+import { cleanWeekly, fitOption, openTimes, suggestAnswers, suggestTimes } from "../shared/availability";
 import { createMemoryAvailabilityStore, createMemoryPollStore, registerMeetingPollRoutes } from "../server/meetingPoll";
 
 function setup() {
@@ -110,15 +110,27 @@ test("suggested times start on the hour or half hour, with several a day and a d
   const base = { from: "2026-10-07", minutes: 60 };
   for (const t of suggestTimes(odd, { ...base, count: 8 })) assert.match(t.start, /^\d\d:(00|30)$/, t.start);
   assert.deepEqual(suggestTimes(odd, base)[0], { date: "2026-10-08", start: "13:30", end: "14:30" });
-  // Several times on one day, spaced apart: 9:00, then 11:00 (an hour after the first one ends).
+  // Several times on one day, one after another: 8:00, 9:00, 10:00.
   const tue = [{ day: 2, start: "08:00", end: "15:00" }];
-  assert.deepEqual(suggestTimes(tue, { ...base, perDay: 3, count: 4 }).map((t) => `${t.date} ${t.start}`), ["2026-10-13 08:00", "2026-10-13 10:00", "2026-10-13 12:00", "2026-10-20 08:00"]);
+  assert.deepEqual(suggestTimes(tue, { ...base, perDay: 3, count: 4 }).map((t) => `${t.date} ${t.start}`), ["2026-10-13 08:00", "2026-10-13 09:00", "2026-10-13 10:00", "2026-10-20 08:00"]);
   assert.equal(suggestTimes(tue, { ...base, perDay: 1, count: 4 }).length, 4, "one a day still reaches four");
   // Something already on the calendar is skipped within the day.
-  assert.deepEqual(suggestTimes(tue, { ...base, perDay: 2, count: 2, busy: [{ date: "2026-10-13", start: "08:00", end: "09:30" }] }).map((t) => t.start), ["09:30", "11:30"]);
+  assert.deepEqual(suggestTimes(tue, { ...base, perDay: 2, count: 2, busy: [{ date: "2026-10-13", start: "08:00", end: "09:30" }] }).map((t) => t.start), ["09:30", "10:30"]);
   // The count and the date range are the user's.
   assert.equal(suggestTimes(tue, { ...base, count: 6 }).length, 6);
   assert.deepEqual(suggestTimes(tue, { ...base, count: 6, through: "2026-10-20" }).map((t) => t.date), ["2026-10-13", "2026-10-20"], "through is inclusive");
   assert.deepEqual(suggestTimes(tue, { ...base, count: 6, through: "2026-10-12" }), []);
   assert.equal(suggestTimes(tue, { ...base, perDay: 2, count: 3, skip: 1 })[0].date, "2026-10-20", "a second set carries on");
+});
+
+test("openTimes lists every hour and half hour that fits, for a pick list", () => {
+  const tue = [{ day: 2, start: "08:50", end: "11:00" }];
+  const base = { from: "2026-10-07", minutes: 60, days: 8 };
+  assert.deepEqual(openTimes(tue, base).map((t) => `${t.date} ${t.start}-${t.end}`), ["2026-10-13 09:00-10:00", "2026-10-13 09:30-10:30", "2026-10-13 10:00-11:00"]);
+  assert.deepEqual(openTimes(tue, { ...base, busy: [{ date: "2026-10-13", start: "09:00", end: "10:00" }] }).map((t) => t.start), ["10:00"]);
+  assert.deepEqual(openTimes(tue, { ...base, minutes: 30 }).map((t) => t.start), ["09:00", "09:30", "10:00", "10:30"]);
+  assert.deepEqual(openTimes(tue, { ...base, through: "2026-10-12" }), []);
+  assert.deepEqual(openTimes(tue, { ...base, until: "2026-10-13" }), []);
+  assert.equal(openTimes(tue, { ...base, days: 30, limit: 4 }).length, 4);
+  assert.deepEqual(openTimes([], base), []);
 });

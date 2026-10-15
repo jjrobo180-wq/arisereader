@@ -60,14 +60,14 @@ const nextDay = (date: string, n: number) => new Date(Date.parse(`${date}T12:00:
 
 /** Meeting times start on the hour or half hour (9:00, 9:30), never 8:50 or 9:15. */
 export const TIME_STEP = 30;
-/** More than one time on the same day are at least this long apart (after the earlier one ends). */
-const SAME_DAY_GAP = 60;
+/** Several times on the same day follow one another, so a short free window still offers more than one. */
+const SAME_DAY_GAP = 0;
 const snapUp = (m: number) => Math.ceil(m / TIME_STEP) * TIME_STEP;
 
 /**
  * Times to offer in a poll, taken from the weekly free times, starting on the hour or half hour and skipping
  * anything that overlaps something already on the calendar. `perDay` (default 1) offers several different
- * times on the same day, spaced apart, so one day can have a morning and an afternoon choice. `through`
+ * times on the same day, so one day can have a morning and an afternoon choice. `through`
  * (inclusive) and `until` (exclusive, an IEP deadline) end the search; `count` is how many to return. With
  * `before` (a meeting date), days before it come first. `skip` moves on to the next set.
  */
@@ -101,4 +101,33 @@ export function suggestTimes(weekly: FreeWindow[], opts: { from: string; count?:
   const ordered = opts.before ? [...open.filter((s) => s.date < opts.before!), ...open.filter((s) => s.date >= opts.before!)] : open;
   const from = (opts.skip ?? 0) * count;
   return ordered.slice(from, from + count);
+}
+
+/**
+ * Every open time in the weekly free times, for a pick list: each day with all the hour and half-hour starts
+ * that fit the meeting and don't overlap anything on the calendar. Same limits as suggestTimes
+ * (`from`, `through` inclusive, `until` exclusive), up to `limit` times.
+ */
+export function openTimes(weekly: FreeWindow[], opts: { from: string; minutes?: number; busy?: Busy[]; until?: string; through?: string; days?: number; limit?: number }): TimeSlot[] {
+  const free = cleanWeekly(weekly);
+  const length = Math.max(15, Math.min(480, opts.minutes ?? 60));
+  const limit = Math.max(1, Math.min(400, opts.limit ?? 150));
+  if (!free.length || Number.isNaN(Date.parse(`${opts.from}T12:00:00Z`))) return [];
+  const out: TimeSlot[] = [];
+  for (let i = 0; i < (opts.days ?? 42) && out.length < limit; i++) {
+    const date = nextDay(opts.from, i);
+    if (opts.through && date > opts.through) break;
+    if (opts.until && date >= opts.until) break;
+    const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
+    const taken = (opts.busy || []).filter((b) => b.date === date && TIME.test(b.start || "")).map((b) => [minutes(b.start), b.end && TIME.test(b.end) && minutes(b.end) > minutes(b.start) ? minutes(b.end) : minutes(b.start) + 60] as const);
+    const seen = new Set<number>();
+    for (const w of free.filter((x) => x.day === dow).sort((x, y) => minutes(x.start) - minutes(y.start))) {
+      for (let s = snapUp(minutes(w.start)); s + length <= minutes(w.end); s += TIME_STEP) {
+        if (seen.has(s) || taken.some(([from, to]) => s < to && from < s + length)) continue;
+        seen.add(s);
+        out.push({ date, start: clock(s), end: clock(s + length) });
+      }
+    }
+  }
+  return out.slice(0, limit);
 }
