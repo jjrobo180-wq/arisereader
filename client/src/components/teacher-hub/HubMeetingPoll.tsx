@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode
 import MeetingWizard, { type WizardState } from "./HubMeetingSteps";
 import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, Trash2, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
-import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
+import { INVITEE_ROLES, POLL_LIMITS, describeOption, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
 import { rememberParents, roleLabel } from "@shared/hubGuide";
 import { meetingPeople } from "@shared/hubStudentTeam";
 import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
@@ -208,6 +208,11 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const [savingWeekly, setSavingWeekly] = useState(false);
   const [length, setLength] = useState(60);
   const [round, setRound] = useState(0);
+  // What the person wants suggested: how many times, how many on one day, and between which dates.
+  const [count, setCount] = useState(3);
+  const [perDay, setPerDay] = useState(1);
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeThrough, setRangeThrough] = useState("");
   const [suggestNote, setSuggestNote] = useState("");
   const today = localDay();
   useEffect(() => { api(token, "GET", "/api/teacher-hub/availability").then((d) => setWeekly(cleanWeekly(d.weekly))).catch(() => setWeekly([])); }, [token]);
@@ -219,26 +224,31 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const people = othersCalendars(workspace);
   const [skipPeople, setSkipPeople] = useState<string[]>([]);
   const theirEvents = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !skipPeople.includes(c.id)).map((c) => c.id));
-  function suggest(free: FreeWindow[], skip: number, minutes = length, without = skipPeople) {
+  function suggest(free: FreeWindow[], skip: number, over: { minutes?: number; without?: string[]; count?: number; perDay?: number; from?: string; through?: string } = {}) {
+    const minutes = over.minutes ?? length, without = over.without ?? skipPeople, wanted = over.count ?? count, per = over.perDay ?? perDay;
+    const startOn = over.from ?? rangeFrom, through = over.through ?? rangeThrough;
     // Repeating events are busy on every day they fall on (looking four months ahead); hidden events are not busy.
     const theirs = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !without.includes(c.id)).map((c) => c.id));
     const busy = [...calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.meetingId !== initial.meetingId), ...theirs].filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end }));
     const before = meeting?.date && meeting.date > today ? meeting.date : undefined;
-    const from = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+    const tomorrow = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+    const from = startOn && startOn > tomorrow ? startOn : tomorrow; // never in the past
     // The IEP deadline: only times before it are suggested.
     const until = deadline && deadline > from ? deadline : undefined;
-    let found = suggestTimes(free, { from, minutes, before, busy, skip, until });
-    if (!found.length && skip > 0) { setRound(0); found = suggestTimes(free, { from, minutes, before, busy, skip: 0, until }); }
+    const ask = { from, minutes, before, busy, until, through: through || undefined, count: wanted, perDay: per };
+    let found = suggestTimes(free, { ...ask, skip });
+    if (!found.length && skip > 0) { setRound(0); found = suggestTimes(free, { ...ask, skip: 0 }); }
     if (!found.length) {
       setSuggestNote(until
         ? `None of your available times before the ${deadlineName} (${deadlineWords(deadline)}) are open long enough. Try a shorter meeting, add more availability, or type times below.`
+        : through || startOn ? "None of your available times fall in those dates. Try a wider range, a shorter meeting or more availability."
         : "None of your available times are long enough for that. Try a shorter meeting or add more availability.");
       return;
     }
     setTimes(found.map((t) => ({ date: t.date, start: t.start, end: t.end })));
     // A deadline that is today, tomorrow or already gone: the soonest times are offered instead.
     const late = deadline && !until ? `The ${deadlineName} (${deadlineWords(deadline)}) is ${deadline < today ? "past" : "too close"}, so these are the soonest open times. ` : "";
-    setSuggestNote(late + (found.length < 3 ? `Only ${found.length} open ${found.length === 1 ? "time" : "times"} found in your availability${until ? ` before the ${deadlineName}` : ""}.` : ""));
+    setSuggestNote(late + (found.length < wanted ? `Only ${found.length} open ${found.length === 1 ? "time" : "times"} found in your availability${until ? ` before the ${deadlineName}` : ""}.` : ""));
   }
   // The first time this opens with no times typed in, the three times are already filled in.
   const auto = useRef(false);
@@ -300,10 +310,10 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         <div className="mb-3 rounded-2xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950" data-testid="suggest-times">
           {weekly === null ? <span className="text-slate-600">Looking at your availability…</span> : (!weekly.length || editWeekly) ? (
             <div className="space-y-3">
-              <div><span className="font-semibold">{weekly.length ? "Your availability" : "Set your availability first."}</span> {weekly.length ? "" : "Then three times you are available are filled in for you."}</div>
+              <div><span className="font-semibold">{weekly.length ? "Your availability" : "Set your availability first."}</span> {weekly.length ? "" : "Then times you are available are filled in for you."}</div>
               <WeeklyEditor value={weekly} onChange={setWeekly} label="you" />
               <div className="flex flex-wrap gap-2">
-                <PrimaryButton onClick={saveWeekly} disabled={savingWeekly || !cleanWeekly(weekly).length}>{savingWeekly ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save and suggest 3 times</PrimaryButton>
+                <PrimaryButton onClick={saveWeekly} disabled={savingWeekly || !cleanWeekly(weekly).length}>{savingWeekly ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save and suggest times</PrimaryButton>
                 {weekly.length > 0 && <GhostButton onClick={() => setEditWeekly(false)}>Cancel</GhostButton>}
               </div>
               {!weekly.length && <p className="text-xs text-slate-600">Or skip this and type your own times below.</p>}
@@ -316,18 +326,37 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
                   <span className="font-semibold">Also keep clear of:</span>
                   {people.map((c) => { const on = !skipPeople.includes(c.id); return (
                     <label key={c.id} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-900">
-                      <input type="checkbox" className="h-5 w-5" checked={on} onChange={() => { const next = on ? [...skipPeople, c.id] : skipPeople.filter((x) => x !== c.id); setSkipPeople(next); setRound(0); suggest(weekly, 0, length, next); }} /> {c.name}
+                      <input type="checkbox" className="h-5 w-5" checked={on} onChange={() => { const next = on ? [...skipPeople, c.id] : skipPeople.filter((x) => x !== c.id); setSkipPeople(next); setRound(0); suggest(weekly, 0, { without: next }); }} /> {c.name}
                     </label>
                   ); })}
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-2">
-                <select aria-label="How long is the meeting" value={length} onChange={(e) => { const m = Number(e.target.value); setLength(m); setRound(0); suggest(weekly, 0, m); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 sm:text-sm">
+                <select aria-label="How long is the meeting" value={length} onChange={(e) => { const m = Number(e.target.value); setLength(m); setRound(0); suggest(weekly, 0, { minutes: m }); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 sm:text-sm">
                   {[30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} minutes</option>)}
                 </select>
                 <GhostButton onClick={() => { const next = round + 1; setRound(next); suggest(weekly, next); }}>Different times</GhostButton>
                 <GhostButton onClick={() => setEditWeekly(true)}>Edit my availability</GhostButton>
               </div>
+              <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4" data-testid="suggest-options">
+                <label className="block min-w-0 text-xs font-semibold text-slate-700">How many times
+                  <select value={count} onChange={(e) => { const n = Number(e.target.value); setCount(n); setRound(0); suggest(weekly, 0, { count: n }); }} className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-base font-normal text-slate-900 sm:text-sm">
+                    {Array.from({ length: POLL_LIMITS.options - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} times</option>)}
+                  </select>
+                </label>
+                <label className="block min-w-0 text-xs font-semibold text-slate-700">On the same day
+                  <select value={perDay} onChange={(e) => { const n = Number(e.target.value); setPerDay(n); setRound(0); suggest(weekly, 0, { perDay: n }); }} className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-base font-normal text-slate-900 sm:text-sm">
+                    {[1, 2, 3].map((n) => <option key={n} value={n}>{n === 1 ? "1 time a day" : `Up to ${n} a day`}</option>)}
+                  </select>
+                </label>
+                <label className="block min-w-0 text-xs font-semibold text-slate-700">From
+                  <input type="date" value={rangeFrom} min={today} onChange={(e) => { setRangeFrom(e.target.value); setRound(0); suggest(weekly, 0, { from: e.target.value }); }} className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-normal text-slate-900 sm:text-sm" />
+                </label>
+                <label className="block min-w-0 text-xs font-semibold text-slate-700">Through
+                  <input type="date" value={rangeThrough} min={rangeFrom || today} onChange={(e) => { setRangeThrough(e.target.value); setRound(0); suggest(weekly, 0, { through: e.target.value }); }} className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-normal text-slate-900 sm:text-sm" />
+                </label>
+              </div>
+              <p className="text-xs text-slate-600">Times start on the hour or half hour. Leave the dates empty to start with the soonest open days.</p>
               {suggestNote && <p className="text-xs text-amber-800" role="status">{suggestNote}</p>}
             </div>
           )}
@@ -341,6 +370,8 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
                 <Field type="time" aria-label={`Start ${index + 1}`} value={t.start} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, start: e.target.value } : x)))} />
                 <Field type="time" aria-label={`End ${index + 1} (optional)`} value={t.end} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, end: e.target.value } : x)))} />
               </div>
+              {/* The day spelled out, so "2026-10-13" reads as Tuesday. */}
+              {t.date && t.start && <p className="col-span-full text-sm font-semibold text-teal-900" data-testid={`time-words-${index}`}>{describeOption(t)}</p>}
               {/* A time that was typed in by hand may land on someone's busy time: say whose. */}
               {busyPeople(theirEvents, t).length > 0 && <p className="col-span-full text-xs font-medium text-amber-800" role="status" data-testid="poll-busy-people">{busyPeople(theirEvents, t).join(" and ")} {busyPeople(theirEvents, t).length > 1 ? "are" : "is"} busy then.</p>}
               {deadline && t.date && t.date >= deadline && <p className={`col-span-full text-xs font-medium ${t.date > deadline ? "text-red-700" : "text-amber-800"}`} role="status" data-testid="poll-after-deadline">This is {t.date === deadline ? "on" : "after"} the {deadlineName} ({deadlineWords(deadline)}).</p>}
