@@ -10923,9 +10923,50 @@ Important:
       if (!rows.length) return res.status(400).json({ message: "No students were given." });
       if (rows.length > 500) return res.status(400).json({ message: "Add at most 500 students at a time." });
 
-      const requestedTeacherId = parseInt(req.body?.teacherId, 10);
-      const teacherId = req.user.isAdmin ? (Number.isFinite(requestedTeacherId) && requestedTeacherId > 0 ? requestedTeacherId : null) : req.user.id;
-      const schoolId = req.user.isAdmin ? null : (req.user.school_id ?? null);
+      // Administrators choose the school and an optional registered OR directory teacher.
+      // Directory teachers have no login and must never receive a permission-bearing teacher_id.
+      const isBulkAdmin = !!req.user.isAdmin;
+      const selectedSchool = Number(req.body?.schoolId);
+      const schoolId = isBulkAdmin ? (Number.isInteger(selectedSchool) && selectedSchool > 0 ? selectedSchool : null) : (req.user.school_id ?? null);
+      if (isBulkAdmin) {
+        if (!schoolId || !(await storage.getAllSchools()).some((s: any) => Number(s.id) === schoolId)) {
+          return res.status(400).json({ message: "Choose a valid school before uploading students." });
+        }
+      }
+
+      const requestedTeacherId = Number(req.body?.teacherId);
+      const directoryTeacherInput = isBulkAdmin && typeof req.body?.directoryTeacherName === "string"
+        ? req.body.directoryTeacherName.trim() : "";
+      if (isBulkAdmin && directoryTeacherInput && Number.isInteger(requestedTeacherId) && requestedTeacherId > 0) {
+        return res.status(400).json({ message: "Choose one teacher, not both a registered and a directory teacher." });
+      }
+      const teacherId = isBulkAdmin
+        ? (Number.isInteger(requestedTeacherId) && requestedTeacherId > 0 ? requestedTeacherId : null)
+        : req.user.id;
+      let directoryTeacherName: string | null = null;
+
+      if (isBulkAdmin && teacherId) {
+        const teacherAccount = await storage.getUser(teacherId);
+        if (!teacherAccount || teacherAccount.role !== "teacher" || teacherAccount.archivedAt ||
+            teacherAccount.accountApproved === false || Number(teacherAccount.school_id) !== schoolId) {
+          return res.status(400).json({ message: "That teacher is not an approved account at the selected school." });
+        }
+      }
+      if (isBulkAdmin && directoryTeacherInput) {
+        const listing = await directoryTeachers(Number(schoolId));
+        const found = listing.find((t: any) => String(t.name || "").trim().toLowerCase() === directoryTeacherInput.toLowerCase());
+        if (!found) return res.status(400).json({ message: "That teacher is not in this school's teacher directory." });
+        directoryTeacherName = found.name.trim();
+      }
+
+      const requestedClassId = Number(req.body?.classId);
+      const classId = isBulkAdmin && Number.isInteger(requestedClassId) && requestedClassId > 0 ? requestedClassId : null;
+      if (classId) {
+        const schoolClasses = await storage.getClassesBySchool(Number(schoolId));
+        if (!schoolClasses.some((c: any) => Number(c.id) === classId)) {
+          return res.status(400).json({ message: "That advisory/class does not belong to the selected school." });
+        }
+      }
 
       // Clean and validate every row before creating anything, so a bad row doesn't
       // leave a half-finished class behind.
@@ -10973,12 +11014,14 @@ Important:
           displayName: `${c.firstName} ${c.lastName}`.trim(),
           role: "student",
           teacherId,
+          directoryTeacherName,
           schoolId,
           approvedByTeacher: true,
           accountApproved: true,
           studentNumber: c.studentNumber,
           mustChangePassword: true,
         });
+        if (classId) await storage.assignStudentToClass(user.id, classId);
         created.push({ row: c.row, displayName: user.displayName, username: user.username });
       }
       try { clearCache("allUsers"); } catch {}
