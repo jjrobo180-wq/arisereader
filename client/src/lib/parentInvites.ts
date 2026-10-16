@@ -1,5 +1,5 @@
 import { API_BASE } from './queryClient';
-import { batchSummary, escapeHtml, letterHtml, type Invite } from '@shared/parentLetters';
+import { batchSummary, escapeHtml, letterHtml, type Invite, type TeacherChoice } from '@shared/parentLetters';
 
 function tokenFromCookie(): string | null {
   try {
@@ -13,10 +13,10 @@ const LETTER_PAGE_CSS = `body{font-family:Arial,sans-serif;color:#222;margin:0;b
 /**
  * Opens the letters in a new tab to print or save as a PDF. With no arguments: every letter this account may
  * print (a teacher's class, or every student for the administrator). With a student: just that letter. With
- * `teacherIds` (administrator only): the classes of those teachers, class by class; "none" means students
- * who have no teacher yet.
+ * `teacherIds` (administrator only): the classes of those teachers, class by class. A teacher is an account id,
+ * "directory:name" for a teacher listed by a school who has no account yet, or "none" for students with no teacher.
  */
-export async function printParentInvites(studentId?: number, options: { teacherIds?: Array<number | 'none'> } = {}): Promise<void> {
+export async function printParentInvites(studentId?: number, options: { teacherIds?: TeacherChoice[] } = {}): Promise<void> {
   // Open synchronously with the button click so mobile browsers allow the print tab.
   const page = window.open('', '_blank');
   if (!page) throw new Error('Allow pop-ups for this site to print parent letters.');

@@ -2,9 +2,22 @@
 // The server (POST /api/parent-invites/print) and the page that prints (client/src/lib/parentInvites.ts)
 // both use these, so they can be tested without a browser or a database.
 
-export type LetterStudent = { id: number; role?: string; teacherId?: number | null; displayName?: string };
-/** A teacher's id, or "none" for students who have no teacher yet. */
-export type TeacherChoice = number | "none";
+export type LetterStudent = { id: number; role?: string; teacherId?: number | null; directoryTeacherName?: string | null; displayName?: string };
+/**
+ * A teacher's id; "directory:mskenn" for a teacher a school lists who has no account yet (students pick them
+ * from the school's list); or "none" for students with no teacher at all.
+ */
+export type TeacherChoice = number | "none" | `directory:${string}`;
+
+/** The same teacher however the name was typed: "Ms. Kast" and "Ms.Kast" are one. */
+export const directoryKey = (name?: string | null): string | null => {
+  const key = String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 80);
+  return key ? `directory:${key}` : null;
+};
+/** The group a student's letter belongs to. */
+export const teacherGroup = (u: { teacherId?: number | null; directoryTeacherName?: string | null }): TeacherChoice =>
+  u.teacherId ? u.teacherId : directoryKey(u.directoryTeacherName) || "none";
+const DIRECTORY_CHOICE = /^directory:[a-z0-9]{1,80}$/;
 export type Invite = { studentId?: number; studentName: string; teacherName?: string; code: string };
 
 export const MAX_TEACHERS_PER_PRINT = 200;
@@ -15,6 +28,7 @@ export function cleanTeacherChoices(input: unknown): TeacherChoice[] | null {
   const out = new Set<TeacherChoice>();
   for (const value of input) {
     if (value === "none") out.add("none");
+    else if (typeof value === "string" && DIRECTORY_CHOICE.test(value)) out.add(value as TeacherChoice);
     else if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) out.add(value);
     else return null;
   }
@@ -32,7 +46,7 @@ export function studentsToPrint<T extends LetterStudent>(
   if (opts.studentId !== undefined) return roster.filter((u) => u.id === opts.studentId);
   if (who.isAdmin && opts.choices?.length) {
     const wanted = new Set<TeacherChoice>(opts.choices);
-    return roster.filter((u) => (u.teacherId ? wanted.has(u.teacherId) : wanted.has("none")));
+    return roster.filter((u) => wanted.has(teacherGroup(u)));
   }
   return roster;
 }
