@@ -3,14 +3,14 @@
 // teacher taught, the materials (PDFs, handouts, links, worksheets), a line for each student, and scaffolded work
 // made by hand or with AI. A note saves itself as it is written. The rules are in shared/pushIn.ts.
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { BookOpen, ChevronDown, Layers, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Layers, Loader2, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { blockName, schoolBlocks } from "@shared/hubBlocks";
 import { friendlyDate } from "@shared/hubDates";
 import { MINUTE_SUBJECTS } from "@shared/hubSubjects";
 import type { ClassGroup } from "@shared/hubClassMinutes";
 import { cleanDriveFiles } from "@shared/driveApp";
-import { CHECKS, CHECK_LABEL, GRADES, type LessonCheck, type LessonMaterial } from "@shared/lessonPlanner";
+import { CHECKS, CHECK_LABEL, GRADES, addDays, schoolWeek, type LessonCheck, type LessonMaterial } from "@shared/lessonPlanner";
 import {
   DEFAULT_SUPPORTS, SCAFFOLD_SUPPORTS, blankScaffold, classRoster, cleanPushInNotes, entryOf, fold, isBlank, moveNote, newNote, noteFacts, noteKey,
   noteMatches, noteRoster, notesBytes, notesForStudent, notesFull, orphanNotes, PUSH_IN_LIMITS, removeNote, scaffoldName, sortNotes, studentNames,
@@ -60,7 +60,15 @@ export function PushInNotesView({ workspace, setWorkspace, makeId, today, token,
   classKey: string; onClassKey: (key: string) => void;
 }) {
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
-  const groups = useClassGroups(workspace, today);
+  /** By day: one day's classes, each with its notes. By class: every note of a class, newest first. */
+  const [view, setViewState] = useState<"day" | "class">(() => (classKey ? "class" : readView()));
+  const setView = (v: "day" | "class") => { setViewState(v); try { localStorage.setItem("arise-hub-notes-view", v); } catch { /* the choice just isn't remembered */ } };
+  // A class card's "Class notes" button asks for that class.
+  useEffect(() => { if (classKey) setViewState("class"); }, [classKey]);
+  /** The day shown in By day. */
+  const [day, setDay] = useState(today);
+  const when = view === "day" ? day : today;
+  const groups = useClassGroups(workspace, when);
   const notes = useMemo(() => sortNotes(cleanPushInNotes(workspace.pushInNotes), blocks), [workspace.pushInNotes, blocks]);
   const [student, setStudent] = useState("");
   const [query, setQuery] = useState("");
@@ -79,9 +87,9 @@ export function PushInNotesView({ workspace, setWorkspace, makeId, today, token,
 
   function start(g: ClassGroup) {
     setChoosing(false);
-    setOpen({ note: newNote(g, today, makeId(), new Date().toISOString()), isNew: true });
+    setOpen({ note: newNote(g, when, makeId(), new Date().toISOString()), isNew: true });
   }
-  const newHere = () => (group ? start(group) : groups.length === 1 ? start(groups[0]) : setChoosing(true));
+  const newHere = () => (view === "class" && group ? start(group) : groups.length === 1 ? start(groups[0]) : setChoosing(true));
 
   return (
     <div className="mt-3 space-y-4" data-testid="pushin-notes">
@@ -93,7 +101,13 @@ export function PushInNotesView({ workspace, setWorkspace, makeId, today, token,
         {full && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">Class notes are full ({notes.length} notes, {(notesBytes(notes) / 1_000_000).toFixed(1)} MB). Delete old notes or their AI worksheets to add more.</p>}
         {!full && notesBytes(notes) > PUSH_IN_LIMITS.bytes * 0.8 && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">Class notes are almost full. Delete old notes or their AI worksheets to make room.</p>}
 
-        {groups.length > 0 && (
+        <div role="tablist" aria-label="Notes by day or by class" className="mt-3 inline-flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="pushin-view">
+          {([["day", "By day"], ["class", "By class"]] as const).map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} className={`min-h-10 rounded-xl px-4 text-sm font-semibold ${view === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
+          ))}
+        </div>
+
+        {view === "class" && groups.length > 0 && (
           <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Class" data-testid="pushin-classes">
             <button type="button" role="tab" aria-selected={!classKey} className={chip(!classKey) + " shrink-0"} onClick={() => onClassKey("")}>All classes</button>
             {groups.map((g) => {
@@ -104,7 +118,7 @@ export function PushInNotesView({ workspace, setWorkspace, makeId, today, token,
           </div>
         )}
 
-        {notes.length > 0 && (
+        {view === "class" && notes.length > 0 && (
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="relative block">
               <span className="sr-only">Search the notes</span>
@@ -119,6 +133,11 @@ export function PushInNotesView({ workspace, setWorkspace, makeId, today, token,
         )}
       </div>
 
+      {view === "day" ? (
+        !groups.length && !notes.length ? <Empty>No classes yet. Give each student's required minutes a block (and, for push-in, whose class it is) with “Set required minutes” or “Add several students”, and each class gets its own notes here.</Empty>
+        : <DayView notes={notes} groups={groups} blocks={blocks} day={day} today={today} full={full} onDay={setDay} onOpen={(n) => setOpen({ note: n, isNew: false })} onAdd={start} />
+      ) : (
+        <>
       {!groups.length && !notes.length && <Empty>No classes yet. Give each student's required minutes a block (and, for push-in, whose class it is) with “Set required minutes” or “Add several students”, and each class gets its own notes here.</Empty>}
       {groups.length > 0 && !notes.length && (
         <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center">
@@ -132,6 +151,8 @@ export function PushInNotesView({ workspace, setWorkspace, makeId, today, token,
 
       {who ? <StudentList notes={shown} student={who} blocks={blocks} today={today} onOpen={(n) => setOpen({ note: n, isNew: false })} /> : (
         <NoteList notes={shown} groups={groups} blocks={blocks} today={today} flat={!!classKey} onOpen={(n) => setOpen({ note: n, isNew: false })} />
+      )}
+        </>
       )}
 
       {choosing && (
@@ -147,6 +168,83 @@ export function PushInNotesView({ workspace, setWorkspace, makeId, today, token,
         </HubModal>
       )}
       {open && <NoteEditor key={open.note.id} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} groups={groups} blocks={blocks} start={open.note} isNew={open.isNew} count={notes.length} onClose={() => setOpen(null)} />}
+    </div>
+  );
+}
+
+const readView = (): "day" | "class" => { try { return localStorage.getItem("arise-hub-notes-view") === "class" ? "class" : "day"; } catch { return "day"; } };
+
+/** One day: a week strip to pick the day, then every class of the day in the order of the block, each with its notes and a button to add one. */
+function DayView({ notes, groups, blocks, day, today, full, onDay, onOpen, onAdd }: {
+  notes: PushInNote[]; groups: ClassGroup[]; blocks: ReturnType<typeof schoolBlocks>; day: string; today: string; full: boolean;
+  onDay: (d: string) => void; onOpen: (n: PushInNote) => void; onAdd: (g: ClassGroup) => void;
+}) {
+  const week = schoolWeek(day);
+  const inDay = notes.filter((n) => n.date === day);
+  const keys = new Set(groups.map((g) => g.key));
+  const rest = inDay.filter((n) => !keys.has(noteKey(n, blocks)));
+  const heading = new Date(`${day}T00:00:00Z`);
+  return (
+    <div className="space-y-4" data-testid="pushin-day">
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="text-xl font-extrabold text-slate-950" data-testid="pushin-day-title">{Number.isNaN(heading.getTime()) ? day : heading.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}</h3>
+            <p className="text-sm text-slate-600">{day === today ? "Today" : friendlyDate(day, today)} · {inDay.length === 0 ? "no notes yet" : `${inDay.length} ${inDay.length === 1 ? "note" : "notes"}`}</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button type="button" className={smallBtn + " min-h-11 min-w-11"} onClick={() => onDay(addDays(day, -7))} aria-label="Previous week"><ChevronLeft className="h-4 w-4" /></button>
+            <button type="button" className={smallBtn + " min-h-11 px-3 text-sm"} onClick={() => onDay(today)} disabled={day === today} data-testid="pushin-today">Today</button>
+            <button type="button" className={smallBtn + " min-h-11 min-w-11"} onClick={() => onDay(addDays(day, 7))} aria-label="Next week"><ChevronRight className="h-4 w-4" /></button>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-5 gap-1.5" role="tablist" aria-label="Day of the week" data-testid="pushin-week">
+          {week.map((d) => {
+            const x = new Date(`${d}T00:00:00Z`);
+            const count = notes.filter((n) => n.date === d).length;
+            const on = d === day;
+            return (
+              <button key={d} type="button" role="tab" aria-selected={on} onClick={() => onDay(d)} data-day={d}
+                className={`flex min-h-14 flex-col items-center justify-center rounded-2xl border px-1 py-1.5 text-center transition ${on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"}`}>
+                <span className={`text-[11px] font-bold ${on ? "text-white/80" : "text-slate-500"}`}>{x.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })}</span>
+                <span className="text-lg font-extrabold leading-tight tabular-nums">{x.getUTCDate()}</span>
+                <span className={`h-1.5 w-1.5 rounded-full ${count ? (on ? "bg-white" : "bg-teal-600") : "bg-transparent"}`} aria-label={count ? `${count} ${count === 1 ? "note" : "notes"}` : undefined} />
+              </button>
+            );
+          })}
+        </div>
+        <label className="mt-3 flex items-center gap-2 text-sm text-slate-600"><CalendarDays className="h-4 w-4" aria-hidden /> Go to a day
+          <Field type="date" value={day} onChange={(e) => onDay(e.target.value || today)} aria-label="Go to a day" className="!w-auto" /></label>
+      </div>
+
+      {groups.map((g) => {
+        const mine = inDay.filter((n) => noteKey(n, blocks) === g.key);
+        const logged = g.students.filter((s) => s.logged > 0).length;
+        const away = g.students.filter((s) => s.notMet).length;
+        const minutes = [logged ? `${logged} of ${g.students.length} logged` : "", away ? `${away} did not meet` : ""].filter(Boolean).join(" · ") || "no minutes logged";
+        return (
+          <section key={g.key} aria-label={classTitle(g)} data-testid="pushin-day-class" className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-slate-100 px-4 py-3">
+              <div className="flex flex-wrap items-baseline gap-2"><h4 className="text-base font-extrabold text-slate-950">{g.title}</h4>{g.label && <span className="text-sm font-medium text-slate-600">{g.label}</span>}</div>
+              <span className="text-xs text-slate-500">{g.students.length} {g.students.length === 1 ? "student" : "students"} · {minutes}</span>
+            </div>
+            {mine.length > 0 && <ul className="divide-y divide-slate-100">{mine.map((n) => <NoteRow key={n.id} note={n} blocks={blocks} today={today} showClass={false} bare onOpen={onOpen} />)}</ul>}
+            <div className="px-4 py-3">
+              <button type="button" onClick={() => onAdd(g)} disabled={full} data-testid="pushin-day-add"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-slate-300 px-3.5 text-sm font-semibold text-slate-700 transition hover:border-slate-500 hover:bg-slate-50 disabled:opacity-50">
+                <Plus className="h-4 w-4" aria-hidden /> {mine.length ? "Add another note" : "Add a note for this class"}
+              </button>
+            </div>
+          </section>
+        );
+      })}
+      {rest.length > 0 && (
+        <section aria-label="Other classes" className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" data-testid="pushin-day-class">
+          <div className="border-b border-slate-100 px-4 py-3"><h4 className="text-base font-extrabold text-slate-950">Other classes</h4><p className="text-xs text-slate-500">Not in the minutes any more</p></div>
+          <ul className="divide-y divide-slate-100">{rest.map((n) => <NoteRow key={n.id} note={n} blocks={blocks} today={today} showClass bare onOpen={onOpen} />)}</ul>
+        </section>
+      )}
+      {!groups.length && !rest.length && <Empty>No classes yet.</Empty>}
     </div>
   );
 }
@@ -180,22 +278,32 @@ function NoteList({ notes, groups, blocks, today, flat, onOpen }: { notes: PushI
   );
 }
 
-function NoteRow({ note, blocks, today, showClass, onOpen }: { note: PushInNote; blocks: ReturnType<typeof schoolBlocks>; today: string; showClass: boolean; onOpen: (n: PushInNote) => void }) {
+function NoteRow({ note, blocks, today, showClass, bare = false, onOpen }: { note: PushInNote; blocks: ReturnType<typeof schoolBlocks>; today: string; showClass: boolean; /** In a day: no date margin, and the files are named. */ bare?: boolean; onOpen: (n: PushInNote) => void }) {
   const facts = noteFacts(note);
   const flagged = note.students.filter((s) => s.status === "reteach").length;
   return (
     <li>
       <button type="button" onClick={() => onOpen(note)} data-testid="pushin-note" className="flex w-full items-start gap-4 px-4 py-4 text-left transition hover:bg-slate-50">
-        <Margin date={note.date} />
-        <span className="min-w-0 flex-1 border-l-2 border-slate-100 pl-4">
+        {!bare && <Margin date={note.date} />}
+        <span className={`min-w-0 flex-1 ${bare ? "" : "border-l-2 border-slate-100 pl-4"}`}>
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-base font-bold text-slate-950">{note.title || "Untitled lesson"}</span>
             {note.subject && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{note.subject}</span>}
             {flagged > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">{flagged} to reteach</span>}
           </span>
           {showClass && <span className="block text-xs text-slate-500">{[blockName(blocks, note.block), note.teacher].filter(Boolean).join(" · ") || "No class"}</span>}
-          <span className="mt-1 block text-xs text-slate-500">{friendlyDate(note.date, today)}{facts.length ? ` · ${facts.join(" · ")}` : ""}</span>
+          <span className="mt-1 block text-xs text-slate-500">{bare ? facts.join(" · ") : `${friendlyDate(note.date, today)}${facts.length ? ` · ${facts.join(" · ")}` : ""}`}</span>
           {note.taught && <span className="mt-1.5 line-clamp-2 block text-sm text-slate-700">{note.taught}</span>}
+          {bare && note.materials.some((m) => m.kind !== "answerKey") && (
+            <span className="mt-2 flex flex-wrap gap-1.5" data-testid="pushin-day-files">
+              {note.materials.filter((m) => m.kind !== "answerKey").slice(0, 6).map((m) => <span key={m.id} className="max-w-[14rem] truncate rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{m.name}</span>)}
+            </span>
+          )}
+          {bare && note.students.length > 0 && (
+            <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+              {note.students.slice(0, 8).map((s) => <span key={s.student} className="inline-flex items-center gap-1.5"><StatusDot status={s.status} />{s.student}</span>)}
+            </span>
+          )}
         </span>
       </button>
     </li>
@@ -264,7 +372,9 @@ function NoteEditor({ workspace, setWorkspace, makeId, today, token, groups, blo
   const stamp = () => new Date().toISOString();
   const edit = (change: Partial<PushInNote>) => setDraft((d) => ({ ...d, ...change, updatedAt: stamp() }));
   const key = noteKey(draft, blocks);
-  const group = groups.find((g) => g.key === key);
+  // The class as it was on the day of the note, so each student shows what was logged for them that day.
+  const dayGroups = useClassGroups(workspace, draft.date);
+  const group = dayGroups.find((g) => g.key === key) || groups.find((g) => g.key === key);
   const roster = noteRoster(draft, group);
   const drive = useMemo(() => cleanDriveFiles((workspace as any).drive), [(workspace as any).drive]);
   const className = group ? classTitle(group) : [blockName(blocks, draft.block), draft.teacher].filter(Boolean).join(" · ");
@@ -359,7 +469,7 @@ function NoteEditor({ workspace, setWorkspace, makeId, today, token, groups, blo
           </div>
           {!roster.length && <Empty>No students in this class yet.</Empty>}
           <ul className="space-y-2">
-            {roster.map((name) => <StudentRow key={name} name={name} entry={entryOf(draft, name)} inClass={!!group && classRoster(group).some((n) => fold(n) === fold(name))} worksheets={worksheets} onChange={(c) => setStudent(name, c)} />)}
+            {roster.map((name) => <StudentRow key={name} name={name} minutes={minutesText(group, name)} entry={entryOf(draft, name)} inClass={!!group && classRoster(group).some((n) => fold(n) === fold(name))} worksheets={worksheets} onChange={(c) => setStudent(name, c)} />)}
           </ul>
         </section>
 
@@ -370,8 +480,15 @@ function NoteEditor({ workspace, setWorkspace, makeId, today, token, groups, blo
   );
 }
 
-function StudentRow({ name, entry, inClass, worksheets, onChange }: {
-  name: string; entry: ReturnType<typeof entryOf>; inClass: boolean; worksheets: LessonMaterial[]; onChange: (c: Partial<ReturnType<typeof entryOf>>) => void;
+/** What was logged for a student on the note's day: "30 min logged", "Did not meet", or nothing. */
+function minutesText(group: ClassGroup | undefined, name: string): string {
+  const mine = (group?.students || []).filter((s) => fold(s.student) === fold(name));
+  const logged = mine.reduce((n, s) => n + s.logged, 0);
+  return logged > 0 ? `${logged} min logged` : mine.some((s) => s.notMet) ? "Did not meet" : "";
+}
+
+function StudentRow({ name, minutes, entry, inClass, worksheets, onChange }: {
+  name: string; minutes: string; entry: ReturnType<typeof entryOf>; inClass: boolean; worksheets: LessonMaterial[]; onChange: (c: Partial<ReturnType<typeof entryOf>>) => void;
 }) {
   const [more, setMore] = useState(false);
   const showMore = more || !!entry.support || !!entry.materialIds?.length;
@@ -379,7 +496,7 @@ function StudentRow({ name, entry, inClass, worksheets, onChange }: {
   return (
     <li className="rounded-2xl border border-slate-200 bg-white p-3" data-testid="pushin-student-entry" data-student={name}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="min-w-[6rem] text-base font-bold text-slate-950">{name}{!inClass && <span className="ml-2 text-xs font-medium text-slate-500">not in this class</span>}</span>
+        <span className="min-w-[6rem] text-base font-bold text-slate-950">{name}{!inClass && <span className="ml-2 text-xs font-medium text-slate-500">not in this class</span>}{minutes && <span className="ml-2 text-xs font-medium text-slate-500" data-testid="pushin-minutes">{minutes}</span>}</span>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={`How ${name} did`}>
           {CHECKS.map((c) => {
             const on = entry.status === c;

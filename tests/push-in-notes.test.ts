@@ -275,11 +275,31 @@ test("the Minutes tab has a Class notes look, remembered, and each class card op
 
 test("the notes screen uses the same class key as the minutes, the lessons' file slots and the AI route", () => {
   const ui = read("client/src/components/teacher-hub/HubPushInNotes.tsx");
-  assert.match(ui, /useClassGroups\(workspace, today\)/);
+  assert.match(ui, /useClassGroups\(workspace, when\)/);
   assert.match(ui, /<MaterialSlots /);
   assert.match(ui, /mode: "scaffold"/);
   assert.match(ui, /pushInNotes: upsertNote\(w\.pushInNotes, n\)/);
   assert.match(ui, /\/api\/lifehub\/drive\/delete/);
   // Student names are not sent to the AI.
   assert.ok(!/student[s]?:\s*roster|names:\s*roster/.test(ui));
+});
+
+test("the notes have a By day view: a week strip, every class of the day, and a note added for a class lands on that day", () => {
+  const ui = read("client/src/components/teacher-hub/HubPushInNotes.tsx");
+  assert.match(ui, /function DayView/);
+  assert.match(ui, /schoolWeek\(day\)/);
+  assert.match(ui, /newNote\(g, when,/);
+  assert.match(ui, /useClassGroups\(workspace, when\)/);
+  assert.match(ui, /useClassGroups\(workspace, draft\.date\)/);
+  assert.match(ui, /arise-hub-notes-view/);
+});
+
+test("a day's notes are the notes dated that day, each in its class, and a new one for a day carries that day", () => {
+  const a = note({ id: "a", date: "2026-10-14" });
+  const b = note({ id: "b", date: "2026-10-16" });
+  const c = note({ id: "c", date: "2026-10-14", block: "b3", part: undefined, teacher: undefined });
+  const day = [a, b, c].filter((n) => n.date === "2026-10-14");
+  assert.deepEqual(day.map((n) => n.id), ["a", "c"]);
+  assert.equal(noteKey(day[0], BLOCKS), lee.key);
+  assert.equal(newNote(lee, "2026-10-14", "z", NOW).date, "2026-10-14");
 });
