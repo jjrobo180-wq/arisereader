@@ -50,6 +50,7 @@ import ParentConnectionBanner from "./components/ParentConnectionBanner";
 import AssessmentPopup from "./components/AssessmentPopup";
 import ClassTeachersPopup from "./components/ClassTeachersPopup";
 import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
+import WelcomeGuide from "./components/WelcomeGuide";
 import PointsSideTab from "./components/PointsSideTab";
 import AvatarWorldSideTab from "./components/AvatarWorldSideTab";
 import LeaderboardPopup from "./components/LeaderboardPopup";
@@ -830,6 +831,7 @@ function AppInner() {
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <ClassTeachersPopup />}
       {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}
+      {overlays && !isAdminPreview && !isDemoStudent && !isEyeGazeStudent && <WelcomeGuide />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
       {overlays && !isAdminPreview && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
       <Router hook={useHashPathLocation}>
