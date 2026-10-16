@@ -9,6 +9,7 @@ import type { Workspace } from "@shared/teacherHub";
 import { KITE_THEMES, KITE_THEME_ORDER, startKiteScene, type KiteThemeId, type ThemeId } from "./atmosphere/kiteScene";
 import NightPhoto from "./atmosphere/NightPhoto";
 import { NIGHT_SCENES, NIGHT_SCENE_ORDER, isNightHour, isNightScene, liveNightScene, photoUrl, type FxId, type NightSceneId } from "./atmosphere/nightScenery";
+import { VIDEO_SCENES, VIDEO_SCENE_ORDER, isVideoScene } from "./atmosphere/videoScenery";
 import "./AmbientStandby.css";
 
 type Quality = "cinematic" | "balanced";
@@ -21,7 +22,7 @@ type SleepScene = "rain" | "lantern" | "theme";
 type Prefs = {
   city: string; coords: string; unit: "F" | "C"; mode: Mode; source: Source; quality: Quality; rain: number; sound: number; thunder: boolean; wind: boolean;
   minutes: number; showClock: boolean; keepAwake: boolean;
-  theme: ThemeId | NightSceneId; motion: boolean; kites: number; breeze: number; strings: boolean; layout: Layout; hour24: boolean; seconds: boolean;
+  theme: ThemeId | NightSceneId | (string & {}); motion: boolean; kites: number; breeze: number; strings: boolean; layout: Layout; hour24: boolean; seconds: boolean;
   font: "modern" | "elegant"; soundscape: Soundscape; sleepScene: SleepScene; nightDim: boolean; autoHide: boolean;
 };
 const DEFAULT: Prefs = {
@@ -37,6 +38,7 @@ const SOUNDS: { id: Soundscape; label: string; line: string }[] = [
 ];
 const SCENE_GROUPS: { label: string; ids: SceneChoice[] }[] = [
   { label: "Live", ids: ["live"] },
+  { label: "Live video", ids: VIDEO_SCENE_ORDER },
   { label: "Night scenery", ids: NIGHT_SCENE_ORDER },
   { label: "Kite scenes", ids: KITE_THEME_ORDER },
 ];
@@ -44,16 +46,17 @@ const KITE_COUNTS = [{ n: 4, label: "Few" }, { n: 7, label: "Some" }, { n: 12, l
 const pad = (n: number) => String(n).padStart(2, "0");
 const localDay = (d: Date) => [d.getFullYear(), pad(d.getMonth() + 1), pad(d.getDate())].join("-");
 const hashParams = () => new URLSearchParams(window.location.hash.split("?")[1] || "");
-const knownTheme = (id: unknown): id is Prefs["theme"] => id === "live" || (typeof id === "string" && (id in KITE_THEMES || isNightScene(id)));
+const knownTheme = (id: unknown): id is Prefs["theme"] => id === "live" || (typeof id === "string" && (id in KITE_THEMES || isNightScene(id) || isVideoScene(id)));
 const safeRead = (key: string): Prefs => { try { const merged = { ...DEFAULT, ...JSON.parse(localStorage.getItem(key) || "{}") }; return knownTheme(merged.theme) ? merged : { ...merged, theme: DEFAULT.theme }; } catch { return DEFAULT; } };
 type SceneChoice = Prefs["theme"];
-const themeName = (id: SceneChoice) => id === "live" ? "Live Weather" : isNightScene(id) ? NIGHT_SCENES[id].name : KITE_THEMES[id].name;
+const themeName = (id: SceneChoice) => id === "live" ? "Live Weather" : isVideoScene(id) ? VIDEO_SCENES[id as string].name : isNightScene(id) ? NIGHT_SCENES[id as NightSceneId].name : KITE_THEMES[id as KiteThemeId].name;
 /** The weather's own touches (rain, snow, mist) laid over the live night photograph. */
 const LIVE_FX: Record<Scene, FxId[]> = { clear: ["shooting"], clouds: ["mist"], fog: ["mist"], rain: ["rain"], storm: ["rain", "flash"], snow: ["snow"] };
 function swatch(id: SceneChoice) {
+  if (isVideoScene(id)) id = VIDEO_SCENES[id as string].still;
   if (isNightScene(id)) { const n = NIGHT_SCENES[id]; return `url(${photoUrl(n.photo, 96, 60)}) ${n.focus}/cover, linear-gradient(180deg,${n.tint[0]},${n.tint[1]})`; }
   if (id === "live") return "linear-gradient(160deg,#3b6b80,#132b34 60%,#0a1622)";
-  const t = KITE_THEMES[id];
+  const t = KITE_THEMES[id as KiteThemeId];
   return `linear-gradient(180deg,${t.sky[0]},${t.sky[t.sky.length - 1]} 64%,${t.layers[1]} 65%,${t.layers[t.layers.length - 1]})`;
 }
 function sceneFor(code: number): Scene {
@@ -68,14 +71,17 @@ function sceneFor(code: number): Scene {
 
 /** A tiny painted preview of a scene, for the theme picker. */
 function ThemeArt({ id }: { id: SceneChoice }) {
-  if (isNightScene(id)) {
-    const n = NIGHT_SCENES[id];
-    return <span className="ambient-theme-art ambient-theme-photo" style={{ background: `linear-gradient(180deg,${n.tint[0]},${n.tint[1]})` }}>
+  const isVideo = isVideoScene(id);
+  const still = isVideo ? VIDEO_SCENES[id as string].still : id;
+  if (isNightScene(still)) {
+    const n = NIGHT_SCENES[still];
+    return <span className={"ambient-theme-art ambient-theme-photo" + (isVideo ? " ambient-theme-video" : "")} style={{ background: `linear-gradient(180deg,${n.tint[0]},${n.tint[1]})` }}>
       <img src={photoUrl(n.photo, 420, 70)} alt="" loading="lazy" decoding="async" draggable={false} style={{ objectPosition: n.focus }} onError={e => { e.currentTarget.style.display = "none"; }} />
+      {isVideo && <em className="ambient-video-badge"><Play size={9} fill="currentColor" /> 4K</em>}
     </span>;
   }
   if (id === "live") return <span className="ambient-theme-art ambient-theme-live"><CloudSun size={30} strokeWidth={1.4} /></span>;
-  const t = KITE_THEMES[id], gid = "ambient-sky-" + id;
+  const t = KITE_THEMES[id as KiteThemeId], gid = "ambient-sky-" + id;
   return <svg viewBox="0 0 120 72" className="ambient-theme-art" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
     <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">{t.sky.map((c, i) => <stop key={i} offset={i / (t.sky.length - 1)} stopColor={c} />)}</linearGradient></defs>
     <rect width="120" height="72" fill={`url(#${gid})`} />
@@ -454,7 +460,8 @@ export default function AmbientStandby() {
 
   const liveScene: Scene = weather ? sceneFor(weather.current.code) : "clear";
   const h = now.getHours();
-  const pickedNight: NightSceneId | null = isNightScene(prefs.theme) ? prefs.theme : null;
+  const pickedVideo = isVideoScene(prefs.theme) ? VIDEO_SCENES[prefs.theme as string] : null;
+  const pickedNight: NightSceneId | null = pickedVideo ? pickedVideo.still : isNightScene(prefs.theme) ? prefs.theme : null;
   const pickedKite: KiteThemeId | null = prefs.theme !== "live" && !pickedNight ? (prefs.theme as KiteThemeId) : null;
   // A night photograph shows when one is picked, or for Live Weather after dark (it follows the sky outside).
   const liveNight: NightSceneId | null = prefs.theme === "live" && !sleeping && isNightHour(h) ? liveNightScene(liveScene) : null;
@@ -477,7 +484,7 @@ export default function AmbientStandby() {
     { id: "work" as Source, label: "WorkHub", href: "#/workhub", Icon: BriefcaseBusiness },
     { id: "life" as Source, label: "LifeHub", href: "#/lifehub", Icon: Home },
   ].sort((a, b) => (a.id === origin ? -1 : b.id === origin ? 1 : 0));
-  const statusText = sleeping ? "SLEEP STUDIO" : pickedNight ? NIGHT_SCENES[pickedNight].name.toUpperCase() : kiteTheme ? KITE_THEMES[kiteTheme].name.toUpperCase() : weather ? "LIVE WEATHER" : "STANDBY";
+  const statusText = sleeping ? "SLEEP STUDIO" : pickedVideo ? pickedVideo.name.toUpperCase() : pickedNight ? NIGHT_SCENES[pickedNight].name.toUpperCase() : kiteTheme ? KITE_THEMES[kiteTheme].name.toUpperCase() : weather ? "LIVE WEATHER" : "STANDBY";
   const Clock = ({ big }: { big?: boolean }) => <div className={"ambient-clock" + (big ? " ambient-clock-xl" : "")}><span>{clockText}</span>{secs && <em>{secs}</em>}{ampm && <small>{ampm}</small>}</div>;
 
   const rootClass = [
@@ -491,7 +498,7 @@ export default function AmbientStandby() {
     {!kiteTheme && !nightId && <div className="ambient-photo" aria-hidden="true" />}
     <div className="ambient-wash" aria-hidden="true" />
     {nightId
-      ? <NightPhoto sceneId={nightId} quality={prefs.quality} motion={prefs.motion} fx={liveNight ? LIVE_FX[liveScene] : undefined} intensity={prefs.rain} />
+      ? <NightPhoto sceneId={nightId} quality={prefs.quality} motion={prefs.motion} fx={liveNight ? LIVE_FX[liveScene] : undefined} intensity={prefs.rain} video={pickedVideo && nightId === pickedVideo.still ? pickedVideo : null} />
       : kiteTheme
       ? <KiteCanvas theme={kiteTheme} kites={prefs.kites} wind={prefs.breeze} strings={prefs.strings} quality={prefs.quality} sleepy={sleeping} />
       : <AtmosphereCanvas scene={scene} sleep={sleeping} quality={prefs.quality} intensity={prefs.rain} />}
@@ -573,7 +580,7 @@ export default function AmbientStandby() {
           <button className={!sleeping ? "selected" : ""} aria-pressed={!sleeping} onClick={() => update({ mode: "standby" })}><CloudSun size={17} /> StandBy</button>
           <button className={sleeping ? "selected" : ""} aria-pressed={sleeping} onClick={() => update({ mode: "sleep" })}><Moon size={17} /> Sleep</button>
         </div>
-        <div className="ambient-footer-note">{sleeping ? (endsAt && sound.playing ? "SLEEP TIMER ON" : "SOUND MADE LIVE ON THIS DEVICE") : nightScene ? (pickedNight ? "REAL PHOTOGRAPH" : "LIVE NIGHT") + "  ·  " + nightScene.photographer.toUpperCase() : kiteTheme ? "WIND " + (prefs.breeze < 34 ? "CALM" : prefs.breeze < 67 ? "BREEZY" : "GUSTY") + "  ·  " + prefs.kites + " KITES" : "LIVE CONDITIONS  ·  UPDATES EVERY 5 MIN"}</div>
+        <div className="ambient-footer-note">{sleeping ? (endsAt && sound.playing ? "SLEEP TIMER ON" : "SOUND MADE LIVE ON THIS DEVICE") : nightScene ? (pickedVideo ? "LIVE 4K VIDEO  ·  PIXABAY" : (pickedNight ? "REAL PHOTOGRAPH" : "LIVE NIGHT") + "  ·  " + nightScene.photographer.toUpperCase()) : kiteTheme ? "WIND " + (prefs.breeze < 34 ? "CALM" : prefs.breeze < 67 ? "BREEZY" : "GUSTY") + "  ·  " + prefs.kites + " KITES" : "LIVE CONDITIONS  ·  UPDATES EVERY 5 MIN"}</div>
         <button className="ambient-footer-sound" onClick={() => void toggleAudio()} aria-label={sound.playing ? "Stop " + soundInfo.label + " sound" : "Play " + soundInfo.label + " sound"} title={soundInfo.label + " sound"}>{sound.playing ? <Volume2 size={18} /> : <VolumeX size={18} />}</button>
       </footer>
     </div>
@@ -582,14 +589,15 @@ export default function AmbientStandby() {
       <div className="ambient-settings-scroll">
         <h3 className="ambient-settings-section">Scene</h3>
         {SCENE_GROUPS.map(group => <div key={group.label} role="group" aria-label={group.label}>
-          <h4 className="ambient-scene-group">{group.label}{group.label === "Night scenery" && <small>Real photographs</small>}</h4>
+          <h4 className="ambient-scene-group">{group.label}{group.label === "Night scenery" && <small>Real photographs</small>}{group.label === "Live video" && <small>Looping 4K footage</small>}</h4>
           <div className="ambient-theme-grid">
             {group.ids.map(id => <button key={id} className={"ambient-theme-card" + (prefs.theme === id ? " selected" : "")} aria-pressed={prefs.theme === id} onClick={() => update({ theme: id })}>
-              <ThemeArt id={id} /><strong>{themeName(id)}</strong><span>{id === "live" ? "Follows your weather, and turns to night scenery after dark" : isNightScene(id) ? NIGHT_SCENES[id].blurb : KITE_THEMES[id].blurb}</span>
+              <ThemeArt id={id} /><strong>{themeName(id)}</strong><span>{id === "live" ? "Follows your weather, and turns to night scenery after dark" : isVideoScene(id) ? VIDEO_SCENES[id as string].blurb : isNightScene(id) ? NIGHT_SCENES[id].blurb : KITE_THEMES[id as KiteThemeId].blurb}</span>
             </button>)}
           </div>
         </div>)}
-        {nightScene && <p className="ambient-credit">Photo: {nightScene.name} by {nightScene.photographer} on <a href="https://unsplash.com" target="_blank" rel="noreferrer">Unsplash</a></p>}
+        {pickedVideo ? <p className="ambient-credit">Video: {pickedVideo.name} on <a href={pickedVideo.page} target="_blank" rel="noreferrer">Pixabay</a>. Photo behind it: {NIGHT_SCENES[pickedVideo.still].photographer} on <a href="https://unsplash.com" target="_blank" rel="noreferrer">Unsplash</a></p>
+          : nightScene && <p className="ambient-credit">Photo: {nightScene.name} by {nightScene.photographer} on <a href="https://unsplash.com" target="_blank" rel="noreferrer">Unsplash</a></p>}
         {pickedKite && <>
           <div className="ambient-field"><label>Kites in the sky</label><div className="ambient-choice">{KITE_COUNTS.map(k => <button key={k.n} className={prefs.kites === k.n ? "selected" : ""} onClick={() => update({ kites: k.n })}>{k.label}</button>)}</div></div>
           <div className="ambient-field"><label htmlFor="ambient-breeze">Wind <strong>{prefs.breeze < 34 ? "Calm" : prefs.breeze < 67 ? "Breezy" : "Gusty"}</strong></label><input id="ambient-breeze" type="range" min="0" max="100" value={prefs.breeze} onChange={e => update({ breeze: Number(e.target.value) })} /></div>
@@ -618,8 +626,8 @@ export default function AmbientStandby() {
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-clock-toggle">Clock in Sleep Studio</label><input id="ambient-clock-toggle" type="checkbox" checked={prefs.showClock} onChange={e => update({ showClock: e.target.checked })} /></div>
 
         <h3 className="ambient-settings-section">Display</h3>
-        <div className="ambient-field"><label>Graphics</label><div className="ambient-choice"><button className={prefs.quality === "cinematic" ? "selected" : ""} onClick={() => update({ quality: "cinematic" })}>Ultra</button><button className={prefs.quality === "balanced" ? "selected" : ""} onClick={() => update({ quality: "balanced" })}>Battery saver</button></div><p className="ambient-help">Ultra loads night photos in up to 4K for big, sharp screens. Battery saver uses smaller photos and fewer effects.</p></div>
-        <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-motion">Gentle motion in night scenery</label><input id="ambient-motion" type="checkbox" checked={prefs.motion} onChange={e => update({ motion: e.target.checked })} /></div>
+        <div className="ambient-field"><label>Graphics</label><div className="ambient-choice"><button className={prefs.quality === "cinematic" ? "selected" : ""} onClick={() => update({ quality: "cinematic" })}>Ultra</button><button className={prefs.quality === "balanced" ? "selected" : ""} onClick={() => update({ quality: "balanced" })}>Battery saver</button></div><p className="ambient-help">Ultra loads night photos and live video in up to 4K on big screens. Live video uses a lot of data: Battery saver, phones and Data Saver use lighter 1080p video, and Wi-Fi is best.</p></div>
+        <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-motion">Gentle motion and video in night scenery</label><input id="ambient-motion" type="checkbox" checked={prefs.motion} onChange={e => update({ motion: e.target.checked })} /></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-autohide">Hide controls when idle</label><input id="ambient-autohide" type="checkbox" checked={prefs.autoHide} onChange={e => update({ autoHide: e.target.checked })} /></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-dim">Dim the screen at night (9 PM–6 AM)</label><input id="ambient-dim" type="checkbox" checked={prefs.nightDim} onChange={e => update({ nightDim: e.target.checked })} /></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-awake">Keep screen awake when supported</label><input id="ambient-awake" type="checkbox" checked={prefs.keepAwake} onChange={e => update({ keepAwake: e.target.checked })} /></div>

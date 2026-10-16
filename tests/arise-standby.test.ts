@@ -66,7 +66,7 @@ test("the scene picker, menu and settings show the night scenery", () => {
   assert.ok((app.match(/SCENE_GROUPS\.map/g) ?? []).length >= 2, "both the quick menu and the settings list every group");
   assert.match(app, /Photo: \{nightScene\.name\} by \{nightScene\.photographer\} on/);
   assert.match(app, /<NightPhoto sceneId=\{nightId\}/);
-  assert.match(app, /Gentle motion in night scenery/);
+  assert.match(app, /Gentle motion and video in night scenery/);
   assert.ok(app.includes("knownTheme"), "an old or unknown saved scene falls back instead of breaking");
 });
 
@@ -77,4 +77,48 @@ test("the photo layer fades, sharpens, falls back and respects reduced motion", 
   assert.match(photo, /photoWidth\(/);
   assert.match(css, /@keyframes ambient-drift/);
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.ambient-night-img \{ animation: none/);
+});
+
+import { VIDEO_SCENES, VIDEO_SCENE_LIST, VIDEO_SCENE_ORDER, isVideoScene, videoFile, videoSources } from "../client/src/pages/atmosphere/videoScenery";
+
+test("live video scenes are real clips, each backed by a still photo", () => {
+  assert.ok(VIDEO_SCENE_LIST.length >= 24);
+  assert.equal(new Set(VIDEO_SCENE_ORDER).size, VIDEO_SCENE_ORDER.length, "no duplicate scene ids");
+  assert.equal(new Set(VIDEO_SCENE_LIST.map((v) => v.file)).size, VIDEO_SCENE_LIST.length, "no clip used twice");
+  for (const v of VIDEO_SCENE_LIST) {
+    assert.match(v.id, /^v-[a-z-]+$/);
+    assert.ok(!isNightScene(v.id) && !(v.id in NIGHT_SCENES), "video ids never clash with photo scenes");
+    assert.ok(isNightScene(v.still), `${v.id} has a still photograph to show while loading or if the clip cannot play`);
+    assert.match(v.file, /^\d{4}\/\d{2}\/\d{2}\/\d+(-\d+)?$/, v.id);
+    assert.match(videoFile(v, "large"), /^https:\/\/cdn\.pixabay\.com\/video\/\d{4}\/\d{2}\/\d{2}\/[\d-]+_large\.mp4$/);
+    assert.match(v.page, /^https:\/\/pixabay\.com\/videos\/[a-z0-9-]+-\d+\/$/);
+    assert.ok(v.file.includes(v.page.match(/-(\d+)\/$/)![1]), `${v.id}: the clip file and its credit page are the same clip`);
+    assert.ok(v.name && v.blurb);
+  }
+  assert.ok(isVideoScene("v-aurora-green") && !isVideoScene("milkyway") && !isVideoScene("constructor") && !isVideoScene("live"));
+  assert.ok(VIDEO_SCENES["v-aurora-green"]);
+});
+
+test("4K video goes to big screens on Ultra; phones and Battery saver get 1080p", () => {
+  const v = VIDEO_SCENES["v-aurora-green"];
+  const tv = videoSources(v, { viewW: 2560, viewH: 1440, dpr: 1, quality: "cinematic" });
+  assert.ok(tv[0].endsWith("_large.mp4") && tv[1].endsWith("_medium.mp4"), "4K first, 1080p as the backup");
+  const laptop = videoSources(v, { viewW: 1440, viewH: 900, dpr: 2, quality: "cinematic" });
+  assert.ok(laptop[0].endsWith("_large.mp4"));
+  const phone = videoSources(v, { viewW: 390, viewH: 844, dpr: 3, quality: "cinematic" });
+  assert.ok(phone[0].endsWith("_medium.mp4"), "a phone does not pull a 4K file");
+  assert.ok(videoSources(v, { viewW: 2560, viewH: 1440, dpr: 1, quality: "balanced" })[0].endsWith("_medium.mp4"));
+  assert.ok(videoSources(v, { viewW: 2560, viewH: 1440, dpr: 1, quality: "cinematic", saveData: true })[0].endsWith("_medium.mp4"), "Data Saver is respected");
+});
+
+test("the picker, layer and sleep wiring for video", () => {
+  assert.match(app, /label: "Live video", ids: VIDEO_SCENE_ORDER/);
+  assert.match(app, /video=\{pickedVideo && nightId === pickedVideo\.still/);
+  assert.match(app, /Video: \{pickedVideo\.name\} on/);
+  assert.match(photo, /VideoLayer/);
+  assert.match(photo, /autoPlay muted loop playsInline/);
+  assert.match(photo, /visibilitychange/, "video pauses when the screen is hidden");
+  assert.match(photo, /setIndex\(\(i\) => i \+ 1\)/, "a failed file falls back to the next, then to the photo");
+  assert.match(photo, /const clip = video && motion && !calm/, "no video with Gentle motion off or reduced motion");
+  assert.match(css, /\.ambient-night-video\.ambient-video-on \{ opacity: 1; \}/);
 });

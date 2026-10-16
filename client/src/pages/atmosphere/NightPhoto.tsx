@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NIGHT_SCENES, photoUrl, photoWidth, type FxId, type NightScene, type NightSceneId } from "./nightScenery";
+import { videoSources, type VideoScene } from "./videoScenery";
 
 type Quality = "cinematic" | "balanced";
 const measure = () => ({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 });
@@ -149,13 +150,35 @@ function SceneLife({ fx, quality, intensity }: { fx: FxId[]; quality: Quality; i
   return <canvas ref={ref} className="ambient-canvas ambient-life" aria-hidden="true" />;
 }
 
+/**
+ * A looping video laid over the still photo. It fades in once it is really playing; if it cannot play (blocked
+ * autoplay, a slow or missing file) it stays invisible and the photograph underneath is what you see.
+ */
+function VideoLayer({ sources, focus }: { sources: string[]; focus: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const list = sources.join("|");
+  useEffect(() => { setIndex(0); setPlaying(false); }, [list]);
+  useEffect(() => {
+    const pauseWhenHidden = () => { const v = ref.current; if (!v) return; if (document.hidden) v.pause(); else void v.play().catch(() => {}); };
+    document.addEventListener("visibilitychange", pauseWhenHidden);
+    return () => document.removeEventListener("visibilitychange", pauseWhenHidden);
+  }, []);
+  const src = sources[index];
+  if (!src) return null;
+  return <video key={src} ref={ref} className={"ambient-night-video" + (playing ? " ambient-video-on" : "")} src={src}
+    autoPlay muted loop playsInline preload="auto" disablePictureInPicture disableRemotePlayback tabIndex={-1}
+    style={{ objectPosition: focus }} onPlaying={() => setPlaying(true)} onError={() => { setPlaying(false); setIndex((i) => i + 1); }} />;
+}
+
 type Layer = { key: string; id: NightSceneId; url: string; width: number };
 
 /**
  * A full-screen night photograph. A new scene fades in over the old one; a sharper copy of the same
  * photo replaces a softer one when the screen gets bigger; and the starry fallback sits behind it all.
  */
-export default function NightPhoto({ sceneId, quality, motion, fx, intensity = 80 }: { sceneId: NightSceneId; quality: Quality; motion: boolean; fx?: FxId[]; intensity?: number }) {
+export default function NightPhoto({ sceneId, quality, motion, fx, intensity = 80, video }: { sceneId: NightSceneId; quality: Quality; motion: boolean; fx?: FxId[]; intensity?: number; video?: VideoScene | null }) {
   const scene = NIGHT_SCENES[sceneId];
   const screen = useScreen();
   const width = photoWidth(screen.w, screen.h, screen.dpr, quality);
@@ -183,11 +206,14 @@ export default function NightPhoto({ sceneId, quality, motion, fx, intensity = 8
   }, [sceneId, width, quality, retry, scene.photo]);
 
   const showFallback = failed && !layers.length;
-  const life = fx ?? scene.fx;
-  return <div className={"ambient-night" + (motion ? " ambient-night-moving" : "")} aria-hidden="true" style={{ background: `linear-gradient(180deg, ${scene.tint[0]}, ${scene.tint[1]})` }}>
+  const calm = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const clip = video && motion && !calm ? videoSources(video, { viewW: screen.w, viewH: screen.h, dpr: screen.dpr, quality, saveData: !!(navigator as any).connection?.saveData }) : null;
+  const life = clip ? [] : fx ?? scene.fx;
+  return <div className={"ambient-night" + (motion && !clip ? " ambient-night-moving" : "")} aria-hidden="true" style={{ background: `linear-gradient(180deg, ${scene.tint[0]}, ${scene.tint[1]})` }}>
     {(showFallback || !layers.length) && <FallbackSky scene={scene} />}
     {layers.map((layer, i) => <img key={layer.key} src={layer.url} alt="" decoding="async" draggable={false}
       className={"ambient-night-img" + (i === layers.length - 1 ? " ambient-night-new" : "")} style={{ objectPosition: NIGHT_SCENES[layer.id].focus }} />)}
-    {motion && <SceneLife fx={life} quality={quality} intensity={intensity} />}
+    {clip && <VideoLayer sources={clip} focus={scene.focus} />}
+    {motion && !clip && <SceneLife fx={life} quality={quality} intensity={intensity} />}
   </div>;
 }
