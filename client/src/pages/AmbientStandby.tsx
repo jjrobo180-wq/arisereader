@@ -7,6 +7,8 @@ import { weatherCode, type Forecast } from "@shared/lifePlugins";
 import type { Family } from "@shared/familyHub";
 import type { Workspace } from "@shared/teacherHub";
 import { KITE_THEMES, KITE_THEME_ORDER, startKiteScene, type KiteThemeId, type ThemeId } from "./atmosphere/kiteScene";
+import NightPhoto from "./atmosphere/NightPhoto";
+import { NIGHT_SCENES, NIGHT_SCENE_ORDER, isNightHour, isNightScene, liveNightScene, photoUrl, type FxId, type NightSceneId } from "./atmosphere/nightScenery";
 import "./AmbientStandby.css";
 
 type Quality = "cinematic" | "balanced";
@@ -19,12 +21,12 @@ type SleepScene = "rain" | "lantern" | "theme";
 type Prefs = {
   city: string; coords: string; unit: "F" | "C"; mode: Mode; source: Source; quality: Quality; rain: number; sound: number; thunder: boolean; wind: boolean;
   minutes: number; showClock: boolean; keepAwake: boolean;
-  theme: ThemeId; kites: number; breeze: number; strings: boolean; layout: Layout; hour24: boolean; seconds: boolean;
+  theme: ThemeId | NightSceneId; motion: boolean; kites: number; breeze: number; strings: boolean; layout: Layout; hour24: boolean; seconds: boolean;
   font: "modern" | "elegant"; soundscape: Soundscape; sleepScene: SleepScene; nightDim: boolean; autoHide: boolean;
 };
 const DEFAULT: Prefs = {
   city: "", coords: "", unit: "F", mode: "standby", source: "life", quality: "cinematic", rain: 80, sound: 55, thunder: false, wind: false, minutes: 60, showClock: true, keepAwake: true,
-  theme: "festival", kites: 7, breeze: 50, strings: true, layout: "full", hour24: false, seconds: false, font: "modern", soundscape: "rain", sleepScene: "rain", nightDim: true, autoHide: true,
+  theme: "festival", motion: true, kites: 7, breeze: 50, strings: true, layout: "full", hour24: false, seconds: false, font: "modern", soundscape: "rain", sleepScene: "rain", nightDim: true, autoHide: true,
 };
 const ICON = { clear: Sun, clouds: Cloud, rain: CloudRain, snow: CloudSnow, storm: CloudLightning, fog: CloudDrizzle };
 const SOUNDS: { id: Soundscape; label: string; line: string }[] = [
@@ -33,13 +35,23 @@ const SOUNDS: { id: Soundscape; label: string; line: string }[] = [
   { id: "breeze", label: "Breeze", line: "A soft wind over the hills, and kites drifting high overhead." },
   { id: "deep", label: "Deep", line: "Deep, steady sound that hushes the room so you can settle in." },
 ];
+const SCENE_GROUPS: { label: string; ids: SceneChoice[] }[] = [
+  { label: "Live", ids: ["live"] },
+  { label: "Night scenery", ids: NIGHT_SCENE_ORDER },
+  { label: "Kite scenes", ids: KITE_THEME_ORDER },
+];
 const KITE_COUNTS = [{ n: 4, label: "Few" }, { n: 7, label: "Some" }, { n: 12, label: "Lots" }];
 const pad = (n: number) => String(n).padStart(2, "0");
 const localDay = (d: Date) => [d.getFullYear(), pad(d.getMonth() + 1), pad(d.getDate())].join("-");
 const hashParams = () => new URLSearchParams(window.location.hash.split("?")[1] || "");
-const safeRead = (key: string): Prefs => { try { return { ...DEFAULT, ...JSON.parse(localStorage.getItem(key) || "{}") }; } catch { return DEFAULT; } };
-const themeName = (id: ThemeId) => id === "live" ? "Live Weather" : KITE_THEMES[id].name;
-function swatch(id: ThemeId) {
+const knownTheme = (id: unknown): id is Prefs["theme"] => id === "live" || (typeof id === "string" && (id in KITE_THEMES || isNightScene(id)));
+const safeRead = (key: string): Prefs => { try { const merged = { ...DEFAULT, ...JSON.parse(localStorage.getItem(key) || "{}") }; return knownTheme(merged.theme) ? merged : { ...merged, theme: DEFAULT.theme }; } catch { return DEFAULT; } };
+type SceneChoice = Prefs["theme"];
+const themeName = (id: SceneChoice) => id === "live" ? "Live Weather" : isNightScene(id) ? NIGHT_SCENES[id].name : KITE_THEMES[id].name;
+/** The weather's own touches (rain, snow, mist) laid over the live night photograph. */
+const LIVE_FX: Record<Scene, FxId[]> = { clear: ["shooting"], clouds: ["mist"], fog: ["mist"], rain: ["rain"], storm: ["rain", "flash"], snow: ["snow"] };
+function swatch(id: SceneChoice) {
+  if (isNightScene(id)) { const n = NIGHT_SCENES[id]; return `url(${photoUrl(n.photo, 96, 60)}) ${n.focus}/cover, linear-gradient(180deg,${n.tint[0]},${n.tint[1]})`; }
   if (id === "live") return "linear-gradient(160deg,#3b6b80,#132b34 60%,#0a1622)";
   const t = KITE_THEMES[id];
   return `linear-gradient(180deg,${t.sky[0]},${t.sky[t.sky.length - 1]} 64%,${t.layers[1]} 65%,${t.layers[t.layers.length - 1]})`;
@@ -55,7 +67,13 @@ function sceneFor(code: number): Scene {
 }
 
 /** A tiny painted preview of a scene, for the theme picker. */
-function ThemeArt({ id }: { id: ThemeId }) {
+function ThemeArt({ id }: { id: SceneChoice }) {
+  if (isNightScene(id)) {
+    const n = NIGHT_SCENES[id];
+    return <span className="ambient-theme-art ambient-theme-photo" style={{ background: `linear-gradient(180deg,${n.tint[0]},${n.tint[1]})` }}>
+      <img src={photoUrl(n.photo, 420, 70)} alt="" loading="lazy" decoding="async" draggable={false} style={{ objectPosition: n.focus }} onError={e => { e.currentTarget.style.display = "none"; }} />
+    </span>;
+  }
   if (id === "live") return <span className="ambient-theme-art ambient-theme-live"><CloudSun size={30} strokeWidth={1.4} /></span>;
   const t = KITE_THEMES[id], gid = "ambient-sky-" + id;
   return <svg viewBox="0 0 120 72" className="ambient-theme-art" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
@@ -393,7 +411,7 @@ export default function AmbientStandby() {
     } catch {
       setFocus(true);
       let seen = false; try { seen = localStorage.getItem("arise-atmosphere-focus-tip") === "1"; localStorage.setItem("arise-atmosphere-focus-tip", "1"); } catch {}
-      if (!seen) { setTip("Full screen is on. Tap anywhere to show controls. For no browser bar at all on iPhone, tap Share → Add to Home Screen and open Atmosphere from there."); window.setTimeout(() => setTip(""), 9000); }
+      if (!seen) { setTip("Full screen is on. Tap anywhere to show controls. For no browser bar at all on iPhone, tap Share → Add to Home Screen and open Standby from there."); window.setTimeout(() => setTip(""), 9000); }
     }
   };
 
@@ -435,12 +453,18 @@ export default function AmbientStandby() {
   };
 
   const liveScene: Scene = weather ? sceneFor(weather.current.code) : "clear";
-  const kiteTheme: KiteThemeId | null = sleeping
-    ? (prefs.sleepScene === "rain" ? null : prefs.sleepScene === "lantern" || prefs.theme === "live" ? "lantern" : prefs.theme)
-    : prefs.theme === "live" ? null : prefs.theme;
+  const h = now.getHours();
+  const pickedNight: NightSceneId | null = isNightScene(prefs.theme) ? prefs.theme : null;
+  const pickedKite: KiteThemeId | null = prefs.theme !== "live" && !pickedNight ? (prefs.theme as KiteThemeId) : null;
+  // A night photograph shows when one is picked, or for Live Weather after dark (it follows the sky outside).
+  const liveNight: NightSceneId | null = prefs.theme === "live" && !sleeping && isNightHour(h) ? liveNightScene(liveScene) : null;
+  const nightId: NightSceneId | null = sleeping ? (prefs.sleepScene === "theme" ? pickedNight : null) : (pickedNight ?? liveNight);
+  const nightScene = nightId ? NIGHT_SCENES[nightId] : null;
+  const kiteTheme: KiteThemeId | null = nightId ? null : sleeping
+    ? (prefs.sleepScene === "rain" ? null : prefs.sleepScene === "lantern" || !pickedKite ? "lantern" : pickedKite)
+    : pickedKite;
   const scene: Scene = sleeping ? (prefs.thunder ? "storm" : "rain") : liveScene;
   const IconNow = weather ? ICON[liveScene] : CloudSun;
-  const h = now.getHours();
   const clockText = prefs.hour24 ? pad(h) + ":" + pad(now.getMinutes()) : ((h % 12) || 12) + ":" + pad(now.getMinutes());
   const ampm = prefs.hour24 ? "" : h < 12 ? "AM" : "PM";
   const secs = prefs.seconds ? pad(now.getSeconds()) : "";
@@ -453,41 +477,46 @@ export default function AmbientStandby() {
     { id: "work" as Source, label: "WorkHub", href: "#/workhub", Icon: BriefcaseBusiness },
     { id: "life" as Source, label: "LifeHub", href: "#/lifehub", Icon: Home },
   ].sort((a, b) => (a.id === origin ? -1 : b.id === origin ? 1 : 0));
-  const statusText = sleeping ? "SLEEP STUDIO" : kiteTheme ? KITE_THEMES[kiteTheme].name.toUpperCase() : weather ? "LIVE WEATHER" : "STANDBY";
+  const statusText = sleeping ? "SLEEP STUDIO" : pickedNight ? NIGHT_SCENES[pickedNight].name.toUpperCase() : kiteTheme ? KITE_THEMES[kiteTheme].name.toUpperCase() : weather ? "LIVE WEATHER" : "STANDBY";
   const Clock = ({ big }: { big?: boolean }) => <div className={"ambient-clock" + (big ? " ambient-clock-xl" : "")}><span>{clockText}</span>{secs && <em>{secs}</em>}{ampm && <small>{ampm}</small>}</div>;
 
   const rootClass = [
-    "ambient-root", kiteTheme ? "ambient-kites ambient-k-" + kiteTheme + (KITE_THEMES[kiteTheme].night ? " ambient-k-night" : " ambient-k-day") : "ambient-" + scene,
+    "ambient-root", nightScene ? "ambient-kites ambient-k-night ambient-nightscene ambient-n-" + nightId + (nightScene.bright ? " ambient-night-bright" : "")
+      : kiteTheme ? "ambient-kites ambient-k-" + kiteTheme + (KITE_THEMES[kiteTheme].night ? " ambient-k-night" : " ambient-k-day") : "ambient-" + scene,
     sleeping ? "ambient-sleep" : "", prefs.quality === "balanced" ? "ambient-balanced" : "", idle ? "ambient-idle" : "",
     immersive ? "ambient-immersive" : "", dim ? "ambient-dim" : "", prefs.font === "elegant" ? "ambient-font-elegant" : "", "ambient-layout-" + (sleeping ? "sleep" : prefs.layout),
   ].join(" ");
 
-  return <main className={rootClass} data-testid="arise-atmosphere">
-    {!kiteTheme && <div className="ambient-photo" aria-hidden="true" />}
+  return <main className={rootClass} data-testid="arise-standby">
+    {!kiteTheme && !nightId && <div className="ambient-photo" aria-hidden="true" />}
     <div className="ambient-wash" aria-hidden="true" />
-    {kiteTheme
+    {nightId
+      ? <NightPhoto sceneId={nightId} quality={prefs.quality} motion={prefs.motion} fx={liveNight ? LIVE_FX[liveScene] : undefined} intensity={prefs.rain} />
+      : kiteTheme
       ? <KiteCanvas theme={kiteTheme} kites={prefs.kites} wind={prefs.breeze} strings={prefs.strings} quality={prefs.quality} sleepy={sleeping} />
       : <AtmosphereCanvas scene={scene} sleep={sleeping} quality={prefs.quality} intensity={prefs.rain} />}
     <div className="ambient-vignette" aria-hidden="true" />
     <div className="ambient-screen">
       <header className="ambient-header ambient-chrome">
         <div className="ambient-menu-wrap">
-          <button className="ambient-icon-action ambient-menu-btn" onClick={() => setMenuOpen(o => !o)} aria-label="Atmosphere menu" aria-haspopup="menu" aria-expanded={menuOpen} data-testid="atmosphere-menu"><LayoutGrid size={18} /></button>
+          <button className="ambient-icon-action ambient-menu-btn" onClick={() => setMenuOpen(o => !o)} aria-label="Standby menu" aria-haspopup="menu" aria-expanded={menuOpen} data-testid="standby-menu"><LayoutGrid size={18} /></button>
           {menuOpen && <>
             <div className="ambient-menu-scrim" onClick={() => setMenuOpen(false)} />
-            <div className="ambient-menu" role="menu" aria-label="Atmosphere menu">
+            <div className="ambient-menu" role="menu" aria-label="Standby menu">
               {hubs.map(({ id, label, href, Icon }) => <a key={id} role="menuitem" href={href} className="ambient-menu-item"><span className="ambient-menu-ico"><Icon size={16} /></span>{label}{id === origin && <small>Back</small>}</a>)}
-              <div className="ambient-menu-label">Scene</div>
-              <div className="ambient-menu-swatches">
-                {(["live", ...KITE_THEME_ORDER] as ThemeId[]).map(id => <button key={id} type="button" title={themeName(id)} aria-label={themeName(id)} aria-pressed={prefs.theme === id} className={prefs.theme === id ? "selected" : ""} style={{ background: swatch(id) }} onClick={() => update({ theme: id })}>{prefs.theme === id && <Check size={13} />}</button>)}
-              </div>
+              {SCENE_GROUPS.map(group => <div key={group.label}>
+                <div className="ambient-menu-label">{group.label}</div>
+                <div className="ambient-menu-swatches">
+                  {group.ids.map(id => <button key={id} type="button" title={themeName(id)} aria-label={themeName(id)} aria-pressed={prefs.theme === id} className={prefs.theme === id ? "selected" : ""} style={{ background: swatch(id) }} onClick={() => update({ theme: id })}>{prefs.theme === id && <Check size={13} />}</button>)}
+                </div>
+              </div>)}
               <div className="ambient-menu-sep" />
               <button role="menuitem" className="ambient-menu-item" onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}><span className="ambient-menu-ico"><Settings2 size={16} /></span>Settings</button>
               <button role="menuitem" className="ambient-menu-item" onClick={() => void toggleFull()}><span className="ambient-menu-ico">{immersive ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</span>{immersive ? "Exit full screen" : "Full screen"}</button>
             </div>
           </>}
         </div>
-        <div className="ambient-mark"><span className="ambient-mark-dot" /> A.R.I.S.E. <strong>ATMOSPHERE</strong></div>
+        <div className="ambient-mark"><span className="ambient-mark-dot" /> A.R.I.S.E. <strong>STANDBY</strong></div>
         <div className="ambient-top-actions">
           <span className="ambient-live"><span />{statusText}</span>
           <button className="ambient-icon-action" onClick={() => setSettingsOpen(s => !s)} aria-label="Settings" aria-expanded={settingsOpen}><Settings2 size={18} /></button>
@@ -540,24 +569,28 @@ export default function AmbientStandby() {
         </>}
       </div>
       <footer className="ambient-footer ambient-chrome">
-        <div className="ambient-mode-switch" role="group" aria-label="Atmosphere mode">
+        <div className="ambient-mode-switch" role="group" aria-label="Standby mode">
           <button className={!sleeping ? "selected" : ""} aria-pressed={!sleeping} onClick={() => update({ mode: "standby" })}><CloudSun size={17} /> StandBy</button>
           <button className={sleeping ? "selected" : ""} aria-pressed={sleeping} onClick={() => update({ mode: "sleep" })}><Moon size={17} /> Sleep</button>
         </div>
-        <div className="ambient-footer-note">{sleeping ? (endsAt && sound.playing ? "SLEEP TIMER ON" : "SOUND MADE LIVE ON THIS DEVICE") : kiteTheme ? "WIND " + (prefs.breeze < 34 ? "CALM" : prefs.breeze < 67 ? "BREEZY" : "GUSTY") + "  ·  " + prefs.kites + " KITES" : "LIVE CONDITIONS  ·  UPDATES EVERY 5 MIN"}</div>
+        <div className="ambient-footer-note">{sleeping ? (endsAt && sound.playing ? "SLEEP TIMER ON" : "SOUND MADE LIVE ON THIS DEVICE") : nightScene ? (pickedNight ? "REAL PHOTOGRAPH" : "LIVE NIGHT") + "  ·  " + nightScene.photographer.toUpperCase() : kiteTheme ? "WIND " + (prefs.breeze < 34 ? "CALM" : prefs.breeze < 67 ? "BREEZY" : "GUSTY") + "  ·  " + prefs.kites + " KITES" : "LIVE CONDITIONS  ·  UPDATES EVERY 5 MIN"}</div>
         <button className="ambient-footer-sound" onClick={() => void toggleAudio()} aria-label={sound.playing ? "Stop " + soundInfo.label + " sound" : "Play " + soundInfo.label + " sound"} title={soundInfo.label + " sound"}>{sound.playing ? <Volume2 size={18} /> : <VolumeX size={18} />}</button>
       </footer>
     </div>
     {tip && <div className="ambient-tip" role="status" onClick={() => setTip("")}>{tip}</div>}
-    {settingsOpen && <div className="ambient-settings-overlay" onClick={() => setSettingsOpen(false)}><aside className="ambient-settings" onClick={e => e.stopPropagation()} aria-label="Atmosphere settings"><div className="ambient-settings-head"><div><small>MAKE IT YOURS</small><h2>Atmosphere settings</h2></div><button className="ambient-icon-action" aria-label="Close settings" onClick={() => setSettingsOpen(false)}><X size={19} /></button></div>
+    {settingsOpen && <div className="ambient-settings-overlay" onClick={() => setSettingsOpen(false)}><aside className="ambient-settings" onClick={e => e.stopPropagation()} aria-label="Standby settings"><div className="ambient-settings-head"><div><small>MAKE IT YOURS</small><h2>Standby settings</h2></div><button className="ambient-icon-action" aria-label="Close settings" onClick={() => setSettingsOpen(false)}><X size={19} /></button></div>
       <div className="ambient-settings-scroll">
         <h3 className="ambient-settings-section">Scene</h3>
-        <div className="ambient-theme-grid" role="group" aria-label="Scene">
-          {(["live", ...KITE_THEME_ORDER] as ThemeId[]).map(id => <button key={id} className={"ambient-theme-card" + (prefs.theme === id ? " selected" : "")} aria-pressed={prefs.theme === id} onClick={() => update({ theme: id })}>
-            <ThemeArt id={id} /><strong>{themeName(id)}</strong><span>{id === "live" ? "Scenery follows your weather" : KITE_THEMES[id].blurb}</span>
-          </button>)}
-        </div>
-        {prefs.theme !== "live" && <>
+        {SCENE_GROUPS.map(group => <div key={group.label} role="group" aria-label={group.label}>
+          <h4 className="ambient-scene-group">{group.label}{group.label === "Night scenery" && <small>Real photographs</small>}</h4>
+          <div className="ambient-theme-grid">
+            {group.ids.map(id => <button key={id} className={"ambient-theme-card" + (prefs.theme === id ? " selected" : "")} aria-pressed={prefs.theme === id} onClick={() => update({ theme: id })}>
+              <ThemeArt id={id} /><strong>{themeName(id)}</strong><span>{id === "live" ? "Follows your weather, and turns to night scenery after dark" : isNightScene(id) ? NIGHT_SCENES[id].blurb : KITE_THEMES[id].blurb}</span>
+            </button>)}
+          </div>
+        </div>)}
+        {nightScene && <p className="ambient-credit">Photo: {nightScene.name} by {nightScene.photographer} on <a href="https://unsplash.com" target="_blank" rel="noreferrer">Unsplash</a></p>}
+        {pickedKite && <>
           <div className="ambient-field"><label>Kites in the sky</label><div className="ambient-choice">{KITE_COUNTS.map(k => <button key={k.n} className={prefs.kites === k.n ? "selected" : ""} onClick={() => update({ kites: k.n })}>{k.label}</button>)}</div></div>
           <div className="ambient-field"><label htmlFor="ambient-breeze">Wind <strong>{prefs.breeze < 34 ? "Calm" : prefs.breeze < 67 ? "Breezy" : "Gusty"}</strong></label><input id="ambient-breeze" type="range" min="0" max="100" value={prefs.breeze} onChange={e => update({ breeze: Number(e.target.value) })} /></div>
           <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-strings">Show kite strings</label><input id="ambient-strings" type="checkbox" checked={prefs.strings} onChange={e => update({ strings: e.target.checked })} /></div>
@@ -585,11 +618,12 @@ export default function AmbientStandby() {
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-clock-toggle">Clock in Sleep Studio</label><input id="ambient-clock-toggle" type="checkbox" checked={prefs.showClock} onChange={e => update({ showClock: e.target.checked })} /></div>
 
         <h3 className="ambient-settings-section">Display</h3>
-        <div className="ambient-field"><label>Graphics</label><div className="ambient-choice"><button className={prefs.quality === "cinematic" ? "selected" : ""} onClick={() => update({ quality: "cinematic" })}>Ultra</button><button className={prefs.quality === "balanced" ? "selected" : ""} onClick={() => update({ quality: "balanced" })}>Battery saver</button></div></div>
+        <div className="ambient-field"><label>Graphics</label><div className="ambient-choice"><button className={prefs.quality === "cinematic" ? "selected" : ""} onClick={() => update({ quality: "cinematic" })}>Ultra</button><button className={prefs.quality === "balanced" ? "selected" : ""} onClick={() => update({ quality: "balanced" })}>Battery saver</button></div><p className="ambient-help">Ultra loads night photos in up to 4K for big, sharp screens. Battery saver uses smaller photos and fewer effects.</p></div>
+        <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-motion">Gentle motion in night scenery</label><input id="ambient-motion" type="checkbox" checked={prefs.motion} onChange={e => update({ motion: e.target.checked })} /></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-autohide">Hide controls when idle</label><input id="ambient-autohide" type="checkbox" checked={prefs.autoHide} onChange={e => update({ autoHide: e.target.checked })} /></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-dim">Dim the screen at night (9 PM–6 AM)</label><input id="ambient-dim" type="checkbox" checked={prefs.nightDim} onChange={e => update({ nightDim: e.target.checked })} /></div>
         <div className="ambient-field ambient-toggle-row"><label htmlFor="ambient-awake">Keep screen awake when supported</label><input id="ambient-awake" type="checkbox" checked={prefs.keepAwake} onChange={e => update({ keepAwake: e.target.checked })} /></div>
-        <p className="ambient-help">Weather comes from Open-Meteo and refreshes about every five minutes while Atmosphere is open. Sound starts only after you press Play. On iPhone, add A.R.I.S.E. to your Home Screen for full screen with no browser bar.</p>
+        <p className="ambient-help">Weather comes from Open-Meteo and refreshes about every five minutes while Standby is open. Sound starts only after you press Play. On iPhone, add A.R.I.S.E. to your Home Screen for full screen with no browser bar.</p>
       </div>
     </aside></div>}
   </main>;

@@ -313,7 +313,7 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
   );
 }
 
-/** An App Store app's own icon (a cloud and sun for Atmosphere, a moon for Sleep Studio…), not a generic sparkle. */
+/** An App Store app's own icon (a cloud and sun for Standby, a moon for Sleep Studio…), not a generic sparkle. */
 function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
 
 export default function TeacherHub() {

@@ -267,7 +267,7 @@ const prettyDate = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateSt
 const inputClass = "w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
 const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500";
 
-/** An App Store app's own icon (a cloud and sun for Atmosphere, a moon for Sleep Studio…), not a generic sparkle. */
+/** An App Store app's own icon (a cloud and sun for Standby, a moon for Sleep Studio…), not a generic sparkle. */
 function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
 
 export default function AriseTodo() {
