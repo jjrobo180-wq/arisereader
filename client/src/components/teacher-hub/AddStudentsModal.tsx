@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Upload, ClipboardPaste, UserPlus, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { HubModal } from "./HubModal";
+import { useAuth } from "@/context/AuthContext";
 import { Card, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
 
 type Row = { firstName: string; lastName: string; studentNumber: string };
@@ -58,12 +59,13 @@ function parseRows(text: string): Row[] {
   return rows;
 }
 
-export default function AddStudentsModal({ onClose, request, onDone, isAdmin = false }: {
+export default function AddStudentsModal({ onClose, request, onDone }: {
   onClose: () => void;
   request: (path: string, options?: RequestInit) => Promise<any>;
   onDone: (text: string) => void;
-  isAdmin?: boolean;
 }) {
+  const { user } = useAuth();
+  const isAdmin = !!user?.isAdmin;
   const [mode, setMode] = useState<"upload" | "paste">("upload");
   const [pasted, setPasted] = useState("");
   const [uploadedRows, setUploadedRows] = useState<Row[] | null>(null);
