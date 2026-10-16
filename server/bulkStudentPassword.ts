@@ -10,8 +10,8 @@ import bcrypt from "bcryptjs";
  * Never log the student number or password hash.
  */
 export function createVerifiedStudentTemporaryHash(studentNumber: string): string {
-  if (!/^[0-9]{2,40}$/.test(studentNumber)) {
-    throw new Error("Student number must contain 2–40 digits.");
+  if (studentNumber.length < 2 || studentNumber.length > 40) {
+    throw new Error("Student number must be 2–40 characters.");
   }
   const bcryptHash = bcrypt.hashSync(studentNumber, 10);
   const passwordHash = bcryptHash.startsWith("$2b$")
