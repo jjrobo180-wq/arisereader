@@ -497,7 +497,7 @@ export function bumpLessons(lessons: LessonPlan[], classes: LessonClass[], class
 
 // ─── What the AI answers ────────────────────────────────────────────────────
 
-export const AI_MODES = ["ideas", "build", "standards", "worksheet", "slides", "unit", "reteach"] as const;
+export const AI_MODES = ["ideas", "build", "standards", "worksheet", "slides", "unit", "reteach", "scaffold"] as const;
 export type AiMode = (typeof AI_MODES)[number];
 
 export type LessonIdea = { title: string; summary: string; activity: string };

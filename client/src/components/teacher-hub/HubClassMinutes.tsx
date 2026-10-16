@@ -3,11 +3,12 @@
 // Tapping a card opens a pop-up with everyone ticked; untick whoever did not show up, and one save logs
 // the rest and marks the unticked ones absent. The rules are in shared/hubClassMinutes.ts.
 import { useMemo, useState } from "react";
-import { Check, ChevronRight, UserX, Users } from "lucide-react";
+import { Check, ChevronRight, NotebookPen, UserX, Users } from "lucide-react";
 import { schoolBlocks } from "@shared/hubBlocks";
 import { friendlyDate } from "@shared/hubDates";
 import { countedPlan, optionalDays } from "@shared/hubProgress";
 import { ABSENT_REASON, classGroups, classLogs, startPicks, waiting, type ClassGroup, type ClassResult } from "@shared/hubClassMinutes";
+import { cleanPushInNotes, noteKey } from "@shared/pushIn";
 import type { Workspace } from "@shared/teacherHub";
 import { Empty, Field, GhostButton, Labeled, PrimaryButton } from "./ui";
 import { HubModal } from "./HubModal";
@@ -16,8 +17,14 @@ import { MinutesPick } from "./HubMinutesBulk";
 const people = (n: number) => `${n} ${n === 1 ? "student" : "students"}`;
 
 /** The classes the teacher sees today, as cards to tap. */
-export function ClassMinutesView({ workspace, today, onOpen }: { workspace: Workspace; today: string; onOpen: (key: string) => void }) {
+export function ClassMinutesView({ workspace, today, onOpen, onNotes }: { workspace: Workspace; today: string; onOpen: (key: string) => void; /** Opens the class's notes (the "Class notes" look). */ onNotes?: (key: string) => void }) {
   const groups = useClassGroups(workspace, today);
+  const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
+  const noteCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const n of cleanPushInNotes(workspace.pushInNotes)) counts.set(noteKey(n, blocks), (counts.get(noteKey(n, blocks)) || 0) + 1);
+    return counts;
+  }, [workspace.pushInNotes, blocks]);
   if (!groups.length) return <Empty>No classes yet. Give each student's required minutes a block (and, for push-in, whose class it is) with “Set required minutes” or “Add several students”, and each class shows up here to log with one touch.</Empty>;
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="class-cards">
@@ -25,17 +32,25 @@ export function ClassMinutesView({ workspace, today, onOpen }: { workspace: Work
         const due = g.students.filter((s) => s.due);
         const left = due.filter(waiting).length;
         const done = due.length > 0 && left === 0;
+        const notes = noteCounts.get(g.key) || 0;
         return (
-          <button key={g.key} type="button" onClick={() => onOpen(g.key)} data-testid="class-card"
-            className={`flex min-h-[88px] w-full items-center gap-3 rounded-3xl border p-4 text-left shadow-sm transition hover:border-slate-400 ${done ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
-            <span className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${done ? "bg-emerald-600 text-white" : "bg-slate-950 text-white"}`} aria-hidden>{done ? <Check className="h-5 w-5" /> : <Users className="h-5 w-5" />}</span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-base font-bold text-slate-950">{g.title}</span>
-              {g.label && <span className="block truncate text-sm font-medium text-slate-700">{g.label}</span>}
-              <span className="block text-xs text-slate-500">{people(g.students.length)}{due.length ? (done ? " · all logged today" : ` · ${left} to log today`) : " · none due today"}</span>
-            </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
-          </button>
+          <div key={g.key} className={`flex min-h-[88px] w-full flex-col overflow-hidden rounded-3xl border shadow-sm transition hover:border-slate-400 ${done ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
+            <button type="button" onClick={() => onOpen(g.key)} data-testid="class-card" className="flex min-h-[88px] w-full flex-1 items-center gap-3 p-4 text-left">
+              <span className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${done ? "bg-emerald-600 text-white" : "bg-slate-950 text-white"}`} aria-hidden>{done ? <Check className="h-5 w-5" /> : <Users className="h-5 w-5" />}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-base font-bold text-slate-950">{g.title}</span>
+                {g.label && <span className="block truncate text-sm font-medium text-slate-700">{g.label}</span>}
+                <span className="block text-xs text-slate-500">{people(g.students.length)}{due.length ? (done ? " · all logged today" : ` · ${left} to log today`) : " · none due today"}</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+            </button>
+            {onNotes && (
+              <button type="button" onClick={() => onNotes(g.key)} data-testid="class-notes" aria-label={`Class notes for ${[g.title, g.label].filter(Boolean).join(", ")}${notes ? `, ${notes} saved` : ""}`}
+                className={`flex min-h-11 w-full items-center gap-2 border-t px-4 text-sm font-semibold ${done ? "border-emerald-200 text-emerald-900 hover:bg-emerald-100" : "border-slate-100 text-slate-700 hover:bg-slate-50"}`}>
+                <NotebookPen className="h-4 w-4" aria-hidden /> Class notes{notes > 0 && <span className="rounded-full bg-slate-900/10 px-2 text-xs">{notes}</span>}
+              </button>
+            )}
+          </div>
         );
       })}
     </div>
@@ -43,7 +58,7 @@ export function ClassMinutesView({ workspace, today, onOpen }: { workspace: Work
 }
 
 /** The classes on a date, from the teacher's plans as they count. */
-function useClassGroups(workspace: Workspace, date: string): ClassGroup[] {
+export function useClassGroups(workspace: Workspace, date: string): ClassGroup[] {
   return useMemo(() => {
     const optional = optionalDays(workspace);
     const plans = workspace.services.map((p) => countedPlan(p, optional));

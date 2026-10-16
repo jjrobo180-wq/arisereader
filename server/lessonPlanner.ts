@@ -16,6 +16,7 @@ import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
   AI_MODES, PLAN_FIELDS, US_STATES, cleanFoundStandards, cleanIdeas, cleanPlanFields, cleanSlides, cleanUnit, cleanWorksheet, type AiMode,
 } from "@shared/lessonPlanner";
+import { supportWords } from "@shared/pushIn";
 
 export type LessonAsk = (system: string, user: string, maxTokens: number) => Promise<string>;
 
@@ -61,6 +62,9 @@ const s = (v: unknown, max: number) => (typeof v === "string" || typeof v === "n
 const list = (v: unknown, max: number, each: number) => (Array.isArray(v) ? v.map((x) => s(x, each)).filter(Boolean).slice(0, max) : []);
 const num = (v: unknown, lo: number, hi: number, fallback: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback; };
 
+/** The supports asked for, as the sentences the AI is told. Only the known ones, so nothing else can ride in. */
+const cleanSupportsAsked = (v: unknown): string[] => supportWords(v);
+
 /** What the teacher sent, made safe and short. */
 export function cleanAsk(body: any) {
   const lesson = body?.lesson && typeof body.lesson === "object" ? body.lesson : {};
@@ -71,12 +75,14 @@ export function cleanAsk(body: any) {
     grade: s(body?.grade, 20),
     subject: s(body?.subject, 60),
     topic: s(body?.topic, 600),
-    notes: s(body?.notes, 2000),
+    notes: s(body?.notes, 4000),
     minutes: num(body?.minutes, 10, 240, 45),
     count: num(body?.count, 1, 40, 10),
     kind: s(body?.kind, 40),
     level: s(body?.level, 40),
     students: num(body?.students, 0, 200, 0),
+    /** The supports a scaffold must have (shared/pushIn.ts): the teacher's picks, as sentences. Never a student's name. */
+    supports: cleanSupportsAsked(body?.supports),
     standards: list(body?.standards, 20, 400),
     lesson: Object.fromEntries(PLAN_FIELDS.map((k) => [k, s(lesson[k], 3000)]).filter(([, v]) => v)) as Record<string, string>,
   };
@@ -124,6 +130,13 @@ const WORKSHEET_RULES = `Worksheet rules:
 - Age-appropriate wording, accurate maths, no trick questions.`;
 const WORKSHEET_SHAPE = `{"title": string, "instructions": string, "large": boolean (true for grades K-2), "sections": [{"heading": string, "directions": string, "columns": number, "passage": string (optional), "wordBank": string[] (optional), "items": [{"kind": string, "prompt": string, "choices": string[] (optional), "answer": string, "lines": number (optional), "space": string (optional), "visual": object (optional), "keyVisual": object (optional), "matches": string[] (optional)}]}]}`;
 
+const SCAFFOLD_RULES = `Scaffolding rules:
+- A scaffold lowers the barriers, never the thinking. Keep the same skill and the same standard as the lesson; make the way in easier.
+- Use the lesson text the teacher gave you for the vocabulary, the examples and the method, so the work matches what was taught in class.
+- Put the supports where the student needs them: the word bank above the questions, the worked example before the first question, sentence frames inside the answer lines.
+- Give every question an answer for the answer key. Fade the help as the worksheet goes on.
+- Write for a student who is capable but needs a way in: respectful wording, never babyish.`;
+
 /** The system and user messages for each job, and how long the answer may be. */
 export function lessonPrompt(a: CleanAsk): { system: string; user: string; maxTokens: number } {
   const ctx = context(a);
@@ -140,6 +153,10 @@ export function lessonPrompt(a: CleanAsk): { system: string; user: string; maxTo
     case "worksheet": {
       const kind = a.kind || "practice worksheet";
       return { maxTokens: 7000, system: `${BASE}\n${WORKSHEET_RULES}`, user: `${ctx}\n\nMake a printable ${kind} for this lesson with about ${Math.min(a.count, 30)} questions${a.level ? `, ${a.level} level` : ""}${a.grade ? `, for grade ${a.grade}` : ""}. Group the questions into 1-4 sections (for example: warm-up, practice, word problems, show your work, challenge). Make it look and work like a real worksheet a teacher would buy: varied question types, real numbers, pictures where they help.\nReturn ${WORKSHEET_SHAPE}.` };
+    }
+    case "scaffold": {
+      const kind = a.kind || "practice worksheet";
+      return { maxTokens: 7000, system: `${BASE}\n${WORKSHEET_RULES}\n${SCAFFOLD_RULES}`, user: `${ctx}\n\nMake a scaffolded ${kind} for students who need extra support with exactly this lesson, with about ${Math.min(a.count, 12)} questions${a.grade ? `, for grade ${a.grade}` : ""}.\nBuild in these supports:\n${(a.supports.length ? a.supports : ["a worked example first", "sentence frames", "a word bank"]).map((x) => `- ${x}`).join("\n")}\nGroup the questions into 2-4 sections that move from most help to least: watch it done, try it together with help, then a few on your own with a little help. Return ${WORKSHEET_SHAPE}.` };
     }
     case "slides":
       return { maxTokens: 4000, system: BASE, user: `${ctx}\n\nMake a slide deck the teacher can present for this lesson, about ${Math.min(a.count, 20)} slides: a title slide, the learning objective ("I can…"), warm-up, vocabulary, teaching slides with worked examples, guided practice, independent practice directions, and an exit ticket. Keep bullets short (under 15 words each, at most 6 per slide). Put what the teacher says in notes.\nReturn {"slides": [{"title": string, "bullets": string[], "notes": string}]}.` };
@@ -158,7 +175,7 @@ export function readAnswer(mode: AiMode, rawText: string): any {
     case "ideas": { const ideas = cleanIdeas(raw); if (!ideas.length) break; return { ideas }; }
     case "build": case "reteach": { const plan = cleanPlanFields(raw); if (!Object.keys(plan).length) break; return { plan }; }
     case "standards": return { standards: cleanFoundStandards(raw) };
-    case "worksheet": { const worksheet = cleanWorksheet(raw); if (!worksheet) break; return { worksheet }; }
+    case "worksheet": case "scaffold": { const worksheet = cleanWorksheet(raw); if (!worksheet) break; return { worksheet }; }
     case "slides": { const slides = cleanSlides(raw?.slides); if (!slides) break; return { slides }; }
     case "unit": { const unit = cleanUnit(raw); if (!unit.lessons.length) break; return unit; }
   }
