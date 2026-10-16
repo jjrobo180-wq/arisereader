@@ -1,5 +1,5 @@
 /**
- * A.R.I.S.E. Atmosphere — kite scenes.
+ * A.R.I.S.E. Standby — kite scenes.
  *
  * Every kite scene is painted on one canvas: the sky, sun or moon, clouds, hills or sea, and the
  * kites themselves, each with a string down to the ground and a tail that ripples in the wind.

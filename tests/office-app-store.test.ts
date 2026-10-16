@@ -13,12 +13,12 @@ for (const hub of ["work", "life"] as const) {
     const catalog = pluginsFor(hub, { teacher: hub === "work" });
     const office = catalog.filter((p) => p.target.kind === "officeApp");
     const replaced = Object.values(AI_TOOL_TO_PRO).filter((id) => liveProApps().some((a) => a.id === id)).length;
-    assert.equal(office.length, 23 + liveProApps().length - replaced + 2, "Three editors, twenty AI tools, premium apps, Atmosphere and Sleep Studio, none twice");
+    assert.equal(office.length, 23 + liveProApps().length - replaced + 2, "Three editors, twenty AI tools, premium apps, Standby and Sleep Studio, none twice");
     for (const id of [`${hub}-atmosphere`, `${hub}-sleep-studio`]) {
       const app = officeAppPlugin(hub, id);
       assert.ok(app, `${id} is discoverable and installable`);
       assert.ok(isAddable(app) && countsAsApp(hub, app));
-      assert.ok(app.target.kind === "officeApp" && app.target.href.startsWith("#/ambient"), `${id} opens the real Atmosphere app`);
+      assert.ok(app.target.kind === "officeApp" && app.target.href.startsWith("#/ambient"), `${id} opens the real Standby app`);
     }
     assert.equal(new Set(office.map((p) => p.name)).size, office.length, "No two listings with the same name");
     for (const a of liveProApps()) assert.ok(office.some((p) => p.target.kind === "officeApp" && p.target.href === `#/pro?app=${a.id}&hub=${hub}`), a.id);
