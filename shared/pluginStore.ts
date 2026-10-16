@@ -193,8 +193,20 @@ const PREMIUM_APPS = (hub: PluginHub): Plugin[] => {
   return [...office, ...live.filter((x) => !taken.has(x.id)).map((x) => proPlugin(hub, x))];
 };
 
+/** Classroom apps that open their own page (WorkHub only). */
+const CLASSROOM_APPS: readonly Plugin[] = [
+  {
+    id: "work-class-goal", hub: "work", name: "Class Goal Board", tagline: "A big goal and reward for your class, to show on the board",
+    category: "Classroom", icon: "Trophy", color: "#e8a317", featured: true,
+    description: "Set a goal for the class, for the week, the month or any dates you choose, and pick the reward, like a pizza party. Add points for behavior, academics or anything else you choose, and the students watch the reward fill up on the classroom board. You add points from your phone or laptop while the board updates by itself.",
+    features: ["Pick the goal, the dates and the reward", "Add points by behavior, academics or your own categories", "Big, bright board for students, with a cheer when the goal is met", "Add points from your phone while the board shows on the screen", "Undo a mistake, keep past goals, and run more than one class"],
+    target: { kind: "officeApp", id: "work-class-goal", href: "#/class-goal" },
+  },
+];
+
 export const PLUGINS: readonly Plugin[] = [
   ...PREMIUM_APPS("work"),
+  ...CLASSROOM_APPS,
   ...PREMIUM_APPS("life"),
   // ── Arise WorkHub ──────────────────────────────────────────────────────────
   WIDGETS_PLUGIN("work"),

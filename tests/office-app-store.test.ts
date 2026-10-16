@@ -13,7 +13,7 @@ for (const hub of ["work", "life"] as const) {
     const catalog = pluginsFor(hub, { teacher: hub === "work" });
     const office = catalog.filter((p) => p.target.kind === "officeApp");
     const replaced = Object.values(AI_TOOL_TO_PRO).filter((id) => liveProApps().some((a) => a.id === id)).length;
-    assert.equal(office.length, 23 + liveProApps().length - replaced + 2, "Three editors, twenty AI tools, premium apps, Standby and Sleep Studio, none twice");
+    assert.equal(office.length, 23 + liveProApps().length - replaced + 2 + (hub === "work" ? 1 : 0), "Three editors, twenty AI tools, premium apps, Standby and Sleep Studio (and the Class Goal Board in WorkHub), none twice");
     for (const id of [`${hub}-atmosphere`, `${hub}-sleep-studio`]) {
       const app = officeAppPlugin(hub, id);
       assert.ok(app, `${id} is discoverable and installable`);

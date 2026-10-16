@@ -67,6 +67,7 @@ import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
 import { registerMathPhotoRoutes } from "./ariseMathPhoto";
 import { registerClassBehaviorRoutes } from "./classBehavior";
+import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
 import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
@@ -1640,6 +1641,16 @@ export async function registerRoutes(
       parentsOf: async (studentId) => Object.entries(await readParentStudentLinks()).filter(([, ids]) => normalizeLinkedIds(ids).includes(studentId)).map(([pid]) => Number(pid)).filter((n) => Number.isSafeInteger(n) && n > 0),
       notify: (id, message) => notifyUser(id, message),
     },
+  });
+  // Class Goal Board (WorkHub app, #/class-goal): a class goal, its points and the reward. See server/classGoals.ts.
+  registerClassGoalRoutes(app, authMiddleware, {
+    // Read straight from the database (storage.getSetting is cached and turns an error into "", which would then be saved over the real copy).
+    readSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value || "";
+    },
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
   });
   // Arise History (/history/): History Reads and quizzes with points, a class leaderboard, assignments and live review.
   // Same accounts as Arise Math; see server/ariseHistory.ts and migrations/arise_history.sql.

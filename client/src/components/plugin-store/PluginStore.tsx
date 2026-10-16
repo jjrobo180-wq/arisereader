@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import {
   Apple, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare,
   ClipboardCheck, Clock, Droplets, Forward, GraduationCap, Handshake, HeartPulse, History, Hourglass, Landmark, Mail, MessageCircle, Newspaper, NotebookPen, Pill, Plane,
-  Plus, Puzzle, Quote, Search, ShoppingBag, ShoppingCart, Smile, SmilePlus, Sparkles, StickyNote, Sun, Target, Timer, TrendingUp, Users, Vote, Wallet, Wind, X, Shuffle, HeartHandshake, BookOpenText, Link2, type LucideIcon,
+  Plus, Puzzle, Quote, Search, ShoppingBag, ShoppingCart, Smile, SmilePlus, Sparkles, StickyNote, Sun, Target, Timer, TrendingUp, Users, Vote, Wallet, Wind, X, Shuffle, HeartHandshake, BookOpenText, Link2, Trophy, type LucideIcon,
 } from "lucide-react";
 import { ArrowLeftRight as ArrowLeftRightTile, BookOpen as BookOpenTile, Cake as CakeTile, Car as CarTile, ChefHat as ChefHatTile, CloudSun as CloudSunTile, CreditCard as CreditCardTile, Flower2 as Flower2Tile, Gift as GiftTile, Heart as HeartTile, Mountain as MountainTile, PawPrint as PawPrintTile, Phone as PhoneTile, PiggyBank as PiggyBankTile, Repeat as RepeatTile, Tv as TvTile, UtensilsCrossed as UtensilsCrossedTile, Wrench as WrenchTile } from "lucide-react";
 import { Coins as CoinsTile2, Dumbbell as DumbbellTile2, Gauge as GaugeTile2, Globe as GlobeTile2, Hammer as HammerTile2, HandCoins as HandCoinsTile2, ListChecks as ListChecksTile2, Moon as MoonTile2, ShieldCheck as ShieldCheckTile2, Star as StarTile2, Stethoscope as StethoscopeTile2, Utensils as UtensilsTile2 } from "lucide-react";
@@ -31,7 +31,7 @@ import {
 export const ICONS: Record<string, LucideIcon> = {
   Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
   GraduationCap, Handshake, HeartPulse, Landmark, Mail, MessageCircle, Newspaper, Pill, Plane, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer,
-  Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2, Sun,
+  Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2, Sun, Trophy,
   ArrowLeftRight: ArrowLeftRightTile, BookOpen: BookOpenTile, Cake: CakeTile, Car: CarTile, ChefHat: ChefHatTile, CloudSun: CloudSunTile, CreditCard: CreditCardTile, Flower2: Flower2Tile, Gift: GiftTile, Heart: HeartTile, Mountain: MountainTile, PawPrint: PawPrintTile, Phone: PhoneTile, PiggyBank: PiggyBankTile, Repeat: RepeatTile, Tv: TvTile, UtensilsCrossed: UtensilsCrossedTile, Wrench: WrenchTile,
   Coins: CoinsTile2, Dumbbell: DumbbellTile2, Gauge: GaugeTile2, Globe: GlobeTile2, Hammer: HammerTile2, HandCoins: HandCoinsTile2, ListChecks: ListChecksTile2, Moon: MoonTile2, ShieldCheck: ShieldCheckTile2, Star: StarTile2, Stethoscope: StethoscopeTile2, Utensils: UtensilsTile2,
 };
