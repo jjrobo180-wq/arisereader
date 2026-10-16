@@ -4,6 +4,7 @@ import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
 import { forgetThisDevice } from "@/lib/pushDevice";
 import { isHubAccount } from "@/lib/hubs";
+import { clearSessionBackup, keepStorage, readSessionBackup, saveSessionBackup } from "@/lib/sessionBackup";
 
 interface AuthUser {
   id: number;
@@ -46,10 +47,14 @@ const COOKIE_NAME = "arise_session";
 const SAMPLE_SESSION_KEY = "arise_sample_session";
 const SAMPLE_USERNAMES = new Set(["sample", "tutorial-eye", "sample-parent"]);
 
+// Stays signed in until they sign out. (Safari trims cookies written by a page to a week; the copy in
+// storage, see lib/sessionBackup.ts, brings the sign-in back when that happens.)
+const SESSION_DAYS = 180;
+
 function setCookie(name: string, value: string, days: number) {
   const d = new Date();
   d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = name + "=" + value + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
+  document.cookie = name + "=" + value + ";expires=" + d.toUTCString() + ";max-age=" + days * 24 * 60 * 60 + ";path=/;SameSite=Lax";
 }
 function getCookie(name: string): string | null {
   const cookies = document.cookie.split(";");
@@ -74,19 +79,30 @@ function decodeSession(raw: string): any {
 function saveSessionCookie(user: AuthUser | null, token: string | null) {
   if (user && token) {
     const data = encodeSession({ user, token });
-    setCookie(COOKIE_NAME, data, 7);
-  } else deleteCookie(COOKIE_NAME);
+    setCookie(COOKIE_NAME, data, SESSION_DAYS);
+    if (SAMPLE_USERNAMES.has(user.username)) clearSessionBackup(); else saveSessionBackup(data);
+  } else {
+    deleteCookie(COOKIE_NAME);
+    clearSessionBackup();
+  }
 }
 function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
   try {
-    const raw = getCookie(COOKIE_NAME);
+    // The cookie first; if the phone dropped it, the copy kept in storage (and the cookie is put back).
+    let raw = getCookie(COOKIE_NAME);
+    let fromBackup = false;
+    if (!raw) { raw = readSessionBackup(); fromBackup = !!raw; }
     if (!raw) return { user: null, token: null };
-    const data = decodeSession(raw);
+    let data: any;
+    try { data = decodeSession(raw); } catch { clearSessionBackup(); throw new Error("unreadable sign-in"); }
     if (typeof data.user?.username === "string" && SAMPLE_USERNAMES.has(data.user.username)) {
       deleteCookie(COOKIE_NAME);
+      clearSessionBackup();
       sessionStorage.removeItem(SAMPLE_SESSION_KEY);
       return { user: null, token: null };
     }
+    if (!data.token || !data.user) { if (fromBackup) clearSessionBackup(); return { user: null, token: null }; }
+    if (fromBackup) setCookie(COOKIE_NAME, raw, SESSION_DAYS);
     return { user: data.user || null, token: data.token || null };
   } catch {
     return { user: null, token: null };
@@ -160,6 +176,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }) as typeof window.fetch;
     return () => { window.fetch = originalFetch; };
   }, [user?.id, user?.role, user?.isAdmin]);
+
+  // The installed app asks the browser to keep its storage, so the sign-in survives a force-close.
+  useEffect(() => { if (user) keepStorage(); }, [user?.id]);
 
   const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
     sessionRef.current = { user: u, token: t };
