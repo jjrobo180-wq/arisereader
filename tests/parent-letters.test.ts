@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { batchSummary, cleanTeacherChoices, escapeHtml, letterHtml, sortInvites, studentsToPrint } from "../shared/parentLetters";
+import { batchSummary, cleanTeacherChoices, directoryKey, escapeHtml, letterHtml, sortInvites, studentsToPrint, teacherGroup } from "../shared/parentLetters";
 
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const users = [
@@ -13,6 +13,9 @@ const users = [
   { id: 5, role: "student", teacherId: 2, displayName: "Ben" },
   { id: 6, role: "student", teacherId: null, displayName: "Cy" },
   { id: 7, role: "parent", teacherId: 1, displayName: "A parent" },
+  { id: 8, role: "student", teacherId: null, directoryTeacherName: "Ms. Kenn", displayName: "Kay" },
+  { id: 9, role: "student", teacherId: null, directoryTeacherName: "Ms.Kenn", displayName: "Kit" },
+  { id: 10, role: "student", teacherId: null, directoryTeacherName: "Mr. Brown", displayName: "Bo" },
 ];
 const ids = (list: Array<{ id: number }>) => list.map((u) => u.id).sort((a, b) => a - b);
 
@@ -25,20 +28,35 @@ test("the teacher list in a request is checked", () => {
 
 test("who a print covers", () => {
   const admin = { id: 99, isAdmin: true };
-  assert.deepEqual(ids(studentsToPrint(users, admin)), [3, 4, 5, 6], "the administrator with no choice: every student, never parents or teachers");
+  assert.deepEqual(ids(studentsToPrint(users, admin)), [3, 4, 5, 6, 8, 9, 10], "the administrator with no choice: every student, never parents or teachers");
   assert.deepEqual(ids(studentsToPrint(users, admin, { choices: [1] })), [3, 4], "one teacher's class");
   assert.deepEqual(ids(studentsToPrint(users, admin, { choices: [1, 2] })), [3, 4, 5], "two teachers");
   assert.deepEqual(ids(studentsToPrint(users, admin, { choices: ["none"] })), [6], "students with no teacher");
   assert.deepEqual(ids(studentsToPrint(users, admin, { choices: [2, "none"] })), [5, 6]);
   assert.deepEqual(ids(studentsToPrint(users, admin, { choices: [404] })), [], "a teacher with no students gives nothing");
+  assert.deepEqual(ids(studentsToPrint(users, admin, { choices: ["directory:mskenn"] })), [8, 9], "a listed teacher with no account, however her name was typed");
+  assert.deepEqual(ids(studentsToPrint(users, admin, { choices: ["directory:mskenn", 1] })), [3, 4, 8, 9]);
+  assert.deepEqual(ids(studentsToPrint(users, admin, { choices: ["none"] })), [6], "'no teacher' is only students with neither an account teacher nor a listed one");
   assert.deepEqual(ids(studentsToPrint(users, admin, { studentId: 5 })), [5], "one student");
   assert.deepEqual(ids(studentsToPrint(users, admin, { studentId: 5, choices: [1] })), [5], "a student asked for by name wins");
   // A teacher only ever gets their own class, whatever the request says.
   const teacher = { id: 1, isAdmin: false };
   assert.deepEqual(ids(studentsToPrint(users, teacher)), [3, 4]);
-  assert.deepEqual(ids(studentsToPrint(users, teacher, { choices: [2, "none"] })), [3, 4], "picking other teachers does nothing for a teacher");
+  assert.deepEqual(ids(studentsToPrint(users, teacher, { choices: [2, "none", "directory:mskenn"] })), [3, 4], "picking other teachers does nothing for a teacher");
   assert.deepEqual(ids(studentsToPrint(users, teacher, { studentId: 5 })), [], "and another class's student is not theirs to print");
   assert.deepEqual(ids(studentsToPrint(users, { id: 2, isAdmin: false })), [5]);
+});
+
+test("listed teachers without accounts are grouped by name, not by spelling", () => {
+  assert.equal(directoryKey("Ms. Kast"), "directory:mskast");
+  assert.equal(directoryKey("Ms.Kast"), "directory:mskast");
+  assert.equal(directoryKey("  "), null);
+  assert.equal(directoryKey(null), null);
+  assert.equal(teacherGroup({ teacherId: 5, directoryTeacherName: "Ms. Kast" }), 5, "an account teacher wins");
+  assert.equal(teacherGroup({ teacherId: null, directoryTeacherName: "Ms. Kast" }), "directory:mskast");
+  assert.equal(teacherGroup({ teacherId: null }), "none");
+  assert.deepEqual(cleanTeacherChoices(["directory:mskenn", 4]), ["directory:mskenn", 4]);
+  for (const bad of ["directory:", "directory:Ms Kenn", "directory:a-b", "dir:x"]) assert.equal(cleanTeacherChoices([bad]), null, bad);
 });
 
 test("a batch is grouped by teacher and ordered by name; no-teacher last", () => {

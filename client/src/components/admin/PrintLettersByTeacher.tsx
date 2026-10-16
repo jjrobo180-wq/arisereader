@@ -4,7 +4,7 @@ import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { printParentInvites } from "@/lib/parentInvites";
-import { nameForSorting } from "@shared/parentLetters";
+import { nameForSorting, teacherGroup, type TeacherChoice } from "@shared/parentLetters";
 import { INPUT_CLASS } from "./AdminUi";
 
 export type LetterTeacher = { id: number; name: string };
@@ -13,29 +13,37 @@ export default function PrintLettersByTeacher({ open, onOpenChange, teachers, st
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teachers: LetterTeacher[];
-  students: Array<{ teacherId?: number | null }>;
+  students: Array<{ teacherId?: number | null; directoryTeacherName?: string | null }>;
 }) {
-  const [picked, setPicked] = useState<Set<number | "none">>(new Set());
+  const [picked, setPicked] = useState<Set<TeacherChoice>>(new Set());
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
 
   const counts = useMemo(() => {
-    const map = new Map<number | "none", number>();
-    for (const s of students) { const key = s.teacherId ? s.teacherId : "none"; map.set(key, (map.get(key) || 0) + 1); }
+    const map = new Map<TeacherChoice, number>();
+    for (const s of students) { const key = teacherGroup(s); map.set(key, (map.get(key) || 0) + 1); }
     return map;
   }, [students]);
   const rows = useMemo(() => {
-    const list: Array<{ key: number | "none"; name: string; count: number }> = teachers
-      .map((t) => ({ key: t.id as number | "none", name: t.name, count: counts.get(t.id) || 0 }))
-      .sort((a, b) => nameForSorting(a.name).localeCompare(nameForSorting(b.name), undefined, { sensitivity: "base" }));
-    if (counts.get("none")) list.push({ key: "none", name: "No teacher yet", count: counts.get("none")! });
+    const list: Array<{ key: TeacherChoice; name: string; count: number; note?: string }> = teachers
+      .map((t) => ({ key: t.id as TeacherChoice, name: t.name, count: counts.get(t.id) || 0 }));
+    // Teachers a school lists whose students signed up but who have no account yet.
+    const seen = new Set<TeacherChoice>();
+    for (const s of students) {
+      const key = teacherGroup(s);
+      if (typeof key !== "string" || key === "none" || seen.has(key)) continue;
+      seen.add(key);
+      list.push({ key, name: String(s.directoryTeacherName || "").trim(), count: counts.get(key) || 0, note: "no account yet" });
+    }
+    list.sort((a, b) => nameForSorting(a.name).localeCompare(nameForSorting(b.name), undefined, { sensitivity: "base" }));
+    if (counts.get("none")) list.push({ key: "none", name: "No teacher listed", count: counts.get("none")! });
     return list;
   }, [teachers, counts]);
   const shown = rows.filter((r) => r.name.toLowerCase().includes(search.trim().toLowerCase()));
   const withStudents = rows.filter((r) => r.count > 0);
   const total = rows.filter((r) => picked.has(r.key)).reduce((sum, r) => sum + r.count, 0);
 
-  const toggle = (key: number | "none") => setPicked((cur) => { const next = new Set(cur); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+  const toggle = (key: TeacherChoice) => setPicked((cur) => { const next = new Set(cur); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   const print = () => {
     setError("");
     const ids = withStudents.map((r) => r.key).filter((k) => picked.has(k));
@@ -65,7 +73,7 @@ export default function PrintLettersByTeacher({ open, onOpenChange, teachers, st
             <li key={String(r.key)}>
               <label className={`flex min-h-12 cursor-pointer items-center gap-3 px-3 py-2 ${r.count ? "hover:bg-muted/40" : "cursor-not-allowed opacity-50"}`}>
                 <input type="checkbox" className="h-5 w-5 shrink-0 accent-orange-500" disabled={!r.count} checked={picked.has(r.key)} onChange={() => toggle(r.key)} />
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{r.name}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{r.name}{r.note && <span className="ml-1.5 text-xs font-normal text-muted-foreground">({r.note})</span>}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">{r.count} student{r.count === 1 ? "" : "s"}</span>
               </label>
             </li>

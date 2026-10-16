@@ -10365,7 +10365,7 @@ Important:
         return {
           studentId: student.id,
           studentName: student.displayName,
-          teacherName: student.teacherId ? teacherNames.get(Number(student.teacherId)) || undefined : undefined,
+          teacherName: (student.teacherId ? teacherNames.get(Number(student.teacherId)) : String(student.directoryTeacherName || '').trim()) || undefined,
           code: code.match(/.{1,4}/g)!.join('-'),
         };
       });
