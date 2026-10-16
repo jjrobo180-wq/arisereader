@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { onNotificationsRefresh, relativeTime, sessionToken } from "@/lib/notifications";
 import type { FeedCategory, FeedItem, FeedResponse } from "@shared/notifications";
+import { addDismissals, cleanKeys, dismissedKeys, isLocalKey, parseDismissals, type Dismissal } from "@shared/notificationDismiss";
 
 /** The kind of thing an item links to; each page decides where that goes. */
 export type ActionableType = string;
@@ -39,8 +40,17 @@ const CATEGORY_STYLE: Record<FeedCategory, { icon: typeof Bell; tone: string }> 
 
 const EMPTY: FeedResponse = { type: "student", items: [], actionCount: 0, updateCount: 0, unreadCount: 0 };
 
-/** Items made on this device (LifeHub's tasks, bills…) have keys like this; they are hidden here only, never sent to the server. */
-const isLocalKey = (key: string) => key.startsWith("life:") || key.startsWith("work:");
+// LifeHub's and WorkHub's items ("life:…", "work:…") are made from the person's own data. Clearing one saves its key
+// twice: in this browser (so it is gone at once, even offline) and on the account (so it is gone on their other
+// devices too). Both lists are only ever added to, so a cleared item never comes back by accident; it comes back
+// only if its key changes, e.g. a task moved to a new date.
+const cacheName = (userId: unknown) => `arise-bell-cleared:${userId ?? "anon"}`;
+const readCache = (name: string): Dismissal[] => {
+  try { return parseDismissals(window.localStorage.getItem(name)); } catch { return []; }
+};
+const writeCache = (name: string, list: Dismissal[]) => {
+  try { window.localStorage.setItem(name, JSON.stringify(list)); } catch { /* private window or full: the account copy still works */ }
+};
 
 export function NotificationBell({
   refreshKey = 0,
@@ -60,13 +70,43 @@ export function NotificationBell({
   /** Adds a "Notification settings" row at the bottom of the dropdown. */
   onSettings?: () => void;
 }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const cache = cacheName(user?.id);
   const [feed, setFeed] = useState<FeedResponse>(EMPTY);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   // Items already read or dismissed here, hidden at once while the server catches up.
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
+  // Cleared "life:" / "work:" items: this browser's copy, joined by the account's copy on every load.
+  const [cleared, setCleared] = useState<Dismissal[]>(() => readCache(cache));
+  const clearedRef = useRef(cleared);
+  clearedRef.current = cleared;
+  const cacheRef = useRef(cache);
+  cacheRef.current = cache;
+  const updateCleared = useCallback((update: (list: Dismissal[]) => Dismissal[]) => {
+    const next = update(clearedRef.current);
+    if (next === clearedRef.current) return next;
+    clearedRef.current = next;
+    writeCache(cacheRef.current, next);
+    setCleared(next);
+    return next;
+  }, []);
+  const clearedKeys = useMemo(() => new Set(dismissedKeys(cleared)), [cleared]);
+
+  // A different person signed in on this browser, or another tab cleared something: read that copy.
+  useEffect(() => {
+    setCleared(readCache(cache));
+    clearedRef.current = readCache(cache);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== cache) return;
+      const merged = readCache(cache);
+      clearedRef.current = merged;
+      setCleared(merged);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [cache]);
   const [actionError, setActionError] = useState("");
   const [position, setPosition] = useState<{ top: number; right: number; mobile: boolean }>({ top: 64, right: 16, mobile: true });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -90,6 +130,20 @@ export function NotificationBell({
       setFeed(next);
       setFailed(false);
       setLoaded(true);
+      // Cleared items: add the account's list to this browser's, and tell the account about any it has not heard of.
+      const fromAccount = cleanKeys(next.dismissedLocal);
+      const known = new Set(dismissedKeys(clearedRef.current));
+      const fresh = fromAccount.filter((key) => !known.has(key));
+      if (fresh.length) updateCleared((list) => addDismissals(list, fresh));
+      const accountHas = new Set(fromAccount);
+      const missing = dismissedKeys(clearedRef.current).filter((key) => !accountHas.has(key)).slice(-100);
+      if (missing.length && Array.isArray(data?.dismissedLocal)) {
+        void fetch(`${API_BASE}/api/notifications/mark-seen`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ local: missing }),
+        }).catch(() => { /* tried again on the next check */ });
+      }
       // Forget hidden keys the server no longer sends.
       setHidden((current) => {
         if (!current.size) return current;
@@ -100,7 +154,7 @@ export function NotificationBell({
     } catch {
       if (mine === sequence.current) { setFailed(true); setLoaded(true); }
     }
-  }, [authToken]);
+  }, [authToken, updateCleared]);
 
   // Check now, every 20 seconds while the page is visible, whenever it comes back into view,
   // and whenever another part of the page says something changed.
@@ -124,7 +178,7 @@ export function NotificationBell({
 
   useEffect(() => { if (refreshKey > 0) void load(); }, [refreshKey, load]);
 
-  const items = useMemo(() => [...(extraItems ?? []), ...feed.items].filter((item) => !hidden.has(item.key)), [extraItems, feed.items, hidden]);
+  const items = useMemo(() => [...(extraItems ?? []), ...feed.items].filter((item) => !hidden.has(item.key) && !clearedKeys.has(item.key)), [extraItems, feed.items, hidden, clearedKeys]);
   const actions = items.filter((item) => item.kind === "action");
   const updates = items.filter((item) => item.kind === "update");
   const badge = actions.length + updates.length;
@@ -160,25 +214,34 @@ export function NotificationBell({
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  /** Reads or dismisses items: hidden at once, then saved; shown again if saving fails. */
+  /** Reads or dismisses items: hidden at once, then saved; account items show again if saving fails, this-hub items stay cleared. */
   const markSeen = async (keys: string[], all = false) => {
     const auth = authToken();
     if (!auth || (!keys.length && !all)) return false;
     setActionError("");
-    setHidden((current) => new Set([...Array.from(current), ...keys]));
+    const local = cleanKeys(keys.filter(isLocalKey));
+    // A "life:" / "work:" key too odd to save is still hidden for this visit.
     const mine = keys.filter((key) => !isLocalKey(key));
-    if (!all && !mine.length) return true; // only this-device items: hidden above, nothing to save
+    const oddOnes = keys.filter((key) => isLocalKey(key) && !local.includes(key));
+    // "life:" / "work:" items: saved in this browser first, so nothing can bring them back, whatever happens next.
+    if (local.length) updateCleared((list) => addDismissals(list, local));
+    setHidden((current) => new Set([...Array.from(current), ...mine, ...oddOnes]));
+    if (!all && !mine.length && !local.length) return true;
     try {
+      const body: Record<string, unknown> = all ? { all: true } : mine.length ? { keys: mine } : {};
+      if (local.length) body.local = local;
       const res = await fetch(`${API_BASE}/api/notifications/mark-seen`, {
         method: "POST",
         headers: { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" },
-        body: JSON.stringify(all ? { all: true } : { keys: mine }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(String(res.status));
       void load();
       return true;
     } catch {
-      setHidden((current) => new Set(Array.from(current).filter((key) => !keys.includes(key))));
+      // The browser copy already hides the "life:" / "work:" items and the next check passes them on to the account.
+      if (!all && !mine.length) return true;
+      setHidden((current) => new Set(Array.from(current).filter((key) => !mine.includes(key))));
       setActionError("That didn't save. Check your connection and try again.");
       return false;
     }

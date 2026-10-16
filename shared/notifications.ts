@@ -36,6 +36,8 @@ export type FeedResponse = {
   unreadCount: number;
   /** Admin only: unread messages in the admin inbox. */
   inboxUnread?: number;
+  /** Keys of this person's "life:" / "work:" items they already cleared, so the bell keeps them hidden on every device. */
+  dismissedLocal?: string[];
 };
 
 /** Stored notifications made by the admin alerts carry their event in `type`: "alert:<event>[:<ref>]". */

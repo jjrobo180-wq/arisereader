@@ -878,7 +878,7 @@ function TeacherHubPage() {
             <HubSearchButton onOpen={() => setSearching(true)} />
             <span className="hidden sm:contents"><SaveBadge view={view} /></span>
             <NotificationBell
-              extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread) : undefined}
+              extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread, pollAnswers.replies.filter((r) => r.unread).map((r) => r.at).sort().pop() || "") : undefined}
               onNavigate={openAlert}
               onSettings={() => setNotifyOpen(true)}
               triggerClassName="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" />

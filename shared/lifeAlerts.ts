@@ -20,7 +20,7 @@ export function lifeAlerts(family: Family, tasks: LifeTask[], today: string, now
   for (const t of tasks.filter((x) => !x.done && x.due && x.due <= today).sort((a, b) => (a.due + a.time).localeCompare(b.due + b.time))) {
     const late = t.due < today || (!!t.time && t.time < hm(nowMs));
     out.push({
-      key: `life:task:${t.id}`, kind: "action", category: late ? "report" : "request", title: t.title || "Task",
+      key: `life:task:${t.id}:${t.due}`, kind: "action", category: late ? "report" : "request", title: t.title || "Task",
       body: t.due < today ? `Overdue since ${new Date(`${t.due}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : t.time ? `Due today at ${clock12(t.time)}` : "Due today",
       createdAt: nowIso, target: go("tasks"),
     });

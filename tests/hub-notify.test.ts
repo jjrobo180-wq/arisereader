@@ -89,7 +89,8 @@ test("the choices decide what is sent: the morning time, how early, and which ki
 test("the bell lists what needs doing today, with poll answers on top", () => {
   const now = new Date(2026, 9, 7, 13, 0).getTime(); // 1:00 PM on the computer's clock
   const items = workAlerts(ws(), "2026-10-07", now, 2);
-  assert.equal(items[0].key, "work:polls");
+  assert.equal(items[0].key, "work:polls:2:0");
+  assert.equal(workAlerts(ws(), "2026-10-07", now, 2, "2026-10-07T15:00:00Z")[0].key, "work:polls:2:" + Date.parse("2026-10-07T15:00:00Z"), "a new batch of answers gets a new key, so an earlier clear does not hide it");
   assert.equal(items[0].title, "2 new meeting poll answers");
   assert.equal(items[0].target?.type, "work:polls");
   assert.equal(workAlerts(ws(), "2026-10-07", now, 1)[0].title, "1 new meeting poll answer");
@@ -117,5 +118,6 @@ test("the Hub shows the full bell and settings, and the bell keeps this device's
   const hookAt = hub.indexOf("usePollAnswers(token"), returnAt = hub.indexOf('if (!user) return <Redirect to="/signin" replace />;');
   assert.ok(hookAt > 0 && hookAt < returnAt, "the hook runs before any early return, so hooks keep their order");
   const bell = read("client/src/components/NotificationBell.tsx");
-  assert.match(bell, /key\.startsWith\("work:"\)/);
+  assert.match(read("shared/notificationDismiss.ts"), /key\.startsWith\("work:"\)/);
+  assert.match(bell, /isLocalKey/);
 });

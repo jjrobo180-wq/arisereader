@@ -77,6 +77,7 @@ import { adminBookPoints, isSetByAdmin, keepSwitching, registerBookPointsRoutes,
 import { lookupPages } from "./bookPages";
 import { ARISE_POINTS, cleanBookPoints, cleanPages, pointsForBook } from "../shared/bookPoints";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
+import { addDismissals, cleanKeys, dismissedKeys, parseDismissals } from "../shared/notificationDismiss";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
 import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
@@ -4562,6 +4563,21 @@ export async function registerRoutes(
     await storage.upsertSetting(notifDismissedKey(userId), JSON.stringify(Array.from(dismissed).slice(-800)));
   };
 
+  // The bell's "life:" / "work:" items are made from the person's own data in their browser, so the server
+  // only remembers which ones they cleared (shared/notificationDismiss.ts). Every feed carries the list, so
+  // a cleared item stays cleared after a refresh and on their other devices.
+  const notifLocalKey = (userId: number) => `notification_dismissed_local_${userId}`;
+  const getLocalDismissals = async (userId: number) => {
+    try { return parseDismissals(await storage.getSetting(notifLocalKey(userId))); } catch { return []; }
+  };
+  const addLocalDismissals = async (userId: number, keys: string[]) => {
+    if (!keys.length) return;
+    const next = addDismissals(await getLocalDismissals(userId), keys);
+    await storage.upsertSetting(notifLocalKey(userId), JSON.stringify(next));
+  };
+  const withLocal = async <T extends object>(userId: number, feed: T): Promise<T & { dismissedLocal: string[] }> =>
+    ({ ...feed, dismissedLocal: dismissedKeys(await getLocalDismissals(userId)) });
+
   const getNotificationClearBefore = async (userId: number): Promise<number> => {
     const raw = await storage.getSetting(notifClearBeforeKey(userId));
     const parsed = raw ? new Date(raw).getTime() : 0;
@@ -4678,7 +4694,7 @@ export async function registerRoutes(
     try {
       res.set("Cache-Control", "no-store");
       const userId = Number(req.user.id);
-      if (req.user.isAdmin) return res.json(await adminFeed(userId));
+      if (req.user.isAdmin) return res.json(await withLocal(userId, await adminFeed(userId)));
 
       if (req.user.role === "teacher") {
         const [dismissed, clearBefore, rowsRes, pendingRes] = await Promise.all([
@@ -4689,7 +4705,7 @@ export async function registerRoutes(
             .eq("teacher_id", userId).eq("approved_by_teacher", false).is("archived_at", null)
             .order("created_at", { ascending: false }).limit(100),
         ]);
-        return res.json(buildTeacherFeed({ rows: rowsRes.data || [], pendingStudents: pendingRes.data || [] }, { dismissed, clearBefore }));
+        return res.json(await withLocal(userId, buildTeacherFeed({ rows: rowsRes.data || [], pendingStudents: pendingRes.data || [] }, { dismissed, clearBefore })));
       }
 
       const [rowsRes, messagesRes] = await Promise.all([
@@ -4698,11 +4714,11 @@ export async function registerRoutes(
           .eq("user_id", userId).eq("sender_type", "teacher").eq("is_read", false)
           .order("created_at", { ascending: false }).limit(50),
       ]);
-      return res.json(buildMemberFeed({
+      return res.json(await withLocal(userId, buildMemberFeed({
         role: req.user.role === "parent" ? "parent" : "student",
         rows: rowsRes.data || [],
         unreadMessages: (messagesRes.data || []).map((m: any) => ({ id: m.id, messageText: m.message_text, createdAt: m.created_at })),
-      }));
+      })));
     } catch (error: any) {
       console.error("[notifications] load failed:", error?.message);
       return res.status(500).json({ message: "Could not load notifications" });
@@ -4717,7 +4733,11 @@ export async function registerRoutes(
       const role: "admin" | "teacher" | "member" = req.user.isAdmin ? "admin" : req.user.role === "teacher" ? "teacher" : "member";
       const body = req.body || {};
       const legacyCategory = String(body.type || "");
-      const clearAll = body.all === true || (!body.key && !Array.isArray(body.keys) && !body.itemType && !legacyCategory && body.id == null);
+      const localKeys = cleanKeys(body.local);
+      const clearAll = body.all === true || (!body.key && !Array.isArray(body.keys) && !body.itemType && !legacyCategory && body.id == null && !Array.isArray(body.local));
+
+      // Cleared "life:" / "work:" items are saved first, whatever else this request does.
+      await addLocalDismissals(userId, localKeys);
 
       if (clearAll) {
         await storage.upsertSetting(notifClearBeforeKey(userId), new Date().toISOString());

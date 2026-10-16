@@ -10,8 +10,11 @@ const hm = (ms: number) => { const d = new Date(ms); return `${String(d.getHours
 const shortDate = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 const MAX = 14;
 
-/** `newPollAnswers`: how many answers to the teacher's meeting polls they have not looked at yet. */
-export function workAlerts(workspace: Workspace, today: string, nowMs: number, newPollAnswers = 0): FeedItem[] {
+/**
+ * `newPollAnswers`: how many answers to the teacher's meeting polls they have not looked at yet; `newestPollAnswerAt`:
+ * when the latest of them came in. Both are in the alert's key, so clearing it hides these answers only, and the next ones show.
+ */
+export function workAlerts(workspace: Workspace, today: string, nowMs: number, newPollAnswers = 0, newestPollAnswerAt = ""): FeedItem[] {
   const nowIso = new Date(nowMs).toISOString();
   const now = hm(nowMs);
   const soon = hm(nowMs + 3 * 3_600_000);
@@ -19,7 +22,7 @@ export function workAlerts(workspace: Workspace, today: string, nowMs: number, n
   const out: FeedItem[] = [];
 
   if (newPollAnswers > 0) {
-    out.push({ key: "work:polls", kind: "action", category: "message", title: `${newPollAnswers} new meeting poll ${plural(newPollAnswers, "answer")}`, body: "Tap to see who can make it", createdAt: nowIso, target: go("polls") });
+    out.push({ key: `work:polls:${newPollAnswers}:${Date.parse(newestPollAnswerAt) || 0}`, kind: "action", category: "message", title: `${newPollAnswers} new meeting poll ${plural(newPollAnswers, "answer")}`, body: "Tap to see who can make it", createdAt: nowIso, target: go("polls") });
   }
 
   const tasks = (workspace.tasks || []).filter((t) => !t.done && t.dueDate && t.dueDate.slice(0, 10) <= today)
@@ -28,7 +31,7 @@ export function workAlerts(workspace: Workspace, today: string, nowMs: number, n
     const due = t.dueDate.slice(0, 10);
     const late = due < today || (!!t.dueTime && t.dueTime < now);
     out.push({
-      key: `work:task:${t.id}`, kind: "action", category: late ? "report" : "request", title: t.title || "To-do",
+      key: `work:task:${t.id}:${due}`, kind: "action", category: late ? "report" : "request", title: t.title || "To-do",
       body: due < today ? `Overdue since ${shortDate(due)}` : t.dueTime ? `Due today at ${clock12(t.dueTime)}` : "Due today",
       createdAt: nowIso, target: go("tasks"),
     });
