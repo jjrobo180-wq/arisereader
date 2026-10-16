@@ -86,6 +86,7 @@ import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
 import bcrypt from "bcryptjs";
+import { createVerifiedStudentTemporaryHash, verifyStudentTemporaryHash } from "./bulkStudentPassword";
 import { hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import { raw, text as expressText } from "express";
 
@@ -11007,7 +11008,8 @@ Important:
 
       const created: { row: number; displayName: string; username: string }[] = [];
       for (const c of clean) {
-        const hashedPassword = bcrypt.hashSync(c.studentNumber, 10);
+        // Use a password hash known to work in /api/login, and verify before insertion.
+        const hashedPassword = createVerifiedStudentTemporaryHash(c.studentNumber);
         const user = await storage.createUser({
           username: c.studentNumber.toLowerCase(),
           password: hashedPassword,
@@ -11022,6 +11024,15 @@ Important:
           mustChangePassword: true,
         });
         if (classId) await storage.assignStudentToClass(user.id, classId);
+        // Read back through the same storage lookup used by /api/login. Do not
+        // report an import as successful if any student's login won't work.
+        const saved = await storage.getUserByUsername(user.username);
+        if (!saved || saved.id !== user.id ||
+            saved.studentNumber !== c.studentNumber ||
+            !verifyStudentTemporaryHash(c.studentNumber, saved.password)) {
+          console.error("[student-bulk-add] Saved credentials failed login verification", { userId: user.id, row: c.row });
+          throw new Error("An imported account failed its sign-in verification. No further students were added. Please review existing uploads before retrying.");
+        }
         created.push({ row: c.row, displayName: user.displayName, username: user.username });
       }
       try { clearCache("allUsers"); } catch {}
