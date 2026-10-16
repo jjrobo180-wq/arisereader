@@ -3,13 +3,16 @@
 // name, last name and student number; the student number becomes both the
 // student's username and their starting password (they're asked to pick
 // their own password the first time they sign in — see ForcePasswordChange).
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Upload, ClipboardPaste, UserPlus, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { HubModal } from "./HubModal";
-import { Card, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
+import { Card, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
 
 type Row = { firstName: string; lastName: string; studentNumber: string };
 type Problem = { row: number; message: string };
+type SchoolChoice = { id: number; name: string };
+type TeacherChoice = { id: number | string; display_name?: string; displayName?: string; directory?: boolean };
+type ClassChoice = { id: number; name: string };
 
 const TEMPLATE_HEADER = "First name,Last name,Student number";
 const TEMPLATE_EXAMPLE = "Jordan,Rivera,10234\nAvery,Chen,10235";
@@ -55,10 +58,11 @@ function parseRows(text: string): Row[] {
   return rows;
 }
 
-export default function AddStudentsModal({ onClose, request, onDone }: {
+export default function AddStudentsModal({ onClose, request, onDone, isAdmin = false }: {
   onClose: () => void;
   request: (path: string, options?: RequestInit) => Promise<any>;
   onDone: (text: string) => void;
+  isAdmin?: boolean;
 }) {
   const [mode, setMode] = useState<"upload" | "paste">("upload");
   const [pasted, setPasted] = useState("");
@@ -69,6 +73,41 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [successCount, setSuccessCount] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [schools, setSchools] = useState<SchoolChoice[]>([]);
+  const [schoolId, setSchoolId] = useState("");
+  const [teacherOptions, setTeacherOptions] = useState<TeacherChoice[]>([]);
+  const [teacherChoice, setTeacherChoice] = useState("");
+  const [classOptions, setClassOptions] = useState<ClassChoice[]>([]);
+  const [classId, setClassId] = useState("");
+  const [selectionLoading, setSelectionLoading] = useState(false);
+  const [selectionError, setSelectionError] = useState("");
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    request("/api/schools").then((data) => {
+      if (active) setSchools(Array.isArray(data) ? data.filter((s: SchoolChoice) => Number.isInteger(Number(s.id))) : []);
+    }).catch(() => { if (active) setSelectionError("Schools could not be loaded. Close and reopen the upload."); });
+    return () => { active = false; };
+  }, [isAdmin, request]);
+
+  useEffect(() => {
+    if (!isAdmin || !schoolId) return;
+    let active = true;
+    setSelectionLoading(true);
+    setSelectionError("");
+    Promise.all([
+      request("/api/teachers/by-school-grade?schoolId=" + encodeURIComponent(schoolId)),
+      request("/api/admin/schools/" + encodeURIComponent(schoolId) + "/classes"),
+    ]).then(([teachers, classes]) => {
+      if (!active) return;
+      setTeacherOptions(Array.isArray(teachers) ? teachers : []);
+      setClassOptions(Array.isArray(classes) ? classes : []);
+    }).catch(() => {
+      if (active) setSelectionError("Teachers or classes could not be loaded for this school.");
+    }).finally(() => { if (active) setSelectionLoading(false); });
+    return () => { active = false; };
+  }, [isAdmin, schoolId, request]);
 
   const pastedRows = useMemo(() => (mode === "paste" ? parseRows(pasted) : []), [mode, pasted]);
   const rows = mode === "upload" ? (uploadedRows || []) : pastedRows;
@@ -86,9 +125,19 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
     if (!rows.length) return;
     setBusy(true); setError(""); setProblems([]);
     try {
+      const payload: Record<string, unknown> = { students: rows };
+      if (isAdmin) {
+        if (!schoolId) throw new Error("Choose the school before adding students.");
+        if (selectionLoading || selectionError) throw new Error("Wait for the teachers and classes to load correctly.");
+        if (!teacherChoice) throw new Error("Choose a teacher, or explicitly choose No teacher yet.");
+        payload.schoolId = Number(schoolId);
+        if (teacherChoice.startsWith("teacher:")) payload.teacherId = Number(teacherChoice.slice(8));
+        if (teacherChoice.startsWith("directory:")) payload.directoryTeacherName = teacherChoice.slice(10);
+        if (classId) payload.classId = Number(classId);
+      }
       const data = await request("/api/teacher/students/bulk-add", {
         method: "POST",
-        body: JSON.stringify({ students: rows }),
+        body: JSON.stringify(payload),
       });
       setSuccessCount(data.created?.length || 0);
       onDone(`Added ${data.created?.length || 0} student${data.created?.length === 1 ? "" : "s"}.`);
@@ -117,6 +166,36 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
         <p className="text-sm text-slate-600">
           Each student's username and starting password are both their student number — they'll be asked to set their own password the first time they sign in.
         </p>
+
+        {isAdmin && <Card title="Assign students to a school and teacher">
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-slate-800" htmlFor="bulk-school">School</label>
+            <Select id="bulk-school" value={schoolId} onChange={(e) => {
+              setSchoolId(e.target.value); setTeacherChoice(""); setClassId(""); setTeacherOptions([]); setClassOptions([]);
+            }} aria-label="School for imported students">
+              <option value="">Select school…</option>
+              {schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}
+            </Select>
+            <label className="block text-sm font-semibold text-slate-800" htmlFor="bulk-teacher">Teacher</label>
+            <Select id="bulk-teacher" value={teacherChoice} disabled={!schoolId || selectionLoading || !!selectionError} onChange={(e) => setTeacherChoice(e.target.value)} aria-label="Teacher for imported students">
+              <option value="">Select teacher…</option>
+              <option value="none">No teacher yet — assign later</option>
+              {teacherOptions.map((teacher) => {
+                const name = teacher.display_name || teacher.displayName || "Teacher";
+                const value = teacher.directory ? "directory:" + name : "teacher:" + teacher.id;
+                return <option key={value} value={value}>{name}{teacher.directory ? " (school directory)" : ""}</option>;
+              })}
+            </Select>
+            <label className="block text-sm font-semibold text-slate-800" htmlFor="bulk-class">Advisory / class (optional)</label>
+            <Select id="bulk-class" value={classId} disabled={!schoolId || selectionLoading || !!selectionError} onChange={(e) => setClassId(e.target.value)} aria-label="Advisory or class for imported students">
+              <option value="">No advisory selected</option>
+              {classOptions.map((cls) => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+            </Select>
+            <p className="text-xs text-slate-500">Directory teachers (such as Ms. Kenn) can be selected even without a login. The school and teacher will be saved on every new student profile.</p>
+            {selectionLoading && <p className="text-sm text-slate-500">Loading teachers and classes…</p>}
+            {selectionError && <p role="alert" className="text-sm text-red-700">{selectionError}</p>}
+          </div>
+        </Card>}
 
         <div className="flex rounded-xl border border-slate-200 p-1" role="tablist" aria-label="How to add students">
           <button type="button" role="tab" aria-selected={mode === "upload"} onClick={() => setMode("upload")} className={`min-h-9 flex-1 rounded-lg px-3 text-sm font-semibold ${mode === "upload" ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}>Upload a file</button>
