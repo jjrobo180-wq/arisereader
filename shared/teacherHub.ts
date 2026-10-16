@@ -268,6 +268,8 @@ export type Workspace = {
   taskLists?: TaskList[];
   /** The Lesson Planner's classes (periods/blocks) and the state its standards come from. See shared/lessonPlanner.ts. */
   lessonClasses?: unknown[];
+  /** Push-in class notes: what the class's teacher taught, the materials, each student, scaffolded work. Kept with the minutes. See shared/pushIn.ts. */
+  pushInNotes?: unknown[];
   lessonState?: string;
 };
 export type TaskList = { id: string; name: string; color: string };
@@ -288,7 +290,7 @@ export function emptyWorkspace(): Workspace {
 
 /** The saved lists behind each App Store screen: if any has something in it, the screen is in use. */
 const TAB_DATA: Partial<Record<HubTab, readonly string[]>> = {
-  caseload: ["students"], minutes: ["services", "serviceLogs"], iep: ["meetings", "guides"], lessons: ["lessons", "lessonClasses"],
+  caseload: ["students"], minutes: ["services", "serviceLogs", "pushInNotes"], iep: ["meetings", "guides"], lessons: ["lessons", "lessonClasses"],
   arise: ["ariseRecords"], behavior: ["behavior"], attendance: ["attendance"], gradebook: ["assignments", "gradeScores"],
   parents: ["parentLogs"], schedules: ["schedules"], email: ["emails"],
 };

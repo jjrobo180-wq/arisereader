@@ -15,6 +15,7 @@ import { PUSH_IN, QUICK_MINUTES, knownName, minuteNames, savedText, schoolDay, w
 import { MINUTE_SUBJECTS, NO_SUBJECT, cleanSubject, logSubject } from "@shared/hubSubjects";
 import { classSavedText, type ClassResult } from "@shared/hubClassMinutes";
 import { ClassMinutesModal, ClassMinutesView } from "./HubClassMinutes";
+import { PushInNotesView } from "./HubPushInNotes";
 
 type Setter = Dispatch<SetStateAction<Workspace>>;
 type Props = { workspace: Workspace; setWorkspace: Setter; remove: (key: keyof Workspace, id: string) => void; makeId: () => string; today: string };
@@ -165,9 +166,9 @@ type LogDraft = {
   others?: LogStart["others"];
 };
 /** The ways to look at the minutes: a card per class to log with one touch, each day sectioned off by block, or one card per student. */
-type MinutesLook = "class" | "week" | "students";
-const LOOKS: [MinutesLook, string][] = [["class", "By class"], ["week", "By block"], ["students", "By student"]];
-const readLook = (): MinutesLook => { try { const v = localStorage.getItem("arise-hub-minutes-look"); return v === "students" || v === "class" ? v : "week"; } catch { return "week"; } };
+type MinutesLook = "class" | "week" | "students" | "notes";
+const LOOKS: [MinutesLook, string][] = [["class", "By class"], ["week", "By block"], ["students", "By student"], ["notes", "Class notes"]];
+const readLook = (): MinutesLook => { try { const v = localStorage.getItem("arise-hub-minutes-look"); return v === "students" || v === "class" || v === "notes" ? v : "week"; } catch { return "week"; } };
 /** A plan being set: counted by the day (a day guide) or by the week. */
 type PlanDraft = { /** A name is being typed, for a student who is not on the list. */ other?: boolean; id: string | null; student: string; kind: string; mode: "days" | "week"; perWeek: string; days: WeekDay[]; perDay: string; /** The block this service is in ("" for none). */ block: string; /** The half of the block ("" for the whole block), and whose class is pushed in to. */ part: string; teacher: string; /** The subject ("" for none). */ subject: string };
 
@@ -196,6 +197,8 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
   const [settingBlocks, setSettingBlocks] = useState(false);
   /** The class whose pop-up is open (By class). */
   const [classOpen, setClassOpen] = useState<string | null>(null);
+  /** The class whose notes are shown in Class notes (its key, or "" for every class). */
+  const [notesClass, setNotesClass] = useState("");
   /** The subject shown in By student ("" for every subject). */
   const [subjectShown, setSubjectShown] = useState("");
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
@@ -311,16 +314,17 @@ export function MinutesTab({ workspace, setWorkspace, remove, makeId, today, tok
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <GhostButton onClick={() => setPlan(newPlan())}><Plus className="h-4 w-4" /> Set required minutes</GhostButton>
           <span data-testid="minutes-several"><GhostButton onClick={() => setBulk({ mode: "plan", date: today, block: "" })}><Users className="h-4 w-4" /> Add several students</GhostButton></span>
-          <div role="tablist" aria-label="How to look at the minutes" className="ml-auto flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="minutes-look">
+          <div role="tablist" aria-label="How to look at the minutes" className="flex w-full gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 sm:ml-auto sm:w-auto" data-testid="minutes-look">
             {LOOKS.map(([key, label]) => (
-              <button key={key} type="button" role="tab" aria-selected={look === key} onClick={() => setLook(key)} className={`min-h-11 rounded-xl px-3 text-sm font-semibold ${look === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
+              <button key={key} type="button" role="tab" aria-selected={look === key} onClick={() => setLook(key)} className={`min-h-11 flex-1 whitespace-nowrap rounded-xl px-1 text-[13px] font-semibold sm:flex-none sm:px-3 sm:text-sm ${look === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>{label}</button>
             ))}
           </div>
         </div>
         {saved && <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" role="status" data-testid="minutes-saved">{saved}</p>}
       </Card>
 
-      {look === "class" && <ClassMinutesView workspace={workspace} today={today} onOpen={setClassOpen} />}
+      {look === "class" && <ClassMinutesView workspace={workspace} today={today} onOpen={setClassOpen} onNotes={(key) => { setNotesClass(key); setLook("notes"); }} />}
+      {look === "notes" && <PushInNotesView workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} today={today} token={token} classKey={notesClass} onClassKey={setNotesClass} />}
       {classOpen && <ClassMinutesModal workspace={workspace} today={today} groupKey={classOpen} onSave={saveClass} onClose={() => setClassOpen(null)} />}
       {look === "week" && <MinutesWeekView workspace={workspace} today={today} onLog={logItems} onEdit={editLog} onAdd={addFrom} onPlan={(planId) => { const p = plans.find((x) => x.id === planId); if (p) editPlan(p); }} onBlocks={() => setSettingBlocks(true)} onMove={(planId, block) => setWorkspace((w) => ({ ...w, services: setPlanBlock(w.services, planId, block) }))} />}
       {look === "week" && !plans.length && <Empty>No required minutes set yet. Tap “Set required minutes” to add a student's push-in or pull-out time and block, or “Add several students” to set a whole block at once (you can tick them from a screenshot). They show up in that block on the days they are due.</Empty>}
