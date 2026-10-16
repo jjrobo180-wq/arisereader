@@ -112,13 +112,70 @@ test("4K video goes to big screens on Ultra; phones and Battery saver get 1080p"
 });
 
 test("the picker, layer and sleep wiring for video", () => {
-  assert.match(app, /label: "Live video", ids: VIDEO_SCENE_ORDER/);
+  assert.match(app, /label: "Short video loops", ids: VIDEO_SCENE_ORDER/);
   assert.match(app, /video=\{pickedVideo && nightId === pickedVideo\.still/);
   assert.match(app, /Video: \{pickedVideo\.name\} on/);
   assert.match(photo, /VideoLayer/);
-  assert.match(photo, /autoPlay muted loop playsInline/);
+  assert.match(photo, /muted: true, playsInline: true/);
   assert.match(photo, /visibilitychange/, "video pauses when the screen is hidden");
-  assert.match(photo, /setIndex\(\(i\) => i \+ 1\)/, "a failed file falls back to the next, then to the photo");
-  assert.match(photo, /const clip = video && motion && !calm/, "no video with Gentle motion off or reduced motion");
+  assert.match(photo, /slot\[i\]\.tryN\+\+/, "a failed file falls back to the other file, then that clip is skipped");
+  assert.match(photo, /const playable = motion && !calm;/, "no video with Gentle motion off or reduced motion");
   assert.match(css, /\.ambient-night-video\.ambient-video-on \{ opacity: 1; \}/);
+});
+
+import { CROSSFADE, PLAYLIST_LIST, PLAYLISTS, PLAYLIST_ORDER, clipSources, isPlaylist, parseVideoLink, playlistSeconds, videoPlan, youtubeEmbedUrl } from "../client/src/pages/atmosphere/videoScenery";
+
+test("every long scene runs at least 10 minutes before it repeats", () => {
+  assert.ok(PLAYLIST_LIST.length >= 5);
+  assert.deepEqual(PLAYLIST_ORDER, PLAYLIST_LIST.map((p) => p.id));
+  for (const p of PLAYLIST_LIST) {
+    assert.match(p.id, /^p-[a-z-]+$/);
+    assert.ok(!(p.id in NIGHT_SCENES) && !(p.id in VIDEO_SCENES));
+    assert.ok(isNightScene(p.still), `${p.id} has a still photograph`);
+    assert.ok(playlistSeconds(p.clips) >= 600, `${p.id} runs ${playlistSeconds(p.clips)}s, needs 600+`);
+    assert.equal(new Set(p.clips.map((c) => c.file)).size, p.clips.length, `${p.id} never plays the same clip twice in one pass`);
+    for (const c of p.clips) {
+      assert.match(c.file, /^\d{4}\/\d{2}\/\d{2}\/\d+(-\d+)?$/, `${p.id}: ${c.file}`);
+      assert.ok(Number.isInteger(c.secs) && c.secs >= 5 && c.secs <= 120, `${p.id}: ${c.file} has a believable length`);
+      assert.ok(c.secs > CROSSFADE * 2, "a clip is longer than its two crossfades");
+    }
+    assert.ok(p.blurb.includes("minutes before it repeats"));
+    assert.ok(isPlaylist(p.id));
+  }
+  assert.ok(playlistSeconds(PLAYLISTS["p-journey"].clips) >= 30 * 60, "the all-in-one Night Journey runs half an hour or more");
+  assert.ok(!isPlaylist("constructor") && !isPlaylist("v-aurora-green"));
+});
+
+test("a scene choice becomes one plan: one clip on repeat, or many in turn", () => {
+  const one = videoPlan("v-aurora-green")!, many = videoPlan("p-city")!;
+  assert.equal(one.files.length, 1); assert.equal(one.long, false); assert.ok(one.page);
+  assert.ok(many.files.length >= 20); assert.equal(many.long, true);
+  assert.equal(videoPlan("milkyway"), null); assert.equal(videoPlan("live"), null); assert.equal(videoPlan(undefined), null);
+});
+
+test("pasted links: YouTube videos and playlists, or a direct video file", () => {
+  assert.deepEqual(parseVideoLink("https://youtu.be/dQw4w9WgXcQ"), { kind: "youtube-video", id: "dQw4w9WgXcQ" });
+  assert.deepEqual(parseVideoLink("youtube.com/watch?v=dQw4w9WgXcQ&t=30s"), { kind: "youtube-video", id: "dQw4w9WgXcQ" });
+  assert.deepEqual(parseVideoLink("https://www.youtube.com/live/dQw4w9WgXcQ"), { kind: "youtube-video", id: "dQw4w9WgXcQ" });
+  assert.deepEqual(parseVideoLink("https://m.youtube.com/watch?v=dQw4w9WgXcQ&list=PLxxxxxxxxxxx"), { kind: "youtube-video", id: "dQw4w9WgXcQ" });
+  assert.deepEqual(parseVideoLink("https://www.youtube.com/playlist?list=PLabcdefghijk"), { kind: "youtube-playlist", id: "PLabcdefghijk" });
+  assert.deepEqual(parseVideoLink("https://example.com/night/loop.mp4?x=1"), { kind: "file", url: "https://example.com/night/loop.mp4?x=1" });
+  for (const bad of ["", "nonsense", "http://youtu.be/dQw4w9WgXcQ", "https://example.com/page.html", "https://youtu.be/short", "javascript:alert(1)", "https://evil.com/?v=dQw4w9WgXcQ", "x".repeat(500)]) assert.equal(parseVideoLink(bad), null, bad);
+  const url = youtubeEmbedUrl({ kind: "youtube-video", id: "dQw4w9WgXcQ" });
+  assert.match(url, /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?playlist=dQw4w9WgXcQ&autoplay=1&mute=1&loop=1&controls=0&playsinline=1/);
+  assert.match(youtubeEmbedUrl({ kind: "youtube-playlist", id: "PLabcdefghijk" }), /embed\/videoseries\?listType=playlist&list=PLabcdefghijk&autoplay=1&mute=1&loop=1/);
+  assert.deepEqual(clipSources("https://example.com/a.mp4", { viewW: 2560, viewH: 1440, dpr: 1, quality: "cinematic" }), ["https://example.com/a.mp4"], "a pasted file is played as it is");
+});
+
+test("the long-scene player, link box and picker are wired in", () => {
+  assert.match(app, /label: "Long scenes", ids: \[\.\.\.PLAYLIST_ORDER, "custom-video"\]/);
+  assert.match(app, /ambient-video-url/);
+  assert.match(app, /parseVideoLink\(linkDraft\)/);
+  assert.match(app, /youtube=\{pickedVideo && nightId === pickedVideo\.still \? youtubeSrc : null\}/);
+  assert.match(photo, /function YouTubeLayer/);
+  assert.match(photo, /onStateChange/, "YouTube shows only once it reports it is playing");
+  assert.match(photo, /preload="auto"|preload: "auto"/);
+  assert.match(photo, /CROSSFADE/);
+  assert.match(photo, /load\(from, slot\[to\]\.clip \+ 1\)/, "the next clip is queued while the current one plays");
+  assert.match(css, /\.ambient-night-yt\.ambient-video-on/);
 });
