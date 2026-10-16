@@ -78,6 +78,7 @@ import { lookupPages } from "./bookPages";
 import { ARISE_POINTS, cleanBookPoints, cleanPages, pointsForBook } from "../shared/bookPoints";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
 import { addDismissals, cleanKeys, dismissedKeys, parseDismissals } from "../shared/notificationDismiss";
+import { cleanTeacherChoices, sortInvites, studentsToPrint } from "../shared/parentLetters";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
 import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
@@ -10321,36 +10322,55 @@ Important:
     now: () => Date.now(),
   });
 
-  // Print-only parent invites. Teachers can print their roster; admins can print all students.
+  // Print-only parent invites. Teachers can print their roster; admins can print all students, one student,
+  // or just the classes of the teachers they pick ({ teacherIds: [12, 15, "none"] }), listed class by class.
   app.post('/api/parent-invites/print', authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: 'Teacher account approval required.' });
       if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: 'Parent codes are not configured.' });
       const studentId = req.body?.studentId;
       if (studentId !== undefined && (!Number.isSafeInteger(studentId) || studentId < 1)) return res.status(400).json({ message: 'Invalid student.' });
-      const allStudents = (await storage.getAllUsers()).filter((u: any) => u.role === 'student' && (req.user.isAdmin || u.teacherId === req.user.id));
-      const students = studentId === undefined ? allStudents : allStudents.filter((u: any) => u.id === studentId);
+      let choices: ReturnType<typeof cleanTeacherChoices> = null;
+      if (req.body?.teacherIds !== undefined) {
+        choices = cleanTeacherChoices(req.body.teacherIds);
+        if (!choices) return res.status(400).json({ message: 'Pick at least one teacher.' });
+      }
+      const users = await storage.getAllUsers();
+      const teacherNames = new Map<number, string>(users.filter((u: any) => u.role === 'teacher').map((u: any) => [Number(u.id), String(u.displayName || u.username || '')]));
+      const students = studentsToPrint(users as any[], { id: Number(req.user.id), isAdmin: !!req.user.isAdmin }, { studentId, choices });
       if (studentId !== undefined && students.length === 0) return res.status(404).json({ message: 'Student not found on your roster.' });
       const adminDb = getAdminSupabase();
-      const rows: Array<{ studentId: number; studentName: string; code: string }> = [];
-      for (const student of students) {
-        let { data: invite, error } = await adminDb.from('parent_invite_codes').select('code').eq('student_id', student.id).maybeSingle();
-        if (error) throw error;
-        if (!invite) {
-          const code = randomBytes(10).toString('hex').toUpperCase();
-          const inserted = await adminDb.from('parent_invite_codes').upsert({ student_id: student.id, code }, { onConflict: 'student_id', ignoreDuplicates: true }).select('code').maybeSingle();
-          if (inserted.error) throw inserted.error;
-          invite = inserted.data;
-          if (!invite) {
-            const again = await adminDb.from('parent_invite_codes').select('code').eq('student_id', student.id).single();
-            if (again.error) throw again.error;
-            invite = again.data;
-          }
+      // Look up everyone's code at once; make codes only for students who have none yet.
+      const codes = new Map<number, string>();
+      const ids = students.map((student: any) => Number(student.id));
+      const readCodes = async (list: number[]) => {
+        for (let i = 0; i < list.length; i += 200) {
+          const { data, error } = await adminDb.from('parent_invite_codes').select('student_id, code').in('student_id', list.slice(i, i + 200));
+          if (error) throw error;
+          for (const row of data || []) codes.set(Number(row.student_id), String(row.code));
         }
-        rows.push({ studentId: student.id, studentName: student.displayName, code: invite!.code.match(/.{1,4}/g)!.join('-') });
+      };
+      await readCodes(ids);
+      const missing = ids.filter((id) => !codes.has(id));
+      for (let i = 0; i < missing.length; i += 200) {
+        const chunk = missing.slice(i, i + 200);
+        const inserted = await adminDb.from('parent_invite_codes')
+          .upsert(chunk.map((id) => ({ student_id: id, code: randomBytes(10).toString('hex').toUpperCase() })), { onConflict: 'student_id', ignoreDuplicates: true });
+        if (inserted.error) throw inserted.error;
+        await readCodes(chunk);
       }
+      const rows = students.map((student: any) => {
+        const code = codes.get(Number(student.id));
+        if (!code) throw new Error(`No parent code for student ${student.id}`);
+        return {
+          studentId: student.id,
+          studentName: student.displayName,
+          teacherName: student.teacherId ? teacherNames.get(Number(student.teacherId)) || undefined : undefined,
+          code: code.match(/.{1,4}/g)!.join('-'),
+        };
+      });
       res.set('Cache-Control', 'no-store');
-      res.json({ invites: rows.sort((a, b) => a.studentName.localeCompare(b.studentName)) });
+      res.json({ invites: sortInvites(rows) });
     } catch (error: any) {
       console.error('[parent-invites] Print failed:', error?.message);
       res.status(503).json({ message: 'Unable to prepare parent codes. Check that the parent_invite_codes table exists.' });

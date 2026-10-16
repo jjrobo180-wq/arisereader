@@ -41,6 +41,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { refreshNotifications } from "@/lib/notifications";
 import { printParentInvites } from "@/lib/parentInvites";
+import PrintLettersByTeacher from "@/components/admin/PrintLettersByTeacher";
 import ParentEmailInvite from "@/components/ParentEmailInvite";
 import type { SiteBanner } from "@shared/banners";
 import FamilyEmailInvite from "@/components/FamilyEmailInvite";
@@ -1782,6 +1783,7 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
   const [pendingTeachers, setPendingTeachers] = useState<any[]>([]);
   const [archiveRefresh, setArchiveRefresh] = useState(0);
   const [allTeachers, setAllTeachers] = useState<any[]>([]);
+  const [lettersByTeacherOpen, setLettersByTeacherOpen] = useState(false);
   const [showTeacherForm, setShowTeacherForm] = useState(false);
   const [teacherForm, setTeacherForm] = useState({ displayName: "", username: "", password: "", email: "" });
   const [teacherFormError, setTeacherFormError] = useState("");
@@ -3143,7 +3145,7 @@ Generate exactly 10 questions.`;
         icon={Users}
         tone="blue"
         title={`Students (${students.length})`}
-        actions={<Button variant="outline" size="sm" onClick={() => printParentInvites().catch(e => window.alert(e.message))}><Printer className="h-4 w-4" />Print all parent letters</Button>}
+        actions={<div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => setLettersByTeacherOpen(true)} data-testid="print-letters-by-teacher"><Printer className="h-4 w-4" />Letters by teacher</Button><Button variant="outline" size="sm" onClick={() => printParentInvites().catch(e => window.alert(e.message))}><Printer className="h-4 w-4" />Print all parent letters</Button></div>}
       >
         <div className="mb-4 space-y-2"><FamilyEmailInvite /><InvitePrizesEditor /></div>
         <div className="mb-4 space-y-2">
@@ -4803,6 +4805,8 @@ Generate exactly 10 questions.`;
           </div>
         </DialogContent>
       </Dialog>
+
+      <PrintLettersByTeacher open={lettersByTeacherOpen} onOpenChange={setLettersByTeacherOpen} teachers={allTeachers.map((t) => ({ id: Number(t.id), name: String(t.display_name || t.username || "Teacher") }))} students={students} />
 
       <Dialog open={!!detailStudent} onOpenChange={(open) => { if (!open) { setDetailStudent(null); setStudentDetail(null); } }}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
