@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NIGHT_SCENES, photoUrl, photoWidth, type FxId, type NightScene, type NightSceneId } from "./nightScenery";
-import { videoSources, type VideoScene } from "./videoScenery";
+import { CROSSFADE, clipSources } from "./videoScenery";
 
 type Quality = "cinematic" | "balanced";
 const measure = () => ({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 });
@@ -151,25 +151,93 @@ function SceneLife({ fx, quality, intensity }: { fx: FxId[]; quality: Quality; i
 }
 
 /**
- * A looping video laid over the still photo. It fades in once it is really playing; if it cannot play (blocked
- * autoplay, a slow or missing file) it stays invisible and the photograph underneath is what you see.
+ * Video laid over the still photo. With several clips it plays them one after another, preloading the next on a
+ * second player and crossfading into it, so a long scene never shows a gap. Each clip has a 4K and a 1080p file;
+ * a file that fails falls back to the other, then that clip is skipped. If nothing can play (blocked autoplay,
+ * no network) the layer stays invisible and the photograph underneath is what you see.
  */
-function VideoLayer({ sources, focus }: { sources: string[]; focus: string }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const list = sources.join("|");
-  useEffect(() => { setIndex(0); setPlaying(false); }, [list]);
+function VideoLayer({ sources, focus }: { sources: string[][]; focus: string }) {
+  const a = useRef<HTMLVideoElement>(null), b = useRef<HTMLVideoElement>(null);
+  const [vis, setVis] = useState<[boolean, boolean]>([false, false]);
+  const [front, setFront] = useState(0);
+  const key = JSON.stringify(sources);
   useEffect(() => {
-    const pauseWhenHidden = () => { const v = ref.current; if (!v) return; if (document.hidden) v.pause(); else void v.play().catch(() => {}); };
-    document.addEventListener("visibilitychange", pauseWhenHidden);
-    return () => document.removeEventListener("visibilitychange", pauseWhenHidden);
-  }, []);
-  const src = sources[index];
-  if (!src) return null;
-  return <video key={src} ref={ref} className={"ambient-night-video" + (playing ? " ambient-video-on" : "")} src={src}
-    autoPlay muted loop playsInline preload="auto" disablePictureInPicture disableRemotePlayback tabIndex={-1}
-    style={{ objectPosition: focus }} onPlaying={() => setPlaying(true)} onError={() => { setPlaying(false); setIndex((i) => i + 1); }} />;
+    const n = sources.length, v = [a.current, b.current] as HTMLVideoElement[];
+    if (!n || !v[0] || !v[1]) return;
+    const slot = [{ clip: 0, tryN: 0 }, { clip: 0, tryN: 0 }], solo = n === 1;
+    let active = 0, switching = false, dead = false, failures = 0, hidden = false;
+    const timers: number[] = [];
+    const show = (i: number, on: boolean) => setVis((old) => { const c: [boolean, boolean] = [old[0], old[1]]; c[i] = on; return c; });
+    const load = (i: number, clip: number) => { slot[i].clip = clip % n; slot[i].tryN = 0; v[i].src = sources[clip % n][0]; v[i].load(); };
+    const play = (i: number) => { if (!hidden) void v[i].play().catch(() => {}); };
+    const swap = () => {
+      if (switching || solo || dead || v[1 - active].readyState < 3) return;
+      const from = active, to = 1 - active;
+      switching = true; active = to; setFront(to); play(to);
+      timers.push(window.setTimeout(() => {   // once the new clip has faded in, retire the old one and queue the next
+        if (dead) return;
+        show(from, false); v[from].pause(); load(from, slot[to].clip + 1); switching = false;
+      }, CROSSFADE * 1000 + 400));
+    };
+    const handlers = v.map((el, i) => {
+      const onCanPlay = () => { if (i === active && el.paused && !el.ended) play(i); };
+      const onPlaying = () => { if (i === active) show(i, true); };
+      const onError = () => {
+        if (dead) return;
+        const list = sources[slot[i].clip];
+        if (slot[i].tryN + 1 < list.length) { slot[i].tryN++; el.src = list[slot[i].tryN]; el.load(); return; }
+        if (++failures > n * 2 + 2 || solo) { dead = true; setVis([false, false]); return; }
+        if (i === active) { const to = 1 - i; active = to; setFront(to); play(to); load(i, slot[to].clip + 1); }
+        else load(i, slot[i].clip + 1);
+      };
+      el.addEventListener("canplay", onCanPlay); el.addEventListener("playing", onPlaying); el.addEventListener("error", onError);
+      return () => { el.removeEventListener("canplay", onCanPlay); el.removeEventListener("playing", onPlaying); el.removeEventListener("error", onError); };
+    });
+    const tick = window.setInterval(() => {
+      const cur = v[active];
+      if (!solo && (cur.ended || (isFinite(cur.duration) && cur.duration > 0 && cur.duration - cur.currentTime <= CROSSFADE))) swap();
+    }, 400);
+    const onVisible = () => { hidden = document.hidden; if (hidden) v[active].pause(); else play(active); };
+    document.addEventListener("visibilitychange", onVisible);
+    load(0, 0); if (!solo) load(1, 1);
+    return () => {
+      dead = true; window.clearInterval(tick); timers.forEach((t) => window.clearTimeout(t));
+      document.removeEventListener("visibilitychange", onVisible); handlers.forEach((off) => off());
+      v.forEach((el) => { el.pause(); el.removeAttribute("src"); el.load(); });
+      setVis([false, false]); setFront(0);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const props = { muted: true, playsInline: true, preload: "auto" as const, disablePictureInPicture: true, disableRemotePlayback: true, tabIndex: -1, loop: sources.length === 1 };
+  return <>
+    <video ref={a} {...props} className={"ambient-night-video" + (vis[0] ? " ambient-video-on" : "")} style={{ objectPosition: focus, zIndex: front === 0 ? 3 : 2 }} />
+    <video ref={b} {...props} className={"ambient-night-video" + (vis[1] ? " ambient-video-on" : "")} style={{ objectPosition: focus, zIndex: front === 1 ? 3 : 2 }} />
+  </>;
+}
+
+/**
+ * A YouTube video or playlist (any length) filling the screen. It shows only once YouTube reports it is playing,
+ * so the photograph stays up while it loads, or if the video can't be embedded.
+ */
+function YouTubeLayer({ src }: { src: string }) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    setOn(false);
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== frame.current?.contentWindow || typeof e.data !== "string") return;
+      let m: any; try { m = JSON.parse(e.data); } catch { return; }
+      const state = m?.event === "onStateChange" ? m.info : m?.event === "infoDelivery" ? m.info?.playerState : undefined;
+      if (state === 1) setOn(true);
+      if (m?.event === "onError") setOn(false);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [src]);
+  const hello = () => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
+  return <iframe ref={frame} key={src} src={src} title="Background video" tabIndex={-1} aria-hidden="true" onLoad={hello}
+    allow="autoplay; encrypted-media; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
+    className={"ambient-night-yt" + (on ? " ambient-video-on" : "")} />;
 }
 
 type Layer = { key: string; id: NightSceneId; url: string; width: number };
@@ -178,7 +246,7 @@ type Layer = { key: string; id: NightSceneId; url: string; width: number };
  * A full-screen night photograph. A new scene fades in over the old one; a sharper copy of the same
  * photo replaces a softer one when the screen gets bigger; and the starry fallback sits behind it all.
  */
-export default function NightPhoto({ sceneId, quality, motion, fx, intensity = 80, video }: { sceneId: NightSceneId; quality: Quality; motion: boolean; fx?: FxId[]; intensity?: number; video?: VideoScene | null }) {
+export default function NightPhoto({ sceneId, quality, motion, fx, intensity = 80, video, youtube }: { sceneId: NightSceneId; quality: Quality; motion: boolean; fx?: FxId[]; intensity?: number; video?: { files: string[] } | null; youtube?: string | null }) {
   const scene = NIGHT_SCENES[sceneId];
   const screen = useScreen();
   const width = photoWidth(screen.w, screen.h, screen.dpr, quality);
@@ -207,13 +275,17 @@ export default function NightPhoto({ sceneId, quality, motion, fx, intensity = 8
 
   const showFallback = failed && !layers.length;
   const calm = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const clip = video && motion && !calm ? videoSources(video, { viewW: screen.w, viewH: screen.h, dpr: screen.dpr, quality, saveData: !!(navigator as any).connection?.saveData }) : null;
-  const life = clip ? [] : fx ?? scene.fx;
-  return <div className={"ambient-night" + (motion && !clip ? " ambient-night-moving" : "")} aria-hidden="true" style={{ background: `linear-gradient(180deg, ${scene.tint[0]}, ${scene.tint[1]})` }}>
+  const playable = motion && !calm;
+  const opts = { viewW: screen.w, viewH: screen.h, dpr: screen.dpr, quality, saveData: !!(navigator as any).connection?.saveData };
+  const clip = video && playable && video.files.length ? video.files.map((f) => clipSources(f, opts)) : null;
+  const tube = youtube && playable ? youtube : null;
+  const life = clip || tube ? [] : fx ?? scene.fx;
+  return <div className={"ambient-night" + (motion && !clip && !tube ? " ambient-night-moving" : "")} aria-hidden="true" style={{ background: `linear-gradient(180deg, ${scene.tint[0]}, ${scene.tint[1]})` }}>
     {(showFallback || !layers.length) && <FallbackSky scene={scene} />}
     {layers.map((layer, i) => <img key={layer.key} src={layer.url} alt="" decoding="async" draggable={false}
       className={"ambient-night-img" + (i === layers.length - 1 ? " ambient-night-new" : "")} style={{ objectPosition: NIGHT_SCENES[layer.id].focus }} />)}
     {clip && <VideoLayer sources={clip} focus={scene.focus} />}
-    {motion && !clip && <SceneLife fx={life} quality={quality} intensity={intensity} />}
+    {tube && <YouTubeLayer src={tube} />}
+    {motion && !clip && !tube && <SceneLife fx={life} quality={quality} intensity={intensity} />}
   </div>;
 }
