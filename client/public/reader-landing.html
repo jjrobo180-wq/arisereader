@@ -102,6 +102,28 @@
     }
     @media(max-width:900px){.nav-links{top:75px}}
     @media(max-width:600px){.nav-links{top:69px}.lbl-long{display:none}.lbl-short{display:inline}}
+
+/* Public blog previews: isolated styles, consistent responsive grid. */
+.arise-updates{padding:90px 0;background:#fafaff;border-block:1px solid #e8eaf6}
+.arise-updates *{box-sizing:border-box}.arise-updates .wu-wrap{width:min(1160px,calc(100% - 42px));margin:auto}
+.arise-updates .wu-head{display:flex;align-items:end;justify-content:space-between;gap:25px;margin-bottom:30px}
+.arise-updates .wu-kicker{font-size:11px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:var(--wu-accent)}
+.arise-updates h2{font-family:Manrope,'DM Sans',system-ui,sans-serif;font-size:clamp(32px,4vw,49px);line-height:1.17;letter-spacing:-1.8px;margin:13px 0 12px;color:#20253e;font-weight:850}
+.arise-updates .wu-intro{max-width:630px;font-size:15px;line-height:1.85;color:#69768b;margin:0}
+.arise-updates .wu-all{display:inline-flex;align-items:center;justify-content:center;gap:9px;flex:none;min-height:45px;border-radius:12px;padding:11px 17px;background:var(--wu-accent);color:#fff!important;font-weight:850;font-size:13px;text-decoration:none;box-shadow:0 9px 20px #413c7b1a}
+.arise-updates .wu-all:hover{transform:translateY(-2px)}
+.arise-updates .wu-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}
+.arise-updates .wu-card{display:flex;min-width:0;flex-direction:column;overflow:hidden;border-radius:21px;padding:26px;background:white;border:1px solid #e8eaf3;box-shadow:0 7px 22px #2834610a;text-decoration:none!important;color:inherit;transition:transform .2s,box-shadow .2s}
+.arise-updates .wu-card:hover{transform:translateY(-4px);box-shadow:0 18px 36px #28346117}
+.arise-updates .wu-type{display:inline-flex;align-self:flex-start;border-radius:100px;background:#eaf8f2;color:#13876b;padding:7px 11px;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.6px}
+.arise-updates .wu-type.upcoming{background:#f0eaff;color:#7657bc}
+.arise-updates .wu-card h3{font:850 19px/1.4 Manrope,'DM Sans',system-ui,sans-serif;letter-spacing:-.5px;color:#22273d;margin:19px 0 9px;overflow-wrap:anywhere}
+.arise-updates .wu-card p{font-size:13px;line-height:1.75;color:#778199;margin:0 0 22px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.arise-updates .wu-bottom{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:750;color:#9ba4b5}
+.arise-updates .wu-bottom b{color:var(--wu-accent);font-size:12px}
+.arise-updates .wu-empty{grid-column:1/-1;min-height:145px;border-radius:21px;border:1px dashed #cbd0e5;background:#fff;display:flex;justify-content:center;align-items:center;text-align:center;padding:30px;font-size:14px;line-height:1.8;color:#6c7591}
+@media(max-width:900px){.arise-updates{padding:70px 0}.arise-updates .wu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.arise-updates{padding:55px 0}.arise-updates .wu-wrap{width:calc(100% - 32px)}.arise-updates .wu-head{align-items:stretch;flex-direction:column;gap:19px}.arise-updates .wu-grid{grid-template-columns:1fr;gap:12px}.arise-updates .wu-card{padding:23px}.arise-updates .wu-all{width:100%}.arise-updates h2{font-size:32px;letter-spacing:-1.3px}}
 </style>
 </head>
 <body>
@@ -132,7 +154,7 @@
 <div class="topbar">EVERY STORY STARTS SOMETHING AMAZING <span>✦</span> Read · Learn · Earn · Play · Grow</div>
 <header class="header"><div class="container nav">
   <a href="#top" class="logo" aria-label="A.R.I.S.E. Reader home"><span class="logo-mark"><svg class="ico"><use href="#i-book"/></svg></span><span><span class="logo-name">A.R.I.S.E. <strong>Reader</strong></span><span class="logo-sub">Read · Imagine · Grow</span></span></a>
-  <nav class="nav-links" id="navLinks" aria-label="Main menu"><a href="/#/signin" target="_top" class="mobile-menu-signin">Parent &amp; teacher sign in</a><a href="/#/signin?as=student" target="_top" class="mobile-menu-signin">Student sign in</a><a href="#how">Parent &amp; teacher tools</a><a href="#books">Explore books</a><a href="#games">Games</a><a href="/#/pricing" target="_top">Pricing</a><div class="nav-more" id="navMore"><button type="button" class="nav-more-btn" id="navMoreBtn" aria-expanded="false" aria-controls="navMoreMenu">More <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="nav-more-menu" id="navMoreMenu"><a href="#who">For everyone</a><a href="#features">Features</a><a href="#faq">Questions</a><a href="#full-toolkit">All tools</a></div></div></nav>
+  <nav class="nav-links" id="navLinks" aria-label="Main menu"><a href="/#/signin" target="_top" class="mobile-menu-signin">Parent &amp; teacher sign in</a><a href="/#/signin?as=student" target="_top" class="mobile-menu-signin">Student sign in</a><a href="#how">Parent &amp; teacher tools</a><a href="#books">Explore books</a><a href="#games">Games</a><a href="/#/pricing" target="_top">Pricing</a><div class="nav-more" id="navMore"><button type="button" class="nav-more-btn" id="navMoreBtn" aria-expanded="false" aria-controls="navMoreMenu">More <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="nav-more-menu" id="navMoreMenu"><a href="#who">For everyone</a><a href="#features">Features</a><a href="#faq">Questions</a><a href="#whats-new">What's new</a><a href="#full-toolkit">All tools</a></div></div></nav>
   <div class="nav-actions"><a href="/#/signin?as=student" target="_top" class="btn btn-text student-signin">Student sign in</a><a href="/#/signin" target="_top" class="btn btn-text adult-signin"><span class="lbl-long">Parent &amp; teacher sign in</span><span class="lbl-short">Sign in</span></a><button class="btn btn-primary" data-start>Get started <svg class="ico small"><use href="#i-arrow"/></svg></button><button class="hamburger" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg class="ico lg"><use href="#i-menu"/></svg></button></div>
 </div></header>
 <main id="top"><div class="arise-announcement" id="ariseAnnouncement" hidden></div>
@@ -204,7 +226,12 @@
   <a class="feature-visual-card" href="#full-toolkit" data-feature-preview="family"><span class="fv-icon fv-c7"><svg class="ico"><use href="#i-heart"/></svg></span><h4>Family Controls</h4><p>One parent account links multiple children, with progress, certificates and game controls.</p></a>
 </div></div><div class="feature-cat"><span class="feature-cat-label">Teachers</span><div class="feature-visual-grid">
   <a class="feature-visual-card" href="#full-toolkit" data-feature-preview="teacher"><span class="fv-icon fv-c7"><svg class="ico"><use href="#i-cap"/></svg></span><h4>Teacher Dashboard</h4><p>Manage students, live quizzes, rewards, game access and family connections from one place.</p></a>
-</div></div></div></div></section></main>
+</div></div></div></div></section>
+<section class="arise-updates" id="whats-new" aria-labelledby="wu-heading" style="--wu-accent:#6b55dc">
+<div class="wu-wrap"><div class="wu-head"><div><div class="wu-kicker">The A.R.I.S.E. journal</div><h2 id="wu-heading">What's new &amp; upcoming</h2><p class="wu-intro">Explore recent improvements, fresh ideas, and what's coming next across A.R.I.S.E. Reader and A.R.I.S.E. To-Do.</p></div><a class="wu-all" href="/#/updates" target="_top">Read all updates <span aria-hidden="true">↗</span></a></div>
+<div class="wu-grid" id="arise-updates-feed" aria-live="polite"><div class="wu-empty">Loading announcements…</div></div></div>
+</section>
+</main>
 <footer><div class="container"><div class="footer-content"><div><a href="#top" class="logo"><span class="logo-mark"><svg class="ico"><use href="#i-book"/></svg></span><span><span class="logo-name">A.R.I.S.E. <strong style="color:#b5aeff">Reader</strong></span><span class="logo-sub" style="color:#9ca4c0">Read · Imagine · Grow</span></span></a><p class="footer-desc">A brighter reading journey for students, families, and educators. Explore books, learning tools and opportunities for every reader.</p></div><div class="footer-links"><div class="footer-col"><strong>Explore</strong><a href="#how">Parent &amp; teacher tools</a><a href="#books">Sample books</a><a href="#features">Features</a></div><div class="footer-col"><strong>Community</strong><a href="#who">For students</a><a href="#who" data-footer-role="parent">For families</a><a href="#who" data-footer-role="teacher">For educators</a></div><div class="footer-col"><strong>Connect</strong><a href="/#/signin" target="_top">Sign in ↗</a><a href="#faq">FAQ</a><button type="button" data-quiz>Sample quiz</button></div></div></div><div class="footer-bottom"><span>© <span id="year"></span> A.R.I.S.E. Reader — Reading adventures for everyone</span><span>Made to inspire the next chapter ✦</span></div></div></footer>
 
 <div class="overlay" id="startOverlay" role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="startHeading"><button class="modal-close" data-close aria-label="Close dialog"><svg class="ico"><use href="#i-close"/></svg></button><h2 class="modal-heading" id="startHeading">Where will your story begin?</h2><p class="modal-sub">Choose the account you want to create. You will continue to its official signup page.</p><div class="choice-grid" id="roleChoices"><button class="role-option selected" data-choice="School student" aria-pressed="true"><svg class="ico"><use href="#i-book"/></svg><strong>School student</strong><small>Read and play with your school community</small></button><button class="role-option" data-choice="Independent student" aria-pressed="false"><svg class="ico"><use href="#i-star"/></svg><strong>Independent student</strong><small>Your own adventures outside of school</small></button><button class="role-option" data-choice="Parent or guardian" aria-pressed="false"><svg class="ico"><use href="#i-heart"/></svg><strong>Parent or guardian</strong><small>Support your reader at home</small></button><button class="role-option" data-choice="Teacher" aria-pressed="false"><svg class="ico"><use href="#i-users"/></svg><strong>Teacher</strong><small>Make reading a classroom celebration</small></button></div><a class="btn btn-primary role-next" href="/#/signin" target="_top" id="roleContinue">Continue to A.R.I.S.E. Reader <svg class="ico small"><use href="#i-arrow"/></svg></a><p class="modal-hint" id="roleHint">Selected: School student. Continue to the real signup page.</p></section></div>
@@ -264,6 +291,27 @@
   function pickAnswer(index){if(answered)return;answered=true;const q=questions[questionIndex],correct=index===q.correct;if(correct)score++;$$('#quizBody [data-answer]').forEach(b=>{const i=+b.dataset.answer;b.disabled=true;if(i===q.correct)b.classList.add('correct');else if(i===index)b.classList.add('incorrect');});const feedback=$('#quizFeedback');feedback.classList.add(correct?'good':'bad');feedback.textContent=(correct?'✓ Great job! ':'Not quite! ')+q.why;$('#nextQuestion').disabled=false;}
   function renderResults(){const body=$('#quizBody');body.innerHTML=`<div class="quiz-result"><div class="result-emoji">${score===3?'🏆':score>=1?'🌟':'📚'}</div><h3>You got ${score} out of ${questions.length}!</h3><p>${score===3?'Perfect run! You really know this story.':'Every try is a step forward. You can revisit the story and try again.'}<br><strong>This was a demo — no points or results were saved.</strong></p><div class="quiz-result-actions"><button class="btn btn-outline" id="quizAgain">Try again</button><button class="btn btn-primary" id="quizFinish">Done <svg class="ico small"><use href="#i-check"/></svg></button></div></div>`;$('#quizAgain').addEventListener('click',resetQuiz);$('#quizFinish').addEventListener('click',()=>closeModal(quiz));}
   $('#year').textContent=new Date().getFullYear();
+})();
+</script>
+
+<script>
+(function(){
+var feed=document.getElementById('arise-updates-feed');if(!feed)return;
+var base="/#/updates";
+function empty(message){feed.textContent='';var n=document.createElement('div');n.className='wu-empty';n.textContent=message;feed.appendChild(n);}
+fetch('/api/whats-new',{cache:'no-store'}).then(function(r){if(!r.ok)throw Error('fetch');return r.json();}).then(function(d){
+var posts=Array.isArray(d.posts)?d.posts.filter(function(p){return p&&p.status==='published';}).slice(0,3):[];
+if(!posts.length){empty('News, improvements, and sneak peeks will appear here. Open the full journal for updates.');return;}
+feed.textContent='';
+posts.forEach(function(p){
+var a=document.createElement('a');a.className='wu-card';a.href=base+'?post='+encodeURIComponent(p.id);
+a.target='_top';
+var tag=document.createElement('span');tag.className='wu-type'+(p.kind==='upcoming'?' upcoming':'');tag.textContent=p.kind==='upcoming'?'Coming soon':"What's new";a.appendChild(tag);
+var title=document.createElement('h3');title.textContent=p.title||'A.R.I.S.E. update';a.appendChild(title);
+var summary=document.createElement('p');summary.textContent=p.summary||'';a.appendChild(summary);
+var foot=document.createElement('div');foot.className='wu-bottom';var date=document.createElement('span');var stamp=new Date(p.publishedAt||p.createdAt);date.textContent=isNaN(stamp.getTime())?'Latest update':stamp.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});var read=document.createElement('b');read.textContent='Read story →';foot.appendChild(date);foot.appendChild(read);a.appendChild(foot);feed.appendChild(a);
+});
+}).catch(function(){empty('Updates are temporarily unavailable. Open the journal to try again.');});
 })();
 </script>
 </body></html>
