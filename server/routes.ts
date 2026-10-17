@@ -49,6 +49,7 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
 import { registerAriseTodoRoutes } from "./ariseTodo";
+import { registerWhatsNewRoutes } from "./whatsNew";
 import { registerAdminHandoffRoutes } from "./adminHandoff";
 import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
@@ -1055,6 +1056,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // One admin-managed changelog drives both public A.R.I.S.E. domains.
+  registerWhatsNewRoutes(app, authMiddleware);
   // Picking a school at sign-up: search the US school list, or (teachers) type one that is missing.
   // Its one route is public, so it can sit in front of the plan check.
   const schoolPicker = registerSchoolPickerRoutes(app, {
