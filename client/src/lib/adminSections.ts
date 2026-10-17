@@ -4,11 +4,12 @@
 // them in its one dropdown without importing (and so eagerly loading) the admin console.
 import { BarChart3, BellRing, Brain, Gamepad2, Inbox, KeyRound, LayoutDashboard, Library, ListTodo, Mail, Megaphone, School, Settings, ShieldCheck, Trophy, Users, type LucideIcon } from "lucide-react";
 
-export type AdminSection = "overview" | "stats" | "todo" | "inbox" | "people" | "library" | "schools" | "settings";
+export type AdminSection = "overview" | "stats" | "todo" | "inbox" | "people" | "library" | "schools" | "settings" | "updates";
 
 export const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "stats", label: "Stats", icon: BarChart3 },
+  { id: "updates", label: "News & updates", icon: Megaphone },
   { id: "todo", label: "To-do", icon: ListTodo },
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "people", label: "People", icon: Users },

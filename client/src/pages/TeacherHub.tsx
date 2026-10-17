@@ -146,6 +146,7 @@ import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
+import WhatsNew from "@/pages/WhatsNew";
 import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
 import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
 import { appsIn, countsAsApp } from "@shared/todoPlan";
@@ -1565,7 +1566,8 @@ function TeacherHubPage() {
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
           {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
-          {tab === "admin" && user.isAdmin && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
+          {tab === "admin" && user.isAdmin && adminSection === "updates" && <WhatsNew embedded />}
+          {tab === "admin" && user.isAdmin && adminSection !== "updates" && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
           {tab === "behavior" && <HubBehavior legacy={<Behavior workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} totals={behaviorTotals} />} />}
           {tab === "attendance" && <Attendance workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} exportAttendance={exportAttendance} />}
