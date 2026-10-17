@@ -28,7 +28,7 @@ function ArticleBody({ body }: { body: string }) {
   </div>;
 }
 
-export default function WhatsNew() {
+export default function WhatsNew({ embedded = false }: { embedded?: boolean }) {
   const { user, token, adminPreviewMode } = useAuth();
   const canEdit = user?.isAdmin === true && !adminPreviewMode;
   const todo = /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
@@ -142,7 +142,7 @@ export default function WhatsNew() {
     : "bg-violet-50 text-violet-700 ring-violet-100";
 
   return <main className="min-h-screen bg-[#fafbfe] text-slate-900" style={{ fontFamily: "'DM Sans',system-ui,sans-serif" }}>
-    <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 backdrop-blur-xl">
+    {!embedded && <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-7">
         <a href={home} className="flex min-w-0 items-center gap-3 font-extrabold tracking-tight text-slate-900" aria-label={`Return to ${title}`}>
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: todo ? "linear-gradient(135deg,#16bcb0,#6880ec,#9464df)" : "linear-gradient(135deg,#6455da,#9275f5)" }}>
@@ -157,18 +157,19 @@ export default function WhatsNew() {
           <a href={home} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-extrabold text-white sm:text-sm" style={buttonStyle}><ArrowLeft size={15} /> <span className="hidden min-[370px]:inline">Website</span></a>
         </div>
       </div>
-    </header>
+    </header>}
 
     {!selectedId ? <>
-      <section className="relative overflow-hidden border-b border-slate-200/60" style={{ background: wash }}>
+      {!embedded && <section className="relative overflow-hidden border-b border-slate-200/60" style={{ background: wash }}>
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-7 sm:py-20">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/75 px-4 py-2 text-[11px] font-extrabold uppercase tracking-[.17em] text-slate-600 shadow-sm"><Sparkles size={14} style={{ color: accent }} /> The A.R.I.S.E. journal</div>
           <h1 className="max-w-3xl text-4xl font-black leading-[1.12] tracking-[-.055em] text-slate-950 sm:text-6xl">What's new <span style={{ color: accent }}>&amp; upcoming.</span></h1>
           <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">The latest releases, ideas in progress, and stories shaping A.R.I.S.E. Reader and A.R.I.S.E. To-Do. One place to see what we're building next.</p>
           <div className="mt-7 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600"><span className="rounded-full bg-white/80 px-3 py-2">News &amp; announcements</span><span className="rounded-full bg-white/80 px-3 py-2">Product improvements</span><span className="rounded-full bg-white/80 px-3 py-2">Coming soon</span></div>
         </div>
-      </section>
+      </section>}
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-7 sm:py-14">
+        {embedded && <div className="mb-7"><h1 className="text-2xl font-black tracking-tight sm:text-3xl">News &amp; updates</h1><p className="mt-2 text-sm text-slate-600">Write once, publish to A.R.I.S.E. Reader and A.R.I.S.E. To-Do together.</p></div>}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-black tracking-tight sm:text-3xl">{adminView && canEdit ? "Editorial dashboard" : "The latest from A.R.I.S.E."}</h2>
@@ -226,7 +227,7 @@ export default function WhatsNew() {
       </article> : <div className="rounded-xl bg-white p-10 text-center"><h2 className="font-black text-xl">This article isn't available.</h2><p className="mt-2 text-sm text-slate-500">It may have been unpublished or removed.</p></div>}
     </div>}
 
-    <footer className="border-t border-slate-200 bg-white px-5 py-9 text-center text-xs font-semibold text-slate-500"><p>A.R.I.S.E. Reader + A.R.I.S.E. To-Do · Made to help people grow.</p><div className="mt-3 flex flex-wrap justify-center gap-5"><a href="https://www.arisereader.com/" className="hover:underline">Explore Reader</a><a href="https://arisetodo.com/" className="hover:underline">Explore To-Do</a></div></footer>
+    {!embedded && <footer className="border-t border-slate-200 bg-white px-5 py-9 text-center text-xs font-semibold text-slate-500"><p>A.R.I.S.E. Reader + A.R.I.S.E. To-Do · Made to help people grow.</p><div className="mt-3 flex flex-wrap justify-center gap-5"><a href="https://www.arisereader.com/" className="hover:underline">Explore Reader</a><a href="https://arisetodo.com/" className="hover:underline">Explore To-Do</a></div></footer>}
 
     {editor && canEdit && <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label={editingId ? "Edit announcement" : "New announcement"}>
       <div className="mx-auto my-3 max-w-3xl overflow-hidden rounded-[24px] bg-white shadow-2xl sm:my-10">
