@@ -1,0 +1,35 @@
+name: Capture real To-Do website screenshots
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/capture-real-todo-pages.yml'
+  workflow_dispatch:
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser tooling
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Capture actual public arisetodo.com pages
+        run: |
+          mkdir -p captures
+          npx playwright screenshot --browser chromium --viewport-size="390,844" --wait-for-timeout=4000 --full-page https://arisetodo.com/ captures/arisetodo-landing-mobile-full.png
+          npx playwright screenshot --browser chromium --viewport-size="1440,900" --wait-for-timeout=4000 --full-page https://arisetodo.com/ captures/arisetodo-landing-desktop-full.png
+          npx playwright screenshot --browser chromium --viewport-size="390,844" --wait-for-timeout=4000 'https://arisetodo.com/#features' captures/arisetodo-features-mobile.png
+          npx playwright screenshot --browser chromium --viewport-size="390,844" --wait-for-timeout=4000 'https://arisetodo.com/#app-showcase' captures/arisetodo-apps-mobile.png
+          npx playwright screenshot --browser chromium --viewport-size="390,844" --wait-for-timeout=4000 'https://arisetodo.com/#pricing' captures/arisetodo-pricing-mobile.png
+          npx playwright screenshot --browser chromium --viewport-size="390,844" --wait-for-timeout=4000 'https://arisetodo.com/app#/signin' captures/arisetodo-signin-mobile.png
+      - name: Upload unedited live screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: arisetodo-live-screenshots
+          path: captures/
+          if-no-files-found: error
+          retention-days: 7
