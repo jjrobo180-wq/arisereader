@@ -33,6 +33,7 @@ export default function WhatsNew() {
   const canEdit = user?.isAdmin === true && !adminPreviewMode;
   const todo = /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
   const home = todo ? "/" : "/#/";
+  const signIn = todo ? "/app#/signin" : "/#/signin";
   const readerTheme = !todo;
   const accent = todo ? "#5576ed" : "#6e57d9";
   const wash = todo ? "linear-gradient(125deg,#e3faf5 0%,#edf0ff 56%,#f5ecff 100%)" : "linear-gradient(125deg,#eeeaff 0%,#f6f0ff 60%,#fff2ea 100%)";
@@ -50,6 +51,7 @@ export default function WhatsNew() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [adminView, setAdminView] = useState(false);
+  const [authNotice, setAuthNotice] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -149,6 +151,8 @@ export default function WhatsNew() {
           <span className="truncate text-sm sm:text-lg">A.R.I.S.E. <span style={{ color: accent }}>{todo ? "To-Do" : "Reader"}</span></span>
         </a>
         <div className="flex items-center gap-2">
+          {!user && <a href={signIn} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-extrabold text-indigo-700 sm:text-sm">Admin sign in</a>}
+          {user && !canEdit && <a href={signIn} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-extrabold text-indigo-700 sm:text-sm">Switch to admin</a>}
           {canEdit && <button type="button" onClick={() => { backToList(); setAdminView(v => !v); setFilter("all"); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-extrabold text-slate-700 transition hover:bg-slate-50 sm:text-sm">{adminView ? "Public view" : "Manage posts"}</button>}
           <a href={home} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-extrabold text-white sm:text-sm" style={buttonStyle}><ArrowLeft size={15} /> <span className="hidden min-[370px]:inline">Website</span></a>
         </div>
@@ -170,7 +174,7 @@ export default function WhatsNew() {
             <h2 className="text-2xl font-black tracking-tight sm:text-3xl">{adminView && canEdit ? "Editorial dashboard" : "The latest from A.R.I.S.E."}</h2>
             <p className="mt-1 text-sm text-slate-500">{adminView && canEdit ? "Create once. Publish simultaneously on both websites." : "Follow along as we keep making A.R.I.S.E. better."}</p>
           </div>
-          {canEdit && adminView && <button onClick={() => startEditor()} className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-extrabold text-white shadow-lg" style={buttonStyle}><Plus size={18} /> New post</button>}
+          {canEdit && <button onClick={() => { setAdminView(true); startEditor(); }} className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-extrabold text-white shadow-lg" style={buttonStyle}><Plus size={18} /> New post</button>}
         </div>
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Filter updates">
@@ -179,6 +183,7 @@ export default function WhatsNew() {
           </div>
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-500 sm:w-64"><Search size={16} /><input className="min-w-0 w-full border-0 bg-transparent text-sm text-slate-900 outline-none" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search announcements" aria-label="Search announcements" /></label>
         </div>
+        {!canEdit && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-indigo-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-semibold text-slate-600">Own this website? Sign in with your A.R.I.S.E. administrator account to write and publish announcements.</p><a href={signIn} className="inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-extrabold text-white">Admin sign in</a></div>}
         {message && <p role="status" className="mb-6 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700">{message}</p>}
         {loading ? <div className="flex items-center gap-3 py-16 text-slate-500"><Loader2 className="animate-spin" size={20} /> Loading announcements...</div> :
          loadError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">{loadError} <button className="ml-2 underline" onClick={() => void load()}>Try again</button></div> :
