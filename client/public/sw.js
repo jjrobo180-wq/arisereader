@@ -7,13 +7,28 @@ self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data ? event.data.text() : "" }; }
   const title = data.title || "A.R.I.S.E. Reader";
-  event.waitUntil(self.registration.showNotification(title, {
+  const options = {
     body: data.body || "",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: data.tag || undefined,
     data: { url: data.url || "/" },
-  }));
+  };
+  // A timer going off: stays on screen and buzzes until it is dealt with, and a repeat with the same tag buzzes again.
+  if (data.urgent === true) {
+    options.requireInteraction = true;
+    options.renotify = !!data.tag;
+    options.vibrate = [250, 120, 250, 120, 250];
+  }
+  event.waitUntil((async () => {
+    // Take away notifications this one replaces (the "timer running" one goes when the timer rings).
+    if (Array.isArray(data.closeTags)) {
+      for (const tag of data.closeTags.slice(0, 5)) {
+        try { (await self.registration.getNotifications({ tag: String(tag) })).forEach((n) => n.close()); } catch (e) {}
+      }
+    }
+    await self.registration.showNotification(title, options);
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {

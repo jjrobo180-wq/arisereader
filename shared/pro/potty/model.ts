@@ -150,10 +150,12 @@ export type PottyData = {
   /** Today's schedule running as reminders, for one child. */
   schedRun: { kid: string; day: string } | null;
   voice: boolean; units: "oz" | "ml";
+  /** Send the reminder timer to the parent's phone as a notification (see timerPush.ts). */
+  notify: boolean;
 };
 export const DEFAULT_DATA: PottyData = {
   v: 2, kids: [], cur: "", logs: [], stickers: [], prizes: [], ready: {}, done: {}, experiments: [], chats: {}, schedules: {},
-  myVideos: [], favVideos: [], sitVideo: "", visual: {}, story: {}, sensory: {}, read: [], timer: null, schedRun: null, voice: true, units: "oz",
+  myVideos: [], favVideos: [], sitVideo: "", visual: {}, story: {}, sensory: {}, read: [], timer: null, schedRun: null, voice: true, units: "oz", notify: false,
 };
 
 const STAGES: StageId[] = ["ready", "sits", "launch", "habit", "self", "poop", "outings", "naps", "nights", "independent"];
@@ -225,6 +227,7 @@ export function cleanData(raw: unknown): PottyData {
     schedRun: r.schedRun && typeof r.schedRun.kid === "string" && typeof r.schedRun.day === "string" ? { kid: r.schedRun.kid, day: r.schedRun.day } : null,
     voice: typeof r.voice === "boolean" ? r.voice : true,
     units: r.units === "ml" ? "ml" : "oz",
+    notify: r.notify === true,
   };
 }
 

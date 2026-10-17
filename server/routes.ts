@@ -61,7 +61,8 @@ import { registerTeacherHubImportRoutes } from "./teacherHubImport";
 import { registerLessonPlannerRoutes } from "./lessonPlanner";
 import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
 import { registerProAppsAI } from "./proAppsAI";
-import { notifyUser, registerPushRoutes, setNudgeSource } from "./pushNotifications";
+import { notifyUser, registerProDevice, registerPushRoutes, setNudgeSource } from "./pushNotifications";
+import { POTTY_TIMERS_KEY, registerPottyTimerRoutes } from "./pottyTimers";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
@@ -1455,6 +1456,13 @@ export async function registerRoutes(
   registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
   // Notifications for the Home Screen app (Web Push): Arise WorkHub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }), todoAllowed: todoOwnerAllowed });
+  // Potty Training: the reminder timer as a phone notification, sent even when the app is closed.
+  registerPottyTimerRoutes(app, authMiddleware, {
+    load: async () => (await storage.getSetting(POTTY_TIMERS_KEY)) || null,
+    save: (value) => storage.upsertSetting(POTTY_TIMERS_KEY, value),
+    notify: (userId, message) => notifyUser(userId, message),
+    registerDevice: registerProDevice,
+  });
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
   // Study Squad: the study hall, its tables and study sets (kept in the settings table).

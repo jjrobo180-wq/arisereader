@@ -241,7 +241,7 @@ function cleanZone(value: unknown): string {
 }
 
 /** Turns one app's reminders on for a device. A device that moves to a different account starts fresh. */
-async function saveDevice(userId: number, sub: { endpoint: string; p256dh: string; auth: string }, timeZone: string, app: PushApp) {
+async function saveDevice(userId: number, sub: { endpoint: string; p256dh: string; auth: string }, timeZone: string, app: PushApp | "pro") {
   const mine = await supabase.from("push_subscriptions").select("id, endpoint").eq("user_id", userId).order("id", { ascending: true });
   const others = (mine.data || []).filter((r: any) => r.endpoint !== sub.endpoint);
   if (others.length >= MAX_DEVICES_PER_USER) {
@@ -249,12 +249,13 @@ async function saveDevice(userId: number, sub: { endpoint: string; p256dh: strin
   }
   const { data: existing } = await supabase.from("push_subscriptions").select("id, user_id").eq("endpoint", sub.endpoint).maybeSingle();
   if (existing && Number(existing.user_id) === userId) {
-    const { error } = await supabase.from("push_subscriptions").update({ p256dh: sub.p256dh, auth: sub.auth, time_zone: timeZone, [app]: true }).eq("id", existing.id);
+    // A phone signed up for a premium app's notifications keeps whichever Hub or LifeHub reminders it already had.
+    const { error } = await supabase.from("push_subscriptions").update({ p256dh: sub.p256dh, auth: sub.auth, time_zone: timeZone, ...(app === "pro" ? {} : { [app]: true }) }).eq("id", existing.id);
     if (error) throw error;
     return;
   }
   const { error } = await supabase.from("push_subscriptions").upsert(
-    { user_id: userId, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, time_zone: timeZone, sent: {}, hub: app === "hub", todo: app === "todo" },
+    { user_id: userId, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, time_zone: timeZone, sent: {}, hub: app === "hub", todo: app === "todo" }, // a premium app's phone gets neither Hub nor LifeHub reminders
     { onConflict: "endpoint" },
   );
   if (error) throw error;
@@ -273,6 +274,15 @@ async function forgetDevice(userId: number, endpoint: string, app?: PushApp): Pr
   if (!left) await supabase.from("push_subscriptions").delete().eq("id", row.id);
   else await supabase.from("push_subscriptions").update({ [app]: false }).eq("id", row.id);
   return left;
+}
+
+/** Saves a phone for a premium app's notifications (the potty timer). It gets no Hub or LifeHub reminders from this. */
+export async function registerProDevice(userId: number, body: any): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  const sub = cleanSubscription(body);
+  if (!sub) return { ok: false, status: 400, message: "That phone's notification details look wrong. Try turning notifications on again." };
+  if (!isPushServiceUrl(sub.endpoint)) return { ok: false, status: 400, message: "This browser's notification service isn't supported here. Try Chrome, Safari or Firefox." };
+  try { await saveDevice(userId, sub, cleanZone(body?.timeZone), "pro"); return { ok: true }; }
+  catch (error: any) { console.error("[push] pro subscribe failed", error?.message); return { ok: false, status: 500, message: "Could not turn notifications on. Try again in a moment." }; }
 }
 
 export function registerPushRoutes(app: Express, authMiddleware: RequestHandler, deps: { hubGate: Gate; todoAllowed?: (userId: number) => Promise<boolean> }) {
@@ -331,7 +341,8 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     const endpoint = String(req.body?.endpoint || "");
     if (!endpoint) return res.json({ hub: false, todo: false });
     const { data } = await supabase.from("push_subscriptions").select(SUBSCRIPTION_COLUMNS).eq("user_id", Number(req.user.id)).eq("endpoint", endpoint).maybeSingle();
-    res.json(data ? { hub: wants(data as Row, "hub"), todo: wants(data as Row, "todo") } : { hub: false, todo: false });
+    // `device`: this phone is signed up for something (the potty timer uses it).
+    res.json(data ? { hub: wants(data as Row, "hub"), todo: wants(data as Row, "todo"), device: true } : { hub: false, todo: false, device: false });
   });
 
   // Arise LifeHub reminders sit behind the LifeHub add-on gate (everything under /api/arise-todo).

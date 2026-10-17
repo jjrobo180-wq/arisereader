@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 
 export type VapidKeys = { publicKey: string; privateKey: string; subject: string };
 export type PushSubscriptionInfo = { endpoint: string; keys: { p256dh: string; auth: string } };
-export type PushMessage = { title: string; body: string; url?: string; tag?: string };
+export type PushMessage = { title: string; body: string; url?: string; tag?: string; /** Stays on screen and buzzes until it is dealt with (a timer going off). */ urgent?: boolean; /** Notifications with these tags are taken away when this one arrives. */ closeTags?: string[] };
 export type PushResult = { ok: boolean; status: number; gone: boolean };
 
 const b64u = (buf: Buffer) => buf.toString("base64url");
