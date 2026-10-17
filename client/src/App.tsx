@@ -89,6 +89,7 @@ const AriseCity = lazyPage(() => import("./pages/AriseCity"));
 const SmashRoom = lazyPage(() => import("./pages/play/SmashRoom"));
 const BuildZone = lazyPage(() => import("./pages/play/BuildZone"));
 const AriseNews = lazyPage(() => import("./pages/news/AriseNews"));
+const WhatsNew = lazyPage(() => import("./pages/WhatsNew"));
 const NewsArticle = lazyPage(() => import("./pages/news/NewsArticle"));
 const ReadHub = lazyPage(() => import("./pages/reads/ReadHub"));
 const BookReader = lazyPage(() => import("./pages/reads/BookReader"));
@@ -430,6 +431,9 @@ function AppRoutes() {
       </Route>
       <Route path="/signin">
         {user ? <AfterSignIn onReaderDomain={onReaderDomain} onTodoDomain={onTodoDomain} /> : <SignIn />}
+      </Route>
+      <Route path="/updates">
+        <WhatsNew />
       </Route>
       <Route path="/explore-reader">
         <Redirect to="/" replace />

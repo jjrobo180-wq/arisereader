@@ -25,6 +25,28 @@
 
 /* App store + customization */
 .studio{padding:88px 0;background:linear-gradient(180deg,#f2f6ff,#fff)}.studio-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:22px;margin-top:34px}.studio-panel{background:#fff;border:1px solid #e2e8f3;border-radius:24px;padding:26px;box-shadow:0 14px 38px #293b6510}.studio-panel h3{font-size:23px;margin:0 0 8px}.studio-panel p{color:#66738c;font-size:13px;line-height:1.6}.app-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:20px}.app-tile{border:1px solid #e7eaf3;border-radius:17px;padding:16px;display:flex;gap:12px;align-items:center;justify-content:space-between}.app-tile strong{display:block;font-size:13px}.app-tile small{display:block;color:#7a849a;font-size:11px;margin-top:4px}.app-icon{font-size:24px;background:#f2f6fd;border-radius:12px;padding:10px}.app-action{border:1px solid #d9e1f2;background:#f5f7fd;color:#3c5ac5;border-radius:11px;padding:9px 11px;font-size:12px;font-weight:800;cursor:pointer}.app-action.installed{background:#e6f7f4;color:#087f79}.studio-label{display:block;font-weight:800;font-size:12px;margin:20px 0 8px}.swatches{display:flex;gap:9px;flex-wrap:wrap}.swatch{width:37px;height:37px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 1px #d8dfed;cursor:pointer}.swatch.selected{box-shadow:0 0 0 3px #243b66}.studio-select{width:100%;padding:12px;border:1px solid #dce3f0;border-radius:12px;background:white}.widget-preview{margin-top:20px;padding:20px;border-radius:17px;background:var(--studio-bg,#f3f6fd);border:1px solid #e1e6f2}.widget-preview h4{margin:0 0 12px}.widget-pills{display:flex;gap:7px;flex-wrap:wrap}.widget-pill{background:white;border:1px solid #e1e6f2;padding:8px 11px;border-radius:11px;font-size:12px}.studio-hint{font-size:11px;color:#7a8599;margin-top:14px}.studio-status{font-size:12px;color:#167d75;margin-top:10px;min-height:18px}@media(max-width:850px){.studio-grid{grid-template-columns:1fr}}@media(max-width:550px){.app-grid{grid-template-columns:1fr}.studio-panel{padding:18px}.studio{padding:60px 0}}
+
+/* Public blog previews: isolated styles, consistent responsive grid. */
+.arise-updates{padding:90px 0;background:#fafaff;border-block:1px solid #e8eaf6}
+.arise-updates *{box-sizing:border-box}.arise-updates .wu-wrap{width:min(1160px,calc(100% - 42px));margin:auto}
+.arise-updates .wu-head{display:flex;align-items:end;justify-content:space-between;gap:25px;margin-bottom:30px}
+.arise-updates .wu-kicker{font-size:11px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:var(--wu-accent)}
+.arise-updates h2{font-family:Manrope,'DM Sans',system-ui,sans-serif;font-size:clamp(32px,4vw,49px);line-height:1.17;letter-spacing:-1.8px;margin:13px 0 12px;color:#20253e;font-weight:850}
+.arise-updates .wu-intro{max-width:630px;font-size:15px;line-height:1.85;color:#69768b;margin:0}
+.arise-updates .wu-all{display:inline-flex;align-items:center;justify-content:center;gap:9px;flex:none;min-height:45px;border-radius:12px;padding:11px 17px;background:var(--wu-accent);color:#fff!important;font-weight:850;font-size:13px;text-decoration:none;box-shadow:0 9px 20px #413c7b1a}
+.arise-updates .wu-all:hover{transform:translateY(-2px)}
+.arise-updates .wu-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}
+.arise-updates .wu-card{display:flex;min-width:0;flex-direction:column;overflow:hidden;border-radius:21px;padding:26px;background:white;border:1px solid #e8eaf3;box-shadow:0 7px 22px #2834610a;text-decoration:none!important;color:inherit;transition:transform .2s,box-shadow .2s}
+.arise-updates .wu-card:hover{transform:translateY(-4px);box-shadow:0 18px 36px #28346117}
+.arise-updates .wu-type{display:inline-flex;align-self:flex-start;border-radius:100px;background:#eaf8f2;color:#13876b;padding:7px 11px;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.6px}
+.arise-updates .wu-type.upcoming{background:#f0eaff;color:#7657bc}
+.arise-updates .wu-card h3{font:850 19px/1.4 Manrope,'DM Sans',system-ui,sans-serif;letter-spacing:-.5px;color:#22273d;margin:19px 0 9px;overflow-wrap:anywhere}
+.arise-updates .wu-card p{font-size:13px;line-height:1.75;color:#778199;margin:0 0 22px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.arise-updates .wu-bottom{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:750;color:#9ba4b5}
+.arise-updates .wu-bottom b{color:var(--wu-accent);font-size:12px}
+.arise-updates .wu-empty{grid-column:1/-1;min-height:145px;border-radius:21px;border:1px dashed #cbd0e5;background:#fff;display:flex;justify-content:center;align-items:center;text-align:center;padding:30px;font-size:14px;line-height:1.8;color:#6c7591}
+@media(max-width:900px){.arise-updates{padding:70px 0}.arise-updates .wu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.arise-updates{padding:55px 0}.arise-updates .wu-wrap{width:calc(100% - 32px)}.arise-updates .wu-head{align-items:stretch;flex-direction:column;gap:19px}.arise-updates .wu-grid{grid-template-columns:1fr;gap:12px}.arise-updates .wu-card{padding:23px}.arise-updates .wu-all{width:100%}.arise-updates h2{font-size:32px;letter-spacing:-1.3px}}
 </style>
 <style>
 .nav-auth{display:flex;align-items:center;gap:10px;flex-shrink:0}
@@ -373,7 +395,7 @@
 <header class="site-header">
  <div class="container nav-inner">
   <a class="logo" href="#top" aria-label="A.R.I.S.E. To-Do home"><img class="logo-symbol" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2310C8B3%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23527BED%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23955FE5%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2262%22%20height%3D%2262%22%20rx%3D%2218%22%20fill%3D%22url%28%23g%29%22%2F%3E%0A%20%3Crect%20x%3D%2213%22%20y%3D%2215%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%20opacity%3D%22.95%22%2F%3E%0A%20%3Cpath%20d%3D%22M17%2022.3l4%203.8%208-10%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%3Cpath%20d%3D%22M36%2023h14M17%2043h12M36%2043h14%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.96%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt="" /><span>A.R.I.S.E<span class="period">.</span> <span class="todo">To-Do</span></span></a>
-  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="#features">Features</a><a href="#app-showcase">Explore apps</a><a href="#features">For educators</a><a href="#life">Everyday life</a><a href="#demo">Try it</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a class="mobile-auth" href="/app#/signin">Sign in</a><a class="mobile-auth" href="/app#/signin">Create account</a></nav>
+  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="#features">Features</a><a href="#app-showcase">Explore apps</a><a href="#features">For educators</a><a href="#life">Everyday life</a><a href="#demo">Try it</a><a href="#how">How it works</a><a href="#whats-new">What's new</a><a href="#pricing">Pricing</a><a class="mobile-auth" href="/app#/signin">Sign in</a><a class="mobile-auth" href="/app#/signin">Create account</a></nav>
   <div class="nav-auth"><a class="header-signin" href="#pricing">Pricing</a><a class="header-signin" href="/app#/signin">Sign in</a><a class="button button-primary" href="/app#/signin">Get started <svg><use href="#i-arrow"/></svg></a></div>
   <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg><use href="#i-menu"/></svg></button>
  </div>
@@ -531,6 +553,11 @@
  </div>
 </section>
 <section class="bottom-cta"><div class="container"><div class="cta-card"><div class="section-kicker">Make space for what matters</div><h2>Your life.<br />Your command center.</h2><p>Family, work, personal projects, or a classroom — make your space your own. <a href="#pricing" style="color:#fff;text-decoration:underline">See pricing</a>.</p><a href="/app#/signin" class="button">Get started with A.R.I.S.E. <svg><use href="#i-arrow"/></svg></a><div class="cta-small"><a href="/app#/signin">Already have an account? Sign in</a> · <a href="#demo">Try the sample board</a></div></div></div></section>
+
+<section class="arise-updates" id="whats-new" aria-labelledby="wu-heading" style="--wu-accent:#5274e8">
+<div class="wu-wrap"><div class="wu-head"><div><div class="wu-kicker">The A.R.I.S.E. journal</div><h2 id="wu-heading">What's new &amp; upcoming</h2><p class="wu-intro">Explore recent improvements, fresh ideas, and what's coming next across A.R.I.S.E. Reader and A.R.I.S.E. To-Do.</p></div><a class="wu-all" href="/app#/updates" >Read all updates <span aria-hidden="true">↗</span></a></div>
+<div class="wu-grid" id="arise-updates-feed" aria-live="polite"><div class="wu-empty">Loading announcements…</div></div></div>
+</section>
 </main>
 <footer class="site-footer"><div class="container footer-inner"><a class="logo" href="#top" aria-label="Back to top"><img class="logo-symbol" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2310C8B3%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23527BED%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23955FE5%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2262%22%20height%3D%2262%22%20rx%3D%2218%22%20fill%3D%22url%28%23g%29%22%2F%3E%0A%20%3Crect%20x%3D%2213%22%20y%3D%2215%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%20opacity%3D%22.95%22%2F%3E%0A%20%3Cpath%20d%3D%22M17%2022.3l4%203.8%208-10%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%3Cpath%20d%3D%22M36%2023h14M17%2043h12M36%2043h14%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.96%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt=""/><span>A.R.I.S.E<span class="period">.</span> <span class="todo">To-Do</span></span></a><span class="footer-text">A.R.I.S.E. To-Do · Organize life and work · 2026</span><span class="footer-actions"><a class="footer-link" href="/app#/signin">Sign in</a><a class="footer-link" href="/app#/signin">Create account</a><a class="footer-link" href="#top">Back to top ↑</a></span></div></footer>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -763,4 +790,25 @@ default:if(a.startsWith('mood:'))d.mood.value=a.slice(5);if(a.startsWith('sympto
 });
 refresh();
 })();
-</script></body></html>
+</script>
+<script>
+(function(){
+var feed=document.getElementById('arise-updates-feed');if(!feed)return;
+var base="/app#/updates";
+function empty(message){feed.textContent='';var n=document.createElement('div');n.className='wu-empty';n.textContent=message;feed.appendChild(n);}
+fetch('/api/whats-new',{cache:'no-store'}).then(function(r){if(!r.ok)throw Error('fetch');return r.json();}).then(function(d){
+var posts=Array.isArray(d.posts)?d.posts.filter(function(p){return p&&p.status==='published';}).slice(0,3):[];
+if(!posts.length){empty('News, improvements, and sneak peeks will appear here. Open the full journal for updates.');return;}
+feed.textContent='';
+posts.forEach(function(p){
+var a=document.createElement('a');a.className='wu-card';a.href=base+'?post='+encodeURIComponent(p.id);
+
+var tag=document.createElement('span');tag.className='wu-type'+(p.kind==='upcoming'?' upcoming':'');tag.textContent=p.kind==='upcoming'?'Coming soon':"What's new";a.appendChild(tag);
+var title=document.createElement('h3');title.textContent=p.title||'A.R.I.S.E. update';a.appendChild(title);
+var summary=document.createElement('p');summary.textContent=p.summary||'';a.appendChild(summary);
+var foot=document.createElement('div');foot.className='wu-bottom';var date=document.createElement('span');var stamp=new Date(p.publishedAt||p.createdAt);date.textContent=isNaN(stamp.getTime())?'Latest update':stamp.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});var read=document.createElement('b');read.textContent='Read story →';foot.appendChild(date);foot.appendChild(read);a.appendChild(foot);feed.appendChild(a);
+});
+}).catch(function(){empty('Updates are temporarily unavailable. Open the journal to try again.');});
+})();
+</script>
+</body></html>
