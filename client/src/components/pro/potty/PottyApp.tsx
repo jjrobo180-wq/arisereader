@@ -5,8 +5,9 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { BookOpen, CalendarDays, Clock, HeartHandshake, Lightbulb, ListChecks, MessageCircle, PlayCircle, Route, Settings, Star, Sun, Timer, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAppData } from "@/lib/cloudDocs";
+import { LIVE_TAG, clearPottyNotifications, showRunningTimer, syncPottyTimer } from "@/lib/pottyPush";
 import { Modal, fmtDuration, uid, useTick } from "../kit";
-import { DEFAULT_DATA, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
+import { DEFAULT_DATA, tripInterval, METHOD_LIST, NEEDS, STAGES, ageMonths, ageText, blankChild, buildSchedule, cleanData, clockOf, dayOf, earnsSticker, hm, isAccident, isSuccess, minsOf, sitMinutes, stageById, type Child, type Comms, type Entry, type Kind, type NeedId } from "@shared/pro/potty";
 import { Ctx, type LogPrefill, type PottyCtx, type Tab } from "./ctx";
 import { Alert, Celebrate, SitTimer } from "./KidMode";
 import { LogSheet } from "./LogSheet";
@@ -65,6 +66,26 @@ export default function PottyApp() {
   // Reminder timer.
   useTick(!!data.timer || !!data.schedRun, 1000);
   useEffect(() => { if (data.timer && Date.now() >= data.timer.endAt && !alertOn) setAlertOn(true); });
+  // Phone notification for the timer (when "Notify my phone" is on): the server is told when it ends, so a notification comes
+  // even with the app closed, and a "timer running" notification shows on this phone while it counts down.
+  const timerKey = data.timer ? `${data.timer.kid}:${data.timer.endAt}` : "";
+  const timerKid = data.timer ? data.kids.find((k) => k.id === data.timer!.kid) : null;
+  const synced = useRef(false);
+  useEffect(() => {
+    if (!token) return;
+    if (!data.notify) { if (synced.current) { synced.current = false; void syncPottyTimer(token, null, ""); } return; }
+    synced.current = true;
+    let live = true, tries = 0;
+    const send = async () => { const ok = await syncPottyTimer(token, data.timer, timerKid?.name || ""); if (!ok && live && ++tries <= 4) setTimeout(() => { if (live) void send(); }, 15_000 * tries); };
+    void send();
+    return () => { live = false; };
+  }, [token, data.notify, timerKey]);
+  useEffect(() => {
+    if (!data.notify || !data.timer || data.timer.endAt <= Date.now()) { void clearPottyNotifications([LIVE_TAG]); return; }
+    void showRunningTimer(timerKid?.name || "Your child", clockOf(data.timer.endAt));
+  }, [data.notify, timerKey]);
+  // Looking at the app's own alert: the phone's notifications are not needed too.
+  useEffect(() => { if (alertOn) void clearPottyNotifications(); }, [alertOn]);
   // Today's schedule as reminders: ring at each sit or prompt time.
   const rung = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -86,7 +107,6 @@ export default function PottyApp() {
 
   const Screen = { simple: Simple, today: Today, agenda: Agenda, log: History, plan: Program, coach: Coach, schedule: Schedule, videos: Videos, learn: Learn, needs: Needs, try: TryLearn, rewards: Rewards }[tab];
   const stage = stageById(kid.stage);
-  const timerKid = data.timer ? data.kids.find((k) => k.id === data.timer!.kid) : null;
   return <Ctx.Provider value={ctx}>
     <div ref={top} className="potty-app -mx-3 -mt-2 rounded-[28px] px-3 pb-10 pt-3 sm:-mx-4 sm:px-5" style={{ background: C.ground }}>
       <PottyStyles />
