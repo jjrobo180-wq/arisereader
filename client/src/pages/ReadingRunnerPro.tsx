@@ -1,468 +1,441 @@
-import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Heart, RotateCcw, Star, Volume2, VolumeX, Zap } from "lucide-react";
+// Reading Runner — a 3D endless-runner reading game for eye-gaze, touch, mouse and keyboard players.
+// Run down the train tracks, dodge trains, jump barriers, grab coins and run into the card that matches the mission.
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowLeft, Coins, Eye, Hand, Heart, HelpCircle, Pause, Play, RotateCcw, Settings, Star, Volume2, VolumeX, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
+import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
+import { MISSIONS, type Mission } from "@shared/runner/missions";
+import { DEFAULT_ASSISTS, type Difficulty, type RunResult, type SimEvent } from "@shared/runner/sim";
+import { RunnerGame, type HudState } from "@/game/runner/game";
+import { RunnerAudio } from "@/game/runner/audio";
+import { RunnerInput, type Steer } from "@/game/runner/input";
+import { loadProgress, loadSettings, recordRun, saveSettings, type RunnerProgress, type RunnerSettings } from "@/game/runner/save";
 
-type Difficulty = "easy" | "medium" | "hard";
-type Thing = { label: string; emoji: string };
-type Theme = {
-  name: string;
-  badge: string;
-  sky: string;
-  horizon: string;
-  ground: string;
-  road: string;
-  accent: string;
-  scenery: string[];
-};
-type Mission = {
-  action: string;
-  target: Thing;
-  distractors: Thing[];
-  goal: number;
-  theme: Theme;
-};
+const CSS = `
+.rr-font{font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif}
+.rr-title{text-shadow:0 4px 0 #0b1a3a,0 9px 0 rgba(11,26,58,.55),0 18px 34px rgba(0,0,0,.45)}
+.rr-btn{transition:transform .14s cubic-bezier(.2,1.4,.4,1),filter .14s,box-shadow .14s}.rr-btn:hover{transform:translateY(-2px);filter:brightness(1.06)}.rr-btn:active{transform:translateY(1px) scale(.98)}
+.rr-dwell{position:absolute;left:0;bottom:0;height:6px;width:0;border-radius:999px;background:linear-gradient(90deg,#fff7ae,#ffd23f);box-shadow:0 0 12px rgba(255,210,63,.9)}
+.rr-dwell.on{width:100%;transition-property:width;transition-timing-function:linear}
+.rr-pop{animation:rrPop .5s cubic-bezier(.2,1.6,.4,1) both}@keyframes rrPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.rr-up{animation:rrUp .55s cubic-bezier(.2,1.2,.4,1) both}@keyframes rrUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+.rr-toast{animation:rrToast 1.25s ease-out forwards}@keyframes rrToast{0%{opacity:0;transform:translateY(16px) scale(.7)}14%{opacity:1;transform:scale(1.08)}24%{transform:scale(1)}78%{opacity:1}100%{opacity:0;transform:translateY(-18px)}}
+.rr-toast-long{animation-duration:2.1s}
+.rr-count{animation:rrCount .7s cubic-bezier(.2,1.5,.4,1) both}@keyframes rrCount{0%{transform:scale(2.4);opacity:0}30%{transform:scale(1);opacity:1}100%{transform:scale(.85);opacity:0}}
+.rr-float{animation:rrFloat 3.2s ease-in-out infinite}@keyframes rrFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
+.rr-shine{background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);background-size:250% 100%;animation:rrShine 2.8s ease-in-out infinite}@keyframes rrShine{from{background-position:150% 0}to{background-position:-100% 0}}
+.rr-pip{transition:transform .3s cubic-bezier(.2,1.8,.4,1),background .2s}
+.rr-scroll::-webkit-scrollbar{width:10px}.rr-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:9px}
+`;
 
-type FallingThing = Thing & {
-  id: number;
-  lane: number;
-  y: number;
-  isTarget: boolean;
-  handled: boolean;
-};
-
-const THEMES: Record<string, Theme> = {
-  city: { name: "Rainbow City", badge: "🏙️", sky: "linear-gradient(#69d2ff 0%, #b7edff 44%, #f8d9a7 45%)", horizon: "#85a7ba", ground: "#5e913f", road: "#29313c", accent: "#52e3ff", scenery: ["🏢","🏬","🌳","🚕","🏙️"] },
-  farm: { name: "Sunny Farm", badge: "🚜", sky: "linear-gradient(#76cfff 0%, #d5f3ff 48%, #e7c67d 49%)", horizon: "#71a85b", ground: "#6ea34b", road: "#665848", accent: "#ffd95a", scenery: ["🌾","🚜","🌳","🏡","🌻"] },
-  beach: { name: "Splash Beach", badge: "🏖️", sky: "linear-gradient(#54cdf7 0%, #c9f3ff 45%, #ffd894 46%)", horizon: "#37afd0", ground: "#f2c46b", road: "#9e744f", accent: "#5df3e2", scenery: ["🌴","⛱️","🌊","🐚","🏄"] },
-  space: { name: "Star Station", badge: "🚀", sky: "radial-gradient(circle at 50% 10%, #392a75, #090d25 60%, #050713)", horizon: "#121944", ground: "#252c55", road: "#111527", accent: "#a98bff", scenery: ["🪐","🚀","⭐","🌙","☄️"] },
-  snow: { name: "Snowy Summit", badge: "❄️", sky: "linear-gradient(#8cd8ff, #eefaff 55%, #d7edf7 56%)", horizon: "#a7ccda", ground: "#e8f6fb", road: "#7b8c97", accent: "#8ce8ff", scenery: ["⛄","🌲","🏔️","❄️","🛷"] },
-  jungle: { name: "Jungle Dash", badge: "🌴", sky: "linear-gradient(#49ba91, #a6e4b7 46%, #4e8c43 47%)", horizon: "#28663c", ground: "#356d33", road: "#51483a", accent: "#b7ff62", scenery: ["🌴","🦜","🌿","🪨","🐒"] },
-  school: { name: "School Sprint", badge: "🏫", sky: "linear-gradient(#72cbff, #dff5ff 50%, #8fc46c 51%)", horizon: "#83a8ba", ground: "#6aa24f", road: "#424b58", accent: "#ffd44d", scenery: ["🏫","🚌","🌳","🎒","📚"] },
-  candy: { name: "Candy Kingdom", badge: "🍭", sky: "linear-gradient(#c682ff, #ffd3f4 50%, #ffb4cf 51%)", horizon: "#dc83bc", ground: "#ff9bbd", road: "#704c75", accent: "#fff175", scenery: ["🍭","🍬","🧁","🍩","🎂"] },
-  night: { name: "Neon Night", badge: "🌃", sky: "linear-gradient(#15183d, #242659 55%, #101127 56%)", horizon: "#343560", ground: "#181a32", road: "#0b0d18", accent: "#37f3ff", scenery: ["🌃","🚕","✨","🏢","🌙"] },
-  castle: { name: "Castle Quest", badge: "🏰", sky: "linear-gradient(#8ec8ff, #e6f4ff 48%, #74aa65 49%)", horizon: "#89909c", ground: "#618d50", road: "#665f59", accent: "#ffd768", scenery: ["🏰","🌲","🛡️","🐉","👑"] },
-  ocean: { name: "Ocean Tunnel", badge: "🐠", sky: "linear-gradient(#24a9df, #12699d 55%, #0b436b 56%)", horizon: "#14668a", ground: "#12577a", road: "#15364d", accent: "#64f7e9", scenery: ["🐠","🐟","🪸","🐙","🌊"] },
-  volcano: { name: "Volcano Run", badge: "🌋", sky: "linear-gradient(#ff7a4f, #4e2531 58%, #2a1b22 59%)", horizon: "#71352e", ground: "#4c3029", road: "#1e2024", accent: "#ffcf4f", scenery: ["🌋","🔥","🪨","🌫️","⚡"] },
-  park: { name: "Super Park", badge: "🛝", sky: "linear-gradient(#67d4ff, #dbf7ff 52%, #83bf5d 53%)", horizon: "#75a75e", ground: "#69a64d", road: "#4b535c", accent: "#ffde59", scenery: ["🛝","🌳","🪁","🌼","🚲"] },
-  desert: { name: "Desert Dash", badge: "🏜️", sky: "linear-gradient(#62cfff, #f5dfb3 50%, #e1ad58 51%)", horizon: "#d69a4f", ground: "#d9a34d", road: "#735941", accent: "#ffdd6d", scenery: ["🌵","🏜️","🐪","☀️","🪨"] },
-  arcade: { name: "Pixel Arcade", badge: "🕹️", sky: "linear-gradient(#2b135d, #501e78 55%, #181028 56%)", horizon: "#54217a", ground: "#21143c", road: "#0c0a18", accent: "#00f6ff", scenery: ["👾","🕹️","🎮","✨","💎"] },
-};
-
-const M = (action: string, target: Thing, distractors: Thing[], theme: Theme, goal = 8): Mission => ({ action, target, distractors, theme, goal });
-const MISSIONS: Mission[] = [
-  M("Rescue all the cats", {label:"cat",emoji:"🐱"}, [{label:"dog",emoji:"🐶"},{label:"rabbit",emoji:"🐰"},{label:"frog",emoji:"🐸"},{label:"pig",emoji:"🐷"}], THEMES.city),
-  M("Catch all the apples", {label:"apple",emoji:"🍎"}, [{label:"banana",emoji:"🍌"},{label:"orange",emoji:"🍊"},{label:"grapes",emoji:"🍇"},{label:"pear",emoji:"🍐"}], THEMES.farm),
-  M("Catch all the fish", {label:"fish",emoji:"🐟"}, [{label:"crab",emoji:"🦀"},{label:"shell",emoji:"🐚"},{label:"turtle",emoji:"🐢"},{label:"octopus",emoji:"🐙"}], THEMES.beach),
-  M("Catch all the stars", {label:"star",emoji:"⭐"}, [{label:"moon",emoji:"🌙"},{label:"planet",emoji:"🪐"},{label:"rocket",emoji:"🚀"},{label:"comet",emoji:"☄️"}], THEMES.space),
-  M("Catch all the snowflakes", {label:"snowflake",emoji:"❄️"}, [{label:"tree",emoji:"🌲"},{label:"snowman",emoji:"⛄"},{label:"sled",emoji:"🛷"},{label:"mountain",emoji:"🏔️"}], THEMES.snow),
-  M("Rescue all the monkeys", {label:"monkey",emoji:"🐒"}, [{label:"tiger",emoji:"🐯"},{label:"parrot",emoji:"🦜"},{label:"snake",emoji:"🐍"},{label:"frog",emoji:"🐸"}], THEMES.jungle),
-  M("Catch all the books", {label:"book",emoji:"📘"}, [{label:"pencil",emoji:"✏️"},{label:"backpack",emoji:"🎒"},{label:"scissors",emoji:"✂️"},{label:"ruler",emoji:"📏"}], THEMES.school),
-  M("Catch all the lollipops", {label:"lollipop",emoji:"🍭"}, [{label:"candy",emoji:"🍬"},{label:"cupcake",emoji:"🧁"},{label:"donut",emoji:"🍩"},{label:"cake",emoji:"🎂"}], THEMES.candy),
-  M("Catch all the yellow taxis", {label:"taxi",emoji:"🚕"}, [{label:"car",emoji:"🚗"},{label:"bus",emoji:"🚌"},{label:"bike",emoji:"🚲"},{label:"truck",emoji:"🚚"}], THEMES.night),
-  M("Catch all the crowns", {label:"crown",emoji:"👑"}, [{label:"shield",emoji:"🛡️"},{label:"dragon",emoji:"🐉"},{label:"castle",emoji:"🏰"},{label:"gem",emoji:"💎"}], THEMES.castle),
-  M("Catch all the turtles", {label:"turtle",emoji:"🐢"}, [{label:"fish",emoji:"🐟"},{label:"octopus",emoji:"🐙"},{label:"coral",emoji:"🪸"},{label:"whale",emoji:"🐋"}], THEMES.ocean),
-  M("Catch all the water drops", {label:"water",emoji:"💧"}, [{label:"fire",emoji:"🔥"},{label:"rock",emoji:"🪨"},{label:"cloud",emoji:"☁️"},{label:"lightning",emoji:"⚡"}], THEMES.volcano),
-  M("Catch all the soccer balls", {label:"soccer ball",emoji:"⚽"}, [{label:"basketball",emoji:"🏀"},{label:"football",emoji:"🏈"},{label:"baseball",emoji:"⚾"},{label:"tennis ball",emoji:"🎾"}], THEMES.park),
-  M("Catch all the suns", {label:"sun",emoji:"☀️"}, [{label:"cactus",emoji:"🌵"},{label:"camel",emoji:"🐪"},{label:"rock",emoji:"🪨"},{label:"tent",emoji:"⛺"}], THEMES.desert),
-  M("Catch all the gems", {label:"gem",emoji:"💎"}, [{label:"game",emoji:"🎮"},{label:"alien",emoji:"👾"},{label:"joystick",emoji:"🕹️"},{label:"star",emoji:"⭐"}], THEMES.arcade, 10),
+const SPEEDS: { id: Difficulty; icon: string; name: string; note: string }[] = [
+  { id: "easy", icon: "🧸", name: "Easy", note: "Slow · helpers steer & jump · no hearts lost" },
+  { id: "medium", icon: "🏃", name: "Medium", note: "Steady · auto-jump · 3 hearts" },
+  { id: "hard", icon: "⚡", name: "Hard", note: "Fast · all you · 3 hearts" },
 ];
+const MENU_DWELL = 1200;
+const enterImmersive = () => { try { const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }; const req = el.requestFullscreen || el.webkitRequestFullscreen; if (req && !document.fullscreenElement) void req.call(el)?.catch?.(() => {}); } catch { /* optional */ } };
+const leaveImmersive = () => { try { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); } catch { /* optional */ } };
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-const SPEED = {
-  easy: { fall: 0.48, spawn: 1380, label: "Easy", description: "Toddler assist · slow + gentle auto-catch" },
-  medium: { fall: 0.90, spawn: 820, label: "Medium", description: "Steady runner speed" },
-  hard: { fall: 1.42, spawn: 520, label: "Hard", description: "Fast · quick response" },
-} as const;
-
-
-function celebrationLine(label: string) {
-  const lines = ["Got a " + label + "!","Yes! " + label + "!","Great catch! " + label + "!","You found the " + label + "!"];
-  return lines[Math.floor(Math.random()*lines.length)];
-}
-
-function RunnerAvatar({ jumping }: { jumping: boolean }) {
+// ── Look-to-select button: hover (eye gaze / mouse) for a moment to press it, or tap/click right away ──
+function Dwell({ onSelect, children, className = "", disabled, dwell = true, ms = MENU_DWELL, label, onHover }: { onSelect: () => void; children: ReactNode; className?: string; disabled?: boolean; dwell?: boolean; ms?: number; label?: string; onHover?: () => void }) {
+  const [on, setOn] = useState(false); const timer = useRef(0);
+  const stop = () => { window.clearTimeout(timer.current); setOn(false); };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
   return (
-    <div className={"relative w-24 h-32 transition-transform duration-200 drop-shadow-2xl " + (jumping ? "-translate-y-32 rotate-[-6deg] scale-105" : "")}>
-      <svg viewBox="0 0 120 160" className="w-full h-full overflow-visible" role="img" aria-label="Friendly runner">
-        <defs>
-          <linearGradient id="runnerShirt" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#67e8f9" />
-            <stop offset="55%" stopColor="#2563eb" />
-            <stop offset="100%" stopColor="#4338ca" />
-          </linearGradient>
-          <linearGradient id="runnerShorts" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#334155" />
-            <stop offset="100%" stopColor="#0f172a" />
-          </linearGradient>
-          <filter id="runnerShadow"><feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity=".35"/></filter>
-        </defs>
-        <ellipse cx="60" cy="151" rx="34" ry="7" fill="rgba(15,23,42,.28)" />
-        <g filter="url(#runnerShadow)">
-          <path d="M44 91 C39 108 34 125 27 145" stroke="#1e293b" strokeWidth="15" strokeLinecap="round" />
-          <path d="M76 91 C82 110 86 126 94 145" stroke="#1e293b" strokeWidth="15" strokeLinecap="round" />
-          <path d="M20 145 Q31 139 43 145 L42 153 Q27 157 16 152 Z" fill="#ffffff" />
-          <path d="M82 145 Q96 139 107 146 L105 153 Q91 157 80 152 Z" fill="#ffffff" />
-          <path d="M37 73 L18 98" stroke="#f2bd84" strokeWidth="13" strokeLinecap="round" />
-          <path d="M83 73 L104 94" stroke="#f2bd84" strokeWidth="13" strokeLinecap="round" />
-          <path d="M38 65 Q60 53 82 65 L80 103 Q61 114 40 103 Z" fill="url(#runnerShirt)" stroke="#ffffff" strokeWidth="4" />
-          <path d="M39 99 Q60 108 81 99 L78 119 Q59 126 42 118 Z" fill="url(#runnerShorts)" />
-          <circle cx="60" cy="43" r="29" fill="#f2bd84" stroke="#ffffff" strokeWidth="5" />
-          <path d="M33 40 Q35 10 62 10 Q89 12 88 42 Q73 29 55 30 Q43 30 33 40 Z" fill="#172554" />
-          <path d="M35 32 Q58 14 86 31" stroke="#22d3ee" strokeWidth="7" strokeLinecap="round" />
-          <circle cx="50" cy="45" r="3.5" fill="#172554" />
-          <circle cx="70" cy="45" r="3.5" fill="#172554" />
-          <path d="M51 58 Q60 66 70 57" fill="none" stroke="#9f1239" strokeWidth="4" strokeLinecap="round" />
-          <circle cx="42" cy="54" r="4" fill="#fb7185" opacity=".55" />
-          <circle cx="78" cy="54" r="4" fill="#fb7185" opacity=".55" />
-          <path d="M45 70 L75 70" stroke="#facc15" strokeWidth="4" strokeLinecap="round" />
-          <circle cx="60" cy="84" r="8" fill="#facc15" stroke="#ffffff" strokeWidth="3" />
-          <path d="M57 80 L60 87 L65 82" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" />
-        </g>
-      </svg>
-    </div>
+    <button type="button" aria-label={label} disabled={disabled}
+      // arm on real pointer movement (a gaze or a moving mouse) — not when a screen change slides a button under a resting cursor
+      onPointerMove={e => { if (on || disabled || !dwell || e.pointerType === "touch") return; onHover?.(); setOn(true); timer.current = window.setTimeout(() => { setOn(false); onSelect(); }, ms); }}
+      onPointerLeave={stop} onClick={() => { stop(); onSelect(); }}
+      className={"rr-btn relative overflow-hidden disabled:cursor-not-allowed disabled:opacity-40 " + className}>
+      {children}
+      {dwell && !disabled && <span className={"rr-dwell" + (on ? " on" : "")} style={{ transitionDuration: on ? ms + "ms" : "0ms" }} />}
+    </button>
   );
 }
 
-function TargetToken({ item }: { item: FallingThing }) {
-  return (
-    <div className={"relative transition-all " + (item.handled ? "opacity-25 scale-75" : "")}>
-      <div className="absolute -inset-2 rounded-[1.5rem] blur-md opacity-40 bg-white" />
-      <div className="relative w-17 h-17 sm:w-21 sm:h-21 rounded-[1.4rem] border-4 shadow-2xl grid grid-cols-1 place-items-center text-4xl sm:text-5xl bg-gradient-to-br from-white to-slate-200 border-white">
-        <span className="drop-shadow">{item.emoji}</span>
-        <div className="absolute inset-x-2 top-1 h-2 rounded-full bg-white/70 blur-[1px]" />
-      </div>
-      <div className="relative mt-1 mx-auto w-max max-w-24 truncate rounded-full bg-slate-950/90 px-2 py-1 text-[10px] sm:text-xs font-black uppercase tracking-wide text-white shadow">{item.label}</div>
-    </div>
-  );
+// ── live 3D backdrop (Riley running on autopilot) for the title screen ──
+function Backdrop({ mission, quality, audio }: { mission: Mission; quality: RunnerSettings["quality"]; audio: RunnerAudio }) {
+  const host = useRef<HTMLDivElement>(null); const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const el = host.current; if (!el) return;
+    let g: RunnerGame | null = null;
+    try { g = new RunnerGame(el, mission, { difficulty: "medium", assists: DEFAULT_ASSISTS.easy, quality: quality === "high" ? "medium" : quality, cardStyle: "both", steer: "touch", demo: true, music: false, seed: 42 }, audio, null); }
+    catch (e) { console.error(e); setFailed(true); }
+    return () => g?.dispose();
+  }, [mission, quality, audio]);
+  return <div ref={host} className="absolute inset-0" style={failed ? { background: mission.look.ui } : undefined} />;
 }
 
 export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
-  const [difficulty,setDifficulty]=useState<Difficulty>("easy");
-  const [started,setStarted]=useState(false);
-  const [setupStep,setSetupStep]=useState<"difficulty"|"level">("difficulty");
-  const [missionIndex,setMissionIndex]=useState(0);
-  const [lane,setLane]=useState(1);
-  const [jumping,setJumping]=useState(false);
-  const [things,setThings]=useState<FallingThing[]>([]);
-  const [caught,setCaught]=useState(0);
-  const [score,setScore]=useState(0);
-  const [hearts,setHearts]=useState(3);
-  const [message,setMessage]=useState("Swipe to move. Swipe up to jump.");
-  const [flash,setFlash]=useState<"good"|"wrong"|null>(null);
-  const [missionComplete,setMissionComplete]=useState(false);
-  const [gameOver,setGameOver]=useState(false);
-  const [soundOn,setSoundOn]=useState(true);
-  const [captureBurst,setCaptureBurst]=useState<{label:string;emoji:string;id:number}|null>(null);
+  const { user } = useAuth(); const uid = user?.id;
+  const [settings, setSettings] = useState<RunnerSettings>(() => loadSettings(uid));
+  const [progress, setProgress] = useState<RunnerProgress>(() => loadProgress(uid));
+  const [view, setView] = useState<"title" | "worlds" | "play">("title");
+  const [world, setWorld] = useState(() => Math.min(MISSIONS.length - 1, loadProgress(uid).last || 0));
+  const [runKey, setRunKey] = useState(0);
+  const [panel, setPanel] = useState<null | "settings" | "how">(null);
+  const audioRef = useRef<RunnerAudio | null>(null); if (!audioRef.current) audioRef.current = new RunnerAudio();
+  const audio = audioRef.current;
+  const settingsRef = useRef(settings); settingsRef.current = settings;
 
-  const touchStart=useRef<{x:number;y:number}|null>(null);
-  const nextId=useRef(1);
-  const thingsRef=useRef<FallingThing[]>([]);
-  const laneRef=useRef(lane);
-  const jumpingRef=useRef(jumping);
-  const heartsRef=useRef(hearts);
-  const caughtRef=useRef(caught);
-  const startedRef=useRef(started);
-  const missionCompleteRef=useRef(missionComplete);
-  const gameOverRef=useRef(gameOver);
-  const audioRef=useRef<AudioContext|null>(null);
-  const mission=MISSIONS[missionIndex % MISSIONS.length];
-  const speed=SPEED[difficulty];
+  useEffect(() => { saveSettings(uid, settings); audio.setVolumes(settings.music, settings.sfx); }, [settings, uid, audio]);
+  useEffect(() => () => { stopSpeaking(); audio.dispose(); }, [audio]);
 
-  useEffect(()=>{laneRef.current=lane;},[lane]);
-  useEffect(()=>{jumpingRef.current=jumping;},[jumping]);
-  useEffect(()=>{heartsRef.current=hearts;},[hearts]);
-  useEffect(()=>{caughtRef.current=caught;},[caught]);
-  useEffect(()=>{startedRef.current=started;},[started]);
-  useEffect(()=>{missionCompleteRef.current=missionComplete;},[missionComplete]);
-  useEffect(()=>{gameOverRef.current=gameOver;},[gameOver]);
-
-  const updateThings=useCallback((next:FallingThing[]|((current:FallingThing[])=>FallingThing[]))=>{
-    const value=typeof next==="function" ? next(thingsRef.current) : next;
-    thingsRef.current=value;
-    setThings(value);
-    return value;
-  },[]);
-
-  const sfx=useCallback((kind:"catch"|"wrong"|"jump"|"move"|"complete")=>{
-    if(!soundOn) return;
-    try{
-      const ctx=audioRef.current || new AudioContext();
-      audioRef.current=ctx;
-      void ctx.resume();
-      const now=ctx.currentTime;
-      const tones=kind==="catch"?[[740,0],[980,.07]]:kind==="wrong"?[[190,0],[135,.12]]:kind==="jump"?[[360,0],[520,.09]]:kind==="move"?[[260,0]]:[[523,0],[659,.1],[784,.2],[1047,.32]];
-      tones.forEach(([freq,offset])=>{
-        const o=ctx.createOscillator(); const g=ctx.createGain();
-        o.type=kind==="wrong"?"sawtooth":"sine"; o.frequency.setValueAtTime(freq,now+offset);
-        g.gain.setValueAtTime(.0001,now+offset); g.gain.exponentialRampToValueAtTime(kind==="move"?.025:.08,now+offset+.015); g.gain.exponentialRampToValueAtTime(.0001,now+offset+.14);
-        o.connect(g); g.connect(ctx.destination); o.start(now+offset); o.stop(now+offset+.16);
-      });
-    }catch{}
-  },[soundOn]);
-
-  const say=useCallback((text:string,calm=false)=>{
+  const say = useCallback((text: string, calm = false) => {
+    if (!settingsRef.current.voice) return;
     stopSpeaking();
-    void speakCharacterAI(text,{calmMode:calm,onFallback:()=>{
-      if(!("speechSynthesis" in window))return;
-      window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=.92; window.speechSynthesis.speak(u);
-    }});
-  },[]);
+    void speakCharacterAI(text, { calmMode: calm, onFallback: () => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; u.pitch = 1.1; window.speechSynthesis.speak(u); } });
+  }, []);
+  const click = () => { audio.ensure(); audio.play("select"); };
+  const hover = () => { audio.ensure(); audio.play("hover"); };
+  const play = (i: number) => { click(); enterImmersive(); setWorld(i); setRunKey(k => k + 1); setView("play"); };
+  const exit = () => { stopSpeaking(); leaveImmersive(); onBack(); };
+  const dw = settings.dwellMenus;
 
-  const announceMission=useCallback(()=>{
-    setMessage(mission.action+"!");
-    say("Level "+(missionIndex+1)+". "+mission.theme.name+". "+mission.action+". Swipe left or right to move. Swipe up to jump over the wrong things.",difficulty==="easy");
-  },[mission,missionIndex,say,difficulty]);
-
-  const jump=useCallback(()=>{
-    if(!startedRef.current||gameOverRef.current||missionCompleteRef.current||jumpingRef.current)return;
-    sfx("jump"); setJumping(true); jumpingRef.current=true;
-    window.setTimeout(()=>{setJumping(false);jumpingRef.current=false;},difficulty==="hard"?500:650);
-  },[difficulty,sfx]);
-
-  const moveLane=useCallback((direction:-1|1)=>{
-    if(!startedRef.current||gameOverRef.current||missionCompleteRef.current)return;
-    sfx("move");
-    setLane(current=>Math.max(0,Math.min(2,current+direction)));
-  },[sfx]);
-
-  useEffect(()=>{
-    const key=(e:KeyboardEvent)=>{if(e.key==="ArrowLeft")moveLane(-1);if(e.key==="ArrowRight")moveLane(1);if(e.key==="ArrowUp"||e.key===" "){e.preventDefault();jump();}};
-    window.addEventListener("keydown",key); return()=>window.removeEventListener("keydown",key);
-  },[moveLane,jump]);
-
-  useEffect(()=>{if(started&&!gameOver&&!missionComplete)announceMission();},[started,gameOver,missionComplete,missionIndex,announceMission]);
-
-  useEffect(()=>{
-    if(!started||gameOver||missionComplete)return;
-    const timer=window.setInterval(()=>{
-      const isTarget=Math.random()<.48;
-      const source=isTarget?mission.target:mission.distractors[Math.floor(Math.random()*mission.distractors.length)];
-      updateThings(current=>[...current.filter(i=>i.y<105),{...source,id:nextId.current++,lane:Math.floor(Math.random()*3),y:-10,isTarget,handled:false}]);
-    },speed.spawn);
-    return()=>window.clearInterval(timer);
-  },[started,gameOver,missionComplete,mission,speed.spawn,updateThings]);
-
-  useEffect(()=>{
-    if(!started||gameOver||missionComplete)return;
-    const timer=window.setInterval(()=>{
-      let got:FallingThing|null=null;
-      let wrong:FallingThing|null=null;
-      const nextThings:FallingThing[]=[];
-
-      for(const item of thingsRef.current){
-        const nextY=item.y+speed.fall;
-        if (difficulty === "easy" && item.isTarget && !item.handled && nextY >= 62 && nextY < 78 && !jumpingRef.current) {
-          laneRef.current=item.lane;
-          setLane(item.lane);
-        }
-
-        const captureStart=difficulty==="easy"?72:78;
-        const captureEnd=difficulty==="easy"?97:94;
-        let nextItem={...item,y:nextY};
-
-        if(!item.handled&&nextY>=captureStart&&nextY<=captureEnd&&item.lane===laneRef.current&&!jumpingRef.current){
-          nextItem={...nextItem,handled:true};
-          if(item.isTarget&&!got) got=nextItem;
-          else if(!item.isTarget&&!wrong) wrong=nextItem;
-        }
-
-        if(nextItem.y<108&&!(nextItem.handled&&nextItem.y>96)) nextThings.push(nextItem);
-      }
-
-      updateThings(nextThings);
-
-      if(got){
-        const item=got;
-        const nextCaught=caughtRef.current+1;
-        caughtRef.current=nextCaught;
-        setCaught(nextCaught);
-        setScore(v=>v+(difficulty==="hard"?40:difficulty==="medium"?25:15));
-        setFlash("good");
-        sfx("catch");
-        const burstId=Date.now();
-        setCaptureBurst({label:item.label,emoji:item.emoji,id:burstId});
-        navigator.vibrate?.(45);
-        const line=celebrationLine(item.label);
-        setMessage("Captured "+nextCaught+" of "+mission.goal+"! "+line);
-        celebrateEyeGaze(false);
-        window.setTimeout(()=>setFlash(null),500);
-        window.setTimeout(()=>setCaptureBurst(current=>current?.id===burstId?null:current),900);
-        if(nextCaught>=mission.goal){
-          missionCompleteRef.current=true;
-          setMissionComplete(true);
-          updateThings([]);
-          sfx("complete");
-          setMessage("Level complete! "+nextCaught+" of "+mission.goal+" captured.");
-          say("Level complete! You found all the "+mission.target.label+"s. Great job!");
-        }
-      }
-
-      if(wrong){
-        const item=wrong;
-        const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);
-        heartsRef.current=next;
-        setHearts(next);
-        setFlash("wrong");
-        sfx("wrong");
-        setMessage("That is a "+item.label+". Find "+mission.target.label+"!");
-        say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);
-        window.setTimeout(()=>setFlash(null),350);
-        if(difficulty!=="easy"&&next<=0){
-          gameOverRef.current=true;
-          setGameOver(true);
-          setStarted(false);
-          updateThings([]);
-          say("Nice try. Let's run that level again.");
-        }
-      }
-    },32);
-    return()=>window.clearInterval(timer);
-  },[started,gameOver,missionComplete,speed.fall,difficulty,mission,say,sfx,updateThings]);
-
-  useEffect(()=>()=>{stopSpeaking();void audioRef.current?.close();},[]);
-
-  const resetLevel=(index:number,resetScore=false)=>{
-    setMissionIndex(index);setCaught(0);caughtRef.current=0;setHearts(3);heartsRef.current=3;setLane(1);updateThings([]);setCaptureBurst(null);setMissionComplete(false);missionCompleteRef.current=false;setGameOver(false);gameOverRef.current=false;
-    if(resetScore)setScore(0);
-    setMessage("Get ready!");
-  };
-  const enterImmersive=()=>{ try { const el=document.documentElement as any; const request=el.requestFullscreen||el.webkitRequestFullscreen; if(request) void request.call(el).catch?.(()=>{}); } catch {} };
-  const startGame=()=>{stopSpeaking();enterImmersive();setStarted(true);startedRef.current=true;resetLevel(missionIndex,true);};
-  const openSetup=(step:"difficulty"|"level"="level")=>{
-    setStarted(false);
-    startedRef.current=false;
-    updateThings([]);
-    setMissionComplete(false);
-    missionCompleteRef.current=false;
-    setGameOver(false);
-    gameOverRef.current=false;
-    setSetupStep(step);
-  };
-  const retry=()=>{setStarted(true);startedRef.current=true;resetLevel(missionIndex,false);};
-  const nextMission=()=>resetLevel((missionIndex+1)%MISSIONS.length,false);
-
-  const swipeEnd=(x:number,y:number)=>{
-    const start=touchStart.current;touchStart.current=null;if(!start)return;
-    const dx=x-start.x,dy=y-start.y,ax=Math.abs(dx),ay=Math.abs(dy);if(Math.max(ax,ay)<24)return;
-    if(ay>ax&&dy<0)jump();else if(ax>=ay&&dx<0)moveLane(-1);else if(ax>=ay&&dx>0)moveLane(1);
-  };
-
-  const playerLeft=["16.66%","50%","83.33%"][lane];
-  const progress=Math.min(100,(caught/mission.goal)*100);
-
-  if(!started&&!gameOver){
-    return(
-      <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden text-white p-3 sm:p-5" style={{background:"radial-gradient(circle at 70% 10%, #154a73, #06111f 58%, #02050a)"}}>
-        <style>{"@keyframes runnerSetupIn{from{opacity:.25;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}} .runner-setup-in{animation:runnerSetupIn .22s ease-out}"}</style>
-        <div className="absolute inset-0 opacity-30 pointer-events-none" style={{backgroundImage:"linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px, transparent 1px)",backgroundSize:"42px 42px"}} />
-        <div className="relative max-w-4xl mx-auto h-full flex flex-col">
-          <div className="flex items-center justify-between gap-2 flex-shrink-0">
-            <button type="button" onClick={onBack} className="min-h-11 px-3 sm:px-4 rounded-2xl bg-slate-950/80 border border-white/20 font-black flex items-center gap-2 shadow-xl"><ArrowLeft className="w-5 h-5"/> Games</button>
-            <div className="rounded-full bg-white/10 border border-white/15 px-3 py-2 text-xs font-black">READING RUNNER</div>
-            <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-2xl bg-slate-950/80 border border-white/20 grid grid-cols-1 place-items-center" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
+  return (
+    <main className="rr-font fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-slate-950 text-white select-none">
+      <style>{CSS}</style>
+      {view === "title" && (
+        <section className="absolute inset-0" data-runner-ui>
+          <Backdrop mission={MISSIONS[world]} quality={settings.quality} audio={audio} />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950/70 to-transparent" />
+          <div className="absolute left-3 top-3 z-10 flex gap-2 sm:left-5 sm:top-5" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+            <Dwell dwell={dw} onSelect={exit} onHover={hover} className="flex min-h-12 items-center gap-2 rounded-2xl bg-black/40 px-4 font-black backdrop-blur" label="Back to games"><ArrowLeft className="h-5 w-5" />Games</Dwell>
           </div>
-
-          <div className="flex-1 min-h-0 grid grid-cols-1 place-items-center py-3">
-            {setupStep==="difficulty" ? (
-              <section key="difficulty" className="runner-setup-in w-full max-w-3xl rounded-[2rem] bg-white text-slate-950 border-4 border-cyan-400 p-5 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,.45)]">
-                <p className="text-xs font-black uppercase tracking-[.18em] text-cyan-700">Step 1 of 2</p>
-                <h1 className="text-3xl sm:text-5xl font-black mt-2">How fast should we run?</h1>
-                <p className="font-bold text-slate-600 mt-2">Choose one. Easy is built for young learners and gives lots of time.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
-                  {(Object.keys(SPEED) as Difficulty[]).map(level=>(
-                    <button key={level} type="button" onClick={()=>setDifficulty(level)} className={"min-h-24 rounded-2xl border-4 p-4 text-left transition touch-manipulation shadow-md "+(difficulty===level?"border-cyan-500 bg-cyan-100 text-slate-950 ring-4 ring-cyan-300/40":"border-slate-300 bg-slate-100 text-slate-950 hover:border-cyan-400 hover:bg-cyan-50")}>
-                      <div className="text-2xl font-black">{level==="easy"?"🧸":level==="medium"?"🏃":"⚡"} {SPEED[level].label}</div>
-                      <div className="text-sm font-bold text-slate-600 mt-1">{SPEED[level].description}</div>
-                      {difficulty===level&&<div className="text-cyan-800 font-black mt-2">✓ Selected</div>}
-                    </button>
-                  ))}
-                </div>
-                <button type="button" onClick={()=>setSetupStep("level")} className="mt-5 w-full min-h-16 rounded-2xl bg-cyan-300 text-slate-950 text-xl font-black shadow-xl">Next: choose a world →</button>
-              </section>
-            ) : (
-              <section key="level" className="runner-setup-in w-full max-w-4xl h-full max-h-[760px] rounded-[2rem] bg-white text-slate-950 border-4 border-cyan-400 p-4 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,.45)] flex flex-col min-h-0">
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <button type="button" onClick={()=>setSetupStep("difficulty")} className="min-h-11 rounded-xl bg-slate-200 border-2 border-slate-300 text-slate-950 px-3 font-black shadow-sm">← Speed</button>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black uppercase tracking-[.18em] text-cyan-700">Step 2 of 2</p>
-                    <h1 className="text-2xl sm:text-4xl font-black">Choose a world</h1>
-                  </div>
-                  <div className="rounded-full bg-cyan-300 text-slate-950 px-3 py-2 text-xs font-black">{SPEED[difficulty].label}</div>
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
-                  {MISSIONS.map((m,i)=>(
-                    <button key={i} type="button" onClick={()=>setMissionIndex(i)} className={"min-h-[92px] rounded-2xl border-4 p-2 text-center touch-manipulation shadow-md "+(missionIndex===i?"border-cyan-500 bg-cyan-100 text-slate-950 ring-4 ring-cyan-300/40":"border-slate-300 bg-slate-100 text-slate-950 hover:border-cyan-400 hover:bg-cyan-50")}>
-                      <div className="text-3xl sm:text-4xl">{m.theme.badge}</div>
-                      <div className="font-black text-xs mt-1">LEVEL {i+1}</div>
-                      <div className="text-[10px] font-bold text-slate-600 truncate">{m.theme.name}</div>
-                    </button>
-                  ))}
-                </div>
-                <div className="pt-3 flex-shrink-0">
-                  <div className="rounded-xl bg-slate-100 border-2 border-slate-200 text-slate-950 px-3 py-2 text-center font-black text-sm truncate shadow-sm">{MISSIONS[missionIndex].target.emoji} {MISSIONS[missionIndex].action}</div>
-                  <button type="button" onClick={startGame} className="mt-2 w-full min-h-16 rounded-2xl bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-400 text-slate-950 text-xl font-black shadow-xl">▶ Start Level {missionIndex+1}</button>
-                </div>
-              </section>
-            )}
+          <div className="absolute right-3 top-3 z-10 flex gap-2 sm:right-5 sm:top-5" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+            <Dwell dwell={dw} onSelect={() => { click(); setPanel("how"); }} onHover={hover} className="grid h-12 w-12 place-items-center rounded-2xl bg-black/40 backdrop-blur" label="How to play"><HelpCircle className="h-6 w-6" /></Dwell>
+            <Dwell dwell={dw} onSelect={() => { click(); setPanel("settings"); }} onHover={hover} className="grid h-12 w-12 place-items-center rounded-2xl bg-black/40 backdrop-blur" label="Settings"><Settings className="h-6 w-6" /></Dwell>
           </div>
+          <div className="relative flex h-full flex-col justify-center px-6 sm:px-12">
+            <div className="rr-up max-w-xl">
+              <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase tracking-[.25em] backdrop-blur">🚇 Run · Read · Rescue</p>
+              <h1 className="rr-title text-6xl font-black italic leading-[.86] tracking-tight sm:text-8xl"><span className="text-amber-300">READING</span><br />RUNNER</h1>
+              <p className="mt-5 max-w-md text-lg font-bold leading-snug text-white/90 sm:text-xl">Race down the train tracks with Riley and Buddy. Dodge trains, jump barriers, grab coins — and run into the card that matches the word!</p>
+              <div className="mt-7 flex flex-wrap items-center gap-3">
+                <Dwell dwell={dw} onSelect={() => { click(); setView("worlds"); }} onHover={hover} className="flex min-h-[4.5rem] items-center gap-3 rounded-[1.6rem] border-b-[6px] border-amber-600 bg-gradient-to-b from-yellow-300 to-amber-400 px-10 text-3xl font-black text-amber-950 shadow-2xl"><Play className="h-8 w-8 fill-current" />PLAY</Dwell>
+                {progress.worlds[world]?.clears ? null : <Dwell dwell={dw} onSelect={() => play(world)} onHover={hover} className="min-h-14 rounded-2xl bg-white/15 px-5 text-lg font-black backdrop-blur">▶ Quick start · {MISSIONS[world].look.badge} {MISSIONS[world].look.name}</Dwell>}
+              </div>
+              <p className="mt-6 flex items-center gap-3 text-sm font-black text-white/80">
+                <span className="flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5"><Star className="h-4 w-4 fill-yellow-300 text-yellow-300" />{Object.values(progress.worlds).reduce((a, w) => a + w.stars, 0)} / {MISSIONS.length * 3}</span>
+                <span className="flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5"><Coins className="h-4 w-4 text-yellow-300" />{progress.coins}</span>
+                <span className="flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5">{settings.steer === "look" ? <><Eye className="h-4 w-4" />Look to steer</> : <><Hand className="h-4 w-4" />Swipe & tap</>}</span>
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+      {view === "worlds" && <WorldsScreen settings={settings} progress={progress} dwell={dw} onHover={hover} onBack={() => { click(); setView("title"); }} onPlay={play}
+        onSpeed={d => { click(); setSettings(s => ({ ...s, difficulty: d })); }} onSettings={() => { click(); setPanel("settings"); }} />}
+      {view === "play" && <PlayView key={runKey} index={world} settings={settings} audio={audio} say={say} dwell={dw} onHover={hover}
+        onRecord={r => { const out = recordRun(uid, world, r); setProgress(out.progress); return out; }}
+        onReplay={() => play(world)} onNext={() => play((world + 1) % MISSIONS.length)}
+        onWorlds={() => { click(); stopSpeaking(); setView("worlds"); }} onExit={exit}
+        onSettings={patch => setSettings(s => ({ ...s, ...patch }))} />}
+      {panel === "settings" && <SettingsPanel settings={settings} dwell={dw} onHover={hover} onChange={setSettings} onClose={() => { click(); setPanel(null); }} />}
+      {panel === "how" && <HowTo steer={settings.steer} dwell={dw} onHover={hover} onClose={() => { click(); setPanel(null); }} />}
+    </main>
+  );
+}
+
+function WorldsScreen({ settings, progress, dwell, onHover, onBack, onPlay, onSpeed, onSettings }: { settings: RunnerSettings; progress: RunnerProgress; dwell: boolean; onHover: () => void; onBack: () => void; onPlay: (i: number) => void; onSpeed: (d: Difficulty) => void; onSettings: () => void }) {
+  const next = MISSIONS.findIndex((_, i) => !progress.worlds[i]?.clears);
+  return (
+    <section data-runner-ui className="rr-scroll absolute inset-0 overflow-y-auto" style={{ background: "radial-gradient(circle at 80% -10%, #3b5bdb 0%, #172554 40%, #0b1022 100%)" }}>
+      <div className="pointer-events-none absolute inset-0 opacity-[.07]" style={{ backgroundImage: "linear-gradient(90deg,#fff 1px,transparent 1px),linear-gradient(#fff 1px,transparent 1px)", backgroundSize: "48px 48px" }} />
+      <div className="sticky top-0 z-10 bg-gradient-to-b from-[#121c44] via-[#121c44]/90 to-transparent">
+        <header className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-3 pb-5 pt-3 sm:px-6" style={{ paddingTop: "max(.75rem, env(safe-area-inset-top))" }}>
+          <Dwell dwell={dwell} onSelect={onBack} onHover={onHover} className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10" label="Back"><ArrowLeft className="h-6 w-6" /></Dwell>
+          <div className="mr-auto min-w-0"><p className="text-[10px] font-black uppercase tracking-[.3em] text-amber-300">Reading Runner</p><h2 className="text-2xl font-black sm:text-3xl">Choose a world</h2></div>
+          <div className="order-last flex w-full gap-1.5 rounded-2xl bg-black/30 p-1.5 sm:order-none sm:w-auto" role="radiogroup" aria-label="Speed">
+            {SPEEDS.map(s => <Dwell key={s.id} dwell={dwell} onSelect={() => onSpeed(s.id)} onHover={onHover} className={"min-h-12 flex-1 rounded-xl px-3 text-base font-black sm:flex-none sm:px-4 " + (settings.difficulty === s.id ? "bg-amber-300 text-amber-950 shadow-lg" : "text-white/80")} label={s.name + " speed"}>{s.icon} {s.name}</Dwell>)}
+          </div>
+          <Dwell dwell={dwell} onSelect={onSettings} onHover={onHover} className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10" label="Settings"><Settings className="h-6 w-6" /></Dwell>
+        </header>
+      </div>
+      <div className="relative mx-auto max-w-6xl px-3 pb-10 sm:px-6">
+        <p className="mb-4 text-sm font-bold text-white/70">{SPEEDS.find(s => s.id === settings.difficulty)!.note}{dwell ? " · Look at a world to start it." : ""}</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {MISSIONS.map((m, i) => {
+            const w = progress.worlds[i];
+            return (
+              <Dwell key={i} dwell={dwell} onSelect={() => onPlay(i)} onHover={onHover} label={`World ${i + 1}, ${m.look.name}: ${m.action}`}
+                className={"rr-up group isolate flex min-h-[188px] flex-col rounded-[1.6rem] border-2 p-3 text-left shadow-xl " + (i === next ? "border-amber-300 ring-4 ring-amber-300/40" : "border-white/20")}>
+                <span className="absolute inset-0 -z-10" style={{ background: m.look.ui }} />
+                <span className="absolute inset-0 -z-10 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                <span className="absolute -right-2 -top-3 text-6xl opacity-90 drop-shadow-lg transition group-hover:scale-110">{m.look.badge}</span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-white/85">World {i + 1}</span>
+                <span className="mt-0.5 pr-10 text-xl font-black leading-tight drop-shadow">{m.look.name}</span>
+                <span className="mt-auto flex items-center gap-2 rounded-xl bg-white px-2 py-1.5 text-slate-950 shadow"><span className="text-2xl leading-none">{m.target.emoji}</span><span className="truncate text-sm font-black uppercase">{m.target.label}</span><span className="ml-auto text-xs font-black text-slate-500">×{m.goal}</span></span>
+                <span className="mt-2 flex items-center gap-0.5">{[0, 1, 2].map(k => <Star key={k} className={"h-5 w-5 " + ((w?.stars || 0) > k ? "fill-yellow-300 text-yellow-300 drop-shadow" : "text-white/40")} />)}
+                  {i === next ? <span className="ml-auto rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-black text-amber-950">NEXT</span> : w?.best ? <span className="ml-auto text-[11px] font-black text-white/85">🏆 {w.best}</span> : null}</span>
+              </Dwell>
+            );
+          })}
         </div>
       </div>
-    );
-  }
+    </section>
+  );
+}
 
-  if(gameOver){
-    return <div className="fixed inset-0 z-[120] h-[100dvh] bg-[#050914] text-white grid grid-cols-1 place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🏁</div><h1 className="text-4xl font-black mt-3">Run it again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl font-black text-amber-300 mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-cyan-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>openSetup("level")} className="mt-2 w-full min-h-12 rounded-2xl bg-violet-600 font-black">☰ Choose level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
-  }
+type Toast = { id: number; tone: "good" | "oops" | "info"; emoji?: string; big: string; small?: string; long?: boolean };
 
-  return(
-    <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-[#030712] text-white p-2 sm:p-5 select-none">
-      <style>{"@keyframes roadMove{from{transform:translateY(-35px)}to{transform:translateY(0)}} @keyframes floatScene{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}} .road-stripes{animation:roadMove .55s linear infinite}.scene-float{animation:floatScene 3s ease-in-out infinite}"}</style>
-      <div className="max-w-6xl mx-auto h-full flex flex-col">
-        <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-          <button type="button" onClick={()=>openSetup("level")} className="min-h-10 sm:min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black text-sm flex items-center gap-1.5 flex-shrink-0">☰ <span className="hidden sm:inline">Setup</span></button>
-          <button type="button" onClick={announceMission} className="flex-1 min-w-0 min-h-10 sm:min-h-11 rounded-xl bg-slate-900 border border-white/15 px-3 text-left">
-            <div className="text-[9px] sm:text-xs uppercase tracking-wider font-black text-cyan-300 truncate">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div>
-            <div className="text-xs sm:text-base font-black truncate">{mission.target.emoji} {mission.action}</div>
+function PlayView({ index, settings, audio, say, dwell, onHover, onRecord, onReplay, onNext, onWorlds, onExit, onSettings }: {
+  index: number; settings: RunnerSettings; audio: RunnerAudio; say: (t: string, calm?: boolean) => void; dwell: boolean; onHover: () => void;
+  onRecord: (r: RunResult) => { newBest: boolean; firstClear: boolean }; onReplay: () => void; onNext: () => void; onWorlds: () => void; onExit: () => void; onSettings: (p: Partial<RunnerSettings>) => void;
+}) {
+  const mission = MISSIONS[index]; const T = mission.target;
+  const host = useRef<HTMLDivElement>(null); const gameRef = useRef<RunnerGame | null>(null); const inputRef = useRef<RunnerInput | null>(null);
+  const [hud, setHud] = useState<HudState | null>(null);
+  const [phase, setPhase] = useState<"intro" | "count" | "run" | "end">("intro");
+  const [count, setCount] = useState<string>("");
+  const [paused, setPaused] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [end, setEnd] = useState<{ r: RunResult; newBest: boolean; firstClear: boolean } | null>(null);
+  const [error, setError] = useState("");
+  const [hint, setHint] = useState(true);
+  const toastId = useRef(0); const catches = useRef(0);
+  const cbRef = useRef({ say, onRecord }); cbRef.current = { say, onRecord };
+
+  const show = useCallback((t: Omit<Toast, "id">) => setToast({ ...t, id: ++toastId.current }), []);
+  const intro = useCallback(() => cbRef.current.say(`World ${index + 1}. ${mission.look.name}. ${mission.action}!`), [index, mission]);
+
+  useEffect(() => {
+    const el = host.current; if (!el) return;
+    const input = new RunnerInput(el, { steer: settings.steer, dwellMs: settings.laneDelay }); inputRef.current = input;
+    input.onPause = () => { const g = gameRef.current; if (!g || g.sim.state !== "run" && g.sim.state !== "finish") return; const p = !g.isPaused(); g.setPaused(p); setPaused(p); audio.play("pause"); };
+    let game: RunnerGame | null = null;
+    try {
+      game = new RunnerGame(el, mission, { difficulty: settings.difficulty, assists: settings.assists[settings.difficulty], quality: settings.quality, cardStyle: settings.cardStyle, steer: settings.steer }, audio, input, {
+        onHud: setHud,
+        onEvent: (e: SimEvent) => {
+          const s = cbRef.current.say, label = (e.label || "").toUpperCase();
+          switch (e.t) {
+            case "card": { catches.current++; show({ tone: "good", emoji: e.emoji, big: label + "!", small: `${e.n} of ${mission.goal}` }); s(catches.current % 3 === 0 ? `${cap(e.label!)}! Great reading!` : `${cap(e.label!)}!`); navigator.vibrate?.(40); break; }
+            case "wrong": show({ tone: "oops", emoji: e.emoji, big: `That's ${/^[aeiou]/i.test(e.label!) ? "an" : "a"} ${label}`, small: `Find the ${T.label.toUpperCase()} ${T.emoji}`, long: true }); s(`That's ${/^[aeiou]/i.test(e.label!) ? "an" : "a"} ${e.label}. Find the ${T.label}!`, true); break;
+            case "miss": show({ tone: "info", emoji: T.emoji, big: `More ${T.label.toUpperCase()} coming!`, small: "Run into the matching card", long: true }); break;
+            case "crash": show({ tone: "oops", emoji: "💥", big: "Oops!", small: e.n != null && gameRef.current?.sim.cfg.loseHearts ? `${e.n} ${e.n === 1 ? "heart" : "hearts"} left` : "Keep running!" }); break;
+            case "magnet": show({ tone: "info", emoji: "🧲", big: "Coin magnet!" }); break;
+            case "shield": show({ tone: "info", emoji: "🛡️", big: "Bubble shield!" }); break;
+            case "shieldPop": show({ tone: "info", emoji: "🫧", big: "Shield saved you!" }); break;
+            case "goal": show({ tone: "good", emoji: "🏁", big: "You found them all!", small: "Run to the finish!", long: true }); s("You found them all! Run to the finish!"); break;
+            case "win": s("Great job! World complete!"); celebrateEyeGaze(false); break;
+            case "fail": s("Nice try! Let's run again.", true); break;
+          }
+        },
+        onEnd: r => { const out = cbRef.current.onRecord(r); setEnd({ r, ...out }); setPhase("end"); },
+      });
+      gameRef.current = game;
+    } catch (e) { console.error(e); setError("This device couldn't start the 3D game. Try Graphics: Low in Settings."); }
+
+    // intro: mission card while the camera sweeps around Riley, then 3-2-1-GO
+    const timers: number[] = [];
+    const at = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
+    intro();
+    at(2700, () => { setPhase("count"); setCount("3"); audio.play("count"); });
+    at(3400, () => { setCount("2"); audio.play("count"); });
+    at(4100, () => { setCount("1"); audio.play("count"); });
+    at(4800, () => { setCount("GO!"); audio.play("go"); game?.start(); setPhase("run"); });
+    at(5500, () => setCount(""));
+    at(10500, () => setHint(false));
+    const vis = () => { const g = gameRef.current; if (document.hidden && g && (g.sim.state === "run" || g.sim.state === "finish") && !g.isPaused()) { g.setPaused(true); setPaused(true); } };
+    document.addEventListener("visibilitychange", vis);
+    return () => { timers.forEach(window.clearTimeout); document.removeEventListener("visibilitychange", vis); game?.dispose(); input.dispose(); gameRef.current = null; inputRef.current = null; };
+    // settings that change the course rebuild the run; others apply live below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mission]);
+  useEffect(() => { if (inputRef.current) inputRef.current.opts = { steer: settings.steer, dwellMs: settings.laneDelay }; if (gameRef.current) gameRef.current.opts.steer = settings.steer; }, [settings.steer, settings.laneDelay]);
+  useEffect(() => { if (!toast) return; const id = toast.id; const h = window.setTimeout(() => setToast(t => (t?.id === id ? null : t)), toast.long ? 2100 : 1250); return () => window.clearTimeout(h); }, [toast]);
+
+  const pause = () => { const g = gameRef.current; if (!g) return; g.setPaused(true); setPaused(true); audio.play("pause"); };
+  const resume = () => { audio.play("select"); gameRef.current?.setPaused(false); setPaused(false); };
+  const look = settings.steer === "look";
+  const running = phase === "run" && !paused && !end;
+  const goal = mission.goal;
+
+  return (
+    <div className="absolute inset-0 bg-black">
+      <div ref={host} className="absolute inset-0" />
+      {error && <div className="absolute inset-0 grid place-items-center bg-slate-950 p-6 text-center" data-runner-ui><div><p className="text-xl font-black">{error}</p><Dwell dwell={dwell} onSelect={onWorlds} className="mt-5 min-h-14 rounded-2xl bg-white px-6 font-black text-slate-950">Back to worlds</Dwell></div></div>}
+
+      {/* look-up-to-jump zone */}
+      {look && running && <div className={"pointer-events-none absolute inset-x-0 top-0 h-[17%] transition-colors duration-200 " + (hud?.lookingUp ? "bg-gradient-to-b from-amber-300/35 to-transparent" : "bg-gradient-to-b from-white/[.07] to-transparent")}>
+        <p className={"absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-[11px] font-black uppercase tracking-widest transition " + (hud?.lookingUp ? "bg-amber-300 text-amber-950" : "text-white/45")}>⤒ look up here to jump</p>
+      </div>}
+
+      {/* HUD */}
+      {phase !== "intro" && !end && <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start gap-2 p-2 sm:p-3" style={{ paddingTop: "max(.5rem, env(safe-area-inset-top))" }}>
+        <Dwell dwell={dwell} onSelect={pause} onHover={onHover} className="pointer-events-auto grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-black/45 backdrop-blur" label="Pause"><Pause className="h-6 w-6" /></Dwell>
+        <div className="flex flex-1 justify-center">
+          <button type="button" onClick={intro} className="pointer-events-auto flex items-center gap-2 rounded-2xl bg-white/95 py-1.5 pl-1.5 pr-3 text-slate-950 shadow-xl sm:gap-3" aria-label={`Mission: ${mission.action}. ${hud?.caught ?? 0} of ${goal}`}>
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-amber-100 text-3xl sm:h-12 sm:w-12">{T.emoji}</span>
+            <span className="text-left"><span className="block text-lg font-black uppercase leading-none sm:text-xl">{T.label}</span>
+              <span className="mt-1 flex gap-1">{Array.from({ length: goal }, (_, i) => <span key={i} className={"rr-pip h-2.5 w-2.5 rounded-full sm:h-3 sm:w-3 " + (i < (hud?.caught || 0) ? "scale-110 bg-emerald-500" : "bg-slate-300")} />)}</span></span>
+            <span className="ml-1 text-xl font-black tabular-nums text-emerald-600 sm:text-2xl">{hud?.caught || 0}<span className="text-sm text-slate-400">/{goal}</span></span>
           </button>
-          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 border border-white/15 grid grid-cols-1 place-items-center flex-shrink-0" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
         </div>
-
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2 flex-shrink-0 text-center">
-          <div className="rounded-xl bg-cyan-300 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Level</div><div className="font-black text-sm sm:text-base">{missionIndex+1}/{MISSIONS.length}</div></div>
-          <div className="rounded-xl bg-emerald-400 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Caught</div><div className="font-black text-sm sm:text-base">{caught}/{mission.goal}</div></div>
-          <div className="rounded-xl bg-rose-500/20 text-rose-200 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Hearts</div><div className="font-black text-sm sm:text-base">❤️ {hearts}</div></div>
-          <div className="rounded-xl bg-amber-400/15 text-amber-300 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Score</div><div className="font-black text-sm sm:text-base">{score}</div></div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <div className="flex items-center gap-1.5 rounded-2xl bg-black/45 px-3 py-1.5 font-black tabular-nums backdrop-blur"><Coins className="h-5 w-5 text-yellow-300" />{hud?.coins || 0}</div>
+          {hud?.loseHearts && <div className="flex items-center gap-0.5 rounded-2xl bg-black/45 px-2 py-1.5 backdrop-blur">{[0, 1, 2].map(i => <Heart key={i} className={"h-5 w-5 " + (i < hud.hearts ? "fill-rose-500 text-rose-300" : "text-white/30")} />)}</div>}
+          {(hud?.magnet || 0) > 0 && <div className="rounded-2xl bg-rose-500/80 px-2.5 py-1 text-sm font-black backdrop-blur">🧲 {Math.ceil(hud!.magnet)}s</div>}
+          {(hud?.shield || 0) > 0 && <div className="rounded-2xl bg-cyan-500/80 px-2.5 py-1 text-sm font-black backdrop-blur">🛡️ {Math.ceil(hud!.shield)}s</div>}
         </div>
+      </div>}
 
-        <div
-          className={"relative flex-1 min-h-0 overflow-hidden rounded-2xl sm:rounded-[2rem] border-4 touch-none shadow-2xl "+(flash==="good"?"border-emerald-300":flash==="wrong"?"border-rose-400":"border-white/15")}
-          style={{background:mission.theme.sky}}
-          onPointerDown={e=>{touchStart.current={x:e.clientX,y:e.clientY};}}
-          onPointerUp={e=>swipeEnd(e.clientX,e.clientY)}
-          onPointerCancel={()=>{touchStart.current=null;}}
-        >
-          <div className="absolute inset-x-0 bottom-[35%] h-[24%]" style={{background:mission.theme.horizon}}/>
-          <div className="absolute inset-x-0 bottom-0 h-[36%]" style={{background:mission.theme.ground}}/>
-          <div className="absolute inset-x-0 bottom-[37%] flex justify-around items-end px-4 text-5xl sm:text-7xl opacity-95 scene-float">{mission.theme.scenery.map((x,i)=><span key={i} className={i%2?"scale-75":"scale-100"}>{x}</span>)}</div>
-
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[94%] sm:w-[76%] h-[78%]" style={{background:mission.theme.road,clipPath:"polygon(40% 0,60% 0,100% 100%,0 100%)"}}>
-            <div className="absolute inset-0 opacity-35" style={{background:"linear-gradient(90deg,transparent 32%,rgba(255,255,255,.35) 33%,rgba(255,255,255,.35) 34%,transparent 35%,transparent 65%,rgba(255,255,255,.35) 66%,rgba(255,255,255,.35) 67%,transparent 68%)"}}/>
-            <div className="road-stripes absolute inset-x-[20%] top-0 bottom-0 opacity-60" style={{backgroundImage:"repeating-linear-gradient(to bottom,rgba(255,255,255,.75) 0 18px,transparent 18px 56px)",backgroundSize:"8px 56px",backgroundPosition:"50% 0",backgroundRepeat:"repeat-y"}}/>
+      {/* mission intro card */}
+      {phase === "intro" && !error && <div className="pointer-events-none absolute inset-0 grid place-items-center p-4">
+        <div className="rr-pop flex flex-col items-center text-center">
+          <p className="rounded-full bg-black/45 px-4 py-1 text-sm font-black uppercase tracking-[.3em] text-amber-200 backdrop-blur">World {index + 1} · {mission.look.name}</p>
+          <div className="rr-float mt-4 flex h-52 w-44 flex-col items-center justify-center rounded-[2rem] border-[6px] border-[#1b2a4a] bg-white text-slate-950 shadow-[0_0_60px_rgba(255,224,102,.75)] sm:h-64 sm:w-52">
+            <span className="text-8xl leading-none sm:text-9xl">{T.emoji}</span>
+            <span className="mt-3 rounded-xl bg-[#1b2a4a] px-4 py-1 text-2xl font-black uppercase text-white sm:text-3xl">{T.label}</span>
           </div>
-
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-slate-950/85 border border-white/20 px-4 py-2 font-black text-sm sm:text-base whitespace-nowrap shadow-xl">{mission.target.emoji} {mission.action}</div>
-
-          {things.map(item=><div key={item.id} className="absolute z-30 -translate-x-1/2 -translate-y-1/2 transition-[left] duration-75" style={{left:["24%","50%","76%"][item.lane],top:item.y+"%",transform:"translate(-50%,-50%) scale("+(difficulty==="easy"&&item.isTarget?1.28:1)+")"}}><TargetToken item={item}/></div>)}
-
-          <div className="absolute z-40 -translate-x-1/2 transition-[left] duration-150 ease-out" style={{left:["24%","50%","76%"][lane],bottom:"4%"}}><RunnerAvatar jumping={jumping}/></div>
-
-          {captureBurst&&<div className="absolute inset-0 z-45 pointer-events-none grid grid-cols-1 place-items-center"><div className="rounded-[2rem] bg-emerald-500/95 border-4 border-white text-white px-7 py-5 text-center shadow-[0_0_55px_rgba(52,211,153,.8)] animate-bounce"><div className="text-7xl">{captureBurst.emoji}</div><div className="text-3xl sm:text-4xl font-black">✓ CAPTURED!</div><div className="text-xl font-black uppercase">{captureBurst.label}</div></div></div>}
-          {difficulty==="easy"&&<div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-emerald-100/95 text-emerald-900 border-2 border-white px-4 py-2 text-xs sm:text-sm font-black shadow-lg">🧸 TODDLER ASSIST ON · targets gently pull into your lane</div>}
-                    {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid grid-cols-1 place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-amber-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-violet-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You found all the {mission.target.label}s.</p><button type="button" onClick={nextMission} className="mt-5 w-full min-h-15 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 text-white font-black">{missionIndex===MISSIONS.length-1?"Play World 1 again":"Next world →"}</button></div></div>}
+          <h2 className="rr-title mt-5 text-4xl font-black italic sm:text-6xl">{mission.action}!</h2>
         </div>
+      </div>}
+      {count && <div className="pointer-events-none absolute inset-0 grid place-items-center"><div key={count} className="rr-count rr-title text-[9rem] font-black italic leading-none text-amber-300 sm:text-[12rem]">{count}</div></div>}
 
-        <div className="hidden sm:grid mt-3 grid-cols-3 gap-2 text-center text-xs sm:text-sm font-black text-white/70"><div className="rounded-xl bg-slate-900 p-2">← Swipe left</div><div className="rounded-xl bg-slate-900 p-2">↑ Jump</div><div className="rounded-xl bg-slate-900 p-2">Swipe right →</div></div>
+      {/* toasts */}
+      {toast && !end && <div className="pointer-events-none absolute inset-x-0 top-[24%] flex justify-center px-4">
+        <div key={toast.id} className={"rr-toast flex items-center gap-3 rounded-[1.6rem] border-4 px-5 py-3 shadow-2xl backdrop-blur " + (toast.long ? "rr-toast-long " : "") + (toast.tone === "good" ? "border-white bg-emerald-500/95" : toast.tone === "oops" ? "border-white/80 bg-slate-900/90" : "border-white/70 bg-indigo-600/90")}>
+          {toast.emoji && <span className="text-5xl leading-none sm:text-6xl">{toast.emoji}</span>}
+          <span><span className="block text-3xl font-black leading-none sm:text-4xl">{toast.tone === "good" && toast.emoji !== "🏁" ? "✓ " : ""}{toast.big}</span>{toast.small && <span className="mt-1 block text-base font-black text-white/85 sm:text-lg">{toast.small}</span>}</span>
+        </div>
+      </div>}
+
+      {/* how-to-steer hint */}
+      {hint && phase === "run" && !paused && <div className="pointer-events-none absolute inset-x-0 flex justify-center px-4" style={{ bottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
+        <p className="rr-up rounded-2xl bg-black/55 px-4 py-2 text-center text-sm font-black backdrop-blur sm:text-base">{look ? "👀 Look left · middle · right to change lanes — look up (or click) to jump" : "👆 Swipe ← → to change lanes · swipe ↑ or tap the middle to jump"}</p>
+      </div>}
+
+      {paused && !end && <PauseMenu dwell={dwell} onHover={onHover} settings={settings} onResume={resume} onRestart={onReplay} onWorlds={onWorlds} onExit={onExit} onSettings={onSettings} />}
+      {end && <Results end={end} mission={mission} index={index} dwell={dwell} onHover={onHover} onNext={onNext} onReplay={onReplay} onWorlds={onWorlds} />}
+    </div>
+  );
+}
+
+function Panel({ children, onClose, title, wide }: { children: ReactNode; onClose?: () => void; title?: string; wide?: boolean }) {
+  return (
+    <div data-runner-ui className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-4" onClick={onClose}>
+      <div className={"rr-pop my-auto w-full rounded-[2rem] border border-white/15 bg-slate-950/95 p-5 shadow-2xl sm:p-6 " + (wide ? "max-w-xl" : "max-w-md")} onClick={e => e.stopPropagation()}>
+        {title && <div className="mb-3 flex items-center gap-3"><h2 className="flex-1 text-2xl font-black sm:text-3xl">{title}</h2>{onClose && <button type="button" onClick={onClose} className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10" aria-label="Close"><X className="h-6 w-6" /></button>}</div>}
+        {children}
       </div>
     </div>
+  );
+}
+
+function PauseMenu({ dwell, onHover, settings, onResume, onRestart, onWorlds, onExit, onSettings }: { dwell: boolean; onHover: () => void; settings: RunnerSettings; onResume: () => void; onRestart: () => void; onWorlds: () => void; onExit: () => void; onSettings: (p: Partial<RunnerSettings>) => void }) {
+  return (
+    <Panel title="Paused">
+      <div className="grid gap-2.5">
+        <Dwell dwell={dwell} onHover={onHover} onSelect={onResume} className="flex min-h-16 items-center justify-center gap-2 rounded-2xl bg-amber-300 text-xl font-black text-amber-950"><Play className="h-6 w-6 fill-current" />Keep running</Dwell>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Dwell dwell={dwell} onHover={onHover} onSelect={onRestart} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 font-black"><RotateCcw className="h-5 w-5" />Restart</Dwell>
+          <Dwell dwell={dwell} onHover={onHover} onSelect={onWorlds} className="min-h-14 rounded-2xl bg-white/10 font-black">🌍 Worlds</Dwell>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Dwell dwell={dwell} onHover={onHover} onSelect={() => onSettings({ voice: !settings.voice })} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 font-black">{settings.voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}Voice {settings.voice ? "on" : "off"}</Dwell>
+          <Dwell dwell={dwell} onHover={onHover} onSelect={() => onSettings({ steer: settings.steer === "look" ? "touch" : "look" })} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 font-black">{settings.steer === "look" ? <><Eye className="h-5 w-5" />Look</> : <><Hand className="h-5 w-5" />Swipe</>}</Dwell>
+        </div>
+        <label className="mt-1 flex items-center gap-3 text-sm font-black"><span className="w-16">Music</span><input type="range" min={0} max={1} step={0.05} value={settings.music} onChange={e => onSettings({ music: +e.target.value })} className="h-8 flex-1 accent-amber-300" /></label>
+        <label className="flex items-center gap-3 text-sm font-black"><span className="w-16">Sounds</span><input type="range" min={0} max={1} step={0.05} value={settings.sfx} onChange={e => onSettings({ sfx: +e.target.value })} className="h-8 flex-1 accent-amber-300" /></label>
+        <Dwell dwell={dwell} onHover={onHover} onSelect={onExit} className="mt-1 min-h-12 rounded-2xl bg-white/5 font-black text-white/80">Leave game</Dwell>
+      </div>
+    </Panel>
+  );
+}
+
+function Results({ end, mission, index, dwell, onHover, onNext, onReplay, onWorlds }: { end: { r: RunResult; newBest: boolean; firstClear: boolean }; mission: Mission; index: number; dwell: boolean; onHover: () => void; onNext: () => void; onReplay: () => void; onWorlds: () => void }) {
+  const { r } = end; const won = r.won;
+  return (
+    <div data-runner-ui className="absolute inset-0 z-20 grid place-items-center overflow-y-auto p-3 sm:p-4" style={{ background: won ? "radial-gradient(circle at 50% 30%, rgba(15,23,42,.2), rgba(15,23,42,.75))" : "rgba(15,23,42,.7)" }}>
+      <div className="rr-pop my-auto w-full max-w-lg rounded-[2rem] border-2 border-white/25 bg-slate-950/90 p-5 text-center shadow-2xl backdrop-blur sm:p-7">
+        <p className="text-xs font-black uppercase tracking-[.3em] text-amber-200">World {index + 1} · {mission.look.name}</p>
+        <h2 className="rr-title mt-1 text-5xl font-black italic sm:text-6xl">{won ? "World clear!" : "Great try!"}</h2>
+        {won ? <div className="mt-4 flex justify-center gap-2">{[0, 1, 2].map(k => <div key={k} className="rr-pop grid h-20 w-20 place-items-center rounded-3xl bg-white/5" style={{ animationDelay: `${0.25 + k * 0.18}s` }}><Star className={"h-14 w-14 " + (k < r.stars ? "fill-yellow-300 text-yellow-300 drop-shadow-[0_0_14px_rgba(253,224,71,.8)]" : "text-white/20")} /></div>)}</div>
+          : <p className="mt-3 text-lg font-bold text-white/80">You found {r.caught} of {r.goal} {mission.target.emoji}. Let's run it again!</p>}
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Stat big={`${r.caught}/${r.goal}`} small={`${mission.target.emoji} found`} />
+          <Stat big={String(r.wrong)} small="oops cards" />
+          <Stat big={String(r.coins)} small="coins" />
+          <Stat big={String(r.score)} small={end.newBest ? "⭐ new best" : "score"} hot={end.newBest} />
+        </div>
+        {won && r.stars < 3 && <p className="mt-3 text-sm font-bold text-white/70">{r.wrong > 0 ? `Tip: run only into the ${mission.target.label.toUpperCase()} cards for 3 stars.` : "Tip: dodge the trains and barriers for 3 stars."}</p>}
+        <div className="mt-5 grid gap-2.5">
+          {won && <Dwell dwell={dwell} onHover={onHover} onSelect={onNext} className="min-h-16 rounded-2xl bg-gradient-to-b from-yellow-300 to-amber-400 text-xl font-black text-amber-950 shadow-xl">{index === MISSIONS.length - 1 ? "Back to World 1 ▶" : `Next world ${MISSIONS[(index + 1) % MISSIONS.length].look.badge} ▶`}</Dwell>}
+          <div className="grid grid-cols-2 gap-2.5">
+            <Dwell dwell={dwell} onHover={onHover} onSelect={onReplay} className={"flex min-h-14 items-center justify-center gap-2 rounded-2xl font-black " + (won ? "bg-white/10" : "bg-amber-300 text-amber-950")}><RotateCcw className="h-5 w-5" />{won ? "Play again" : "Try again"}</Dwell>
+            <Dwell dwell={dwell} onHover={onHover} onSelect={onWorlds} className="min-h-14 rounded-2xl bg-white/10 font-black">🌍 Worlds</Dwell>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function Stat({ big, small, hot }: { big: string; small: string; hot?: boolean }) {
+  return <div className={"rounded-2xl py-3 " + (hot ? "bg-amber-300/20 ring-2 ring-amber-300/60" : "bg-white/5")}><div className="text-2xl font-black tabular-nums">{big}</div><div className="text-[11px] font-black uppercase tracking-wide text-slate-400">{small}</div></div>;
+}
+
+function Seg<T extends string | number | boolean>({ value, options, onPick, dwell, onHover }: { value: T; options: { v: T; label: ReactNode }[]; onPick: (v: T) => void; dwell: boolean; onHover: () => void }) {
+  return <div className="grid gap-1.5 rounded-2xl bg-white/5 p-1.5" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0,1fr))` }}>
+    {options.map(o => <Dwell key={String(o.v)} dwell={dwell} ms={900} onHover={onHover} onSelect={() => onPick(o.v)} className={"min-h-12 rounded-xl px-2 text-sm font-black " + (value === o.v ? "bg-amber-300 text-amber-950 shadow" : "text-white/80")}>{o.label}</Dwell>)}
+  </div>;
+}
+
+function SettingsPanel({ settings: s, dwell, onHover, onChange, onClose }: { settings: RunnerSettings; dwell: boolean; onHover: () => void; onChange: (s: RunnerSettings) => void; onClose: () => void }) {
+  const set = (p: Partial<RunnerSettings>) => onChange({ ...s, ...p });
+  const a = s.assists[s.difficulty];
+  const setA = (p: Partial<typeof a>) => onChange({ ...s, assists: { ...s.assists, [s.difficulty]: { ...a, ...p } } });
+  const H = ({ children }: { children: ReactNode }) => <p className="mb-1.5 mt-4 text-xs font-black uppercase tracking-widest text-slate-400 first:mt-0">{children}</p>;
+  return (
+    <Panel title="Settings" onClose={onClose} wide>
+      <div className="rr-scroll max-h-[70dvh] overflow-y-auto pr-1">
+        <H>How to steer</H>
+        <Seg dwell={dwell} onHover={onHover} value={s.steer} onPick={(v: Steer) => set({ steer: v })} options={[{ v: "look", label: <span className="flex items-center justify-center gap-1.5"><Eye className="h-4 w-4" />Look (eye gaze / mouse)</span> }, { v: "touch", label: <span className="flex items-center justify-center gap-1.5"><Hand className="h-4 w-4" />Swipe, tap & keys</span> }]} />
+        {s.steer === "look" && <><H>Lane change wait</H><Seg dwell={dwell} onHover={onHover} value={s.laneDelay} onPick={(v: number) => set({ laneDelay: v })} options={[{ v: 120, label: "Quick" }, { v: 300, label: "Normal" }, { v: 600, label: "Steady" }]} /></>}
+        <H>Speed</H>
+        <Seg dwell={dwell} onHover={onHover} value={s.difficulty} onPick={(v: Difficulty) => set({ difficulty: v })} options={SPEEDS.map(x => ({ v: x.id, label: `${x.icon} ${x.name}` }))} />
+        <H>Helpers for {SPEEDS.find(x => x.id === s.difficulty)!.name}</H>
+        <div className="grid gap-1.5">
+          {([["autoJump", "🦘 Auto-jump barriers"], ["autoDodge", "🚇 Auto-dodge trains"], ["guide", "✨ Glow & guide to the right card"]] as const).map(([k, label]) =>
+            <Dwell key={k} dwell={dwell} ms={900} onHover={onHover} onSelect={() => setA({ [k]: !a[k] })} className={"flex min-h-12 items-center justify-between rounded-xl px-3 text-left text-sm font-black " + (a[k] ? "bg-emerald-500/25 ring-2 ring-emerald-400/60" : "bg-white/5")}>{label}<span className={"rounded-full px-2 py-0.5 text-xs " + (a[k] ? "bg-emerald-400 text-emerald-950" : "bg-white/10")}>{a[k] ? "ON" : "OFF"}</span></Dwell>)}
+          <button type="button" onClick={() => onChange({ ...s, assists: { ...s.assists, [s.difficulty]: { ...DEFAULT_ASSISTS[s.difficulty] } } })} className="justify-self-start text-xs font-black text-slate-400 underline">Reset helpers</button>
+        </div>
+        <H>Cards show</H>
+        <Seg dwell={dwell} onHover={onHover} value={s.cardStyle} onPick={(v: RunnerSettings["cardStyle"]) => set({ cardStyle: v })} options={[{ v: "both", label: "🐱 + CAT" }, { v: "words", label: "Words only" }, { v: "pictures", label: "Pictures only" }]} />
+        <H>Menus</H>
+        <Seg dwell={dwell} onHover={onHover} value={s.dwellMenus} onPick={(v: boolean) => set({ dwellMenus: v })} options={[{ v: true, label: "Look to press buttons" }, { v: false, label: "Tap / click only" }]} />
+        <H>Sound</H>
+        <Seg dwell={dwell} onHover={onHover} value={s.voice} onPick={(v: boolean) => set({ voice: v })} options={[{ v: true, label: "🗣️ Voice on" }, { v: false, label: "Voice off" }]} />
+        <label className="mt-3 flex items-center gap-3 text-sm font-black"><span className="w-16">Music</span><input type="range" min={0} max={1} step={0.05} value={s.music} onChange={e => set({ music: +e.target.value })} className="h-8 flex-1 accent-amber-300" /></label>
+        <label className="flex items-center gap-3 text-sm font-black"><span className="w-16">Sounds</span><input type="range" min={0} max={1} step={0.05} value={s.sfx} onChange={e => set({ sfx: +e.target.value })} className="h-8 flex-1 accent-amber-300" /></label>
+        <H>Graphics</H>
+        <Seg dwell={dwell} onHover={onHover} value={s.quality} onPick={(v: RunnerSettings["quality"]) => set({ quality: v })} options={[{ v: "low", label: "Low" }, { v: "medium", label: "Medium" }, { v: "high", label: "High" }]} />
+        <p className="mt-1.5 text-xs font-bold text-slate-400">Choose Low if the game feels slow on this device.</p>
+      </div>
+      <Dwell dwell={dwell} onHover={onHover} onSelect={onClose} className="mt-4 min-h-14 w-full rounded-2xl bg-amber-300 text-lg font-black text-amber-950">Done</Dwell>
+    </Panel>
+  );
+}
+
+function HowTo({ steer, dwell, onHover, onClose }: { steer: Steer; dwell: boolean; onHover: () => void; onClose: () => void }) {
+  const rows: [string, string, string][] = [
+    ["🎯", "Find the word", "Run into the card that matches the mission — like 🐱 CAT. Skip the other cards."],
+    [steer === "look" ? "👀" : "👆", "Change lanes", steer === "look" ? "Look at the left, middle or right of the screen." : "Swipe left or right, tap a side, or press ← →."],
+    ["⤴️", "Jump", steer === "look" ? "Look up at the top of the screen, or click." : "Swipe up, tap the middle, or press Space / ↑."],
+    ["🚇", "Trains", "Move to a free lane — or run up a yellow ramp and ride on the roof!"],
+    ["🚧", "Barriers", "Jump over them. On Easy and Medium, Riley jumps for you."],
+    ["🪙", "Coins", "Grab them for points. 🧲 pulls coins in, 🛡️ saves you from one bump."],
+    ["⭐", "Stars", "Finish with no wrong cards for 3 stars."],
+  ];
+  return (
+    <Panel title="How to play" onClose={onClose} wide>
+      <div className="divide-y divide-white/10">{rows.map(([i, n, h]) => <div key={n} className="flex items-center gap-3 py-2.5"><span className="w-10 text-center text-3xl">{i}</span><div><p className="text-lg font-black">{n}</p><p className="text-sm font-bold text-slate-300">{h}</p></div></div>)}</div>
+      <Dwell dwell={dwell} onHover={onHover} onSelect={onClose} className="mt-4 min-h-14 w-full rounded-2xl bg-amber-300 text-lg font-black text-amber-950">Got it!</Dwell>
+    </Panel>
   );
 }
