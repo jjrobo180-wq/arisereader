@@ -628,10 +628,10 @@ export default function EyeGazeGames() {
             <div className="absolute right-7 top-5 flex gap-2 text-4xl"><span>🐱</span><span>🐶</span><span>🍎</span></div>
             <div className="relative max-w-lg">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
-                <Zap className="w-4 h-4" /> SWIPE · DODGE · COLLECT
+                <Zap className="w-4 h-4" /> NEW 3D · LOOK · RUN · READ
               </div>
               <h2 className="text-3xl sm:text-4xl font-black">Reading Runner</h2>
-              <p className="mt-3 text-white/90 text-base sm:text-lg font-bold">Hear “Rescue all the cats,” then swipe between lanes to collect cats and swipe up to jump over dogs, rabbits, and other distractors.</p>
+              <p className="mt-3 text-white/90 text-base sm:text-lg font-bold">Race down the train tracks in 15 worlds. Look left or right to change lanes, look up to jump, dodge trains and run into the card that matches the word.</p>
               <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white text-violet-700 px-5 py-3 font-black">
                 <Flag className="w-5 h-5" /> Run & Rescue
               </div>
