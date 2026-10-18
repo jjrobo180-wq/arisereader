@@ -27,14 +27,14 @@ export class RunnerAudio {
   }
   setVolumes(music: number, sfx: number) { this.musicVol = music; this.sfxVol = sfx; if (this.ctx) { this.music.gain.value = music * 0.32; this.sfx.gain.value = sfx; } }
 
-  private tone(f: number, dur: number, type: OscillatorType, vol: number, at = 0, slideTo?: number, wet = false) {
+  protected tone(f: number, dur: number, type: OscillatorType, vol: number, at = 0, slideTo?: number, wet = false) {
     if (!this.ctx) return; const t = this.ctx.currentTime + at;
     const o = this.ctx.createOscillator(), g = this.ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f, t); if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(this.sfx); if (wet) g.connect(this.verbSend); o.start(t); o.stop(t + dur + 0.02);
   }
-  private noise(dur: number, vol: number, at = 0, freq = 1200, q = 0.8, type: BiquadFilterType = "bandpass", out?: AudioNode, time?: number, sweepTo?: number) {
+  protected noise(dur: number, vol: number, at = 0, freq = 1200, q = 0.8, type: BiquadFilterType = "bandpass", out?: AudioNode, time?: number, sweepTo?: number) {
     if (!this.ctx) return; const t = time ?? this.ctx.currentTime + at;
     const s = this.ctx.createBufferSource(); s.buffer = this.noiseBuf; const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(freq, t); if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur); f.Q.value = q;
     const g = this.ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);

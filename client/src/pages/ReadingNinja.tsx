@@ -1,314 +1,317 @@
-import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Heart, RotateCcw, Star, Volume2, VolumeX, Zap } from "lucide-react";
+// Reading Ninja — a 3D slicing game for eye-gaze, touch and mouse players.
+// Tokens with pictures and words fly up; slice only the ones that match the mission.
+// Eye gaze: look at a token until the ring fills. Touch/mouse: swipe through it.
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowLeft, Eye, Hand, Heart, HelpCircle, Pause, Play, RotateCcw, Settings, Star, Volume2, VolumeX, X } from "lucide-react";
+import GazeButton from "@/components/eye-gaze/GazeButton";
+import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
+import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
+import { LEVELS, type NinjaLevel } from "@shared/ninja/missions";
+import { DEFAULT_DWELL, type Difficulty, type NinjaResult } from "@shared/ninja/sim";
+import { NinjaGame, type NinjaHud, type Quality, type Steer } from "@/game/ninja/game";
+import { NinjaAudio } from "@/game/ninja/audio";
+import type { CardStyle } from "@/game/runner/textures";
 
-type Difficulty = "easy" | "medium" | "hard";
-type Thing = { label: string; emoji: string };
-type Theme = { name:string; badge:string; background:string; glow:string; decor:string[] };
-type Mission = { prompt:string; target:Thing; distractors:Thing[]; goal:number; theme:Theme };
-type FlyingThing = Thing & { id:number; x:number; y:number; vx:number; vy:number; isTarget:boolean; sliced:boolean; rotation:number };
-type Burst = { id:number; x:number; y:number; emoji:string; good:boolean };
-
-const THEMES: Theme[] = [
-  {name:"Fruit Dojo",badge:"🍎",background:"radial-gradient(circle at 50% 15%,#ffb26b,#b44b4b 48%,#421d32)",glow:"#ffd06a",decor:["🍃","🥭","🌿","🍊"]},
-  {name:"Animal Garden",badge:"🐱",background:"radial-gradient(circle at 50% 10%,#80e3b1,#388f68 48%,#153f3c)",glow:"#84ffd6",decor:["🌼","🌿","🦋","🌳"]},
-  {name:"Galaxy Hunt",badge:"⭐",background:"radial-gradient(circle at 50% 20%,#6745c7,#1b1b50 55%,#080b20)",glow:"#b99bff",decor:["🪐","🌙","✨","☄️"]},
-  {name:"Pet Park",badge:"🐶",background:"radial-gradient(circle at 50% 20%,#80d7ff,#43a16d 58%,#24593c)",glow:"#8cf3ff",decor:["🛝","🌳","🦴","🌼"]},
-  {name:"School Lab",badge:"📘",background:"radial-gradient(circle at 50% 10%,#87c8ff,#4b79a8 55%,#263752)",glow:"#9bd4ff",decor:["✏️","🎒","📚","🏫"]},
-  {name:"Ocean Splash",badge:"🐟",background:"radial-gradient(circle at 50% 5%,#56d8ff,#157aa9 48%,#073b65)",glow:"#66f1ff",decor:["🪸","🌊","🐚","🫧"]},
-  {name:"Farm Chop",badge:"🥕",background:"radial-gradient(circle at 50% 10%,#ffe789,#84b85e 52%,#42643a)",glow:"#fff08a",decor:["🌻","🚜","🌾","🐮"]},
-  {name:"Candy Storm",badge:"🍭",background:"radial-gradient(circle at 50% 10%,#ffb2ee,#a15fd2 50%,#472866)",glow:"#ffb8f1",decor:["🍬","🧁","🍩","✨"]},
-  {name:"Sports Arena",badge:"⚽",background:"radial-gradient(circle at 50% 10%,#7fd8ff,#2d73a4 45%,#172e4a)",glow:"#a5e8ff",decor:["🏟️","🏆","🎉","🥇"]},
-  {name:"Jungle Search",badge:"🐒",background:"radial-gradient(circle at 50% 10%,#8ce087,#357a46 50%,#173c2a)",glow:"#aaff8c",decor:["🌴","🦜","🌿","🍃"]},
-  {name:"Snow Search",badge:"❄️",background:"radial-gradient(circle at 50% 10%,#e9fbff,#83b8d8 50%,#426482)",glow:"#d9fbff",decor:["⛄","🌲","🏔️","✨"]},
-  {name:"Neon Arcade",badge:"💎",background:"radial-gradient(circle at 50% 10%,#6024b8,#27144e 54%,#090a19)",glow:"#00f6ff",decor:["👾","🕹️","🎮","⚡"]},
-  {name:"Breakfast Rush",badge:"🥞",background:"radial-gradient(circle at 50% 10%,#ffd699,#c97555 55%,#5f3534)",glow:"#ffe0a6",decor:["☕","🍳","🥛","🍞"]},
-  {name:"Weather Lab",badge:"☀️",background:"radial-gradient(circle at 50% 10%,#8fdcff,#4e78c5 55%,#273962)",glow:"#ffe970",decor:["🌈","☁️","🌧️","⚡"]},
-  {name:"Treasure Vault",badge:"👑",background:"radial-gradient(circle at 50% 10%,#ffcb65,#7e5730 50%,#2b1e22)",glow:"#ffe28c",decor:["💎","🏰","🗝️","✨"]},
+type Settings = { difficulty: Difficulty; steer: Steer; look: "quick" | "normal" | "steady"; slowLook: boolean; glow: Record<Difficulty, boolean>; cardStyle: CardStyle; voice: boolean; dwellMenus: boolean; music: number; sfx: number; quality: Quality };
+type Progress = { levels: Record<number, { stars: number; best: number; clears: number }>; last: number };
+const coarse = () => !!window.matchMedia?.("(pointer: coarse)").matches && !window.matchMedia?.("(pointer: fine)").matches;
+const DEFAULTS = (): Settings => ({ difficulty: "easy", steer: coarse() ? "touch" : "look", look: "normal", slowLook: true, glow: { easy: true, medium: false, hard: false }, cardStyle: "both", voice: true, dwellMenus: !coarse(), music: 0.45, sfx: 0.85, quality: "medium" });
+const LOOK_SCALE = { quick: 0.7, normal: 1, steady: 1.6 } as const;
+const key = (uid: unknown, w: string) => `arise-reading-ninja-v2:${w}:${uid ?? "guest"}`;
+function load<T extends object>(k: string, d: T): T { try { const v = localStorage.getItem(k); return v ? { ...d, ...JSON.parse(v) } : d; } catch { return d; } }
+const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+const SPEEDS: { id: Difficulty; icon: string; name: string; note: string }[] = [
+  { id: "easy", icon: "🧸", name: "Easy", note: "Slow tokens · matches glow · no hearts lost" },
+  { id: "medium", icon: "🥷", name: "Medium", note: "Arcade speed · 3 hearts" },
+  { id: "hard", icon: "⚡", name: "Hard", note: "Fast and busy · 3 hearts" },
 ];
+const enterImmersive = () => { try { const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }; const req = el.requestFullscreen || el.webkitRequestFullscreen; if (req && !document.fullscreenElement) void req.call(el)?.catch?.(() => {}); } catch { /* optional */ } };
+const leaveImmersive = () => { try { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); } catch { /* optional */ } };
+const plural = (w: string) => (/(s|sh|ch)$/.test(w) ? w + "es" : w + "s");
 
-const m=(prompt:string,target:Thing,distractors:Thing[],theme:Theme,goal=9):Mission=>({prompt,target,distractors,theme,goal});
-const MISSIONS: Mission[] = [
-  m("Find the apples!",{label:"apple",emoji:"🍎"},[{label:"banana",emoji:"🍌"},{label:"orange",emoji:"🍊"},{label:"grapes",emoji:"🍇"},{label:"pear",emoji:"🍐"}],THEMES[0]),
-  m("Find the cats!",{label:"cat",emoji:"🐱"},[{label:"dog",emoji:"🐶"},{label:"rabbit",emoji:"🐰"},{label:"frog",emoji:"🐸"},{label:"bear",emoji:"🐻"}],THEMES[1]),
-  m("Swipe through the stars!",{label:"star",emoji:"⭐"},[{label:"moon",emoji:"🌙"},{label:"planet",emoji:"🪐"},{label:"rocket",emoji:"🚀"},{label:"comet",emoji:"☄️"}],THEMES[2]),
-  m("Catch the dogs with your swipe!",{label:"dog",emoji:"🐶"},[{label:"cat",emoji:"🐱"},{label:"cow",emoji:"🐮"},{label:"pig",emoji:"🐷"},{label:"fox",emoji:"🦊"}],THEMES[3]),
-  m("Spot the books!",{label:"book",emoji:"📘"},[{label:"pencil",emoji:"✏️"},{label:"backpack",emoji:"🎒"},{label:"scissors",emoji:"✂️"},{label:"ruler",emoji:"📏"}],THEMES[4]),
-  m("Get the fish!",{label:"fish",emoji:"🐟"},[{label:"crab",emoji:"🦀"},{label:"turtle",emoji:"🐢"},{label:"octopus",emoji:"🐙"},{label:"shell",emoji:"🐚"}],THEMES[5]),
-  m("Chop the carrots!",{label:"carrot",emoji:"🥕"},[{label:"corn",emoji:"🌽"},{label:"tomato",emoji:"🍅"},{label:"potato",emoji:"🥔"},{label:"pepper",emoji:"🫑"}],THEMES[6]),
-  m("Pop the lollipops!",{label:"lollipop",emoji:"🍭"},[{label:"candy",emoji:"🍬"},{label:"cupcake",emoji:"🧁"},{label:"donut",emoji:"🍩"},{label:"cake",emoji:"🎂"}],THEMES[7]),
-  m("Hit the soccer balls!",{label:"soccer ball",emoji:"⚽"},[{label:"basketball",emoji:"🏀"},{label:"football",emoji:"🏈"},{label:"baseball",emoji:"⚾"},{label:"tennis ball",emoji:"🎾"}],THEMES[8]),
-  m("Find the monkeys!",{label:"monkey",emoji:"🐒"},[{label:"tiger",emoji:"🐯"},{label:"snake",emoji:"🐍"},{label:"parrot",emoji:"🦜"},{label:"frog",emoji:"🐸"}],THEMES[9]),
-  m("Touch the snowflakes!",{label:"snowflake",emoji:"❄️"},[{label:"snowman",emoji:"⛄"},{label:"tree",emoji:"🌲"},{label:"mountain",emoji:"🏔️"},{label:"sled",emoji:"🛷"}],THEMES[10]),
-  m("Collect the gems!",{label:"gem",emoji:"💎"},[{label:"alien",emoji:"👾"},{label:"game",emoji:"🎮"},{label:"joystick",emoji:"🕹️"},{label:"star",emoji:"⭐"}],THEMES[11],10),
-  m("Grab the pancakes!",{label:"pancake",emoji:"🥞"},[{label:"egg",emoji:"🍳"},{label:"milk",emoji:"🥛"},{label:"bread",emoji:"🍞"},{label:"coffee",emoji:"☕"}],THEMES[12]),
-  m("Tap the suns!",{label:"sun",emoji:"☀️"},[{label:"cloud",emoji:"☁️"},{label:"rain",emoji:"🌧️"},{label:"rainbow",emoji:"🌈"},{label:"lightning",emoji:"⚡"}],THEMES[13]),
-  m("Collect the crowns!",{label:"crown",emoji:"👑"},[{label:"gem",emoji:"💎"},{label:"key",emoji:"🗝️"},{label:"castle",emoji:"🏰"},{label:"shield",emoji:"🛡️"}],THEMES[14],10),
-];
+const CSS = `
+.nj-font{font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif}
+.nj-title{text-shadow:0 4px 0 #2a0b3a,0 9px 0 rgba(42,11,58,.5),0 18px 34px rgba(0,0,0,.45)}
+.nj-pop{animation:njPop .5s cubic-bezier(.2,1.6,.4,1) both}@keyframes njPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.nj-up{animation:njUp .5s cubic-bezier(.2,1.2,.4,1) both}@keyframes njUp{from{transform:translateY(22px);opacity:0}to{transform:none;opacity:1}}
+.nj-toast{animation:njToast 1.15s ease-out forwards}@keyframes njToast{0%{opacity:0;transform:translateY(14px) scale(.7)}15%{opacity:1;transform:scale(1.1)}25%{transform:scale(1)}78%{opacity:1}100%{opacity:0;transform:translateY(-16px)}}
+.nj-combo{animation:njCombo .9s cubic-bezier(.2,1.6,.4,1) forwards}@keyframes njCombo{0%{opacity:0;transform:scale(2.4) rotate(-8deg)}25%{opacity:1;transform:scale(1) rotate(-4deg)}80%{opacity:1}100%{opacity:0;transform:scale(1.1) rotate(-4deg) translateY(-20px)}}
+.nj-count{animation:njCount .7s cubic-bezier(.2,1.5,.4,1) both}@keyframes njCount{0%{transform:scale(2.4);opacity:0}30%{transform:scale(1);opacity:1}100%{transform:scale(.85);opacity:0}}
+.nj-float{animation:njFloat 3s ease-in-out infinite}@keyframes njFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-10px) rotate(4deg)}}
+`;
 
-const SPEED={
-  easy:{launch:-1.72,gravity:.030,spawn:1320,label:"Easy",description:"Toddler-friendly · bigger targets + slower flight"},
-  medium:{launch:-2.35,gravity:.045,spawn:820,label:"Medium",description:"Classic arcade speed"},
-  hard:{launch:-2.85,gravity:.059,spawn:540,label:"Hard",description:"Fast objects · quick response"},
-} as const;
-
-function cheer(label:string){
-  const lines=["Got the "+label+"!","Yes! "+label+"!","Perfect! "+label+"!","Nice! "+label+"!"];
-  return lines[Math.floor(Math.random()*lines.length)];
-}
-function SliceToken({item,large=false}:{item:FlyingThing;large?:boolean}){
-  return <div className={"relative transition-all duration-150 "+(item.sliced?"opacity-10 scale-150":"")}>
-    <div className="absolute -inset-4 rounded-full blur-2xl opacity-35 bg-white"/>
-    <div className={"relative rounded-full border-[5px] shadow-[0_12px_28px_rgba(0,0,0,.38)] grid place-items-center overflow-hidden bg-[radial-gradient(circle_at_32%_25%,#ffffff_0%,#f8fafc_35%,#dbeafe_100%)] border-white "+(large?"w-24 h-24 sm:w-28 sm:h-28":"w-20 h-20 sm:w-24 sm:h-24")}>
-      <div className="absolute inset-x-4 top-2 h-4 bg-white/80 rounded-full blur-[1px]"/>
-      <div className="absolute inset-2 rounded-full border border-sky-100/70"/>
-      <span className={large?"relative text-6xl sm:text-7xl drop-shadow-lg":"relative text-5xl sm:text-6xl drop-shadow-lg"}>{item.emoji}</span>
-    </div>
-    <div className="relative mt-1 mx-auto w-max max-w-28 truncate rounded-full bg-slate-950/92 border border-white/20 px-3 py-1 text-[10px] sm:text-xs font-black uppercase text-white shadow-lg">{item.label}</div>
-  </div>;
+function Backdrop({ level, quality, audio }: { level: NinjaLevel; quality: Quality; audio: NinjaAudio }) {
+  const host = useRef<HTMLDivElement>(null); const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const el = host.current; if (!el) return; let g: NinjaGame | null = null;
+    try { g = new NinjaGame(el, level, { difficulty: "medium", dwellMs: 350, slowLook: false, glow: true, quality: quality === "high" ? "medium" : quality, cardStyle: "both", steer: "touch", demo: true, music: false, seed: 11 }, audio); }
+    catch (e) { console.error(e); setFailed(true); }
+    return () => g?.dispose();
+  }, [level, quality, audio]);
+  return <div ref={host} className="absolute inset-0" style={failed ? { background: level.look.ui } : undefined} />;
 }
 
-export default function ReadingNinja({onBack}:{onBack:()=>void}){
-  const [difficulty,setDifficulty]=useState<Difficulty>("easy");
-  const [started,setStarted]=useState(false);
-  const [setupStep,setSetupStep]=useState<"difficulty"|"level">("difficulty");
-  const [missionIndex,setMissionIndex]=useState(0);
-  const [things,setThings]=useState<FlyingThing[]>([]);
-  const thingsRef=useRef<FlyingThing[]>([]);
-  const [slicedCount,setSlicedCount]=useState(0);
-  const slicedRef=useRef(0);
-  const [score,setScore]=useState(0);
-  const [hearts,setHearts]=useState(3);
-  const heartsRef=useRef(3);
-  const [message,setMessage]=useState("Swipe through only the target.");
-  const [missionComplete,setMissionComplete]=useState(false);
-  const missionCompleteRef=useRef(false);
-  const [gameOver,setGameOver]=useState(false);
-  const gameOverRef=useRef(false);
-  const [slicing,setSlicing]=useState(false);
-  const slicingRef=useRef(false);
-  const [trail,setTrail]=useState<Array<{x:number;y:number;id:number}>>([]);
-  const [bursts,setBursts]=useState<Burst[]>([]);
-  const [soundOn,setSoundOn]=useState(true);
-  const arenaRef=useRef<HTMLDivElement|null>(null);
-  const nextId=useRef(1);
-  const trailId=useRef(1);
-  const burstId=useRef(1);
-  const audioRef=useRef<AudioContext|null>(null);
+export default function ReadingNinja({ onBack }: { onBack: () => void }) {
+  const { user } = useAuth(); const uid = user?.id;
+  const [settings, setSettings] = useState<Settings>(() => load(key(uid, "settings"), DEFAULTS()));
+  const [progress, setProgress] = useState<Progress>(() => load(key(uid, "progress"), { levels: {}, last: 0 }));
+  const [view, setView] = useState<"title" | "levels" | "play">("title");
+  const [level, setLevel] = useState(() => Math.min(LEVELS.length - 1, progress.last || 0));
+  const [runKey, setRunKey] = useState(0);
+  const [panel, setPanel] = useState<null | "settings" | "how">(null);
+  const audioRef = useRef<NinjaAudio | null>(null); if (!audioRef.current) audioRef.current = new NinjaAudio();
+  const audio = audioRef.current; const sRef = useRef(settings); sRef.current = settings;
+  useEffect(() => { save(key(uid, "settings"), settings); audio.setVolumes(settings.music, settings.sfx); }, [settings, uid, audio]);
+  useEffect(() => () => { stopSpeaking(); audio.dispose(); }, [audio]);
 
-  const mission=MISSIONS[missionIndex%MISSIONS.length];
-  const speed=SPEED[difficulty];
-
-  const updateThings=useCallback((next:FlyingThing[]|((current:FlyingThing[])=>FlyingThing[]))=>{
-    const value=typeof next==="function"?next(thingsRef.current):next;thingsRef.current=value;setThings(value);
-  },[]);
-
-  const sfx=useCallback((kind:"slice"|"wrong"|"complete"|"launch")=>{
-    if(!soundOn)return;
-    try{
-      const ctx=audioRef.current||new AudioContext();audioRef.current=ctx;void ctx.resume();const now=ctx.currentTime;
-      const notes=kind==="slice"?[[900,0],[1250,.045]]:kind==="wrong"?[[170,0],[115,.1]]:kind==="launch"?[[250,0],[350,.06]]:[[523,0],[659,.09],[784,.18],[1047,.29]];
-      notes.forEach(([f,o])=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=kind==="wrong"?"square":"sine";osc.frequency.setValueAtTime(f,now+o);gain.gain.setValueAtTime(.0001,now+o);gain.gain.exponentialRampToValueAtTime(kind==="launch"?.018:.075,now+o+.01);gain.gain.exponentialRampToValueAtTime(.0001,now+o+.13);osc.connect(gain);gain.connect(ctx.destination);osc.start(now+o);osc.stop(now+o+.15);});
-    }catch{}
-  },[soundOn]);
-
-  const say=useCallback((text:string,calm=false)=>{
-    stopSpeaking();void speakCharacterAI(text,{calmMode:calm,onFallback:()=>{if(!("speechSynthesis" in window))return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.92;window.speechSynthesis.speak(u);}});
-  },[]);
-
-  const announceMission=useCallback(()=>{setMessage(mission.prompt+"!");say("Level "+(missionIndex+1)+". "+mission.theme.name+". "+mission.prompt+". Swipe through only the "+mission.target.label+"s.",difficulty==="easy");},[mission,missionIndex,say,difficulty]);
-
-  useEffect(()=>()=>{stopSpeaking();void audioRef.current?.close();},[]);
-  useEffect(()=>{if(started&&!missionComplete&&!gameOver)announceMission();},[started,missionComplete,gameOver,missionIndex,announceMission]);
-
-  useEffect(()=>{
-    if(!started||missionComplete||gameOver)return;
-    const timer=window.setInterval(()=>{
-      const isTarget=Math.random()<.48;
-      const source=isTarget?mission.target:mission.distractors[Math.floor(Math.random()*mission.distractors.length)];
-      const x=10+Math.random()*80,toward=(50-x)*.0026;
-      const item:FlyingThing={...source,id:nextId.current++,x,y:108,vx:toward+(Math.random()-.5)*.15,vy:speed.launch*(.9+Math.random()*.2),isTarget,sliced:false,rotation:Math.random()*30-15};
-      updateThings(c=>[...c,item]);
-    },speed.spawn);
-    return()=>window.clearInterval(timer);
-  },[started,missionComplete,gameOver,mission,speed.launch,speed.spawn,updateThings,sfx]);
-
-  useEffect(()=>{
-    if(!started||missionComplete||gameOver)return;
-    const timer=window.setInterval(()=>updateThings(c=>c.map(item=>({...item,x:item.x+item.vx,y:item.y+item.vy,vy:item.vy+speed.gravity,rotation:item.rotation+(item.sliced?8:2.2)})).filter(item=>item.y<118&&item.x>-12&&item.x<112)),32);
-    return()=>window.clearInterval(timer);
-  },[started,missionComplete,gameOver,speed.gravity,updateThings]);
-
-  const burst=useCallback((item:FlyingThing)=>{
-    const id=burstId.current++;
-    setBursts(c=>[...c,{id,x:item.x,y:item.y,emoji:item.emoji,good:item.isTarget}]);
-    window.setTimeout(()=>setBursts(c=>c.filter(b=>b.id!==id)),500);
-  },[]);
-
-  const handleHit=useCallback((item:FlyingThing)=>{
-    if(item.sliced||gameOverRef.current||missionCompleteRef.current)return;
-    updateThings(c=>c.map(x=>x.id===item.id?{...x,sliced:true}:x));burst(item);
-    if(item.isTarget){
-      const next=slicedRef.current+1;slicedRef.current=next;setSlicedCount(next);setScore(v=>v+(difficulty==="hard"?45:difficulty==="medium"?30:20));sfx("slice");
-      const line=cheer(item.label);setMessage(line);celebrateEyeGaze(false);
-      if(next>=mission.goal){missionCompleteRef.current=true;setMissionComplete(true);updateThings([]);sfx("complete");setMessage("Level complete!");say("Level complete! You got all the "+mission.target.label+"s. Great job!");}
-    }else{
-      const next=difficulty==="easy"?heartsRef.current:Math.max(0,heartsRef.current-1);heartsRef.current=next;setHearts(next);sfx("wrong");setMessage("That is a "+item.label+". Keep looking for "+mission.target.label+"!");say("That is a "+item.label+". Keep looking for "+mission.target.label+"s.",true);
-      if(difficulty!=="easy"&&next<=0){gameOverRef.current=true;setGameOver(true);setStarted(false);updateThings([]);say("Nice try. Let's try that level again.");}
-    }
-  },[difficulty,mission,say,sfx,updateThings,burst]);
-
-  const sliceAt=useCallback((clientX:number,clientY:number)=>{
-    const arena=arenaRef.current;if(!arena||gameOverRef.current||missionCompleteRef.current)return;const rect=arena.getBoundingClientRect();if(!rect.width||!rect.height)return;
-    const x=((clientX-rect.left)/rect.width)*100,y=((clientY-rect.top)/rect.height)*100;
-    const point={x,y,id:trailId.current++};setTrail(c=>[...c.slice(-16),point]);window.setTimeout(()=>setTrail(c=>c.filter(p=>p.id!==point.id)),220);
-    const hitX=difficulty==="easy"?13:8.5;
-    const hitY=difficulty==="easy"?15:10.5;
-    const hit=[...thingsRef.current].filter(i=>!i.sliced).sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y)).find(i=>Math.abs(i.x-x)<=hitX&&Math.abs(i.y-y)<=hitY);
-    if(hit)handleHit(hit);
-  },[handleHit]);
-
-  const resetLevel=(index:number,resetScore=false)=>{setMissionIndex(index);setSlicedCount(0);slicedRef.current=0;setHearts(3);heartsRef.current=3;setMissionComplete(false);missionCompleteRef.current=false;setGameOver(false);gameOverRef.current=false;updateThings([]);setTrail([]);setBursts([]);if(resetScore)setScore(0);setMessage("Get ready!");};
-  const enterImmersive=()=>{ try { const el=document.documentElement as any; const request=el.requestFullscreen||el.webkitRequestFullscreen; if(request) void request.call(el).catch?.(()=>{}); } catch {} };
-  const startGame=()=>{stopSpeaking();enterImmersive();setStarted(true);resetLevel(missionIndex,true);};
-  const openSetup=(step:"difficulty"|"level"="level")=>{
-    setStarted(false);
-    setGameOver(false);
-    gameOverRef.current=false;
-    setMissionComplete(false);
-    missionCompleteRef.current=false;
-    updateThings([]);
-    setTrail([]);
-    setBursts([]);
-    setSetupStep(step);
+  const say = useCallback((text: string, calm = false) => {
+    if (!sRef.current.voice) return; stopSpeaking();
+    void speakCharacterAI(text, { calmMode: calm, onFallback: () => { if (!("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; u.pitch = 1.1; window.speechSynthesis.speak(u); } });
+  }, []);
+  const click = () => { audio.ensure(); audio.play("select"); };
+  const hover = () => { audio.ensure(); audio.play("hover"); };
+  const play = (i: number) => { click(); enterImmersive(); setLevel(i); setRunKey(k => k + 1); setView("play"); };
+  const exit = () => { stopSpeaking(); leaveImmersive(); onBack(); };
+  const record = (i: number, r: NinjaResult) => {
+    const old = progress.levels[i] || { stars: 0, best: 0, clears: 0 }; const newBest = r.won && r.score > old.best;
+    const next: Progress = { last: i, levels: { ...progress.levels, [i]: { stars: r.won ? Math.max(old.stars, r.stars) : old.stars, best: r.won ? Math.max(old.best, r.score) : old.best, clears: old.clears + (r.won ? 1 : 0) } } };
+    setProgress(next); save(key(uid, "progress"), next); return { newBest };
   };
-  const retry=()=>{setStarted(true);resetLevel(missionIndex,false);};
-  const nextMission=()=>resetLevel((missionIndex+1)%MISSIONS.length,false);
+  const D = settings.dwellMenus; const totalStars = Object.values(progress.levels).reduce((a, l) => a + l.stars, 0);
 
-  const progress=Math.min(100,(slicedCount/mission.goal)*100);
-  const trailPoints=trail.map(p=>p.x+","+p.y).join(" ");
-
-  if(!started&&!gameOver){
-    return <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden text-white p-3 sm:p-5" style={{background:"radial-gradient(circle at 30% 0%,#71266d,#170e2e 55%,#050711)"}}>
-      <style>{"@keyframes ninjaSetupIn{from{opacity:.25;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}} .ninja-setup-in{animation:ninjaSetupIn .22s ease-out}"}</style>
-      <div className="absolute inset-0 opacity-25 pointer-events-none" style={{backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"38px 38px"}}/>
-      <div className="relative max-w-4xl mx-auto h-full flex flex-col">
-        <div className="flex items-center justify-between gap-2 flex-shrink-0">
-          <button type="button" onClick={onBack} className="min-h-11 px-3 sm:px-4 rounded-2xl bg-slate-950/85 border border-white/20 font-black flex items-center gap-2"><ArrowLeft className="w-5 h-5"/> Games</button>
-          <div className="rounded-full bg-white/10 border border-white/15 px-3 py-2 text-xs font-black">READING NINJA</div>
-          <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-11 h-11 rounded-2xl bg-slate-950/85 border border-white/20 grid grid-cols-1 place-items-center" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
+  return (
+    <main className="nj-font fixed inset-0 z-[120] h-[100dvh] select-none overflow-hidden bg-slate-950 text-white">
+      <style>{CSS}</style>
+      {view === "title" && <section data-ninja-ui className="absolute inset-0">
+        <Backdrop level={LEVELS[level]} quality={settings.quality} audio={audio} />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-transparent" />
+        <div className="absolute left-3 top-3 z-10 sm:left-5 sm:top-5"><GazeButton dwell={D} onHover={hover} onSelect={exit} className="flex min-h-12 items-center gap-2 rounded-2xl bg-black/40 px-4 font-black backdrop-blur" label="Back to games"><ArrowLeft className="h-5 w-5" />Games</GazeButton></div>
+        <div className="absolute right-3 top-3 z-10 flex gap-2 sm:right-5 sm:top-5">
+          <GazeButton dwell={D} onHover={hover} onSelect={() => { click(); setPanel("how"); }} className="grid h-12 w-12 place-items-center rounded-2xl bg-black/40 backdrop-blur" label="How to play"><HelpCircle className="h-6 w-6" /></GazeButton>
+          <GazeButton dwell={D} onHover={hover} onSelect={() => { click(); setPanel("settings"); }} className="grid h-12 w-12 place-items-center rounded-2xl bg-black/40 backdrop-blur" label="Settings"><Settings className="h-6 w-6" /></GazeButton>
         </div>
+        <div className="relative flex h-full flex-col justify-center px-6 sm:px-12"><div className="nj-up max-w-xl">
+          <p className="mb-2 inline-flex rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase tracking-[.25em] backdrop-blur">🥷 Look · Slice · Read</p>
+          <h1 className="nj-title text-6xl font-black italic leading-[.86] tracking-tight sm:text-8xl"><span className="text-fuchsia-300">READING</span><br />NINJA</h1>
+          <p className="mt-5 max-w-md text-lg font-bold leading-snug text-white/90 sm:text-xl">Tokens fly up with pictures and words. Slice only the ones that match — look at one until the ring fills, or swipe right through it!</p>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <GazeButton dwell={D} onHover={hover} onSelect={() => { click(); setView("levels"); }} className="flex min-h-[4.5rem] items-center gap-3 rounded-[1.6rem] border-b-[6px] border-fuchsia-800 bg-gradient-to-b from-fuchsia-300 to-pink-400 px-10 text-3xl font-black text-fuchsia-950 shadow-2xl"><Play className="h-8 w-8 fill-current" />PLAY</GazeButton>
+          </div>
+          <p className="mt-6 flex flex-wrap items-center gap-2 text-sm font-black text-white/80">
+            <span className="flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5"><Star className="h-4 w-4 fill-yellow-300 text-yellow-300" />{totalStars} / {LEVELS.length * 3}</span>
+            <span className="flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5">{settings.steer === "look" ? <><Eye className="h-4 w-4" />Look to slice</> : <><Hand className="h-4 w-4" />Swipe to slice</>}</span>
+          </p>
+        </div></div>
+      </section>}
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 place-items-center py-3">
-          {setupStep==="difficulty" ? (
-            <section key="difficulty" className="ninja-setup-in w-full max-w-3xl rounded-[2rem] bg-white text-slate-950 border-4 border-fuchsia-400 p-5 sm:p-8 shadow-[0_24px_70px_rgba(0,0,0,.45)]">
-              <p className="text-xs font-black uppercase tracking-[.18em] text-fuchsia-700">Step 1 of 2</p>
-              <h1 className="text-3xl sm:text-5xl font-black mt-2">How fast should things fly?</h1>
-              <p className="font-bold text-slate-600 mt-2">Choose one. Easy gives bigger targets, slower movement, and no lost hearts.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
-                {(Object.keys(SPEED) as Difficulty[]).map(level=>(
-                  <button key={level} type="button" onClick={()=>setDifficulty(level)} className={"min-h-24 rounded-2xl border-4 p-4 text-left transition touch-manipulation shadow-md "+(difficulty===level?"border-fuchsia-500 bg-fuchsia-100 text-slate-950 ring-4 ring-fuchsia-300/40":"border-slate-300 bg-slate-100 text-slate-950 hover:border-fuchsia-400 hover:bg-fuchsia-50")}>
-                    <div className="text-2xl font-black">{level==="easy"?"🧸":level==="medium"?"🥷":"⚡"} {SPEED[level].label}</div>
-                    <div className="text-sm font-bold text-slate-600 mt-1">{SPEED[level].description}</div>
-                    {difficulty===level&&<div className="text-fuchsia-800 font-black mt-2">✓ Selected</div>}
-                  </button>
-                ))}
-              </div>
-              <button type="button" onClick={()=>setSetupStep("level")} className="mt-5 w-full min-h-16 rounded-2xl bg-pink-300 text-slate-950 text-xl font-black shadow-xl">Next: choose a level →</button>
-            </section>
-          ) : (
-            <section key="level" className="ninja-setup-in w-full max-w-4xl h-full max-h-[760px] rounded-[2rem] bg-white text-slate-950 border-4 border-fuchsia-400 p-4 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,.45)] flex flex-col min-h-0">
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <button type="button" onClick={()=>setSetupStep("difficulty")} className="min-h-11 rounded-xl bg-slate-200 border-2 border-slate-300 text-slate-950 px-3 font-black shadow-sm">← Speed</button>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[.18em] text-fuchsia-700">Step 2 of 2</p>
-                  <h1 className="text-2xl sm:text-4xl font-black">Choose a level</h1>
-                </div>
-                <div className="rounded-full bg-pink-300 text-slate-950 px-3 py-2 text-xs font-black">{SPEED[difficulty].label}</div>
-              </div>
-
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
-                {MISSIONS.map((m,i)=>(
-                  <button key={i} type="button" onClick={()=>setMissionIndex(i)} className={"min-h-[92px] rounded-2xl border-4 p-2 text-center touch-manipulation shadow-md "+(missionIndex===i?"border-fuchsia-500 bg-fuchsia-100 text-slate-950 ring-4 ring-fuchsia-300/40":"border-slate-300 bg-slate-100 text-slate-950 hover:border-fuchsia-400 hover:bg-fuchsia-50")}>
-                    <div className="text-3xl sm:text-4xl">{m.theme.badge}</div>
-                    <div className="font-black text-xs mt-1">LEVEL {i+1}</div>
-                    <div className="text-[10px] font-bold text-slate-600 truncate">{m.theme.name}</div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-3 flex-shrink-0">
-                <div className="rounded-xl bg-slate-100 border-2 border-slate-200 text-slate-950 px-3 py-2 text-center font-black text-sm truncate shadow-sm">{MISSIONS[missionIndex].target.emoji} {MISSIONS[missionIndex].prompt}</div>
-                <button type="button" onClick={startGame} className="mt-2 w-full min-h-16 rounded-2xl bg-gradient-to-r from-pink-300 via-fuchsia-400 to-violet-400 text-slate-950 text-xl font-black shadow-xl">🥷 Start Level {missionIndex+1}</button>
-              </div>
-            </section>
-          )}
+      {view === "levels" && <section data-ninja-ui className="absolute inset-0 overflow-y-auto" style={{ background: "radial-gradient(circle at 80% -10%, #a21caf 0%, #3b0764 40%, #0f0a1f 100%)" }}>
+        <div className="sticky top-0 z-10 bg-gradient-to-b from-[#2a0b45] via-[#2a0b45]/90 to-transparent">
+          <header className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-3 pb-5 pt-3 sm:px-6">
+            <GazeButton dwell={D} onHover={hover} onSelect={() => { click(); setView("title"); }} className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10" label="Back"><ArrowLeft className="h-6 w-6" /></GazeButton>
+            <div className="mr-auto"><p className="text-[10px] font-black uppercase tracking-[.3em] text-fuchsia-300">Reading Ninja</p><h2 className="text-2xl font-black sm:text-3xl">Choose a level</h2></div>
+            <div className="order-last flex w-full gap-1.5 rounded-2xl bg-black/30 p-1.5 sm:order-none sm:w-auto">
+              {SPEEDS.map(s => <GazeButton key={s.id} dwell={D} onHover={hover} onSelect={() => { click(); setSettings(x => ({ ...x, difficulty: s.id })); }} className={"min-h-12 flex-1 rounded-xl px-3 font-black sm:flex-none sm:px-4 " + (settings.difficulty === s.id ? "bg-fuchsia-300 text-fuchsia-950 shadow-lg" : "text-white/80")} label={s.name + " speed"}>{s.icon} {s.name}</GazeButton>)}
+            </div>
+            <GazeButton dwell={D} onHover={hover} onSelect={() => { click(); setPanel("settings"); }} className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10" label="Settings"><Settings className="h-6 w-6" /></GazeButton>
+          </header>
         </div>
-      </div>
-    </div>;
-  }
+        <div className="mx-auto max-w-6xl px-3 pb-10 sm:px-6">
+          <p className="mb-4 text-sm font-bold text-white/70">{SPEEDS.find(s => s.id === settings.difficulty)!.note}{D ? " · Look at a level to start it." : ""}</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {LEVELS.map((l, i) => { const p = progress.levels[i]; return (
+              <GazeButton key={i} dwell={D} onHover={hover} onSelect={() => play(i)} label={`Level ${i + 1}, ${l.name}: ${l.prompt}`} className="nj-up isolate flex min-h-[188px] flex-col rounded-[1.6rem] border-2 border-white/20 p-3 text-left shadow-xl">
+                <span className="absolute inset-0 -z-10" style={{ background: l.look.ui }} /><span className="absolute inset-0 -z-10 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                <span className="absolute -right-1 -top-2 text-6xl drop-shadow-lg">{l.badge}</span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-white/85">Level {i + 1}</span>
+                <span className="mt-0.5 pr-10 text-xl font-black leading-tight drop-shadow">{l.name}</span>
+                <span className="mt-auto flex items-center gap-2 rounded-xl bg-white px-2 py-1.5 text-slate-950 shadow"><span className="text-2xl leading-none">{l.target.emoji}</span><span className="truncate text-sm font-black uppercase">{l.target.label}</span><span className="ml-auto text-xs font-black text-slate-500">×{l.goal}</span></span>
+                <span className="mt-2 flex items-center gap-0.5">{[0, 1, 2].map(k => <Star key={k} className={"h-5 w-5 " + ((p?.stars || 0) > k ? "fill-yellow-300 text-yellow-300" : "text-white/40")} />)}{p?.best ? <span className="ml-auto text-[11px] font-black text-white/85">🏆 {p.best}</span> : null}</span>
+              </GazeButton>); })}
+          </div>
+        </div>
+      </section>}
 
-  if(gameOver){
-    return <div className="fixed inset-0 z-[120] h-[100dvh] bg-[#070611] text-white grid grid-cols-1 place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-slate-900 border-2 border-white/15 p-7 text-center shadow-2xl"><div className="text-7xl">🥷</div><h1 className="text-4xl font-black mt-3">Try the arena again!</h1><p className="text-xl font-bold text-white/70 mt-2">Level {missionIndex+1} · {mission.theme.name}</p><p className="text-3xl text-amber-300 font-black mt-2">{score} points</p><button type="button" onClick={retry} className="mt-6 w-full min-h-14 rounded-2xl bg-pink-300 text-slate-950 font-black flex items-center justify-center gap-2"><RotateCcw className="w-5 h-5"/> Retry level</button><button type="button" onClick={()=>openSetup("level")} className="mt-2 w-full min-h-12 rounded-2xl bg-fuchsia-600 font-black">☰ Choose level</button><button type="button" onClick={onBack} className="mt-2 w-full min-h-12 rounded-2xl bg-white/10 font-black">Back to games</button></div></div>;
-  }
+      {view === "play" && <PlayView key={runKey} index={level} settings={settings} audio={audio} say={say} dwell={D} onHover={hover}
+        onRecord={r => record(level, r)} onReplay={() => play(level)} onNext={() => play((level + 1) % LEVELS.length)} onLevels={() => { click(); stopSpeaking(); setView("levels"); }} onExit={exit}
+        onSettings={p => setSettings(s => ({ ...s, ...p }))} />}
+      {panel === "settings" && <SettingsPanel s={settings} dwell={D} onHover={hover} onChange={setSettings} onClose={() => { click(); setPanel(null); }} />}
+      {panel === "how" && <HowTo steer={settings.steer} dwell={D} onHover={hover} onClose={() => { click(); setPanel(null); }} />}
+    </main>
+  );
+}
 
-  return <div className="fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-[#050611] text-white p-2 sm:p-5 select-none">
-    <style>{"@keyframes burstPop{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(-50%,-50%) scale(2.4);opacity:0}} @keyframes decorFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-10px) rotate(3deg)}} .burst-pop{animation:burstPop .5s ease-out forwards}.decor-float{animation:decorFloat 4s ease-in-out infinite}"}</style>
-    <div className="max-w-6xl mx-auto h-full flex flex-col">
-      <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-        <button type="button" onClick={()=>openSetup("level")} className="min-h-10 sm:min-h-11 px-3 rounded-xl bg-slate-900 border border-white/15 font-black text-sm flex items-center gap-1.5 flex-shrink-0">☰ <span className="hidden sm:inline">Setup</span></button>
-        <button type="button" onClick={announceMission} className="flex-1 min-w-0 min-h-10 sm:min-h-11 rounded-xl bg-slate-900 border border-white/15 px-3 text-left">
-          <div className="text-[9px] sm:text-xs uppercase tracking-wider font-black text-pink-300 truncate">{mission.theme.badge} {mission.theme.name} · {SPEED[difficulty].label}</div>
-          <div className="text-xs sm:text-base font-black truncate">{mission.target.emoji} {mission.prompt}</div>
-        </button>
-        <button type="button" onClick={()=>setSoundOn(v=>!v)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-900 border border-white/15 grid grid-cols-1 place-items-center flex-shrink-0" aria-label="Toggle sound">{soundOn?<Volume2 className="w-5 h-5"/>:<VolumeX className="w-5 h-5"/>}</button>
-      </div>
+type Toast = { id: number; tone: "good" | "oops" | "info"; emoji?: string; big: string; small?: string };
+function PlayView({ index, settings, audio, say, dwell, onHover, onRecord, onReplay, onNext, onLevels, onExit, onSettings }: {
+  index: number; settings: Settings; audio: NinjaAudio; say: (t: string, calm?: boolean) => void; dwell: boolean; onHover: () => void;
+  onRecord: (r: NinjaResult) => { newBest: boolean }; onReplay: () => void; onNext: () => void; onLevels: () => void; onExit: () => void; onSettings: (p: Partial<Settings>) => void;
+}) {
+  const L = LEVELS[index]; const T = L.target;
+  const host = useRef<HTMLDivElement>(null); const gameRef = useRef<NinjaGame | null>(null);
+  const [hud, setHud] = useState<NinjaHud | null>(null); const [phase, setPhase] = useState<"intro" | "count" | "play">("intro"); const [count, setCount] = useState("");
+  const [paused, setPaused] = useState(false); const [toast, setToast] = useState<Toast | null>(null); const [combo, setCombo] = useState<{ id: number; n: number } | null>(null);
+  const [end, setEnd] = useState<{ r: NinjaResult; newBest: boolean } | null>(null); const [error, setError] = useState(""); const [hint, setHint] = useState(true);
+  const tid = useRef(0); const cb = useRef({ say, onRecord }); cb.current = { say, onRecord };
+  const show = useCallback((t: Omit<Toast, "id">) => setToast({ ...t, id: ++tid.current }), []);
+  const intro = useCallback(() => cb.current.say(`Level ${index + 1}. ${L.name}. ${L.prompt} Slice only the ${plural(T.label)}.`), [index, L, T]);
 
-      <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2 flex-shrink-0 text-center">
-        <div className="rounded-xl bg-pink-300 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Level</div><div className="font-black text-sm sm:text-base">{missionIndex+1}/{MISSIONS.length}</div></div>
-        <div className="rounded-xl bg-emerald-400 text-slate-950 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Found</div><div className="font-black text-sm sm:text-base">{slicedCount}/{mission.goal}</div></div>
-        <div className="rounded-xl bg-rose-500/20 text-rose-200 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Hearts</div><div className="font-black text-sm sm:text-base">❤️ {hearts}</div></div>
-        <div className="rounded-xl bg-amber-400/15 text-amber-300 px-1 py-1.5 sm:py-2"><div className="text-[9px] sm:text-[10px] font-black uppercase">Score</div><div className="font-black text-sm sm:text-base">{score}</div></div>
-      </div>
+  useEffect(() => {
+    const el = host.current; if (!el) return; let g: NinjaGame | null = null;
+    const dwellMs = Math.round(DEFAULT_DWELL[settings.difficulty] * LOOK_SCALE[settings.look]);
+    try {
+      g = new NinjaGame(el, L, { difficulty: settings.difficulty, dwellMs, slowLook: settings.slowLook, glow: settings.glow[settings.difficulty], quality: settings.quality, cardStyle: settings.cardStyle, steer: settings.steer }, audio, {
+        onHud: setHud,
+        onEvent: e => {
+          const s = cb.current.say, label = (e.label || "").toUpperCase();
+          if (e.t === "slice") { show({ tone: "good", emoji: e.emoji, big: label + "!", small: `${e.n} of ${L.goal}` }); if ((e.combo || 1) > 1) setCombo({ id: Date.now(), n: e.combo! }); if ((e.combo || 1) === 1 && (e.n || 0) % 3 === 1) s(`${T.label}!`); navigator.vibrate?.(30); }
+          if (e.t === "wrong") { show({ tone: "oops", emoji: e.emoji, big: `That's ${/^[aeiou]/i.test(e.label!) ? "an" : "a"} ${label}`, small: `Slice the ${T.label.toUpperCase()} ${T.emoji}` }); s(`That's ${/^[aeiou]/i.test(e.label!) ? "an" : "a"} ${e.label}. Slice the ${plural(T.label)}!`, true); }
+          if (e.t === "win") { s(`Level complete! You sliced all the ${plural(T.label)}!`); celebrateEyeGaze(false); }
+          if (e.t === "fail") s("Nice try! Let's play again.", true);
+        },
+        onEnd: r => { const out = cb.current.onRecord(r); setEnd({ r, ...out }); },
+      });
+      gameRef.current = g;
+    } catch (e) { console.error(e); setError("This device couldn't start the 3D game. Try Graphics: Low in Settings."); }
+    const timers: number[] = []; const at = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
+    intro();
+    at(2600, () => { setPhase("count"); setCount("3"); audio.play("count"); });
+    at(3300, () => { setCount("2"); audio.play("count"); });
+    at(4000, () => { setCount("1"); audio.play("count"); });
+    at(4700, () => { setCount("GO!"); audio.play("go"); g?.start(); setPhase("play"); });
+    at(5400, () => setCount("")); at(11000, () => setHint(false));
+    const key = (e: KeyboardEvent) => { if (e.code === "Escape" || e.code === "KeyP") { const gg = gameRef.current; if (gg && gg.sim.state === "play") { const p = !gg.isPaused(); gg.setPaused(p); setPaused(p); audio.play("pause"); } } };
+    const vis = () => { const gg = gameRef.current; if (document.hidden && gg && gg.sim.state === "play" && !gg.isPaused()) { gg.setPaused(true); setPaused(true); } };
+    window.addEventListener("keydown", key); document.addEventListener("visibilitychange", vis);
+    return () => { timers.forEach(window.clearTimeout); window.removeEventListener("keydown", key); document.removeEventListener("visibilitychange", vis); g?.dispose(); gameRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [L]);
+  useEffect(() => { if (gameRef.current) gameRef.current.opts.steer = settings.steer; }, [settings.steer]);
+  useEffect(() => { if (!toast) return; const id = toast.id; const h = window.setTimeout(() => setToast(t => (t?.id === id ? null : t)), toast.tone === "oops" ? 1900 : 1150); return () => window.clearTimeout(h); }, [toast]);
 
-      <div
-        ref={arenaRef}
-        className="relative flex-1 min-h-0 overflow-hidden rounded-2xl sm:rounded-[2rem] border-4 border-white/15 touch-none cursor-crosshair shadow-2xl"
-        style={{background:mission.theme.background}}
-        onPointerDown={e=>{setSlicing(true);slicingRef.current=true;e.currentTarget.setPointerCapture?.(e.pointerId);sliceAt(e.clientX,e.clientY);}}
-        onPointerMove={e=>{if(slicingRef.current)sliceAt(e.clientX,e.clientY);}}
-        onPointerUp={e=>{if(slicingRef.current)sliceAt(e.clientX,e.clientY);slicingRef.current=false;setSlicing(false);}}
-        onPointerCancel={()=>{slicingRef.current=false;setSlicing(false);}}
-      >
-        <div className="absolute inset-0 opacity-25" style={{backgroundImage:"radial-gradient(circle,white 1px,transparent 1px)",backgroundSize:"42px 42px"}}/>
-        <div className="absolute inset-x-0 top-8 flex justify-around text-5xl sm:text-7xl opacity-25 decor-float">{mission.theme.decor.map((x,i)=><span key={i}>{x}</span>)}</div>
-        <div className="absolute bottom-0 inset-x-0 h-[22%] bg-gradient-to-t from-black/40 to-transparent"/>
+  const pause = () => { const g = gameRef.current; if (!g || g.sim.state !== "play") return; g.setPaused(true); setPaused(true); audio.play("pause"); };
+  const resume = () => { audio.play("select"); gameRef.current?.setPaused(false); setPaused(false); };
+  const look = settings.steer === "look";
 
-        {things.map(item=><div key={item.id} className="absolute z-20 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-150 pointer-events-none" style={{left:item.x+"%",top:item.y+"%",transform:"translate(-50%,-50%) rotate("+item.rotation+"deg) "+(item.sliced?"scale(1.4)":"scale(1)")}}><SliceToken item={item} large={difficulty==="easy"&&item.isTarget}/></div>)}
+  return (
+    <div className="absolute inset-0 bg-black">
+      <div ref={host} className="absolute inset-0" style={{ cursor: look ? "none" : "crosshair" }} />
+      {error && <div data-ninja-ui className="absolute inset-0 grid place-items-center bg-slate-950 p-6 text-center"><div><p className="text-xl font-black">{error}</p><GazeButton dwell={dwell} onSelect={onLevels} className="mt-5 min-h-14 rounded-2xl bg-white px-6 font-black text-slate-950">Back to levels</GazeButton></div></div>}
 
-        <svg className="absolute inset-0 z-40 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <defs><linearGradient id="bladeTrail" x1="0" x2="1"><stop offset="0%" stopColor="#67e8f9"/><stop offset="50%" stopColor="#ffffff"/><stop offset="100%" stopColor="#f0abfc"/></linearGradient></defs>
-          {trailPoints&&<polyline points={trailPoints} fill="none" stroke="url(#bladeTrail)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity=".95" style={{filter:"drop-shadow(0 0 6px white)"}}/>}
-        </svg>
+      {phase !== "intro" && !end && <div data-ninja-ui className="pointer-events-none absolute inset-x-0 top-0 flex items-start gap-2 p-2 sm:p-3" style={{ paddingTop: "max(.5rem, env(safe-area-inset-top))" }}>
+        <GazeButton dwell={dwell} onSelect={pause} onHover={onHover} className="pointer-events-auto grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-black/45 backdrop-blur" label="Pause"><Pause className="h-6 w-6" /></GazeButton>
+        <div className="flex min-w-0 flex-1 justify-center">
+          <button type="button" onClick={intro} className="pointer-events-auto flex min-w-0 items-center gap-1.5 rounded-2xl bg-white/95 py-1.5 pl-1.5 pr-2.5 text-slate-950 shadow-xl sm:gap-3 sm:pr-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fuchsia-100 text-2xl sm:h-12 sm:w-12 sm:text-3xl">{T.emoji}</span>
+            <span className="min-w-0 text-left"><span className="block truncate text-base font-black uppercase leading-none sm:text-xl">{T.label}</span>
+              <span className="mt-1 flex gap-0.5 sm:gap-1">{Array.from({ length: L.goal }, (_, i) => <span key={i} className={"h-2 w-2 rounded-full transition sm:h-3 sm:w-3 " + (i < (hud?.caught || 0) ? "scale-110 bg-fuchsia-500" : "bg-slate-300")} />)}</span></span>
+            <span className="ml-0.5 shrink-0 text-lg font-black tabular-nums text-fuchsia-600 sm:ml-1 sm:text-2xl">{hud?.caught || 0}<span className="text-xs text-slate-400 sm:text-sm">/{L.goal}</span></span>
+          </button>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <div className="rounded-2xl bg-black/45 px-2.5 py-1.5 text-sm font-black tabular-nums backdrop-blur sm:px-3 sm:text-base">⭐ {hud?.score || 0}</div>
+          {hud?.hasHearts && <div className="flex items-center gap-0.5 rounded-2xl bg-black/45 px-1.5 py-1.5 backdrop-blur sm:px-2">{[0, 1, 2].map(i => <Heart key={i} className={"h-4 w-4 sm:h-5 sm:w-5 " + (i < hud.hearts ? "fill-rose-500 text-rose-300" : "text-white/30")} />)}</div>}
+        </div>
+      </div>}
 
-        {bursts.map(b=><div key={b.id} className={"absolute z-45 -translate-x-1/2 -translate-y-1/2 pointer-events-none burst-pop "+(b.good?"text-emerald-200":"text-rose-200")} style={{left:b.x+"%",top:b.y+"%"}}><div className="text-7xl">{b.good?"✨":"💥"}</div><div className="text-4xl text-center">{b.emoji}</div></div>)}
+      {phase === "intro" && !error && <div className="pointer-events-none absolute inset-0 grid place-items-center p-4"><div className="nj-pop flex flex-col items-center text-center">
+        <p className="rounded-full bg-black/45 px-4 py-1 text-sm font-black uppercase tracking-[.3em] text-fuchsia-200 backdrop-blur">Level {index + 1} · {L.name}</p>
+        <div className="nj-float mt-4 flex h-48 w-48 flex-col items-center justify-center rounded-full border-[8px] border-fuchsia-400 bg-white text-slate-950 shadow-[0_0_60px_rgba(240,171,252,.8)] sm:h-56 sm:w-56">
+          <span className="text-8xl leading-none">{T.emoji}</span><span className="mt-2 rounded-xl bg-[#14223f] px-4 py-1 text-xl font-black uppercase text-white sm:text-2xl">{T.label}</span>
+        </div>
+        <h2 className="nj-title mt-5 text-4xl font-black italic sm:text-6xl">{L.prompt}</h2>
+      </div></div>}
+      {count && <div className="pointer-events-none absolute inset-0 grid place-items-center"><div key={count} className="nj-count nj-title text-[9rem] font-black italic leading-none text-fuchsia-300 sm:text-[12rem]">{count}</div></div>}
 
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 rounded-full bg-slate-950/85 border border-white/20 px-4 py-2 font-black text-sm sm:text-base whitespace-nowrap shadow-xl">{mission.target.emoji} {mission.prompt}</div>
+      {toast && !end && <div className="pointer-events-none absolute inset-x-0 top-[22%] flex justify-center px-4"><div key={toast.id} className={"nj-toast flex items-center gap-3 rounded-[1.6rem] border-4 px-5 py-2.5 shadow-2xl backdrop-blur " + (toast.tone === "good" ? "border-white bg-fuchsia-600/90" : toast.tone === "oops" ? "border-white/80 bg-slate-900/90" : "border-white/70 bg-indigo-600/90")}>
+        {toast.emoji && <span className="text-5xl leading-none">{toast.emoji}</span>}
+        <span><span className="block text-3xl font-black leading-none sm:text-4xl">{toast.tone === "good" ? "✓ " : ""}{toast.big}</span>{toast.small && <span className="mt-1 block text-base font-black text-white/85">{toast.small}</span>}</span>
+      </div></div>}
+      {combo && !end && <div key={combo.id} className="nj-combo pointer-events-none absolute right-[8%] top-[34%] text-right"><div className="nj-title text-5xl font-black italic text-yellow-300 sm:text-7xl">COMBO ×{combo.n}!</div></div>}
 
-        {difficulty==="easy"&&<div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 rounded-full bg-pink-100/95 text-fuchsia-900 border-2 border-white px-4 py-2 text-xs sm:text-sm font-black shadow-lg">🧸 EASY MODE · bigger target hit area · no lost hearts</div>}
-                {missionComplete&&<div className="absolute inset-0 z-50 bg-slate-950/76 backdrop-blur-sm grid grid-cols-1 place-items-center p-5"><div className="w-full max-w-lg rounded-[2rem] bg-white text-slate-950 p-7 text-center shadow-2xl border-4 border-pink-300"><div className="text-7xl">{mission.theme.badge}🎉</div><p className="text-xs font-black uppercase tracking-widest text-fuchsia-700 mt-2">Level {missionIndex+1} complete</p><h2 className="text-4xl font-black mt-1">{mission.theme.name}</h2><p className="font-bold text-slate-600 mt-2">You completed the challenge and found all the {mission.target.label}s!</p><button
-  type="button"
-  onClick={nextMission}
-  className="mt-6 w-full min-h-[88px] sm:min-h-[76px] rounded-[1.75rem] bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white text-xl sm:text-2xl font-black shadow-xl ring-4 ring-fuchsia-200/70 touch-manipulation active:scale-[0.98] transition-transform px-5"
->
-  {missionIndex===MISSIONS.length-1
-    ? "↻ Play Level 1 Again"
-    : <>NEXT LEVEL →<span className="block text-sm sm:text-base font-bold text-white/80 mt-1">Level {missionIndex+2}: {MISSIONS[(missionIndex+1)%MISSIONS.length].theme.name}</span></>}
-</button></div></div>}
-      </div>
+      {hint && phase === "play" && !paused && <div className="pointer-events-none absolute inset-x-0 flex justify-center px-4" style={{ bottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
+        <p className="nj-up rounded-2xl bg-black/55 px-4 py-2 text-center text-sm font-black backdrop-blur sm:text-base">{look ? `👀 Look at a ${T.label} until the ring fills — or click and swipe through it` : `👆 Swipe through the ${plural(T.label)} — or tap them`}</p>
+      </div>}
 
-      <div className="hidden sm:block mt-3 rounded-xl bg-slate-900 p-3 text-center text-sm font-black text-white/70 flex-shrink-0">Swipe through only {mission.target.emoji} {mission.target.label}s. Wrong objects cost a heart.</div>
+      {paused && !end && <Panel title="Paused">
+        <div className="grid gap-2.5">
+          <GazeButton dwell={dwell} onHover={onHover} onSelect={resume} className="flex min-h-16 items-center justify-center gap-2 rounded-2xl bg-fuchsia-300 text-xl font-black text-fuchsia-950"><Play className="h-6 w-6 fill-current" />Keep playing</GazeButton>
+          <div className="grid grid-cols-2 gap-2.5">
+            <GazeButton dwell={dwell} onHover={onHover} onSelect={onReplay} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 font-black"><RotateCcw className="h-5 w-5" />Restart</GazeButton>
+            <GazeButton dwell={dwell} onHover={onHover} onSelect={onLevels} className="min-h-14 rounded-2xl bg-white/10 font-black">🥷 Levels</GazeButton>
+            <GazeButton dwell={dwell} onHover={onHover} onSelect={() => onSettings({ voice: !settings.voice })} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 font-black">{settings.voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}Voice {settings.voice ? "on" : "off"}</GazeButton>
+            <GazeButton dwell={dwell} onHover={onHover} onSelect={() => onSettings({ steer: look ? "touch" : "look" })} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 font-black">{look ? <><Eye className="h-5 w-5" />Look</> : <><Hand className="h-5 w-5" />Swipe</>}</GazeButton>
+          </div>
+          <GazeButton dwell={dwell} onHover={onHover} onSelect={onExit} className="min-h-12 rounded-2xl bg-white/5 font-black text-white/80">Leave game</GazeButton>
+        </div>
+      </Panel>}
+
+      {end && <div data-ninja-ui className="absolute inset-0 z-20 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-[2px]">
+        <div className="nj-pop my-auto w-full max-w-lg rounded-[2rem] border-2 border-white/25 bg-slate-950/90 p-5 text-center shadow-2xl sm:p-7">
+          <p className="text-xs font-black uppercase tracking-[.3em] text-fuchsia-200">Level {index + 1} · {L.name}</p>
+          <h2 className="nj-title mt-1 text-5xl font-black italic sm:text-6xl">{end.r.won ? "Level clear!" : "Great try!"}</h2>
+          {end.r.won ? <div className="mt-4 flex justify-center gap-2">{[0, 1, 2].map(k => <div key={k} className="nj-pop grid h-20 w-20 place-items-center rounded-3xl bg-white/5" style={{ animationDelay: `${0.25 + k * 0.18}s` }}><Star className={"h-14 w-14 " + (k < end.r.stars ? "fill-yellow-300 text-yellow-300" : "text-white/20")} /></div>)}</div>
+            : <p className="mt-3 text-lg font-bold text-white/80">You sliced {end.r.caught} of {end.r.goal} {T.emoji}. Let's go again!</p>}
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[[`${end.r.caught}/${end.r.goal}`, `${T.emoji} sliced`], [String(end.r.wrong), "oops"], [`×${Math.max(1, end.r.bestCombo)}`, "best combo"], [String(end.r.score), end.newBest ? "⭐ new best" : "score"]].map(([b, s]) => <div key={s} className="rounded-2xl bg-white/5 py-3"><div className="text-2xl font-black tabular-nums">{b}</div><div className="text-[11px] font-black uppercase tracking-wide text-slate-400">{s}</div></div>)}
+          </div>
+          {end.r.won && end.r.stars < 3 && <p className="mt-3 text-sm font-bold text-white/70">Tip: slice only the {T.label.toUpperCase()} tokens for 3 stars.</p>}
+          <div className="mt-5 grid gap-2.5">
+            {end.r.won && <GazeButton dwell={dwell} onHover={onHover} onSelect={onNext} className="min-h-16 rounded-2xl bg-gradient-to-b from-fuchsia-300 to-pink-400 text-xl font-black text-fuchsia-950 shadow-xl">{index === LEVELS.length - 1 ? "Back to Level 1 ▶" : `Next level ${LEVELS[index + 1].badge} ▶`}</GazeButton>}
+            <div className="grid grid-cols-2 gap-2.5">
+              <GazeButton dwell={dwell} onHover={onHover} onSelect={onReplay} className={"flex min-h-14 items-center justify-center gap-2 rounded-2xl font-black " + (end.r.won ? "bg-white/10" : "bg-fuchsia-300 text-fuchsia-950")}><RotateCcw className="h-5 w-5" />{end.r.won ? "Play again" : "Try again"}</GazeButton>
+              <GazeButton dwell={dwell} onHover={onHover} onSelect={onLevels} className="min-h-14 rounded-2xl bg-white/10 font-black">🥷 Levels</GazeButton>
+            </div>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+function Panel({ children, onClose, title }: { children: ReactNode; onClose?: () => void; title: string }) {
+  return <div data-ninja-ui className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm" onClick={onClose}>
+    <div className="nj-pop my-auto w-full max-w-lg rounded-[2rem] border border-white/15 bg-slate-950/95 p-5 shadow-2xl sm:p-6" onClick={e => e.stopPropagation()}>
+      <div className="mb-3 flex items-center gap-3"><h2 className="flex-1 text-2xl font-black sm:text-3xl">{title}</h2>{onClose && <button type="button" onClick={onClose} className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10" aria-label="Close"><X className="h-6 w-6" /></button>}</div>
+      {children}
     </div>
   </div>;
+}
+
+function SettingsPanel({ s, dwell, onHover, onChange, onClose }: { s: Settings; dwell: boolean; onHover: () => void; onChange: (s: Settings) => void; onClose: () => void }) {
+  const Row = <K extends keyof Settings>({ title, k, opts }: { title: string; k: K; opts: [Settings[K], ReactNode][] }) => (
+    <div className="mt-3 first:mt-0"><p className="mb-1.5 text-xs font-black uppercase tracking-widest text-slate-400">{title}</p>
+      <div className="grid gap-1.5 rounded-2xl bg-white/5 p-1.5" style={{ gridTemplateColumns: `repeat(${opts.length},minmax(0,1fr))` }}>
+        {opts.map(([v, label]) => <GazeButton key={String(v)} dwell={dwell} ms={900} onHover={onHover} onSelect={() => onChange({ ...s, [k]: v })} className={"min-h-12 rounded-xl px-2 text-sm font-black " + (s[k] === v ? "bg-fuchsia-300 text-fuchsia-950 shadow" : "text-white/80")}>{label}</GazeButton>)}
+      </div></div>);
+  return <Panel title="Settings" onClose={onClose}>
+    <div className="max-h-[68dvh] overflow-y-auto pr-1">
+      <Row title="How to slice" k="steer" opts={[["look", <span key="l" className="flex items-center justify-center gap-1.5"><Eye className="h-4 w-4" />Look (eye gaze / mouse)</span>], ["touch", <span key="t" className="flex items-center justify-center gap-1.5"><Hand className="h-4 w-4" />Swipe & tap</span>]]} />
+      <Row title="Look time to slice" k="look" opts={[["quick", "Quick"], ["normal", "Normal"], ["steady", "Steady"]]} />
+      <Row title="Slow down the token I'm looking at" k="slowLook" opts={[[true, "On"], [false, "Off"]]} />
+      <Row title="Speed" k="difficulty" opts={SPEEDS.map(x => [x.id, `${x.icon} ${x.name}`] as [Difficulty, ReactNode])} />
+      <div className="mt-3"><p className="mb-1.5 text-xs font-black uppercase tracking-widest text-slate-400">Make the matching tokens glow ({SPEEDS.find(x => x.id === s.difficulty)!.name})</p>
+        <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-white/5 p-1.5">{[true, false].map(v => <GazeButton key={String(v)} dwell={dwell} ms={900} onHover={onHover} onSelect={() => onChange({ ...s, glow: { ...s.glow, [s.difficulty]: v } })} className={"min-h-12 rounded-xl text-sm font-black " + (s.glow[s.difficulty] === v ? "bg-fuchsia-300 text-fuchsia-950" : "text-white/80")}>{v ? "✨ Glow" : "No glow"}</GazeButton>)}</div></div>
+      <Row title="Tokens show" k="cardStyle" opts={[["both", "🍎 + APPLE"], ["words", "Words only"], ["pictures", "Pictures only"]]} />
+      <Row title="Menus" k="dwellMenus" opts={[[true, "Look to press"], [false, "Tap only"]]} />
+      <Row title="Voice" k="voice" opts={[[true, "🗣️ On"], [false, "Off"]]} />
+      <label className="mt-3 flex items-center gap-3 text-sm font-black"><span className="w-16">Music</span><input type="range" min={0} max={1} step={0.05} value={s.music} onChange={e => onChange({ ...s, music: +e.target.value })} className="h-8 flex-1 accent-fuchsia-300" /></label>
+      <label className="flex items-center gap-3 text-sm font-black"><span className="w-16">Sounds</span><input type="range" min={0} max={1} step={0.05} value={s.sfx} onChange={e => onChange({ ...s, sfx: +e.target.value })} className="h-8 flex-1 accent-fuchsia-300" /></label>
+      <Row title="Graphics" k="quality" opts={[["low", "Low"], ["medium", "Medium"], ["high", "High"]]} />
+    </div>
+    <GazeButton dwell={dwell} onHover={onHover} onSelect={onClose} className="mt-4 min-h-14 w-full rounded-2xl bg-fuchsia-300 text-lg font-black text-fuchsia-950">Done</GazeButton>
+  </Panel>;
+}
+
+function HowTo({ steer, dwell, onHover, onClose }: { steer: Steer; dwell: boolean; onHover: () => void; onClose: () => void }) {
+  const rows: [string, string, string][] = [
+    ["🎯", "Slice the match", "Only slice tokens that match the mission — like 🍎 APPLE. Leave the others alone."],
+    steer === "look" ? ["👀", "Look to slice", "Look at a token. It slows down and a gold ring fills — then it splits in two!"] : ["👆", "Swipe to slice", "Swipe right through a token, or tap it."],
+    ["🔥", "Combos", "Slice two or more matches in one swipe for a COMBO and bonus points."],
+    ["❤️", "Hearts", "On Medium and Hard, slicing the wrong token costs a heart. Easy never does."],
+    ["⭐", "Stars", "No wrong slices = 3 stars."],
+  ];
+  return <Panel title="How to play" onClose={onClose}>
+    <div className="divide-y divide-white/10">{rows.map(([i, n, h]) => <div key={n} className="flex items-center gap-3 py-2.5"><span className="w-10 text-center text-3xl">{i}</span><div><p className="text-lg font-black">{n}</p><p className="text-sm font-bold text-slate-300">{h}</p></div></div>)}</div>
+    <GazeButton dwell={dwell} onHover={onHover} onSelect={onClose} className="mt-4 min-h-14 w-full rounded-2xl bg-fuchsia-300 text-lg font-black text-fuchsia-950">Got it!</GazeButton>
+  </Panel>;
 }
