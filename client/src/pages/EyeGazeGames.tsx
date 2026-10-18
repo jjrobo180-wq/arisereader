@@ -647,10 +647,10 @@ export default function EyeGazeGames() {
             <div className="absolute right-7 top-5 flex gap-2 text-4xl"><span>🍎</span><span>🍌</span><span>🐱</span></div>
             <div className="relative max-w-lg">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
-                ✨ SWIPE · FIND · HIT
+                ✨ NEW 3D · LOOK · SLICE · READ
               </div>
               <h2 className="text-3xl sm:text-4xl font-black">Reading Ninja</h2>
-              <p className="mt-3 text-white/90 text-base sm:text-lg font-bold">Fast arcade learning: hear the target, then swipe through only the matching pictures as everything flies by.</p>
+              <p className="mt-3 text-white/90 text-base sm:text-lg font-bold">Picture-and-word tokens fly up in 15 arenas. Look at the matching ones until they split in two — or swipe right through them. Leave the others alone!</p>
               <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white text-fuchsia-700 px-5 py-3 font-black">
                 🥷 Start Game
               </div>
