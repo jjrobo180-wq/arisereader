@@ -9,7 +9,10 @@ import { mesh, std } from "@/game/runner/models";
 export type AnimalKind = "cow" | "horse" | "pig" | "sheep" | "goat" | "chicken" | "duck" | "dog";
 export type FoodType = "hay" | "grain" | "apple" | "carrot" | "bone";
 type Area = { minX: number; maxX: number; minZ: number; maxZ: number };
-export type AnimalDef = { id: string; kind: AnimalKind; name: string; sound: string; soundFile: string; soundSeconds: number; fact: string; model: string; x: number; z: number; height: number; speed: number; area: Area; emoji: string };
+export type AnimalDef = { id: string; kind: AnimalKind; name: string; sound: string; soundFile: string; soundSeconds: number; fact: string; model: string; x: number; z: number; height: number; speed: number; area: Area; emoji: string;
+  /** colour multiplier for breeds made from the same model (a black sheep, a chestnut horse…) */ tint?: [number, number, number];
+  /** can you climb on? seat = saddle height as a share of the animal's height */ ride?: { seat: number; walk: number; run: number; saddle?: boolean };
+  baby?: boolean };
 
 const commons = (file: string) => "https://commons.wikimedia.org/wiki/Special:Redirect/file/" + encodeURIComponent(file);
 export const soundUrl = (d: AnimalDef) => commons(d.soundFile);
@@ -33,17 +36,39 @@ const BASE: Record<AnimalKind, { sound: string; soundFile: string; soundSeconds:
 const S = 3.25;
 const HERD = { minX: -40, maxX: -8, minZ: -2, maxZ: 30 }, YARD = { minX: 5, maxX: 40, minZ: -2, maxZ: 29 }, HORSES = { minX: -10, maxX: 19, minZ: -2, maxZ: 30 }, HENS = { minX: 22, maxX: 41, minZ: 1, maxZ: 16 };
 const PONDAREA = { minX: POND.x - POND.r + 1, maxX: POND.x + POND.r - 1, minZ: POND.z - POND.r + 1, maxZ: POND.z + POND.r - 1 };
-const A = (id: string, kind: AnimalKind, name: string, x: number, z: number, area: Area, scale = 1, model = MODEL[kind]): AnimalDef =>
-  ({ id, kind, name, x: x * S, z: z * S, area, model, ...BASE[kind], height: BASE[kind].height * scale, speed: BASE[kind].speed * Math.max(0.8, scale) });
+type Extra = Partial<Pick<AnimalDef, "tint" | "ride" | "baby" | "sound" | "fact" | "emoji">>;
+const A = (id: string, kind: AnimalKind, name: string, x: number, z: number, area: Area, scale = 1, model = MODEL[kind], extra: Extra = {}): AnimalDef =>
+  ({ id, kind, name, x: x * S, z: z * S, area, model, ...BASE[kind], height: BASE[kind].height * scale, speed: BASE[kind].speed * Math.max(0.8, scale), baby: scale < 0.7, ...extra });
+const HORSE_RIDE = { seat: 0.74, walk: 4.5, run: 11, saddle: true }, PONY_RIDE = { seat: 0.74, walk: 4, run: 8.5, saddle: true };
+const COW_RIDE = { seat: 0.86, walk: 3.2, run: 6 }, PIG_RIDE = { seat: 0.88, walk: 3.2, run: 6.5 }, WOOLLY_RIDE = { seat: 0.9, walk: 3.2, run: 6.5 }, GOAT_RIDE = { seat: 0.9, walk: 3.6, run: 7.5 };
 export const ANIMALS: AnimalDef[] = [
-  A("cow-1", "cow", "Bessie the Cow", -9.2, 2.1, HERD), A("cow-2", "cow", "Daisy the Cow", -6.6, 5.6, HERD, 0.96), A("calf-1", "cow", "Little Calf", -8.0, 4.2, HERD, 0.58, YOUNG.calf),
-  A("horse-1", "horse", "Maple the Horse", -1.6, 0.6, HORSES), A("horse-2", "horse", "Sunny the Horse", 3.0, 4.6, HORSES, 0.94), A("foal-1", "horse", "Little Foal", 0.8, 3.0, HORSES, 0.62, YOUNG.foal),
-  A("pig-1", "pig", "Rosie the Pig", 4.4, 7.0, YARD), A("pig-2", "pig", "Poppy the Pig", 5.3, 6.0, YARD, 0.92), A("piglet-1", "pig", "Little Piglet", 4.7, 7.6, YARD, 0.58),
-  A("sheep-1", "sheep", "Cloud the Sheep", -3.8, 6.5, HERD), A("sheep-2", "sheep", "Snowy the Sheep", -4.8, 7.3, HERD, 0.93), A("lamb-1", "sheep", "Little Lamb", -4.2, 5.4, HERD, 0.58),
-  A("goat-1", "goat", "Piper the Goat", 2.4, 6.7, YARD), A("goat-2", "goat", "Juniper the Goat", 2.0, 5.4, YARD, 0.9),
+  A("cow-1", "cow", "Bessie the Cow", -9.2, 2.1, HERD, 1, MODEL.cow, { ride: COW_RIDE }),
+  A("cow-2", "cow", "Daisy the Brown Cow", -6.6, 5.6, HERD, 0.96, MODEL.cow, { ride: COW_RIDE, tint: [0.78, 0.56, 0.4] }),
+  A("bull-1", "cow", "Bruno the Bull", -11.5, 6.5, HERD, 1.12, MODEL.cow, { ride: { seat: 0.86, walk: 3.4, run: 6.5 }, tint: [0.36, 0.27, 0.22], fact: "A bull is a grown-up boy cow. Bulls are big and strong!" }),
+  A("calf-1", "cow", "Little Calf", -8.0, 4.2, HERD, 0.58, YOUNG.calf),
+  A("horse-1", "horse", "Maple the Horse", -1.6, 0.6, HORSES, 1, MODEL.horse, { ride: HORSE_RIDE }),
+  A("horse-2", "horse", "Sunny the Chestnut Horse", 3.0, 4.6, HORSES, 0.97, MODEL.horse, { ride: HORSE_RIDE, tint: [1.08, 0.74, 0.52] }),
+  A("horse-3", "horse", "Midnight the Black Horse", -2.8, 5.2, HORSES, 1.02, MODEL.horse, { ride: HORSE_RIDE, tint: [0.32, 0.3, 0.33] }),
+  A("pony-1", "horse", "Pepper the Pony", 1.6, 7.0, HORSES, 0.72, MODEL.horse, { ride: PONY_RIDE, baby: false, tint: [0.95, 0.9, 0.85], fact: "Ponies are small horses with thick manes. They are strong for their size!", emoji: "🐎" }),
+  A("foal-1", "horse", "Little Foal", 0.8, 3.0, HORSES, 0.62, YOUNG.foal),
+  A("pig-1", "pig", "Rosie the Pig", 4.4, 7.0, YARD, 1, MODEL.pig, { ride: PIG_RIDE }),
+  A("pig-2", "pig", "Poppy the Spotty Pig", 5.3, 6.0, YARD, 0.95, MODEL.pig, { ride: PIG_RIDE, tint: [0.92, 0.72, 0.66] }),
+  A("piglet-1", "pig", "Little Piglet", 4.7, 7.6, YARD, 0.55), A("piglet-2", "pig", "Tiny Piglet", 5.0, 7.9, YARD, 0.5),
+  A("sheep-1", "sheep", "Cloud the Sheep", -3.8, 6.5, HERD, 1, MODEL.sheep, { ride: WOOLLY_RIDE }),
+  A("sheep-2", "sheep", "Snowy the Sheep", -4.8, 7.3, HERD, 0.93, MODEL.sheep, { ride: WOOLLY_RIDE }),
+  A("sheep-3", "sheep", "Licorice the Black Sheep", -5.6, 6.1, HERD, 0.95, MODEL.sheep, { ride: WOOLLY_RIDE, tint: [0.3, 0.3, 0.32], fact: "Some sheep have black wool! A black sheep is just as soft and cozy." }),
+  A("lamb-1", "sheep", "Little Lamb", -4.2, 5.4, HERD, 0.58), A("lamb-2", "sheep", "Fluffy Lamb", -3.4, 5.9, HERD, 0.55),
+  A("goat-1", "goat", "Piper the Goat", 2.4, 6.7, YARD, 1, MODEL.goat, { ride: GOAT_RIDE }),
+  A("goat-2", "goat", "Juniper the Goat", 2.0, 5.4, YARD, 0.9, MODEL.goat, { ride: GOAT_RIDE, tint: [0.85, 0.7, 0.55] }),
+  A("kid-1", "goat", "Little Kid Goat", 2.6, 6.0, YARD, 0.55, MODEL.goat, { fact: "A baby goat is called a kid. Kids love to jump and play!" }),
   A("chicken-1", "chicken", "Henny the Hen", 8.6, 3.0, HENS), A("chicken-2", "chicken", "Clucky the Chicken", 9.6, 3.8, HENS, 0.9),
+  A("rooster-1", "chicken", "Rocky the Rooster", 9.2, 2.6, HENS, 1.15, MODEL.chicken, { tint: [1.0, 0.62, 0.42], sound: "Cock-a-doodle-doo", fact: "Roosters crow early in the morning to say good morning to the farm!" }),
+  A("chick-1", "chicken", "Peep the Chick", 8.9, 3.4, HENS, 0.34, MODEL.chicken, { tint: [1.35, 1.2, 0.35], fact: "Chicks are baby chickens. They hatch out of eggs!" }),
+  A("chick-2", "chicken", "Cheep the Chick", 9.1, 3.5, HENS, 0.32, MODEL.chicken, { tint: [1.35, 1.2, 0.35], fact: "Chicks are baby chickens. They hatch out of eggs!" }),
   A("duck-1", "duck", "Mallard Duck", POND.x / S - 0.6, POND.z / S, PONDAREA), A("duck-2", "duck", "Dot the Duck", POND.x / S + 0.5, POND.z / S + 0.4, PONDAREA, 0.9),
-  A("dog-1", "dog", "Rex the Farm Dog", 0.6, 1.8, YARD),
+  A("duckling-1", "duck", "Little Duckling", POND.x / S - 0.3, POND.z / S + 0.2, PONDAREA, 0.42, MODEL.duck, { tint: [1.3, 1.2, 0.4], fact: "Baby ducks are called ducklings. They follow their mom in a line!" }),
+  A("duckling-2", "duck", "Tiny Duckling", POND.x / S - 0.1, POND.z / S + 0.25, PONDAREA, 0.4, MODEL.duck, { tint: [1.3, 1.2, 0.4], fact: "Baby ducks are called ducklings. They follow their mom in a line!" }),
+  A("dog-1", "dog", "Rex the Farm Dog", 0.6, 1.8, YARD), A("puppy-1", "dog", "Biscuit the Puppy", 1.0, 2.1, YARD, 0.58, MODEL.dog, { fact: "Puppies are baby dogs. They love to play and nap!" }),
 ];
 export const byId = Object.fromEntries(ANIMALS.map(a => [a.id, a])) as Record<string, AnimalDef>;
 export const FOOD: Record<FoodType, { label: string; emoji: string }> = { hay: { label: "Hay", emoji: "🌾" }, grain: { label: "Grain", emoji: "🌽" }, apple: { label: "Apples", emoji: "🍎" }, carrot: { label: "Carrots", emoji: "🥕" }, bone: { label: "Dog treat", emoji: "🦴" } };
@@ -112,7 +137,19 @@ export async function loadAnimal(def: AnimalDef, timeoutMs = 12000): Promise<Loa
     model.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3());
     model.scale.setScalar(def.height / Math.max(0.01, size.y)); model.updateMatrixWorld(true);
     const b2 = new THREE.Box3().setFromObject(model); model.position.y = -b2.min.y;
-    model.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
+    model.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; if (def.tint) { const tint = (mm: THREE.Material) => { const c = mm.clone() as THREE.MeshStandardMaterial; c.color?.multiply(new THREE.Color(...def.tint!)); return c; }; m.material = Array.isArray(m.material) ? m.material.map(tint) : tint(m.material); } } });
     return { model, clips: gltf.animations, standIn: false };
-  } catch { return { model: standIn(def.kind, def.height), clips: [], standIn: true }; }
+  } catch { const m = standIn(def.kind, def.height); if (def.tint) m.traverse(o => { const mm = o as THREE.Mesh; if (mm.isMesh) { const c = (mm.material as THREE.MeshStandardMaterial).clone(); c.color.multiply(new THREE.Color(...def.tint!)); mm.material = c; } }); return { model: m, clips: [], standIn: true }; }
+}
+
+/** A leather saddle with a red blanket for the horses you can ride (sits on the animal's back). */
+export function saddle(def: AnimalDef) {
+  const g = new THREE.Group(); const h = def.height, k = h / 2;
+  const blanket = mesh(new THREE.BoxGeometry(0.72 * k, 0.04, 0.78 * k), std(0xb91c1c, 0.8), g, [0, 0, 0]); blanket.castShadow = false;
+  mesh(new THREE.BoxGeometry(0.76 * k, 0.02, 0.06), std(0xfacc15, 0.6), g, [0, 0.01, 0.38 * k]);
+  const seat = mesh(new THREE.CylinderGeometry(0.26 * k, 0.3 * k, 0.12, 18, 1, false, 0, Math.PI), std(0x7c3f16, 0.45), g, [0, 0.07, 0]); seat.rotation.z = Math.PI / 2; seat.rotation.y = Math.PI / 2; seat.scale.set(1, 1.2, 1);
+  mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.14, 8), std(0x5a2d0c, 0.5), g, [0, 0.16, 0.2 * k]);
+  for (const sd of [-1, 1]) { mesh(new THREE.BoxGeometry(0.02, 0.4 * k, 0.03), std(0x3f2a14, 0.6), g, [sd * 0.3 * k, -0.2 * k, 0]); mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 12), std(0x9ca3af, 0.3, { metalness: 0.8 }), g, [sd * 0.3 * k, -0.42 * k, 0]); }
+  g.position.y = h * (def.ride?.seat ?? 0.74);
+  return g;
 }

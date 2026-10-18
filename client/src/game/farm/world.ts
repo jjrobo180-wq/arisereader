@@ -6,25 +6,11 @@ import { makeWater, MAX_RIPPLES, type Ripple } from "@/game/splash/water";
 import { bakeStatic, mesh, roundedBox, std } from "@/game/runner/models";
 import { canvasTex } from "@/game/runner/textures";
 
-export type Box = { minX: number; maxX: number; minZ: number; maxZ: number; pad?: number };
-export const FIELD = { minX: -45, maxX: 45, minZ: -34, maxZ: 36 };
-export const POND = { x: 33.5, z: 25.5, r: 7.2 };
-export const BARN_A: Box = { minX: -33, maxX: -25.6, minZ: -23, maxZ: -16, pad: 1.3 };
-export const BARN_B: Box = { minX: -4.6, maxX: 3.6, minZ: -23, maxZ: -15.6, pad: 1.3 };
-export const SILO: Box = { minX: 4.6, maxX: 8.4, minZ: -22.4, maxZ: -18.6, pad: 0.8 };
-export const STABLE: Box = { minX: 22.6, maxX: 30, minZ: -22, maxZ: -15, pad: 1.3 };
-export const COOP: Box = { minX: 27.6, maxX: 33, minZ: 3, maxZ: 8.2, pad: 0.9 };
-export const OBSTACLES: Box[] = [BARN_A, BARN_B, SILO, STABLE, COOP];
-export const inBox = (x: number, z: number, b: Box) => { const p = b.pad ?? 0; return x > b.minX - p && x < b.maxX + p && z > b.minZ - p && z < b.maxZ + p; };
-export const inPond = (x: number, z: number, pad = 1) => Math.hypot(x - POND.x, z - POND.z) < POND.r + pad;
+import { OBSTACLES, POND, groundY, inBox, inPond } from "@shared/farm/layout";
+export { FIELD, OBSTACLES, POND, groundY, inBox, inPond, type Box } from "@shared/farm/layout";
 
 const rng = (seed: number) => { let s = seed >>> 0 || 1; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; };
 const vnoise = (x: number, z: number) => Math.sin(x * 0.11 + Math.sin(z * 0.07) * 2) * Math.cos(z * 0.09 + Math.sin(x * 0.05) * 1.6);
-/** ground height: flat where the animals live, rolling hills all around */
-export function groundY(x: number, z: number) {
-  const dx = Math.max(0, Math.abs(x) - 50), dz = Math.max(0, z < 0 ? -z - 40 : z - 42); const d = Math.hypot(dx, dz);
-  return d <= 0 ? 0 : Math.min(1, d / 30) ** 1.6 * (9 + vnoise(x, z) * 6) + d * 0.04;
-}
 
 function grassTexture() { const t = canvasTex(512, 512, (c, r) => {
   c.fillStyle = "#6b9e48"; c.fillRect(0, 0, 512, 512);
