@@ -118,6 +118,8 @@ export class Stage {
   useEnvironment(intensity: number) { this.scene.environment = intensity > 0 ? this.envTex : null; this.scene.environmentIntensity = intensity; }
   /** the registered object under the pointer right now (if any) */
   hitTest() { return this.hit(); }
+  /** is the pointer resting on something lookable right now? */
+  get hovering() { return !!this.hovered; }
   /** where the pointer ray meets another plane (e.g. a floor) */
   pointerOn(plane: THREE.Plane) { const p = new THREE.Vector3(); return this.ray.ray.intersectPlane(plane, p) ? p : null; }
   /** move the camera (and what view() measures against) */

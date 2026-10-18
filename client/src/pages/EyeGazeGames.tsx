@@ -118,10 +118,10 @@ export default function EyeGazeGames() {
           </div>
           <div className="relative max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-200 text-emerald-950 px-3 py-1 text-xs font-black uppercase tracking-widest mb-4">
-              <PawPrint className="w-4 h-4" /> NEW 3D · LOOK · MEET · FEED
+              <PawPrint className="w-4 h-4" /> NEW 3D · EXPLORE · RIDE · FEED
             </div>
             <h2 className="text-3xl sm:text-4xl font-black">A.R.I.S.E. Farm World</h2>
-            <p className="mt-2 max-w-xl text-white/90 font-bold text-base sm:text-lg">A living 3D farm with barns, a windmill and a duck pond. Look at an animal to hear its name and real sound, fly between places with big look buttons, and feed the animals to watch them munch.</p>
+            <p className="mt-2 max-w-xl text-white/90 font-bold text-base sm:text-lg">Explore a big 3D farm as your own character. Meet 30 animals with their real sounds, climb on and ride horses, ponies, cows and pigs, feed the animals, and hunt for 12 golden horseshoes.</p>
             <div className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white text-emerald-900 px-5 py-3 font-black">
               <Move className="w-5 h-5" /> Enter Farm World
             </div>
