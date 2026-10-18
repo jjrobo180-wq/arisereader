@@ -1,14 +1,15 @@
 // Animal Splash — eye-gazer voice game in a 3D pond.
-// Pick a real animal photo (look, tap or drag it up), it splashes into the pond, then say what animal it is
+// Pick a 3D animal (look, tap or drag it up), it leaps into the pond with a splash, then say what animal it is
 // (or choose a big answer button). Every animal you name joins your pond.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Mic, MicOff, RotateCcw, Settings, Volume2, X } from "lucide-react";
 import GazeButton from "@/components/eye-gaze/GazeButton";
 import { useAuth } from "@/context/AuthContext";
 import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
-import { ANIMALS, answerChoices, isCorrectAnswer, namesOtherAnimal, pageUrl, photoUrls, type Animal } from "@shared/splash/animals";
-import { PondScene, loadPhoto, type Quality } from "@/game/splash/scene";
+import { ANIMALS, answerChoices, isCorrectAnswer, namesOtherAnimal, type Animal } from "@shared/splash/animals";
+import { PondScene, type Quality } from "@/game/splash/scene";
+import { portrait } from "@/game/splash/portraits";
 import { SplashAudio } from "@/game/splash/audio";
 
 type Status = "pick" | "flying" | "ask" | "listening" | "correct" | "wrong" | "finished";
@@ -34,11 +35,14 @@ const CSS = `
 .as-tray::-webkit-scrollbar{height:10px}.as-tray::-webkit-scrollbar-thumb{background:rgba(255,255,255,.55);border-radius:9px}
 `;
 
-/** Real photo with automatic fallbacks (second URL, then a friendly emoji tile). */
-function Photo({ a, className = "" }: { a: Animal; className?: string }) {
-  const urls = useMemo(() => photoUrls(a, 330), [a]); const [i, setI] = useState(0);
-  if (i >= urls.length) return <div className={"grid place-items-center text-6xl " + className} style={{ background: `linear-gradient(#fff,#${a.color.toString(16).padStart(6, "0")})` }}>{a.emoji}</div>;
-  return <img src={urls[i]} alt={`A real ${a.name}`} draggable={false} onError={() => setI(i + 1)} className={"object-cover " + className} />;
+/** The animal itself — a snapshot of its 3D model on a sunny pond backdrop (emoji while it renders). */
+function Portrait({ a, className = "", bare = false }: { a: Animal; className?: string; bare?: boolean }) {
+  const [url, setUrl] = useState(""); useEffect(() => { let on = true; void portrait(a.id).then(u => { if (on) setUrl(u); }); return () => { on = false; }; }, [a.id]);
+  const tint = "#" + a.color.toString(16).padStart(6, "0");
+  return <div className={"relative grid place-items-center overflow-hidden " + className} style={bare ? undefined : { background: `radial-gradient(circle at 50% 35%, #ffffff 0%, #e6f6ff 45%, ${tint}55 100%)` }}>
+    {!bare && <div className="absolute inset-x-0 bottom-0 h-[30%]" style={{ background: "linear-gradient(transparent, rgba(56,189,248,.35))" }} />}
+    {url ? <img src={url} alt={`A ${a.name}`} draggable={false} className="relative h-full w-full object-contain" /> : <span className="relative text-5xl">{a.emoji}</span>}
+  </div>;
 }
 
 function speakThen(text: string, voice: boolean, onEnd?: () => void) {
@@ -62,7 +66,7 @@ export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
   const [choices, setChoices] = useState<string[]>([]);
   const [micOk, setMicOk] = useState(() => !!RecognitionCtor());
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; over: boolean } | null>(null);
-  const [panel, setPanel] = useState<"settings" | "credits" | null>(null);
+  const [panel, setPanel] = useState<"settings" | null>(null);
   const [failed, setFailed] = useState(false);
   const host = useRef<HTMLDivElement>(null); const scene = useRef<PondScene | null>(null);
   const audio = useRef<SplashAudio | null>(null); if (!audio.current) audio.current = new SplashAudio();
@@ -82,7 +86,6 @@ export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
     catch (e) { console.error(e); setFailed(true); }
     if (s) collected.forEach((id, i) => { const a = ANIMALS.find(x => x.id === id); if (a) void s!.placeDocked(a, i); });
     if (s && collected.length >= ANIMALS.length) s.finale();
-    ANIMALS.forEach(a => void loadPhoto(a)); // warm the photos
     return () => { s?.dispose(); scene.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.quality]);
@@ -185,7 +188,7 @@ export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
         <div className="pointer-events-auto mx-auto flex min-w-0 items-center gap-3 rounded-2xl bg-white/90 px-3 py-1.5 shadow-lg backdrop-blur sm:px-4">
           <div className="hidden min-w-0 sm:block"><p className="text-[10px] font-black uppercase tracking-[.22em] text-sky-700">Eye Gazer · Voice Play</p><h1 className="truncate text-lg font-black leading-tight sm:text-xl">Animal Splash</h1></div>
           <div className="text-center"><div className="text-xl font-black tabular-nums text-sky-700 sm:text-2xl">{collected.length}<span className="text-sm text-slate-400">/{ANIMALS.length}</span></div><div className="-mt-1 text-[9px] font-black uppercase tracking-wider text-slate-500">in your pond</div></div>
-          <div className="hidden h-9 items-center gap-0.5 md:flex">{ANIMALS.map(a => <span key={a.id} title={a.name} className={"grid h-7 w-7 place-items-center rounded-full text-base transition " + (collected.includes(a.id) ? "bg-sky-100 scale-100" : "bg-slate-100 opacity-30 grayscale scale-90")}>{a.emoji}</span>)}</div>
+          <div className="hidden h-9 items-center gap-0.5 md:flex">{ANIMALS.map(a => <span key={a.id} title={a.name} className={"h-8 w-8 overflow-hidden rounded-full transition " + (collected.includes(a.id) ? "bg-sky-100 scale-100" : "bg-slate-100 opacity-30 grayscale scale-90")}><Portrait a={a} bare className="h-full w-full" /></span>)}</div>
         </div>
         <GazeButton dwell={D} onHover={hover} onSelect={() => { sfx("pick"); setPanel("settings"); }} className="pointer-events-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/90 shadow-lg backdrop-blur" label="Settings"><Settings className="h-5 w-5" /></GazeButton>
       </header>
@@ -209,7 +212,7 @@ export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
               <div key={a.id} onPointerDown={e => trayDown(e, a)} onPointerMove={trayMove} onPointerUp={() => { startPt.current = null; }} className="shrink-0">
                 <GazeButton dwell={D} onHover={hover} disabled={status !== "pick"} onSelect={() => { const el = document.getElementById("as-card-" + a.id)?.getBoundingClientRect(); launch(a, el ? { x: el.left + el.width / 2, y: el.top + el.height / 2 } : undefined); }}
                   label={`Splash a mystery animal`} className="group block h-[7.5rem] w-[7.5rem] rounded-[1.4rem] border-4 border-white bg-white shadow-lg sm:h-36 sm:w-36 md:h-40 md:w-40">
-                  <span id={"as-card-" + a.id} className="absolute inset-0"><Photo a={a} className="h-full w-full" /></span>
+                  <span id={"as-card-" + a.id} className="absolute inset-0"><Portrait a={a} className="h-full w-full" /></span>
                   <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent pb-1.5 pt-6 text-center text-[10px] font-black uppercase tracking-widest text-white">💦 Splash!</span>
                 </GazeButton>
               </div>
@@ -237,7 +240,7 @@ export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
 
       {/* drag ghost */}
       {drag && <div className="pointer-events-none fixed inset-0 z-[5]">
-        <div className={"fixed h-32 w-32 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.6rem] border-[6px] shadow-2xl transition-transform " + (drag.over ? "scale-110 border-sky-300" : "border-white")} style={{ left: drag.x, top: drag.y }}>{(() => { const a = ANIMALS.find(x => x.id === drag.id)!; return <Photo a={a} className="h-full w-full" />; })()}</div>
+        <div className={"fixed h-32 w-32 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.6rem] border-[6px] shadow-2xl transition-transform " + (drag.over ? "scale-110 border-sky-300" : "border-white")} style={{ left: drag.x, top: drag.y }}>{(() => { const a = ANIMALS.find(x => x.id === drag.id)!; return <Portrait a={a} className="h-full w-full" />; })()}</div>
         <p className="fixed left-1/2 top-1/2 -translate-x-1/2 rounded-full bg-white/90 px-4 py-1.5 text-sm font-black text-sky-800 shadow">{drag.over ? "Let go to SPLASH! 💦" : "Bring it to the water"}</p>
       </div>}
 
@@ -275,16 +278,9 @@ export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
           <label className="flex items-center gap-3 text-sm font-black"><span className="w-16">Sounds</span><input type="range" min={0} max={1} step={0.05} value={settings.sfx} onChange={e => setSettings(s => ({ ...s, sfx: +e.target.value }))} className="h-8 flex-1 accent-sky-500" /></label>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <GazeButton dwell={D} onHover={hover} onSelect={() => { setPanel(null); restart(); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-100 font-black"><RotateCcw className="h-4 w-4" />Empty the pond</GazeButton>
-            <GazeButton dwell={D} onHover={hover} onSelect={() => setPanel("credits")} className="min-h-12 rounded-2xl bg-slate-100 font-black">Photo credits</GazeButton>
+            <div className="grid min-h-12 place-items-center rounded-2xl bg-slate-50 px-2 text-center text-[11px] font-bold leading-tight text-slate-500">Splash sound: public domain (Wikimedia Commons)</div>
           </div>
           <GazeButton dwell={D} onHover={hover} onSelect={() => setPanel(null)} className="mt-2 min-h-14 w-full rounded-2xl bg-sky-500 text-lg font-black text-white">Done</GazeButton>
-        </div>
-      </div>}
-      {panel === "credits" && <div className="absolute inset-0 z-10 grid place-items-center overflow-y-auto bg-slate-900/50 p-3 backdrop-blur-sm" onClick={() => setPanel(null)}>
-        <div className="as-pop my-auto w-full max-w-lg rounded-[2rem] bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-          <div className="mb-2 flex items-center"><h2 className="flex-1 text-2xl font-black">Photos & sounds</h2><button type="button" onClick={() => setPanel(null)} className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-100" aria-label="Close"><X className="h-5 w-5" /></button></div>
-          <p className="text-sm font-bold text-slate-600">Real animal photographs come from Wikimedia Commons; tap a name to see the photo's page, author and license. The splash recording is public domain (Wikimedia Commons / PDSounds).</p>
-          <ul className="mt-3 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">{ANIMALS.map(a => <li key={a.id}><a href={pageUrl(a)} target="_blank" rel="noreferrer" className="font-bold text-sky-700 underline">{a.emoji} {a.credit}</a></li>)}</ul>
         </div>
       </div>}
     </main>
