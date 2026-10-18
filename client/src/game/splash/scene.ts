@@ -1,62 +1,24 @@
 // Animal Splash — the 3D pond: terrain, water, lily pads, reeds, trees, a dock, wildlife,
-// and the floating photo "rafts" that splash in, get named, and join the pond collection.
+// and the 3D animals that leap in with a splash, get named, and swim off to join the pond.
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { photoUrls, type Animal } from "@shared/splash/animals";
+import type { Animal } from "@shared/splash/animals";
+import { makeCreature, type Creature } from "./creatures";
 import { Fx } from "@/game/skybound/fx";
-import { bakeStatic, glowSprite, roundedBox } from "@/game/runner/models";
+import { bakeStatic, glowSprite } from "@/game/runner/models";
 import { makeWater, heightAt, MAX_RIPPLES, type Ripple } from "./water";
 
 export type Quality = "low" | "medium" | "high";
 const R = 9.6; // pond radius
-const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const ease = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
 const std = (color: number, rough = 0.7, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) => new THREE.MeshStandardMaterial({ color, roughness: rough, ...extra });
 function seeded(seed: number) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
 const shoreAt = (a: number) => R + 0.9 * Math.sin(a * 3 + 0.6) + 0.55 * Math.sin(a * 5 + 2.1) + 0.3 * Math.sin(a * 9);
 
-// ── photo textures (cross-origin images drawn onto a rounded canvas), with a friendly emoji fallback ──
-const photoCache = new Map<string, Promise<THREE.CanvasTexture>>();
 function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-function fallbackCanvas(a: Animal) {
-  const cv = document.createElement("canvas"); cv.width = cv.height = 512; const c = cv.getContext("2d")!;
-  const col = new THREE.Color(a.color); const g = c.createLinearGradient(0, 0, 0, 512);
-  g.addColorStop(0, "#" + col.clone().lerp(new THREE.Color(0xffffff), 0.55).getHexString()); g.addColorStop(1, "#" + col.getHexString());
-  roundRect(c, 0, 0, 512, 512, 56); c.fillStyle = g; c.fill();
-  c.textAlign = "center"; c.textBaseline = "middle"; c.font = `300px ${EMOJI_FONT}`; c.fillText(a.emoji, 256, 270);
-  return cv;
-}
-export function loadPhoto(a: Animal): Promise<THREE.CanvasTexture> {
-  const hit = photoCache.get(a.id); if (hit) return hit;
-  const p = new Promise<THREE.CanvasTexture>(resolve => {
-    const done = (cv: HTMLCanvasElement, real: boolean) => { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.userData.real = real; resolve(t); };
-    const urls = photoUrls(a);
-    const attempt = (i: number) => {
-      if (i >= urls.length) { done(fallbackCanvas(a), false); return; }
-      const img = new Image(); img.crossOrigin = "anonymous"; img.decoding = "async";
-      const timer = window.setTimeout(() => { img.src = ""; attempt(i + 1); }, 9000);
-      img.onload = () => {
-        window.clearTimeout(timer);
-        try {
-          const cv = document.createElement("canvas"); cv.width = cv.height = 512; const c = cv.getContext("2d")!;
-          roundRect(c, 0, 0, 512, 512, 56); c.save(); c.clip();
-          const s = Math.max(512 / img.naturalWidth, 512 / img.naturalHeight), w = img.naturalWidth * s, h = img.naturalHeight * s;
-          c.drawImage(img, (512 - w) / 2, (512 - h) / 2, w, h); c.restore();
-          c.getImageData(0, 0, 1, 1); // throws if the image wasn't allowed cross-origin
-          done(cv, true);
-        } catch { attempt(i + 1); }
-      };
-      img.onerror = () => { window.clearTimeout(timer); attempt(i + 1); };
-      img.src = urls[i];
-    };
-    attempt(0);
-  });
-  photoCache.set(a.id, p);
-  return p;
-}
 function labelTexture(text: string, color: number) {
   const cv = document.createElement("canvas"); cv.width = 640; cv.height = 160; const c = cv.getContext("2d")!;
   roundRect(c, 8, 8, 624, 144, 64); c.fillStyle = "#ffffff"; c.fill(); c.lineWidth = 10; c.strokeStyle = "#" + new THREE.Color(color).getHexString(); c.stroke();
@@ -66,9 +28,9 @@ function labelTexture(text: string, color: number) {
 }
 
 type Raft = {
-  animal: Animal; g: THREE.Group; card: THREE.Group; photo: THREE.MeshBasicMaterial; label: THREE.Mesh | null;
-  mode: "fly" | "float" | "dock" | "docked" | "parade"; t: number; from: THREE.Vector3; to: THREE.Vector3; scale: number; scaleTo: number;
-  bob: number; wobble: number; slot: number; plunge: number;
+  animal: Animal; c: Creature; g: THREE.Group; label: THREE.Sprite | null;
+  mode: "fly" | "float" | "dock" | "docked" | "parade"; t: number; from: THREE.Vector3; to: THREE.Vector3; scale: number; scaleFrom: number; scaleTo: number;
+  bob: number; slot: number; plunge: number; happy: number; oops: number; heading: number; specialIn: number; leap: number; wakeT: number; spin: number;
 };
 
 export class PondScene {
@@ -237,22 +199,18 @@ export class PondScene {
     }
   }
 
-  // ── raft (a floating photo frame on an inflatable ring) ──
-  private makeRaft(a: Animal, tex: THREE.Texture | null): Raft {
-    const g = new THREE.Group(); const card = new THREE.Group(); g.add(card);
-    const frame = new THREE.Mesh(roundedBox(3.0, 3.0, 0.2, 0.32), std(0xffffff, 0.35)); frame.castShadow = true; card.add(frame);
-    const photo = new THREE.MeshBasicMaterial({ map: tex, color: tex ? 0xffffff : a.color, toneMapped: false, transparent: true });
-    const pm = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 2.7), photo); pm.position.z = 0.115; card.add(pm);
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), std(a.color, 0.6)); back.position.z = -0.115; back.rotation.y = Math.PI; card.add(back);
-    card.position.y = 1.85; card.rotation.x = -0.12;
-    // inflatable ring with candy stripes
-    const ring = new THREE.Group(); g.add(ring);
-    for (let k = 0; k < 8; k++) { const seg = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.3, 12, 8, Math.PI / 4), std(k % 2 ? 0xffffff : a.color === 0xdfeef8 ? 0xff7a5a : 0xff5a6a, 0.35)); seg.rotation.x = Math.PI / 2; seg.rotation.z = (k / 8) * Math.PI * 2; ring.add(seg); }
-    ring.position.y = 0.12;
-    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.6, 8), std(0xd8dee8, 0.3, { metalness: 0.6 })); stand.position.y = 0.4; g.add(stand);
-    g.traverse(o => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = this.quality !== "low"; });
-    this.scene.add(g);
-    return { animal: a, g, card, photo, label: null, mode: "fly", t: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), scale: 1, scaleTo: 1, bob: this.rnd() * 6, wobble: 0, slot: -1, plunge: 0 };
+  // ── a live 3D animal ──
+  private makeRaft(a: Animal): Raft {
+    const c = makeCreature(a.id); c.emit = (kind, at) => this.emitFx(kind, at);
+    c.g.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) m.castShadow = this.quality !== "low"; });
+    this.scene.add(c.g);
+    return { animal: a, c, g: c.g, label: null, mode: "fly", t: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), scale: 1, scaleFrom: 1, scaleTo: 1, bob: this.rnd() * 6, slot: -1, plunge: 0, happy: 0, oops: 0, heading: 0, specialIn: 5 + this.rnd() * 8, leap: -1, wakeT: 0, spin: 0 };
+  }
+  private emitFx(kind: "spray" | "spout" | "splash" | "bubbles", at: THREE.Vector3) {
+    if (kind === "spray") this.fx.one(at.x, at.y, at.z, (Math.random() - 0.5) * 0.8, 5.5 + Math.random() * 2, Math.random() < 0.5 ? 0xffffff : 0x9fe8ff, 1.0, 0.26, 9);
+    else if (kind === "spout") { for (let i = 0; i < 2; i++) this.fx.one(at.x + (Math.random() - 0.5) * 0.2, at.y, at.z + (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.9, 6 + Math.random() * 2.5, Math.random() < 0.6 ? 0xffffff : 0xcff6ff, 1.1, 0.3, 8); }
+    else if (kind === "splash") { this.ripples.push({ x: at.x, z: at.z, t0: this.t, power: 0.6 }); if (this.ripples.length > MAX_RIPPLES) this.ripples.shift(); this.fx.burst(at.x, 0.2, at.z, { color: [0xffffff, 0xd8f6ff], count: 40, speed: 3.5, up: 5, life: 0.8, size: 0.24, gravity: 13, spreadZ: 3 }); this.onSound?.("plop"); }
+    else this.fx.burst(at.x, 0.1, at.z, { color: 0xffffff, count: 6, speed: 0.6, up: 1, life: 0.6, size: 0.14, gravity: -1 });
   }
 
   private slotPos(i: number) {
@@ -262,13 +220,11 @@ export class PondScene {
     return new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r);
   }
 
-  /** Throw an animal photo from a point on screen into the middle of the pond. Resolves once it has splashed and settled. */
+  /** Leap an animal from a point on screen into the middle of the pond. Resolves once it has splashed and settled. */
   async launch(a: Animal, fromClient?: { x: number; y: number }) {
-    const tex = await Promise.race([loadPhoto(a), new Promise<null>(r => window.setTimeout(() => r(null), 2500))]);
-    const raft = this.makeRaft(a, tex);
-    if (!tex) void loadPhoto(a).then(t => { raft.photo.map = t; raft.photo.color.setHex(0xffffff); raft.photo.needsUpdate = true; });
+    const raft = this.makeRaft(a);
     const from = this.worldFromScreen(fromClient ?? { x: this.host.getBoundingClientRect().left + this.host.clientWidth / 2, y: this.host.getBoundingClientRect().bottom - 40 }, 7);
-    raft.from.copy(from); raft.to.set(0, 0, 2.2); raft.mode = "fly"; raft.t = 0; raft.scale = 0.45; raft.scaleTo = 1;
+    raft.from.copy(from); raft.to.set(0, 0, 2.2); raft.mode = "fly"; raft.t = 0; raft.scale = 0.45; raft.scaleTo = 1.45;
     this.rafts.push(raft); this.active = raft;
     this.onSound?.("whoosh");
     return new Promise<void>(resolve => { raft.g.userData.landed = resolve; });
@@ -281,34 +237,34 @@ export class PondScene {
   }
   celebrate() {
     const r = this.active; if (!r) return;
-    this.label(r);
+    this.label(r); r.happy = 1; window.setTimeout(() => r.c.special(), 1500);
     this.rainbowT = 0; this.rainbow.visible = true; this.rainbow.position.set(0, -0.6, r.to.z - 3.2);
     this.fountainT = 1.8; this.onSound?.("fountain");
     for (let i = 0; i < 3; i++) window.setTimeout(() => this.jumpFish(true), 250 + i * 380);
     this.fx.burst(0, 4, r.to.z, { color: [0xff4dd8, 0x4dd8ff, 0xffe14a, 0x7dff6b, 0xffffff], count: 90, speed: 7, up: 3, life: 1.4, size: 0.3, gravity: 5, spreadZ: 4 });
   }
-  gentle() { const r = this.active; if (!r) return; r.wobble = 1; this.label(r); for (let i = 0; i < 24; i++) this.fx.one(r.g.position.x + (Math.random() - 0.5) * 2.4, 0.2, r.g.position.z + (Math.random() - 0.5) * 1.5, 0, 1 + Math.random() * 1.5, 0xbff6ff, 1.6, 0.18); }
+  gentle() { const r = this.active; if (!r) return; r.oops = 1; this.label(r); for (let i = 0; i < 24; i++) this.fx.one(r.g.position.x + (Math.random() - 0.5) * 2.4, 0.2, r.g.position.z + (Math.random() - 0.5) * 1.5, 0, 1 + Math.random() * 1.5, 0xbff6ff, 1.6, 0.18); }
   private label(r: Raft) {
     if (r.label) return;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: labelTexture(r.animal.name, r.animal.color), transparent: true, toneMapped: false }));
-    m.position.set(0, -1.82, 0.16); m.scale.setScalar(0.01); r.card.add(m); r.label = m;
+    const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(r.animal.name, r.animal.color), transparent: true, toneMapped: false, depthWrite: false }));
+    m.center.set(0.5, 0); m.renderOrder = 20; m.scale.set(0.01, 0.01, 1); this.scene.add(m); r.label = m;
   }
   /** Send the active raft to its place in the pond collection. */
   dock(slot: number) {
     const r = this.active; if (!r) return; this.active = null;
-    r.from.copy(r.g.position); r.to.copy(this.slotPos(slot)); r.mode = "dock"; r.t = 0; r.slot = slot; r.scaleTo = 0.52;
+    r.from.copy(r.g.position); r.to.copy(this.slotPos(slot)); r.mode = "dock"; r.t = 0; r.slot = slot; r.scaleFrom = r.scale; r.scaleTo = 0.78;
     this.onSound?.("dock");
   }
   /** Put an already-named animal straight into its pond spot (restoring a saved pond). */
-  async placeDocked(a: Animal, slot: number) {
-    const tex = await loadPhoto(a); if (this.disposed) return;
-    const r = this.makeRaft(a, tex); r.mode = "docked"; r.slot = slot; r.to.copy(this.slotPos(slot)); r.scale = r.scaleTo = 0.52;
-    this.label(r); r.label!.scale.setScalar(1); r.g.position.copy(r.to);
+  placeDocked(a: Animal, slot: number) {
+    if (this.disposed) return;
+    const r = this.makeRaft(a); r.mode = "docked"; r.slot = slot; r.to.copy(this.slotPos(slot)); r.scale = r.scaleTo = 0.78; r.heading = Math.atan2(this.camera.position.x - r.to.x, this.camera.position.z - r.to.z);
+    this.label(r); r.g.position.copy(r.to);
     if (this.finaleT >= 0) r.mode = "parade";
     this.rafts.push(r);
   }
   finale() { this.finaleT = 0; this.rainbowT = 0; this.rainbow.visible = true; this.rainbow.position.set(0, -0.6, -4); for (const r of this.rafts) if (r.mode === "docked") r.mode = "parade"; }
-  reset() { for (const r of this.rafts) { r.g.removeFromParent(); r.g.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) m.geometry.dispose(); }); } this.rafts = []; this.active = null; this.finaleT = -1; this.rainbowT = -1; this.rainbow.visible = false; }
+  reset() { for (const r of this.rafts) { r.g.removeFromParent(); r.label?.removeFromParent(); (r.label?.material as THREE.SpriteMaterial | undefined)?.map?.dispose(); } this.rafts = []; this.active = null; this.finaleT = -1; this.rainbowT = -1; this.rainbow.visible = false; }
 
   /** Is a screen point over the pond's water? (for drag-and-drop) */
   isOverPond(clientX: number, clientY: number) { const p = this.groundHit(clientX, clientY); return !!p && Math.hypot(p.x, p.z) < R * 1.05; }
@@ -361,29 +317,53 @@ export class PondScene {
       if (k >= 1) f.g.visible = false;
     }
 
-    // rafts
+    // animals
+    const camYaw = (p: THREE.Vector3) => Math.atan2(this.camera.position.x - p.x, this.camera.position.z - p.z);
+    const turn = (r: Raft, want: number, k: number) => { let d = want - r.heading; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; r.heading += d * Math.min(1, k); };
     for (const r of this.rafts) {
-      const g = r.g; r.t += dt;
+      const g = r.g; r.t += dt; let swim = 0;
+      r.happy = Math.max(0, r.happy - dt / 1.6); r.oops = Math.max(0, r.oops - dt / 1.2);
       if (r.mode === "fly") {
-        const k = Math.min(1, r.t / 0.95), e = k;
-        g.position.lerpVectors(r.from, r.to, e); g.position.y = THREE.MathUtils.lerp(r.from.y, 0, e) + Math.sin(k * Math.PI) * 4.2;
-        r.scale = THREE.MathUtils.lerp(0.45, 1, ease(k)); g.rotation.z = Math.sin(k * Math.PI * 2) * 0.25 * (1 - k); g.rotation.y = (1 - k) * 1.2;
-        if (k >= 1) { r.mode = "float"; r.t = 0; r.plunge = 1; this.splashAt(r.to.x, r.to.z, 1.4); this.onSound?.("splash"); window.setTimeout(() => (g.userData.landed as (() => void) | undefined)?.(), 1100); }
-      } else if (r.mode === "dock" || r.mode === "float" || r.mode === "docked" || r.mode === "parade") {
+        const k = Math.min(1, r.t / 0.95);
+        g.position.lerpVectors(r.from, r.to, k); g.position.y = THREE.MathUtils.lerp(r.from.y, 0, k) + Math.sin(k * Math.PI) * 4.2;
+        r.scale = THREE.MathUtils.lerp(0.45, r.scaleTo, ease(k)); r.spin = (1 - ease(k)) * Math.PI * 2; turn(r, camYaw(r.to), 1);
+        if (k >= 1) { r.mode = "float"; r.t = 0; r.plunge = 1; r.spin = 0; this.splashAt(r.to.x, r.to.z, 1.4); this.onSound?.("splash"); window.setTimeout(() => (g.userData.landed as (() => void) | undefined)?.(), 1100); }
+      } else {
         let base = r.to;
-        if (r.mode === "dock") { const k = Math.min(1, r.t / 1.3), e = ease(k); base = new THREE.Vector3().lerpVectors(r.from, r.to, e); base.y = Math.sin(k * Math.PI) * 1.4; r.scale = THREE.MathUtils.lerp(1, r.scaleTo, e); if (k >= 1) { r.mode = "docked"; this.ripples.push({ x: r.to.x, z: r.to.z, t0: t, power: 0.4 }); if (this.ripples.length > MAX_RIPPLES) this.ripples.shift(); this.onSound?.("plop"); } }
-        if (r.mode === "parade") { const a0 = Math.atan2(r.to.z, r.to.x) + t * 0.35, rr = Math.hypot(r.to.x, r.to.z); base = new THREE.Vector3(Math.cos(a0) * rr, 0, Math.sin(a0) * rr); }
-        const wh = heightAt(base.x, base.z, t, this.ripples);
+        if (r.mode === "dock") {
+          const dist = r.from.distanceTo(r.to), dur = Math.max(1.6, dist / 3.2), k = Math.min(1, r.t / dur), e = ease(k);
+          base = new THREE.Vector3().lerpVectors(r.from, r.to, e); swim = 1;
+          r.scale = THREE.MathUtils.lerp(r.scaleFrom, r.scaleTo, e); turn(r, k < 0.85 ? Math.atan2(r.to.x - r.from.x, r.to.z - r.from.z) : camYaw(r.to), dt * 5);
+          if (k >= 1) { r.mode = "docked"; r.t = 0; this.ripples.push({ x: r.to.x, z: r.to.z, t0: t, power: 0.4 }); if (this.ripples.length > MAX_RIPPLES) this.ripples.shift(); this.onSound?.("plop"); }
+        } else if (r.mode === "docked") {
+          // potter about near its spot, mostly looking toward you; sometimes show off
+          const a0 = t * 0.18 + r.bob; base = new THREE.Vector3(r.to.x + Math.cos(a0) * 0.45, 0, r.to.z + Math.sin(a0) * 0.3);
+          turn(r, camYaw(base) + Math.sin(t * 0.3 + r.bob) * 0.7, dt * 1.5);
+          r.specialIn -= dt;
+          if (r.specialIn <= 0) { r.specialIn = 9 + this.rnd() * 12; if (r.c.motion === "leap") r.leap = 0; else r.c.special(); }
+        } else if (r.mode === "parade") {
+          const a0 = Math.atan2(r.to.z, r.to.x) + t * 0.35, rr = Math.hypot(r.to.x, r.to.z); base = new THREE.Vector3(Math.cos(a0) * rr, 0, Math.sin(a0) * rr);
+          turn(r, Math.atan2(-Math.sin(a0), Math.cos(a0)), dt * 4); swim = 1;
+          r.specialIn -= dt; if (r.specialIn <= 0) { r.specialIn = 4 + this.rnd() * 6; if (r.c.motion === "leap") r.leap = 0; else r.c.special(); }
+        } else { turn(r, camYaw(r.to), dt * 3); }
+        const wade = r.c.motion === "wade" ? 0.35 : 1;
+        const wh = heightAt(base.x, base.z, t, this.ripples) * wade;
         r.plunge = Math.max(0, r.plunge - dt * 0.9);
         const dip = r.plunge > 0 ? -Math.sin((1 - r.plunge) * Math.PI * 2.2) * r.plunge * 1.1 : 0;
-        g.position.set(base.x + (r.mode === "docked" ? Math.sin(t * 0.4 + r.bob) * 0.15 : 0), (r.mode === "dock" ? base.y : 0) + wh + dip, base.z);
-        g.rotation.z = Math.sin(t * 1.3 + r.bob) * 0.05 + (r.wobble > 0 ? Math.sin(t * 18) * 0.18 * r.wobble : 0); g.rotation.y *= 0.9;
-        r.wobble = Math.max(0, r.wobble - dt * 0.8);
+        let ly = 0, lx = 0;
+        if (r.leap >= 0) { r.leap += dt / 1.3; const k = Math.min(1, r.leap); ly = Math.sin(k * Math.PI) * 2.6 - 0.2; lx = Math.cos(k * Math.PI) * 0.7; swim = 1; if (r.leap >= 1) { r.leap = -1; this.emitFx("splash", g.position); } if (k < 0.05) this.emitFx("splash", g.position); }
+        g.position.set(base.x, (r.mode === "dock" ? Math.sin(Math.min(1, r.t / 1.6) * Math.PI) * 0.5 : 0) + wh + dip + ly, base.z);
+        g.rotation.x = r.leap >= 0 ? -lx : Math.sin(t * 1.3 + r.bob) * 0.03 * wade;
+        g.rotation.z = Math.sin(t * 1.1 + r.bob) * 0.04 * wade;
+        if (swim) { r.wakeT -= dt; if (r.wakeT <= 0 && r.leap < 0) { r.wakeT = 0.18; this.fx.one(g.position.x + (Math.random() - 0.5) * 0.5 * r.scale, 0.12, g.position.z + (Math.random() - 0.5) * 0.5 * r.scale, 0, 0.4, 0xffffff, 0.7, 0.22 * r.scale, 0); } }
       }
-      // always face the camera a little (readable photos)
-      const toCam = Math.atan2(this.camera.position.x - g.position.x, this.camera.position.z - g.position.z);
-      r.card.rotation.y = toCam * 0.85; g.scale.setScalar(r.scale);
-      if (r.label) { const s = r.label.scale.x; r.label.scale.setScalar(s + (1 - s) * Math.min(1, dt * 10)); }
+      g.rotation.y = r.heading + r.spin; g.scale.setScalar(r.scale);
+      r.c.update({ dt, t: t + r.bob, swim, happy: r.happy, oops: r.oops });
+      if (r.label) {
+        const want = r.mode === "docked" || r.mode === "parade" || r.mode === "dock" ? 0.56 : 1; const cur = r.label.scale.y / 0.65;
+        const s2 = cur + (want - cur) * Math.min(1, dt * (cur < 0.1 ? 14 : 4)); r.label.scale.set(2.6 * s2, 0.65 * s2, 1);
+        r.label.position.set(g.position.x, g.position.y + (r.c.top + 0.25) * r.scale, g.position.z);
+      }
     }
 
     // crown, rainbow, fountains, finale

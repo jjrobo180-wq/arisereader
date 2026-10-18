@@ -1,25 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ANIMALS, answerChoices, isCorrectAnswer, namesOtherAnimal, normalizeSpeech, photoUrls } from "../shared/splash/animals";
-import { createHash } from "node:crypto";
+import { ANIMALS, answerChoices, isCorrectAnswer, namesOtherAnimal, normalizeSpeech } from "../shared/splash/animals";
+import { readFileSync } from "node:fs";
 
 const get = (id: string) => ANIMALS.find(a => a.id === id)!;
 
-test("16 animals, each with a unique id, an emoji, a fact and a photo credit", () => {
+test("16 animals, each with a unique id, an emoji and a fact", () => {
   assert.equal(ANIMALS.length, 16);
   assert.equal(new Set(ANIMALS.map(a => a.id)).size, 16);
-  for (const a of ANIMALS) { assert.ok(a.emoji && a.fact.length > 10 && a.credit && a.file); }
+  for (const a of ANIMALS) { assert.ok(a.emoji && a.fact.length > 10); }
 });
 
-test("photo URLs use Wikimedia's real upload path (md5 of the file name)", () => {
-  for (const a of ANIMALS) {
-    const h = createHash("md5").update(a.file.replace(/ /g, "_")).digest("hex");
-    assert.equal(a.hash, `${h[0]}/${h.slice(0, 2)}`, a.file);
-    const [direct, redirect] = photoUrls(a, 500);
-    assert.ok(direct.startsWith(`https://upload.wikimedia.org/wikipedia/commons/thumb/${a.hash}/`));
-    assert.ok(direct.includes("/500px-"));
-    assert.ok(redirect.startsWith("https://commons.wikimedia.org/wiki/Special:Redirect/file/"));
-  }
+test("every animal has its own 3D model", () => {
+  const src = readFileSync(new URL("../client/src/game/splash/creatures.ts", import.meta.url), "utf8");
+  const build = src.slice(src.indexOf("const BUILD"), src.indexOf("};", src.indexOf("const BUILD")));
+  for (const a of ANIMALS) assert.ok(build.includes(a.id.includes("-") ? `"${a.id}"` : ` ${a.id}`), a.id);
 });
 
 test("children can answer in their own words", () => {
