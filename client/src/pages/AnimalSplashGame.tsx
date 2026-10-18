@@ -1,207 +1,292 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Mic, MicOff, PawPrint, RotateCcw, Sparkles, Volume2, Waves } from "lucide-react";
+// Animal Splash — eye-gazer voice game in a 3D pond.
+// Pick a real animal photo (look, tap or drag it up), it splashes into the pond, then say what animal it is
+// (or choose a big answer button). Every animal you name joins your pond.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Mic, MicOff, RotateCcw, Settings, Volume2, X } from "lucide-react";
+import GazeButton from "@/components/eye-gaze/GazeButton";
+import { useAuth } from "@/context/AuthContext";
 import { celebrateEyeGaze } from "@/lib/eyeGazeCelebrate";
-import { speakCharacterAI } from "@/lib/tts";
+import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
+import { ANIMALS, answerChoices, isCorrectAnswer, namesOtherAnimal, pageUrl, photoUrls, type Animal } from "@shared/splash/animals";
+import { PondScene, loadPhoto, type Quality } from "@/game/splash/scene";
+import { SplashAudio } from "@/game/splash/audio";
 
-type Animal = { id:string; name:string; accepted:string[]; image:string; credit:string };
-type GameStatus = "choose"|"splash"|"asking"|"listening"|"correct"|"wrong"|"finished";
+type Status = "pick" | "flying" | "ask" | "listening" | "correct" | "wrong" | "finished";
+type Settings = { talk: boolean; choices: number; voice: boolean; facts: boolean; dwell: boolean; music: number; sfx: number; quality: Quality };
+const coarse = () => !!window.matchMedia?.("(pointer: coarse)").matches && !window.matchMedia?.("(pointer: fine)").matches;
+const DEFAULTS = (): Settings => ({ talk: true, choices: 3, voice: true, facts: true, dwell: !coarse(), music: 0.4, sfx: 0.9, quality: "medium" });
+const key = (uid: unknown, what: string) => `arise-animal-splash-v2:${what}:${uid ?? "guest"}`;
+const load = <T,>(k: string, d: T): T => { try { const v = localStorage.getItem(k); return v ? { ...d, ...JSON.parse(v) } : d; } catch { return d; } };
+const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+const an = (w: string) => (/^[aeiou]/i.test(w) ? "an" : "a");
+type Recognition = { lang: string; interimResults: boolean; continuous: boolean; maxAlternatives: number; start(): void; stop(): void; abort?: () => void; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null; onerror: ((e: { error?: string }) => void) | null; onend: (() => void) | null };
+const RecognitionCtor = (): (new () => Recognition) | null => { const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }; return w.SpeechRecognition || w.webkitSpeechRecognition || null; };
 
-const commonsImage=(file:string,width=760)=>`https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(file)}?width=${width}`;
+const CSS = `
+.as-font{font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif}
+.as-title{text-shadow:0 3px 0 #0b3a5a,0 8px 22px rgba(0,40,80,.35)}
+.as-up{animation:asUp .45s cubic-bezier(.2,1.2,.4,1) both}@keyframes asUp{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.as-pop{animation:asPop .5s cubic-bezier(.2,1.6,.4,1) both}@keyframes asPop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.as-pulse{animation:asPulse 1.1s ease-in-out infinite}@keyframes asPulse{0%,100%{box-shadow:0 0 0 0 rgba(244,63,94,.55)}50%{box-shadow:0 0 0 16px rgba(244,63,94,0)}}
+.as-wave span{display:inline-block;width:5px;margin:0 2px;border-radius:9px;background:currentColor;animation:asWave .9s ease-in-out infinite}
+.as-wave span:nth-child(2){animation-delay:.15s}.as-wave span:nth-child(3){animation-delay:.3s}.as-wave span:nth-child(4){animation-delay:.45s}
+@keyframes asWave{0%,100%{height:6px}50%{height:22px}}
+.as-tray::-webkit-scrollbar{height:10px}.as-tray::-webkit-scrollbar-thumb{background:rgba(255,255,255,.55);border-radius:9px}
+`;
 
-const ANIMALS:Animal[]=[
- {id:"duck",name:"duck",accepted:["duck","a duck","white duck"],image:commonsImage("White domesticated duck, stretching.jpg"),credit:"Wikimedia Commons · White domesticated duck"},
- {id:"turtle",name:"turtle",accepted:["turtle","a turtle","sea turtle","green turtle"],image:commonsImage("Green turtle swimming in Kona May 2010.jpg"),credit:"Wikimedia Commons · Green turtle"},
- {id:"frog",name:"frog",accepted:["frog","a frog","dwarf frog"],image:commonsImage("African dwarf frog.jpg"),credit:"Wikimedia Commons · African dwarf frog"},
- {id:"hippo",name:"hippo",accepted:["hippo","a hippo","hippopotamus","a hippopotamus"],image:commonsImage("Portrait Hippopotamus in the water.jpg"),credit:"Wikimedia Commons · Hippopotamus"},
- {id:"penguin",name:"penguin",accepted:["penguin","a penguin","emperor penguin"],image:commonsImage("Emperor Penguin Manchot empereur.jpg"),credit:"Wikimedia Commons · Emperor penguin"},
- {id:"seal",name:"seal",accepted:["seal","a seal","monk seal"],image:commonsImage("Hawaiian monk seal close-up (Neomonachus schauinslandi).jpg"),credit:"Wikimedia Commons · Hawaiian monk seal"},
- {id:"elephant",name:"elephant",accepted:["elephant","an elephant","african elephant"],image:commonsImage("African Bush Elephants.jpg"),credit:"Wikimedia Commons · African bush elephants"},
- {id:"lion",name:"lion",accepted:["lion","a lion","male lion"],image:commonsImage("Male Lion on Rock.jpg"),credit:"Wikimedia Commons · Male lion"},
- {id:"dolphin",name:"dolphin",accepted:["dolphin","a dolphin","bottlenose dolphin"],image:commonsImage("Bottlenose Dolphin.jpg"),credit:"Wikimedia Commons · Bottlenose dolphin"},
- {id:"otter",name:"otter",accepted:["otter","an otter","river otter"],image:commonsImage("River otter.jpg"),credit:"Wikimedia Commons · River otter"},
- {id:"crocodile",name:"crocodile",accepted:["crocodile","a crocodile","croc"],image:commonsImage("Crocodile --.jpg"),credit:"Wikimedia Commons · Crocodile"},
- {id:"flamingo",name:"flamingo",accepted:["flamingo","a flamingo","greater flamingo"],image:commonsImage("Flamingo .jpg"),credit:"Wikimedia Commons · Greater flamingo"},
- {id:"polar-bear",name:"polar bear",accepted:["polar bear","a polar bear","bear"],image:commonsImage("PolarBear.jpg"),credit:"Wikimedia Commons · Polar bear"},
- {id:"beaver",name:"beaver",accepted:["beaver","a beaver"],image:commonsImage("Beaver.jpg"),credit:"Wikimedia Commons · Beaver"},
- {id:"shark",name:"shark",accepted:["shark","a shark","great white shark"],image:commonsImage("Great White Shark (Carcharodon carcharias) (32096717593).jpg"),credit:"Wikimedia Commons · Great white shark"},
- {id:"whale",name:"whale",accepted:["whale","a whale"],image:commonsImage("A Whale.jpg"),credit:"Wikimedia Commons · Whale"},
-];
-
-const SPLASH_AUDIO="https://commons.wikimedia.org/wiki/Special:Redirect/file/Water%20sloshing%20in%20a%20small%20bottle.ogg";
-
-function normalizeSpeech(value:string){return value.toLowerCase().replace(/[^a-z\s]/g," ").replace(/\b(it is|it's|thats|that's|this is|i think|the animal is)\b/g," ").replace(/\s+/g," ").trim();}
-function isCorrectAnswer(transcript:string,animal:Animal){const normalized=normalizeSpeech(transcript);return animal.accepted.some(answer=>{const clean=normalizeSpeech(answer);return normalized===clean||normalized.includes(clean);});}
-function speak(text:string,onEnd?:()=>void){let fallback=false;void speakCharacterAI(text,{calmMode:false,onEnd:()=>{if(!fallback)onEnd?.()},onFallback:()=>{fallback=true;try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.92;u.pitch=1.08;u.onend=()=>onEnd?.();window.speechSynthesis.speak(u)}catch{onEnd?.()}}});}
-function playRealSplash(){try{const audio=new Audio(SPLASH_AUDIO);audio.volume=.95;audio.preload="auto";audio.play().then(()=>window.setTimeout(()=>{try{audio.pause();audio.currentTime=0}catch{}},1400)).catch(()=>{})}catch{}}
-
-function BalloonParty({visible}:{visible:boolean}){
- if(!visible)return null;
- return <div className="pointer-events-none fixed inset-0 z-[260] overflow-hidden" aria-hidden="true">
-  {Array.from({length:20}).map((_,i)=><span key={i} className="animal-party-balloon absolute bottom-[-110px] block h-16 w-12 rounded-[50%_50%_46%_46%] shadow-xl" style={{left:`${3+((i*17)%94)}%`,animationDelay:`${(i%7)*.09}s`,animationDuration:`${2.6+(i%5)*.2}s`,background:["#f43f5e","#f59e0b","#22c55e","#38bdf8","#8b5cf6","#ec4899"][i%6]}}><i className="absolute left-1/2 top-full h-24 w-px bg-white/70"/></span>)}
-  {Array.from({length:50}).map((_,i)=><span key={`confetti-${i}`} className="animal-party-confetti absolute -top-8 h-4 w-2 rounded-sm" style={{left:`${(i*29)%100}%`,animationDelay:`${(i%11)*.06}s`,animationDuration:`${1.9+(i%6)*.18}s`,background:["#fde047","#fb7185","#34d399","#60a5fa","#c084fc"][i%5],transform:`rotate(${i*31}deg)`}}/>)}
-  <div className="animal-party-burst absolute left-1/2 top-[14%] -translate-x-1/2 rounded-[2rem] border-4 border-white bg-gradient-to-br from-amber-300 via-pink-300 to-sky-300 px-8 py-5 text-center text-slate-950 shadow-2xl"><div className="text-4xl font-black sm:text-6xl">HOORAY!</div><div className="mt-1 text-base font-black sm:text-xl">You got it!</div></div>
- </div>;
+/** Real photo with automatic fallbacks (second URL, then a friendly emoji tile). */
+function Photo({ a, className = "" }: { a: Animal; className?: string }) {
+  const urls = useMemo(() => photoUrls(a, 330), [a]); const [i, setI] = useState(0);
+  if (i >= urls.length) return <div className={"grid place-items-center text-6xl " + className} style={{ background: `linear-gradient(#fff,#${a.color.toString(16).padStart(6, "0")})` }}>{a.emoji}</div>;
+  return <img src={urls[i]} alt={`A real ${a.name}`} draggable={false} onError={() => setI(i + 1)} className={"object-cover " + className} />;
 }
 
-export default function AnimalSplashGame({onBack}:{onBack:()=>void}){
- const [remaining,setRemaining]=useState(()=>ANIMALS.map(a=>a.id));
- const [selectedId,setSelectedId]=useState<string|null>(null);
- const [activeAnimal,setActiveAnimal]=useState<Animal|null>(null);
- const [status,setStatus]=useState<GameStatus>("choose");
- const [message,setMessage]=useState("Pick an animal. Then put it in the water.");
- const [heard,setHeard]=useState("");
- const [party,setParty]=useState(false);
- const [micAvailable,setMicAvailable]=useState(true);
- const [drag,setDrag]=useState<{id:string;x:number;y:number}|null>(null);
- const recognitionRef=useRef<any>(null),listenTimeoutRef=useRef<number|null>(null),dwellRef=useRef<number|null>(null);
- const poolRef=useRef<HTMLButtonElement>(null),statusRef=useRef<GameStatus>("choose");
- statusRef.current=status;
+function speakThen(text: string, voice: boolean, onEnd?: () => void) {
+  if (!voice) { if (onEnd) window.setTimeout(onEnd, 500 + text.length * 35); return; }
+  let fell = false, ended = false; const end = () => { if (ended) return; ended = true; onEnd?.(); };
+  const guard = window.setTimeout(end, 4000 + text.length * 90); // never get stuck if a voice never reports finishing
+  void speakCharacterAI(text, { calmMode: false, onEnd: () => { if (!fell) { window.clearTimeout(guard); end(); } }, onFallback: () => {
+    fell = true;
+    try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.92; u.pitch = 1.08; u.onend = () => { window.clearTimeout(guard); end(); }; window.speechSynthesis.speak(u); } catch { window.clearTimeout(guard); end(); }
+  } });
+}
 
- const animals=useMemo(()=>ANIMALS.filter(a=>remaining.includes(a.id)),[remaining]);
- const selected=ANIMALS.find(a=>a.id===selectedId)||null;
- const completed=ANIMALS.length-remaining.length;
- const progress=Math.round(completed/ANIMALS.length*100);
- const answerChoices=useMemo(()=>{if(!activeAnimal)return[];const idx=ANIMALS.findIndex(a=>a.id===activeAnimal.id);return [activeAnimal.name,ANIMALS[(idx+5)%ANIMALS.length].name,ANIMALS[(idx+9)%ANIMALS.length].name];},[activeAnimal]);
+export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
+  const { user } = useAuth(); const uid = user?.id;
+  const [settings, setSettings] = useState<Settings>(() => load(key(uid, "settings"), DEFAULTS()));
+  const [collected, setCollected] = useState<string[]>(() => load<{ ids: string[] }>(key(uid, "pond"), { ids: [] }).ids.filter(id => ANIMALS.some(a => a.id === id)));
+  const [status, setStatus] = useState<Status>(() => (collected.length >= ANIMALS.length ? "finished" : "pick"));
+  const [active, setActive] = useState<Animal | null>(null);
+  const [message, setMessage] = useState("Pick an animal to splash into the pond!");
+  const [heard, setHeard] = useState("");
+  const [choices, setChoices] = useState<string[]>([]);
+  const [micOk, setMicOk] = useState(() => !!RecognitionCtor());
+  const [drag, setDrag] = useState<{ id: string; x: number; y: number; over: boolean } | null>(null);
+  const [panel, setPanel] = useState<"settings" | "credits" | null>(null);
+  const [failed, setFailed] = useState(false);
+  const host = useRef<HTMLDivElement>(null); const scene = useRef<PondScene | null>(null);
+  const audio = useRef<SplashAudio | null>(null); if (!audio.current) audio.current = new SplashAudio();
+  const rec = useRef<Recognition | null>(null); const listenTimer = useRef(0); const statusRef = useRef(status); statusRef.current = status;
+  const sRef = useRef(settings); sRef.current = settings;
+  const startPt = useRef<{ x: number; y: number; id: string; pid: number } | null>(null);
 
- const clearListening=()=>{if(listenTimeoutRef.current)window.clearTimeout(listenTimeoutRef.current);listenTimeoutRef.current=null;try{recognitionRef.current?.stop?.()}catch{}recognitionRef.current=null;};
- useEffect(()=>()=>{clearListening();if(dwellRef.current)window.clearTimeout(dwellRef.current)},[]);
+  const remaining = ANIMALS.filter(a => !collected.includes(a.id));
+  useEffect(() => { save(key(uid, "settings"), settings); audio.current!.setVolumes(settings.music, settings.sfx); }, [settings, uid]);
+  useEffect(() => { save(key(uid, "pond"), { ids: collected }); }, [collected, uid]);
 
- const nextAnimal=(animalId:string)=>{clearListening();setParty(false);setHeard("");setActiveAnimal(null);setSelectedId(null);setRemaining(current=>{const next=current.filter(id=>id!==animalId);if(!next.length){window.setTimeout(()=>{setStatus("finished");setMessage("You helped every animal into the water!");speak("Amazing! You named every animal. Hooray!");celebrateEyeGaze(false);setParty(true)},250)}else{setStatus("choose");setMessage("Great job. Pick another animal.")}return next;});};
+  // the 3D pond (rebuilt only when graphics quality changes)
+  useEffect(() => {
+    const el = host.current; if (!el) return;
+    let s: PondScene | null = null;
+    try { s = new PondScene(el, settings.quality); scene.current = s; s.onSound = n => audio.current!.play(n); }
+    catch (e) { console.error(e); setFailed(true); }
+    if (s) collected.forEach((id, i) => { const a = ANIMALS.find(x => x.id === id); if (a) void s!.placeDocked(a, i); });
+    if (s && collected.length >= ANIMALS.length) s.finale();
+    ANIMALS.forEach(a => void loadPhoto(a)); // warm the photos
+    return () => { s?.dispose(); scene.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.quality]);
+  useEffect(() => () => { stopListening(); stopSpeaking(); audio.current?.dispose(); }, []);
 
- const listenForAnswer=(animal:Animal)=>{
-  const Recognition=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
-  if(!Recognition){setMicAvailable(false);setStatus("asking");setMessage("Say the animal name out loud. If your browser cannot hear you, use a big answer button.");return;}
-  clearListening();setMicAvailable(true);setStatus("listening");setMessage("I'm listening… What animal is it?");setHeard("");
-  try{
-   const recognition:any=new Recognition();recognition.lang="en-US";recognition.interimResults=false;recognition.continuous=false;recognition.maxAlternatives=4;recognitionRef.current=recognition;
-   recognition.onresult=(event:any)=>{const transcripts:string[]=[];for(let i=0;i<event.results.length;i++)for(let j=0;j<event.results[i].length;j++)transcripts.push(String(event.results[i][j].transcript||""));const best=transcripts[0]||"";setHeard(best);const correct=transcripts.some(t=>isCorrectAnswer(t,animal));clearListening();if(correct){setStatus("correct");setMessage(`Yes! It's a ${animal.name}!`);setParty(true);celebrateEyeGaze(false);speak(`Hooray! Yes! That's a ${animal.name}! Great talking!`,()=>window.setTimeout(()=>nextAnimal(animal.id),800));}else{setStatus("wrong");setMessage(`Good try. This animal is a ${animal.name}.`);speak(`Good try. This animal is a ${animal.name}. Say ${animal.name}.`,()=>window.setTimeout(()=>nextAnimal(animal.id),1100));}};
-   recognition.onerror=(event:any)=>{if(event?.error==="not-allowed"||event?.error==="service-not-allowed"){setMicAvailable(false);setStatus("asking");setMessage("Microphone access is off. You can still answer with the big buttons.");}else{setStatus("asking");setMessage("I didn't catch that. Say it again, or use a big answer button.");}};
-   recognition.onend=()=>{recognitionRef.current=null};recognition.start();listenTimeoutRef.current=window.setTimeout(()=>{try{recognition.stop()}catch{}recognitionRef.current=null;setStatus("asking");setMessage("I didn't hear an answer yet. Say it again, or use a big answer button.");},7000);
-  }catch{setMicAvailable(false);setStatus("asking");setMessage("I couldn't start the microphone. You can still answer with the big buttons.");}
- };
+  const sfx = (n: string) => { audio.current!.ensure(); audio.current!.play(n); };
+  const startMusic = () => { audio.current!.ensure(); audio.current!.startMusic(); };
+  const stopListening = () => { window.clearTimeout(listenTimer.current); try { rec.current?.abort?.(); rec.current?.stop(); } catch { /* already stopped */ } rec.current = null; };
 
- const askAnimal=(animal:Animal)=>{setStatus("asking");setMessage("What animal is it?");speak("What animal is it?",()=>window.setTimeout(()=>listenForAnswer(animal),250));};
- const dropAnimal=(animal:Animal)=>{if(!remaining.includes(animal.id)||statusRef.current!=="choose")return;clearListening();setSelectedId(animal.id);setActiveAnimal(animal);setStatus("splash");setMessage("SPLASH!");playRealSplash();window.setTimeout(()=>askAnimal(animal),950);};
- const selectAnimal=(animal:Animal)=>{if(statusRef.current!=="choose")return;setSelectedId(animal.id);setMessage(`You picked the ${animal.name}. Put it in the water.`);};
- const chooseAnswer=(name:string)=>{if(!activeAnimal||!["asking","listening"].includes(statusRef.current))return;clearListening();setHeard(name);if(isCorrectAnswer(name,activeAnimal)){setStatus("correct");setMessage(`Yes! It's a ${activeAnimal.name}!`);setParty(true);celebrateEyeGaze(false);speak(`Hooray! Yes! That's a ${activeAnimal.name}!`,()=>window.setTimeout(()=>nextAnimal(activeAnimal.id),800));}else{setStatus("wrong");setMessage(`Good try. This animal is a ${activeAnimal.name}.`);speak(`Good try. This animal is a ${activeAnimal.name}.`,()=>window.setTimeout(()=>nextAnimal(activeAnimal.id),1000));}};
+  const finishRound = useCallback((a: Animal) => {
+    window.setTimeout(() => {
+      const slot = collected.length;
+      scene.current?.dock(slot);
+      const next = [...collected, a.id]; setCollected(next); setActive(null); setHeard("");
+      if (next.length >= ANIMALS.length) {
+        window.setTimeout(() => { setStatus("finished"); setMessage("Your pond is full of friends!"); scene.current?.finale(); audio.current!.play("finale"); celebrateEyeGaze(false); speakThen("Amazing! You named every animal. Your pond is full of friends! Hooray!", sRef.current.voice); }, 1400);
+      } else { setStatus("pick"); setMessage("Great job! Pick another animal."); }
+    }, 500);
+  }, [collected]);
 
- const startPoolDwell=()=>{if(!selected||statusRef.current!=="choose")return;if(dwellRef.current)window.clearTimeout(dwellRef.current);dwellRef.current=window.setTimeout(()=>dropAnimal(selected),1050);};
- const stopDwell=()=>{if(dwellRef.current)window.clearTimeout(dwellRef.current);dwellRef.current=null;};
+  const correct = useCallback((a: Animal) => {
+    stopListening(); setStatus("correct"); setMessage(`Yes! It's ${an(a.name)} ${a.name}!`);
+    scene.current?.celebrate(); sfx("correct"); celebrateEyeGaze(false); navigator.vibrate?.(60);
+    const s = sRef.current;
+    speakThen(`Hooray! Yes! That's ${an(a.name)} ${a.name}!${s.facts ? " " + a.fact : ""}`, s.voice, () => finishRound(a));
+  }, [finishRound]);
+  const wrong = useCallback((a: Animal) => {
+    stopListening(); setStatus("wrong"); setMessage(`Good try! This is ${an(a.name)} ${a.name}.`);
+    scene.current?.gentle(); sfx("gentle");
+    speakThen(`Good try. This animal is ${an(a.name)} ${a.name}. Say ${a.name}!`, sRef.current.voice, () => window.setTimeout(() => finishRound(a), 700));
+  }, [finishRound]);
 
- const beginDrag=(event:React.PointerEvent,animal:Animal)=>{if(statusRef.current!=="choose")return;event.preventDefault();event.stopPropagation();selectAnimal(animal);try{(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)}catch{}setDrag({id:animal.id,x:event.clientX,y:event.clientY});};
+  const listen = useCallback((a: Animal) => {
+    const R = RecognitionCtor();
+    if (!R || !sRef.current.talk) { setMicOk(!!R); setStatus("ask"); setMessage(sRef.current.talk ? "Choose the animal's name." : "What animal is it? Choose a button."); return; }
+    stopListening(); setStatus("listening"); setHeard(""); setMessage("I'm listening… what animal is it?"); sfx("listen");
+    try {
+      const r = new R(); r.lang = "en-US"; r.interimResults = true; r.continuous = false; r.maxAlternatives = 5; rec.current = r;
+      r.onresult = e => {
+        const all: string[] = []; let final = false;
+        for (let i = 0; i < e.results.length; i++) { const res = e.results[i]; final ||= res.isFinal; for (let j = 0; j < res.length; j++) all.push(String(res[j].transcript || "")); }
+        setHeard(all[0] || "");
+        if (all.some(t => isCorrectAnswer(t, a))) { correct(a); return; }
+        if (!final) return;
+        if (all.some(t => namesOtherAnimal(t, a))) { wrong(a); return; }
+        stopListening(); setStatus("ask"); setMessage("I didn't catch that. Say it again, or choose a button.");
+      };
+      r.onerror = ev => { if (statusRef.current !== "listening") return; if (ev?.error === "not-allowed" || ev?.error === "service-not-allowed") { setMicOk(false); setMessage("The microphone is off. Choose the animal's name."); } else setMessage("I didn't hear an answer. Say it again, or choose a button."); setStatus("ask"); };
+      r.onend = () => { rec.current = null; if (statusRef.current === "listening") { setStatus("ask"); setMessage("Say it again, or choose a button."); } };
+      r.start();
+      listenTimer.current = window.setTimeout(() => { if (statusRef.current === "listening") { stopListening(); setStatus("ask"); setMessage("Say it again, or choose a button."); } }, 7500);
+    } catch { setMicOk(false); setStatus("ask"); setMessage("Choose the animal's name."); }
+  }, [correct, wrong]);
 
- useEffect(()=>{
-  if(!drag)return;
-  const oldOverflow=document.body.style.overflow,oldTouch=(document.body.style as any).touchAction;
-  document.body.style.overflow="hidden";(document.body.style as any).touchAction="none";
-  const move=(event:PointerEvent)=>{event.preventDefault();setDrag(current=>current?{...current,x:event.clientX,y:event.clientY}:null);};
-  const finish=(event:PointerEvent)=>{event.preventDefault();const current=drag;setDrag(null);const animal=ANIMALS.find(a=>a.id===current.id);const pool=poolRef.current?.getBoundingClientRect();if(animal&&pool){const pad=70;const inside=event.clientX>=pool.left-pad&&event.clientX<=pool.right+pad&&event.clientY>=pool.top-pad&&event.clientY<=pool.bottom+pad;if(inside)dropAnimal(animal);}};
-  const cancel=()=>setDrag(null);
-  window.addEventListener("pointermove",move,{passive:false});window.addEventListener("pointerup",finish,{passive:false});window.addEventListener("pointercancel",cancel,{passive:false});
-  return()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",finish);window.removeEventListener("pointercancel",cancel);document.body.style.overflow=oldOverflow;(document.body.style as any).touchAction=oldTouch;};
- },[drag?.id]);
+  const ask = useCallback((a: Animal) => {
+    setStatus("ask"); setMessage("What animal is it?");
+    speakThen("What animal is it?", sRef.current.voice, () => { if (statusRef.current === "ask") window.setTimeout(() => listen(a), 200); });
+  }, [listen]);
 
- const reset=()=>{clearListening();setDrag(null);setRemaining(ANIMALS.map(a=>a.id));setSelectedId(null);setActiveAnimal(null);setStatus("choose");setMessage("Pick an animal. Then put it in the water.");setHeard("");setParty(false);};
+  const launch = useCallback((a: Animal, from?: { x: number; y: number }) => {
+    if (statusRef.current !== "pick" || !scene.current) return;
+    startMusic(); sfx("pick"); stopSpeaking();
+    setActive(a); setStatus("flying"); setMessage("SPLASH!"); setHeard(""); setChoices(answerChoices(a, sRef.current.choices));
+    void scene.current.launch(a, from).then(() => ask(a));
+  }, [ask]);
 
- return <main className="animal-splash-game min-h-[calc(100dvh-4rem)] overflow-x-hidden bg-[radial-gradient(circle_at_15%_5%,rgba(255,255,255,.75),transparent_24%),linear-gradient(180deg,#bdeeff_0%,#eefbff_30%,#dcf7df_30%,#9fdc98_100%)] text-slate-950" style={{overscrollBehavior:"contain"}}>
-  <BalloonParty visible={party}/>
-  {drag&&<div className="pointer-events-none fixed inset-0 z-[219]"><div className="absolute inset-x-[12%] bottom-5 rounded-[2rem] border-4 border-dashed border-sky-300 bg-sky-500/15 py-5 text-center text-xl font-black text-sky-950 backdrop-blur-sm">DROP IN THE WATER</div><img src={ANIMALS.find(a=>a.id===drag.id)?.image} alt="" className="fixed z-[220] h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-[2rem] border-[6px] border-white object-cover shadow-[0_20px_55px_rgba(2,132,199,.45)]" style={{left:drag.x,top:drag.y}}/></div>}
+  const choose = (name: string) => {
+    const a = active; if (!a || (statusRef.current !== "ask" && statusRef.current !== "listening")) return;
+    setHeard(name);
+    if (isCorrectAnswer(name, a)) correct(a); else wrong(a);
+  };
 
-  <header className="sticky top-0 z-40 border-b border-white/60 bg-white/88 px-3 py-3 shadow-lg backdrop-blur-xl sm:px-5">
-   <div className="mx-auto flex max-w-[1500px] items-center gap-3">
-    <button type="button" onClick={onBack} className="min-h-12 rounded-2xl border-2 border-slate-200 bg-white px-4 font-black shadow-sm"><ArrowLeft className="mr-2 inline h-5 w-5"/> Games</button>
-    <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[.2em] text-sky-700">A.R.I.S.E. 2.0 · Eye Gazer Voice Play</p><h1 className="truncate text-xl font-black sm:text-2xl">Animal Splash 2.0</h1></div>
-    <div className="hidden min-w-[210px] sm:block"><div className="flex justify-between text-[10px] font-black uppercase tracking-wider text-slate-500"><span>{completed} of {ANIMALS.length}</span><span>{progress}%</span></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all" style={{width:`${progress}%`}}/></div></div>
-    <button type="button" onClick={reset} className="grid grid-cols-1 h-12 w-12 place-items-center rounded-2xl border-2 border-slate-200 bg-white shadow-sm" aria-label="Start over"><RotateCcw className="h-5 w-5"/></button>
-   </div>
-  </header>
+  // drag a photo up into the water (touch or mouse); a plain tap/click launches it straight away
+  useEffect(() => {
+    if (!drag) return;
+    const move = (e: PointerEvent) => { const over = !!scene.current?.isOverPond(e.clientX, e.clientY); setDrag(d => (d ? { ...d, x: e.clientX, y: e.clientY, over } : d)); };
+    const up = (e: PointerEvent) => { const d = drag; setDrag(null); const a = ANIMALS.find(x => x.id === d.id); if (a && scene.current?.isOverPond(e.clientX, e.clientY)) launch(a, { x: e.clientX, y: e.clientY }); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", () => setDrag(null));
+    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  }, [drag?.id, launch]);
+  const trayDown = (e: React.PointerEvent, a: Animal) => { if (statusRef.current !== "pick") return; startPt.current = { x: e.clientX, y: e.clientY, id: a.id, pid: e.pointerId }; };
+  const trayMove = (e: React.PointerEvent) => {
+    const s = startPt.current; if (!s || drag || e.pointerId !== s.pid) return;
+    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (dy < -22 && Math.abs(dy) > Math.abs(dx)) { setDrag({ id: s.id, x: e.clientX, y: e.clientY, over: false }); startPt.current = null; }
+  };
 
-  <section className="mx-auto grid grid-cols-1 w-full max-w-[1500px] gap-3 p-2 sm:p-3 md:grid-cols-[minmax(0,1.05fr)_.95fr] md:gap-4 xl:grid-cols-[minmax(0,1.12fr)_.88fr]">
-   <div className="min-w-0 rounded-[2.25rem] border-4 border-white/90 bg-white/88 p-3 shadow-2xl backdrop-blur-xl sm:p-5">
-    <div className="mb-2 overflow-hidden rounded-[1.35rem] border-4 border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-2.5 text-center shadow-inner sm:mb-3 sm:rounded-[1.6rem] sm:p-3" aria-live="polite">
-     <div className="flex items-center justify-center gap-2 text-sky-900">{status==="listening"?<Mic className="h-6 w-6 animate-pulse"/>:status==="asking"&&!micAvailable?<MicOff className="h-6 w-6"/>:<Volume2 className="h-6 w-6"/>}<p className="text-lg font-black sm:text-xl xl:text-2xl">{message}</p></div>
-     {heard&&<p className="mt-1 text-sm font-bold text-slate-600">I heard: “{heard}”</p>}
-    </div>
+  const restart = () => { stopListening(); stopSpeaking(); scene.current?.reset(); setCollected([]); setActive(null); setStatus("pick"); setHeard(""); setMessage("Pick an animal to splash into the pond!"); sfx("pick"); };
+  const D = settings.dwell; const hover = () => sfx("hover");
+  const answering = status === "ask" || status === "listening";
 
-    {status!=="finished"?<div className="animal-mobile-tray flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible md:pb-0 xl:grid-cols-4">
-     {animals.map(animal=>{const selectedNow=selectedId===animal.id;return <button key={animal.id} type="button" onClick={()=>selectAnimal(animal)} onPointerDown={e=>beginDrag(e,animal)} onMouseEnter={()=>{if(statusRef.current!=="choose")return;if(dwellRef.current)window.clearTimeout(dwellRef.current);dwellRef.current=window.setTimeout(()=>selectAnimal(animal),900)}} onMouseLeave={stopDwell} disabled={status!=="choose"} style={{touchAction:"none",WebkitUserSelect:"none",userSelect:"none"}} className={`group relative min-h-[132px] min-w-[138px] snap-center overflow-hidden rounded-[1.35rem] border-4 bg-white shadow-lg transition focus:outline-none focus:ring-8 focus:ring-sky-300 sm:min-h-[145px] sm:min-w-[150px] md:min-h-[165px] md:min-w-0 xl:min-h-[190px] ${selectedNow?"scale-[1.02] border-amber-400 ring-4 ring-amber-200":"border-white hover:border-sky-400"} disabled:opacity-55`} aria-label={`Choose the ${animal.name}`}>
-      <img src={animal.image} alt={`Real ${animal.name}`} className="pointer-events-none absolute inset-0 h-full w-full object-cover" draggable={false}/>
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/65 to-transparent px-3 pb-3 pt-10 text-left text-white"><p className="text-lg font-black capitalize sm:text-xl">{animal.name}</p><p className="text-[9px] font-black uppercase tracking-wider text-white/75">gaze · tap · drag</p></div>
-      {selectedNow&&<div className="absolute right-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-[10px] font-black text-slate-950 shadow">READY</div>}
-     </button>})}
-    </div>:<div className="grid grid-cols-1 min-h-[430px] place-items-center rounded-[2rem] border-4 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-8 text-center"><div><Sparkles className="mx-auto h-16 w-16 text-amber-500"/><h2 className="mt-3 text-4xl font-black">All {ANIMALS.length} animals!</h2><p className="mt-2 text-lg font-bold text-slate-600">You listened, talked, and named the whole Animal Splash crew.</p><button type="button" onClick={reset} className="mt-6 min-h-16 rounded-2xl bg-emerald-600 px-8 text-xl font-black text-white shadow-lg">Play Again</button></div></div>}
-   </div>
+  return (
+    <main className="as-font fixed inset-0 z-[120] h-[100dvh] select-none overflow-hidden bg-sky-200 text-slate-950">
+      <style>{CSS}</style>
+      <div ref={host} className="absolute inset-0" style={failed ? { background: "linear-gradient(#9be3ff,#cff3ff 45%,#7ed07a 46%,#2f8fc0 70%)" } : undefined} />
 
-   {selected && status==="choose" && (
-    <div className="md:hidden -mb-1 rounded-[1.45rem] border-4 border-amber-300 bg-white/95 p-2 shadow-xl">
-      <div className="flex items-center gap-3">
-        <img
-          src={selected.image}
-          alt={`Selected ${selected.name}`}
-          draggable={false}
-          onPointerDown={e=>beginDrag(e,selected)}
-          style={{touchAction:"none",WebkitUserSelect:"none",userSelect:"none"}}
-          className="h-24 w-24 shrink-0 rounded-[1.2rem] border-4 border-white object-cover shadow-lg"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-700">Ready to splash</p>
-          <h2 className="truncate text-2xl font-black capitalize">{selected.name}</h2>
-          <p className="mt-1 text-xs font-bold text-slate-600">Drag this big picture straight into the water below — or just tap the water.</p>
+      {/* top bar */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start gap-2 p-2 sm:p-3" style={{ paddingTop: "max(.5rem, env(safe-area-inset-top))" }}>
+        <GazeButton dwell={D} onHover={hover} onSelect={() => { stopListening(); stopSpeaking(); onBack(); }} className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-2xl bg-white/90 px-4 font-black shadow-lg backdrop-blur" label="Back to games"><ArrowLeft className="h-5 w-5" /><span className="hidden sm:inline">Games</span></GazeButton>
+        <div className="pointer-events-auto mx-auto flex min-w-0 items-center gap-3 rounded-2xl bg-white/90 px-3 py-1.5 shadow-lg backdrop-blur sm:px-4">
+          <div className="hidden min-w-0 sm:block"><p className="text-[10px] font-black uppercase tracking-[.22em] text-sky-700">Eye Gazer · Voice Play</p><h1 className="truncate text-lg font-black leading-tight sm:text-xl">Animal Splash</h1></div>
+          <div className="text-center"><div className="text-xl font-black tabular-nums text-sky-700 sm:text-2xl">{collected.length}<span className="text-sm text-slate-400">/{ANIMALS.length}</span></div><div className="-mt-1 text-[9px] font-black uppercase tracking-wider text-slate-500">in your pond</div></div>
+          <div className="hidden h-9 items-center gap-0.5 md:flex">{ANIMALS.map(a => <span key={a.id} title={a.name} className={"grid h-7 w-7 place-items-center rounded-full text-base transition " + (collected.includes(a.id) ? "bg-sky-100 scale-100" : "bg-slate-100 opacity-30 grayscale scale-90")}>{a.emoji}</span>)}</div>
         </div>
-        <div className="grid grid-cols-1 h-14 w-14 shrink-0 place-items-center rounded-full bg-sky-100 text-sky-700">
-          <Waves className="h-7 w-7"/>
+        <GazeButton dwell={D} onHover={hover} onSelect={() => { sfx("pick"); setPanel("settings"); }} className="pointer-events-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/90 shadow-lg backdrop-blur" label="Settings"><Settings className="h-5 w-5" /></GazeButton>
+      </header>
+
+      {/* speech bubble */}
+      {status !== "finished" && <div className="pointer-events-none absolute inset-x-0 top-[4.6rem] flex justify-center px-3 sm:top-20">
+        <div key={message} className="as-pop flex max-w-xl items-center gap-3 rounded-[1.6rem] border-4 border-white bg-white/95 px-4 py-2.5 shadow-xl sm:px-5">
+          <span className={"grid h-11 w-11 shrink-0 place-items-center rounded-full " + (status === "listening" ? "as-pulse bg-rose-500 text-white" : status === "correct" ? "bg-emerald-500 text-white" : "bg-sky-100 text-sky-700")}>
+            {status === "listening" ? <span className="as-wave flex items-center text-white"><span /><span /><span /><span /></span> : status === "ask" && !micOk ? <MicOff className="h-5 w-5" /> : status === "correct" ? "✓" : <Volume2 className="h-5 w-5" />}
+          </span>
+          <div className="min-w-0"><p className="text-lg font-black leading-snug sm:text-2xl">{message}</p>{heard && <p className="truncate text-sm font-bold text-slate-500">I heard: “{heard}”</p>}</div>
         </div>
-      </div>
-    </div>
-   )}
+      </div>}
 
-   <div className="relative min-h-[400px] overflow-hidden rounded-[2.35rem] border-4 border-white bg-[linear-gradient(180deg,#80d7ff_0%,#dff7ff_34%,#8edb78_34%,#74c766_46%,#276c68_46%,#06466b_100%)] shadow-2xl sm:min-h-[500px] md:min-h-[620px] md:rounded-[2.6rem]">
-    <div className="absolute inset-x-0 top-0 h-[34%]"><span className="absolute left-[8%] top-[12%] h-14 w-28 rounded-full bg-white/70 blur-[1px]"/><span className="absolute right-[10%] top-[24%] h-11 w-24 rounded-full bg-white/60 blur-[1px]"/><div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-emerald-700/35 to-transparent"/></div>
-    <div className="absolute inset-x-0 bottom-0 h-[54%] bg-[radial-gradient(ellipse_at_50%_0%,rgba(154,236,255,.75),transparent_40%),linear-gradient(180deg,#26b7dc_0%,#0882b8_35%,#04618e_68%,#033f66_100%)]"/>
-    <div className="animal-caustics absolute inset-x-0 bottom-0 h-[54%] opacity-35"/>
-    {Array.from({length:12}).map((_,i)=><span key={i} className="animal-bubble absolute bottom-[8%] h-3 w-3 rounded-full border-2 border-white/50 bg-white/10" style={{left:`${8+(i*7)%84}%`,animationDelay:`${-(i%6)*.7}s`,animationDuration:`${4+(i%4)*.8}s`}}/>)}
+      {/* photo tray */}
+      <section className={"absolute inset-x-0 bottom-0 transition-transform duration-500 " + (status === "pick" ? "translate-y-0" : "translate-y-[110%]")} style={{ paddingBottom: "max(.5rem, env(safe-area-inset-bottom))" }}>
+        <div className="mx-2 rounded-[1.8rem] border-4 border-white/80 bg-white/75 p-2 shadow-2xl backdrop-blur-md sm:mx-4">
+          <p className="px-2 pb-1 text-center text-xs font-black uppercase tracking-[.18em] text-sky-800">{D ? "Look at an animal · tap it · or drag it up into the water" : "Tap an animal · or drag it up into the water"}</p>
+          <div className="as-tray flex gap-2 overflow-x-auto pb-1" style={{ touchAction: "pan-x" }}>
+            {remaining.map(a => (
+              <div key={a.id} onPointerDown={e => trayDown(e, a)} onPointerMove={trayMove} onPointerUp={() => { startPt.current = null; }} className="shrink-0">
+                <GazeButton dwell={D} onHover={hover} disabled={status !== "pick"} onSelect={() => { const el = document.getElementById("as-card-" + a.id)?.getBoundingClientRect(); launch(a, el ? { x: el.left + el.width / 2, y: el.top + el.height / 2 } : undefined); }}
+                  label={`Splash a mystery animal`} className="group block h-[7.5rem] w-[7.5rem] rounded-[1.4rem] border-4 border-white bg-white shadow-lg sm:h-36 sm:w-36 md:h-40 md:w-40">
+                  <span id={"as-card-" + a.id} className="absolute inset-0"><Photo a={a} className="h-full w-full" /></span>
+                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent pb-1.5 pt-6 text-center text-[10px] font-black uppercase tracking-widest text-white">💦 Splash!</span>
+                </GazeButton>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-    <button ref={poolRef} type="button" data-water-zone onClick={()=>selected&&dropAnimal(selected)} onMouseEnter={startPoolDwell} onMouseLeave={stopDwell} disabled={!selected||status!=="choose"} style={{touchAction:"none"}} className={`absolute inset-x-[2%] bottom-[2%] h-[62%] overflow-hidden md:inset-x-[3%] md:bottom-[3%] md:h-[55%] rounded-[44%_44%_20%_20%/18%_18%_10%_10%] border-[7px] border-white/75 bg-transparent shadow-[inset_0_8px_30px_rgba(255,255,255,.24),0_20px_55px_rgba(3,105,161,.36)] focus:outline-none focus:ring-8 focus:ring-amber-300 disabled:cursor-default ${drag?"ring-8 ring-sky-200/80":""}`} aria-label={selected?`Put the ${selected.name} in the water`:"Water"}>
-      <div className="animal-water-surface absolute inset-x-[-8%] top-[1%] h-12 rounded-[50%] border-t-[5px] border-white/65 bg-gradient-to-b from-white/45 via-cyan-100/25 to-transparent"/>
-      <div className="animal-water-wave absolute inset-x-[-5%] top-[9%] h-7 rounded-[50%] border-t-4 border-white/35"/>
-      <div className="animal-water-wave animal-water-wave-2 absolute inset-x-[5%] top-[21%] h-6 rounded-[50%] border-t-4 border-cyan-50/25"/>
-      {!activeAnimal&&<div className="absolute inset-0 grid grid-cols-1 place-items-center p-5"><div className="rounded-[1.7rem] border-2 border-white/75 bg-white/88 px-5 py-4 text-center text-sky-950 shadow-xl backdrop-blur"><Waves className="mx-auto h-11 w-11"/><p className="mt-1 text-xl font-black sm:text-2xl">{selected?`Put the ${selected.name} in!`:"Pick an animal first"}</p><p className="mt-1 text-[10px] font-black uppercase tracking-wider">Drag here · tap water · or gaze</p></div></div>}
-      {activeAnimal&&<div className={`animal-in-water absolute left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2 ${status==="splash"?"animal-splash-enter":""}`}><img src={activeAnimal.image} alt={`Real ${activeAnimal.name} in the water`} className="h-44 w-44 rounded-[2rem] border-4 border-white object-cover shadow-2xl sm:h-52 sm:w-52"/><div className="animal-ripple absolute inset-x-[-42px] bottom-[-15px] h-10 rounded-[50%] border-4 border-white/55 bg-white/14"/></div>}
-      {status==="splash"&&<><div className="animal-splash-ring absolute left-1/2 top-[55%] h-24 w-52 -translate-x-1/2 rounded-[50%] border-[9px] border-white/80"/>{Array.from({length:14}).map((_,i)=><span key={i} className="animal-droplet absolute left-1/2 top-[48%] h-3 w-3 rounded-full bg-white/90" style={{transform:`rotate(${i*25.7}deg) translateY(-70px)`}}/>)}</>}
-    </button>
+      {/* answer panel */}
+      {active && answering && <section className="as-up absolute inset-x-0 bottom-0 px-2 sm:px-4" style={{ paddingBottom: "max(.5rem, env(safe-area-inset-bottom))" }}>
+        <div className="mx-auto max-w-3xl rounded-[2rem] border-4 border-white bg-white/95 p-3 shadow-2xl sm:p-4">
+          <div className="flex items-center gap-2">
+            <p className="flex-1 text-center text-xs font-black uppercase tracking-[.2em] text-sky-700">{settings.talk && micOk ? "Say it out loud — or choose" : "Choose the animal"}</p>
+          </div>
+          <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${choices.length}, minmax(0,1fr))` }}>
+            {choices.map(c => <GazeButton key={c} dwell={D} onHover={hover} onSelect={() => choose(c)} className="min-h-[4.5rem] rounded-2xl border-4 border-sky-100 bg-sky-50 px-2 text-xl font-black capitalize text-slate-900 shadow sm:min-h-20 sm:text-2xl">{c}</GazeButton>)}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <GazeButton dwell={D} onHover={hover} onSelect={() => speakThen("What animal is it?", settings.voice)} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-100 font-black"><Volume2 className="h-5 w-5" />Hear it again</GazeButton>
+            {settings.talk && micOk ? <GazeButton dwell={D} onHover={hover} disabled={status === "listening"} onSelect={() => active && listen(active)} className={"flex min-h-12 items-center justify-center gap-2 rounded-2xl font-black " + (status === "listening" ? "bg-rose-500 text-white" : "bg-rose-100 text-rose-700")}><Mic className="h-5 w-5" />{status === "listening" ? "Listening…" : "Talk again"}</GazeButton>
+              : <div className="grid min-h-12 place-items-center rounded-2xl bg-slate-50 text-xs font-bold text-slate-500">{settings.talk ? "Talking isn't available here" : "Buttons only"}</div>}
+          </div>
+        </div>
+      </section>}
 
-    {activeAnimal&&["asking","listening"].includes(status)&&<div className="absolute inset-x-3 top-3 z-20 rounded-[1.8rem] border-4 border-white bg-white/96 p-4 text-center shadow-2xl sm:inset-x-5 sm:top-5"><p className="text-[10px] font-black uppercase tracking-[.2em] text-sky-700">Say it out loud</p><h2 className="mt-1 text-3xl font-black">What animal is it?</h2><div className="mt-3 grid grid-cols-3 gap-2">{answerChoices.map(answer=><button key={answer} type="button" onClick={()=>chooseAnswer(answer)} className="min-h-16 rounded-2xl border-4 border-slate-200 bg-slate-50 px-2 text-base font-black capitalize focus:ring-8 focus:ring-sky-300 sm:text-lg">{answer}</button>)}</div>{!micAvailable&&<p className="mt-2 text-xs font-bold text-slate-500">Voice listening is unavailable in this browser, so the big buttons stay available.</p>}</div>}
-   </div>
-  </section>
+      {/* drag ghost */}
+      {drag && <div className="pointer-events-none fixed inset-0 z-[5]">
+        <div className={"fixed h-32 w-32 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.6rem] border-[6px] shadow-2xl transition-transform " + (drag.over ? "scale-110 border-sky-300" : "border-white")} style={{ left: drag.x, top: drag.y }}>{(() => { const a = ANIMALS.find(x => x.id === drag.id)!; return <Photo a={a} className="h-full w-full" />; })()}</div>
+        <p className="fixed left-1/2 top-1/2 -translate-x-1/2 rounded-full bg-white/90 px-4 py-1.5 text-sm font-black text-sky-800 shadow">{drag.over ? "Let go to SPLASH! 💦" : "Bring it to the water"}</p>
+      </div>}
 
-  <details className="mx-auto mb-6 max-w-[1500px] px-4 text-xs text-slate-600"><summary className="cursor-pointer font-bold">Photo & sound sources</summary><div className="mt-2 rounded-xl bg-white/80 p-3"><p>Real animal photographs are served from Wikimedia Commons. Splash audio uses the public-domain water recording from Wikimedia Commons/PDSounds.</p><ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">{ANIMALS.map(a=><li key={a.id}>{a.credit}</li>)}</ul></div></details>
+      {/* finale */}
+      {status === "finished" && <div className="as-pop absolute inset-x-0 bottom-0 flex justify-center p-3" style={{ paddingBottom: "max(.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="w-full max-w-lg rounded-[2rem] border-4 border-white bg-white/95 p-5 text-center shadow-2xl">
+          <p className="text-xs font-black uppercase tracking-[.25em] text-sky-700">All {ANIMALS.length} animals</p>
+          <h2 className="as-title mt-1 text-4xl font-black text-sky-600 sm:text-5xl">Your pond is full!</h2>
+          <p className="mt-2 text-lg font-bold text-slate-600">You splashed and named every animal. 🎉</p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <GazeButton dwell={D} onHover={hover} onSelect={restart} className="flex min-h-16 items-center justify-center gap-2 rounded-2xl bg-sky-500 text-lg font-black text-white shadow-lg"><RotateCcw className="h-5 w-5" />Play again</GazeButton>
+            <GazeButton dwell={D} onHover={hover} onSelect={() => { stopSpeaking(); onBack(); }} className="min-h-16 rounded-2xl bg-slate-100 text-lg font-black">Back to games</GazeButton>
+          </div>
+        </div>
+      </div>}
 
-  <style>{`
-   .animal-caustics{background:repeating-radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.28) 0 1px,transparent 2px 26px);animation:animalCaustics 9s linear infinite}
-   .animal-water-surface{animation:animalSurface 2.6s ease-in-out infinite alternate}
-   .animal-water-wave{animation:animalWave 2.1s ease-in-out infinite alternate}.animal-water-wave-2{animation-delay:-1.1s;animation-duration:2.8s}
-   .animal-bubble{animation:animalBubble linear infinite}.animal-ripple{animation:animalRipple 2s ease-out infinite}
-   .animal-splash-enter{animation:animalDrop .82s cubic-bezier(.2,.85,.2,1) both}.animal-splash-ring{animation:animalRing .95s ease-out both}.animal-droplet{animation:animalDroplet .72s ease-out both}
-   .animal-party-balloon{animation:animalBalloon linear forwards}.animal-party-confetti{animation:animalConfetti linear forwards}.animal-party-burst{animation:animalBurst .5s cubic-bezier(.2,1.2,.3,1) both}
-   @keyframes animalSurface{from{transform:translateX(-3%) scaleX(.95)}to{transform:translateX(3%) scaleX(1.05)}}
-   @keyframes animalWave{from{transform:translateX(-5%) scaleX(.94)}to{transform:translateX(5%) scaleX(1.08)}}
-   @keyframes animalCaustics{from{background-position:0 0}to{background-position:180px 120px}}
-   @keyframes animalBubble{0%{transform:translateY(25px) scale(.55);opacity:0}15%{opacity:.7}100%{transform:translateY(-270px) scale(1.15);opacity:0}}
-   @keyframes animalRipple{0%{transform:scale(.55);opacity:.85}100%{transform:scale(1.65);opacity:0}}
-   @keyframes animalDrop{0%{transform:translate(-50%,-145%) scale(.72) rotate(-7deg);opacity:.35}58%{transform:translate(-50%,-37%) scale(1.08) rotate(3deg)}100%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}}
-   @keyframes animalRing{0%{transform:translateX(-50%) scale(.25);opacity:1}100%{transform:translateX(-50%) scale(1.9);opacity:0}}
-   @keyframes animalDroplet{0%{opacity:1;margin-top:0}100%{opacity:0;margin-top:-90px}}
-   @keyframes animalBalloon{0%{transform:translateY(0) rotate(-5deg)}100%{transform:translateY(-120vh) rotate(9deg)}}
-   @keyframes animalConfetti{0%{transform:translateY(-30px) rotate(0)}100%{transform:translateY(115vh) rotate(760deg)}}
-   @keyframes animalBurst{0%{transform:translate(-50%,-25px) scale(.2) rotate(-4deg);opacity:0}75%{transform:translate(-50%,0) scale(1.1) rotate(2deg);opacity:1}100%{transform:translate(-50%,0) scale(1) rotate(0)}}
-   @media(max-width:820px){
-    .animal-splash-game{touch-action:pan-y}
-    .animal-splash-game button[style*="touch-action"]{touch-action:none!important}
-    .animal-splash-game section{align-items:start}
-    .animal-mobile-tray{-webkit-overflow-scrolling:touch;scrollbar-width:none}
-    .animal-mobile-tray::-webkit-scrollbar{display:none}
-   }
-   @media(prefers-reduced-motion:reduce){.animal-caustics,.animal-water-surface,.animal-water-wave,.animal-bubble,.animal-ripple,.animal-splash-enter,.animal-splash-ring,.animal-droplet,.animal-party-balloon,.animal-party-confetti,.animal-party-burst{animation:none!important}}
-  `}</style>
- </main>;
+      {failed && <div className="absolute inset-x-0 top-1/3 text-center text-sm font-bold text-white drop-shadow">3D pond unavailable on this device — the game still works.</div>}
+
+      {panel === "settings" && <div className="absolute inset-0 z-10 grid place-items-center overflow-y-auto bg-slate-900/50 p-3 backdrop-blur-sm" onClick={() => setPanel(null)}>
+        <div className="as-pop my-auto w-full max-w-md rounded-[2rem] bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="mb-2 flex items-center"><h2 className="flex-1 text-2xl font-black">Settings</h2><button type="button" onClick={() => setPanel(null)} className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-100" aria-label="Close"><X className="h-5 w-5" /></button></div>
+          {([
+            ["How to answer", "talk", [[true, "🎤 Talk + buttons"], [false, "👆 Buttons only"]]],
+            ["Answer buttons", "choices", [[2, "2"], [3, "3"], [4, "4"]]],
+            ["Spoken prompts", "voice", [[true, "🗣️ On"], [false, "Off"]]],
+            ["Fun animal facts", "facts", [[true, "On"], [false, "Off"]]],
+            ["Look to press buttons", "dwell", [[true, "On"], [false, "Off"]]],
+            ["Graphics", "quality", [["low", "Low"], ["medium", "Medium"], ["high", "High"]]],
+          ] as [string, keyof Settings, [Settings[keyof Settings], string][]][]).map(([title, k, opts]) => (
+            <div key={k} className="mt-3"><p className="mb-1 text-xs font-black uppercase tracking-widest text-slate-500">{title}</p>
+              <div className="grid gap-1.5 rounded-2xl bg-slate-100 p-1.5" style={{ gridTemplateColumns: `repeat(${opts.length},minmax(0,1fr))` }}>
+                {opts.map(([v, label]) => <GazeButton key={String(v)} dwell={D} ms={900} onHover={hover} onSelect={() => setSettings(s => ({ ...s, [k]: v }))} className={"min-h-11 rounded-xl text-sm font-black " + (settings[k] === v ? "bg-sky-500 text-white shadow" : "text-slate-700")}>{label}</GazeButton>)}
+              </div></div>))}
+          <label className="mt-4 flex items-center gap-3 text-sm font-black"><span className="w-16">Music</span><input type="range" min={0} max={1} step={0.05} value={settings.music} onChange={e => setSettings(s => ({ ...s, music: +e.target.value }))} className="h-8 flex-1 accent-sky-500" /></label>
+          <label className="flex items-center gap-3 text-sm font-black"><span className="w-16">Sounds</span><input type="range" min={0} max={1} step={0.05} value={settings.sfx} onChange={e => setSettings(s => ({ ...s, sfx: +e.target.value }))} className="h-8 flex-1 accent-sky-500" /></label>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <GazeButton dwell={D} onHover={hover} onSelect={() => { setPanel(null); restart(); }} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-100 font-black"><RotateCcw className="h-4 w-4" />Empty the pond</GazeButton>
+            <GazeButton dwell={D} onHover={hover} onSelect={() => setPanel("credits")} className="min-h-12 rounded-2xl bg-slate-100 font-black">Photo credits</GazeButton>
+          </div>
+          <GazeButton dwell={D} onHover={hover} onSelect={() => setPanel(null)} className="mt-2 min-h-14 w-full rounded-2xl bg-sky-500 text-lg font-black text-white">Done</GazeButton>
+        </div>
+      </div>}
+      {panel === "credits" && <div className="absolute inset-0 z-10 grid place-items-center overflow-y-auto bg-slate-900/50 p-3 backdrop-blur-sm" onClick={() => setPanel(null)}>
+        <div className="as-pop my-auto w-full max-w-lg rounded-[2rem] bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="mb-2 flex items-center"><h2 className="flex-1 text-2xl font-black">Photos & sounds</h2><button type="button" onClick={() => setPanel(null)} className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-100" aria-label="Close"><X className="h-5 w-5" /></button></div>
+          <p className="text-sm font-bold text-slate-600">Real animal photographs come from Wikimedia Commons; tap a name to see the photo's page, author and license. The splash recording is public domain (Wikimedia Commons / PDSounds).</p>
+          <ul className="mt-3 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">{ANIMALS.map(a => <li key={a.id}><a href={pageUrl(a)} target="_blank" rel="noreferrer" className="font-bold text-sky-700 underline">{a.emoji} {a.credit}</a></li>)}</ul>
+        </div>
+      </div>}
+    </main>
+  );
 }

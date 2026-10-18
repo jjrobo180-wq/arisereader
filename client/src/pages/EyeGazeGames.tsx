@@ -569,11 +569,11 @@ export default function EyeGazeGames() {
             </div>
             <div className="relative max-w-[62%]">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-widest text-slate-950">
-                <PawPrint className="h-4 w-4" /> NEW · VOICE GAME
+                <PawPrint className="h-4 w-4" /> NEW 3D POND · VOICE GAME
               </div>
               <h2 className="text-3xl font-black sm:text-5xl">Animal Splash!</h2>
               <p className="mt-3 text-base font-bold leading-7 text-white/95 sm:text-lg">
-                Pick a real animal photo, put it in the water, hear a real splash, and say what animal it is. The game listens automatically and celebrates correct answers.
+                Look at a real animal photo to splash it into a 3D pond, then say what animal it is — or pick a big answer button. Every animal you name joins your pond.
               </p>
               <div className="mt-5 inline-flex rounded-2xl bg-white px-5 py-3 text-lg font-black text-sky-800 shadow-lg">
                 SPLASH & SAY →

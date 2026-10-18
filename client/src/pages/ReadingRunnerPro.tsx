@@ -1,6 +1,7 @@
 // Reading Runner — a 3D endless-runner reading game for eye-gaze, touch, mouse and keyboard players.
 // Run down the train tracks, dodge trains, jump barriers, grab coins and run into the card that matches the mission.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import Dwell from "@/components/eye-gaze/GazeButton";
 import { ArrowLeft, Coins, Eye, Hand, Heart, HelpCircle, Pause, Play, RotateCcw, Settings, Star, Volume2, VolumeX, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { speakCharacterAI, stopSpeaking } from "@/lib/tts";
@@ -16,8 +17,6 @@ const CSS = `
 .rr-font{font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif}
 .rr-title{text-shadow:0 4px 0 #0b1a3a,0 9px 0 rgba(11,26,58,.55),0 18px 34px rgba(0,0,0,.45)}
 .rr-btn{transition:transform .14s cubic-bezier(.2,1.4,.4,1),filter .14s,box-shadow .14s}.rr-btn:hover{transform:translateY(-2px);filter:brightness(1.06)}.rr-btn:active{transform:translateY(1px) scale(.98)}
-.rr-dwell{position:absolute;left:0;bottom:0;height:6px;width:0;border-radius:999px;background:linear-gradient(90deg,#fff7ae,#ffd23f);box-shadow:0 0 12px rgba(255,210,63,.9)}
-.rr-dwell.on{width:100%;transition-property:width;transition-timing-function:linear}
 .rr-pop{animation:rrPop .5s cubic-bezier(.2,1.6,.4,1) both}@keyframes rrPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
 .rr-up{animation:rrUp .55s cubic-bezier(.2,1.2,.4,1) both}@keyframes rrUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
 .rr-toast{animation:rrToast 1.25s ease-out forwards}@keyframes rrToast{0%{opacity:0;transform:translateY(16px) scale(.7)}14%{opacity:1;transform:scale(1.08)}24%{transform:scale(1)}78%{opacity:1}100%{opacity:0;transform:translateY(-18px)}}
@@ -34,27 +33,9 @@ const SPEEDS: { id: Difficulty; icon: string; name: string; note: string }[] = [
   { id: "medium", icon: "🏃", name: "Medium", note: "Steady · auto-jump · 3 hearts" },
   { id: "hard", icon: "⚡", name: "Hard", note: "Fast · all you · 3 hearts" },
 ];
-const MENU_DWELL = 1200;
 const enterImmersive = () => { try { const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }; const req = el.requestFullscreen || el.webkitRequestFullscreen; if (req && !document.fullscreenElement) void req.call(el)?.catch?.(() => {}); } catch { /* optional */ } };
 const leaveImmersive = () => { try { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); } catch { /* optional */ } };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-// ── Look-to-select button: hover (eye gaze / mouse) for a moment to press it, or tap/click right away ──
-function Dwell({ onSelect, children, className = "", disabled, dwell = true, ms = MENU_DWELL, label, onHover }: { onSelect: () => void; children: ReactNode; className?: string; disabled?: boolean; dwell?: boolean; ms?: number; label?: string; onHover?: () => void }) {
-  const [on, setOn] = useState(false); const timer = useRef(0);
-  const stop = () => { window.clearTimeout(timer.current); setOn(false); };
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-  return (
-    <button type="button" aria-label={label} disabled={disabled}
-      // arm on real pointer movement (a gaze or a moving mouse) — not when a screen change slides a button under a resting cursor
-      onPointerMove={e => { if (on || disabled || !dwell || e.pointerType === "touch") return; onHover?.(); setOn(true); timer.current = window.setTimeout(() => { setOn(false); onSelect(); }, ms); }}
-      onPointerLeave={stop} onClick={() => { stop(); onSelect(); }}
-      className={"rr-btn relative overflow-hidden disabled:cursor-not-allowed disabled:opacity-40 " + className}>
-      {children}
-      {dwell && !disabled && <span className={"rr-dwell" + (on ? " on" : "")} style={{ transitionDuration: on ? ms + "ms" : "0ms" }} />}
-    </button>
-  );
-}
 
 // ── live 3D backdrop (Riley running on autopilot) for the title screen ──
 function Backdrop({ mission, quality, audio }: { mission: Mission; quality: RunnerSettings["quality"]; audio: RunnerAudio }) {
