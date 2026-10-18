@@ -44,6 +44,18 @@ app.get("/app", (req, res, next) => {
   res.type("html").sendFile(appIndex);
 });
 
+// The Eye Gazer home page lives at /eyegaze/. Its first address, /eye-gaze/, and /eyegaze without
+// the slash land there too, so links already shared keep working. (Only these exact pages: the
+// app's /api/eye-gaze/... data routes are untouched.)
+// Matched on the exact address: Express treats "/eyegaze" and "/eyegaze/" as the same route,
+// which would send /eyegaze/ back to itself forever.
+const EYE_GAZER_OLD = new Set(["/eye-gaze", "/eye-gaze/", "/eyegaze"]);
+app.use((req, res, next) => {
+  if ((req.method !== "GET" && req.method !== "HEAD") || !EYE_GAZER_OLD.has(req.path)) return next();
+  const q = req.originalUrl.indexOf("?");
+  res.redirect(301, "/eyegaze/" + (q >= 0 ? req.originalUrl.slice(q) : ""));
+});
+
 // Basic safety headers for every response. (No content security policy or frame blocking:
 // the app embeds videos and games, and schools may show it inside their learning sites.)
 app.disable("x-powered-by");

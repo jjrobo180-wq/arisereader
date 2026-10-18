@@ -27,7 +27,7 @@ export default function Register({ independent = false }: { independent?: boolea
   const [usernameEdited, setUsernameEdited] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  // Arriving from the Eye Gazer home page (/eye-gaze/) the box starts ticked: #/register?eye=1
+  // Arriving from the Eye Gazer home page (/eyegaze/) the box starts ticked: #/register?eye=1
   const [isEyeGaze, setIsEyeGaze] = useState(() => typeof window !== "undefined" && /[?&]eye=1(?:&|$)/.test(window.location.hash));
   const [school, setSchool] = useState<SchoolChoice | null>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
