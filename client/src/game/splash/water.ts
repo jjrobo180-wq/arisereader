@@ -19,13 +19,13 @@ float ripples(vec2 p, float t, out float foam){
   return h;
 }`;
 
-export function makeWater(opts: { deep: number; shallow: number; sky: number; foam: number; sun: THREE.Vector3; radius: number }) {
+export function makeWater(opts: { deep: number; shallow: number; sky: number; foam: number; sun: THREE.Vector3; radius: number; center?: [number, number] }) {
   const uRip: THREE.Vector4[] = Array.from({ length: MAX_RIPPLES }, () => new THREE.Vector4(0, 0, -99, 0));
   const mat = new THREE.ShaderMaterial({
     fog: true, transparent: false,
     uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
       uTime: { value: 0 }, uDeep: { value: new THREE.Color(opts.deep) }, uShallow: { value: new THREE.Color(opts.shallow) }, uSky: { value: new THREE.Color(opts.sky) },
-      uFoam: { value: new THREE.Color(opts.foam) }, uSun: { value: opts.sun.clone().normalize() }, uRadius: { value: opts.radius }, uRip: { value: uRip },
+      uFoam: { value: new THREE.Color(opts.foam) }, uSun: { value: opts.sun.clone().normalize() }, uRadius: { value: opts.radius }, uCenter: { value: new THREE.Vector2(...(opts.center ?? [0, 0])) }, uRip: { value: uRip },
     }]),
     vertexShader: `
       uniform float uTime; uniform vec4 uRip[${MAX_RIPPLES}];
@@ -41,14 +41,14 @@ export function makeWater(opts: { deep: number; shallow: number; sky: number; fo
         #include <fog_vertex>
       }`,
     fragmentShader: `
-      uniform float uTime; uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uSky; uniform vec3 uFoam; uniform vec3 uSun; uniform float uRadius;
+      uniform float uTime; uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uSky; uniform vec3 uFoam; uniform vec3 uSun; uniform float uRadius; uniform vec2 uCenter;
       varying vec3 vW; varying float vFoam;
       #include <fog_pars_fragment>
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       void main(){
         vec3 n = normalize(cross(dFdx(vW), dFdy(vW))); if (n.y < 0.0) n = -n;
         vec3 v = normalize(cameraPosition - vW);
-        float r = length(vW.xz);
+        float r = length(vW.xz - uCenter);
         float shore = smoothstep(uRadius * 0.45, uRadius * 1.02, r);
         vec3 base = mix(uDeep, uShallow, shore);
         float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
