@@ -118,12 +118,12 @@ export function PhoneMenu({ items, side, close, open, setRail, afterPick, top = 
         {foldMenu(items, folders).flatMap((entry) => entry.kind === "item" ? [entry.item] : [
           <button key={`folder-${entry.folder.id}`} type="button" onClick={() => toggleFolder(entry.folder.id)} aria-expanded={openFolders.includes(entry.folder.id) || entry.items.some((i) => i.active)} tabIndex={open ? 0 : -1}
             className={`relative flex min-h-[52px] ${across ? "min-w-[64px] snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1 text-center text-[10px] font-semibold ${entry.items.some((i) => i.active) ? "text-slate-900" : "text-slate-500"}`}>
-            <span className="[&_svg]:h-5 [&_svg]:w-5"><Folder /></span><span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate`}>{entry.folder.name}</span>
+            <span className="[&_svg]:h-5 [&_svg]:w-5"><Folder /></span><span className={`${across ? "w-[72px]" : "w-[66px]"} line-clamp-2 break-words text-center leading-[1.15]`}>{entry.folder.name}</span>
           </button>,
           ...(openFolders.includes(entry.folder.id) || entry.items.some((i) => i.active) ? entry.items : [])]).map((item) => !("onClick" in item) ? item : <button key={item.id} type="button" onClick={() => pick(item)} aria-current={item.active ? "page" : undefined} tabIndex={open ? 0 : -1} data-testid={`life-menu-${item.id}`}
           className={`relative flex min-h-[52px] ${across ? "min-w-[64px] snap-start" : "w-full"} shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1 text-center text-[10px] font-semibold transition ${item.active ? "bg-[#292446] text-white" : "text-slate-500 hover:text-slate-900"}`}>
           <span className="[&_svg]:h-5 [&_svg]:w-5">{item.icon}</span>
-          <span className={`${across ? "max-w-[72px]" : "max-w-[62px]"} truncate`}>{item.label}</span>
+          <span className={`${across ? "w-[72px]" : "w-[66px]"} line-clamp-2 break-words text-center leading-[1.15]`}>{item.label}</span>
           {badge(item.badge)}
         </button>)}
       </div>
