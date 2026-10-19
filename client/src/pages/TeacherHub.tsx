@@ -319,6 +319,9 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
 /** An App Store app's own icon (a cloud and sun for Standby, a moon for Sleep Studio…), not a generic sparkle. */
 function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
 
+/** homeTask value meaning "a new to-do" (the full form opened from Home's quick add with More). */
+const NEW_TASK = "__new__";
+
 export default function TeacherHub() {
   const { user } = useAuth();
   // Signing in as someone else starts with a clean page, so one teacher's Hub is never shown to the next.
@@ -1526,6 +1529,7 @@ function TeacherHubPage() {
               <Card title="To do" collapseKey="home-todo" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
                 <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, { title, dueDate: "", recurring: "", priority: false }, id) })); setHomeQuick(""); }} className="mb-3 flex gap-2" data-testid="home-task-add">
                   <Field placeholder="Add a to-do and press Enter" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
+<button type="button" onClick={() => setHomeTask(NEW_TASK)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="home-task-more"><MoreHorizontal className="h-4 w-4" /> More</button>
                   <PrimaryButton type="submit" disabled={!homeQuick.trim()}>Add</PrimaryButton>
                 </form>
                 {dueTasks.length ? (
@@ -1642,6 +1646,8 @@ function TeacherHubPage() {
         </div>
       )}
       {quickEvent && <AddEventModal onClose={() => setQuickEvent(false)} onAdd={(items) => { setWorkspace((p) => addQuickItems(p, items, id)); if (items.task) reminderAdded(items); }} />}
+      {homeTask === NEW_TASK && <TaskModal task={null} startTitle={homeQuick} today={TODAY()} lists={cleanTaskLists(workspace.taskLists)}
+        onSave={(fields) => { setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, fields, id) })); setHomeQuick(""); }} onClose={() => setHomeTask(null)} />}
       {homeTask && workspace.tasks.some((t) => t.id === homeTask) && <TaskModal task={workspace.tasks.find((t) => t.id === homeTask) || null} today={TODAY()}
         onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, homeTask, fields, id) }))} onClose={() => setHomeTask(null)} onDelete={() => remove("tasks", homeTask)} />}
       {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} onAdd={addFound} onClose={() => setAdding(null)} />}
@@ -2115,6 +2121,7 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
             {view !== "completed" && view !== "archived" && (
               <form onSubmit={quickAdd} className="mt-5 flex gap-2">
                 <Field placeholder={`Add a to-do${listId !== "all" ? ` to ${listName}` : ""} and press Enter`} aria-label="Quick add a to-do" value={quick} onChange={(e) => setQuick(e.target.value)} />
+<button type="button" onClick={() => setEditing({ id: null })} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="tasks-quick-more"><MoreHorizontal className="h-4 w-4" /> More</button>
                 <PrimaryButton type="submit" disabled={!quick.trim()}>Add</PrimaryButton>
               </form>
             )}
@@ -2154,7 +2161,7 @@ function Tasks({ workspace, setWorkspace, remove, makeId, toast }: SectionProps 
         </div>
       </div>
       {editing && <TaskModal task={editing.id ? workspace.tasks.find((t) => t.id === editing.id) || null : null} startTitle={quick} today={today} lists={lists} startList={listId === "all" ? "" : listId}
-        onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, id) }))} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
+        onSave={(fields) => { setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, editing.id, fields, id) })); if (!editing.id) setQuick(""); }} onClose={() => setEditing(null)} onDelete={editing.id ? () => remove("tasks", editing.id!) : undefined} />}
     </div>
   );
 }
