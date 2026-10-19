@@ -192,7 +192,7 @@ export default function ClassTeachersPopup() {
 
   if (!showing || !status) return null;
   return (
-    <div className="fixed inset-0 z-[700] flex items-end justify-center bg-black/70 p-3 sm:items-center sm:p-4" data-testid="class-teachers-popup">
+    <div className="fixed inset-0 kb-sheet z-[700] flex items-end justify-center bg-black/70 p-3 sm:items-center sm:p-4" data-testid="class-teachers-popup">
       <div role="dialog" aria-modal="true" aria-labelledby="class-teachers-title"
         className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
         {saved ? (

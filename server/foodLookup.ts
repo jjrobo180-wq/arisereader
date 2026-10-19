@@ -6,15 +6,17 @@
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { fixFoodSpelling } from "../shared/foodSpelling";
-import { FOOD_AI_PROMPT, cleanAiFoods, isBarcode, mergeFound, parseFdcFood, parseOffProduct, type FoundFood } from "../shared/foodLookup";
+import { FOOD_AI_PROMPT, barcodeCandidates, cleanAiFoods, isBarcode, mergeFound, parseFdcFood, parseOffProduct, type FoundFood } from "../shared/foodLookup";
 
 const OFF_FIELDS = "product_name,generic_name,brands,serving_size,nutriments,code";
 const USER_AGENT = "ARISE-Reader-FamilyHub/1.0 (arisereader.com)";
 const searchLimits = createAttemptLimiter({ max: 120, windowMs: 10 * 60_000 });
 const aiLimits = createAttemptLimiter({ max: 30, windowMs: 60 * 60_000 });
 
-async function getJson(url: string, ms = 8000): Promise<any> {
+async function getJson(url: string, ms = 8000, missingOk = false): Promise<any> {
   const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: AbortSignal.timeout(ms) });
+  // Open Food Facts answers 404 for a product it doesn't have: that's "not found", not "can't be reached".
+  if (missingOk && res.status === 404) return null;
   if (!res.ok) throw new Error(`status ${res.status}`);
   return res.json();
 }
@@ -82,11 +84,15 @@ export function registerFoodLookupRoutes(app: Express, authMiddleware: RequestHa
     if (!isBarcode(code)) return res.status(400).json({ message: "That doesn't look like a barcode number." });
     if (limited(searchLimits, req, res)) return;
     try {
-      const body = await getJson(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${OFF_FIELDS}`);
-      const food = body?.status === 1 ? parseOffProduct(body.product) : null;
-      if (!food) return res.status(404).json({ message: "That product isn't in the food database yet. Search for it or type it in." });
-      res.set("Cache-Control", "private, max-age=86400");
-      return res.json({ food });
+      // A UPC-E (cans, candy) is also tried as the full UPC-A it stands for, and a UPC-A with a leading 0.
+      for (const candidate of barcodeCandidates(code)) {
+        const body = await getJson(`https://world.openfoodfacts.org/api/v2/product/${candidate}.json?fields=${OFF_FIELDS}`, 8000, true);
+        const food = body?.status === 1 ? parseOffProduct(body.product) : null;
+        if (!food) continue;
+        res.set("Cache-Control", "private, max-age=86400");
+        return res.json({ food });
+      }
+      return res.status(404).json({ message: "That product isn't in the food database yet. Search for it or type it in." });
     } catch (error: any) {
       console.error("[food-lookup] barcode failed:", String(error?.message));
       return res.status(503).json({ message: "The food database can't be reached right now. Try again in a moment." });

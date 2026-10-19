@@ -73,7 +73,7 @@ function ShortcutPicker({ shortcut, choices, onPick, onClose }: { shortcut: HubS
     if (!clean) { setBad(true); return; }
     onPick({ kind: "url", url: clean, label: urlLabel.trim().slice(0, 40) || new URL(clean).hostname.replace(/^www\./, "") });
   };
-  return <div className="fixed inset-0 z-[95] flex items-end justify-center bg-slate-950/50 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose}>
+  return <div className="fixed inset-0 kb-sheet z-[95] flex items-end justify-center bg-slate-950/50 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose}>
     <div role="dialog" aria-modal="true" aria-labelledby="shortcut-title" onClick={(e) => e.stopPropagation()}
       className="flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[1.75rem] bg-white text-slate-800 shadow-2xl sm:rounded-[1.75rem]" data-testid="shortcut-picker">
       <div className="flex items-start gap-3 border-b border-slate-100 px-5 pb-4 pt-5">

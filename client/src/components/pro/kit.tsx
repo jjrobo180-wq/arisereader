@@ -100,7 +100,7 @@ export function Bar({ value, max, color = "#0ea5e9", className = "" }: { value: 
 
 export function Modal({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
-  return createPortal(<div className="fixed inset-0 z-[900] flex items-end justify-center bg-slate-900/40 text-slate-900 sm:items-center sm:p-4" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+  return createPortal(<div className="fixed inset-0 kb-sheet z-[900] flex items-end justify-center bg-slate-900/40 text-slate-900 sm:items-center sm:p-4" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div role="dialog" aria-label={title} className={`flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl ${wide ? "sm:max-w-2xl" : "sm:max-w-md"}`}>
       <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3"><h2 className="text-base font-black">{title}</h2><button type="button" onClick={onClose} aria-label="Close" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"><X size={18} /></button></div>
       <div className="min-h-0 flex-1 overflow-auto px-5 py-4 text-sm">{children}</div>

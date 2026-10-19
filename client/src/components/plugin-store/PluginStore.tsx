@@ -490,7 +490,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     </div>}
     {note && <div role="status" className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[90] flex justify-center px-4"><p className="max-w-md rounded-2xl px-4 py-3 text-sm font-semibold shadow-xl" style={{ background: night ? "#f8fafc" : "#15141d", color: night ? "#15141d" : "#ffffff" }}>{note}</p></div>}
 
-    {open && <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setOpenId(null)}>
+    {open && <div className="fixed inset-0 kb-sheet z-[85] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setOpenId(null)}>
       <div role="dialog" aria-modal="true" aria-label={open.name} onClick={(e) => e.stopPropagation()}
         className="max-h-[88dvh] w-full max-w-lg overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-[1.75rem] bg-[var(--s-surface)] text-[var(--s-text)] shadow-[0_30px_80px_-20px_rgba(0,0,0,.55)] sm:rounded-[1.75rem]" data-testid="plugin-detail">
         <div className="relative h-28 overflow-hidden" style={{ background: `linear-gradient(135deg, ${mix(open.color, "#ffffff", 0.18)}, ${open.color} 55%, ${mix(open.color, "#000000", 0.25)})` }}>
@@ -532,7 +532,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
     {openTemplate && (() => {
       const plugins = templatePlugins(openTemplate);
       const have = plugins.filter((p) => isInstalled(p)).length;
-      return <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setOpenTemplateId(null)}>
+      return <div className="fixed inset-0 kb-sheet z-[85] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={() => setOpenTemplateId(null)}>
         <div role="dialog" aria-modal="true" aria-label={openTemplate.name} onClick={(e) => e.stopPropagation()}
           className="max-h-[88dvh] w-full max-w-lg overflow-y-auto overflow-x-hidden overscroll-contain rounded-t-[1.75rem] bg-[var(--s-surface)] text-[var(--s-text)] shadow-[0_30px_80px_-20px_rgba(0,0,0,.55)] sm:rounded-[1.75rem]" data-testid="template-detail">
           <div className="relative h-28 overflow-hidden" style={{ background: `linear-gradient(135deg, ${mix(openTemplate.color, "#ffffff", 0.18)}, ${openTemplate.color} 55%, ${mix(openTemplate.color, "#000000", 0.25)})` }}>

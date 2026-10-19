@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BarChart3, BookOpen, Camera, Check, ChevronLeft, ChevronRight, Copy, Droplet, Dumbbell, Flame, Footprints, Loader2, Minus, Plus, Scale, ScanBarcode, Search, Settings2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { canScan, estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
+import { estimateMeal, lookupBarcode, searchFoods, shrinkPhoto } from "@/lib/foodLookup";
+import { canUseCamera, scanWithCamera } from "@/lib/barcodeScanner";
 import { searchByName } from "@shared/foodSpelling";
 import type { FoundFood } from "@shared/foodLookup";
 import Intake, { profileToDraft } from "./Intake";
@@ -301,6 +302,7 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
   const [ai, setAi] = useState<{ text: string; image: string | null; busy: boolean; error: string; foods: FoundFood[]; done: boolean }>({ text: "", image: null, busy: false, error: "", foods: [], done: false });
   const [code, setCode] = useState("");
   const [scan, setScan] = useState<{ busy: boolean; error: string; camera: boolean }>({ busy: false, error: "", camera: false });
+  const [slowScan, setSlowScan] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const library = useMemo(() => [...saved.map((f) => ({ ...f, mine: true })), ...COMMON_FOODS.map((f) => ({ ...f, mine: false }))], [saved]);
   const term = q.trim().toLowerCase();
@@ -321,29 +323,16 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
     return () => { window.clearTimeout(timer); ctrl.abort(); };
   }, [term, tab, token]);
 
-  // Camera barcode scanning where the browser supports it.
+  // Scanning with the camera: the browser's own barcode reader where there is one, and the app's
+  // own everywhere else (Safari on iPhone and iPad has none).
   useEffect(() => {
-    if (!scan.camera) return;
-    let stream: MediaStream | null = null;
-    let stopped = false;
-    (async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        if (stopped || !video.current) return;
-        video.current.srcObject = stream;
-        await video.current.play();
-        const detector = new (window as any).BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
-        while (!stopped && video.current) {
-          const found = await detector.detect(video.current).catch(() => []);
-          const value = found?.[0]?.rawValue;
-          if (value && /^\d{8,14}$/.test(value)) { stopped = true; setScan((s) => ({ ...s, camera: false })); void findBarcode(value); break; }
-          await new Promise((r) => setTimeout(r, 250));
-        }
-      } catch {
-        setScan({ busy: false, camera: false, error: "The camera couldn't start. Type the numbers under the barcode instead." });
-      }
-    })();
-    return () => { stopped = true; stream?.getTracks().forEach((t) => t.stop()); };
+    if (!scan.camera || !video.current) return;
+    setSlowScan(false);
+    const slow = window.setTimeout(() => setSlowScan(true), 8000);
+    const stop = scanWithCamera(video.current,
+      (value) => { navigator.vibrate?.(40); setScan((s) => ({ ...s, camera: false })); void findBarcode(value); },
+      (error) => setScan({ busy: false, camera: false, error }));
+    return () => { window.clearTimeout(slow); stop(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scan.camera]);
 
@@ -385,7 +374,7 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
       </div>
 
       {tab === "search" && <>
-        <div className="sticky -top-5 z-10 -mx-5 mb-3 bg-white px-5 pb-2 pt-1 sm:static sm:mx-0 sm:px-0 sm:pt-0"><div className="relative"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any food, brand or restaurant item" aria-label="Search foods" enterKeyHint="search" autoCorrect="on" spellCheck className={inputClass + " pl-10 text-base"} /></div></div>
+        <div className="sticky -top-5 z-10 -mx-5 mb-3 bg-white px-5 pb-2 pt-1 sm:static sm:mx-0 sm:px-0 sm:pt-0" data-keyboard-top=""><div className="relative"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any food, brand or restaurant item" aria-label="Search foods" enterKeyHint="search" autoCorrect="on" spellCheck className={inputClass + " pl-10 text-base"} /></div></div>
         <div className="space-y-4 sm:max-h-[50vh] sm:overflow-y-auto sm:pr-1">
           {results.length > 0 && <div>{term && <p className="mb-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400">Common foods</p>}<ul className="space-y-1.5">{results.map((f, i) => row(f, f.name + i))}</ul></div>}
           {term.length >= 2 && <div>
@@ -401,14 +390,28 @@ function AddFood({ meal: startMeal, kid, saved, recent, onAdd, onClose }: {
       {tab === "recent" && (recent.length ? <ul className="space-y-1.5">{recent.map((f) => row({ name: f.name, serving: f.servings === 1 ? "1 serving" : `${f.servings} servings`, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat }, f.id))}</ul> : <p className="text-sm text-slate-500">Foods you add will show up here for one-tap logging.</p>)}
 
       {tab === "scan" && <div className="space-y-4">
-        {scan.camera ? <div className="overflow-hidden rounded-2xl bg-black"><video ref={video} className="aspect-video w-full object-cover" muted playsInline /><button onClick={() => setScan((s) => ({ ...s, camera: false }))} className="w-full bg-black/80 py-2 text-xs font-bold text-white">Stop camera</button></div>
-          : canScan() && <button onClick={() => setScan({ busy: false, error: "", camera: true })} className={primary + " w-full min-h-12"}><ScanBarcode size={18} /> Scan with camera</button>}
+        {scan.camera ? <div className="overflow-hidden rounded-2xl bg-black">
+          <div className="relative">
+            <video ref={video} className="aspect-[4/3] max-h-[52vh] w-full object-cover" muted playsInline autoPlay aria-label="Camera" />
+            {/* The box to line the barcode up in, with the rest of the picture dimmed. */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+              <div className="relative h-[40%] w-[80%] rounded-xl border-2 border-white/90 shadow-[0_0_0_100vmax_rgba(0,0,0,0.38)]">
+                <div className="absolute inset-x-3 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-rose-400/90 motion-safe:animate-pulse" />
+              </div>
+            </div>
+            <p className="absolute inset-x-0 top-2.5 px-3 text-center text-xs font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,.7)]" aria-live="polite">
+              {slowScan ? "Not reading? Hold it a hand's length away so it's sharp, in good light." : "Line the barcode up in the box. It reads by itself."}
+            </p>
+          </div>
+          <button onClick={() => setScan((s) => ({ ...s, camera: false }))} className="min-h-11 w-full bg-black/80 text-sm font-bold text-white">Stop camera</button>
+        </div>
+          : canUseCamera() && <button onClick={() => setScan({ busy: false, error: "", camera: true })} disabled={scan.busy} className={primary + " w-full min-h-12"}>{scan.busy ? <><Loader2 size={18} className="animate-spin" /> Looking it up…</> : <><ScanBarcode size={18} /> Scan with camera</>}</button>}
         <form onSubmit={(e) => { e.preventDefault(); const v = code.replace(/\D/g, ""); if (/^\d{8,14}$/.test(v)) void findBarcode(v); }} className="flex gap-2">
-          <input inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Numbers under the barcode" aria-label="Barcode number" className={inputClass + " min-w-0"} />
-          <button type="submit" className={plain} disabled={scan.busy || !/^\d{8,14}$/.test(code.replace(/\D/g, ""))}>{scan.busy ? <Loader2 size={16} className="animate-spin" /> : "Look up"}</button>
+          <input inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Numbers under the barcode" aria-label="Barcode number" className={inputClass + " min-w-0 text-base"} />
+          <button type="submit" className={plain + " shrink-0 whitespace-nowrap"} disabled={scan.busy || !/^\d{8,14}$/.test(code.replace(/\D/g, ""))}>{scan.busy ? <Loader2 size={16} className="animate-spin" /> : "Look up"}</button>
         </form>
         {scan.error && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{scan.error}</p>}
-        {!canScan() && <p className="text-xs text-slate-500">This browser can't scan with the camera, so type the numbers printed under the barcode.</p>}
+        {!canUseCamera() && <p className="text-xs text-slate-500">This browser can't use the camera here, so type the numbers printed under the barcode.</p>}
       </div>}
 
       {tab === "ai" && <div className="space-y-3">

@@ -169,7 +169,7 @@ function LockSettings({ apps, onClose }: { apps: { id: string; label: string }[]
     onForgot={() => { c.setLock(null); setStep(""); }}
     onDone={(ok) => { if (!ok) { if (step === "check-open") onClose(); else setStep(""); return; } if (step === "check-off") { c.setLock(null); setStep(""); } else if (step === "check-change") setStep("set"); else setStep(""); }} />;
   const shown = apps.filter((a) => !q.trim() || a.label.toLowerCase().includes(q.trim().toLowerCase()));
-  return createPortal(<div className="fixed inset-0 z-[800] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+  return createPortal(<div className="fixed inset-0 kb-sheet z-[800] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div role="dialog" aria-modal="true" aria-labelledby="lock-settings-title" className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white text-slate-800 shadow-2xl sm:max-w-lg sm:rounded-3xl" data-testid="lock-settings">
       <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
         <div><p className="text-xs font-bold uppercase tracking-[.15em] text-slate-500">Privacy</p><h2 id="lock-settings-title" className="text-lg font-black">Passcode & locks</h2></div>

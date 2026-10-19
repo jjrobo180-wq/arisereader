@@ -187,7 +187,7 @@ export default function HubImport({ token, students, onAdd, onClose, start, prel
   const canRead = !busy && (!!text.trim() || attachments.length > 0);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Add with AI" data-testid="hub-import">
+    <div className="fixed inset-0 kb-sheet z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Add with AI" data-testid="hub-import">
       <div
         className={`flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl ${dragging ? "ring-4 ring-teal-400" : ""}`}
         onDragOver={(e) => { e.preventDefault(); if (!found) setDragging(true); }}

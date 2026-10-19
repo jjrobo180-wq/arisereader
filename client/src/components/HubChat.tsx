@@ -68,7 +68,7 @@ export function HubChat({ hub, token, accent, lift = false, raiseRem = 0 }: { hu
       className={`fixed right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition active:scale-90 ${accent} `} style={{ bottom: `calc(max(1.25rem, env(safe-area-inset-bottom)) + ${(lift ? 4.25 : 0) + raiseRem}rem)` }}>
       <Sparkles className="h-6 w-6" />
     </button>}
-    {open && <div className="fixed inset-0 z-[650] flex items-end justify-end bg-slate-950/20 sm:bg-transparent sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+    {open && <div className="fixed inset-0 kb-sheet z-[650] flex items-end justify-end bg-slate-950/20 sm:bg-transparent sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
       <section role="dialog" aria-modal="true" aria-label="AI assistant" data-testid="hub-chat"
         className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(640px,85vh)] sm:w-[400px] sm:rounded-3xl sm:border sm:border-slate-200">
         <header className="flex items-center gap-3 border-b border-slate-100 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">

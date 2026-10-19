@@ -41,7 +41,7 @@ export default function NoteTemplatePicker({ onPick, onClose, hub }: { onPick: (
     <span className="min-w-0"><span className="block text-sm font-extrabold text-slate-900">{tpl.name}</span><span className="mt-0.5 block text-xs leading-snug text-slate-500">{tpl.blurb}</span></span>
   </button></li>;
 
-  return <div className="fixed inset-0 z-[95] flex items-end justify-center bg-slate-950/50 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose}>
+  return <div className="fixed inset-0 kb-sheet z-[95] flex items-end justify-center bg-slate-950/50 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose}>
     <div role="dialog" aria-modal="true" aria-label="Note templates" onClick={(e) => e.stopPropagation()}
       className="flex h-[88dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[1.75rem] bg-slate-50 text-slate-800 shadow-2xl sm:h-[min(88dvh,760px)] sm:rounded-[1.75rem]" data-testid="note-template-picker">
       <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-3 sm:px-5">

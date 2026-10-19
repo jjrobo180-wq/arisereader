@@ -129,7 +129,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, seats,
           const latest = polls?.find((x) => x.id === sendPopup.id);
           const live: PollView = { ...sendPopup, status: latest?.status ?? sendPopup.status, invitees: sendPopup.invitees.map((i) => { const l = latest?.invitees.find((x) => x.id === i.id); return l ? { ...i, emailSent: l.emailSent, respondedAt: l.respondedAt } : i; }) };
           return (
-            <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Send the links" data-testid="send-popup">
+            <div className="fixed inset-0 kb-sheet z-[70] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Send the links" data-testid="send-popup">
               <div className="flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
                   <h2 className="text-lg font-bold">{live.status === "booked" ? "Tell everyone the time" : "Send the links"}</h2>
@@ -290,7 +290,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   }
 
   return (
-    <div className={embedded ? "" : "fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4"} {...(embedded ? {} : { role: "dialog", "aria-modal": true, "aria-label": "Ask for times", "data-testid": "poll-dialog", onMouseDown: (e: any) => { if (e.target === e.currentTarget) onClose(); } })}>
+    <div className={embedded ? "" : "fixed inset-0 kb-sheet z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4"} {...(embedded ? {} : { role: "dialog", "aria-modal": true, "aria-label": "Ask for times", "data-testid": "poll-dialog", onMouseDown: (e: any) => { if (e.target === e.currentTarget) onClose(); } })}>
     <div className={embedded ? "space-y-4" : "max-h-[94dvh] w-full max-w-3xl space-y-4 overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-3xl sm:p-6"} data-testid="poll-composer">
       {!embedded && (
         <div className="flex items-center justify-between gap-3">

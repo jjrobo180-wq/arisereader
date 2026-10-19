@@ -47,7 +47,7 @@ function LinkPicker({ workspace, links, self, onAdd, onClose }: { workspace: Wor
   const pool = all.filter((x) => !have.has(`${x.kind}:${x.id}`) && (!only || x.kind === only));
   const found = q.trim() ? searchHub(pool.map((x) => ({ ...x, title: x.label, keywords: x.student })), q, 60) : pool.slice(0, 60);
   const kinds = LINK_KINDS.filter((k) => all.some((x) => x.kind === k));
-  return createPortal(<div className="fixed inset-0 z-[760] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+  return createPortal(<div className="fixed inset-0 kb-sheet z-[760] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div role="dialog" aria-modal="true" aria-label="Link something" className="flex h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-auto sm:max-h-[80vh] sm:max-w-xl sm:rounded-3xl" data-testid="link-picker">
       <div className="flex items-center gap-2 border-b border-slate-100 p-3">
         <Search className="ml-1 h-5 w-5 shrink-0 text-slate-400" />

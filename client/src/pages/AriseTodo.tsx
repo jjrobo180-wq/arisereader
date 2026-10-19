@@ -1398,7 +1398,7 @@ export default function AriseTodo() {
       </main>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
+    {editing && <div className="fixed inset-0 kb-sheet z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
       <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[96dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-6">
         <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">Arise LifeHub</p><h2 id="todo-modal-title" className="mt-1 text-lg font-black sm:text-xl">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
         <form onSubmit={saveTask} className="space-y-3">

@@ -31,7 +31,7 @@ export function SupportSheet({ info, onClose }: { info: DonateInfo | null; onClo
     return () => window.removeEventListener("keydown", key);
   }, [onClose]);
   const pct = info?.goal ? Math.min(100, Math.round((info.goal.raised / info.goal.target) * 100)) : 0;
-  return <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/55 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose} data-testid="support-sheet">
+  return <div className="fixed inset-0 kb-sheet z-[90] flex items-end justify-center bg-slate-950/55 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose} data-testid="support-sheet">
     <div role="dialog" aria-modal="true" aria-labelledby="support-title" onClick={(e) => e.stopPropagation()}
       className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-[1.75rem] bg-white text-slate-800 shadow-2xl sm:rounded-[1.75rem]">
       <div className="relative bg-gradient-to-br from-rose-50 via-white to-violet-50 px-6 pb-5 pt-6">

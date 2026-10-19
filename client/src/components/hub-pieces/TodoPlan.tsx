@@ -136,7 +136,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
     : "Every app in the App Store (450+), and AI, across WorkHub and LifeHub.";
 
   return (
-    <div className="fixed inset-0 z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
+    <div className="fixed inset-0 kb-sheet z-[320] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title" data-testid="todo-upgrade" onClick={(e) => { if (e.target === e.currentTarget) setReason(null); }}>
       <div className="relative w-full max-w-md overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
         <button type="button" onClick={() => setReason(null)} aria-label="Close" className="absolute right-3 top-3 grid grid-cols-1 h-10 w-10 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700" data-testid="todo-upgrade-close"><X className="h-5 w-5" /></button>
         <div className="bg-gradient-to-br from-violet-600 to-indigo-600 px-6 pb-5 pt-6 text-white">

@@ -38,6 +38,3 @@ export function shrinkPhoto(file: File): Promise<string> {
     img.src = url;
   });
 }
-
-/** Barcode scanning with the camera works where the browser has BarcodeDetector (Chrome, Android, Edge). */
-export const canScan = () => typeof window !== "undefined" && "BarcodeDetector" in window && !!navigator.mediaDevices?.getUserMedia;

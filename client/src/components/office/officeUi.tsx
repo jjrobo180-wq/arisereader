@@ -134,7 +134,7 @@ export function Dialog({ title, onClose, children, footer, wide, testId }: { tit
     return () => document.removeEventListener("keydown", k, true);
   }, [onClose]);
   return createPortal(
-    <div className="fixed inset-0 z-[900] flex items-end justify-center bg-slate-900/40 p-0 text-slate-900 sm:items-center sm:p-4" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }} data-office-float="">
+    <div className="fixed inset-0 kb-sheet z-[900] flex items-end justify-center bg-slate-900/40 p-0 text-slate-900 sm:items-center sm:p-4" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }} data-office-float="">
       <div role="dialog" aria-label={title} data-testid={testId} className={`flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl ${wide ? "sm:max-w-3xl" : "sm:max-w-md"}`}>
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
           <h2 className="text-base font-black">{title}</h2>

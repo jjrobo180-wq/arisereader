@@ -71,7 +71,7 @@ export function Sheet({ title, onClose, children, wide }: { title: string; onClo
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [onClose]);
-  return <div className="fixed inset-0 z-[540] flex items-end justify-center bg-black/70 sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+  return <div className="fixed inset-0 kb-sheet z-[540] flex items-end justify-center bg-black/70 sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div role="dialog" aria-modal="true" aria-label={title} className={`sl-sheet max-h-[92dvh] text-[var(--sl-hush)] w-full overflow-y-auto overscroll-contain !rounded-b-none p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:!rounded-[1.4rem] sm:p-7 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <h2 className="sl-title">{title}</h2>

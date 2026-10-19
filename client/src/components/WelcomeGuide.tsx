@@ -126,7 +126,7 @@ export default function WelcomeGuide() {
   return (
     <>
       {popup && (
-        <div className="fixed inset-0 z-[700] flex items-end justify-center bg-slate-950/60 sm:items-center sm:p-4" data-testid="welcome-guide">
+        <div className="fixed inset-0 kb-sheet z-[700] flex items-end justify-center bg-slate-950/60 sm:items-center sm:p-4" data-testid="welcome-guide">
           <div role="dialog" aria-modal="true" aria-labelledby="welcome-title"
             className="relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white text-slate-900 shadow-2xl sm:max-w-md sm:rounded-3xl">
             <div className="flex-1 overflow-y-auto overscroll-contain p-5 pb-3 sm:p-6 sm:pb-3">

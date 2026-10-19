@@ -135,7 +135,7 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
   const pill = "inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`Step ${step} of ${STEP_COUNT}: ${info.title}`} data-testid="meeting-wizard">
+    <div className="fixed inset-0 kb-sheet z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`Step ${step} of ${STEP_COUNT}: ${info.title}`} data-testid="meeting-wizard">
       <div className="flex max-h-[94dvh] w-full min-w-0 max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
         <div className="border-b border-slate-100 px-4 pb-3 pt-3 sm:px-6">
           <div className="flex items-center justify-between gap-3">

@@ -200,7 +200,7 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
   const row = "flex items-start justify-between gap-3 py-2 text-sm";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 md:items-stretch md:justify-end" role="dialog" aria-modal="true" aria-label={`${name}, details`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid="person-sheet">
+    <div className="fixed inset-0 kb-sheet z-50 flex items-end justify-center bg-slate-950/50 md:items-stretch md:justify-end" role="dialog" aria-modal="true" aria-label={`${name}, details`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid="person-sheet">
       <div className="flex max-h-[94dvh] w-full min-w-0 flex-col overflow-hidden rounded-t-3xl bg-slate-50 shadow-2xl md:max-h-none md:max-w-xl md:rounded-none">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-5">
           <div className="min-w-0">
