@@ -99,3 +99,9 @@ test("uploading by advisory: one Advisory box, saved as each student's advisory"
   assert.match(popup, /const ASKED: ClassSubject\[\] = \["lit"\];/);
   assert.match(popup, /Who is your ELA teacher\?/);
 });
+
+test("a student who signed up with their student number as username is skipped, not an error", () => {
+  const routes = read("server/routes.ts");
+  const route = routes.slice(routes.indexOf('app.post("/api/teacher/students/bulk-add"'), routes.indexOf('app.post("/api/teacher/approve/:studentId"'));
+  assert.match(route, /if \(\(existingName\.role \|\| "student"\) === "student" && !existingName\.isAdmin\) skipped\.push/);
+});

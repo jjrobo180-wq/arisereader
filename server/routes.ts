@@ -11151,8 +11151,14 @@ Important:
           else problems.push({ row: c.row, message: `Student number "${c.studentNumber}" is already in use.` });
           continue;
         }
+        // A student who made their own account with their student number as the username is the
+        // same student: skipped like any other existing account (and put in the advisory).
         const existingName = await storage.getUserByUsername(c.studentNumber.toLowerCase());
-        if (existingName) { problems.push({ row: c.row, message: `"${c.studentNumber}" is already taken as a username.` }); continue; }
+        if (existingName) {
+          if ((existingName.role || "student") === "student" && !existingName.isAdmin) skipped.push({ row: c.row, studentNumber: c.studentNumber, displayName: existingName.displayName || "", id: Number(existingName.id) });
+          else problems.push({ row: c.row, message: `"${c.studentNumber}" is already taken as a username.` });
+          continue;
+        }
         toCreate.push(c);
       }
       if (problems.length) return res.status(409).json({ message: "Some rows need to be fixed before adding.", problems });
