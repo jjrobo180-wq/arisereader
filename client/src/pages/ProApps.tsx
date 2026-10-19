@@ -1,6 +1,7 @@
 // Arise premium apps (#/pro): a gallery of every app by group, and each app full-page at
 // #/pro?app=<id>. Apps are installed from the App Store (shared/pluginStore.ts) and saved to the
 // person's account (useAppData in lib/cloudDocs.ts).
+import { hubNightClass } from "@/lib/hubNight";
 import { Suspense, lazy, useEffect, useMemo, useState, type ComponentType } from "react";
 import { ArrowLeft, Eye, Pencil, Search, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -64,7 +65,7 @@ export default function ProApps() {
   const App = id ? appComponent(id) : null;
   const hubQ = fromHub ? `&hub=${fromHub}` : "";
   const go = (next: string) => { window.location.hash = next ? `#/pro?app=${next}&from=apps${hubQ}` : `#/pro${fromHub ? `?hub=${fromHub}` : ""}`; window.scrollTo({ top: 0 }); };
-  return <main className="min-h-screen bg-slate-50 px-3 py-4 text-slate-900 sm:px-6 sm:py-6">
+  return <main className={`${hubNightClass()} min-h-screen bg-slate-50 px-3 py-4 text-slate-900 sm:px-6 sm:py-6`}>
     <div className="mx-auto max-w-5xl space-y-4">
       <header className="flex flex-wrap items-center gap-3">
         {meta && fromList ? <button type="button" onClick={() => go("")} className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-700 hover:underline"><ArrowLeft size={15} />All apps</button>

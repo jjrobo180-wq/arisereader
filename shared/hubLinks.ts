@@ -19,52 +19,40 @@ export const MAX_LINKS = 30;
 export const KIND_LABEL: Record<LinkKind, string> = { file: "Drive files", student: "Students", goal: "Goals", meeting: "Meetings", note: "Notes", task: "Reminders", lesson: "Lessons", quiz: "Goal quizzes" };
 export const KIND_ONE: Record<LinkKind, string> = { file: "File", student: "Student", goal: "Goal", meeting: "Meeting", note: "Note", task: "Reminder", lesson: "Lesson", quiz: "Quiz" };
 
-/** A quiz made from a student's goals (see server/goalQuiz.ts): taken on A.R.I.S.E. Reader, its score comes back here. */
+/** A quiz made from a student's goals (server/goalQuiz.ts). It stays in the teacher's WorkHub: the
+ *  teacher gives it (or gives it on paper and types the score in), and the score goes into the goals. */
 export type GoalQuiz = {
-  /** The quiz's id on A.R.I.S.E. Reader (custom quiz id), as text. */
   id: string;
   title: string;
   /** The caseload student it is for. */
   student: string;
-  /** The Reader account it was given to. */
-  readerUserId?: number;
   goalIds: string[];
   createdAt: string;
-  /** Attempts already turned into goal data points, so each is added once. */
-  recorded?: string[];
-  /** The student's finished attempts, as last fetched from the Reader. */
+  questions?: GoalQuizQuestion[];
+  /** Each time it was given. */
   results?: GoalQuizResult[];
+  /** Scores already turned into goal data points, so each is added once. */
+  recorded?: string[];
 };
+export type GoalQuizQuestion = { prompt: string; options: string[]; correct: number };
 export type GoalQuizResult = { attemptId: string; score: number; total: number; completedAt: string };
 export const quizPercent = (r: Pick<GoalQuizResult, "score" | "total">) => (r.total > 0 ? Math.round((r.score / r.total) * 100) : 0);
 
 /**
- * Fresh results from the Reader folded into the Hub: each quiz keeps its student's finished attempts,
- * and each new attempt becomes a data point on the quiz's goals that are measured in percent (once).
+ * A score for a goal quiz (given in WorkHub, or typed in from paper): kept with the quiz, shown on the
+ * profile, and added as a data point to each of its goals measured in percent, once.
  */
-export function applyQuizResults(w: Workspace, rows: { attemptId: string; quizId: string; userId: number; score: number; total: number; completedAt: string | null }[], makeId: () => string): Workspace {
+export function recordQuizScore(w: Workspace, quizId: string, result: GoalQuizResult, makeId: () => string): Workspace {
   const quizzes = goalQuizzes(w);
-  if (!quizzes.length) return w;
-  let goals = w.goals, changed = false;
-  const nextQuizzes = quizzes.map((q) => {
-    const mine = rows.filter((r) => r.quizId === q.id && (!q.readerUserId || r.userId === q.readerUserId))
-      .map((r) => ({ attemptId: r.attemptId, score: r.score, total: r.total, completedAt: String(r.completedAt || "") }));
-    const results = [...(q.results || []).filter((x) => !mine.some((m) => m.attemptId === x.attemptId)), ...mine];
-    const recorded = new Set(q.recorded || []);
-    for (const r of mine) {
-      if (recorded.has(r.attemptId)) continue;
-      recorded.add(r.attemptId);
-      const day = (r.completedAt || "").slice(0, 10);
-      goals = goals.map((g) => q.goalIds.includes(g.id) && percentGoal(g)
-        ? { ...g, points: [...g.points, { id: makeId(), date: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : new Date().toISOString().slice(0, 10), value: quizPercent(r), note: `Goal quiz: ${q.title}` }] }
-        : g);
-    }
-    const same = results.length === (q.results || []).length && recorded.size === (q.recorded || []).length;
-    if (same) return q;
-    changed = true;
-    return { ...q, results, recorded: [...recorded] };
-  });
-  return changed ? ({ ...w, goals, goalQuizzes: nextQuizzes } as Workspace) : w;
+  const q = quizzes.find((x) => x.id === quizId);
+  if (!q || (q.recorded || []).includes(result.attemptId)) return w;
+  const day = result.completedAt.slice(0, 10);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : new Date().toISOString().slice(0, 10);
+  const goals = w.goals.map((g) => q.goalIds.includes(g.id) && percentGoal(g)
+    ? { ...g, points: [...g.points, { id: makeId(), date, value: quizPercent(result), note: `Goal quiz: ${q.title}` }] }
+    : g);
+  const next = quizzes.map((x) => x.id === quizId ? { ...x, results: [...(x.results || []), result].slice(-50), recorded: [...(x.recorded || []), result.attemptId].slice(-200) } : x);
+  return { ...w, goals, goalQuizzes: next } as Workspace;
 }
 
 export type Linkable = { kind: LinkKind; id: string; label: string; sub: string; student: string };

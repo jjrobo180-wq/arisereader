@@ -125,7 +125,6 @@ import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLinks";
-import { useGoalQuizSync } from "@/components/teacher-hub/HubGoalQuiz";
 import { API_BASE } from "@/lib/queryClient";
 import { goalQuizzes, resolveLink, type HubLink } from "@shared/hubLinks";
 import GettingStarted from "@/components/GettingStarted";
@@ -517,8 +516,6 @@ function TeacherHubPage() {
 
   // Connected calendars are read again when the Hub opens.
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
-  // Goal quiz scores from A.R.I.S.E. Reader come back into the goals (components/teacher-hub/HubGoalQuiz.tsx).
-  useGoalQuizSync(workspace, setWorkspace, token, id, loaded && !loadError && !needsPlan && canUseHub);
   // Reminders sent from the Apple Reminders app (by an iPhone Shortcut) become to-dos.
   const checkApple = useAppleInbox(loaded && !loadError && !needsPlan && canUseHub, token, TODAY, workspace, setWorkspace, id, (text) => { toasts.show(text, []); });
   // Work emails forwarded to the teacher's Hub address land in Emails, flagged, and on the to-do list.

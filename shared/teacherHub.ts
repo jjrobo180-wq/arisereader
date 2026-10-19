@@ -347,7 +347,9 @@ export function normalizeWorkspace(raw: any): Workspace {
   // Goal quizzes (shared/hubLinks.ts): kept as saved, with anything malformed dropped.
   out.goalQuizzes = (Array.isArray(raw.goalQuizzes) ? raw.goalQuizzes : [])
     .filter((q: any) => q && typeof q === "object" && typeof q.id === "string" && q.id && typeof q.student === "string")
-    .map((q: any) => ({ id: q.id.slice(0, 40), title: String(q.title || "Goal quiz").slice(0, 160), student: q.student.slice(0, 80), ...(Number.isInteger(q.readerUserId) ? { readerUserId: q.readerUserId } : {}),
+    .map((q: any) => ({ id: q.id.slice(0, 40), title: String(q.title || "Goal quiz").slice(0, 160), student: q.student.slice(0, 80),
+      questions: (Array.isArray(q.questions) ? q.questions : []).filter((x: any) => x && typeof x.prompt === "string" && Array.isArray(x.options) && x.options.length === 4 && Number.isInteger(x.correct) && x.correct >= 0 && x.correct < 4)
+        .slice(0, 15).map((x: any) => ({ prompt: x.prompt.slice(0, 400), options: x.options.map((o: unknown) => String(o).slice(0, 200)), correct: x.correct })),
       goalIds: Array.isArray(q.goalIds) ? q.goalIds.filter((x: unknown) => typeof x === "string").slice(0, 40) : [], createdAt: String(q.createdAt || ""),
       recorded: Array.isArray(q.recorded) ? q.recorded.filter((x: unknown) => typeof x === "string").slice(-200) : [],
       results: (Array.isArray(q.results) ? q.results : []).filter((r: any) => r && typeof r.attemptId === "string").slice(-50)

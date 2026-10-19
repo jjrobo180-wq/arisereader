@@ -1,5 +1,6 @@
 // AI-powered tools in A.R.I.S.E. Premium. Each task is server-defined and returns structured JSON.
 // Generations are saved per signed-in user using the same cloud storage as Office.
+import { hubNightClass } from "@/lib/hubNight";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { askAppAi, saveLabel, useAppData } from "@/lib/cloudDocs";
@@ -73,7 +74,7 @@ export default function PremiumStudio() {
     try { await navigator.clipboard.writeText(JSON.stringify(selected.result, null, 2)); setCopied(true); window.setTimeout(() => setCopied(false), 1500); }
     catch { setMessage("Couldn't copy. Select the result text instead."); }
   };
-  return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-8"><div className="mx-auto max-w-6xl space-y-6">
+  return <main className={`${hubNightClass()} min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-8`}><div className="mx-auto max-w-6xl space-y-6">
     <header><a href={user?.role === "parent" ? "#/lifehub" : "#/workhub"} className="text-sm font-semibold text-indigo-700 hover:underline"><ArrowLeft size={16} className="inline"/> Back to my hub</a>
       <h1 className="mt-3 text-3xl font-extrabold">A.R.I.S.E. AI Apps</h1><p className="mt-1 text-sm text-slate-600">Plan, write and create. Your generated work is saved to your account.</p></header>
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[240px_1fr]">

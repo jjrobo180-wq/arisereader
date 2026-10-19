@@ -117,7 +117,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Part title="Goal quizzes" count={goalQuizzes(workspace).filter((q) => q.student.trim().toLowerCase() === s.name.trim().toLowerCase()).length} onOpenTab={onOpenTab}>
-          <StudentQuizzes student={s.name} onMake={() => setQuizzing(true)} />
+          <StudentQuizzes student={s.name} onMake={() => setQuizzing(true)} setWorkspace={(u) => setWorkspace((p) => u(p))} makeId={makeId} />
         </Part>
 
         <Part title="IEP goals" count={profile.goals.length} tab="goals" tabLabel="Goals" onOpenTab={onOpenTab}>
@@ -206,7 +206,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           <Rows rows={profile.reading} empty="No reading records yet." render={(r) => <li key={r.id} className={`${row} flex flex-wrap items-center justify-between gap-2`}><span className="min-w-0 break-words font-medium text-slate-900">{r.book || "Book"}</span><span className="shrink-0 text-xs font-semibold text-slate-700">{day(r.date)}{r.score ? ` · score ${r.score}` : ""}{r.points ? ` · ${r.points} pts` : ""}</span></li>} />
         </Part>
       </div>
-      {quizzing && <MakeGoalQuiz student={s.name} grade={s.grade} goals={profile.goals.map((x) => x.goal)} token={links?.token ?? null} setWorkspace={(u) => setWorkspace((p) => u(p))} makeId={makeId} onClose={() => setQuizzing(false)} onDone={() => setQuizzing(false)} />}
+      {quizzing && <MakeGoalQuiz student={s.name} grade={s.grade} goals={profile.goals.map((x) => x.goal)} token={links?.token ?? null} setWorkspace={(u) => setWorkspace((p) => u(p))} onClose={() => setQuizzing(false)} onDone={() => setQuizzing(false)} />}
       {noting && <NoteModal student={s.name} students={workspace.students.map((x) => x.name)} setWorkspace={setWorkspace} makeId={makeId} onClose={() => setNoting(false)} />}
     </div>
   );

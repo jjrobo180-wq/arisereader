@@ -161,6 +161,17 @@
     overflow-x: clip;
   }
 
+  /* iPhone Safari zooms the whole page in when a text box with writing smaller than 16px is tapped,
+     and then the page slides sideways. On touch screens every field writes at 16px, so typing never
+     zooms (pinch-zoom still works). */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
   /* iPhone Safari gives date and time fields a width of their own and ignores the box they sit in. */
   input[type="date"],
   input[type="time"],

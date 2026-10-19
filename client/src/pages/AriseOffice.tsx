@@ -1,6 +1,7 @@
 // A.R.I.S.E. Office: Sheets, Docs and Slides — full spreadsheet, word-processor and presentation
 // apps whose files are saved to the person's account (server/userDocs.ts) and open on every device.
 // The hubs open it at #/office?kind=sheet|doc|slides (App Store entries in shared/pluginStore.ts).
+import { hubNightClass } from "@/lib/hubNight";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import OfficeApp from "@/components/office/OfficeApp";
@@ -15,7 +16,7 @@ export default function AriseOffice() {
   useEffect(() => { const on = () => setKindState(readKind()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   const setKind = (k: DocKind) => { setKindState(k); const base = window.location.hash.split("?")[0] || "#/office"; window.history.replaceState(null, "", `${base}?kind=${k}`); };
   const hub = user?.role === "parent" ? "#/lifehub" : "#/workhub";
-  return <main className="min-h-screen bg-slate-50 px-3 py-4 text-slate-900 sm:px-6 sm:py-6">
+  return <main className={`${hubNightClass()} min-h-screen bg-slate-50 px-3 py-4 text-slate-900 sm:px-6 sm:py-6`}>
     <div className="mx-auto max-w-[1500px] space-y-4">
       <header className="flex flex-wrap items-center gap-3">
         <a href={hub} className="text-sm font-semibold text-indigo-700 hover:underline">← Back to my hub</a>

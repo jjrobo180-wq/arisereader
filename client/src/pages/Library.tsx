@@ -1,5 +1,4 @@
 import { useSavedChoice } from "@/lib/useSavedChoice";
-import TeacherCheckIns from "@/components/TeacherCheckIns";
 import BannerTap from "@/components/BannerTap";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -1628,9 +1627,6 @@ export default function Library() {
             </Card>
           </div>
         )}
-
-        {/* Goal check-ins a teacher made for this student in WorkHub (server/goalQuiz.ts). */}
-        {(user?.role === "student" || !user?.role) && !user?.isAdmin && <TeacherCheckIns token={token || getTokenFromCookie()} />}
 
         {/* Eye Gaze Testing Section */}
         {showEyeGaze && (eyeGazeQuizzes.length > 0 || customQuizzes.length > 0) && (

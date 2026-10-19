@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { GOAL_QUIZ_LEVEL, cleanGoalQuestions, goalQuizAllowed } from "../server/goalQuiz";
+import { cleanGoalQuestions } from "../server/goalQuiz";
 
 test("AI questions are kept only with four choices and a right answer", () => {
   const q = cleanGoalQuestions({ questions: [
@@ -12,17 +12,20 @@ test("AI questions are kept only with four choices and a right answer", () => {
   assert.deepEqual(q, [{ prompt: "2 + 3 = ?", option_a_text: "4", option_b_text: "5", option_c_text: "6", option_d_text: "7", correct_answer: "B" }]);
 });
 
-test("a goal check is only for the student it was made for", async () => {
-  const get = async (k: string) => (k === "goal_quiz_for_9" ? "216" : "");
-  assert.equal(await goalQuizAllowed({ id: 9, level: GOAL_QUIZ_LEVEL }, 216, get), true);
-  assert.equal(await goalQuizAllowed({ id: 9, level: GOAL_QUIZ_LEVEL }, 217, get), false);
-  assert.equal(await goalQuizAllowed({ id: 10, level: GOAL_QUIZ_LEVEL }, 216, get), false, "no target, nobody");
-  assert.equal(await goalQuizAllowed({ id: 11, level: "Custom" }, 1, get), true, "other quizzes are unchanged");
+test("goal quizzes stay in WorkHub: nothing is made for students on the Reader", () => {
+  const routes = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
+  const quiz = readFileSync(new URL("../server/goalQuiz.ts", import.meta.url), "utf8");
+  assert.match(routes, /registerGoalQuizRoutes\(app, authMiddleware\)/);
+  assert.doesNotMatch(quiz, /createQuiz|custom_eye_gaze|goal-quiz-results/);
+  assert.doesNotMatch(readFileSync(new URL("../client/src/pages/Library.tsx", import.meta.url), "utf8"), /TeacherCheckIns/);
 });
 
-test("the Reader enforces it and students find it in their Library", () => {
-  const routes = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
-  assert.match(routes, /if \(!\(await goalQuizAllowed\(quiz, Number\(user\?\.id\)/);
-  assert.match(routes, /registerGoalQuizRoutes\(app, authMiddleware/);
-  assert.match(readFileSync(new URL("../client/src/pages/Library.tsx", import.meta.url), "utf8"), /<TeacherCheckIns token=/);
+test("on touch screens fields write at 16px so iPhone never zooms while typing", () => {
+  assert.match(readFileSync(new URL("../client/src/index.css", import.meta.url), "utf8"), /@media \(pointer: coarse\)[\s\S]*?font-size: 16px !important/);
+});
+
+test("night mode reaches the Pro apps, Office and AI Apps, and dark written colours turn light", () => {
+  for (const p of ["ProApps", "AriseOffice", "PremiumStudio"]) assert.match(readFileSync(new URL(`../client/src/pages/${p}.tsx`, import.meta.url), "utf8"), /\$\{hubNightClass\(\)\}/, p);
+  const css = readFileSync(new URL("../client/src/pages/todoNight.css", import.meta.url), "utf8");
+  assert.ok(css.includes('.todo-night [class*="text-[#2"]') && css.includes('.todo-night [class*="bg-[#f"]'));
 });

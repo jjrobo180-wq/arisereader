@@ -77,16 +77,15 @@ test("AI-read goals land in Goals, linked to the file and the student", async ()
   void emptyHubImport;
 });
 
-test("quiz scores come back once, and fill in percent goals only", async () => {
-  const { applyQuizResults } = await import("../shared/hubLinks");
+test("a quiz score is saved once, and fills in percent goals only", async () => {
+  const { recordQuizScore } = await import("../shared/hubLinks");
   const w = { ...hub(), goals: [...hub().goals, { id: "g3", student: "Julian Sikora", area: "Reading", text: "Answer questions", baseline: 50, target: 80, unit: "% correct", direction: "up", startDate: "", targetDate: "", points: [] }],
-    goalQuizzes: [{ id: "77", title: "Skill check · Julian", student: "Julian Sikora", readerUserId: 216, goalIds: ["g1", "g3"], createdAt: "", recorded: [], results: [] }] } as any;
-  const rows = [{ attemptId: "a1", quizId: "77", userId: 216, score: 4, total: 5, completedAt: "2026-10-20T15:00:00Z" }, { attemptId: "a2", quizId: "77", userId: 999, score: 1, total: 5, completedAt: "2026-10-20T15:00:00Z" }];
-  const once = applyQuizResults(w, rows, () => "p1");
-  const g3 = once.goals.find((g: any) => g.id === "g3")!;
-  assert.deepEqual(g3.points.map((p: any) => [p.date, p.value]), [["2026-10-20", 80]]);
+    goalQuizzes: [{ id: "q1", title: "Skill check · Julian", student: "Julian Sikora", goalIds: ["g1", "g3"], createdAt: "", questions: [], recorded: [], results: [] }] } as any;
+  const r = { attemptId: "a1", score: 4, total: 5, completedAt: "2026-10-20T15:00:00Z" };
+  const once = recordQuizScore(w, "q1", r, () => "p1");
+  assert.deepEqual(once.goals.find((g: any) => g.id === "g3")!.points.map((p: any) => [p.date, p.value]), [["2026-10-20", 80]]);
   assert.equal(once.goals.find((g: any) => g.id === "g1")!.points.length, 0, "a wpm goal isn't given a percent");
-  assert.equal((once as any).goalQuizzes[0].results.length, 1, "another student's attempt is ignored");
-  const twice = applyQuizResults(once, rows, () => "p2");
-  assert.equal(twice, once, "nothing changes the second time");
+  assert.equal((once as any).goalQuizzes[0].results.length, 1);
+  assert.equal(recordQuizScore(once, "q1", r, () => "p2"), once, "the same score isn't added twice");
+  assert.equal(recordQuizScore(once, "nope", r, () => "p3"), once);
 });
