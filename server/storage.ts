@@ -1,4 +1,5 @@
 import { monthStartMs, nextYearMonth } from "./schoolTime";
+import { bookKey } from "../shared/bookIdentity";
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
@@ -307,6 +308,9 @@ export interface IStorage {
   getBook(id: number): Promise<any>;
   getQuestionsByBook(bookId: number): Promise<any[]>;
   getAttempt(userId: number, bookId: number): Promise<any>;
+  getAttemptAnyCopy(userId: number, bookId: number): Promise<any>;
+  findSameBook(title: string, author: string): Promise<any>;
+  sameBookIds(bookId: number): Promise<number[]>;
   createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>, effectivePoints?: number, proctor?: { type: "parent" | "teacher" | "camera"; userId?: number | null; name: string } | null): Promise<any>;
   getUserAttempts(userId: number): Promise<any[]>;
   setAttemptPoints(attemptId: number, points: number): Promise<{ before: number; after: number } | null>;
@@ -485,6 +489,34 @@ export class DatabaseStorage implements IStorage {
       supabase.from("questions").select("*").eq("book_id", bookId).order("question_order", { ascending: true })
     );
     return data.map(mapQuestion).filter((q): q is NonNullable<ReturnType<typeof mapQuestion>> => !!q);
+  }
+
+  /** A book already on the shelf that is the same book as this title and author, if any. */
+  async findSameBook(title: string, author: string) {
+    const key = bookKey(title, author);
+    if (!key) return null;
+    const { data } = await supabase.from("books").select("*").order("id");
+    return (data || []).find((b: any) => bookKey(b.title, b.author) === key) || null;
+  }
+
+  /** Every copy of the same book as this one (itself included), so a quiz can't be taken twice under two copies. */
+  async sameBookIds(bookId: number): Promise<number[]> {
+    const { data: book } = await supabase.from("books").select("title, author").eq("id", bookId).maybeSingle();
+    const key = book ? bookKey(book.title, book.author) : "";
+    if (!key) return [bookId];
+    const { data } = await supabase.from("books").select("id, title, author");
+    const ids = (data || []).filter((b: any) => bookKey(b.title, b.author) === key).map((b: any) => Number(b.id));
+    return ids.includes(bookId) ? ids : [bookId, ...ids];
+  }
+
+  /** This student's attempt at this book, under this copy or any other copy of the same book. */
+  async getAttemptAnyCopy(userId: number, bookId: number) {
+    const own = await this.getAttempt(userId, bookId);
+    if (own) return own;
+    const ids = (await this.sameBookIds(bookId)).filter((id) => id !== bookId);
+    if (!ids.length) return null;
+    const { data } = await supabase.from("attempts").select("*").eq("user_id", userId).in("book_id", ids).limit(1);
+    return data && data[0] ? mapAttempt(data[0]) : null;
   }
 
   async getAttempt(userId: number, bookId: number) {
@@ -888,6 +920,19 @@ export class DatabaseStorage implements IStorage {
       let pages = cleanPages(book.pages);
       if (pages === null && book.title && book.author) pages = await lookupPages(book.title, book.author);
       resolvedPoints = pointsForBook({ band: book.gradeBand || book.ageGroup, pages });
+    }
+    // One copy of each book: the same book already here keeps its quiz (or gets this one if it
+    // had none) instead of a second copy appearing on the shelf (shared/bookIdentity.ts).
+    const twin = await this.findSameBook(book.title, book.author);
+    if (twin) {
+      const { count } = await supabase.from("questions").select("id", { count: "exact", head: true }).eq("book_id", twin.id);
+      if (!count && quizQuestions.length) {
+        const rows = quizQuestions.map((q, i) => ({ book_id: twin.id, question_text: q.question, option_a: q.options[0], option_b: q.options[1], option_c: q.options[2], option_d: q.options[3], correct_answer: q.correct, question_order: i }));
+        const { error } = await supabase.from("questions").insert(rows);
+        if (error) throw new Error(error.message);
+      }
+      clearCache('allBooks');
+      return mapBook(twin);
     }
     const { data: created, error: bookError } = await supabase
       .from("books")

@@ -2936,7 +2936,7 @@ export async function registerRoutes(
 
     // Admin preview and sample accounts can retake quizzes freely without creating student records.
     if (!req.adminPreview && !sampleAccount) {
-      const existingAttempt = await storage.getAttempt(req.user.id, bookId);
+      const existingAttempt = await storage.getAttemptAnyCopy(req.user.id, bookId);
       if (existingAttempt) {
         return res.status(403).json({ message: "You have already taken this quiz", score: existingAttempt.score, total: existingAttempt.totalQuestions, points: existingAttempt.pointsEarned || 0 });
       }
@@ -2970,7 +2970,7 @@ export async function registerRoutes(
 
     // Admin preview and sample accounts can take the full quiz repeatedly without persisting attempts.
     if (!req.adminPreview && !sampleAccount) {
-      const existingAttempt = await storage.getAttempt(req.user.id, bookId);
+      const existingAttempt = await storage.getAttemptAnyCopy(req.user.id, bookId);
       if (existingAttempt) {
         return res.status(403).json({ message: "You have already taken this quiz" });
       }

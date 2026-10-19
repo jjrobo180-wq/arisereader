@@ -241,7 +241,7 @@ export default function Reader({ say, night = false }: { say: (message: string) 
           </div>}
         </>}
 
-      <div id="parent-plans" className="scroll-mt-4"><Panel eyebrow="Add-ons" title="Arise Math, History and Social"><HubAddons which="life" /></Panel></div>
+      <div id="parent-plans" className="scroll-mt-4"><Panel eyebrow="Add-ons" title="Arise Math, History and Social"><HubAddons which="life" returnPath="/lifehub" /></Panel></div>
     </>}
 
     {adding && <AddChild get={get} onClose={() => setAdding(false)} onAdded={async () => { setAdding(false); say("Child connected"); await loadFamily(); }} />}

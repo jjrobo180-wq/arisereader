@@ -49,7 +49,8 @@ export default function InstallAppPrompt() {
     return () => { window.removeEventListener("beforeinstallprompt", keep); window.removeEventListener("appinstalled", done); };
   }, []);
   useEffect(() => {
-    if (!user || installed() || !desktop()) return;
+    // Never for students: the install pop-up is for parents, teachers and adults only.
+    if (!user || (!user.isAdmin && (user.role === "student" || !user.role)) || installed() || !desktop()) return;
     let saved = ""; try { saved = localStorage.getItem(KEY) || ""; } catch { /* private window */ }
     if (saved === "installed" || (saved && Date.now() - Number(saved) < WAIT)) return;
     const t = window.setTimeout(() => setShow(true), 6000);

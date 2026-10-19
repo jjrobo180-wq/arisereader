@@ -528,7 +528,13 @@ function AppRoutes() {
       </Route>
       {/* A teacher's plan: what they have, and paying for Premium. */}
       <Route path="/billing">
-        {user && (user.role === "teacher" || user.isAdmin) ? <ProtectedRoute><Billing /></ProtectedRoute> : <Redirect to="/" replace />}
+        {/* Billing is the teacher's plan page. A parent (back from Stripe, say, after picking Arise Math)
+            goes to LifeHub's Reader page, where their add-ons are, never the sign-in screen; a payment's
+            ?paid= id rides along and is confirmed there (HubAddons). */}
+        {user && (user.role === "teacher" || user.isAdmin) ? <ProtectedRoute><Billing /></ProtectedRoute>
+          : user && user.role === "parent" ? <OpenHubTab to="/lifehub" storageKey="lifehub_tab" value="reader" />
+          : user && user.role === "todo" ? <Redirect to="/lifehub" replace />
+          : <Redirect to="/" replace />}
       </Route>
       <Route path="/tutorial">
         <Tutorial />

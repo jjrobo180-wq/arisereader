@@ -35,7 +35,9 @@ function keyBytes(text: string): Uint8Array {
 export default function WelcomeGuide() {
   const { user, token } = useAuth();
   const userId = user?.id;
-  const eligible = !!user && !isDemo(user.username) && !(user as any).is_eye_gaze_user && !(user as any).mustChangePassword;
+  // Students never get the "add to Home Screen" / install welcome; it is for parents, teachers and adults.
+  const student = !!user && !user.isAdmin && (user.role === "student" || !user.role);
+  const eligible = !!user && !student && !isDemo(user.username) && !(user as any).is_eye_gaze_user && !(user as any).mustChangePassword;
   const device: Device = typeof navigator === "undefined" ? "desktop" : deviceOf(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
   const [state, setState] = useState<WelcomeState>(() => (userId ? readState(userId) : parseWelcome(null)));
   const [popup, setPopup] = useState(false);
