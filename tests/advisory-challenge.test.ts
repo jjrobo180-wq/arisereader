@@ -131,11 +131,13 @@ test("the library banner shows the student's advisory place and the top of the b
   assert.match(comp, /<AdvisoryStandings view=\{v\} mineName=\{mine\?\.advisory\} limit=\{3\} dense \/>/);
 });
 
-test("the student leaderboard opens on this month's race, with the Advisory Challenge under it", () => {
+test("the student leaderboard opens on this month's race, with the Advisory Challenge on its own tab", () => {
   const page = read("client/src/pages/StudentProgress.tsx");
   assert.match(page, /useState<"badges" \| "rewards" \| "leaderboard">\("leaderboard"\)/);
   assert.match(page, /\/api\/leaderboard\?month=\$\{encodeURIComponent\(schoolYearMonth\(\)\)\}/);
   assert.match(page, /monthly winner/);
-  assert.ok(page.indexOf('data-testid="monthly-leaderboard"') < page.indexOf('data-testid="advisory-challenge-board"'));
+  assert.match(page, /useState<"students" \| "advisories">\("students"\)/, "Students first");
+  assert.match(page, /tab === "leaderboard" && \(board === "students" \|\| !challenge\?\.challenge\) &&/);
+  assert.match(page, /tab === "leaderboard" && board === "advisories" && challenge && challenge\.challenge &&/);
   assert.match(read("server/routes.ts"), /registerAdvisoryChallengeRoutes\(app, \{/);
 });

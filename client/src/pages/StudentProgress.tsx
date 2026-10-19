@@ -58,6 +58,8 @@ export default function StudentProgress() {
   // opens on the leaderboard: this month's race, then the Advisory Challenge
   const [tab, setTab] = useState<"badges" | "rewards" | "leaderboard">("leaderboard");
   const [month, setMonth] = useState(() => schoolYearMonth());
+  // Two boards, one at a time: the students' monthly race, and the Advisory Challenge.
+  const [board, setBoard] = useState<"students" | "advisories">("students");
   const challenge = useAdvisoryChallenge(token || getTokenFromCookie());
   const [badges, setBadges] = useState<Badge[]>([]);
   const [badgeCounts, setBadgeCounts] = useState({ unlocked: 0, total: 0 });
@@ -303,7 +305,20 @@ export default function StudentProgress() {
           </Card>
         )}
 
-        {tab === "leaderboard" && (
+        {tab === "leaderboard" && challenge && challenge.challenge && (
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/40" role="tablist" aria-label="Leaderboards" data-testid="leaderboard-boards">
+            <button type="button" role="tab" aria-selected={board === "students"} onClick={() => setBoard("students")}
+              className={`rounded-lg px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-2 ${board === "students" ? "bg-card shadow text-primary" : "text-muted-foreground"}`}>
+              <Trophy className="w-4 h-4" /> Students
+            </button>
+            <button type="button" role="tab" aria-selected={board === "advisories"} onClick={() => setBoard("advisories")}
+              className={`rounded-lg px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-2 ${board === "advisories" ? "bg-card shadow text-[#f2542d]" : "text-muted-foreground"}`}>
+              <span aria-hidden="true">🍕</span> Advisories
+            </button>
+          </div>
+        )}
+
+        {tab === "leaderboard" && (board === "students" || !challenge?.challenge) && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> {monthLabel(month)} leaderboard</CardTitle>
@@ -340,8 +355,8 @@ export default function StudentProgress() {
           </Card>
         )}
 
-        {/* The Advisory Challenge standings, under the monthly race. */}
-        {tab === "leaderboard" && challenge && challenge.challenge && (
+        {/* The Advisory Challenge standings, on their own tab. */}
+        {tab === "leaderboard" && board === "advisories" && challenge && challenge.challenge && (
           <section className="overflow-hidden rounded-2xl border border-[#f2542d]/40 bg-[#1a1020] text-white" data-testid="advisory-challenge-board">
             <div className="flex items-start gap-3 bg-gradient-to-br from-[#f2542d] to-[#c2361b] px-4 py-4 sm:px-5">
               <span className="text-3xl leading-none" aria-hidden="true">🍕</span>
