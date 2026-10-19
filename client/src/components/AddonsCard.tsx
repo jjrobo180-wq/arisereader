@@ -146,6 +146,30 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
     { id: "social", href: "/social/", label: "A.R.I.S.E. Connect", sub: "Explore every career", icon: Users, tone: "text-violet-600" },
   ];
 
+  // Students: one slim strip on the library page — the three apps as small links and one line on how to get them.
+  if (role === "student") {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm sm:px-4" aria-label="Learning Bundle" data-testid="addons-card">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h2 className="text-sm font-black text-[#141b32]">Learning Bundle</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {apps.map((a) => (
+              <a key={a.href} href={a.href} title={a.sub} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 text-xs font-bold text-[#141b32] hover:border-violet-300 hover:bg-violet-50">
+                <a.icon className={`h-4 w-4 shrink-0 ${a.tone}`} />{a.label}
+              </a>
+            ))}
+          </div>
+          <p className="basis-full text-xs text-slate-600 sm:basis-auto sm:ml-auto">
+            {b.access
+              ? <span className="inline-flex items-center gap-1 font-bold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />{(b.via && REASON[b.via]) || "On for you"}</span>
+              : <><span className="font-bold text-amber-700">Not added yet.</span> Ask a parent or your teacher to add it.</>}
+          </p>
+        </div>
+        {note && <p className="mt-2 text-xs text-slate-600" role="status">{note}</p>}
+      </section>
+    );
+  }
+
   let bundleAction: ReactNode = null;
   const ownPlanLive = !!b.plan?.live;
   if (role === "parent") {
