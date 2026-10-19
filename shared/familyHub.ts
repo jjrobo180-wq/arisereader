@@ -11,6 +11,7 @@ import { cleanWidgets, type WidgetItem } from "./widgets";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
 import { cleanNoteHtml } from "./richNote";
 import { cleanLock, type PrivacyLock } from "./privacyLock";
+import { cleanSleepApp, emptySleepApp, type SleepApp } from "./sleepApp";
 
 export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
@@ -241,6 +242,9 @@ export type Family = {
   collections: CollectionItem[];
   weather: WeatherPrefs;
   sleep: SleepEntry[];
+  /** The Sleep app around the sleep log: settings, the bedtime plan, tools tried each night and
+   *  whether they helped, bedtime journal, and thoughts parked for the morning (shared/sleepApp.ts). */
+  sleepApp: SleepApp;
   workouts: Workout[];
   routines: Routine[];
   milestones: Milestone[];
@@ -316,7 +320,7 @@ export const emptyFamily = (): Family => ({
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], linkPage: { title: "", bio: "", links: [] },
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
-  sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
+  sleep: [], sleepApp: emptySleepApp(), workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
   notesInstalled: [], notesApps: {}, lock: null,
   sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false,
 });
@@ -624,6 +628,7 @@ export function cleanFamily(input: unknown): Family {
     }),
     weather: (() => { const w = obj(raw.weather) || {}; return { place: str(w.place, 80), unit: oneOf(w.unit, ["F", "C"] as const, "F") }; })(),
     sleep: rows(raw.sleep, LIMITS.sleep, (r) => { const date = day(r.date), bed = clock(r.bed), wake = clock(r.wake); return date && bed && wake ? { id: id(r.id), date, bed, wake, quality: int(r.quality, 0, 5) } : null; }, true),
+    sleepApp: cleanSleepApp(raw.sleepApp),
     workouts: rows(raw.workouts, LIMITS.workouts, (r) => {
       const date = day(r.date), exercise = str(r.exercise, 60).trim();
       return date && exercise ? { id: id(r.id), date, exercise, sets: int(r.sets, 0, 100), reps: int(r.reps, 0, 1000), weight: num(r.weight, 0, 5000), unit: oneOf(r.unit, ["lb", "kg"] as const, "lb") } : null;

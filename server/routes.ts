@@ -8818,7 +8818,7 @@ Important:
     }
   }
 
-  async function generateTtsAudio(text: string, calmMode: boolean, apiKey: string, style: "buddy" | "announcer" = "buddy"): Promise<Buffer> {
+  async function generateTtsAudio(text: string, calmMode: boolean, apiKey: string, style: "buddy" | "announcer" | "sleep" = "buddy", sleepVoice: "warm" | "deep" = "warm"): Promise<Buffer> {
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
@@ -8827,10 +8827,13 @@ Important:
       },
       body: JSON.stringify({
         model: "gpt-4o-mini-tts",
-        voice: style === "announcer" ? "cedar" : "marin",
+        voice: style === "announcer" ? "cedar" : style === "sleep" && sleepVoice === "deep" ? "cedar" : "marin",
         input: text,
         instructions: (style === "announcer"
           ? "Speak in a confident masculine game-show and sports-arena announcer style. Deep, energetic, cinematic, exciting, clear, and age-appropriate. Use dramatic pauses without shouting. Make Board Quest feel like a major competition."
+          : style === "sleep"
+            // LifeHub's Sleep app: stories, Scripture, prayers and relaxations for an adult falling asleep.
+            ? "You are a calm bedtime narrator reading aloud to an adult who is lying in the dark trying to fall asleep. Speak slowly, softly and warmly, in a low, gentle, unhurried voice, a little above a whisper but always clear. Keep an even, soothing tone: no excitement, no drama, no rising inflection at the ends of sentences. Let commas and periods breathe. Read Scripture and prayers reverently and peacefully."
           : calmMode
             ? "Speak like a warm, gentle, friendly children's educational character. Natural human pacing, soft enthusiasm, clear pronunciation, reassuring tone, no exaggerated baby talk."
             : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.")
@@ -8856,7 +8859,8 @@ Important:
     try {
       const text = String(req.body?.text || "").trim();
       const calmMode = !!req.body?.calmMode;
-      const style: "buddy" | "announcer" = req.body?.style === "announcer" ? "announcer" : "buddy";
+      const style: "buddy" | "announcer" | "sleep" = req.body?.style === "announcer" ? "announcer" : req.body?.style === "sleep" ? "sleep" : "buddy";
+      const sleepVoice: "warm" | "deep" = req.body?.voice === "deep" ? "deep" : "warm";
 
       if (!text) return res.status(400).json({ message: "Text is required." });
       if (text.length > 500) return res.status(400).json({ message: "Text is too long." });
@@ -8866,7 +8870,7 @@ Important:
         return res.status(503).json({ message: "AI voice is not configured." });
       }
 
-      const cacheKey = `${style}|${calmMode ? "calm" : "normal"}|${text}`;
+      const cacheKey = `${style}|${style === "sleep" ? sleepVoice : calmMode ? "calm" : "normal"}|${text}`;
       const cached = ttsAudioCache.get(cacheKey);
 
       if (cached) {
@@ -8879,7 +8883,7 @@ Important:
 
       let pending = ttsAudioInFlight.get(cacheKey);
       if (!pending) {
-        pending = generateTtsAudio(text, calmMode, apiKey, style);
+        pending = generateTtsAudio(text, calmMode, apiKey, style, sleepVoice);
         ttsAudioInFlight.set(cacheKey, pending);
       }
 

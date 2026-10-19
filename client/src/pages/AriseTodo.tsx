@@ -41,7 +41,7 @@ import MedicalInfo from "@/components/family-hub/MedicalInfo";
 import Mileage from "@/components/family-hub/Mileage";
 import Milestones from "@/components/family-hub/Milestones";
 import Routines from "@/components/family-hub/Routines";
-import SleepLog from "@/components/family-hub/SleepLog";
+import SleepApp from "@/components/family-hub/sleep/SleepApp";
 import Warranties from "@/components/family-hub/Warranties";
 import WorkoutLog from "@/components/family-hub/WorkoutLog";
 import WorldClock from "@/components/family-hub/WorldClock";
@@ -885,7 +885,7 @@ export default function AriseTodo() {
     : shown === "loans" ? <Collection kind="loans" {...common} />
     : shown === "cleaning" ? <CareTracker kind="cleaning" {...common} />
     : shown === "checkups" ? <CareTracker kind="checkups" {...common} />
-    : shown === "sleep" ? <SleepLog {...common} />
+    : shown === "sleep" ? <SleepApp {...common} />
     : shown === "workouts" ? <WorkoutLog {...common} />
     : shown === "routines" ? <Routines {...common} />
     : shown === "milestones" ? <Milestones {...common} />

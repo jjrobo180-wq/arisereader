@@ -72,7 +72,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   loans: { label: "Lent items", detail: "Who has your stuff", icon: <HandshakeIcon2 size={17} /> },
   cleaning: { label: "Cleaning schedule", detail: "Room by room, a little at a time", icon: <SparklesIcon2 size={17} /> },
   checkups: { label: "Health checkups", detail: "Physicals, dentist, eye exams", icon: <StethoscopeIcon2 size={17} /> },
-  sleep: { label: "Sleep log", detail: "Bedtime, wake time and a chart", icon: <MoonIcon2 size={17} /> },
+  sleep: { label: "Sleep", detail: "Fall asleep tonight, plus a sleep log", icon: <MoonIcon2 size={17} /> },
   workouts: { label: "Workout log", detail: "Sets, reps, weight and bests", icon: <DumbbellIcon2 size={17} /> },
   routines: { label: "Routines", detail: "Daily checklists that start fresh", icon: <ListChecksIcon2 size={17} /> },
   milestones: { label: "Milestones", detail: "First words, steps and more", icon: <StarIcon2 size={17} /> },

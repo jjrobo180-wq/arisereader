@@ -1,0 +1,108 @@
+/* Arise LifeHub · Sleep. A dark, warm, low-blue palette: blue light is the most alerting, so
+   nothing here is white or blue. Plum-black night, parchment text, and one ember for actions.
+   Colors live in custom properties scoped to .sleep-app, so LifeHub's night mode (which swaps
+   specific light utility classes) leaves this screen exactly as designed. */
+@import url('https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,300..600;1,7..72,300..500&display=swap');
+
+.sleep-app {
+  --sl-night: #120d14;
+  --sl-dusk: #1d1520;
+  --sl-veil: #2a2030;
+  --sl-line: #3b2e41;
+  --sl-ember: #e8a35a;
+  --sl-ember-soft: rgba(232, 163, 90, 0.14);
+  --sl-ember-ink: #2a170b;
+  --sl-parchment: #f6d9a8;
+  --sl-hush: #c2b0aa;
+  --sl-faint: #93817e;
+  --sl-sage: #a9c2a3;
+  color-scheme: dark;
+  background: var(--sl-night);
+  color: var(--sl-hush);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+/* After 10 p.m. everything steps down a notch. */
+.sleep-app.sleep-late { --sl-parchment: #dcc092; --sl-hush: #a89894; --sl-ember: #c98a4a; --sl-faint: #85746f; }
+
+.sleep-serif { font-family: 'Literata', Georgia, 'Times New Roman', serif; font-optical-sizing: auto; }
+.sleep-app :focus-visible { outline: 2px solid var(--sl-ember); outline-offset: 2px; border-radius: 10px; }
+.sleep-app ::selection { background: rgba(232, 163, 90, 0.35); color: var(--sl-parchment); }
+
+/* Type scale: a major third from 16px. */
+.sl-display { font-family: 'Literata', Georgia, serif; font-weight: 300; font-size: 2.1rem; line-height: 1.12; letter-spacing: -0.015em; color: var(--sl-parchment); }
+@media (min-width: 640px) { .sl-display { font-size: 2.6rem; } }
+.sl-title { font-family: 'Literata', Georgia, serif; font-weight: 400; font-size: 1.5625rem; line-height: 1.25; color: var(--sl-parchment); }
+.sl-heading { font-family: 'Literata', Georgia, serif; font-weight: 500; font-size: 1.25rem; line-height: 1.3; color: var(--sl-parchment); }
+.sl-small { font-size: 0.8125rem; line-height: 1.45; }
+.sl-faint { color: var(--sl-faint); }
+.sl-read { font-family: 'Literata', Georgia, serif; font-size: 1.125rem; line-height: 1.75; color: var(--sl-parchment); max-width: 38rem; }
+
+/* Buttons */
+.sl-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; padding: 0 1.1rem; border-radius: 999px; font-size: 0.9375rem; font-weight: 600; transition: background-color .2s, color .2s, border-color .2s; -webkit-tap-highlight-color: transparent; }
+.sl-btn:disabled { opacity: .45; cursor: not-allowed; }
+.sl-primary { background: var(--sl-ember); color: var(--sl-ember-ink); }
+.sl-primary:hover { filter: brightness(1.06); }
+.sl-quiet { border: 1px solid var(--sl-line); color: var(--sl-parchment); background: transparent; }
+.sl-quiet:hover { background: var(--sl-dusk); }
+.sl-ghost { color: var(--sl-hush); background: transparent; }
+.sl-ghost:hover { color: var(--sl-parchment); background: var(--sl-dusk); }
+.sl-icon { width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 999px; }
+
+/* Choice rows: plain lines, not boxes. */
+.sl-choice { display: flex; width: 100%; align-items: center; gap: 0.85rem; padding: 0.95rem 0.25rem; border-bottom: 1px solid var(--sl-veil); text-align: left; color: var(--sl-parchment); font-family: 'Literata', Georgia, serif; font-size: 1.1875rem; line-height: 1.3; transition: color .2s, padding .2s; }
+.sl-choice:hover { color: #fff3dd; }
+.sl-choice[aria-pressed="true"] { color: var(--sl-ember); padding-left: 0.6rem; }
+.sl-choice .sl-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--sl-line); flex: none; transition: background .2s, box-shadow .2s; }
+.sl-choice[aria-pressed="true"] .sl-dot { background: var(--sl-ember); box-shadow: 0 0 12px var(--sl-ember); }
+
+/* Tabs across the top. */
+.sl-tabs { display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: none; margin: 0 -1rem; padding: 0 1rem; }
+.sl-tabs::-webkit-scrollbar { display: none; }
+.sl-tab { position: relative; flex: none; min-height: 2.75rem; padding: 0 0.75rem; font-size: 0.9375rem; font-weight: 600; color: var(--sl-faint); border-radius: 999px; }
+.sl-tab:hover { color: var(--sl-parchment); }
+.sl-tab[aria-current="page"] { color: var(--sl-parchment); }
+.sl-tab[aria-current="page"]::after { content: ""; position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0.35rem; height: 2px; border-radius: 2px; background: var(--sl-ember); }
+
+/* Chips: small toggles (presets, categories, durations). */
+.sl-chip { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2.5rem; padding: 0 0.95rem; border-radius: 999px; border: 1px solid var(--sl-line); font-size: 0.875rem; font-weight: 600; color: var(--sl-hush); }
+.sl-chip:hover { color: var(--sl-parchment); }
+.sl-chip[aria-pressed="true"], .sl-chip[aria-checked="true"] { border-color: var(--sl-ember); color: var(--sl-ember); background: var(--sl-ember-soft); }
+
+/* Tool rows: a list with a rule between, the action at the end. */
+.sl-tool { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.25rem 1rem; align-items: start; padding: 1rem 0; border-bottom: 1px solid var(--sl-veil); }
+.sl-tool:first-child { border-top: 1px solid var(--sl-veil); }
+
+/* Raised surfaces: sheets and the now-playing dock only. */
+.sl-sheet { background: var(--sl-dusk); border: 1px solid var(--sl-veil); border-radius: 1.4rem; }
+
+.sl-input { width: 100%; min-height: 2.75rem; border-radius: 0.9rem; border: 1px solid var(--sl-line); background: var(--sl-dusk); padding: 0.6rem 0.85rem; color: var(--sl-parchment); font-size: 1rem; outline: none; }
+.sl-input::placeholder { color: var(--sl-faint); opacity: 0.8; }
+.sl-input:focus { border-color: var(--sl-ember); }
+textarea.sl-input { line-height: 1.6; resize: vertical; }
+.sl-input[type="time"]::-webkit-calendar-picker-indicator, .sl-input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8) sepia(0.4); }
+
+/* Level sliders. */
+.sl-range { -webkit-appearance: none; appearance: none; width: 100%; height: 2.75rem; background: transparent; }
+.sl-range::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(to right, var(--sl-ember) var(--fill, 0%), var(--sl-line) var(--fill, 0%)); }
+.sl-range::-moz-range-track { height: 4px; border-radius: 4px; background: var(--sl-line); }
+.sl-range::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--sl-ember); }
+.sl-range::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -9px; border-radius: 999px; background: var(--sl-parchment); border: 3px solid var(--sl-night); box-shadow: 0 0 0 1px var(--sl-line); }
+.sl-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 999px; background: var(--sl-parchment); border: 3px solid var(--sl-night); }
+
+/* The now-playing dock: the lamp switch at the bottom of the screen. */
+.sl-dock { position: fixed; left: 50%; bottom: max(1rem, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 480; width: min(40rem, calc(100% - 1.5rem)); }
+
+/* Full-screen sessions: reading, breathing, and Lights out. */
+.sl-stage { position: fixed; inset: 0; z-index: 520; display: flex; flex-direction: column; background: var(--sl-night); color: var(--sl-hush); padding: max(1rem, env(safe-area-inset-top)) 1.25rem max(1.25rem, env(safe-area-inset-bottom)); }
+.sl-lights-out { position: fixed; inset: 0; z-index: 600; background: #000; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.sl-ember { width: 14px; height: 14px; border-radius: 999px; background: #6b3a16; box-shadow: 0 0 18px 6px rgba(120, 60, 20, 0.35); animation: sl-breathe 10s ease-in-out infinite; }
+@keyframes sl-breathe { 0% { transform: scale(0.6); opacity: 0.25; } 40% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(0.6); opacity: 0.25; } }
+
+.sl-orb { border-radius: 999px; background: radial-gradient(circle at 50% 42%, rgba(246, 217, 168, 0.95), rgba(232, 163, 90, 0.75) 38%, rgba(185, 98, 46, 0.35) 64%, rgba(120, 50, 30, 0) 72%); will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-ember { animation: none; opacity: 0.4; }
+  .sl-choice, .sl-tab, .sl-btn { transition: none; }
+}
