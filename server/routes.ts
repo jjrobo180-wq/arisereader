@@ -55,6 +55,7 @@ import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerLifePlanRoutes } from "./lifePlan";
+import { registerProfileLinkRoutes } from "./profileLinks";
 import { registerHubChatRoutes } from "./hubChat";
 import { registerAppleHealthRoutes } from "./appleHealth";
 import { registerTodoNewsRoutes } from "./todoNews";
@@ -1401,7 +1402,12 @@ export async function registerRoutes(
   // The Lesson Planner's AI helper: ideas, full plans, standards, worksheets, slides, units and reteaches.
   // Arise Office (Sheets, Docs, Slides) and the premium apps: each person's own files and app data.
   const userDocStore = supabaseDocStore(getAdminSupabase);
-  registerUserDocRoutes(app, authMiddleware, userDocStore);
+  // Linked profiles: share premium apps (Potty Training…) and LifeHub pages with another account (server/profileLinks.ts).
+  const profileLinks = registerProfileLinkRoutes(app, authMiddleware, {
+    getSetting: (key) => storage.getSetting(key), upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    getUser: (id) => storage.getUser(id), lifeHub: (ownerId) => savedHub("life", ownerId),
+  });
+  registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
   // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
   setNudgeSource(async (userId) => {
     const raw = await userDocStore.read(`${userId}/apps/pro-health-nudges.json`);

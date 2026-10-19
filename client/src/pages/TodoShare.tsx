@@ -84,6 +84,20 @@ export default function TodoShare() {
   </div>;
 }
 
+/** One shared LifeHub page's content (no poll voting), for Linked profiles (family-hub/LinkedProfiles.tsx). */
+export function SharedViewBody({ view, today }: { view: SharedView; today: string }) {
+  return <>
+    {view.kind === "tasks" && <TasksView view={view} today={today} />}
+    {view.kind === "calendar" && <CalendarView view={view} today={today} />}
+    {view.kind === "bills" && <BillsView view={view} />}
+    {view.kind === "trips" && <TripsView view={view} />}
+    {view.kind === "chores" && <ChoresView view={view} today={today} />}
+    {view.kind === "goals" && <GoalsView view={view} />}
+    {view.kind === "health" && <HealthView view={view} today={today} />}
+    {view.kind === "links" && <LinksView view={view} />}
+  </>;
+}
+
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`rounded-3xl border border-[#e7e8f0] bg-white p-5 shadow-[0_8px_28px_#17152b08] ${className}`}>{children}</section>;
 }

@@ -1,6 +1,6 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2 } from "lucide-react";
+import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2, Users } from "lucide-react";
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
 import { SharedLinks } from "./ShareLink";
@@ -41,6 +41,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   relationships: { label: "Relationships", detail: "Tips, conversation starters and date ideas", icon: <HeartHandshake size={17} /> },
   dictionary: { label: "Dictionary", detail: "Look up any word, plus a word a day", icon: <BookOpen size={17} /> },
   links: { label: "Link page", detail: "Your links on one shareable page", icon: <Link2 size={17} /> },
+  linked: { label: "Linked profiles", detail: "Share apps like Potty Training with a co-parent, sitter or grandparent", icon: <Users size={17} /> },
   lifeplan: { label: "AI Reminders", detail: "AI builds your reminders around the life you want", icon: <Sparkles size={17} /> },
   habits: { label: "Habits", detail: "Daily habits and streaks", icon: <RepeatIcon size={17} /> },
   gratitude: { label: "Gratitude", detail: "Three good things a day", icon: <HeartIcon size={17} /> },

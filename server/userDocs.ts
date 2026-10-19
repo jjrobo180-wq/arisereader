@@ -13,7 +13,7 @@
 //   DELETE /api/docs/:id                   move to trash (kept 30 days) — POST /api/docs/:id/restore brings it back
 //   GET    /api/docs/:id/versions          version history (a copy at most every 10 minutes, 25 kept)
 //   GET    /api/docs/:id/versions/:at      one old version
-//   GET/PUT /api/app-data/:app             a premium app's saved data
+//   GET/PUT /api/app-data/:app             a premium app's saved data (?owner=<id>: a linked profile's, if shared)
 //
 // Everything is private: paths start with the signed-in person's id, and only signed URLs or the
 // server itself ever read them.
@@ -93,7 +93,10 @@ function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   return next;
 }
 
-export function registerUserDocRoutes(app: Express, authMiddleware: RequestHandler, store: DocStore, now: () => number = Date.now) {
+/** Linked profiles (server/profileLinks.ts): may this person read or change another account's app? */
+export type OwnerAppAccess = (req: any, ownerId: number, appKey: string, need: "view" | "edit") => Promise<boolean>;
+
+export function registerUserDocRoutes(app: Express, authMiddleware: RequestHandler, store: DocStore, now: () => number = Date.now, ownerAccess?: OwnerAppAccess) {
   const uid = (req: any) => (req.user?.id ? String(req.user.id) : "");
   const indexPath = (u: string) => `${u}/_index.json`;
   const docPath = (u: string, id: string) => `${u}/docs/${id}.json`;
@@ -261,10 +264,26 @@ export function registerUserDocRoutes(app: Express, authMiddleware: RequestHandl
   });
 
   // ── A premium app's own saved data ──
+  // With ?owner=<id>, the app's data of someone who shares it with this person (Linked profiles):
+  // reading needs View, saving needs Edit, checked on the server every time.
+  async function appOwner(req: any, res: any, need: "view" | "edit"): Promise<string | null> {
+    const u = uid(req);
+    if (!u) { res.status(401).json({ message: "Sign in first." }); return null; }
+    const raw = req.query?.owner;
+    if (raw === undefined || raw === "" || String(raw) === u) return u;
+    const ownerId = Number(raw);
+    if (!ownerAccess || !Number.isInteger(ownerId) || ownerId <= 0) { res.status(400).json({ message: "Unknown account." }); return null; }
+    if (!(await ownerAccess(req, ownerId, String(req.params.app), need).catch(() => false))) {
+      res.status(403).json({ message: need === "edit" ? "You can look at this, but not change it. Ask them for Edit access." : "This isn't shared with you any more." });
+      return null;
+    }
+    return String(ownerId);
+  }
   app.get("/api/app-data/:app", authMiddleware, async (req: any, res) => {
-    const u = uid(req), appId = req.params.app;
-    if (!u) return res.status(401).json({ message: "Sign in first." });
+    const appId = req.params.app;
     if (!isAppId(appId)) return res.status(400).json({ message: "Unknown app." });
+    const u = await appOwner(req, res, "view");
+    if (!u) return;
     try {
       const raw = await store.read(`${u}/apps/${appId}.json`);
       res.set("Cache-Control", "no-store");
@@ -275,9 +294,10 @@ export function registerUserDocRoutes(app: Express, authMiddleware: RequestHandl
     }
   });
   app.put("/api/app-data/:app", authMiddleware, async (req: any, res) => {
-    const u = uid(req), appId = req.params.app;
-    if (!u) return res.status(401).json({ message: "Sign in first." });
+    const appId = req.params.app;
     if (!isAppId(appId)) return res.status(400).json({ message: "Unknown app." });
+    const u = await appOwner(req, res, "edit");
+    if (!u) return;
     const body = JSON.stringify({ data: req.body?.data ?? null, updatedAt: new Date(now()).toISOString() });
     if (Buffer.byteLength(body) > MAX_APP_BYTES) return res.status(413).json({ message: "This app is full. Delete some older entries to save more." });
     try {

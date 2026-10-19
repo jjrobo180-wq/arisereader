@@ -4,7 +4,7 @@
 // whole time, so nothing is lost if the signal drops or the tab closes mid-save: it is sent the next
 // time the file opens. Two devices editing one file are told, instead of one quietly writing over
 // the other.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 
@@ -152,7 +152,14 @@ export function saveLabel(s: SaveState): string {
 
 // ─── A premium app's own data ───────────────────────────────────────────────
 
-const appKey = (app: string, userId: string | number | undefined) => `arise-app-data:${userId ?? "guest"}:${app}`;
+const appKey = (app: string, userId: string | number | undefined, ownerId?: number) => `arise-app-data:${userId ?? "guest"}:${ownerId ? `of${ownerId}:` : ""}${app}`;
+
+/** Linked profiles: inside this, a premium app shows (and, with Edit, saves to) another account's copy.
+ *  Set by the premium apps page when it is opened from "Shared with me" (pages/ProApps.tsx). */
+export type SharedOwner = { ownerId: number; ownerName: string; access: "view" | "edit" };
+export const SharedOwnerContext = createContext<SharedOwner | null>(null);
+/** Fired when someone with View-only access tries to change something, so the page can say why nothing changed. */
+export const READ_ONLY_EVENT = "arise-shared-read-only";
 
 /**
  * State for a premium app that saves itself to the account (and to this device, so it opens
@@ -160,7 +167,10 @@ const appKey = (app: string, userId: string | number | undefined) => `arise-app-
  */
 export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
   const { token, user } = useAuth();
-  const cacheKey = appKey(app, user?.id);
+  const shared = useContext(SharedOwnerContext);
+  const ownerQ = shared ? `?owner=${shared.ownerId}` : "";
+  const readOnly = shared?.access === "view";
+  const cacheKey = appKey(app, user?.id, shared?.ownerId);
   const [data, setDataState] = useState<T>(() => {
     try { const raw = localStorage.getItem(cacheKey); return clean(raw ? JSON.parse(raw).data : null); } catch { return clean(null); }
   });
@@ -170,6 +180,7 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
   const timer = useRef<number | null>(null);
   const dirty = useRef(false);
   const sending = useRef(false);
+  const refused = useRef(false);
 
   useEffect(() => {
     // Account changes must not expose another person's previously cached content.
@@ -184,7 +195,7 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
   useEffect(() => {
     let alive = true;
     if (!token) { setLoaded(true); return; }
-    call<{ data: unknown; updatedAt: string | null }>(token, `/api/app-data/${app}`).then((r) => {
+    call<{ data: unknown; updatedAt: string | null }>(token, `/api/app-data/${app}${ownerQ}`).then((r) => {
       if (!alive) return;
       let localAt = "";
       try { localAt = JSON.parse(localStorage.getItem(cacheKey) || "{}").at || ""; } catch { /* none */ }
@@ -197,16 +208,16 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
     }).catch(() => setState("offline")).finally(() => alive && setLoaded(true));
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [app, token, cacheKey]);
+  }, [app, token, cacheKey, ownerQ]);
 
   const push = useCallback(async () => {
-    if (!dirty.current || !token || sending.current) return;
+    if (!dirty.current || !token || sending.current || readOnly) return;
     sending.current = true;
     dirty.current = false;
     const snapshot = latest.current;
     setState("saving");
     try {
-      const r = await call<{ updatedAt: string }>(token, `/api/app-data/${app}`, { method: "PUT", body: JSON.stringify({ data: snapshot }) });
+      const r = await call<{ updatedAt: string }>(token, `/api/app-data/${app}${ownerQ}`, { method: "PUT", body: JSON.stringify({ data: snapshot }) });
       // Only mark the specific sent snapshot as saved. Later edits stay pending.
       if (!dirty.current) {
         try { localStorage.setItem(cacheKey, JSON.stringify({ data: snapshot, at: r.updatedAt })); } catch { /* fine */ }
@@ -214,17 +225,21 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
       }
     } catch (e: any) {
       dirty.current = true;
-      setState(e.status === 413 ? "error" : "offline");
+      // 403: a linked profile's Edit access was taken away. Retrying can't help.
+      if (e.status === 403) refused.current = true;
+      setState(e.status === 413 || e.status === 403 ? "error" : "offline");
     } finally {
       sending.current = false;
-      if (dirty.current) {
+      if (dirty.current && !refused.current) {
         if (timer.current) window.clearTimeout(timer.current);
         timer.current = window.setTimeout(() => void push(), 3000);
       }
     }
-  }, [app, token, cacheKey]);
+  }, [app, token, cacheKey, ownerQ, readOnly]);
 
   const setData = useCallback((update: T | ((prev: T) => T)) => {
+    // View-only access to someone else's app: nothing changes, and the page says why.
+    if (readOnly) { try { window.dispatchEvent(new Event(READ_ONLY_EVENT)); } catch { /* fine */ } return; }
     const next = typeof update === "function" ? (update as (p: T) => T)(latest.current) : update;
     latest.current = next;
     setDataState(next);
@@ -233,7 +248,7 @@ export function useAppData<T>(app: string, clean: (raw: unknown) => T) {
     setState("unsaved");
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => void push(), 800);
-  }, [app, push, cacheKey]);
+  }, [app, push, cacheKey, readOnly]);
 
   useEffect(() => {
     const go = () => { if (dirty.current) void push(); };

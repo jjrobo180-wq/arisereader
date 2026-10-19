@@ -24,6 +24,8 @@ import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
 import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
+import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
+import { linksApi } from "@/lib/profileLinks";
 import StickyBoard from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
@@ -238,14 +240,14 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
-  randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles,
+  randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
   wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2,
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
 };
 // Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
 // Tasks and Notifications is the family's own toggleable block, in the order they chose.
-const sectionOrderFor = (family: Family): FamilySection[] => ["home", "reader", "tasks", ...orderedToggleable(family), "notifications", "family"];
+const sectionOrderFor = (family: Family): FamilySection[] => ["home", "reader", "tasks", ...orderedToggleable(family), "linked", "notifications", "family"];
 const SECTION_KEY = "arise-todo-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
@@ -587,7 +589,15 @@ export default function AriseTodo() {
   const shown: FamilySection = sections.includes(section) ? section : "home";
   // Doses still to take today show on the Pills tab.
   const pillsDue = dosesOn(family, currentDay).filter((d) => !d.status).length;
-  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue : 0;
+  // Linked profiles: invites waiting for this person to accept, shown as a badge and a note on Home.
+  const [linkInvites, setLinkInvites] = useState<{ ownerName: string }[]>([]);
+  useEffect(() => {
+    if (!token) return;
+    let live = true;
+    linksApi(token).list().then((r) => { if (live) setLinkInvites(r.withMe.filter((l) => l.status === "pending").map((l) => ({ ownerName: l.ownerName }))); }).catch(() => {});
+    return () => { live = false; };
+  }, [token, shown === "home" || shown === "linked"]);
+  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue : id === "linked" ? linkInvites.length : 0;
   // How the family arranged the hub (Customize): the phone menu and Home, the same choices as WorkHub.
   // Installed Notes apps may be pinned to Home (see FamilyHome), so Customize keeps and names their tiles too.
   const pinnableNotes = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
@@ -776,6 +786,7 @@ export default function AriseTodo() {
     : shown === "dictionary" ? <Dictionary {...common} />
     : shown === "links" ? <LinkPage {...common} />
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
+    : shown === "linked" ? <LinkedProfiles {...common} />
     : shown === "habits" ? <Habits {...common} />
     : shown === "gratitude" ? <Gratitude {...common} />
     : shown === "focus" ? <Focus {...common} />
@@ -1216,7 +1227,7 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && user.role === "parent" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && user.role === "parent" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
