@@ -59,6 +59,7 @@ import {
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
   Table, FolderOpen, QrCode, ShieldCheck, School,
   type LucideIcon,
+  Lock,
 } from "lucide-react";
 import PluginStore, { ICONS as STORE_ICONS } from "@/components/plugin-store/PluginStore";
 import OfficeApp from "@/components/office/OfficeApp";
@@ -82,7 +83,7 @@ import { appHref, goToReader, goToSignIn, isHubAccount } from "@/lib/hubs";
 import { usePlan } from "@/lib/plan";
 import { PLANS, usd } from "@shared/plans";
 import { addDays, dueState, friendlyDate, relativeDays, type DueState } from "@shared/hubDates";
-import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, arrangeTasks, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskFilter, type TaskSort, type TaskView } from "@shared/hubTasks";
+import { TASK_LIST_COLORS, TASK_SORTS, TASK_VIEWS, archiveTask, arrangeTasks, cleanTaskLists, clearDone, removeTaskList, restoreTasks, saveTask, taskCounts, undoTask, viewCounts, viewTasks, type TaskFields, type TaskFilter, type TaskSort, type TaskView } from "@shared/hubTasks";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import HubLessons from "@/components/teacher-hub/HubLessons";
 import HubGoalBoard from "@/components/teacher-hub/HubGoalBoard";
@@ -121,6 +122,8 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
+import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
+import { appLocked } from "@shared/privacyLock";
 import HubNotes from "@/components/teacher-hub/HubNotes";
 import StudentProfileView from "@/components/teacher-hub/HubStudentProfile";
 import HubAgenda from "@/components/teacher-hub/HubAgenda";
@@ -367,6 +370,7 @@ function TeacherHubPage() {
     } catch { /* stays where it is */ }
   }, [location]);
   const [customize, setCustomize] = useState(false);
+  const [lockSettings, setLockSettings] = useState(false);
   // The Arise App Store. It opens straight away when the person switched here from LifeHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   /** An app to open the App Store on (search's "In the App Store" results). */
@@ -619,10 +623,23 @@ function TeacherHubPage() {
     [workspace.meetings],
   );
 
-  const dueTasks = useMemo(
-    () => workspace.tasks.filter((t) => !t.done && !t.archived).sort((a, b) => dateValue(a.dueDate) - dateValue(b.dueDate)).slice(0, 6),
-    [workspace.tasks],
-  );
+  // The to-do just added from Home always shows in Home's list, even when six others come before it.
+  const [freshTask, setFreshTask] = useState<string | null>(null);
+  const dueTasks = useMemo(() => {
+    const open = workspace.tasks.filter((t) => !t.done && !t.archived).sort((a, b) => dateValue(a.dueDate) - dateValue(b.dueDate));
+    const top = open.slice(0, 6);
+    const fresh = freshTask ? open.find((t) => t.id === freshTask) : undefined;
+    return fresh && !top.includes(fresh) ? [...top.slice(0, 5), fresh] : top;
+  }, [workspace.tasks, freshTask]);
+  /** Adds a to-do from Home (quick add or More) and says so. */
+  const addHomeTask = (fields: TaskFields) => {
+    if (!fields.title.trim()) return;
+    const nid = id();
+    setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, fields, () => nid) }));
+    setFreshTask(nid);
+    setHomeQuick("");
+    toasts.show(`Added “${fields.title.trim().slice(0, 60)}”${fields.dueDate ? ` · due ${friendlyDate(fields.dueDate, TODAY())}` : ""}`, [{ label: "View", run: () => setTab("tasks") }]);
+  };
 
   const behaviorTotals = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -806,6 +823,7 @@ function TeacherHubPage() {
     if (!(workspace as any).briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", icon: <Sun className="h-4 w-4" />, open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 className="h-4 w-4" />, open: () => setCustomize(true) });
     out.push({ id: "notify", kind: "Section", title: "Notification settings", sub: "Morning summary and heads-ups", keywords: "notifications reminders alerts push phone bell", open: () => setNotifyOpen(true) });
+    out.push({ id: "passcode", kind: "Section", title: "Passcode & locks", sub: "Lock screens and notes", keywords: "lock passcode password privacy hide secure settings", icon: <Lock className="h-4 w-4" />, open: () => setLockSettings(true) });
     out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", icon: <ShoppingBag className="h-4 w-4" />, open: () => setStore(true) });
     // Installed apps are Apps too (not a separate "Plugins" group), with their icons and colours.
     for (const d of myKits) { const Icon = kitIcon(d.icon); out.push({ id: `kit-${d.id}`, kind: "App", title: d.name, sub: d.tagline, icon: <Icon />, color: d.color, open: () => openKit(d.id) }); }
@@ -820,7 +838,7 @@ function TeacherHubPage() {
     for (const t of workspace.tasks) out.push({ id: t.id, kind: "To-dos", title: t.title, sub: [t.done ? "Done" : "", t.dueDate && `Due ${dateWord(t.dueDate)}${t.dueTime ? ` at ${clock12(t.dueTime)}` : ""}`].filter(Boolean).join(" · "), keywords: t.notes || "", open: () => goTab("tasks") });
     for (const m of workspace.meetings) out.push({ id: m.id, kind: "Meetings", title: `${m.type}: ${m.student}`, sub: [m.date && dateWord(m.date), m.room].filter(Boolean).join(" · "), keywords: m.notes, open: () => goTab("iep") });
     for (const e of workspace.events) out.push({ id: e.id, kind: "Calendar", title: e.title, sub: [dateWord(e.date), e.location].filter(Boolean).join(" · "), keywords: e.notes, open: () => goTab("calendar") });
-    for (const n of workspace.notes) out.push({ id: n.id, kind: "Notes", title: n.title || (n.body || "").slice(0, 60) || "Note", sub: [n.student, dateWord(n.date)].filter(Boolean).join(" · "), keywords: n.body.slice(0, 400), open: () => goTab("notes") });
+    for (const n of workspace.notes) out.push({ id: n.id, kind: "Notes", title: n.locked ? n.title || "Locked note" : n.title || (n.body || "").slice(0, 60) || "Note", sub: [n.student, dateWord(n.date)].filter(Boolean).join(" · "), keywords: n.locked ? "" : n.body.slice(0, 400), open: () => goTab("notes") });
     for (const l of workspace.lessons) out.push({ id: l.id, kind: "Lessons", title: l.title, sub: [l.subject, l.group, dateWord(l.date)].filter(Boolean).join(" · "), keywords: `${l.objective} ${l.materials}`, open: () => goTab("lessons") });
     for (const g of workspace.goals) out.push({ id: g.id, kind: "Goals", title: `${g.student}: ${g.area}`, sub: g.text.slice(0, 90), keywords: g.text, open: () => goTab("goals") });
     for (const em of workspace.emails) out.push({ id: em.id, kind: "Email", title: em.subject || "(no subject)", sub: em.from, keywords: em.body.slice(0, 300), open: () => goTab("email") });
@@ -846,7 +864,10 @@ function TeacherHubPage() {
   });
   const subTabs = groupTabs(group.id, visible, !!user.isAdmin);
 
+  // Passcode lock (components/lock/PrivacyLock.tsx): the screens that can be locked.
+  const lockableApps = menu.flatMap((g) => groupTabs(g.id, visible, !!user.isAdmin)).filter((t) => t !== "overview" && t !== "admin").map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t }));
   return (
+    <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}>
     <div className={`hub-paper hub-lifelook min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
@@ -916,6 +937,7 @@ function TeacherHubPage() {
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
             <button type="button" onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-plugin-store"><ShoppingBag className="h-4 w-4" /> <span className="hidden lg:inline">App Store</span></button>
+            <LockButton />
             <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize your Hub" aria-expanded={customize} data-tour="customize" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize</span></button>
             <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><LogOut className="h-4 w-4" /></button>
             <div ref={moreRef} className="relative sm:hidden">
@@ -1461,6 +1483,7 @@ function TeacherHubPage() {
             </div>
           )}
 
+          <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
           {tab === "overview" && (
             <>
               {(() => {
@@ -1527,7 +1550,7 @@ function TeacherHubPage() {
                   ),
                   todo: (
               <Card title="To do" collapseKey="home-todo" right={<button type="button" onClick={() => setTab("tasks")} className="min-h-11 shrink-0 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="home-tasks-all">See all{openTasks > dueTasks.length ? ` ${openTasks}` : ""}</button>}>
-                <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, { title, dueDate: "", recurring: "", priority: false }, id) })); setHomeQuick(""); }} className="mb-3 flex gap-2" data-testid="home-task-add">
+                <form onSubmit={(e) => { e.preventDefault(); const title = homeQuick.trim(); if (!title) return; addHomeTask({ title, dueDate: "", recurring: "", priority: false }); }} className="mb-3 flex gap-2" data-testid="home-task-add">
                   <Field placeholder="Add a to-do and press Enter" aria-label="Quick add a to-do" value={homeQuick} onChange={(e) => setHomeQuick(e.target.value)} maxLength={200} />
 <button type="button" onClick={() => setHomeTask(NEW_TASK)} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" aria-label="More options: due date, time, notes, repeat" title="Add a due date, time, notes or repeat" data-testid="home-task-more"><MoreHorizontal className="h-4 w-4" /> More</button>
                   <PrimaryButton type="submit" disabled={!homeQuick.trim()}>Add</PrimaryButton>
@@ -1604,6 +1627,7 @@ function TeacherHubPage() {
           {tab === "schedules" && <Schedules workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} warnings={scheduleWarnings} />}
           {tab === "email" && <ForwardingCard token={token} isAdmin={!!user?.isAdmin} />}
           {tab === "email" && <Emails workspace={workspace} setWorkspace={setWorkspace} remove={remove} toast={(text, actions) => { toasts.show(text, actions); }} onViewTasks={() => setTab("tasks")} openId={openEmailId} />}
+          </LockedApp>
         </main>
       </div>
       {canUseHub && loaded && !loadError && !needsPlan && (workspace as any).aiChat && <HubChat hub="work" token={token} accent="bg-teal-700" lift raiseRem={side === "bottom" && menuOpen ? 4.9 : 0} />}
@@ -1647,13 +1671,13 @@ function TeacherHubPage() {
       )}
       {quickEvent && <AddEventModal onClose={() => setQuickEvent(false)} onAdd={(items) => { setWorkspace((p) => addQuickItems(p, items, id)); if (items.task) reminderAdded(items); }} />}
       {homeTask === NEW_TASK && <TaskModal task={null} startTitle={homeQuick} today={TODAY()} lists={cleanTaskLists(workspace.taskLists)}
-        onSave={(fields) => { setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, null, fields, id) })); setHomeQuick(""); }} onClose={() => setHomeTask(null)} />}
+        onSave={addHomeTask} onClose={() => setHomeTask(null)} />}
       {homeTask && workspace.tasks.some((t) => t.id === homeTask) && <TaskModal task={workspace.tasks.find((t) => t.id === homeTask) || null} today={TODAY()}
         onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, homeTask, fields, id) }))} onClose={() => setHomeTask(null)} onDelete={() => remove("tasks", homeTask)} />}
       {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} onAdd={addFound} onClose={() => setAdding(null)} />}
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
       <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
-    </div>
+    </div></PrivacyLockProvider>
   );
 }
 

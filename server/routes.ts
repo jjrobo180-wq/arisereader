@@ -6773,6 +6773,21 @@ export async function registerRoutes(
     res.json({ message: "Quiz request updated" });
   });
 
+  // Check the signed-in person's account password (used to reset a forgotten hub passcode,
+  // see shared/privacyLock.ts). Five wrong tries in 15 minutes and it waits.
+  const passwordChecks = new Map<number, number[]>();
+  app.post("/api/account/verify-password", authMiddleware, async (req: any, res) => {
+    const now = Date.now();
+    const tries = (passwordChecks.get(req.user.id) || []).filter((t) => now - t < 15 * 60_000);
+    if (tries.length >= 5) return res.status(429).json({ message: "Too many tries. Wait a few minutes and try again." });
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const { data: row } = await supabase.from("users").select("password").eq("id", req.user.id).maybeSingle();
+    const ok = !!row?.password && !!password && (await bcrypt.compare(password, row.password));
+    if (!ok) { passwordChecks.set(req.user.id, [...tries, now]); return res.status(400).json({ message: "That password isn't right." }); }
+    passwordChecks.delete(req.user.id);
+    res.json({ ok: true });
+  });
+
   // Change password (any logged-in user)
   app.post("/api/change-password", authMiddleware, async (req: any, res) => {
     const { currentPassword, newPassword } = req.body;

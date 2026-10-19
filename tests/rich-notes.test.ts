@@ -47,7 +47,8 @@ test("notes open full screen with the Docs-style toolbar in every hub", () => {
   assert.match(src("client/src/components/family-hub/Notes.tsx"), /<FullNoteEditor note=\{editing\}/);
   assert.match(src("client/src/components/plugin-kit/NotesKitApp.tsx"), /<FullNoteEditor note=\{editing\}/);
   const hub = src("client/src/components/teacher-hub/HubNotes.tsx");
-  assert.match(hub, /size="full" onClose=\{onClose\}/);
-  assert.match(hub, /<HubModal title="New note" size="full"/);
+  // One full-screen note for new and saved notes alike; it saves as you type, Done closes it.
+  assert.match(hub, /: "New note"\} size="full" onClose=\{done\}/);
+  assert.match(hub, /\{adding && <NoteModal key=\{adding\} start=\{form\}/);
   assert.match(hub, /<RichNoteBox form=\{form\}/);
 });

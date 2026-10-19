@@ -6,7 +6,8 @@
 // formatted note goes in `html`; `body` is always the plain text (shared/richNote.ts).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, Pin, Trash2 } from "lucide-react";
+import { ChevronLeft, Lock, LockOpen, Pin, Trash2 } from "lucide-react";
+import { useLock } from "@/components/lock/PrivacyLock";
 import { DropButton } from "@/components/office/officeUi";
 import { sanitizeHtml, wordCount } from "@shared/office/docModel";
 import { cleanNoteHtml, noteStartHtml, noteTextOf } from "@shared/richNote";
@@ -29,18 +30,20 @@ export default function FullNoteEditor({ note, colors, onSave, onClose, onDelete
   const [title, setTitle] = useState(note.title);
   const [color, setColor] = useState(note.color);
   const [pinned, setPinned] = useState(note.pinned);
+  const [locked, setLocked] = useState(!!note.locked);
+  const lockCtx = useLock();
   const [words, setWords] = useState(0);
   const [status, setStatus] = useState<"saved" | "saving" | "">("");
-  const latest = useRef({ title, color, pinned, html: "" });
-  latest.current = { ...latest.current, title, color, pinned };
+  const latest = useRef({ title, color, pinned, locked, html: "" });
+  latest.current = { ...latest.current, title, color, pinned, locked };
 
   const current = useCallback((): Note => {
     const raw = latest.current.html;
     const html = cleanNoteHtml(raw);
     const body = noteTextOf(sanitizeHtml(raw));
-    const { title: t, color: c, pinned: p } = latest.current;
-    const { html: _old, ...rest } = note;
-    return { ...rest, title: t.slice(0, 120), body, color: c, pinned: p, ...(html ? { html } : {}) };
+    const { title: t, color: c, pinned: p, locked: l } = latest.current;
+    const { html: _old, locked: _was, ...rest } = note;
+    return { ...rest, title: t.slice(0, 120), body, color: c, pinned: p, ...(html ? { html } : {}), ...(l ? { locked: true } : {}) };
   }, [note]);
 
   const timer = useRef<number | null>(null);
@@ -71,7 +74,7 @@ export default function FullNoteEditor({ note, colors, onSave, onClose, onDelete
   // Title, colour and pin changes save the same way as typing.
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; return; } schedule(); // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, color, pinned]);
+  }, [title, color, pinned, locked]);
   useEffect(() => { if (!note.title && !note.body) window.setTimeout(() => document.getElementById("full-note-title")?.focus(), 30); }, [note.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Behind the editor nothing scrolls.
   useEffect(() => { const old = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = old; }; }, []);
@@ -93,6 +96,9 @@ export default function FullNoteEditor({ note, colors, onSave, onClose, onDelete
         <button type="button" onClick={done} className="inline-flex min-h-11 items-center gap-0.5 rounded-xl pl-1 pr-3 text-[15px] font-bold text-violet-700 hover:bg-violet-50" data-testid="full-note-done"><ChevronLeft size={22} /> Notes</button>
         <span className="min-w-0 flex-1 truncate text-center text-xs font-semibold text-slate-500" aria-live="polite">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : edited ? `Edited ${edited.toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""}</span>
         <button type="button" onClick={() => setPinned((p) => !p)} aria-pressed={pinned} title={pinned ? "Unpin" : pinLabel} aria-label={pinned ? "Unpin" : pinLabel} className={`inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-black/5 ${pinned ? "text-violet-700" : "text-slate-500"}`}><Pin size={18} className={pinned ? "fill-current" : ""} /></button>
+        {lockCtx && <button type="button" onClick={() => { if (!lockCtx.lock) { lockCtx.openSettings(); return; } setLocked((v) => !v); }} aria-pressed={locked}
+          title={locked ? "Unlock note" : lockCtx.lock ? "Lock note" : "Lock note (set a passcode first)"} aria-label={locked ? "Unlock note" : "Lock note"} data-testid="full-note-lock"
+          className={`inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-black/5 ${locked ? "text-slate-900" : "text-slate-500"}`}>{locked ? <Lock size={18} /> : <LockOpen size={18} />}</button>}
         <DropButton title="Note color" label={<span className="h-5 w-5 rounded-full border border-black/15" style={{ background: color }} />} className="h-11 px-2">
           {(close) => <div className="flex flex-wrap gap-2 p-3" style={{ width: 200 }}>{colors.map((c) => <button key={c} type="button" onClick={() => { setColor(c); close(); }} aria-label={`Color ${c}`} aria-pressed={color === c} className={`h-8 w-8 rounded-full border-2 ${color === c ? "border-violet-500" : "border-slate-200"}`} style={{ background: c }} />)}</div>}
         </DropButton>

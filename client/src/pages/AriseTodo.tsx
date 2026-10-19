@@ -18,6 +18,7 @@ import {
   Folder as Folder, ChevronRight as ChevronRight,
   Archive, ArchiveRestore,
   Table, FolderOpen, QrCode,
+  Lock,
 } from "lucide-react";
 import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
@@ -99,6 +100,8 @@ import News from "@/components/family-hub/News";
 import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
+import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
+import { appLocked } from "@shared/privacyLock";
 import { Avatar, Modal } from "@/components/family-hub/ui";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
@@ -631,6 +634,7 @@ export default function AriseTodo() {
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   // Search everything in LifeHub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const [customizing, setCustomizing] = useState(false);
+  const [lockSettings, setLockSettings] = useState(false);
   const [searching, setSearching] = useState(false);
   const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user && !family.briefOff);
   /** Opening a menu section. Reading is a page of its own now (/reader), so that one leaves
@@ -656,10 +660,11 @@ export default function AriseTodo() {
     // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
     if (!family.briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", icon: <Sun />, open: () => setBriefOpen(true) });
     out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 />, open: () => setCustomizing(true) });
+    out.push({ id: "passcode", kind: "Section", title: "Passcode & locks", sub: "Lock apps and notes", keywords: "lock passcode password privacy hide secure settings", icon: <Lock />, open: () => setLockSettings(true) });
     out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", icon: <ShoppingBag />, open: () => setStore(true) });
     for (const t of data.tasks) out.push({ id: t.id, kind: "Tasks", title: t.title, sub: [t.done ? "Done" : "", t.due && `Due ${dw(t.due)}`].filter(Boolean).join(" · "), keywords: t.notes, open: () => goSection("tasks") });
     for (const e of f.events) out.push({ id: e.id, kind: "Calendar", title: e.title, sub: [dw(e.date), e.location].filter(Boolean).join(" · "), keywords: e.notes, open: () => goSection("calendar") });
-    for (const n of f.notes) out.push({ id: n.id, kind: "Notes", title: n.title || n.body.slice(0, 60) || "Note", keywords: n.body.slice(0, 400), open: () => goSection("notes") });
+    for (const n of f.notes) out.push({ id: n.id, kind: "Notes", title: n.locked ? n.title || "Locked note" : n.title || n.body.slice(0, 60) || "Note", keywords: n.locked ? "" : n.body.slice(0, 400), open: () => goSection("notes") });
     for (const m of f.members) out.push({ id: m.id, kind: "Family", title: m.name, sub: m.kind === "kid" ? "Kid" : "Adult", open: () => goSection("family") });
     for (const r of f.recipes) out.push({ id: r.id, kind: "Recipes", title: r.title, sub: r.tags, keywords: r.ingredients.join(" "), open: () => goSection("recipes") });
     for (const g of f.groceries) out.push({ id: g.id, kind: "Grocery list", title: g.name, sub: [g.qty, g.aisle, g.checked ? "In the cart" : ""].filter(Boolean).join(" · "), open: () => goSection("grocery") });
@@ -764,6 +769,10 @@ export default function AriseTodo() {
     // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
     { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
   ];
+  // Passcode lock (components/lock/PrivacyLock.tsx): which app is open, and the apps that can be locked.
+  const openAppId = notesAppOpen ? `notes-app-${notesAppOpen}` : sheetsAppOpen ? `sheets-app-${sheetsAppOpen}` : driveOpen ? "drive-app" : dropOpen ? "drop-app" : kitOpen ? `kit-${kitOpen}` : shown;
+  const openAppName = phoneItems.find((i) => i.id === openAppId)?.label ?? SECTION_INFO[shown]?.label ?? "This app";
+  const lockableApps = phoneItems.filter((i) => i.id !== "home" && i.id !== "app-store" && !/^(arise-|learning-|office-app-)/.test(i.id)).map((i) => ({ id: i.id, label: i.label }));
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
@@ -919,7 +928,7 @@ export default function AriseTodo() {
             return id === "home" && learningHere ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
           })}
   </>;
-  return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
+  return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
     <UpgradeHost hub="life" />
     {store && <PluginStore
       hub="life"
@@ -1053,6 +1062,7 @@ export default function AriseTodo() {
             triggerClassName={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} />
           <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex">{night ? <Sun size={16} /> : <Moon size={16} />}</button>
           <button onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="lifehub-plugin-store-header"><ShoppingBag size={16} /> <span className="hidden lg:inline">App Store</span></button>
+          <LockButton className="hidden sm:inline-flex" />
           <button onClick={() => setCustomizing(true)} aria-label="Customize your LifeHub" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="life-customize"><Settings2 size={16} /> <span className="hidden lg:inline">Customize</span></button>
           <button onClick={() => void signOut()} aria-label="Sign out" title="Sign out" className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex"><LogOut size={16} /></button>
           <div className="relative sm:hidden">
@@ -1062,6 +1072,7 @@ export default function AriseTodo() {
               <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
                 <div role="status" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-600">{sync.view.kind === "saved" ? <CheckCircle2 size={16} className="text-emerald-600" /> : sync.view.kind === "blocked" ? <AlertCircle size={16} className="text-rose-600" /> : <Save size={16} />}{saveStatus}</div>
                 <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun size={16} /> : <Moon size={16} />}{night ? "Day mode" : "Night mode"}</button>
+                <button type="button" role="menuitem" onClick={() => { setLockSettings(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50" data-testid="life-more-lock"><Lock size={16} />Passcode & locks</button>
                 <button type="button" role="menuitem" onClick={() => { setCustomizing(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 size={16} />Customize</button>
                 <button type="button" role="menuitem" onClick={() => void signOut()} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut size={16} />Sign out</button>
               </div>
@@ -1202,6 +1213,7 @@ export default function AriseTodo() {
 
           {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
           <div className="mt-4"><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" onUpgrade={user.role === "parent" ? () => { setSection("reader"); window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" }), 600); } : undefined} /></div>
+          <LockedApp locked={appLocked(family.lock, openAppId)} name={openAppName}>
           {notesAppOpen && notesAppPlugin("life", notesAppOpen) && <div className="mt-2 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <button type="button" onClick={() => setNotesAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
@@ -1328,6 +1340,7 @@ export default function AriseTodo() {
             </aside>
           </div>
           </>}
+          </LockedApp>
         </div>
       </main>
     </div>
@@ -1367,5 +1380,5 @@ export default function AriseTodo() {
         </form>
       </div>
     </div>}
-  </div>;
+  </div></PrivacyLockProvider>;
 }

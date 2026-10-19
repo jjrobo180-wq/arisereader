@@ -4,6 +4,7 @@
 // The page is client/src/pages/TeacherHub.tsx. The workspace is saved as one
 // JSON object per teacher (server/teacherHub.ts).
 
+import { cleanLock } from "./privacyLock";
 import { cleanBlocks, type SchoolBlock } from "./hubBlocks";
 import { cleanOptionalDays } from "./hubProgress";
 import { cleanPins, type Pin } from "./hubPins";
@@ -55,7 +56,7 @@ export type Task = { id: string; title: string; dueDate: string; /** Optional HH
   /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
   rolled?: { dueDate: string; lastDone?: string; at: string };
 };
-export type NoteItem = { id: string; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** Formatted version from the note editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string;
+export type NoteItem = { id: string; /** Needs the hub passcode to open (shared/privacyLock.ts). */ locked?: boolean; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** Formatted version from the note editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string;
   /** More students the note is about (a group check-in, a meeting about several students). `student` stays the first. */
   students?: string[];
   /** The card's colour on the notes board, like LifeHub's notes. */
@@ -271,6 +272,8 @@ export type Workspace = {
   /** Push-in class notes: what the class's teacher taught, the materials, each student, scaffolded work. Kept with the minutes. See shared/pushIn.ts. */
   pushInNotes?: unknown[];
   lessonState?: string;
+  /** Passcode lock for screens and notes (shared/privacyLock.ts). */
+  lock?: import("./privacyLock").PrivacyLock | null;
 };
 export type TaskList = { id: string; name: string; color: string };
 
@@ -320,6 +323,7 @@ export function normalizeWorkspace(raw: any): Workspace {
   const out: any = {
     ...base,
     ...raw,
+    lock: cleanLock(raw.lock),
     profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}), accent: cleanAccent(raw.profile?.accent) || undefined },
     // Workspaces saved before the App Store had WorkHub screens had every tab written as `true`
     // by the old default, which would read as "already added" and leave nothing to add. Those are

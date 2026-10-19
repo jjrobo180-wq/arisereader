@@ -16,8 +16,9 @@ test("adding a note opens a pop-up from a compact header button, not an always-v
   // The old always-visible "Add a note" Card wrapping the form directly in the page is gone...
   assert.ok(!notes.includes('<Card title="Add a note">'), "the form is no longer an always-visible card");
   // ...replaced by a HubModal that only renders once the button has been clicked.
-  assert.match(notes, /\{adding && \(\s*<HubModal title="New note" size="full"/); // full screen, like a notes app
-  assert.match(notes, /data-testid="note-add"/, "the same note-entry form is reused inside the pop-up");
+  // Full screen, like a notes app: the same note pop-up as a saved note, saving as you type.
+  assert.match(notes, /\{adding && <NoteModal key=\{adding\} start=\{form\}/);
+  assert.match(notes, /data-testid="note-form"/, "the same note-entry form is used for new and saved notes");
 });
 
 test("the notes list is the first thing on the page, with its filter chips and search intact", () => {
@@ -27,13 +28,14 @@ test("the notes list is the first thing on the page, with its filter chips and s
   const list = notes.indexOf("<Card>");
   assert.ok(header > -1 && list > header, "the notes list card follows directly after the add-note header");
   for (const part of ["Students <span", "Meetings &amp; general <span", "Search notes"]) assert.ok(notes.includes(part), part);
-  // Submitting the pop-up's form, or cancelling it, both close it again.
-  assert.match(notes, /setAdding\(false\)/);
+  // Done (or closing it any other way) closes it again.
+  assert.match(notes, /onClose=\{\(\) => setAdding\(0\)\}/);
 });
 
 test("the note-entry form itself (fields, validation, save) is unchanged by the layout cleanup", () => {
   const notes = read("client/src/components/teacher-hub/HubNotes.tsx");
   for (const part of ['data-testid="note-scope"', '"Meeting or general"', 'data-testid="note-edit"', "Meetings &amp; general"]) assert.ok(notes.includes(part), part);
-  // Saving still goes through the same saveNote helper and clears the form back to a blank student note.
-  assert.match(notes, /setWorkspace\(\(p\) => saveNote\(p, null, form, makeId\)\)/);
+  // Saving still goes through the same saveNote helper: added once, then changed in place as you type.
+  assert.match(notes, /setWorkspace\(\(p\) => saveNote\(p, null, fields, \(\) => nid\)\)/);
+  assert.match(notes, /setWorkspace\(\(p\) => saveNote\(p, at, fields, makeId\)\)/);
 });

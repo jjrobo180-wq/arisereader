@@ -8,6 +8,7 @@ import { Pin, Plus, Search, StickyNote } from "lucide-react";
 import { NOTE_COLORS, saveNotesAppNote, type Note } from "@shared/notesApp";
 import { NoteTemplatesButton } from "@/components/NoteTemplatePicker";
 import FullNoteEditor from "@/components/notes/FullNoteEditor";
+import { LockBadge, useLock } from "@/components/lock/PrivacyLock";
 import { Empty, PageHead, Panel, confirmed, inputClass, primary, soft } from "@/components/family-hub/ui";
 
 const STARTERS = ["Grocery list", "Gift ideas", "Wi-Fi & codes", "Ideas", "Meeting notes", "To remember"];
@@ -25,8 +26,12 @@ export type NotesKitAppProps = {
 export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say }: NotesKitAppProps) {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Note | null>(null);
+  const lock = useLock();
+  /** A locked note shows only its title until the passcode is entered. */
+  const hidden = (n: Note) => !!n.locked && !!lock && !lock.unlocked;
+  const open = async (n: Note) => { if (!hidden(n) || (lock && (await lock.ask(`Unlock “${n.title || "note"}”`)))) setEditing({ ...n }); };
   const q = query.trim().toLowerCase();
-  const shown = notes.filter((n) => !q || (n.title + " " + n.body).toLowerCase().includes(q))
+  const shown = notes.filter((n) => !q || (n.title + " " + (hidden(n) ? "" : n.body)).toLowerCase().includes(q))
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
   const blank = (title = ""): Note => ({ id: makeId(), title, body: "", color: NOTE_COLORS[notes.length % NOTE_COLORS.length], pinned: false, updatedAt: "" });
 
@@ -44,9 +49,9 @@ export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say 
     {shown.length ? <div className="columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">
       {shown.map((n) => <article key={n.id} className="note-card group break-inside-avoid rounded-2xl border border-black/5 p-4 shadow-[0_3px_16px_#17152b0a]" style={{ background: n.color }}>
         <div className="flex items-start gap-2">
-          <button onClick={() => setEditing({ ...n })} className="min-w-0 flex-1 text-left">
-            {n.title && <h3 className="break-words text-base font-black text-slate-800">{n.title}</h3>}
-            {n.body && <p className="mt-1.5 line-clamp-[12] whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{n.body}</p>}
+          <button onClick={() => void open(n)} className="min-w-0 flex-1 text-left" data-locked={n.locked ? "" : undefined}>
+            {(n.title || n.locked) && <h3 className="flex items-center gap-1.5 break-words text-base font-black text-slate-800">{n.locked && <LockBadge className="h-4 w-4 text-slate-500" />}{n.title || "Locked note"}</h3>}
+            {hidden(n) ? <p className="mt-1.5 text-sm text-slate-500">Locked</p> : n.body && <p className="mt-1.5 line-clamp-[12] whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{n.body}</p>}
           </button>
           <button onClick={() => pin(n)} aria-pressed={n.pinned} aria-label={n.pinned ? `Unpin ${n.title || "note"}` : `Pin ${n.title || "note"}`} className={`rounded-lg p-1.5 transition ${n.pinned ? "text-violet-700" : "text-slate-400 opacity-60 hover:opacity-100"}`}>{n.pinned ? <Pin size={16} className="fill-current" /> : <Pin size={16} />}</button>
         </div>

@@ -3,7 +3,6 @@
 import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
 import { friendlyDate } from "@shared/hubDates";
-import { saveNote } from "@shared/hubNotes";
 import { dueWords, studentProfile, type ProfileDate } from "@shared/hubStudentProfile";
 import { planText } from "@shared/hubProgress";
 import { placeText, schoolBlocks } from "@shared/hubBlocks";
@@ -195,7 +194,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           <Rows rows={profile.reading} empty="No reading records yet." render={(r) => <li key={r.id} className={`${row} flex flex-wrap items-center justify-between gap-2`}><span className="min-w-0 break-words font-medium text-slate-900">{r.book || "Book"}</span><span className="shrink-0 text-xs font-semibold text-slate-700">{day(r.date)}{r.score ? ` · score ${r.score}` : ""}{r.points ? ` · ${r.points} pts` : ""}</span></li>} />
         </Part>
       </div>
-      {noting && <NoteModal student={s.name} students={workspace.students.map((x) => x.name)} onSave={(fields) => setWorkspace((p) => saveNote(p, null, { ...fields, scope: "student", student: s.name }, makeId))} onClose={() => setNoting(false)} />}
+      {noting && <NoteModal student={s.name} students={workspace.students.map((x) => x.name)} setWorkspace={setWorkspace} makeId={makeId} onClose={() => setNoting(false)} />}
     </div>
   );
 }

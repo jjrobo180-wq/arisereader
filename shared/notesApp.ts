@@ -27,7 +27,7 @@ export function cleanNotesApp(raw: unknown): Note[] {
     const body = str((r as any).body, 5000);
     if (!id || (!title.trim() && !body.trim())) continue;
     const html = cleanNoteHtml((r as any).html);
-    out.push({ id, title, body, color: color((r as any).color), pinned: bool((r as any).pinned), updatedAt: str((r as any).updatedAt, 40), ...(html ? { html } : {}) });
+    out.push({ id, title, body, color: color((r as any).color), pinned: bool((r as any).pinned), updatedAt: str((r as any).updatedAt, 40), ...(html ? { html } : {}), ...((r as any).locked === true ? { locked: true } : {}) });
     if (out.length >= LIMIT) break;
   }
   return out;

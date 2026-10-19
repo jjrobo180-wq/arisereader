@@ -10,6 +10,7 @@ import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 import { cleanWidgets, type WidgetItem } from "./widgets";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
 import { cleanNoteHtml } from "./richNote";
+import { cleanLock, type PrivacyLock } from "./privacyLock";
 
 export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
@@ -75,7 +76,7 @@ export type Poll = {
 export type Bill = { id: string; name: string; amount: number; dueDay: number; category: string; autopay: boolean; paid: string[] };
 export type BudgetCategory = { id: string; name: string; limit: number };
 export type Expense = { id: string; categoryId: string; amount: number; date: string; note: string };
-export type Note = { id: string; title: string; body: string; color: string; pinned: boolean; updatedAt: string; /** Formatted version from the full-screen editor (shared/richNote.ts); body stays the plain text. */ html?: string };
+export type Note = { id: string; title: string; body: string; color: string; pinned: boolean; updatedAt: string; /** Formatted version from the full-screen editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** Needs the hub passcode to open (shared/privacyLock.ts). */ locked?: boolean };
 /* Food & fitness. Adults get calories, macros and weight; kids get healthy habits only. */
 export type Meal = "breakfast" | "lunch" | "dinner" | "snacks";
 export const MEALS: Meal[] = ["breakfast", "lunch", "dinner", "snacks"];
@@ -261,6 +262,8 @@ export type Family = {
    *  notesApps, separate from LifeHub's own built-in Notes (above) and from each other. */
   notesInstalled: string[];
   notesApps: Record<string, Note[]>;
+  /** Passcode lock for apps and notes (shared/privacyLock.ts); null when no passcode is set. */
+  lock: PrivacyLock | null;
   /** The Sheets app (App Store add-on, shared/sheetsApp.ts), bolted on the same loose way as a
    *  Notes-app install: not a typed field most of this file knows about, just a plugin id in
    *  notesInstalled-style and its data read/saved through sheetsApp.ts's own helpers. */
@@ -312,7 +315,7 @@ export const emptyFamily = (): Family => ({
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], linkPage: { title: "", bio: "", links: [] },
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
   sleep: [], workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
-  notesInstalled: [], notesApps: {},
+  notesInstalled: [], notesApps: {}, lock: null,
   sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false,
 });
 
@@ -475,7 +478,7 @@ export function cleanFamily(input: unknown): Family {
       const title = str(r.title, 120);
       const body = str(r.body, 5000);
       const html = cleanNoteHtml(r.html);
-      return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40), ...(html ? { html } : {}) } : null;
+      return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40), ...(html ? { html } : {}), ...(r.locked === true ? { locked: true } : {}) } : null;
     }),
     health: cleanHealth(raw.health),
     cycleLogs: rows(raw.cycleLogs, LIMITS.cycleLogs, (r) => {
@@ -643,6 +646,7 @@ export function cleanFamily(input: unknown): Family {
     kit: cleanKit(raw.kit),
     kitInstalled: Array.isArray(raw.kitInstalled) ? raw.kitInstalled.filter((x: unknown): x is string => typeof x === "string").slice(0, 400) : [],
     savedQuotes: Array.isArray(raw.savedQuotes) ? [...new Set(raw.savedQuotes.filter((x: unknown) => typeof x === "string" && x && (x as string).length <= 40))].slice(0, LIMITS.savedQuotes) as string[] : [],
+    lock: cleanLock(raw.lock),
     notesInstalled: Array.isArray(raw.notesInstalled) ? [...new Set(raw.notesInstalled.filter((x: unknown): x is string => typeof x === "string" && !!x && x.length <= 60))].slice(0, 20) : [],
     // Notes-app installs (shared/notesApp.ts): same shape as the built-in Notes above, one list per
     // installed app so each keeps its own separate notes.
@@ -654,7 +658,7 @@ export function cleanFamily(input: unknown): Family {
           const title = str(r.title, 120);
           const body = str(r.body, 5000);
           const html = cleanNoteHtml(r.html);
-          return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40), ...(html ? { html } : {}) } : null;
+          return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40), ...(html ? { html } : {}), ...(r.locked === true ? { locked: true } : {}) } : null;
         });
       }
       return out;
@@ -843,5 +847,7 @@ export function isCurrentFamily(f: unknown): f is Family {
     const have = r[k];
     if (Array.isArray(v) ? !Array.isArray(have) : v !== null && typeof v === "object" ? !obj(have) : v !== null && typeof have !== typeof v) return false;
   }
+  // The passcode lock is null until one is set, so it is checked by hand (null is skipped above).
+  if (r.lock !== null && !obj(r.lock)) return false;
   return !!obj(h.goals) && !!obj(h.profiles) && !!obj(r.news) && !!obj(r.notify) && !!obj(r.widgets) && !!obj(r.linkPage) && !!obj(r.weather) && !!obj(r.sections) && !!obj(r.layers) && typeof r.income === "number" && typeof r.chorePointsCount === "boolean";
 }
