@@ -884,6 +884,8 @@ function TeacherHubPage() {
             <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">WorkHub</span>
           </a>
           <div className="flex shrink-0 items-center gap-2">
+            {/* The To-Do Admin (people, plans, payments) lives in WorkHub's header, not LifeHub's. */}
+            {user.isAdmin && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-100" data-testid="todo-admin-link"><ShieldCheck className="h-4 w-4" /> <span className="hidden lg:inline">Admin</span></a>}
             <HubSwitch current="hub" night={night} />
             <HeaderShortcut shortcut={layout.shortcut} choices={shortcutChoices()} say={(m) => toasts.show(m, [])}
               onChange={(next) => setWorkspace((p) => { const { shortcut: _old, ...rest } = p.layout ?? layout; return { ...p, layout: (next ? { ...rest, shortcut: next } : rest) as HubLayout }; })} />

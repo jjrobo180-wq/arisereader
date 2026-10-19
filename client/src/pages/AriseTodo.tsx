@@ -1018,7 +1018,6 @@ export default function AriseTodo() {
           <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">To Do</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
-          {user.isAdmin && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 hover:bg-violet-100" data-testid="todo-admin-link"><ShieldCheck size={16} /> <span className="hidden lg:inline">Admin</span></a>}
           {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
