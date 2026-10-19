@@ -19,11 +19,11 @@ export type Challenge = {
   prize: string;
 };
 
-/** Conservatory Green Middle School's fall challenge. October's points count too. */
+/** Conservatory Green Middle School's fall challenge. Everyone starts at zero on Oct 20. */
 export const CGMS_FALL_2026: Challenge = {
   id: "cgms-fall-2026",
   title: "Advisory Challenge",
-  countsFrom: "2026-10-01",
+  countsFrom: "2026-10-20",
   starts: "2026-10-20",
   lastDay: "2026-11-19",
   prizeDay: "2026-11-20",

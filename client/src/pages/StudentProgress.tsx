@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Award, CheckCircle2, Flame, Gift, Lock, Medal, Trophy, Zap } from "lucide-react";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 import MonthCountdown from "@/components/MonthCountdown";
-import { AdvisoryStandings, datesText, placeText } from "@/components/AdvisoryChallenge";
+import { AdvisoryStandings, datesText, headline } from "@/components/AdvisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
 import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
 
@@ -58,8 +58,8 @@ export default function StudentProgress() {
   // opens on the leaderboard: this month's race, then the Advisory Challenge
   const [tab, setTab] = useState<"badges" | "rewards" | "leaderboard">("leaderboard");
   const [month, setMonth] = useState(() => schoolYearMonth());
-  // Two boards, one at a time: the students' monthly race, and the Advisory Challenge.
-  const [board, setBoard] = useState<"students" | "advisories">("students");
+  // Two boards, one at a time: the Advisory Challenge first, and the students' monthly race.
+  const [board, setBoard] = useState<"students" | "advisories">("advisories");
   const challenge = useAdvisoryChallenge(token || getTokenFromCookie());
   const [badges, setBadges] = useState<Badge[]>([]);
   const [badgeCounts, setBadgeCounts] = useState({ unlocked: 0, total: 0 });
@@ -307,13 +307,13 @@ export default function StudentProgress() {
 
         {tab === "leaderboard" && challenge && challenge.challenge && (
           <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/40" role="tablist" aria-label="Leaderboards" data-testid="leaderboard-boards">
-            <button type="button" role="tab" aria-selected={board === "students"} onClick={() => setBoard("students")}
-              className={`rounded-lg px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-2 ${board === "students" ? "bg-card shadow text-primary" : "text-muted-foreground"}`}>
-              <Trophy className="w-4 h-4" /> Students
-            </button>
             <button type="button" role="tab" aria-selected={board === "advisories"} onClick={() => setBoard("advisories")}
               className={`rounded-lg px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-2 ${board === "advisories" ? "bg-card shadow text-[#f2542d]" : "text-muted-foreground"}`}>
               <span aria-hidden="true">🍕</span> Advisories
+            </button>
+            <button type="button" role="tab" aria-selected={board === "students"} onClick={() => setBoard("students")}
+              className={`rounded-lg px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-2 ${board === "students" ? "bg-card shadow text-primary" : "text-muted-foreground"}`}>
+              <Trophy className="w-4 h-4" /> Students
             </button>
           </div>
         )}
@@ -363,7 +363,7 @@ export default function StudentProgress() {
               <div className="min-w-0">
                 <h2 className="text-lg font-black leading-tight">Advisory Challenge</h2>
                 <p className="mt-0.5 text-sm font-bold text-white/90">
-                  {challenge.mine?.advisory && challenge.mine.rank ? `${challenge.mine.advisory} is ${placeText(challenge.standings, challenge.mine.rank)} of ${challenge.standings.length}.` : `${challenge.standings.length} advisories are racing for ${challenge.challenge.prize}.`}
+                  {headline(challenge as any)}
                 </p>
               </div>
             </div>

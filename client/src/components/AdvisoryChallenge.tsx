@@ -18,16 +18,23 @@ export function placeText(standings: readonly Standing[], rank: number): string 
 export function datesText(v: View): string {
   const c = v.challenge;
   const party = `The advisory with the most points wins ${c.prize} on ${dayLabel(c.prizeDay)}.`;
-  if (c.phase === "soon") return `Starts ${dayLabel(c.starts)} and ends ${dayLabel(c.lastDay)}. ${party} Points earned since ${dayLabel(c.countsFrom, true)} already count.`;
-  if (c.phase === "live") return `${c.daysLeft === 0 ? "Last day!" : `${c.daysLeft} day${c.daysLeft === 1 ? "" : "s"} left.`} Ends ${dayLabel(c.lastDay)}. ${party} Points since ${dayLabel(c.countsFrom, true)} count.`;
+  // Points from before the start only count when the challenge says so (countsFrom earlier than starts).
+  const early = c.countsFrom < c.starts ? ` Points earned since ${dayLabel(c.countsFrom, true)} already count.` : "";
+  if (c.phase === "soon") return `Starts ${dayLabel(c.starts)} and ends ${dayLabel(c.lastDay)}. Every advisory starts at 0 points. ${party}${early}`;
+  if (c.phase === "live") return `${c.daysLeft === 0 ? "Last day!" : `${c.daysLeft} day${c.daysLeft === 1 ? "" : "s"} left.`} Ends ${dayLabel(c.lastDay)}. ${party}${early}`;
   const winners = v.standings.filter((s) => s.rank === 1 && s.points > 0).map((s) => s.name);
   return winners.length
     ? `The challenge is over. ${winners.join(" and ")} ${winners.length > 1 ? "win" : "wins"} ${c.prize} on ${dayLabel(c.prizeDay)}!`
     : "The challenge is over.";
 }
 
-function headline(v: View): string {
+export function headline(v: View): string {
   const mine = v.mine;
+  // Before anyone scores, every advisory is "tied for 1st"; say what's happening instead.
+  if (!v.standings.some((s) => s.points > 0) && v.challenge.phase !== "over") {
+    if (v.challenge.phase === "soon") return `The Advisory Challenge starts ${dayLabel(v.challenge.starts)}`;
+    return mine?.advisory ? `Every advisory is at 0. Get ${mine.advisory} on the board!` : "Every advisory is at 0. Be the first to score!";
+  }
   if (mine?.advisory && mine.rank) {
     if (v.challenge.phase === "over" && mine.rank === 1) return `${mine.advisory} won!`;
     return `${mine.advisory} is ${placeText(v.standings, mine.rank)}`;
@@ -83,7 +90,7 @@ export function AdvisoryChallengeBanner({ onOpen }: { onOpen: () => void }) {
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-black text-[#ffc93c]"><span className="text-lg" aria-hidden="true">🍕</span>Advisory Challenge</p>
           <p className="mt-1 text-lg font-black leading-tight sm:text-xl">
-            {mine?.advisory && mine.rank ? <>{mine.advisory} is {placeText(v.standings, mine.rank)} <span className="text-white/50">of {v.standings.length}</span></> : headline(v)}
+            {mine?.advisory && mine.rank && v.standings.some((s) => s.points > 0) ? <>{mine.advisory} is {placeText(v.standings, mine.rank)} <span className="text-white/50">of {v.standings.length}</span></> : headline(v)}
           </p>
           <p className="mt-1 text-xs font-semibold text-white/65 sm:text-sm">{datesText(v)}</p>
           {mine && mine.points > 0 && <p className="mt-1 text-xs font-bold text-[#ffc93c]/90">You've added {mine.points.toLocaleString()} points.</p>}

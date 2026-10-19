@@ -20,7 +20,7 @@ test("the challenge is Conservatory Green Middle School's, Oct 20 to Nov 19, piz
   assert.equal(challengeForSchool(CGMS), CGMS_FALL_2026);
   assert.equal(challengeForSchool("Some Other School"), null);
   assert.equal(challengeForSchool("Conservatory Green High School"), null);
-  assert.deepEqual([CGMS_FALL_2026.countsFrom, CGMS_FALL_2026.starts, CGMS_FALL_2026.lastDay, CGMS_FALL_2026.prizeDay], ["2026-10-01", "2026-10-20", "2026-11-19", "2026-11-20"]);
+  assert.deepEqual([CGMS_FALL_2026.countsFrom, CGMS_FALL_2026.starts, CGMS_FALL_2026.lastDay, CGMS_FALL_2026.prizeDay], ["2026-10-20", "2026-10-20", "2026-11-19", "2026-11-20"]);
   assert.equal(dayLabel("2026-10-20"), "Tuesday, October 20");
   assert.equal(dayLabel("2026-11-19"), "Thursday, November 19");
   assert.equal(dayLabel("2026-11-20"), "Friday, November 20");
@@ -33,9 +33,9 @@ test("days start at midnight in Denver, on both sides of the clocks changing", (
   assert.equal(nextDay("2026-11-19"), "2026-11-20");
   assert.equal(nextDay("2026-12-31"), "2027-01-01");
   const w = challengeWindow(CGMS_FALL_2026);
-  assert.equal(new Date(w.fromMs).toISOString(), "2026-10-01T06:00:00.000Z");
+  assert.equal(new Date(w.fromMs).toISOString(), "2026-10-20T06:00:00.000Z"); // everyone starts at 0 on Oct 20
   assert.equal(new Date(w.endMs).toISOString(), "2026-11-20T07:00:00.000Z"); // the end of Nov 19 in Denver
-  assert.deepEqual([w.fromDay, w.endDayExclusive], ["2026-10-01", "2026-11-20"]);
+  assert.deepEqual([w.fromDay, w.endDayExclusive], ["2026-10-20", "2026-11-20"]);
 });
 
 test("the phases: coming up, running, over through pizza day, then done", () => {
@@ -86,14 +86,14 @@ function fakeApp() {
   return { get, calls };
 }
 
-test("a student sees every advisory's place and their own advisory's, counting from Oct 1", async () => {
+test("a student sees every advisory's place and their own advisory's, counting from Oct 20", async () => {
   const { get, calls } = fakeApp();
   const { body } = await get({ id: 101, role: "student", school_id: 4 });
   assert.equal(body.challenge.phase, "soon");
   assert.equal(body.challenge.prize, "a pizza party");
   assert.deepEqual(body.standings.slice(0, 2).map((s: any) => [s.rank, s.name, s.points, s.students]), [[1, "Chase & Shuster", 40, 1], [2, "Isaac & Ross", 35, 2]]);
   assert.deepEqual(body.mine, { advisory: "Isaac & Ross", rank: 2, points: 25 });
-  assert.equal(calls[0].fromDay, "2026-10-01");
+  assert.equal(calls[0].fromDay, "2026-10-20");
   assert.equal(calls[0].endDay, "2026-11-20");
   assert.ok(!calls[0].ids.includes(999), "a student who left the school (archived) doesn't count");
 });
@@ -120,7 +120,8 @@ test("the Advisory Challenge pop-up replaces the Halloread welcome and the 'your
   const popup = read("client/src/components/AdvisoryChallenge.tsx");
   assert.match(popup, /if \(raw === null \|\| !raw\.challenge\) return <LeaderboardPopup onNavigate=\{onNavigate\} \/>;/, "schools without a challenge keep the standing pop-up");
   assert.match(popup, /onNavigate\("\/leaderboard"\)/);
-  assert.match(popup, /Points earned since \$\{dayLabel\(c\.countsFrom, true\)\} already count\./);
+  assert.match(popup, /const early = c\.countsFrom < c\.starts \?/, "points from before the start only count if the challenge says so");
+  assert.match(popup, /Every advisory starts at 0 points\./);
   assert.match(popup, /wins \$\{c\.prize\} on \$\{dayLabel\(c\.prizeDay\)\}/);
 });
 
@@ -136,7 +137,7 @@ test("the student leaderboard opens on this month's race, with the Advisory Chal
   assert.match(page, /useState<"badges" \| "rewards" \| "leaderboard">\("leaderboard"\)/);
   assert.match(page, /\/api\/leaderboard\?month=\$\{encodeURIComponent\(schoolYearMonth\(\)\)\}/);
   assert.match(page, /monthly winner/);
-  assert.match(page, /useState<"students" \| "advisories">\("students"\)/, "Students first");
+  assert.match(page, /useState<"students" \| "advisories">\("advisories"\)/, "the Advisory board first");
   assert.match(page, /tab === "leaderboard" && \(board === "students" \|\| !challenge\?\.challenge\) &&/);
   assert.match(page, /tab === "leaderboard" && board === "advisories" && challenge && challenge\.challenge &&/);
   assert.match(read("server/routes.ts"), /registerAdvisoryChallengeRoutes\(app, \{/);
