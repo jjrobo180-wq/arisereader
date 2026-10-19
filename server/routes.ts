@@ -10688,6 +10688,17 @@ Important:
       for (const u of allUsersWithAttempts) {
         attemptsMap.set(u.id, u.attempts || []);
       }
+      // Each student's advisory this school year (set when their account was uploaded).
+      const advisoryOf = new Map<number, string>();
+      try {
+        const year = schoolYearOf();
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await supabase.from("student_class_teachers").select("student_id, advisory_teacher_name").eq("school_year", year).range(from, from + 999);
+          if (error || !data) break;
+          for (const r of data as any[]) if (r.advisory_teacher_name) advisoryOf.set(Number(r.student_id), String(r.advisory_teacher_name));
+          if (data.length < 1000) break;
+        }
+      } catch {}
       const result = students.map((s: any) => {
         const attempts = attemptsMap.get(s.id) || [];
         const totalPoints = attempts.reduce((sum: number, a: any) => sum + (a.points_earned || 0), 0);
@@ -10704,6 +10715,7 @@ Important:
           teacherId: s.teacherId,
           teacherName: s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : (s.directoryTeacherName || null),
           directoryTeacherName: s.directoryTeacherName || null,
+          advisory: advisoryOf.get(Number(s.id)) || null,
           schoolId: s.school_id || null,
           isEyeGazeUser: !!s.is_eye_gaze_user,
         };
@@ -10711,6 +10723,34 @@ Important:
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Move one student to another advisory at their school (admin). Their ELA teacher is kept.
+  app.post("/api/teacher-admin/students/:id/advisory", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const student = await storage.getUser(Number(req.params.id));
+      if (!student || (student.role && student.role !== "student")) return res.status(404).json({ message: "Student not found." });
+      const schoolId = Number((student as any).school_id ?? (student as any).schoolId);
+      const school = schoolId ? await classTeacherStore.getSchool(schoolId) : null;
+      const found = school ? advisoriesForSchool(school.name).find((a) => a.id === req.body?.advisoryId) : undefined;
+      if (!school || !found) return res.status(400).json({ message: "Choose one of the student's school's advisories." });
+      const year = schoolYearOf();
+      const before = await classTeacherStore.getPick(student.id, year).catch(() => null);
+      await classTeacherStore.savePick({
+        student_id: student.id, school_year: year, school_id: school.id,
+        advisory_teacher_id: null, advisory_teacher_name: advisoryName(found),
+        lit_teacher_id: before?.lit_teacher_id ?? null, lit_teacher_name: before?.lit_teacher_name ?? "",
+      });
+      const account = advisorAccount(found, await classTeacherStore.schoolTeachers(school.id));
+      const { error: moveError } = await supabase.from("users")
+        .update(account ? { teacher_id: account.id, directory_teacher_name: null } : { teacher_id: null, directory_teacher_name: advisoryName(found) })
+        .eq("id", student.id);
+      if (moveError) throw new Error(moveError.message);
+      try { clearCache("allUsers"); clearCache("advisoryLeaderboard"); } catch {}
+      res.json({ ok: true, advisory: advisoryName(found), message: `${student.displayName || student.username} is now in ${advisoryName(found)}.` });
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message || "The advisory could not be changed." });
     }
   });
 

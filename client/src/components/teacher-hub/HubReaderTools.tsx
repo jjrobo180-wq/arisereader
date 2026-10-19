@@ -56,14 +56,14 @@ export type ReaderTab = (typeof READER_TABS)[number];
 export const isReaderTab = (tab: HubTab): tab is ReaderTab => (READER_TABS as readonly HubTab[]).includes(tab);
 
 type Student = { id: number; displayName?: string; display_name?: string; username: string; totalPoints?: number; total_points?: number; quizzesTaken?: number; quizzes_taken?: number };
-type SchoolStudent = { id: number; username: string; displayName: string; quizzesTaken: number; quizzesMastered: number; totalPoints: number; approvedByTeacher?: boolean; teacherId?: number; teacherName?: string | null };
+type SchoolStudent = { id: number; username: string; displayName: string; quizzesTaken: number; quizzesMastered: number; totalPoints: number; approvedByTeacher?: boolean; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null };
 type Teacher = { id: number; displayName: string; username: string };
 type PendingStudent = { id: number; username: string; displayName: string; teacherName?: string | null };
 type PendingQuiz = { id: number; student_name: string; book_title: string; author: string; quiz_type: string };
 type BookRequest = { id: number; bookTitle: string; studentName: string; message: string; createdAt: string };
 type ParentLink = { id: number; displayName: string; username: string; code: string; signupUrl: string; parents: Array<{ id: number; displayName: string; username: string; email?: string | null; accountApproved: boolean }> };
 type Closing = { enabled: boolean; start: string; end: string; days: number[]; adminOverrideClosedNow?: boolean };
-type Action = { student: { id: number; name: string; username: string; teacherId?: number; teacherName?: string | null }; kind: "password" | "reward" | "reassign" };
+type Action = { student: { id: number; name: string; username: string; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null }; kind: "password" | "reward" | "reassign" };
 
 const nameOf = (s: Student) => s.displayName || s.display_name || s.username;
 const pointsOf = (s: Student) => s.totalPoints ?? s.total_points ?? 0;
@@ -483,7 +483,10 @@ function StudentsTab({ isAdmin = false, students, loading, loadError, school, sc
   const [adding, setAdding] = useState(false);
   const needle = q.trim().toLowerCase();
   const mine = useMemo(() => students.filter((s) => !needle || nameOf(s).toLowerCase().includes(needle) || s.username.toLowerCase().includes(needle)), [students, needle]);
-  const all = useMemo(() => (school?.students || []).filter((s) => (!needle || (s.displayName || "").toLowerCase().includes(needle) || s.username.toLowerCase().includes(needle)) && (!teacher || String(s.teacherId) === teacher)), [school, needle, teacher]);
+  // Students are grouped by advisory (the advisors together), not by single teacher.
+  const advisories = useMemo(() => [...new Set((school?.students || []).map((s) => s.advisory).filter((a): a is string => !!a))].sort((a, b) => a.localeCompare(b)), [school]);
+  const all = useMemo(() => (school?.students || []).filter((s) => (!needle || (s.displayName || "").toLowerCase().includes(needle) || s.username.toLowerCase().includes(needle) || (s.advisory || "").toLowerCase().includes(needle))
+    && (!teacher || (teacher === "none" ? !s.advisory : s.advisory === teacher))), [school, needle, teacher]);
   const iconBtn = "inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950";
   return <Card title={which === "mine" ? `My class (${students.length})` : `Whole school (${school?.students.length ?? "…"})`}
     right={<div className="flex flex-wrap items-center gap-2">
@@ -495,7 +498,7 @@ function StudentsTab({ isAdmin = false, students, loading, loadError, school, sc
     {adding && <AddStudentsModal onClose={() => setAdding(false)} request={request} onDone={(text) => onDone(text, true)} />}
     <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
       <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Field value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or username" className="pl-9" aria-label="Search students" /></label>
-      {which === "school" && <Select value={teacher} onChange={(e) => setTeacher(e.target.value)} aria-label="Teacher" className="sm:w-56"><option value="">Every teacher</option>{(school?.teachers || []).map((t) => <option key={t.id} value={t.id}>{t.displayName}</option>)}</Select>}
+      {which === "school" && <Select value={teacher} onChange={(e) => setTeacher(e.target.value)} aria-label="Advisory" className="sm:w-56" data-testid="school-advisory-filter"><option value="">Every advisory</option>{advisories.map((a) => <option key={a} value={a}>{a}</option>)}<option value="none">No advisory yet</option></Select>}
     </div>
     {which === "mine" ? (loading ? <Empty>Loading your students…</Empty> : loadError ? <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700" role="alert">{loadError}</div>
       : mine.length ? <ul className="space-y-2">{mine.map((s) => <li key={s.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:p-4" data-testid={`card-student-${s.id}`}>
@@ -509,12 +512,12 @@ function StudentsTab({ isAdmin = false, students, loading, loadError, school, sc
       </li>)}</ul> : <Empty>{students.length ? "No one matches that search." : "No students have joined your class yet. They join with your class code."}</Empty>)
       : schoolBusy && !school ? <Empty>Loading the school…</Empty> : all.length ? <ul className="space-y-2">{all.map((s) => <li key={s.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:p-4">
         <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">{s.displayName || s.username}{!s.approvedByTeacher && <Pill tone="amber">Waiting</Pill>}</div>
-          <div className="text-sm text-slate-500">@{s.username}{s.teacherName ? ` · ${s.teacherName}` : ""} · {s.totalPoints || 0} points · {s.quizzesTaken || 0} quizzes · {s.quizzesMastered || 0} mastered</div></div>
+          <div className="text-sm text-slate-500">@{s.username} · {s.advisory ? `Advisory: ${s.advisory}` : "No advisory yet"} · {s.totalPoints || 0} points · {s.quizzesTaken || 0} quizzes · {s.quizzesMastered || 0} mastered</div></div>
         <div className="-m-1 flex flex-wrap items-center">
           <button type="button" className={iconBtn} onClick={() => onView(s.id)}><UserRound className="h-4 w-4" /> Profile</button>
           <button type="button" className={iconBtn} onClick={() => onAction({ id: s.id, name: s.displayName || s.username, username: s.username, teacherId: s.teacherId, teacherName: s.teacherName }, "password")}><KeyRound className="h-4 w-4" /> Password</button>
           <button type="button" className={iconBtn} onClick={() => onAction({ id: s.id, name: s.displayName || s.username, username: s.username, teacherId: s.teacherId, teacherName: s.teacherName }, "reward")}><Gift className="h-4 w-4" /> Rewards</button>
-          <button type="button" className={iconBtn} onClick={() => onAction({ id: s.id, name: s.displayName || s.username, username: s.username, teacherId: s.teacherId, teacherName: s.teacherName }, "reassign")}><Users className="h-4 w-4" /> Move</button>
+          <button type="button" className={iconBtn} onClick={() => onAction({ id: s.id, name: s.displayName || s.username, username: s.username, teacherId: s.teacherId, teacherName: s.teacherName, advisory: s.advisory, schoolId: s.schoolId }, "reassign")}><Users className="h-4 w-4" /> Advisory</button>
         </div>
       </li>)}</ul> : <Empty>No students found.</Empty>}
   </Card>;
@@ -533,6 +536,12 @@ function StudentAction({ action, request, teachers, onClose, onDone }: {
   const [rewards, setRewards] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [advisoryList, setAdvisoryList] = useState<{ id: string; name: string; label: string }[] | null>(null);
+  useEffect(() => {
+    if (kind !== "reassign" || !student.schoolId) { setAdvisoryList([]); return; }
+    request(`/api/schools/${student.schoolId}/advisories`).then((d) => setAdvisoryList(Array.isArray(d) ? d : [])).catch(() => setAdvisoryList([]));
+  }, [kind, request, student.schoolId]);
+  const byAdvisory = !!advisoryList?.length;
   const loadRewards = useCallback(() => request(`/api/teacher-admin/students/${student.id}/rewards`).then((d) => setRewards(d.rewards || [])).catch(() => setRewards([])), [request, student.id]);
   useEffect(() => { if (kind === "reward") void loadRewards(); }, [kind, loadRewards]);
 
@@ -550,12 +559,18 @@ function StudentAction({ action, request, teachers, onClose, onDone }: {
   });
   const removeReward = (id: number) => run(async () => { await request(`/api/teacher-admin/students/${student.id}/rewards/${id}`, { method: "DELETE" }); await loadRewards(); });
   const move = () => run(async () => {
+    if (byAdvisory) {
+      if (!to) throw new Error("Pick an advisory.");
+      const d = await request(`/api/teacher-admin/students/${student.id}/advisory`, { method: "POST", body: JSON.stringify({ advisoryId: to }) });
+      onDone(d.message || `${student.name} was moved.`, true);
+      return;
+    }
     if (!to) throw new Error("Pick a teacher.");
     const d = await request(`/api/teacher-admin/students/${student.id}/reassign`, { method: "POST", body: JSON.stringify({ newTeacherId: Number(to) }) });
     onDone(d.message || `${student.name} was moved.`, true);
   });
 
-  const heading = kind === "password" ? "Change password" : kind === "reward" ? "Rewards" : "Move to another teacher";
+  const heading = kind === "password" ? "Change password" : kind === "reward" ? "Rewards" : byAdvisory ? "Change advisory" : "Move to another teacher";
   return <HubModal title={heading} onClose={onClose} closeOnBackdrop>
     <div className="space-y-4">
       <p className="text-sm text-slate-600"><span className="font-semibold text-slate-900">{student.name}</span> @{student.username}</p>
@@ -576,7 +591,13 @@ function StudentAction({ action, request, teachers, onClose, onDone }: {
           <button type="button" aria-label={`Delete ${r.title}`} disabled={busy} onClick={() => void removeReward(r.id)} className="-m-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
         </li>)}</ul>}
       </>}
-      {kind === "reassign" && <form onSubmit={(e) => { e.preventDefault(); void move(); }} className="space-y-3">
+      {kind === "reassign" && advisoryList === null && <p className="text-sm text-slate-500">Loading…</p>}
+      {kind === "reassign" && byAdvisory && <form onSubmit={(e) => { e.preventDefault(); void move(); }} className="space-y-3">
+        <Labeled label="Advisory"><Select value={to} onChange={(e) => setTo(e.target.value)} data-testid="move-advisory"><option value="">Choose an advisory</option>{advisoryList!.filter((a) => a.name !== student.advisory).map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</Select></Labeled>
+        <p className="text-sm text-slate-500">{student.advisory ? `Now in ${student.advisory}.` : "Not in an advisory yet."} Their ELA teacher stays the same.</p>
+        <PrimaryButton type="submit" disabled={busy}><Users className="h-4 w-4" /> Change advisory</PrimaryButton>
+      </form>}
+      {kind === "reassign" && advisoryList !== null && !byAdvisory && <form onSubmit={(e) => { e.preventDefault(); void move(); }} className="space-y-3">
         <Labeled label="New teacher"><Select value={to} onChange={(e) => setTo(e.target.value)}><option value="">Choose a teacher</option>{teachers.filter((t) => t.id !== student.teacherId).map((t) => <option key={t.id} value={t.id}>{t.displayName} (@{t.username})</option>)}</Select></Labeled>
         {student.teacherName && <p className="text-sm text-slate-500">Now with {student.teacherName}.</p>}
         <PrimaryButton type="submit" disabled={busy}><Users className="h-4 w-4" /> Move student</PrimaryButton>

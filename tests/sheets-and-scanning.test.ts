@@ -105,3 +105,14 @@ test("a student who signed up with their student number as username is skipped, 
   const route = routes.slice(routes.indexOf('app.post("/api/teacher/students/bulk-add"'), routes.indexOf('app.post("/api/teacher/approve/:studentId"'));
   assert.match(route, /if \(\(existingName\.role \|\| "student"\) === "student" && !existingName\.isAdmin\) skipped\.push/);
 });
+
+test("Whole school: students are shown, filtered and moved by advisory, not single teacher", () => {
+  const tools = read("client/src/components/teacher-hub/HubReaderTools.tsx");
+  assert.match(tools, /<option value="">Every advisory<\/option>/);
+  assert.doesNotMatch(tools, /Every teacher/);
+  assert.match(tools, /Advisory: \$\{s\.advisory\}/);
+  assert.match(tools, /\/api\/teacher-admin\/students\/\$\{student\.id\}\/advisory/);
+  const routes = read("server/routes.ts");
+  assert.match(routes, /advisory: advisoryOf\.get\(Number\(s\.id\)\) \|\| null/);
+  assert.match(routes, /app\.post\("\/api\/teacher-admin\/students\/:id\/advisory", authMiddleware, adminMiddleware/);
+});
