@@ -72,3 +72,22 @@ test("WorkHub notes save as you type: no Save or Add note button in the note", (
   assert.match(src, /timer\.current = window\.setTimeout\(flush, 700\)/);
   assert.match(src, /useEffect\(\(\) => \(\) => \{ if \(timer\.current\) flushRef\.current\(\); \}, \[\]\)/);
 });
+
+test("Drive meter shows small files and what's left", async () => {
+  const { driveMeter, formatBytes } = await import("../shared/driveApp");
+  assert.equal(formatBytes(300 * 1024), "300 KB");
+  assert.equal(formatBytes(3.4 * 1024 * 1024), "3.4 MB");
+  const m = driveMeter(300 * 1024, 500 * 1024 * 1024);
+  assert.equal(m.used, "300 KB");
+  assert.ok(m.percent > 0, "a small file still shows on the bar");
+  assert.equal(driveMeter(0, 500 * 1024 * 1024).left, "500 MB");
+  assert.equal(driveMeter(460 * 1024 * 1024, 500 * 1024 * 1024).nearlyFull, true);
+});
+
+test("refreshing a hub keeps the open app, note and to-do", () => {
+  const life = read("../client/src/pages/AriseTodo.tsx"), work = read("../client/src/pages/TeacherHub.tsx");
+  for (const k of ["life-notes-app", "life-sheets-app", "life-drive", "life-drop", "life-kit", "life-task"]) assert.ok(life.includes(`useStayOnRefresh<string | null>("${k}"`) || life.includes(`useStayOnRefresh("${k}"`), k);
+  for (const k of ["work-kit", "work-notes-app", "work-drive", "work-admin", "work-student", "work-home-task"]) assert.ok(work.includes(`("${k}"`), k);
+  assert.match(read("../client/src/components/teacher-hub/HubNotes.tsx"), /useStayOnRefresh<string \| null>\("work-note"/);
+  assert.match(read("../client/src/context/AuthContext.tsx"), /forgetStay\(\)/);
+});

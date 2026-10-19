@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { useBackToStart } from "@/lib/useBackToStart";
+import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 
 import { goToReader, goToSignIn } from "@/lib/hubs";
 import {
@@ -394,6 +395,16 @@ export default function AriseTodo() {
   const [view, setView] = useSavedChoice<View>("life-todo-view", "all", ["all", "today", "upcoming", "completed", "archived"]);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
+  // Refreshing with a to-do open opens it again once the lists have loaded.
+  const [openTaskId, setOpenTaskId] = useStayOnRefresh<string | null>("life-task", null);
+  const reopened = useRef(false);
+  useEffect(() => { if (reopened.current) setOpenTaskId(editing && data.tasks.some((t) => t.id === editing.id) ? editing.id : null); }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (reopened.current || !sync.loaded) return;
+    reopened.current = true;
+    const t = openTaskId ? data.tasks.find((x) => x.id === openTaskId) : undefined;
+    if (t) setEditing({ ...t });
+  }, [sync.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const [newListName, setNewListName] = useState("");
   const [addingList, setAddingList] = useState(false);
   const [message, setMessage] = useState("");
@@ -682,22 +693,22 @@ export default function AriseTodo() {
   const [more, setMore] = useState(false);
   /** A Notes-app install (see shared/notesApp.ts; e.g. Work Notes, added from the App Store) open
    *  full-page, by its App Store plugin id. Not a FamilySection, so it sits alongside `section`. */
-  const [notesAppOpen, setNotesAppOpenState] = useState<string | null>(null);
+  const [notesAppOpen, setNotesAppOpenState] = useStayOnRefresh<string | null>("life-notes-app", null);
   const setNotesAppOpen = (id: string | null) => { setNotesAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
   /** Notes-app plugins this family added from the Store that aren't built into LifeHub. */
   const myNotesApps = pinnableNotes;
   const setNotesAppRecords = (pid: string, update: (all: Family["notesApps"][string]) => Family["notesApps"][string]) =>
     setFamily((f) => ({ ...f, notesApps: { ...f.notesApps, [pid]: update(f.notesApps[pid] ?? []) } }));
   /** Sheets, Drive, and Drop (App Store add-ons) open full-page, the same way a Notes-app install does. */
-  const [sheetsAppOpen, setSheetsAppOpenState] = useState<string | null>(null);
+  const [sheetsAppOpen, setSheetsAppOpenState] = useStayOnRefresh<string | null>("life-sheets-app", null);
   const setSheetsAppOpen = (id: string | null) => { setSheetsAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
-  const [driveOpen, setDriveOpenState] = useState(false);
+  const [driveOpen, setDriveOpenState] = useStayOnRefresh("life-drive", false);
   const setDriveOpen = (on: boolean) => { setDriveOpenState(on); if (on) window.scrollTo({ top: 0 }); };
-  const [dropOpen, setDropOpenState] = useState(false);
+  const [dropOpen, setDropOpenState] = useStayOnRefresh("life-drop", false);
   const setDropOpen = (on: boolean) => { setDropOpenState(on); if (on) window.scrollTo({ top: 0 }); };
   /** A Kit plugin added from WorkHub's shelf (App Store), open full-page. LifeHub's own kit plugins
    *  are menu sections; these crossed-over ones work like a Notes-app install. */
-  const [kitOpen, setKitOpenState] = useState<string | null>(null);
+  const [kitOpen, setKitOpenState] = useStayOnRefresh<string | null>("life-kit", null);
   const setKitOpen = (id: string | null) => { setKitOpenState(id); if (id) window.scrollTo({ top: 0 }); };
   /** The floating add menu (bottom right), the same idea as WorkHub's: one button that adds
    *  anything, instead of a + wedged into the header beside the search, bell and ⋯ buttons. */

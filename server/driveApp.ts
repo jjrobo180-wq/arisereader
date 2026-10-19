@@ -114,6 +114,12 @@ export function registerDriveAppRoutes(app: Express, authMiddleware: RequestHand
     }
   });
 
+  // How much Drive space this account has in all (free space plus any storage add-on), for the meter.
+  app.get("/api/lifehub/drive/quota", authMiddleware, async (req: any, res) => {
+    const limit = await deps.storageLimitFor(req.user.id).catch(() => FREE_STORAGE_BYTES);
+    res.json({ limit });
+  });
+
   app.post("/api/lifehub/drive/url", authMiddleware, async (req: any, res) => {
     try {
       const userId = req.user?.id;

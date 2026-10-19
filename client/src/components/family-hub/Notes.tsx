@@ -1,8 +1,9 @@
 // Family notes: wifi passwords, school info, grocery lists, gift ideas. Pin the ones you need most.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pin, Plus, Search, StickyNote } from "lucide-react";
 import { NOTE_COLORS, type Note } from "@shared/familyHub";
 import { NoteTemplatesButton } from "@/components/NoteTemplatePicker";
+import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import FullNoteEditor from "@/components/notes/FullNoteEditor";
 import { LockBadge, useLock } from "@/components/lock/PrivacyLock";
 import { Empty, PageHead, Panel, confirmed, inputClass, primary, soft, type SectionProps } from "./ui";
@@ -11,7 +12,10 @@ const STARTERS = ["Grocery list", "Gift ideas", "School contacts", "Babysitter i
 
 export default function Notes({ family, setFamily, makeId, say }: SectionProps) {
   const [query, setQuery] = useState("");
-  const [editing, setEditing] = useState<Note | null>(null);
+  // Refreshing keeps the open one open (a locked one waits for the passcode again).
+  const [openId, setOpenId] = useStayOnRefresh<string | null>("life-note", null);
+  const [editing, setEditing] = useState<Note | null>(() => { const n = openId ? family.notes.find((x) => x.id === openId) : undefined; return n && !n.locked ? { ...n } : null; });
+  useEffect(() => { setOpenId(editing?.id ?? null); }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const lock = useLock();
   /** A locked note shows only its title until the passcode is entered. */
   const hidden = (n: Note) => !!n.locked && !!lock && !lock.unlocked;

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { forgetStay } from "@/lib/useStayOnRefresh";
 import { API_BASE } from "@/lib/queryClient";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
@@ -361,6 +362,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => {});
     }
     persistSession(null, null);
+    forgetStay(); // the next person starts on Home, not on this person's open note
     window.dispatchEvent(new Event("arise-logout"));
   }, [persistSession]);
 

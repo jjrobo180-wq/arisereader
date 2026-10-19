@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Check, Lock, LockOpen, Pencil, Pin, PinOff, Plus, Search, Trash2, User, Users } from "lucide-react";
 import { useLock } from "@/components/lock/PrivacyLock";
+import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { GENERAL_NOTE_KINDS, STUDENT_NOTE_KINDS, NOTE_TITLE_MAX, arrangeNotes, cleanNote, noteCounts, noteFields, noteHeading, noteScope, noteStudents, pinNote, saveNote, NOTE_CARD_COLORS, type NoteFields, type NoteFilter, type NoteScope } from "@shared/hubNotes";
 import type { NoteItem, Workspace } from "@shared/teacherHub";
@@ -172,7 +173,10 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
   const [filter, setFilter] = useSavedChoice<NoteFilter>("hub-notes-filter", "all", ["all", "student", "general"] as NoteFilter[]);
   const [search, setSearch] = useState("");
   const [who, setWho] = useSavedChoice<string>("hub-notes-student", "");
-  const [editing, setEditing] = useState<NoteItem | null>(null);
+  // Refreshing keeps the open note open (a locked one waits for the passcode again).
+  const [openId, setOpenId] = useStayOnRefresh<string | null>("work-note", null);
+  const [editing, setEditing] = useState<NoteItem | null>(() => { const n = openId ? workspace.notes.find((x) => x.id === openId) : undefined; return n && !n.locked ? n : null; });
+  useEffect(() => { setOpenId(editing?.id ?? null); }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const counts = noteCounts(workspace.notes);
   const student = who && students.includes(who) ? who : "";
   const shown = useMemo(() => arrangeNotes(workspace.notes, filter, search, student), [workspace.notes, filter, search, student]);

@@ -122,6 +122,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
+import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
 import { appLocked } from "@shared/privacyLock";
 import HubNotes from "@/components/teacher-hub/HubNotes";
@@ -380,14 +381,14 @@ function TeacherHubPage() {
   /** The menu strip down the left side on a phone: shown, or tucked away behind a small tab. Remembered on this device. */
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem("arise-hub-rail") !== "closed"; } catch { return true; } });
   /** A WorkHub plugin (from the Plugin Kit) open as its own page. Picking any tab closes it. */
-  const [kitOpen, setKitOpen] = useState<string | null>(null);
+  const [kitOpen, setKitOpen] = useStayOnRefresh<string | null>("work-kit", null);
   /** A Notes-app install (see shared/notesApp.ts) open full-page, by its App Store plugin id. */
-  const [notesAppOpen, setNotesAppOpen] = useState<string | null>(null);
+  const [notesAppOpen, setNotesAppOpen] = useStayOnRefresh<string | null>("work-notes-app", null);
   /** Sheets, Drive and Drop: built for LifeHub, offered here too (App Store). Each opens full-page
    *  the same way a Kit plugin or a Notes-app install does. */
-  const [sheetsAppOpen, setSheetsAppOpen] = useState<string | null>(null);
-  const [driveOpen, setDriveOpen] = useState(false);
-  const [dropOpen, setDropOpen] = useState(false);
+  const [sheetsAppOpen, setSheetsAppOpen] = useStayOnRefresh<string | null>("work-sheets-app", null);
+  const [driveOpen, setDriveOpen] = useStayOnRefresh("work-drive", false);
+  const [dropOpen, setDropOpen] = useStayOnRefresh("work-drop", false);
   /** The app drawer is open (the "App drawer" menu choice). */
   const [apps, setApps] = useState(false);
   const [appsQuery, setAppsQuery] = useState("");
@@ -432,8 +433,8 @@ function TeacherHubPage() {
   const [addMenu, setAddMenu] = useState(false);
   const addRef = useRef<HTMLDivElement>(null);
   // Which admin-console section the Reader menu has open (the console no longer has its own menu).
-  const [adminSection, setAdminSection] = useState<AdminSection>("overview");
-  const [adminSettings, setAdminSettings] = useState<SettingsSection>("alerts");
+  const [adminSection, setAdminSection] = useStayOnRefresh<AdminSection>("work-admin", "overview");
+  const [adminSettings, setAdminSettings] = useStayOnRefresh<SettingsSection>("work-admin-settings", "alerts");
   const subRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!addMenu) return;
@@ -500,7 +501,7 @@ function TeacherHubPage() {
   useHubInbox(loaded && !loadError && !needsPlan && canUseHub, token, workspace, setWorkspace, id, TODAY, (n) => toasts.show(n === 1 ? "A forwarded email was added to your to-do list." : `${n} forwarded emails were added to your to-do list.`, [{ label: "View", run: () => setTab("tasks") }]));
 
   // "Open email" on a to-do: go to Emails with that email open, and it is no longer new.
-  const [openEmailId, setOpenEmailId] = useState<string | null>(null);
+  const [openEmailId, setOpenEmailId] = useStayOnRefresh<string | null>("work-email", null);
   useEffect(() => {
     const open = (event: Event) => {
       const emailId = String((event as CustomEvent).detail || "");
@@ -515,12 +516,12 @@ function TeacherHubPage() {
 
   const [quickEvent, setQuickEvent] = useState(false);
   /** The student whose profile is open on the Caseload tab. It stays open while the teacher looks at another tab and comes back. */
-  const [profileStudent, setProfileStudent] = useState<string | null>(null);
+  const [profileStudent, setProfileStudent] = useStayOnRefresh<string | null>("work-student", null);
   /** Checks a to-do off (or back on) and offers Undo for a few seconds. It can also be undone from "Done in the last day". */
   const checkTask = taskChecker(() => workspace.tasks, setWorkspace, (text, actions) => { toasts.show(text, actions); });
   const undoCheck = (taskId: string) => setWorkspace((p) => ({ ...p, tasks: undoTask(p.tasks, taskId, Date.now()) }));
   /** The to-do being changed from the To do card on Home. */
-  const [homeTask, setHomeTask] = useState<string | null>(null);
+  const [homeTask, setHomeTask] = useStayOnRefresh<string | null>("work-home-task", null);
   const [homeQuick, setHomeQuick] = useState("");
   const openTasks = workspace.tasks.filter((t) => !t.done && !t.archived).length;
   /** The WorkHub apps this teacher added from the App Store, in the order they were added. They get their own place in the menu. */
