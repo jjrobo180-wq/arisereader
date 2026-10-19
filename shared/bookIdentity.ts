@@ -17,3 +17,16 @@ export const sameBook = (a: { title?: unknown; author?: unknown }, b: { title?: 
   const k = bookKey(a.title, a.author);
   return !!k && k === bookKey(b.title, b.author);
 };
+
+/** Which copy each duplicate merges into: { dup id → kept id }. Pure, so it can be tested. */
+export function planMerge(books: { id: number; title: string; author: string }[], attemptCount: Map<number, number>, questionCount: Map<number, number>): Map<number, number> {
+  const groups = new Map<string, typeof books>();
+  for (const b of books) { const k = bookKey(b.title, b.author); if (!k) continue; groups.set(k, [...(groups.get(k) || []), b]); }
+  const merge = new Map<number, number>();
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const keep = [...list].sort((a, b) => (attemptCount.get(b.id) || 0) - (attemptCount.get(a.id) || 0) || (questionCount.get(b.id) || 0) - (questionCount.get(a.id) || 0) || a.id - b.id)[0];
+    for (const b of list) if (b.id !== keep.id) merge.set(b.id, keep.id);
+  }
+  return merge;
+}

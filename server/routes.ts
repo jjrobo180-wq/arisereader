@@ -1,4 +1,5 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
+import { dedupeBooksOnce } from "./bookDedupe";
 import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
@@ -1368,6 +1369,13 @@ export async function registerRoutes(
   registerAppleHealthRoutes(app, authMiddleware);
   registerTodoNewsRoutes(app, authMiddleware);
   registerLifehubPluginRoutes(app, authMiddleware);
+  // One-time: merge duplicate copies of the same book quiz (server/bookDedupe.ts). Runs in the
+  // background a few seconds after start, once ever, with a backup saved first.
+  setTimeout(() => {
+    dedupeBooksOnce({ get: (k) => storage.getSetting(k), set: (k, v) => storage.upsertSetting(k, v) })
+      .then(() => { clearCache("allBooks"); clearCache("leaderboard"); clearCache("allUsers"); })
+      .catch((e) => console.error("[book-dedupe] stopped:", e?.message || e));
+  }, 15_000);
   registerDriveAppRoutes(app, authMiddleware, raw, {
     getAdminSupabase,
     storageLimitFor: async (userId) => {

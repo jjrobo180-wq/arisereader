@@ -37,3 +37,17 @@ test("a parent back from checkout lands in LifeHub, not the sign-in page", () =>
   assert.match(app, /user\.role === "parent" \? <OpenHubTab to="\/lifehub" storageKey="lifehub_tab" value="reader" \/>/);
   assert.match(read("../client/src/components/family-hub/Reader.tsx"), /<HubAddons which="life" returnPath="\/lifehub" \/>/);
 });
+
+test("merge plan keeps the copy students used, else the one with questions", async () => {
+  const { planMerge } = await import("../shared/bookIdentity");
+  const books = [
+    { id: 38, title: "The Outsiders", author: "S.E. Hinton" }, { id: 453, title: "The Outsiders", author: "S. E. Hinton" },
+    { id: 1427, title: "The Outsiders", author: "S. E. Hinton" },
+    { id: 303, title: "Shadow Shaper", author: "Daniel José Older" }, { id: 835, title: "Shadowshaper", author: "Daniel Jose Older" },
+    { id: 77, title: "Divergent", author: "Veronica Roth" }, { id: 78, title: "Divergent", author: "Veronica Roth" },
+    { id: 493, title: "Crash", author: "Jerry Spinelli" }, { id: 716, title: "Crash", author: "Lisa McMann" },
+  ];
+  const att = new Map([[38, 4], [303, 1], [835, 2]]), q = new Map([[38, 10], [1427, 10], [303, 10], [835, 10], [78, 10]]);
+  const m = planMerge(books, att, q);
+  assert.deepEqual(Object.fromEntries(m), { 453: 38, 1427: 38, 303: 835, 77: 78 });
+});
