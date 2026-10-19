@@ -10,9 +10,9 @@ create table if not exists public.student_class_teachers (
   school_year text not null check (school_year ~ '^[0-9]{4}-[0-9]{2}$'),
   school_id integer not null references public.schools(id) on delete cascade,
   advisory_teacher_id integer references public.users(id) on delete set null,
-  advisory_teacher_name text not null check (char_length(advisory_teacher_name) between 2 and 60),
+  advisory_teacher_name text not null check (char_length(advisory_teacher_name) = 0 or char_length(advisory_teacher_name) between 2 and 60),
   lit_teacher_id integer references public.users(id) on delete set null,
-  lit_teacher_name text not null check (char_length(lit_teacher_name) between 2 and 60),
+  lit_teacher_name text not null check (char_length(lit_teacher_name) = 0 or char_length(lit_teacher_name) between 2 and 60),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (student_id, school_year)
@@ -24,3 +24,10 @@ grant select, insert, update, delete on table public.student_class_teachers to s
 
 create index if not exists student_class_teachers_school_year_idx
   on public.student_class_teachers(school_id, school_year);
+
+-- October 2026: a student placed in an advisory at upload has no ELA teacher yet (and the reverse),
+-- so either name may be empty. Applied to the live database on 2026-10-19.
+alter table student_class_teachers drop constraint if exists student_class_teachers_lit_teacher_name_check;
+alter table student_class_teachers add constraint student_class_teachers_lit_teacher_name_check check (char_length(lit_teacher_name) = 0 or char_length(lit_teacher_name) between 2 and 60);
+alter table student_class_teachers drop constraint if exists student_class_teachers_advisory_teacher_name_check;
+alter table student_class_teachers add constraint student_class_teachers_advisory_teacher_name_check check (char_length(advisory_teacher_name) = 0 or char_length(advisory_teacher_name) between 2 and 60);
