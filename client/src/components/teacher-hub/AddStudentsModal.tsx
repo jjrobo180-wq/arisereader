@@ -141,8 +141,9 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setSuccessCount(data.created?.length || 0);
-      onDone(`Added ${data.created?.length || 0} student${data.created?.length === 1 ? "" : "s"}.`);
+      const added = data.created?.length || 0, already = data.skipped?.length || 0;
+      setSuccessCount(added);
+      onDone(`Added ${added} student${added === 1 ? "" : "s"}.${already ? ` Skipped ${already} who already ${already === 1 ? "has an account" : "have accounts"}.` : ""}`);
       onClose();
     } catch (e: any) {
       if (Array.isArray(e.problems)) setProblems(e.problems);
@@ -166,7 +167,7 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
     }>
       <div className="space-y-4">
         <p className="text-sm text-slate-600">
-          Each student's username and starting password are both their student number — they'll be asked to set their own password the first time they sign in.
+          Each student's username and starting password are both their student number — they'll be asked to set their own password the first time they sign in. Students who already have an account are skipped.
         </p>
 
         {isAdmin && <Card title="Assign students to a school and teacher">

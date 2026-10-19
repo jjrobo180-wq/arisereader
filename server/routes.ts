@@ -11109,17 +11109,26 @@ Important:
         if (!seat.ok) return res.status(409).json({ message: seat.message });
       }
 
-      // Student numbers must be unique against the whole site, not just this batch.
+      // Student numbers must be unique against the whole site, not just this batch. A student who
+      // already has an account is left as they are and skipped (re-uploading a list is safe);
+      // anything else using that number or username still stops the upload.
+      const skipped: { row: number; studentNumber: string; displayName: string }[] = [];
+      const toCreate: typeof clean = [];
       for (const c of clean) {
         const existingNumber = await storage.getUserByStudentNumber(c.studentNumber);
-        if (existingNumber) problems.push({ row: c.row, message: `Student number "${c.studentNumber}" is already in use.` });
+        if (existingNumber) {
+          if (existingNumber.role === "student") skipped.push({ row: c.row, studentNumber: c.studentNumber, displayName: existingNumber.displayName || "" });
+          else problems.push({ row: c.row, message: `Student number "${c.studentNumber}" is already in use.` });
+          continue;
+        }
         const existingName = await storage.getUserByUsername(c.studentNumber.toLowerCase());
-        if (existingName && !existingNumber) problems.push({ row: c.row, message: `"${c.studentNumber}" is already taken as a username.` });
+        if (existingName) { problems.push({ row: c.row, message: `"${c.studentNumber}" is already taken as a username.` }); continue; }
+        toCreate.push(c);
       }
       if (problems.length) return res.status(409).json({ message: "Some rows need to be fixed before adding.", problems });
 
       const created: { row: number; displayName: string; username: string }[] = [];
-      for (const c of clean) {
+      for (const c of toCreate) {
         // Use a password hash known to work in /api/login, and verify before insertion.
         const hashedPassword = createVerifiedStudentTemporaryHash(c.studentNumber);
         const user = await storage.createUser({
@@ -11148,7 +11157,7 @@ Important:
         created.push({ row: c.row, displayName: user.displayName, username: user.username });
       }
       try { clearCache("allUsers"); } catch {}
-      res.json({ success: true, created });
+      res.json({ success: true, created, skipped });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to add students." });
     }

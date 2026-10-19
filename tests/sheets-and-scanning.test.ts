@@ -76,3 +76,12 @@ test("a UPC-E code is also looked up as the UPC-A it stands for, and a 12-digit 
     assert.deepEqual(m.barcodeCandidates("96385074"), ["96385074"]);
   });
 });
+
+test("uploading a student list skips students who already have accounts instead of stopping", () => {
+  const routes = read("server/routes.ts");
+  const route = routes.slice(routes.indexOf('app.post("/api/teacher/students/bulk-add"'), routes.indexOf('app.post("/api/teacher/approve/:studentId"'));
+  assert.match(route, /if \(existingNumber\.role === "student"\) skipped\.push/);
+  assert.match(route, /for \(const c of toCreate\)/);
+  assert.match(route, /res\.json\(\{ success: true, created, skipped \}\)/);
+  assert.match(read("client/src/components/teacher-hub/AddStudentsModal.tsx"), /Skipped \$\{already\} who already/);
+});
