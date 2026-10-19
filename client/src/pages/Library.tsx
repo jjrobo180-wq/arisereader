@@ -1,4 +1,5 @@
 import { useSavedChoice } from "@/lib/useSavedChoice";
+import { shelvesByPoints } from "@shared/libraryShelves";
 import BannerTap from "@/components/BannerTap";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -1246,15 +1247,8 @@ export default function Library() {
   const pagedBooks = nonCurriculumBooks.slice((currentPage - 1) * booksPerPage, currentPage * booksPerPage);
 
   // Group by points value (only when sorting by points)
-  const pointsGroups: Record<string, Book[]> = {};
-  const pointsOrder = ["5", "10", "20", "30"];
-  if (sortBy === "points") {
-    nonCurriculumBooks.forEach(b => {
-      const key = String(b.pointsValue || 10);
-      if (!pointsGroups[key]) pointsGroups[key] = [];
-      pointsGroups[key].push(b);
-    });
-  }
+  // One shelf per point value (15- and 25-point books used to be left out of this view entirely).
+  const { groups: pointsGroups, order: pointsOrder } = sortBy === "points" ? shelvesByPoints(nonCurriculumBooks) : { groups: {} as Record<string, Book[]>, order: [] as string[] };
 
   return (
     <div className="min-h-screen bg-background">
