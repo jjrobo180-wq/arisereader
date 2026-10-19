@@ -3,10 +3,10 @@
 // The choices are saved with the account (family.notify), so they apply on every device.
 import { useAuth } from "@/context/AuthContext";
 import type { ReactNode } from "react";
-import { Bell, CalendarHeart, Droplet, Dumbbell, Pill, Minus, Moon, Newspaper, Plus, Receipt, Scale, SmilePlus, Sun, Sunset, Timer, Utensils } from "lucide-react";
+import { Bell, CalendarHeart, ListChecks, UtensilsCrossed, X, Droplet, Dumbbell, Pill, Minus, Moon, Newspaper, Plus, Receipt, Scale, SmilePlus, Sun, Sunset, Timer, Utensils } from "lucide-react";
 import { MEALS, isOn, type Meal } from "@shared/familyHub";
 import { NEWS_TOPICS } from "@shared/todoNews";
-import { HEADS_UP_CHOICES, NEWS_MAX, WATER_MAX, dailyEstimate, defaultNotify, spreadTimes, type NotifyPrefs, type Weekday } from "@shared/todoNotify";
+import { HEADS_UP_CHOICES, NEWS_MAX, NOTIFY_LEVELS, WATER_MAX, dailyEstimate, defaultNotify, spreadTimes, type NotifyPrefs, type Weekday } from "@shared/todoNotify";
 import { goalsFor, healthPeople } from "@shared/familyHealth";
 import TodoNotifications from "./TodoNotifications";
 import { PageHead, Panel, Toggle, clock12, inputClass, plain, type SectionProps } from "./ui";
@@ -37,6 +37,17 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
 
     <TodoNotifications />
 
+    <Panel eyebrow="How hard to push" title="Reminder level">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Reminder level" data-testid="notify-level">
+        {NOTIFY_LEVELS.map((l) => { const on = prefs.level === l.id;
+          return <button key={l.id} type="button" role="radio" aria-checked={on} onClick={() => set((p) => ({ ...p, level: l.id }))}
+            className={`flex min-h-[84px] flex-col items-start gap-1 rounded-2xl border-2 p-3 text-left transition ${on ? "border-violet-600 bg-violet-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+            <span className="text-sm font-black text-slate-900">{l.label}</span><span className="text-xs leading-5 text-slate-500">{l.detail}</span>
+          </button>; })}
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-500">Every reminder can be snoozed: use the Snooze buttons on the notification, or tap it and pick 15 min, 1 hour, 3 hours or tomorrow.</p>
+    </Panel>
+
     {people.length > 1 && (healthOn || moodOn) && <Panel eyebrow="Food & fitness" title="Whose reminders?">
       <p className="mb-3 text-sm text-slate-500">Water, meal, workout and weigh-in reminders follow this person's diary.</p>
       <div className="flex flex-wrap gap-2">{people.map((m) => <button key={m.id} type="button" onClick={() => set((p) => ({ ...p, memberId: m.id }))} aria-pressed={m.id === member?.id}
@@ -47,6 +58,10 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
       <Panel eyebrow="Everyday" title="Your day">
         <ul className="divide-y divide-slate-100">
+          <Row icon={<ListChecks size={18} />} tint="bg-violet-50 text-violet-600" title="To-dos still to do" detail={prefs.level === "persistent" ? "Opens your list. At these times and more, while anything due today is left" : "Opens your list. Only when something due today or overdue is left"}
+            on={prefs.todoNudge.on} onChange={(on) => set((p) => ({ ...p, todoNudge: { ...p.todoNudge, on } }))}>
+            <Times value={prefs.todoNudge.times} onChange={(times) => set((p) => ({ ...p, todoNudge: { ...p.todoNudge, times } }))} />
+          </Row>
           <Row icon={<Sun size={18} />} tint="bg-amber-50 text-amber-600" title="Morning summary" detail="Today's tasks, events, chores and bills in one note"
             on={prefs.morning.on} onChange={(on) => set((p) => ({ ...p, morning: { ...p.morning, on } }))}>
             <Field label="Send at"><input type="time" className={timeInput} value={prefs.morning.time} onChange={(e) => e.target.value && set((p) => ({ ...p, morning: { ...p.morning, time: e.target.value } }))} /></Field>
@@ -85,6 +100,10 @@ export default function NotificationSettings({ family, setFamily, today, say }: 
 
     {healthOn ? <Panel eyebrow="Food & fitness" title={people.length > 1 && member ? `Healthy habits for ${member.name}` : "Healthy habits"}>
       <ul className="divide-y divide-slate-100">
+        <Row icon={<UtensilsCrossed size={18} />} tint="bg-orange-50 text-orange-600" title="Food not tracked" detail={prefs.level === "persistent" ? "If nothing's logged (or a meal is missing), and again until it is" : "If nothing's logged today, or a meal is missing"}
+          on={prefs.foodNudge.on} onChange={(on) => set((p) => ({ ...p, foodNudge: { ...p.foodNudge, on } }))}>
+          <Field label="Check at"><input type="time" className={timeInput} value={prefs.foodNudge.time} onChange={(e) => e.target.value && set((p) => ({ ...p, foodNudge: { ...p.foodNudge, time: e.target.value } }))} /></Field>
+        </Row>
         <Row icon={<Droplet size={18} />} tint="bg-sky-50 text-sky-600" title="Water reminders" detail={`Your goal is ${waterGoal} cups a day`}
           on={prefs.water.on} onChange={(on) => set((p) => ({ ...p, water: { ...p.water, on } }))}>
           <Field label="How many a day"><Stepper value={prefs.water.perDay} min={1} max={WATER_MAX} unit="reminder" onChange={(perDay) => set((p) => ({ ...p, water: { ...p.water, perDay } }))} /></Field>
@@ -203,4 +222,14 @@ function Check({ on, label, onChange }: { on: boolean; label: string; onChange: 
   return <label className="flex min-h-9 cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
     <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="h-5 w-5 rounded accent-[#6e5ae0]" />{label}
   </label>;
+}
+
+/** A few times of day: each a chip with ×, and a field to add one. */
+function Times({ value, onChange }: { value: string[]; onChange: (times: string[]) => void }) {
+  return <div className="space-y-2">
+    <div className="flex flex-wrap gap-1.5">{value.map((t) => <span key={t} className="inline-flex min-h-9 items-center gap-1 rounded-xl bg-white pl-3 text-xs font-bold text-slate-700 ring-1 ring-slate-200">{clock12(t)}
+      <button type="button" onClick={() => onChange(value.filter((x) => x !== t))} aria-label={`Remove ${clock12(t)}`} className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:text-slate-700"><X size={14} /></button></span>)}</div>
+    {value.length < 6 && <label className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">Add a time
+      <input type="time" className={timeInput} value="" onChange={(e) => { const t = e.target.value; if (t && !value.includes(t)) onChange([...value, t].sort()); }} aria-label="Add a time" /></label>}
+  </div>;
 }

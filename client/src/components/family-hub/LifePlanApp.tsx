@@ -3,7 +3,7 @@
 // it, then run it: today's reminders with Done, Snooze and Skip, and phone reminders through LifeHub's
 // notifications. The plan and its logic live in shared/lifePlan.ts.
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Bell, BellOff, CalendarDays, Check, ChevronDown, Clock, ExternalLink, Loader2, Plus, RefreshCw, SkipForward, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { Bell, BellOff, CalendarDays, Check, Clock, ExternalLink, Loader2, Plus, RefreshCw, SkipForward, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { addDays, eventsOn, isOn, type FamilySection } from "@shared/familyHub";
@@ -247,7 +247,6 @@ function Running({ family, setFamily, today, say, go, openStore, plan, onRebuild
   const [tab, setTab] = useState<"today" | "plan" | "schedule">("today");
   const [minutes, setMinutes] = useState(nowMinutes);
   const [focus, setFocus] = useState<string | null>(() => { try { const f = sessionStorage.getItem(PLAN_FOCUS_KEY); sessionStorage.removeItem(PLAN_FOCUS_KEY); return f; } catch { return null; } });
-  const [snoozing, setSnoozing] = useState<string | null>(null);
   const focusRef = useRef<HTMLLIElement | null>(null);
   useEffect(() => { const t = window.setInterval(() => setMinutes(nowMinutes()), 30_000); return () => window.clearInterval(t); }, []);
   // A tapped phone notification lands here: show today's list, with that reminder picked out.
@@ -297,12 +296,13 @@ function Running({ family, setFamily, today, say, go, openStore, plan, onRebuild
               ? <button type="button" onClick={() => setPlan((p) => markReminder(p, it.id, today, null))} className={plain + " min-h-9 text-xs"}><RefreshCw size={13} /> Undo</button>
               : <>
                 <button type="button" onClick={() => { setPlan((p) => markReminder(p, it.id, today, "done")); setFocus(null); say(`Nice. ${it.title} done.`); }} className={primary + " min-h-9 text-xs"} data-testid={`plan-done-${it.id}`}><Check size={14} /> Done</button>
-                <div className="relative">
-                  <button type="button" onClick={() => setSnoozing(snoozing === it.id ? null : it.id)} aria-expanded={snoozing === it.id} className={plain + " min-h-9 text-xs"} data-testid={`plan-snooze-${it.id}`}><Clock size={13} /> Snooze <ChevronDown size={12} /></button>
-                  {snoozing === it.id && <div role="menu" className="absolute left-0 top-[calc(100%+4px)] z-20 w-36 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">{SNOOZE_CHOICES.map((c) => <button key={c.minutes} type="button" role="menuitem"
-                    onClick={() => { setPlan((p) => snoozeReminder(p, it.id, today, nowMinutes(), c.minutes)); setSnoozing(null); setFocus(null); say(`Snoozed for ${c.label}. We'll remind you again.`); }}
-                    className="flex min-h-9 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50">{c.label}</button>)}</div>}
-                </div>
+                {/* One tap: the snooze lengths sit right here, no menu to open first. */}
+                <span className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-slate-50 p-0.5" role="group" aria-label={`Snooze ${it.title}`} data-testid={`plan-snooze-${it.id}`}>
+                  <Clock size={13} className="ml-1.5 text-slate-500" aria-hidden />
+                  {SNOOZE_CHOICES.map((c) => <button key={c.minutes} type="button"
+                    onClick={() => { setPlan((p) => snoozeReminder(p, it.id, today, nowMinutes(), c.minutes)); setFocus(null); say(`Snoozed for ${c.label}. We'll remind you again.`); }}
+                    className="min-h-9 rounded-lg px-2 text-xs font-bold text-slate-700 hover:bg-white">{c.label}</button>)}
+                </span>
                 <button type="button" onClick={() => { setPlan((p) => markReminder(p, it.id, today, "skip")); setFocus(null); }} className={plain + " min-h-9 text-xs"}><SkipForward size={13} /> Skip</button>
               </>}
             {it.opens && (opensOn

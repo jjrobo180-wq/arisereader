@@ -2,6 +2,8 @@
 // Arise WorkHub and Arise LifeHub reminders to the devices that asked for them.
 // One row per device; `hub` and `todo` say which reminders that device turned on.
 import type { Express, RequestHandler } from "express";
+import crypto from "node:crypto";
+import { snoozeSig } from "./snoozeSig";
 import { supabase } from "./supabase";
 import { generateVapidKeys, isPushServiceUrl, sendWebPush, type PushMessage, type VapidKeys } from "./webPush";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
@@ -13,7 +15,7 @@ import { fetchHeadlines } from "./todoNews";
 import { dueNudges } from "../shared/healthNudges";
 
 type Gate = (req: any, res: any) => Promise<unknown | null>;
-type Row = { id: number; user_id: number; endpoint: string; p256dh: string; auth: string; time_zone: string; sent: Record<string, number> | null; hub?: boolean | null; todo?: boolean | null };
+type Row = { id: number; user_id: number; endpoint: string; p256dh: string; auth: string; time_zone: string; sent: Record<string, any> | null; hub?: boolean | null; todo?: boolean | null };
 export type PushApp = "hub" | "todo";
 
 const MAX_DEVICES_PER_USER = 8;
@@ -116,17 +118,75 @@ export async function sendDueHubReminders(nowMs = Date.now()): Promise<number> {
   return sentCount;
 }
 
+// ─── Snooze ───
+// A reminder can be snoozed from the notification's own button (Android, computers) or from the bar
+// LifeHub shows when a notification is tapped (iPhone, whose notifications can't have buttons). The
+// snooze is kept on every one of the person's devices, in `sent`, as "snz:<reminder key>" →
+// { until, title, body, url }, and sendDueSnoozes() sends it again when the time comes.
+
+type Snoozed = { until: number; title: string; body: string; url: string };
+const SNOOZE_PREFIX = "snz:";
+export const SNOOZE_MIN = 5, SNOOZE_MAX = 24 * 60;
+
+export { snoozeSig };
+const sameSig = (a: string, b: string) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const isSnooze = (key: string, value: unknown): value is Snoozed => key.startsWith(SNOOZE_PREFIX) && !!value && typeof value === "object" && typeof (value as any).until === "number";
+
+/** A device's sent marks, with old ones dropped. Snoozes are kept until they have been sent. */
+function keptMarks(row: Row, nowMs: number): Record<string, any> {
+  const next: Record<string, any> = {};
+  for (const [key, at] of Object.entries(row.sent || {})) {
+    if (isSnooze(key, at)) { if (at.until > nowMs - KEEP_SENT_MS) next[key] = at; continue; }
+    if (nowMs - Number(at) < KEEP_SENT_MS) next[key] = Number(at);
+  }
+  return next;
+}
+
+/** Puts a snooze on every device of a person. Returns when it will come back. */
+export async function snoozeReminder(userId: number, reminder: { key: string; title: string; body: string; url: string }, minutes: number, nowMs = Date.now()): Promise<number> {
+  const until = nowMs + Math.max(SNOOZE_MIN, Math.min(SNOOZE_MAX, Math.round(minutes))) * 60_000;
+  const clean = { until, title: String(reminder.title || "Reminder").slice(0, 160), body: String(reminder.body || "").slice(0, 300), url: /^\/[^\s]{0,300}$/.test(reminder.url) ? reminder.url : "/" };
+  const key = String(reminder.key || "").replace(/~s\d+$/, "").slice(0, 200);
+  const { data } = await supabase.from("push_subscriptions").select(SUBSCRIPTION_COLUMNS).eq("user_id", userId);
+  for (const row of (data || []) as Row[]) {
+    const next = keptMarks(row, nowMs);
+    next[SNOOZE_PREFIX + key] = clean;
+    await supabase.from("push_subscriptions").update({ sent: next }).eq("id", row.id);
+  }
+  return until;
+}
+
+/** One pass: send snoozed reminders whose time has come, and clear them. */
+export async function sendDueSnoozes(nowMs = Date.now(), rows?: Row[]): Promise<number> {
+  const keys = await pushKeys();
+  if (!keys) return 0;
+  let count = 0;
+  for (const row of rows || (await allSubscriptions())) {
+    const due = Object.entries(row.sent || {}).filter(([k, v]) => isSnooze(k, v) && (v as Snoozed).until <= nowMs) as [string, Snoozed][];
+    if (!due.length) continue;
+    const next = keptMarks(row, nowMs);
+    for (const [k] of due) delete next[k];
+    row.sent = next;
+    await supabase.from("push_subscriptions").update({ sent: next }).eq("id", row.id);
+    for (const [k, v] of due) {
+      const key = k.slice(SNOOZE_PREFIX.length);
+      if (await deliver(row, { title: v.title, body: v.body, url: v.url, tag: key, snooze: { u: Number(row.user_id), key, sig: snoozeSig(keys.privateKey, Number(row.user_id), key) } }, keys)) count++;
+    }
+  }
+  return count;
+}
+
 /** Marks reminders as sent on a device, then sends them. Returns how many arrived. */
 async function sendTo(row: Row, due: { key: string; title: string; body: string; url: string }[], nowMs: number, keys: VapidKeys): Promise<number> {
   if (!due.length) return 0;
-  const next: Record<string, number> = {};
-  for (const [key, at] of Object.entries(row.sent || {})) if (nowMs - Number(at) < KEEP_SENT_MS) next[key] = Number(at);
+  const next: Record<string, any> = keptMarks(row, nowMs);
   for (const reminder of due) next[reminder.key] = nowMs; // mark first, so a slow phone service can't cause a repeat
   row.sent = next; // a device with Hub and LifeHub reminders keeps both sets of marks
   await supabase.from("push_subscriptions").update({ sent: next, last_used_at: new Date(nowMs).toISOString() }).eq("id", row.id);
   let count = 0;
   for (const reminder of due) {
-    if (await deliver(row, { title: reminder.title, body: reminder.body, url: reminder.url, tag: reminder.key }, keys)) count++;
+    const userId = Number(row.user_id);
+    if (await deliver(row, { title: reminder.title, body: reminder.body, url: reminder.url, tag: reminder.key, snooze: { u: userId, key: reminder.key, sig: snoozeSig(keys.privateKey, userId, reminder.key) } }, keys)) count++;
   }
   return count;
 }
@@ -222,6 +282,7 @@ export function startHubReminderTicker() {
     try { await sendDueHubReminders(now); } catch (error: any) { console.error("[push] reminder pass failed", error?.message); }
     try { await sendDueTodoReminders(now); } catch (error: any) { console.error("[push] LifeHub reminder pass failed", error?.message); }
     try { await sendDueNudges(now); } catch (error: any) { console.error("[push] Health Nudges pass failed", error?.message); }
+    try { await sendDueSnoozes(now); } catch (error: any) { console.error("[push] snooze pass failed", error?.message); }
     finally { ticking = false; }
   }, TICK_MS);
   timer.unref?.();
@@ -350,6 +411,25 @@ export function registerPushRoutes(app: Express, authMiddleware: RequestHandler,
     if (req.adminPreview || !Number.isSafeInteger(Number(req.user?.id))) return res.status(403).json({ message: "Sign in to your own account to turn on reminders." });
     next();
   };
+  // Snooze: from a notification's own button (signed, no sign-in needed: the service worker has no
+  // session), or from the app's snooze bar (signed in).
+  const snoozeLimit = createAttemptLimiter({ max: 120, windowMs: 60 * 60_000 });
+  const readSnooze = (body: any) => ({ key: String(body?.key || "").slice(0, 200), title: String(body?.title || ""), body: String(body?.body || ""), url: String(body?.url || "/"), minutes: Number(body?.minutes) });
+  app.post("/api/push/snooze", async (req: any, res) => {
+    const userId = Number(req.body?.u), sig = String(req.body?.sig || "");
+    const r = readSnooze(req.body);
+    const keys = await pushKeys();
+    if (!keys || !Number.isInteger(userId) || userId < 1 || !r.key || !sig || !sameSig(sig, snoozeSig(keys.privateKey, userId, r.key))) return res.status(403).json({ message: "That snooze link isn't valid." });
+    if (snoozeLimit.retryAfter(String(userId)) > 0) return res.status(429).json({ message: "Too many snoozes. Try again later." });
+    snoozeLimit.fail(String(userId));
+    if (!Number.isFinite(r.minutes)) return res.status(400).json({ message: "Pick how long to snooze." });
+    res.json({ until: await snoozeReminder(userId, r, r.minutes) });
+  });
+  app.post("/api/arise-todo/push/snooze", authMiddleware, realAccount, async (req: any, res) => {
+    const r = readSnooze(req.body);
+    if (!r.key || !Number.isFinite(r.minutes)) return res.status(400).json({ message: "Pick how long to snooze." });
+    res.json({ until: await snoozeReminder(Number(req.user.id), r, r.minutes) });
+  });
   app.post("/api/arise-todo/push/subscribe", authMiddleware, realAccount, subscribe("todo"));
   app.post("/api/arise-todo/push/unsubscribe", authMiddleware, realAccount, unsubscribe("todo"));
   app.post("/api/arise-todo/push/test", authMiddleware, realAccount, sendTest("todo"));

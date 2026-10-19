@@ -6,7 +6,29 @@ import type { Meal } from "./familyHub";
 export type Clock = string; // "HH:MM", 24-hour
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6; // Sunday = 0
 
+/**
+ * How hard LifeHub pushes:
+ *  - "important": only what can't wait (pills, heads-ups before things with a time, bills, the morning summary).
+ *  - "standard": everything you've switched on, once each.
+ *  - "persistent": standard, plus follow-ups until it's done: meal reminders repeat until the meal is
+ *    logged, and the to-do and food nudges come more often while something is left.
+ */
+export type NotifyLevel = "important" | "standard" | "persistent";
+export const NOTIFY_LEVELS: { id: NotifyLevel; label: string; detail: string }[] = [
+  { id: "important", label: "Only important", detail: "Pills, heads-ups, bills and the morning summary. Nothing else." },
+  { id: "standard", label: "Standard", detail: "Everything you switch on below, once each." },
+  { id: "persistent", label: "Keep after me", detail: "Reminds you again until it's done: unlogged meals, to-dos still due and food not tracked." },
+];
+/** Minutes between follow-ups at the "Keep after me" level, and how many. */
+export const FOLLOW_UP_EVERY = 45;
+export const FOLLOW_UPS = 2;
+
 export type NotifyPrefs = {
+  level: NotifyLevel;
+  /** "You have to-dos to do": a nudge to open the app while today's or overdue to-dos are left. */
+  todoNudge: { on: boolean; times: Clock[] };
+  /** "You haven't tracked your food": once a day, when nothing (or not every meal) is logged yet. */
+  foodNudge: { on: boolean; time: Clock };
   /** Whose food & fitness diary the health reminders follow ("" = the first adult, or "me"). */
   memberId: string;
   quiet: { on: boolean; from: Clock; until: Clock };
@@ -33,6 +55,9 @@ export const NEWS_MAX = 6;
 /** Out of the box: the reminders the LifeHub always sent (morning summary, 15-minute heads-up, bills).
  *  Everything new starts off, so nobody is surprised by extra notifications. */
 export const defaultNotify = (): NotifyPrefs => ({
+  level: "standard",
+  todoNudge: { on: true, times: ["12:30", "17:30"] },
+  foodNudge: { on: true, time: "19:30" },
   memberId: "",
   quiet: { on: false, from: "21:30", until: "07:00" },
   morning: { on: true, time: "07:00" },
@@ -64,7 +89,11 @@ export function cleanNotify(input: unknown): NotifyPrefs {
   const r = obj(input);
   const q = obj(r.quiet), m = obj(r.morning), h = obj(r.headsUp), b = obj(r.bills), e = obj(r.evening);
   const w = obj(r.water), ml = obj(r.meals), mt = obj(ml.times), wo = obj(r.workout), wi = obj(r.weighIn), n = obj(r.news), mo = obj(r.mood), pl = obj(r.pills), pe = obj(r.period);
+  const tn = obj(r.todoNudge), fn = obj(r.foodNudge);
   return {
+    level: r.level === "important" || r.level === "persistent" ? r.level : "standard",
+    todoNudge: { on: bool(tn.on, d.todoNudge.on), times: Array.isArray(tn.times) ? [...new Set(tn.times.filter((t: unknown) => typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t)) as Clock[])].sort().slice(0, 6) : d.todoNudge.times },
+    foodNudge: { on: bool(fn.on, d.foodNudge.on), time: clock(fn.time, d.foodNudge.time) },
     memberId: typeof r.memberId === "string" ? r.memberId.slice(0, 100) : "",
     quiet: { on: bool(q.on, d.quiet.on), from: clock(q.from, d.quiet.from), until: clock(q.until, d.quiet.until) },
     morning: { on: bool(m.on, d.morning.on), time: clock(m.time, d.morning.time) },
@@ -118,6 +147,9 @@ export function inQuiet(prefs: NotifyPrefs, minutes: number): boolean {
 export function dailyEstimate(p: NotifyPrefs, weekday: number): number {
   let n = 0;
   if (p.morning.on) n++;
+  if (p.level === "important") return n;
+  if (p.todoNudge.on) n += p.todoNudge.times.length;
+  if (p.foodNudge.on) n++;
   if (p.evening.on) n++;
   if (p.water.on) n += p.water.perDay;
   if (p.meals.on) n += p.meals.which.length;

@@ -103,6 +103,7 @@ import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailFo
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
 import GettingStarted from "@/components/GettingStarted";
+import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
 import { appLocked } from "@shared/privacyLock";
 import { Avatar, Modal } from "@/components/family-hub/ui";
@@ -352,6 +353,29 @@ export default function AriseTodo() {
     window.addEventListener("hashchange", open);
     return () => window.removeEventListener("hashchange", open);
   }, []);
+  // A tapped reminder opens "#/lifehub?go=<section>[&view=today]" (shared/todoReminders.ts goUrl):
+  // straight to the screen it's about, then the address is tidied so a refresh doesn't do it again.
+  useEffect(() => {
+    const open = () => {
+      const hash = window.location.hash, q = hash.indexOf("?");
+      if (q < 0) return;
+      const params = new URLSearchParams(hash.slice(q + 1));
+      const go = params.get("go");
+      if (!go) return;
+      if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
+        closeApps();
+        setSection(go as FamilySection);
+        const v = params.get("view");
+        if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);
+      }
+      params.delete("go"); params.delete("view");
+      const rest = params.toString();
+      try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   /** Goes to Home and scrolls to one of its parts once it has rendered (a part that's hidden, e.g. not yet added, has nothing to scroll to). */
   const goToHomePart = (id: string) => {
     setSection("home");
@@ -1239,6 +1263,7 @@ export default function AriseTodo() {
             <div className="mt-3 flex flex-wrap gap-2"><button onClick={importOldTasks} className={buttonClass + " bg-indigo-700 text-white"}>Add old tasks to my account</button><button onClick={dismissLegacy} className={buttonClass + " bg-white text-indigo-700 ring-1 ring-indigo-200"}>Not now</button></div>
           </section>}
 
+          <SnoozeBar />
           {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
           <div className="mt-4"><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" onUpgrade={user.role === "parent" ? () => { setSection("reader"); window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" }), 600); } : undefined} /></div>
           <LockedApp locked={appLocked(family.lock, openAppId)} name={openAppName}>

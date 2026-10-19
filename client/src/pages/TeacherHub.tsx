@@ -128,6 +128,7 @@ import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLi
 import { API_BASE } from "@/lib/queryClient";
 import { goalQuizzes, resolveLink, type HubLink } from "@shared/hubLinks";
 import GettingStarted from "@/components/GettingStarted";
+import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
 import { appLocked } from "@shared/privacyLock";
@@ -1748,6 +1749,7 @@ function TeacherHubPage() {
         onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, homeTask, fields, id) }))} onClose={() => setHomeTask(null)} onDelete={() => remove("tasks", homeTask)} />}
       {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} preload={adding.preload} onAdd={addFound} onClose={() => setAdding(null)} />}
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
+      <SnoozeBar />
       <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
     </div></HubLinkProvider></PrivacyLockProvider>
   );
