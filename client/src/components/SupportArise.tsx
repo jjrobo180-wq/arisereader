@@ -2,6 +2,7 @@
 // they both open — Mr. J's story in a few lines and the donation link saved in Admin → Donation goal.
 // It never opens on its own. The banner can be closed and then stays away for a month (shared/donate.ts).
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { ExternalLink, Heart, Lock, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { appHref } from "@/lib/hubs";
@@ -74,7 +75,8 @@ export function SupportButton({ isAdmin = false, className = "" }: { isAdmin?: b
       className={`inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100 ${className}`} data-testid="support-button">
       <Heart size={16} className="fill-current" /><span className="hidden md:inline">Support</span>
     </button>
-    {open && <SupportSheet info={info} onClose={() => setOpen(false)} />}
+    {/* On the page itself, not inside the header (whose blur would trap a "fixed" pop-up in its own height). */}
+    {open && createPortal(<SupportSheet info={info} onClose={() => setOpen(false)} />, document.body)}
   </>;
 }
 
@@ -94,6 +96,6 @@ export function SupportBanner() {
         <button type="button" onClick={close} aria-label="Hide for a month" title="Hide for a month" className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-white hover:text-slate-600" data-testid="support-banner-close"><X size={16} /></button>
       </div>
     </div>
-    {open && <SupportSheet info={info} onClose={() => setOpen(false)} />}
+    {open && createPortal(<SupportSheet info={info} onClose={() => setOpen(false)} />, document.body)}
   </>;
 }

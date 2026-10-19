@@ -2,6 +2,7 @@
 // Tap it to go. Press and hold it (or right-click on a computer) to change what it opens. Until something
 // is chosen, tapping it opens the chooser. Used in both hubs; each passes in its own menu.
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Check, Globe, Search, Trash2, X, Zap } from "lucide-react";
 import { shortcutTarget, shortcutUrl, type HubShortcut } from "@shared/hubShortcut";
 
@@ -46,8 +47,10 @@ export default function HeaderShortcut({ shortcut, choices, onChange, say, class
       <span className="relative inline-flex h-4 w-4 items-center justify-center [&>svg]:h-4 [&>svg]:w-4">{icon ?? <Zap className="fill-current" />}</span>
       <span className="hidden max-w-[9rem] truncate xl:inline">{label}</span>
     </button>
-    {picking && <ShortcutPicker shortcut={shortcut} choices={choices} onClose={() => setPicking(false)}
-      onPick={(next) => { onChange(next); setPicking(false); say?.(next ? `Your ⚡ shortcut now opens ${next.label}. Hold it to change.` : "Shortcut removed"); }} />}
+    {/* Rendered on the page itself, not inside the header: the header's blur makes it the frame for anything
+        "fixed" inside it, which squeezed this pop-up into the header's height. */}
+    {picking && createPortal(<ShortcutPicker shortcut={shortcut} choices={choices} onClose={() => setPicking(false)}
+      onPick={(next) => { onChange(next); setPicking(false); say?.(next ? `Your ⚡ shortcut now opens ${next.label}. Hold it to change.` : "Shortcut removed"); }} />, document.body)}
   </>;
 }
 

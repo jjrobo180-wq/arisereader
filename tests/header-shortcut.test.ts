@@ -50,3 +50,10 @@ test("changing the shortcut never re-cleans the layout (which would drop pinned 
     assert.doesNotMatch(line!, /clean(Life)?Layout\(/, `${file} must not re-clean the layout when saving the shortcut`);
   }
 });
+
+test("header pop-ups render on the page itself, so the header's blur can't squeeze them into its height", () => {
+  for (const file of ["../client/src/components/HeaderShortcut.tsx", "../client/src/components/SupportArise.tsx"]) {
+    const src = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(src, /createPortal\(<(ShortcutPicker|SupportSheet)/, `${file} must portal its pop-up to document.body`);
+  }
+});
