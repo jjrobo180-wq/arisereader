@@ -5,10 +5,13 @@ import { Check, Pencil, Pin, PinOff, Plus, Search, Trash2, User, Users } from "l
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { GENERAL_NOTE_KINDS, STUDENT_NOTE_KINDS, NOTE_TITLE_MAX, arrangeNotes, cleanNote, noteCounts, noteFields, noteHeading, noteScope, noteStudents, pinNote, saveNote, NOTE_CARD_COLORS, type NoteFields, type NoteFilter, type NoteScope } from "@shared/hubNotes";
 import type { NoteItem, Workspace } from "@shared/teacherHub";
-import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
+import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select } from "./ui";
 import { localDay } from "./HubImport";
 import { HubModal } from "./HubModal";
 import { NoteTemplatesButton, type PickedTemplate } from "@/components/NoteTemplatePicker";
+import { useRichEditor } from "@/components/notes/useRichEditor";
+import { cleanNoteHtml, noteStartHtml, noteTextOf } from "@shared/richNote";
+import { sanitizeHtml } from "@shared/office/docModel";
 
 type SetWorkspace = Dispatch<SetStateAction<Workspace>>;
 const SCOPES = [["student", "About a student", User], ["general", "Meeting or general", Users]] as const;
@@ -21,6 +24,16 @@ function fromTemplate(t: PickedTemplate, student = ""): NoteFields {
   const studentType = STUDENT_TEMPLATES[id];
   const base = blank(studentType ? "student" : "general", studentType ? student : "");
   return { ...base, type: studentType ?? GENERAL_TYPE[id] ?? (t.template.category === "Meetings" ? "Team meeting" : "General note"), title: t.title.slice(0, NOTE_TITLE_MAX), body: t.body };
+}
+
+/** The note itself, with fonts and formatting like Arise Docs. Saves the formatted HTML and the plain text. */
+function RichNoteBox({ form, setForm, placeholder }: { form: NoteFields; setForm: (next: NoteFields) => void; placeholder: string }) {
+  const editor = useRichEditor({
+    startHtml: noteStartHtml({ html: form.html, body: form.body }), resetKey: "note", placeholder, testId: "hub-note", label: "Note",
+    toolbarClassName: "rounded-t-2xl border border-b-0 border-slate-200 bg-slate-50", pageClassName: "min-h-[45vh] px-4 py-3 sm:min-h-[50vh]",
+    onChange: (html) => setForm({ ...form, html: cleanNoteHtml(html), body: noteTextOf(sanitizeHtml(html)) }),
+  });
+  return <div data-testid="note-body">{editor.toolbar}<div className="rounded-b-2xl border border-slate-200" style={{ background: form.color || "#ffffff" }} onClick={(e) => { if (e.target === e.currentTarget) editor.focus(); }}>{editor.page}</div></div>;
 }
 
 /** The boxes for a note. Which ones show depends on whether it is about a student. */
@@ -45,7 +58,8 @@ function NoteBoxes({ form, setForm, students, lockStudent = false }: { form: Not
       <Labeled label={general ? "What it was" : "Title (optional)"} className={general ? "sm:col-span-2" : ""}><Field value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={NOTE_TITLE_MAX} placeholder={general ? "Staff meeting, PLC, training..." : ""} aria-label="Title" /></Labeled>
       <Labeled label="Kind"><Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} aria-label="Kind">{(general ? GENERAL_NOTE_KINDS : STUDENT_NOTE_KINDS).map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
       <Labeled label="Date"><Field type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label="Date" /></Labeled>
-      <Labeled label="Note" className="sm:col-span-2"><TextArea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder={general ? "What was said, what was decided, what you need to do..." : "Write note..."} required aria-label="Note" className="min-h-32" style={{ background: form.color || undefined }} /></Labeled>
+      <div className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Note</span>
+        <RichNoteBox form={form} setForm={setForm} placeholder={general ? "What was said, what was decided, what you need to do..." : "Write note..."} /></div>
       {!general && !lockStudent && (
         <div className="sm:col-span-2" data-testid="note-more-students">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Also about <span className="font-normal normal-case">(optional, for a group or a meeting about several students)</span></span>
@@ -78,7 +92,7 @@ export function NoteModal({ note, student, students, onSave, onClose }: { note?:
     onClose();
   }
   return (
-    <HubModal title={note ? "Edit note" : student ? `Note for ${student}` : "New note"} onClose={onClose}
+    <HubModal title={note ? "Edit note" : student ? `Note for ${student}` : "New note"} size="full" onClose={onClose}
       footer={<div className="flex gap-2"><PrimaryButton onClick={() => save()} disabled={!ready}><Check className="h-4 w-4" /> {note ? "Save changes" : "Save note"}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton></div>}>
       <form onSubmit={save} data-testid="note-form"><NoteBoxes form={form} setForm={setForm} students={students} lockStudent={!note && !!student} /><button type="submit" hidden /></form>
     </HubModal>
@@ -174,7 +188,7 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
           : <Empty>{workspace.notes.length ? "No notes match." : "No notes yet. Tap “Add note” to write the first one."}</Empty>}
       </Card>
       {adding && (
-        <HubModal title="New note" size="lg" closeOnBackdrop onClose={() => setAdding(false)}
+        <HubModal title="New note" size="full" onClose={() => setAdding(false)}
           footer={<div className="flex gap-2"><PrimaryButton onClick={() => add()} disabled={!ready}><Plus className="h-4 w-4" /> Add note</PrimaryButton><GhostButton onClick={() => setAdding(false)}>Cancel</GhostButton></div>}>
           <p className="mb-4 text-sm text-slate-600">Notes about a student go with that student. Notes from a staff meeting, a team meeting or a training don't need a student at all.</p>
           <form onSubmit={add} data-testid="note-add"><NoteBoxes form={form} setForm={setForm} students={students} /><button type="submit" hidden /></form>

@@ -3,11 +3,12 @@
 // separate notes — installing it into WorkHub never shares or syncs with LifeHub's notes, or the
 // other way around. Used by LifeHub Notes (installed into WorkHub) and Work Notes (installed into
 // LifeHub). The records are passed in and saved by the hub, the same way Plugin Kit apps work.
-import { useState, type FormEvent } from "react";
-import { Check, Pin, PinOff, Plus, Search, StickyNote, Trash2 } from "lucide-react";
-import { NOTE_COLORS, type Note } from "@shared/notesApp";
+import { useState } from "react";
+import { Pin, Plus, Search, StickyNote } from "lucide-react";
+import { NOTE_COLORS, saveNotesAppNote, type Note } from "@shared/notesApp";
 import { NoteTemplatesButton } from "@/components/NoteTemplatePicker";
-import { Empty, Modal, PageHead, Panel, confirmed, danger, inputClass, plain, primary, soft } from "@/components/family-hub/ui";
+import FullNoteEditor from "@/components/notes/FullNoteEditor";
+import { Empty, PageHead, Panel, confirmed, inputClass, primary, soft } from "@/components/family-hub/ui";
 
 const STARTERS = ["Grocery list", "Gift ideas", "Wi-Fi & codes", "Ideas", "Meeting notes", "To remember"];
 
@@ -29,14 +30,10 @@ export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say 
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
   const blank = (title = ""): Note => ({ id: makeId(), title, body: "", color: NOTE_COLORS[notes.length % NOTE_COLORS.length], pinned: false, updatedAt: "" });
 
-  const save = (e: FormEvent) => {
-    e.preventDefault();
-    if (!editing) return;
-    if (!editing.title.trim() && !editing.body.trim()) { setEditing(null); return; }
-    const clean = { ...editing, title: editing.title.slice(0, 120), body: editing.body.slice(0, 5000), updatedAt: new Date().toISOString() };
-    setNotes((all) => (all.some((n) => n.id === clean.id) ? all.map((n) => (n.id === clean.id ? clean : n)) : [clean, ...all].slice(0, 1000)));
-    setEditing(null);
-    say("Note saved");
+  /** Saves as you type (the editor calls this). A note with nothing in it is never kept. */
+  const upsert = (note: Note) => {
+    if (!note.title.trim() && !note.body.trim()) return;
+    setNotes((all) => saveNotesAppNote(all, note));
   };
   const pin = (n: Note) => setNotes((all) => all.map((x) => (x.id === n.id ? { ...x, pinned: !x.pinned } : x)));
 
@@ -57,21 +54,7 @@ export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say 
     </div> : notes.length ? <p className="text-sm text-slate-500">No notes match “{query}”.</p>
       : <Panel><Empty icon={<StickyNote size={26} />} title="No notes yet" action={<div className="flex flex-col items-center gap-3"><div className="flex flex-wrap justify-center gap-2">{STARTERS.map((s) => <button key={s} onClick={() => setEditing(blank(s))} className={soft + " min-h-9 text-xs"}>{s}</button>)}</div><NoteTemplatesButton onPick={(t) => setEditing({ ...blank(t.title), body: t.body })} /></div>}>Start with one of these, a template for almost anything, or tap “New note”.</Empty></Panel>}
 
-    {editing && <Modal title={notes.some((n) => n.id === editing.id) ? "Edit note" : "New note"} onClose={() => setEditing(null)} wide>
-      <form onSubmit={save} className="space-y-4">
-        <input autoFocus maxLength={120} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} placeholder="Title" aria-label="Title" className={inputClass + " text-base font-bold"} />
-        <textarea rows={14} maxLength={5000} value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} placeholder="Write anything…" aria-label="Note" className={inputClass + " note-card py-3 leading-6"} style={{ background: editing.color }} />
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-slate-500">Color</span>
-          {NOTE_COLORS.map((c) => <button key={c} type="button" onClick={() => setEditing({ ...editing, color: c })} aria-pressed={editing.color === c} aria-label={`Color ${c}`} className={`h-8 w-8 rounded-full border-2 ${editing.color === c ? "border-violet-500" : "border-slate-200"}`} style={{ background: c }} />)}
-          <button type="button" onClick={() => setEditing({ ...editing, pinned: !editing.pinned })} aria-pressed={editing.pinned} className={plain + " ml-auto min-h-9"}>{editing.pinned ? <><PinOff size={15} /> Unpin</> : <><Pin size={15} /> Pin</>}</button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-          <button type="submit" className={primary + " flex-1 px-5"}><Check size={17} /> Save note</button>
-          <button type="button" onClick={() => setEditing(null)} className={plain}>Cancel</button>
-          {notes.some((n) => n.id === editing.id) && <button type="button" onClick={() => { if (confirmed("Delete this note?")) { setNotes((all) => all.filter((n) => n.id !== editing.id)); setEditing(null); say("Note deleted"); } }} className={danger} aria-label="Delete note"><Trash2 size={17} /></button>}
-        </div>
-      </form>
-    </Modal>}
+    {editing && <FullNoteEditor note={editing} colors={NOTE_COLORS} pinLabel="Pin" onSave={upsert} onClose={() => setEditing(null)}
+      onDelete={notes.some((n) => n.id === editing.id) ? () => { if (confirmed("Delete this note?")) { setNotes((all) => all.filter((n) => n.id !== editing.id)); setEditing(null); say("Note deleted"); } } : undefined} />}
   </div>;
 }

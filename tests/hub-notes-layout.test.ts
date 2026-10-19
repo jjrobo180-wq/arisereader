@@ -16,7 +16,7 @@ test("adding a note opens a pop-up from a compact header button, not an always-v
   // The old always-visible "Add a note" Card wrapping the form directly in the page is gone...
   assert.ok(!notes.includes('<Card title="Add a note">'), "the form is no longer an always-visible card");
   // ...replaced by a HubModal that only renders once the button has been clicked.
-  assert.match(notes, /\{adding && \(\s*<HubModal title="New note" size="lg"/);
+  assert.match(notes, /\{adding && \(\s*<HubModal title="New note" size="full"/); // full screen, like a notes app
   assert.match(notes, /data-testid="note-add"/, "the same note-entry form is reused inside the pop-up");
 });
 

@@ -16,7 +16,8 @@ export function HubModal({
   children: ReactNode;
   /** Buttons kept at the bottom of the pop-up while the rest scrolls. */
   footer?: ReactNode;
-  size?: "sm" | "md" | "lg";
+  /** "full" covers the whole screen, like a notes app. */
+  size?: "sm" | "md" | "lg" | "full";
   closeOnBackdrop?: boolean;
   hideClose?: boolean;
   label?: string;
@@ -68,7 +69,7 @@ export function HubModal({
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4"
+      className={`fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/50 ${size === "full" ? "" : "sm:items-center sm:p-4"}`}
       onMouseDown={(event) => { if (closeOnBackdrop && closeRef.current && event.target === event.currentTarget) closeRef.current(); }}
       data-testid="hub-modal"
     >
@@ -79,9 +80,9 @@ export function HubModal({
         aria-label={label || title}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className={`flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white text-slate-900 shadow-2xl outline-none sm:max-h-[90dvh] sm:rounded-3xl ${width}`}
+        className={size === "full" ? "flex h-[100dvh] w-full flex-col overflow-hidden bg-white text-slate-900 outline-none" : `flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white text-slate-900 shadow-2xl outline-none sm:max-h-[90dvh] sm:rounded-3xl ${width}`}
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5" style={size === "full" ? { paddingTop: "max(0.75rem, env(safe-area-inset-top))" } : undefined}>
           <h2 className="min-w-0 break-words text-lg font-bold text-slate-950">{title}</h2>
           {onClose && !hideClose && (
             <button type="button" onClick={onClose} aria-label="Close" className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-950">
@@ -89,8 +90,8 @@ export function HubModal({
             </button>
           )}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">{children}</div>
-        {footer && <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">{size === "full" ? <div className="mx-auto w-full max-w-4xl">{children}</div> : children}</div>
+        {footer && <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">{size === "full" ? <div className="mx-auto w-full max-w-4xl">{footer}</div> : footer}</div>}
       </div>
     </div>,
     document.body,

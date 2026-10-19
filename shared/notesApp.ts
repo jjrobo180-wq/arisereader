@@ -6,6 +6,7 @@
 // helpers, so installing or removing it never has to touch the core hub types.
 
 import { NOTE_COLORS, type Note } from "./familyHub";
+import { cleanNoteHtml } from "./richNote";
 
 export { NOTE_COLORS };
 export type { Note };
@@ -25,7 +26,8 @@ export function cleanNotesApp(raw: unknown): Note[] {
     const title = str((r as any).title, 120);
     const body = str((r as any).body, 5000);
     if (!id || (!title.trim() && !body.trim())) continue;
-    out.push({ id, title, body, color: color((r as any).color), pinned: bool((r as any).pinned), updatedAt: str((r as any).updatedAt, 40) });
+    const html = cleanNoteHtml((r as any).html);
+    out.push({ id, title, body, color: color((r as any).color), pinned: bool((r as any).pinned), updatedAt: str((r as any).updatedAt, 40), ...(html ? { html } : {}) });
     if (out.length >= LIMIT) break;
   }
   return out;
@@ -33,7 +35,9 @@ export function cleanNotesApp(raw: unknown): Note[] {
 
 /** Saves a note: adds it on top, or changes it in place if it already exists. */
 export function saveNotesAppNote(notes: Note[], note: Note): Note[] {
-  const clean: Note = { ...note, title: note.title.slice(0, 120), body: note.body.slice(0, 5000), updatedAt: new Date().toISOString() };
+  const html = cleanNoteHtml(note.html);
+  const { html: _drop, ...rest } = note;
+  const clean: Note = { ...rest, title: note.title.slice(0, 120), body: note.body.slice(0, 5000), updatedAt: new Date().toISOString(), ...(html ? { html } : {}) };
   return notes.some((n) => n.id === clean.id) ? notes.map((n) => (n.id === clean.id ? clean : n)) : [clean, ...notes].slice(0, LIMIT);
 }
 

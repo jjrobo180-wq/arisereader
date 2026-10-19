@@ -55,7 +55,7 @@ export type Task = { id: string; title: string; dueDate: string; /** Optional HH
   /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
   rolled?: { dueDate: string; lastDone?: string; at: string };
 };
-export type NoteItem = { id: string; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string;
+export type NoteItem = { id: string; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** Formatted version from the note editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string;
   /** More students the note is about (a group check-in, a meeting about several students). `student` stays the first. */
   students?: string[];
   /** The card's colour on the notes board, like LifeHub's notes. */

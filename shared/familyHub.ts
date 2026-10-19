@@ -9,6 +9,7 @@ import { cleanDriveFiles, type DriveFile } from "./driveApp";
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 import { cleanWidgets, type WidgetItem } from "./widgets";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
+import { cleanNoteHtml } from "./richNote";
 
 export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
@@ -74,7 +75,7 @@ export type Poll = {
 export type Bill = { id: string; name: string; amount: number; dueDay: number; category: string; autopay: boolean; paid: string[] };
 export type BudgetCategory = { id: string; name: string; limit: number };
 export type Expense = { id: string; categoryId: string; amount: number; date: string; note: string };
-export type Note = { id: string; title: string; body: string; color: string; pinned: boolean; updatedAt: string };
+export type Note = { id: string; title: string; body: string; color: string; pinned: boolean; updatedAt: string; /** Formatted version from the full-screen editor (shared/richNote.ts); body stays the plain text. */ html?: string };
 /* Food & fitness. Adults get calories, macros and weight; kids get healthy habits only. */
 export type Meal = "breakfast" | "lunch" | "dinner" | "snacks";
 export const MEALS: Meal[] = ["breakfast", "lunch", "dinner", "snacks"];
@@ -473,7 +474,8 @@ export function cleanFamily(input: unknown): Family {
     notes: rows(raw.notes, LIMITS.notes, (r) => {
       const title = str(r.title, 120);
       const body = str(r.body, 5000);
-      return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40) } : null;
+      const html = cleanNoteHtml(r.html);
+      return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40), ...(html ? { html } : {}) } : null;
     }),
     health: cleanHealth(raw.health),
     cycleLogs: rows(raw.cycleLogs, LIMITS.cycleLogs, (r) => {
@@ -651,7 +653,8 @@ export function cleanFamily(input: unknown): Family {
         out[pid] = rows(list, LIMITS.notes, (r) => {
           const title = str(r.title, 120);
           const body = str(r.body, 5000);
-          return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40) } : null;
+          const html = cleanNoteHtml(r.html);
+          return title.trim() || body.trim() ? { id: id(r.id), title, body, color: color(r.color, NOTE_COLORS[0]), pinned: bool(r.pinned), updatedAt: str(r.updatedAt, 40), ...(html ? { html } : {}) } : null;
         });
       }
       return out;
