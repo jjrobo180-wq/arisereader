@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
+import { STORE_KIND } from "@shared/hubSearch";
 import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildWorkBrief } from "@shared/dailyBrief";
 import { foldMenu, type MenuEntry, type MenuFolder } from "@shared/hubLayout";
@@ -365,6 +366,8 @@ function TeacherHubPage() {
   const [customize, setCustomize] = useState(false);
   // The Arise App Store. It opens straight away when the person switched here from LifeHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
+  /** An app to open the App Store on (search's "In the App Store" results). */
+  const [storeOpenApp, setStoreOpenApp] = useState<string | null>(null);
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
   /** The menu strip down the left side on a phone: shown, or tucked away behind a small tab. Remembered on this device. */
@@ -795,14 +798,21 @@ function TeacherHubPage() {
     if (!searching) return [];
     const out: HubSearchEntry[] = [];
     const dateWord = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
-    for (const g of menu) for (const t of groupTabs(g.id, visible, !!user.isAdmin)) out.push({ id: `tab-${t}`, kind: "Section", title: TAB_META.find((m) => m.id === t)?.label || t, sub: groupLabel(g.id, visible), open: () => goTab(t) });
+    for (const g of menu) for (const t of groupTabs(g.id, visible, !!user.isAdmin)) out.push({ id: `tab-${t}`, kind: "Section", icon: tabIcon(t), title: TAB_META.find((m) => m.id === t)?.label || t, sub: groupLabel(g.id, visible), open: () => goTab(t) });
     // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
-    if (!(workspace as any).briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", open: () => setBriefOpen(true) });
-    out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomize(true) });
+    if (!(workspace as any).briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", icon: <Sun className="h-4 w-4" />, open: () => setBriefOpen(true) });
+    out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 className="h-4 w-4" />, open: () => setCustomize(true) });
     out.push({ id: "notify", kind: "Section", title: "Notification settings", sub: "Morning summary and heads-ups", keywords: "notifications reminders alerts push phone bell", open: () => setNotifyOpen(true) });
-    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", open: () => setStore(true) });
-    for (const d of myKits) out.push({ id: `kit-${d.id}`, kind: "Plugins", title: d.name, open: () => openKit(d.id) });
-    for (const p of myNotesApps) out.push({ id: `notes-app-${p.id}`, kind: "Plugins", title: p.name, open: () => openNotesApp(p.id) });
+    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", icon: <ShoppingBag className="h-4 w-4" />, open: () => setStore(true) });
+    // Installed apps are Apps too (not a separate "Plugins" group), with their icons and colours.
+    for (const d of myKits) { const Icon = kitIcon(d.icon); out.push({ id: `kit-${d.id}`, kind: "App", title: d.name, sub: d.tagline, icon: <Icon />, color: d.color, open: () => openKit(d.id) }); }
+    for (const p of myNotesApps) out.push({ id: `notes-app-${p.id}`, kind: "App", title: p.name, icon: <StickyNote />, color: p.color, open: () => openNotesApp(p.id) });
+    // Apps not added yet: under "In the App Store", opening straight on that app's page.
+    for (const p of pluginsFor("work", { teacher: true })) {
+      if (!isAddable(p) || workInstalled(p, workspace.visibleTabs, (workspace as any).kitInstalled, !!(workspace as any).aiChat, !!(workspace as any).widgetsOn, (workspace as any).notesInstalled, !!(workspace as any).briefOff, (workspace as any).sheetsInstalled, !!(workspace as any).driveInstalled, !!(workspace as any).dropInstalled)) continue;
+      const Icon = STORE_ICONS[p.icon] ?? kitIcon(p.icon);
+      out.push({ id: `store-${p.id}`, kind: STORE_KIND, title: p.name, sub: p.tagline, keywords: `${p.category} ${p.description}`.slice(0, 300), icon: <Icon />, color: p.color, open: () => { setStoreOpenApp(p.id); setStore(true); } });
+    }
     for (const st of workspace.students) out.push({ id: st.id, kind: "Students", title: st.name, sub: [st.grade && `Grade ${st.grade}`, st.iepDate && `IEP ${dateWord(st.iepDate)}`].filter(Boolean).join(" · "), keywords: `${st.disability1 || ""} ${st.disability2 || ""}`, open: () => goTab("caseload") });
     for (const t of workspace.tasks) out.push({ id: t.id, kind: "To-dos", title: t.title, sub: [t.done ? "Done" : "", t.dueDate && `Due ${dateWord(t.dueDate)}${t.dueTime ? ` at ${clock12(t.dueTime)}` : ""}`].filter(Boolean).join(" · "), keywords: t.notes || "", open: () => goTab("tasks") });
     for (const m of workspace.meetings) out.push({ id: m.id, kind: "Meetings", title: `${m.type}: ${m.student}`, sub: [m.date && dateWord(m.date), m.room].filter(Boolean).join(" · "), keywords: m.notes, open: () => goTab("iep") });
@@ -839,6 +849,7 @@ function TeacherHubPage() {
       <UpgradeHost hub="work" />
       {store && canUseHub && loaded && !loadError && !needsPlan && <PluginStore
         hub="work"
+        initialOpen={storeOpenApp ?? undefined}
         night={night}
         accent={accent}
         teacher
@@ -875,7 +886,7 @@ function TeacherHubPage() {
           makeId: id,
         }}
         onOpen={(p: Plugin) => { const at = pluginOpens(p); if (at && "tab" in at) setTab(at.tab); if (p.target.kind === "widget") setTab("overview"); if (p.target.kind === "brief") setBriefOpen(true); if (p.target.kind === "sheetsApp") { closeApps(); setSheetsAppOpen(p.target.id); } if (p.target.kind === "officeApp") { closeApps(); window.location.hash = p.target.href; } if (p.target.kind === "driveApp") { closeApps(); setDriveOpen(true); } if (p.target.kind === "dropApp") { closeApps(); setDropOpen(true); } setStore(false); if (p.target.kind === "assistant") toasts.show("Tap the ✦ button at the bottom right to chat.", []); if (p.target.kind === "assistantPro") window.location.hash = "#/billing"; }}
-        onClose={() => setStore(false)}
+        onClose={() => { setStore(false); setStoreOpenApp(null); }}
       />}
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">

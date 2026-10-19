@@ -47,3 +47,29 @@ export function searchHub<T extends SearchEntry>(entries: T[], typed: string, li
   }
   return scored.sort((a, b) => b.score - a.score || a.e.title.localeCompare(b.e.title)).slice(0, limit).map((x) => x.e);
 }
+
+/** Kinds that are "an app" for search: built-in sections, installed apps and settings screens. */
+export const APP_KINDS = ["Section", "App"] as const;
+export const STORE_KIND = "App Store";
+export type ResultGroup<T> = { label: string; items: T[] };
+
+/**
+ * Results laid out like iPhone search: the single best match on top, then Apps (what people are most often
+ * looking for), then each kind of saved thing in order of its best match, and apps not added yet last.
+ */
+export function groupResults<T extends SearchEntry>(found: T[]): { top: T | null; groups: ResultGroup<T>[] } {
+  if (!found.length) return { top: null, groups: [] };
+  const isApp = (e: T) => (APP_KINDS as readonly string[]).includes(e.kind);
+  // An app wins Top Hit when it is about as good a match as the very best (it's usually what's wanted).
+  const top = found.slice(0, 3).find(isApp) ?? found[0];
+  const rest = found.filter((e) => e !== top);
+  const groups: ResultGroup<T>[] = [];
+  const apps = rest.filter(isApp);
+  if (apps.length) groups.push({ label: "Apps", items: apps });
+  const order: string[] = [];
+  for (const e of rest) if (!isApp(e) && e.kind !== STORE_KIND && !order.includes(e.kind)) order.push(e.kind);
+  for (const k of order) groups.push({ label: k, items: rest.filter((e) => e.kind === k) });
+  const store = rest.filter((e) => e.kind === STORE_KIND);
+  if (store.length) groups.push({ label: "In the App Store", items: store });
+  return { top, groups };
+}

@@ -103,6 +103,8 @@ type AppAccess = Partial<Record<"history" | "math" | "social", boolean>>;
 
 export type PluginStoreProps = {
   hub: PluginHub;
+  /** Open straight on one app's page (search's "In the App Store" results). */
+  initialOpen?: string;
   /** Teachers (and admins) have both hubs and see the teacher-only apps. */
   teacher: boolean;
   isInstalled: (p: Plugin) => boolean;
@@ -141,7 +143,7 @@ function Tile({ p, size = "md" }: { p: Plugin; size?: "md" | "lg" }) {
 /** How many apps a category shows before "See all". */
 const PER_CATEGORY = 6;
 
-export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent }: PluginStoreProps) {
+export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpen, onClose, kit, notesApp, night = false, accent, initialOpen }: PluginStoreProps) {
   const { token } = useAuth();
   const pal = useMemo(() => storePalette(hub, night, accent), [hub, night, accent]);
   const vars = {
@@ -152,7 +154,7 @@ export default function PluginStore({ hub, teacher, isInstalled, onToggle, onOpe
   const [view, setView] = useState<"discover" | "installed" | "templates">("discover");
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpen ?? null);
   const [openTemplateId, setOpenTemplateId] = useState<string | null>(null);
   const [apps, setApps] = useState<AppAccess | null>(null);
   const [note, setNote] = useState("");

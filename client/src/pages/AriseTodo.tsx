@@ -68,7 +68,7 @@ import Quotes from "@/components/family-hub/Quotes";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
 import Trending from "@/components/family-hub/Trending";
 import PluginStore, { ICONS as STORE_ICONS } from "@/components/plugin-store/PluginStore";
-import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, lifeInstalled, notesAppPlugin, officeAppPlugin, pluginOpens, setKitInstalled, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
+import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, lifeInstalled, pluginsFor, notesAppPlugin, officeAppPlugin, pluginOpens, setKitInstalled, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
 import OfficeApp from "@/components/office/OfficeApp";
 import { SHEETS, legacySheets } from "@/components/office/officeKinds";
 import DriveApp from "@/components/family-hub/DriveApp";
@@ -106,6 +106,7 @@ import { foldMenu } from "@shared/hubLayout";
 import { hubThemeOf } from "@shared/appThemes";
 import { tileColorOf } from "@/components/teacher-hub/HubHomeEdit";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
+import { STORE_KIND } from "@shared/hubSearch";
 import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { NotificationBell } from "@/components/NotificationBell";
 import { lifeAlerts } from "@shared/lifeAlerts";
@@ -639,15 +640,23 @@ export default function AriseTodo() {
     setSection(id as FamilySection);
     window.scrollTo({ top: 0 });
   };
-  const searchEntries = ((): HubSearchEntry[] => {
+  // Built when search opens (it uses the menu, defined further down), so it never runs before that exists.
+  const buildSearchEntries = (): HubSearchEntry[] => {
     if (!searching) return [];
     const out: HubSearchEntry[] = [], f = family;
     const dw = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
-    for (const id of sections) out.push({ id: `s-${id}`, kind: "Section", title: SECTION_INFO[id].label, open: () => goSection(id) });
+    // Apps: everything in the menu (sections and installed apps), with their icons, like a phone's search.
+    for (const it of phoneItems) out.push({ id: `s-${it.id}`, kind: "Section", title: it.label, icon: it.icon, color: it.color, open: it.onClick });
+    // Apps not added yet: under "In the App Store", opening straight on that app's page.
+    for (const p of pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin })) {
+      if (!isAddable(p) || lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)) continue;
+      const Icon = STORE_ICONS[p.icon] ?? kitIcon(p.icon);
+      out.push({ id: `store-${p.id}`, kind: STORE_KIND, title: p.name, sub: p.tagline, keywords: `${p.category} ${p.description}`.slice(0, 300), icon: <Icon />, color: p.color, open: () => { setStoreOpenApp(p.id); setStore(true); } });
+    }
     // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
-    if (!family.briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", open: () => setBriefOpen(true) });
-    out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", open: () => setCustomizing(true) });
-    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", open: () => setStore(true) });
+    if (!family.briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", icon: <Sun />, open: () => setBriefOpen(true) });
+    out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 />, open: () => setCustomizing(true) });
+    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", icon: <ShoppingBag />, open: () => setStore(true) });
     for (const t of data.tasks) out.push({ id: t.id, kind: "Tasks", title: t.title, sub: [t.done ? "Done" : "", t.due && `Due ${dw(t.due)}`].filter(Boolean).join(" · "), keywords: t.notes, open: () => goSection("tasks") });
     for (const e of f.events) out.push({ id: e.id, kind: "Calendar", title: e.title, sub: [dw(e.date), e.location].filter(Boolean).join(" · "), keywords: e.notes, open: () => goSection("calendar") });
     for (const n of f.notes) out.push({ id: n.id, kind: "Notes", title: n.title || n.body.slice(0, 60) || "Note", keywords: n.body.slice(0, 400), open: () => goSection("notes") });
@@ -663,7 +672,8 @@ export default function AriseTodo() {
     for (const c of f.countdowns) out.push({ id: c.id, kind: "Countdowns", title: c.title, sub: dw(c.date), open: () => goSection("countdowns") });
     for (const t of f.trips) out.push({ id: t.id, kind: "Trips", title: t.name || "Trip", sub: [t.destination, dw(t.start)].filter(Boolean).join(" · "), open: () => goSection("trips") });
     return out;
-  })();
+  };
+  const [storeOpenApp, setStoreOpenApp] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   /** A Notes-app install (see shared/notesApp.ts; e.g. Work Notes, added from the App Store) open
    *  full-page, by its App Store plugin id. Not a FamilySection, so it sits alongside `section`. */
@@ -913,6 +923,7 @@ export default function AriseTodo() {
     <UpgradeHost hub="life" />
     {store && <PluginStore
       hub="life"
+      initialOpen={storeOpenApp ?? undefined}
       night={night}
       teacher={user.role === "teacher" || !!user.isAdmin}
       isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)}
@@ -969,7 +980,7 @@ export default function AriseTodo() {
         setStore(false);
         if (p.target.kind === "assistant") setMessage("Tap the ✦ button at the bottom right to chat.");
       }}
-      onClose={() => setStore(false)}
+      onClose={() => { setStore(false); setStoreOpenApp(null); }}
       notesApp={{
         notes: family.notesApps,
         setNotes: setNotesAppRecords,
@@ -1060,7 +1071,7 @@ export default function AriseTodo() {
       </div>
     </header>
     {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift raiseRem={layout.menuSide === "bottom" && phone.open ? 4.9 : 0} />}
-    {searching && <HubSearch entries={searchEntries} hubName="LifeHub" accent="bg-[#292446]" onClose={() => setSearching(false)} />}
+    {searching && <HubSearch entries={buildSearchEntries()} hubName="LifeHub" accent="bg-[#292446]" onClose={() => setSearching(false)} />}
     {/* One floating button that adds anything, mirroring WorkHub. It sits clear of the phone menu
         when that menu is along the bottom or the right, so it never covers the menu's own buttons. */}
     <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
