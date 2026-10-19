@@ -3,12 +3,12 @@
 // it, then run it: today's reminders with Done, Snooze and Skip, and phone reminders through LifeHub's
 // notifications. The plan and its logic live in shared/lifePlan.ts.
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Bell, BellOff, Check, ChevronDown, Clock, ExternalLink, Loader2, Plus, RefreshCw, SkipForward, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { Bell, BellOff, CalendarDays, Check, ChevronDown, Clock, ExternalLink, Loader2, Plus, RefreshCw, SkipForward, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { isOn, type FamilySection } from "@shared/familyHub";
+import { addDays, eventsOn, isOn, type FamilySection } from "@shared/familyHub";
 import {
-  PLAN_AREAS, PLAN_FOCUSES, PLAN_OPENS, SNOOZE_CHOICES, builtinPlan, clock12, cleanLifePlan, cleanPlanRequest, fromMinutes, markReminder, snoozeReminder,
+  PLAN_AREAS, PLAN_FOCUSES, PLAN_OPENS, SNOOZE_CHOICES, builtinPlan, busyClash, busyFromEvents, clock12, cleanLifePlan, cleanPlanRequest, fromMinutes, markReminder, snoozeReminder, type BusyBlock,
   todayItems, toMinutes, weekScore, type LifePlan, type PlanArea, type PlanFocus, type PlanOpens, type PlanReminder, type PlanRequest,
 } from "@shared/lifePlan";
 import { SECTION_INFO } from "./Members";
@@ -36,16 +36,19 @@ export default function LifePlanApp(props: Props) {
 
 // ─── 1. Ask ──────────────────────────────────────────────────────────────────
 
-function Builder({ family, say, start, onBuilt, onCancel }: Props & { start?: LifePlan; onBuilt: (p: LifePlan) => void; onCancel?: () => void }) {
+function Builder({ family, today, say, start, onBuilt, onCancel }: Props & { start?: LifePlan; onBuilt: (p: LifePlan) => void; onCancel?: () => void }) {
   const { token } = useAuth();
   const [vision, setVision] = useState(start?.vision ?? "");
   const [focuses, setFocuses] = useState<PlanFocus[]>([]);
   const [wake, setWake] = useState(start?.wake ?? "07:00");
   const [bed, setBed] = useState(start?.bed ?? "22:30");
   const [workDays, setWorkDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [busyTimes, setBusyTimes] = useState<BusyBlock[]>(start?.busy ?? []);
+  // The next 7 days of timed calendar events, as a weekly pattern of busy times.
+  const fromCalendar = useMemo(() => isOn("calendar", family) ? busyFromEvents(Array.from({ length: 7 }, (_, i) => { const date = addDays(today, i); return { date, events: eventsOn(family, date) }; })) : [], [family, today]);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
-  const request: PlanRequest = cleanPlanRequest({ vision, focuses, wake, bed, workDays });
+  const request: PlanRequest = cleanPlanRequest({ vision, focuses, wake, bed, workDays, busy: busyTimes });
   const ready = !!vision.trim() || focuses.length > 0;
   const toggle = <T,>(list: T[], x: T) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
   const offline = (why: string) => { onBuilt(builtinPlan(request)); setProblem(""); say(why); };
@@ -91,6 +94,7 @@ function Builder({ family, say, start, onBuilt, onCancel }: Props & { start?: Li
           <div className="flex gap-1">{DAY_LETTERS.map((l, d) => { const on = workDays.includes(d); return <button key={d} type="button" onClick={() => setWorkDays(toggle(workDays, d).sort())} aria-pressed={on} aria-label={DAY_NAMES[d]}
             className={`h-10 flex-1 rounded-xl text-sm font-bold ${on ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>{l}</button>; })}</div>
         </Panel>
+        <BusyTimes busy={busyTimes} setBusy={setBusyTimes} fromCalendar={fromCalendar} />
         <div className="space-y-2 rounded-[1.5rem] bg-gradient-to-br from-[#2d2555] to-[#6d5ce7] p-5 text-white">
           <button type="submit" disabled={!ready || busy} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 text-base font-extrabold text-[#3b2f8f] shadow-sm disabled:opacity-60" data-testid="plan-build">
             {busy ? <><Loader2 size={18} className="animate-spin" /> Building your plan…</> : <><Sparkles size={18} /> Build my plan with AI</>}
@@ -107,6 +111,32 @@ function Builder({ family, say, start, onBuilt, onCancel }: Props & { start?: Li
       </div>
     </form>
   </div>;
+}
+
+/** Times the plan stays away from: from the calendar in one tap, or typed in (a work shift, school pickup). */
+function BusyTimes({ busy, setBusy, fromCalendar }: { busy: BusyBlock[]; setBusy: (b: BusyBlock[]) => void; fromCalendar: BusyBlock[] }) {
+  const edit = (i: number, patch: Partial<BusyBlock>) => setBusy(busy.map((b, j) => (j === i ? { ...b, ...patch } : b)));
+  const useCalendar = () => {
+    const have = new Set(busy.map((b) => `${b.label}|${b.from}|${b.to}`));
+    setBusy([...busy, ...fromCalendar.filter((b) => !have.has(`${b.label}|${b.from}|${b.to}`))].slice(0, 20));
+  };
+  return <Panel title="Your busy times">
+    <p className="-mt-1 mb-3 text-xs leading-5 text-slate-500">Nothing gets scheduled during these. If you work at 6 PM, family time goes before work or on days off.</p>
+    {fromCalendar.length > 0 && <button type="button" onClick={useCalendar} className={soft + " mb-3 w-full"} data-testid="plan-use-calendar"><CalendarDays size={15} /> Use my calendar ({fromCalendar.length} {fromCalendar.length === 1 ? "event" : "events"} this week)</button>}
+    <ul className="space-y-2" data-testid="plan-busy">{busy.map((b, i) => <li key={i} className="rounded-xl border border-slate-200 p-2.5">
+      <div className="flex items-center gap-2">
+        <input value={b.label} onChange={(e) => edit(i, { label: e.target.value.slice(0, 40) })} aria-label="What" className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 text-sm font-bold outline-none focus:border-slate-200" />
+        <button type="button" onClick={() => setBusy(busy.filter((_, j) => j !== i))} aria-label={`Remove ${b.label}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><X size={15} /></button>
+      </div>
+      <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
+        <input type="time" value={b.from} onChange={(e) => e.target.value && edit(i, { from: e.target.value })} aria-label="From" className="h-9 rounded-lg border border-slate-200 px-1.5 text-sm" />–
+        <input type="time" value={b.to} onChange={(e) => e.target.value && edit(i, { to: e.target.value })} aria-label="To" className="h-9 rounded-lg border border-slate-200 px-1.5 text-sm" />
+      </div>
+      <div className="mt-1.5 flex gap-1">{DAY_LETTERS.map((l, d) => { const on = b.days.includes(d); return <button key={d} type="button" aria-pressed={on} aria-label={DAY_NAMES[d]} onClick={() => { const next = on ? b.days.filter((x) => x !== d) : [...b.days, d].sort(); if (next.length) edit(i, { days: next }); }}
+        className={`h-8 flex-1 rounded-lg text-xs font-bold ${on ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>{l}</button>; })}</div>
+    </li>)}</ul>
+    {busy.length < 20 && <button type="button" onClick={() => setBusy([...busy, { label: "Work", from: "18:00", to: "23:00", days: [1, 2, 3, 4, 5] }])} className={plain + " mt-2 w-full"} data-testid="plan-add-busy"><Plus size={15} /> Add a busy time</button>}
+  </Panel>;
 }
 
 // ─── 2. Review the plan, then start it ───────────────────────────────────────
@@ -165,14 +195,15 @@ function ReminderEditor({ plan, setPlan, family }: { plan: LifePlan; setPlan: (p
             <span className="block text-sm font-extrabold text-slate-900">{r.title}</span>
             <span className="mt-0.5 block text-xs text-slate-500">{clock12(r.time)} · {daysLabel(r.days)}{r.opens ? ` · opens ${SECTION_INFO[r.opens]?.label ?? PLAN_OPENS[r.opens]}` : ""}</span>
             {r.why && <span className={`mt-1.5 block text-xs leading-5 text-slate-600 ${expanded ? "" : "line-clamp-2"}`}><span className="font-bold text-violet-700">Why: </span>{r.why}</span>}
+            {!r.off && busyClash(plan.busy, r) && <span className="mt-1 block text-xs font-bold text-amber-700">Clashes with {busyClash(plan.busy, r)}. Pick another time.</span>}
           </button>
+          <input type="time" value={r.time} onChange={(e) => { const m = toMinutes(e.target.value); if (m !== null) edit(r.id, { time: fromMinutes(m) }); }} aria-label={`Time for ${r.title}`} className="h-9 w-[6.5rem] shrink-0 rounded-lg border border-slate-200 px-1.5 text-xs font-semibold text-slate-700" data-testid={`plan-time-${r.id}`} />
           <label className="relative inline-flex cursor-pointer items-center" title={r.off ? "Off" : "On"}>
             <input type="checkbox" checked={!r.off} onChange={(e) => edit(r.id, { off: e.target.checked ? undefined : true })} className="peer sr-only" aria-label={`${r.title} on`} />
             <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-violet-600 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
           </label>
         </div>
         {expanded && <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 p-3">
-          <input type="time" value={r.time} onChange={(e) => { const m = toMinutes(e.target.value); if (m !== null) edit(r.id, { time: fromMinutes(m) }); }} className={inputClass + " w-32"} aria-label="Time" />
           <div className="flex gap-1">{DAY_LETTERS.map((l, d) => { const onDay = r.days.includes(d); return <button key={d} type="button" aria-pressed={onDay} aria-label={DAY_NAMES[d]} onClick={() => { const next = onDay ? r.days.filter((x) => x !== d) : [...r.days, d].sort(); if (next.length) edit(r.id, { days: next }); }}
             className={`h-9 w-9 rounded-lg text-xs font-bold ${onDay ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>{l}</button>; })}</div>
           <button type="button" onClick={() => remove(r.id)} className={danger + " ml-auto"} aria-label={`Delete ${r.title}`}><Trash2 size={15} /></button>

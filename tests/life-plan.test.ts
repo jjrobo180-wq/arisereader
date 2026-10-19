@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  PLAN_OPENS, builtinPlan, cleanLifePlan, cleanPlanRequest, duePlanReminders, markReminder, planFromAi, planUserMessage, snoozeReminder, todayItems, toMinutes, weekScore, type LifePlan,
+  PLAN_OPENS, builtinPlan, busyClash, busyFromEvents, cleanBusy, cleanLifePlan, cleanPlanRequest, duePlanReminders, markReminder, planFromAi, planUserMessage, snoozeReminder, todayItems, toMinutes, weekScore, type LifePlan,
 } from "../shared/lifePlan";
 import { cleanFamily, isOn, FAMILY_SECTIONS } from "../shared/familyHub";
 import { dueTodoReminders } from "../shared/todoReminders";
@@ -151,4 +151,38 @@ test("the week score only counts days since the plan started, and the overview n
   const s = builtinPlan(cleanPlanRequest({ focuses: ["faith"] })).summary;
   assert.match(s, /with God/);
   assert.doesNotMatch(s, /with god/);
+});
+
+test("works at 6 PM: nothing lands during the shift, family time moves before work, and AI answers are fixed too", () => {
+  const busy = [{ label: "Work", from: "18:00", to: "23:00", days: [1, 2, 3, 4, 5] }];
+  const r = cleanPlanRequest({ vision: "More time with my wife", focuses: ["family", "eat", "sleep"], wake: "08:00", bed: "23:30", workDays: [1, 2, 3, 4, 5], busy });
+  const plan = builtinPlan(r);
+  for (const rem of plan.reminders.filter((x) => !x.off)) {
+    const m = toMinutes(rem.time)!;
+    const weekdayClash = rem.days.some((d) => d >= 1 && d <= 5) && m >= 18 * 60 && m < 23 * 60;
+    assert.ok(!weekdayClash, `${rem.title} at ${rem.time} lands in the work shift`);
+  }
+  const dinner = plan.reminders.find((x) => x.title === "Phone-free dinner")!;
+  assert.ok(toMinutes(dinner.time)! < 18 * 60, `dinner moved before work, got ${dinner.time}`);
+  assert.deepEqual(plan.busy, busy);
+  assert.match(plan.summary, /busy times \(Work\)/);
+  assert.match(planUserMessage(r), /Work: 18:00–23:00 on Monday, Tuesday, Wednesday, Thursday, Friday/);
+  const ai = planFromAi(JSON.stringify({ summary: "This is the life you're building.", pillars: [], reminders: [{ title: "Date night", time: "19:00", days: [1, 2, 3, 4, 5, 6, 0] }, { title: "Read", time: "10:00" }] }), r)!;
+  const date = ai.reminders.find((x) => x.title === "Date night")!;
+  assert.equal(busyClash(busy, date), "", `AI's date night was left in the shift at ${date.time}`);
+});
+
+test("busy times: overnight shifts split at midnight, calendar events become a weekly pattern, clashes are named", () => {
+  assert.deepEqual(cleanBusy([{ label: "Night shift", from: "22:00", to: "06:00", days: [5] }]), [
+    { label: "Night shift", from: "22:00", to: "23:59", days: [5] }, { label: "Night shift", from: "00:00", to: "06:00", days: [6] },
+  ]);
+  assert.deepEqual(cleanBusy([{ from: "bad", to: "10:00" }, { from: "10:00", to: "10:00" }]), []);
+  const week = busyFromEvents([
+    { date: "2026-10-19", events: [{ title: "Work", time: "18:00", endTime: "23:00" }, { title: "No time", time: "" }] },
+    { date: "2026-10-20", events: [{ title: "Work", time: "18:00", endTime: "23:00" }, { title: "Dentist", time: "09:00" }] },
+  ]);
+  assert.deepEqual(week, [{ label: "Work", from: "18:00", to: "23:00", days: [1, 2] }, { label: "Dentist", from: "09:00", to: "10:00", days: [2] }]);
+  assert.equal(busyClash(week, { time: "18:30", days: [1] }), "Work");
+  assert.equal(busyClash(week, { time: "18:30", days: [0] }), "");
+  assert.equal(cleanLifePlan({ vision: "x", summary: "y", busy: week, reminders: [{ id: "a", title: "A", time: "09:00" }] })!.busy.length, 2);
 });

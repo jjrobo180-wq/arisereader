@@ -53,6 +53,8 @@ export type PlanReminder = {
   off?: boolean;
 };
 export type PlanPillar = { area: PlanArea; title: string; why: string };
+/** A time the person can't do anything else: work, school pickup, church. From their calendar or typed in. */
+export type BusyBlock = { label: string; from: string; to: string; days: number[] };
 
 export type LifePlan = {
   /** What they said they're driving toward, in their words. */
@@ -63,6 +65,8 @@ export type LifePlan = {
   reminders: PlanReminder[];
   wake: string;
   bed: string;
+  /** Busy times the plan works around (shared/lifePlan.ts's fitAroundBusy). */
+  busy: BusyBlock[];
   /** Phone reminders on (they also need notifications turned on for the device). */
   on: boolean;
   createdAt: string;
@@ -74,7 +78,7 @@ export type LifePlan = {
   snoozed: Record<string, { date: string; at: number }>;
 };
 
-export const PLAN_LIMITS = { vision: 600, summary: 1800, pillars: 6, reminders: 40, title: 80, why: 320, log: 1200 } as const;
+export const PLAN_LIMITS = { vision: 600, summary: 1800, pillars: 6, reminders: 40, title: 80, why: 320, log: 1200, busy: 20 } as const;
 export const SNOOZE_CHOICES = [{ minutes: 10, label: "10 min" }, { minutes: 30, label: "30 min" }, { minutes: 60, label: "1 hour" }, { minutes: 180, label: "3 hours" }] as const;
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, max) : "");
@@ -88,6 +92,68 @@ const days = (v: unknown): number[] => { const d = Array.isArray(v) ? [...new Se
 const area = (v: unknown): PlanArea => (typeof v === "string" && (AREAS as string[]).includes(v) ? (v as PlanArea) : "mind");
 const emoji = (v: unknown, fallback: string) => { const e = str(v, 8); return e && !/[a-z0-9]/i.test(e) ? e : fallback; };
 const rid = (v: unknown, i: number) => { const s = str(v, 40); return /^[\w-]{1,40}$/.test(s) ? s : `r${i + 1}`; };
+
+/** Busy times made safe: a label, a start before the end (an overnight shift is split at midnight), and days. */
+export function cleanBusy(raw: unknown): BusyBlock[] {
+  const out: BusyBlock[] = [];
+  for (const r of Array.isArray(raw) ? raw.slice(0, PLAN_LIMITS.busy * 2) : []) {
+    if (!r || typeof r !== "object") continue;
+    const from = toMinutes(String((r as any).from || "")), to = toMinutes(String((r as any).to || ""));
+    if (from === null || to === null || from === to) continue;
+    const label = str((r as any).label, 40) || "Busy";
+    const d = days((r as any).days);
+    if (to > from) out.push({ label, from: fromMinutes(from), to: fromMinutes(to), days: d });
+    else out.push({ label, from: fromMinutes(from), to: "23:59", days: d }, { label, from: "00:00", to: fromMinutes(to), days: d.map((x) => (x + 1) % 7).sort() });
+    if (out.length >= PLAN_LIMITS.busy) break;
+  }
+  return out.slice(0, PLAN_LIMITS.busy);
+}
+
+/** Is this minute of this weekday inside a busy time? */
+const busyAt = (busy: readonly BusyBlock[], weekday: number, minute: number) => busy.find((b) => b.days.includes(weekday) && minute >= toMinutes(b.from)! && minute < toMinutes(b.to)!);
+
+/**
+ * Reminders moved out of busy times, to the nearest free time inside waking hours (trying later first,
+ * then earlier, in 15-minute steps). A reminder is moved for all its days at once, to a time free on
+ * every one of them; if no single time works, the days it clashes on are dropped from it instead.
+ */
+export function fitAroundBusy(reminders: PlanReminder[], busy: readonly BusyBlock[], wake: string, bed: string): PlanReminder[] {
+  if (!busy.length) return reminders;
+  const w = toMinutes(wake) ?? 420, b = toMinutes(bed) ?? 1350;
+  return reminders.map((r) => {
+    const at = toMinutes(r.time)!;
+    const freeAll = (m: number) => r.days.every((d) => !busyAt(busy, d, m));
+    if (freeAll(at)) return r;
+    for (let step = 15; step <= 12 * 60; step += 15) {
+      for (const m of [at + step, at - step]) if (m >= w && m <= b && freeAll(m)) return { ...r, time: fromMinutes(m) };
+    }
+    const okDays = r.days.filter((d) => !busyAt(busy, d, at));
+    return okDays.length ? { ...r, days: okDays } : { ...r, off: true };
+  });
+}
+
+/** The busy time a reminder lands in on any of its days ("Work"), or "" when it's clear. */
+export const busyClash = (busy: readonly BusyBlock[], r: Pick<PlanReminder, "time" | "days">): string => { const m = toMinutes(r.time); return m === null ? "" : r.days.map((d) => busyAt(busy, d, m)?.label).find(Boolean) || ""; };
+
+/** A week of busy times read from the calendar: every event with a time in the next 7 days, by weekday. */
+export function busyFromEvents(eventsByDay: { date: string; events: { title: string; time: string; endTime?: string }[] }[]): BusyBlock[] {
+  const byKey = new Map<string, BusyBlock>();
+  for (const { date, events } of eventsByDay) {
+    const wd = new Date(`${date}T12:00:00Z`).getUTCDay();
+    for (const e of events) {
+      const from = toMinutes(e.time || "");
+      if (from === null) continue;
+      const end = toMinutes(e.endTime || "");
+      const to = end !== null && end > from ? end : Math.min(from + 60, 1439);
+      const label = str(e.title, 40) || "Busy";
+      const key = `${label}|${from}|${to}`;
+      const had = byKey.get(key);
+      if (had) { if (!had.days.includes(wd)) had.days = [...had.days, wd].sort(); }
+      else byKey.set(key, { label, from: fromMinutes(from), to: fromMinutes(to), days: [wd] });
+    }
+  }
+  return [...byKey.values()].slice(0, PLAN_LIMITS.busy);
+}
 
 /** One reminder made safe (from saved data or from the AI), or null if it isn't usable. */
 export function cleanReminder(raw: unknown, i = 0): PlanReminder | null {
@@ -130,7 +196,7 @@ export function cleanLifePlan(raw: unknown): LifePlan | undefined {
   if (!reminders.length && !str(r.vision, 10)) return undefined;
   return {
     vision: str(r.vision, PLAN_LIMITS.vision), summary: str(r.summary, PLAN_LIMITS.summary), pillars, reminders,
-    wake: clock(r.wake, "07:00"), bed: clock(r.bed, "22:30"), on: r.on !== false, createdAt: str(r.createdAt, 40),
+    wake: clock(r.wake, "07:00"), bed: clock(r.bed, "22:30"), busy: cleanBusy(r.busy), on: r.on !== false, createdAt: str(r.createdAt, 40),
     madeBy: r.madeBy === "ai" ? "ai" : "builtin", log, snoozed,
   };
 }
@@ -154,13 +220,13 @@ export const PLAN_FOCUSES = [
 export type PlanFocus = (typeof PLAN_FOCUSES)[number]["id"];
 const FOCUS_IDS = PLAN_FOCUSES.map((f) => f.id) as string[];
 
-export type PlanRequest = { vision: string; focuses: PlanFocus[]; wake: string; bed: string; workDays: number[] };
+export type PlanRequest = { vision: string; focuses: PlanFocus[]; wake: string; bed: string; workDays: number[]; busy: BusyBlock[] };
 
 export function cleanPlanRequest(raw: unknown): PlanRequest {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const focuses = (Array.isArray(r.focuses) ? r.focuses : []).filter((f): f is PlanFocus => typeof f === "string" && FOCUS_IDS.includes(f));
   const workDays = Array.isArray(r.workDays) ? days(r.workDays) : [1, 2, 3, 4, 5];
-  return { vision: str(r.vision, PLAN_LIMITS.vision), focuses: [...new Set(focuses)].slice(0, 8), wake: clock(r.wake, "07:00"), bed: clock(r.bed, "22:30"), workDays: Array.isArray(r.workDays) && r.workDays.length === 0 ? [] : workDays };
+  return { vision: str(r.vision, PLAN_LIMITS.vision), focuses: [...new Set(focuses)].slice(0, 8), wake: clock(r.wake, "07:00"), bed: clock(r.bed, "22:30"), workDays: Array.isArray(r.workDays) && r.workDays.length === 0 ? [] : workDays, busy: cleanBusy(r.busy) };
 }
 
 // ─── The built-in planner (used when the AI isn't available) ──────────────────
@@ -246,6 +312,8 @@ export function builtinPlan(req: PlanRequest, nowIso = new Date().toISOString())
       reminders.push({ id: `r${reminders.length + 1}`, title: seed.title, emoji: seed.emoji, time: fromMinutes(at), days: dayList(seed.days, req.workDays), area: seed.area, why: seed.why, ...(seed.opens ? { opens: seed.opens } : {}) });
     }
   }
+  const fitted = fitAroundBusy(reminders, req.busy, req.wake, req.bed);
+  reminders.splice(0, reminders.length, ...fitted);
   reminders.sort((a, z) => a.time.localeCompare(z.time));
   const named = PLAN_FOCUSES.filter((f) => focuses.includes(f.id)).map((f) => f.label.toLowerCase());
   const vision = req.vision || `I want to ${named.join(", ")}.`;
@@ -253,9 +321,10 @@ export function builtinPlan(req: PlanRequest, nowIso = new Date().toISOString())
     `This is the life you're building, and every reminder below is a small step toward it.`,
     `Your plan rests on ${pillars.length} ${pillars.length === 1 ? "pillar" : "pillars"}: ${pillars.map((p) => p.title).join(", ")}. Each one is a few small actions at the same time on the same days, because consistency, not intensity, is what changes a life.`,
     `Why it works: habits form when an action is repeated in the same situation until it becomes automatic. Research from University College London found that took about 66 days on average, with a wide range, and that missing a day here and there didn't undo progress. So expect the first few weeks to take effort, and don't quit after a slip: just do the next one.`,
+    ...(req.busy.length ? [`It's built around your busy times (${req.busy.map((x) => x.label).slice(0, 4).join(", ")}${req.busy.length > 4 ? "…" : ""}), so nothing lands while you're at work or away. Change any time to fit your real day.`] : []),
     `Start with what you can keep. If the whole plan feels like too much, switch a few reminders off and add them back once the first ones feel easy.`,
   ].join("\n\n");
-  return { vision, summary, pillars, reminders, wake: fromMinutes(w), bed: fromMinutes(b), on: true, createdAt: nowIso, madeBy: "builtin", log: {}, snoozed: {} };
+  return { vision, summary, pillars, reminders, wake: fromMinutes(w), bed: fromMinutes(b), busy: req.busy, on: true, createdAt: nowIso, madeBy: "builtin", log: {}, snoozed: {} };
 }
 
 // ─── The AI ────────────────────────────────────────────────────────────────────
@@ -273,6 +342,7 @@ Return ONLY a JSON object with exactly these keys:
 Rules:
 - Every time must be between their wake time and bedtime. Never put more than two reminders at the same time; spread them out.
 - Respect their work days for work-hour reminders. Fewer reminders on busy days is fine.
+- NEVER put a reminder inside one of their busy times. Plan around them realistically: if they work evenings, time with family goes before work or on days off, not during the shift.
 - "opens" is the LifeHub app the reminder belongs to (food logging -> "health", Bible reading -> "bible", workouts -> "workouts", sleep -> "sleep", meditation -> "meditate", mood check-in -> "mood", spending -> "money"). Use null when nothing fits.
 - Keep the science honest: describe well-established findings in general terms ("research suggests", "studies link"). Never invent study names, statistics or quotes. No medical claims, diagnoses, calorie or weight targets, or supplement advice; for health conditions suggest talking to their doctor.
 - If they mention faith, honor it respectfully in their own tradition's words. Never add faith content they didn't ask for.
@@ -287,6 +357,7 @@ export function planUserMessage(req: PlanRequest): string {
     focusLabels.length ? `What matters most to me: ${focusLabels.join(", ")}` : "",
     `I wake up around ${req.wake} and go to bed around ${req.bed}.`,
     req.workDays.length ? `I work (or have school) on ${req.workDays.map((d) => names[d]).join(", ")}.` : "I don't have a fixed work schedule.",
+    req.busy.length ? `I'm busy at these times (don't schedule anything then):\n${req.busy.map((x) => `- ${x.label}: ${x.from}–${x.to} on ${x.days.length === 7 ? "every day" : x.days.map((d) => names[d]).join(", ")}`).join("\n")}` : "",
   ].filter(Boolean).join("\n");
 }
 
@@ -305,8 +376,9 @@ export function planFromAi(text: string, req: PlanRequest, nowIso = new Date().t
     return c;
   }).filter((r: PlanReminder | null): r is PlanReminder => !!r).slice(0, PLAN_LIMITS.reminders);
   if (reminders.length < 2) return null;
-  reminders.sort((a: PlanReminder, z: PlanReminder) => a.time.localeCompare(z.time));
-  const plan = cleanLifePlan({ vision: req.vision || PLAN_FOCUSES.filter((f) => req.focuses.includes(f.id)).map((f) => f.label).join(", "), summary: data.summary, pillars: data.pillars, reminders, wake: req.wake, bed: req.bed, on: true, createdAt: nowIso, madeBy: "ai" });
+  // Even if the AI ignored a busy time, nothing is left inside one.
+  const fitted = fitAroundBusy(reminders, req.busy, req.wake, req.bed).sort((a: PlanReminder, z: PlanReminder) => a.time.localeCompare(z.time));
+  const plan = cleanLifePlan({ vision: req.vision || PLAN_FOCUSES.filter((f) => req.focuses.includes(f.id)).map((f) => f.label).join(", "), summary: data.summary, pillars: data.pillars, reminders: fitted, wake: req.wake, bed: req.bed, busy: req.busy, on: true, createdAt: nowIso, madeBy: "ai" });
   return plan && plan.summary ? plan : null;
 }
 
