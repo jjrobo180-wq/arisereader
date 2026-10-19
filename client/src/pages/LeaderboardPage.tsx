@@ -8,6 +8,8 @@ import { BrandText } from "@/components/BrandText";
 import { useAuth } from "@/context/AuthContext";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
 import MonthCountdown from "@/components/MonthCountdown";
+import { AdvisoryStandings, datesText } from "@/components/AdvisoryChallenge";
+import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
 import { monthLabel, previousYearMonth, recentSchoolMonths, schoolYearMonth } from "@shared/schoolMonth";
 
 /** "1 quiz passed" / "3 quizzes passed" (older servers only sent quizzes taken). */
@@ -41,6 +43,8 @@ export default function LeaderboardPage() {
   const [showEGInfo, setShowEGInfo] = useState(false);
   const [advisoryData, setAdvisoryData] = useState<any[]>([]);
   const [view, setView] = useState<"individual" | "advisory">("individual");
+  // The school's Advisory Challenge (by advisory), when there is one; otherwise the older board by teacher.
+  const challenge = useAdvisoryChallenge(token);
   const currentMonth = schoolYearMonth();
   const recentMonths = recentSchoolMonths(6);
   // At midnight on the 1st, someone watching this month moves on to the new one by themselves.
@@ -390,7 +394,12 @@ export default function LeaderboardPage() {
                 </div>
               </div>
               <div className="bg-[#151326] p-4 sm:p-6">
-                {advisoryData.length === 0 ? (
+                {challenge && challenge.challenge ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-white/75">{datesText(challenge as any)}</p>
+                    <AdvisoryStandings view={challenge} />
+                  </div>
+                ) : advisoryData.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">No advisory data yet. Keep reading!</p>
                 ) : (
                   <>

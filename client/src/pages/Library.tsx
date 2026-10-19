@@ -1,6 +1,7 @@
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { shelvesByPoints } from "@shared/libraryShelves";
 import BannerTap from "@/components/BannerTap";
+import { AdvisoryChallengeBanner } from "@/components/AdvisoryChallenge";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -1425,6 +1426,8 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        {/* The Advisory Challenge: this student's advisory's place. Tapping it opens the leaderboard. */}
+        {user?.role === 'student' && <AdvisoryChallengeBanner onOpen={() => navigate("/leaderboard")} />}
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <BannerTap link={studentBanner.link} cueColor={studentBanner.textColor} className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1, borderStyle: "solid" }}>

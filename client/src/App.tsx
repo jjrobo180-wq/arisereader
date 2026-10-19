@@ -53,8 +53,7 @@ import FypAnnouncementPopup from "./components/FypAnnouncementPopup";
 import WelcomeGuide from "./components/WelcomeGuide";
 import PointsSideTab from "./components/PointsSideTab";
 import AvatarWorldSideTab from "./components/AvatarWorldSideTab";
-import LeaderboardPopup from "./components/LeaderboardPopup";
-import HalloreadWelcome from "./components/HalloreadWelcome";
+import AdvisoryChallengePopup from "./components/AdvisoryChallenge";
 import ClubPlayGate from "./components/ClubPlayGate";
 import NotFound from "./pages/not-found";
 
@@ -840,8 +839,9 @@ function AppInner() {
     <>
       {overlays && isStudent && !isEyeGazeStudent && <PointsSideTab />}
       {overlays && isStudent && !isEyeGazeStudent && <AvatarWorldSideTab />}
-      {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && <HalloreadWelcome />}
-      {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <LeaderboardPopup onNavigate={(path) => { window.location.hash = path; }} />}
+      {/* The Advisory Challenge pop-up replaces the Halloread welcome and the "your standing" pop-up
+          (which still shows for students whose school has no challenge). */}
+      {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AdvisoryChallengePopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <AssessmentPopup onNavigate={(path) => { window.location.hash = path; }} />}
       {overlays && isStudent && !isEyeGazeStudent && !isAdminPreview && !isDemoStudent && <ClassTeachersPopup />}
       {overlays && isStudent && !isAdminPreview && !isDemoStudent && <ParentConnectionBanner />}

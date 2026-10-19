@@ -26,6 +26,7 @@ import { competitionWindow } from "../shared/timedCompetitions";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
+import { registerAdvisoryChallengeRoutes } from "./advisoryChallenge";
 import { registerClassTeacherRoutes, supabaseClassTeacherStore } from "./classTeachers";
 import { advisorAccount, advisoriesForSchool, advisoryLabel, advisoryName } from "../shared/advisories";
 import { schoolYearOf } from "../shared/classTeachers";
@@ -1250,6 +1251,30 @@ export async function registerRoutes(
   // Reader page's "Advisory & Lit" tab (server/classTeachers.ts).
   const classTeacherStore = supabaseClassTeacherStore(supabase);
   registerClassTeacherRoutes(app, { auth: authMiddleware, ...classTeacherStore });
+  // The Advisory Challenge standings (server/advisoryChallenge.ts): the pop-up, the library banner and the leaderboards.
+  const pagedRows = async (make: (from: number, to: number) => any) => {
+    const rows: any[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await make(from, from + 999);
+      if (error) throw new Error(error.message);
+      rows.push(...(data || []));
+      if (!data || data.length < 1000) return rows;
+    }
+  };
+  registerAdvisoryChallengeRoutes(app, {
+    auth: authMiddleware,
+    getSchool: classTeacherStore.getSchool,
+    allSchools: classTeacherStore.allSchools,
+    async schoolStudentIds(schoolId) {
+      const rows = await pagedRows((a, b) => supabase.from("users").select("id, username, role, is_admin").eq("school_id", schoolId).is("archived_at", null).order("id", { ascending: true }).range(a, b));
+      return rows.filter((r) => !r.is_admin && (r.role || "student") === "student" && !isSampleAccount(r)).map((r) => Number(r.id));
+    },
+    async advisoryPicks(schoolId, year) {
+      const rows = await pagedRows((a, b) => supabase.from("student_class_teachers").select("student_id, advisory_teacher_name").eq("school_id", schoolId).eq("school_year", year).order("student_id", { ascending: true }).range(a, b));
+      return rows.map((r) => ({ studentId: Number(r.student_id), advisory: String(r.advisory_teacher_name || "").trim() }));
+    },
+    pointsBetween: (ids, from, to, fromDay, endDay) => storage.getPointsBetween(ids, from, to, fromDay, endDay),
+  });
   // A school's advisories (shared/advisories.ts), for placing uploaded students in one.
   app.get("/api/schools/:id/advisories", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {

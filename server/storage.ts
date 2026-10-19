@@ -46,6 +46,22 @@ const inMonth = (iso: unknown, startMs: number, endMs: number) => {
   return Number.isFinite(t) && t >= startMs && t < endMs;
 };
 
+/** A student's points between two times: passed book quizzes (worth what the database says),
+ *  10 for each passed eye-gaze quiz, plus points a teacher gave (already summed for the window). */
+function windowPoints(user: any, startMs: number, endMs: number, manualPoints: number) {
+  const attempts = (user.attempts || []).filter((a: any) => Number(a.book_id) > 0 && inMonth(a.completed_at, startMs, endMs));
+  const eyeGaze = (user.eye_gaze_attempts || []).filter((a: any) => a.total > 0 && inMonth(a.completed_at, startMs, endMs));
+  const customEyeGaze = (user.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0 && inMonth(a.completed_at, startMs, endMs));
+  const passedQuiz = (a: any) => Number(a.total) > 0 && Number(a.score) >= Math.ceil(Number(a.total) * 0.7);
+  const points = attempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0)
+    + eyeGaze.filter(passedQuiz).length * 10 + customEyeGaze.filter(passedQuiz).length * 10 + manualPoints;
+  return {
+    points,
+    quizzesTaken: attempts.length + eyeGaze.length + customEyeGaze.length,
+    quizzesPassed: attempts.filter(passedQuiz).length + eyeGaze.filter(passedQuiz).length + customEyeGaze.filter(passedQuiz).length,
+  };
+}
+
 /** A quiz attempt that was already turned in. */
 export class AlreadySubmittedError extends Error {
   constructor() {
@@ -350,6 +366,7 @@ export interface IStorage {
   getClassStats(schoolId: number): Promise<any[]>;
   // Monthly leaderboard
   getMonthlyLeaderboard(yearMonth: string): Promise<any[]>;
+  getPointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
   // Advisory leaderboard (grouped by teacher)
   getAdvisoryLeaderboard(): Promise<any[]>;
 }
@@ -1303,38 +1320,51 @@ export class DatabaseStorage implements IStorage {
 
       const result = [];
       for (const user of monthlyUsers) {
-        const monthlyAttempts = (user.attempts || []).filter((a: any) => Number(a.book_id) > 0 && inMonth(a.completed_at, startMs, endMs));
-        const monthlyPoints = monthlyAttempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0);
-
-        const monthlyEyeGaze = (user.eye_gaze_attempts || []).filter((a: any) => a.total > 0 && inMonth(a.completed_at, startMs, endMs));
-        const eyeGazePoints = monthlyEyeGaze.reduce((sum: number, a: any) => {
-          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
-          return sum + (passed ? 10 : 0);
-        }, 0);
-
-        const monthlyCustomEyeGaze = (user.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0 && inMonth(a.completed_at, startMs, endMs));
-        const customEyeGazePoints = monthlyCustomEyeGaze.reduce((sum: number, a: any) => {
-          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
-          return sum + (passed ? 10 : 0);
-        }, 0);
-
-        const totalMonthlyPoints = monthlyPoints + eyeGazePoints + customEyeGazePoints + (manualByStudent.get(user.id) || 0);
-        const totalMonthlyQuizzes = monthlyAttempts.length + monthlyEyeGaze.length + monthlyCustomEyeGaze.length;
-        const passedQuiz = (a: any) => Number(a.total) > 0 && Number(a.score) >= Math.ceil(Number(a.total) * 0.7);
-        const monthlyPassed = monthlyAttempts.filter(passedQuiz).length + monthlyEyeGaze.filter(passedQuiz).length + monthlyCustomEyeGaze.filter(passedQuiz).length;
-        if (totalMonthlyQuizzes > 0 || (manualByStudent.get(user.id) || 0) > 0) {
+        const w = windowPoints(user, startMs, endMs, manualByStudent.get(user.id) || 0);
+        if (w.quizzesTaken > 0 || (manualByStudent.get(user.id) || 0) > 0) {
           result.push({
             id: user.id,
             username: user.username,
             displayName: user.display_name,
-            totalPoints: totalMonthlyPoints,
-            quizzesTaken: totalMonthlyQuizzes,
-            quizzesPassed: monthlyPassed,
+            totalPoints: w.points,
+            quizzesTaken: w.quizzesTaken,
+            quizzesPassed: w.quizzesPassed,
             totalBooks,
           });
         }
       }
       return result.sort((a, b) => b.totalPoints - a.totalPoints);
+    });
+  }
+
+  /** Each student's points earned between two times (the Advisory Challenge's window), counted the
+   *  same way as the monthly leaderboard: quizzes, eye-gaze quizzes and points a teacher gave. */
+  async getPointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>> {
+    const ids = Array.from(new Set(userIds.filter((n) => Number.isFinite(n) && n > 0)));
+    const out = new Map<number, number>();
+    if (!ids.length) return out;
+    return cached(`pointsBetween_${startMs}_${endMs}_${ids.length}_${ids[0]}_${ids[ids.length - 1]}`, 60000, async () => {
+      const manual = new Map<number, number>();
+      const users: any[] = [];
+      for (let i = 0; i < ids.length; i += 200) {
+        const chunk = ids.slice(i, i + 200);
+        users.push(...await fetchList(
+          supabase.from("users").select(
+            "id, " +
+            "attempts:attempts!attempts_user_id_fkey(points_earned, completed_at, book_id, score, total), " +
+            "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at), " +
+            "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status, completed_at)"
+          ).in("id", chunk)
+        ));
+        if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          const { data, error } = await getAdminSupabase().from("manual_point_awards")
+            .select("student_id, points").in("student_id", chunk).gte("earned_on", fromDay).lt("earned_on", endDayExclusive);
+          if (error) throw new Error(error.message);
+          for (const a of data || []) manual.set(a.student_id, (manual.get(a.student_id) || 0) + Number(a.points || 0));
+        }
+      }
+      for (const u of users) out.set(Number(u.id), windowPoints(u, startMs, endMs, manual.get(u.id) || 0).points);
+      return out;
     });
   }
 
