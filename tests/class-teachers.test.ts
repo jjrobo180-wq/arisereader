@@ -245,13 +245,16 @@ test("a student placed in an advisory at upload is still asked for their ELA tea
 test("Conservatory Green's advisories come grouped by their two advisors", async () => {
   const m = await import("../shared/advisories");
   const list = m.advisoriesForSchool("DSST: Conservatory Green Middle School (Denver, CO)");
-  assert.equal(list.length, 5);
-  assert.deepEqual(list.map(m.advisoryName), ["Chase & Shuster", "Isaac & Ross", "Altunel & Padilla", "King & Ruos", "Hines-Brazell & Kast"]);
-  assert.equal(m.advisoryLabel(list[0]), "Lucy Chase & Jeffrey Shuster · Grade 7 · Room 212");
-  assert.equal(list.flatMap((a) => a.teachers).length, 10);
+  assert.equal(list.length, 10);
+  assert.deepEqual(list.map(m.advisoryName), ["Boucher & Groussman", "Mullaney & Muniz", "Charfauros & Miller", "Garcia & Micou", "Balestrini & Tsui",
+    "Chase & Shuster", "Isaac & Ross", "Altunel & Padilla", "King & Ruos", "Hines-Brazell & Kast"]);
+  assert.equal(m.advisoryLabel(list[5]), "Lucy Chase & Jeffrey Shuster · Grade 7 · Room 212");
+  assert.equal(m.advisoryLabel(list[0]), "Anne-Marie Boucher & Jennifer Groussman · Grade 6 · Room 241");
+  assert.equal(list.flatMap((a) => a.teachers).length, 20);
+  assert.equal(new Set(list.map((a) => a.id)).size, 10);
   assert.deepEqual(m.advisoriesForSchool("Conservatory Green High School"), []);
   assert.deepEqual(m.advisoriesForSchool("Test (Denver, CO)"), []);
-  assert.equal(m.advisorAccount(list[0], [{ id: 7, displayName: "Mr. Jeffrey Shuster" }])?.id, 7);
+  assert.equal(m.advisorAccount(list[5], [{ id: 7, displayName: "Mr. Jeffrey Shuster" }])?.id, 7);
   // A co-advisor sees their advisory's students as their own.
   const entry = { studentId: 1, name: "A", username: "a", answered: true, advisory: { teacherId: null, name: "Chase & Shuster", onSite: false }, lit: null, updatedAt: null };
   assert.equal(listsTeacher(entry, 7, "Jeffrey Shuster"), true);
