@@ -1,5 +1,5 @@
 // Advisories: a school's homeroom groups, each led by one or more advisors. At DSST: Conservatory
-// Green Middle School every 6th- and 7th-grade advisory has two co-advisors and two sections in one room.
+// Green Middle School every 6th-, 7th- and 8th-grade advisory has two co-advisors and two sections in one room.
 // Students are placed in an advisory when their accounts are uploaded (AddStudentsModal), so the
 // sign-in pop-up only asks for their ELA teacher.
 import { nameWords } from "./classTeachers";
@@ -26,6 +26,11 @@ const CONSERVATORY_GREEN_MS: Advisory[] = [
   { id: "cgms-7030", teachers: ["Veysel Altunel", "Francisco Padilla"], grade: "7", room: "215", sections: ["7030", "7031"] },
   { id: "cgms-7040", teachers: ["Edward King", "Ellie Ruos"], grade: "7", room: "216", sections: ["7040", "7041"] },
   { id: "cgms-7050", teachers: ["Meg Hines-Brazell", "Marissa Kast"], grade: "7", room: "217", sections: ["7050", "7051"] },
+  { id: "cgms-8010", teachers: ["Laurie Pochette", "Aaron Vohlers"], grade: "8", room: "223", sections: ["8010", "8011"] },
+  { id: "cgms-8020", teachers: ["Patricia Kettle", "Hope Penas"], grade: "8", room: "222", sections: ["8020", "8021"] },
+  { id: "cgms-8030", teachers: ["Kailley Callamaras", "Antonella Lescano"], grade: "8", room: "206", sections: ["8030", "8031"] },
+  { id: "cgms-8040", teachers: ["Mickey Brown", "Abraham Maggard"], grade: "8", room: "207", sections: ["8040", "8041"] },
+  { id: "cgms-8050", teachers: ["Derrick Garner", "Camilla Smith"], grade: "8", room: "210", sections: ["8050", "8051"] },
 ];
 
 /** The advisories at a school, found by its name ("Conservatory Green Middle School (Denver, CO)"). */
