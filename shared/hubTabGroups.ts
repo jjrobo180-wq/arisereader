@@ -4,7 +4,7 @@
 import { isTabOn, type HubTab } from "./teacherHub";
 
 export type HubGroupId =
-  | "home" | "arise" | "records" | "admin" | "calendar" | "schedules" | "caseload" | "iep" | "goals" | "minutes"
+  | "home" | "start" | "arise" | "records" | "admin" | "calendar" | "schedules" | "caseload" | "iep" | "goals" | "minutes"
   | "tasks" | "notes" | "lessons" | "gradebook" | "behavior" | "attendance" | "parents" | "email";
 
 export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonly HubTab[] }[] = [
@@ -34,10 +34,13 @@ export const HUB_GROUPS: readonly { id: HubGroupId; label: string; tabs: readonl
   { id: "attendance", label: "Attendance", tabs: ["attendance"] },
   { id: "parents", label: "Parents", tabs: ["parents"] },
   { id: "email", label: "Email", tabs: ["email"] },
+  // A guide to everything in WorkHub (components/GettingStarted.tsx). Removable like any screen;
+  // cleanGroupOrder puts it at the top of the menu the first time it appears.
+  { id: "start", label: "Getting started", tabs: ["start"] },
 ];
 /** What a tab is called on the row of buttons inside its group. */
 export const SUB_LABELS: Partial<Record<HubTab, string>> = {
-  calendar: "Calendar", schedules: "Student schedules",
+  start: "Getting started", calendar: "Calendar", schedules: "Student schedules",
   iep: "Meetings",
   goals: "Goals", minutes: "Minutes",
   tasks: "Tasks", notes: "Notes",
@@ -62,7 +65,9 @@ const REORDERABLE: readonly HubGroupId[] = HUB_GROUPS.filter((g) => g.id !== "ho
 export function cleanGroupOrder(v: unknown): HubGroupId[] {
   const saved = Array.isArray(v) ? v.filter((id): id is HubGroupId => REORDERABLE.includes(id as HubGroupId)) : [];
   const seen = new Set(saved);
-  return [...saved, ...REORDERABLE.filter((id) => !seen.has(id))];
+  // Getting started goes to the top the first time it appears; anything else new goes last.
+  const missing = REORDERABLE.filter((id) => !seen.has(id));
+  return [...missing.filter((id) => id === "start"), ...saved, ...missing.filter((id) => id !== "start")];
 }
 
 /** Home and the Reader's teacher tools always show; the admin console only when the page says so (admins). */
@@ -79,7 +84,8 @@ export function groupTabs(groupId: HubGroupId, visible: Partial<Record<HubTab, b
 /** The groups in the menu: those with at least one tab showing, in the teacher's chosen order
  *  (Home always first, whatever order is passed). */
 export function visibleGroups(visible: Partial<Record<HubTab, boolean>>, order?: readonly string[], isAdmin = false) {
-  const ids = order?.length ? ["home", ...cleanGroupOrder(order)] : HUB_GROUPS.map((g) => g.id);
+  // Always through cleanGroupOrder, so a new Getting started lands right under Home even with no saved order.
+  const ids = ["home", ...cleanGroupOrder(order ?? [])];
   return ids
     .map((id) => HUB_GROUPS.find((g) => g.id === id))
     .filter((g): g is (typeof HUB_GROUPS)[number] => !!g && groupTabs(g.id, visible, isAdmin).length > 0);

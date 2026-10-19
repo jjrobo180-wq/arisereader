@@ -59,7 +59,7 @@ import {
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
   Table, FolderOpen, QrCode, ShieldCheck, School,
   type LucideIcon,
-  Lock,
+  Lock, Rocket,
 } from "lucide-react";
 import PluginStore, { ICONS as STORE_ICONS } from "@/components/plugin-store/PluginStore";
 import OfficeApp from "@/components/office/OfficeApp";
@@ -104,6 +104,7 @@ import { HubModal } from "@/components/teacher-hub/HubModal";
 import {
   HUB_IMPORT, HUB_IMPORT_KINDS, clock12, cleanHubImport, describeHubAdded, mergeHubImport, updateStudent,
   WORK_ADD_ON_TABS, type AttendanceEntry, type HubImportItems, type HubTab, type Student, type Task, type Workspace,
+  HUB_TABS, isTabOn,
 } from "@shared/teacherHub";
 import { addStudentWithTeam, draftHasAnyone, emptyTeamDraft, teamDraft, teamMembers, updateStudentWithTeam, type StudentDetails, type TeamDraft } from "@shared/hubStudentTeam";
 import { StudentTeamFields, StudentTeamSummary } from "@/components/teacher-hub/HubStudentTeam";
@@ -123,6 +124,8 @@ import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
+import GettingStarted from "@/components/GettingStarted";
+import { startingRole } from "@shared/gettingStarted";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
 import { appLocked } from "@shared/privacyLock";
 import HubNotes from "@/components/teacher-hub/HubNotes";
@@ -170,6 +173,7 @@ const id = () =>
 
 const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "overview", label: "Home", icon: <Home className="h-4 w-4" /> },
+  { id: "start", label: "Getting started", icon: <Rocket className="h-4 w-4" /> },
   { id: "calendar", label: "Calendar", icon: <Calendar className="h-4 w-4" /> },
   { id: "caseload", label: "Caseload", icon: <Users className="h-4 w-4" /> },
   { id: "goals", label: "Goals", icon: <Target className="h-4 w-4" /> },
@@ -200,6 +204,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
 
 /** The icon for each place in the menu (see shared/hubTabGroups.ts for which tabs share a place). */
 const GROUP_ICON: Record<HubGroupId, ReactNode> = {
+  start: <Rocket className="h-4 w-4" />,
   schedules: <Clock3 className="h-4 w-4" />, goals: <Target className="h-4 w-4" />, minutes: <Timer className="h-4 w-4" />,
   notes: <StickyNote className="h-4 w-4" />, lessons: <BookOpen className="h-4 w-4" />, gradebook: <GraduationCap className="h-4 w-4" />,
   attendance: <ClipboardCheck className="h-4 w-4" />, parents: <MessageSquare className="h-4 w-4" />, email: <Mail className="h-4 w-4" />,
@@ -783,6 +788,20 @@ function TeacherHubPage() {
   const installedMenu = menu.filter(isStoreGroup);
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
+  // Where the Getting started page's buttons go (components/GettingStarted.tsx).
+  const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications", "reader"].includes(t)
+    || ((HUB_TABS as readonly string[]).includes(t) && t !== "start" && t !== "admin");
+  const guideOpen = (t: string) => {
+    if (t === "customize") setCustomize(true);
+    else if (t === "store") setStore(true);
+    else if (t === "search") setSearching(true);
+    else if (t === "passcode") setLockSettings(true);
+    else if (t === "notifications") setNotifyOpen(true);
+    else if (t === "reader") openReaderOrPlan();
+    else if (isTabOn(t as HubTab, visible, !!user.isAdmin)) goTab(t as HubTab);
+    // A screen they haven't added yet: its page in the App Store, ready to add.
+    else { setStoreOpenApp(`work-${t}`); setStore(true); }
+  };
   /** Everything the header's ⚡ shortcut can open (components/HeaderShortcut.tsx): each menu tab, A.R.I.S.E. Reader, and installed apps. */
   const shortcutChoices = (): ShortcutChoice[] => [
     ...menu.flatMap((g): ShortcutChoice[] => g.id === "arise"
@@ -1610,6 +1629,8 @@ function TeacherHubPage() {
             <HubPageHead tab={tab} title={TAB_META.find((m) => m.id === tab)?.label ?? groupLabel(group.id, visible)} workspace={workspace} />
           )}
 
+          {tab === "start" && <GettingStarted hub="work" startRole={startingRole(user, "work")} canOpen={guideCanOpen} onOpen={guideOpen}
+            onRemove={() => { setWorkspace((p) => ({ ...p, visibleTabs: { ...p.visibleTabs, start: false } })); setTab("overview"); toasts.show("Getting started removed. Add it back any time from the App Store.", [{ label: "Open App Store", run: () => setStore(true) }]); }} />}
           {tab === "calendar" && <HubCalendarTab workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} onReminderAdded={reminderAdded} />}
           {tab === "caseload" && <Caseload workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab} />}
           {tab === "goals" && <><HubGoalBoard workspace={workspace} setWorkspace={setWorkspace} makeId={id} today={TODAY()} /><GoalsTab workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} today={TODAY()} /></>}

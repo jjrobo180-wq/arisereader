@@ -1,5 +1,6 @@
 // Family & settings: who's in the family, and which parts of the hub are switched on.
 import { useState, type FormEvent, type ReactNode } from "react";
+import { Rocket } from "lucide-react";
 import { Apple, BookMarked, CalendarDays, Check, Droplets, History, Hourglass, NotebookPen, Pill, Newspaper, Quote, ShoppingCart, SmilePlus, Target, Pencil, Plane, Plus, Smile, Sparkles, StickyNote, Trash2, TrendingUp, UserPlus, Vote, Wallet, Wind, Shuffle, HeartHandshake, BookOpen, Link2, Users } from "lucide-react";
 import { MEMBER_COLORS, isOn, orderedToggleable, type FamilySection, type Member } from "@shared/familyHub";
 import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, inputClass, plain, primary, type SectionProps } from "./ui";
@@ -13,6 +14,7 @@ const EMOJI = ["🙂", "😎", "🦄", "🦖", "🐱", "🐶", "🌟", "⚽", "�
 export const SECTION_INFO: Record<FamilySection, { label: string; detail: string; icon: ReactNode }> = {
   home: { label: "Home", detail: "Today at a glance", icon: null },
   tasks: { label: "Tasks", detail: "Your to-do lists", icon: null },
+  start: { label: "Getting started", detail: "A guide to everything in LifeHub", icon: <Rocket size={17} /> },
   chores: { label: "Chores", detail: "Chore chart, rotations and stars", icon: <Sparkles size={17} /> },
   calendar: { label: "Calendar", detail: "Shared family calendars", icon: <CalendarDays size={17} /> },
   behavior: { label: "Behavior", detail: "Kid behavior tracker and rewards", icon: <Smile size={17} /> },

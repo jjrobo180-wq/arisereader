@@ -29,8 +29,9 @@ test("WorkHub: every App Store screen is in the store, and no built-in or always
   // Since Oct 12, 2026 WorkHub comes with Home, Calendar, Tasks, Notes and Goals (hidden or shown
   // in Settings); the rest are added from the App Store.
   const tabs = PLUGINS.flatMap((p) => (p.target.kind === "tab" ? [p.target.tab] : []));
-  const optional = HUB_TABS.filter((t) => !ALWAYS_SHOWN.includes(t) && t !== "admin" && (!WORK_BUILT_IN_TABS.includes(t) || t === "goals"));
-  // (Goals became built-in later but keeps its listing, shown as already added and never counted.)
+  const optional = HUB_TABS.filter((t) => !ALWAYS_SHOWN.includes(t) && t !== "admin" && (!WORK_BUILT_IN_TABS.includes(t) || t === "goals" || t === "start"));
+  // (Goals became built-in later but keeps its listing, shown as already added and never counted.
+  // Getting started is built in too, and listed so it can be added back after it is removed.)
   assert.deepEqual([...tabs].sort(), [...optional].sort());
   for (const t of tabs) assert.ok(!ALWAYS_SHOWN.includes(t), t);
 });

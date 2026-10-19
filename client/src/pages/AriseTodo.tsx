@@ -19,7 +19,7 @@ import {
   Folder as Folder, ChevronRight as ChevronRight,
   Archive, ArchiveRestore,
   Table, FolderOpen, QrCode,
-  Lock,
+  Lock, Rocket,
 } from "lucide-react";
 import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
@@ -102,6 +102,8 @@ import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
+import GettingStarted from "@/components/GettingStarted";
+import { startingRole } from "@shared/gettingStarted";
 import { appLocked } from "@shared/privacyLock";
 import { Avatar, Modal } from "@/components/family-hub/ui";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
@@ -242,7 +244,7 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
+  home: Home, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
   randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
@@ -787,7 +789,22 @@ export default function AriseTodo() {
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
+  // Where the Getting started page's buttons go (components/GettingStarted.tsx).
+  const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications"].includes(t)
+    || (t === "reader" ? sections.includes("reader") : (FAMILY_SECTIONS as readonly string[]).includes(t) && t !== "start");
+  const guideOpen = (t: string) => {
+    if (t === "customize") setCustomizing(true);
+    else if (t === "store") setStore(true);
+    else if (t === "search") setSearching(true);
+    else if (t === "passcode") setLockSettings(true);
+    else if (t === "reader") { closeApps(); setSection("reader"); }
+    else if (sections.includes(t as FamilySection)) { closeApps(); goSection(t); }
+    // An app they haven't added yet: its page in the App Store, ready to add.
+    else { setStoreOpenApp(`life-${t}`); setStore(true); }
+  };
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
+    : shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
+        onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the App Store."); }} />
     : shown === "chores" ? <Chores {...common} />
     : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "behavior" ? <Behavior {...common} />
