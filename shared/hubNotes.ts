@@ -1,5 +1,6 @@
 // Arise WorkHub notes. A note is either about a student (a check-in, a concern, a progress note) or
 // it is not about any one student: a staff meeting, a team meeting, a training, an idea to keep.
+import { cleanLinks, type HubLink } from "./hubLinks";
 import { cleanNoteHtml } from "./richNote";
 import type { NoteItem, Workspace } from "./teacherHub";
 
@@ -10,7 +11,7 @@ export const GENERAL_NOTE_KINDS = ["Staff meeting", "Team meeting", "Department 
 
 export type NoteScope = "student" | "general";
 export type NoteFilter = "all" | NoteScope;
-export type NoteFields = { scope: NoteScope; student: string; type: string; title: string; date: string; body: string; /** The formatted note from the editor. */ html?: string; /** More students it is about. */ students?: string[]; color?: string; pinned?: boolean; locked?: boolean };
+export type NoteFields = { scope: NoteScope; student: string; type: string; title: string; date: string; body: string; /** The formatted note from the editor. */ html?: string; /** More students it is about. */ students?: string[]; color?: string; pinned?: boolean; locked?: boolean; /** What it is linked to (shared/hubLinks.ts). */ links?: HubLink[] };
 
 /** Note card colours: the same soft colours LifeHub notes use. */
 export const NOTE_CARD_COLORS = ["#fff7d6", "#e9f7ef", "#e8f1fd", "#fde8ef", "#f1ecff", "#ffffff"] as const;
@@ -39,7 +40,7 @@ export function cleanNote(fields: NoteFields): Omit<NoteItem, "id"> | null {
   const more = fields.scope === "student" ? noteStudents({ student, students: fields.students }).slice(1, 40) : [];
   const color = (NOTE_CARD_COLORS as readonly string[]).includes(String(fields.color)) ? fields.color : undefined;
   const html = cleanNoteHtml(fields.html);
-  return { student, type, body, date: fields.date || "", ...(html ? { html } : {}), ...(title ? { title } : {}), ...(more.length ? { students: more } : {}), ...(color ? { color } : {}), ...(fields.pinned ? { pinned: true } : {}), ...(fields.locked ? { locked: true } : {}) };
+  return { student, type, body, date: fields.date || "", ...(html ? { html } : {}), ...(title ? { title } : {}), ...(more.length ? { students: more } : {}), ...(color ? { color } : {}), ...(fields.pinned ? { pinned: true } : {}), ...(fields.locked ? { locked: true } : {}), ...(fields.links?.length ? { links: cleanLinks(fields.links) } : {}) };
 }
 
 /** Adds a note on top, or changes one in place. Nothing changes when the note can't be saved or is gone. */
@@ -53,7 +54,7 @@ export function saveNote(workspace: Workspace, noteId: string | null, fields: No
 
 /** The boxes filled in from a saved note, to change it. */
 export function noteFields(note: NoteItem): NoteFields {
-  return { scope: noteScope(note), student: note.student || "", type: note.type, title: note.title || "", date: note.date || "", body: note.body || "", ...(note.html ? { html: note.html } : {}), students: note.students || [], color: note.color, pinned: !!note.pinned, locked: !!note.locked };
+  return { scope: noteScope(note), student: note.student || "", type: note.type, title: note.title || "", date: note.date || "", body: note.body || "", ...(note.html ? { html: note.html } : {}), students: note.students || [], color: note.color, pinned: !!note.pinned, locked: !!note.locked, links: cleanLinks(note.links) };
 }
 
 /** The notes to show: by kind of note, and by words in the title, the note, the student or the kind. Saved order is kept (newest first). */

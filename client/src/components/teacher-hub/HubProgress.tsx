@@ -1,5 +1,7 @@
 // Arise WorkHub: IEP goal progress monitoring and service-minute tracking (push-in, pull-out and the rest).
 // The rules are in shared/hubProgress.ts.
+import { ItemConnections } from "./HubLinks";
+import { GoalQuizResults } from "./HubGoalQuiz";
 import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { Clock, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { DAY_NAMES, GOAL_AREAS, SERVICE_KINDS, WEEK_DAYS, cleanDayGuide, countedPlan, goalProgress, guideDays, meetingDays, optionalDays, planFields, planText, serviceStatus, sessionLog, weekStart, withPoint, type DayStatus, type GoalStatus, type WeekDay } from "@shared/hubProgress";
@@ -53,7 +55,8 @@ function Spark({ goal }: { goal: Goal }) {
 type GoalDraft = { id: string | null; student: string; area: string; text: string; baseline: string; target: string; unit: string; direction: "up" | "down"; startDate: string; targetDate: string };
 
 export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Props) {
-  const [student, setStudent] = useState("");
+  // A link to a goal (shared/hubLinks.ts) opens Goals on that student's goals.
+  const [student, setStudent] = useState(() => { try { const id = sessionStorage.getItem("arise-goal-focus"); return (id && workspace.goals.find((g) => g.id === id)?.student) || ""; } catch { return ""; } });
   const [draft, setDraft] = useState<GoalDraft | null>(null);
   const [adding, setAdding] = useState<{ goalId: string; date: string; value: string; note: string } | null>(null);
   const goals = useMemo(() => workspace.goals.filter((g) => !student || g.student === student), [workspace.goals, student]);
@@ -99,6 +102,8 @@ export function GoalsTab({ workspace, setWorkspace, remove, makeId, today }: Pro
                 <div className="mt-2"><Bar percent={pr.percent} label={`${g.student} progress on goal`} tone={pr.status === "behind" ? "bg-red-500" : pr.status === "close" ? "bg-amber-500" : "bg-teal-600"} /></div>
                 <Spark goal={g} />
                 <div className="mt-2 text-xs text-slate-500">Started at {g.baseline}{g.targetDate ? ` · target ${friendlyDate(g.targetDate, today)}` : ""}{g.points.length ? ` · last checked ${friendlyDate(g.points[g.points.length - 1].date, today)}` : ""}</div>
+                <GoalQuizResults goal={g} />
+                <ItemConnections kind="goal" id={g.id} text={`${g.student} ${g.area} ${g.text}`} setWorkspace={(u) => setWorkspace((p) => u(p))} focusKey="arise-goal-focus" />
                 <div className="mt-3 flex flex-wrap gap-2">
                   <PrimaryButton onClick={() => setAdding({ goalId: g.id, date: today, value: "", note: "" })}><Plus className="h-4 w-4" /> Add data</PrimaryButton>
                   <GhostButton onClick={() => setDraft({ id: g.id, student: g.student, area: g.area, text: g.text, baseline: String(g.baseline), target: String(g.target), unit: g.unit, direction: g.direction, startDate: g.startDate, targetDate: g.targetDate })}><Pencil className="h-4 w-4" /> Edit</GhostButton>

@@ -70,10 +70,12 @@ type Props = {
   onClose: () => void;
   /** Open the photo or the file picker straight away. */
   start?: "photo" | "file";
+  /** A document handed in (a Drive file, say) and what to ask about it; read straight away. */
+  preload?: { file?: File; text?: string; title?: string };
 };
 
-export default function HubImport({ token, students, onAdd, onClose, start }: Props) {
-  const [text, setText] = useState("");
+export default function HubImport({ token, students, onAdd, onClose, start, preload }: Props) {
+  const [text, setText] = useState(preload?.text || "");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -85,6 +87,10 @@ export default function HubImport({ token, students, onAdd, onClose, start }: Pr
   const photoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // A handed-in document is attached and read at once, so it goes straight to the review.
+  const autoRead = useRef(false);
+  useEffect(() => { if (preload?.file) { autoRead.current = true; void addFiles([preload.file]); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (autoRead.current && attachments.length) { autoRead.current = false; void read(); } }, [attachments]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (start === "photo") photoRef.current?.click();
     else if (start === "file") fileRef.current?.click();

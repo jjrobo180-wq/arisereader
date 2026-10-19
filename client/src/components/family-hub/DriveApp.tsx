@@ -2,11 +2,13 @@
 // from a phone or computer, browse them, open them, delete them. Metadata lives in family.drive; the actual bytes live in
 // Supabase Storage via server/driveApp.ts's routes, signed URLs only.
 import { useEffect, useRef, useState } from "react";
-import { Upload, Trash2, ImageOff, FileText } from "lucide-react";
+import { Upload, Trash2, ImageOff, FileText, Sparkles } from "lucide-react";
 import { addDriveFile, removeDriveFile, driveBytesUsed, driveMeter, FREE_STORAGE_BYTES, type DriveFile } from "@shared/driveApp";
 import { API_BASE } from "@/lib/queryClient";
 
 type Props = {
+  /** WorkHub: read a document with AI (goals, reminders…) and link what it finds back to it. */
+  onReadWithAI?: (file: DriveFile, blob: Blob) => void;
   files: DriveFile[];
   setFiles: (update: (all: DriveFile[]) => DriveFile[]) => void;
   say: (msg: string) => void;
@@ -28,7 +30,7 @@ function kindOf(f: DriveFile): string {
   return "FILE";
 }
 
-export default function DriveApp({ files, setFiles, say, token }: Props) {
+export default function DriveApp({ files, setFiles, say, token, onReadWithAI }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -99,6 +101,20 @@ export default function DriveApp({ files, setFiles, say, token }: Props) {
     window.open(url, "_blank", "noopener");
   };
 
+  /** Fetches the file itself and hands it to the AI reader. */
+  const [reading, setReading] = useState("");
+  const readWithAI = async (f: DriveFile) => {
+    if (!onReadWithAI || reading) return;
+    setReading(f.id);
+    try {
+      const url = await linkFor(f);
+      const res = url ? await fetch(url) : null;
+      if (!res?.ok) throw new Error();
+      onReadWithAI(f, await res.blob());
+    } catch { say("Couldn't open that file to read it. Try again."); }
+    setReading("");
+  };
+
   const del = async (f: DriveFile) => {
     setFiles((all) => removeDriveFile(all, f.id));
     if (token) await fetch(`${API_BASE}/api/lifehub/drive/delete`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path: f.path }) }).catch(() => {});
@@ -138,6 +154,9 @@ export default function DriveApp({ files, setFiles, say, token }: Props) {
                 <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">{kindOf(f)}</span>
                 <span className="line-clamp-2 break-all text-[11px] font-semibold text-slate-600">{f.name}</span>
               </button>}
+          {onReadWithAI && <button type="button" onClick={() => void readWithAI(f)} disabled={!!reading} data-testid="drive-read-ai"
+            className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-slate-200 bg-white text-xs font-bold text-teal-800 hover:bg-teal-50 disabled:opacity-60">
+            <Sparkles className="h-3.5 w-3.5" />{reading === f.id ? "Opening…" : "Read with AI"}</button>}
           <button type="button" onClick={() => del(f)} aria-label={`Delete ${f.name}`} className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition focus:opacity-100 group-hover:opacity-100"><Trash2 size={14} /></button>
         </div>;
       })}</div>}

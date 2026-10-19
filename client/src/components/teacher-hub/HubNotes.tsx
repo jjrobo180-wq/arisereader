@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { Check, Lock, LockOpen, Pencil, Pin, PinOff, Plus, Search, Trash2, User, Users } from "lucide-react";
 import { useLock } from "@/components/lock/PrivacyLock";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
+import { LinkEditor, useHubLinks } from "./HubLinks";
 import { useSavedChoice } from "@/lib/useSavedChoice";
 import { GENERAL_NOTE_KINDS, STUDENT_NOTE_KINDS, NOTE_TITLE_MAX, arrangeNotes, cleanNote, noteCounts, noteFields, noteHeading, noteScope, noteStudents, pinNote, saveNote, NOTE_CARD_COLORS, type NoteFields, type NoteFilter, type NoteScope } from "@shared/hubNotes";
 import type { NoteItem, Workspace } from "@shared/teacherHub";
@@ -95,6 +96,7 @@ export function NoteModal({ note, start, student, students, setWorkspace, makeId
   const [form, setForm] = useState<NoteFields>(() => (note ? noteFields(note) : start ?? blank("student", student || "")));
   const [status, setStatus] = useState<"" | "saving" | "saved" | "waiting">("");
   const lock = useLock();
+  const links = useHubLinks();
   const savedId = useRef<string | null>(note?.id ?? null);
   const latest = useRef(form); latest.current = form;
   const timer = useRef<number | null>(null);
@@ -126,6 +128,7 @@ export function NoteModal({ note, start, student, students, setWorkspace, makeId
           className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-semibold ${form.locked ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>{form.locked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}{form.locked ? "Locked" : "Lock note"}</button>}
         <span className="text-sm text-slate-500" aria-live="polite" data-testid="note-status">{label}</span></div>}>
       <form onSubmit={(e) => { e.preventDefault(); done(); }} data-testid="note-form"><NoteBoxes form={form} setForm={setForm} students={students} lockStudent={!note && !!student} /><button type="submit" hidden /></form>
+      {links && <div className="mt-4 rounded-2xl border border-slate-200 p-3"><LinkEditor workspace={links.workspace} links={form.links || []} onChange={(next) => setForm({ ...form, links: next })} text={`${form.student} ${form.title} ${form.body.slice(0, 400)}`} self={savedId.current ? { kind: "note", id: savedId.current } : undefined} /></div>}
     </HubModal>
   );
 }

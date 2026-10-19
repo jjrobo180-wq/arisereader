@@ -124,6 +124,10 @@ import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
+import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLinks";
+import { useGoalQuizSync } from "@/components/teacher-hub/HubGoalQuiz";
+import { API_BASE } from "@/lib/queryClient";
+import { goalQuizzes, resolveLink, type HubLink } from "@shared/hubLinks";
 import GettingStarted from "@/components/GettingStarted";
 import { startingRole } from "@shared/gettingStarted";
 import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
@@ -328,6 +332,16 @@ function ReaderOnly({ signOut, isAdmin }: { signOut: () => void; isAdmin: boolea
 /** An App Store app's own icon (a cloud and sun for Standby, a moon for Sleep Studio…), not a generic sparkle. */
 function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
 
+/** "Julian Sikora + 2 more" for a to-do's links (the things still there). */
+function linkSummary(workspace: Workspace, links: HubLink[]): string {
+  const names = links.map((l) => resolveLink(workspace, l)?.label).filter(Boolean) as string[];
+  if (!names.length) return "Linked";
+  return names.length > 1 ? `${names[0].slice(0, 28)} + ${names.length - 1} more` : names[0].slice(0, 40);
+}
+
+/** What "Read with AI" asks about a document: goals first, then everything else worth keeping. */
+const READ_DOC_ASK = "Read this document. Pull out each student's IEP goals (the goal in its own words, the baseline, the target, the unit and the dates), any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping in my Hub.";
+
 /** homeTask value meaning "a new to-do" (the full form opened from Home's quick add with More). */
 const NEW_TASK = "__new__";
 
@@ -377,6 +391,8 @@ function TeacherHubPage() {
   }, [location]);
   const [customize, setCustomize] = useState(false);
   const [lockSettings, setLockSettings] = useState(false);
+  /** Bumped to reopen the notes board on a note a link points at. */
+  const [notesKey, setNotesKey] = useState(0);
   // The Arise App Store. It opens straight away when the person switched here from LifeHub's store.
   const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
   /** An app to open the App Store on (search's "In the App Store" results). */
@@ -424,7 +440,8 @@ function TeacherHubPage() {
     setNight((v) => { try { localStorage.setItem("arise-hub-night", v ? "0" : "1"); } catch { /* the choice just isn't remembered */ } return !v; });
   }
   // "Add with AI": the panel that reads pasted text, photos and files into the Hub.
-  const [adding, setAdding] = useState<{ start?: "photo" | "file" } | null>(null);
+  /** "Add with AI": how it opens, a document handed to it (from Drive or a student's profile), and what everything it adds gets linked to. */
+  const [adding, setAdding] = useState<{ start?: "photo" | "file"; preload?: { file?: File; text?: string; title?: string }; links?: HubLink[] } | null>(null);
   const [added, setAdded] = useState<{ words: string; tab: HubTab | null } | null>(null);
   // The tab used last in each group, so tapping the group opens it again.
   const [lastInGroup, setLastInGroup] = useState<Partial<Record<HubGroupId, HubTab>>>({});
@@ -500,6 +517,8 @@ function TeacherHubPage() {
 
   // Connected calendars are read again when the Hub opens.
   useCalendarRefresh(loaded && !loadError && !needsPlan && canUseHub, token, workspace.calendars, setWorkspace, id);
+  // Goal quiz scores from A.R.I.S.E. Reader come back into the goals (components/teacher-hub/HubGoalQuiz.tsx).
+  useGoalQuizSync(workspace, setWorkspace, token, id, loaded && !loadError && !needsPlan && canUseHub);
   // Reminders sent from the Apple Reminders app (by an iPhone Shortcut) become to-dos.
   const checkApple = useAppleInbox(loaded && !loadError && !needsPlan && canUseHub, token, TODAY, workspace, setWorkspace, id, (text) => { toasts.show(text, []); });
   // Work emails forwarded to the teacher's Hub address land in Emails, flagged, and on the to-do list.
@@ -617,8 +636,9 @@ function TeacherHubPage() {
   /** Adds what the teacher checked in "Add with AI", and says what happened. */
   function addFound(items: HubImportItems) {
     const safe = cleanHubImport(items, TODAY());
-    const result = mergeHubImport(workspace, safe, id, seats);
-    setWorkspace((prev) => mergeHubImport(prev, safe, id, seats).workspace);
+    const links = adding?.links;
+    const result = mergeHubImport(workspace, safe, id, seats, links);
+    setWorkspace((prev) => mergeHubImport(prev, safe, id, seats, links).workspace);
     const most = HUB_IMPORT_KINDS.filter((kind) => result.added[kind]).sort((a, b) => (result.added[b] || 0) - (result.added[a] || 0))[0];
     setAdded({ words: describeHubAdded(result), tab: most ? HUB_IMPORT[most].tab : null });
     setAdding(null);
@@ -788,6 +808,35 @@ function TeacherHubPage() {
   const installedMenu = menu.filter(isStoreGroup);
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
+  // Opening a linked thing (components/teacher-hub/HubLinks.tsx): each kind goes where it lives.
+  const openLink = (l: HubLink) => {
+    if (l.kind === "file") {
+      const f = cleanDriveFiles((workspace as any).drive).find((x) => x.id === l.id);
+      if (!f || !token) { toasts.show("That file isn't in Drive any more.", []); return; }
+      // Opened straight away (before the link arrives) so the browser doesn't block the new tab.
+      const win = window.open("about:blank", "_blank");
+      fetch(`${API_BASE}/api/lifehub/drive/url`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path: f.path }) })
+        .then((r) => r.json()).then((j) => { if (j?.url) { if (win) win.location.href = j.url; else window.open(j.url, "_blank", "noopener"); } else { win?.close(); toasts.show("Couldn't open that file. Try again.", []); } })
+        .catch(() => { win?.close(); toasts.show("Couldn't open that file. Try again.", []); });
+      return;
+    }
+    if (l.kind === "task") { setHomeTask(l.id); return; }
+    const studentByName = (name: string) => workspace.students.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase());
+    if (l.kind === "student" || l.kind === "quiz") {
+      const sid = l.kind === "student" ? l.id : studentByName(goalQuizzes(workspace).find((q) => q.id === l.id)?.student || "")?.id;
+      if (!sid) return;
+      if (!isTabOn("caseload", visible, !!user.isAdmin)) { setStoreOpenApp("work-caseload"); setStore(true); return; }
+      setHomeTask(null); setProfileStudent(sid); goTab("caseload"); return;
+    }
+    if (l.kind === "note") { try { sessionStorage.setItem("arise-stay:work-note", JSON.stringify(l.id)); } catch { /* opens the board */ } setHomeTask(null); setNotesKey((k) => k + 1); goTab("notes"); return; }
+    const tabFor: Partial<Record<HubLink["kind"], HubTab>> = { goal: "goals", meeting: "iep", lesson: "lessons" };
+    const t = tabFor[l.kind];
+    if (!t) return;
+    if (l.kind === "goal") try { sessionStorage.setItem("arise-goal-focus", l.id); } catch { /* fine */ }
+    if (l.kind === "meeting") try { sessionStorage.setItem("arise-meeting-focus", l.id); } catch { /* fine */ }
+    setHomeTask(null);
+    if (isTabOn(t, visible, !!user.isAdmin)) goTab(t); else { setStoreOpenApp(`work-${t}`); setStore(true); }
+  };
   // Where the Getting started page's buttons go (components/GettingStarted.tsx).
   const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications", "reader"].includes(t)
     || ((HUB_TABS as readonly string[]).includes(t) && t !== "start" && t !== "admin");
@@ -887,7 +936,10 @@ function TeacherHubPage() {
   // Passcode lock (components/lock/PrivacyLock.tsx): the screens that can be locked.
   const lockableApps = menu.flatMap((g) => groupTabs(g.id, visible, !!user.isAdmin)).filter((t) => t !== "overview" && t !== "admin").map((t) => ({ id: t, label: TAB_META.find((m) => m.id === t)?.label || t }));
   return (
-    <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}>
+    <PrivacyLockProvider lock={workspace.lock ?? null} setLock={(lock) => setWorkspace((p) => ({ ...p, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><HubLinkProvider workspace={workspace} openLink={openLink} token={token} readDocument={(student) => {
+      const sid = student ? workspace.students.find((x) => x.name === student)?.id : undefined;
+      setAdding({ start: "file", preload: { text: student ? `These are ${student}'s documents (IEP, goal pages, progress reports). Pull out ${student}'s IEP goals with the baseline, target, unit and dates, any progress-monitoring or meeting dates as reminders or meetings, and anything else worth keeping.` : READ_DOC_ASK }, links: sid ? [{ kind: "student", id: sid }] : [] });
+    }}>
     <div className={`hub-paper hub-lifelook min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}
       style={{ "--hub-accent": accent, "--hub-accent-deep": deepenAccent(accent) } as React.CSSProperties}>
       <UpgradeHost hub="work" />
@@ -1333,7 +1385,8 @@ function TeacherHubPage() {
                 <button type="button" onClick={closeApps} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><RailHide className="h-4 w-4" /> Back</button>
                 <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag className="h-4 w-4" /> App Store</button>
               </div>
-              <DriveApp files={hubDrive} setFiles={setHubDrive} say={(m) => toasts.show(m, [])} token={token} />
+              <DriveApp files={hubDrive} setFiles={setHubDrive} say={(m) => toasts.show(m, [])} token={token}
+                onReadWithAI={(f, blob) => setAdding({ preload: { file: new File([blob], f.name, { type: f.contentType || blob.type }), text: READ_DOC_ASK }, links: [{ kind: "file", id: f.id }] })} />
             </div>
           )}
           {dropOpen && (
@@ -1638,7 +1691,7 @@ function TeacherHubPage() {
           {tab === "iep" && <Meetings workspace={workspace} setWorkspace={setWorkspace} remove={remove} seats={seats} studentOptions={studentOptions} token={token} makeId={id} account={{ name: cleanSenderName(String((user as any)?.displayName || (user as any)?.username || "")), email: String((user as any)?.email || "") }} />}
           {tab === "lessons" && <HubLessons workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={id} say={(text) => toasts.show(text, [])} />}
           {tab === "tasks" && <><Tasks workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} toast={(text, actions) => { toasts.show(text, actions); }} /><AppleRemindersCard token={token} check={checkApple} /></>}
-          {tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
+          {tab === "notes" && <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}
           {tab === "admin" && user.isAdmin && adminSection === "updates" && <WhatsNew embedded />}
           {tab === "admin" && user.isAdmin && adminSection !== "updates" && <AdminTab night={night} section={adminSection} onSection={setAdminSection} settingsPart={adminSettings} onSettingsPart={setAdminSettings} settingsInSidebar={!deskDrawer} />}
           {tab === "arise" && <Arise workspace={workspace} setWorkspace={setWorkspace} remove={remove} studentOptions={studentOptions} />}
@@ -1696,10 +1749,10 @@ function TeacherHubPage() {
         onSave={addHomeTask} onClose={() => setHomeTask(null)} />}
       {homeTask && workspace.tasks.some((t) => t.id === homeTask) && <TaskModal task={workspace.tasks.find((t) => t.id === homeTask) || null} today={TODAY()}
         onSave={(fields) => setWorkspace((p) => ({ ...p, tasks: saveTask(p.tasks, homeTask, fields, id) }))} onClose={() => setHomeTask(null)} onDelete={() => remove("tasks", homeTask)} />}
-      {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} onAdd={addFound} onClose={() => setAdding(null)} />}
+      {adding && <HubImport token={token} students={workspace.students.map((s) => s.name)} start={adding.start} preload={adding.preload} onAdd={addFound} onClose={() => setAdding(null)} />}
       {view.kind === "blocked" && view.block === "conflict" && <ConflictDialog onUseNewest={sync.useNewest} onKeepMine={sync.keepMine} onDownload={() => downloadHubCopy(workspace)} />}
       <BottomStack toasts={toasts}><SaveNotice view={view} onRetry={sync.retryNow} onDownload={() => downloadHubCopy(workspace)} /></BottomStack>
-    </div></PrivacyLockProvider>
+    </div></HubLinkProvider></PrivacyLockProvider>
   );
 }
 
@@ -1728,6 +1781,7 @@ function TaskRow({ task, today, workspace, setWorkspace, makeId, onToggle, onEdi
           {!task.dueDate && !task.done && <span>No due date</span>}
           {task.recurring && <span className="inline-flex items-center gap-1"><Repeat className="h-3.5 w-3.5" />{task.recurring}</span>}
           {task.emailId && <span className="inline-flex items-center gap-1" data-testid="task-from-email"><Mail className="h-3.5 w-3.5" />From an email</span>}
+          {(task.links?.length ?? 0) > 0 && <span className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2 py-1 text-teal-800" data-testid="task-links"><Link2 className="h-3.5 w-3.5" />{linkSummary(workspace, task.links!)}</span>}
           {task.lastDone && <span>Last done {friendlyDate(task.lastDone, today)}</span>}
           <span className="inline-flex items-center gap-1 font-medium text-teal-700"><Pencil className="h-3.5 w-3.5" />Edit</span>
         </div>
@@ -2043,6 +2097,7 @@ function Meetings({ workspace, setWorkspace, remove, seats, studentOptions, toke
               {meetingDeadline(workspace, m) && <div className="mt-0.5 text-xs font-medium text-slate-600" data-testid="meeting-deadline">{deadlineLabel(m.type).replace(/ date$/, "")}: {friendlyDate(meetingDeadline(workspace, m), TODAY())}{!m.done && meetingDeadline(workspace, m) >= TODAY() ? ` (${relativeDays(meetingDeadline(workspace, m), TODAY())})` : ""}</div>}
               <button type="button" onClick={() => setWizard({ step: resumeStep(m.plan, !!m.date), meetingId: m.id })} className="mt-1 mr-4 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4" data-testid="open-steps">{stepsDone(m.plan) ? `Steps: ${stepsDone(m.plan)} of ${STEP_COUNT} done` : "Start the steps"}</button>
               {!m.done && <button type="button" onClick={() => setPollStart({ meetingId: m.id, title: `${m.type}${m.student ? ` for ${m.student.split(" ")[0]}` : ""}` })} className="mt-1 min-h-11 text-sm font-medium text-teal-800 underline decoration-teal-200 underline-offset-4">Find a time with everyone</button>}
+              <ItemConnections kind="meeting" id={m.id} text={`${m.student} ${m.type} ${m.notes}`} setWorkspace={(u) => setWorkspace((p) => u(p))} focusKey="arise-meeting-focus" />
             </div>
             <PinButton workspace={workspace} setWorkspace={setWorkspace} kind="meeting" refId={m.id} title={`${m.student} ${m.type}`} makeId={makeId} />
             <button aria-label="Delete" className="-m-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove("meetings", m.id)}><Trash2 className="h-4 w-4" /></button>

@@ -36,7 +36,7 @@ export type Student = {
   team?: Record<string, string>;
 };
 
-export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;
+export type Meeting = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;
   /** YYYY-MM-DD: the IEP (or reevaluation) deadline the meeting has to happen before (shared/meetingDeadline.ts). */
   deadline?: string;
   /** Gen ed teachers told about the meeting, and whether each needs their class covered (shared/genEdCoverage.ts). */
@@ -44,7 +44,7 @@ export type Meeting = { id: string; student: string; type: string; date: string;
   /** Who the coverage request goes to (a lead teacher or supervisor): a name or email. */
   coverageTo?: string };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
-export type Task = { id: string; title: string; dueDate: string; /** Optional HH:MM local time on the due date. */ dueTime?: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The to-do list it is on (workspace.taskLists), like LifeHub's lists. Not set means no list. */ listId?: string; /** Tucked away out of every view (Archived shows it) without being deleted. */ archived?: boolean; /** The day a repeating to-do was last checked off. */ lastDone?: string;
+export type Task = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; title: string; dueDate: string; /** Optional HH:MM local time on the due date. */ dueTime?: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The to-do list it is on (workspace.taskLists), like LifeHub's lists. Not set means no list. */ listId?: string; /** Tucked away out of every view (Archived shows it) without being deleted. */ archived?: boolean; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
   notes?: string;
   /** Set when the to-do came from the Apple Reminders app (see shared/appleReminders.ts): which reminder it is. */
@@ -56,7 +56,7 @@ export type Task = { id: string; title: string; dueDate: string; /** Optional HH
   /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
   rolled?: { dueDate: string; lastDone?: string; at: string };
 };
-export type NoteItem = { id: string; /** Needs the hub passcode to open (shared/privacyLock.ts). */ locked?: boolean; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** Formatted version from the note editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string;
+export type NoteItem = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; /** Needs the hub passcode to open (shared/privacyLock.ts). */ locked?: boolean; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** Formatted version from the note editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string;
   /** More students the note is about (a group check-in, a meeting about several students). `student` stays the first. */
   students?: string[];
   /** The card's colour on the notes board, like LifeHub's notes. */
@@ -75,7 +75,7 @@ export type ScheduleEntry = { id: string; student: string; day: string; start: s
 /** One reading of how a student is doing on a goal. */
 export type GoalPoint = { id: string; date: string; value: number; note: string };
 /** An IEP goal tracked over time. `up` means a higher number is better (accuracy); `down` means lower is better (outbursts a week). */
-export type Goal = { id: string; student: string; area: string; text: string; baseline: number; target: number; unit: string; direction: "up" | "down"; startDate: string; targetDate: string; points: GoalPoint[] };
+export type Goal = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; student: string; area: string; text: string; baseline: number; target: number; unit: string; direction: "up" | "down"; startDate: string; targetDate: string; points: GoalPoint[] };
 /** Minutes of a service a student's IEP requires each week. */
 export type ServicePlan = {
   id: string; student: string; kind: string;
@@ -274,6 +274,8 @@ export type Workspace = {
   lessonState?: string;
   /** Passcode lock for screens and notes (shared/privacyLock.ts). */
   lock?: import("./privacyLock").PrivacyLock | null;
+  /** Quizzes made from students' goals, taken on A.R.I.S.E. Reader (shared/hubLinks.ts). */
+  goalQuizzes?: import("./hubLinks").GoalQuiz[];
 };
 export type TaskList = { id: string; name: string; color: string };
 
@@ -342,6 +344,15 @@ export function normalizeWorkspace(raw: any): Workspace {
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
   if (raw.goalsStd !== true) out.visibleTabs = { ...out.visibleTabs, goals: true };
   out.pins = cleanPins(raw.pins);
+  // Goal quizzes (shared/hubLinks.ts): kept as saved, with anything malformed dropped.
+  out.goalQuizzes = (Array.isArray(raw.goalQuizzes) ? raw.goalQuizzes : [])
+    .filter((q: any) => q && typeof q === "object" && typeof q.id === "string" && q.id && typeof q.student === "string")
+    .map((q: any) => ({ id: q.id.slice(0, 40), title: String(q.title || "Goal quiz").slice(0, 160), student: q.student.slice(0, 80), ...(Number.isInteger(q.readerUserId) ? { readerUserId: q.readerUserId } : {}),
+      goalIds: Array.isArray(q.goalIds) ? q.goalIds.filter((x: unknown) => typeof x === "string").slice(0, 40) : [], createdAt: String(q.createdAt || ""),
+      recorded: Array.isArray(q.recorded) ? q.recorded.filter((x: unknown) => typeof x === "string").slice(-200) : [],
+      results: (Array.isArray(q.results) ? q.results : []).filter((r: any) => r && typeof r.attemptId === "string").slice(-50)
+        .map((r: any) => ({ attemptId: r.attemptId.slice(0, 40), score: Number(r.score) || 0, total: Number(r.total) || 0, completedAt: String(r.completedAt || "").slice(0, 40) })) }))
+    .slice(0, 300);
   out.hiddenEvents = (Array.isArray(raw.hiddenEvents) ? raw.hiddenEvents : [])
     .filter((r: any) => r && typeof r === "object" && typeof r.id === "string" && typeof r.title === "string" && r.title.trim())
     .map((r: any): HiddenRule => ({ id: r.id, title: r.title, date: typeof r.date === "string" ? r.date : "", start: typeof r.start === "string" ? r.start : "" }))
@@ -410,6 +421,15 @@ export const HUB_IMPORT = {
     label: "IEP and meetings", tab: "iep",
     hint: "An IEP, reevaluation, planning, parent or progress meeting about one student. Do not also put it in events.",
     fields: { student: student(), type: choice("Kind", HUB_CHOICES.meetingType, "Other"), date: date("Date"), notes: text("Notes", 1000, { long: true }) },
+  },
+  goals: {
+    label: "IEP goals", tab: "goals",
+    hint: "An IEP or progress-monitoring goal for one student, as written in the material (an IEP, a goal page, a progress report). text is the goal in the document's own words. baseline is where the student starts and target where the goal says they will be, as numbers; unit is what they are measured in (%, words per minute, out of 10 trials…). Only goals the material actually states.",
+    fields: {
+      student: text("Student", 80, { required: true }), area: text("Area", 40), text: text("Goal", 600, { required: true, long: true }),
+      baseline: { kind: "number", label: "Baseline", min: -100000, max: 100000, fallback: 0 }, target: { kind: "number", label: "Target", min: -100000, max: 100000, fallback: null },
+      unit: text("Unit", 30), startDate: date("Start", { today: true }), targetDate: date("Target date"),
+    },
   },
   notes: {
     label: "Notes", tab: "notes",
@@ -599,6 +619,7 @@ export function describeHubItem(kind: HubImportKind, item: HubImportItem): { tit
     case "tasks": return { title: s("title"), detail: joined(s("dueDate") ? `Due ${s("dueDate")}` : "No due date", s("recurring")) };
     case "events": return { title: s("title"), detail: joined(s("date"), clock || "All day", s("location")) };
     case "meetings": return { title: joined(s("student") || "No student yet", s("type")), detail: joined(s("date") || "No date", s("notes")) };
+    case "goals": return { title: joined(s("student"), s("area") || "Goal"), detail: joined(s("text"), `${s("baseline") || 0} → ${s("target") || "?"}${s("unit") ? ` ${s("unit")}` : ""}`, s("targetDate") && `by ${s("targetDate")}`) };
     case "notes": return { title: s("body"), detail: joined(s("student") || "General", s("type"), s("date")) };
     case "students": return { title: s("name"), detail: joined(s("grade") && `Grade ${s("grade")}`, s("iepDate") && `IEP ${s("iepDate")}`, s("reevalDate") && `Reevaluation ${s("reevalDate")}`, s("disability1"), s("disability2"), s("accommodations")) };
     case "lessons": return { title: s("title"), detail: joined(s("subject"), s("group"), s("date"), s("objective")) };
@@ -640,11 +661,25 @@ export type HubMergeResult = {
  * Adds checked items to a workspace. Anything already there is not added twice,
  * and the caseload never grows past the plan (`seats`; null means no limit).
  */
-export function mergeHubImport(workspace: Workspace, items: HubImportItems, makeId: () => string, seats: number | null): HubMergeResult {
+/** Lists whose new items take the import's links. */
+const LINKED_LISTS = new Set(["tasks", "notes", "meetings", "goals"]);
+
+/**
+ * Adds checked import items to the Hub. `links` (shared/hubLinks.ts), when given, go on every new
+ * reminder, note, meeting and goal: what they were read from (a Drive file) and who they're about.
+ */
+export function mergeHubImport(workspace: Workspace, items: HubImportItems, makeId: () => string, seats: number | null, links?: import("./hubLinks").HubLink[]): HubMergeResult {
   const next: Workspace = { ...workspace };
   const added: HubMergeResult["added"] = {};
   let already = 0, overPlan = 0;
 
+  // Each linked item also links to the caseload student it is about.
+  const studentIds = new Map(workspace.students.map((x) => [fold(x.name), x.id]));
+  const linksFor = (row: any) => {
+    const sid = row?.student ? studentIds.get(fold(row.student)) : undefined;
+    const all = [...(links || []), ...(sid ? [{ kind: "student" as const, id: sid }] : [])];
+    return all.filter((l, i) => all.findIndex((x) => x.kind === l.kind && x.id === l.id) === i).slice(0, 30);
+  };
   const add = <K extends keyof Workspace>(kind: HubImportKind, list: K, rows: any[], keyOf: (row: any) => string, build: (item: any) => any) => {
     const seen = new Set((workspace[list] as any[]).map(keyOf));
     const fresh: any[] = [];
@@ -654,7 +689,7 @@ export function mergeHubImport(workspace: Workspace, items: HubImportItems, make
       if (seen.has(key)) { already++; continue; }
       if (list === "students" && seats !== null && workspace.students.length + fresh.length >= seats) { overPlan++; continue; }
       seen.add(key);
-      fresh.push({ id: makeId(), ...row });
+      fresh.push({ id: makeId(), ...row, ...(links?.length && LINKED_LISTS.has(String(list)) ? { links: linksFor(row) } : {}) });
     }
     if (!fresh.length) return;
     (next as any)[list] = NEWEST_FIRST.has(list) ? [...fresh, ...(next[list] as any[])] : [...(next[list] as any[]), ...fresh];
@@ -666,6 +701,10 @@ export function mergeHubImport(workspace: Workspace, items: HubImportItems, make
   add("events", "events", items.events, (r) => fold(r.title, r.date, r.start), (i) => i);
   add("meetings", "meetings", items.meetings, (r) => fold(r.student, r.type, r.date), (i) => ({ ...i, done: false }));
   add("notes", "notes", items.notes, (r) => fold(r.student, r.date, r.body), (i) => i);
+  add("goals", "goals", items.goals || [], (r) => fold(r.student, r.text), (i) => {
+    const baseline = Number(i.baseline) || 0, target = i.target === null || i.target === undefined || i.target === "" ? baseline : Number(i.target);
+    return { student: String(i.student), area: String(i.area || "Goal"), text: String(i.text), baseline, target, unit: String(i.unit || ""), direction: target < baseline ? "down" : "up", startDate: String(i.startDate || ""), targetDate: String(i.targetDate || ""), points: [] };
+  });
   add("lessons", "lessons", items.lessons, (r) => fold(r.title, r.date), (i) => i);
   add("schedules", "schedules", items.schedules, (r) => fold(r.student, r.day, r.start, r.label), (i) => i);
   add("parentLogs", "parentLogs", items.parentLogs, (r) => fold(r.student, r.date, r.message), (i) => i);

@@ -1,4 +1,5 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
+import { goalQuizAllowed, registerGoalQuizRoutes } from "./goalQuiz";
 import { dedupeBooksOnce } from "./bookDedupe";
 import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
@@ -1376,6 +1377,15 @@ export async function registerRoutes(
       .then(() => { clearCache("allBooks"); clearCache("leaderboard"); clearCache("allUsers"); })
       .catch((e) => console.error("[book-dedupe] stopped:", e?.message || e));
   }, 15_000);
+  // WorkHub goal quizzes (server/goalQuiz.ts): made from a student's goals, taken on the Reader.
+  registerGoalQuizRoutes(app, authMiddleware, {
+    getTeacherStudents: (teacherId) => storage.getTeacherStudents(teacherId),
+    createQuiz: (...args) => storage.createCustomEyeGazeQuiz(...args),
+    setSetting: (k, v) => storage.upsertSetting(k, v),
+    getSetting: (k) => storage.getSetting(k),
+    attempts: async (ids) => { if (!ids.length) return []; const { data } = await supabase.from("custom_eye_gaze_attempts").select("id, quiz_id, user_id, score, total, completed_at, status").in("quiz_id", ids); return data || []; },
+    quizzes: async (ids) => { if (!ids.length) return []; const { data } = await supabase.from("custom_eye_gaze_quizzes").select("id, creator_user_id").in("id", ids); return data || []; },
+  });
   registerDriveAppRoutes(app, authMiddleware, raw, {
     getAdminSupabase,
     storageLimitFor: async (userId) => {
@@ -7459,6 +7469,7 @@ export async function registerRoutes(
       const quizzes = await storage.getAllEyeGazeQuizzes();
       const quizzesWithStatus = [];
       for (const quiz of quizzes) {
+        if (req.user.role === 'student' && !(await goalQuizAllowed(quiz, Number(req.user.id), (k) => storage.getSetting(k)))) continue;
         const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quiz.id);
         quizzesWithStatus.push({ ...quiz, hasCompleted: completed });
       }
@@ -12466,6 +12477,8 @@ Important:
   /** A student sees published quizzes for everyone, and their own teacher's quizzes. */
   async function customQuizVisibleTo(user: any, quiz: any) {
     if (!quiz || quiz.is_published === false) return false;
+    // A goal check (server/goalQuiz.ts) is only for the one student it was made for.
+    if (!(await goalQuizAllowed(quiz, Number(user?.id), (k) => storage.getSetting(k)))) return false;
     if (quiz.visibility === "global") return true;
     const teacherId = Number(user?.teacherId ?? user?.teacher_id ?? 0);
     return quiz.visibility === "teacher_students" && teacherId > 0 && Number(quiz.target_teacher_id) === teacherId;

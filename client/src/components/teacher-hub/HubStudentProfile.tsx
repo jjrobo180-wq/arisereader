@@ -1,7 +1,10 @@
 // Arise WorkHub: one student's whole picture. Opened from the Caseload: everything the Hub holds
 // for that student in one place, each part with a way to jump to the tab where it is kept.
 import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Sparkles } from "lucide-react";
+import { ConnectedPanel, useHubLinks } from "./HubLinks";
+import { MakeGoalQuiz, StudentQuizzes } from "./HubGoalQuiz";
+import { goalQuizzes } from "@shared/hubLinks";
 import { friendlyDate } from "@shared/hubDates";
 import { dueWords, studentProfile, type ProfileDate } from "@shared/hubStudentProfile";
 import { planText } from "@shared/hubProgress";
@@ -69,6 +72,8 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
   const profile = useMemo(() => studentProfile(workspace, studentId, today), [workspace, studentId, today]);
   const blocks = useMemo(() => schoolBlocks(workspace), [workspace.minuteBlocks]);
   const [noting, setNoting] = useState(false);
+  const [quizzing, setQuizzing] = useState(false);
+  const links = useHubLinks();
   if (!profile) return <Card title="Student profile"><Empty>That student is no longer on your caseload.</Empty><div className="mt-3"><GhostButton onClick={onBack}><ArrowLeft className="h-4 w-4" /> Back to caseload</GhostButton></div></Card>;
   const { student: s } = profile;
   const a = profile.attendance.counts;
@@ -87,6 +92,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           </div>
           <div className="flex flex-wrap gap-2">
             <PrimaryButton onClick={() => setNoting(true)}><Plus className="h-4 w-4" /> Add a note</PrimaryButton>
+            {links?.readDocument && <GhostButton onClick={() => links.readDocument!(s.name)}><Sparkles className="h-4 w-4" /> Read a document with AI</GhostButton>}
             <GhostButton onClick={() => onEdit(s.id)}>Edit details</GhostButton>
           </div>
         </div>
@@ -107,7 +113,13 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
         {s.notes && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm"><div className="text-xs font-medium uppercase tracking-wide text-slate-500">Quick notes</div><p className="mt-1 whitespace-pre-wrap break-words text-slate-800">{s.notes}</p></div>}
       </Card>
 
+      {links && <ConnectedPanel workspace={workspace} kind="student" id={s.id} onOpen={links.openLink} title={`Everything connected to ${s.name.split(" ")[0]}`} />}
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Part title="Goal quizzes" count={goalQuizzes(workspace).filter((q) => q.student.trim().toLowerCase() === s.name.trim().toLowerCase()).length} onOpenTab={onOpenTab}>
+          <StudentQuizzes student={s.name} onMake={() => setQuizzing(true)} />
+        </Part>
+
         <Part title="IEP goals" count={profile.goals.length} tab="goals" tabLabel="Goals" onOpenTab={onOpenTab}>
           <Rows rows={profile.goals} empty="No goals yet." render={({ goal, latest, percent, status }) => (
             <li key={goal.id} className={row}>
@@ -194,6 +206,7 @@ export default function StudentProfileView({ workspace, setWorkspace, studentId,
           <Rows rows={profile.reading} empty="No reading records yet." render={(r) => <li key={r.id} className={`${row} flex flex-wrap items-center justify-between gap-2`}><span className="min-w-0 break-words font-medium text-slate-900">{r.book || "Book"}</span><span className="shrink-0 text-xs font-semibold text-slate-700">{day(r.date)}{r.score ? ` · score ${r.score}` : ""}{r.points ? ` · ${r.points} pts` : ""}</span></li>} />
         </Part>
       </div>
+      {quizzing && <MakeGoalQuiz student={s.name} grade={s.grade} goals={profile.goals.map((x) => x.goal)} token={links?.token ?? null} setWorkspace={(u) => setWorkspace((p) => u(p))} makeId={makeId} onClose={() => setQuizzing(false)} onDone={() => setQuizzing(false)} />}
       {noting && <NoteModal student={s.name} students={workspace.students.map((x) => x.name)} setWorkspace={setWorkspace} makeId={makeId} onClose={() => setNoting(false)} />}
     </div>
   );

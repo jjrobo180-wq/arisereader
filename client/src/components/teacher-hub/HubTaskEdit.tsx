@@ -9,8 +9,10 @@ import { localDay } from "./HubImport";
 import type { ToastAction } from "./HubToast";
 import { Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
+import { LinkEditor, useHubLinks } from "./HubLinks";
+import { cleanLinks, type HubLink } from "@shared/hubLinks";
 
-export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDelete, lists, startList = "" }: {
+export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDelete, lists, startList = "", workspace, onOpenLink }: {
   /** The to-do being changed, or null for a new one. */
   task: Task | null;
   startTitle?: string;
@@ -23,10 +25,16 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
   lists?: { id: string; name: string; color: string }[];
   /** The list a new to-do starts on (the one being looked at). */
   startList?: string;
+  /** The whole Hub, so the to-do can be linked to files, students, goals… (shared/hubLinks.ts). */
+  workspace?: Workspace;
+  /** Opens a linked thing. */
+  onOpenLink?: (l: HubLink) => void;
 }) {
+  const ctx = useHubLinks();
+  workspace = workspace ?? ctx?.workspace;
   const [draft, setDraft] = useState<TaskFields>(() => (task
-    ? { title: task.title, dueDate: task.dueDate, dueTime: task.dueTime || "", recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "", ...(lists ? { listId: task.listId || "" } : {}) }
-    : { title: startTitle, dueDate: "", dueTime: "", recurring: "", priority: false, notes: "", ...(lists ? { listId: startList } : {}) }));
+    ? { title: task.title, dueDate: task.dueDate, dueTime: task.dueTime || "", recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "", links: cleanLinks(task.links), ...(lists ? { listId: task.listId || "" } : {}) }
+    : { title: startTitle, dueDate: "", dueTime: "", recurring: "", priority: false, notes: "", links: [], ...(lists ? { listId: startList } : {}) }));
   function save(e?: FormEvent) {
     e?.preventDefault();
     if (!draft.title.trim()) return;
@@ -59,6 +67,7 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
         )}
         <Labeled label="Repeats"><Select value={draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value })}><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option></Select></Labeled>
         <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-1 text-sm font-semibold text-slate-900" data-testid="task-important-label"><input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /><span className="text-slate-900">Mark as important</span></label>
+        {workspace && <div className="rounded-2xl border border-slate-200 p-3"><LinkEditor workspace={workspace} links={draft.links || []} onChange={(links) => setDraft({ ...draft, links })} text={`${draft.title} ${draft.notes || ""}`} self={task ? { kind: "task", id: task.id } : undefined} onOpen={onOpenLink} /></div>}
         <Labeled label="Notes"><TextArea value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} maxLength={1000} placeholder="Details, a phone number, a link (optional)" /></Labeled>
         <button type="submit" hidden />
       </form>

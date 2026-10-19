@@ -1,4 +1,5 @@
 // Arise WorkHub: sorting, filtering and repeating to-dos.
+import { cleanLinks, type HubLink } from "./hubLinks";
 import { addDays, addMonths, dueState } from "./hubDates";
 import type { Task } from "./teacherHub";
 
@@ -101,7 +102,7 @@ export function undoTask(tasks: Task[], id: string, nowMs: number): Task[] {
 }
 
 /** The boxes of the to-do pop-up. */
-export type TaskFields = { title: string; dueDate: string; dueTime?: string; recurring: string; priority: boolean; notes?: string; /** The list it goes on; "" for none. Left out keeps the list it is on. */ listId?: string };
+export type TaskFields = { title: string; dueDate: string; dueTime?: string; recurring: string; priority: boolean; notes?: string; /** The list it goes on; "" for none. Left out keeps the list it is on. */ listId?: string; /** What it is linked to (shared/hubLinks.ts). Left out keeps the links it has. */ links?: HubLink[] };
 
 /**
  * Saves the to-do pop-up. A new to-do goes at the end. An edited one stays the same to-do: same place,
@@ -112,7 +113,7 @@ export function saveTask(tasks: Task[], id: string | null, fields: TaskFields, m
   if (!title) return tasks;
   const notes = (fields.notes || "").trim().slice(0, 1000);
   const dueTime = fields.dueDate && /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(fields.dueTime || "") ? fields.dueTime : undefined;
-  const changes = { title, dueDate: fields.dueDate, ...(dueTime ? { dueTime } : {}), recurring: fields.recurring, ...(fields.priority ? { priority: "high" as const } : {}), ...(notes ? { notes } : {}), ...(fields.listId ? { listId: fields.listId.slice(0, 60) } : {}) };
+  const changes = { title, dueDate: fields.dueDate, ...(dueTime ? { dueTime } : {}), recurring: fields.recurring, ...(fields.priority ? { priority: "high" as const } : {}), ...(notes ? { notes } : {}), ...(fields.listId ? { listId: fields.listId.slice(0, 60) } : {}), ...(fields.links ? { links: cleanLinks(fields.links) } : {}) };
   if (!id) return [...tasks, { id: makeId(), ...changes, done: false }];
   if (!tasks.some((t) => t.id === id)) return tasks;
   // A repeating to-do's "where it was" only makes sense while its due date and rhythm are untouched.

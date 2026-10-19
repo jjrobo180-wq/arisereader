@@ -75,7 +75,7 @@ test("suggested items are made safe before a teacher sees them", () => {
 test("every list a suggestion can go to is a real tab, and each item can be described", () => {
   for (const kind of HUB_IMPORT_KINDS) {
     assert.ok((HUB_TABS as readonly string[]).includes(HUB_IMPORT[kind].tab), kind);
-    const words = describeHubItem(kind, cleanHubImport({ [kind]: [{ title: "T", name: "N", body: "B", message: "M", book: "Bk", assignment: "A", student: "S", subject: "Sub", date: TODAY, start: "09:00", end: "09:45" }] }, TODAY)[kind][0]);
+    const words = describeHubItem(kind, cleanHubImport({ [kind]: [{ title: "T", name: "N", body: "B", text: "Goal text", message: "M", book: "Bk", assignment: "A", student: "S", subject: "Sub", date: TODAY, start: "09:00", end: "09:45" }] }, TODAY)[kind][0]);
     assert.ok(words.title.length > 0, kind);
   }
   assert.deepEqual(describeHubItem("events", { title: "Staff meeting", date: "2026-10-08", start: "15:30", end: "16:30", location: "Library", notes: "" }), { title: "Staff meeting", detail: "2026-10-08 · 3:30 PM – 4:30 PM · Library" });
