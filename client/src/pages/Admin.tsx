@@ -4174,6 +4174,7 @@ Generate exactly 10 questions.`;
                   placeholder="https://donate.stripe.com/..."
                   className="bg-muted/30 border-border text-foreground"
                 />
+                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">Also powers the ♥ Support button for parents and on the Reader home page, even when the goal below is switched off. Use your Stripe Payment Link (https://).</p>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Milestones (one per line, format: amount|label)</span>

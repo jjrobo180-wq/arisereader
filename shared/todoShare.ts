@@ -42,7 +42,7 @@ export function targetKey(t: ShareTarget): string {
 export type GuestVote = { voter: string; name: string; optionId: string };
 type Person = { name: string; emoji: string; color: string };
 export type SharedView =
-  | { kind: "links"; title: string; bio: string; links: { title: string; url: string; emoji: string }[] }
+  | { kind: "links"; title: string; bio: string; style?: "buttons" | "directory"; links: { title: string; url: string; emoji: string; group?: string }[] }
   | { kind: "poll"; title: string; question: string; pollKind: string; open: boolean; closesOn: string; options: { id: string; label: string; votes: number }[]; total: number; guests: string[] }
   | { kind: "tasks"; title: string; lists: { name: string; color: string; tasks: { title: string; notes: string; due: string; time: string; assignee: string; priority: string; done: boolean }[] }[] }
   | { kind: "calendar"; title: string; days: { date: string; items: { title: string; time: string; endTime: string; location: string; color: string; calendar: string; people: string[] }[] }[] }
@@ -78,7 +78,7 @@ export function sharedView(workspace: unknown, target: ShareTarget, today: strin
 
   if (target.kind === "links") {
     const page = family.linkPage;
-    return { kind: "links", title: page.title || opts.ownerName || "My links", bio: page.bio, links: page.links.map((l) => ({ title: l.title, url: l.url, emoji: l.emoji })) };
+    return { kind: "links", title: page.title || opts.ownerName || "My links", bio: page.bio, ...(page.style === "directory" ? { style: "directory" as const } : {}), links: page.links.map((l) => ({ title: l.title, url: l.url, emoji: l.emoji, ...(l.group ? { group: l.group } : {}) })) };
   }
 
   if (target.kind === "poll") {

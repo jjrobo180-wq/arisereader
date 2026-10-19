@@ -23,6 +23,7 @@ import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
 import Dictionary from "@/components/family-hub/Dictionary";
 import LinkPage from "@/components/family-hub/LinkPage";
+import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
 import StickyBoard from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
@@ -111,6 +112,8 @@ import { HubChat } from "@/components/HubChat";
 import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
+import { SupportBanner, SupportButton } from "@/components/SupportArise";
+import HeaderShortcut from "@/components/HeaderShortcut";
 import HubMark from "@/components/HubMark";
 import { HubTrialNote } from "@/components/HubTrialNote";
 import { useLifeHubTrial } from "@/components/TodoGate";
@@ -235,7 +238,7 @@ const SECTION_ICONS: Record<FamilySection, typeof Home> = {
   home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
   journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
-  randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2,
+  randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles,
   habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
   wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2,
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
@@ -325,6 +328,21 @@ export default function AriseTodo() {
     try { localStorage.setItem(SECTION_KEY, next); } catch {}
     window.scrollTo({ top: 0 });
   };
+  // A tapped AI Reminders phone notification opens "#/lifehub?plan=<id>": go to AI Reminders with that
+  // reminder picked out (LifePlanApp reads it), then tidy the address so a refresh doesn't do it again.
+  useEffect(() => {
+    const open = () => {
+      const m = /[?&]plan=([\w-]{1,40})/.exec(window.location.hash);
+      if (!m) return;
+      try { sessionStorage.setItem(PLAN_FOCUS_KEY, m[1]); } catch { /* it still opens AI Reminders */ }
+      setSection("lifeplan");
+      window.dispatchEvent(new Event("arise-lifeplan-focus"));
+      try { window.history.replaceState(null, "", window.location.hash.replace(/([?&])plan=[\w-]{1,40}&?/, "$1").replace(/[?&]$/, "")); } catch { /* fine */ }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
   /** Goes to Home and scrolls to one of its parts once it has rendered (a part that's hidden, e.g. not yet added, has nothing to scroll to). */
   const goToHomePart = (id: string) => {
     setSection("home");
@@ -757,6 +775,7 @@ export default function AriseTodo() {
     : shown === "relationships" ? <Relationships {...common} />
     : shown === "dictionary" ? <Dictionary {...common} />
     : shown === "links" ? <LinkPage {...common} />
+    : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
     : shown === "habits" ? <Habits {...common} />
     : shown === "gratitude" ? <Gratitude {...common} />
     : shown === "focus" ? <Focus {...common} />
@@ -1000,7 +1019,10 @@ export default function AriseTodo() {
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {user.isAdmin && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 hover:bg-violet-100" data-testid="todo-admin-link"><ShieldCheck size={16} /> <span className="hidden lg:inline">Admin</span></a>}
+          {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
+          <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
+            onChange={(next) => setFamily((f) => { const { shortcut: _old, ...rest } = f.layout ?? layout; return { ...f, layout: next ? { ...rest, shortcut: next } : rest }; })} />
           <HubSearchButton onOpen={() => setSearching(true)} />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
           <NotificationBell
@@ -1195,7 +1217,7 @@ export default function AriseTodo() {
             </div>
             <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
           </div>}
-          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && user.role === "parent" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">

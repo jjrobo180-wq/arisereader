@@ -1,8 +1,9 @@
 // Family Hub home: today across every switched-on part of the hub.
 // Its parts can be arranged right here, like WorkHub's Home: press and hold (or Edit Home) to drag, resize or remove them.
-import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, Clock, CloudSun, LayoutGrid, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
+import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, Clock, CloudSun, LayoutGrid, Link2, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { HomeParts, type HomePart, type StartTile } from "@/components/teacher-hub/HubHomeEdit";
+import { HomeLinks } from "./LinkDirectory";
 import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
 import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
@@ -21,7 +22,7 @@ import WidgetBoard from "@/components/widgets/WidgetBoard";
 import { cleanWidgets } from "@shared/widgets";
 import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type SectionProps } from "./ui";
 
-const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets: AlarmClock, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote };
+const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets: AlarmClock, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote, links: Link2 };
 const CATALOG: HomePart[] = LIFE_PARTS.map((p) => ({ id: p.id, label: p.label, icon: PART_ICONS[p.id] }));
 
 export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp, appTiles }: SectionProps & {
@@ -145,6 +146,10 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
           <div className="space-y-2">{pinned.map((n) => <button key={n.id} onClick={() => go("notes")} className="note-card block w-full rounded-xl p-3 text-left" style={{ background: n.color }}>
             {n.title && <p className="truncate text-sm font-black">{n.title}</p>}{n.body && <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-xs text-slate-600">{n.body}</p>}
           </button>)}</div>
+        </Panel>) || null,
+    // My links: the Link page's links as tiles, one tap from Home. Nothing here until there are links.
+    links: (on("links") && family.linkPage.links.length > 0 && <Panel eyebrow="Link page" title="My links" right={<Link2 size={17} className="text-violet-500" />} collapseKey="home-links">
+          <HomeLinks links={family.linkPage.links} onOpenPage={() => go("links")} />
         </Panel>) || null,
   };
   // A pinned Notes app gets a small tile that opens straight into it, same as tapping it in the menu.

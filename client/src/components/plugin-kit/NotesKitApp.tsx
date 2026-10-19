@@ -6,6 +6,7 @@
 import { useState, type FormEvent } from "react";
 import { Check, Pin, PinOff, Plus, Search, StickyNote, Trash2 } from "lucide-react";
 import { NOTE_COLORS, type Note } from "@shared/notesApp";
+import { NoteTemplatesButton } from "@/components/NoteTemplatePicker";
 import { Empty, Modal, PageHead, Panel, confirmed, danger, inputClass, plain, primary, soft } from "@/components/family-hub/ui";
 
 const STARTERS = ["Grocery list", "Gift ideas", "Wi-Fi & codes", "Ideas", "Meeting notes", "To remember"];
@@ -41,7 +42,7 @@ export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say 
 
   return <div className="space-y-6" data-kit-view>
     <PageHead eyebrow="Notes" title={name} blurb={blurb}
-      action={<button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New note</button>} />
+      action={<div className="flex flex-wrap gap-2"><NoteTemplatesButton onPick={(t) => setEditing({ ...blank(t.title), body: t.body })} /><button onClick={() => setEditing(blank())} className={primary + " min-h-11 px-5"}><Plus size={18} /> New note</button></div>} />
     {notes.length > 0 && <div className="relative max-w-md"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notes" aria-label="Search notes" className={inputClass + " pl-10"} /></div>}
     {shown.length ? <div className="columns-1 gap-4 sm:columns-2 xl:columns-3 [&>*]:mb-4">
       {shown.map((n) => <article key={n.id} className="note-card group break-inside-avoid rounded-2xl border border-black/5 p-4 shadow-[0_3px_16px_#17152b0a]" style={{ background: n.color }}>
@@ -54,12 +55,12 @@ export default function NotesKitApp({ name, blurb, notes, setNotes, makeId, say 
         </div>
       </article>)}
     </div> : notes.length ? <p className="text-sm text-slate-500">No notes match “{query}”.</p>
-      : <Panel><Empty icon={<StickyNote size={26} />} title="No notes yet" action={<div className="flex flex-wrap justify-center gap-2">{STARTERS.map((s) => <button key={s} onClick={() => setEditing(blank(s))} className={soft + " min-h-9 text-xs"}>{s}</button>)}</div>}>Start with one of these, or tap “New note”.</Empty></Panel>}
+      : <Panel><Empty icon={<StickyNote size={26} />} title="No notes yet" action={<div className="flex flex-col items-center gap-3"><div className="flex flex-wrap justify-center gap-2">{STARTERS.map((s) => <button key={s} onClick={() => setEditing(blank(s))} className={soft + " min-h-9 text-xs"}>{s}</button>)}</div><NoteTemplatesButton onPick={(t) => setEditing({ ...blank(t.title), body: t.body })} /></div>}>Start with one of these, a template for almost anything, or tap “New note”.</Empty></Panel>}
 
     {editing && <Modal title={notes.some((n) => n.id === editing.id) ? "Edit note" : "New note"} onClose={() => setEditing(null)} wide>
       <form onSubmit={save} className="space-y-4">
         <input autoFocus maxLength={120} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} placeholder="Title" aria-label="Title" className={inputClass + " text-base font-bold"} />
-        <textarea rows={10} maxLength={5000} value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} placeholder="Write anything…" aria-label="Note" className={inputClass + " note-card py-3 leading-6"} style={{ background: editing.color }} />
+        <textarea rows={14} maxLength={5000} value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} placeholder="Write anything…" aria-label="Note" className={inputClass + " note-card py-3 leading-6"} style={{ background: editing.color }} />
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold text-slate-500">Color</span>
           {NOTE_COLORS.map((c) => <button key={c} type="button" onClick={() => setEditing({ ...editing, color: c })} aria-pressed={editing.color === c} aria-label={`Color ${c}`} className={`h-8 w-8 rounded-full border-2 ${editing.color === c ? "border-violet-500" : "border-slate-200"}`} style={{ background: c }} />)}

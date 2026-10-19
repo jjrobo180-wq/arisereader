@@ -3,16 +3,17 @@
 // always has the same safe shape, and old workspaces without family data simply get an empty hub.
 
 import { cleanLifeLayout, type LifeLayout } from "./lifeLayout";
+import { cleanLifePlan, type LifePlan } from "./lifePlan";
 import { cleanSpreadsheets, type Spreadsheet } from "./sheetsApp";
 import { cleanDriveFiles, type DriveFile } from "./driveApp";
 import { cleanNotify, defaultNotify, type NotifyPrefs } from "./todoNotify";
 import { cleanWidgets, type WidgetItem } from "./widgets";
 import { KIT_LIFE_IDS, cleanKit, type KitRecord } from "./pluginKit";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS, "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS, "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
+export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
 /** Sections added from the Plugin Store: off until the family adds them (the others start on).
  *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
  *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
@@ -20,7 +21,7 @@ export const TOGGLEABLE: readonly FamilySection[] = ["goals", "chores", "calenda
  *  everything in it back. */
 export const ADD_ON_SECTIONS: readonly FamilySection[] = [
   "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
-  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
+  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", ...KIT_LIFE_IDS];
 
 /** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
 const some = (v: unknown) => Array.isArray(v) && v.length > 0;
@@ -131,9 +132,12 @@ export type MeditationLog = { id: string; date: string; minutes: number; kind: s
 export type Sticky = { id: string; text: string; color: string; x: number; y: number };
 export type RandomList = { id: string; name: string; items: string[] };
 export type SavedWord = { id: string; word: string; definition: string };
-export type PageLink = { id: string; title: string; url: string; emoji: string };
-/** The family's own link page (like a link tree), shareable with a link. */
-export type LinkPage = { title: string; bio: string; links: PageLink[] };
+/** One link. `group` is an optional folder name ("School", "Shopping"), used by the Directory look. */
+export type PageLink = { id: string; title: string; url: string; emoji: string; group?: string };
+/** How the link page looks: big buttons like a link tree, or a directory of tiles grouped into folders. */
+export type LinkPageStyle = "buttons" | "directory";
+/** The family's own link page (like a link tree), shareable with a link, and a "My links" part of Home. */
+export type LinkPage = { title: string; bio: string; links: PageLink[]; style?: LinkPageStyle };
 export type Habit = { id: string; name: string; emoji: string; color: string; days: string[] };
 export type GratitudeDay = { id: string; date: string; items: string[] };
 export type FocusLog = { id: string; date: string; minutes: number };
@@ -218,6 +222,8 @@ export type Family = {
   randomLists: RandomList[];
   savedWords: SavedWord[];
   linkPage: LinkPage;
+  /** AI Reminders: the life plan and its reminders (shared/lifePlan.ts). Not set until one is made. */
+  lifePlan?: LifePlan;
   habits: Habit[];
   gratitude: GratitudeDay[];
   focusLog: FocusLog[];
@@ -345,7 +351,7 @@ function rows<T extends { id: string }>(v: unknown, max: number, clean: (row: Re
   return newest ? out.slice(-max) : out;
 }
 
-export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300, stickies: 60, randomLists: 50, savedWords: 1000, links: 60, habits: 40, gratitude: 3000, focusLog: 6000, recipes: 500, meals: 2000, care: 300, birthdays: 300, contacts: 200, subscriptions: 100, jars: 40, collections: 3000, sleep: 3000, workouts: 8000, routines: 20, milestones: 1000, ious: 1000, allowance: 5000, giftCards: 200, warranties: 500, mileage: 5000, clocks: 12, medical: 20 };
+export const LIMITS = { members: 20, chores: 300, choreDone: 8000, behavior: 8000, rewards: 60, redemptions: 3000, calendars: 30, events: 3000, trips: 100, polls: 300, bills: 200, budget: 60, expenses: 8000, notes: 1000, food: 12000, exercise: 6000, days: 8000, weights: 3000, foods: 500, cycleLogs: 6000, moods: 6000, goals: 300, pills: 60, pillDoses: 12000, journal: 3000, countdowns: 100, groceries: 300, savedVerses: 300, meditations: 6000, savedQuotes: 300, stickies: 60, randomLists: 50, savedWords: 1000, links: 200, habits: 40, gratitude: 3000, focusLog: 6000, recipes: 500, meals: 2000, care: 300, birthdays: 300, contacts: 200, subscriptions: 100, jars: 40, collections: 3000, sleep: 3000, workouts: 8000, routines: 20, milestones: 1000, ious: 1000, allowance: 5000, giftCards: 200, warranties: 500, mileage: 5000, clocks: 12, medical: 20 };
 
 export function cleanFamily(input: unknown): Family {
   const raw = obj(input);
@@ -551,13 +557,16 @@ export function cleanFamily(input: unknown): Family {
       const word = str(r.word, 60).trim();
       return word ? { id: id(r.id), word, definition: str(r.definition, 500) } : null;
     }),
+    ...(() => { const plan = cleanLifePlan(raw.lifePlan); return plan ? { lifePlan: plan } : {}; })(),
     linkPage: (() => {
       const lp = obj(raw.linkPage) || {};
       return {
         title: str(lp.title, 80), bio: str(lp.bio, 300),
+        ...(lp.style === "directory" ? { style: "directory" as const } : {}),
         links: rows(lp.links, LIMITS.links, (r) => {
           const title = str(r.title, 80).trim(), url = str(r.url, 1000).trim();
-          return title && /^(https?:\/\/|mailto:|tel:)/i.test(url) ? { id: id(r.id), title, url, emoji: str(r.emoji, 8) } : null;
+          const group = str(r.group, 30).replace(/[\u0000-\u001f]/g, " ").trim();
+          return title && /^(https?:\/\/|mailto:|tel:)/i.test(url) ? { id: id(r.id), title, url, emoji: str(r.emoji, 8), ...(group ? { group } : {}) } : null;
         }),
       };
     })(),

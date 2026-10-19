@@ -144,6 +144,7 @@ import { addQuickItems, quickAddedMessage, type QuickItems } from "@shared/hubQu
 import { addEmailToTasks, arrangeEmails, emailCounts, emailTask, toggleEmailFlag, type EmailFilter } from "@shared/hubEmails";
 import PinBanners, { PinButton } from "@/components/teacher-hub/HubPins";
 import HubSwitch from "@/components/HubSwitch";
+import HeaderShortcut, { type ShortcutChoice } from "@/components/HeaderShortcut";
 import HubMark from "@/components/HubMark";
 import { AdminTab } from "@/components/teacher-hub/HubReader";
 import WhatsNew from "@/pages/WhatsNew";
@@ -758,6 +759,14 @@ function TeacherHubPage() {
   const installedMenu = menu.filter(isStoreGroup);
   // Search everything in the Hub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const goTab = (t: HubTab) => { setTab(t); closeApps(); window.scrollTo({ top: 0 }); };
+  /** Everything the header's ⚡ shortcut can open (components/HeaderShortcut.tsx): each menu tab, A.R.I.S.E. Reader, and installed apps. */
+  const shortcutChoices = (): ShortcutChoice[] => [
+    ...menu.flatMap((g): ShortcutChoice[] => g.id === "arise"
+      ? [{ id: "group:arise", label: g.label, icon: GROUP_ICON[g.id], onClick: () => goGroup(g.id) }]
+      : g.tabs.map((t) => ({ id: `tab:${t}`, label: g.tabs.length > 1 ? (SUB_LABELS[t] ?? t) : g.label, icon: tabIcon(t), onClick: () => goTab(t) }))),
+    ...myKits.map((d): ShortcutChoice => { const Icon = kitIcon(d.icon); return { id: `kit:${d.id}`, label: d.name, icon: <Icon />, onClick: () => { closeApps(); openKit(d.id); } }; }),
+    ...myNotesApps.map((p): ShortcutChoice => ({ id: `notes:${p.id}`, label: p.name, icon: <StickyNote />, onClick: () => { closeApps(); openNotesApp(p.id); } })),
+  ];
   /** Opening a menu item. A.R.I.S.E. Reader is a page of its own now (/reader), so that one item
    *  leaves the hub rather than switching tab; everything else behaves as it always did. */
   const goGroup = (id: HubGroupId) => {
@@ -876,6 +885,8 @@ function TeacherHubPage() {
           </a>
           <div className="flex shrink-0 items-center gap-2">
             <HubSwitch current="hub" night={night} />
+            <HeaderShortcut shortcut={layout.shortcut} choices={shortcutChoices()} say={(m) => toasts.show(m, [])}
+              onChange={(next) => setWorkspace((p) => { const { shortcut: _old, ...rest } = p.layout ?? layout; return { ...p, layout: (next ? { ...rest, shortcut: next } : rest) as HubLayout }; })} />
             <HubSearchButton onOpen={() => setSearching(true)} />
             <span className="hidden sm:contents"><SaveBadge view={view} /></span>
             <NotificationBell

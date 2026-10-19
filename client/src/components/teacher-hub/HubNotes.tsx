@@ -8,10 +8,20 @@ import type { NoteItem, Workspace } from "@shared/teacherHub";
 import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { localDay } from "./HubImport";
 import { HubModal } from "./HubModal";
+import { NoteTemplatesButton, type PickedTemplate } from "@/components/NoteTemplatePicker";
 
 type SetWorkspace = Dispatch<SetStateAction<Workspace>>;
 const SCOPES = [["student", "About a student", User], ["general", "Meeting or general", Users]] as const;
 const blank = (scope: NoteScope, student = ""): NoteFields => ({ scope, student, type: scope === "student" ? "Check-in" : "Staff meeting", title: "", date: localDay(), body: "" });
+/** Templates about one student start as a note about a student; the rest as a meeting or general note. */
+const STUDENT_TEMPLATES: Record<string, NoteFields["type"]> = { "student-checkin": "Check-in", "iep-meeting": "Meeting note", "parent-conference": "Meeting note" };
+const GENERAL_TYPE: Record<string, NoteFields["type"]> = { plc: "Team meeting", observation: "General note", "sub-plans": "General note", lesson: "General note" };
+function fromTemplate(t: PickedTemplate, student = ""): NoteFields {
+  const id = t.template.id;
+  const studentType = STUDENT_TEMPLATES[id];
+  const base = blank(studentType ? "student" : "general", studentType ? student : "");
+  return { ...base, type: studentType ?? GENERAL_TYPE[id] ?? (t.template.category === "Meetings" ? "Team meeting" : "General note"), title: t.title.slice(0, NOTE_TITLE_MAX), body: t.body };
+}
 
 /** The boxes for a note. Which ones show depends on whether it is about a student. */
 function NoteBoxes({ form, setForm, students, lockStudent = false }: { form: NoteFields; setForm: (next: NoteFields) => void; students: string[]; lockStudent?: boolean }) {
@@ -131,10 +141,13 @@ export default function HubNotes({ workspace, setWorkspace, remove, makeId }: { 
       <section className="min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
           <h2 className="hub-card-title font-semibold text-slate-900">Notes</h2>
-          <button type="button" onClick={() => { setForm(blank("student", student)); setAdding(true); }} data-testid="add-card-add-note"
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700">
-            <Plus className="h-4 w-4" /> Add note
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <NoteTemplatesButton hub="work" className="rounded-full" onPick={(t) => { setForm(fromTemplate(t, student)); setAdding(true); }} />
+            <button type="button" onClick={() => { setForm(blank("student", student)); setAdding(true); }} data-testid="add-card-add-note"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700">
+              <Plus className="h-4 w-4" /> Add note
+            </button>
+          </div>
         </div>
       </section>
       <Card>

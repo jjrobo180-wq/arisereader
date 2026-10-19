@@ -54,6 +54,7 @@ import { registerAdminHandoffRoutes } from "./adminHandoff";
 import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
+import { registerLifePlanRoutes } from "./lifePlan";
 import { registerHubChatRoutes } from "./hubChat";
 import { registerAppleHealthRoutes } from "./appleHealth";
 import { registerTodoNewsRoutes } from "./todoNews";
@@ -84,6 +85,7 @@ import { addDismissals, cleanKeys, dismissedKeys, parseDismissals } from "../sha
 import { cleanTeacherChoices, sortInvites, studentsToPrint } from "../shared/parentLetters";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
+import { donateInfoFrom } from "../shared/donate";
 import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
 import { registerTodoAdminRoutes } from "./todoAdmin";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
@@ -1281,7 +1283,7 @@ export async function registerRoutes(
     if (error) throw error;
     return data ? data.workspace : null;
   };
-  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate"], authMiddleware, plans.aiMeter);
+  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build"], authMiddleware, plans.aiMeter);
   app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
     try {
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
@@ -1349,6 +1351,7 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
+  registerLifePlanRoutes(app, authMiddleware);
   registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
     getSetting: (key) => storage.getSetting(key),
     upsertSetting: (key, value) => storage.upsertSetting(key, value),
@@ -9229,6 +9232,17 @@ Important:
         if (data.active) return res.json(data);
       }
       res.json(null);
+    } catch {
+      res.json(null);
+    }
+  });
+
+  // Public: the "Support A.R.I.S.E." donation link (shared/donate.ts). Shown even when the goal bar is
+  // off, so the Support button works as soon as a link is saved in Admin → Donation goal.
+  app.get("/api/donate-link", async (_req, res) => {
+    try {
+      res.set("Cache-Control", "public, max-age=300");
+      res.json(donateInfoFrom(await storage.getSetting('donation_settings')));
     } catch {
       res.json(null);
     }

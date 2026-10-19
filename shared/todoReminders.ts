@@ -15,6 +15,7 @@ import { inQuiet, spreadTimes, toMinutes as clockMinutes, SEND_WINDOW_MINUTES, t
 import { caloriesLeft, dayTotals, goalsFor, healthPeople, ME_ID } from "./familyHealth";
 import { dosesOn, needsRefill } from "./pills";
 import { cycleSummary } from "./familyCycle";
+import { duePlanReminders } from "./lifePlan";
 
 export const TODO_REMINDER_URL = "/#/lifehub";
 export type TodoReminder = HubReminder & { news?: { topic: string; place: string; index: number } };
@@ -54,6 +55,8 @@ export function dueTodoReminders(workspace: unknown, nowMs: number, timeZone: st
     }
   }
   if (quiet) return out;
+  // AI Reminders (shared/lifePlan.ts): each reminder at its time, or at its snoozed time, until it's done or skipped today.
+  if (isOn("lifeplan", family)) out.push(...duePlanReminders(family.lifePlan, date, minutes, SEND_WINDOW_MINUTES, TODO_REMINDER_URL).filter((r) => !sent[r.key]));
   const soon = (hm: string) => {
     const start = toMinutes(hm);
     return prefs.headsUp.on && start !== null && minutes < start && start - minutes <= prefs.headsUp.minutes;

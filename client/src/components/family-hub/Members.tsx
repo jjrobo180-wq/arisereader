@@ -41,6 +41,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   relationships: { label: "Relationships", detail: "Tips, conversation starters and date ideas", icon: <HeartHandshake size={17} /> },
   dictionary: { label: "Dictionary", detail: "Look up any word, plus a word a day", icon: <BookOpen size={17} /> },
   links: { label: "Link page", detail: "Your links on one shareable page", icon: <Link2 size={17} /> },
+  lifeplan: { label: "AI Reminders", detail: "AI builds your reminders around the life you want", icon: <Sparkles size={17} /> },
   habits: { label: "Habits", detail: "Daily habits and streaks", icon: <RepeatIcon size={17} /> },
   gratitude: { label: "Gratitude", detail: "Three good things a day", icon: <HeartIcon size={17} /> },
   focus: { label: "Focus timer", detail: "Work in focused blocks with breaks", icon: <TimerIcon size={17} /> },

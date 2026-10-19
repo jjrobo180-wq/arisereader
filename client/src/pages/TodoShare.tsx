@@ -5,6 +5,7 @@ import { useRoute } from "wouter";
 import { CalendarDays, Check, CheckCircle2, Crown, Loader2, MapPin, Plane, RefreshCw, Target, Vote } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import type { SharedView } from "@shared/todoShare";
+import { LinkPageLinks } from "@/components/family-hub/LinkDirectory";
 
 const NAME_KEY = "arise-share-name";
 const VOTER_KEY = "arise-share-voter";
@@ -220,7 +221,7 @@ function LinksView({ view }: { view: Extract<SharedView, { kind: "links" }> }) {
   return <div className="rounded-[2rem] bg-gradient-to-b from-[#2d2555] to-[#6d5ce7] p-6 text-center text-white shadow-[0_18px_40px_#4b3fa033] sm:p-8">
     <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-3xl font-black">{view.title.trim().charAt(0).toUpperCase()}</div>
     {view.bio && <p className="mx-auto mt-3 max-w-md text-sm text-violet-100">{view.bio}</p>}
-    <div className="mt-6 space-y-3">{view.links.length ? view.links.map((l, i) => <a key={i} href={l.url} target="_blank" rel="noreferrer noopener" className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-base font-extrabold text-[#2d2555] shadow-sm transition hover:scale-[1.02]"><span aria-hidden>{l.emoji}</span>{l.title}</a>)
+    <div className="mt-6">{view.links.length ? <LinkPageLinks links={view.links} style={view.style} big />
       : <p className="rounded-2xl border border-dashed border-white/40 p-5 text-sm text-violet-100">No links yet.</p>}</div>
   </div>;
 }

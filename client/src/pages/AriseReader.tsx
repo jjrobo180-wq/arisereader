@@ -15,6 +15,7 @@ import { ArrowLeft, BookHeart, CheckCircle2, ClipboardCheck, Clapperboard, LogOu
 import { useAuth } from "@/context/AuthContext";
 import { appHref, goToSignIn } from "@/lib/hubs";
 import HubMark from "@/components/HubMark";
+import { SupportButton } from "@/components/SupportArise";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
 import { SUB_LABELS } from "@shared/hubTabGroups";
@@ -124,6 +125,7 @@ function ReaderPage() {
             <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">A.R.I.S.E. Reader</span>
           </a>
           <div className="flex shrink-0 items-center gap-2">
+            {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={!!user.isAdmin} />}
             <a href={back.href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50" data-testid="reader-back-to-hub">
               <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">{back.label}</span>
             </a>

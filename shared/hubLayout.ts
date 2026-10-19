@@ -2,6 +2,7 @@
 // them to every device: where the menu sits on a phone, how it closes, and what Home shows in what order
 // (including the picture box).
 import { DEFAULT_HUB_THEME, isHubThemeId, type HubThemeId } from "./appThemes";
+import { cleanShortcut, type HubShortcut } from "./hubShortcut";
 
 /** Where the menu sits on a phone. On a computer it is always the sidebar on the left. */
 /** "drawer" is an app drawer: a button at the bottom opens every section as app icons, like Android. */
@@ -104,6 +105,8 @@ export type AnyLayout = {
   homeSize: Partial<Record<string, HomeSize>>;
   /** The hub's visual theme (see shared/appThemes.ts), chosen in Customize. */
   theme: HubThemeId;
+  /** What the ⚡ button in the header opens (shared/hubShortcut.ts). Not set until the person picks something. */
+  shortcut?: HubShortcut;
 };
 
 /** A pinned app on Home is kept in `home`/`homeHidden`/`homeSize` under this id, so it never collides
@@ -155,7 +158,8 @@ export function cleanAnyLayout<Id extends string>(raw: unknown, parts: readonly 
   if (r.homeSize && typeof r.homeSize === "object") for (const [k, v] of Object.entries(r.homeSize)) if (isPart(k) && HOME_SIZES.some((z) => z.id === v)) homeSize[k] = v as HomeSize;
   const deskSide: DeskSide = DESK_SIDES.some((s) => s.id === r.deskSide) ? r.deskSide : "left";
   const theme: HubThemeId = isHubThemeId(r.theme) ? r.theme : DEFAULT_HUB_THEME;
-  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme };
+  const shortcut = cleanShortcut(r.shortcut);
+  return { menuSide, deskSide, folders: cleanFolders(r.folders), menuClose, home, homeHidden, homeSize, theme, ...(shortcut ? { shortcut } : {}) };
 }
 
 /** WorkHub's saved layout made safe. `pinnable`: installed Kit-plugin/Notes-app ids (see pinId) that may be pinned to Home. */
