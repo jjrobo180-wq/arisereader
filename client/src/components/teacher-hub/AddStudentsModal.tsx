@@ -14,6 +14,7 @@ type Problem = { row: number; message: string };
 type SchoolChoice = { id: number; name: string };
 type TeacherChoice = { id: number | string; display_name?: string; displayName?: string; directory?: boolean };
 type ClassChoice = { id: number; name: string };
+type AdvisoryChoice = { id: string; name: string; label: string; teachers: string[] };
 
 const TEMPLATE_HEADER = "First name,Last name,Student number";
 const TEMPLATE_EXAMPLE = "Jordan,Rivera,10234\nAvery,Chen,10235";
@@ -81,6 +82,10 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
   const [teacherChoice, setTeacherChoice] = useState("");
   const [classOptions, setClassOptions] = useState<ClassChoice[]>([]);
   const [classId, setClassId] = useState("");
+  const [advisoryOptions, setAdvisoryOptions] = useState<AdvisoryChoice[]>([]);
+  const [advisoryId, setAdvisoryId] = useState("");
+  // A school with an advisory list places students by advisory; the teacher and class boxes aren't needed.
+  const byAdvisory = advisoryOptions.length > 0;
   const [selectionLoading, setSelectionLoading] = useState(false);
   const [selectionError, setSelectionError] = useState("");
 
@@ -101,10 +106,12 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
     Promise.all([
       request("/api/teachers/by-school-grade?schoolId=" + encodeURIComponent(schoolId)),
       request("/api/admin/schools/" + encodeURIComponent(schoolId) + "/classes"),
-    ]).then(([teachers, classes]) => {
+      request("/api/schools/" + encodeURIComponent(schoolId) + "/advisories").catch(() => []),
+    ]).then(([teachers, classes, advisories]) => {
       if (!active) return;
       setTeacherOptions(Array.isArray(teachers) ? teachers : []);
       setClassOptions(Array.isArray(classes) ? classes : []);
+      setAdvisoryOptions(Array.isArray(advisories) ? advisories : []);
     }).catch(() => {
       if (active) setSelectionError("Teachers or classes could not be loaded for this school.");
     }).finally(() => { if (active) setSelectionLoading(false); });
@@ -131,11 +138,16 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
       if (isAdmin) {
         if (!schoolId) throw new Error("Choose the school before adding students.");
         if (selectionLoading || selectionError) throw new Error("Wait for the teachers and classes to load correctly.");
-        if (!teacherChoice) throw new Error("Choose a teacher, or explicitly choose No teacher yet.");
         payload.schoolId = Number(schoolId);
-        if (teacherChoice.startsWith("teacher:")) payload.teacherId = Number(teacherChoice.slice(8));
-        if (teacherChoice.startsWith("directory:")) payload.directoryTeacherName = teacherChoice.slice(10);
-        if (classId) payload.classId = Number(classId);
+        if (byAdvisory) {
+          if (!advisoryId) throw new Error("Choose an advisory, or explicitly choose No advisory yet.");
+          if (advisoryId !== "none") payload.advisoryId = advisoryId;
+        } else {
+          if (!teacherChoice) throw new Error("Choose a teacher, or explicitly choose No teacher yet.");
+          if (teacherChoice.startsWith("teacher:")) payload.teacherId = Number(teacherChoice.slice(8));
+          if (teacherChoice.startsWith("directory:")) payload.directoryTeacherName = teacherChoice.slice(10);
+          if (classId) payload.classId = Number(classId);
+        }
       }
       const data = await request("/api/teacher/students/bulk-add", {
         method: "POST",
@@ -143,7 +155,7 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
       });
       const added = data.created?.length || 0, already = data.skipped?.length || 0;
       setSuccessCount(added);
-      onDone(`Added ${added} student${added === 1 ? "" : "s"}.${already ? ` Skipped ${already} who already ${already === 1 ? "has an account" : "have accounts"}.` : ""}`);
+      onDone(`Added ${added} student${added === 1 ? "" : "s"}${data.advisory ? ` to ${data.advisory}` : ""}.${already ? ` ${already} already had ${already === 1 ? "an account" : "accounts"}${data.advisory ? " and were put in this advisory" : " and were skipped"}.` : ""}`);
       onClose();
     } catch (e: any) {
       if (Array.isArray(e.problems)) setProblems(e.problems);
@@ -170,15 +182,24 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
           Each student's username and starting password are both their student number — they'll be asked to set their own password the first time they sign in. Students who already have an account are skipped.
         </p>
 
-        {isAdmin && <Card title="Assign students to a school and teacher">
+        {isAdmin && <Card title={byAdvisory ? "Assign students to a school and advisory" : "Assign students to a school and teacher"}>
           <div className="space-y-3">
             <label className="block text-sm font-semibold text-slate-800" htmlFor="bulk-school">School</label>
             <Select id="bulk-school" value={schoolId} onChange={(e) => {
-              setSchoolId(e.target.value); setTeacherChoice(""); setClassId(""); setTeacherOptions([]); setClassOptions([]);
+              setSchoolId(e.target.value); setTeacherChoice(""); setClassId(""); setAdvisoryId(""); setTeacherOptions([]); setClassOptions([]); setAdvisoryOptions([]);
             }} aria-label="School for imported students">
               <option value="">Select school…</option>
               {schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}
             </Select>
+            {byAdvisory ? <>
+              <label className="block text-sm font-semibold text-slate-800" htmlFor="bulk-advisory">Advisory</label>
+              <Select id="bulk-advisory" value={advisoryId} disabled={selectionLoading || !!selectionError} onChange={(e) => setAdvisoryId(e.target.value)} aria-label="Advisory for imported students" data-testid="bulk-advisory">
+                <option value="">Select advisory…</option>
+                {advisoryOptions.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                <option value="none">No advisory yet — assign later</option>
+              </Select>
+              <p className="text-xs text-slate-500">Each advisory has its advisors together. Students see it on their profile, and the sign-in pop-up only asks for their ELA teacher. Students already on the site are moved into this advisory.</p>
+            </> : <>
             <label className="block text-sm font-semibold text-slate-800" htmlFor="bulk-teacher">Teacher</label>
             <Select id="bulk-teacher" value={teacherChoice} disabled={!schoolId || selectionLoading || !!selectionError} onChange={(e) => setTeacherChoice(e.target.value)} aria-label="Teacher for imported students">
               <option value="">Select teacher…</option>
@@ -195,6 +216,7 @@ export default function AddStudentsModal({ onClose, request, onDone }: {
               {classOptions.map((cls) => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
             </Select>
             <p className="text-xs text-slate-500">Directory teachers (such as Ms. Kenn) can be selected even without a login. The school and teacher will be saved on every new student profile.</p>
+            </>}
             {selectionLoading && <p className="text-sm text-slate-500">Loading teachers and classes…</p>}
             {selectionError && <p role="alert" className="text-sm text-red-700">{selectionError}</p>}
           </div>

@@ -10,7 +10,7 @@ import type { Express, RequestHandler } from "express";
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { isIndependentSchoolName } from "../shared/independent";
 import {
-  ClassTeachersError, buildRoster, resolveClassTeachers, schoolYearOf,
+  ClassTeachersError, buildRoster, resolveChoice, schoolYearOf,
   type ClassTeachers, type PickRow, type RosterStudent, type SchoolTeacher,
 } from "../shared/classTeachers";
 
@@ -61,7 +61,8 @@ export function registerClassTeacherRoutes(app: Express, deps: ClassTeacherDeps)
       const current: ClassTeachers | null = pick && Number(pick.school_id) === school.id
         ? { advisory: { teacherId: pick.advisory_teacher_id, name: pick.advisory_teacher_name }, lit: { teacherId: pick.lit_teacher_id, name: pick.lit_teacher_name } }
         : null;
-      res.json({ needed: !current, schoolYear, school: { id: school.id, name: school.name }, teachers, current });
+      // Students are placed in an advisory when their accounts are made, so only their ELA teacher is asked.
+      res.json({ needed: !current || !current.lit.name.trim(), schoolYear, school: { id: school.id, name: school.name }, teachers, current });
     } catch (e: any) {
       console.error("[class-teachers] student read failed:", e?.message);
       res.status(500).json({ message: "Your teachers could not be loaded. Please try again." });
@@ -70,11 +71,19 @@ export function registerClassTeacherRoutes(app: Express, deps: ClassTeacherDeps)
 
   app.post("/api/student/class-teachers", deps.auth, async (req: any, res) => {
     try {
-      if (!asksClassTeachers(req)) return res.status(403).json({ message: "Only students choose their Advisory and Literature teachers." });
+      if (!asksClassTeachers(req)) return res.status(403).json({ message: "Only students choose their ELA teacher." });
       const school = await realSchool(req.user.school_id);
       if (!school) return res.status(400).json({ message: "Your account isn't linked to a school yet. Ask your teacher to add you to your school." });
       const teachers = await deps.schoolTeachers(school.id);
-      const picked = resolveClassTeachers(req.body, teachers);
+      // The ELA teacher comes from the student. The advisory was set when their account was made,
+      // and stays as it is unless one is sent (older versions of the form send both).
+      const before = await deps.getPick(Number(req.user.id), year());
+      const kept = before && Number(before.school_id) === school.id ? { teacherId: before.advisory_teacher_id, name: before.advisory_teacher_name } : { teacherId: null, name: "" };
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const picked = {
+        advisory: body.advisory && !kept.name ? resolveChoice(body.advisory, "advisory", teachers) : kept,
+        lit: resolveChoice(body.lit, "lit", teachers),
+      };
       const saved = await deps.savePick({
         student_id: Number(req.user.id),
         school_year: year(),

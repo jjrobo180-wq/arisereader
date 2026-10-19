@@ -82,6 +82,20 @@ test("uploading a student list skips students who already have accounts instead 
   const route = routes.slice(routes.indexOf('app.post("/api/teacher/students/bulk-add"'), routes.indexOf('app.post("/api/teacher/approve/:studentId"'));
   assert.match(route, /if \(existingNumber\.role === "student"\) skipped\.push/);
   assert.match(route, /for \(const c of toCreate\)/);
-  assert.match(route, /res\.json\(\{ success: true, created, skipped \}\)/);
-  assert.match(read("client/src/components/teacher-hub/AddStudentsModal.tsx"), /Skipped \$\{already\} who already/);
+  assert.match(route, /res\.json\(\{ success: true, created: created\.map/);
+  assert.match(read("client/src/components/teacher-hub/AddStudentsModal.tsx"), /already had \$\{already === 1/);
+});
+
+test("uploading by advisory: one Advisory box, saved as each student's advisory", () => {
+  const modal = read("client/src/components/teacher-hub/AddStudentsModal.tsx");
+  assert.match(modal, /\/api\/schools\/" \+ encodeURIComponent\(schoolId\) \+ "\/advisories"/);
+  assert.match(modal, /\{byAdvisory \? <>/);
+  assert.match(modal, /payload\.advisoryId = advisoryId/);
+  const routes = read("server/routes.ts");
+  const route = routes.slice(routes.indexOf('app.post("/api/teacher/students/bulk-add"'), routes.indexOf('app.post("/api/teacher/approve/:studentId"'));
+  assert.match(route, /advisory_teacher_name: advisory\.name/);
+  assert.match(route, /\.\.\.skipped\.map\(\(k\) => k\.id\)/, "students already on the site are put in the advisory too");
+  const popup = read("client/src/components/ClassTeachersPopup.tsx");
+  assert.match(popup, /const ASKED: ClassSubject\[\] = \["lit"\];/);
+  assert.match(popup, /Who is your ELA teacher\?/);
 });

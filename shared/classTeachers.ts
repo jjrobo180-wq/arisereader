@@ -4,7 +4,7 @@
 
 export type ClassSubject = "advisory" | "lit";
 export const CLASS_SUBJECTS: readonly ClassSubject[] = ["advisory", "lit"];
-export const SUBJECT_LABEL: Record<ClassSubject, string> = { advisory: "Advisory", lit: "Literature" };
+export const SUBJECT_LABEL: Record<ClassSubject, string> = { advisory: "Advisory", lit: "ELA" };
 
 /** A teacher at the student's school, as the pop-up and the list show them. */
 export type SchoolTeacher = { id: number; displayName: string };
@@ -175,8 +175,9 @@ export function buildRoster(students: readonly RosterStudent[], picks: readonly 
         name: tidyName(s.displayName) || s.username,
         username: s.username,
         answered: !!p,
-        advisory: p ? side(p.advisory_teacher_id, p.advisory_teacher_name) : null,
-        lit: p ? side(p.lit_teacher_id, p.lit_teacher_name) : null,
+        // Either may be blank: a student placed in an advisory at upload who hasn't named their ELA teacher yet.
+        advisory: p && (p.advisory_teacher_id != null || tidyName(p.advisory_teacher_name)) ? side(p.advisory_teacher_id, p.advisory_teacher_name) : null,
+        lit: p && (p.lit_teacher_id != null || tidyName(p.lit_teacher_name)) ? side(p.lit_teacher_id, p.lit_teacher_name) : null,
         updatedAt: p ? p.updated_at : null,
       };
     })
@@ -211,8 +212,14 @@ export function groupBy(entries: readonly RosterEntry[], subject: ClassSubject):
     .sort((a, b) => a.teacher.localeCompare(b.teacher, "en", { sensitivity: "base" }));
 }
 
-/** Does this student list the viewing teacher for Advisory or Literature? */
-export const listsTeacher = (e: RosterEntry, teacherId: number) => e.advisory?.teacherId === teacherId || e.lit?.teacherId === teacherId;
+/** Is this student the viewing teacher's: in their advisory or naming them as ELA teacher? An
+ *  advisory set at upload is named for its advisors ("Chase & Shuster"), so a teacher's last name
+ *  in it counts too. */
+export const listsTeacher = (e: RosterEntry, teacherId: number, teacherName = "") => {
+  if (e.advisory?.teacherId === teacherId || e.lit?.teacherId === teacherId) return true;
+  const last = nameWords(teacherName).slice(-1)[0];
+  return !!last && !!e.advisory && e.advisory.teacherId == null && nameWords(e.advisory.name).includes(last);
+};
 
 /** The list as a CSV file a teacher can open in Excel or Google Sheets. */
 export function rosterCsv(entries: readonly RosterEntry[]): string {
@@ -220,7 +227,7 @@ export function rosterCsv(entries: readonly RosterEntry[]): string {
     const s = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v; // never a formula in a spreadsheet
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const lines = [["Student", "Username", "Advisory teacher", "Literature teacher"].join(",")];
+  const lines = [["Student", "Username", "Advisory", "ELA teacher"].join(",")];
   for (const e of entries) lines.push([e.name, e.username, e.advisory?.name ?? "", e.lit?.name ?? ""].map(cell).join(","));
   return lines.join("\r\n") + "\r\n";
 }

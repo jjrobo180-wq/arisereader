@@ -59,7 +59,7 @@ test("a picked teacher must be at the student's school; a typed one is kept as t
   assert.deepEqual([linked.advisory.teacherId, linked.lit.teacherId], [11, 13]);
   assert.throws(() => resolveClassTeachers({ advisory: { teacherId: 99 }, lit: { teacherId: 10 } }, TEACHERS), /isn't at your school/);
   assert.throws(() => resolveClassTeachers({ advisory: { teacherId: "10; drop" }, lit: { teacherId: 10 } }, TEACHERS), /isn't at your school/);
-  assert.throws(() => resolveClassTeachers({ advisory: { teacherId: 10 } }, TEACHERS), /Literature/);
+  assert.throws(() => resolveClassTeachers({ advisory: { teacherId: 10 } }, TEACHERS), /ELA/);
   assert.throws(() => resolveClassTeachers(null, TEACHERS), /Advisory/);
 });
 
@@ -107,7 +107,7 @@ test("students group under one teacher however each one spelled the name", () =>
 test("the CSV opens safely in a spreadsheet", () => {
   const roster = buildRoster([{ id: 1, displayName: "=HYPERLINK(\"x\")", username: "a,b" }], [pick(1, [null, "Ms. O'Neil"], [10, ""])], TEACHERS, 4, "2026-27");
   const csv = rosterCsv(roster);
-  assert.equal(csv.split("\r\n")[0], "Student,Username,Advisory teacher,Literature teacher");
+  assert.equal(csv.split("\r\n")[0], "Student,Username,Advisory,ELA teacher");
   assert.equal(csv.split("\r\n")[1], `"'=HYPERLINK(""x"")","a,b",Ms. O'Neil,Ms. Maria Garcia`);
 });
 
@@ -158,10 +158,16 @@ test("a student at a school is asked once a year, and can pick from their school
   assert.equal(saved.code, 200);
   assert.deepEqual(saved.body.current, { advisory: { teacherId: 12, name: "Mrs. Lee-Hart" }, lit: { teacherId: null, name: "Mr. Patel" } });
   assert.equal((await t.call("GET /api/student/class-teachers", { user: student() })).body.needed, false);
-  // a change of mind replaces the answer rather than adding a second one
+  // a change of mind replaces the ELA answer rather than adding a second one; the advisory, once
+  // set, stays (it comes from the school's advisory list when accounts are uploaded)
   await t.call("POST /api/student/class-teachers", { user: student(), body: { advisory: { teacherId: 10 }, lit: { teacherId: 11 } } });
   assert.equal(t.picks.length, 1);
-  assert.equal(t.picks[0].advisory_teacher_id, 10);
+  assert.equal(t.picks[0].advisory_teacher_id, 12);
+  assert.equal(t.picks[0].lit_teacher_id, 11);
+  // the pop-up now sends only the ELA teacher
+  const elaOnly = await t.call("POST /api/student/class-teachers", { user: student(), body: { lit: { teacherId: 13 } } });
+  assert.equal(elaOnly.code, 200);
+  assert.deepEqual([t.picks[0].advisory_teacher_id, t.picks[0].lit_teacher_id], [12, 13]);
   // moving to another school asks again
   assert.equal((await t.call("GET /api/student/class-teachers", { user: student({ school_id: 8 }) })).body.needed, true);
 });
@@ -224,4 +230,30 @@ test("the administrator chooses which school to look at", async () => {
   const four = await t.call("GET /api/teacher/class-teachers", { user: admin, query: { schoolId: "4" } });
   assert.equal(four.body.entries.length, 4);
   assert.equal(four.body.me, null);
+});
+
+test("a student placed in an advisory at upload is still asked for their ELA teacher, and only that", async () => {
+  const t = setup();
+  t.picks.push({ student_id: 1, school_year: "2026-27", school_id: 4, advisory_teacher_id: null, advisory_teacher_name: "Chase & Shuster", lit_teacher_id: null, lit_teacher_name: "", updated_at: "" });
+  const asked = await t.call("GET /api/student/class-teachers", { user: student() });
+  assert.equal(asked.body.needed, true);
+  const saved = await t.call("POST /api/student/class-teachers", { user: student(), body: { lit: { name: "Ms. Garcia" } } });
+  assert.deepEqual(saved.body.current, { advisory: { teacherId: null, name: "Chase & Shuster" }, lit: { teacherId: null, name: "Ms. Garcia" } });
+  assert.equal((await t.call("GET /api/student/class-teachers", { user: student() })).body.needed, false);
+});
+
+test("Conservatory Green's advisories come grouped by their two advisors", async () => {
+  const m = await import("../shared/advisories");
+  const list = m.advisoriesForSchool("DSST: Conservatory Green Middle School (Denver, CO)");
+  assert.equal(list.length, 5);
+  assert.deepEqual(list.map(m.advisoryName), ["Chase & Shuster", "Isaac & Ross", "Altunel & Padilla", "King & Ruos", "Hines-Brazell & Kast"]);
+  assert.equal(m.advisoryLabel(list[0]), "Lucy Chase & Jeffrey Shuster · Grade 7 · Room 212");
+  assert.equal(list.flatMap((a) => a.teachers).length, 10);
+  assert.deepEqual(m.advisoriesForSchool("Conservatory Green High School"), []);
+  assert.deepEqual(m.advisoriesForSchool("Test (Denver, CO)"), []);
+  assert.equal(m.advisorAccount(list[0], [{ id: 7, displayName: "Mr. Jeffrey Shuster" }])?.id, 7);
+  // A co-advisor sees their advisory's students as their own.
+  const entry = { studentId: 1, name: "A", username: "a", answered: true, advisory: { teacherId: null, name: "Chase & Shuster", onSite: false }, lit: null, updatedAt: null };
+  assert.equal(listsTeacher(entry, 7, "Jeffrey Shuster"), true);
+  assert.equal(listsTeacher(entry, 8, "Sandra Ross"), false);
 });

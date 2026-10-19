@@ -1,4 +1,5 @@
-// After a student signs in: "Who are your Advisory and Literature teachers?"
+// After a student signs in: "Who is your ELA teacher?" (Their advisory is set when their account
+// is made, from the school's advisory list; see shared/advisories.ts.)
 //
 // Asked once each school year, and only of students at a school (the server decides; see
 // server/classTeachers.ts). Typing shows the school's teachers to tap; a teacher who isn't on
@@ -9,7 +10,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import {
-  CLASS_SUBJECTS, NAME_MAX, SUBJECT_LABEL, checkTypedName, exactTeacher, suggestTeachers,
+  NAME_MAX, SUBJECT_LABEL, checkTypedName, exactTeacher, suggestTeachers,
   type ClassSubject, type ClassTeachers, type SchoolTeacher,
 } from "@shared/classTeachers";
 
@@ -100,7 +101,10 @@ function TeacherBox({ subject, value, teachers, onChange, autoFocus, disabled }:
   );
 }
 
-/** The two boxes and Save. `onSaved` gets what the server kept. */
+/** What the student fills in: their ELA teacher. */
+const ASKED: ClassSubject[] = ["lit"];
+
+/** The ELA box and Save. `onSaved` gets what the server kept. */
 export function ClassTeachersForm({ teachers, current, onSaved, saveLabel = "Save" }: {
   teachers: SchoolTeacher[]; current?: ClassTeachers | null; onSaved: (saved: ClassTeachers) => void; saveLabel?: string;
 }) {
@@ -115,7 +119,7 @@ export function ClassTeachersForm({ teachers, current, onSaved, saveLabel = "Sav
     if (busy) return;
     setError("");
     const body: Record<string, unknown> = {};
-    for (const s of CLASS_SUBJECTS) {
+    for (const s of ASKED) {
       const f = fields[s];
       if (f.teacherId) { body[s] = { teacherId: f.teacherId }; continue; }
       // A full name that is one of the school's teachers counts as picking them.
@@ -135,10 +139,10 @@ export function ClassTeachersForm({ teachers, current, onSaved, saveLabel = "Sav
     }
   };
 
-  const ready = CLASS_SUBJECTS.every((s) => fields[s].teacherId || fields[s].text.trim().length >= 2);
+  const ready = ASKED.every((s) => fields[s].teacherId || fields[s].text.trim().length >= 2);
   return (
     <form onSubmit={submit} className="space-y-3" noValidate>
-      {CLASS_SUBJECTS.map((s, i) => (
+      {ASKED.map((s, i) => (
         <TeacherBox key={s} subject={s} value={fields[s]} teachers={teachers} autoFocus={i === 0 && !current} disabled={busy}
           onChange={(v) => { setError(""); setFields((f) => ({ ...f, [s]: v })); }} />
       ))}
@@ -199,7 +203,7 @@ export default function ClassTeachersPopup() {
           <div className="py-4 text-center">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl" aria-hidden>✓</div>
             <h2 id="class-teachers-title" className="text-xl font-bold">Thanks!</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Your teachers are saved. You can change them anytime on your profile.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Your ELA teacher is saved. You can change it anytime on your profile.</p>
             <button type="button" onClick={() => setClosed(true)} autoFocus
               className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary px-4 text-base font-semibold text-primary-foreground hover:bg-primary/90"
               data-testid="class-teachers-done">
@@ -210,13 +214,14 @@ export default function ClassTeachersPopup() {
           <>
             <div className="mb-4 text-center">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-2xl" aria-hidden>🏫</div>
-              <h2 id="class-teachers-title" className="text-xl font-bold">Who are your teachers?</h2>
+              <h2 id="class-teachers-title" className="text-xl font-bold">Who is your ELA teacher?</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Type your Advisory teacher and your Literature teacher, then tap their name.
+                Type your ELA teacher's name, then tap it.
+                {status.current?.advisory?.name ? <> Your advisory is <span className="font-medium text-foreground">{status.current.advisory.name}</span>.</> : null}
                 {status.school?.name ? <> Teachers at <span className="font-medium text-foreground">{status.school.name}</span> will see this.</> : null}
               </p>
             </div>
-            <ClassTeachersForm teachers={status.teachers || []} current={status.current} saveLabel="Save my teachers" onSaved={() => setSaved(true)} />
+            <ClassTeachersForm teachers={status.teachers || []} current={status.current} saveLabel="Save" onSaved={() => setSaved(true)} />
           </>
         )}
       </div>
@@ -224,7 +229,7 @@ export default function ClassTeachersPopup() {
   );
 }
 
-/** On a student's profile: their two teachers this year, with a way to change them. */
+/** On a student's profile: their advisory (set by the school) and ELA teacher, which they can change. */
 export function ClassTeachersCard() {
   const { user } = useAuth();
   const api = useApi();
@@ -243,16 +248,16 @@ export function ClassTeachersCard() {
     <section className="arise-surface rounded-2xl border border-white/10 bg-card p-4 shadow-[0_18px_55px_rgba(0,0,0,.20)] sm:p-5" data-testid="class-teachers-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold">My teachers</h2>
-        {!editing && <button type="button" onClick={() => { setNote(""); setEditing(true); }} className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted" data-testid="class-teachers-change">{current ? "Change" : "Add"}</button>}
+        {!editing && <button type="button" onClick={() => { setNote(""); setEditing(true); }} className="min-h-11 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted" data-testid="class-teachers-change">{current?.lit.name ? "Change ELA" : "Add ELA"}</button>}
       </div>
       {editing ? (
         <div className="mt-3">
           <ClassTeachersForm teachers={status.teachers || []} current={current} onSaved={(c) => { setStatus({ ...status, current: c, needed: false }); setEditing(false); setNote("Saved."); }} />
           <button type="button" onClick={() => setEditing(false)} className="mt-2 min-h-11 w-full text-sm text-muted-foreground hover:text-foreground">Cancel</button>
         </div>
-      ) : current ? (
+      ) : current && (current.advisory.name || current.lit.name) ? (
         <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-          {CLASS_SUBJECTS.map((s) => (
+          {(["advisory", "lit"] as const).filter((s) => current[s].name).map((s) => (
             <div key={s} className="rounded-xl bg-muted/40 px-3 py-2">
               <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{SUBJECT_LABEL[s]}</dt>
               <dd className="mt-0.5 font-medium">{current[s].name}</dd>
@@ -260,7 +265,7 @@ export function ClassTeachersCard() {
           ))}
         </dl>
       ) : (
-        <p className="mt-2 text-sm text-muted-foreground">You haven't added your Advisory and Literature teachers yet.</p>
+        <p className="mt-2 text-sm text-muted-foreground">You haven't added your ELA teacher yet.</p>
       )}
       {note && !editing && <p role="status" className="mt-2 text-sm text-emerald-700">{note}</p>}
     </section>

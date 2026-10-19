@@ -27,6 +27,8 @@ import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
 import { registerClassTeacherRoutes, supabaseClassTeacherStore } from "./classTeachers";
+import { advisorAccount, advisoriesForSchool, advisoryLabel, advisoryName } from "../shared/advisories";
+import { schoolYearOf } from "../shared/classTeachers";
 import { registerPrizeRoutes } from "./prizes";
 import { transferIndependentStudents } from "./independentTransfer";
 import { registerSchoolPickerRoutes, SchoolPickError } from "./schoolPicker";
@@ -1246,7 +1248,19 @@ export async function registerRoutes(
   });
   // Students' Advisory and Literature teachers: the sign-in pop-up, and the school's list on the
   // Reader page's "Advisory & Lit" tab (server/classTeachers.ts).
-  registerClassTeacherRoutes(app, { auth: authMiddleware, ...supabaseClassTeacherStore(supabase) });
+  const classTeacherStore = supabaseClassTeacherStore(supabase);
+  registerClassTeacherRoutes(app, { auth: authMiddleware, ...classTeacherStore });
+  // A school's advisories (shared/advisories.ts), for placing uploaded students in one.
+  app.get("/api/schools/:id/advisories", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!req.user.isAdmin && Number(req.user.school_id) !== id) return res.status(403).json({ message: "That isn't your school." });
+      const school = await classTeacherStore.getSchool(id);
+      res.json(school ? advisoriesForSchool(school.name).map((a) => ({ id: a.id, name: advisoryName(a), label: advisoryLabel(a), teachers: a.teachers, room: a.room || "", grade: a.grade || "" })) : []);
+    } catch (e: any) {
+      res.status(500).json({ message: "Advisories could not be loaded." });
+    }
+  });
   // Private LifeHub accounts and cross-device task syncing (for anyone, not just teachers).
   // Paid add-ons (shared/plans.ts): a request without the add-on gets 402 and the page shows how to get it.
   // An admin, or an admin previewing the site as a student, always gets in.
@@ -11053,7 +11067,7 @@ Important:
       if (isBulkAdmin && directoryTeacherInput && Number.isInteger(requestedTeacherId) && requestedTeacherId > 0) {
         return res.status(400).json({ message: "Choose one teacher, not both a registered and a directory teacher." });
       }
-      const teacherId = isBulkAdmin
+      let teacherId = isBulkAdmin
         ? (Number.isInteger(requestedTeacherId) && requestedTeacherId > 0 ? requestedTeacherId : null)
         : req.user.id;
       let directoryTeacherName: string | null = null;
@@ -11070,6 +11084,22 @@ Important:
         const found = listing.find((t: any) => String(t.name || "").trim().toLowerCase() === directoryTeacherInput.toLowerCase());
         if (!found) return res.status(400).json({ message: "That teacher is not in this school's teacher directory." });
         directoryTeacherName = found.name.trim();
+      }
+
+      // Placing students in an advisory (the school's advisories, shared/advisories.ts): the advisory
+      // is saved as each student's Advisory for this school year, so the sign-in pop-up only asks
+      // for their ELA teacher. One of the advisors with an account becomes their teacher on the site.
+      let advisory: { name: string; teacherId: number | null } | null = null;
+      const advisoryId = isBulkAdmin && typeof req.body?.advisoryId === "string" ? req.body.advisoryId : "";
+      if (advisoryId) {
+        if (!schoolId) return res.status(400).json({ message: "Choose a school before choosing an advisory." });
+        const school = await classTeacherStore.getSchool(Number(schoolId));
+        const found = school ? advisoriesForSchool(school.name).find((a) => a.id === advisoryId) : undefined;
+        if (!found) return res.status(400).json({ message: "That advisory isn't at the selected school." });
+        const account = advisorAccount(found, await classTeacherStore.schoolTeachers(Number(schoolId)));
+        advisory = { name: advisoryName(found), teacherId: account?.id ?? null };
+        teacherId = advisory.teacherId;
+        directoryTeacherName = advisory.teacherId ? null : advisory.name;
       }
 
       const requestedClassId = Number(req.body?.classId);
@@ -11112,12 +11142,12 @@ Important:
       // Student numbers must be unique against the whole site, not just this batch. A student who
       // already has an account is left as they are and skipped (re-uploading a list is safe);
       // anything else using that number or username still stops the upload.
-      const skipped: { row: number; studentNumber: string; displayName: string }[] = [];
+      const skipped: { row: number; studentNumber: string; displayName: string; id: number }[] = [];
       const toCreate: typeof clean = [];
       for (const c of clean) {
         const existingNumber = await storage.getUserByStudentNumber(c.studentNumber);
         if (existingNumber) {
-          if (existingNumber.role === "student") skipped.push({ row: c.row, studentNumber: c.studentNumber, displayName: existingNumber.displayName || "" });
+          if (existingNumber.role === "student") skipped.push({ row: c.row, studentNumber: c.studentNumber, displayName: existingNumber.displayName || "", id: Number(existingNumber.id) });
           else problems.push({ row: c.row, message: `Student number "${c.studentNumber}" is already in use.` });
           continue;
         }
@@ -11127,7 +11157,7 @@ Important:
       }
       if (problems.length) return res.status(409).json({ message: "Some rows need to be fixed before adding.", problems });
 
-      const created: { row: number; displayName: string; username: string }[] = [];
+      const created: { row: number; displayName: string; username: string; id: number }[] = [];
       for (const c of toCreate) {
         // Use a password hash known to work in /api/login, and verify before insertion.
         const hashedPassword = createVerifiedStudentTemporaryHash(c.studentNumber);
@@ -11154,10 +11184,23 @@ Important:
           console.error("[student-bulk-add] Saved credentials failed login verification", { userId: user.id, row: c.row });
           throw new Error("An imported account failed its sign-in verification. No further students were added. Please review existing uploads before retrying.");
         }
-        created.push({ row: c.row, displayName: user.displayName, username: user.username });
+        created.push({ row: c.row, displayName: user.displayName, username: user.username, id: Number(user.id) });
+      }
+      // Everyone on the list, new or already here, gets this advisory for the school year.
+      // Their ELA teacher, if they already gave one, is kept.
+      if (advisory && schoolId) {
+        const schoolYear = schoolYearOf();
+        for (const id of [...created.map((c) => c.id), ...skipped.map((k) => k.id)]) {
+          const before = await classTeacherStore.getPick(id, schoolYear).catch(() => null);
+          await classTeacherStore.savePick({
+            student_id: id, school_year: schoolYear, school_id: Number(schoolId),
+            advisory_teacher_id: null, advisory_teacher_name: advisory.name,
+            lit_teacher_id: before?.lit_teacher_id ?? null, lit_teacher_name: before?.lit_teacher_name ?? "",
+          });
+        }
       }
       try { clearCache("allUsers"); } catch {}
-      res.json({ success: true, created, skipped });
+      res.json({ success: true, created: created.map(({ id, ...c }) => c), skipped: skipped.map(({ id, ...k }) => k), advisory: advisory?.name ?? null });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to add students." });
     }

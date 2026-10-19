@@ -24,7 +24,7 @@ type Data = {
 type View = "advisory" | "lit" | "all";
 type Who = "mine" | "everyone";
 
-const VIEW_LABEL: Record<View, string> = { advisory: "By Advisory", lit: "By Literature", all: "All students" };
+const VIEW_LABEL: Record<View, string> = { advisory: "By Advisory", lit: "By ELA", all: "All students" };
 const SCHOOL_KEY = "advisory_lit_school";
 const VIEW_KEY = "advisory_lit_view";
 
@@ -79,15 +79,16 @@ export default function HubAdvisoryLit() {
 
   const entries = data?.entries ?? [];
   const me = data?.me ?? null;
-  const mineCount = useMemo(() => (me == null ? 0 : entries.filter((e) => listsTeacher(e, me)).length), [entries, me]);
+  const myName = (data?.teachers || []).find((t) => t.id === me)?.displayName || "";
+  const mineCount = useMemo(() => (me == null ? 0 : entries.filter((e) => listsTeacher(e, me, myName)).length), [entries, me, myName]);
   // A teacher opens on their own students when they have some; otherwise on the whole school.
   const whoNow: Who = me == null ? "everyone" : who ?? (mineCount > 0 ? "mine" : "everyone");
 
   const answered = entries.filter((e) => e.answered);
   const missing = entries.filter((e) => !e.answered);
   const shown = useMemo(
-    () => answered.filter((e) => (whoNow === "mine" && me != null ? listsTeacher(e, me) : true) && fits(e, query)),
-    [answered, whoNow, me, query],
+    () => answered.filter((e) => (whoNow === "mine" && me != null ? listsTeacher(e, me, myName) : true) && fits(e, query)),
+    [answered, whoNow, me, myName, query],
   );
   const missingShown = missing.filter((e) => fits(e, query));
   const groups = view === "all" ? [] : groupBy(shown, view as ClassSubject);
@@ -105,9 +106,9 @@ export default function HubAdvisoryLit() {
   const print = () => {
     const w = window.open("", "_blank");
     if (!w) { setError("Your browser blocked the print window. Allow pop-ups for this site, then try again."); return; }
-    const title = `${data?.school?.name || "School"} · Advisory & Literature · ${data?.schoolYear || ""}`;
+    const title = `${data?.school?.name || "School"} · Advisory & ELA · ${data?.schoolYear || ""}`;
     const row = (e: RosterEntry) => `<tr><td>${esc(e.name)}</td><td>${esc(e.advisory?.name || "")}</td><td>${esc(e.lit?.name || "")}</td></tr>`;
-    const table = (rows: RosterEntry[]) => `<table><thead><tr><th>Student</th><th>Advisory</th><th>Literature</th></tr></thead><tbody>${rows.map(row).join("")}</tbody></table>`;
+    const table = (rows: RosterEntry[]) => `<table><thead><tr><th>Student</th><th>Advisory</th><th>ELA</th></tr></thead><tbody>${rows.map(row).join("")}</tbody></table>`;
     const body = view === "all"
       ? table(shown)
       : groups.map((g) => `<h2>${esc(g.teacher)} <small>(${g.students.length})</small></h2>${table(g.students)}`).join("");
@@ -144,7 +145,7 @@ export default function HubAdvisoryLit() {
       ) : data?.noSchool ? (
         <Card title="Advisory & Lit"><Empty>Your account isn't linked to a school yet, so there's no school list to show. Ask the administrator to add you to your school.</Empty></Card>
       ) : !data?.school ? (
-        isAdmin ? <Card title="Advisory & Lit"><Empty>Choose a school to see its students' Advisory and Literature teachers.</Empty></Card> : null
+        isAdmin ? <Card title="Advisory & Lit"><Empty>Choose a school to see its students' advisories and ELA teachers.</Empty></Card> : null
       ) : (
         <>
           <Card title={data.school.name} right={
@@ -156,7 +157,7 @@ export default function HubAdvisoryLit() {
           }>
             <div className="space-y-4 pt-3">
               <p className="text-sm text-slate-600">
-                Students type their Advisory and Literature teachers after they sign in. Every teacher at your school sees this list.
+                Students are placed in their advisory when their accounts are made, and type their ELA teacher after they sign in. Every teacher at your school sees this list.
                 <span className="block text-slate-500">{data.schoolYear} school year · <strong className="font-semibold text-slate-800" data-testid="advisory-lit-count">{answered.length} of {entries.length}</strong> students have answered.</span>
               </p>
 
@@ -191,7 +192,7 @@ export default function HubAdvisoryLit() {
               {query.trim()
                 ? "No students match that search."
                 : whoNow === "mine"
-                  ? "No students have named you as their Advisory or Literature teacher yet. Switch to Whole school to see everyone."
+                  ? "No students are in your advisory or have named you as their ELA teacher yet. Switch to Whole school to see everyone."
                   : answered.length ? "No students to show." : "No students at your school have answered yet. They're asked the next time they sign in."}
             </Empty></Card>
           ) : view === "all" ? (
@@ -201,7 +202,7 @@ export default function HubAdvisoryLit() {
                   <thead><tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                     <th scope="col" className="px-2 py-2 font-semibold">Student</th>
                     <th scope="col" className="px-2 py-2 font-semibold">Advisory</th>
-                    <th scope="col" className="px-2 py-2 font-semibold">Literature</th>
+                    <th scope="col" className="px-2 py-2 font-semibold">ELA</th>
                   </tr></thead>
                   <tbody>
                     {shown.map((e) => (
@@ -238,7 +239,7 @@ export default function HubAdvisoryLit() {
                   );
                 })}
               {whoNow === "mine" && me != null && !groups.some((g) => g.key === `id:${me}`) && (
-                <Card><Empty>No students named you as their {SUBJECT_LABEL[view as ClassSubject]} teacher. Try {view === "advisory" ? "By Literature" : "By Advisory"}.</Empty></Card>
+                <Card><Empty>No students named you as their {SUBJECT_LABEL[view as ClassSubject]} teacher. Try {view === "advisory" ? "By ELA" : "By Advisory"}.</Empty></Card>
               )}
             </div>
           )}
