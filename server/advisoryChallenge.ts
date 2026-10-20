@@ -14,6 +14,8 @@ export type ChallengeDeps = {
   /** Each student's advisory for the school year: student id -> advisory name. */
   advisoryPicks(schoolId: number, year: string): Promise<Array<{ studentId: number; advisory: string }>>;
   pointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
+  /** Quizzes each student took in the window (the advisories' "books read"). */
+  quizzesBetween?(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
   /** A parent's children (current ones), with each child's school: a parent sees their child's school's challenge. */
   parentChildren?(parentId: number): Promise<Array<{ id: number; schoolId: number | null }>>;
   now?: () => number;
@@ -45,8 +47,12 @@ export function registerAdvisoryChallengeRoutes(app: Express, deps: ChallengeDep
       const studentAdvisory = new Map<number, string>();
       for (const p of picks) if (current.has(p.studentId) && p.advisory) studentAdvisory.set(p.studentId, p.advisory);
       const w = challengeWindow(challenge);
-      const points = await deps.pointsBetween([...studentAdvisory.keys(), ...(isStudent ? [Number(user.id)] : []), ...kids.map((k) => k.id)], w.fromMs, w.endMs, w.fromDay, w.endDayExclusive);
-      const standings = rankAdvisories(advisoriesForSchool(school.name), studentAdvisory, points);
+      const ids = [...studentAdvisory.keys(), ...(isStudent ? [Number(user.id)] : []), ...kids.map((k) => k.id)];
+      const [points, books] = await Promise.all([
+        deps.pointsBetween(ids, w.fromMs, w.endMs, w.fromDay, w.endDayExclusive),
+        deps.quizzesBetween ? deps.quizzesBetween(ids, w.fromMs, w.endMs, w.fromDay, w.endDayExclusive) : Promise.resolve(new Map<number, number>()),
+      ]);
+      const standings = rankAdvisories(advisoriesForSchool(school.name), studentAdvisory, points, books);
 
       let mine: ChallengeView["mine"] = null;
       // A student's own advisory; for a parent, their (first) child's in this school.

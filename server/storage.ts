@@ -367,6 +367,7 @@ export interface IStorage {
   // Monthly leaderboard
   getMonthlyLeaderboard(yearMonth: string): Promise<any[]>;
   getPointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
+  getQuizzesBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
   // Advisory leaderboard (grouped by teacher)
   getAdvisoryLeaderboard(): Promise<any[]>;
 }
@@ -1340,8 +1341,20 @@ export class DatabaseStorage implements IStorage {
   /** Each student's points earned between two times (the Advisory Challenge's window), counted the
    *  same way as the monthly leaderboard: quizzes, eye-gaze quizzes and points a teacher gave. */
   async getPointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>> {
+    const stats = await this.windowStatsBetween(userIds, startMs, endMs, fromDay, endDayExclusive);
+    return new Map([...stats].map(([id, w]) => [id, w.points]));
+  }
+
+  /** How many quizzes each student took between two times (book quizzes and eye-gaze quizzes,
+   *  passed or not): the Advisory Challenge's "books read". */
+  async getQuizzesBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>> {
+    const stats = await this.windowStatsBetween(userIds, startMs, endMs, fromDay, endDayExclusive);
+    return new Map([...stats].map(([id, w]) => [id, w.quizzesTaken]));
+  }
+
+  private async windowStatsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, ReturnType<typeof windowPoints>>> {
     const ids = Array.from(new Set(userIds.filter((n) => Number.isFinite(n) && n > 0)));
-    const out = new Map<number, number>();
+    const out = new Map<number, ReturnType<typeof windowPoints>>();
     if (!ids.length) return out;
     return cached(`pointsBetween_${startMs}_${endMs}_${ids.length}_${ids[0]}_${ids[ids.length - 1]}`, 60000, async () => {
       const manual = new Map<number, number>();
@@ -1363,7 +1376,7 @@ export class DatabaseStorage implements IStorage {
           for (const a of data || []) manual.set(a.student_id, (manual.get(a.student_id) || 0) + Number(a.points || 0));
         }
       }
-      for (const u of users) out.set(Number(u.id), windowPoints(u, startMs, endMs, manual.get(u.id) || 0).points);
+      for (const u of users) out.set(Number(u.id), windowPoints(u, startMs, endMs, manual.get(u.id) || 0));
       return out;
     });
   }

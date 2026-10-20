@@ -75,6 +75,7 @@ function fakeApp() {
     schoolStudentIds: async () => [100, 101, 102, 103],
     advisoryPicks: async () => [{ studentId: 100, advisory: "Chase & Shuster" }, { studentId: 101, advisory: "Isaac & Ross" }, { studentId: 102, advisory: "Isaac & Ross" }, { studentId: 999, advisory: "Isaac & Ross" }],
     pointsBetween: async (ids, from, to, fromDay, endDay) => { calls.push({ ids, from, to, fromDay, endDay }); return new Map([[100, 40], [101, 25], [102, 10], [999, 500], [103, 7]]); },
+    quizzesBetween: async () => new Map([[100, 3], [101, 2], [102, 4], [999, 50], [103, 1]]),
     now: () => Date.parse("2026-10-19T22:00:00Z"),
   });
   const get = async (user: any, query: any = {}) => {
@@ -93,6 +94,9 @@ test("a student sees every advisory's place and their own advisory's, counting f
   assert.equal(body.challenge.prize, "a pizza party");
   assert.deepEqual(body.standings.slice(0, 2).map((s: any) => [s.rank, s.name, s.points, s.students]), [[1, "Chase & Shuster", 40, 1], [2, "Isaac & Ross", 35, 2]]);
   assert.deepEqual(body.mine, { advisory: "Isaac & Ross", rank: 2, points: 25 });
+  // Books read: the quizzes each advisory's current students took during the challenge.
+  assert.deepEqual(body.standings.slice(0, 2).map((s: any) => [s.name, s.books]), [["Chase & Shuster", 3], ["Isaac & Ross", 6]]);
+  assert.ok(body.standings.slice(2).every((s: any) => s.books === 0));
   assert.equal(calls[0].fromDay, "2026-10-20");
   assert.equal(calls[0].endDay, "2026-11-20");
   assert.ok(!calls[0].ids.includes(999), "a student who left the school (archived) doesn't count");

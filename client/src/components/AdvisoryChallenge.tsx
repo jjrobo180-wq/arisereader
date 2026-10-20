@@ -65,7 +65,11 @@ export function AdvisoryStandings({ view, mineName, limit, dense = false }: { vi
                 <span className={`block truncate font-bold text-white ${dense ? "text-[13px]" : "text-sm"}`}>{s.name}{isMine ? " · yours" : ""}</span>
                 {!dense && <span className="block text-[11px] font-semibold text-white/50">Grade {s.grade} · Room {s.room}</span>}
               </span>
-              <span className="relative shrink-0 text-right">
+              <span className="relative shrink-0 text-right" title={`${(s.books || 0).toLocaleString()} ${(s.books || 0) === 1 ? "book" : "books"} quizzed on during the challenge`} data-testid="advisory-books">
+                <span className={`block font-black tabular-nums text-white/85 ${dense ? "text-sm" : "text-base"}`}>{dense ? "📚 " : ""}{(s.books || 0).toLocaleString()}</span>
+                {!dense && <span className="block text-[10px] font-semibold text-white/45">{(s.books || 0) === 1 ? "book read" : "books read"}</span>}
+              </span>
+              <span className="relative min-w-[3.5rem] shrink-0 text-right">
                 <span className={`block font-black tabular-nums text-white ${dense ? "text-sm" : "text-base"}`}>{s.points.toLocaleString()}</span>
                 {!dense && <span className="block text-[10px] font-semibold text-white/45">points</span>}
               </span>
