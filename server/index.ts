@@ -12,7 +12,7 @@ const app = express();
 const httpServer = createServer(app);
 
 // Serve search-engine discovery files for the correct domain. The two brands share
-// this server but must NOT share a sitemap or a cross-domain sitemap directive.
+// this server but must not share a sitemap or cross-domain discovery directives.
 function isAriseTodoHostname(req: Request): boolean {
   const host = (req.headers.host || "").split(":")[0].toLowerCase();
   return host === "arisetodo.com" || host === "www.arisetodo.com";
@@ -20,16 +20,26 @@ function isAriseTodoHostname(req: Request): boolean {
 
 app.get("/robots.txt", (req, res, next) => {
   if (!isAriseTodoHostname(req)) return next();
-  res.type("text/plain; charset=utf-8").send(
-    "User-agent: *\\nAllow: /\\nDisallow: /api/\\nDisallow: /app\\n\\nSitemap: https://arisetodo.com/sitemap.xml\\n".replace(/\\\\n/g, "\\n"),
-  );
+  res.type("text/plain; charset=utf-8").send([
+    "User-agent: *",
+    "Allow: /",
+    "Disallow: /api/",
+    "Disallow: /app",
+    "",
+    "Sitemap: https://arisetodo.com/sitemap.xml",
+    "",
+  ].join("\n"));
 });
 
 app.get("/sitemap.xml", (req, res, next) => {
   if (!isAriseTodoHostname(req)) return next();
-  res.type("application/xml; charset=utf-8").send(
-    '<?xml version="1.0" encoding="UTF-8"?>\\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\\n  <url><loc>https://arisetodo.com/</loc></url>\\n</urlset>\\n'.replace(/\\\\n/g, "\\n"),
-  );
+  res.type("application/xml; charset=utf-8").send([
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    '  <url><loc>https://arisetodo.com/</loc></url>',
+    '</urlset>',
+    '',
+  ].join("\n"));
 });
 
 // The A.R.I.S.E. To-Do custom domain gets the educator marketing page at its root.
