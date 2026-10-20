@@ -115,7 +115,7 @@ const ProApps = lazyPage(() => import("./pages/ProApps"));
 const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
 import { ReaderAdminToTodoRedirect, ReaderToHubHandoff, TodoAdminHandoff } from "@/components/AdminDomainHandoff";
-import { READER_APP, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
+import { READER_APP, goToReader, goToSignIn, hubPathFor, isHubAccount, isReaderPage } from "@/lib/hubs";
 const TeacherScenes = lazyPage(() => import("./pages/TeacherScenes"));
 const StudentSceneLive = lazyPage(() => import("./pages/StudentSceneLive"));
 const Library = lazyPage(() => import("./pages/Library"));
@@ -363,6 +363,9 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   const { user } = useAuth();
   if (!user) return null;
   if (isHubAccount(user)) {
+    // A teacher who signs in on arisereader.com stays in A.R.I.S.E. Reader (the teacher Reader at
+    // /reader), with a banner there that opens their WorkHub. On arisetodo.com they get the hub.
+    if (onReaderDomain && readerFirst(user)) return <OpenReaderPage />;
     if (onReaderDomain) return <ReaderToHubHandoff />;
     // A new sign-in always opens the person's hub Home, with Reader available
     // from that hub's menu; saved subpages remain available after they enter.
@@ -372,6 +375,15 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   }
   if (onTodoDomain) return <StudentOnTodo />;
   return <Redirect to="/" replace />;
+}
+
+/** A teacher (not the administrator) on arisereader.com opens the teacher Reader rather than a hub. */
+const readerFirst = (user: { role?: string | null; isAdmin?: boolean } | null | undefined) => !!user && user.role === "teacher" && !user.isAdmin;
+
+/** Leaves the app for the Reader's own page (/reader): a real page load, not a hash change. */
+function OpenReaderPage() {
+  useEffect(() => { goToReader(); }, []);
+  return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 }
 
 /** The retired dark To-Do marketing screen is no longer part of the app.
@@ -438,7 +450,7 @@ function AppRoutes() {
         <Redirect to="/" replace />
       </Route>
       <Route path="/">
-        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : <Redirect key="home-to-hub" to={hubPathFor(user)} replace />) : user ? (isHubAccount(user) ? <Redirect key="home-to-hub" to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
+        {onTodoDomain ? (!user ? <TodoPublicHomeRedirect /> : <Redirect key="home-to-hub" to={hubPathFor(user)} replace />) : user ? (onReaderDomain && readerFirst(user) ? <OpenReaderPage /> : isHubAccount(user) ? <Redirect key="home-to-hub" to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <iframe src="/reader-landing.html" title="A.R.I.S.E. Reader — discover reading" style={{width:"100%",height:"100dvh",border:0,display:"block"}} />}
       </Route>
       <Route path="/register">
         {user ? (isHubAccount(user) ? <Redirect to={hubPathFor(user)} replace /> : isEyeGazeStudent ? <StudentSetupGate><Redirect to="/eye-gaze-home" replace /></StudentSetupGate> : <StudentSetupGate><Redirect to="/library" replace /></StudentSetupGate>) : <Register />}

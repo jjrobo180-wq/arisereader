@@ -142,3 +142,15 @@ test("the student leaderboard opens on this month's race, with the Advisory Chal
   assert.match(page, /tab === "leaderboard" && board === "advisories" && challenge && challenge\.challenge &&/);
   assert.match(read("server/routes.ts"), /registerAdvisoryChallengeRoutes\(app, \{/);
 });
+
+test("a teacher who signs in on arisereader.com lands in the teacher Reader, with a banner that opens WorkHub", () => {
+  const app = read("client/src/App.tsx");
+  assert.match(app, /if \(onReaderDomain && readerFirst\(user\)\) return <OpenReaderPage \/>;\n    if \(onReaderDomain\) return <ReaderToHubHandoff \/>;/);
+  assert.match(app, /const readerFirst = \(user[^)]*\) => !!user && user\.role === "teacher" && !user\.isAdmin;/);
+  assert.match(app, /onReaderDomain && readerFirst\(user\) \? <OpenReaderPage \/> : isHubAccount\(user\)/, "the home page too");
+  const page = read("client/src/pages/AriseReader.tsx");
+  assert.match(page, /\{user\.role === "teacher" && <WorkHubBanner href=\{back\.href\} \/>\}/);
+  assert.match(page, /Your whole teaching day, in one place\./);
+  assert.match(page, />Open your WorkHub<\/a>/);
+  assert.match(page, /localStorage\.getItem\("arise-hub-night"\) !== "0"/, "dark unless day mode was picked");
+});
