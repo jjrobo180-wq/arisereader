@@ -6,7 +6,7 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BellRing, HeartHandshake, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, HeartHandshake, Languages, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, appHref, isReaderHost } from "@/lib/hubs";
@@ -25,7 +25,7 @@ import "./teacherReader.css";
 type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
 /** Admin menu items that leave the Reader (or jump into a setting) rather than show a console section. */
 type AdminLink = "progress" | "polls" | "alerts";
-type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "challenge" | "paraTeam" | `admin:${AdminSection}` | `adminpart:${Exclude<OverviewPart, "home">}` | `adminlink:${AdminLink}`;
+type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "challenge" | "paraTeam" | "english" | `admin:${AdminSection}` | `adminpart:${Exclude<OverviewPart, "home">}` | `adminlink:${AdminLink}`;
 
 /** The admin console, as its own part of the menu (admins only). Its Overview is broken into one
  *  item per part, and the buttons that used to sit in the console's own header are items too. */
@@ -40,6 +40,7 @@ const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "adminlink:polls", label: "Polls", icon: Vote },
 ];
 const ADMIN_PART_LABEL: Record<OverviewPart, string> = { home: "Overview", attention: "Needs attention", actions: "Quick actions", leaderboard: "Student leaderboard" };
+const EnglishStaff = lazy(() => import("@/components/english/EnglishStaff"));
 const AdminConsole = lazy(() => import("@/components/teacher-hub/HubReader").then((m) => ({ default: m.AdminTab })));
 
 /** "What's new and what's coming": the same page the home page links to, shown right here. */
@@ -55,6 +56,7 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "readerLive", label: "Live quiz", icon: Trophy },
   { id: "readerParents", label: "Parents", icon: MessageSquare },
   { id: "readerAdvisory", label: "Advisory & Lit", icon: School },
+  { id: "english", label: "English learners", icon: Languages },
   { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
   { id: "readerScenes", label: "Scenes", icon: Clapperboard },
   { id: "readerGames", label: "Game time", icon: Timer },
@@ -409,9 +411,11 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             </div>
           </>}
 
+          {!isParent && view === "english" && <Suspense fallback={<p className="text-[15px]" style={{ color: "#a29fb8" }}>Loading…</p>}><EnglishStaff /></Suspense>}
+
           {!isParent && view === "challenge" && <ChallengeKit challenge={challenge} mineName={mine?.name} onStandings={() => go("leaderboard")} />}
 
-          {!isParent && !adminSection && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && view !== "challenge" && (
+          {!isParent && !adminSection && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && view !== "challenge" && view !== "english" && (
             <ReaderTools tab={view} openTab={(t) => { if (isReaderTab(t)) go(t); }} night />
           )}
         </main>

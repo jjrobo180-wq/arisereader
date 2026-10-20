@@ -487,7 +487,10 @@ export function registerAriseEnglishRoutes(app: Express, auth: RequestHandler, d
     let next: string | null = null;
     if (!s.preview) {
       const state = await playerState(v);
-      if (state) next = UNITS.find((u) => unitOpen(u, state.learner.start_level, state.units) && !(state.units.get(u.id)?.stars))?.id || null;
+      if (state) {
+        const fresh = (u: (typeof UNITS)[number]) => unitOpen(u, state.learner.start_level, state.units) && !(state.units.get(u.id)?.stars);
+        next = (UNITS.find((u) => fresh(u) && u.level >= state.learner.start_level) || UNITS.find(fresh))?.id || null;
+      }
     }
     res.json({
       score, total, stars: s.stars, points, capped, why, levelUp, preview: s.preview, next,
