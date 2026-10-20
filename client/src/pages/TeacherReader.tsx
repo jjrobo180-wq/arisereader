@@ -13,7 +13,7 @@ import { READER_APP, TODO_APP, appHref, isReaderHost } from "@/lib/hubs";
 import ReaderTools, { isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
 import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
-import { AdvisoryStandings, datesText } from "@/components/AdvisoryChallenge";
+import { AdvisoryStandings, GamesBeginStaffPopup, datesText } from "@/components/AdvisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
 import { ordinal } from "@shared/advisoryChallenge";
 import { nameWords } from "@shared/classTeachers";
@@ -122,6 +122,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   const [counts, setCounts] = useState<Counts | null>(null);
   const challenge = useAdvisoryChallenge(token);
   const [adminSettings, setAdminSettings] = useState<SettingsSection>("programs");
+  const [hubIntroDone, setHubIntroDone] = useState(() => (user ? hubIntroSeen(user.id) : true));
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem(RAIL_KEY) !== "closed"; } catch { return true; } });
   const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem(RAIL_KEY, open ? "open" : "closed"); } catch { /* not remembered */ } };
 
@@ -288,7 +289,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         </nav>
       ) : null}
 
-      {!isParent && <NewHubPopup userId={user.id} onChallenge={() => go("challenge")} />}
+      {/* One pop-up at a time: the new-hub note first, then "Let the games begin!" (each once per account). */}
+      {!isParent && <NewHubPopup userId={user.id} onChallenge={() => go("challenge")} onClosed={() => setHubIntroDone(true)} />}
+      {!isParent && <GamesBeginStaffPopup enabled={hubIntroDone} onChallenge={() => go("challenge")} />}
 
       <div className={`flex flex-wrap items-start gap-5 px-6 pb-8 pt-5 ${rail ? "max-lg:pl-[92px]" : "max-lg:pl-10"}`}>
         <nav aria-label="Reader menu" className="hidden max-w-[260px] flex-[1_1_220px] flex-col gap-1 rounded-[18px] border p-2.5 lg:flex" style={{ background: "#151326", borderColor: dim }}>
@@ -575,11 +578,14 @@ function ParentOverview({ name, token, challenge, go }: { name: string; token: s
 }
 
 /** Shown once (per teacher or admin, on this device): the Reader is the new teacher hub. */
-function NewHubPopup({ userId, onChallenge }: { userId: number; onChallenge: () => void }) {
-  const key = `teacher_hub_intro_v1:${userId}`;
+const hubIntroKey = (userId: number | string) => `teacher_hub_intro_v1:${userId}`;
+const hubIntroSeen = (userId: number | string) => { try { return localStorage.getItem(hubIntroKey(userId)) === "seen"; } catch { return true; } };
+
+function NewHubPopup({ userId, onChallenge, onClosed }: { userId: number; onChallenge: () => void; onClosed?: () => void }) {
+  const key = hubIntroKey(userId);
   const [open, setOpen] = useState(() => { try { return localStorage.getItem(key) !== "seen"; } catch { return false; } });
   if (!open) return null;
-  const close = () => { setOpen(false); try { localStorage.setItem(key, "seen"); } catch { /* shows again next time */ } };
+  const close = () => { setOpen(false); try { localStorage.setItem(key, "seen"); } catch { /* shows again next time */ } onClosed?.(); };
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onClick={close} data-testid="new-hub-popup">
       <div role="dialog" aria-modal="true" aria-labelledby="new-hub-title" className="w-full max-w-lg overflow-hidden rounded-3xl border text-white shadow-2xl" style={{ background: "#151326", borderColor: "rgba(196,181,253,0.35)" }} onClick={(e) => e.stopPropagation()}>

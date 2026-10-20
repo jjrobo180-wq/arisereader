@@ -2,7 +2,7 @@
 // shown once each time a student signs in. The rules are in shared/advisoryChallenge.ts.
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
+import { useAdvisoryChallenge, useGamesBegin } from "@/lib/advisoryChallenge";
 import { dayLabel, ordinal, type ChallengeView, type Standing } from "@shared/advisoryChallenge";
 import LeaderboardPopup from "./LeaderboardPopup";
 
@@ -102,46 +102,79 @@ export function AdvisoryChallengeBanner({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-/** Shown once each time a student signs in while their school's challenge is on. Students at a school
- *  without one get the old "your standing" pop-up instead. */
-export default function AdvisoryChallengePopup({ onNavigate }: { onNavigate: (path: string) => void }) {
+/** The "Let the games begin!" introduction for teachers and the administrator: once per account,
+ *  over the Reader. Students get it inside their sign-in pop-up instead (below). */
+export function GamesBeginStaffPopup({ onChallenge, enabled = true }: { onChallenge: () => void; enabled?: boolean }) {
   const { token, user } = useAuth();
   const raw = useAdvisoryChallenge(token);
-  const [open, setOpen] = useState(true);
+  const live = !!raw?.challenge && raw.challenge.phase !== "over";
+  const intro = useGamesBegin(token, user?.id, enabled && live);
+  if (!enabled || !live || !intro.show || !raw) return null;
+  const v = raw as View;
+  return <ChallengeDialog v={v} intro="staff" close={intro.done} actions={[
+    { label: "See the Advisory Challenge", primary: true, onClick: () => { intro.done(); onChallenge(); } },
+    { label: "Let's go", onClick: intro.done },
+  ]} />;
+}
+
+type DialogAction = { label: string; onClick: () => void; primary?: boolean };
+
+/** The pop-up itself. With `intro`, it opens with "Let the games begin!" and says how the challenge works. */
+function ChallengeDialog({ v, intro, close, actions }: { v: View; intro?: "student" | "staff"; close: () => void; actions: DialogAction[] }) {
+  const mine = v.mine;
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-  if (raw === undefined || !user) return null;
-  if (raw === null || !raw.challenge) return <LeaderboardPopup onNavigate={onNavigate} />;
-  if (!open) return null;
-  const v = raw as View;
-  const mine = v.mine;
-  const close = () => setOpen(false);
+  }, [close]);
   return (
-    <div className="fixed inset-0 z-[360] flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-4" onClick={close} data-testid="advisory-challenge-popup">
+    <div className="fixed inset-0 z-[360] flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-4" onClick={close} data-testid={intro ? "games-begin-popup" : "advisory-challenge-popup"}>
       <div role="dialog" aria-modal="true" aria-labelledby="advisory-challenge-title" className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-[#f2542d]/40 bg-[#1a1020] text-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3 bg-gradient-to-br from-[#f2542d] to-[#c2361b] px-5 pb-4 pt-5">
           <span className="text-4xl leading-none" aria-hidden="true">🍕</span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-black text-[#ffe08a]">Advisory Challenge</p>
-            <h2 id="advisory-challenge-title" className="mt-0.5 text-2xl font-black leading-tight tracking-tight">{headline(v)}</h2>
+            <h2 id="advisory-challenge-title" className="mt-0.5 text-2xl font-black leading-tight tracking-tight">{intro ? "Let the games begin!" : headline(v)}</h2>
           </div>
           <button type="button" onClick={close} className="-mr-1 -mt-1 rounded-full p-2 text-white/80 hover:bg-white/15 hover:text-white" aria-label="Close">✕</button>
         </div>
         <div className="space-y-3 overflow-y-auto px-5 py-4">
+          {intro === "student" && <p className="text-[15px] font-semibold leading-relaxed text-white">Your advisory is racing every other advisory for {v.challenge.prize}. Every quiz you pass adds the book's points to your advisory, so every book you read helps your whole team.</p>}
+          {intro === "staff" && <p className="text-[15px] font-semibold leading-relaxed text-white">The Advisory Challenge is here. Every advisory races for reading points: each quiz a student passes adds the book's points to their advisory. The poster, student login papers and slide are in the Advisory Challenge menu.</p>}
           <p className="text-sm font-semibold leading-relaxed text-white/80">{datesText(v)}</p>
-          {mine && !mine.advisory && <p className="rounded-xl bg-white/[.06] px-3 py-2 text-sm font-semibold text-white/80">You're not in an advisory on Arise Reader yet. Ask your advisory teacher to add you so your points count.</p>}
-          {mine?.advisory && <p className="text-sm font-bold text-[#ffc93c]">{mine.points > 0 ? `You've added ${mine.points.toLocaleString()} points to ${mine.advisory}.` : `Pass a quiz to add points to ${mine.advisory}.`}</p>}
-          <AdvisoryStandings view={v} mineName={mine?.advisory} />
+          {intro !== "staff" && mine && !mine.advisory && <p className="rounded-xl bg-white/[.06] px-3 py-2 text-sm font-semibold text-white/80">You're not in an advisory on Arise Reader yet. Ask your advisory teacher to add you so your points count.</p>}
+          {intro !== "staff" && mine?.advisory && <p className="text-sm font-bold text-[#ffc93c]">{mine.points > 0 ? `You've added ${mine.points.toLocaleString()} points to ${mine.advisory}.` : `Pass a quiz to add points to ${mine.advisory}.`}</p>}
+          <AdvisoryStandings view={v} mineName={mine?.advisory} limit={intro ? 5 : undefined} dense={!!intro} />
         </div>
         <div className="flex gap-2 border-t border-white/10 px-5 py-4">
-          <button type="button" onClick={() => { close(); onNavigate("/leaderboard"); }} className="flex-1 rounded-xl border border-white/20 px-4 py-3 text-sm font-black text-white hover:bg-white/10">See leaderboard</button>
-          <button type="button" onClick={() => { close(); onNavigate("/library"); }} className="flex-1 rounded-xl bg-[#ffc93c] px-4 py-3 text-sm font-black text-[#3a1a06] hover:bg-[#ffd666]">Keep reading</button>
+          {actions.map((a) => (
+            <button key={a.label} type="button" onClick={a.onClick} className={a.primary
+              ? "flex-1 rounded-xl bg-[#ffc93c] px-4 py-3 text-sm font-black text-[#3a1a06] hover:bg-[#ffd666]"
+              : "flex-1 rounded-xl border border-white/20 px-4 py-3 text-sm font-black text-white hover:bg-white/10"}>{a.label}</button>
+          ))}
         </div>
       </div>
     </div>
   );
+}
+
+/** Shown once each time a student signs in while their school's challenge is on. The first time
+ *  for each account it opens with "Let the games begin!" and how the challenge works. Students at
+ *  a school without one get the old "your standing" pop-up instead. */
+export default function AdvisoryChallengePopup({ onNavigate }: { onNavigate: (path: string) => void }) {
+  const { token, user } = useAuth();
+  const raw = useAdvisoryChallenge(token);
+  const [open, setOpen] = useState(true);
+  const live = !!raw?.challenge && raw.challenge.phase !== "over";
+  const intro = useGamesBegin(token, user?.id, live);
+  if (raw === undefined || !user) return null;
+  if (raw === null || !raw.challenge) return <LeaderboardPopup onNavigate={onNavigate} />;
+  if (!open || (live && intro.show === undefined)) return null;
+  const v = raw as View;
+  const first = live && intro.show === true;
+  const close = () => { if (first) intro.done(); setOpen(false); };
+  return <ChallengeDialog v={v} intro={first ? "student" : undefined} close={close} actions={[
+    { label: "See leaderboard", onClick: () => { close(); onNavigate("/leaderboard"); } },
+    { label: first ? "Start reading" : "Keep reading", primary: true, onClick: () => { close(); onNavigate("/library"); } },
+  ]} />;
 }

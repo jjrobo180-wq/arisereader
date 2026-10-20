@@ -13192,6 +13192,18 @@ Important:
     }
   });
 
+  // "Let the games begin!": the Advisory Challenge introduction, shown once per account (any device).
+  // One settings row per account, so two people closing it at once never overwrite each other.
+  const gamesBeginKey = (id: unknown) => `games_begin_seen:${Number(id)}`;
+  app.get("/api/intro/games-begin", authMiddleware, async (req: any, res) => {
+    try { res.json({ seen: !!(await storage.getSetting(gamesBeginKey(req.user.id))) }); }
+    catch { res.json({ seen: true }); } // unsure: don't risk showing it twice
+  });
+  app.post("/api/intro/games-begin", authMiddleware, async (req: any, res) => {
+    try { await storage.upsertSetting(gamesBeginKey(req.user.id), new Date().toISOString()); res.json({ success: true }); }
+    catch { res.status(500).json({ message: "Could not save that you've seen this." }); }
+  });
+
   // Student: Dismiss tutorial (server-side, persists across devices)
   app.post("/api/tutorial/dismiss", authMiddleware, async (req: any, res) => {
     try {

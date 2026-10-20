@@ -38,3 +38,34 @@ export function useAdvisoryChallenge(token: string | null | undefined): Challeng
   }, [token]);
   return view;
 }
+
+/** "Let the games begin!": whether this account still needs the Advisory Challenge introduction.
+ *  Shown once per account; the server remembers it across devices, and this device does too, so a
+ *  slow or failed save never shows it twice here. `show` is undefined while checking. */
+export function useGamesBegin(token: string | null | undefined, userId: number | string | undefined, enabled = true): { show: boolean | undefined; done: () => void } {
+  const local = `games_begin_seen:${userId ?? ""}`;
+  const seenHere = () => { try { return !!localStorage.getItem(local); } catch { return false; } };
+  // The answer is kept with the account it was for, so it is "still checking" (undefined) until the
+  // server has answered for this account, never a stale "no" that would flash the wrong pop-up.
+  const [answer, setAnswer] = useState<{ for: string; show: boolean } | null>(null);
+  const active = enabled && userId != null && !seenHere();
+  useEffect(() => {
+    if (!active) return;
+    const t = token || sessionToken();
+    if (!t) { setAnswer({ for: local, show: false }); return; }
+    let alive = true;
+    fetch(`${API_BASE}/api/intro/games-begin`, { headers: { Authorization: `Bearer ${t}` }, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { seen: true }))
+      .then((d) => { if (alive) setAnswer({ for: local, show: !d?.seen }); })
+      .catch(() => { if (alive) setAnswer({ for: local, show: false }); });
+    return () => { alive = false; };
+  }, [token, local, active]);
+  const done = () => {
+    setAnswer({ for: local, show: false });
+    try { localStorage.setItem(local, "1"); } catch { /* the server still remembers */ }
+    const t = token || sessionToken();
+    if (t) void fetch(`${API_BASE}/api/intro/games-begin`, { method: "POST", headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
+  };
+  const show = !active ? false : answer?.for === local ? answer.show : undefined;
+  return { show, done };
+}

@@ -288,7 +288,7 @@ test("sign-up asks for the advisory at schools with advisories, and the admin's 
 
 test("teachers and admins get a one-time 'new teacher hub' pop-up and a highlighted Advisory Challenge page with the printables", () => {
   const reader = read("client/src/pages/TeacherReader.tsx");
-  assert.match(reader, /\{!isParent && <NewHubPopup userId=\{user\.id\} onChallenge=\{\(\) => go\("challenge"\)\} \/>\}/);
+  assert.match(reader, /\{!isParent && <NewHubPopup userId=\{user\.id\} onChallenge=\{\(\) => go\("challenge"\)\} onClosed=/);
   assert.match(reader, /const key = `teacher_hub_intro_v1:\$\{userId\}`;/);
   assert.match(reader, /rebuilt from your feedback and made for speed/);
   assert.match(reader, /\{ id: "challenge", label: "Advisory Challenge", icon: Trophy \}/);
@@ -316,4 +316,20 @@ test("the admin Overview is split into its own menu items, and the console shows
   for (const part of ["home", "attention", "actions", "leaderboard"]) assert.ok(admin.includes(`showPart("${part}")`), part);
   assert.match(admin, /\{!bare && <header/);
   assert.match(read("client/src/components/teacher-hub/HubReader.tsx"), /overviewPart=\{overviewPart\} bare=\{bare\}/);
+});
+
+test("\"Let the games begin!\" introduces the challenge once per account for students, teachers and admin", () => {
+  const routes = read("server/routes.ts");
+  assert.match(routes, /const gamesBeginKey = \(id: unknown\) => `games_begin_seen:\$\{Number\(id\)\}`;/, "one settings row per account");
+  assert.match(routes, /app\.get\("\/api\/intro\/games-begin", authMiddleware/);
+  assert.match(routes, /app\.post\("\/api\/intro\/games-begin", authMiddleware/);
+  const hook = read("client/src/lib/advisoryChallenge.ts");
+  assert.match(hook, /export function useGamesBegin\(/);
+  assert.match(hook, /localStorage\.setItem\(local, "1"\)/);
+  const popup = read("client/src/components/AdvisoryChallenge.tsx");
+  assert.match(popup, /\{intro \? "Let the games begin!" : headline\(v\)\}/);
+  assert.match(popup, /const first = live && intro\.show === true;/, "students get it inside their sign-in pop-up, the first time");
+  assert.match(popup, /export function GamesBeginStaffPopup/);
+  const reader = read("client/src/pages/TeacherReader.tsx");
+  assert.match(reader, /<GamesBeginStaffPopup enabled=\{hubIntroDone\}/, "teachers and admin see it after the new-hub note, never stacked");
 });
