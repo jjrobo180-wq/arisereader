@@ -22,7 +22,7 @@ import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import "./teacherReader.css";
 
-type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | `admin:${AdminSection}`;
+type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "challenge" | `admin:${AdminSection}`;
 
 /** The admin console, as its own part of the menu (admins only): one item per section. */
 const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = ADMIN_SECTIONS.map((a) => ({ id: `admin:${a.id}` as View, label: a.label, icon: a.icon }));
@@ -34,6 +34,7 @@ const WhatsNew = lazy(() => import("./WhatsNew"));
 /** The menu, in the prototype's order, then the Reader's other screens. */
 const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "reader", label: "Overview", icon: Home },
+  { id: "challenge", label: "Advisory Challenge", icon: Trophy },
   { id: "readerStudents", label: "Students", icon: Users },
   { id: "readerApprovals", label: "Approvals", icon: CheckCircle2 },
   { id: "readerQuizzes", label: "Quizzes & grading", icon: ClipboardCheck },
@@ -241,7 +242,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             return (
               <button key={m.id} type="button" onClick={() => go(m.id)} aria-current={on ? "page" : undefined} aria-label={m.label}
                 className="relative flex min-h-[56px] w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center text-[10px] leading-tight"
-                style={{ fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
+                style={m.id === "challenge"
+                  ? { fontWeight: 800, background: on ? "#ffc93c" : "rgba(255,201,60,0.14)", color: on ? "#2a1206" : "#ffd98a" }
+                  : { fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
                 <Icon className="h-5 w-5" />
                 <span className="line-clamp-2">{m.label}</span>
                 {n > 0 && <span className="absolute right-1 top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-extrabold text-white" style={{ background: "#7c3aed" }}>{n}</span>}
@@ -259,6 +262,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         </button>
       )}
 
+      {!isParent && <NewHubPopup userId={user.id} onChallenge={() => go("challenge")} />}
+
       <div className={`flex flex-wrap items-start gap-5 px-6 pb-8 pt-5 ${rail ? "max-lg:pl-[92px]" : "max-lg:pl-10"}`}>
         <nav aria-label="Reader menu" className="hidden max-w-[260px] flex-[1_1_220px] flex-col gap-1 rounded-[18px] border p-2.5 lg:flex" style={{ background: "#151326", borderColor: dim }}>
           {(isParent ? PARENT_MENU : MENU).map((m) => {
@@ -267,7 +272,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             return (
               <button key={m.id} type="button" onClick={() => go(m.id)} aria-current={on ? "page" : undefined} data-testid={`reader-tab-${m.id}`}
                 className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-left text-[15px]"
-                style={{ fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
+                style={m.id === "challenge"
+                  ? { fontWeight: 800, background: on ? "#ffc93c" : "rgba(255,201,60,0.14)", color: on ? "#2a1206" : "#ffd98a", boxShadow: "inset 0 0 0 1px rgba(255,201,60,0.45)" }
+                  : { fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
                 <span>{m.label}</span>
                 {n > 0 && <span className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-extrabold text-white" style={{ background: "#7c3aed" }}>{n}</span>}
               </button>
@@ -370,7 +377,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             </div>
           </>}
 
-          {!isParent && !adminSection && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && (
+          {!isParent && view === "challenge" && <ChallengeKit challenge={challenge} mineName={mine?.name} onStandings={() => go("leaderboard")} />}
+
+          {!isParent && !adminSection && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && view !== "challenge" && (
             <ReaderTools tab={view} openTab={(t) => { if (isReaderTab(t)) go(t); }} night />
           )}
         </main>
@@ -534,6 +543,92 @@ function ParentOverview({ name, token, challenge, go }: { name: string; token: s
             : `${challenge.standings.length} advisories are racing for a pizza party`}</span>
         </div>
         <button type="button" onClick={() => go("leaderboard")} className="min-h-10 rounded-[10px] px-3.5 text-sm font-extrabold" style={{ background: "#ffc93c", color: "#2a1206" }}>See standings</button>
+      </section>
+    )}
+  </>;
+}
+
+/** Shown once (per teacher or admin, on this device): the Reader is the new teacher hub. */
+function NewHubPopup({ userId, onChallenge }: { userId: number; onChallenge: () => void }) {
+  const key = `teacher_hub_intro_v1:${userId}`;
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem(key) !== "seen"; } catch { return false; } });
+  if (!open) return null;
+  const close = () => { setOpen(false); try { localStorage.setItem(key, "seen"); } catch { /* shows again next time */ } };
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onClick={close} data-testid="new-hub-popup">
+      <div role="dialog" aria-modal="true" aria-labelledby="new-hub-title" className="w-full max-w-lg overflow-hidden rounded-3xl border text-white shadow-2xl" style={{ background: "#151326", borderColor: "rgba(196,181,253,0.35)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 pb-5 pt-6" style={{ background: "#7c3aed" }}>
+          <span className="rounded-full px-2.5 py-0.5 text-xs font-extrabold" style={{ background: "#c4b5fd", color: "#1d0f3d" }}>New and improved</span>
+          <h2 id="new-hub-title" className="mt-3 text-[28px] font-black leading-tight tracking-[-0.02em]">Your new teacher hub</h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-white/90">This is the final version of the hub, rebuilt from your feedback and made for speed.</p>
+        </div>
+        <ul className="space-y-2.5 px-6 py-5 text-[15px] leading-snug" style={{ color: "#ddd8ee" }}>
+          <li><b className="text-white">Everything in one menu.</b> Students, approvals, grading, live quizzes and parents are down the left.</li>
+          <li><b className="text-white">Faster.</b> Student profiles, messages and certificates open right here instead of loading new pages.</li>
+          <li><b className="text-white">Advisory Challenge.</b> The poster, student login papers and slide are ready in the menu.</li>
+          <li><b className="text-white">Your WorkHub</b> is one tap away in the banner at the top.</li>
+        </ul>
+        <div className="flex flex-wrap gap-2 border-t px-6 py-4" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+          <button type="button" onClick={() => { close(); onChallenge(); }} className="min-h-11 flex-1 rounded-xl px-4 text-[15px] font-black" style={{ background: "#ffc93c", color: "#2a1206" }}>See the Advisory Challenge</button>
+          <button type="button" onClick={close} className="min-h-11 flex-1 rounded-xl border px-4 text-[15px] font-bold" style={{ borderColor: "rgba(255,255,255,0.18)", color: "#ece9f7" }}>Got it</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The Advisory Challenge page for teachers: how it works, the printables, how to run it, and standings. */
+const KIT: Array<{ title: string; detail: string; href: string; action: string; download?: boolean }> = [
+  { title: "Hallway poster", detail: "Letter size. Hang it by the door and in the hallway.", href: "/advisory-kit/poster.html", action: "Open and print" },
+  { title: "Student login papers", detail: "4 per page, with a QR code. Cut on the dashed lines.", href: "/advisory-kit/login-handout.html", action: "Open and print" },
+  { title: "Advisory slide", detail: "Show it in advisory. Opens full size to present or save as PDF.", href: "/advisory-kit/slide.html", action: "Open slide" },
+  { title: "Slide for Google Slides", detail: "A PowerPoint file. Upload it to Google Drive and open with Google Slides.", href: "/advisory-kit/advisory-challenge-slide.pptx", action: "Download", download: true },
+];
+const HOW_TO = [
+  "Show the slide in advisory and explain the prize: the advisory with the most points on Nov 19 wins a pizza party on Fri, Nov 20.",
+  "Hand out the login papers. Students sign in with their student number as username and password, then pick a new password.",
+  "Hang the poster where your advisory will see it.",
+  "Every quiz a student passes (70% or more) adds the book's points to their advisory. Points count from Oct 20.",
+  "Check the standings in Leaderboard and cheer your advisory on. Students see their advisory's place when they sign in.",
+];
+
+function ChallengeKit({ challenge, mineName, onStandings }: { challenge: ReturnType<typeof useAdvisoryChallenge>; mineName?: string; onStandings: () => void }) {
+  const card = "rounded-[18px] border px-5 py-4";
+  return <>
+    <h1 className="text-[30px] font-black tracking-[-0.02em]">Advisory Challenge</h1>
+    <section className={card} style={{ background: "#1f1418", borderColor: "#5a2a20" }}>
+      <p className="text-sm font-extrabold" style={{ color: "#ffc93c" }}>Oct 20 – Nov 19 · Pizza party Fri, Nov 20</p>
+      <p className="mt-1 text-[15px] leading-relaxed" style={{ color: "#e9d9c4" }}>Every advisory races for reading points. Each quiz a student passes adds points to their advisory, and everyone started at 0 on October 20. The advisory with the most points at the end of November 19 wins a pizza party.</p>
+      <button type="button" onClick={onStandings} className="mt-3 min-h-10 rounded-[10px] px-3.5 text-sm font-extrabold" style={{ background: "#ffc93c", color: "#2a1206" }}>See standings</button>
+    </section>
+    <section className={card} style={{ background: "#151326", borderColor: "rgba(255,255,255,0.08)" }} data-testid="challenge-kit">
+      <h2 className="text-lg font-extrabold">Posters, papers and the slide</h2>
+      <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+        {KIT.map((k) => (
+          <a key={k.href} href={k.href} target={k.download ? undefined : "_blank"} rel="noopener" download={k.download ? "Advisory Challenge slide.pptx" : undefined}
+            className="flex flex-col gap-1 rounded-xl border px-4 py-3 hover:bg-white/5" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+            <span className="text-[15px] font-extrabold text-white">{k.title}</span>
+            <span className="text-[13px]" style={{ color: "#a29fb8" }}>{k.detail}</span>
+            <span className="mt-1 text-sm font-bold" style={{ color: "#c4b5fd" }}>{k.action}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+    <section className={card} style={{ background: "#151326", borderColor: "rgba(255,255,255,0.08)" }}>
+      <h2 className="text-lg font-extrabold">How to run it with your advisory</h2>
+      <ol className="mt-3 space-y-2.5">
+        {HOW_TO.map((step, i) => (
+          <li key={i} className="flex gap-3 text-[15px] leading-snug" style={{ color: "#ddd8ee" }}>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-black text-white" style={{ background: "#7c3aed" }}>{i + 1}</span>
+            <span className="pt-0.5">{step}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+    {challenge?.challenge && (
+      <section className={card} style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
+        <h2 className="mb-3 text-lg font-extrabold">Standings right now</h2>
+        <AdvisoryStandings view={challenge} mineName={mineName} />
       </section>
     )}
   </>;

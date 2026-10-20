@@ -278,3 +278,15 @@ test("sign-up asks for the advisory at schools with advisories, and the admin's 
   assert.doesNotMatch(card, /Teacher they typed/);
   assert.match(card, /<option value="">Advisory…<\/option>/);
 });
+
+test("teachers and admins get a one-time 'new teacher hub' pop-up and a highlighted Advisory Challenge page with the printables", () => {
+  const reader = read("client/src/pages/TeacherReader.tsx");
+  assert.match(reader, /\{!isParent && <NewHubPopup userId=\{user\.id\} onChallenge=\{\(\) => go\("challenge"\)\} \/>\}/);
+  assert.match(reader, /const key = `teacher_hub_intro_v1:\$\{userId\}`;/);
+  assert.match(reader, /rebuilt from your feedback and made for speed/);
+  assert.match(reader, /\{ id: "challenge", label: "Advisory Challenge", icon: Trophy \}/);
+  for (const f of ["poster.html", "login-handout.html", "slide.html", "advisory-challenge-slide.pptx"]) {
+    assert.ok(reader.includes(`/advisory-kit/${f}`), f);
+    assert.ok(readFileSync(join(ROOT, "client/public/advisory-kit", f)).length > 1000, f);
+  }
+});
