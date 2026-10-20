@@ -51,9 +51,10 @@ interface ProfileData {
   readingAssessments?: any[];
 }
 
-export default function StudentProfileView() {
+/** A full page at /student-profile/:id, or (with `studentId` and `onClose`) a pop-up over the Reader. */
+export default function StudentProfileView({ studentId: givenId, onClose }: { studentId?: string; onClose?: () => void } = {}) {
   const [match, params] = useRoute("/student-profile/:id");
-  const studentId = match ? params.id : null;
+  const studentId = givenId ?? (match ? params.id : null);
   const { token } = useAuth();
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +62,7 @@ export default function StudentProfileView() {
 
   // Reader tools can open this page from the standalone /reader shell.
   // Always show a useful result (or an error) rather than a blank page.
-  const backToReader = () => window.location.assign("/reader");
+  const backToReader = () => (onClose ? onClose() : window.location.assign("/reader"));
   useEffect(() => {
     if (!studentId) {
       setError("No student was selected.");
@@ -97,7 +98,7 @@ export default function StudentProfileView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} flex items-center justify-center bg-background`}>
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -105,7 +106,7 @@ export default function StudentProfileView() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+      <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} flex flex-col items-center justify-center bg-background gap-4`}>
         <p className="text-red-400">{error}</p>
         <Button variant="ghost" onClick={backToReader}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
@@ -114,15 +115,15 @@ export default function StudentProfileView() {
     );
   }
 
-  if (!data) return <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center"><p>Student profile is unavailable.</p><Button variant="outline" onClick={backToReader}>Back to A.R.I.S.E. Reader</Button></div>;
+  if (!data) return <div className={`flex ${onClose ? "min-h-[50vh]" : "min-h-screen"} flex-col items-center justify-center gap-4 p-6 text-center`}><p>Student profile is unavailable.</p><Button variant="outline" onClick={backToReader}>Back to A.R.I.S.E. Reader</Button></div>;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} bg-background`}>
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-4xl mx-auto px-4 flex items-center gap-3 h-16">
           <Button variant="ghost" size="sm" onClick={backToReader}>
             <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
+            <span>{onClose ? "Close" : "Back"}</span>
           </Button>
           <div className="flex-1 text-center">
             <h1 className="text-lg font-bold text-foreground">{data.student.displayName}</h1>

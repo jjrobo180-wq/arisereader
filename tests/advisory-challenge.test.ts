@@ -191,3 +191,20 @@ test("the donation banner can't be closed and shows in both hubs and the Reader;
   for (const href of ["/history/", "/math/", "/social/"]) assert.ok(reader.includes(`href: "${href}"`), href);
   assert.match(reader, /Also on your account:/);
 });
+
+test("a student's profile, messages and certificates open as pop-ups; the hub opens straight away", () => {
+  const tools = read("client/src/components/teacher-hub/HubReaderTools.tsx");
+  assert.match(tools, /onView=\{\(id\) => setPop\(\{ kind: "profile", id: Number\(id\) \}\)\} onMessage=\{\(id\) => setPop\(\{ kind: "messages", id: Number\(id\) \}\)\} onCertificates=\{\(id\) => setPop\(\{ kind: "certificates", id: Number\(id\) \}\)\}/);
+  assert.match(tools, /\{pop && <StudentPopup pop=\{pop\} onClose=\{closePop\} \/>\}/);
+  assert.match(tools, /if \(tab === "readerStudents"\) \{ void loadProfile\(\); void loadMessages\(\); void loadCertificates\(\); \}/, "loaded ahead of time");
+  for (const [f, route] of [["StudentProfileView", "/student-profile/:id"], ["StudentMessages", "/messages/:id"], ["StudentCertificates", "/student-certificates/:id"]]) {
+    const page = read(`client/src/pages/${f}.tsx`);
+    assert.match(page, new RegExp(`export default function ${f}\\(\\{ studentId: givenId, onClose \\}`));
+    assert.ok(page.includes(`const studentId = givenId ?? (match ? params.id : null);`), f);
+    assert.ok(page.includes(`useRoute("${route}")`), f);
+  }
+  const reader = read("client/src/pages/TeacherReader.tsx");
+  assert.match(reader, /\/api\/auth\/admin-handoff\/start/);
+  assert.match(reader, /const url = `\$\{TODO_APP\}#\/admin-handoff\?code=\$\{d\.code\}`;/);
+  assert.match(reader, /onClick=\{openHub\} data-testid="reader-open-workhub"/);
+});

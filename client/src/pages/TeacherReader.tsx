@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BarChart3, BookOpen, Calculator, Heart, Landmark, CheckCircle2, ChevronRight, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { READER_APP } from "@/lib/hubs";
+import { READER_APP, TODO_APP, isReaderHost } from "@/lib/hubs";
 import ReaderTools, { isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
 import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
@@ -90,6 +90,25 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   const challenge = useAdvisoryChallenge(token);
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem(RAIL_KEY) !== "closed"; } catch { return true; } });
   const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem(RAIL_KEY, open ? "open" : "closed"); } catch { /* not remembered */ } };
+
+  // Opening the hub: on arisereader.com the sign-in has to be carried over to arisetodo.com. Doing
+  // that here, before the new tab loads anything, takes the tab straight to the hub instead of
+  // loading the Reader site, then a "carrying your sign-in" screen, then the hub.
+  const openHub = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isReaderHost() || !token || e.metaKey || e.ctrlKey || e.shiftKey) return; // the plain link does the rest
+    e.preventDefault();
+    const tab = window.open("about:blank", "_blank");
+    try {
+      if (tab) { tab.opener = null; tab.document.title = `Opening your ${hub.name}…`; }
+      const r = await fetch(`${API_BASE}/api/auth/admin-handoff/start`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      const d = await r.json().catch(() => null);
+      if (!r.ok || !/^[a-f0-9]{64}$/.test(String(d?.code || ""))) throw new Error("no code");
+      const url = `${TODO_APP}#/admin-handoff?code=${d.code}`;
+      if (tab) tab.location.href = url; else window.location.assign(url);
+    } catch {
+      if (tab) tab.location.href = workhubHref; else window.location.assign(workhubHref);
+    }
+  };
 
   const go = (v: View) => {
     setView(v);
@@ -189,7 +208,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
               <h2 className="text-[28px] font-black leading-[1.1] tracking-[-0.02em] text-white">{hub.title}</h2>
               <p className="max-w-[560px] text-base leading-[1.45]" style={{ color: "#b9e4de" }}>{hub.line}</p>
               <div className="mt-1.5 flex flex-wrap gap-2.5">
-                <a href={workhubHref} className="inline-flex min-h-[46px] items-center rounded-xl px-5 text-base font-black" style={{ background: "#5eead4", color: "#062b27" }} target="_blank" rel="noopener" data-testid="reader-open-workhub">Open your {hub.name}</a>
+                <a href={workhubHref} className="inline-flex min-h-[46px] items-center rounded-xl px-5 text-base font-black" style={{ background: "#5eead4", color: "#062b27" }} target="_blank" rel="noopener" onClick={openHub} data-testid="reader-open-workhub">Open your {hub.name}</a>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="reader-learning-apps">
                 <span className="text-[13px] font-bold" style={{ color: "#9fd4cc" }}>Also on your account:</span>

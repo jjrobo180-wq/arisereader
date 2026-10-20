@@ -30,9 +30,10 @@ interface Certificate {
   completedAt: string;
 }
 
-export default function StudentCertificates() {
+/** A full page at /student-certificates/:id, or (with `studentId` and `onClose`) a pop-up over the Reader. */
+export default function StudentCertificates({ studentId: givenId, onClose }: { studentId?: string; onClose?: () => void } = {}) {
   const [match, params] = useRoute("/student-certificates/:id");
-  const studentId = match ? params.id : null;
+  const studentId = givenId ?? (match ? params.id : null);
   const { token } = useAuth();
   const [studentName, setStudentName] = useState("");
   const [certificates, setCertificates] = useState<Certificate[]>([]);
@@ -57,7 +58,7 @@ export default function StudentCertificates() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} flex items-center justify-center bg-background`}>
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -65,9 +66,9 @@ export default function StudentCertificates() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+      <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} flex flex-col items-center justify-center bg-background gap-4`}>
         <p className="text-red-400">{error}</p>
-        <Button variant="ghost" onClick={() => window.location.hash = "/teacher-dashboard"}>
+        <Button variant="ghost" onClick={() => (onClose ? onClose() : (window.location.hash = "/teacher-dashboard"))}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
         </Button>
       </div>
@@ -75,12 +76,12 @@ export default function StudentCertificates() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} bg-background`}>
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-4xl mx-auto px-4 flex items-center gap-3 h-16">
-          <Button variant="ghost" size="sm" onClick={() => window.location.hash = "/teacher-dashboard"}>
+          <Button variant="ghost" size="sm" onClick={() => (onClose ? onClose() : (window.location.hash = "/teacher-dashboard"))}>
             <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
+            <span>{onClose ? "Close" : "Back"}</span>
           </Button>
           <div className="flex-1 text-center">
             <h1 className="text-lg font-bold text-white">

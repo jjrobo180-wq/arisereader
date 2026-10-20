@@ -29,6 +29,35 @@ import HubAdvisoryLit from "./HubAdvisoryLit";
 
 const LiveQuizPage = lazy(() => import("@/pages/LiveQuiz"));
 const ScenesPage = lazy(() => import("@/pages/TeacherScenes"));
+// A student's profile, messages and certificates open as pop-ups over the Reader instead of new pages.
+const loadProfile = () => import("@/pages/StudentProfileView");
+const loadMessages = () => import("@/pages/StudentMessages");
+const loadCertificates = () => import("@/pages/StudentCertificates");
+const ProfilePop = lazy(loadProfile);
+const MessagesPop = lazy(loadMessages);
+const CertificatesPop = lazy(loadCertificates);
+type StudentPop = { kind: "profile" | "messages" | "certificates"; id: number };
+
+/** One student's profile, messages or certificates, over the page. Escape or the backdrop closes it. */
+function StudentPopup({ pop, onClose }: { pop: StudentPop; onClose: () => void }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", esc);
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", esc); document.body.style.overflow = overflow; };
+  }, [onClose]);
+  const id = String(pop.id);
+  return <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/65 p-2 backdrop-blur-sm sm:p-6" onClick={onClose} data-testid="student-popup">
+    <div role="dialog" aria-modal="true" className="relative max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-background text-foreground shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>}>
+        {pop.kind === "profile" && <ProfilePop studentId={id} onClose={onClose} />}
+        {pop.kind === "messages" && <MessagesPop studentId={id} onClose={onClose} />}
+        {pop.kind === "certificates" && <CertificatesPop studentId={id} onClose={onClose} />}
+      </Suspense>
+    </div>
+  </div>;
+}
 
 /** A row of sub-tabs inside a Reader tab. The choice is remembered for the visit. */
 function useSub<T extends string>(key: string, first: T) {
@@ -117,6 +146,12 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   const [flash, setFlash] = useState<{ good: boolean; text: string } | null>(null);
   const done = (text: string) => { setFlash({ good: true, text }); window.setTimeout(() => setFlash((f) => (f?.text === text ? null : f)), 3200); };
   const failed = (e: unknown, text: string) => setFlash({ good: false, text: e instanceof Error ? e.message : text });
+
+  /* ---- a student's profile, messages or certificates, as a pop-up ---- */
+  const [pop, setPop] = useState<StudentPop | null>(null);
+  const closePop = useCallback(() => setPop(null), []);
+  // Fetch the pop-ups' code as soon as the class list shows, so opening one is instant.
+  useEffect(() => { if (tab === "readerStudents") { void loadProfile(); void loadMessages(); void loadCertificates(); } }, [tab]);
 
   /* ---- what every tab can count on: my class, my approvals, the proctor code and requests ---- */
   const [students, setStudents] = useState<Student[]>([]);
@@ -315,7 +350,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
     {tab === "readerStudents" && <StudentsTab isAdmin={!!user?.isAdmin}
       students={students} loading={loading} loadError={loadError} school={school} schoolBusy={schoolBusy}
-      onView={(id) => openPage(`/student-profile/${id}`)} onMessage={(id) => openPage(`/messages/${id}`)} onCertificates={(id) => openPage(`/student-certificates/${id}`)}
+      onView={(id) => setPop({ kind: "profile", id: Number(id) })} onMessage={(id) => setPop({ kind: "messages", id: Number(id) })} onCertificates={(id) => setPop({ kind: "certificates", id: Number(id) })}
       onAction={openAction} request={request}
       onDone={(text, reload) => { done(text); if (reload) { void loadSchool(); void loadClass(); } }} />}
 
@@ -440,6 +475,8 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
     </>}
 
     {tab === "readerPrizes" && <Card title="Prizes"><HubPrizeManager which="work" token={token} role="teacher" /></Card>}
+
+    {pop && <StudentPopup pop={pop} onClose={closePop} />}
 
     {action && <StudentAction action={action} request={request} teachers={school?.teachers || []} onClose={() => setAction(null)}
       onDone={(text, reload) => { done(text); setAction(null); if (reload) { void loadSchool(); void loadClass(); } }} />}
