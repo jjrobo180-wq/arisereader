@@ -21,7 +21,7 @@ import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import "./teacherReader.css";
 
-type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes";
+type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children";
 
 /** "What's new and what's coming": the same page the home page links to, shown right here. */
 const WhatsNew = lazy(() => import("./WhatsNew"));
@@ -77,6 +77,7 @@ const HUB_BANNER = {
 /** A parent's menu: their children's Reader, and the Advisory Challenge standings. */
 const PARENT_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "reader", label: "Overview", icon: Home },
+  { id: "children", label: "My children", icon: Users },
   { id: "prizes", label: "Prizes to win", icon: Gift },
   { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
   { id: "whatsnew", label: "What's new", icon: Megaphone },
@@ -116,7 +117,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
   const go = (v: View) => {
     setView(v);
-    if (v !== "leaderboard" && v !== "whatsnew" && v !== "prizes") setTab(v);
+    if (v !== "leaderboard" && v !== "whatsnew" && v !== "prizes" && v !== "children") setTab(v);
     window.scrollTo({ top: 0 });
   };
 
@@ -271,8 +272,10 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         </nav>
 
         <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
-          {isParent && view === "reader" && <>
-            <h1 className="text-[30px] font-black tracking-[-0.02em]">{greeting()}, {user.displayName}</h1>
+          {isParent && view === "reader" && <ParentOverview name={user.displayName} token={token} challenge={challenge} go={go} />}
+
+          {isParent && view === "children" && <>
+            <h1 className="text-[30px] font-black tracking-[-0.02em]">My children</h1>
             <ParentReader say={() => { /* the parent view shows its own notices */ }} night />
           </>}
 
@@ -428,5 +431,78 @@ function ParentLeaderboards({ token, challenge }: { token: string | null; challe
       <p className="mb-3 mt-1 text-sm" style={{ color: "#c9c5dc" }}>All points this school year. The top reader at the end of the year wins.</p>
       {list(year, "No points yet.")}
     </section>
+  </>;
+}
+
+type Kid = { id: number; displayName: string; points: number; passed: number; month: number };
+
+/** A parent's Overview, in the same format as a teacher's: greeting, four counts, a list of what
+ *  to look at, and the Advisory Challenge. The full child view is under "My children". */
+function ParentOverview({ name, token, challenge, go }: { name: string; token: string | null; challenge: ReturnType<typeof useAdvisoryChallenge>; go: (v: View) => void }) {
+  const [kids, setKids] = useState<Kid[] | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    const get = (path: string) => fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const ym = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Denver", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
+    (async () => {
+      const list = (await get("/api/parent/students"))?.students || [];
+      const out = await Promise.all(list.map(async (c: any) => {
+        const p = await get(`/api/parent/student-profile?studentId=${c.id}`);
+        const results: any[] = Array.isArray(p?.quizResults) ? p.quizResults : [];
+        const inMonth = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Denver", year: "numeric", month: "2-digit" }).format(new Date(iso)).slice(0, 7) === ym;
+        return {
+          id: Number(c.id), displayName: String(c.displayName || c.username || "Your child"),
+          points: Number(p?.totalPoints) || 0,
+          passed: results.filter((r) => r.passed).length,
+          month: results.filter((r) => r.completedAt && inMonth(r.completedAt)).reduce((n, r) => n + (Number(r.pointsEarned) || 0), 0),
+        };
+      }));
+      setKids(out);
+    })();
+  }, [token]);
+  const openChild = (id: number) => { try { sessionStorage.setItem("arise_parent_child_id", String(id)); } catch { /* opens the first child */ } go("children"); };
+  const sum = (k: keyof Kid) => (kids || []).reduce((n, c) => n + Number(c[k] || 0), 0);
+  const dim = "rgba(255,255,255,0.08)";
+  const mine = challenge?.mine;
+  return <>
+    <h1 className="text-[30px] font-black tracking-[-0.02em]">{greeting()}, {name}</h1>
+    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+      {([["Readers", kids?.length, "children"], ["Total points", sum("points"), "children"], ["Quizzes passed", sum("passed"), "children"], ["Points this month", sum("month"), "leaderboard"]] as const).map(([label, value, to]) => (
+        <button key={label} type="button" onClick={() => go(to)} className="flex flex-col gap-1 rounded-2xl border p-4 text-left" style={{ background: "#151326", borderColor: dim, color: "#ece9f7" }}>
+          <span className="text-[30px] font-black">{kids ? Number(value ?? 0).toLocaleString() : "…"}</span>
+          <span className="text-sm font-bold" style={{ color: "#a29fb8" }}>{label}</span>
+        </button>
+      ))}
+    </div>
+    <section className="flex flex-col gap-2.5 rounded-[18px] border px-5 py-[18px]" style={{ background: "#151326", borderColor: dim }}>
+      <h2 className="text-lg font-extrabold">Your readers</h2>
+      {kids && !kids.length && (
+        <div className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <span className="text-[15px]">Add your child to see their reading here</span>
+          <button type="button" onClick={() => go("children")} className="min-h-[38px] rounded-[10px] border px-3 text-sm font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ddd6fe" }}>Add child</button>
+        </div>
+      )}
+      {(kids || []).map((k) => (
+        <div key={k.id} className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <span className="text-[15px]"><b>{k.displayName}</b> · {k.points.toLocaleString()} points · {k.passed} {k.passed === 1 ? "quiz" : "quizzes"} passed</span>
+          <button type="button" onClick={() => openChild(k.id)} className="min-h-[38px] rounded-[10px] border px-3 text-sm font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ddd6fe" }}>Open</button>
+        </div>
+      ))}
+      <div className="flex items-center justify-between gap-3 border-t py-2.5" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <span className="text-[15px]">See what your reader can win</span>
+        <button type="button" onClick={() => go("prizes")} className="min-h-[38px] rounded-[10px] border px-3 text-sm font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ddd6fe" }}>Open</button>
+      </div>
+    </section>
+    {challenge?.challenge && (
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border px-5 py-[18px]" style={{ background: "#1f1418", borderColor: "#5a2a20" }} data-testid="parent-challenge-card">
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-extrabold" style={{ color: "#ffc93c" }}>Advisory Challenge · Oct 20 – Nov 19</span>
+          <span className="text-[17px] font-extrabold">{mine?.advisory && mine.rank
+            ? (challenge.standings.some((s) => s.points > 0) ? `Your child’s advisory is in ${ordinal(mine.rank)} place of ${challenge.standings.length}` : `Your child’s advisory, ${mine.advisory}, starts at 0`)
+            : `${challenge.standings.length} advisories are racing for a pizza party`}</span>
+        </div>
+        <button type="button" onClick={() => go("leaderboard")} className="min-h-10 rounded-[10px] px-3.5 text-sm font-extrabold" style={{ background: "#ffc93c", color: "#2a1206" }}>See standings</button>
+      </section>
+    )}
   </>;
 }

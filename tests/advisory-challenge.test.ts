@@ -244,3 +244,12 @@ test("the donation banner carries the mission: free talkers and eye-gaze tools f
   assert.match(support, /Every child deserves to be heard\./);
   assert.match(support, /free talker and eye-gaze tools/);
 });
+
+test("a parent's Overview has the teacher format: greeting, four counts, a list and the challenge card; the child view is under My children", () => {
+  const reader = read("client/src/pages/TeacherReader.tsx");
+  assert.match(reader, /\{isParent && view === "reader" && <ParentOverview /);
+  assert.match(reader, /\{ id: "children", label: "My children", icon: Users \}/);
+  assert.match(reader, /\[\["Readers", kids\?\.length, "children"\], \["Total points"/);
+  assert.match(reader, /data-testid="parent-challenge-card"/);
+});
+
