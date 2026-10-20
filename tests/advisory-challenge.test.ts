@@ -217,6 +217,8 @@ test("parents see the prizes, every leaderboard, and their child's school's chal
   assert.match(reader, /\{ id: "whatsnew", label: "What's new", icon: Megaphone \}/);
   assert.match(reader, /<WhatsNew embedded \/>/);
   assert.doesNotMatch(reader, /hub\.tiles/, "the hub banner is one slim row");
+  assert.match(reader, /\{ id: "prizes", label: "Prizes to win", icon: Gift \}/, "prizes are a menu link for parents");
+  assert.equal(reader.match(/<PrizesCard /g)?.length, 1, "only on the Prizes page, not the top of Overview");
 });
 
 test("a parent sees their child's school's Advisory Challenge, with the child's advisory marked", async () => {

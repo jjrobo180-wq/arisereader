@@ -6,7 +6,7 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ChevronRight, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ChevronRight, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, isReaderHost } from "@/lib/hubs";
@@ -21,7 +21,7 @@ import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import "./teacherReader.css";
 
-type View = ReaderTab | "leaderboard" | "whatsnew";
+type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes";
 
 /** "What's new and what's coming": the same page the home page links to, shown right here. */
 const WhatsNew = lazy(() => import("./WhatsNew"));
@@ -77,6 +77,7 @@ const HUB_BANNER = {
 /** A parent's menu: their children's Reader, and the Advisory Challenge standings. */
 const PARENT_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "reader", label: "Overview", icon: Home },
+  { id: "prizes", label: "Prizes to win", icon: Gift },
   { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
   { id: "whatsnew", label: "What's new", icon: Megaphone },
 ];
@@ -115,7 +116,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
   const go = (v: View) => {
     setView(v);
-    if (v !== "leaderboard" && v !== "whatsnew") setTab(v);
+    if (v !== "leaderboard" && v !== "whatsnew" && v !== "prizes") setTab(v);
     window.scrollTo({ top: 0 });
   };
 
@@ -272,7 +273,6 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
           {isParent && view === "reader" && <>
             <h1 className="text-[30px] font-black tracking-[-0.02em]">{greeting()}, {user.displayName}</h1>
-            <PrizesCard onStandings={() => go("leaderboard")} />
             <ParentReader say={() => { /* the parent view shows its own notices */ }} night />
           </>}
 
@@ -310,6 +310,11 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
                 <button type="button" onClick={() => go("leaderboard")} className="min-h-10 rounded-[10px] px-3.5 text-sm font-extrabold" style={{ background: "#ffc93c", color: "#2a1206" }}>See standings</button>
               </section>
             )}
+          </>}
+
+          {isParent && view === "prizes" && <>
+            <h1 className="text-[30px] font-black tracking-[-0.02em]">Prizes to win</h1>
+            <PrizesCard onStandings={() => go("leaderboard")} />
           </>}
 
           {isParent && view === "leaderboard" && <ParentLeaderboards token={token} challenge={challenge} />}
@@ -406,7 +411,6 @@ function ParentLeaderboards({ token, challenge }: { token: string | null; challe
   return <>
     <h1 className="text-[30px] font-black tracking-[-0.02em]">Leaderboards</h1>
     <p className="-mt-2 text-[15px]" style={{ color: "#c9c5dc" }}>Every race going on right now. Points come from passing reading quizzes.</p>
-    <PrizesCard />
     {challenge?.challenge && (
       <section className={card} style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
         <h2 className="text-lg font-extrabold">Advisory Challenge · prize: pizza party</h2>
