@@ -168,7 +168,12 @@ test("the Reader opens the hub in a new tab, signs out to arisereader.com, and h
   assert.match(page, /export const READER_SIGN_IN = `\$\{READER_APP\}#\/signin`;/);
   assert.match(page, /onClick=\{\(\) => \{ logout\(\); window\.location\.assign\(READER_SIGN_IN\); \}\}/);
   assert.match(page, /localStorage\.getItem\(RAIL_KEY\) !== "closed"/, "the phone rail starts open");
-  assert.match(page, /onClick=\{\(\) => setRail\(false\)\}[^>]*>Hide<\/button>/);
+  // The Hide / Menu button is in the header, at the top left, not at the bottom of the rail.
+  const header = page.slice(page.indexOf("<header"), page.indexOf("</header>"));
+  assert.match(header, /onClick=\{\(\) => setRail\(!rail\)\}[^>]*data-testid="reader-rail-toggle"/);
+  assert.match(header, /\{rail \? "Hide" : "Menu"\}/);
+  assert.ok(!page.includes("setRail(false)") && !page.includes("reader-rail-show"), "no second Hide button or side tab");
+  assert.match(header, /whitespace-nowrap text-\[16px\][^"]*sm:text-\[19px\]/, "the name stays on one line on a phone");
   assert.match(page, /className="hidden max-w-\[260px\][^"]*lg:flex"/, "computers get the sidebar on the left");
   // The hubs' own default is the same: sidebar left on a computer, left rail with a Hide button on a phone.
   assert.match(read("shared/hubLayout.ts"), /DEFAULT_LAYOUT: HubLayout = \{ menuSide: "left", deskSide: "left", folders: \[\], menuClose: "button"/);
@@ -256,9 +261,9 @@ test("a parent's Overview has the teacher format: greeting, four counts, a list 
 
 test("admins have the admin console in the Reader's menu, one item per section", () => {
   const reader = read("client/src/pages/TeacherReader.tsx");
-  assert.match(reader, /const ADMIN_MENU: Array<\{ id: View; label: string; icon: LucideIcon \}> = ADMIN_SECTIONS\.map/);
+  assert.match(reader, /\.\.\.ADMIN_SECTIONS\.filter\(\(a\) => a\.id !== "overview"\)\.map/);
   assert.match(reader, /\{user\.isAdmin && <>\n\s*<p [^>]*>Admin console<\/p>/);
-  assert.match(reader, /<AdminConsole night section=\{adminSection\}/);
+  assert.match(reader, /<AdminConsole night bare section=\{adminSection\}/);
   assert.match(reader, /\.\.\.\(user\.isAdmin \? ADMIN_MENU : \[\]\)/, "on a phone too");
 });
 
@@ -300,3 +305,13 @@ test("the admin console is only in the Reader: WorkHub's menu has none, and old 
   assert.match(read("client/src/pages/TeacherReader.tsx"), /const asked = sessionStorage\.getItem\("reader_page_view"\);/);
 });
 
+
+test("the admin Overview is split into its own menu items, and the console shows without its own header", () => {
+  const page = read("client/src/pages/TeacherReader.tsx");
+  for (const label of ["Needs attention", "Quick actions", "Student leaderboard", "Notification settings", "Student progress", "Polls"]) assert.ok(page.includes(`label: "${label}"`), label);
+  assert.match(page, /<AdminConsole night bare section=\{adminSection\} overviewPart=\{adminPart \?\? undefined\}/);
+  const admin = read("client/src/pages/Admin.tsx");
+  for (const part of ["home", "attention", "actions", "leaderboard"]) assert.ok(admin.includes(`showPart("${part}")`), part);
+  assert.match(admin, /\{!bare && <header/);
+  assert.match(read("client/src/components/teacher-hub/HubReader.tsx"), /overviewPart=\{overviewPart\} bare=\{bare\}/);
+});

@@ -36,9 +36,9 @@ export function ProgramLinks({ hideLifeHub = false }: { hideLifeHub?: boolean })
   </section>;
 }
 
-export function AdminTab({ night = false, section, onSection, settingsPart, onSettingsPart, settingsInSidebar = false }: { night?: boolean; section?: AdminSection; onSection?: (next: AdminSection) => void; settingsPart?: SettingsSection; onSettingsPart?: (next: SettingsSection) => void; settingsInSidebar?: boolean }) {
+export function AdminTab({ night = false, section, onSection, settingsPart, onSettingsPart, settingsInSidebar = false, overviewPart, bare = false }: { night?: boolean; section?: AdminSection; onSection?: (next: AdminSection) => void; settingsPart?: SettingsSection; onSettingsPart?: (next: SettingsSection) => void; settingsInSidebar?: boolean; overviewPart?: "home" | "attention" | "actions" | "leaderboard"; bare?: boolean }) {
   return <HubReaderScope which="work" night={night}>
     {/* hideNav: the console's own menus are off, because WorkHub's Reader menu lists its sections. */}
-    <Suspense fallback={<Loading what="the admin console" />}><Admin embedded hideNav section={section} onSection={onSection} settingsPart={settingsPart} onSettingsPart={onSettingsPart} settingsInSidebar={settingsInSidebar} /></Suspense>
+    <Suspense fallback={<Loading what="the admin console" />}><Admin embedded hideNav section={section} onSection={onSection} settingsPart={settingsPart} onSettingsPart={onSettingsPart} settingsInSidebar={settingsInSidebar} overviewPart={overviewPart} bare={bare} /></Suspense>
   </HubReaderScope>;
 }

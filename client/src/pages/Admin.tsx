@@ -165,7 +165,10 @@ let adminCache: { students: Student[]; books: BookItem[] } = {
 };
 
 /** The admin console. `embedded`: shown inside Arise WorkHub's A.R.I.S.E. Reader group (no sticky page header). */
-export default function Admin({ embedded = false, section, onSection, hideNav = false, settingsPart, onSettingsPart, settingsInSidebar = false }: { embedded?: boolean; section?: AdminTab; onSection?: (next: AdminTab) => void; hideNav?: boolean; settingsPart?: SettingsSection; onSettingsPart?: (next: SettingsSection) => void; /** The host page lists Settings' parts in its desktop sidebar, so the row of tabs is only needed on phones. */ settingsInSidebar?: boolean } = {}) {
+/** The parts of Overview, which the Reader shows as separate menu items. */
+export type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
+
+export default function Admin({ embedded = false, section, onSection, hideNav = false, settingsPart, onSettingsPart, settingsInSidebar = false, overviewPart, bare = false }: { embedded?: boolean; section?: AdminTab; onSection?: (next: AdminTab) => void; hideNav?: boolean; /** One part of Overview only. */ overviewPart?: OverviewPart; /** No header of its own: the Reader's menu already has its buttons. */ bare?: boolean; settingsPart?: SettingsSection; onSettingsPart?: (next: SettingsSection) => void; /** The host page lists Settings' parts in its desktop sidebar, so the row of tabs is only needed on phones. */ settingsInSidebar?: boolean } = {}) {
   const { user, token, logout, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -2618,8 +2621,11 @@ Generate exactly 10 questions.`;
 
   const sectionGroup = "divide-y divide-border/60 [&>*]:py-5 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0";
 
+  /** In the Reader, each part of Overview is its own menu item; on its own page all of them show. */
+  const showPart = (part: OverviewPart) => !overviewPart || overviewPart === part;
   const overviewTab = (
     <div className="space-y-4 sm:space-y-6">
+      {showPart("home") && <>
       <div>
         <h1 className="text-xl font-black sm:text-2xl">Welcome back{user?.displayName ? `, ${user.displayName}` : ""}</h1>
         <p className="mt-1 text-sm text-muted-foreground">Here's what's happening on A.R.I.S.E. Reader.</p>
@@ -2647,6 +2653,8 @@ Generate exactly 10 questions.`;
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </button>
 
+      </>}
+      {showPart("attention") && <>
       <AdminSection
         id="needs-attention"
         icon={ListTodo}
@@ -2674,7 +2682,9 @@ Generate exactly 10 questions.`;
           </ul>
         )}
       </AdminSection>
+      </>}
 
+      {showPart("actions") && <>
       <AdminSection id="quick-actions" icon={Sparkles} tone="cyan" title="Quick actions">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => setShowAddQuiz(true)}><PlusCircle className="h-4 w-4" />Add a quiz</Button>
@@ -2685,7 +2695,9 @@ Generate exactly 10 questions.`;
         </div>
         <p className="mt-3 text-xs text-muted-foreground">Previews show A.R.I.S.E. exactly like a student. Quiz results in a preview don't count on leaderboards or competitions.</p>
       </AdminSection>
+      </>}
 
+      {showPart("leaderboard") && <>
       <AdminSection
         id="leaderboard"
         icon={Trophy}
@@ -2827,6 +2839,7 @@ Generate exactly 10 questions.`;
           </div>
         </details>
       </AdminSection>
+      </>}
     </div>
   );
 
@@ -4313,7 +4326,7 @@ Generate exactly 10 questions.`;
 
   return (
     <div className={embedded ? "w-full max-w-full overflow-hidden rounded-3xl bg-background" : "min-h-screen w-full max-w-full overflow-x-hidden bg-background"} data-testid={embedded ? "workhub-admin" : undefined}>
-      <header className={embedded ? "w-full border-b border-border bg-card/85" : "sticky top-0 z-40 w-full border-b border-border bg-card/85 backdrop-blur-md"}>
+      {!bare && <header className={embedded ? "w-full border-b border-border bg-card/85" : "sticky top-0 z-40 w-full border-b border-border bg-card/85 backdrop-blur-md"}>
         <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-3 sm:px-4 lg:px-6">
           <button type="button" onClick={() => { setTab("overview"); window.scrollTo({ top: 0 }); }} className="flex min-w-0 items-center gap-2.5" aria-label="Admin overview">
             <span className="arise-icon-tile grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl"><ShieldCheck className="h-[18px] w-[18px]" /></span>
@@ -4382,7 +4395,7 @@ Generate exactly 10 questions.`;
             </DropdownMenu>
           </div>
         </nav>}
-      </header>
+      </header>}
 
       <div className="mx-auto flex w-full max-w-7xl gap-6 px-3 sm:px-4 lg:px-6">
         {!hideNav && <aside className="hidden w-56 shrink-0 lg:block">

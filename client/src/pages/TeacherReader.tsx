@@ -6,10 +6,10 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ChevronRight, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { READER_APP, TODO_APP, isReaderHost } from "@/lib/hubs";
+import { READER_APP, TODO_APP, appHref, isReaderHost } from "@/lib/hubs";
 import ReaderTools, { isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
 import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
@@ -22,10 +22,24 @@ import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import "./teacherReader.css";
 
-type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "challenge" | `admin:${AdminSection}`;
+type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
+/** Admin menu items that leave the Reader (or jump into a setting) rather than show a console section. */
+type AdminLink = "progress" | "polls" | "alerts";
+type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "challenge" | `admin:${AdminSection}` | `adminpart:${Exclude<OverviewPart, "home">}` | `adminlink:${AdminLink}`;
 
-/** The admin console, as its own part of the menu (admins only): one item per section. */
-const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = ADMIN_SECTIONS.map((a) => ({ id: `admin:${a.id}` as View, label: a.label, icon: a.icon }));
+/** The admin console, as its own part of the menu (admins only). Its Overview is broken into one
+ *  item per part, and the buttons that used to sit in the console's own header are items too. */
+const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
+  { id: "admin:overview", label: "Overview", icon: ADMIN_SECTIONS[0].icon },
+  { id: "adminpart:attention", label: "Needs attention", icon: AlertTriangle },
+  { id: "adminpart:actions", label: "Quick actions", icon: Zap },
+  { id: "adminpart:leaderboard", label: "Student leaderboard", icon: Trophy },
+  ...ADMIN_SECTIONS.filter((a) => a.id !== "overview").map((a) => ({ id: `admin:${a.id}` as View, label: a.label, icon: a.icon })),
+  { id: "adminlink:alerts", label: "Notification settings", icon: BellRing },
+  { id: "adminlink:progress", label: "Student progress", icon: LineChart },
+  { id: "adminlink:polls", label: "Polls", icon: Vote },
+];
+const ADMIN_PART_LABEL: Record<OverviewPart, string> = { home: "Overview", attention: "Needs attention", actions: "Quick actions", leaderboard: "Student leaderboard" };
 const AdminConsole = lazy(() => import("@/components/teacher-hub/HubReader").then((m) => ({ default: m.AdminTab })));
 
 /** "What's new and what's coming": the same page the home page links to, shown right here. */
@@ -100,7 +114,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
     try {
       const asked = sessionStorage.getItem("reader_page_view");
       sessionStorage.removeItem("reader_page_view");
-      if (asked && asked.startsWith("admin:") && user?.isAdmin && ADMIN_SECTIONS.some((a) => `admin:${a.id}` === asked)) return asked as View;
+      if (asked && user?.isAdmin && (ADMIN_SECTIONS.some((a) => `admin:${a.id}` === asked) || ADMIN_MENU.some((m) => m.id === asked && asked.startsWith("adminpart:")))) return asked as View;
     } catch { /* the usual first screen */ }
     return tab;
   });
@@ -131,6 +145,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   };
 
   const go = (v: View) => {
+    if (v === "adminlink:progress" || v === "adminlink:polls") { window.location.assign(appHref(v === "adminlink:progress" ? "/progress" : "/polls")); return; }
+    if (v === "adminlink:alerts") { setAdminSettings("alerts"); v = "admin:settings"; }
     setView(v);
     if (isReaderTab(v as ReaderTab)) setTab(v as ReaderTab);
     window.scrollTo({ top: 0 });
@@ -198,7 +214,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
   if (!user) return null;
 
-  const adminSection = typeof view === "string" && view.startsWith("admin:") ? (view.slice(6) as AdminSection) : null;
+  // Every part of the admin Overview is its own item; the console shows just that part.
+  const adminPart: OverviewPart | null = view === "admin:overview" ? "home" : typeof view === "string" && view.startsWith("adminpart:") ? (view.slice(10) as OverviewPart) : null;
+  const adminSection = adminPart ? "overview" as AdminSection : typeof view === "string" && view.startsWith("admin:") ? (view.slice(6) as AdminSection) : null;
   const badge = (id: View) => (id === "readerApprovals" ? toApprove : id === "readerQuizzes" ? counts?.toGrade || 0 : 0);
   const dim = "rgba(255,255,255,0.08)";
 
@@ -206,16 +224,21 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
     <div className="teacher-reader hub-paper hub-night min-h-screen w-full max-w-[100vw] overflow-x-clip" data-testid="arise-reader-page"
       style={{ background: "#0d0b1a", color: "#ece9f7", fontFamily: "'Figtree', system-ui, sans-serif" }}>
 
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-3 border-b px-4 sm:px-6" style={{ borderColor: "rgba(255,255,255,0.1)", background: "#0f0d1f" }}>
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px]" style={{ background: "#7c3aed" }}><BookOpen className="h-[18px] w-[18px] text-white" /></span>
-          <span className="text-[19px] font-black tracking-[-0.02em]">A.R.I.S.E. <span style={{ color: "#c4b5fd" }}>Reader</span></span>
-          <span className="rounded-full px-2.5 py-0.5 text-xs font-extrabold" style={{ background: "#c4b5fd", color: "#0d0b1a" }}>{user.isAdmin ? "Admin" : isParent ? "Parent" : "Teacher"}</span>
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between gap-2 border-b px-3 sm:gap-3 sm:px-6" style={{ borderColor: "rgba(255,255,255,0.1)", background: "#0f0d1f" }}>
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+          {/* Phones: the menu's Hide / Menu button, up top where it is easy to find. */}
+          <button type="button" onClick={() => setRail(!rail)} aria-expanded={rail} aria-controls="reader-phone-rail" data-testid="reader-rail-toggle"
+            className="flex h-10 shrink-0 items-center gap-1 rounded-[10px] border px-2 text-[12px] font-bold lg:hidden" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>
+            {rail ? <PanelLeftClose className="h-4 w-4" /> : <MenuIcon className="h-4 w-4" />}{rail ? "Hide" : "Menu"}
+          </button>
+          <span className="hidden h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] sm:flex" style={{ background: "#7c3aed" }}><BookOpen className="h-[18px] w-[18px] text-white" /></span>
+          <span className="whitespace-nowrap text-[16px] font-black tracking-[-0.02em] sm:text-[19px]">A.R.I.S.E. <span style={{ color: "#c4b5fd" }}>Reader</span></span>
+          <span className="hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-extrabold min-[430px]:inline" style={{ background: "#c4b5fd", color: "#0d0b1a" }}>{user.isAdmin ? "Admin" : isParent ? "Parent" : "Teacher"}</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {(isParent || user.isAdmin) && <SupportButton isAdmin={!!user.isAdmin} />}
           <span className="hidden text-sm sm:inline" style={{ color: "#c9c5dc" }}>{user.displayName}{school ? ` · ${school}` : ""}</span>
-          <button type="button" onClick={() => { logout(); window.location.assign(READER_SIGN_IN); }} className="min-h-10 rounded-[10px] border px-3.5 text-sm font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>Sign out</button>
+          <button type="button" onClick={() => { logout(); window.location.assign(READER_SIGN_IN); }} className="min-h-10 whitespace-nowrap rounded-[10px] border px-2.5 text-[13px] font-bold sm:px-3.5 sm:text-sm" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }}>Sign out</button>
         </div>
       </header>
 
@@ -242,7 +265,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
       {/* Phone: the menu is a rail down the left with a Hide button (computers get the sidebar below). */}
       {rail ? (
-        <nav aria-label="Reader menu" className="fixed bottom-0 left-0 top-[64px] z-40 flex w-[76px] flex-col gap-1 overflow-y-auto border-r px-1.5 py-2 lg:hidden" style={{ background: "#151326", borderColor: dim }} data-testid="reader-phone-rail">
+        <nav id="reader-phone-rail" aria-label="Reader menu" className="fixed bottom-0 left-0 top-[64px] z-40 flex w-[76px] flex-col gap-1 overflow-y-auto border-r px-1.5 py-2 lg:hidden" style={{ background: "#151326", borderColor: dim }} data-testid="reader-phone-rail">
           {[...(isParent ? PARENT_MENU : MENU), ...(user.isAdmin ? ADMIN_MENU : [])].map((m) => {
             const on = view === m.id;
             const n = badge(m.id);
@@ -262,13 +285,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
           <SupportMenuItem isAdmin={!!user.isAdmin} testId="reader-rail-support" className="flex min-h-[56px] w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center text-[10px] font-bold leading-tight">
             <Heart className="h-5 w-5 fill-current" style={{ color: "#fb7185" }} /><span style={{ color: "#fecdd3" }}>Support</span>
           </SupportMenuItem>
-          <button type="button" onClick={() => setRail(false)} className="mt-auto min-h-11 rounded-xl border text-xs font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#c9c5dc" }}>Hide</button>
         </nav>
-      ) : (
-        <button type="button" onClick={() => setRail(true)} aria-label="Show the menu" className="fixed left-0 top-[96px] z-40 flex h-14 w-7 items-center justify-center rounded-r-xl border border-l-0 lg:hidden" style={{ background: "#151326", borderColor: "rgba(255,255,255,0.14)", color: "#ece9f7" }} data-testid="reader-rail-show">
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      )}
+      ) : null}
 
       {!isParent && <NewHubPopup userId={user.id} onChallenge={() => go("challenge")} />}
 
@@ -375,12 +393,12 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
           )}
 
           {user.isAdmin && adminSection && <>
-            <h1 className="text-[30px] font-black tracking-[-0.02em]">Admin console · {ADMIN_SECTIONS.find((a) => a.id === adminSection)?.label}</h1>
+            <h1 className="text-[30px] font-black tracking-[-0.02em]">Admin console · {adminPart ? ADMIN_PART_LABEL[adminPart] : ADMIN_SECTIONS.find((a) => a.id === adminSection)?.label}</h1>
             <div className="min-w-0" data-testid="reader-admin-console">
               <Suspense fallback={<p className="text-[15px]" style={{ color: "#a29fb8" }}>Loading the admin console…</p>}>
                 {adminSection === "updates"
                   ? <div className="overflow-hidden rounded-[18px]"><WhatsNew embedded /></div>
-                  : <AdminConsole night section={adminSection} onSection={(next) => go(`admin:${next}` as View)} settingsPart={adminSettings} onSettingsPart={setAdminSettings} />}
+                  : <AdminConsole night bare section={adminSection} overviewPart={adminPart ?? undefined} onSection={(next) => go(`admin:${next}` as View)} settingsPart={adminSettings} onSettingsPart={setAdminSettings} />}
               </Suspense>
             </div>
           </>}
