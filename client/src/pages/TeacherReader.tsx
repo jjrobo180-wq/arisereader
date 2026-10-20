@@ -17,11 +17,16 @@ import { AdvisoryStandings, datesText } from "@/components/AdvisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
 import { ordinal } from "@shared/advisoryChallenge";
 import { nameWords } from "@shared/classTeachers";
+import { ADMIN_SECTIONS, type AdminSection, type SettingsSection } from "@/lib/adminSections";
 import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import "./teacherReader.css";
 
-type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children";
+type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | `admin:${AdminSection}`;
+
+/** The admin console, as its own part of the menu (admins only): one item per section. */
+const ADMIN_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = ADMIN_SECTIONS.map((a) => ({ id: `admin:${a.id}` as View, label: a.label, icon: a.icon }));
+const AdminConsole = lazy(() => import("@/components/teacher-hub/HubReader").then((m) => ({ default: m.AdminTab })));
 
 /** "What's new and what's coming": the same page the home page links to, shown right here. */
 const WhatsNew = lazy(() => import("./WhatsNew"));
@@ -93,6 +98,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   const [school, setSchool] = useState("");
   const [counts, setCounts] = useState<Counts | null>(null);
   const challenge = useAdvisoryChallenge(token);
+  const [adminSettings, setAdminSettings] = useState<SettingsSection>("programs");
   const [rail, setRailState] = useState(() => { try { return localStorage.getItem(RAIL_KEY) !== "closed"; } catch { return true; } });
   const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem(RAIL_KEY, open ? "open" : "closed"); } catch { /* not remembered */ } };
 
@@ -117,7 +123,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
   const go = (v: View) => {
     setView(v);
-    if (v !== "leaderboard" && v !== "whatsnew" && v !== "prizes" && v !== "children") setTab(v);
+    if (isReaderTab(v as ReaderTab)) setTab(v as ReaderTab);
     window.scrollTo({ top: 0 });
   };
 
@@ -183,6 +189,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
   if (!user) return null;
 
+  const adminSection = typeof view === "string" && view.startsWith("admin:") ? (view.slice(6) as AdminSection) : null;
   const badge = (id: View) => (id === "readerApprovals" ? toApprove : id === "readerQuizzes" ? counts?.toGrade || 0 : 0);
   const dim = "rgba(255,255,255,0.08)";
 
@@ -227,7 +234,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
       {/* Phone: the menu is a rail down the left with a Hide button (computers get the sidebar below). */}
       {rail ? (
         <nav aria-label="Reader menu" className="fixed bottom-0 left-0 top-[64px] z-40 flex w-[76px] flex-col gap-1 overflow-y-auto border-r px-1.5 py-2 lg:hidden" style={{ background: "#151326", borderColor: dim }} data-testid="reader-phone-rail">
-          {(isParent ? PARENT_MENU : MENU).map((m) => {
+          {[...(isParent ? PARENT_MENU : MENU), ...(user.isAdmin ? ADMIN_MENU : [])].map((m) => {
             const on = view === m.id;
             const n = badge(m.id);
             const Icon = m.icon;
@@ -266,6 +273,20 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
               </button>
             );
           })}
+          {user.isAdmin && <>
+            <p className="px-3 pb-1 pt-3 text-xs font-extrabold" style={{ color: "#a29fb8" }}>Admin console</p>
+            {ADMIN_MENU.map((m) => {
+              const on = view === m.id;
+              const Icon = m.icon;
+              return (
+                <button key={m.id} type="button" onClick={() => go(m.id)} aria-current={on ? "page" : undefined} data-testid={`reader-tab-${m.id}`}
+                  className="flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[14px]"
+                  style={{ fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
+                  <Icon className="h-4 w-4 shrink-0" /><span>{m.label}</span>
+                </button>
+              );
+            })}
+          </>}
           <SupportMenuItem isAdmin={!!user.isAdmin} testId="reader-support" className="mt-2 flex min-h-11 w-full items-center gap-2.5 rounded-xl border border-rose-400/30 px-3 text-left text-[15px] font-bold hover:bg-rose-500/10">
             <Heart className="h-4 w-4 fill-current" style={{ color: "#fb7185" }} /><span style={{ color: "#fecdd3" }}>Support A.R.I.S.E.</span>
           </SupportMenuItem>
@@ -338,7 +359,18 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             </div>
           )}
 
-          {!isParent && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && (
+          {user.isAdmin && adminSection && <>
+            <h1 className="text-[30px] font-black tracking-[-0.02em]">Admin console · {ADMIN_SECTIONS.find((a) => a.id === adminSection)?.label}</h1>
+            <div className="min-w-0" data-testid="reader-admin-console">
+              <Suspense fallback={<p className="text-[15px]" style={{ color: "#a29fb8" }}>Loading the admin console…</p>}>
+                {adminSection === "updates"
+                  ? <div className="overflow-hidden rounded-[18px]"><WhatsNew embedded /></div>
+                  : <AdminConsole night section={adminSection} onSection={(next) => go(`admin:${next}` as View)} settingsPart={adminSettings} onSettingsPart={setAdminSettings} />}
+              </Suspense>
+            </div>
+          </>}
+
+          {!isParent && !adminSection && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && (
             <ReaderTools tab={view} openTab={(t) => { if (isReaderTab(t)) go(t); }} night />
           )}
         </main>

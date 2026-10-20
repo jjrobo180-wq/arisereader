@@ -253,3 +253,11 @@ test("a parent's Overview has the teacher format: greeting, four counts, a list 
   assert.match(reader, /data-testid="parent-challenge-card"/);
 });
 
+
+test("admins have the admin console in the Reader's menu, one item per section", () => {
+  const reader = read("client/src/pages/TeacherReader.tsx");
+  assert.match(reader, /const ADMIN_MENU: Array<\{ id: View; label: string; icon: LucideIcon \}> = ADMIN_SECTIONS\.map/);
+  assert.match(reader, /\{user\.isAdmin && <>\n\s*<p [^>]*>Admin console<\/p>/);
+  assert.match(reader, /<AdminConsole night section=\{adminSection\}/);
+  assert.match(reader, /\.\.\.\(user\.isAdmin \? ADMIN_MENU : \[\]\)/, "on a phone too");
+});
