@@ -244,10 +244,12 @@ test("a parent sees their child's school's Advisory Challenge, with the child's 
   assert.deepEqual(body.mine, { advisory: "Isaac & Ross", rank: 2, points: 10 });
 });
 
-test("the donation banner carries the mission: free talkers and eye-gaze tools for every child with a disability", () => {
+test("the donation banner asks for help keeping the site free for all kids and reaching more", () => {
   const support = read("client/src/components/SupportArise.tsx");
   assert.match(support, /Every child deserves to be heard\./);
-  assert.match(support, /free talker and eye-gaze tools/);
+  assert.match(support, /Help me keep this website free for all kids and reach more of them\./);
+  assert.match(support, /Help me keep A\.R\.I\.S\.E\. going free for every kid and reach more children who need it\./);
+  assert.ok(!support.includes("talker"), "the old talker wording is gone");
 });
 
 test("a parent's Overview has the teacher format: greeting, four counts, a list and the challenge card; the child view is under My children", () => {
