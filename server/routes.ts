@@ -1274,6 +1274,11 @@ export async function registerRoutes(
       return rows.map((r) => ({ studentId: Number(r.student_id), advisory: String(r.advisory_teacher_name || "").trim() }));
     },
     pointsBetween: (ids, from, to, fromDay, endDay) => storage.getPointsBetween(ids, from, to, fromDay, endDay),
+    async parentChildren(parentId) {
+      const ids = await getParentStudentIds(parentId);
+      const kids = await Promise.all(ids.map((id) => storage.getUser(id)));
+      return kids.filter((k: any) => k && k.role === "student" && !k.archivedAt).map((k: any) => ({ id: Number(k.id), schoolId: k.schoolId ?? k.school_id ?? null }));
+    },
   });
   // A school's advisories (shared/advisories.ts), for placing uploaded students in one.
   app.get("/api/schools/:id/advisories", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {

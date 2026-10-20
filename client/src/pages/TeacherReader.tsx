@@ -5,8 +5,8 @@
 // Advisory Challenge) is the one approved in the Teacher Reader prototype. The screens behind
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, Calculator, Heart, Landmark, CheckCircle2, ChevronRight, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { BarChart3, BookOpen, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ChevronRight, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, isReaderHost } from "@/lib/hubs";
@@ -21,7 +21,10 @@ import "@/components/teacher-hub/hubNight.css";
 import "@/components/teacher-hub/hubPaper.css";
 import "./teacherReader.css";
 
-type View = ReaderTab | "leaderboard";
+type View = ReaderTab | "leaderboard" | "whatsnew";
+
+/** "What's new and what's coming": the same page the home page links to, shown right here. */
+const WhatsNew = lazy(() => import("./WhatsNew"));
 
 /** The menu, in the prototype's order, then the Reader's other screens. */
 const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
@@ -36,6 +39,7 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "readerScenes", label: "Scenes", icon: Clapperboard },
   { id: "readerGames", label: "Game time", icon: Timer },
   { id: "readerPrizes", label: "Prizes", icon: Sparkles },
+  { id: "whatsnew", label: "What's new", icon: Megaphone },
 ];
 
 /** Arise History, Arise Math and A.R.I.S.E. Connect, linked from the hub banner. */
@@ -62,13 +66,11 @@ const HUB_BANNER = {
     name: "WorkHub",
     title: "Your whole teaching day, in one place.",
     line: "Arise WorkHub keeps your lessons, IEP minutes, meetings, tasks and notes together, and your Reader class comes with you.",
-    tiles: [["Lessons", "Plans for every class"], ["IEP & Meetings", "Minutes and meeting times"], ["Tasks", "Your to-do list"], ["Notes", "Everything you jot down"]] as Array<[string, string]>,
   },
   life: {
     name: "LifeHub",
     title: "Your family’s whole week, in one place.",
     line: "Arise LifeHub keeps your lists, chores, the family calendar and reminders together, and your kids’ reading comes with you.",
-    tiles: [["Lists", "Groceries, errands, anything"], ["Chores", "Who does what, and when"], ["Family calendar", "Everyone’s plans together"], ["Reminders", "Nothing slips by"]] as Array<[string, string]>,
   },
 };
 
@@ -76,6 +78,7 @@ const HUB_BANNER = {
 const PARENT_MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "reader", label: "Overview", icon: Home },
   { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
+  { id: "whatsnew", label: "What's new", icon: Megaphone },
 ];
 
 type Counts = { students: number; joining: number; gradeChanges: number; books: number; toGrade: number };
@@ -112,7 +115,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
   const go = (v: View) => {
     setView(v);
-    if (v !== "leaderboard") setTab(v);
+    if (v !== "leaderboard" && v !== "whatsnew") setTab(v);
     window.scrollTo({ top: 0 });
   };
 
@@ -198,39 +201,26 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         </div>
       </header>
 
-      {/* Always shown: there is no way to hide it. */}
-      {(
-        <div className={`px-6 pt-[18px] ${rail ? "max-lg:pl-[92px]" : "max-lg:pl-10"}`}>
-          <section aria-label={`Open your ${hub.name}`} data-testid="reader-workhub-banner"
-            className="flex flex-wrap items-center gap-x-8 gap-y-5 overflow-hidden rounded-[22px] border px-[26px] py-[22px]" style={{ borderColor: "#2c6f69", background: "#0f2624" }}>
-            <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
-              <span className="self-start rounded-full px-2.5 py-0.5 text-[13px] font-extrabold" style={{ background: "#5eead4", color: "#0f2624" }}>Included with your account</span>
-              <h2 className="text-[28px] font-black leading-[1.1] tracking-[-0.02em] text-white">{hub.title}</h2>
-              <p className="max-w-[560px] text-base leading-[1.45]" style={{ color: "#b9e4de" }}>{hub.line}</p>
-              <div className="mt-1.5 flex flex-wrap gap-2.5">
-                <a href={workhubHref} className="inline-flex min-h-[46px] items-center rounded-xl px-5 text-base font-black" style={{ background: "#5eead4", color: "#062b27" }} target="_blank" rel="noopener" onClick={openHub} data-testid="reader-open-workhub">Open your {hub.name}</a>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="reader-learning-apps">
-                <span className="text-[13px] font-bold" style={{ color: "#9fd4cc" }}>Also on your account:</span>
-                {LEARNING.map(({ href, label, Icon, color }) => (
-                  <a key={href} href={href} target="_blank" rel="noopener" className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-bold text-white hover:bg-white/5" style={{ borderColor: "#2c6f69" }}>
-                    <Icon className="h-4 w-4" style={{ color }} />{label}
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div aria-hidden="true" className="grid flex-[0_1_380px] grid-cols-2 gap-2.5">
-              {hub.tiles.map(([name, line]) => (
-                <div key={name} className="flex flex-col gap-1 rounded-[14px] border px-3.5 py-3" style={{ background: "#133a36", borderColor: "#22524d" }}>
-                  <span className="text-[15px] font-extrabold text-white">{name}</span>
-                  <span className="text-[13px]" style={{ color: "#9fd4cc" }}>{line}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-          <div className="mt-3"><SupportBanner dark /></div>
-        </div>
-      )}
+      {/* The hub banner and the donation line. Both always show (neither can be hidden), kept slim. */}
+      <div className={`flex flex-col gap-2 px-6 pt-4 ${rail ? "max-lg:pl-[92px]" : "max-lg:pl-10"}`}>
+        <section aria-label={`Open your ${hub.name}`} data-testid="reader-workhub-banner"
+          className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3" style={{ borderColor: "#2c6f69", background: "#0f2624" }}>
+          <div className="min-w-0 flex-[1_1_320px]">
+            <h2 className="text-[17px] font-black leading-tight text-white">{hub.title}</h2>
+            <p className="mt-0.5 text-[13px] leading-snug" style={{ color: "#b9e4de" }}>{hub.line}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5" data-testid="reader-learning-apps">
+            <span className="sr-only">Also on your account:</span>
+            {LEARNING.map(({ href, label, Icon, color }) => (
+              <a key={href} href={href} target="_blank" rel="noopener" title={label} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-bold text-white hover:bg-white/5" style={{ borderColor: "#2c6f69" }}>
+                <Icon className="h-3.5 w-3.5" style={{ color }} />{label}
+              </a>
+            ))}
+            <a href={workhubHref} className="inline-flex min-h-9 items-center rounded-xl px-4 text-sm font-black" style={{ background: "#5eead4", color: "#062b27" }} target="_blank" rel="noopener" onClick={openHub} data-testid="reader-open-workhub">Open your {hub.name}</a>
+          </div>
+        </section>
+        <SupportBanner dark />
+      </div>
 
       {/* Phone: the menu is a rail down the left with a Hide button (computers get the sidebar below). */}
       {rail ? (
@@ -282,6 +272,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
           {isParent && view === "reader" && <>
             <h1 className="text-[30px] font-black tracking-[-0.02em]">{greeting()}, {user.displayName}</h1>
+            <PrizesCard onStandings={() => go("leaderboard")} />
             <ParentReader say={() => { /* the parent view shows its own notices */ }} night />
           </>}
 
@@ -321,7 +312,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             )}
           </>}
 
-          {view === "leaderboard" && <>
+          {isParent && view === "leaderboard" && <ParentLeaderboards token={token} challenge={challenge} />}
+
+          {!isParent && view === "leaderboard" && <>
             <h1 className="text-[30px] font-black tracking-[-0.02em]">Advisory Challenge</h1>
             {challenge?.challenge ? (
               <section className="flex flex-col gap-3 rounded-[18px] border p-4" style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
@@ -331,11 +324,105 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             ) : <p className="text-[15px]" style={{ color: "#a29fb8" }}>{challenge === undefined ? "Loading…" : "Your school has no Advisory Challenge running."}</p>}
           </>}
 
-          {!isParent && view !== "reader" && view !== "leaderboard" && (
+          {view === "whatsnew" && (
+            <div className="overflow-hidden rounded-[18px]" data-testid="reader-whatsnew">
+              <Suspense fallback={<p className="p-6 text-[15px]" style={{ color: "#a29fb8" }}>Loading…</p>}><WhatsNew embedded /></Suspense>
+            </div>
+          )}
+
+          {!isParent && view !== "reader" && view !== "leaderboard" && view !== "whatsnew" && (
             <ReaderTools tab={view} openTab={(t) => { if (isReaderTab(t)) go(t); }} night />
           )}
         </main>
       </div>
     </div>
   );
+}
+
+/** What students can win, for parents: the same three prizes the school announced. */
+const PRIZES: Array<{ title: string; when: string; detail: string }> = [
+  { title: "Pizza party", when: "Fri, Nov 20", detail: "For the advisory with the most points in the Advisory Challenge (Oct 20 – Nov 19)." },
+  { title: "DoorDash food", when: "Each month", detail: "For the top reader on the monthly leaderboard." },
+  { title: "AirPods", when: "End of the year", detail: "For the top reader of the whole school year." },
+];
+
+function PrizesCard({ onStandings }: { onStandings?: () => void }) {
+  return (
+    <section className="rounded-[18px] border px-5 py-4" style={{ background: "#1f1418", borderColor: "#5a2a20" }} data-testid="parent-prizes">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-extrabold" style={{ color: "#ffc93c" }}>What your reader can win</h2>
+        {onStandings && <button type="button" onClick={onStandings} className="text-sm font-bold underline underline-offset-4" style={{ color: "#ffe2a8" }}>See the leaderboards</button>}
+      </div>
+      <ul className="mt-3 grid gap-2.5 sm:grid-cols-3">
+        {PRIZES.map((p) => (
+          <li key={p.title} className="rounded-xl px-3.5 py-3" style={{ background: "rgba(255,201,60,0.08)" }}>
+            <p className="text-[15px] font-extrabold text-white">{p.title} <span className="text-xs font-bold" style={{ color: "#ffc93c" }}>· {p.when}</span></p>
+            <p className="mt-1 text-[13px] leading-snug" style={{ color: "#e9d9c4" }}>{p.detail}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+type Board = Array<{ id?: number; userId?: number; displayName: string; totalPoints: number }>;
+
+/** Every leaderboard running now, in plain words for a parent, with their own children marked. */
+function ParentLeaderboards({ token, challenge }: { token: string | null; challenge: ReturnType<typeof useAdvisoryChallenge> }) {
+  const [month, setMonth] = useState<Board | null>(null);
+  const [year, setYear] = useState<Board | null>(null);
+  const [kids, setKids] = useState<number[]>([]);
+  useEffect(() => {
+    if (!token) return;
+    const get = (path: string) => fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const ym = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Denver", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
+    void get(`/api/leaderboard?month=${ym}`).then((d) => setMonth(Array.isArray(d) ? d : []));
+    void get("/api/leaderboard").then((d) => setYear(Array.isArray(d) ? d : []));
+    void get("/api/parent/students").then((d) => setKids(Array.isArray(d?.students) ? d.students.map((k: any) => Number(k.id)) : []));
+  }, [token]);
+  const monthName = new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", month: "long" }).format(new Date());
+  const list = (rows: Board | null, empty: string) => {
+    if (!rows) return <p className="text-sm" style={{ color: "#a29fb8" }}>Loading…</p>;
+    if (!rows.length) return <p className="text-sm" style={{ color: "#a29fb8" }}>{empty}</p>;
+    const top = rows.slice(0, 10);
+    const extra = rows.filter((r, i) => i >= 10 && kids.includes(Number(r.userId ?? r.id)));
+    return (
+      <ol className="space-y-1.5">
+        {[...top, ...extra].map((r) => {
+          const i = rows.indexOf(r);
+          const mine = kids.includes(Number(r.userId ?? r.id));
+          return (
+            <li key={`${r.userId ?? r.id}-${i}`} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: mine ? "rgba(255,201,60,0.14)" : "rgba(255,255,255,0.04)" }}>
+              <span className="w-7 text-center font-black" style={{ color: i < 3 ? "#ffc93c" : "#a29fb8" }}>{i + 1}</span>
+              <span className="min-w-0 flex-1 truncate text-[15px] font-bold">{r.displayName}{mine ? " · your child" : ""}</span>
+              <span className="font-black">{Number(r.totalPoints || 0).toLocaleString()} <span className="text-xs font-semibold" style={{ color: "#a29fb8" }}>pts</span></span>
+            </li>
+          );
+        })}
+      </ol>
+    );
+  };
+  const card = "rounded-[18px] border p-4 sm:p-5";
+  return <>
+    <h1 className="text-[30px] font-black tracking-[-0.02em]">Leaderboards</h1>
+    <p className="-mt-2 text-[15px]" style={{ color: "#c9c5dc" }}>Every race going on right now. Points come from passing reading quizzes.</p>
+    <PrizesCard />
+    {challenge?.challenge && (
+      <section className={card} style={{ background: "#1a1020", borderColor: "#5a2a20" }}>
+        <h2 className="text-lg font-extrabold">Advisory Challenge · prize: pizza party</h2>
+        <p className="mb-3 mt-1 text-sm" style={{ color: "#c9c5dc" }}>{datesText(challenge as any)}{challenge.mine?.advisory ? ` Your child’s advisory is ${challenge.mine.advisory}.` : ""}</p>
+        <AdvisoryStandings view={challenge} mineName={challenge.mine?.advisory} />
+      </section>
+    )}
+    <section className={card} style={{ background: "#151326", borderColor: "rgba(255,255,255,0.08)" }}>
+      <h2 className="text-lg font-extrabold">{monthName}’s top readers · prize: DoorDash food</h2>
+      <p className="mb-3 mt-1 text-sm" style={{ color: "#c9c5dc" }}>Points from this month only. It starts over on the 1st.</p>
+      {list(month, "No points yet this month.")}
+    </section>
+    <section className={card} style={{ background: "#151326", borderColor: "rgba(255,255,255,0.08)" }}>
+      <h2 className="text-lg font-extrabold">School year top readers · prize: AirPods</h2>
+      <p className="mb-3 mt-1 text-sm" style={{ color: "#c9c5dc" }}>All points this school year. The top reader at the end of the year wins.</p>
+      {list(year, "No points yet.")}
+    </section>
+  </>;
 }

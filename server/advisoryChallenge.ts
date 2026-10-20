@@ -14,6 +14,8 @@ export type ChallengeDeps = {
   /** Each student's advisory for the school year: student id -> advisory name. */
   advisoryPicks(schoolId: number, year: string): Promise<Array<{ studentId: number; advisory: string }>>;
   pointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
+  /** A parent's children (current ones), with each child's school: a parent sees their child's school's challenge. */
+  parentChildren?(parentId: number): Promise<Array<{ id: number; schoolId: number | null }>>;
   now?: () => number;
 };
 
@@ -25,9 +27,12 @@ export function registerAdvisoryChallengeRoutes(app: Express, deps: ChallengeDep
       const now = deps.now ? deps.now() : Date.now();
       const user = req.user || {};
       const isStudent = !user.isAdmin && (!user.role || user.role === "student");
+      const isParent = !user.isAdmin && user.role === "parent";
+      const kids = isParent && deps.parentChildren ? await deps.parentChildren(Number(user.id)) : [];
       // Admins without a school (and admins asking about one) see the first school running a challenge.
       let school = user.school_id ? await deps.getSchool(Number(user.school_id)) : null;
       if (user.isAdmin && req.query.schoolId) school = await deps.getSchool(Number(req.query.schoolId));
+      if (!school && isParent) { const k = kids.find((c) => c.schoolId); if (k) school = await deps.getSchool(Number(k.schoolId)); }
       if (!school && user.isAdmin) school = (await deps.allSchools()).find((s) => challengeForSchool(s.name)) || null;
       const challenge = school ? challengeForSchool(school.name) : null;
       if (!school || !challenge) return res.json(EMPTY);
@@ -40,14 +45,16 @@ export function registerAdvisoryChallengeRoutes(app: Express, deps: ChallengeDep
       const studentAdvisory = new Map<number, string>();
       for (const p of picks) if (current.has(p.studentId) && p.advisory) studentAdvisory.set(p.studentId, p.advisory);
       const w = challengeWindow(challenge);
-      const points = await deps.pointsBetween([...studentAdvisory.keys(), ...(isStudent ? [Number(user.id)] : [])], w.fromMs, w.endMs, w.fromDay, w.endDayExclusive);
+      const points = await deps.pointsBetween([...studentAdvisory.keys(), ...(isStudent ? [Number(user.id)] : []), ...kids.map((k) => k.id)], w.fromMs, w.endMs, w.fromDay, w.endDayExclusive);
       const standings = rankAdvisories(advisoriesForSchool(school.name), studentAdvisory, points);
 
       let mine: ChallengeView["mine"] = null;
-      if (isStudent) {
-        const name = studentAdvisory.get(Number(user.id)) || null;
+      // A student's own advisory; for a parent, their (first) child's in this school.
+      const me = isStudent ? Number(user.id) : isParent ? (kids.find((k) => studentAdvisory.has(k.id))?.id ?? kids[0]?.id ?? null) : null;
+      if (me != null) {
+        const name = studentAdvisory.get(me) || null;
         const row = name ? standings.find((s) => s.name === name) : undefined;
-        mine = { advisory: row ? row.name : null, rank: row ? row.rank : null, points: Math.round((points.get(Number(user.id)) || 0) * 10) / 10 };
+        mine = { advisory: row ? row.name : null, rank: row ? row.rank : null, points: Math.round((points.get(me) || 0) * 10) / 10 };
       }
       const view: ChallengeView = { challenge: { ...challenge, phase, daysLeft: daysLeft(challenge, now) }, standings, mine };
       res.json(view);

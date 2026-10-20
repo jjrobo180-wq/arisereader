@@ -164,7 +164,7 @@ test("a teacher who signs in on arisereader.com lands in the teacher Reader, wit
 
 test("the Reader opens the hub in a new tab, signs out to arisereader.com, and has a phone rail with a Hide button", () => {
   const page = read("client/src/pages/TeacherReader.tsx");
-  assert.match(page, /target="_blank" rel="noopener" data-testid="reader-open-workhub"/);
+  assert.match(page, /target="_blank" rel="noopener" onClick=\{openHub\} data-testid="reader-open-workhub"/);
   assert.match(page, /export const READER_SIGN_IN = `\$\{READER_APP\}#\/signin`;/);
   assert.match(page, /onClick=\{\(\) => \{ logout\(\); window\.location\.assign\(READER_SIGN_IN\); \}\}/);
   assert.match(page, /localStorage\.getItem\(RAIL_KEY\) !== "closed"/, "the phone rail starts open");
@@ -207,4 +207,38 @@ test("a student's profile, messages and certificates open as pop-ups; the hub op
   assert.match(reader, /\/api\/auth\/admin-handoff\/start/);
   assert.match(reader, /const url = `\$\{TODO_APP\}#\/admin-handoff\?code=\$\{d\.code\}`;/);
   assert.match(reader, /onClick=\{openHub\} data-testid="reader-open-workhub"/);
+});
+
+test("parents see the prizes, every leaderboard, and their child's school's challenge; banners are slim", () => {
+  const reader = read("client/src/pages/TeacherReader.tsx");
+  for (const prize of ["Pizza party", "DoorDash food", "AirPods"]) assert.ok(reader.includes(`title: "${prize}"`), prize);
+  assert.match(reader, /\{isParent && view === "leaderboard" && <ParentLeaderboards token=\{token\} challenge=\{challenge\} \/>\}/);
+  assert.match(reader, /\/api\/leaderboard\?month=\$\{ym\}/);
+  assert.match(reader, /\{ id: "whatsnew", label: "What's new", icon: Megaphone \}/);
+  assert.match(reader, /<WhatsNew embedded \/>/);
+  assert.doesNotMatch(reader, /hub\.tiles/, "the hub banner is one slim row");
+});
+
+test("a parent sees their child's school's Advisory Challenge, with the child's advisory marked", async () => {
+  const routes: Record<string, Function> = {};
+  registerAdvisoryChallengeRoutes({ get: (p: string, ...h: Function[]) => { routes[p] = h[h.length - 1]; } } as any, {
+    auth: (_q, _s, n) => n(),
+    getSchool: async (id) => (id === 4 ? { id: 4, name: CGMS } : null),
+    allSchools: async () => [],
+    schoolStudentIds: async () => [100, 101],
+    advisoryPicks: async () => [{ studentId: 100, advisory: "Chase & Shuster" }, { studentId: 101, advisory: "Isaac & Ross" }],
+    pointsBetween: async () => new Map([[100, 30], [101, 10]]),
+    parentChildren: async () => [{ id: 101, schoolId: 4 }],
+    now: () => Date.parse("2026-10-21T18:00:00Z"),
+  });
+  let body: any;
+  await routes["/api/advisory-challenge"]({ user: { id: 9, role: "parent" }, query: {} }, { json: (b: any) => { body = b; }, status: () => ({ json: () => {} }) });
+  assert.equal(body.challenge.phase, "live");
+  assert.deepEqual(body.mine, { advisory: "Isaac & Ross", rank: 2, points: 10 });
+});
+
+test("the donation banner carries the mission: free talkers and eye-gaze tools for every child with a disability", () => {
+  const support = read("client/src/components/SupportArise.tsx");
+  assert.match(support, /Every child deserves to be heard\./);
+  assert.match(support, /free talker and eye-gaze tools/);
 });

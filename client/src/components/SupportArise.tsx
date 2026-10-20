@@ -87,10 +87,10 @@ export function SupportBanner({ dark = false }: { dark?: boolean }) {
   const [open, setOpen] = useState(false);
   if (!info) return null;
   return <>
-    <div className={`flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3 ${dark ? "border-rose-400/30 bg-[#24121c]" : "border-rose-200/80 bg-gradient-to-r from-rose-50 to-violet-50"}`} data-testid="support-banner">
-      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white"><Heart size={17} className="fill-current" /></span>
-      <p className={`min-w-0 flex-1 text-sm ${dark ? "text-rose-100/85" : "text-slate-700"}`}><span className={`font-bold ${dark ? "text-white" : "text-slate-900"}`}>A.R.I.S.E. is free, with no ads.</span> It's built by one teacher and runs on donations from families and teachers like you.</p>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white hover:bg-rose-700" data-testid="support-banner-open"><Heart size={14} className="fill-current" /> Support</button>
+    <div className={`flex flex-wrap items-center rounded-2xl border ${dark ? "gap-2.5 border-rose-400/30 bg-[#24121c] px-3 py-2" : "gap-3 border-rose-200/80 bg-gradient-to-r from-rose-50 to-violet-50 px-4 py-3"}`} data-testid="support-banner">
+      <span className={`inline-flex shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white ${dark ? "h-7 w-7" : "h-9 w-9"}`}><Heart size={dark ? 14 : 17} className="fill-current" /></span>
+      <p className={`min-w-0 flex-1 ${dark ? "text-[13px] text-rose-100/85" : "text-sm text-slate-700"}`}><span className={`font-bold ${dark ? "text-white" : "text-slate-900"}`}>Every child deserves to be heard.</span> Join our mission to give every child with a disability a free talker and eye-gaze tools, so they can say “I love you,” ask a question, and read on their own. A.R.I.S.E. is free with no ads, built by one teacher and carried by people like you.</p>
+      <button type="button" onClick={() => setOpen(true)} className={`inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white hover:bg-rose-700 ${dark ? "min-h-9" : "min-h-10"}`} data-testid="support-banner-open"><Heart size={14} className="fill-current" /> Support</button>
     </div>
     {open && createPortal(<SupportSheet info={info} onClose={() => setOpen(false)} />, document.body)}
   </>;
