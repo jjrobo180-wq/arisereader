@@ -45,6 +45,17 @@ export default function Register({ independent = false }: { independent?: boolea
   const selectedTeacher = teachers.find((t) => String(t.id) === selectedTeacherId);
   const directoryTeacher = !!selectedTeacher?.directory;
   const teacherNotListed = schoolNotListed || schoolNewToSite || selectedTeacherId === NOT_LISTED;
+  // A school with advisories (Conservatory Green MS) asks for the student's advisory instead of a teacher.
+  const [advisories, setAdvisories] = useState<Array<{ id: string; name: string; label: string; grade: string; room: string }>>([]);
+  const byAdvisory = !independentStudent && advisories.length > 0;
+  const gradeAdvisories = advisories.filter((a) => !a.grade || a.grade === selectedGrade);
+  useEffect(() => {
+    if (independentStudent || !selectedSchoolId) { setAdvisories([]); return; }
+    let alive = true;
+    fetch(`${API_BASE}/api/public/schools/${selectedSchoolId}/advisories`).then(r => r.ok ? r.json() : []).then(d => { if (alive) setAdvisories(Array.isArray(d) ? d : []); }).catch(() => { if (alive) setAdvisories([]); });
+    return () => { alive = false; };
+  }, [selectedSchoolId, independentStudent]);
+  const advisoryPicked = byAdvisory && selectedTeacherId.startsWith("advisory:");
 
   useEffect(() => {
     if (!independentStudent && selectedSchoolId && selectedGrade) {
@@ -67,8 +78,8 @@ export default function Register({ independent = false }: { independent?: boolea
     if (password !== confirm) return setError("Passwords don't match.");
     if (!selectedGrade) return setError("Please select your grade.");
     if (!independentStudent && !school) return setError("Please pick your school. Type its name in the School box, or tap \"My school isn't listed\".");
-    if (!independentStudent && !teacherNotListed && !selectedTeacherId) return setError("Please select your teacher, or tap \"My teacher isn't listed\".");
-    if (!independentStudent && teacherNotListed && unlistedTeacherName.trim().length < 2) return setError("Please type your teacher's name.");
+    if (!independentStudent && !teacherNotListed && !selectedTeacherId) return setError(byAdvisory ? "Please choose your advisory, or tap \"My advisory isn't listed\"." : "Please select your teacher, or tap \"My teacher isn't listed\".");
+    if (!independentStudent && teacherNotListed && unlistedTeacherName.trim().length < 2) return setError(byAdvisory ? "Please type your advisory teachers' names." : "Please type your teacher's name.");
 
     setLoading(true);
     try {
@@ -78,7 +89,7 @@ export default function Register({ independent = false }: { independent?: boolea
         password,
         `${firstName.trim()} ${lastName.trim()}`,
         isEyeGaze,
-        independentStudent || teacherNotListed || directoryTeacher ? null : Number(selectedTeacherId),
+        independentStudent || teacherNotListed || directoryTeacher || advisoryPicked ? null : Number(selectedTeacherId),
         independentStudent ? null : selectedSchoolId,
         selectedGrade,
         independentStudent ? { independent: true } : {
@@ -86,6 +97,7 @@ export default function Register({ independent = false }: { independent?: boolea
           directorySchool: schoolFields(school).directorySchool,
           teacherName: teacherNotListed ? unlistedTeacherName.trim() : undefined,
           directoryTeacherId: directoryTeacher ? selectedTeacherId : undefined,
+          advisoryId: advisoryPicked ? selectedTeacherId.slice("advisory:".length) : undefined,
         },
       );
     } catch (err: any) { setError(err.message || "Could not create account."); }
@@ -156,7 +168,15 @@ export default function Register({ independent = false }: { independent?: boolea
             </div>
 
             {!independentStudent && <div className="space-y-2">
-              <Label htmlFor="teacher">Teacher</Label>
+              <Label htmlFor="teacher">{byAdvisory ? "Advisory" : "Teacher"}</Label>
+              {byAdvisory && !teacherNotListed && <select id="teacher" value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} disabled={!selectedGrade} className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0f0d1d] p-3 text-sm text-white disabled:opacity-40" data-testid="signup-advisory">
+                <option value="">{!selectedGrade ? "Select your grade first…" : "Choose your advisory…"}</option>
+                {gradeAdvisories.map((a) => <option key={a.id} value={`advisory:${a.id}`}>{a.name}{a.room ? ` · Room ${a.room}` : ""}</option>)}
+              </select>}
+              {byAdvisory && !teacherNotListed && selectedGrade && <button type="button" onClick={() => setSelectedTeacherId(NOT_LISTED)} className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm font-black text-slate-200 hover:bg-white/10">My advisory isn't listed</button>}
+              {byAdvisory && teacherNotListed && <Input id="teacher" value={unlistedTeacherName} onChange={e => setUnlistedTeacherName(e.target.value)} maxLength={120} placeholder="Type your advisory teachers' names (example: Chase & Shuster)" className="h-12 border-fuchsia-300/30 bg-[#0f0d1d] text-white" />}
+              {byAdvisory && teacherNotListed && <p className="rounded-xl border border-cyan-300/20 bg-cyan-500/5 p-3 text-xs font-semibold leading-5 text-cyan-100">No problem. You'll get full access right away. We'll put you in your advisory for you.</p>}
+              {!byAdvisory && <>
               {!schoolNotListed && !schoolNewToSite && <select id="teacher" value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} disabled={!selectedSchoolId || !selectedGrade} className="min-h-12 w-full rounded-xl border border-white/10 bg-[#0f0d1d] p-3 text-sm text-white disabled:opacity-40">
                 <option value="">{!selectedGrade ? "Select school and grade first…" : "Choose your teacher…"}</option>{teachers.map((teacher: any) => <option key={teacher.id} value={teacher.id}>{teacher.display_name}</option>)}
                 {selectedGrade && <option value={NOT_LISTED}>My teacher isn't listed</option>}
@@ -168,6 +188,7 @@ export default function Register({ independent = false }: { independent?: boolea
                   </button>}
               {directoryTeacher && <p className="rounded-xl border border-cyan-300/20 bg-cyan-500/5 p-3 text-xs font-semibold leading-5 text-cyan-100">This teacher is listed for your school but does not have a linked A.R.I.S.E. Reader account yet. You can sign up and read right away. An administrator can link you to their class when the teacher joins.</p>}
               {teacherNotListed && <p className="rounded-xl border border-cyan-300/20 bg-cyan-500/5 p-3 text-xs font-semibold leading-5 text-cyan-100">{schoolNewToSite ? "No teachers from this school are on A.R.I.S.E. yet. " : "No problem. "}You'll get full access right away. We'll connect you to your {schoolNotListed ? "school and teacher" : "teacher"} for you.</p>}
+              </>}
             </div>}
 
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-cyan-500/8 via-violet-500/8 to-fuchsia-500/8 p-4">

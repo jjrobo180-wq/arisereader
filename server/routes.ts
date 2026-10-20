@@ -1280,6 +1280,16 @@ export async function registerRoutes(
       return kids.filter((k: any) => k && k.role === "student" && !k.archivedAt).map((k: any) => ({ id: Number(k.id), schoolId: k.schoolId ?? k.school_id ?? null }));
     },
   });
+  // The advisories at a school, for the sign-up page (no sign-in needed): names, grade and room only.
+  app.get("/api/public/schools/:id/advisories", async (req: any, res) => {
+    try {
+      const school = await classTeacherStore.getSchool(Number(req.params.id));
+      res.set("Cache-Control", "public, max-age=300");
+      res.json(school ? advisoriesForSchool(school.name).map((a) => ({ id: a.id, name: advisoryName(a), label: advisoryLabel(a), grade: a.grade || "", room: a.room || "" })) : []);
+    } catch {
+      res.json([]);
+    }
+  });
   // A school's advisories (shared/advisories.ts), for placing uploaded students in one.
   app.get("/api/schools/:id/advisories", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
@@ -2099,6 +2109,11 @@ export async function registerRoutes(
         await storage.upsertSetting('user_grades', JSON.stringify(userGrades));
       }
 
+      // The advisory picked at sign-up (schools with advisories ask for that, not a teacher).
+      if (typeof req.body.advisoryId === "string" && req.body.advisoryId && schoolId && !req.body.independent) {
+        try { await placeInAdvisory(Number(user.id), req.body.advisoryId); } catch (e: any) { console.error("[register] advisory not saved:", e?.message); }
+      }
+
       // "School/teacher not listed": these are school students, not independent
       // (homeschool) readers. They get a normal, fully approved student account
       // right away; "teacher not listed" students keep the school they picked.
@@ -2177,9 +2192,19 @@ export async function registerRoutes(
   // Admin: students who signed up with "school/teacher not listed"
   app.get("/api/admin/unlisted-signups", authMiddleware, adminMiddleware, async (_req, res) => {
     try {
-      const requests = await readUnlistedSignups();
+      const requests = (await readUnlistedSignups()).filter(r => !r.resolved);
+      // Students are placed by advisory now, so each one shows their advisory (and ELA teacher), not a teacher.
+      const year = schoolYearOf();
+      const ids = requests.map(r => Number(r.userId)).filter(Boolean);
+      const { data: picks } = ids.length
+        ? await supabase.from("student_class_teachers").select("student_id, advisory_teacher_name, lit_teacher_name").eq("school_year", year).in("student_id", ids)
+        : { data: [] as any[] };
+      const pickOf = new Map((picks || []).map((p: any) => [Number(p.student_id), p]));
       res.set("Cache-Control", "no-store");
-      res.json(requests.filter(r => !r.resolved).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
+      res.json(requests.map(r => {
+        const p: any = pickOf.get(Number(r.userId));
+        return { ...r, advisory: p?.advisory_teacher_name || null, elaTeacher: p?.lit_teacher_name || null };
+      }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -2215,6 +2240,12 @@ export async function registerRoutes(
         return res.json({ success: true, teacherName: selected.name.trim(), message: `${selected.name.trim()} assigned to this student.` });
       }
       if (schoolId) await storage.assignStudentToSchool(studentId, schoolId);
+      // Placing the student in an advisory (the usual way now) instead of with one teacher.
+      const advisoryId = typeof req.body.advisoryId === "string" ? req.body.advisoryId : "";
+      if (advisoryId) {
+        const placed = await placeInAdvisory(studentId, advisoryId);
+        if (!placed.ok) return res.status(400).json({ message: placed.message });
+      }
       if (teacherId) {
         const teacher = await storage.getUser(teacherId);
         if (!teacher || teacher.role !== "teacher") return res.status(400).json({ message: "That teacher was not found." });
@@ -10757,14 +10788,14 @@ Important:
   });
 
   // Move one student to another advisory at their school (admin). Their ELA teacher is kept.
-  app.post("/api/teacher-admin/students/:id/advisory", authMiddleware, adminMiddleware, async (req: any, res) => {
-    try {
-      const student = await storage.getUser(Number(req.params.id));
-      if (!student || (student.role && student.role !== "student")) return res.status(404).json({ message: "Student not found." });
+  /** Puts a student in one of their school's advisories (and keeps their ELA teacher). */
+  async function placeInAdvisory(studentId: number, advisoryId: string): Promise<{ ok: true; advisory: string; name: string } | { ok: false; message: string; status: number }> {
+      const student = await storage.getUser(studentId);
+      if (!student || (student.role && student.role !== "student")) return { ok: false, status: 404, message: "Student not found." };
       const schoolId = Number((student as any).school_id ?? (student as any).schoolId);
       const school = schoolId ? await classTeacherStore.getSchool(schoolId) : null;
-      const found = school ? advisoriesForSchool(school.name).find((a) => a.id === req.body?.advisoryId) : undefined;
-      if (!school || !found) return res.status(400).json({ message: "Choose one of the student's school's advisories." });
+      const found = school ? advisoriesForSchool(school.name).find((a) => a.id === advisoryId) : undefined;
+      if (!school || !found) return { ok: false, status: 400, message: "Choose one of the student's school's advisories." };
       const year = schoolYearOf();
       const before = await classTeacherStore.getPick(student.id, year).catch(() => null);
       await classTeacherStore.savePick({
@@ -10778,7 +10809,13 @@ Important:
         .eq("id", student.id);
       if (moveError) throw new Error(moveError.message);
       try { clearCache("allUsers"); clearCache("advisoryLeaderboard"); } catch {}
-      res.json({ ok: true, advisory: advisoryName(found), message: `${student.displayName || student.username} is now in ${advisoryName(found)}.` });
+      return { ok: true, advisory: advisoryName(found), name: student.displayName || student.username };
+  }
+  app.post("/api/teacher-admin/students/:id/advisory", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const placed = await placeInAdvisory(Number(req.params.id), String(req.body?.advisoryId || ""));
+      if (!placed.ok) return res.status(placed.status).json({ message: placed.message });
+      res.json({ ok: true, advisory: placed.advisory, message: `${placed.name} is now in ${placed.advisory}.` });
     } catch (e: any) {
       res.status(500).json({ message: e?.message || "The advisory could not be changed." });
     }

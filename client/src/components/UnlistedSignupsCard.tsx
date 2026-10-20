@@ -9,7 +9,49 @@ type UnlistedSignup = {
   userId: number; username: string; displayName: string; gradeLevel: string | null;
   schoolId: number | null; schoolName: string | null; teacherName: string | null; createdAt: string;
   pendingTeacherName?: string | null;
+  /** The advisory and ELA teacher already on file for this school year (students are placed by advisory). */
+  advisory?: string | null; elaTeacher?: string | null;
 };
+
+type AdvisoryOption = { id: string; name: string; label: string };
+
+/** The school's advisories, for placing the student in one. Picks the one already on file. */
+function useAdvisories(schoolId: string, token: string | null) {
+  const [list, setList] = useState<AdvisoryOption[] | null>(null);
+  useEffect(() => {
+    if (!schoolId) { setList([]); return; }
+    let alive = true;
+    setList(null);
+    fetch(`${API_BASE}/api/schools/${encodeURIComponent(schoolId)}/advisories`, { headers: { Authorization: `Bearer ${token || cookieToken()}` }, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => { if (alive) setList(Array.isArray(d) ? d : []); })
+      .catch(() => { if (alive) setList([]); });
+    return () => { alive = false; };
+  }, [schoolId, token]);
+  return list;
+}
+
+/** Advisory dropdown for schools that have advisories; the old teacher dropdown for any that don't. */
+function PlacementSelect({ schoolId, grade, value, current, suggestedName, onChange }: {
+  schoolId: string; grade: string | null; value: string; current: string | null; suggestedName: string | null; onChange: (value: string) => void;
+}) {
+  const { token } = useAuth();
+  const advisories = useAdvisories(schoolId, token);
+  useEffect(() => {
+    if (!advisories?.length || value) return;
+    const mine = advisories.find((a) => a.name === current);
+    if (mine) onChange(`advisory:${mine.id}`);
+  }, [advisories, current]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (schoolId && advisories === null) return <select disabled aria-label="Advisory" className="w-full min-w-0 px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm opacity-60"><option>Loading advisories…</option></select>;
+  if (advisories && advisories.length) {
+    return <select value={value.startsWith("advisory:") ? value : ""} onChange={(e) => onChange(e.target.value)} aria-label="Advisory"
+      className="w-full min-w-0 max-w-full truncate px-3 py-2.5 rounded-lg bg-background border border-border text-foreground text-sm">
+      <option value="">Advisory…</option>
+      {advisories.map((a) => <option key={a.id} value={`advisory:${a.id}`}>{a.label}</option>)}
+    </select>;
+  }
+  return <SchoolTeacherSelect schoolId={schoolId} grade={grade} value={value} suggestedName={suggestedName} onChange={onChange} />;
+}
 
 type SchoolTeacher = { id: number | string; display_name?: string; displayName?: string; directory?: boolean };
 
@@ -96,7 +138,7 @@ export default function UnlistedSignupsCard() {
 
   const resolve = async (req: UnlistedSignup, pick: { schoolId: string; teacherId: string }, dismiss = false) => {
     if (!dismiss && !pick.schoolId && !pick.teacherId) { setError("Pick a school or teacher first, or tap Dismiss."); return; }
-    if (!dismiss && !req.schoolName && !pick.teacherId) { setError("Select a teacher before connecting this student."); return; }
+    if (!dismiss && !req.schoolName && !pick.teacherId) { setError("Choose an advisory before connecting this student."); return; }
     setBusy(req.userId); setError("");
     setNotice((prev) => ({ ...prev, [req.userId]: "" }));
     try {
@@ -105,7 +147,8 @@ export default function UnlistedSignupsCard() {
         headers: authHeaders(),
         body: JSON.stringify(dismiss ? {} : {
           schoolId: pick.schoolId || null,
-          ...(pick.teacherId.startsWith("directory:") ? { directoryTeacherId: pick.teacherId } : { teacherId: pick.teacherId || null }),
+          ...(pick.teacherId.startsWith("advisory:") ? { advisoryId: pick.teacherId.slice("advisory:".length) }
+            : pick.teacherId.startsWith("directory:") ? { directoryTeacherId: pick.teacherId } : { teacherId: pick.teacherId || null }),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -143,8 +186,7 @@ export default function UnlistedSignupsCard() {
             <p className="font-medium">{req.displayName} <span className="text-xs text-muted-foreground">@{req.username}{req.gradeLevel ? ` · Grade ${req.gradeLevel}` : ""}</span></p>
             {schoolLabel && <p className="text-xs text-muted-foreground">School: <strong className="text-foreground">{schoolLabel}</strong></p>}
             {req.schoolName && <p className="text-xs text-fuchsia-300">School they typed: <strong>{req.schoolName}</strong></p>}
-            {req.teacherName && <p className="text-xs text-fuchsia-300">Teacher they typed: <strong>{req.teacherName}</strong></p>}
-            {req.pendingTeacherName && <p className="text-xs font-semibold text-amber-600">Pending assignment: {req.pendingTeacherName} — waiting for a teacher account</p>}
+            <p className="text-xs text-fuchsia-300">Advisory: <strong>{req.advisory || "Not placed yet"}</strong>{req.elaTeacher ? <> · ELA: <strong>{req.elaTeacher}</strong></> : null}</p>
             <p className="text-[11px] text-muted-foreground">Signed up {new Date(req.createdAt).toLocaleDateString()}</p>
           </div>
         </div>
@@ -153,8 +195,8 @@ export default function UnlistedSignupsCard() {
             <option value="">School…</option>
             {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <SchoolTeacherSelect key={`${pick.schoolId}:${req.gradeLevel || "all"}`} schoolId={pick.schoolId} grade={req.gradeLevel}
-            value={pick.teacherId} suggestedName={req.pendingTeacherName || req.teacherName}
+          <PlacementSelect key={`${pick.schoolId}:${req.gradeLevel || "all"}`} schoolId={pick.schoolId} grade={req.gradeLevel}
+            value={pick.teacherId} current={req.advisory || null} suggestedName={req.pendingTeacherName || req.teacherName}
             onChange={teacherId => setPick(req.userId, { teacherId })} />
           <Button size="sm" disabled={busy === req.userId} onClick={() => void resolve(req, pick)} className="bg-green-600 hover:bg-green-700 text-white">
             <Check className="w-3.5 h-3.5" /><span className="ml-1">{pick.teacherId.startsWith("directory:") ? "Save pending" : "Connect"}</span>
@@ -175,11 +217,11 @@ export default function UnlistedSignupsCard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-fuchsia-400">
               <UserPlus className="w-5 h-5" />
-              Teacher Not Listed ({teacherOnly.length})
+              Not placed yet ({teacherOnly.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-muted-foreground mb-4">These students are already connected to their school. Select a registered teacher and click Connect, or choose a teacher marked "not signed up yet" and click Save pending. Pending assignments won't grant teacher access until that teacher registers.</p>
+            <p className="text-xs text-muted-foreground mb-4">These students are already connected to their school. Check their advisory, change it if needed, and click Connect.</p>
             {error && <p className="mb-3 text-xs font-semibold text-red-400">{error}</p>}
             <div className="space-y-3">{teacherOnly.map(renderRow)}</div>
           </CardContent>
@@ -194,7 +236,7 @@ export default function UnlistedSignupsCard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-muted-foreground mb-4">These students go to a school that isn't on A.R.I.S.E. yet. They are not independent readers. They have full student access. Add their school, then connect them to it and their teacher.</p>
+            <p className="text-xs text-muted-foreground mb-4">These students go to a school that isn't on A.R.I.S.E. yet. They are not independent readers. They have full student access. Add their school, then connect them to it and their advisory.</p>
             {error && teacherOnly.length === 0 && <p className="mb-3 text-xs font-semibold text-red-400">{error}</p>}
             <div className="space-y-3">{schoolMissing.map(renderRow)}</div>
           </CardContent>

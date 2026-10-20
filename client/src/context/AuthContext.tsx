@@ -37,7 +37,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   /** Redeems a one-use code from arisereader.com (teachers, parents, LifeHub accounts, the administrator). */
   completeAdminHandoff: (code: string) => Promise<AuthUser>;
-  register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string }) => Promise<void>;
+  register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   refreshUser: () => Promise<void>;
@@ -318,12 +318,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.user as AuthUser;
   }, [persistSession]);
 
-  const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string }) => {
+  const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => {
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     const res = await fetch(`${API_BASE}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, displayName, isEyeGazeUser, teacherId, schoolId, gradeLevel, unlistedSchoolName: unlisted?.schoolName || undefined, unlistedTeacherName: unlisted?.teacherName || undefined, directoryTeacherId: unlisted?.directoryTeacherId || undefined, independent: unlisted?.independent || undefined, directorySchool: unlisted?.directorySchool || undefined }),
+      body: JSON.stringify({ username, password, displayName, isEyeGazeUser, teacherId, schoolId, gradeLevel, unlistedSchoolName: unlisted?.schoolName || undefined, unlistedTeacherName: unlisted?.teacherName || undefined, directoryTeacherId: unlisted?.directoryTeacherId || undefined, independent: unlisted?.independent || undefined, directorySchool: unlisted?.directorySchool || undefined, advisoryId: unlisted?.advisoryId || undefined }),
     });
     if (!res.ok) {
       const data = await res.json();

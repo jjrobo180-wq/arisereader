@@ -261,3 +261,20 @@ test("admins have the admin console in the Reader's menu, one item per section",
   assert.match(reader, /<AdminConsole night section=\{adminSection\}/);
   assert.match(reader, /\.\.\.\(user\.isAdmin \? ADMIN_MENU : \[\]\)/, "on a phone too");
 });
+
+test("sign-up asks for the advisory at schools with advisories, and the admin's not-placed list shows and sets advisories", () => {
+  const reg = read("client/src/pages/Register.tsx");
+  assert.match(reg, /<Label htmlFor="teacher">\{byAdvisory \? "Advisory" : "Teacher"\}<\/Label>/);
+  assert.match(reg, /"Choose your advisory…"/);
+  assert.match(reg, /My advisory isn't listed/);
+  assert.match(reg, /advisoryId: advisoryPicked \? selectedTeacherId\.slice\("advisory:"\.length\) : undefined/);
+  assert.match(reg, /\/api\/public\/schools\/\$\{selectedSchoolId\}\/advisories/);
+  const routes = read("server/routes.ts");
+  assert.match(routes, /app\.get\("\/api\/public\/schools\/:id\/advisories", async/);
+  assert.match(routes, /try \{ await placeInAdvisory\(Number\(user\.id\), req\.body\.advisoryId\); \}/);
+  assert.match(routes, /const placed = await placeInAdvisory\(studentId, advisoryId\);/, "Connect on the not-placed list sets the advisory");
+  const card = read("client/src/components/UnlistedSignupsCard.tsx");
+  assert.match(card, /Advisory: <strong>\{req\.advisory \|\| "Not placed yet"\}<\/strong>/);
+  assert.doesNotMatch(card, /Teacher they typed/);
+  assert.match(card, /<option value="">Advisory…<\/option>/);
+});
