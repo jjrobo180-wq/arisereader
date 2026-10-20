@@ -427,7 +427,7 @@ export default function LeaderboardPage() {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-sm sm:text-base text-foreground">{adv.teacherName}'s Advisory</h3>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {adv.studentCount} student{adv.studentCount !== 1 ? "s" : ""} · {adv.quizzesCompleted} quiz{adv.quizzesCompleted !== 1 ? "zes" : ""} completed
+                              {adv.quizzesCompleted} quiz{adv.quizzesCompleted !== 1 ? "zes" : ""} completed
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">

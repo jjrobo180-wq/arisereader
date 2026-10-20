@@ -63,7 +63,7 @@ export function AdvisoryStandings({ view, mineName, limit, dense = false }: { vi
               </span>
               <span className="relative min-w-0 flex-1">
                 <span className={`block truncate font-bold text-white ${dense ? "text-[13px]" : "text-sm"}`}>{s.name}{isMine ? " · yours" : ""}</span>
-                {!dense && <span className="block text-[11px] font-semibold text-white/50">Grade {s.grade} · Room {s.room} · {s.students} students</span>}
+                {!dense && <span className="block text-[11px] font-semibold text-white/50">Grade {s.grade} · Room {s.room}</span>}
               </span>
               <span className="relative shrink-0 text-right">
                 <span className={`block font-black tabular-nums text-white ${dense ? "text-sm" : "text-base"}`}>{s.points.toLocaleString()}</span>
