@@ -377,8 +377,8 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   return <Redirect to="/" replace />;
 }
 
-/** A teacher (not the administrator) on arisereader.com opens the teacher Reader rather than a hub. */
-const readerFirst = (user: { role?: string | null; isAdmin?: boolean } | null | undefined) => !!user && user.role === "teacher" && !user.isAdmin;
+/** A teacher, parent or the administrator on arisereader.com opens the Reader rather than a hub. */
+const readerFirst = (user: { role?: string | null; isAdmin?: boolean } | null | undefined) => !!user && (user.isAdmin === true || user.role === "teacher" || user.role === "parent");
 
 /** Leaves the app for the Reader's own page (/reader): a real page load, not a hash change. */
 function OpenReaderPage() {

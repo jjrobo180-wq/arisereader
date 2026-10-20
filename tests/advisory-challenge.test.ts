@@ -146,12 +146,14 @@ test("the student leaderboard opens on this month's race, with the Advisory Chal
 test("a teacher who signs in on arisereader.com lands in the teacher Reader, with a banner that opens WorkHub", () => {
   const app = read("client/src/App.tsx");
   assert.match(app, /if \(onReaderDomain && readerFirst\(user\)\) return <OpenReaderPage \/>;\n    if \(onReaderDomain\) return <ReaderToHubHandoff \/>;/);
-  assert.match(app, /const readerFirst = \(user[^)]*\) => !!user && user\.role === "teacher" && !user\.isAdmin;/);
+  assert.match(app, /const readerFirst = \(user[^)]*\) => !!user && \(user\.isAdmin === true \|\| user\.role === "teacher" \|\| user\.role === "parent"\);/);
   assert.match(app, /onReaderDomain && readerFirst\(user\) \? <OpenReaderPage \/> : isHubAccount\(user\)/, "the home page too");
-  assert.match(read("client/src/pages/AriseReader.tsx"), /if \(!isParent\) return <TeacherReader tab=\{tab\} setTab=\{setTab\} workhubHref=\{back\.href\} \/>;/);
+  assert.match(read("client/src/pages/AriseReader.tsx"), /return <TeacherReader tab=\{isParent \? "reader" : tab\} setTab=\{setTab\} workhubHref=\{back\.href\} \/>;/);
   const page = read("client/src/pages/TeacherReader.tsx");
   assert.match(page, /Your whole teaching day, in one place\./);
-  assert.match(page, />Open your WorkHub<\/a>/);
+  assert.match(page, /Your family’s whole week, in one place\./, "parents get LifeHub");
+  assert.match(page, /\{user\.isAdmin \? "Admin" : isParent \? "Parent" : "Teacher"\}/);
+  assert.match(page, />Open your \{hub\.name\}<\/a>/);
   assert.doesNotMatch(page, /Not now/, "the WorkHub banner always shows");
   assert.match(page, /\{greeting\(\)\}, \{user\.displayName\}/);
   assert.match(page, /Needs you today/);
