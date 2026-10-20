@@ -23,6 +23,16 @@ jobs:
           cache: npm
       - run: npm ci
       - name: All tests
-        run: npx tsx --test tests/*.test.ts
+        # The failing tests are also listed as one annotation, so they show on the run's summary page.
+        shell: bash
+        run: |
+          set -o pipefail
+          npx tsx --test tests/*.test.ts 2>&1 | tee test-output.txt
+          status=$?
+          if [ $status -ne 0 ]; then
+            failed=$(grep -E "^not ok|^# (tests|pass|fail)" test-output.txt | head -60 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Failing tests::${failed}"
+          fi
+          exit $status
       - name: Production build
         run: npm run build
