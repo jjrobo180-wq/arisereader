@@ -60,7 +60,7 @@ import {
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
   Table, FolderOpen, QrCode, ShieldCheck, School,
   type LucideIcon,
-  Lock, Rocket, Heart,
+  Lock, Rocket, Heart, HeartHandshake,
 } from "lucide-react";
 import PluginStore, { ICONS as STORE_ICONS } from "@/components/plugin-store/PluginStore";
 import OfficeApp from "@/components/office/OfficeApp";
@@ -1240,6 +1240,16 @@ function TeacherHubPage() {
               })();
               // The admin console lives in A.R.I.S.E. Reader now (its menu, for admins), not in WorkHub.
               const adminBlock = null;
+              // Para Team (pages/ParaTeam.tsx): the teacher's shared space with their paras and 1:1s.
+              // Everyone gets it: teachers make a team, paras (often free To-Do accounts) join one.
+              const paraBlock = <div key="para-team" className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                <button type="button" onClick={() => { afterPick(); navigate("/para-team"); }} data-testid="hub-para-team" data-hub-nav title="Para Team: your paras and 1:1s, all in one place"
+                  className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-slate-700 transition hover:text-slate-950 md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm md:hover:bg-slate-100`}>
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-700 text-white shadow-sm"><HeartHandshake className="h-4 w-4" /></span>
+                  <span className={`${MENU_LABEL} md:hidden`}>Para Team</span>
+                  <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>Para Team</span>
+                </button>
+              </div>;
               const learning = <Fragment key="learning">
                 <div className={`hidden items-center gap-2 px-3 pb-1 pt-4 ${deskTop || deskCompact ? "" : "md:flex"}`} data-testid="hub-learning-heading">
                   <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Arise Learning</span>
@@ -1278,7 +1288,7 @@ function TeacherHubPage() {
                 // Drawn right below Arise Learning instead, not wherever the saved order put it.
                 if (entry.kind === "item" && entry.item.id === "admin") return null;
                 // Teachers and admins get Arise Learning here, right below Home (parents have it in LifeHub).
-                if (entry.kind === "item" && entry.item.id === "home") return <Fragment key="home-and-learning">{navItem(entry.item, menu.indexOf(entry.item))}{(user.role === "teacher" || user.isAdmin) && learning}{adminBlock}</Fragment>;
+                if (entry.kind === "item" && entry.item.id === "home") return <Fragment key="home-and-learning">{navItem(entry.item, menu.indexOf(entry.item))}{paraBlock}{(user.role === "teacher" || user.isAdmin) && learning}{adminBlock}</Fragment>;
                 if (entry.kind === "item") return navItem(entry.item, menu.indexOf(entry.item));
                 const f = entry.folder, here = entry.items.some((x) => x.id === group.id) && !kitOpen;
                 const open = openFolders.includes(f.id) || here;

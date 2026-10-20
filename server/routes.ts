@@ -4,6 +4,7 @@ import { dedupeBooksOnce } from "./bookDedupe";
 import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
+import { registerParaTeamRoutes, supabaseParaDb } from "./paraTeam";
 import { registerDropAppRoutes } from "./dropApp";
 import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
@@ -1433,6 +1434,8 @@ export async function registerRoutes(
   }, 15_000);
   // WorkHub goal quizzes (server/goalQuiz.ts): AI writes a quiz from a student's goals, for the teacher.
   registerGoalQuizRoutes(app, authMiddleware);
+  // Para Team (server/paraTeam.ts): a teacher's shared space with their paras and 1:1s.
+  registerParaTeamRoutes(app, { auth: authMiddleware, raw: raw as any, db: supabaseParaDb(getAdminSupabase) });
   registerDriveAppRoutes(app, authMiddleware, raw, {
     getAdminSupabase,
     storageLimitFor: async (userId) => {

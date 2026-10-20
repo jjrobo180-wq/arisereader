@@ -6,7 +6,7 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BellRing, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, HeartHandshake, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, appHref, isReaderHost } from "@/lib/hubs";
@@ -25,7 +25,7 @@ import "./teacherReader.css";
 type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
 /** Admin menu items that leave the Reader (or jump into a setting) rather than show a console section. */
 type AdminLink = "progress" | "polls" | "alerts";
-type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "challenge" | `admin:${AdminSection}` | `adminpart:${Exclude<OverviewPart, "home">}` | `adminlink:${AdminLink}`;
+type View = ReaderTab | "leaderboard" | "whatsnew" | "prizes" | "children" | "challenge" | "paraTeam" | `admin:${AdminSection}` | `adminpart:${Exclude<OverviewPart, "home">}` | `adminlink:${AdminLink}`;
 
 /** The admin console, as its own part of the menu (admins only). Its Overview is broken into one
  *  item per part, and the buttons that used to sit in the console's own header are items too. */
@@ -59,6 +59,8 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "readerScenes", label: "Scenes", icon: Clapperboard },
   { id: "readerGames", label: "Game time", icon: Timer },
   { id: "readerPrizes", label: "Prizes", icon: Sparkles },
+  // Para Team (pages/ParaTeam.tsx) is its own page in the app: this item goes there.
+  { id: "paraTeam", label: "Para Team", icon: HeartHandshake },
   { id: "whatsnew", label: "What's new", icon: Megaphone },
 ];
 
@@ -146,6 +148,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   };
 
   const go = (v: View) => {
+    if (v === "paraTeam") { window.location.assign(appHref("/para-team")); return; }
     if (v === "adminlink:progress" || v === "adminlink:polls") { window.location.assign(appHref(v === "adminlink:progress" ? "/progress" : "/polls")); return; }
     if (v === "adminlink:alerts") { setAdminSettings("alerts"); v = "admin:settings"; }
     setView(v);

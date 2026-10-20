@@ -96,6 +96,10 @@ app.use("/api/lifehub/drive/upload", express.raw({ type: "*/*", limit: "22mb" })
 // as Drive and My World above.
 app.use("/api/lifehub/drop/upload", express.raw({ type: "*/*", limit: "205mb" }));
 
+// Para Team uploads (server/paraTeam.ts): any file type arrives raw, same reason as Drive above.
+// The route checks the person is on the team and which types are allowed.
+app.use(/^\/api\/para-teams\/[^/]+\/files$/, express.raw({ type: "*/*", limit: "26mb" }));
+
 // Arise WorkHub: a workspace with a full caseload and connected calendars is bigger than the usual
 // request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.
 app.use("/api/teacher-hub/workspace", express.json({ limit: "6mb" }));

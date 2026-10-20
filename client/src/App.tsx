@@ -111,6 +111,8 @@ const ClassGoalBoard = lazyPage(() => import("./pages/ClassGoalBoard"));
 const AriseOffice = lazyPage(() => import("./pages/AriseOffice"));
 const PremiumStudio = lazyPage(() => import("./pages/PremiumStudio"));
 const ProApps = lazyPage(() => import("./pages/ProApps"));
+const ParaTeam = lazyPage(() => import("./pages/ParaTeam"));
+const JoinParaTeam = lazyPage(() => import("./pages/ParaTeam").then((m) => ({ default: m.JoinParaTeam })));
 // A.R.I.S.E. Reader for teachers and parents, on its own page outside both hubs (pages/AriseReader.tsx).
 const AriseReader = lazyPage(() => import("./pages/AriseReader"));
 import TodoGate from "@/components/TodoGate";
@@ -362,6 +364,9 @@ function StudentOnTodo() {
 function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean; onTodoDomain: boolean }) {
   const { user } = useAuth();
   if (!user) return null;
+  // Signed in from a Para Team invite link: straight back to join that team.
+  const paraJoin = pendingParaJoin();
+  if (paraJoin && isHubAccount(user)) return <Redirect to={`/para-team/join/${paraJoin}`} replace />;
   if (isHubAccount(user)) {
     // A teacher who signs in on arisereader.com stays in A.R.I.S.E. Reader (the teacher Reader at
     // /reader), with a banner there that opens their WorkHub. On arisetodo.com they get the hub.
@@ -375,6 +380,22 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
   }
   if (onTodoDomain) return <StudentOnTodo />;
   return <Redirect to="/" replace />;
+}
+
+/** The invite code someone was holding when they went to sign in or make an account (pages/ParaTeam.tsx). */
+function pendingParaJoin(): string {
+  try { const c = localStorage.getItem("para_team_join_code") || ""; return /^[a-z2-9]{12}$/.test(c) ? c : ""; } catch { return ""; }
+}
+
+/** A new account can land in a hub without passing the sign-in screen: send it on to join the team. */
+function ParaJoinResume() {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user || !isHubAccount(user)) return;
+    const code = pendingParaJoin();
+    if (code && !window.location.hash.startsWith("#/para-team/join/")) window.location.hash = `/para-team/join/${code}`;
+  }, [user]);
+  return null;
 }
 
 /** A teacher, parent or the administrator on arisereader.com opens the Reader rather than a hub. */
@@ -505,6 +526,14 @@ function AppRoutes() {
       </Route>
       <Route path="/office">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <AriseOffice /> : <Redirect to="/" replace />}
+      </Route>
+      {/* Para Team (pages/ParaTeam.tsx): a teacher's shared space with their paras and 1:1s. The
+          invite link opens the join page signed in or not; it brings them back here after signing in. */}
+      <Route path="/para-team/join/:code">
+        <JoinParaTeam />
+      </Route>
+      <Route path="/para-team">
+        {!user ? <Redirect to="/signin" replace /> : <ParaTeam />}
       </Route>
       <Route path="/pro">
         {!user ? <Redirect to="/signin" replace /> : isHubAccount(user) ? <ProApps /> : <Redirect to="/" replace />}
@@ -866,6 +895,7 @@ function AppInner() {
       {overlays && !isAdminPreview && !isDemoStudent && !isEyeGazeStudent && <WelcomeGuide />}
       {overlays && !isAdminPreview && <InstallAppPrompt />}
       {overlays && !isAdminPreview && (user?.role === "teacher" || user?.role === "parent" || user?.role === "todo" || user?.isAdmin) && <WorkHubTour />}
+      <ParaJoinResume />
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />
         <AdminPreviewBar />

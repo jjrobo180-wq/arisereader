@@ -123,6 +123,7 @@ import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection,
 import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
 import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
+import { HeartHandshake as ParaTeamIcon } from "lucide-react";
 import HeaderShortcut from "@/components/HeaderShortcut";
 import HubMark from "@/components/HubMark";
 import { HubTrialNote } from "@/components/HubTrialNote";
@@ -930,6 +931,12 @@ export default function AriseTodo() {
           {!has && dsk !== "compact" && <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: a.soft, color: a.color }}>Add-on</span>}
         </button>;
       })}
+      {/* Para Team (pages/ParaTeam.tsx): paras and 1:1s often have a LifeHub account, so it's here too. */}
+      <button type="button" onClick={() => { window.location.hash = "/para-team"; }} data-testid="life-para-team" title="Para Team"
+        className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-700 text-white shadow-sm"><ParaTeamIcon className="h-4 w-4" /></span>
+        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>Para Team</span>
+      </button>
       <SupportMenuItem isAdmin={user.isAdmin} testId="life-support"
         className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
         <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white shadow-sm"><HeartNav className="h-4 w-4 fill-current" /></span>
