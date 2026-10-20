@@ -174,3 +174,20 @@ test("the Reader opens the hub in a new tab, signs out to arisereader.com, and h
   assert.match(read("shared/hubLayout.ts"), /DEFAULT_LAYOUT: HubLayout = \{ menuSide: "left", deskSide: "left", folders: \[\], menuClose: "button"/);
   assert.match(read("shared/lifeLayout.ts"), /\{ menuSide: "left", menuClose: "button", homeHidden: \["widgets"\] \}/);
 });
+
+test("the donation banner can't be closed and shows in both hubs and the Reader; Support is in every sidebar", () => {
+  const support = read("client/src/components/SupportArise.tsx");
+  const banner = support.slice(support.indexOf("export function SupportBanner"), support.indexOf("export function SupportMenuItem"));
+  assert.doesNotMatch(banner, /support-banner-close|localStorage/, "no close button, nothing remembered");
+  assert.match(read("client/src/pages/TeacherHub.tsx"), /\{tab === "overview" && \(\n\s*<>\n\s*<SupportBanner \/>/);
+  assert.match(read("client/src/pages/TeacherHub.tsx"), /<SupportMenuItem isAdmin=\{!!user\?\.isAdmin\} testId="hub-support"/);
+  const life = read("client/src/pages/AriseTodo.tsx");
+  assert.match(life, /\{shown === "home" && <div className="mb-4"><SupportBanner \/><\/div>\}/, "every LifeHub account, not just parents");
+  assert.match(life, /<SupportMenuItem isAdmin=\{user\.isAdmin\} testId="life-support"/);
+  const reader = read("client/src/pages/TeacherReader.tsx");
+  assert.match(reader, /<SupportBanner dark \/>/);
+  assert.match(reader, /testId="reader-support"/);
+  assert.match(reader, /testId="reader-rail-support"/);
+  for (const href of ["/history/", "/math/", "/social/"]) assert.ok(reader.includes(`href: "${href}"`), href);
+  assert.match(reader, /Also on your account:/);
+});

@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
+import { SupportBanner, SupportMenuItem } from "@/components/SupportArise";
 import { STORE_KIND } from "@shared/hubSearch";
 import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
 import { buildWorkBrief } from "@shared/dailyBrief";
@@ -59,7 +60,7 @@ import {
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
   Table, FolderOpen, QrCode, ShieldCheck, School,
   type LucideIcon,
-  Lock, Rocket,
+  Lock, Rocket, Heart,
 } from "lucide-react";
 import PluginStore, { ICONS as STORE_ICONS } from "@/components/plugin-store/PluginStore";
 import OfficeApp from "@/components/office/OfficeApp";
@@ -1260,6 +1261,14 @@ function TeacherHubPage() {
                     </div>
                   );
                 })}
+                <div className={`flex ${across ? "snap-start" : "w-full"} shrink-0 ${deskTop ? "md:w-auto" : "md:w-full"}`}>
+                  <SupportMenuItem isAdmin={!!user?.isAdmin} testId="hub-support"
+                    className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-center text-[10px] font-semibold text-rose-700 transition md:min-h-11 md:flex-row ${deskCompact ? "md:justify-center" : "md:justify-start"} md:gap-2.5 md:px-3 md:py-1.5 md:text-left md:text-sm md:hover:bg-rose-50`}>
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white"><Heart className="h-4 w-4 fill-current" /></span>
+                    <span className={`${MENU_LABEL} md:hidden`}>Support</span>
+                    <span className={`hidden truncate md:inline ${deskCompact ? "md:sr-only" : ""}`}>Support A.R.I.S.E.</span>
+                  </SupportMenuItem>
+                </div>
               </Fragment>;
               const renderSidebarGroups = (groups: typeof menu, keepFolders: boolean) => foldMenu(groups, keepFolders ? layout.folders : [])
                 .filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0)
@@ -1560,6 +1569,7 @@ function TeacherHubPage() {
           <LockedApp locked={tab !== "overview" && appLocked(workspace.lock, tab)} name={TAB_META.find((m) => m.id === tab)?.label || "This screen"}>
           {tab === "overview" && (
             <>
+              <SupportBanner />
               {(() => {
                 // Home in the teacher's order. Press and hold (or Edit Home) to arrange it right here; Customize sets the same order.
                 // Widened past Record<HomeSection, ...> below so a pinned Kit plugin or Notes app (see pinId) can add its own entry.

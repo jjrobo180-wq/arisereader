@@ -1,12 +1,12 @@
 // "Support A.R.I.S.E.": a quiet heart button for the header, a one-line banner for Home, and the sheet
 // they both open — Mr. J's story in a few lines and the donation link saved in Admin → Donation goal.
-// It never opens on its own. The banner can be closed and then stays away for a month (shared/donate.ts).
-import { useEffect, useState } from "react";
+// It never opens on its own. The banner can't be closed: it stays on Home in both hubs and on the Reader.
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ExternalLink, Heart, Lock, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { appHref } from "@/lib/hubs";
-import { SUPPORT_BANNER_KEY, supportBannerVisible, type DonateInfo } from "@shared/donate";
+import type { DonateInfo } from "@shared/donate";
 
 let cached: Promise<DonateInfo | null> | null = null;
 /** The saved donation link, asked for once per page load and shared by every button and banner. */
@@ -80,22 +80,30 @@ export function SupportButton({ isAdmin = false, className = "" }: { isAdmin?: b
   </>;
 }
 
-/** One line on Home. Closing it hides it on this device for a month. */
-export function SupportBanner() {
+/** The donation banner. It always shows (there is no close button) wherever it's placed: Home in
+ *  both hubs and every screen of the Reader. `dark` is the Reader's dark purple version. */
+export function SupportBanner({ dark = false }: { dark?: boolean }) {
   const info = useDonateInfo();
   const [open, setOpen] = useState(false);
-  const [shown, setShown] = useState(() => { try { return supportBannerVisible(localStorage.getItem(SUPPORT_BANNER_KEY), Date.now()); } catch { return true; } });
-  if (!info || !shown) return null;
-  const close = () => { setShown(false); try { localStorage.setItem(SUPPORT_BANNER_KEY, new Date().toISOString()); } catch { /* it just shows again next time */ } };
+  if (!info) return null;
   return <>
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-rose-200/80 bg-gradient-to-r from-rose-50 to-violet-50 px-4 py-3" data-testid="support-banner">
+    <div className={`flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3 ${dark ? "border-rose-400/30 bg-[#24121c]" : "border-rose-200/80 bg-gradient-to-r from-rose-50 to-violet-50"}`} data-testid="support-banner">
       <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white"><Heart size={17} className="fill-current" /></span>
-      <p className="min-w-0 flex-1 text-sm text-slate-700"><span className="font-bold text-slate-900">A.R.I.S.E. is free, with no ads.</span> It's built by one teacher and runs on donations from families like yours.</p>
-      <div className="flex items-center gap-1.5">
-        <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white hover:bg-rose-700" data-testid="support-banner-open"><Heart size={14} className="fill-current" /> Support</button>
-        <button type="button" onClick={close} aria-label="Hide for a month" title="Hide for a month" className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-white hover:text-slate-600" data-testid="support-banner-close"><X size={16} /></button>
-      </div>
+      <p className={`min-w-0 flex-1 text-sm ${dark ? "text-rose-100/85" : "text-slate-700"}`}><span className={`font-bold ${dark ? "text-white" : "text-slate-900"}`}>A.R.I.S.E. is free, with no ads.</span> It's built by one teacher and runs on donations from families and teachers like you.</p>
+      <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white hover:bg-rose-700" data-testid="support-banner-open"><Heart size={14} className="fill-current" /> Support</button>
     </div>
+    {open && createPortal(<SupportSheet info={info} onClose={() => setOpen(false)} />, document.body)}
+  </>;
+}
+
+/** A menu item that opens the donation sheet: the hubs' and the Reader's sidebars use it, each
+ *  passing its own button look. Shows once a donation link is saved (or always for the admin). */
+export function SupportMenuItem({ isAdmin = false, className, children, testId = "support-menu-item" }: { isAdmin?: boolean; className: string; children: ReactNode; testId?: string }) {
+  const info = useDonateInfo();
+  const [open, setOpen] = useState(false);
+  if (!info && !isAdmin) return null;
+  return <>
+    <button type="button" onClick={() => setOpen(true)} className={className} title="Support A.R.I.S.E." data-testid={testId}>{children}</button>
     {open && createPortal(<SupportSheet info={info} onClose={() => setOpen(false)} />, document.body)}
   </>;
 }

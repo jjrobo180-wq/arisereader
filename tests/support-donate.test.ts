@@ -46,7 +46,7 @@ test("closing the Home banner hides it for a month, then it comes back", () => {
 test("parents see the button and banner in LifeHub and the Reader; the home page has the strip, section and pop-up", () => {
   const life = readFileSync(new URL("../client/src/pages/AriseTodo.tsx", import.meta.url), "utf8");
   assert.match(life, /user\.role === "parent" \|\| user\.isAdmin\) && <SupportButton/);
-  assert.match(life, /shown === "home" && user\.role === "parent" && <div className="mb-4"><SupportBanner \/>/);
+  assert.match(life, /shown === "home" && <div className="mb-4"><SupportBanner \/>/);
   const reader = readFileSync(new URL("../client/src/pages/TeacherReader.tsx", import.meta.url), "utf8");
   assert.match(reader, /<SupportButton/);
   const landing = readFileSync(new URL("../client/public/reader-landing.html", import.meta.url), "utf8");

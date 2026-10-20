@@ -6,13 +6,13 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, BookOpen, CheckCircle2, ChevronRight, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Calculator, Heart, Landmark, CheckCircle2, ChevronRight, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP } from "@/lib/hubs";
 import ReaderTools, { isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
-import { SupportButton } from "@/components/SupportArise";
+import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
 import { AdvisoryStandings, datesText } from "@/components/AdvisoryChallenge";
 import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
 import { ordinal } from "@shared/advisoryChallenge";
@@ -36,6 +36,13 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "readerScenes", label: "Scenes", icon: Clapperboard },
   { id: "readerGames", label: "Game time", icon: Timer },
   { id: "readerPrizes", label: "Prizes", icon: Sparkles },
+];
+
+/** Arise History, Arise Math and A.R.I.S.E. Connect, linked from the hub banner. */
+const LEARNING: Array<{ href: string; label: string; Icon: LucideIcon; color: string }> = [
+  { href: "/history/", label: "Arise History", Icon: Landmark, color: "#fbbf24" },
+  { href: "/math/", label: "Arise Math", Icon: Calculator, color: "#22d3ee" },
+  { href: "/social/", label: "A.R.I.S.E. Connect", Icon: Users, color: "#c4b5fd" },
 ];
 
 /** On a phone the menu is a rail down the left with a Hide button, the same as the hubs' default;
@@ -184,6 +191,14 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
               <div className="mt-1.5 flex flex-wrap gap-2.5">
                 <a href={workhubHref} className="inline-flex min-h-[46px] items-center rounded-xl px-5 text-base font-black" style={{ background: "#5eead4", color: "#062b27" }} target="_blank" rel="noopener" data-testid="reader-open-workhub">Open your {hub.name}</a>
               </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="reader-learning-apps">
+                <span className="text-[13px] font-bold" style={{ color: "#9fd4cc" }}>Also on your account:</span>
+                {LEARNING.map(({ href, label, Icon, color }) => (
+                  <a key={href} href={href} target="_blank" rel="noopener" className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-bold text-white hover:bg-white/5" style={{ borderColor: "#2c6f69" }}>
+                    <Icon className="h-4 w-4" style={{ color }} />{label}
+                  </a>
+                ))}
+              </div>
             </div>
             <div aria-hidden="true" className="grid flex-[0_1_380px] grid-cols-2 gap-2.5">
               {hub.tiles.map(([name, line]) => (
@@ -194,6 +209,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
               ))}
             </div>
           </section>
+          <div className="mt-3"><SupportBanner dark /></div>
         </div>
       )}
 
@@ -214,6 +230,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
               </button>
             );
           })}
+          <SupportMenuItem isAdmin={!!user.isAdmin} testId="reader-rail-support" className="flex min-h-[56px] w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center text-[10px] font-bold leading-tight">
+            <Heart className="h-5 w-5 fill-current" style={{ color: "#fb7185" }} /><span style={{ color: "#fecdd3" }}>Support</span>
+          </SupportMenuItem>
           <button type="button" onClick={() => setRail(false)} className="mt-auto min-h-11 rounded-xl border text-xs font-bold" style={{ borderColor: "rgba(255,255,255,0.14)", color: "#c9c5dc" }}>Hide</button>
         </nav>
       ) : (
@@ -236,6 +255,9 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
               </button>
             );
           })}
+          <SupportMenuItem isAdmin={!!user.isAdmin} testId="reader-support" className="mt-2 flex min-h-11 w-full items-center gap-2.5 rounded-xl border border-rose-400/30 px-3 text-left text-[15px] font-bold hover:bg-rose-500/10">
+            <Heart className="h-4 w-4 fill-current" style={{ color: "#fb7185" }} /><span style={{ color: "#fecdd3" }}>Support A.R.I.S.E.</span>
+          </SupportMenuItem>
         </nav>
 
         <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
