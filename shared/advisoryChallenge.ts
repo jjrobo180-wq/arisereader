@@ -84,17 +84,19 @@ export function daysLeft(c: Challenge, now = Date.now()): number {
   return Math.max(0, Math.ceil((challengeWindow(c).endMs - now) / 86_400_000) - 1);
 }
 
-export type Standing = { rank: number; name: string; grade: string; room: string; students: number; points: number };
+/** `books`: quizzes the advisory's students took during the challenge ("books read"). */
+export type Standing = { rank: number; name: string; grade: string; room: string; students: number; points: number; books: number };
 
 /** Advisories ranked by points, most first. Advisories with the same points share a place. */
-export function rankAdvisories(advisories: readonly Advisory[], studentAdvisory: ReadonlyMap<number, string>, points: ReadonlyMap<number, number>): Standing[] {
-  const rows = advisories.map((a) => ({ name: advisoryName(a), grade: a.grade || "", room: a.room || "", students: 0, points: 0 }));
+export function rankAdvisories(advisories: readonly Advisory[], studentAdvisory: ReadonlyMap<number, string>, points: ReadonlyMap<number, number>, books: ReadonlyMap<number, number> = new Map()): Standing[] {
+  const rows = advisories.map((a) => ({ name: advisoryName(a), grade: a.grade || "", room: a.room || "", students: 0, points: 0, books: 0 }));
   const byName = new Map(rows.map((r) => [r.name, r]));
   for (const [studentId, name] of studentAdvisory) {
     const row = byName.get(name);
     if (!row) continue;
     row.students += 1;
     row.points += points.get(studentId) || 0;
+    row.books += books.get(studentId) || 0;
   }
   for (const r of rows) r.points = Math.round(r.points * 10) / 10;
   rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));

@@ -1277,6 +1277,7 @@ export async function registerRoutes(
       return rows.map((r) => ({ studentId: Number(r.student_id), advisory: String(r.advisory_teacher_name || "").trim() }));
     },
     pointsBetween: (ids, from, to, fromDay, endDay) => storage.getPointsBetween(ids, from, to, fromDay, endDay),
+    quizzesBetween: (ids, from, to, fromDay, endDay) => storage.getQuizzesBetween(ids, from, to, fromDay, endDay),
     async parentChildren(parentId) {
       const ids = await getParentStudentIds(parentId);
       const kids = await Promise.all(ids.map((id) => storage.getUser(id)));
