@@ -1,22 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
 import { READABLE_BOOKS, type ReadableBook } from "@shared/readsCatalog";
-import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, newsReadMinutes, quickCategoryOf } from "@shared/ariseNews";
 import { NewsArt, sectionStyle } from "../news/useNews";
 import { POEMS, POEM_BANDS, poemLineCount, type PoemBand } from "@shared/poems";
 import { poemsRead, progressKey, readProgress, timeLabel, useLibrary, useReadsFonts } from "./useReads";
-import IAriseShelf from "./IAriseShelf";
 import "../news/news.css";
 import "./reads.css";
 
 const Back = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>;
 type Filter = "All" | "Short reads" | "Chapter books" | "Long novels";
-/** Spooky-but-friendly picks for October. */
-const SPOOKY = new Set([
-  "sleepy-hollow", "canterville-ghost", "hound-baskervilles", "christmas-carol", "secret-of-the-caves", "bungalow-mystery",
-  "jekyll-and-hyde", "frankenstein", "phantom-of-the-opera", "war-of-the-worlds",
-]);
 const linkFor = (b: ReadableBook) => `/reads/book/${b.key ?? b.bookId}`;
 const coverFor = (b: ReadableBook) => (b.key ? `/covers/reads/${b.key}.svg` : `${API_BASE}/api/book-cover/${b.bookId}`);
 const sizeOf = (words: number): Filter => (words < 30000 ? "Short reads" : words < 70000 ? "Chapter books" : "Long novels");
@@ -26,6 +20,12 @@ export default function ReadHub() {
   const { books, results, user } = useLibrary();
   const [filter, setFilter] = useState<Filter>("All");
   const [band, setBand] = useState<PoemBand | "All">("All");
+  const [cat, setCat] = useState("All");
+  const quick = useMemo(() => [...NEWS_ARTICLES].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn)), []);
+  const quickCats = QUICK_CATEGORIES.filter((c) => quick.some((a) => c.sections.includes(a.section)));
+  const quickShown = cat === "All" ? quick : quick.filter((a) => quickCategoryOf(a).label === cat);
+  // the library's "See all quick reads" button lands on /reads#quick
+  useEffect(() => { if (window.location.hash === "#quick") setTimeout(() => document.getElementById("quick")?.scrollIntoView({ block: "start" }), 50); }, []);
   const readPoems = useMemo(() => new Set(poemsRead(user?.id)), [user?.id]);
   const poems = POEMS.filter((p) => band === "All" || p.band === band);
   const jumpTo = (id: string) => (e: { preventDefault(): void }) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
@@ -37,7 +37,6 @@ export default function ReadHub() {
   const result = (id: number) => results.find((r) => r.bookId === id);
   const prog = (b: ReadableBook) => progress[progressKey(b)];
   const reading = available.filter((b) => prog(b) && !prog(b).finished);
-  const spooky = available.filter((b) => b.key && SPOOKY.has(b.key));
   const shown = available.filter((b) => filter === "All" || sizeOf(b.words) === filter);
 
   function bookCard(b: ReadableBook) {
@@ -61,19 +60,37 @@ export default function ReadHub() {
         <div className="nw-wrap">
           <div className="nw-topline"><Link href="/library" className="nw-back"><Back /><span>Library</span></Link></div>
           <h1 className="nw-wordmark">Read <span>on Arise</span></h1>
-          <p className="nw-tagline">{available.length} books, {POEMS.length} poems, iARISE lessons and {NEWS_ARTICLES.length} articles you can read right here. Finish a book or article, pass the quiz, earn points.</p>
+          <p className="nw-tagline">Start with a 5-minute read: {NEWS_ARTICLES.length} short stories about sports, soccer, famous people, speeches and wild facts. Plus {available.length} books and {POEMS.length} poems. Finish one, pass the quiz, earn points.</p>
           <nav className="rd-jump" aria-label="Jump to">
+            <button type="button" onClick={jumpTo("quick")}>⚡ 5-Minute Reads</button>
             {reading.length > 0 && <button type="button" onClick={jumpTo("continue")}>Continue reading</button>}
-            {spooky.length > 0 && <button type="button" onClick={jumpTo("spooky")}>Spooky stories</button>}
-            <button type="button" onClick={jumpTo("books")}>Books</button>
             <button type="button" onClick={jumpTo("poetry")}>Poetry</button>
-            <button type="button" onClick={jumpTo("iarise")}>iARISE</button>
-            <button type="button" onClick={jumpTo("articles")}>Articles</button>
+            <button type="button" onClick={jumpTo("books")}>Books</button>
           </nav>
         </div>
       </header>
 
       <div className="nw-wrap">
+        <section className="nw-block" id="quick" aria-labelledby="quick-h">
+          <div className="nw-block-head"><h2 id="quick-h">⚡ 5-Minute Reads</h2><p>Every one is short enough to finish in 5 minutes or less. Read it, take the 5-question quiz, earn {NEWS_POINTS} points.</p></div>
+          <nav className="nw-filter" aria-label="Kinds of quick reads">
+            <button type="button" className="nw-chip" aria-pressed={cat === "All"} onClick={() => setCat("All")}>All {quick.length}</button>
+            {quickCats.map((c) => <button key={c.label} type="button" className="nw-chip" aria-pressed={cat === c.label} onClick={() => setCat(c.label)}><span aria-hidden="true">{c.emoji} </span>{c.label}</button>)}
+          </nav>
+          <div className="nw-grid">
+            {quickShown.map((a) => (
+              <Link key={a.slug} href={`/news/${a.slug}`} className="nw-card" style={sectionStyle(a)}>
+                <NewsArt article={a} />
+                <div className="nw-card-text">
+                  <span className="nw-kicker"><span className="nw-section">{quickCategoryOf(a).emoji} {quickCategoryOf(a).label}</span></span>
+                  <h3>{a.title}</h3>
+                  <div className="nw-meta"><span>⏱ {newsReadMinutes(a)} min read</span><span className="nw-pts">{NEWS_POINTS} pts</span></div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {reading.length > 0 && (
           <section className="nw-block" id="continue" aria-labelledby="continue-h">
             <div className="nw-block-head"><h2 id="continue-h">Continue reading</h2></div>
@@ -93,13 +110,6 @@ export default function ReadHub() {
                 );
               })}
             </div>
-          </section>
-        )}
-
-        {spooky.length > 0 && (
-          <section className="nw-block" id="spooky" aria-labelledby="spooky-h">
-            <div className="nw-block-head"><h2 id="spooky-h">Spooky stories</h2><p>Ghosts, monsters, mysteries and a hound on the moor. Shivery, not scary.</p></div>
-            <div className="rd-books">{spooky.map((b) => bookCard(b))}</div>
           </section>
         )}
 
@@ -129,23 +139,6 @@ export default function ReadHub() {
           </div>
         </section>
 
-        <IAriseShelf books={books} results={results} />
-
-        <section className="nw-block" id="articles" aria-labelledby="articles-h">
-          <div className="nw-block-head"><h2 id="articles-h">Articles</h2><p>World news and features from Arise News. {NEWS_POINTS} points each.</p><Link href="/news" className="rd-more">Open Arise News</Link></div>
-          <div className="nw-grid">
-            {[...WORLD_NEWS, ...FEATURES].slice(0, 9).map((a) => (
-              <Link key={a.slug} href={`/news/${a.slug}`} className="nw-card" style={sectionStyle(a)}>
-                <NewsArt article={a} />
-                <div className="nw-card-text">
-                  <span className="nw-kicker">{a.kind === "news" && <span className="nw-section">World News</span>}<span className="nw-section">{a.section}</span></span>
-                  <h3>{a.title}</h3>
-                  <div className="nw-meta"><span>{newsReadMinutes(a)} min read</span></div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
       </div>
       <footer className="nw-foot"><div className="nw-wrap">Every book and poem here is in the public domain. Quizzes and points work the same as the rest of the library.</div></footer>
     </main>

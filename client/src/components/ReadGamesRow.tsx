@@ -16,7 +16,7 @@ type Props = {
 };
 
 export default function ReadGamesRow({ games: half, covers, books, poems, articles, onReads, onGames }: Props) {
-  const readsLong = `${books} full books, ${poems} poems, iARISE lessons + ${articles} articles you can read right here · then take the quiz`;
+  const readsLong = `${articles} 5-minute reads, ${poems} poems + ${books} full books you can read right here · then take the quiz`;
   const gamesLong = "All game worlds + multiplayer games · 10 minutes daily · Pass quizzes for more time";
   const pad = half ? "gap-2.5 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3" : "gap-4 px-4 py-3";
   const icon = half ? "h-9 w-9 sm:h-11 sm:w-11" : "h-11 w-11";
@@ -37,7 +37,7 @@ export default function ReadGamesRow({ games: half, covers, books, poems, articl
         <span className={`grid grid-cols-1 shrink-0 place-items-center rounded-xl bg-[#17143b] text-white ${icon} ${half ? "xl:hidden" : "sm:hidden"}`}><BookOpen className={glyph} /></span>
         <span className="min-w-0 flex-1">
           <span className={`flex flex-wrap items-center gap-x-2 font-black leading-tight ${title}`}>Read on Arise<span className={`rounded-full bg-[#7048e8] px-2 py-0.5 text-[10px] font-black text-white ${half ? "hidden sm:inline" : ""}`}>NEW</span></span>
-          {half && <span className="mt-0.5 block text-[11px] font-bold leading-snug text-[#5d5a7a] sm:hidden">Books, poems &amp; articles</span>}
+          {half && <span className="mt-0.5 block text-[11px] font-bold leading-snug text-[#5d5a7a] sm:hidden">5-minute reads, poems &amp; books</span>}
           <span className={`text-xs font-bold text-[#5d5a7a] ${half ? "hidden sm:block" : "block sm:text-sm"}`}>{readsLong}</span>
         </span>
         {!half && <span className="hidden rounded-full bg-[#17143b] px-4 py-2 text-xs font-black text-white sm:inline">START READING</span>}
