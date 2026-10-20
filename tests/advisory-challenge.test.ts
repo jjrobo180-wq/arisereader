@@ -148,9 +148,13 @@ test("a teacher who signs in on arisereader.com lands in the teacher Reader, wit
   assert.match(app, /if \(onReaderDomain && readerFirst\(user\)\) return <OpenReaderPage \/>;\n    if \(onReaderDomain\) return <ReaderToHubHandoff \/>;/);
   assert.match(app, /const readerFirst = \(user[^)]*\) => !!user && user\.role === "teacher" && !user\.isAdmin;/);
   assert.match(app, /onReaderDomain && readerFirst\(user\) \? <OpenReaderPage \/> : isHubAccount\(user\)/, "the home page too");
-  const page = read("client/src/pages/AriseReader.tsx");
-  assert.match(page, /\{user\.role === "teacher" && <WorkHubBanner href=\{back\.href\} \/>\}/);
+  assert.match(read("client/src/pages/AriseReader.tsx"), /if \(!isParent\) return <TeacherReader tab=\{tab\} setTab=\{setTab\} workhubHref=\{back\.href\} \/>;/);
+  const page = read("client/src/pages/TeacherReader.tsx");
   assert.match(page, /Your whole teaching day, in one place\./);
   assert.match(page, />Open your WorkHub<\/a>/);
-  assert.match(page, /localStorage\.getItem\("arise-hub-night"\) !== "0"/, "dark unless day mode was picked");
+  assert.match(page, /\{greeting\(\)\}, \{user\.displayName\}/);
+  assert.match(page, /Needs you today/);
+  assert.match(page, /See standings/);
+  assert.deepEqual(["Overview", "Students", "Approvals", "Quizzes & grading", "Live quiz", "Parents", "Advisory & Lit", "Leaderboard"].map((l) => page.includes(`label: "${l}"`)), Array(8).fill(true));
+  assert.match(page, /export const shortSchool = /);
 });

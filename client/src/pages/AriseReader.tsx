@@ -18,6 +18,7 @@ import HubMark from "@/components/HubMark";
 import { SupportButton } from "@/components/SupportArise";
 import ReaderTools, { READER_TABS, isReaderTab, type ReaderTab } from "@/components/teacher-hub/HubReaderTools";
 import ParentReader from "@/components/family-hub/Reader";
+import TeacherReader from "./TeacherReader";
 import { SUB_LABELS } from "@shared/hubTabGroups";
 import type { HubTab } from "@shared/teacherHub";
 import { cleanAccent, deepenAccent, DEFAULT_ACCENT } from "@shared/hubAccent";
@@ -62,8 +63,7 @@ export default function AriseReader() {
 function ReaderPage() {
   const { user, logout } = useAuth();
   const [tab, setTabState] = useState<ReaderTab>(firstTab);
-  // Night (the dark Reader look) unless this person picked day mode before.
-  const [night, setNight] = useState(() => { try { return localStorage.getItem("arise-hub-night") !== "0"; } catch { return true; } });
+  const [night, setNight] = useState(() => { try { return localStorage.getItem("arise-hub-night") === "1"; } catch { return false; } });
   const isParent = user?.role === "parent";
   const back = hubFor(user?.role);
 
@@ -114,6 +114,10 @@ function ReaderPage() {
   // Every Reader screen, Live quiz and Scenes included: the hub only links here now, so one left
   // out of this row would have no way in at all.
   const screens = READER_TABS;
+
+  // Teachers (and the administrator) get the teacher Reader: its own dark look, menu on the left,
+  // and the banner that opens WorkHub (pages/TeacherReader.tsx). Parents keep the page below.
+  if (!isParent) return <TeacherReader tab={tab} setTab={setTab} workhubHref={back.href} />;
 
   return (
     <div className={`hub-paper min-h-screen w-full max-w-[100vw] overflow-x-clip bg-slate-100 text-slate-950 ${night ? "hub-night" : ""}`}
@@ -171,50 +175,10 @@ function ReaderPage() {
               ))}
             </nav>
 
-            {user.role === "teacher" && <WorkHubBanner href={back.href} />}
-
             <ReaderTools tab={tab} openTab={(t) => { if (isReaderTab(t)) setTab(t); }} night={night} />
           </>
         )}
       </main>
     </div>
-  );
-}
-
-const BANNER_KEY = "reader_workhub_banner_hidden";
-const HUB_TILES: Array<[string, string]> = [
-  ["Lessons", "Plans for every class"],
-  ["IEP & Meetings", "Minutes and meeting times"],
-  ["Tasks", "Your to-do list"],
-  ["Notes", "Everything you jot down"],
-];
-
-/** Teachers who sign in on arisereader.com land here, in the Reader. This invites them into Arise
- *  WorkHub, which comes with their account. "Not now" hides it until they next sign in. */
-function WorkHubBanner({ href }: { href: string }) {
-  const [hidden, setHidden] = useState(() => { try { return sessionStorage.getItem(BANNER_KEY) === "1"; } catch { return false; } });
-  if (hidden) return null;
-  const hide = () => { setHidden(true); try { sessionStorage.setItem(BANNER_KEY, "1"); } catch { /* shows again on reload */ } };
-  return (
-    <section aria-label="Open your WorkHub" data-testid="reader-workhub-banner"
-      className="flex flex-wrap items-center gap-x-8 gap-y-5 overflow-hidden rounded-[22px] border border-[#2c6f69] bg-[#0f2624] p-5 text-white sm:p-6">
-      <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
-        <span className="self-start rounded-full bg-[#5eead4] px-2.5 py-0.5 text-[13px] font-extrabold text-[#0f2624]">Included with your account</span>
-        <h2 className="text-2xl font-black leading-tight tracking-tight sm:text-[28px]">Your whole teaching day, in one place.</h2>
-        <p className="max-w-xl text-[15px] leading-6 text-[#b9e4de]">Arise WorkHub keeps your lessons, IEP minutes, meetings, tasks and notes together, and your Reader class comes with you.</p>
-        <div className="mt-1.5 flex flex-wrap gap-2.5">
-          <a href={href} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#5eead4] px-5 text-[15px] font-black text-[#062b27] hover:bg-[#99f6e4]" data-testid="reader-open-workhub">Open your WorkHub</a>
-          <button type="button" onClick={hide} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#2c6f69] px-4 text-[15px] font-bold text-[#b9e4de] hover:bg-white/5">Not now</button>
-        </div>
-      </div>
-      <div aria-hidden="true" className="grid flex-[0_1_380px] grid-cols-2 gap-2.5">
-        {HUB_TILES.map(([name, line]) => (
-          <div key={name} className="flex flex-col gap-1 rounded-2xl border border-[#22524d] bg-[#133a36] px-3.5 py-3">
-            <span className="text-[15px] font-extrabold text-white">{name}</span>
-            <span className="text-[13px] text-[#9fd4cc]">{line}</span>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }

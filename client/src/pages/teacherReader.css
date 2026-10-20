@@ -1,0 +1,15 @@
+/* The teacher Reader's colors (the approved prototype): deep purple-black, purple surfaces.
+   The Reader screens inside use the hub's night theme; these rules swap its blue-grey for these. */
+.teacher-reader.hub-night { background: #0d0b1a; color: #ece9f7; }
+.teacher-reader.hub-night .bg-white, .teacher-reader.hub-night .bg-white\/95,
+.teacher-reader.hub-night .bg-white\/80, .teacher-reader.hub-night .bg-white\/90 { background-color: #151326; }
+.teacher-reader.hub-night .bg-slate-100, .teacher-reader.hub-night .bg-slate-100\/95 { background-color: #0d0b1a; }
+.teacher-reader.hub-night [class*="bg-[#f"], .teacher-reader.hub-night [class*="bg-[#e"],
+.teacher-reader.hub-night .bg-gray-50, .teacher-reader.hub-night .bg-gray-100,
+.teacher-reader.hub-night .bg-slate-50, .teacher-reader.hub-night .hover\:bg-slate-50:hover,
+.teacher-reader.hub-night .hover\:bg-slate-100:hover,
+.teacher-reader.hub-night .bg-slate-100.rounded-full, .teacher-reader.hub-night .bg-slate-100.rounded-xl { background-color: #1f1c36; }
+.teacher-reader.hub-night .bg-slate-950 { background-color: #7c3aed; }
+.teacher-reader.hub-night .hover\:bg-slate-800:hover { background-color: #6d28d9; }
+.teacher-reader.hub-night input, .teacher-reader.hub-night select, .teacher-reader.hub-night textarea { background-color: #0f0d1d; color: #ece9f7; border-color: rgba(255, 255, 255, 0.14); }
+.teacher-reader.hub-night .border-slate-200, .teacher-reader.hub-night .border-slate-100, .teacher-reader.hub-night .border-gray-200 { border-color: rgba(255, 255, 255, 0.08); }
