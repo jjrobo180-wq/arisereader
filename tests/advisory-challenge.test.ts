@@ -161,3 +161,16 @@ test("a teacher who signs in on arisereader.com lands in the teacher Reader, wit
   assert.deepEqual(["Overview", "Students", "Approvals", "Quizzes & grading", "Live quiz", "Parents", "Advisory & Lit", "Leaderboard"].map((l) => page.includes(`label: "${l}"`)), Array(8).fill(true));
   assert.match(page, /export const shortSchool = /);
 });
+
+test("the Reader opens the hub in a new tab, signs out to arisereader.com, and has a phone rail with a Hide button", () => {
+  const page = read("client/src/pages/TeacherReader.tsx");
+  assert.match(page, /target="_blank" rel="noopener" data-testid="reader-open-workhub"/);
+  assert.match(page, /export const READER_SIGN_IN = `\$\{READER_APP\}#\/signin`;/);
+  assert.match(page, /onClick=\{\(\) => \{ logout\(\); window\.location\.assign\(READER_SIGN_IN\); \}\}/);
+  assert.match(page, /localStorage\.getItem\(RAIL_KEY\) !== "closed"/, "the phone rail starts open");
+  assert.match(page, /onClick=\{\(\) => setRail\(false\)\}[^>]*>Hide<\/button>/);
+  assert.match(page, /className="hidden max-w-\[260px\][^"]*lg:flex"/, "computers get the sidebar on the left");
+  // The hubs' own default is the same: sidebar left on a computer, left rail with a Hide button on a phone.
+  assert.match(read("shared/hubLayout.ts"), /DEFAULT_LAYOUT: HubLayout = \{ menuSide: "left", deskSide: "left", folders: \[\], menuClose: "button"/);
+  assert.match(read("shared/lifeLayout.ts"), /\{ menuSide: "left", menuClose: "button", homeHidden: \["widgets"\] \}/);
+});
