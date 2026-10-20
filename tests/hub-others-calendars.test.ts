@@ -104,7 +104,8 @@ test("the Calendar tab follows someone else's calendar, and meeting times are su
     "owner: theirs, ...(busyOnly ? { busyOnly: true } : {})", "Type whose calendar it is", "Paste their calendar's link", "<OthersSchedule workspace={workspace} today={today} />", "<AskForCalendar sender={workspace.profile.senderName", "Someone else's</span>"]) assert.ok(cal.includes(part), part);
   for (const part of ['data-testid="ask-for-calendar"', "How do I get someone else's calendar link?", "askForCalendarMessage(sender)", "CALENDAR_LINK_STEPS.map(", "navigator.clipboard.writeText(text)", "Copy the message", "mailto:?subject=${encodeURIComponent(ASK_CALENDAR_SUBJECT)}", "sms:?&body=", "Email it", "Text it",
     'data-testid="others-schedule"', "othersEvents(workspace, today, addDays(today, 13))", "These are not on your calendar and send you no reminders."]) assert.ok(others.includes(part), part);
-  for (const part of ['data-testid="poll-clear-of"', "Also keep clear of:", "othersEvents(workspace, today, addDays(today, 120)", "busyPeople(theirEvents, t)", 'data-testid="poll-busy-people"', "and on the calendars you follow"]) assert.ok(poll.includes(part), part);
+  // Since the tap-to-pick redesign (#205) the followed calendars' busy times are simply kept off the times offered.
+  for (const part of ['data-testid="poll-clear-of"', "Also keep clear of:", "othersEvents(workspace, today, addDays(today, 120)"]) assert.ok(poll.includes(part), part);
   // Everywhere the teacher's own calendar is read, it is read through the one function that leaves other people's events out.
   assert.ok(read("shared/hubReminders.ts").includes("calendarEvents(workspace, date, date)") && cal.includes("calendarEvents(workspace, span.from, span.to)"));
   assert.ok(read("shared/hubHidden.ts").includes("filter(isOthers)"));
@@ -121,7 +122,10 @@ test('the IEP pages say "availability", with a tip in small letters where it is 
     assert.ok(!/free times?|usually free|are free\b/i.test(shown(source)), `${name} still says free time`);
   }
   for (const part of ["My availability", "Save my availability", "Your availability is saved.", "No availability yet.", "Add a time", "Fill in from my availability", "usually available for each time offered"]) assert.ok(editor.includes(part), part);
-  for (const part of ["Set your availability first.", "Your availability", "Edit my availability", "Suggested from your availability", "Looking at your availability…", "add more availability"]) assert.ok(poll.includes(part), part);
+  // The times to pick from moved into HubPollTimes in the tap-to-pick redesign (#205).
+  const times = read("client/src/components/teacher-hub/HubPollTimes.tsx");
+  for (const part of ["Set your availability first.", "Your availability"]) assert.ok(poll.includes(part), part);
+  for (const part of ["My availability", "Looking at your availability…", "add more availability", "Set your availability to see open times"]) assert.ok(times.includes(part), part);
   assert.ok(guide.includes("Availability (used to suggest meeting times)"));
   assert.ok(page.includes("whether you're usually available for these times, if you saved your availability there"));
   assert.ok(server.includes('"Could not load your availability."') && server.includes('"Could not save your availability."'));

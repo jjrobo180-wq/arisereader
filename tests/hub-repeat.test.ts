@@ -167,7 +167,8 @@ test("the screens carry all of it, Home included", () => {
   const cal = read("client/src/components/teacher-hub/HubCalendar.tsx"), page = read("client/src/pages/TeacherHub.tsx"), modal = read("client/src/components/teacher-hub/HubTaskEdit.tsx"), poll = read("client/src/components/teacher-hub/HubMeetingPoll.tsx");
   for (const part of ['data-testid="event-repeat"', "EVENT_REPEATS.map", 'data-testid="event-hide"', 'data-testid="hidden-events"', "Every one with this name", "Just this one", "All of them", "calendarEvents(workspace, span.from, span.to)", 'aria-label="Previous day"', 'aria-label="Next day"', "moveOccurrence(p, seriesId, date, to, () => newId)"]) assert.ok(cal.includes(part), part);
   assert.ok(!/openRanges\(workday, workspace\.events/.test(cal), "free time is worked out without hidden events and with repeating ones");
-  assert.ok(poll.includes("calendarEvents(workspace, today, addDays(today, 120))"), "meeting suggestions too");
+  // Meeting times are kept off everything booked, read through the same calendarEvents (shared/hubBusy.ts).
+  assert.ok(poll.includes("bookedTimes(workspace, today, addDays(today, 120)") && read("shared/hubBusy.ts").includes("for (const e of calendarEvents(ws, from, to))"), "meeting suggestions too");
   for (const part of ['data-testid="home-task-add"', 'data-testid="home-tasks-all"', 'data-testid="clear-done"', "function TaskRow(", "onToggle={checkTask}", "restoreTasks(p.tasks, cleared)"]) assert.ok(page.includes(part), part);
   assert.equal(page.split("<TaskRow ").length - 1, 2, "the same to-do row on Home and in Reminders & to-dos");
   for (const part of ['data-testid="task-delete"', 'label="Notes"']) assert.ok(modal.includes(part), part);

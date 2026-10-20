@@ -57,7 +57,8 @@ test("the AI's answer is cleaned like saved data: bad times pulled into waking h
 });
 
 test("today: done, skip, snooze and undo work, and snoozing moves only today's reminder", () => {
-  let plan = builtinPlan(req);
+  // Made the morning of the day being tested, so the week's score never depends on the real date.
+  let plan = builtinPlan(req, `${MONDAY}T06:00:00Z`);
   const first = todayItems(plan, MONDAY, 0)[0];
   assert.equal(first.state, "later");
   assert.equal(todayItems(plan, MONDAY, 23 * 60)[0].state, "due");
