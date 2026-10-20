@@ -152,6 +152,7 @@ test("a teacher who signs in on arisereader.com lands in the teacher Reader, wit
   const page = read("client/src/pages/TeacherReader.tsx");
   assert.match(page, /Your whole teaching day, in one place\./);
   assert.match(page, />Open your WorkHub<\/a>/);
+  assert.doesNotMatch(page, /Not now/, "the WorkHub banner always shows");
   assert.match(page, /\{greeting\(\)\}, \{user\.displayName\}/);
   assert.match(page, /Needs you today/);
   assert.match(page, /See standings/);

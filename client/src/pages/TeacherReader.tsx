@@ -39,7 +39,6 @@ export const shortSchool = (name: string) => name.replace(/\s*\(.*\)\s*$/, "").r
 
 const greeting = (h = new Date().getHours()) => (h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening");
 
-const BANNER_KEY = "reader_workhub_banner_hidden";
 const HUB_TILES: Array<[string, string]> = [
   ["Lessons", "Plans for every class"],
   ["IEP & Meetings", "Minutes and meeting times"],
@@ -54,7 +53,6 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   const [view, setView] = useState<View>(tab);
   const [school, setSchool] = useState("");
   const [counts, setCounts] = useState<Counts | null>(null);
-  const [bannerHidden, setBannerHidden] = useState(() => { try { return sessionStorage.getItem(BANNER_KEY) === "1"; } catch { return false; } });
   const challenge = useAdvisoryChallenge(token);
 
   const go = (v: View) => {
@@ -125,7 +123,6 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
 
   if (!user) return null;
 
-  const hideBanner = () => { setBannerHidden(true); try { sessionStorage.setItem(BANNER_KEY, "1"); } catch { /* shows again on reload */ } };
   const badge = (id: View) => (id === "readerApprovals" ? toApprove : id === "readerQuizzes" ? counts?.toGrade || 0 : 0);
   const dim = "rgba(255,255,255,0.08)";
 
@@ -145,7 +142,8 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
         </div>
       </header>
 
-      {!bannerHidden && (
+      {/* Always shown: there is no way to hide it. */}
+      {(
         <div className="px-6 pt-[18px]">
           <section aria-label="Open your WorkHub" data-testid="reader-workhub-banner"
             className="flex flex-wrap items-center gap-x-8 gap-y-5 overflow-hidden rounded-[22px] border px-[26px] py-[22px]" style={{ borderColor: "#2c6f69", background: "#0f2624" }}>
@@ -155,7 +153,6 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
               <p className="max-w-[560px] text-base leading-[1.45]" style={{ color: "#b9e4de" }}>Arise WorkHub keeps your lessons, IEP minutes, meetings, tasks and notes together, and your Reader class comes with you.</p>
               <div className="mt-1.5 flex flex-wrap gap-2.5">
                 <a href={workhubHref} className="inline-flex min-h-[46px] items-center rounded-xl px-5 text-base font-black" style={{ background: "#5eead4", color: "#062b27" }} data-testid="reader-open-workhub">Open your WorkHub</a>
-                <button type="button" onClick={hideBanner} className="min-h-[46px] rounded-xl border px-4 text-[15px] font-bold" style={{ borderColor: "#2c6f69", color: "#b9e4de" }}>Not now</button>
               </div>
             </div>
             <div aria-hidden="true" className="grid flex-[0_1_380px] grid-cols-2 gap-2.5">
