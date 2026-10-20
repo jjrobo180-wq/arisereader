@@ -26,9 +26,10 @@ jobs:
         # The failing tests are also listed as one annotation, so they show on the run's summary page.
         shell: bash
         run: |
-          set -o pipefail
-          npx tsx --test tests/*.test.ts 2>&1 | tee test-output.txt
+          set +e
+          npx tsx --test tests/*.test.ts > test-output.txt 2>&1
           status=$?
+          cat test-output.txt
           if [ $status -ne 0 ]; then
             failed=$(grep -E "^not ok|^# (tests|pass|fail)" test-output.txt | head -60 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=Failing tests::${failed}"
