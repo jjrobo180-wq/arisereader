@@ -102,8 +102,7 @@ export function TodoAdminHandoff() {
         if (!active) return;
         const to = hubPathFor(signedIn);
         try {
-          if (signedIn?.isAdmin && !tab) sessionStorage.setItem("workhub_tab", "admin");
-          else if (tab) sessionStorage.setItem(to === "/workhub" ? "workhub_tab" : "lifehub_tab", tab);
+          if (tab) sessionStorage.setItem(to === "/workhub" ? "workhub_tab" : "lifehub_tab", tab);
           else if (signedIn.role === "teacher") sessionStorage.setItem("workhub_tab", "overview");
           else if (signedIn.role === "parent") sessionStorage.setItem("lifehub_tab", "home");
           localStorage.setItem("arise-hub-rail", "open");

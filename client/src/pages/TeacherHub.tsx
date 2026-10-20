@@ -390,6 +390,13 @@ function TeacherHubPage() {
       if (asked === "admin") setTab("admin");
     } catch { /* stays where it is */ }
   }, [location]);
+  // Anything that still asks WorkHub for the admin console (an old #/admin link) opens it in the Reader.
+  useEffect(() => {
+    if (tab !== "admin") return;
+    setTab("overview");
+    try { sessionStorage.setItem("reader_page_view", "admin:overview"); } catch { /* opens on Overview */ }
+    goToReader();
+  }, [tab, setTab]);
   const [customize, setCustomize] = useState(false);
   const [lockSettings, setLockSettings] = useState(false);
   /** Bumped to reopen the notes board on a note a link points at. */
@@ -1231,18 +1238,8 @@ function TeacherHubPage() {
                     </div>
                   </Fragment>;
               })();
-              /** The admin console, with its sections nested under it on desktop. It used to live
-               *  inside the Reader group; when the Reader moved out to its own page it became its
-               *  own item, and was landing at the bottom of the menu where nobody could find it.
-               *  It is drawn here instead, right below Arise Learning, where it has always been. */
-              const adminBlock = user.isAdmin ? <Fragment key="group-admin">
-                {navItem({ id: "admin", label: "Admin console", tabs: ["admin"] } as (typeof menu)[number], menu.findIndex((g) => g.id === "admin"))}
-                {tab === "admin" && ADMIN_SECTIONS.map((sec) => <Fragment key={`admin-${sec.id}`}>
-                  {adminItem(sec, 2, adminSection === sec.id && !kitOpen, () => { setAdminSection(sec.id); setTab("admin"); }, sec.id === "overview" ? "hub-menu-admin-overview" : `hub-menu-admin-${sec.id}`)}
-                  {sec.id === "settings" && adminSection === "settings" && SETTINGS_SECTIONS.map((part) =>
-                    adminItem(part, 3, adminSettings === part.id && !kitOpen, () => { setAdminSettings(part.id); setAdminSection("settings"); setTab("admin"); }, `hub-menu-admin-settings-${part.id}`))}
-                </Fragment>)}
-              </Fragment> : null;
+              // The admin console lives in A.R.I.S.E. Reader now (its menu, for admins), not in WorkHub.
+              const adminBlock = null;
               const learning = <Fragment key="learning">
                 <div className={`hidden items-center gap-2 px-3 pb-1 pt-4 ${deskTop || deskCompact ? "" : "md:flex"}`} data-testid="hub-learning-heading">
                   <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Arise Learning</span>
@@ -1548,22 +1545,7 @@ function TeacherHubPage() {
                       {tabIcon(t)} {SUB_LABELS[t] ?? t}
                     </button>
                   ))}
-                  {subTabs.includes("admin") && (
-                    <>
-                      <div className="mt-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Admin console</div>
-                      {ADMIN_SECTIONS.map((s) => {
-                        const on = tab === "admin" && adminSection === s.id;
-                        return (
-                          <button key={s.id} type="button" role="menuitem" aria-current={on ? "page" : undefined}
-                            onClick={() => { setAdminSection(s.id); setTab("admin"); setSubMenu(false); }}
-                            data-testid={s.id === "overview" ? "hub-subtab-admin" : `hub-subtab-admin-${s.id}`}
-                            className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${on ? "bg-slate-950 text-white" : "text-slate-700 hover:bg-slate-50"}`}>
-                            <s.icon className="h-4 w-4 shrink-0" /> {s.label}
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
+
                 </div>
               )}
             </div>

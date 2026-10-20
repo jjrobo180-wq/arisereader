@@ -290,3 +290,13 @@ test("teachers and admins get a one-time 'new teacher hub' pop-up and a highligh
     assert.ok(readFileSync(join(ROOT, "client/public/advisory-kit", f)).length > 1000, f);
   }
 });
+
+test("the admin console is only in the Reader: WorkHub's menu has none, and old links open the Reader's", () => {
+  const hub = read("client/src/pages/TeacherHub.tsx");
+  assert.match(hub, /const adminBlock = null;/);
+  assert.doesNotMatch(hub, /subTabs\.includes\("admin"\)/);
+  assert.match(hub, /sessionStorage\.setItem\("reader_page_view", "admin:overview"\)[^\n]*\n\s*goToReader\(\);/);
+  assert.doesNotMatch(read("client/src/components/AdminDomainHandoff.tsx"), /sessionStorage\.setItem\("workhub_tab", "admin"\)/);
+  assert.match(read("client/src/pages/TeacherReader.tsx"), /const asked = sessionStorage\.getItem\("reader_page_view"\);/);
+});
+

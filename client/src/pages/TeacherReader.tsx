@@ -95,7 +95,15 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
   const { user, token, logout } = useAuth();
   const isParent = user?.role === "parent";
   const hub = HUB_BANNER[isParent ? "life" : "work"];
-  const [view, setView] = useState<View>(tab);
+  // Something may ask for a screen that isn't one of the Reader's own tabs (old #/admin links ask for the admin console).
+  const [view, setView] = useState<View>(() => {
+    try {
+      const asked = sessionStorage.getItem("reader_page_view");
+      sessionStorage.removeItem("reader_page_view");
+      if (asked && asked.startsWith("admin:") && user?.isAdmin && ADMIN_SECTIONS.some((a) => `admin:${a.id}` === asked)) return asked as View;
+    } catch { /* the usual first screen */ }
+    return tab;
+  });
   const [school, setSchool] = useState("");
   const [counts, setCounts] = useState<Counts | null>(null);
   const challenge = useAdvisoryChallenge(token);

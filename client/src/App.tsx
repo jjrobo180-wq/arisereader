@@ -380,6 +380,12 @@ function AfterSignIn({ onReaderDomain, onTodoDomain }: { onReaderDomain: boolean
 /** A teacher, parent or the administrator on arisereader.com opens the Reader rather than a hub. */
 const readerFirst = (user: { role?: string | null; isAdmin?: boolean } | null | undefined) => !!user && (user.isAdmin === true || user.role === "teacher" || user.role === "parent");
 
+/** The admin console is in the Reader now: old #/admin links open it there. */
+function OpenReaderAdmin() {
+  useEffect(() => { try { sessionStorage.setItem("reader_page_view", "admin:overview"); } catch { /* opens on Overview */ } goToReader(); }, []);
+  return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+}
+
 /** Leaves the app for the Reader's own page (/reader): a real page load, not a hash change. */
 function OpenReaderPage() {
   useEffect(() => { goToReader(); }, []);
@@ -723,7 +729,7 @@ function AppRoutes() {
       </Route>
       {/* The admin console lives in Arise WorkHub's A.R.I.S.E. Reader group. */}
       <Route path="/admin">
-        {onReaderDomain && user?.isAdmin ? <ReaderAdminToTodoRedirect /> : <OpenHubTab to="/workhub" storageKey="workhub_tab" value="admin" />}
+        {user?.isAdmin ? <OpenReaderAdmin /> : user ? <Redirect to="/" replace /> : <Redirect to="/signin" replace />}
       </Route>
       <Route path="/progress">
         <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/leaderboard"><EyeGazeProgress /></EyeGazeAccessGate> : <GrowthCheck />}</ProtectedRoute>

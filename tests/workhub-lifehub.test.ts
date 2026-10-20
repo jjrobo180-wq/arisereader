@@ -118,7 +118,8 @@ test("there's no way back to the old screens: old addresses and admins land in t
   const app = read("client/src/App.tsx");
   assert.ok(!/pages\/(TeacherDashboard|ParentDashboard)/.test(app), "the old dashboards are gone");
   assert.ok(!app.includes('import("./pages/Admin")'), "the admin page only opens inside WorkHub");
-  assert.match(app, /<Route path="\/admin">\s*\{onReaderDomain && user\?\.isAdmin \? <ReaderAdminToTodoRedirect \/> : <OpenHubTab to="\/workhub" storageKey="workhub_tab" value="admin" \/>\}/);
+  // The admin console is in the Reader now (not WorkHub): #/admin opens it there.
+  assert.match(app, /<Route path="\/admin">\s*\{user\?\.isAdmin \? <OpenReaderAdmin \/> : user \? <Redirect to="\/" replace \/> : <Redirect to="\/signin" replace \/>\}/);
   assert.match(app, /<Route path="\/parent-dashboard">\s*<Redirect to="\/reader" replace \/>/);
   assert.match(app, /<Route path="\/teacher-dashboard">\s*<Redirect to="\/reader" replace \/>/);
   // Signing in lands admins and teachers in WorkHub on Home. No tab is asked for: setting one
