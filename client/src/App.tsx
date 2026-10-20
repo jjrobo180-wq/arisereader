@@ -130,6 +130,7 @@ const StudentProgress = lazyPage(() => import("./pages/StudentProgress"));
 const Competition = lazyPage(() => import("./pages/Competition"));
 const TimedCompetition = lazyPage(() => import("./pages/TimedCompetition"));
 const Polls = lazyPage(() => import("./pages/Polls"));
+const EnglishExplorer = lazyPage(() => import("./pages/EnglishExplorer"));
 const CoursePage = lazyPage(() => import("./pages/CoursePage"));
 const ReadingAssessment = lazyPage(() => import("./pages/ReadingAssessment"));
 const GrowthCheck = lazyPage(() => import("./pages/GrowthCheck"));
@@ -616,6 +617,10 @@ function AppRoutes() {
       </Route>
       <Route path="/reading-club">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ReadingClub />}
+      </Route>
+      {/* English Explorer: the English-language-learner program (students a teacher turned it on for; staff can preview). */}
+      <Route path="/english">
+        <ProtectedRoute><EnglishExplorer /></ProtectedRoute>
       </Route>
       <Route path="/polls">
         {isEyeGazeStudent ? <Redirect to="/eye-gaze-home" replace /> : <ProtectedRoute><Polls /></ProtectedRoute>}

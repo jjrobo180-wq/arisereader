@@ -2,6 +2,7 @@ import { useSavedChoice } from "@/lib/useSavedChoice";
 import { shelvesByPoints } from "@shared/libraryShelves";
 import BannerTap from "@/components/BannerTap";
 import { AdvisoryChallengeBanner } from "@/components/AdvisoryChallenge";
+import { EnglishExplorerBanner, useEnglishExplorer } from "@/components/EnglishExplorerBanner";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -145,6 +146,7 @@ let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; 
 };
 
 export default function Library() {
+  const english = useEnglishExplorer();
   const { user, realUser, token, logout, refreshUser, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   // Initialize from cache so data shows instantly on remount
@@ -1354,6 +1356,11 @@ export default function Library() {
                             <GraduationCap className="mb-1.5 h-4 w-4 text-amber-500" /><span className="flex items-center gap-1.5 text-xs font-black">Study Squad<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </button>
                         )}
+                        {english && (
+                          <button onClick={() => { navigate("/english"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <span className="mb-1.5 block text-base leading-4" aria-hidden="true">🦜</span><span className="block text-xs font-black">English Explorer</span>
+                          </button>
+                        )}
                         {!user?.is_eye_gaze_user && (
                           <a href="/math/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                             <Calculator className="mb-1.5 h-4 w-4 text-cyan-500" /><span className="block text-xs font-black">Arise Math</span>
@@ -1428,6 +1435,8 @@ export default function Library() {
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {/* The Advisory Challenge: this student's advisory's place. Tapping it opens the leaderboard. */}
         {user?.role === 'student' && <AdvisoryChallengeBanner onOpen={() => navigate("/leaderboard")} />}
+        {/* English Explorer: only for students a teacher turned it on for. */}
+        {user?.role === 'student' && <EnglishExplorerBanner onOpen={() => navigate("/english")} />}
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <BannerTap link={studentBanner.link} cueColor={studentBanner.textColor} className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1, borderStyle: "solid" }}>

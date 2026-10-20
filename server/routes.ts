@@ -79,6 +79,8 @@ import { registerMathPhotoRoutes } from "./ariseMathPhoto";
 import { registerClassBehaviorRoutes } from "./classBehavior";
 import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
+import { registerAriseEnglishRoutes, type EnglishPerson } from "./ariseEnglish";
+import { createEnglishSpeech } from "./ariseEnglishVoice";
 import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
@@ -1749,6 +1751,24 @@ export async function registerRoutes(
       studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
       childrenOf: (parentId) => getParentStudentIds(parentId),
       notify: (id, message) => notifyUser(id, message),
+    },
+  });
+  // English Explorer (#/english): the English-language-learner program. A teacher or the administrator turns it
+  // on per student; its points go on the regular leaderboards. See server/ariseEnglish.ts and migrations/arise_english.sql.
+  const toEnglishPerson = (u: any): EnglishPerson | null => u ? ({
+    id: Number(u.id), role: u.isAdmin ? "admin" : u.role === "teacher" ? "teacher" : u.role === "parent" ? "parent" : "student",
+    displayName: String(u.displayName || u.username || ""), username: String(u.username || ""), teacherId: u.teacherId ? Number(u.teacherId) : null,
+    schoolId: u.school_id ? Number(u.school_id) : null, archived: !!u.archivedAt,
+  }) : null;
+  registerAriseEnglishRoutes(app, authMiddleware, {
+    speech: createEnglishSpeech(),
+    audioBody: raw({ type: ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"], limit: "2mb" }),
+    directory: {
+      user: async (id) => toEnglishPerson(await storage.getUser(id)),
+      students: async () => (await storage.getAllUsers()).filter((u: any) => !u.isAdmin && (!u.role || u.role === "student")).map(toEnglishPerson).filter((u): u is EnglishPerson => !!u),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+      notify: (id, message) => notifyUser(id, message),
+      pointsChanged: () => { clearCache("leaderboard"); clearCache("monthlyLeaderboard_"); clearCache("allUsers"); clearCache("advisoryLeaderboard"); clearCache("pointsBetween_"); },
     },
   });
   /** What anyone may see about a teacher on the public sign-up pages. */
