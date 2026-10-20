@@ -87,10 +87,12 @@ export function SupportBanner({ dark = false }: { dark?: boolean }) {
   const [open, setOpen] = useState(false);
   if (!info) return null;
   return <>
-    <div className={`flex flex-wrap items-center rounded-2xl border ${dark ? "gap-2.5 border-rose-400/30 bg-[#24121c] px-3 py-2" : "gap-3 border-rose-200/80 bg-gradient-to-r from-rose-50 to-violet-50 px-4 py-3"}`} data-testid="support-banner">
-      <span className={`inline-flex shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white ${dark ? "h-7 w-7" : "h-9 w-9"}`}><Heart size={dark ? 14 : 17} className="fill-current" /></span>
-      <p className={`min-w-0 flex-1 ${dark ? "text-[13px] text-rose-100/85" : "text-sm text-slate-700"}`}><span className={`font-bold ${dark ? "text-white" : "text-slate-900"}`}>Every child deserves to be heard.</span> Join our mission to give every child with a disability a free talker and eye-gaze tools, so they can share their thoughts, ask questions and read on their own. A.R.I.S.E. is free with no ads, built by one teacher and carried by people like you.</p>
-      <button type="button" onClick={() => setOpen(true)} className={`inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white hover:bg-rose-700 ${dark ? "min-h-9" : "min-h-10"}`} data-testid="support-banner-open"><Heart size={14} className="fill-current" /> Support</button>
+    <div className={`flex items-center rounded-2xl border sm:flex-wrap ${dark ? "gap-2.5 border-rose-400/30 bg-[#24121c] px-3 py-2" : "gap-3 border-rose-200/80 bg-gradient-to-r from-rose-50 to-violet-50 px-3 py-2.5 sm:px-4 sm:py-3"}`} data-testid="support-banner">
+      <span className={`hidden shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white sm:inline-flex ${dark ? "h-7 w-7" : "h-9 w-9"}`}><Heart size={dark ? 14 : 17} className="fill-current" /></span>
+      {/* On a phone, two short lines next to the button instead of a tall box. */}
+      <p className={`min-w-0 flex-1 text-[13px] leading-snug sm:hidden ${dark ? "text-rose-100/85" : "text-slate-700"}`}><span className={`font-bold ${dark ? "text-white" : "text-slate-900"}`}>Every child deserves to be heard.</span> Help give free talkers and eye-gaze tools to kids with disabilities.</p>
+      <p className={`hidden min-w-0 flex-1 sm:block ${dark ? "text-[13px] text-rose-100/85" : "text-sm text-slate-700"}`}><span className={`font-bold ${dark ? "text-white" : "text-slate-900"}`}>Every child deserves to be heard.</span> Join our mission to give every child with a disability a free talker and eye-gaze tools, so they can share their thoughts, ask questions and read on their own. A.R.I.S.E. is free with no ads, built by one teacher and carried by people like you.</p>
+      <button type="button" onClick={() => setOpen(true)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-rose-600 px-3 text-sm font-bold text-white hover:bg-rose-700 sm:px-4 ${dark ? "min-h-9" : "min-h-10"}`} data-testid="support-banner-open"><Heart size={14} className="fill-current" /> Support</button>
     </div>
     {open && createPortal(<SupportSheet info={info} onClose={() => setOpen(false)} />, document.body)}
   </>;

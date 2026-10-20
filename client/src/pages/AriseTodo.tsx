@@ -1103,13 +1103,15 @@ export default function AriseTodo() {
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
-          <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">To Do</span>
+          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">To Do</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
+          <div className={layout.shortcut ? "contents" : "hidden sm:contents"}>
           <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
             onChange={(next) => setFamily((f) => { const { shortcut: _old, ...rest } = f.layout ?? layout; return { ...f, layout: next ? { ...rest, shortcut: next } : rest }; })} />
+          </div>
           <HubSearchButton onOpen={() => setSearching(true)} />
           <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
           <NotificationBell
