@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { BookOpen, Gamepad2, HeartHandshake, Home, LogOut, MessageCircle, UserRound } from "lucide-react";
+import { BookOpen, Gamepad2, HeartHandshake, Home, LogOut, MessageCircle, Trophy, UserRound } from "lucide-react";
 import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
@@ -72,15 +72,18 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
 
   const nav = [
     { label: "Home", icon: Home, path: "/eye-gaze-home" },
+    { label: "Lessons & Books", icon: BookOpen, path: "/eye-gaze-lessons" },
     { label: "My Talker", icon: MessageCircle, path: "/eye-gaze-talker" },
     { label: "Games", icon: Gamepad2, path: "/eye-gaze-games" },
     { label: "Life Skills", icon: HeartHandshake, path: "/eye-gaze-life-skills" },
+    { label: "Leaderboard", icon: Trophy, path: "/leaderboard" },
     { label: "Profile", icon: UserRound, path: "/profile" },
   ];
   const visibleNav = nav.filter(item =>
     item.path === "/eye-gaze-home"
     || item.path === "/eye-gaze-account"
     || (item.path === "/eye-gaze-games" && (pathAllowed("/eye-gaze-games", parentControls) || pathAllowed("/library", parentControls)))
+    || (item.path === "/eye-gaze-lessons" && pathAllowed("/library", parentControls))
     || pathAllowed(item.path, parentControls)
   );
   const mobileNav = visibleNav;

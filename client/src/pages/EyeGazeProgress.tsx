@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { Award, Flame, Gift, Lock, Star, Trophy } from "lucide-react";
+import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
 
 function cookieToken() {
   try {
@@ -24,7 +25,7 @@ export default function EyeGazeProgress() {
     Promise.all([
       fetch(`${API_BASE}/api/engagement/badges`,{headers:{Authorization:`Bearer ${t}`},cache:"no-store"}).then(r=>r.ok?r.json():null),
       fetch(`${API_BASE}/api/student/rewards`,{headers:{Authorization:`Bearer ${t}`},cache:"no-store"}).then(r=>r.ok?r.json():null),
-      fetch(`${API_BASE}/api/leaderboard`,{headers:{Authorization:`Bearer ${t}`},cache:"no-store"}).then(r=>r.ok?r.json():[]),
+      fetch(`${API_BASE}/api/leaderboard?month=${encodeURIComponent(schoolYearMonth())}`,{headers:{Authorization:`Bearer ${t}`},cache:"no-store"}).then(r=>r.ok?r.json():[]),
       fetch(`${API_BASE}/api/engagement/summary`,{headers:{Authorization:`Bearer ${t}`},cache:"no-store"}).then(r=>r.ok?r.json():null),
     ]).then(([b,r,l,e])=>{
       setBadges(Array.isArray(b?.badges)?b.badges:[]);
@@ -98,6 +99,7 @@ export default function EyeGazeProgress() {
 
         {tab==="rank" && (
           <div className="space-y-3">
+            <p className="text-sm font-bold text-slate-600">{monthLabel(schoolYearMonth())}: the same leaderboard every reader in your grade sees.</p>
             {leaderboard.slice(0,20).map((x:any,i)=>(
               <div key={x.userId||x.id||i} className={`rounded-3xl p-4 flex items-center gap-4 border-2 ${(x.userId||x.id)===user?.id?"bg-violet-100 border-violet-300":"bg-white border-sky-100"}`}>
                 <div className="w-14 h-14 rounded-2xl bg-yellow-100 flex items-center justify-center text-xl font-black text-amber-700">{i+1}</div>
