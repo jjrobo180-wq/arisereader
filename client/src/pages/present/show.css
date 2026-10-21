@@ -1,0 +1,61 @@
+/* The student welcome show: the stage, the spotlight ring, and the few small motions the scenes use.
+   The screens inside are the site's own pages; this file only adds the show around them. */
+
+.sw-root { position: fixed; inset: 0; z-index: 400; background: #05040b; color: #fff; overflow: hidden; font-family: inherit; }
+.sw-frame { position: absolute; left: 50%; top: 50%; }
+.sw-stage { position: absolute; left: 0; top: 0; width: 960px; height: 540px; transform-origin: 0 0; background: #0d0b1a; overflow: hidden; border-radius: 6px; }
+.sw-screen { position: absolute; left: 0; top: 0; width: 960px; height: 432px; overflow: hidden; }
+.sw-screen > .sw-scene { animation: swFade .45s ease both; width: 100%; height: 100%; }
+.sw-captionbar { position: absolute; left: 0; right: 0; bottom: 0; height: 108px; display: flex; align-items: center; justify-content: center; padding: 0 36px; text-align: center;
+  background: linear-gradient(180deg, #17122e, #0d0b1a); border-top: 2px solid rgba(167, 139, 250, .35); }
+.sw-caption { font-size: 21px; line-height: 1.3; font-weight: 800; letter-spacing: -.01em; color: #fff; max-width: 890px; text-wrap: balance; }
+.sw-scenetag { position: absolute; left: 12px; bottom: 100px; z-index: 40; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 99px; background: rgba(5, 4, 11, .72); color: #c4b5fd; border: 1px solid rgba(196, 181, 253, .3); pointer-events: none; }
+.sw-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: rgba(255, 255, 255, .08); z-index: 60; }
+.sw-progress > i { display: block; height: 100%; background: linear-gradient(90deg, #7c3aed, #d946ef, #22d3ee); transition: width .3s linear; }
+
+/* the ring that says "look here" */
+.sw-spotwrap { position: relative; }
+.sw-spot { position: absolute; inset: -6px; border-radius: var(--sw-r, 14px); pointer-events: none; z-index: 30;
+  box-shadow: 0 0 0 3px #22d3ee, 0 0 26px 5px rgba(34, 211, 238, .5); animation: swPulse 1.5s ease-in-out infinite; }
+@keyframes swPulse { 50% { box-shadow: 0 0 0 4px #67e8f9, 0 0 40px 10px rgba(34, 211, 238, .32); } }
+
+/* a button being tapped */
+.sw-press { animation: swPress .5s ease both; }
+@keyframes swPress { 40% { transform: scale(.93); filter: brightness(1.3); } }
+
+.sw-in { animation: swIn .55s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes swIn { from { opacity: 0; transform: translateY(12px); } }
+@keyframes swFade { from { opacity: 0; } }
+.sw-scroll { transition: transform 1s cubic-bezier(.2, .7, .2, 1); will-change: transform; }
+.sw-caret::after { content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -.14em; background: currentColor; animation: swBlink 1s steps(1) infinite; }
+@keyframes swBlink { 50% { opacity: 0; } }
+
+/* the paper-white reading pages keep their own size inside the stage */
+.sw-reads .nw { min-height: 0; }
+.sw-reads .nw-wordmark { font-size: 76px; }
+.sw-reads .nw-wrap { width: calc(100% - 56px); }
+
+/* the bar of controls under the stage (not part of the picture) */
+.sw-controls { position: absolute; left: 0; right: 0; bottom: 0; z-index: 80; display: flex; justify-content: center; padding: 0 12px 14px; transition: opacity .35s ease, transform .35s ease; }
+.sw-controls[data-hidden="true"] { opacity: 0; transform: translateY(14px); pointer-events: none; }
+.sw-controls-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 20px;
+  background: rgba(21, 19, 38, .94); border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 18px 50px rgba(0, 0, 0, .55); backdrop-filter: blur(10px); max-width: min(1100px, 100%); }
+.sw-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 12px; font-weight: 800; font-size: 13px; color: #e2e0f5;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); cursor: pointer; }
+.sw-btn:hover { background: rgba(255, 255, 255, .14); }
+.sw-btn[aria-pressed="true"] { background: linear-gradient(90deg, #7c3aed, #c026d3); border-color: transparent; color: #fff; }
+.sw-btn:focus-visible, .sw-chip:focus-visible { outline: 3px solid #67e8f9; outline-offset: 2px; }
+.sw-btn.sw-primary { background: linear-gradient(90deg, #7c3aed, #d946ef, #06b6d4); border-color: transparent; color: #fff; }
+.sw-chip { min-height: 34px; padding: 0 11px; border-radius: 99px; font-size: 12px; font-weight: 800; color: #c9c6e6; background: transparent; border: 1px solid rgba(255, 255, 255, .12); cursor: pointer; }
+.sw-chip[aria-current="step"] { background: rgba(167, 139, 250, .22); border-color: rgba(167, 139, 250, .6); color: #fff; }
+.sw-clock { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 13px; color: #c4b5fd; padding: 0 8px; }
+
+.sw-notes { position: absolute; right: 14px; top: 14px; z-index: 70; width: min(360px, calc(100% - 28px)); padding: 14px 16px; border-radius: 18px; background: rgba(21, 19, 38, .96);
+  border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 18px 50px rgba(0, 0, 0, .55); font-size: 14px; line-height: 1.45; color: #e2e0f5; }
+.sw-notes h3 { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #a78bfa; font-weight: 900; margin: 0 0 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-spot, .sw-press, .sw-in, .sw-caret::after, .sw-screen > .sw-scene { animation: none; }
+  .sw-scroll { transition: none; }
+}

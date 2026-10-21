@@ -282,6 +282,26 @@ export default function Tutorial() {
             </button>
           </div>
 
+          {/* The five-minute show for presenting to a whole room of students */}
+          <button
+            onClick={() => navigate("/tutorial/present")}
+            className="mt-4 w-full text-left p-6 rounded-2xl arise-surface border border-violet-400/30 hover:border-violet-300/60 transition-all hover:shadow-[0_20px_50px_rgba(124,58,237,.12)] group"
+            data-testid="tutorial-present-card"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 shrink-0 rounded-2xl arise-icon-tile flex items-center justify-center group-hover:scale-110 transition-transform">
+                <PlayCircle className="w-7 h-7 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-bold text-white mb-1">Student welcome show · 5 minutes</h2>
+                <p className="text-sm text-muted-foreground">
+                  For presenting to a whole class on the board: how to log in, find a book, take a quiz, read short reads, use the leaderboard, and join the competitions. Plays by itself or with a clicker.
+                </p>
+              </div>
+              <ArrowRight className="w-5 h-5 shrink-0 text-cyan-300" />
+            </div>
+          </button>
+
           <div className="mt-8 text-center">
             <p className="text-xs text-muted-foreground">
               Both tutorials are perfect for presentations to teachers, parents, or students.
