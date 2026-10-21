@@ -5,10 +5,10 @@
 // (there are only as many as the script has), and nothing else can be asked for.
 import { createHash } from "node:crypto";
 import type { Express, Request, Response } from "express";
-import { FLAT, lineKey } from "../shared/presentShow";
+import { FLAT, lineKey, spokenText } from "../shared/presentShow";
 
 const BUCKET = "student-show-voice";
-const VERSION = "v4";
+const VERSION = "v5";
 const VOICE = "marin";
 /** Which voice and settings made the clips; the page adds it to each clip's address so a new voice is never played from an old saved copy. */
 export const VOICE_VERSION = `${VERSION}-${VOICE}`;
@@ -37,7 +37,7 @@ export function createShowVoice(opts: { apiKey?: string; storage?: () => any; fe
     const response = await (opts.fetchImpl ?? fetch)("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: VOICE, input: text, instructions: INSTRUCTIONS, response_format: "mp3" }),
+      body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: VOICE, input: spokenText(text), instructions: INSTRUCTIONS, response_format: "mp3" }),
       signal: AbortSignal.timeout(25000),
     });
     if (!response.ok) throw new Error(`speech failed: ${response.status} ${(await response.text().catch(() => "")).slice(0, 200)}`);

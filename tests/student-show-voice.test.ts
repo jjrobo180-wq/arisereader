@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createShowVoice, registerStudentShowVoice } from "../server/studentShowVoice";
-import { FLAT, lineKey } from "../shared/presentShow";
+import { FLAT, lineKey, spokenText } from "../shared/presentShow";
 
 // a fake Storage bucket and a fake OpenAI, so nothing real is called
 function fakes() {
@@ -26,21 +26,21 @@ test("each line is made once with the AI voice, then saved and reused", async ()
   const f = fakes();
   const voice = createShowVoice({ apiKey: "k", storage: f.storage, fetchImpl: f.fetchImpl });
   const a = await voice.line(0);
-  assert.equal(a!.toString(), `mp3:${FLAT[0].say}`);
+  assert.equal(a!.toString(), `mp3:${spokenText(FLAT[0].say)}`);
   assert.equal(f.calls.length, 1);
   assert.equal(f.calls[0].url, "https://api.openai.com/v1/audio/speech");
   assert.equal(f.calls[0].auth, "Bearer k");
   assert.equal(f.calls[0].body.model, "gpt-4o-mini-tts");
   assert.equal(f.calls[0].body.voice, "marin");
   assert.match(f.calls[0].body.instructions, /big room of students/);
-  assert.equal(f.calls[0].body.input, FLAT[0].say);
+  assert.equal(f.calls[0].body.input, spokenText(FLAT[0].say));
   await voice.line(0);
   assert.equal(f.calls.length, 1, "the second ask comes from memory");
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(f.files.size, 1, "the clip was saved for later showings");
   // a fresh server (empty memory) finds the saved clip instead of paying for it again
   const again = createShowVoice({ apiKey: "k", storage: f.storage, fetchImpl: f.fetchImpl });
-  assert.equal((await again.line(0))!.toString(), `mp3:${FLAT[0].say}`);
+  assert.equal((await again.line(0))!.toString(), `mp3:${spokenText(FLAT[0].say)}`);
   assert.equal(f.calls.length, 1);
 });
 
@@ -97,7 +97,7 @@ test("the routes serve status and lines, and refuse anything else", async () => 
   assert.equal((await call("/api/student-show/voice/:index", { index: "2" }, { h: lineKey(FLAT[3].say) })).status, 404, "another line's words, no clip");
   assert.equal(ok.status, 200);
   assert.equal(ok.headers["Content-Type"], "audio/mpeg");
-  assert.equal(ok.body.toString(), `mp3:${FLAT[2].say}`);
+  assert.equal(ok.body.toString(), `mp3:${spokenText(FLAT[2].say)}`);
   for (const bad of ["abc", "-1", "1e3", "0x1", "1000", String(FLAT.length), ""]) assert.equal((await call("/api/student-show/voice/:index", { index: bad }, { h: "x" })).status, 404, `index "${bad}"`);
   const off = routes({ available: () => false, line: async () => null });
   assert.equal((await off.call("/api/student-show/voice/status")).body.ai, false);
