@@ -10747,15 +10747,21 @@ Important:
     if (user?.isAdmin) return true;
     if (!Number.isFinite(studentId) || studentId <= 0) return false;
     const student = await storage.getUser(studentId);
-    return !!student && !student.isAdmin && student.role !== "teacher" && student.role !== "parent" && Number(student.teacherId) === Number(user?.id);
+    if (!student || student.isAdmin || student.role === "teacher" || student.role === "parent") return false;
+    if (Number(student.teacherId) === Number(user?.id)) return true;
+    // A school leadership account reaches every student at its own school.
+    const leaderSchool = user?.id ? await storage.schoolLeaderSchool(Number(user.id)) : null;
+    return !!leaderSchool && Number((student as any).school_id ?? (student as any).schoolId) === leaderSchool;
   };
   const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
 
   // GET all students across all teachers (with stats + teacher names)
   app.get("/api/teacher-admin/all-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
+      const leaderSchool = req.user.isAdmin ? null : await storage.schoolLeaderSchool(Number(req.user.id));
       const students = (await storage.getAllUsers()).filter((s: any) => (s.role === 'student' || (!s.role && !s.isAdmin))
-        && (req.user.isAdmin || Number(s.teacherId) === Number(req.user.id)));
+        && (req.user.isAdmin || Number(s.teacherId) === Number(req.user.id)
+          || (!!leaderSchool && !s.archivedAt && Number(s.school_id ?? s.schoolId) === leaderSchool)));
       const allUsers = await storage.getAllUsers();
       const teacherMap = new Map();
       for (const u of allUsers) {
@@ -10766,7 +10772,8 @@ Important:
       for (let retry = 0; retry < 5; retry++) {
         try {
           let q = supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
-          if (!req.user.isAdmin) q = q.eq("teacher_id", req.user.id);
+          if (leaderSchool) q = q.eq("school_id", leaderSchool);
+          else if (!req.user.isAdmin) q = q.eq("teacher_id", req.user.id);
           const { data, error } = await q;
           if (!error && data) { allUsersWithAttempts = data; break; }
         } catch (e) {}
