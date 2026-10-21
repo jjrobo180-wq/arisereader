@@ -1,14 +1,12 @@
-// Scenes 6 to 8 of the student welcome show: the leaderboard, the competitions, and the wrap-up.
+// Scenes 6 to 8 of the student welcome show: the leaderboard, the prizes, and the wrap-up.
 // The pages are the leaderboard and competition pages' own markup, with made-up readers so no real student is on the screen.
 import { useRef } from "react";
-import { ArrowLeft, Award, BookOpen, Calendar, CheckCircle2, Crown, GraduationCap, LogIn, Medal, Search, Star, Trophy, Users } from "lucide-react";
+import { ArrowLeft, Award, BookOpen, Calendar, CheckCircle2, Crown, GraduationCap, Gift, LogIn, Medal, Search, Trophy, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import MonthCountdown from "@/components/MonthCountdown";
-import { QuizProgress, Ticket } from "@/components/prizes/PrizeBoard";
-import "@/components/prizes/prizes.css";
 import { monthLabel, recentSchoolMonths, schoolYearMonth } from "@shared/schoolMonth";
 import { SITE } from "@shared/presentShow";
-import { LibraryHeader } from "./scenesA";
+import { LibraryBackdrop, LibraryHeader } from "./scenesA";
 import { SAMPLE_READERS, Scroll, Spot, passedLabel, useScrollY, useSince, type SceneProps } from "./kit";
 
 const GRADIENT = "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-500 text-white shadow-lg shadow-violet-500/15";
@@ -43,21 +41,20 @@ const ADVISORIES = [
 export function LeaderboardScene({ beat }: SceneProps) {
   const controlsRef = useRef<HTMLDivElement>(null);
   const podiumRef = useRef<HTMLDivElement>(null);
-  // beat 2: after a few seconds the toggle moves from Monthly to All-Time
-  const allTimeTapped = useSince(beat, 7200, beat === 2);
-  const period: "monthly" | "all-time" = beat >= 3 ? "monthly" : beat === 2 && allTimeTapped ? "all-time" : "monthly";
+  // beat 1: the grade bands first, then the Monthly / All-Time toggle, which is switched to All-Time near the end
+  const ring2 = useSince(beat, 4800, beat === 1);
+  const allTimeTapped = useSince(beat, 10500, beat === 1);
+  const period: "monthly" | "all-time" = beat >= 2 ? "monthly" : beat === 1 && allTimeTapped ? "all-time" : "monthly";
   const current = schoolYearMonth();
   const months = recentSchoolMonths(6);
-  const y = useScrollY(() => (beat === 2 ? controlsRef.current : beat === 3 ? podiumRef.current : null), [beat]);
+  const y = useScrollY(() => (beat === 1 && ring2 ? controlsRef.current : beat === 2 ? podiumRef.current : null), [beat, ring2]);
   const rows = SAMPLE_READERS.map((r) => ({ name: r.name, points: period === "monthly" ? r.month : r.all, passed: r.passed }));
   const top3 = rows.slice(0, 3);
   const rest = rows.slice(3);
 
   if (beat === 0) {
     return (
-      <div className="relative h-full w-full overflow-hidden bg-background text-foreground">
-        <LibraryHeader menu spotProgress />
-      </div>
+      <LibraryBackdrop menu spotProgress />
     );
   }
 
@@ -66,7 +63,7 @@ export function LeaderboardScene({ beat }: SceneProps) {
       <SiteHeader left="Back" />
       <div className="absolute inset-x-0 bottom-0 top-[49px] overflow-hidden">
         <Scroll y={y}>
-          {beat === 4 ? (
+          {beat === 3 ? (
             <main className="mx-auto max-w-3xl px-4 py-5">
               <div className="sw-in mb-4 flex items-center justify-center gap-2">
                 <div className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold ${QUIET}`}><Trophy className="h-4 w-4" />Individual</div>
@@ -98,8 +95,8 @@ export function LeaderboardScene({ beat }: SceneProps) {
               <div className="mb-5 text-center">
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl arise-icon-tile"><Trophy className="h-7 w-7 text-white" /></div>
                 <h1 className="mb-2 text-4xl font-black tracking-[-.035em] text-white">Leaderboard</h1>
-                <Spot on={beat === 1} radius={999} className="mb-2 inline-block">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-gradient-to-r from-violet-500/14 via-fuchsia-500/10 to-cyan-400/12 px-4 py-2"><GraduationCap className="h-4 w-4 text-primary" /><span className="text-sm font-bold text-violet-200">Your Group: Grades 3-5</span></div>
+                <Spot on={beat === 1 && !ring2} radius={999} className="mb-2 inline-block">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-gradient-to-r from-violet-500/14 via-fuchsia-500/10 to-cyan-400/12 px-4 py-2"><GraduationCap className="h-4 w-4 text-primary" /><span className="text-sm font-bold text-violet-200">Your Group: Grades 6-8</span></div>
                 </Spot>
                 <p className="text-sm text-muted-foreground">Top readers ranked by points earned</p>
                 <p className="mt-1 text-xs text-muted-foreground">You are competing only with students in your grade band.</p>
@@ -110,16 +107,16 @@ export function LeaderboardScene({ beat }: SceneProps) {
                   <div className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold ${GRADIENT}`}><Trophy className="h-4 w-4" />Individual</div>
                   <div className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold ${QUIET}`}><Users className="h-4 w-4" />Advisory Challenge</div>
                 </div>
-                <Spot on={beat === 1} radius={14} className="mb-4">
+                <Spot on={beat === 1 && !ring2} radius={14} className="mb-4">
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     <div className={`rounded-lg px-4 py-2 text-sm font-medium ${GRADIENT}`}><Users className="mr-1 inline h-3 w-3" />All Bands</div>
                     {BANDS.map((b) => <div key={b} className={`rounded-lg px-4 py-2 text-sm font-medium ${QUIET}`}>Grades {b}</div>)}
                   </div>
                 </Spot>
-                <Spot on={beat === 2} radius={14} className="mb-4">
+                <Spot on={beat === 1 && ring2 && !allTimeTapped} radius={14} className="mb-4">
                   <div className="flex items-center justify-center gap-2">
-                    <div className={`rounded-lg px-4 py-2 text-sm font-medium ${period === "monthly" ? GRADIENT : QUIET} ${allTimeTapped && beat === 2 ? "sw-press" : ""}`}>Monthly</div>
-                    <div className={`rounded-lg px-4 py-2 text-sm font-medium ${period === "all-time" ? GRADIENT : QUIET} ${allTimeTapped && beat === 2 ? "sw-press" : ""}`}>All-Time</div>
+                    <div className={`rounded-lg px-4 py-2 text-sm font-medium ${period === "monthly" ? GRADIENT : QUIET} ${allTimeTapped && beat === 1 ? "sw-press" : ""}`}>Monthly</div>
+                    <div className={`rounded-lg px-4 py-2 text-sm font-medium ${period === "all-time" ? GRADIENT : QUIET} ${allTimeTapped && beat === 1 ? "sw-press" : ""}`}>All-Time</div>
                   </div>
                 </Spot>
                 {period === "monthly" && (
@@ -129,12 +126,12 @@ export function LeaderboardScene({ beat }: SceneProps) {
                     ))}
                   </div>
                 )}
-                {period === "monthly" && <Spot on={beat === 2 && !allTimeTapped} radius={16} className="mb-4"><MonthCountdown /></Spot>}
+                {period === "monthly" && <Spot on={beat === 1 && ring2 && !allTimeTapped} radius={16} className="mb-4"><MonthCountdown /></Spot>}
                 <div className="mb-4 text-center"><span className="text-sm text-muted-foreground">{period === "monthly" ? monthLabel(current) : "All-Time"} Leaderboard</span></div>
               </div>
 
               <div ref={podiumRef}>
-                <Spot on={beat === 3} radius={18} className="mb-4">
+                <Spot on={beat === 2} radius={18} className="mb-4">
                   <div className="grid grid-cols-3 gap-3">
                     {top3.map((entry, idx) => {
                       const colors = MEDALS[idx];
@@ -179,127 +176,54 @@ export function LeaderboardScene({ beat }: SceneProps) {
   );
 }
 
-// ── 7. Competitions ─────────────────────────────────────────────────────────────────────────────────────
+// ── 7. Prizes ───────────────────────────────────────────────────────────────────────────────────────────
 
-const BAND_LABELS: Record<string, string> = { "K-2": "K-2 Band", "3-5": "3-5 Band", "6-8": "6-8 Band", "9-12": "9-12 Band" };
-const BAND_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  "K-2": { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-400" },
-  "3-5": { bg: "bg-green-500/10", border: "border-green-500/30", text: "text-green-400" },
-  "6-8": { bg: "bg-purple-500/10", border: "border-purple-500/30", text: "text-purple-400" },
-  "9-12": { bg: "bg-orange-500/10", border: "border-orange-500/30", text: "text-orange-400" },
-};
-const MEDAL_ICONS = [Crown, Medal, Award];
-const MEDAL_TEXT = ["text-yellow-400", "text-gray-300", "text-orange-500"];
-const BAND_LEADERS: Record<string, { name: string; passed: number; points: number }[]> = {
-  "K-2": [{ name: "Ella P.", passed: 7, points: 55 }, { name: "Omar S.", passed: 6, points: 50 }, { name: "Zoe H.", passed: 5, points: 40 }],
-  "3-5": [{ name: "Maya R.", passed: 11, points: 85 }, { name: "Devon K.", passed: 9, points: 70 }, { name: "Aaliyah J.", passed: 8, points: 60 }],
-  "6-8": [{ name: "Marcus T.", passed: 8, points: 95 }, { name: "Sophia L.", passed: 6, points: 80 }, { name: "Noah B.", passed: 6, points: 70 }],
-  "9-12": [{ name: "Lily C.", passed: 5, points: 90 }, { name: "Jamal W.", passed: 4, points: 75 }, { name: "Ava M.", passed: 4, points: 60 }],
-};
+const WAYS = [
+  { Icon: Users, kind: "Advisory Challenge", when: "November 20", prize: "A pizza party", how: "For the advisory with the most points. Everyone started at zero on October 20.", tone: "from-violet-500 to-fuchsia-500" },
+  { Icon: Crown, kind: "Reader of the Month", when: "Every month", prize: "Free DoorDash", how: "The top reader of the month picks the food, and it is delivered to school.", tone: "from-amber-400 to-orange-500" },
+  { Icon: Trophy, kind: "Reader of the Year", when: "End of the year", prize: "AirPods", how: "Or another prize worth up to $200, for the winner of the year.", tone: "from-cyan-400 to-blue-500" },
+  { Icon: Gift, kind: "Monthly raffle", when: "All month long", prize: "Random winners", how: "Complete a quiz and you are entered. Winners are picked at random, all month.", tone: "from-fuchsia-500 to-pink-500" },
+] as const;
+const RAFFLE = ["$5 Target gift card", "$5 Roblox gift card", "Snacks", "Dress-down day", "…and so much more!"];
 
-function LeaderRow({ idx, name, passed, points, big }: { idx: number; name: string; passed: number; points: number; big?: boolean }) {
-  const Icon = MEDAL_ICONS[idx] || Star;
-  const first = idx === 0;
+export function PrizesScene({ beat }: SceneProps) {
+  const raffleList = beat === 4;
   return (
-    <div className={`flex items-center gap-3 ${big ? "rounded-xl p-3" : "rounded-lg p-2.5"} ${first ? "border border-yellow-500/20 bg-yellow-500/10" : "bg-muted/20"}`}>
-      <div className={`flex ${big ? "h-10 w-10" : "h-8 w-8"} flex-shrink-0 items-center justify-center rounded-full ${first ? "bg-yellow-500/30" : "bg-muted"}`}><Icon className={`${big ? "h-5 w-5" : "h-4 w-4"} ${MEDAL_TEXT[idx]}`} /></div>
-      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white">{name}</p><p className="text-[10px] text-muted-foreground">{passedLabel(passed)}</p></div>
-      <div className="flex-shrink-0 text-right"><div className={`${big ? "text-lg" : "text-sm"} font-bold text-primary`}>{points}</div><div className="text-[10px] text-muted-foreground">pts</div></div>
-      {first && <span className="whitespace-nowrap rounded-full bg-yellow-500/30 px-2 py-0.5 text-[10px] font-bold text-yellow-300">CURRENT LEADER</span>}
-    </div>
-  );
-}
-
-export function CompetitionScene({ beat }: SceneProps) {
-  const bandsRef = useRef<HTMLDivElement>(null);
-  const prizesRef = useRef<HTMLDivElement>(null);
-  // beat 0: after a while the page scrolls down to the readers of each band
-  const bands = useSince(beat, 6200, beat === 0);
-  // beat 1: the Reader of the Year tab is tapped
-  const yearTap = useSince(beat, 1500, beat === 1);
-  const yearly = beat === 1 && yearTap;
-  const showPrizes = beat >= 2;
-  const y = useScrollY(() => (beat === 0 && bands ? bandsRef.current : beat === 2 ? prizesRef.current : null), [beat, bands], 10);
-  const current = schoolYearMonth();
-
-  return (
-    <div className="relative h-full w-full overflow-hidden bg-background text-foreground">
-      <SiteHeader />
-      <div className="absolute inset-x-0 bottom-0 top-[49px] overflow-hidden">
-        <Scroll y={y}>
-          <main className="mx-auto max-w-3xl px-4 py-5">
-            <div className="mb-4 text-center">
-              <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full border-2 border-yellow-500/30 bg-gradient-to-br from-yellow-500/30 to-orange-600/10"><Trophy className="h-8 w-8 text-yellow-400" /></div>
-              <h1 className="mb-1 text-4xl font-bold text-white">Reading Competition</h1>
-              <p className="mx-auto max-w-md text-sm text-muted-foreground">Read books, pass quizzes, and earn points to climb the monthly and yearly leaderboards.</p>
-            </div>
-
-            {showPrizes && (
-              <div className="sw-in mb-4" ref={prizesRef}>
-                <Spot on={beat === 2} radius={18}>
-                  <section className="pz" aria-label="Prizes you can win">
-                    <div className="pz-head"><h3>Prizes you can win</h3><p>These come from your family, your teacher or your school.</p></div>
-                    <ul className="pz-list">
-                      <Ticket scope="class" state="open"><h4 className="pz-title">Pizza party</h4><p className="pz-from">From Ms. Rivera</p><p className="pz-how">Pass 10 quizzes as a class</p><QuizProgress passed={7} goal={10} /></Ticket>
-                      <Ticket scope="school" state="open"><h4 className="pz-title">Lunch with the principal</h4><p className="pz-from">From your school</p><p className="pz-how">Be Reader of the Month</p></Ticket>
-                      <Ticket scope="family" state="open"><h4 className="pz-title">Pick the family movie</h4><p className="pz-from">From home</p><p className="pz-how">Pass 5 quizzes this month</p><QuizProgress passed={3} goal={5} /></Ticket>
-                    </ul>
-                  </section>
-                </Spot>
-              </div>
-            )}
-
-            <div className="mb-4 flex items-center justify-center gap-2">
-              <div className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold ${!yearly ? "bg-primary text-primary-foreground" : "border border-border bg-muted/30 text-foreground"}`}><Calendar className="h-4 w-4" />Monthly</div>
-              <Spot on={beat === 1 && !yearTap} radius={10}>
-                <div className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold ${yearly ? "bg-primary text-primary-foreground" : "border border-border bg-muted/30 text-foreground"} ${yearTap && beat === 1 ? "sw-press" : ""}`}><Star className="h-4 w-4" />Reader of the Year</div>
-              </Spot>
-            </div>
-
-            {!yearly ? (
-              <div className="space-y-5">
-                <div className="text-center"><span className="text-sm font-medium text-muted-foreground">{monthLabel(current)} Leaderboard</span></div>
-                <Spot on={beat === 0 && !bands} radius={14}>
-                  <Card className="overflow-hidden border border-yellow-500/20 shadow-md">
-                    <div className="bg-gradient-to-r from-yellow-500/15 to-transparent px-4 py-3"><div className="flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-400" /><h3 className="text-sm font-bold text-white">Top Readers This Month — All Bands</h3></div></div>
-                    <CardContent className="p-3"><div className="space-y-2">{[BAND_LEADERS["6-8"][0], BAND_LEADERS["9-12"][0], BAND_LEADERS["3-5"][0]].sort((a, b) => b.points - a.points).map((e, i) => <LeaderRow key={e.name} idx={i} {...e} />)}</div></CardContent>
-                  </Card>
-                </Spot>
-                <div ref={bandsRef}>
-                  <div className="mb-3 flex items-center gap-2"><Users className="h-5 w-5 text-primary" /><h2 className="text-lg font-bold text-white">Top Readers by Band — {monthLabel(current)}</h2></div>
-                  <div className="space-y-4">
-                    {Object.keys(BAND_LEADERS).map((band) => {
-                      const colors = BAND_COLORS[band];
-                      return (
-                        <Card key={band} className={`overflow-hidden border shadow-md ${colors.border}`}>
-                          <div className={`${colors.bg} flex items-center gap-2 px-4 py-3`}><GraduationCap className={`h-4 w-4 ${colors.text}`} /><h3 className={`text-sm font-bold ${colors.text}`}>{BAND_LABELS[band]}</h3><span className="ml-auto text-[10px] text-muted-foreground">Top 3</span></div>
-                          <CardContent className="p-3"><div className="space-y-2">{BAND_LEADERS[band].map((e, i) => <LeaderRow key={e.name} idx={i} {...e} />)}</div></CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="sw-in space-y-5">
-                <Card className="overflow-hidden border-2 border-primary/30 shadow-lg">
-                  <div className="bg-gradient-to-r from-primary/20 to-primary/5 p-4"><div className="mb-2 flex items-center gap-2"><Star className="h-5 w-5 text-primary" /><h2 className="text-lg font-bold text-white">Reader of the Year</h2></div>
-                    <p className="text-sm text-muted-foreground">The readers with the most points all year earn the title. The competition is still going, so nothing is final yet.</p></div>
-                </Card>
-                <div className="text-center"><span className="text-sm font-medium text-muted-foreground">{new Date().getFullYear()} All-Time Leaderboard — Competition Ongoing</span></div>
-                <Spot on radius={16}>
-                  <Card className="overflow-hidden border-2 border-yellow-500/30 shadow-lg">
-                    <div className="bg-gradient-to-r from-yellow-500/20 to-orange-600/10 p-4">
-                      <div className="mb-2 flex items-center gap-2"><Star className="h-5 w-5 text-yellow-400" /><h2 className="text-lg font-bold text-white">Reader of the Year</h2><span className="rounded-full bg-yellow-500/30 px-2 py-0.5 text-[10px] font-bold text-yellow-300">IN PROGRESS</span></div>
-                      <p className="mb-3 text-sm text-muted-foreground">Current leaders across the entire platform for {new Date().getFullYear()}. Nothing is final — keep reading!</p>
-                      <div className="space-y-2">{SAMPLE_READERS.slice(0, 3).map((e, i) => <LeaderRow key={e.name} idx={i} name={e.name} passed={e.passed} points={e.all} big />)}</div>
+    <div className="relative h-full w-full overflow-hidden arise-page-bg text-foreground">
+      <SiteHeader left="Back" />
+      <div className="px-7 pt-3">
+        <div className="mb-3 flex items-center justify-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl arise-icon-tile"><Gift className="h-6 w-6 text-white" /></div>
+          <h1 className="text-4xl font-black tracking-[-.035em] text-white">Ways to win</h1>
+        </div>
+        <div className="grid grid-cols-2 gap-3.5">
+          {WAYS.map((w, i) => {
+            const on = (beat === i) || (raffleList && i === 3);
+            return (
+              <Spot key={w.kind} on={on} radius={20}>
+                <div className={`h-[188px] rounded-[18px] border arise-surface p-4 ${on ? "border-cyan-300/50" : "border-white/10"}`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${w.tone} shadow-lg`}><w.Icon className="h-6 w-6 text-white" /></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-black text-violet-200">{w.kind}</p>
+                      <p className="flex items-center gap-1.5 text-[15px] font-bold text-slate-400"><Calendar className="h-4 w-4" />{w.when}</p>
                     </div>
-                  </Card>
-                </Spot>
-              </div>
-            )}
-          </main>
-        </Scroll>
+                  </div>
+                  {raffleList && i === 3 ? (
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      {RAFFLE.map((r, k) => <span key={r} className="sw-in rounded-full border border-fuchsia-300/30 bg-fuchsia-500/15 px-3 py-1 text-[14px] font-black text-fuchsia-100" style={{ animationDelay: `${k * 0.45}s` }}>{r}</span>)}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="mt-2 text-[32px] font-black leading-none tracking-[-.03em] text-white">{w.prize}</p>
+                      <p className="mt-2 text-[17px] font-semibold leading-snug text-slate-300">{w.how}</p>
+                    </>
+                  )}
+                </div>
+              </Spot>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -308,7 +232,7 @@ export function CompetitionScene({ beat }: SceneProps) {
 // ── 8. Wrap-up ──────────────────────────────────────────────────────────────────────────────────────────
 
 const PLAN = [
-  { Icon: LogIn, text: "Log in" },
+  { Icon: LogIn, text: "Sign in" },
   { Icon: Search, text: "Find a book" },
   { Icon: BookOpen, text: "Read it" },
   { Icon: CheckCircle2, text: "Pass the quiz" },

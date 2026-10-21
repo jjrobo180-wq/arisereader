@@ -1,10 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { SCENES, FLAT, TARGET_SECONDS, SITE, words, beatSeconds, totalSeconds, clock, firstBeatOf, flatten, readMinutes, EXAMPLE_SHORT_READ } from "../shared/presentShow";
-import { READABLE_BOOKS } from "../shared/readsCatalog";
-import { POEMS } from "../shared/poems";
-import { NEWS_ARTICLES } from "../shared/ariseNews";
+import { SCENES, FLAT, TARGET_SECONDS, SITE, words, beatSeconds, totalSeconds, clock, firstBeatOf, flatten } from "../shared/presentShow";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
@@ -15,10 +12,12 @@ test("the show runs about five minutes by itself", () => {
 });
 
 test("it covers everything that was asked for, in the order a student meets it", () => {
-  assert.deepEqual(SCENES.map((s) => s.id), ["welcome", "login", "library", "reads", "quiz", "leaderboard", "competition", "wrap"]);
+  assert.deepEqual(SCENES.map((s) => s.id), ["welcome", "login", "library", "reads", "quiz", "leaderboard", "prizes", "wrap"]);
   const said = SCENES.flatMap((s) => s.beats.map((b) => b.say)).join(" ").toLowerCase();
-  for (const topic of ["log in", "quiz", "leaderboard", "short reads", "competition", "70 percent", "points", "prizes"]) assert.ok(said.includes(topic), `never mentions "${topic}"`);
+  const topics = ["student sign in", "student number", "new password", "ela teacher", "hundreds", "short reads", "proctor", "camera", "leave", "second time", "70 percent", "leaderboard", "november 20", "pizza party", "doordash", "airpods", "200 dollars", "raffle", "target", "roblox", "snacks", "dress-down", "c.g.m.s."];
+  for (const topic of topics) assert.ok(said.includes(topic), `never mentions "${topic}"`);
   assert.ok(said.includes(SITE));
+  assert.ok(!said.includes("create an account") && !said.includes("sign up"), "the accounts are already made, so nobody is told to create one");
 });
 
 test("every line can be read aloud at an easy pace and fits the caption bar", () => {
@@ -39,17 +38,15 @@ test("the flattened beats line up with the scenes", () => {
   assert.equal(beatSeconds({ say: "one two three four five six seven eight nine ten" }) > beatSeconds({ say: "one" }), true);
 });
 
-test("the numbers it says come from the real catalogs", () => {
-  const said = SCENES.find((s) => s.id === "reads")!.beats.map((b) => b.say).join(" ");
-  assert.ok(said.includes(`${READABLE_BOOKS.length} classic books`) || said.includes(`${READABLE_BOOKS.length} `), "book count");
-  assert.ok(said.includes(String(POEMS.length)), "poem count");
-  assert.ok(said.includes(String(NEWS_ARTICLES.length)), "article count");
-  assert.ok(said.includes(`${readMinutes(EXAMPLE_SHORT_READ.words)} minutes`), "example reading time");
+test("it never says how many books there are, only that there are hundreds of choices", () => {
+  const said = SCENES.filter((s) => s.id === "library" || s.id === "reads").flatMap((s) => s.beats.map((b) => b.say)).join(" ");
+  assert.ok(/hundreds of (books|choices)/i.test(said));
+  assert.ok(!/\b\d{2,}\s+(classic\s+)?(books|poems|articles|stories)/i.test(said), "no catalog counts are read out");
 });
 
 test("every scene shows its own beats and the player is wired in", () => {
-  const scenes = { welcome: "scenesA", login: "scenesA", library: "scenesA", reads: "scenesB", quiz: "scenesB", leaderboard: "scenesC", competition: "scenesC", wrap: "scenesC" } as const;
-  const names: Record<string, string> = { welcome: "WelcomeScene", login: "LoginScene", library: "LibraryScene", reads: "ReadsScene", quiz: "QuizScene", leaderboard: "LeaderboardScene", competition: "CompetitionScene", wrap: "WrapScene" };
+  const scenes = { welcome: "scenesA", login: "scenesLogin", library: "scenesA", reads: "scenesB", quiz: "scenesB", leaderboard: "scenesC", prizes: "scenesC", wrap: "scenesC" } as const;
+  const names: Record<string, string> = { welcome: "WelcomeScene", login: "LoginScene", library: "LibraryScene", reads: "ReadsScene", quiz: "QuizScene", leaderboard: "LeaderboardScene", prizes: "PrizesScene", wrap: "WrapScene" };
   const player = read("client/src/pages/present/StudentShow.tsx");
   for (const s of SCENES) {
     assert.ok(read(`client/src/pages/present/${scenes[s.id]}.tsx`).includes(`export function ${names[s.id]}`), `${s.id} scene exists`);

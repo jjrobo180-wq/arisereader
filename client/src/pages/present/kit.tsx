@@ -15,6 +15,17 @@ export function Spot({ on, children, className, radius = 14 }: { on: boolean; ch
   );
 }
 
+/** A "look here" ring (and an optional tap) at an exact place, for pictures of pages we only look at, like the real home page. */
+export function RectSpot({ rect, tap }: { rect: { left: number; top: number; width: number; height: number } | null; tap?: boolean }) {
+  if (!rect) return null;
+  return (
+    <>
+      <span className="sw-spot" aria-hidden="true" style={{ inset: "auto", left: rect.left - 6, top: rect.top - 6, width: rect.width + 12, height: rect.height + 12, ["--sw-r" as string]: "14px" }} />
+      {tap && <span className="sw-tap" aria-hidden="true" style={{ left: rect.left + rect.width / 2, top: rect.top + rect.height / 2 }} />}
+    </>
+  );
+}
+
 /** True once `ms` have passed since `key` last changed (false again the moment it changes). A beat's timed steps hang off this. */
 export function useSince(key: unknown, ms: number, enabled = true): boolean {
   const [on, setOn] = useState(false);

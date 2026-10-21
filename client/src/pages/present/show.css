@@ -3,14 +3,16 @@
 
 .sw-root { position: fixed; inset: 0; z-index: 400; background: #05040b; color: #fff; overflow: hidden; font-family: inherit; }
 .sw-frame { position: absolute; left: 50%; top: 50%; }
-.sw-stage { position: absolute; left: 0; top: 0; width: 960px; height: 540px; transform-origin: 0 0; background: #0d0b1a; overflow: hidden; border-radius: 6px; }
-.sw-screen { position: absolute; left: 0; top: 0; width: 960px; height: 432px; overflow: hidden; }
+.sw-stage { position: absolute; left: 0; top: 0; width: 960px; height: 656px; transform-origin: 0 0; background: #0d0b1a; overflow: hidden; border-radius: 6px; }
+/* The picture gets the whole 16:9 screen. The caption sits under it, so it never covers anything. The transform makes pop-ups that are
+   fixed to the window (dialogs, sheets) stay inside the picture instead of covering the whole window. */
+.sw-screen { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; transform: translateZ(0); isolation: isolate; }
 .sw-screen > .sw-scene { animation: swFade .45s ease both; width: 100%; height: 100%; }
-.sw-captionbar { position: absolute; left: 0; right: 0; bottom: 0; height: 108px; display: flex; align-items: center; justify-content: center; padding: 0 36px; text-align: center;
+.sw-captionbar { position: absolute; left: 0; right: 0; top: 540px; height: 96px; display: flex; align-items: center; justify-content: center; padding: 0 36px; text-align: center; box-sizing: border-box;
   background: linear-gradient(180deg, #17122e, #0d0b1a); border-top: 2px solid rgba(167, 139, 250, .35); }
 .sw-caption { font-size: 21px; line-height: 1.3; font-weight: 800; letter-spacing: -.01em; color: #fff; max-width: 890px; text-wrap: balance; }
-.sw-scenetag { position: absolute; left: 12px; bottom: 100px; z-index: 40; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-  padding: 3px 9px; border-radius: 99px; background: rgba(5, 4, 11, .72); color: #c4b5fd; border: 1px solid rgba(196, 181, 253, .3); pointer-events: none; }
+.sw-footer { position: absolute; left: 0; right: 0; bottom: 0; height: 20px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: #0a0817; color: #8b86b8; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.sw-footer b { color: #c4b5fd; font-weight: 800; }
 .sw-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: rgba(255, 255, 255, .08); z-index: 60; }
 .sw-progress > i { display: block; height: 100%; background: linear-gradient(90deg, #7c3aed, #d946ef, #22d3ee); transition: width .3s linear; }
 
@@ -19,6 +21,9 @@
 .sw-spot { position: absolute; inset: -6px; border-radius: var(--sw-r, 14px); pointer-events: none; z-index: 30;
   box-shadow: 0 0 0 3px #22d3ee, 0 0 26px 5px rgba(34, 211, 238, .5); animation: swPulse 1.5s ease-in-out infinite; }
 @keyframes swPulse { 50% { box-shadow: 0 0 0 4px #67e8f9, 0 0 40px 10px rgba(34, 211, 238, .32); } }
+
+.sw-tap { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: rgba(255,255,255,.9); z-index: 35; pointer-events: none; animation: swTap .9s ease-out both; }
+@keyframes swTap { 0% { transform: scale(.4); opacity: 1; box-shadow: 0 0 0 0 rgba(34,211,238,.7); } 70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 26px rgba(34,211,238,0); } 100% { transform: scale(1); opacity: 0; } }
 
 /* a button being tapped */
 .sw-press { animation: swPress .5s ease both; }
@@ -56,6 +61,17 @@
 .sw-notes h3 { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #a78bfa; font-weight: 900; margin: 0 0 6px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sw-spot, .sw-press, .sw-in, .sw-caret::after, .sw-screen > .sw-scene { animation: none; }
+  .sw-spot, .sw-tap, .sw-press, .sw-in, .sw-caret::after, .sw-screen > .sw-scene { animation: none; }
   .sw-scroll { transition: none; }
 }
+
+/* the real "How do you want to take this quiz?" screen, fitted to the picture and ringed where the voice-over is pointing */
+.sw-np { position: absolute; inset: 0; }
+.sw-np .np-gate { min-height: 0; height: 100%; padding: 12px 16px; box-sizing: border-box; }
+.sw-np .np-card { max-width: 700px; gap: 14px; padding: 22px 28px; }
+.sw-ring-options .np-options { border-radius: 20px; box-shadow: 0 0 0 3px #22d3ee, 0 0 26px 5px rgba(34, 211, 238, .5); padding: 6px; animation: swPulse 1.5s ease-in-out infinite; }
+.sw-ring-input .np-input { box-shadow: 0 0 0 3px #22d3ee, 0 0 26px 5px rgba(34, 211, 238, .5); animation: swPulse 1.5s ease-in-out infinite; }
+.sw-ring-rules .np-rules { border-radius: 16px; box-shadow: 0 0 0 3px #22d3ee, 0 0 26px 5px rgba(34, 211, 238, .5); padding: 6px; animation: swPulse 1.5s ease-in-out infinite; }
+/* the "on your own" screen is the tallest one: shrink it a little so the whole card (and the ring on the rules) stays in the picture */
+.sw-ring-rules .np-gate { align-items: flex-start; }
+.sw-ring-rules .np-card { transform: scale(.8); transform-origin: top center; margin-top: 4px; }
