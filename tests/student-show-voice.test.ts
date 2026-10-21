@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createShowVoice, registerStudentShowVoice } from "../server/studentShowVoice";
-import { FLAT } from "../shared/presentShow";
+import { FLAT, lineKey } from "../shared/presentShow";
 
 // a fake Storage bucket and a fake OpenAI, so nothing real is called
 function fakes() {
@@ -31,8 +31,8 @@ test("each line is made once with the AI voice, then saved and reused", async ()
   assert.equal(f.calls[0].url, "https://api.openai.com/v1/audio/speech");
   assert.equal(f.calls[0].auth, "Bearer k");
   assert.equal(f.calls[0].body.model, "gpt-4o-mini-tts");
-  assert.equal(f.calls[0].body.voice, "cedar");
-  assert.match(f.calls[0].body.instructions, /big room of students/);
+  assert.equal(f.calls[0].body.voice, "onyx");
+  assert.match(f.calls[0].body.instructions, /Black American man/);
   assert.equal(f.calls[0].body.input, FLAT[0].say);
   await voice.line(0);
   assert.equal(f.calls.length, 1, "the second ask comes from memory");
@@ -71,7 +71,7 @@ test("without an OpenAI key it says so, and a failing voice is reported, not cra
 function routes(voice: any) {
   const handlers: Record<string, any> = {};
   registerStudentShowVoice({ get: (path: string, h: any) => { handlers[path] = h; } } as any, voice);
-  const call = async (path: string, params: any = {}) => {
+  const call = async (path: string, params: any = {}, query: any = {}) => {
     const out: any = { headers: {} as any, status: 200, body: undefined };
     const res: any = {
       set(h: any, v?: any) { if (typeof h === "string") out.headers[h] = v; else Object.assign(out.headers, h); return res; },
@@ -79,7 +79,7 @@ function routes(voice: any) {
       json(b: any) { out.body = b; return res; },
       send(b: any) { out.body = b; return res; },
     };
-    await handlers[path]({ params }, res);
+    await handlers[path]({ params, query }, res);
     return out;
   };
   return { call, handlers };
@@ -91,18 +91,20 @@ test("the routes serve status and lines, and refuse anything else", async () => 
   const { call, handlers } = routes(voice);
   assert.deepEqual(Object.keys(handlers).sort(), ["/api/student-show/voice/:index", "/api/student-show/voice/status"]);
   const status = await call("/api/student-show/voice/status");
-  assert.deepEqual(status.body, { ai: true, lines: FLAT.length });
-  const ok = await call("/api/student-show/voice/:index", { index: "2" });
+  assert.equal(status.body.ai, true); assert.equal(status.body.lines, FLAT.length); assert.match(status.body.v, /^v\d+-/);
+  const ok = await call("/api/student-show/voice/:index", { index: "2" }, { h: lineKey(FLAT[2].say) });
+  assert.equal((await call("/api/student-show/voice/:index", { index: "2" })).status, 404, "no fingerprint, no clip");
+  assert.equal((await call("/api/student-show/voice/:index", { index: "2" }, { h: lineKey(FLAT[3].say) })).status, 404, "another line's words, no clip");
   assert.equal(ok.status, 200);
   assert.equal(ok.headers["Content-Type"], "audio/mpeg");
   assert.equal(ok.body.toString(), `mp3:${FLAT[2].say}`);
-  for (const bad of ["abc", "-1", "1e3", "0x1", "1000", String(FLAT.length), ""]) assert.equal((await call("/api/student-show/voice/:index", { index: bad })).status, 404, `index "${bad}"`);
+  for (const bad of ["abc", "-1", "1e3", "0x1", "1000", String(FLAT.length), ""]) assert.equal((await call("/api/student-show/voice/:index", { index: bad }, { h: "x" })).status, 404, `index "${bad}"`);
   const off = routes({ available: () => false, line: async () => null });
   assert.equal((await off.call("/api/student-show/voice/status")).body.ai, false);
-  assert.equal((await off.call("/api/student-show/voice/:index", { index: "0" })).status, 503);
+  assert.equal((await off.call("/api/student-show/voice/:index", { index: "0" }, { h: lineKey(FLAT[0].say) })).status, 503);
   const failing = routes({ available: () => true, line: async () => { throw new Error("down"); } });
   const origErr = console.error; console.error = () => {};
-  try { assert.equal((await failing.call("/api/student-show/voice/:index", { index: "0" })).status, 502); } finally { console.error = origErr; }
+  try { assert.equal((await failing.call("/api/student-show/voice/:index", { index: "0" }, { h: lineKey(FLAT[0].say) })).status, 502); } finally { console.error = origErr; }
 });
 
 test("the show asks for the AI voice, and the server registers it", async () => {
