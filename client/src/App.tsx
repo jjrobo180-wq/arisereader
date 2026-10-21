@@ -634,7 +634,7 @@ function AppRoutes() {
         {isEyeGazeStudent ? <Redirect to="/eye-gaze-home" replace /> : <ProtectedRoute><Polls /></ProtectedRoute>}
       </Route>
       <Route path="/library">
-        <ProtectedRoute>{isEyeGazeStudent ? <Redirect to="/eye-gaze-games?tab=lessons" replace /> : <Library />}</ProtectedRoute>
+        <ProtectedRoute>{isEyeGazeStudent ? <Redirect to="/eye-gaze-lessons" replace /> : <Library />}</ProtectedRoute>
       </Route>
       <Route path="/avatar-world">
         {user && !user.isAdmin && user.role === "student" && !user.is_eye_gaze_user
@@ -781,6 +781,10 @@ function AppRoutes() {
       </Route>
       <Route path="/eye-gaze-buddy">
         <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-buddy"><EyeGazeBuddy /></EyeGazeAccessGate></ProtectedRoute>
+      </Route>
+      {/* Lessons & books on their own page in the eye-gaze menu (same permission as the library). */}
+      <Route path="/eye-gaze-lessons">
+        <ProtectedRoute><EyeGazeAccessGate path="/library"><EyeGazeLessons /></EyeGazeAccessGate></ProtectedRoute>
       </Route>
       <Route path="/eye-gaze-games">
         <ProtectedRoute><EyeGazeAccessGate path="/eye-gaze-games" anyOf={["/eye-gaze-games", "/library"]}><EyeGazeGames /></EyeGazeAccessGate></ProtectedRoute>
