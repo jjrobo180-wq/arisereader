@@ -5,8 +5,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Expand, Mic, MicOff, Pause, Play, PlayCircle, Presentation, RotateCcw, StickyNote, X } from "lucide-react";
 import { FLAT, SCENES, TARGET_SECONDS, clock, firstBeatOf, totalSeconds, type SceneId } from "@shared/presentShow";
-import { CompetitionScene, LeaderboardScene, WrapScene } from "./scenesC";
-import { LibraryScene, LoginScene, WelcomeScene } from "./scenesA";
+import { LeaderboardScene, PrizesScene, WrapScene } from "./scenesC";
+import { LibraryScene, WelcomeScene } from "./scenesA";
+import { LoginScene } from "./scenesLogin";
 import { QuizScene, ReadsScene } from "./scenesB";
 import type { SceneProps } from "./kit";
 import { aiVoiceReady, clipFor, clipWithin, stopWarming, warmFrom } from "./voice";
@@ -14,9 +15,9 @@ import "./show.css";
 
 const VIEWS: Record<SceneId, ComponentType<SceneProps>> = {
   welcome: WelcomeScene, login: LoginScene, library: LibraryScene, reads: ReadsScene,
-  quiz: QuizScene, leaderboard: LeaderboardScene, competition: CompetitionScene, wrap: WrapScene,
+  quiz: QuizScene, leaderboard: LeaderboardScene, prizes: PrizesScene, wrap: WrapScene,
 };
-const STAGE_W = 960, STAGE_H = 540;
+const STAGE_W = 960, STAGE_H = 656;
 const IDLE_MS = 2800;
 const TOTAL = totalSeconds();
 
@@ -241,8 +242,8 @@ export default function StudentShow() {
       <div className="sw-frame" style={{ width: STAGE_W * scale, height: STAGE_H * scale, marginLeft: -(STAGE_W * scale) / 2, marginTop: -(STAGE_H * scale) / 2 }}>
         <div className="sw-stage" style={{ transform: `scale(${scale})` }}>
           <div className="sw-screen"><div className="sw-scene" key={cur.id}><View beat={cur.beat} /></div></div>
-          <span className="sw-scenetag">Demo screens · sample books and readers</span>
           <div className="sw-captionbar"><p className="sw-caption" aria-live="polite" data-testid="show-caption">{cur.say}</p></div>
+          <div className="sw-footer"><span><b>C.G.M.S.</b> · A.R.I.S.E. Reader</span><span>Demo screens · sample books and readers</span></div>
         </div>
       </div>
 

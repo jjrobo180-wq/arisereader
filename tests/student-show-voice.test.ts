@@ -31,7 +31,7 @@ test("each line is made once with the AI voice, then saved and reused", async ()
   assert.equal(f.calls[0].url, "https://api.openai.com/v1/audio/speech");
   assert.equal(f.calls[0].auth, "Bearer k");
   assert.equal(f.calls[0].body.model, "gpt-4o-mini-tts");
-  assert.equal(f.calls[0].body.voice, "marin");
+  assert.equal(f.calls[0].body.voice, "cedar");
   assert.match(f.calls[0].body.instructions, /big room of students/);
   assert.equal(f.calls[0].body.input, FLAT[0].say);
   await voice.line(0);

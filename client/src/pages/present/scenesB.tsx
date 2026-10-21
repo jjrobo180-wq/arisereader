@@ -1,18 +1,21 @@
 // Scenes 4 and 5 of the student welcome show: reading short reads on Arise, and taking a quiz.
-// The reading page uses the site's own reading styles and catalogs; the quiz is the quiz page's own markup with a sample book.
-import { useRef } from "react";
+// The reading page uses the site's own reading styles and catalogs. The quiz screens are the site's own: the "How do you want to take this quiz?"
+// screen, the leave-the-page warning and the turn-in notice are the real components, and the questions are the quiz page's own markup with a sample book.
+import { useEffect, useRef } from "react";
 import { ArrowLeft, Award, BookOpen, CheckCircle2, FileSearch, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { READABLE_BOOKS, type ReadableBook } from "@shared/readsCatalog";
-import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
+import { FEATURES, NEWS_POINTS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
 import { POEMS, poemLineCount } from "@shared/poems";
 import { NewsArt, sectionStyle } from "../news/useNews";
 import { timeLabel } from "../reads/useReads";
 import "../news/news.css";
 import "../reads/reads.css";
+import NoProctorGate from "@/components/NoProctorGate";
+import { LeaveWarning, OnYourOwnStrip, TurningIn } from "@/components/NoProctorParts";
 import { Scroll, Spot, coverOf, useScrollY, useSince, type SceneProps } from "./kit";
 
 // ── 4. Short reads ──────────────────────────────────────────────────────────────────────────────────────
@@ -43,9 +46,10 @@ export function ReadsScene({ beat }: SceneProps) {
   const pressed = useSince(beat, 2600, beat === 1);
   const tapped = beat > 1 || pressed;
   const filter: Filter = tapped && beat >= 1 ? "Short reads" : "All";
-  const y = useScrollY(() => (beat === 1 ? booksRef.current : beat === 2 ? poetryRef.current : beat === 3 ? articlesRef.current : null), [beat, filter]);
+  const toArticles = useSince(beat, 4200, beat === 2);
+  const y = useScrollY(() => (beat === 1 ? booksRef.current : beat === 2 ? (toArticles ? articlesRef.current : poetryRef.current) : null), [beat, filter, toArticles]);
   const shown = SHELF.filter((b) => filter === "All" || sizeOf(b.words) === filter);
-  const poems = POEMS.filter((p) => p.band === "K-2").slice(0, 6);
+  const poems = POEMS.filter((p) => p.band === "6-8").slice(0, 6);
   const news = [...WORLD_NEWS, ...FEATURES].slice(0, 3);
 
   return (
@@ -56,7 +60,7 @@ export function ReadsScene({ beat }: SceneProps) {
             <div className="nw-wrap">
               <div className="nw-topline"><a className="nw-back" href="#/library" onClick={(e) => e.preventDefault()}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg><span>Library</span></a></div>
               <Spot on={beat === 0} radius={18}><h1 className="nw-wordmark">Read <span>on Arise</span></h1></Spot>
-              <p className="nw-tagline">{READABLE_BOOKS.length} books, {POEMS.length} poems, iARISE lessons and {NEWS_ARTICLES.length} articles you can read right here. Finish a book or article, pass the quiz, earn points.</p>
+              <p className="nw-tagline">Hundreds of books, poems, iARISE lessons and articles you can read right here. Finish a book or article, pass the quiz, earn points.</p>
               <nav className="rd-jump" aria-label="Jump to">
                 {["Books", "Poetry", "iARISE", "Articles"].map((l) => <button key={l} type="button">{l}</button>)}
               </nav>
@@ -75,7 +79,7 @@ export function ReadsScene({ beat }: SceneProps) {
             </section>
 
             <section className="nw-block" ref={poetryRef}>
-              <div className="nw-block-head"><h2>Poetry</h2><p>{POEMS.length} classic poems, each short enough to read twice. Words to know and questions come with every one.</p></div>
+              <div className="nw-block-head"><h2>Poetry</h2><p>Classic poems, each short enough to read twice. Words to know and questions come with every one.</p></div>
               <div className="rd-poems">
                 {poems.map((p) => (
                   <a key={p.slug} className="rd-poem" data-band={p.band} href="#/reads" onClick={(e) => e.preventDefault()}>
@@ -121,17 +125,16 @@ const QUESTIONS = [
 ] as const;
 const LETTERS = ["A", "B", "C", "D"] as const;
 
-function Results({ beat }: { beat: number }) {
-  const tapCert = useSince(beat, 9000, beat === 3);
+function Results({ stage }: { stage: 0 | 1 | 2 }) {
   return (
     <div className="relative h-full w-full overflow-hidden bg-background">
-      <div className="absolute left-1/2 top-2 -translate-x-1/2 origin-top scale-[.6]">
+      <div className="absolute left-1/2 top-3 -translate-x-1/2 origin-top scale-[.72]">
         <Card className="w-[448px] shadow-xl">
           <CardContent className="p-8 text-center">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary shadow-lg"><CheckCircle2 className="h-10 w-10 text-white" /></div>
             <h2 className="mb-2 text-2xl font-bold">Passed!</h2>
             <p className="mb-6 text-muted-foreground">{QUIZ_BOOK.title}</p>
-            <Spot on={beat === 3} radius={20}>
+            <Spot on={stage === 0} radius={20}>
               <div className="mb-6 rounded-2xl bg-primary p-6 text-white">
                 <div className="text-5xl font-bold">3</div>
                 <div className="mt-1 text-sm opacity-80">out of 4 correct</div>
@@ -141,10 +144,10 @@ function Results({ beat }: { beat: number }) {
             <div className="mb-6">
               <p className="text-lg font-bold text-primary">You earned 5 points!</p>
               <p className="mt-1 text-sm text-muted-foreground">out of 5 possible</p>
-              <Button className={`mt-4 w-full ${tapCert ? "sw-press" : ""}`} variant="default"><Award className="mr-2 h-4 w-4" />Get Certificate</Button>
+              <Spot on={stage === 1} radius={10} className="mt-4"><Button className={`w-full ${stage === 1 ? "sw-press" : ""}`} variant="default"><Award className="mr-2 h-4 w-4" />Get Certificate</Button></Spot>
             </div>
             <Button className="w-full" variant="outline"><ArrowLeft className="mr-2 h-4 w-4" />Back to Library</Button>
-            <Spot on={beat === 4} radius={10} className="mt-2"><Button className="w-full" variant="ghost"><FileSearch className="mr-2 h-4 w-4" />Request Manual Review</Button></Spot>
+            <Spot on={stage === 2} radius={10} className="mt-2"><Button className="w-full" variant="ghost"><FileSearch className="mr-2 h-4 w-4" />Request Manual Review</Button></Spot>
           </CardContent>
         </Card>
       </div>
@@ -152,20 +155,102 @@ function Results({ beat }: { beat: number }) {
   );
 }
 
+/** Types into a field the way a person does, for fields that belong to a real component (it keeps its own state). */
+function typeInto(el: HTMLInputElement, value: string) {
+  const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  set?.call(el, value);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+/**
+ * The real "How do you want to take this quiz?" screen. `view` says which of its screens to show: the choice, or what happens
+ * after tapping "With a proctor" or "On my own". The taps are made for it, a moment after it appears.
+ */
+function QuizChoice({ view }: { view: "choose" | "proctor" | "own" }) {
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (view === "choose") return;
+    const timers: number[] = [];
+    const q = (sel: string) => root.current?.querySelector<HTMLElement>(sel) ?? null;
+    timers.push(window.setTimeout(() => q(view === "proctor" ? ".np-option:not(.np-option-camera)" : ".np-option-camera")?.click(), 1000));
+    if (view === "proctor") timers.push(window.setTimeout(() => { const input = q(".np-input") as HTMLInputElement | null; if (input) typeInto(input, "teacher-code"); }, 3200));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [view]);
+  const ring = view === "choose" ? "sw-ring-options" : view === "proctor" ? "sw-ring-input" : "sw-ring-rules";
+  return (
+    <div ref={root} className={`sw-np ${ring}`}>
+      <NoProctorGate
+        book={{ title: QUIZ_BOOK.title, author: QUIZ_BOOK.author, coverUrl: coverOf("velveteen-rabbit") }}
+        questionCount={QUESTIONS.length} quizId={1} authToken={null} resume={null} proctorError="" proctorLoading={false}
+        onVerifyCode={() => {}} onCameraReady={() => {}} onBack={() => {}}
+      />
+    </div>
+  );
+}
+
+/** Beat 3: staying on the page. The real strip, then the real warning, then the real "turning in" notice. */
+function LeaveRule({ beat }: { beat: number }) {
+  const warn = useSince(beat, 2200, beat === 3);
+  const back = useSince(beat, 6200, beat === 3);
+  const turnIn = useSince(beat, 8600, beat === 3);
+  const used = back || turnIn;
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-background text-foreground">
+      <header className="relative z-20 border-b border-border bg-card/80 shadow-sm">
+        <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
+          <Button variant="ghost" size="sm"><ArrowLeft className="mr-1 h-4 w-4" /><span>Back</span></Button>
+          <div className="flex-1"><h1 className="truncate text-sm font-bold">{QUIZ_BOOK.title}</h1><p className="text-xs text-muted-foreground">{QUIZ_BOOK.author}</p></div>
+        </div>
+      </header>
+      <div className="mx-auto max-w-3xl px-4 pt-3">
+        <Spot on={!warn || (back && !turnIn)} radius={14}><OnYourOwnStrip warningUsed={used} /></Spot>
+        <div className="mt-4"><QuizQuestion idx={0} picked={0} /></div>
+        <div className="mt-4"><QuizQuestion idx={1} picked={0} /></div>
+      </div>
+      {warn && !back && <LeaveWarning awayMs={9000} onClose={() => {}} />}
+      {turnIn && <TurningIn failed={false} onRetry={() => {}} />}
+    </div>
+  );
+}
+
+function QuizQuestion({ idx, picked }: { idx: number; picked: number }) {
+  const item = QUESTIONS[idx];
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-5">
+        <div className="mb-4 flex gap-3">
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">{idx + 1}</div>
+          <p className="flex-1 text-base font-medium">{item.q}</p>
+        </div>
+        <RadioGroup value={picked >= 0 ? LETTERS[picked] : ""} onValueChange={() => {}} className="space-y-2">
+          {LETTERS.map((letter, i) => (
+            <Label key={letter} htmlFor={`sw-r${idx}-${letter}`} className={`flex items-center gap-3 rounded-lg border-2 p-3 transition-colors ${picked === i ? "border-primary bg-primary/5" : "border-border"}`}>
+              <RadioGroupItem value={letter} id={`sw-r${idx}-${letter}`} />
+              <span className="text-sm">{item.options[i]}</span>
+            </Label>
+          ))}
+        </RadioGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function QuizScene({ beat }: SceneProps) {
   const refs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
-  const s1 = useSince(beat, 2200, beat === 1), s2 = useSince(beat, 4800, beat === 1), s3 = useSince(beat, 7400, beat === 1);
-  const s4 = useSince(beat, 3600, beat === 2);
-  const tapSubmit = useSince(beat, 12200, beat === 2);
-  const answered = beat >= 3 ? 4 : beat === 2 ? (s4 ? 4 : 3) : beat === 1 ? (s3 ? 3 : s2 ? 2 : s1 ? 1 : 0) : 0;
-  const target = beat === 1 ? (s3 ? 2 : s2 ? 1 : 0) : beat === 2 ? 4 : -1;
-  // on the last question the page rests with the Submit button near the bottom of the screen, as it would after scrolling down
-  const y = useScrollY(() => (target >= 0 ? refs[target].current : null), [target], target === 4 ? 236 : 12);
+  // beat 4: the answers go in one at a time, the page follows, and Submit is tapped
+  const s1 = useSince(beat, 1000, beat === 4), s2 = useSince(beat, 2200, beat === 4), s3 = useSince(beat, 3400, beat === 4), s4 = useSince(beat, 4600, beat === 4);
+  const tapSubmit = useSince(beat, 6800, beat === 4);
+  const answered = beat !== 4 ? 0 : s4 ? 4 : s3 ? 3 : s2 ? 2 : s1 ? 1 : 0;
+  const target = beat === 4 ? (s4 ? 4 : s3 ? 3 : s2 ? 2 : s1 ? 1 : -1) : -1;
+  const y = useScrollY(() => (target >= 0 ? refs[target].current : null), [target], target === 4 ? 300 : 12);
+  // beat 5: the score, then the certificate, then Request Manual Review
+  const certificate = useSince(beat, 5200, beat === 5);
+  const review = useSince(beat, 8600, beat === 5);
   const allAnswered = answered === 4;
-  // the Listen button is pointed at while the first question is read
-  const listenSpot = beat === 1 && !s1;
 
-  if (beat >= 3) return <Results beat={beat} />;
+  if (beat <= 2) return <QuizChoice key={beat} view={beat === 0 ? "choose" : beat === 1 ? "proctor" : "own"} />;
+  if (beat === 3) return <LeaveRule beat={beat} />;
+  if (beat === 5) return <Results stage={review ? 2 : certificate ? 1 : 0} />;
   return (
     <div className="relative h-full w-full overflow-hidden bg-background text-foreground">
       <header className="relative z-20 border-b border-border bg-card/80 shadow-sm">
@@ -177,17 +262,15 @@ export function QuizScene({ beat }: SceneProps) {
       <div className="absolute inset-x-0 bottom-0 top-14 overflow-hidden">
         <Scroll y={y}>
           <main className="mx-auto max-w-3xl px-4 py-5">
-            <Spot on={beat === 0} radius={16} className="mb-6">
-              <div className="flex items-start gap-4">
-                <div className="w-24 flex-shrink-0"><img src={coverOf("velveteen-rabbit")} alt={`Cover of ${QUIZ_BOOK.title}`} className="w-full rounded-lg shadow-lg" /></div>
-                <div className="flex-1">
-                  <h2 className="mb-1 text-xl font-bold">{QUIZ_BOOK.title}</h2>
-                  <p className="mb-2 text-sm text-muted-foreground">by {QUIZ_BOOK.author}</p>
-                  <p className="text-sm text-muted-foreground">{QUIZ_BOOK.description}</p>
-                  <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary"><BookOpen className="h-3 w-3" />{QUESTIONS.length} questions</div>
-                </div>
+            <div className="mb-6 flex items-start gap-4">
+              <div className="w-24 flex-shrink-0"><img src={coverOf("velveteen-rabbit")} alt={`Cover of ${QUIZ_BOOK.title}`} className="w-full rounded-lg shadow-lg" /></div>
+              <div className="flex-1">
+                <h2 className="mb-1 text-xl font-bold">{QUIZ_BOOK.title}</h2>
+                <p className="mb-2 text-sm text-muted-foreground">by {QUIZ_BOOK.author}</p>
+                <p className="text-sm text-muted-foreground">{QUIZ_BOOK.description}</p>
+                <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary"><BookOpen className="h-3 w-3" />{QUESTIONS.length} questions</div>
               </div>
-            </Spot>
+            </div>
 
             <div className="space-y-4">
               {QUESTIONS.map((item, idx) => {
@@ -199,9 +282,7 @@ export function QuizScene({ beat }: SceneProps) {
                         <div className="mb-4 flex gap-3">
                           <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">{idx + 1}</div>
                           <p className="flex-1 text-base font-medium">{item.q}</p>
-                          <Spot on={listenSpot && idx === 0} radius={10}>
-                            <button type="button" className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-primary"><Volume2 className="h-4 w-4" />Listen</button>
-                          </Spot>
+                          <button type="button" className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-primary"><Volume2 className="h-4 w-4" />Listen</button>
                         </div>
                         <RadioGroup value={picked >= 0 ? LETTERS[picked] : ""} onValueChange={() => {}} className="space-y-2">
                           {LETTERS.map((letter, i) => (
@@ -218,8 +299,8 @@ export function QuizScene({ beat }: SceneProps) {
               })}
             </div>
 
-            <div className="mt-6 pb-12" ref={refs[4]}>
-              <Spot on={beat === 2 && allAnswered} radius={12}>
+            <div className="mt-6 pb-24" ref={refs[4]}>
+              <Spot on={allAnswered && !tapSubmit} radius={12}>
                 <Button size="lg" className={`w-full ${tapSubmit ? "sw-press" : ""}`} disabled={!allAnswered}>
                   {allAnswered ? "Submit Quiz" : `Answer all questions (${answered}/${QUESTIONS.length})`}
                 </Button>

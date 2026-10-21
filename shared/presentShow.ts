@@ -1,12 +1,10 @@
-// The student welcome show: a 5-minute presentation of A.R.I.S.E. Reader for a room of students.
+// The student welcome show: a 5-minute presentation of A.R.I.S.E. Reader for the students of C.G.M.S. (Conservatory Green Middle School).
 // This file is the script. What is said is also what is shown at the bottom of the screen, so a student who
 // cannot hear (a big room, a noisy gym) can follow along. Each "beat" is one thing the screen does while the
-// caption is up. Every claim here matches what the site really does, and the numbers come from the real catalogs.
-import { READABLE_BOOKS } from "./readsCatalog";
-import { POEMS } from "./poems";
-import { NEWS_ARTICLES, NEWS_POINTS } from "./ariseNews";
+// caption is up. Every claim here matches what the site really does at C.G.M.S.: accounts are made for the students, the username and starting password are the student number,
+// and the prizes are the ones the school has set.
 
-export type SceneId = "welcome" | "login" | "library" | "reads" | "quiz" | "leaderboard" | "competition" | "wrap";
+export type SceneId = "welcome" | "login" | "library" | "reads" | "quiz" | "leaderboard" | "prizes" | "wrap";
 export type Beat = { say: string };
 export type Scene = {
   id: SceneId;
@@ -28,33 +26,24 @@ export const words = (text: string) => (text.trim() ? text.trim().split(/\s+/).l
 /** How long a beat stays up: long enough to read aloud at an easy pace, then a breath. */
 export const beatSeconds = (beat: Beat) => Math.round((PAUSE_SECONDS + words(beat.say) / WORDS_PER_SECOND) * 10) / 10;
 
-/** The shortest read of the Short reads list that has a picture cover of its own, for the example. */
-export const EXAMPLE_SHORT_READ = READABLE_BOOKS.find((b) => b.key === "velveteen-rabbit")!;
-export const readMinutes = (wordCount: number) => Math.max(1, Math.round(wordCount / 200));
-
-const books = READABLE_BOOKS.length;
-const poems = POEMS.length;
-const articles = NEWS_ARTICLES.length;
-const exampleMinutes = readMinutes(EXAMPLE_SHORT_READ.words);
-
 export const SCENES: Scene[] = [
   {
     id: "welcome", title: "Welcome",
     tip: "Ask the room: who has read a book this month? Hands up, then start.",
     beats: [
-      { say: "Welcome to A.R.I.S.E. Reader! In the next five minutes you will learn how to log in, find a book, take a quiz, and win prizes." },
-      { say: "A.R.I.S.E. is a reading program. You read, you take a quiz on what you read, and every quiz you pass earns you points." },
-      { say: "The name stands for Advocating, Resilience, Inclusion, Support, and Empowerment. It means every reader belongs here, and every reader can grow." },
+      { say: "Welcome, C.G.M.S.! In the next five minutes you will see how to sign in, find a book, take a quiz, and win prizes." },
+      { say: "A.R.I.S.E. Reader is our reading program. You read, you take a quiz on what you read, and every quiz you pass earns you points." },
+      { say: "A.R.I.S.E. stands for Advocating, Resilience, Inclusion, Support, and Empowerment. Every reader belongs here, and every reader can grow." },
     ],
   },
   {
-    id: "login", title: "Log in",
-    tip: "Say the address out loud and slowly. Students who have an account can log in on their own device while you talk.",
+    id: "login", title: "Sign in",
+    tip: "Say the address out loud and slowly. Your students' accounts are already made, so they can sign in on their own devices while you talk. Remind them it is their student number, twice.",
     beats: [
-      { say: `Step one: logging in. Open ${SITE} on any computer, tablet, or phone.` },
-      { say: "New here? Tap Create, then School Student. Pick your school, your grade, and your teacher, then choose a username and a password." },
-      { say: "Already have an account? Tap Sign in, type your username and your password, and tap Log in." },
-      { say: "Keep your password private, and write it somewhere safe so you never forget it." },
+      { say: `Step one: signing in. On any computer, open ${SITE}, then click Student sign in.` },
+      { say: "Your account is already made, so there is nothing to create. Your username and your password are both your student number." },
+      { say: "The first time you sign in, it asks you to create a new password. Pick one only you know, and write it down somewhere safe." },
+      { say: "Then it asks who your ELA teacher is. Start typing their name, tap it in the list, and save. That's it. You're in." },
     ],
   },
   {
@@ -62,30 +51,29 @@ export const SCENES: Scene[] = [
     tip: "Point at the points on the book covers. Students like knowing a book is worth more.",
     beats: [
       { say: "This is your Library, home base for everything you read. At the top you can see your name, your points, and how many quizzes you have taken." },
-      { say: "Looking for something? Type a title or an author in the search bar, and the books you want show up." },
-      { say: "Every book shows how many points it is worth: 5, 10, 20, or 30 points." },
-      { say: "Found one? Tap Read to read it, or read your own copy. When you finish, tap Quiz." },
+      { say: "There are hundreds of books to choose from. Type a title or an author in the search bar to find one." },
+      { say: "Every book shows how many points it is worth: 5, 10, 20, or 30. Tap Read to read it, and tap Quiz when you are done." },
     ],
   },
   {
     id: "reads", title: "Short reads",
     tip: "If the class has a few minutes left, this is the part to try live: open Read on Arise and pick a poem together.",
     beats: [
-      { say: `Want to read right now? Open Read on Arise from the menu. It has ${books} classic books, ${poems} poems, and ${articles} articles, all free to read right there.` },
-      { say: `Short on time? Tap Short reads to see stories you can finish in one sitting. The Velveteen Rabbit takes about ${exampleMinutes} minutes.` },
-      { say: "Poems are even shorter. Each one is only a few lines, and the words to know and the questions come with it." },
-      { say: `The articles are quick news stories, about two minutes each. Read one, pass the quiz, and earn ${NEWS_POINTS} points.` },
+      { say: "Want to read right now? Open Read on Arise from the menu. It has hundreds of choices, all free to read right there." },
+      { say: "Short on time? Tap Short reads to see stories you can finish in one sitting." },
+      { say: "Poems and quick news articles count too. Read one, pass the quiz, and earn points." },
     ],
   },
   {
     id: "quiz", title: "Take a quiz",
-    tip: "Stress the one try. Then the 70 percent line. Most questions are answered in the book, so reading carefully is the whole trick.",
+    tip: "Stress the two ways to take the quiz, then the warning rule, then the one try. Most questions are answered in the book, so reading carefully is the best study.",
     beats: [
-      { say: "Now the quiz. Here is the book, and here are the questions." },
-      { say: "Read each question carefully and tap the answer you think is right. Need help? Tap Listen and the question is read out loud to you." },
-      { say: "The button at the bottom counts your answers. When every question is answered, it lights up. Tap it to turn your quiz in. You only get one try, so take your time." },
-      { say: "And here is your score! You need 70 percent to pass. Pass, and you earn the points for that book, plus a certificate you can download." },
-      { say: "If you think a question was marked wrong, tap Request Manual Review and your teacher will take a look." },
+      { say: "When you finish a book, tap Quiz. First you choose how to take it. There are two options." },
+      { say: "Option one: with a proctor. Your teacher or a parent types in their private password to unlock the quiz for you." },
+      { say: "Option two: on your own. Your camera stays on and takes pictures while you test, so your teacher and parents can see it was really you." },
+      { say: "Stay on the quiz page. If you leave it, you get one warning. If you leave a second time, your quiz turns in by itself." },
+      { say: "Answer every question, then tap Submit. You only get one try, so take your time." },
+      { say: "You need 70 percent to pass. Pass, and you earn the points, plus a certificate. If you think a question was marked wrong, tap Request Manual Review." },
     ],
   },
   {
@@ -93,27 +81,28 @@ export const SCENES: Scene[] = [
     tip: "Tell them which month it is and how long is left. The countdown on screen is live.",
     beats: [
       { say: "Every point you earn lands on the Leaderboard. Open Progress and Rewards in your menu to see it." },
-      { say: "You race students in your own grade band, K to 2, 3 to 5, 6 to 8, or 9 to 12, so the race is always fair." },
-      { say: "Monthly shows this month's race, and the clock counts down to when it closes. All-Time adds up every point you have ever earned." },
+      { say: "You race students in your own grade band, so the race is always fair. Monthly shows this month, and All-Time adds up every point you have ever earned." },
       { say: "The top three stand on the podium. Everyone else is listed below, with how many quizzes they have passed." },
-      { say: "There is also the Advisory Challenge. Every quiz you pass adds points to your advisory class, so you are racing as a team." },
+      { say: "There is also the Advisory Challenge. Every quiz you pass adds points to your advisory, so you are racing as a team." },
     ],
   },
   {
-    id: "competition", title: "Competitions",
-    tip: "Say what this month's and this year's prizes are, if your school has set any.",
+    id: "prizes", title: "Prizes",
+    tip: "This is the part they remember. Say the date, November 20th, and say it again at the end. Everyone starts at zero.",
     beats: [
-      { say: "The Reading Competition has two parts. Each month, the top readers in every grade band are named the current leaders." },
-      { say: "At the end of the year, the readers with the most points all year earn the title Reader of the Year. Nothing is final until then, so keep reading!" },
-      { say: "Prizes come from the grown-ups around you: your teacher, your school, even your family. When there is a prize to win, it shows up right here as a ticket." },
+      { say: "Now, the prizes! The Advisory Challenge started at zero on October 20th. On November 20th, the advisory with the most points wins a pizza party." },
+      { say: "Every month, the top reader of that month wins free DoorDash, whatever food you choose, delivered right to school." },
+      { say: "At the end of the year, the Reader of the Year wins AirPods, or another prize worth up to 200 dollars." },
+      { say: "And you do not have to be first to win. Every month there is a raffle. Complete a quiz and you are entered, and winners are picked at random all month long." },
+      { say: "The prizes could be a 5 dollar Target gift card, a 5 dollar Roblox gift card, snacks, a dress-down day, and so much more." },
     ],
   },
   {
     id: "wrap", title: "Let's go",
-    tip: "End on the address. If you can, let students log in right now.",
+    tip: "End on the address. If you can, let students sign in right now.",
     beats: [
-      { say: "So that is the whole plan: log in, find a book, read it, pass the quiz, earn points, and climb the leaderboard." },
-      { say: `Open ${SITE} and log in. Let's get reading!` },
+      { say: "So that is the whole plan: sign in, find a book, read it, pass the quiz, earn points, and climb the leaderboard." },
+      { say: `Go to ${SITE}, click Student sign in, and let's get reading!` },
     ],
   },
 ];

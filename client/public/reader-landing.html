@@ -278,7 +278,8 @@
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
   // Already signed in: "Sign in" takes them straight to their hub or library, so say so.
-  if (/(?:^|;\s*)arise_session=/.test(document.cookie)) {
+  // (The student welcome show shows this page to a room, with ?present=1, as a student sees it: not signed in.)
+  if (!/[?&]present=1(?:&|$)/.test(location.search) && /(?:^|;\s*)arise_session=/.test(document.cookie)) {
     $$('a[href="/#/signin"]').forEach(a => { a.childNodes.forEach(n => { if (n.nodeType === 3 && /sign in/i.test(n.textContent)) n.textContent = n.textContent.replace(/(parent & teacher )?sign in/i, 'Open my account'); }); });
     $$('.adult-signin .lbl-long').forEach(el => { el.textContent = 'Open my account'; });
     $$('.adult-signin .lbl-short').forEach(el => { el.textContent = 'My account'; });
