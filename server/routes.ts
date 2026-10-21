@@ -81,6 +81,7 @@ import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
 import { registerAriseEnglishRoutes, type EnglishPerson } from "./ariseEnglish";
 import { createEnglishSpeech } from "./ariseEnglishVoice";
+import { registerStudentShowVoice } from "./studentShowVoice";
 import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
@@ -1761,6 +1762,8 @@ export async function registerRoutes(
     displayName: String(u.displayName || u.username || ""), username: String(u.username || ""), teacherId: u.teacherId ? Number(u.teacherId) : null,
     schoolId: u.school_id ? Number(u.school_id) : null, archived: !!u.archivedAt,
   }) : null;
+  // The student welcome show's AI voice (#/present): its fixed script, made once and saved. See server/studentShowVoice.ts.
+  registerStudentShowVoice(app);
   registerAriseEnglishRoutes(app, authMiddleware, {
     speech: createEnglishSpeech(),
     audioBody: raw({ type: ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"], limit: "2mb" }),

@@ -9,6 +9,7 @@ import { CompetitionScene, LeaderboardScene, WrapScene } from "./scenesC";
 import { LibraryScene, LoginScene, WelcomeScene } from "./scenesA";
 import { QuizScene, ReadsScene } from "./scenesB";
 import type { SceneProps } from "./kit";
+import { aiVoiceReady, clipFor, clipWithin, stopWarming, warmFrom } from "./voice";
 import "./show.css";
 
 const VIEWS: Record<SceneId, ComponentType<SceneProps>> = {
@@ -45,6 +46,9 @@ export default function StudentShow() {
   const [pos, setPos] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [voice, setVoice] = useState(false);
+  const [ai, setAi] = useState(false);
+  const voiceTouched = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [notes, setNotes] = useState(false);
   const [idle, setIdle] = useState(false);
   const [, setNow] = useState(0);
@@ -57,7 +61,17 @@ export default function StudentShow() {
   const scene = SCENES[cur.scene];
   const View = VIEWS[cur.id];
   const last = pos === FLAT.length - 1;
-  const voiceOk = typeof window !== "undefined" && "speechSynthesis" in window;
+  const browserVoice = typeof window !== "undefined" && "speechSynthesis" in window;
+  // the natural AI voice when the server has it, the computer's own voice otherwise
+  const voiceOk = ai || browserVoice;
+  useEffect(() => {
+    let alive = true;
+    void aiVoiceReady().then((ok) => { if (alive && ok) { setAi(true); if (!voiceTouched.current) setVoice(true); } });
+    return () => { alive = false; stopWarming(); };
+  }, []);
+  const chooseVoice = useCallback((on: boolean | ((v: boolean) => boolean)) => { voiceTouched.current = true; setVoice(on); }, []);
+  // get the lines ready ahead of time so they play the moment they are needed
+  useEffect(() => { if (ai && voice) warmFrom(started ? pos : 0, FLAT.length); }, [ai, voice, started, pos]);
 
   const go = useCallback((to: number) => setPos(Math.max(0, Math.min(FLAT.length - 1, to))), []);
   const next = useCallback(() => setPos((p) => Math.min(FLAT.length - 1, p + 1)), []);
@@ -77,11 +91,10 @@ export default function StudentShow() {
   }, []);
 
   const begin = (auto: boolean) => {
-    setStarted(true);
-    setPos(0);
-    setPlaying(auto);
-    beatStarted.current = Date.now();
     void rootRef.current?.requestFullscreen?.().catch(() => {});
+    const startNow = () => { setStarted(true); setPos(0); setPlaying(auto); beatStarted.current = Date.now(); };
+    // with the AI voice, wait a moment for the first line so the opening is not silent
+    if (ai && voice) void clipWithin(0, 4000).then(startNow); else startNow();
   };
   const restart = () => { go(0); setPlaying(true); };
 
@@ -90,21 +103,38 @@ export default function StudentShow() {
 
   // the voice reads the caption of each beat
   useEffect(() => {
-    if (!voiceOk) return;
-    window.speechSynthesis.cancel();
+    try { window.speechSynthesis?.cancel(); } catch { /* none */ }
+    audioRef.current?.pause(); audioRef.current = null;
     speech.current = { done: true, waiting: null };
-    if (!started || !voice) return;
-    const say = new SpeechSynthesisUtterance(cur.say);
-    const v = pickVoice();
-    if (v) { say.voice = v; say.lang = v.lang; } else say.lang = "en-US";
-    say.rate = 1;
-    speech.current = { done: false, waiting: null };
-    const finish = () => { const s = speech.current; s.done = true; const w = s.waiting; s.waiting = null; w?.(); };
-    say.onend = finish; say.onerror = finish;
-    window.speechSynthesis.speak(say);
-    return () => { window.speechSynthesis.cancel(); };
-  }, [pos, voice, started, cur.say, voiceOk]);
-  useEffect(() => () => { if (voiceOk) window.speechSynthesis.cancel(); }, [voiceOk]);
+    if (!started || !voice || !voiceOk) return;
+    let alive = true;
+    const s: { done: boolean; waiting: (() => void) | null } = { done: false, waiting: null };
+    speech.current = s;
+    const finish = () => { s.done = true; const w = s.waiting; s.waiting = null; w?.(); };
+    const computerVoice = () => {
+      if (!alive) return;
+      if (!browserVoice) return finish();
+      const say = new SpeechSynthesisUtterance(cur.say);
+      const v = pickVoice();
+      if (v) { say.voice = v; say.lang = v.lang; } else say.lang = "en-US";
+      say.rate = 1;
+      say.onend = finish; say.onerror = finish;
+      window.speechSynthesis.speak(say);
+    };
+    if (ai) {
+      void clipFor(pos).then((url) => {
+        if (!alive) return;
+        if (!url) return computerVoice();
+        const a = new Audio(url);
+        audioRef.current = a;
+        a.onended = finish;
+        a.onerror = () => computerVoice();
+        a.play().catch(() => computerVoice());
+      });
+    } else computerVoice();
+    return () => { alive = false; audioRef.current?.pause(); audioRef.current = null; try { window.speechSynthesis?.cancel(); } catch { /* none */ } };
+  }, [pos, voice, started, cur.say, voiceOk, ai, browserVoice]);
+  useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch { /* none */ } }, []);
 
   // playing by itself: stay on the beat for its time (and until the voice has finished), then move on
   useEffect(() => {
@@ -136,7 +166,7 @@ export default function StudentShow() {
       else if (k === "ArrowLeft" || k === "PageUp" || k === "ArrowUp" || k === "Backspace") { used(); back(); }
       else if (k === "p" || k === "P" || k === "k" || k === "K") { used(); setPlaying((v) => !v); }
       else if (k === "f" || k === "F") { used(); toggleFullscreen(); }
-      else if (k === "v" || k === "V") { used(); if (voiceOk) setVoice((v) => !v); }
+      else if (k === "v" || k === "V") { used(); if (voiceOk) chooseVoice((v) => !v); }
       else if (k === "n" || k === "N") { used(); setNotes((v) => !v); }
       else if (k === "Home") { used(); go(0); }
       else if (k === "End") { used(); go(FLAT.length - 1); }
@@ -145,9 +175,9 @@ export default function StudentShow() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [started, next, back, go, goScene, poke, toggleFullscreen, voiceOk]);
+  }, [started, next, back, go, goScene, poke, toggleFullscreen, voiceOk, chooseVoice]);
 
-  const leave = () => { if (document.fullscreenElement) void document.exitFullscreen?.(); if (voiceOk) window.speechSynthesis.cancel(); navigate("/tutorial"); };
+  const leave = () => { if (document.fullscreenElement) void document.exitFullscreen?.(); try { window.speechSynthesis?.cancel(); } catch { /* none */ } audioRef.current?.pause(); navigate("/tutorial"); };
   useEffect(() => () => { if (document.fullscreenElement) void document.exitFullscreen?.(); }, []);
 
   const beatsInScene = scene.beats.length;
@@ -189,8 +219,8 @@ export default function StudentShow() {
           </div>
 
           <label className={`mt-6 flex items-center gap-2 text-sm font-bold ${voiceOk ? "text-slate-200" : "text-slate-500"}`}>
-            <input type="checkbox" className="h-4 w-4 accent-violet-500" checked={voice} disabled={!voiceOk} onChange={(e) => setVoice(e.target.checked)} />
-            Read the captions out loud (uses this computer's voice)
+            <input type="checkbox" className="h-4 w-4 accent-violet-500" checked={voice} disabled={!voiceOk} onChange={(e) => chooseVoice(e.target.checked)} data-testid="show-voice-toggle" />
+            {ai ? "Read the captions out loud in a natural AI voice" : "Read the captions out loud (uses this computer's voice)"}
           </label>
 
           <div className="mt-8 grid w-full max-w-2xl grid-cols-2 gap-x-6 gap-y-1.5 rounded-2xl border border-white/10 bg-white/[.03] p-4 text-left text-sm text-slate-300 sm:grid-cols-3">
@@ -237,7 +267,7 @@ export default function StudentShow() {
             <button key={c.id} type="button" className="sw-chip" aria-current={c.i === cur.scene ? "step" : undefined} onClick={() => goScene(c.i)} data-testid={`show-scene-${c.id}`}>{c.title}</button>
           ))}
           <span className="mx-1 hidden h-6 w-px bg-white/10 sm:block" />
-          <button type="button" className="sw-btn" aria-pressed={voice} disabled={!voiceOk} onClick={() => setVoice((v) => !v)} aria-label="Read the captions out loud">{voice ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}Voice</button>
+          <button type="button" className="sw-btn" aria-pressed={voice} disabled={!voiceOk} onClick={() => chooseVoice((v) => !v)} aria-label="Read the captions out loud">{voice ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}Voice</button>
           <button type="button" className="sw-btn" aria-pressed={notes} onClick={() => setNotes((v) => !v)} aria-label="Presenter notes"><StickyNote className="h-4 w-4" />Notes</button>
           <button type="button" className="sw-btn" onClick={toggleFullscreen} aria-label="Full screen"><Expand className="h-4 w-4" /></button>
           <button type="button" className="sw-btn" onClick={leave} aria-label="Exit the show"><X className="h-4 w-4" />Exit</button>
