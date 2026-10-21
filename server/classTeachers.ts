@@ -179,12 +179,14 @@ export function supabaseClassTeacherStore(db: Db): Omit<ClassTeacherDeps, "auth"
     },
     async schoolTeachers(schoolId) {
       const rows = await allRows<any>(() => db.from("users").select("id, display_name, account_approved").eq("school_id", schoolId).eq("role", "teacher").is("archived_at", null).order("id", { ascending: true }));
-      // School leadership accounts (the "school_leader_ids" setting) are not anyone's class teacher.
+      // Shared school-staff accounts (the "school_leader_ids" and "eye_gaze_staff_ids" settings) are not anyone's class teacher.
       let leaders = new Set<number>();
       try {
-        const { data } = await db.from("settings").select("value").eq("key", "school_leader_ids").maybeSingle();
-        const ids = JSON.parse(data?.value || "[]");
-        if (Array.isArray(ids)) leaders = new Set(ids.map(Number));
+        const { data } = await db.from("settings").select("key, value").in("key", ["school_leader_ids", "eye_gaze_staff_ids"]);
+        for (const row of (data || []) as any[]) {
+          const ids = JSON.parse(row?.value || "[]");
+          if (Array.isArray(ids)) for (const id of ids) leaders.add(Number(id));
+        }
       } catch {}
       return rows
         .filter((r) => r.account_approved !== false && !leaders.has(Number(r.id)))

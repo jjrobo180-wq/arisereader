@@ -10750,18 +10750,20 @@ Important:
     if (!student || student.isAdmin || student.role === "teacher" || student.role === "parent") return false;
     if (Number(student.teacherId) === Number(user?.id)) return true;
     // A school leadership account reaches every student at its own school.
-    const leaderSchool = user?.id ? await storage.schoolLeaderSchool(Number(user.id)) : null;
-    return !!leaderSchool && Number((student as any).school_id ?? (student as any).schoolId) === leaderSchool;
+    const scope = user?.id ? await storage.schoolStaffScope(Number(user.id)) : null;
+    return !!scope && Number((student as any).school_id ?? (student as any).schoolId) === scope.schoolId
+      && (!scope.eyeGazeOnly || !!(student as any).is_eye_gaze_user);
   };
   const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
 
   // GET all students across all teachers (with stats + teacher names)
   app.get("/api/teacher-admin/all-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
-      const leaderSchool = req.user.isAdmin ? null : await storage.schoolLeaderSchool(Number(req.user.id));
+      const staffScope = req.user.isAdmin ? null : await storage.schoolStaffScope(Number(req.user.id));
       const students = (await storage.getAllUsers()).filter((s: any) => (s.role === 'student' || (!s.role && !s.isAdmin))
         && (req.user.isAdmin || Number(s.teacherId) === Number(req.user.id)
-          || (!!leaderSchool && !s.archivedAt && Number(s.school_id ?? s.schoolId) === leaderSchool)));
+          || (!!staffScope && !s.archivedAt && Number(s.school_id ?? s.schoolId) === staffScope.schoolId
+            && (!staffScope.eyeGazeOnly || !!s.is_eye_gaze_user))));
       const allUsers = await storage.getAllUsers();
       const teacherMap = new Map();
       for (const u of allUsers) {
@@ -10772,7 +10774,7 @@ Important:
       for (let retry = 0; retry < 5; retry++) {
         try {
           let q = supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
-          if (leaderSchool) q = q.eq("school_id", leaderSchool);
+          if (staffScope) { q = q.eq("school_id", staffScope.schoolId); if (staffScope.eyeGazeOnly) q = q.eq("is_eye_gaze_user", true); }
           else if (!req.user.isAdmin) q = q.eq("teacher_id", req.user.id);
           const { data, error } = await q;
           if (!error && data) { allUsersWithAttempts = data; break; }
