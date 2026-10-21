@@ -8,10 +8,10 @@ import type { Express, Request, Response } from "express";
 import { FLAT } from "../shared/presentShow";
 
 const BUCKET = "student-show-voice";
-const VERSION = "v2";
-const VOICE = "cedar";
+const VERSION = "v3";
+const VOICE = "onyx";
 const INSTRUCTIONS =
-  "You are a warm, confident man with a deep, rich voice, presenting to a big room of students at a middle school. Speak in clear, natural American English like a favorite teacher or a mentor who is proud of these kids: steady pace, relaxed and friendly energy, a smile in your voice, and a short natural pause between sentences so the people in the back of the room can follow every word. Never sound rushed, robotic, or like a movie trailer. Say exactly the input text and nothing else.";
+  "You are a warm, confident Black American man with a deep voice, presenting to a big room of middle school students, like a respected coach or favorite teacher who is proud of these kids. Use a natural, authentic African American speaking style: smooth, relaxed rhythm and cadence, friendly swagger, a smile in your voice, and genuine encouragement. Keep every word clear and easy to follow from the back of the room, at a steady pace with a short natural pause between sentences. Never sound robotic, rushed, or like a movie trailer. Say exactly the input text and nothing else.";
 
 export type ShowVoice = {
   /** Whether the AI voice is set up (an OpenAI key is present). */
