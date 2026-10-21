@@ -1,14 +1,16 @@
 // Scenes 1 and 3 of the student welcome show: the welcome and the library (scenesLogin.tsx has the sign-in).
 // The library screens are the site's own markup (Library.tsx) with sample books.
+import { useMemo, useRef } from "react";
 import {
-  Award, Bell, BookOpen, CheckCircle2, ChevronDown, ClipboardList, GraduationCap, Inbox, MoreVertical,
+  Award, Bell, Book, BookOpen, CheckCircle2, ChevronDown, ClipboardList, GraduationCap, Inbox, MoreVertical,
   Search, Sparkles, Trophy,
 } from "lucide-react";
 import { BrandText } from "@/components/BrandText";
 import ExtraCreditTag from "@/components/ExtraCreditTag";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Scroll, Spot, coverOf, useSince, useTyped, type SceneProps } from "./kit";
+import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsReadMinutes, quickCategoryOf } from "@shared/ariseNews";
+import { Scroll, Spot, coverOf, useScrollY, useSince, useTyped, type SceneProps } from "./kit";
 
 // ── 1. Welcome ──────────────────────────────────────────────────────────────────────────────────────────
 
@@ -94,6 +96,16 @@ const LIB: LibBook[] = [
 
 const badge = (pts: number) => pts === 10 ? "bg-green-500/20 text-green-400" : pts === 20 ? "bg-primary/20 text-primary" : pts === 30 ? "bg-red-500/20 text-red-400" : "bg-muted text-muted-foreground";
 
+/** The "Ways to read this book" button every book card carries (BookAccessLinks), closed. */
+export function WaysButton({ open = false, className = "" }: { open?: boolean; className?: string }) {
+  return (
+    <div className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2.5 text-center text-[13px] font-bold leading-tight text-primary ${className}`}>
+      <Book className="h-4 w-4 shrink-0" />
+      {open ? "Hide ways to read" : "Ways to read this book"}
+    </div>
+  );
+}
+
 /** One book of the library grid, as the library draws it. */
 export function BookCard({ book, spotPoints, spotButtons, pressQuiz }: { book: LibBook; spotPoints?: boolean; spotButtons?: boolean; pressQuiz?: boolean }) {
   const done = !!book.done;
@@ -117,6 +129,7 @@ export function BookCard({ book, spotPoints, spotButtons, pressQuiz }: { book: L
             <Button size="sm" variant="default" className={`h-7 flex-1 text-xs ${pressQuiz ? "sw-press" : ""}`}>Quiz</Button>
           </div>
         </Spot>
+        <WaysButton />
       </div>
     </Card>
   );
@@ -160,15 +173,69 @@ export function LibraryHeader({ points = 45, quizzes = 6, menu = false, spotChip
   );
 }
 
+/** The 5-Minute Reads shelf at the front of the library (QuickReadsShelf), without the counts. */
+export function QuickShelf({ spotHead = false }: { spotHead?: boolean }) {
+  const all = useMemo(() => [...NEWS_ARTICLES].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn)), []);
+  const cats = QUICK_CATEGORIES.filter((c) => all.some((a) => c.sections.includes(a.section)));
+  return (
+    <section className="relative mb-10 overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#fff4d6] via-white to-[#e7f5ff] p-5 text-[#17143b] shadow-xl ring-1 ring-black/5">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-amber-300/30 blur-3xl" />
+      <div className="relative">
+        <p className="text-[11px] font-black uppercase tracking-[.22em] text-[#e8590c]">Short on time? Start here</p>
+        <Spot on={spotHead} radius={16} className="mt-1 inline-block">
+          <h2 className="flex items-center gap-2 text-4xl font-black leading-none tracking-tight"><span aria-hidden="true">⚡</span>5-Minute <span className="text-[#7048e8]">Reads</span></h2>
+        </Spot>
+        <p className="mt-2 max-w-2xl text-base font-semibold text-[#5d5a7a]">Not a long book. A whole story you can finish in 5 minutes or less. Read it, take a 5-question quiz, earn {NEWS_POINTS} points.</p>
+      </div>
+      <ol className="relative mt-4 grid max-w-md grid-cols-3 gap-2 text-center text-xs font-black text-[#17143b]">
+        <li className="rounded-xl bg-white/80 px-2 py-2 shadow-sm">📖 Read 2–3 min</li>
+        <li className="rounded-xl bg-white/80 px-2 py-2 shadow-sm">✏️ 5-question quiz</li>
+        <li className="rounded-xl bg-white/80 px-2 py-2 shadow-sm">🏆 Earn {NEWS_POINTS} points</li>
+      </ol>
+      <div className="relative mt-4 flex gap-2 overflow-hidden">
+        {["All", ...cats.map((c) => c.label)].map((label) => {
+          const c = cats.find((x) => x.label === label);
+          const on = label === "All";
+          return (
+            <span key={label} className={`inline-flex min-h-[40px] flex-shrink-0 items-center rounded-full px-3.5 text-sm font-black ${on ? "bg-[#17143b] text-white" : "bg-white text-[#17143b] ring-1 ring-black/10"}`}>
+              {c ? <span aria-hidden="true" className="mr-1">{c.emoji}</span> : null}{label}
+            </span>
+          );
+        })}
+      </div>
+      <div className="relative mt-4 flex gap-4 overflow-hidden pb-2">
+        {all.slice(0, 7).map((a) => {
+          const col = SECTION_COLORS[a.section];
+          const c = quickCategoryOf(a);
+          return (
+            <div key={a.slug} className="w-[132px] flex-shrink-0 text-left">
+              <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-slate-100 shadow-md">
+                <img src={`/covers/news/${a.slug}.svg`} alt="" className="h-full w-full object-cover" />
+                <span className="absolute left-2 top-[4.25rem] rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-black text-[#17143b] shadow">⏱ {newsReadMinutes(a)} min</span>
+              </div>
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-black" style={{ background: col.tint, color: col.deep }}><span aria-hidden="true">{c.emoji} </span>{c.label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function LibraryScene({ beat }: SceneProps) {
   // beat 1: "velveteen" is typed into the search, and the grid narrows to match
   const typed = useTyped("velveteen", beat === 1 ? "run" : "idle", 700, 8);
   const found = typed.length >= 3;
-  // beat 2: the points on the covers, then down to the bigger books, then back up to Read and Quiz (Quiz is tapped)
-  const down = useSince(beat, 3600, beat === 2);
-  const up = useSince(beat, 7200, beat === 2);
-  const tapQuiz = useSince(beat, 9800, beat === 2);
-  const y = beat === 2 && down && !up ? 824 : 0;
+  // beat 2: down to the 5-Minute Reads shelf. beat 3: the points on the covers, then down to the bigger books, then back up to Read and Quiz (Quiz is tapped)
+  const down = useSince(beat, 4200, beat === 3);
+  const up = useSince(beat, 8200, beat === 3);
+  const tapQuiz = useSince(beat, 10800, beat === 3);
+  const shelfRef = useRef<HTMLDivElement>(null);
+  const fiveRef = useRef<HTMLDivElement>(null);
+  const twentyRef = useRef<HTMLDivElement>(null);
+  const y = useScrollY(() => (beat === 2 ? shelfRef.current : beat === 3 ? (down && !up ? twentyRef.current : fiveRef.current) : null), [beat, down, up], 8);
   const shown = beat === 1 && found ? LIB.filter((b) => b.title.toLowerCase().includes(typed.toLowerCase())) : LIB;
 
   const group = (pts: number) => LIB.filter((b) => b.pts === pts);
@@ -180,7 +247,7 @@ export function LibraryScene({ beat }: SceneProps) {
     <div className="relative h-full w-full overflow-hidden bg-background text-foreground">
       <LibraryHeader spotChip={beat === 0} />
       <div className="absolute inset-x-0 bottom-0 top-14 overflow-hidden px-5 pt-3">
-        {beat <= 1 && (
+        <Scroll y={y}>
           <div className="mb-3 flex gap-3">
             <Spot on={beat === 1} radius={14} className="relative flex-1">
               <div className="relative">
@@ -190,27 +257,27 @@ export function LibraryScene({ beat }: SceneProps) {
             </Spot>
             <div className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-4 py-3 text-sm"><span className="font-medium">By Points</span><ChevronDown className="h-4 w-4 text-muted-foreground" /></div>
           </div>
-        )}
-        {beat <= 1 && (
-          <div>
-            <h2 className="mb-2 text-lg font-bold text-foreground">{beat === 1 && found ? "Search results" : "5 Point Books"}</h2>
-            {beat === 1 && found ? grid(shown) : grid(group(5))}
-          </div>
-        )}
-        {beat === 2 && (
-          <Scroll y={y}>
-            {[5, 10, 20].map((pts) => (
-              <div key={pts} className="mb-3 h-[400px]">
-                <h2 className="mb-2 text-lg font-bold text-foreground">{pts} Point Books</h2>
-                {grid(group(pts).slice(0, 6), (b) => ({
-                  spotPoints: !up && (pts === 5 || (pts === 20 && down)),
-                  spotButtons: up && pts === 5 && b.key === "velveteen-rabbit",
-                  pressQuiz: tapQuiz && pts === 5 && b.key === "velveteen-rabbit",
-                }))}
-              </div>
-            ))}
-          </Scroll>
-        )}
+          {beat === 1 ? (
+            <div>
+              <h2 className="mb-2 text-lg font-bold text-foreground">{found ? "Search results" : "5 Point Books"}</h2>
+              {found ? grid(shown) : grid(group(5))}
+            </div>
+          ) : (
+            <>
+              <div ref={shelfRef}><QuickShelf spotHead={beat === 2} /></div>
+              {[5, 10, 20].map((pts) => (
+                <div key={pts} ref={pts === 5 ? fiveRef : pts === 20 ? twentyRef : undefined} className="mb-10">
+                  <h2 className="mb-3 text-lg font-bold text-foreground">{pts} Point Books</h2>
+                  {grid(group(pts).slice(0, 6), (b) => ({
+                    spotPoints: beat === 3 && !up && (pts === 5 || (pts === 20 && down)),
+                    spotButtons: beat === 3 && up && pts === 5 && b.key === "velveteen-rabbit",
+                    pressQuiz: beat === 3 && tapQuiz && pts === 5 && b.key === "velveteen-rabbit",
+                  }))}
+                </div>
+              ))}
+            </>
+          )}
+        </Scroll>
       </div>
     </div>
   );

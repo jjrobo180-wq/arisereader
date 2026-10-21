@@ -4,17 +4,18 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Expand, Mic, MicOff, Pause, Play, PlayCircle, Presentation, RotateCcw, StickyNote, X } from "lucide-react";
-import { FLAT, SCENES, TARGET_SECONDS, clock, firstBeatOf, totalSeconds, type SceneId } from "@shared/presentShow";
+import { FLAT, SCENES, TARGET_SECONDS, clock, firstBeatOf, spokenText, totalSeconds, type SceneId } from "@shared/presentShow";
 import { LeaderboardScene, PrizesScene, WrapScene } from "./scenesC";
 import { LibraryScene, WelcomeScene } from "./scenesA";
 import { LoginScene } from "./scenesLogin";
 import { QuizScene, ReadsScene } from "./scenesB";
+import { RequestScene } from "./scenesRequest";
 import type { SceneProps } from "./kit";
 import { aiVoiceReady, clipFor, clipWithin, stopWarming, warmFrom } from "./voice";
 import "./show.css";
 
 const VIEWS: Record<SceneId, ComponentType<SceneProps>> = {
-  welcome: WelcomeScene, login: LoginScene, library: LibraryScene, reads: ReadsScene,
+  welcome: WelcomeScene, login: LoginScene, library: LibraryScene, reads: ReadsScene, request: RequestScene,
   quiz: QuizScene, leaderboard: LeaderboardScene, prizes: PrizesScene, wrap: WrapScene,
 };
 const STAGE_W = 960, STAGE_H = 656;
@@ -115,7 +116,7 @@ export default function StudentShow() {
     const computerVoice = () => {
       if (!alive) return;
       if (!browserVoice) return finish();
-      const say = new SpeechSynthesisUtterance(cur.say);
+      const say = new SpeechSynthesisUtterance(spokenText(cur.say));
       const v = pickVoice();
       if (v) { say.voice = v; say.lang = v.lang; } else say.lang = "en-US";
       say.rate = 1;
@@ -171,7 +172,7 @@ export default function StudentShow() {
       else if (k === "n" || k === "N") { used(); setNotes((v) => !v); }
       else if (k === "Home") { used(); go(0); }
       else if (k === "End") { used(); go(FLAT.length - 1); }
-      else if (/^[1-8]$/.test(k) && Number(k) <= SCENES.length) { used(); goScene(Number(k) - 1); }
+      else if (/^[1-9]$/.test(k) && Number(k) <= SCENES.length) { used(); goScene(Number(k) - 1); }
       else if (k === "Escape") { poke(); setNotes(false); }
     };
     window.addEventListener("keydown", onKey);
@@ -227,7 +228,7 @@ export default function StudentShow() {
           <div className="mt-8 grid w-full max-w-2xl grid-cols-2 gap-x-6 gap-y-1.5 rounded-2xl border border-white/10 bg-white/[.03] p-4 text-left text-sm text-slate-300 sm:grid-cols-3">
             <p><b className="text-white">Space / →</b> next</p><p><b className="text-white">←</b> back</p><p><b className="text-white">P</b> play / pause</p>
             <p><b className="text-white">F</b> full screen</p><p><b className="text-white">V</b> voice</p><p><b className="text-white">N</b> presenter notes</p>
-            <p><b className="text-white">1 to 8</b> jump to a part</p><p><b className="text-white">Home</b> start over</p>
+            <p><b className="text-white">1 to 9</b> jump to a part</p><p><b className="text-white">Home</b> start over</p>
           </div>
           <button type="button" onClick={leave} className="mt-6 text-sm font-bold text-slate-400 hover:text-white"><ArrowLeft className="mr-1 inline h-4 w-4" />Back to tutorials</button>
         </div>

@@ -1,15 +1,15 @@
 // Scenes 4 and 5 of the student welcome show: reading short reads on Arise, and taking a quiz.
 // The reading page uses the site's own reading styles and catalogs. The quiz screens are the site's own: the "How do you want to take this quiz?"
 // screen, the leave-the-page warning and the turn-in notice are the real components, and the questions are the quiz page's own markup with a sample book.
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ArrowLeft, Award, BookOpen, CheckCircle2, FileSearch, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { READABLE_BOOKS, type ReadableBook } from "@shared/readsCatalog";
-import { FEATURES, NEWS_POINTS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
-import { POEMS, poemLineCount } from "@shared/poems";
+import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, newsReadMinutes, quickCategoryOf } from "@shared/ariseNews";
+import { POEMS, POEM_BANDS, poemLineCount } from "@shared/poems";
 import { NewsArt, sectionStyle } from "../news/useNews";
 import { timeLabel } from "../reads/useReads";
 import "../news/news.css";
@@ -18,19 +18,18 @@ import NoProctorGate from "@/components/NoProctorGate";
 import { LeaveWarning, OnYourOwnStrip, TurningIn } from "@/components/NoProctorParts";
 import { Scroll, Spot, coverOf, useScrollY, useSince, type SceneProps } from "./kit";
 
-// ── 4. Short reads ──────────────────────────────────────────────────────────────────────────────────────
+// ── 4. Read on Arise ────────────────────────────────────────────────────────────────────────────────────
 
 type Filter = "All" | "Short reads" | "Chapter books" | "Long novels";
 const FILTERS: Filter[] = ["All", "Short reads", "Chapter books", "Long novels"];
-const sizeOf = (words: number): Filter => (words < 30000 ? "Short reads" : words < 70000 ? "Chapter books" : "Long novels");
 const byKey = (key: string) => READABLE_BOOKS.find((b) => b.key === key)!;
 // Real books of the Read on Arise shelf, picked so that every size shows up.
 const SHELF = ["velveteen-rabbit", "hound-baskervilles", "canterville-ghost", "swallows-and-amazons", "sleepy-hollow", "tower-treasure", "old-indian-legends", "kidnapped"].map(byKey);
 
-function BookTile({ b, spot }: { b: ReadableBook; spot?: boolean }) {
+function BookTile({ b }: { b: ReadableBook }) {
   return (
     <a className="rd-book" onClick={(e) => e.preventDefault()} href="#/reads">
-      <Spot on={!!spot} radius={10}><div className="rd-cover"><img src={coverOf(b.key!)} alt={`Cover of ${b.title}`} /></div></Spot>
+      <div className="rd-cover"><img src={coverOf(b.key!)} alt={`Cover of ${b.title}`} /></div>
       <h3>{b.title}</h3>
       <p>{b.author}</p>
       <div className="nw-meta"><span>{timeLabel(b.words)}</span>{b.pictures > 0 && <span>Pictures</span>}</div>
@@ -38,19 +37,18 @@ function BookTile({ b, spot }: { b: ReadableBook; spot?: boolean }) {
   );
 }
 
+/** Read on Arise (ReadHub): the 5-Minute Reads first, then the books, then the poems. Same markup and styles, with no counts. */
 export function ReadsScene({ beat }: SceneProps) {
+  const quickRef = useRef<HTMLElement>(null);
   const booksRef = useRef<HTMLElement>(null);
   const poetryRef = useRef<HTMLElement>(null);
-  const articlesRef = useRef<HTMLElement>(null);
-  // beat 1: the Short reads chip is tapped and the shelf narrows
-  const pressed = useSince(beat, 2600, beat === 1);
-  const tapped = beat > 1 || pressed;
-  const filter: Filter = tapped && beat >= 1 ? "Short reads" : "All";
-  const toArticles = useSince(beat, 4200, beat === 2);
-  const y = useScrollY(() => (beat === 1 ? booksRef.current : beat === 2 ? (toArticles ? articlesRef.current : poetryRef.current) : null), [beat, filter, toArticles]);
-  const shown = SHELF.filter((b) => filter === "All" || sizeOf(b.words) === filter);
+  // beat 2: books first, then on to the poems
+  const toPoems = useSince(beat, 4600, beat === 2);
+  const y = useScrollY(() => (beat === 1 ? quickRef.current : beat === 2 ? (toPoems ? poetryRef.current : booksRef.current) : null), [beat, toPoems], 8);
+  const quick = useMemo(() => [...NEWS_ARTICLES].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn)), []);
+  const quickCats = QUICK_CATEGORIES.filter((c) => quick.some((a) => c.sections.includes(a.section)));
   const poems = POEMS.filter((p) => p.band === "6-8").slice(0, 6);
-  const news = [...WORLD_NEWS, ...FEATURES].slice(0, 3);
+  const band = POEM_BANDS.find((x) => x.band === "6-8");
 
   return (
     <div className="sw-reads relative h-full w-full overflow-hidden bg-[#f4f3fa]">
@@ -60,26 +58,48 @@ export function ReadsScene({ beat }: SceneProps) {
             <div className="nw-wrap">
               <div className="nw-topline"><a className="nw-back" href="#/library" onClick={(e) => e.preventDefault()}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg><span>Library</span></a></div>
               <Spot on={beat === 0} radius={18}><h1 className="nw-wordmark">Read <span>on Arise</span></h1></Spot>
-              <p className="nw-tagline">Hundreds of books, poems, iARISE lessons and articles you can read right here. Finish a book or article, pass the quiz, earn points.</p>
+              <p className="nw-tagline">Start with a 5-minute read: short stories about sports, soccer, famous people, speeches and wild facts. Plus hundreds of books and poems. Finish one, pass the quiz, earn points.</p>
               <nav className="rd-jump" aria-label="Jump to">
-                {["Books", "Poetry", "iARISE", "Articles"].map((l) => <button key={l} type="button">{l}</button>)}
+                {["⚡ 5-Minute Reads", "Poetry", "Books"].map((l) => <button key={l} type="button">{l}</button>)}
               </nav>
             </div>
           </header>
 
           <div className="nw-wrap">
+            <section className="nw-block" ref={quickRef}>
+              <div className="nw-block-head"><h2>⚡ 5-Minute Reads</h2><p>Every one is short enough to finish in 5 minutes or less. Read it, take the 5-question quiz, earn {NEWS_POINTS} points.</p></div>
+              <nav className="nw-filter" aria-label="Kinds of quick reads">
+                <button type="button" className="nw-chip" aria-pressed="true">All</button>
+                {quickCats.map((c) => <button key={c.label} type="button" className="nw-chip" aria-pressed="false"><span aria-hidden="true">{c.emoji} </span>{c.label}</button>)}
+              </nav>
+              <div className="nw-grid">
+                {quick.slice(0, 6).map((a) => (
+                  <a key={a.slug} className="nw-card" style={sectionStyle(a)} href="#/news" onClick={(e) => e.preventDefault()}>
+                    <NewsArt article={a} />
+                    <div className="nw-card-text">
+                      <span className="nw-kicker"><span className="nw-section">{quickCategoryOf(a).emoji} {quickCategoryOf(a).label}</span></span>
+                      <h3>{a.title}</h3>
+                      <div className="nw-meta"><span>⏱ {newsReadMinutes(a)} min read</span><span className="nw-pts">{NEWS_POINTS} pts</span></div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+
             <section className="nw-block" ref={booksRef}>
               <div className="nw-block-head"><h2>Books</h2><p>Classic books, free to read here from the first page to the last.</p></div>
               <nav className="nw-filter" aria-label="Book length">
-                {FILTERS.map((f) => (
-                  <Spot key={f} on={f === "Short reads" && beat === 1 && !tapped} radius={99} className="inline-block"><button type="button" className={`nw-chip ${f === "Short reads" && tapped ? "sw-press" : ""}`} aria-pressed={filter === f}>{f}</button></Spot>
-                ))}
+                {FILTERS.map((f) => <button key={f} type="button" className="nw-chip" aria-pressed={f === "All"}>{f}</button>)}
               </nav>
-              <div className="rd-books">{shown.map((b) => <BookTile key={b.key} b={b} spot={beat === 1 && tapped && b.key === "velveteen-rabbit"} />)}</div>
+              <div className="rd-books">{SHELF.map((b) => <BookTile key={b.key} b={b} />)}</div>
             </section>
 
             <section className="nw-block" ref={poetryRef}>
               <div className="nw-block-head"><h2>Poetry</h2><p>Classic poems, each short enough to read twice. Words to know and questions come with every one.</p></div>
+              <nav className="nw-filter" aria-label="Poems by grade">
+                <button type="button" className="nw-chip" aria-pressed="false">All poems</button>
+                {POEM_BANDS.map((x) => <button key={x.band} type="button" className="nw-chip" aria-pressed={x.band === band?.band}>{x.label}</button>)}
+              </nav>
               <div className="rd-poems">
                 {poems.map((p) => (
                   <a key={p.slug} className="rd-poem" data-band={p.band} href="#/reads" onClick={(e) => e.preventDefault()}>
@@ -87,22 +107,6 @@ export function ReadsScene({ beat }: SceneProps) {
                     <p>{p.poet}</p>
                     <q>{p.hook}</q>
                     <div className="nw-meta"><span>{poemLineCount(p)} lines</span><span>Grades {p.band}</span></div>
-                  </a>
-                ))}
-              </div>
-            </section>
-
-            <section className="nw-block" ref={articlesRef}>
-              <div className="nw-block-head"><h2>Articles</h2><p>World news and features from Arise News. {NEWS_POINTS} points each.</p></div>
-              <div className="nw-grid">
-                {news.map((a) => (
-                  <a key={a.slug} className="nw-card" style={sectionStyle(a)} href="#/news" onClick={(e) => e.preventDefault()}>
-                    <NewsArt article={a} />
-                    <div className="nw-card-text">
-                      <span className="nw-kicker">{a.kind === "news" && <span className="nw-section">World News</span>}<span className="nw-section">{a.section}</span></span>
-                      <h3>{a.title}</h3>
-                      <div className="nw-meta"><span>{newsReadMinutes(a)} min read</span></div>
-                    </div>
                   </a>
                 ))}
               </div>

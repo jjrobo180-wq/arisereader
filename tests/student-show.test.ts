@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { SCENES, FLAT, TARGET_SECONDS, SITE, words, beatSeconds, totalSeconds, clock, firstBeatOf, flatten } from "../shared/presentShow";
+import { SCENES, FLAT, TARGET_SECONDS, SITE, words, beatSeconds, totalSeconds, clock, firstBeatOf, flatten, spokenText } from "../shared/presentShow";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
@@ -12,9 +12,9 @@ test("the show runs about five minutes by itself", () => {
 });
 
 test("it covers everything that was asked for, in the order a student meets it", () => {
-  assert.deepEqual(SCENES.map((s) => s.id), ["welcome", "login", "library", "reads", "quiz", "leaderboard", "prizes", "wrap"]);
+  assert.deepEqual(SCENES.map((s) => s.id), ["welcome", "login", "library", "reads", "request", "quiz", "leaderboard", "prizes", "wrap"]);
   const said = SCENES.flatMap((s) => s.beats.map((b) => b.say)).join(" ").toLowerCase();
-  const topics = ["student sign in", "student number", "new password", "ela teacher", "hundreds", "short reads", "proctor", "camera", "leave", "second time", "70 percent", "leaderboard", "november 20", "pizza party", "doordash", "airpods", "200 dollars", "raffle", "target", "roblox", "snacks", "dress-down", "c.g.m.s."];
+  const topics = ["student sign in", "student number", "new password", "ela teacher", "hundreds", "5-minute reads", "way more entertaining", "ways to read this book", "some books you can read right here", "request from teacher", "ask a parent", "public library", "create ai quiz", "reviews the quiz", "approves it", "appropriate", "proctor", "camera", "leave", "second time", "70 percent", "leaderboard", "november 20", "pizza party", "doordash", "airpods", "200 dollars", "raffle", "target", "roblox", "snacks", "dress-down", "c.g.m.s."];
   for (const topic of topics) assert.ok(said.includes(topic), `never mentions "${topic}"`);
   assert.ok(said.includes(SITE));
   assert.ok(!said.includes("create an account") && !said.includes("sign up"), "the accounts are already made, so nobody is told to create one");
@@ -45,8 +45,8 @@ test("it never says how many books there are, only that there are hundreds of ch
 });
 
 test("every scene shows its own beats and the player is wired in", () => {
-  const scenes = { welcome: "scenesA", login: "scenesLogin", library: "scenesA", reads: "scenesB", quiz: "scenesB", leaderboard: "scenesC", prizes: "scenesC", wrap: "scenesC" } as const;
-  const names: Record<string, string> = { welcome: "WelcomeScene", login: "LoginScene", library: "LibraryScene", reads: "ReadsScene", quiz: "QuizScene", leaderboard: "LeaderboardScene", prizes: "PrizesScene", wrap: "WrapScene" };
+  const scenes = { welcome: "scenesA", login: "scenesLogin", library: "scenesA", reads: "scenesB", request: "scenesRequest", quiz: "scenesB", leaderboard: "scenesC", prizes: "scenesC", wrap: "scenesC" } as const;
+  const names: Record<string, string> = { welcome: "WelcomeScene", login: "LoginScene", library: "LibraryScene", reads: "ReadsScene", request: "RequestScene", quiz: "QuizScene", leaderboard: "LeaderboardScene", prizes: "PrizesScene", wrap: "WrapScene" };
   const player = read("client/src/pages/present/StudentShow.tsx");
   for (const s of SCENES) {
     assert.ok(read(`client/src/pages/present/${scenes[s.id]}.tsx`).includes(`export function ${names[s.id]}`), `${s.id} scene exists`);
@@ -71,4 +71,20 @@ test("the screens are labelled as demo copies with sample people", () => {
   assert.ok(read("client/src/pages/present/StudentShow.tsx").includes("Demo screens"));
   const kit = read("client/src/pages/present/kit.tsx");
   assert.ok(kit.includes("SAMPLE_READERS") && kit.includes("Made up"));
+});
+
+test("the voice reads the words the way they are said, not the way they are written", () => {
+  assert.equal(spokenText("A.R.I.S.E. Reader"), "Arise Reader");
+  assert.equal(spokenText("Go to arisereader.com, click Student sign in"), "Go to arise reader dot com, click Student sign in");
+  assert.match(spokenText("Welcome, C.G.M.S.! Who is your ELA teacher?"), /C G M S.*E L A teacher/);
+  for (const b of FLAT) assert.ok(!/[A-Z]\.[A-Z]\./.test(spokenText(b.say)), `"${b.say.slice(0, 30)}" still has dotted letters`);
+});
+
+test("the request scene shows the site's real screens for a missing book and a missing quiz", () => {
+  const req = read("client/src/pages/present/scenesRequest.tsx");
+  for (const piece of ["Ways to read this book", "Request from Teacher", "Hoopla", "Create AI Quiz", "No books found", "Create a Quiz", "QuizGeneratingOverlay", "Libby"]) assert.ok(req.includes(piece), `missing ${piece}`);
+  const real = read("client/src/components/BookAccessLinks.tsx") + read("client/src/pages/Library.tsx");
+  for (const piece of ["Ways to read this book", "Request from Teacher", "Create AI Quiz", "No books found"]) assert.ok(real.includes(piece), `the site no longer says "${piece}"`);
+  const lib = read("client/src/pages/present/scenesA.tsx");
+  assert.ok(lib.includes("WaysButton") && lib.includes("QuickShelf"), "library cards carry the Ways button and the 5-Minute Reads shelf");
 });
