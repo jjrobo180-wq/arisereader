@@ -4,56 +4,67 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>A.R.I.S.E. Connect</title>
-<meta name="description" content="A.R.I.S.E. Connect: a safe career-discovery network where K–12 students explore trades, the military, teaching, health care, tech and college paths, with their teachers and parents.">
+<meta name="description" content="A.R.I.S.E. Connect: a safe, LinkedIn-style career network where K–12 students take short career courses, earn certificates and explore trades, the military, teaching, health care, tech and college paths, with their teachers and parents.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@500&display=swap">
 <style>
 html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
 
-/* Layout: professional-network shell — profile card left · feed center · "pros to follow" right; icon nav on top, tab bar on phones.
-   Light-first, soft rounded cards, Arise indigo for actions, sunrise gradient only on profile covers. */
+/* Layout: professional-network shell (LinkedIn-style): profile card left · feed center · rail right; icon nav on top, tab bar on phones.
+   The A.R.I.S.E. family look: light theme matches A.R.I.S.E. To-Do (off-white, white cards, teal→blue→purple gradient,
+   Manrope + DM Sans); dark theme matches A.R.I.S.E. Reader (deep plum surfaces, violet→fuchsia→cyan). */
 :root{
-  --bg:#f2f1f6; --card:#ffffff; --card-2:#f6f5fa; --line:#e4e2ec; --line-2:#cfccdc;
-  --fg:#1a1828; --muted:#64617a; --faint:#8d8aa3;
-  --primary:#3f3bd6; --primary-ink:#ffffff; --primary-soft:#ebeaff; --primary-text:#3431c4;
-  --sun:#f29a14; --coral:#ef5a45; --leaf:#1e9e62; --sky:#1f8fd6;
-  --build:#f29a14; --serve:#5867f0; --teach:#8b5cf6; --heal:#ef5a45; --help:#e0559d;
-  --create:#12a594; --tech:#1f8fd6; --nature:#2f9e57; --fly:#c9a20c;
-  --cover-a:#2b2a8f; --cover-b:#6d4fd8; --cover-c:#f29a14;
-  --shadow:0 0 0 1px rgba(26,24,40,.06), 0 2px 4px rgba(26,24,40,.05);
-  --shadow-lg:0 24px 60px rgba(26,24,40,.22);
-  --font:"Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --r:14px;
+  --bg:#f9fafc; --card:#ffffff; --card-2:#f2f5fc; --line:#e9edf5; --line-2:#dce4f0;
+  --fg:#1c2238; --muted:#5b657b; --faint:#8a93a8;
+  --primary:#5169ed; --primary-ink:#ffffff; --primary-soft:#eef1fe; --primary-text:#3f55d9;
+  --sun:#f29a14; --coral:#e5484d; --leaf:#12a27a; --sky:#0ea5c6;
+  --build:#f0703a; --serve:#4f72e8; --teach:#8b64e9; --heal:#e5484d; --help:#d946a8;
+  --create:#11b9af; --tech:#0ea5c6; --nature:#2f9e57; --fly:#b98a12;
+  --cover-a:#10b9af; --cover-b:#5279ed; --cover-c:#9363e7;
+  --grad:linear-gradient(115deg,#10b9af 0%,#5279ed 53%,#9363e7 100%);
+  --seal:#5169ed; --seal-dot:#11b9af; --paper:#ffffff; --paper-ink:#1c2238; --paper-line:#d6ddf0;
+  --shadow:0 0 0 1px rgba(33,53,97,.06), 0 4px 14px rgba(35,62,101,.05);
+  --shadow-lg:0 24px 65px rgba(33,53,97,.18);
+  --font:"DM Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display:Manrope, "DM Sans", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+  --r:16px;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0b0a16; --card:#15142a; --card-2:#1c1b35; --line:#2a2846; --line-2:#3a3760;
-  --fg:#eeedf7; --muted:#a19eba; --faint:#7b789a;
-  --primary:#8e8bff; --primary-ink:#0b0a16; --primary-soft:#24224b; --primary-text:#aeacff;
-  --sun:#ffb23f; --coral:#ff7466; --leaf:#45c985; --sky:#5cc0f5;
-  --build:#ffb23f; --serve:#8b97ff; --teach:#b39bff; --heal:#ff7a6e; --help:#f58ac0;
-  --create:#3fcdbf; --tech:#5cc0f5; --nature:#56d48d; --fly:#ecd257;
-  --shadow:0 0 0 1px rgba(255,255,255,.05); --shadow-lg:0 24px 60px rgba(0,0,0,.55); color-scheme:dark;
+  --bg:#0f0d18; --card:#1b1a2c; --card-2:#232138; --line:#2f2c46; --line-2:#3e3a5c;
+  --fg:#f8f9fc; --muted:#a6a9c3; --faint:#7e809e;
+  --primary:#9a5cf0; --primary-ink:#ffffff; --primary-soft:#2a2150; --primary-text:#c4b5fd;
+  --sun:#ffb23f; --coral:#fb7185; --leaf:#6ee7b7; --sky:#67e8f9;
+  --build:#fb923c; --serve:#7c9cff; --teach:#b39bff; --heal:#fb7185; --help:#f472b6;
+  --create:#3fd0c3; --tech:#67e8f9; --nature:#56d48d; --fly:#e2c048;
+  --cover-a:#7c3aed; --cover-b:#c026d3; --cover-c:#06b6d4;
+  --grad:linear-gradient(135deg,#7c3aed 0%,#c026d3 52%,#06b6d4 100%);
+  --seal:#7c3aed; --seal-dot:#06b6d4;
+  --shadow:0 0 0 1px rgba(255,255,255,.07); --shadow-lg:0 30px 70px rgba(0,0,0,.6); color-scheme:dark;
 }}
 :root[data-theme="dark"]{
-  --bg:#0b0a16; --card:#15142a; --card-2:#1c1b35; --line:#2a2846; --line-2:#3a3760;
-  --fg:#eeedf7; --muted:#a19eba; --faint:#7b789a;
-  --primary:#8e8bff; --primary-ink:#0b0a16; --primary-soft:#24224b; --primary-text:#aeacff;
-  --sun:#ffb23f; --coral:#ff7466; --leaf:#45c985; --sky:#5cc0f5;
-  --build:#ffb23f; --serve:#8b97ff; --teach:#b39bff; --heal:#ff7a6e; --help:#f58ac0;
-  --create:#3fcdbf; --tech:#5cc0f5; --nature:#56d48d; --fly:#ecd257;
-  --shadow:0 0 0 1px rgba(255,255,255,.05); --shadow-lg:0 24px 60px rgba(0,0,0,.55); color-scheme:dark;
+  --bg:#0f0d18; --card:#1b1a2c; --card-2:#232138; --line:#2f2c46; --line-2:#3e3a5c;
+  --fg:#f8f9fc; --muted:#a6a9c3; --faint:#7e809e;
+  --primary:#9a5cf0; --primary-ink:#ffffff; --primary-soft:#2a2150; --primary-text:#c4b5fd;
+  --sun:#ffb23f; --coral:#fb7185; --leaf:#6ee7b7; --sky:#67e8f9;
+  --build:#fb923c; --serve:#7c9cff; --teach:#b39bff; --heal:#fb7185; --help:#f472b6;
+  --create:#3fd0c3; --tech:#67e8f9; --nature:#56d48d; --fly:#e2c048;
+  --cover-a:#7c3aed; --cover-b:#c026d3; --cover-c:#06b6d4;
+  --grad:linear-gradient(135deg,#7c3aed 0%,#c026d3 52%,#06b6d4 100%);
+  --seal:#7c3aed; --seal-dot:#06b6d4;
+  --shadow:0 0 0 1px rgba(255,255,255,.07); --shadow-lg:0 30px 70px rgba(0,0,0,.6); color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-h1,h2,h3,h4{margin:0;line-height:1.2;text-wrap:balance;letter-spacing:-.015em}
+body{background:radial-gradient(520px 380px at 80% 0,color-mix(in oklab,var(--cover-c) 12%,transparent),transparent 70%),radial-gradient(520px 420px at 10% 280px,color-mix(in oklab,var(--cover-a) 9%,transparent),transparent 70%),var(--bg);background-repeat:no-repeat;background-color:var(--bg);color:var(--fg);font-family:var(--font);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;line-height:1.15;text-wrap:balance;letter-spacing:-.03em;font-family:var(--font-display)}
 h1{font-size:clamp(1.45rem,3vw,1.75rem);font-weight:800}
 h2{font-size:1.2rem;font-weight:700}
 h3{font-size:1rem;font-weight:700}
@@ -75,11 +86,12 @@ a{color:var(--primary-text)}
 .seg{display:flex;gap:2px;background:color-mix(in oklab,var(--bg) 14%,transparent);border-radius:999px;padding:2px;flex-wrap:wrap}
 .seg button{border:0;background:transparent;color:inherit;opacity:.75;padding:3px 10px;border-radius:999px;font-weight:700;font-size:.74rem}
 .seg button[aria-pressed="true"]{background:var(--bg);color:var(--fg);opacity:1}
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--card);border-bottom:1px solid var(--line)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:color-mix(in oklab,var(--bg) 84%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--line)}
 .top-in{max-width:1180px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:12px;height:56px}
 .logo{width:36px;height:36px;flex:none;border-radius:9px;display:block}
-.wordmark{font-weight:800;font-size:1.05rem;letter-spacing:-.02em;white-space:nowrap}
-.wordmark b{color:var(--primary-text);font-weight:800}
+.wordmark{font-family:var(--font-display);font-weight:800;font-size:1.1rem;letter-spacing:-.04em;white-space:nowrap}
+.wordmark .period{color:var(--cover-a)}
+.wordmark b{color:var(--faint);font-weight:700}
 .search{position:relative;flex:0 1 260px;min-width:0}
 @media (max-width:1000px){.wordmark{display:none}}
 .search input[type=text]{width:100%;border:0;background:var(--card-2);border-radius:999px;padding:8px 14px 8px 36px;outline:1px solid transparent}
@@ -90,7 +102,7 @@ a{color:var(--primary-text)}
 .topnav button svg{width:22px;height:22px}
 .topnav button:hover{color:var(--fg)}
 .topnav button[aria-current="page"]{color:var(--fg)}
-.topnav button[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px;background:var(--fg)}
+.topnav button[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px;background:var(--grad)}
 .topnav .dot{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;height:16px;border-radius:999px;background:var(--coral);color:#fff;font-size:.62rem;display:grid;place-items:center;padding:0 4px;font-weight:800}
 .me{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;font-weight:600;color:var(--muted);padding-left:12px;border-left:1px solid var(--line);height:36px;justify-content:center}
 
@@ -124,7 +136,7 @@ main{min-width:0;display:flex;flex-direction:column;gap:12px}
 .divider{height:1px;background:var(--line);margin:0 -16px}
 .btn{border-radius:999px;padding:6px 16px;font-weight:700;font-size:.86rem;background:transparent;color:var(--muted);border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-height:34px}
 .btn:hover{background:var(--card-2);color:var(--fg);border-color:var(--fg)}
-.btn.primary{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.btn.primary{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 10px 23px rgba(76,106,223,.2)}
 .btn.primary:hover{filter:brightness(1.08)}
 .btn.outline{color:var(--primary-text);border-color:var(--primary)}
 .btn.outline:hover{background:var(--primary-soft)}
@@ -150,6 +162,7 @@ button.chip:hover{background:var(--card-2);color:var(--fg)}
 .ico svg{width:22px;height:22px}
 .ico.sm{width:34px;height:34px}.ico.sm svg{width:17px;height:17px}
 .ico.lg{width:72px;height:72px;border:3px solid var(--card)}.ico.lg svg{width:32px;height:32px}
+.ico.xs{width:28px;height:28px}.ico.xs svg{width:14px;height:14px}
 .empty{padding:28px;text-align:center;color:var(--muted)}
 input[type=text],input[type=date],select,textarea{background:var(--card);border:1px solid var(--line-2);border-radius:12px;padding:9px 12px;width:100%}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:-1px;border-color:transparent}
@@ -157,6 +170,7 @@ textarea{resize:vertical;min-height:72px}
 label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:.8rem;color:var(--muted)}
 .bar{height:8px;border-radius:999px;background:var(--card-2);overflow:hidden}
 .bar>i{display:block;height:100%;border-radius:999px;background:var(--primary)}
+.bar.grad>i{background:var(--grad)}
 .bar.sun>i{background:var(--sun)}
 .cover{height:64px;background:
   radial-gradient(34px 34px at 93% 125%, color-mix(in oklab,var(--cover-c) 95%,#fff) 0 60%, transparent 62%),
@@ -353,6 +367,115 @@ tr:last-child td{border-bottom:0}
 .statgrid b{display:block;font-size:1.3rem;font-weight:800}
 .statgrid span{font-size:.74rem;color:var(--muted);font-weight:600}
 
+
+/* ---------- learning: courses, lessons, certificates ---------- */
+.mono{font-family:var(--mono);font-size:.74rem;letter-spacing:.02em}
+.fieldname{color:color-mix(in oklab,var(--c) 75%,var(--fg))}
+.learn-hero{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;align-items:start;padding:22px}
+.learn-hero.with-cont{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+.learn-hero h1{font-size:clamp(1.6rem,3vw,2.2rem);letter-spacing:-.045em;margin-top:6px}
+.learn-hero h1 em,.land-hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lstats{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;color:var(--muted);font-size:.86rem}
+.lstats b{font-family:var(--font-display);font-size:1.25rem;color:var(--fg);margin-right:3px}
+.continue{background:var(--card-2);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.mini-course{display:flex;gap:10px;align-items:center;border:0;background:transparent;padding:6px;border-radius:12px;text-align:left;width:100%}
+.mini-course:hover{background:var(--card)}
+.mini-course > span:last-child{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.mini-course b{font-size:.9rem;line-height:1.25}
+@media (max-width:900px){.learn-hero.with-cont{grid-template-columns:minmax(0,1fr)}}
+.lpaths{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.lpath{display:flex;flex-direction:column;gap:5px;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px}
+.lpath:hover{border-color:var(--line-2)}
+.lpath.on{border:1.5px solid transparent;background:linear-gradient(var(--card),var(--card)) padding-box,var(--grad) border-box}
+.lpath b{font-family:var(--font-display);font-size:1rem;margin-top:4px}
+.lgrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.lcard{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;text-align:left;border:0;padding:0;transition:transform .15s,box-shadow .15s}
+.lcard:hover{transform:translateY(-2px);box-shadow:0 0 0 1px var(--line-2),0 14px 30px rgba(33,53,97,.12)}
+.lcard-top{display:flex;gap:12px;align-items:center;padding:16px;background:color-mix(in oklab,var(--c) 9%,var(--card));border-bottom:1px solid color-mix(in oklab,var(--c) 16%,var(--card))}
+.lcard-top > div:last-child{display:flex;flex-direction:column}
+.lcard-in{padding:14px 16px 16px;display:flex;flex-direction:column;gap:9px;flex:1}
+.lcard h3{font-size:1.08rem}
+.lcard p{font-size:.86rem;color:var(--muted);flex:1}
+.lmeta{display:flex;gap:6px 12px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.lmeta b{color:var(--fg)}
+.course-hero{background:radial-gradient(420px 260px at 0 0,color-mix(in oklab,var(--c) 34%,transparent),transparent 75%),radial-gradient(380px 300px at 100% 100%,rgba(124,58,237,.32),transparent 75%),#0f0d18;color:#f8f9fc}
+.ch-in{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:24px;padding:clamp(20px,4vw,34px)}
+.course-hero h1{color:#fff;font-size:clamp(1.8rem,4vw,2.6rem);letter-spacing:-.045em;margin-top:8px}
+.course-hero .fieldname{color:#a5f3fc}
+.ch-lede{color:#cbd5e1;margin-top:8px;font-size:1rem}
+.course-hero .lmeta,.ch-sub{color:#aab3cb}.course-hero .lmeta b{color:#fff}
+.course-hero .ico{border:0}
+.ch-panel{background:#1b1a2c;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px;color:#e2e8f0}
+.ch-panel h3{margin-bottom:10px;color:#fff}
+.checks{display:flex;flex-direction:column;gap:9px;font-size:.9rem}
+.checks div{display:flex;gap:9px}.checks svg{width:16px;height:16px;flex:none;margin-top:3px;color:#6ee7b7}
+@media (max-width:900px){.ch-in{grid-template-columns:1fr}}
+.lrow{display:flex;gap:14px;align-items:center;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:transparent;padding:12px 4px}
+.lrow:first-of-type{border-top:0}
+.lrow:hover{background:var(--card-2)}
+.lrow .t{flex:1;min-width:0;display:flex;flex-direction:column}
+.lnum{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--card-2);font-weight:800;flex:none;color:var(--muted);font-size:.85rem}
+.lnum.done{background:var(--grad);color:#fff}.lnum svg{width:15px;height:15px;stroke-width:3}
+.lesson-wrap{display:grid;grid-template-columns:200px minmax(0,1fr);gap:14px;align-items:start}
+.lside{display:flex;flex-direction:column;gap:4px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 72px)}
+.lside button{display:flex;gap:9px;align-items:center;border:0;background:transparent;padding:7px;border-radius:12px;text-align:left;font-weight:600;font-size:.84rem;color:var(--muted)}
+.lside button[aria-current="true"]{background:var(--card);color:var(--fg);box-shadow:var(--shadow)}
+.lside .lnum{width:26px;height:26px;font-size:.75rem}
+@media (max-width:900px){.lesson-wrap{grid-template-columns:minmax(0,1fr)}.lside{position:static;flex-direction:row;overflow-x:auto}.lside button{flex:none}}
+.lesson{display:flex;flex-direction:column;gap:24px;padding:22px;min-width:0}
+.btitle{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.steplabel{font-size:.68rem;font-weight:800;letter-spacing:.1em;padding:4px 9px;border-radius:8px;background:color-mix(in oklab,var(--cover-a) 14%,var(--card));color:color-mix(in oklab,var(--cover-a) 70%,var(--fg))}
+.reading{display:flex;flex-direction:column;gap:12px;font-size:1rem;line-height:1.7;max-width:65ch}
+.terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.term{background:var(--card-2);border-radius:12px;padding:10px 12px}.term b{display:block;font-family:var(--font-display)}.term span{font-size:.84rem;color:var(--muted)}
+.tryit{background:var(--card-2);border-radius:14px;padding:16px}
+.q{border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.qopts{display:flex;flex-direction:column;gap:6px}
+.opt{display:flex;gap:10px;align-items:center;text-align:left;padding:9px 12px;border-radius:11px;border:1px solid var(--line-2);background:var(--card);font-weight:500}
+.opt:hover:not(:disabled){border-color:var(--primary)}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--leaf);background:color-mix(in oklab,var(--leaf) 12%,var(--card))}
+.opt.wrong{border-color:var(--coral);background:color-mix(in oklab,var(--coral) 10%,var(--card));text-decoration:line-through}
+.opt .k{font-family:var(--font-display);font-weight:800;font-size:.75rem;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--card-2);flex:none}
+.fb{font-size:.88rem;padding:9px 12px;border-radius:10px}.fb.ok{background:color-mix(in oklab,var(--leaf) 12%,var(--card))}.fb.no{background:color-mix(in oklab,var(--coral) 10%,var(--card))}
+.finishbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:14px 16px;border-radius:16px;border:1.5px solid transparent;background:linear-gradient(var(--card),var(--card)) padding-box,var(--grad) border-box;font-weight:600}
+.actgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;align-items:center}
+.actgrid input[type=range]{width:100%;accent-color:var(--primary)}
+input[type=number]{background:var(--card);border:1px solid var(--line-2);border-radius:12px;padding:9px 12px;width:100%}
+.readout{font-family:var(--font-display);font-size:1.8rem;font-weight:800}
+.bulb{display:grid;place-items:center;gap:6px;text-align:center}
+.beat{overflow-x:auto}.beat table{min-width:540px;border-collapse:separate;border-spacing:4px}
+.beat th,.beat td{padding:0;border:0;background:none;font-size:.78rem}
+.beat td button{width:26px;height:26px;border-radius:7px;border:1px solid var(--line-2);background:var(--card);display:block;padding:0}
+.beat td.b1 button{background:var(--card-2)}
+.beat td button[aria-pressed="true"]{background:var(--help);border-color:var(--help)}
+.beat td.now button{outline:2px solid var(--sun);outline-offset:1px}
+.profit{display:flex;flex-direction:column;gap:6px}.profit div{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:6px}
+.profit .big b{font-family:var(--font-display);font-size:1.4rem}
+.certpaper{background:var(--paper);color:var(--paper-ink);border-radius:14px;padding:10px;box-shadow:0 30px 70px -30px rgba(46,60,113,.45);border:1px solid #e9edf5}
+.certpaper-in{position:relative;border:1.5px solid var(--paper-line);border-radius:10px;padding:clamp(18px,4vw,30px);text-align:center;display:flex;flex-direction:column;gap:8px;background:radial-gradient(240px 140px at 100% 0,#f0eaff,transparent 70%),radial-gradient(240px 140px at 0 100%,#e4f8f3,transparent 70%),#fff}
+.certpaper-in::before{content:"";position:absolute;inset:0 0 auto;height:5px;border-radius:10px 10px 0 0;background:var(--grad)}
+.ci-issuer{font-family:var(--font-display);font-weight:800;letter-spacing:.14em;text-transform:uppercase;font-size:.78rem;color:var(--seal)}
+.ci-type{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:#69738c;font-weight:800}
+.ci-who{font-family:var(--font-display);font-weight:800;font-size:clamp(1.5rem,3.5vw,2.1rem);letter-spacing:-.04em;border-bottom:1.5px solid var(--paper-line);padding-bottom:4px;margin:2px auto 0;min-width:60%;overflow-wrap:anywhere}
+.ci-what{color:#4a556f;font-size:.92rem}
+.ci-course{font-family:var(--font-display);font-weight:800;font-size:1.35rem;letter-spacing:-.03em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ci-foot{display:flex;justify-content:space-between;align-items:end;gap:10px;text-align:left;font-size:.78rem;color:#69738c;margin-top:6px}
+.ci-foot b{color:#1c2238}
+.seal{width:62px;height:62px;flex:none}
+.certmodal{position:relative;padding:0;max-width:560px}
+.certmodal-in{padding:26px 22px 22px;display:flex;flex-direction:column;gap:14px;text-align:center}
+.certmodal-in h2{font-size:1.7rem}
+.certmodal .x{background:var(--card-2);color:var(--fg);z-index:2}
+.proof.cert .band{background:var(--grad)}
+.proof.cert .seal{width:48px;height:48px;margin-top:-20px;background:var(--card);border-radius:50%;border:3px solid var(--card)}
+.certrow{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.certrow:first-child{border-top:0;padding-top:0}
+.certrow > div{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.certrow b{font-size:.95rem}.certrow span{font-size:.8rem;color:var(--muted)}
+.certrow .btn{margin-top:6px}
+.skillrow{display:flex;flex-wrap:wrap;gap:6px}
+
 /* ---------- toast / confetti ---------- */
 .toast{position:fixed;left:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:12px 18px;border-radius:12px;font-weight:600;font-size:.86rem;z-index:80;box-shadow:var(--shadow-lg);max-width:calc(100% - 32px)}
 @media (max-width:780px){.toast{bottom:calc(80px + env(safe-area-inset-bottom,0px))}}
@@ -401,12 +524,8 @@ tr:last-child td{border-bottom:0}
 </head>
 <body>
 <header class="top"><div class="top-in" id="topIn">
-  <a href="/social/" aria-label="A.R.I.S.E. Connect home" style="display:flex"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
-    <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2a8f"/><stop offset="1" stop-color="#6d4fd8"/></linearGradient>
-    <linearGradient id="sg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ef5a45"/><stop offset="1" stop-color="#ffb23f"/></linearGradient></defs>
-    <rect width="40" height="40" rx="9" fill="url(#lg)"/><path d="M9 28a11 11 0 0 1 22 0z" fill="url(#sg)"/><path d="M7 31h26" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
-  </svg></a>
-  <span class="wordmark">A.R.I.S.E. <b>Connect</b></span>
+  <a href="/social/" aria-label="A.R.I.S.E. Connect home" style="display:flex"><svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10C8B3"/><stop offset=".5" stop-color="#527BED"/><stop offset="1" stop-color="#955FE5"/></linearGradient></defs><rect x="1" y="1" width="62" height="62" rx="18" fill="url(#lg)"/><path d="M10 26 32 16l22 10-22 10z" fill="none" stroke="#fff" stroke-width="4.5" stroke-linejoin="round"/><path d="M20 31v10c0 3.5 5.5 6 12 6s12-2.5 12-6V31M54 26v12" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+  <span class="wordmark">A.R.I.S.E<span class="period">.</span> <b>Connect</b></span>
   <label class="search" id="searchWrap" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="q" placeholder="Search career paths" aria-label="Search career paths (student search is closed)"></label>
   <nav class="topnav" id="nav" aria-label="Sections"></nav>
   <div id="me"></div>
@@ -453,7 +572,15 @@ const I = {
   bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
   trash:'<path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/>',
   out:'<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
-  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
+  learn:'<path d="M2 9 12 4l10 5-10 5z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>',
+  truss:'<path d="M2 19h20M4 19l4-9 4 9 4-9 4 9M8 10h8"/>',
+  clap:'<rect x="3" y="10" width="18" height="11" rx="1.5"/><path d="M3 10 4.5 4.5 20 3l.9 5.5M8.5 4.1 7 9.6M13.5 3.6 12 9.4M18 3.2l-1.5 5.9"/>',
+  music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  pulse:'<path d="M2 12h4l2.5-6 5 12 2.5-6h6"/>',
+  code:'<path d="M8 6 2 12l6 6M16 6l6 6-6 6M14 4l-4 16"/>',
+  flame:'<path d="M12 2c3 4 6.5 7 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10 8 8 9 5.5c1 2.2 2.2 3.4 3.5 3.6C12.8 6.5 11.5 4.5 12 2z"/>',
+  chart:'<path d="M3 3v18h18M7 15l4-4 3 3 6-7"/>'
 };
 const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -506,14 +633,14 @@ function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/socia
 let CAT = null;                 // catalog: careers, quests, roadmap...
 let ME = null;                  // /me response
 let PLAN = null;                // /api/addons: the Learning Bundle, its trial and prices
-const S = { tab:'feed', filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
+const S = { tab:'feed', lfield:'all', lpath:null, course:null, lesson:null, answers:{}, filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
 const C = id => CAT.careers.find(c => c.id === id);
 const role = () => ME?.user.role || 'guest';
 const P = () => ME?.profile;
 const young = b => b === 'k2' || b === 'g35';
 function bandNow(){ if (role()==='student') return ME.user.band; if (role()==='parent'){ const k = currentChild(); return k ? k.band : 'g68'; } return 'g912'; }
 function currentChild(){ const kids = S.children || []; return kids.find(k => k.id === S.childId) || kids[0] || null; }
-const BADGE_NAMES = {'first-quest':'First Quest','five-collected':'5 Collected','four-clusters':'4 Career Areas','week-streak':'7-Day Streak'};
+const BADGE_NAMES = {'first-quest':'First Quest','five-collected':'5 Collected','four-clusters':'4 Career Areas','week-streak':'7-Day Streak','first-certificate':'First Certificate'};
 
 /* ================= SHARED BITS ================= */
 const avColor = name => { const cs=['primary','coral','teach','tech','nature','help','create','serve']; let h=0; for(const ch of String(name)) h=(h*31+ch.charCodeAt(0))%997; return cs[h%cs.length]; };
@@ -535,10 +662,10 @@ function tabs(){
   if (ME && r==='student' && ME.approvalStatus!=='approved') return [];
   if (ME && !ME.access && r!=='teacher') return [];
   if (r==='teacher' && !ME.access) return [['approvals','Approvals','inbox']];
-  if (r==='student') return [['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]).concat([['profile','Achievements','passport']]);
-  if (r==='teacher') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['events','Events','event'],['explore','Explore','explore']];
-  if (r==='admin') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
-  if (r==='parent') return [['family','Home','feed'],['explore','Explore','explore'],['paths','Paths','paths']];
+  if (r==='student') return [['feed','Home','feed'],['learn','Learning','learn'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]).concat([['profile','Achievements','passport']]);
+  if (r==='teacher') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['learn','Learning','learn'],['events','Events','event'],['explore','Explore','explore']];
+  if (r==='admin') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['learn','Learning','learn'],['explore','Explore','explore']];
+  if (r==='parent') return [['family','Home','feed'],['learn','Learning','learn'],['explore','Explore','explore'],['paths','Paths','paths']];
   return [];
 }
 function badgeFor(id){ return id==='approvals' ? (S.approvals?.length||0)+(S.accessRequests?.length||0) : 0; }
@@ -610,7 +737,8 @@ function leftHTML(){
     return `<div class="card flush mini"><div class="cover"></div>${av(u.name,'lg')}
       <div class="who"><b>${esc(u.name)}</b><span>${esc(roleLine())}${tops.length?` · Into ${esc(tops.join(' and '))}`:''}</span></div>
       <div class="divider" style="margin:0"></div>
-      <button class="kv" data-act="tab" data-v="profile" style="border:0;background:transparent;width:100%;padding-top:12px"><span>Careers collected</span><b class="tnum">${p.collected.length}</b></button>
+      <button class="kv" data-act="tab" data-v="profile" style="border:0;background:transparent;width:100%;padding-top:12px"><span>Certificates</span><b class="tnum">${(p.certificates||[]).length}</b></button>
+      <button class="kv" data-act="tab" data-v="profile" style="border:0;background:transparent;width:100%"><span>Careers collected</span><b class="tnum">${p.collected.length}</b></button>
       <div class="kv"><span>Day streak</span><b class="tnum">${p.streak}</b></div>
       <div class="kv" style="padding-bottom:12px"><span>Level ${p.level+1} · ${esc(p.levelName)}</span><b class="tnum">${p.levelXp}/${CAT.xp.perLevel}</b></div>
       <div class="mini-goal"><div class="row"><span>Today’s goal</span><span class="tnum muted">${p.daily_xp}/${CAT.xp.dailyGoal} XP</span></div><div class="bar sun"><i style="width:${Math.min(100,p.daily_xp/CAT.xp.dailyGoal*100)}%"></i></div></div></div>
@@ -648,7 +776,8 @@ const RX = [['respect','Respect','fist','var(--primary)'],['same','Same','same',
 function postHTML(p){
   const staff = p.authorRole==='teacher'||p.authorRole==='admin';
   const hl = staff ? 'Teacher' : p.scope==='school' ? 'Student · whole school' : 'Student · class';
-  const proof = p.quest ? `<div class="proof" style="--c:${cc(p.quest.c)}"><div class="band"></div><div class="info">${ico(p.quest.c)}<div><b>Quest cleared: ${esc(p.quest.title)}</b><span>${esc(CAT.clusters[p.quest.c]?.name||'')}</span></div></div></div>`
+  const proof = p.course ? `<div class="proof cert"><div class="band"></div><div class="info">${SEAL}<div><b>Certificate: ${esc(p.course.title)}</b><span>A.R.I.S.E. Connect · ${esc(p.course.code)}</span></div></div></div>`
+    : p.quest ? `<div class="proof" style="--c:${cc(p.quest.c)}"><div class="band"></div><div class="info">${ico(p.quest.c)}<div><b>Quest cleared: ${esc(p.quest.title)}</b><span>${esc(CAT.clusters[p.quest.c]?.name||'')}</span></div></div></div>`
     : p.career ? `<div class="proof" style="--c:${cc(p.career.c)}"><div class="band"></div><div class="info">${ico(p.career.c)}<div><b>${esc(p.career.name)}</b><span>${esc(CAT.clusters[p.career.c]?.name||'')}</span></div></div></div>` : '';
   const total = RX.reduce((t,[k])=>t+(p.reactions[k]||0),0);
   const bubbles = RX.filter(([k])=>p.reactions[k]>0).sort((a,b)=>p.reactions[b[0]]-p.reactions[a[0]]).slice(0,3).map(([,, i, col])=>`<i style="background:${col};color:#fff">${svg(i,'style="width:9px;height:9px;stroke-width:3"')}</i>`).join('');
@@ -667,7 +796,7 @@ function composer(){
   if (!u.canPost) return `<div class="notice">${svg('info')}<div><b>${esc(u.postBlock||'Posting isn’t open yet.')}</b><br><span class="muted">You can still explore careers, do quests, and build your profile.</span></div></div>`;
   const yb = role()==='student' && young(u.band);
   const head = `<div class="start">${av(u.name)}<button class="pillinput" data-act="compose">${yb?'Share something with your class':role()==='student'?'Post a win, a question, or something you tried':'Share something with your class'}</button></div>`;
-  if (!S.composeOpen) return `<div class="card composer">${head}${role()==='student'?`<div class="opts"><button data-act="compose">${svg('quest','style="color:var(--sun)"')}Quest win</button><button data-act="tab" data-v="explore">${svg('explore','style="color:var(--primary)"')}Career</button></div>`:''}</div>`;
+  if (!S.composeOpen) return `<div class="card composer">${head}${role()==='student'?`<div class="opts"><button data-act="compose">${svg('quest','style="color:var(--sun)"')}Quest win</button><button data-act="tab" data-v="learn">${svg('learn','style="color:var(--leaf)"')}Certificate</button><button data-act="tab" data-v="explore">${svg('explore','style="color:var(--primary)"')}Career</button></div>`:''}</div>`;
   if (yb) return `<div class="card composer">${head}<div class="expand">
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
         <label class="f">Pick a sentence<select id="cStart">${CAT.starters.map((s,i)=>`<option value="${i}">${esc(s)}…</option>`).join('')}</select></label>
@@ -677,7 +806,7 @@ function composer(){
   const done = role()==='student' ? CAT.quests[u.band].filter(q=>P().quests[q.id]==='done') : [];
   return `<div class="card composer">${head}<div class="expand">
     <textarea id="cText" maxlength="${CAT.limits.postLength}" placeholder="${role()==='student'?'What did you try? What surprised you?':'Share news, a career fact, or a shout-out'}"></textarea>
-    ${role()==='student'?`<label class="f">Attach a finished quest<select id="cQuest"><option value="">None</option>${done.map(q=>`<option value="${q.id}">${esc(q.title)}</option>`).join('')}</select></label>`:`<label class="f">Who sees it<select id="cScope"><option value="class">My class</option><option value="school">My whole school</option></select></label>`}
+    ${role()==='student'?`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"><label class="f">Attach a finished quest<select id="cQuest"><option value="">None</option>${done.map(q=>`<option value="${q.id}">${esc(q.title)}</option>`).join('')}</select></label><label class="f">Attach a certificate<select id="cCourse"><option value="">None</option>${(P().certificates||[]).map(x=>`<option value="${x.id}">${esc(course(x.id)?.title||x.id)}</option>`).join('')}</select></label></div>`:`<label class="f">Who sees it<select id="cScope"><option value="class">My class</option><option value="school">My whole school</option></select></label>`}
     <div class="row" style="justify-content:space-between"><span class="muted small">${role()==='student'?'Your teacher approves posts first · first name and last initial only':'Teacher posts go live right away.'}</span><div class="row"><button class="btn ghost" data-act="compose">Cancel</button><button class="btn primary" data-act="post">Post</button></div></div></div></div>`;
 }
 function viewFeed(){
@@ -807,6 +936,9 @@ function viewProfile(){
       <div class="card"><p class="muted small">Achievements unlocked</p><h2 style="font-size:2.3rem;margin-top:6px">${p.badges.length}</h2><p class="muted small">Earned badges and recognition</p></div>
       <div class="card"><p class="muted small">Learning challenges completed</p><h2 style="font-size:2.3rem;margin-top:6px">${done.length}</h2><p class="muted small">Projects and career exploration quests</p></div>
     </div>
+    <div class="card"><div class="card-h"><h2>Licenses &amp; certifications</h2><button class="btn sm" data-act="tab" data-v="learn">${svg('plus')}Earn one</button></div>
+      ${(p.certificates||[]).length?(p.certificates).map(x=>{const c=course(x.id); if(!c) return ''; return `<div class="certrow">${cico(c)}<div><b>${esc(c.title)}</b><span>A.R.I.S.E. Connect · ${esc(CAT.courseFields[c.field])}</span><span>Issued ${esc(longDate(x.date))} · Credential ID <span class="mono">${esc(x.code)}</span></span><button class="btn sm" data-act="credential" data-id="${c.id}">Show credential</button></div></div>`}).join(''):'<p class="muted">Finish a course in Learning to earn your first certificate.</p>'}</div>
+    ${(p.certificates||[]).length?`<div class="card"><h2 style="margin-bottom:10px">Skills</h2><div class="skillrow">${[...new Set((p.certificates).flatMap(x=>CAT.courseSkills[x.id]||[]))].map(k=>`<span class="chip">${esc(k)}</span>`).join('')}</div><p class="muted small" style="margin-top:8px">Skills come from the courses you finish.</p></div>`:''}
     <div class="notice">${svg('lock')}<div><b>Your connections are private by design.</b><br><span class="muted">Teacher-approved class posts are the only shared student activity today. Searching or following other children is disabled until parent/teacher-approved class connections and parent-approved homeschool sharing are ready.</span></div></div>
     <div class="card"><div class="card-h"><h2>Careers &amp; skills explored</h2><span class="muted small tnum">${p.collected.length} of ${CAT.careers.length}</span></div>
       <div class="stamps">${CAT.careers.map(c=>{const got=p.collected.includes(c.id);return `<button class="stamp ${got?'got':''}" data-act="open" data-id="${c.id}"><div class="ico" style="--c:${cc(c.c)}">${svg(got?c.c:'lock')}</div><span>${esc(c.name)}</span></button>`}).join('')}</div></div>
@@ -858,7 +990,7 @@ function viewFamily(){
   const reqs = k.events.filter(e=>e.status==='requested');
   return `${kids.length>1?`<div class="kid-chips">${kids.map(c=>`<button class="chip ${c.id===k.id?'on':''}" data-act="child" data-id="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
   <div class="card"><span class="eyebrow">${esc(k.firstName)}’s progress</span><h1 style="margin-top:4px">${esc(k.firstName)} has explored ${p.collected.length} career${p.collected.length===1?'':'s'}${p.streak?` and has a ${p.streak}-day streak`:''}.</h1>
-    <div class="statgrid"><div><b class="tnum">${p.xp}</b><span>Total XP</span></div><div><b class="tnum">${Object.values(p.quests).filter(q=>q==='done').length}</b><span>Quests done</span></div><div><b class="tnum">${p.daily_xp}</b><span>XP today</span></div><div><b>Level ${p.level+1}</b><span>${esc(p.levelName)}</span></div></div>
+    <div class="statgrid"><div><b class="tnum">${p.xp}</b><span>Total XP</span></div><div><b class="tnum">${Object.values(p.quests).filter(q=>q==='done').length}</b><span>Quests done</span></div><div><b class="tnum">${(p.certificates||[]).length}</b><span>Certificates</span></div><div><b class="tnum">${p.daily_xp}</b><span>XP today</span></div><div><b>Level ${p.level+1}</b><span>${esc(p.levelName)}</span></div></div>
     ${k.hasClass?'':`<div class="notice" style="margin-top:14px">${svg('info')}<span>${esc(k.firstName)} isn’t in an approved class yet, so posting and events are closed for now. Everything else works.</span></div>`}</div>
   ${reqs.length?`<div class="card stack" style="box-shadow:0 0 0 2px var(--sun)"><h3>Needs your OK</h3>${reqs.map(e=>`<div class="row" style="justify-content:space-between"><span>${esc(k.firstName)} wants to go to <b>${esc(e.title)}</b></span><div class="row"><button class="btn sm" data-act="prsvp" data-id="${e.id}" data-v="leave">No thanks</button><button class="btn primary sm" data-act="prsvp" data-id="${e.id}" data-v="approve">Approve</button></div></div>`).join('')}</div>`:''}
   <div class="grid two">
@@ -894,7 +1026,7 @@ function viewClass(){
     <div class="statgrid"><div><b class="tnum">${ci.totals.activeWeek}</b><span>Active this week</span></div><div><b class="tnum">${ci.totals.pending}</b><span>Waiting for you</span></div><div><b class="tnum">${(S.events||[]).length}</b><span>Upcoming events</span></div></div>
     ${ci.totals.pending?`<button class="btn primary" style="margin-top:14px" data-act="tab" data-v="approvals">Review ${ci.totals.pending} post${ci.totals.pending>1?'s':''}</button>`:''}</div>
   <div class="card"><h2 style="margin-bottom:12px">What your class is exploring</h2>${counts.length?`<div class="cbars">${counts.map(([k,n])=>`<div class="cbar" style="--c:${cc(k)}"><span>${esc(CAT.clusters[k]?.name||k)}</span><div class="bar"><i style="width:${n/max*100}%"></i></div><span class="tnum">${n}</span></div>`).join('')}</div><p class="muted small" style="margin-top:10px">Careers your students have collected. Handy for picking your next guest speaker.</p>`:'<p class="muted">Nothing collected yet. Share the link <b>arisereader.com/social</b> with your class.</p>'}</div>
-  <div class="card"><h2 style="margin-bottom:10px">Students</h2>${ci.students.length?`<div class="table-wrap"><table class="roster"><thead><tr><th>Student</th><th class="tnum">Level</th><th class="tnum">Careers</th><th class="tnum">Quests</th><th class="tnum">Streak</th></tr></thead><tbody>${ci.students.map(s=>`<tr><td>${esc(s.name)}</td><td class="tnum">${s.level}</td><td class="tnum">${s.collected}</td><td class="tnum">${s.questsDone}</td><td class="tnum">${s.streak}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Students appear here once you’ve approved them in A.R.I.S.E. Reader.</p>'}</div>`;
+  <div class="card"><h2 style="margin-bottom:10px">Students</h2>${ci.students.length?`<div class="table-wrap"><table class="roster"><thead><tr><th>Student</th><th class="tnum">Level</th><th class="tnum">Careers</th><th class="tnum">Quests</th><th class="tnum">Certificates</th><th class="tnum">Streak</th></tr></thead><tbody>${ci.students.map(s=>`<tr><td>${esc(s.name)}</td><td class="tnum">${s.level}</td><td class="tnum">${s.collected}</td><td class="tnum">${s.questsDone}</td><td class="tnum">${s.certificates||0}</td><td class="tnum">${s.streak}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Students appear here once you’ve approved them in A.R.I.S.E. Reader.</p>'}</div>`;
 }
 
 /* ================= STUDENT CONNECT LOCK ================= */
@@ -911,8 +1043,152 @@ function connectLockHTML(){
   <a class="btn" href="/" style="align-self:center">Back to A.R.I.S.E. Reader</a></div></div>`;
 }
 
+/* ================= LEARNING: career courses + certificates ================= */
+const FIELD_C = { trades:'build', eng:'serve', film:'heal', music:'help', health:'leaf', tech:'tech', biz:'fly' };
+const fc = f => cc(FIELD_C[f] || 'primary');
+const cico = (c, size) => `<div class="ico ${size||''}" style="--c:${fc(c.field)}">${svg(c.icon)}</div>`;
+const course = id => (CAT.courses||[]).find(c => c.id === id);
+const myCourse = id => (P()?.courses||{})[id] || null;
+const lessonsDone = c => { const m = myCourse(c.id); return m ? m.lessons.filter(Boolean).length : 0; };
+const certOf = id => (P()?.certificates||[]).find(x => x.id === id) || null;
+const SEAL = `<svg class="seal" viewBox="0 0 100 100" aria-hidden="true"><g fill="var(--seal)">${Array.from({length:16},(_,i)=>`<path d="M50 4 56 18 44 18Z" transform="rotate(${i*22.5} 50 50)"/>`).join('')}</g><circle cx="50" cy="50" r="34" fill="var(--seal)"/><circle cx="50" cy="50" r="28" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><path d="M36 60 50 36l14 24" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="57" r="4" fill="var(--seal-dot)"/></svg>`;
+function longDate(d){ return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); }
+function certificateHTML(c, cert, name){
+  const qs = c.lessons.reduce((a,l)=>a+l.quiz.length,0);
+  return `<div class="certpaper"><div class="certpaper-in">
+    <div class="ci-issuer">A.R.I.S.E. Connect</div><div class="ci-type">Certificate of Completion</div>
+    <div class="ci-who">${esc(name)}</div><p class="ci-what">has completed the career course</p>
+    <div class="ci-course">${esc(c.title)}</div>
+    <p class="ci-what small">${esc(CAT.courseFields[c.field])} · ${c.lessons.length} lessons · ${c.minutes} minutes · ${qs} quiz questions passed</p>
+    <div class="ci-foot"><div><b>${cert?longDate(cert.date):'Preview'}</b><br><span class="mono">${cert?esc(cert.code):'AC-PREVIEW'}</span></div>${SEAL}</div>
+  </div></div>`;
+}
+function courseCard(c){
+  const n = role()==='student' ? lessonsDone(c) : 0, done = role()==='student' && !!certOf(c.id);
+  return `<button class="lcard" data-act="course" data-id="${c.id}" style="--c:${fc(c.field)}">
+    <div class="lcard-top">${cico(c,'sm')}<div><span class="eyebrow fieldname">${esc(CAT.courseFields[c.field])}</span><span class="mono">${esc(c.code)}</span></div></div>
+    <div class="lcard-in"><h3>${esc(c.title)}</h3><p>${esc(c.blurb)}</p>
+    <div class="lmeta"><span><b>${c.lessons.length}</b> lessons</span><span><b>${c.minutes}</b> min</span><span><b>+${CAT.xp.course}</b> XP</span></div>
+    <div class="tags">${c.paths.map(p=>`<span class="chip tag">${esc(CAT.coursePaths[p])}</span>`).join('')}</div>
+    ${done?`<span class="chip pill-ok" style="align-self:flex-start">${svg('star','style="width:14px;height:14px"')}Certificate earned</span>`:n?`<div><span class="muted small">${n} of ${c.lessons.length} lessons done</span><div class="bar grad"><i style="width:${n/c.lessons.length*100}%"></i></div></div>`:''}</div></button>`;
+}
+function viewLearn(){
+  if (S.lesson!=null && S.course) return viewLesson();
+  if (S.course) return viewCourse();
+  const student = role()==='student';
+  const f = S.lfield, lp = S.lpath ? CAT.learningPaths.find(p=>p.id===S.lpath) : null;
+  let list = CAT.courses.filter(c => (f==='all'||c.field===f) && (!lp || lp.courses.includes(c.id)));
+  const inprog = student ? CAT.courses.filter(c => lessonsDone(c)>0 && !certOf(c.id)) : [];
+  const certs = student ? P().certificates.length : 0;
+  const first = esc((ME.user.name||'').split(' ')[0] || 'there');
+  return `<div class="card learn-hero ${inprog.length?'with-cont':''}">
+      <div><span class="eyebrow">A.R.I.S.E. Connect Learning</span>
+        <h1>${student?`Hi ${first}, `:''}<em>try a career</em> before you pick one.</h1>
+        <p class="muted" style="margin-top:8px;max-width:58ch">Short courses in the trades, engineering, film, music production, healthcare, tech and business. ${student?'Pass each lesson’s quick check to earn a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate. You can preview every lesson.'}</p>
+        ${student?`<div class="lstats"><span><b class="tnum">${certs}</b> certificate${certs===1?'':'s'}</span><span><b class="tnum">${inprog.length}</b> in progress</span><span><b class="tnum">${P().xp}</b> XP</span></div>`:''}
+      </div>
+      ${inprog.length?`<div class="continue"><span class="eyebrow">Continue learning</span>${inprog.slice(0,3).map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}" style="--c:${fc(c.field)}">${cico(c,'sm')}<span><b>${esc(c.title)}</b><span class="muted small">Lesson ${Math.min(lessonsDone(c)+1,c.lessons.length)} of ${c.lessons.length}</span><span class="bar grad"><i style="width:${lessonsDone(c)/c.lessons.length*100}%"></i></span></span></button>`).join('')}</div>`:''}
+    </div>
+    <div class="card"><div class="card-h"><div><h2>Career paths</h2><p class="muted small" style="margin-top:2px">Courses that go together.${lp?` <a href="#" data-act="lpath" data-v="">Show all courses</a>`:''}</p></div></div>
+      <div class="lpaths">${CAT.learningPaths.map(p=>{const n=student?p.courses.filter(id=>certOf(id)).length:0;return `<button class="lpath ${S.lpath===p.id?'on':''}" data-act="lpath" data-v="${p.id}" aria-pressed="${S.lpath===p.id}">
+        <span class="row" style="gap:6px">${p.courses.map(id=>{const c=course(id);return cico(c,'xs')}).join('')}</span>
+        <b>${esc(p.title)}</b><span class="muted small">${esc(p.blurb)}</span>
+        ${student?`<span class="muted small">${n} of ${p.courses.length} certificates</span><span class="bar grad"><i style="width:${n/p.courses.length*100}%"></i></span>`:''}</button>`}).join('')}</div></div>
+    <div class="card stack"><div><h2>${lp?esc(lp.title):'All courses'}</h2><p class="muted small" style="margin-top:2px">${list.length} course${list.length===1?'':'s'}</p></div>
+      <div class="filters"><button class="chip ${f==='all'?'on':''}" data-act="lfield" data-v="all">All</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button class="chip ${f===k?'on':''}" data-act="lfield" data-v="${k}">${esc(v)}</button>`).join('')}</div></div>
+    <div class="grid lgrid">${list.map(courseCard).join('') || '<div class="card empty" style="grid-column:1/-1">No courses match. Try “All”.</div>'}</div>`;
+}
+function viewCourse(){
+  const c = course(S.course); if (!c) { S.course=null; return viewLearn(); }
+  const student = role()==='student', cert = student && certOf(c.id), m = student ? myCourse(c.id) : null;
+  const next = m ? m.lessons.findIndex(x=>!x) : 0;
+  const cta = cert ? `<button class="btn primary" data-act="credential" data-id="${c.id}">${svg('star')}View certificate</button>`
+    : `<button class="btn primary" data-act="lesson" data-v="${next<0?0:next}">${!student?'Preview lessons':lessonsDone(c)?`Continue lesson ${next+1}`:'Start course'}</button>`;
+  return `<div><button class="btn ghost sm" data-act="learnhome">← All courses</button></div>
+  <div class="card flush course-hero" style="--c:${fc(c.field)}"><div class="ch-in">
+    <div>${cico(c)}<span class="eyebrow fieldname" style="display:block;margin-top:12px">${esc(CAT.courseFields[c.field])} · <span class="mono">${esc(c.code)}</span></span>
+      <h1>${esc(c.title)}</h1><p class="ch-lede">${esc(c.blurb)}</p>
+      <div class="lmeta" style="margin:14px 0 18px"><span><b>${c.lessons.length}</b> lessons</span><span><b>${c.minutes}</b> minutes</span><span><b>+${CAT.xp.course}</b> XP</span><span>Certificate on completion</span></div>
+      <div class="row">${cta}${student&&lessonsDone(c)&&!cert?`<span class="small ch-sub">${lessonsDone(c)} of ${c.lessons.length} done</span>`:''}</div></div>
+    <div class="ch-panel"><h3>What you’ll learn</h3><div class="checks">${c.learn.map(l=>`<div>${svg('check')}<span>${esc(l)}</span></div>`).join('')}</div></div>
+  </div></div>
+  <div class="card"><h2 style="margin-bottom:12px">Lessons</h2>${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<button class="lrow" data-act="lesson" data-v="${i}"><span class="lnum ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted small">${l.minutes} min · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button>`}).join('')}</div>
+  <div class="grid two">
+    <div class="card"><span class="eyebrow">Jobs this leads toward</span><p style="margin-top:6px">${c.careers.map(esc).join(' · ')}</p></div>
+    <div class="card"><span class="eyebrow">Ways in</span><p style="margin-top:6px">${c.paths.map(p=>esc(CAT.coursePaths[p])).join(' · ')}</p><span class="eyebrow" style="display:block;margin-top:12px">School subjects that help</span><p style="margin-top:6px">${c.subjects.map(esc).join(' · ')}</p></div>
+  </div>`;
+}
+function viewLesson(){
+  const c = course(S.course), i = S.lesson, l = c.lessons[i], student = role()==='student';
+  const m = student ? myCourse(c.id) : null, passed = !!(m && m.lessons[i]);
+  const A = S.answers; const allRight = l.quiz.every((_,qi)=>A[qi]&&A[qi].right);
+  let step = 1;
+  return `<div><button class="btn ghost sm" data-act="course" data-id="${c.id}">← ${esc(c.title)}</button></div>
+  <div class="lesson-wrap">
+    <nav class="lside" aria-label="Lessons">${c.lessons.map((x,k)=>{const d=m&&m.lessons[k];return `<button data-act="lesson" data-v="${k}" aria-current="${k===i}"><span class="lnum ${d?'done':''}">${d?svg('check'):k+1}</span>${esc(x.title)}</button>`}).join('')}</nav>
+    <article class="card lesson">
+      <div><span class="mono muted">${esc(c.code)} · Lesson ${i+1} of ${c.lessons.length} · ${l.minutes} min</span><h1 style="margin-top:6px">${esc(l.title)}</h1></div>
+      <section><div class="btitle"><span class="steplabel">STEP ${step++}</span><h2>Read</h2></div><div class="reading">${l.body.map(p=>`<p>${esc(p)}</p>`).join('')}</div></section>
+      <section><div class="btitle"><span class="steplabel">KEY TERMS</span></div><div class="terms">${l.terms.map(t=>`<div class="term"><b>${esc(t[0])}</b><span>${esc(t[1])}</span></div>`).join('')}</div></section>
+      ${l.activity||l.tryIt?`<section><div class="btitle"><span class="steplabel">STEP ${step++}</span><h2>Try it</h2></div><div class="tryit">${l.activity?activityHTML(l.activity):`<p>${esc(l.tryIt)}</p>`}</div></section>`:''}
+      <section><div class="btitle"><span class="steplabel">STEP ${step++}</span><h2>Quick check</h2></div><div class="stack">${l.quiz.map((q,qi)=>qHTML(q,qi,passed?{tried:[q.a],right:true}:A[qi])).join('')}</div></section>
+      <div class="finishbar"><span>${passed?'You passed this lesson.':!student?'Preview: students answer these to earn the certificate.':allRight?'All correct. Nice work.':'Answer every question correctly to finish.'}</span>
+        ${student&&!passed?`<button class="btn primary" data-act="finishlesson" ${allRight?'':'disabled'}>${i===c.lessons.length-1?'Finish course':'Finish lesson'}</button>`:i<c.lessons.length-1?`<button class="btn primary" data-act="lesson" data-v="${i+1}">Next lesson →</button>`:`<button class="btn" data-act="course" data-id="${c.id}">Back to course</button>`}</div>
+    </article></div>`;
+}
+function qHTML(q,qi,a){
+  const picked = a ? a.tried : [], solved = a && a.right;
+  return `<div class="q"><b>${qi+1}. ${esc(q.q)}</b><div class="qopts">${q.o.map((o,oi)=>{const cls=picked.includes(oi)?(oi===q.a?'right':'wrong'):'';return `<button class="opt ${cls}" data-act="answer" data-q="${qi}" data-o="${oi}" ${solved||picked.includes(oi)?'disabled':''}><span class="k">${'ABCD'[oi]}</span>${esc(o)}</button>`}).join('')}</div>
+    ${a?(solved?`<div class="fb ok"><b>Correct.</b> ${esc(q.why)}</div>`:`<div class="fb no"><b>Not quite.</b> Try another answer.</div>`):''}</div>`;
+}
+function activityHTML(k){
+  if (k==='ohm') return `<p class="muted" style="margin-bottom:12px">Move the sliders and watch the current change. Real electricians check these numbers with a multimeter.</p>
+    <div class="actgrid"><div class="stack"><label class="f">Voltage <span id="ohmVv" class="tnum">12 V</span><input type="range" id="ohmV" min="1" max="24" value="12"></label><label class="f">Resistance <span id="ohmRv" class="tnum">4 Ω</span><input type="range" id="ohmR" min="1" max="20" value="4"></label></div>
+    <div class="bulb"><svg width="90" height="110" viewBox="0 0 90 110" aria-hidden="true"><circle id="glow" cx="45" cy="42" r="40" fill="var(--sun)" opacity=".3"/><circle cx="45" cy="42" r="26" fill="var(--card)" stroke="var(--muted)" stroke-width="2.5"/><path d="M36 46q9-14 18 0" fill="none" stroke="var(--sun)" stroke-width="3"/><rect x="33" y="70" width="24" height="18" rx="3" fill="var(--muted)"/></svg><div><div class="readout tnum" id="ohmA">3.00 A</div><span class="mono muted">amps = volts ÷ ohms</span></div></div></div>`;
+  if (k==='beat') { const rows=[['kick','Kick'],['snare','Snare'],['hat','Hi-hat']];
+    return `<div class="beat"><table><tbody><tr><th></th>${Array.from({length:16},(_,i)=>`<th class="mono">${i%4===0?i/4+1:''}</th>`).join('')}</tr>
+    ${rows.map(([k2,lab])=>`<tr><th>${lab}</th>${Array.from({length:16},(_,i)=>`<td class="${Math.floor(i/4)%2===0?'b1':''}" data-col="${i}"><button aria-label="${lab} step ${i+1}" data-act="beatcell" data-v="${k2}" data-i="${i}" aria-pressed="${BEAT[k2][i]}"></button></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary sm" data-act="beatplay" id="beatPlay">${beatTimer?'■ Stop':'▶ Play'}</button><label class="f" style="flex:1;min-width:180px;max-width:300px">Tempo <span id="bpmV" class="tnum">${BPM} BPM</span><input type="range" id="bpm" min="70" max="140" value="${BPM}"></label><button class="btn sm" data-act="beatclear">Clear</button></div>`; }
+  if (k==='profit') return `<p class="muted" style="margin-bottom:12px">Example idea: custom T-shirts for a school club. Change any number.</p>
+    <div class="actgrid"><div class="grid" style="grid-template-columns:1fr 1fr"><label class="f">Price each ($)<input type="number" id="pPrice" value="15" min="0"></label><label class="f">Number sold<input type="number" id="pQty" value="20" min="0"></label><label class="f">Cost each ($)<input type="number" id="pUnit" value="6" min="0"></label><label class="f">Setup cost ($)<input type="number" id="pSetup" value="60" min="0"></label></div><div class="profit" id="pOut"></div></div>`;
+  return '';
+}
+function wireActivity(){
+  const v = document.getElementById('ohmV');
+  if (v){ const r=document.getElementById('ohmR'); const up=()=>{const a=v.value/r.value; document.getElementById('ohmVv').textContent=v.value+' V'; document.getElementById('ohmRv').textContent=r.value+' Ω'; document.getElementById('ohmA').textContent=a.toFixed(2)+' A'; document.getElementById('glow').setAttribute('opacity',Math.min(.95,.08+a/12).toFixed(2));}; v.oninput=up; r.oninput=up; up(); }
+  const pp = document.getElementById('pPrice');
+  if (pp){ const ids=['pPrice','pQty','pUnit','pSetup']; const up=()=>{const [pr,q,u,s]=ids.map(i=>Math.max(0,parseFloat(document.getElementById(i).value)||0)); const rev=pr*q, cost=u*q+s, pro=rev-cost; const $=n=>(n<0?'−$':'$')+Math.abs(n).toLocaleString('en-US',{maximumFractionDigits:2});
+    document.getElementById('pOut').innerHTML=`<div><span>Revenue</span><b class="tnum">${$(rev)}</b></div><div><span>Total costs</span><b class="tnum">${$(cost)}</b></div><div class="big"><span>${pro>=0?'Profit':'Loss'}</span><b class="tnum" style="color:${pro>=0?'var(--leaf)':'var(--coral)'}">${$(pro)}</b></div><p class="muted small">Break-even: ${pr>u?Math.ceil(s/(pr-u))+' shirts':'raise the price above the cost of each shirt'}</p>`;}; ids.forEach(i=>document.getElementById(i).oninput=up); up(); }
+  const b = document.getElementById('bpm'); if (b) b.oninput = () => { BPM=+b.value; document.getElementById('bpmV').textContent=BPM+' BPM'; if (beatTimer) startBeat(); };
+}
+/* beat maker (sound starts only after a tap) */
+let BEAT = {kick:[],snare:[],hat:[]}, BPM = 92, stepNow = -1, beatTimer = null, AC = null, NOISE = null;
+(function resetBeat(){ const z=()=>Array(16).fill(false); BEAT={kick:z(),snare:z(),hat:z()}; [0,8,10].forEach(i=>BEAT.kick[i]=true); [4,12].forEach(i=>BEAT.snare[i]=true); for(let i=0;i<16;i+=2) BEAT.hat[i]=true; })();
+function audio(){ if(!AC){ const Ctx=window.AudioContext||window.webkitAudioContext; if(!Ctx) return null; AC=new Ctx(); const b=AC.createBuffer(1,AC.sampleRate,AC.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; NOISE=b; } if(AC.state==='suspended') AC.resume(); return AC; }
+function kick(t){ const o=AC.createOscillator(), g=AC.createGain(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(45,t+.15); g.gain.setValueAtTime(.9,t); g.gain.exponentialRampToValueAtTime(.001,t+.3); o.connect(g).connect(AC.destination); o.start(t); o.stop(t+.31); }
+function noise(t,freq,len,vol){ const s=AC.createBufferSource(), f=AC.createBiquadFilter(), g=AC.createGain(); s.buffer=NOISE; f.type='highpass'; f.frequency.value=freq; g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+len); s.connect(f).connect(g).connect(AC.destination); s.start(t); s.stop(t+len+.01); }
+function beatTick(){ stepNow=(stepNow+1)%16; const t=AC.currentTime+.02; if(BEAT.kick[stepNow]) kick(t); if(BEAT.snare[stepNow]) noise(t,1400,.18,.5); if(BEAT.hat[stepNow]) noise(t,7000,.05,.22); document.querySelectorAll('.beat td').forEach(td=>td.classList.toggle('now', +td.dataset.col===stepNow)); }
+function startBeat(){ if(!audio()) return; stopBeat(); stepNow=-1; beatTimer=setInterval(beatTick, 60000/BPM/4); const b=document.getElementById('beatPlay'); if(b) b.textContent='■ Stop'; }
+function stopBeat(){ if(beatTimer){ clearInterval(beatTimer); beatTimer=null; } document.querySelectorAll('.beat td.now').forEach(td=>td.classList.remove('now')); const b=document.getElementById('beatPlay'); if(b) b.textContent='▶ Play'; }
+
+/* certificate pop-ups */
+let htmlModal = null;
+function openHTML(html){ htmlModal = html; modalId = null; document.getElementById('modalRoot').innerHTML = `<div class="scrim" data-act="close"><div class="modal certmodal" role="dialog" aria-modal="true" aria-labelledby="mt" data-stop>${html}</div></div>`; document.querySelector('.modal button')?.focus(); }
+function credentialModal(id, fresh){
+  const c = course(id), cert = certOf(id);
+  const share = ME.user.canPost ? `<button class="btn primary" data-act="sharecert" data-id="${id}">${svg('users')}Share with my class</button>` : '';
+  openHTML(`<button class="x" data-act="close" aria-label="Close">${svg('x')}</button>
+    <div class="certmodal-in"><span class="eyebrow">${fresh?'Course complete':'Your certificate'}</span><h2 id="mt">${fresh?'You earned a certificate!':esc(c.title)}</h2>
+    ${certificateHTML(c, cert, ME.user.name)}
+    ${fresh?`<span class="chip pill-ok" style="align-self:center">+${CAT.xp.course} XP · added to your profile</span>`:''}
+    <p class="muted small">Certificate ID <b class="mono">${esc(cert.code)}</b>. Show it to a teacher, counselor or program.</p>
+    <div class="row" style="justify-content:center">${share}<button class="btn" data-act="tab" data-v="profile">View my profile</button></div>
+    ${ME.user.canPost?`<p class="muted small">${esc(ME.user.teacherName||'Your teacher')} checks posts before your class sees them.</p>`:''}</div>`);
+  if (fresh) burst();
+}
+
 /* ================= RENDER ================= */
-const VIEWS = { feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
+const VIEWS = { learn:viewLearn, feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
 function render(){
   renderChrome();
   const root = document.getElementById('root');
@@ -927,11 +1203,13 @@ function render(){
   }
   document.getElementById('bottom').hidden = false;
   root.innerHTML = `<div class="app"><aside class="left" id="left">${leftHTML()}</aside><main id="main">${(VIEWS[S.tab]||viewFeed)()}</main><aside class="rail" id="rail">${railHTML()}</aside></div>`;
+  afterMain();
 }
-function renderMain(){ const m = document.getElementById('main'); if (m) m.innerHTML = (VIEWS[S.tab]||viewFeed)(); }
+function renderMain(){ const m = document.getElementById('main'); if (m) m.innerHTML = (VIEWS[S.tab]||viewFeed)(); afterMain(); }
+function afterMain(){ if (document.querySelector('.beat')) wireActivity(); else { stopBeat(); wireActivity(); } }
 let modalId = null;
 function openModal(id){ modalId=id; document.getElementById('modalRoot').innerHTML = careerModal(id); document.querySelector('.modal .x')?.focus(); }
-function closeModal(){ modalId=null; document.getElementById('modalRoot').innerHTML=''; }
+function closeModal(){ modalId=null; htmlModal=null; document.getElementById('modalRoot').innerHTML=''; }
 function refreshModal(){ if(modalId) document.getElementById('modalRoot').innerHTML = careerModal(modalId); }
 function centerMessage(title, body, action){ renderChrome(); document.getElementById('bottom').hidden = true; document.getElementById('root').innerHTML = `<div class="center-page"><div class="card"><h2>${esc(title)}</h2><p class="muted" style="margin-top:8px">${esc(body)}</p>${action||''}</div></div>`; }
 
@@ -963,7 +1241,7 @@ function setProfile(p){ if (ME && p) ME.profile = p; }
 
 /* ================= ACTIONS ================= */
 document.getElementById('q').addEventListener('input', e=>{ S.q = e.target.value; if (S.tab!=='explore'){ S.tab='explore'; render(); const q=document.getElementById('q'); q.focus(); } else renderMain(); });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(modalId) closeModal(); if(S.menu){ S.menu=false; renderChrome(); } } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(modalId||htmlModal) closeModal(); if(S.menu){ S.menu=false; renderChrome(); } } });
 
 document.addEventListener('click', async e=>{
   const el = e.target.closest('[data-act]');
@@ -981,10 +1259,31 @@ document.addEventListener('click', async e=>{
       case 'menu': S.menu = !S.menu; renderChrome(); break;
       case 'buy': el.disabled = true; await buySocial(id ? Number(id) : null).finally(()=>{ el.disabled = false; }); break;
       case 'manage': await manageSocial(id ? Number(id) : null); break;
-      case 'tab': S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') { if (role()==='teacher') load('accessRequests'); if (ME.access) load('approvals'); } break;
+      case 'tab': if (v==='learn' && S.tab!=='learn') { S.course=null; S.lesson=null; } S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') { if (role()==='teacher') load('accessRequests'); if (ME.access) load('approvals'); } break;
        case 'request-access': { el.disabled = true; const r = await api('/access/request',{method:'POST'}).finally(()=>{el.disabled=false;}); ME.approvalStatus = r.approvalStatus; toast('Request sent to your teacher'); render(); break; }
        case 'review-access': { el.disabled = true; await api(`/access/requests/${encodeURIComponent(id)}/review`,{method:'POST',body:{decision:v}}); S.accessRequests = (S.accessRequests||[]).filter(p=>String(p.id)!==String(id)); toast(v==='approve'?'Student approved for Connect':'Request denied'); render(); break; }
       case 'fc': S.filterC=v; renderMain(); break;
+      case 'learnhome': S.course=null; S.lesson=null; renderMain(); window.scrollTo(0,0); break;
+      case 'lfield': S.lfield=v; renderMain(); break;
+      case 'lpath': S.lpath=v||null; renderMain(); break;
+      case 'course': closeModal(); S.tab='learn'; S.course=id; S.lesson=null; render(); window.scrollTo(0,0); break;
+      case 'lesson': S.lesson=Number(v); S.answers={}; renderMain(); window.scrollTo(0,0); break;
+      case 'answer': { const c=course(S.course), q=c.lessons[S.lesson].quiz[Number(el.dataset.q)], qi=Number(el.dataset.q), oi=Number(el.dataset.o); const a=S.answers[qi]||{tried:[],right:false}; a.tried.push(oi); if(oi===q.a) a.right=true; S.answers[qi]=a; const y=window.scrollY; renderMain(); window.scrollTo(0,y); break; }
+      case 'finishlesson': {
+        const c=course(S.course), i=S.lesson, quiz=c.lessons[i].quiz;
+        el.disabled = true;
+        const r = await api(`/courses/${encodeURIComponent(c.id)}/lessons/${i}`,{method:'POST',body:{answers: quiz.map((q,qi)=>S.answers[qi]&&S.answers[qi].right?q.a:-1)}}).finally(()=>{ el.disabled=false; });
+        setProfile(r.profile); S.answers={};
+        if (r.certificate && r.gained) { S.lesson=null; render(); credentialModal(c.id, true); break; }
+        const next = myCourse(c.id).lessons.findIndex(x=>!x);
+        toast('Lesson passed');
+        S.lesson = next>=0 ? next : null; render(); window.scrollTo(0,0); break;
+      }
+      case 'credential': credentialModal(id, false); break;
+      case 'sharecert': { el.disabled=true; const r = await api('/posts',{method:'POST',body:{courseId:id, text:`I just earned my ${course(id).title} certificate on A.R.I.S.E. Connect!`}}).finally(()=>{ el.disabled=false; }); closeModal(); S.feed=[r.post, ...(S.feed||[])]; S.tab='feed'; toast(r.post.status==='pending'?'Sent to your teacher for a quick check':'Posted'); render(); window.scrollTo(0,0); break; }
+      case 'beatcell': { BEAT[v][Number(el.dataset.i)] = !BEAT[v][Number(el.dataset.i)]; el.setAttribute('aria-pressed', BEAT[v][Number(el.dataset.i)]); break; }
+      case 'beatplay': beatTimer ? stopBeat() : startBeat(); break;
+      case 'beatclear': Object.keys(BEAT).forEach(k=>BEAT[k].fill(false)); document.querySelectorAll('[data-act="beatcell"]').forEach(b=>b.setAttribute('aria-pressed','false')); break;
       case 'fp': S.filterP=v; renderMain(); break;
       case 'open': openModal(id); break;
       case 'close': closeModal(); break;
@@ -999,7 +1298,7 @@ document.addEventListener('click', async e=>{
       case 'post': {
         const body = {};
         if (role()==='student' && young(ME.user.band)) { body.starter = Number(document.getElementById('cStart').value); body.careerId = document.getElementById('cCareer').value; }
-        else { body.text = document.getElementById('cText').value; const q = document.getElementById('cQuest'); if (q && q.value) body.questId = q.value; const sc = document.getElementById('cScope'); if (sc) body.scope = sc.value; }
+        else { body.text = document.getElementById('cText').value; const q = document.getElementById('cQuest'); if (q && q.value) body.questId = q.value; const cs = document.getElementById('cCourse'); if (cs && cs.value) body.courseId = cs.value; const sc = document.getElementById('cScope'); if (sc) body.scope = sc.value; }
         el.disabled = true;
         const r = await api('/posts',{method:'POST',body}).finally(()=>{ el.disabled=false; });
         S.composeOpen = false; S.feed = [r.post, ...(S.feed||[])];

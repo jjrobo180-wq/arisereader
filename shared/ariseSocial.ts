@@ -1,6 +1,8 @@
 // Arise Social: a career-discovery network for students, their parents and their teachers.
 // This file is the shared catalog (careers, quests, roadmap) and the scoring rules, used by
 // server/ariseSocial.ts and sent to the page at /social/ by GET /api/social/catalog.
+// Career courses and certificates live in shared/connectCourses.ts.
+import { courseById } from "./connectCourses";
 
 export type BandId = "k2" | "g35" | "g68" | "g912";
 export type ClusterId = "build" | "serve" | "teach" | "heal" | "help" | "create" | "tech" | "nature" | "fly";
@@ -106,7 +108,7 @@ export const ROADMAP: { g: number; items: string[] }[] = [
 ];
 
 export const LEVELS = ["Curious", "Explorer", "Tinkerer", "Apprentice", "Pro", "Mentor", "Legend"];
-export const XP = { collect: 10, spin: 10, rsvp: 15, perLevel: 120, dailyGoal: 60 } as const;
+export const XP = { collect: 10, spin: 10, rsvp: 15, course: 40, perLevel: 120, dailyGoal: 60 } as const;
 export const LIMITS = { postLength: 280, postsPerDay: 8, eventsPerDay: 5, eventTitle: 90 } as const;
 export const REACTIONS = ["respect", "same", "how", "big"] as const;
 export type Reaction = (typeof REACTIONS)[number];
@@ -143,8 +145,11 @@ function previousDay(day: string): string {
 export type SocialProfile = {
   xp: number; streak: number; last_active: string | null; daily_date: string | null; daily_xp: number;
   collected: string[]; saved: string[]; quests: Record<string, boolean[] | "done">; road: string[]; spun: { day: string; career: string } | null;
+  /** Career courses: which lessons are passed, and the day the certificate was earned. */
+  courses: Record<string, CourseProgress>;
 };
-export const emptyProfile = (): SocialProfile => ({ xp: 0, streak: 0, last_active: null, daily_date: null, daily_xp: 0, collected: [], saved: [], quests: {}, road: [], spun: null });
+export type CourseProgress = { lessons: boolean[]; done: string | null };
+export const emptyProfile = (): SocialProfile => ({ xp: 0, streak: 0, last_active: null, daily_date: null, daily_xp: 0, collected: [], saved: [], quests: {}, road: [], spun: null, courses: {} });
 
 /** Cleans a stored profile so a bad row can never break the page. */
 export function cleanProfile(raw: any): SocialProfile {
@@ -168,6 +173,15 @@ export function cleanProfile(raw: any): SocialProfile {
     }
   }
   if (raw.spun && typeof raw.spun === "object" && careerById(String(raw.spun.career))) p.spun = { day: String(raw.spun.day), career: String(raw.spun.career) };
+  if (raw.courses && typeof raw.courses === "object") {
+    for (const [id, v] of Object.entries(raw.courses as Record<string, any>)) {
+      const c = courseById(id);
+      if (!c || !v || typeof v !== "object") continue;
+      const lessons = c.lessons.map((_, i) => !!(Array.isArray(v.lessons) && v.lessons[i]));
+      const done = /^\d{4}-\d{2}-\d{2}$/.test(String(v.done)) && lessons.every(Boolean) ? String(v.done) : null;
+      p.courses[id] = { lessons, done };
+    }
+  }
   return p;
 }
 
@@ -196,6 +210,7 @@ export function profileForDay(profile: SocialProfile, today: string): SocialProf
     p.collected.length >= 5 && "five-collected",
     clusters.size >= 4 && "four-clusters",
     p.streak >= 7 && "week-streak",
+    Object.values(p.courses).some((c) => c.done) && "first-certificate",
   ].filter(Boolean) as string[];
   return { ...p, level, levelName: LEVELS[Math.min(level, LEVELS.length - 1)], levelXp: p.xp % XP.perLevel, badges };
 }
