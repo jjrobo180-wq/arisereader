@@ -2014,21 +2014,36 @@ export class DatabaseStorage implements IStorage {
    * own school. Returns that school's id, or null for an ordinary account.
    */
   async schoolLeaderSchool(userId: number): Promise<number | null> {
-    let ids: number[] = [];
-    try { const raw = JSON.parse((await this.getSetting("school_leader_ids")) || "[]"); if (Array.isArray(raw)) ids = raw.map(Number); } catch {}
-    if (!ids.includes(Number(userId))) return null;
+    const scope = await this.schoolStaffScope(userId);
+    return scope && !scope.eyeGazeOnly ? scope.schoolId : null;
+  }
+
+  /**
+   * Shared school-staff accounts and whom they reach. "school_leader_ids": every student at their
+   * school. "eye_gaze_staff_ids" (an eye-gaze support team, e.g. the Hive): only the eye-gaze
+   * students at their school. Both are JSON arrays of teacher account ids. Null = an ordinary account.
+   */
+  async schoolStaffScope(userId: number): Promise<{ schoolId: number; eyeGazeOnly: boolean } | null> {
+    const idsOf = async (key: string) => {
+      try { const raw = JSON.parse((await this.getSetting(key)) || "[]"); return Array.isArray(raw) ? raw.map(Number) : []; } catch { return []; }
+    };
+    const leader = (await idsOf("school_leader_ids")).includes(Number(userId));
+    const eyeGaze = !leader && (await idsOf("eye_gaze_staff_ids")).includes(Number(userId));
+    if (!leader && !eyeGaze) return null;
     const user: any = await this.getUser(Number(userId));
     const schoolId = Number(user?.school_id ?? user?.schoolId);
-    return user && user.role === "teacher" && !user.archivedAt && schoolId > 0 ? schoolId : null;
+    return user && user.role === "teacher" && !user.archivedAt && schoolId > 0 ? { schoolId, eyeGazeOnly: eyeGaze } : null;
   }
 
   async getTeacherStudents(teacherId: number): Promise<any[]> {
-    const leaderSchool = await this.schoolLeaderSchool(teacherId);
-    if (leaderSchool) {
-      const { data, error } = await supabase
+    const scope = await this.schoolStaffScope(teacherId);
+    if (scope) {
+      let q = supabase
         .from("users")
         .select("*")
-        .eq("school_id", leaderSchool)
+        .eq("school_id", scope.schoolId);
+      if (scope.eyeGazeOnly) q = q.eq("is_eye_gaze_user", true);
+      const { data, error } = await q
         .eq("is_admin", false)
         .or("role.eq.student,role.is.null")
         .is("archived_at", null)
