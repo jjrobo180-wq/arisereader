@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { BookOpen, Gamepad2, Search, Sparkles } from "lucide-react";
+import { BookOpen, Search, Star } from "lucide-react";
+import GazeButton from "@/components/eye-gaze/GazeButton";
+
+/** Points for passing (70% or more) an eye-gaze lesson quiz; the server awards the same. */
+const LESSON_POINTS = 10;
 
 function getTokenFromCookie(): string | null {
   try {
@@ -77,43 +81,27 @@ export default function EyeGazeLessons({ embedded = false }: { embedded?: boolea
   return (
     <main className="max-w-[1350px] mx-auto px-4 sm:px-6 py-5 space-y-4">
       {!embedded && <section className="rounded-[2rem] bg-gradient-to-r from-sky-100 via-white to-violet-100 border border-sky-100 p-5 sm:p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-          <div className="w-20 h-20 rounded-[1.7rem] bg-white shadow flex items-center justify-center text-5xl">📚</div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="w-20 h-20 rounded-[1.7rem] bg-white shadow flex items-center justify-center text-5xl" aria-hidden="true">📚</div>
           <div className="flex-1">
-            <p className="text-sm font-black uppercase tracking-wider text-blue-600">Learning Library</p>
-            <h1 className="text-3xl sm:text-4xl font-black text-blue-950">Pick a picture. Pick a lesson.</h1>
-            <p className="text-slate-600 font-semibold mt-1">Lessons and books are separated so the page stays simple.</p>
+            <p className="text-sm font-black uppercase tracking-wider text-blue-600">Lessons &amp; Books</p>
+            <h1 className="text-3xl sm:text-4xl font-black text-blue-950">Pick a lesson or a book.</h1>
+            <p className="text-slate-700 font-semibold mt-1">Look at a picture until the yellow bar fills, or tap it.</p>
           </div>
-          <button onClick={() => navigate("/eye-gaze-games")} className="min-h-[58px] rounded-2xl bg-amber-400 hover:bg-amber-500 text-blue-950 px-5 font-black flex items-center justify-center gap-2">
-            <Gamepad2 className="w-5 h-5" /> Reading Games
-          </button>
+          <div className="rounded-2xl bg-yellow-100 border-2 border-yellow-300 px-5 py-3 text-amber-900">
+            <div className="flex items-center gap-2 font-black text-lg"><Star className="w-5 h-5 fill-yellow-400 text-yellow-500" aria-hidden="true" /> Pass = points</div>
+            <div className="text-sm font-bold">Get 70% or more on the quiz to earn points for the CGMS leaderboard.</div>
+          </div>
         </div>
       </section>}
 
-      {!embedded && <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button type="button" onClick={() => navigate("/my-world")} className="rounded-3xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-100 to-sky-50 p-4 flex items-center gap-4 text-left hover:border-emerald-400">
-          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-4xl flex-shrink-0">🏠</div>
-          <div>
-            <div className="text-lg font-black text-blue-950">My World</div>
-            <div className="text-sm font-bold text-slate-600">My real rooms, pictures, videos & everyday words</div>
-          </div>
-        </button>
-        <button type="button" onClick={() => navigate("/eye-gaze-talker")} className="rounded-3xl border-2 border-teal-200 bg-gradient-to-r from-teal-100 to-cyan-50 p-4 flex items-center gap-4 text-left hover:border-teal-400">
-          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-4xl flex-shrink-0">🗣️</div>
-          <div>
-            <div className="text-lg font-black text-blue-950">My Talker</div>
-            <div className="text-sm font-bold text-slate-600">Practice familiar pictures, words, and phrases</div>
-          </div>
-        </button>
-      </section>}
-
       <section className="rounded-3xl bg-white border border-sky-100 p-2 flex gap-2">
-        <button type="button" onClick={() => { setTab("lessons"); setSearch(""); }} className={`flex-1 min-h-[54px] rounded-2xl font-black transition-colors ${tab === "lessons" ? "bg-blue-600 text-white" : "bg-sky-50 text-blue-800"}`}>
+        <GazeButton pressed={tab === "lessons"} onSelect={() => { setTab("lessons"); setSearch(""); }} className={`flex-1 min-h-[64px] rounded-2xl text-lg font-black ${tab === "lessons" ? "bg-blue-600 text-white" : "bg-sky-50 text-blue-800"}`}>
           🧩 Lessons ({lessons.length})
-        </button>
-        <button type="button" onClick={() => { setTab("books"); setSearch(""); }} className={`flex-1 min-h-[54px] rounded-2xl font-black transition-colors ${tab === "books" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-800"}`}>
+        </GazeButton>
+        <GazeButton pressed={tab === "books"} onSelect={() => { setTab("books"); setSearch(""); }} className={`flex-1 min-h-[64px] rounded-2xl text-lg font-black ${tab === "books" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-800"}`}>
           📚 Books ({books.length})
-        </button>
+        </GazeButton>
       </section>
 
       <div className="relative">
@@ -130,7 +118,7 @@ export default function EyeGazeLessons({ embedded = false }: { embedded?: boolea
         <section>
           <div className="flex items-center gap-2 mb-3">
             <div className="text-2xl">👀</div>
-            <h2 className="text-2xl font-black text-blue-950">Eye Gaze Lessons</h2>
+            <h2 className="text-2xl font-black text-blue-950">Lessons</h2>
           </div>
 
           {loading ? (
@@ -142,21 +130,24 @@ export default function EyeGazeLessons({ embedded = false }: { embedded?: boolea
               {filteredLessons.map((item: any) => {
                 const picture = lessonVisual(item.title);
                 return (
-                  <button
+                  <GazeButton
                     key={`${item.kind}-${item.id}`}
-                    type="button"
-                    onClick={() => navigate(item.kind === "custom" ? `/custom-quiz/${item.id}?mode=quiz` : `/eye-gaze-quiz/${item.id}?mode=quiz`)}
-                    className="min-h-[165px] rounded-[1.7rem] border-2 border-blue-100 bg-white p-4 text-left hover:border-blue-400 hover:-translate-y-0.5 transition-all"
+                    label={`${item.title}. Pass the quiz for ${LESSON_POINTS} points.`}
+                    onSelect={() => navigate(item.kind === "custom" ? `/custom-quiz/${item.id}?mode=quiz` : `/eye-gaze-quiz/${item.id}?mode=quiz`)}
+                    className="min-h-[170px] rounded-[1.7rem] border-2 border-blue-100 bg-white p-4 text-left flex flex-col hover:border-blue-400"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-100 to-violet-100 flex items-center justify-center text-4xl flex-shrink-0" aria-hidden="true">{picture}</div>
                       <div className="min-w-0">
-                        <h3 className="text-lg font-black text-blue-950 leading-tight">{picture} {item.title}</h3>
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{item.description || "Picture-supported Eye Gaze lesson"}</p>
+                        <h3 className="text-lg font-black text-blue-950 leading-tight">{item.title}</h3>
+                        <p className="text-sm text-slate-600 mt-1 line-clamp-2">{item.description || "A picture lesson with a short quiz"}</p>
                       </div>
                     </div>
-                    <div className="mt-4 text-xs font-black text-blue-600">START LESSON →</div>
-                  </button>
+                    <div className="mt-auto pt-4 flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-3 py-1 text-xs font-black text-amber-800"><Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-500" aria-hidden="true" /> Pass = {LESSON_POINTS} pts</span>
+                      <span className="text-sm font-black text-blue-700">Start →</span>
+                    </div>
+                  </GazeButton>
                 );
               })}
             </div>
@@ -166,7 +157,7 @@ export default function EyeGazeLessons({ embedded = false }: { embedded?: boolea
         <section>
           <div className="flex items-center gap-2 mb-3">
             <BookOpen className="w-6 h-6 text-emerald-500" />
-            <h2 className="text-2xl font-black text-blue-950">Reading Books</h2>
+            <h2 className="text-2xl font-black text-blue-950">Books</h2>
           </div>
 
           {loading ? (
@@ -176,7 +167,7 @@ export default function EyeGazeLessons({ embedded = false }: { embedded?: boolea
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
               {filteredBooks.map((book: any) => (
-                <button key={book.id} onClick={() => navigate(`/quiz/${book.id}`)} className="rounded-3xl overflow-hidden border-2 border-sky-100 bg-white text-left hover:border-blue-400 hover:-translate-y-1 transition">
+                <GazeButton key={book.id} label={`${book.title}. Pass the quiz for ${book.pointsValue || 10} points.`} onSelect={() => navigate(`/quiz/${book.id}`)} className="rounded-3xl border-2 border-sky-100 bg-white text-left hover:border-blue-400">
                   <div className="aspect-[2/3] bg-sky-50 flex items-center justify-center overflow-hidden">
                     {book.coverUrl ? <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" /> : <div className="text-6xl">📘</div>}
                   </div>
@@ -184,10 +175,10 @@ export default function EyeGazeLessons({ embedded = false }: { embedded?: boolea
                     <h3 className="font-black text-blue-950 text-sm leading-tight line-clamp-2">{book.title}</h3>
                     <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{book.author}</p>
                     <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-[10px] font-black text-amber-700">
-                      <Sparkles className="w-3 h-3" /> {book.pointsValue || 10} pts
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-500" aria-hidden="true" /> Pass = {book.pointsValue || 10} pts
                     </div>
                   </div>
-                </button>
+                </GazeButton>
               ))}
             </div>
           )}
