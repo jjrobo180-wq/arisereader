@@ -7,7 +7,9 @@
 // - Students who are not yet approved by a teacher, or have no teacher, can explore but not post.
 // - Posts are seen only by the author's class (or school, if a parent allows it). There are no messages.
 // - K–5 students build posts from fixed choices instead of typing, and need a parent's OK to join an event.
-// Tables: migrations/arise_social.sql.
+// Career courses and certificates (shared/connectCourses.ts): answers are checked here, and a certificate
+// post still waits for the teacher like any other student post.
+// Tables: migrations/arise_social.sql and migrations/arise_connect_courses.sql.
 import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter } from "./attemptLimiter";
@@ -16,6 +18,9 @@ import {
   awardXp, bandForGrade, careerById, cleanPostText, cleanProfile, dayKey, isYoungBand, profileForDay, questById,
   type BandId, type PostScope, type Reaction, type SocialProfile,
 } from "../shared/ariseSocial";
+import {
+  COURSES, COURSE_FIELDS, COURSE_PATH_LABELS, COURSE_SKILLS, LEARNING_PATHS, answersCorrect, certificateCode, courseById,
+} from "../shared/connectCourses";
 
 export type SocialRole = "student" | "teacher" | "parent" | "admin";
 export type SocialUser = {
@@ -24,7 +29,7 @@ export type SocialUser = {
 };
 export type PostRow = {
   id: string; author_id: number; author_role: "student" | "teacher" | "admin"; teacher_id: number | null; school_id: number | null;
-  scope: PostScope; body: string; quest_id: string | null; career_id: string | null;
+  scope: PostScope; body: string; quest_id: string | null; career_id: string | null; course_id: string | null;
   status: "pending" | "approved" | "rejected"; reviewed_by: number | null; reviewed_at: string | null; created_at: string;
 };
 export type ReactionRow = { post_id: string; user_id: number; kind: Reaction };
@@ -118,7 +123,7 @@ export function createSupabaseSocialStore(client?: any): SocialStore {
     async saveProfile(userId, p) {
       const r = await (await db()).from("social_profiles").upsert({
         user_id: userId, xp: p.xp, streak: p.streak, last_active: p.last_active, daily_date: p.daily_date, daily_xp: p.daily_xp,
-        collected: p.collected, saved: p.saved, quests: p.quests, road: p.road, spun: p.spun, updated_at: new Date().toISOString(),
+        collected: p.collected, saved: p.saved, quests: p.quests, road: p.road, spun: p.spun, courses: p.courses, updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
       fail(r.error);
     },
@@ -369,20 +374,29 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
         body: p.body, scope: p.scope, status: p.status, createdAt: p.created_at,
         quest: quest ? { id: quest.id, title: quest.title, c: quest.c } : null,
         career: p.career_id && careerById(p.career_id) ? { id: p.career_id, name: careerById(p.career_id)!.name, c: careerById(p.career_id)!.c } : null,
+        course: p.course_id && courseById(p.course_id) ? { id: p.course_id, title: courseById(p.course_id)!.title, field: courseById(p.course_id)!.field, code: courseById(p.course_id)!.code } : null,
         reactions: counts, myReaction: mine, canDelete: p.author_id === v.id || canModerate(v, p),
       };
     });
   }
 
+  /** Finished courses as certificates, newest first. */
+  function certificatesOf(userId: number, profile: SocialProfile) {
+    return Object.entries(profile.courses).filter(([, c]) => c.done).map(([id, c]) => ({ id, date: c.done!, code: certificateCode(userId, id, c.done!) }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }
   async function profileOut(userId: number) {
     const row = await store.getProfile(userId);
-    return { ...profileForDay(row.profile, today()), postScope: row.post_scope };
+    return { ...profileForDay(row.profile, today()), postScope: row.post_scope, certificates: certificatesOf(userId, row.profile) };
   }
 
   /* ---------- catalog (public: the page shows careers before anyone signs in) */
   app.get("/api/social/catalog", (_req: any, res: any) => {
     res.set?.("Cache-Control", "public, max-age=300");
-    res.json({ bands: BANDS, clusters: CLUSTERS, careers: CAREERS, quests: QUESTS, roadmap: ROADMAP, scholarships: SCHOLARSHIPS, levels: LEVELS, xp: XP, limits: LIMITS, starters: YOUNG_STARTERS });
+    res.json({
+      bands: BANDS, clusters: CLUSTERS, careers: CAREERS, quests: QUESTS, roadmap: ROADMAP, scholarships: SCHOLARSHIPS, levels: LEVELS, xp: XP, limits: LIMITS, starters: YOUNG_STARTERS,
+      courses: COURSES, courseFields: COURSE_FIELDS, coursePaths: COURSE_PATH_LABELS, learningPaths: LEARNING_PATHS, courseSkills: COURSE_SKILLS,
+    });
   });
 
   /* ---------- who am I */
@@ -475,7 +489,15 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     let text = "";
     const questId = body.questId && questById(String(body.questId)) ? String(body.questId) : null;
     const careerId = body.careerId && careerById(String(body.careerId)) ? String(body.careerId) : null;
-    if (v.role === "student" && isYoungBand(v.band)) {
+    const courseId = body.courseId && courseById(String(body.courseId)) ? String(body.courseId) : null;
+    if (courseId && v.role === "student") {
+      const p = (await store.getProfile(v.id)).profile;
+      if (!p.courses[courseId]?.done) return res.status(400).json({ message: "Finish that course before sharing its certificate." });
+    }
+    if (v.role === "student" && isYoungBand(v.band) && courseId) {
+      // K–5: a certificate post is a fixed sentence; nothing typed is accepted.
+      text = `I earned the ${courseById(courseId)!.title} certificate!`;
+    } else if (v.role === "student" && isYoungBand(v.band)) {
       // K–5: the post is built here from the fixed choices; nothing typed is accepted.
       const starter = YOUNG_STARTERS[Number(body.starter)];
       if (!starter || !careerId) return res.status(400).json({ message: "Pick a sentence and a job." });
@@ -487,13 +509,13 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       const p = (await store.getProfile(v.id)).profile;
       if (p.quests[questId] !== "done") return res.status(400).json({ message: "Finish that quest before sharing it." });
     }
-    if (!text && !questId) return res.status(400).json({ message: "Write something or attach a finished quest." });
+    if (!text && !questId && !courseId) return res.status(400).json({ message: "Write something or attach a finished quest or certificate." });
     const scope: PostScope = "class"; // Student achievements cannot be broadcast school-wide.
     const isStaff = v.role === "teacher";
     const post = await store.createPost({
       author_id: v.id, author_role: isStaff ? "teacher" : "student",
       teacher_id: isStaff ? v.id : v.teacherId, school_id: v.schoolId,
-      scope, body: text, quest_id: questId, career_id: careerId, status: isStaff ? "approved" : "pending",
+      scope, body: text, quest_id: questId, career_id: careerId, course_id: courseId, status: isStaff ? "approved" : "pending",
     });
     postsToday.fail(String(v.id));
     if (!isStaff && v.teacherId) notify(v.teacherId, "A.R.I.S.E. Connect", `${studentName(v.displayName)} shared a post for you to check.`);
@@ -587,6 +609,24 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     const steps = p.quests[q.id];
     if (!Array.isArray(steps) || !q.steps.every((_, i) => steps[i])) return { error: "Check off every step first." };
     return { profile: awardXp({ ...p, quests: { ...p.quests, [q.id]: "done" } }, q.xp, today()), extra: { gained: q.xp } };
+  })));
+
+  /* ---------- career courses: a lesson counts once every quick-check answer is right */
+  app.post("/api/social/courses/:id/lessons/:n", auth, paid((req, res) => withProfile(req, res, (p, v) => {
+    const c = courseById(String(req.params.id));
+    if (!c) return { error: "Unknown course." };
+    const n = Number(req.params.n);
+    if (!Number.isInteger(n) || n < 0 || n >= c.lessons.length) return { error: "Unknown lesson." };
+    const current = p.courses[c.id] ?? { lessons: c.lessons.map(() => false), done: null };
+    if (current.done) return { extra: { certificate: { id: c.id, date: current.done, code: certificateCode(v.id, c.id, current.done) } } };
+    if (!answersCorrect(c.lessons[n], req.body?.answers)) return { error: "Some answers aren’t right yet. Check them and try again." };
+    const lessons = c.lessons.map((_, i) => i === n || !!current.lessons[i]);
+    const finished = lessons.every(Boolean);
+    const day = today();
+    let next: SocialProfile = { ...p, courses: { ...p.courses, [c.id]: { lessons, done: finished ? day : null } } };
+    if (!finished) return { profile: next };
+    next = awardXp(next, XP.course, day);
+    return { profile: next, extra: { gained: XP.course, certificate: { id: c.id, date: day, code: certificateCode(v.id, c.id, day) } } };
   })));
 
   app.post("/api/social/roadmap", auth, paid((req, res) => withProfile(req, res, (p) => {
@@ -736,7 +776,8 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       const done = Object.values(p.quests).filter((x) => x === "done").length;
       questsDone += done;
       if (p.last_active && p.last_active >= weekAgo) activeWeek++;
-      return { id: s.id, name: studentName(s.displayName), xp: p.xp, level: p.level + 1, collected: p.collected.length, questsDone: done, streak: p.streak, lastActive: p.last_active };
+      const certificates = Object.values(p.courses).filter((c) => c.done).length;
+      return { id: s.id, name: studentName(s.displayName), xp: p.xp, level: p.level + 1, collected: p.collected.length, questsDone: done, certificates, streak: p.streak, lastActive: p.last_active };
     });
     const pending = (await store.pendingFor([v.id])).length;
     res.json({ students: rows.sort((a, b) => b.xp - a.xp), totals: { students: students.length, activeWeek, questsDone, pending }, clusters });

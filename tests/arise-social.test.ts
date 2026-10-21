@@ -2,7 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createMemorySocialStore, registerAriseSocialRoutes, studentName, type SocialUser } from "../server/ariseSocial";
-import { awardXp, bandForGrade, cleanPostText, emptyProfile, QUESTS } from "../shared/ariseSocial";
+import { awardXp, bandForGrade, cleanPostText, cleanProfile, emptyProfile, QUESTS } from "../shared/ariseSocial";
+import { COURSES, answersCorrect, certificateCode, courseById } from "../shared/connectCourses";
 
 const people: Record<number, SocialUser & { grade?: string }> = {
   1: { id: 1, role: "teacher", displayName: "Ms. Rivera", teacherId: null, schoolId: 10, approvedByTeacher: true, archived: false },
@@ -254,4 +255,94 @@ test("teacher denial keeps Connect closed until the student requests approval ag
   assert.equal((await student("GET /api/social/me")).body.approvalStatus, "denied");
   assert.equal((await student("GET /api/social/feed")).code, 403);
   assert.equal((await student("POST /api/social/access/request")).body.approvalStatus, "pending");
+});
+
+/* ---------- A.R.I.S.E. Connect Learning: courses and certificates ---------- */
+const rightAnswers = (courseId: string, n: number) => courseById(courseId)!.lessons[n].quiz.map((q) => q.a);
+
+test("a lesson only counts when every quick-check answer is right, and the last lesson earns a certificate once", async () => {
+  const t = setup();
+  const jaylen = t.as(11);
+  const course = COURSES.find((c) => c.id === "elec")!;
+  const wrong = rightAnswers("elec", 0).map((a) => (a + 1) % 4);
+  const bad = await jaylen("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: "0" }, body: { answers: wrong } });
+  assert.equal(bad.code, 400);
+  assert.equal((await jaylen("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: "0" }, body: {} })).code, 400);
+  for (let n = 0; n < course.lessons.length - 1; n++) {
+    const r = await jaylen("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: String(n) }, body: { answers: rightAnswers("elec", n) } });
+    assert.equal(r.code, 200);
+    assert.equal(r.body.certificate, undefined);
+    assert.equal(r.body.profile.certificates.length, 0);
+  }
+  const last = await jaylen("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: String(course.lessons.length - 1) }, body: { answers: rightAnswers("elec", course.lessons.length - 1) } });
+  assert.equal(last.code, 200);
+  assert.equal(last.body.gained, 40);
+  assert.equal(last.body.profile.xp, 40);
+  assert.equal(last.body.certificate.id, "elec");
+  assert.match(last.body.certificate.code, /^AC-ELEC101-[0-9A-Z]{5}$/);
+  assert.deepEqual(last.body.profile.certificates.map((c: any) => c.id), ["elec"]);
+  assert.ok(last.body.profile.badges.includes("first-certificate"));
+  // Repeating a finished course gives back the same certificate and no more XP.
+  const again = await jaylen("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: "0" }, body: { answers: rightAnswers("elec", 0) } });
+  assert.equal(again.body.profile.xp, 40);
+  assert.equal(again.body.certificate.code, last.body.certificate.code);
+  assert.equal((await jaylen("POST /api/social/courses/:id/lessons/:n", { params: { id: "nope", n: "0" }, body: { answers: [] } })).code, 400);
+  assert.equal((await jaylen("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: "9" }, body: { answers: [] } })).code, 400);
+});
+
+test("courses are for students only and need Connect approval like the rest of Connect", async () => {
+  const t = setup({ locked: [12] });
+  assert.equal((await t.as(1)("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: "0" }, body: { answers: rightAnswers("elec", 0) } })).code, 403);
+  assert.equal((await t.as(21)("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: "0" }, body: { answers: rightAnswers("elec", 0) } })).code, 403);
+  const locked = await t.as(12)("POST /api/social/courses/:id/lessons/:n", { params: { id: "elec", n: "0" }, body: { answers: rightAnswers("elec", 0) } });
+  assert.equal(locked.code, 403);
+  assert.equal(locked.body.code, "connect_teacher_approval_required");
+});
+
+test("a certificate post needs a finished course and still waits for the teacher", async () => {
+  const t = setup();
+  const jaylen = t.as(11), destiny = t.as(12), rivera = t.as(1);
+  const early = await jaylen("POST /api/social/posts", { body: { text: "Look!", courseId: "musc" } });
+  assert.equal(early.code, 400);
+  for (let n = 0; n < 3; n++) await jaylen("POST /api/social/courses/:id/lessons/:n", { params: { id: "musc", n: String(n) }, body: { answers: rightAnswers("musc", n) } });
+  const made = await jaylen("POST /api/social/posts", { body: { courseId: "musc" } });
+  assert.equal(made.code, 201);
+  assert.equal(made.body.post.status, "pending");
+  assert.deepEqual(made.body.post.course, { id: "musc", title: "Make Your First Beat", field: "music", code: "MUSC 101" });
+  assert.equal((await destiny("GET /api/social/feed")).body.posts.length, 0);
+  await rivera("POST /api/social/posts/:id/review", { params: { id: made.body.post.id }, body: { decision: "approve" } });
+  const seen = (await destiny("GET /api/social/feed")).body.posts;
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].course.id, "musc");
+});
+
+test("a K–5 certificate post is a fixed sentence, even if text is sent", async () => {
+  const t = setup();
+  const ava = t.as(16);
+  for (let n = 0; n < 3; n++) await ava("POST /api/social/courses/:id/lessons/:n", { params: { id: "hlth", n: String(n) }, body: { answers: rightAnswers("hlth", n) } });
+  const made = await ava("POST /api/social/posts", { body: { courseId: "hlth", text: "typed words" } });
+  assert.equal(made.code, 201);
+  assert.equal(made.body.post.body, "I earned the Healthcare Heroes certificate!");
+});
+
+test("teachers see certificates in the class view, and the catalog lists the courses", async () => {
+  const t = setup();
+  for (let n = 0; n < 3; n++) await t.as(11)("POST /api/social/courses/:id/lessons/:n", { params: { id: "biz", n: String(n) }, body: { answers: rightAnswers("biz", n) } });
+  const cls = await t.as(1)("GET /api/social/class");
+  assert.equal(cls.body.students.find((s: any) => s.name === "Jaylen W.").certificates, 1);
+  const cat = await t.as(11)("GET /api/social/catalog");
+  assert.equal(cat.body.courses.length, COURSES.length);
+  assert.ok(cat.body.learningPaths.every((p: any) => p.courses.every((id: string) => courseById(id))));
+});
+
+test("course progress is cleaned: unknown courses dropped, a course is only done when every lesson is", () => {
+  const p = cleanProfile({ courses: { elec: { lessons: [true, true, true], done: "2026-10-01" }, engr: { lessons: [true], done: "2026-10-01" }, fake: { lessons: [true] } } });
+  assert.deepEqual(Object.keys(p.courses).sort(), ["elec", "engr"]);
+  assert.equal(p.courses.elec.done, "2026-10-01");
+  assert.equal(p.courses.engr.done, null);
+  assert.deepEqual(p.courses.engr.lessons, [true, false, false]);
+  assert.equal(certificateCode(11, "elec", "2026-10-01"), certificateCode(11, "elec", "2026-10-01"));
+  assert.notEqual(certificateCode(11, "elec", "2026-10-01"), certificateCode(12, "elec", "2026-10-01"));
+  assert.equal(answersCorrect(courseById("elec")!.lessons[0], "nope"), false);
+  for (const c of COURSES) for (const l of c.lessons) for (const q of l.quiz) assert.ok(q.a >= 0 && q.a < q.o.length, `${c.id}: ${q.q}`);
 });
