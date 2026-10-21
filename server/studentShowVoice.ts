@@ -5,11 +5,13 @@
 // (there are only as many as the script has), and nothing else can be asked for.
 import { createHash } from "node:crypto";
 import type { Express, Request, Response } from "express";
-import { FLAT } from "../shared/presentShow";
+import { FLAT, lineKey } from "../shared/presentShow";
 
 const BUCKET = "student-show-voice";
 const VERSION = "v3";
 const VOICE = "onyx";
+/** Which voice and settings made the clips; the page adds it to each clip's address so a new voice is never played from an old saved copy. */
+export const VOICE_VERSION = `${VERSION}-${VOICE}`;
 const INSTRUCTIONS =
   "You are a warm, confident Black American man with a deep voice, presenting to a big room of middle school students, like a respected coach or favorite teacher who is proud of these kids. Use a natural, authentic African American speaking style: smooth, relaxed rhythm and cadence, friendly swagger, a smile in your voice, and genuine encouragement. Keep every word clear and easy to follow from the back of the room, at a steady pace with a short natural pause between sentences. Never sound robotic, rushed, or like a movie trailer. Say exactly the input text and nothing else.";
 
@@ -76,12 +78,15 @@ export function createShowVoice(opts: { apiKey?: string; storage?: () => any; fe
 export function registerStudentShowVoice(app: Pick<Express, "get">, voice: ShowVoice = createShowVoice()) {
   app.get("/api/student-show/voice/status", (_req: Request, res: Response) => {
     res.set("Cache-Control", "no-store");
-    res.json({ ai: voice.available(), lines: FLAT.length });
+    res.json({ ai: voice.available(), lines: FLAT.length, v: VOICE_VERSION });
   });
   app.get("/api/student-show/voice/:index", async (req: Request, res: Response) => {
     const raw = String(req.params.index || "");
     if (!/^\d{1,3}$/.test(raw)) return res.status(404).json({ message: "No such line" });
     if (!voice.available()) return res.status(503).json({ message: "The AI voice is not set up" });
+    // The page says which words it is showing for this line. If they are not the words the server has (an older page, or an old saved copy), say nothing rather than read the wrong thing.
+    const shown = FLAT[Number(raw)];
+    if (!shown || String(req.query?.h ?? "") !== lineKey(shown.say)) return res.status(404).json({ message: "That line has changed. Reload the page." });
     try {
       const audio = await voice.line(Number(raw));
       if (!audio) return res.status(404).json({ message: "No such line" });

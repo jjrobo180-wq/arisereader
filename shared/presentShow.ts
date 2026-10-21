@@ -122,6 +122,13 @@ export function flatten(scenes: Scene[] = SCENES): FlatBeat[] {
 }
 
 export const FLAT = flatten();
+
+/** A short fingerprint of a line's words. The voice clip's address carries it, so a clip saved (by the browser or a cache) for an older version of the script can never be played under the wrong caption. */
+export function lineKey(text: string): string {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
 export const totalSeconds = (flat: FlatBeat[] = FLAT) => (flat.length ? Math.round((flat[flat.length - 1].start + flat[flat.length - 1].seconds) * 10) / 10 : 0);
 
 /** "4:05" */
