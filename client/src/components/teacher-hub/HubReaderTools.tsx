@@ -88,7 +88,46 @@ type Student = { id: number; displayName?: string; display_name?: string; userna
 type SchoolStudent = { id: number; username: string; displayName: string; quizzesTaken: number; quizzesMastered: number; totalPoints: number; approvedByTeacher?: boolean; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null };
 type Teacher = { id: number; displayName: string; username: string };
 type PendingStudent = { id: number; username: string; displayName: string; teacherName?: string | null };
-type PendingQuiz = { id: number; student_name: string; book_title: string; author: string; quiz_type: string };
+type PendingQuiz = { id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group?: string; questions?: unknown };
+
+/** A pending AI quiz's questions in one shape: the prompt, its choices (A–D) and the correct letter. */
+function quizQuestions(raw: unknown): { prompt: string; image: string | null; choices: { letter: string; text: string }[]; correct: string }[] {
+  let list: any = raw;
+  for (let i = 0; i < 2 && typeof list === "string"; i++) { try { list = JSON.parse(list); } catch { list = []; } }
+  if (!Array.isArray(list)) return [];
+  return list.map((q: any) => {
+    const choices = q?.option_a_text !== undefined
+      ? ["a", "b", "c", "d"].map((k) => ({ letter: k.toUpperCase(), text: String(q[`option_${k}_text`] ?? "") })).filter((c) => c.text)
+      : (Array.isArray(q?.options) ? q.options : []).map((o: any, i: number) => ({ letter: String.fromCharCode(65 + i), text: typeof o === "string" ? o : String(o?.text ?? "") }));
+    const image = typeof (q?.question_image || q?.image) === "string" ? (q.question_image || q.image) : null;
+    return { prompt: String(q?.prompt || q?.question || ""), image, choices, correct: String(q?.correct_answer ?? q?.correct ?? "A").toUpperCase().charAt(0) };
+  });
+}
+
+/** One AI quiz a student asked for: open it to read every question and answer, then approve or send it back. */
+function PendingQuizReview({ quiz, busy, onDecide }: { quiz: PendingQuiz; busy: boolean; onDecide: (ok: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const questions = useMemo(() => quizQuestions(quiz.questions), [quiz.questions]);
+  const kind = quiz.quiz_type === "eye_gaze" ? "Eye gaze" : quiz.quiz_type === "iarise" ? "iArise" : quiz.quiz_type === "favorite_topic" ? "Favorite topic" : "Book";
+  return <Row title={quiz.book_title} sub={`by ${quiz.author || "Unknown"} · asked for by ${quiz.student_name} · ${kind} quiz${quiz.age_group ? ` · grade ${quiz.age_group}` : ""} · ${questions.length} questions`}
+    right={<button type="button" className={smallBtn} aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? "Hide questions" : "Review questions"}</button>}>
+    {open && <div className="mt-3 space-y-3">
+      {questions.length ? <ol className="space-y-2">{questions.map((q, i) =>
+        <li key={i} className="rounded-xl bg-slate-50 p-3">
+          <div className="text-sm font-semibold text-slate-900">{i + 1}. {q.prompt || <span className="italic text-slate-500">No question text</span>}</div>
+          {q.image && (/^(https?:|data:image\/)/.test(q.image) ? <img src={q.image} alt="" className="mt-2 max-h-24 rounded-lg" /> : <div className="mt-1 text-2xl" aria-hidden="true">{q.image}</div>)}
+          <ul className="mt-2 grid gap-1 sm:grid-cols-2">{q.choices.map((c) =>
+            <li key={c.letter} className={`rounded-lg px-2 py-1 text-sm ${c.letter === q.correct ? "bg-emerald-50 font-semibold text-emerald-800" : "text-slate-600"}`}>
+              {c.letter}) {c.text}{c.letter === q.correct ? <span className="ml-1">✓ correct</span> : null}
+            </li>)}</ul>
+        </li>)}</ol> : <Empty>The questions for this quiz could not be loaded.</Empty>}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={busy || !questions.length} className={goodBtn} onClick={() => onDecide(true)}><Check className="h-4 w-4" /> Approve quiz</button>
+        <button type="button" disabled={busy} className={badBtn} onClick={() => onDecide(false)}><X className="h-4 w-4" /> Send back</button>
+      </div>
+    </div>}
+  </Row>;
+}
 type BookRequest = { id: number; bookTitle: string; studentName: string; message: string; createdAt: string };
 type ParentLink = { id: number; displayName: string; username: string; code: string; signupUrl: string; parents: Array<{ id: number; displayName: string; username: string; email?: string | null; accountApproved: boolean }> };
 type Closing = { enabled: boolean; start: string; end: string; days: number[]; adminOverrideClosedNow?: boolean };
@@ -391,10 +430,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       </Card>}
       {apSub === "quizzes" && <Card title={`AI quizzes to check${school?.quizzes.length ? ` (${school.quizzes.length})` : ""}`}>
         {!school ? <Empty>Loading…</Empty> : school.quizzes.length ? <ul className="space-y-2">{school.quizzes.map((q) =>
-          <Row key={q.id} title={q.book_title} sub={`by ${q.author || "Unknown"} · made by ${q.student_name} · ${q.quiz_type || "book"} quiz`} right={<>
-            <button type="button" disabled={quizBusy} className={goodBtn} onClick={() => void decideQuiz(q.id, true)}><Check className="h-4 w-4" /> Approve</button>
-            <button type="button" disabled={quizBusy} className={badBtn} onClick={() => void decideQuiz(q.id, false)}><X className="h-4 w-4" /> Send back</button>
-          </>} />)}</ul> : <Empty>No quizzes waiting.</Empty>}
+          <PendingQuizReview key={q.id} quiz={q} busy={quizBusy} onDecide={(ok) => void decideQuiz(q.id, ok)} />)}</ul> : <Empty>No quizzes waiting.</Empty>}
       </Card>}
       {apSub === "join" && user?.isAdmin && <Card title={`Students waiting across the school${school?.pending.length ? ` (${school.pending.length})` : ""}`} collapseKey="reader-school-pending">
         {!school ? <Empty>Loading…</Empty> : school.pending.length ? <ul className="space-y-2">{school.pending.map((s) =>
