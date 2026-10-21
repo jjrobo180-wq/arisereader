@@ -2008,7 +2008,35 @@ export class DatabaseStorage implements IStorage {
     return data || [];
   }
 
+  /**
+   * School leadership accounts (a principal, an LT login): teacher accounts listed by id in the
+   * "school_leader_ids" setting (a JSON array). They act as the teacher of every student at their
+   * own school. Returns that school's id, or null for an ordinary account.
+   */
+  async schoolLeaderSchool(userId: number): Promise<number | null> {
+    let ids: number[] = [];
+    try { const raw = JSON.parse((await this.getSetting("school_leader_ids")) || "[]"); if (Array.isArray(raw)) ids = raw.map(Number); } catch {}
+    if (!ids.includes(Number(userId))) return null;
+    const user: any = await this.getUser(Number(userId));
+    const schoolId = Number(user?.school_id ?? user?.schoolId);
+    return user && user.role === "teacher" && !user.archivedAt && schoolId > 0 ? schoolId : null;
+  }
+
   async getTeacherStudents(teacherId: number): Promise<any[]> {
+    const leaderSchool = await this.schoolLeaderSchool(teacherId);
+    if (leaderSchool) {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("school_id", leaderSchool)
+        .eq("is_admin", false)
+        .or("role.eq.student,role.is.null")
+        .is("archived_at", null)
+        .order("display_name", { ascending: true })
+        .range(0, 4999);
+      if (error) throw new Error(error.message);
+      return (data || []).map(mapUser);
+    }
     const { data, error } = await supabase
       .from("users")
       .select("*")
