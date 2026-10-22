@@ -1787,12 +1787,15 @@ export async function registerRoutes(
   const isStaffViewer = (req: any) => !req.adminPreview && !isDemoStudent(req.user) && (req.user?.isAdmin === true || req.user?.role === "teacher");
   /** Quiz questions without the answer key, for anyone taking the quiz. */
   const withoutAnswers = (questions: any[] | undefined) => (questions || []).map(({ correct_answer: _answer, ...rest }: any) => rest);
-  /** Checks one answer of an Eye Gazer or custom quiz, so the quiz can cheer right away without sending the answer key. */
+  /** Checks one answer of an Eye Gazer or custom quiz, so the quiz can cheer right away without sending the answer key.
+   *  Once an answer is kept, the built-in lessons also say which one was right, so the lesson can show it.
+   *  A negative attempt id is a try that is never saved: a preview, or practice of a quiz the student already finished. */
   const checkOneAnswer = async (
     req: any,
     res: any,
     table: "eye_gaze_attempts" | "custom_eye_gaze_attempts",
     loadQuestions: (quizId: number) => Promise<any[]>,
+    options: { canPractice?: (userId: number, quizId: number) => Promise<boolean>; showRightAnswer?: boolean } = {},
   ) => {
     try {
       const attemptId = parseInt(req.params.attemptId);
@@ -1802,18 +1805,24 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Choose an answer first." });
       }
       if (attemptId < 0) {
-        // previews (staff, admin preview and the sample accounts) aren't saved
+        // previews (staff, admin preview and the sample accounts) and practice aren't saved
         const canPreview = req.adminPreview || isDemoStudent(req.user) || req.user?.isAdmin || req.user?.role === "teacher";
-        if (!canPreview) return res.status(403).json({ message: "Start the quiz first." });
+        if (!canPreview && !(options.canPractice && await options.canPractice(req.user.id, -attemptId))) {
+          return res.status(403).json({ message: "Start the quiz first." });
+        }
         const question = (await loadQuestions(-attemptId)).find((q: any) => Number(q.id) === questionId);
         if (!question) return res.status(404).json({ message: "Question not found." });
-        return res.json({ correct: answer === String(question.correct_answer || "") });
+        return res.json({ correct: answer === String(question.correct_answer || ""), rightAnswer: String(question.correct_answer || "") });
       }
       const recorded = await storage.recordQuizAnswer(table, attemptId, req.user.id, questionId, answer);
       if (!recorded) return res.status(409).json({ message: "This quiz is already finished." });
       const question = (await loadQuestions(recorded.quizId)).find((q: any) => Number(q.id) === questionId);
       if (!question) return res.status(404).json({ message: "Question not found." });
-      res.json({ correct: recorded.answer === String(question.correct_answer || ""), answer: recorded.answer });
+      res.json({
+        correct: recorded.answer === String(question.correct_answer || ""),
+        answer: recorded.answer,
+        ...(options.showRightAnswer ? { rightAnswer: String(question.correct_answer || "") } : {}),
+      });
     } catch (error: any) {
       res.status(500).json({ message: "Could not check that answer." });
     }
@@ -1970,8 +1979,10 @@ export async function registerRoutes(
   });
   // Seed data on startup
   await seedData();
-  await storage.seedEyeGazeQuizzes();
-  await storage.seedExtraEyeGazeQuizzes();
+  // The built-in Eye Gazer lessons live in shared/eyegaze/lessons.ts; save any changes to them (in the background).
+  void storage.syncEyeGazeLessons()
+    .then((r) => { if (r.added || r.changed || r.retired) console.log(`[eye-gaze-lessons] saved: ${r.added} added, ${r.changed} changed, ${r.retired} old quizzes hidden`); })
+    .catch((e: any) => console.error("[eye-gaze-lessons] could not save the lessons:", e?.message));
 
   // Students who picked "Independent Reader" in the old school list become independent students.
   // Runs in the background on every start; once they are moved there is nothing left to do.
@@ -3015,7 +3026,7 @@ export async function registerRoutes(
     // Also count eye gaze quizzes
     let eyeGazeCount = 0;
     try {
-      const egRes = await supabase.from('eye_gaze_quizzes').select('id', { count: 'exact', head: true });
+      const egRes = await supabase.from('eye_gaze_quizzes').select('id', { count: 'exact', head: true }).eq('is_active', true);
       eyeGazeCount = egRes.count || 0;
     } catch {}
     const stats = {
@@ -7559,32 +7570,40 @@ export async function registerRoutes(
     res.status(410).json({ message: "Use the current A.R.I.S.E. proctor verification screen." });
   });
 
-  app.get("/api/eye-gaze/quizzes", authMiddleware, async (req, res) => {
+  // The built-in lessons, each with how the student did on its scored (first) try.
+  app.get("/api/eye-gaze/quizzes", authMiddleware, async (req: any, res) => {
     try {
-      const quizzes = await storage.getAllEyeGazeQuizzes();
-      const quizzesWithStatus = [];
-      for (const quiz of quizzes) {
-        const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quiz.id);
-        quizzesWithStatus.push({ ...quiz, hasCompleted: completed });
-      }
-      res.json(quizzesWithStatus);
+      const [quizzes, done] = await Promise.all([storage.getAllEyeGazeQuizzes(), storage.getEyeGazeCompletions(req.user.id)]);
+      res.set("Cache-Control", "no-store");
+      res.json(quizzes.map((quiz: any) => {
+        const finished = done.get(Number(quiz.id));
+        return { ...quiz, hasCompleted: !!finished, score: finished?.score ?? null, total: finished?.total ?? null };
+      }));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.get("/api/eye-gaze/quizzes/:id", authMiddleware, async (req, res) => {
+  app.get("/api/eye-gaze/quizzes/:id", authMiddleware, async (req: any, res) => {
     try {
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-      const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
+      const finished = (await storage.getEyeGazeCompletions(req.user.id)).get(quizId);
       res.set("Cache-Control", "no-store");
-      res.json({ ...quiz, questions: isStaffViewer(req) ? quiz.questions : withoutAnswers(quiz.questions), hasCompleted: completed });
+      res.json({
+        ...quiz,
+        questions: isStaffViewer(req) ? quiz.questions : withoutAnswers(quiz.questions),
+        hasCompleted: !!finished, score: finished?.score ?? null, total: finished?.total ?? null,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
+
+  /** Practice (no points, nothing saved) opens once the student has taken the scored quiz. */
+  const canPracticeEyeGaze = async (userId: number, quizId: number) =>
+    Number.isSafeInteger(quizId) && quizId > 0 && await storage.hasUserCompletedEyeGazeQuiz(userId, quizId);
 
   app.post("/api/eye-gaze/quizzes/:id/start", authMiddleware, async (req: any, res) => {
     try {
@@ -7596,6 +7615,15 @@ export async function registerRoutes(
       res.set("Cache-Control", "no-store");
       if (req.adminPreview || sampleAccount || staffPreview) {
         return res.json({ ...quiz, questions: isStaffViewer(req) ? quiz.questions : withoutAnswers(quiz.questions), attemptId: -quizId, preview: true });
+      }
+      if (quiz.is_active === false) {
+        return res.status(410).json({ message: "This lesson was replaced by a new one. Pick a lesson from Lessons." });
+      }
+      if (req.body?.practice) {
+        if (!(await canPracticeEyeGaze(req.user.id, quizId))) {
+          return res.status(403).json({ message: "Practice opens after the first quiz. Ask a grown-up to unlock the quiz." });
+        }
+        return res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: -quizId, practice: true });
       }
 
       const proctor = await validateProctorSession(
@@ -7610,7 +7638,7 @@ export async function registerRoutes(
       }
 
       const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
-      if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
+      if (completed) return res.status(400).json({ message: "You already took this quiz. You can practice it again any time.", completed: true });
       const attempt = await storage.startEyeGazeAttempt(req.user.id, quizId, proctor);
       res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
     } catch (error: any) {
@@ -7623,8 +7651,14 @@ export async function registerRoutes(
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
       const sampleAccount = isDemoStudent(req.user);
-      if ((req.adminPreview || sampleAccount) && attemptId < 0) {
+      const staff = req.user?.isAdmin || req.user?.role === "teacher";
+      if (attemptId < 0) {
+        // A preview or a practice try: scored here, never saved, no points.
         const quizId = Math.abs(attemptId);
+        const practice = !(req.adminPreview || sampleAccount || staff);
+        if (practice && !(await canPracticeEyeGaze(req.user.id, quizId))) {
+          return res.status(403).json({ message: "Start the quiz first." });
+        }
         const questions = await storage.getEyeGazeQuizQuestions(quizId);
         let score = 0;
         const skillScores: Record<string, { correct: number; total: number }> = {};
@@ -7648,7 +7682,7 @@ export async function registerRoutes(
           passingScore,
           pointsEarned: 0,
           skill_scores: skillScores,
-          preview: true,
+          ...(practice ? { practice: true } : { preview: true }),
         });
       }
       const { data: ownedAttempt } = await getAdminSupabase().from("eye_gaze_attempts")
@@ -7681,7 +7715,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/eye-gaze/quizzes/:attemptId/check", authMiddleware, (req: any, res) =>
-    checkOneAnswer(req, res, "eye_gaze_attempts", (quizId) => storage.getEyeGazeQuizQuestions(quizId)));
+    checkOneAnswer(req, res, "eye_gaze_attempts", (quizId) => storage.getEyeGazeQuizQuestions(quizId), { canPractice: canPracticeEyeGaze, showRightAnswer: true }));
 
   app.get("/api/eye-gaze/profile", authMiddleware, async (req: any, res) => {
     try {
@@ -12600,6 +12634,13 @@ Important:
         return res.json({ ...quiz, questions: isStaffViewer(req) ? questions : withoutAnswers(questions), attemptId: -quizId, preview: true });
       }
       if (!(await customQuizVisibleTo(req.user, quiz))) return res.status(404).json({ message: "Quiz not found" });
+      if (req.body?.practice) {
+        // Practice (no points, nothing saved) opens once the student has taken the scored quiz.
+        if (!(await canPracticeCustom(req.user.id, quizId))) {
+          return res.status(403).json({ message: "Practice opens after the first quiz. Ask a grown-up to unlock the quiz." });
+        }
+        return res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: -quizId, practice: true });
+      }
 
       const proctor = await validateProctorSession(
         String(req.body?.proctorSessionToken || ""),
@@ -12613,7 +12654,7 @@ Important:
       }
 
       const completed = await storage.hasUserCompletedCustomQuiz(req.user.id, quizId);
-      if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
+      if (completed) return res.status(400).json({ message: "You already took this quiz. You can practice it again any time.", completed: true });
       const attempt = await storage.startCustomEyeGazeAttempt(req.user.id, quizId, proctor);
       res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
     } catch (error: any) {
@@ -12626,7 +12667,8 @@ Important:
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
 
-      if ((req.adminPreview || isDemoStudent(req.user) || req.user?.isAdmin || req.user?.role === "teacher") && attemptId < 0) {
+      const previewer = req.adminPreview || isDemoStudent(req.user) || req.user?.isAdmin || req.user?.role === "teacher";
+      if (attemptId < 0 && (previewer || await canPracticeCustom(req.user.id, Math.abs(attemptId)))) {
         const quizId = Math.abs(attemptId);
         const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
         let score = 0;
@@ -12635,7 +12677,7 @@ Important:
         }
         const total = questions.length;
         const passingScore = Math.ceil(total * 0.7);
-        return res.json({ score, total, pct: total > 0 ? Math.round((score / total) * 100) : 0, passed: score >= passingScore, passingScore, pointsEarned: 0, preview: true });
+        return res.json({ score, total, pct: total > 0 ? Math.round((score / total) * 100) : 0, passed: score >= passingScore, passingScore, pointsEarned: 0, ...(previewer ? { preview: true } : { practice: true }) });
       }
 
       const { data: ownedAttempt } = await getAdminSupabase().from("custom_eye_gaze_attempts")
@@ -12669,7 +12711,15 @@ Important:
   });
 
   app.post("/api/custom-quizzes/:attemptId/check", authMiddleware, (req: any, res) =>
-    checkOneAnswer(req, res, "custom_eye_gaze_attempts", (quizId) => storage.getCustomEyeGazeQuizQuestions(quizId)));
+    checkOneAnswer(req, res, "custom_eye_gaze_attempts", (quizId) => storage.getCustomEyeGazeQuizQuestions(quizId), { canPractice: canPracticeCustom }));
+
+  /** Practice of a teacher's quiz opens once the student has taken it (and can still see it). */
+  async function canPracticeCustom(userId: number, quizId: number) {
+    if (!Number.isSafeInteger(quizId) || quizId < 1) return false;
+    if (!(await storage.hasUserCompletedCustomQuiz(userId, quizId))) return false;
+    const [quiz, user] = await Promise.all([storage.getCustomEyeGazeQuiz(quizId), storage.getUser(userId)]);
+    return customQuizVisibleTo(user, quiz);
+  }
 
   /** A student sees published quizzes for everyone, and their own teacher's quizzes. */
   async function customQuizVisibleTo(user: any, quiz: any) {
