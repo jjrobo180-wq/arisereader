@@ -158,6 +158,7 @@ const EyeGazeParentControls = lazyPage(() => import("./pages/EyeGazeParentContro
 const QuizBuilder = lazyPage(() => import("./pages/QuizBuilder"));
 const LiveQuiz = lazyPage(() => import("./pages/LiveQuiz"));
 const CustomEyeGazeQuiz = lazyPage(() => import("./pages/CustomEyeGazeQuiz"));
+const EyeGazeCustomLesson = lazyPage(() => import("./pages/EyeGazeCustomLesson"));
 const StudentProfileView = lazyPage(() => import("./pages/StudentProfileView"));
 const StudentMessages = lazyPage(() => import("./pages/StudentMessages"));
 const StudentCertificates = lazyPage(() => import("./pages/StudentCertificates"));
@@ -847,7 +848,7 @@ function AppRoutes() {
         <ProtectedRoute><QuizBuilder /></ProtectedRoute>
       </Route>
       <Route path="/custom-quiz/:id">
-        <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/library"><CustomEyeGazeQuiz /></EyeGazeAccessGate> : <CustomEyeGazeQuiz />}</ProtectedRoute>
+        <ProtectedRoute>{isEyeGazeStudent ? <EyeGazeAccessGate path="/library"><EyeGazeCustomLesson /></EyeGazeAccessGate> : <CustomEyeGazeQuiz />}</ProtectedRoute>
       </Route>
       <Route path="/student-profile/:id">
         <ProtectedRoute><StudentProfileView /></ProtectedRoute>

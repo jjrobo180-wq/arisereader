@@ -5,6 +5,8 @@ import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
 import { lookupPages } from "./bookPages";
 import { cleanPages, pointsForBook } from "../shared/bookPoints";
+import { EYE_GAZE_LESSONS, lessonRows } from "../shared/eyegaze/lessons";
+import { lessonsToHide, planQuestions, rowDiffers } from "./eyeGazeLessonSync";
 
 let bookQuizzes: any[] = [];
 
@@ -2113,10 +2115,28 @@ export class DatabaseStorage implements IStorage {
         .select("*")
         .eq("is_active", true)
         .order("level", { ascending: true })
+        .order("sort_order", { ascending: true })
         .order("id", { ascending: true });
       if (error) throw new Error(error.message);
       return data || [];
     });
+  }
+
+  /** A student's finished Eye Gazer lessons: quiz id → the scored (first) try. */
+  async getEyeGazeCompletions(userId: number): Promise<Map<number, { score: number; total: number; completedAt: string | null }>> {
+    const { data, error } = await supabase
+      .from("eye_gaze_attempts")
+      .select("quiz_id, score, total, completed_at")
+      .eq("user_id", userId)
+      .eq("status", "completed")
+      .order("completed_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    const done = new Map<number, { score: number; total: number; completedAt: string | null }>();
+    for (const row of data || []) {
+      const quizId = Number(row.quiz_id);
+      if (!done.has(quizId)) done.set(quizId, { score: Number(row.score || 0), total: Number(row.total || 0), completedAt: row.completed_at || null });
+    }
+    return done;
   }
 
   async getEyeGazeQuiz(quizId: number): Promise<any> {
@@ -2343,98 +2363,66 @@ export class DatabaseStorage implements IStorage {
     clearCache("session_"); // Clear session cache so authMiddleware returns fresh user data
   }
 
-  async seedEyeGazeQuizzes(): Promise<void> {
-    const { data: existing, error: checkError } = await supabase
-      .from("eye_gaze_quizzes")
-      .select("id")
-      .limit(1);
-    if (checkError) return;
-    if (existing && existing.length > 0) {
-      console.log("Eye gaze quizzes already seeded");
-      return;
+  /**
+   * Saves the built-in Eye Gazer lessons (shared/eyegaze/lessons.ts) into eye_gaze_quizzes and
+   * eye_gaze_questions, matched by lesson_key, and hides every other built-in quiz (the old set).
+   * Only rows that changed are written, so a normal restart costs a few reads. Nothing is ever
+   * deleted except extra questions of a lesson that got shorter: finished quizzes and points stay.
+   */
+  async syncEyeGazeLessons(): Promise<{ added: number; changed: number; retired: number }> {
+    const wanted = EYE_GAZE_LESSONS.map((lesson, i) => lessonRows(lesson, i + 1));
+    const keys = new Set(wanted.map(w => w.quiz.lesson_key));
+    const { data: existing, error } = await supabase.from("eye_gaze_quizzes").select("*").not("lesson_key", "is", null);
+    if (error) throw new Error(error.message);
+    const byKey = new Map((existing || []).map((row: any) => [String(row.lesson_key), row]));
+    const ids = (existing || []).map((row: any) => Number(row.id));
+    let questions: any[] = [];
+    if (ids.length) {
+      const res = await supabase.from("eye_gaze_questions").select("*").in("quiz_id", ids);
+      if (res.error) throw new Error(res.error.message);
+      questions = res.data || [];
     }
-    const quizzes = JSON.parse(require("fs").readFileSync(__dirname + "/../passages/eye_gaze_quizzes.json", "utf-8"));
-    for (const quiz of quizzes) {
-      const { data: quizRow, error: quizError } = await supabase
-        .from("eye_gaze_quizzes")
-        .insert({
-          title: quiz.title,
-          description: quiz.description,
-          level: quiz.level,
-          cover_visual: quiz.cover_visual,
-          cover_visual_type: quiz.cover_visual_type || "emoji",
-          is_active: true,
-        })
-        .select()
-        .single();
-      if (quizError) {
-        console.error("Failed to insert eye gaze quiz:", quiz.title, quizError.message);
-        continue;
+    let added = 0, changed = 0;
+    for (const { quiz, questions: wantQuestions } of wanted) {
+      let row: any = byKey.get(quiz.lesson_key);
+      if (!row) {
+        const { data, error: insertError } = await supabase.from("eye_gaze_quizzes").insert(quiz).select().single();
+        if (insertError) throw new Error(insertError.message);
+        row = data; added++;
+      } else if (rowDiffers(row, quiz)) {
+        // (A lesson put back in the list shows again: its saved row says is_active true.)
+        const { error: updateError } = await supabase.from("eye_gaze_quizzes").update(quiz).eq("id", row.id);
+        if (updateError) throw new Error(updateError.message);
+        changed++;
       }
-      for (const q of quiz.questions) {
-        await supabase.from("eye_gaze_questions").insert({
-          quiz_id: quizRow.id,
-          prompt: q.prompt,
-          visual: q.visual,
-          visual_type: q.visual_type || "emoji",
-          option_a: q.option_a,
-          option_b: q.option_b,
-          option_c: q.option_c,
-          option_d: q.option_d,
-          correct_answer: q.correct_answer,
-          skill_type: q.skill_type,
-          question_order: q.question_order,
-        });
+      const plan = planQuestions(Number(row.id), questions.filter(q => Number(q.quiz_id) === Number(row.id)), wantQuestions);
+      if (plan.remove.length) {
+        const { error: deleteError } = await supabase.from("eye_gaze_questions").delete().in("id", plan.remove);
+        if (deleteError) throw new Error(deleteError.message);
       }
+      if (plan.insert.length) {
+        const { error: insertError } = await supabase.from("eye_gaze_questions").insert(plan.insert);
+        if (insertError) throw new Error(insertError.message);
+      }
+      for (const { id, values } of plan.update) {
+        const { error: updateError } = await supabase.from("eye_gaze_questions").update(values).eq("id", id);
+        if (updateError) throw new Error(updateError.message);
+      }
+      changed += plan.update.length + plan.remove.length;
     }
-    console.log("Eye gaze quizzes seeded successfully");
-  }
-
-  async seedExtraEyeGazeQuizzes(): Promise<void> {
-    // Insert the 20 additional quizzes (only those not already present by title)
-    const { data: existing } = await supabase
-      .from("eye_gaze_quizzes")
-      .select("title")
-      .eq("is_active", true);
-    const existingTitles = new Set((existing || []).map((q: any) => q.title));
-    const quizzes = JSON.parse(require("fs").readFileSync(__dirname + "/../passages/eye_gaze_quizzes_new.json", "utf-8"));
-    let added = 0;
-    for (const quiz of quizzes) {
-      if (existingTitles.has(quiz.title)) continue;
-      const { data: quizRow, error: quizError } = await supabase
-        .from("eye_gaze_quizzes")
-        .insert({
-          title: quiz.title,
-          description: quiz.description,
-          level: quiz.level,
-          cover_visual: quiz.cover_visual,
-          cover_visual_type: quiz.cover_visual_type || "emoji",
-          is_active: true,
-        })
-        .select()
-        .single();
-      if (quizError) {
-        console.error("Failed to insert eye gaze quiz:", quiz.title, quizError.message);
-        continue;
-      }
-      for (const q of quiz.questions) {
-        await supabase.from("eye_gaze_questions").insert({
-          quiz_id: quizRow.id,
-          prompt: q.prompt,
-          visual: q.visual,
-          visual_type: q.visual_type || "emoji",
-          option_a: q.option_a,
-          option_b: q.option_b,
-          option_c: q.option_c,
-          option_d: q.option_d,
-          correct_answer: q.correct_answer,
-          skill_type: q.skill_type,
-          question_order: q.question_order,
-        });
-      }
-      added++;
+    // Hide the old built-in quizzes (no lesson_key) and any lesson taken out of the list.
+    let retired = 0;
+    const old = await supabase.from("eye_gaze_quizzes").update({ is_active: false }).is("lesson_key", null).eq("is_active", true).select("id");
+    if (old.error) throw new Error(old.error.message);
+    retired += (old.data || []).length;
+    const stale = lessonsToHide(existing || [], keys);
+    if (stale.length) {
+      const res = await supabase.from("eye_gaze_quizzes").update({ is_active: false }).in("id", stale).select("id");
+      if (res.error) throw new Error(res.error.message);
+      retired += (res.data || []).length;
     }
-    console.log(`Extra eye gaze quizzes seeded: ${added} added`);
+    if (added || changed || retired) clearCache("eye_gaze_quizzes");
+    return { added, changed, retired };
   }
 
   // ─── CUSTOM EYE GAZE QUIZZES (Teacher/Parent created) ──────────────

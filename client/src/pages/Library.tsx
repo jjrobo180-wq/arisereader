@@ -1729,7 +1729,7 @@ export default function Library() {
                 >
                   <div className="flex items-center gap-4 p-5">
                     <div style={{ fontSize: "3rem", lineHeight: 1 }}>
-                      {quiz.cover_visual}
+                      {/^\//.test(String(quiz.cover_visual || "")) ? <img src={quiz.cover_visual} alt="" className="h-14 w-14 object-contain" /> : quiz.cover_visual}
                     </div>
                     <div className="flex-1 text-left">
                       <h3 className="font-bold text-base">{quiz.title}</h3>
