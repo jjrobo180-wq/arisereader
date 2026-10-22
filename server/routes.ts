@@ -10843,10 +10843,10 @@ Important:
     const scope = user?.id ? await storage.schoolStaffScope(Number(user.id)) : null;
     if (!!scope && Number((student as any).school_id ?? (student as any).schoolId) === scope.schoolId
       && (!scope.eyeGazeOnly || !!(student as any).is_eye_gaze_user)) return true;
-    // Any ordinary teacher reaches every student at their own school.
+    // Any ordinary teacher reaches every student at their own school. `user` is the signed-in
+    // teacher's own row (req.user), so their school_id is already on it -- no extra lookup.
     if (user?.role === "teacher" && user?.id) {
-      const teacher: any = await storage.getUser(Number(user.id));
-      const teacherSchoolId = Number(teacher?.school_id ?? teacher?.schoolId);
+      const teacherSchoolId = Number((user as any).school_id ?? (user as any).schoolId);
       const studentSchoolId = Number((student as any).school_id ?? (student as any).schoolId);
       if (teacherSchoolId > 0 && teacherSchoolId === studentSchoolId) return true;
     }
@@ -10895,11 +10895,11 @@ Important:
       const staffScope = req.user.isAdmin ? null : await storage.schoolStaffScope(Number(req.user.id));
       const advScope = req.user.isAdmin || staffScope ? null : await storage.advisoryScope(Number(req.user.id));
       // Any ordinary teacher reaches every student at their own school too (View all students).
-      let ownSchoolId: number | null = null;
-      if (!req.user.isAdmin && req.user.role === "teacher") {
-        const me: any = await storage.getUser(Number(req.user.id));
-        ownSchoolId = Number(me?.school_id ?? me?.schoolId) || null;
-      }
+      // req.user is already the signed-in teacher's own row (session.user), so their school_id
+      // is right there -- no extra lookup needed.
+      const ownSchoolId = (!req.user.isAdmin && req.user.role === "teacher")
+        ? Number((req.user as any).school_id ?? (req.user as any).schoolId) || null
+        : null;
       const students = (await storage.getAllUsers()).filter((s: any) => (s.role === 'student' || (!s.role && !s.isAdmin))
         && (req.user.isAdmin || Number(s.teacherId) === Number(req.user.id)
           || (!!advScope && !s.archivedAt && Number(s.school_id ?? s.schoolId) === advScope.schoolId && advScope.names.includes(String(s.directoryTeacherName || "").trim()))
@@ -10911,12 +10911,14 @@ Important:
       for (const u of allUsers) {
         if (u.role === 'teacher') teacherMap.set(u.id, u.displayName);
       }
-      // Fetch attempts for stats
+      // Fetch attempts for stats. Scoped by school_id (one filter) rather than a per-student .in()
+      // list, which used to grow to the whole school for an ordinary teacher and could time out.
       let allUsersWithAttempts: any[] = [];
       for (let retry = 0; retry < 5; retry++) {
         try {
           let q = supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
           if (staffScope) { q = q.eq("school_id", staffScope.schoolId); if (staffScope.eyeGazeOnly) q = q.eq("is_eye_gaze_user", true); }
+          else if (ownSchoolId) q = q.eq("school_id", ownSchoolId);
           else if (!req.user.isAdmin) q = q.in("id", students.length ? students.map((st: any) => Number(st.id)) : [-1]);
           const { data, error } = await q;
           if (!error && data) { allUsersWithAttempts = data; break; }
