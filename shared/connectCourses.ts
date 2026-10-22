@@ -5,14 +5,16 @@
 
 import { COURSE_STARS, LESSON_VIDEOS, type ConnectVideo } from "./connectVideos";
 
-export type CourseField = "trades" | "eng" | "film" | "music" | "health" | "tech" | "biz" | "food" | "sports" | "air";
+export type CourseField = "trades" | "eng" | "film" | "music" | "health" | "tech" | "biz" | "food" | "sports" | "air" | "games";
 export type CoursePath = "trade" | "cert" | "college";
 export type CourseQuestion = { q: string; o: string[]; a: number; why: string };
 export type CourseLesson = {
   title: string; minutes: number; body: string[]; terms: [string, string][];
   activity?: "ohm" | "beat" | "profit"; tryIt?: string; quiz: CourseQuestion[];
-  /** "Watch": the lesson's video (shared/connectVideos.ts), attached below. */
+  /** "Watch": the lesson's star video (shared/connectVideos.ts), attached below. */
   video?: ConnectVideo;
+  /** The same lesson's backup star videos, used if YouTube ever removes the first. */
+  backups?: ConnectVideo[];
 };
 export type Course = {
   id: string; code: string; field: CourseField; icon: string; title: string; minutes: number; points: number;
@@ -25,7 +27,7 @@ export type Course = {
 export const COURSE_FIELDS: Record<CourseField, string> = {
   trades: "Trades", eng: "Engineering", film: "Film & Media", music: "Music Production",
   health: "Healthcare", tech: "Tech & Coding", biz: "Business",
-  food: "Culinary", sports: "Sports", air: "Aviation & Space",
+  food: "Culinary", sports: "Sports", air: "Aviation & Space", games: "Games & Esports",
 };
 export const COURSE_PATH_LABELS: Record<CoursePath, string> = { trade: "Apprenticeship", cert: "Certificate program", college: "College degree" };
 
@@ -337,7 +339,35 @@ export const COURSES: Course[] = [
   terms:[["Astronaut candidate","Someone chosen to train as an astronaut"],["Spacewalk (EVA)","Working outside a spacecraft in a spacesuit"],["Mission control","The team on the ground that guides every flight"]],
   quiz:[{q:"Where do astronauts practice spacewalks?",o:["On a trampoline","In a giant swimming pool","On a mountain","In a movie studio"],a:1,why:"Floating in water feels a lot like floating in space."},
         {q:"Which space job never leaves the ground?",o:["Space station commander","Flight controller in mission control","Spacewalker","Space shuttle pilot"],a:1,why:"Flight controllers guide missions from Earth."}]}
- ]}
+ ]},
+{id:"game",code:"GAME 101",field:"games",icon:"gamepad",title:"Game Design & Esports",minutes:35,points:20,paths:["college","cert"],interests:["computers","how","stories"],
+ blurb:"Learn how Shigeru Miyamoto designs Mario, build your own level, and see the real jobs behind esports and streaming.",
+ learn:["Explain what makes a game level fun and easy to learn","Plan and playtest a level of your own","Name the careers in games and esports, and how to start safely"],
+ careers:["Video game designer","Level designer","Game programmer","Esports player or coach","Streamer and content creator"],subjects:["Math and logic","Art and storytelling","Computer science"],
+ lessons:[
+ {title:"What makes a game fun",minutes:11,
+  body:["Shigeru Miyamoto, who created Mario and Zelda, designed the very first level of Super Mario Bros. to teach you how to play without a single word of instructions. The first Goomba walks right at you, so you learn to jump.",
+   "Good games give players clear goals, choices that matter and quick feedback. A coin sound, a score going up or a door opening tells you that you did something right.",
+   "Designers also control difficulty. A level starts easy, adds one new idea at a time, then mixes ideas together for a challenge. Too hard and players quit; too easy and they get bored."],
+  terms:[["Game mechanic","An action the player can do, like jump, shoot or build"],["Feedback","The sound, light or score that tells you what happened"],["Difficulty curve","How a game gets harder, one idea at a time"]],
+  quiz:[{q:"How did World 1-1 of Super Mario Bros. teach players to jump?",o:["A long text tutorial","An enemy walks toward you at the start","A voice tells you which button","It didn't, players read the manual"],a:1,why:"The first Goomba makes jumping the natural thing to try."},
+        {q:"What is feedback in a game?",o:["Comments in the app store","The sound, light or score that shows what your action did","The game's price","The loading screen"],a:1,why:"Feedback tells players right away whether an action worked."}]},
+ {title:"Design your first level",minutes:12,
+  body:["Most designers start on paper. Sketch the level from the side or from above, mark where the player starts and where the goal is, and add obstacles and rewards along the way.",
+   "Then playtest. Watch someone else play without helping them. Where do they get stuck? Where do they smile? Write it down and change one thing at a time.",
+   "Miyamoto says ideas often come from real life: exploring caves and forests as a kid became The Legend of Zelda. Look around you for your next level idea."],
+  terms:[["Prototype","A quick early version you can test"],["Playtest","Watching real players try your game to find problems"],["Iteration","Improving a design a little at a time, then testing again"]],
+  tryIt:"Draw a one-screen level on paper with a start, a goal, two obstacles and one hidden reward. Have someone play it by pointing with a pencil, and change one thing based on what you see.",
+  quiz:[{q:"What is a playtest?",o:["Playing your own game alone until you win","Watching other people play to find problems","Testing the game's price","Checking spelling in the game"],a:1,why:"Players who didn't make the game show you what is really confusing or fun."},
+        {q:"Where did the idea for The Legend of Zelda come from?",o:["A movie","Miyamoto exploring caves and forests as a kid","A comic book","A school assignment"],a:1,why:"Real-life adventures inspired the feeling of exploring in Zelda."}]},
+ {title:"Esports, streaming & game careers",minutes:12,
+  body:["Pro players like Ninja and Faker practice for hours, study replays, and work with coaches, just like other athletes. Very few go pro, but esports also needs coaches, analysts, shoutcasters, event crews and team managers.",
+   "Making games is a team sport too: designers, programmers, artists, writers, sound designers, producers and testers all work on one game. Many high schools and colleges now have esports teams and game design classes, and some give scholarships.",
+   "Streaming and making videos is a real business, but online safety comes first: never share your full name, school or address, take breaks, and get a parent's OK before you go live."],
+  terms:[["Esports","Organized video game competitions with teams, coaches and leagues"],["Shoutcaster","The announcer who calls the action in an esports match"],["Producer","Keeps a game team on schedule and on budget"]],
+  quiz:[{q:"Which is a smart online safety rule for young streamers?",o:["Share your school so fans can visit","Never share your full name, school or address","Stream all night to grow faster","Accept every friend request"],a:1,why:"Keeping personal details private protects you and your family."},
+        {q:"Who besides players works in esports?",o:["Nobody","Coaches, analysts, shoutcasters and event crews","Only the players' parents","Only the game's programmers"],a:1,why:"Like pro sports, esports needs many jobs around the players."}]}
+ ]},
 ];
 
 /** Groups of courses shown together as a career path. */
@@ -346,6 +376,7 @@ export const LEARNING_PATHS: { id: string; title: string; blurb: string; field: 
   { id: "create", title: "Create & Perform", blurb: "Direct a scene and produce your first beat.", field: "film", courses: ["film", "musc"] },
   { id: "future", title: "Build the Future", blurb: "Think like an engineer and code your first game.", field: "eng", courses: ["engr", "tech"] },
   { id: "care", title: "Help & Lead", blurb: "Healthcare skills plus how to run a business.", field: "health", courses: ["hlth", "biz"] },
+  { id: "games", title: "Games & Tech", blurb: "Design a level like Miyamoto and code your first game.", field: "games", courses: ["game", "tech"] },
   { id: "action", title: "Fly, Play & Cook", blurb: "Earn your wings, work in pro sports and run a kitchen.", field: "air", courses: ["avia", "sprt", "culn"] },
 ];
 
@@ -355,12 +386,13 @@ export const COURSE_SKILLS: Record<string, string[]> = {
   musc: ["Beat making", "Mixing basics"], hlth: ["Vital signs", "Patient privacy"], tech: ["Variables & loops", "Game logic"],
   weld: ["Welding safety", "MIG basics"], biz: ["Profit math", "Pitching"],
   culn: ["Food safety", "Knife skills"], sprt: ["Injury first steps", "Play-by-play"], avia: ["Four forces of flight", "Aviation careers"],
+  game: ["Level design", "Playtesting"],
 };
 
 // Each lesson's "Watch" video and each course's celebrity spotlight (shared/connectVideos.ts).
 for (const c of COURSES) {
   const videos = LESSON_VIDEOS[c.id] || [];
-  c.lessons.forEach((l, i) => { if (videos[i]) l.video = videos[i]; });
+  c.lessons.forEach((l, i) => { const list = videos[i] || []; if (list[0]) l.video = list[0]; if (list.length > 1) l.backups = list.slice(1); });
   if (COURSE_STARS[c.id]?.length) c.stars = COURSE_STARS[c.id];
 }
 

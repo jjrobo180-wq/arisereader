@@ -3,10 +3,11 @@
 // server/ariseSocial.ts and sent to the page at /social/ by GET /api/social/catalog.
 // Career courses and certificates live in shared/connectCourses.ts.
 import { courseById } from "./connectCourses";
+import { starVideoById } from "./ariseConnectVideos";
 import { CAREER_VIDEOS, type ConnectVideo } from "./connectVideos";
 
 export type BandId = "k2" | "g35" | "g68" | "g912";
-export type ClusterId = "build" | "serve" | "teach" | "heal" | "help" | "create" | "tech" | "nature" | "fly";
+export type ClusterId = "build" | "serve" | "teach" | "heal" | "help" | "create" | "perform" | "tech" | "nature" | "fly";
 export type Cluster = { name: string; start: Record<BandId, string> };
 /** pay: approximate U.S. median yearly wage in thousands of dollars (BLS, May 2024); null when it varies too much to say. */
 export type Career = { id: string; name: string; c: ClusterId; soc: string; pay: number | null; paths: string[]; train: string; kid: string; teen: string; tools: string[]; /** A career video (shared/connectVideos.ts), attached below. */ video?: ConnectVideo };
@@ -26,6 +27,7 @@ export const CLUSTERS: Record<ClusterId, Cluster> = {
   teach: {name:'Teach & Lead',     start:{k2:'Teach a stuffed animal (or a sibling) something you learned today.', g35:'Be a reading buddy for a younger kid.', g68:'Tutor a classmate or help coach a younger team.', g912:'Look into Educators Rising, dual-enrollment education classes, and summer camp counselor jobs.'}},
   heal:  {name:'Heal & Care',      start:{k2:'Practice washing hands the doctor way: 20 seconds.', g35:'Learn basic first aid and how the heart pumps.', g68:'Take a health science elective or a youth CPR class.', g912:'Earn CPR/First Aid, look at HOSA, and ask about CNA or EMT courses for teens.'}},
   help:  {name:'Help People',      start:{k2:'Notice when a friend is sad and ask how you can help.', g35:'Help with a food or coat drive at school.', g68:'Volunteer with a community group once a month.', g912:'Take psychology or sociology, and volunteer somewhere that serves families.'}},
+  perform:{name:'Play & Perform',   start:{k2:'Dance, sing, or play a game outside every day.', g35:'Join a team, a choir, a band, or a drama club.', g68:'Practice one sport, instrument, or acting skill for 20 minutes a day.', g912:'Play on a school team, try out for plays or esports, and keep a highlight reel of your best work.'}},
   create:{name:'Create',           start:{k2:'Draw, build, or cook something new every week.', g35:'Make a comic, a short video, or a recipe card.', g68:'Start a portfolio folder with your best work.', g912:'Take art, culinary, or media classes and post work to your school portfolio.'}},
   tech:  {name:'Code & Tech',      start:{k2:'Play unplugged coding games (follow-the-arrows).', g35:'Try block coding and build a tiny game.', g68:'Join a coding or cyber club and finish one real project.', g912:'Take AP CS or a CTE IT pathway, try CyberPatriot, and build projects you can show.'}},
   nature:{name:'Grow & Explore',   start:{k2:'Plant a seed and check on it every day.', g35:'Keep a nature journal of animals and plants near you.', g68:'Join a garden club, 4-H, or FFA.', g912:'Take ag science or biology, and look for park or farm summer jobs.'}},
@@ -58,9 +60,19 @@ export const CAREERS: Career[] = [
   {id:'ranger', name:'Park Ranger', c:'nature', soc:'19-1031', pay:null, paths:['4-year','On the job'], train:'Degree in natural resources; seasonal jobs first', kid:'Park rangers protect forests and help visitors explore.', teen:'Lead hikes, protect wildlife, and keep parks safe. Many start with summer seasonal jobs.', tools:['Map & compass','Radio','Field guide']},
   {id:'engineer', name:'Civil Engineer', c:'fly', soc:'17-2051', pay:99, paths:['4-year','License'], train:'Bachelor’s in engineering + PE license', kid:'Engineers design bridges, roads, and water systems.', teen:'Plan the roads, bridges, and water systems a city runs on, using math, physics, and design software.', tools:['CAD software','Survey data','Load calcs']},
   {id:'aviationmech', name:'Aircraft Mechanic', c:'fly', soc:'49-3011', pay:78, paths:['Trade school','Military'], train:'18–24 mo FAA-approved school', kid:'Aircraft mechanics fix airplanes so they fly safely.', teen:'Inspect and repair engines and systems on planes and helicopters. FAA certification is your ticket.', tools:['Borescope','Torque wrench','Maintenance manual']},
-  {id:'pilot', name:'Airline Pilot', c:'fly', soc:'53-2011', pay:220, paths:['Certificate','4-year','Military'], train:'Flight school + 1,500 flight hours', kid:'Pilots fly airplanes full of people around the world.', teen:'Fly passenger or cargo jets. Many pilots start in the military or flight school and build hours as instructors.', tools:['Flight deck','Weather briefs','Checklists']}
+  {id:'pilot', name:'Airline Pilot', c:'fly', soc:'53-2011', pay:220, paths:['Certificate','4-year','Military'], train:'Flight school + 1,500 flight hours', kid:'Pilots fly airplanes full of people around the world.', teen:'Fly passenger or cargo jets. Many pilots start in the military or flight school and build hours as instructors.', tools:['Flight deck','Weather briefs','Checklists']},
+  {id:'creator', name:'YouTuber / Content Creator', c:'create', soc:'', pay:null, paths:['On the job'], train:'Practice filming, editing, and posting on a schedule', kid:'Creators make videos that teach or entertain people online.', teen:'Plan, film, and edit videos, grow an audience, and work with brands. It is a real business. Online safety and a parent’s OK come first.', tools:['Camera or phone','Editing app','Thumbnails']},
+  {id:'progamer', name:'Pro Gamer & Streamer', c:'perform', soc:'', pay:null, paths:['On the job'], train:'Years of practice; school and college esports teams', kid:'Pro gamers play video games in big tournaments, and streamers play live for fans.', teen:'Compete on an esports team or stream to an audience. Very few go pro, so smart players also learn coaching, video editing, or the business side. Many colleges now give esports scholarships.', tools:['Gaming PC or console','Streaming software','Team practice']},
+  {id:'athlete', name:'Pro Athlete', c:'perform', soc:'27-2021', pay:null, paths:['On the job','4-year'], train:'Years of training; most play in college first', kid:'Athletes train hard and compete in sports like basketball, soccer, and gymnastics.', teen:'Train every day, study game film, and take care of your body. Only a few go pro, but sports can pay for college and lead to coaching, training, or sports medicine.', tools:['Training plan','Game film','Recovery']},
+  {id:'musician', name:'Musician & Songwriter', c:'perform', soc:'27-2042', pay:null, paths:['On the job','4-year'], train:'Lessons and lots of practice; a music degree is optional', kid:'Musicians play instruments, sing, and write songs.', teen:'Write, record, and perform music. Many musicians also teach, produce, or write songs for other artists.', tools:['Instrument','Recording app','Song notebook']},
+  {id:'actor', name:'Actor', c:'perform', soc:'27-2011', pay:null, paths:['On the job','4-year'], train:'Drama classes, school plays, and auditions', kid:'Actors play characters in movies, shows, and plays.', teen:'Audition, learn lines, and bring characters to life on stage, on screen, or with your voice in animated movies.', tools:['Scripts','Auditions','Voice & movement']},
+  {id:'gamedesigner', name:'Video Game Designer', c:'tech', soc:'', pay:null, paths:['4-year','Certificate','On the job'], train:'Degree or self-taught, plus games you can show', kid:'Game designers dream up the worlds, levels, and rules of video games.', teen:'Plan levels, characters, and how a game feels to play, then test it again and again. Start by making small games in Scratch, Roblox Studio, or Unity.', tools:['Game engine','Level sketches','Playtesting']},
+  {id:'astronaut', name:'Astronaut', c:'fly', soc:'', pay:null, paths:['4-year','Military'], train:'STEM degree plus years of experience; NASA picks very few', kid:'Astronauts fly rockets and live on the space station.', teen:'Do science experiments in space, fix the station, and fly spacecraft. Most astronauts are engineers, scientists, doctors, or military pilots first.', tools:['Spacesuit','Robotic arm','Checklists']},
+  {id:'entrepreneur', name:'Entrepreneur', c:'teach', soc:'', pay:null, paths:['On the job','4-year'], train:'No set path: start small and learn by doing', kid:'Entrepreneurs start their own businesses, like a lemonade stand that grows up.', teen:'Spot a problem, build something people want, and run the business: money, marketing, and a team. Many start in high school.', tools:['Business plan','Budget','Pitch']},
+  {id:'scientist', name:'Scientist', c:'nature', soc:'', pay:null, paths:['4-year'], train:'Bachelor’s degree; most research jobs need a master’s or PhD', kid:'Scientists ask questions and do experiments to find the answers.', teen:'Study space, animals, chemicals, or the human body, run experiments, and share what you find. Science fairs are a great start.', tools:['Microscope','Lab notebook','Data']},
+  {id:'doctor', name:'Doctor', c:'heal', soc:'', pay:null, paths:['4-year','License'], train:'College, 4 years of medical school, then 3–7 years of residency', kid:'Doctors find out why people are sick and help them get better.', teen:'Examine patients, order tests, and treat illness and injury. It is a long road, so start with biology, chemistry, and volunteering at a hospital.', tools:['Stethoscope','Lab tests','Medical charts']}
 ];
-// Each career's video, from CareerOneStop (shared/connectVideos.ts).
+// Each career's first star video (shared/connectVideos.ts; all of them in shared/ariseConnectVideos.ts).
 for (const c of CAREERS) if (CAREER_VIDEOS[c.id]) c.video = CAREER_VIDEOS[c.id];
 
 
@@ -69,25 +81,29 @@ export const QUESTS: Record<BandId, Quest[]> = {
     {id:'k2a', c:'build', title:'Pipe Detective', xp:20, steps:['Find 3 places water comes out at home','Ask a grown-up where the water goes after','Draw one pipe you found']},
     {id:'k2b', c:'help',  title:'Helper Hero Drawing', xp:15, steps:['Pick a helper in your town','Draw them at work','Tell a grown-up what they do']},
     {id:'k2c', c:'fly',   title:'Tallest Tower', xp:20, steps:['Gather 20 cups or blocks','Build as tall as you can','Try again with a wider bottom']},
-    {id:'k2d', c:'teach', title:'Read & Earn', xp:25, steps:['Open A.R.I.S.E. Reader','Read a book about a job','Pass the quiz'], reader:true}
+    {id:'k2d', c:'teach', title:'Read & Earn', xp:25, steps:['Open A.R.I.S.E. Reader','Read a book about a job','Pass the quiz'], reader:true},
+    {id:'k2w', c:'perform', title:'Watch the Stars', xp:15, steps:['Watch a star video with a grown-up','Tell them one thing the star does at work','Try the “Try this” idea under the video']}
   ],
   g35:[
     {id:'g35a', c:'build', title:'Tool Safari', xp:25, steps:['Open a toolbox with an adult','Name 5 tools','Say what each one does']},
     {id:'g35b', c:'help',  title:'Interview a Grown-Up', xp:30, steps:['Pick an adult you know','Ask: What do you do all day?','Ask: How did you learn your job?','Share one surprise with your class']},
     {id:'g35c', c:'build', title:'Car Check (with an adult)', xp:25, steps:['Find the tire pressure sticker in the door','Check one tire with a gauge','Write the number down']},
-    {id:'g35d', c:'teach', title:'Read & Earn', xp:30, steps:['Open A.R.I.S.E. Reader','Read a career book','Pass the quiz'], reader:true}
+    {id:'g35d', c:'teach', title:'Read & Earn', xp:30, steps:['Open A.R.I.S.E. Reader','Read a career book','Pass the quiz'], reader:true},
+    {id:'g35w', c:'perform', title:'Watch the Stars', xp:20, steps:['Watch two star videos in Watch','Write one thing each star said about their job','Do one “Try this” idea and share how it went']}
   ],
   g68:[
     {id:'g68a', c:'build', title:'Fix One Thing', xp:40, steps:['Find something small that is broken (squeaky hinge, loose screw)','Watch one how-to with an adult','Fix it and post a before/after']},
     {id:'g68b', c:'build', title:'Paycheck Challenge', xp:40, steps:['Pick two careers from Explore','Look up typical pay','Make a one-month budget for each']},
     {id:'g68c', c:'tech',  title:'Visit a CTE Class', xp:35, steps:['Find a CTE, robotics, or shop class at your school','Ask the teacher one question','Rate it: would you take it?']},
-    {id:'g68d', c:'help', title:'Interview a Grown-Up', xp:30, steps:['Pick an adult whose job you know little about','Ask what a normal day looks like and how they got started','Share one thing that surprised you']}
+    {id:'g68d', c:'help', title:'Interview a Grown-Up', xp:30, steps:['Pick an adult whose job you know little about','Ask what a normal day looks like and how they got started','Share one thing that surprised you']},
+    {id:'g68w', c:'perform', title:'Learn From a Star', xp:30, steps:['Watch three star videos from three different careers','Pick the star whose path fits you best','Write how they got started and one step you can take this month']}
   ],
   g912:[
     {id:'g912a', c:'build', title:'Find an Apprenticeship', xp:50, steps:['Search apprenticeship.gov for your area','Pick one program','Write down how to apply and the deadline']},
     {id:'g912b', c:'help',  title:'Draft Your Resume', xp:50, steps:['List jobs, volunteering, and activities','Add 3 skills with proof','Get feedback from a teacher']},
     {id:'g912c', c:'teach', title:'Compare Two Paths', xp:45, steps:['Pick two paths from Paths','Compare time, cost, and pay','Talk it over with a parent']},
-    {id:'g912d', c:'serve', title:'Meet a Recruiter or Counselor', xp:40, steps:['Book a meeting (bring a parent if you want)','Ask 3 questions from your list','Write your next step']}
+    {id:'g912d', c:'serve', title:'Meet a Recruiter or Counselor', xp:40, steps:['Book a meeting (bring a parent if you want)','Ask 3 questions from your list','Write your next step']},
+    {id:'g912w', c:'perform', title:'Study a Star’s Path', xp:40, steps:['Watch a star video for a career you are considering','Research the training, classes, or degree that star needed','Map out your own version of their path, year by year']}
   ]
 };
 
@@ -112,7 +128,7 @@ export const ROADMAP: { g: number; items: string[] }[] = [
 ];
 
 export const LEVELS = ["Curious", "Explorer", "Tinkerer", "Apprentice", "Pro", "Mentor", "Legend"];
-export const XP = { collect: 10, spin: 10, rsvp: 15, course: 40, perLevel: 120, dailyGoal: 60 } as const;
+export const XP = { collect: 10, spin: 10, rsvp: 15, course: 40, watch: 5, perLevel: 120, dailyGoal: 60 } as const;
 export const LIMITS = { postLength: 280, postsPerDay: 8, eventsPerDay: 5, eventTitle: 90 } as const;
 export const REACTIONS = ["respect", "same", "how", "big"] as const;
 export type Reaction = (typeof REACTIONS)[number];
@@ -151,9 +167,11 @@ export type SocialProfile = {
   collected: string[]; saved: string[]; quests: Record<string, boolean[] | "done">; road: string[]; spun: { day: string; career: string } | null;
   /** Career courses: which lessons are passed, and the day the certificate was earned. */
   courses: Record<string, CourseProgress>;
+  /** Star videos watched (shared/ariseConnectVideos.ts); each gives XP once. */
+  watched: string[];
 };
 export type CourseProgress = { lessons: boolean[]; done: string | null };
-export const emptyProfile = (): SocialProfile => ({ xp: 0, streak: 0, last_active: null, daily_date: null, daily_xp: 0, collected: [], saved: [], quests: {}, road: [], spun: null, courses: {} });
+export const emptyProfile = (): SocialProfile => ({ xp: 0, streak: 0, last_active: null, daily_date: null, daily_xp: 0, collected: [], saved: [], quests: {}, road: [], spun: null, courses: {}, watched: [] });
 
 /** Cleans a stored profile so a bad row can never break the page. */
 export function cleanProfile(raw: any): SocialProfile {
@@ -168,6 +186,7 @@ export function cleanProfile(raw: any): SocialProfile {
   p.collected = ids(raw.collected, (x) => !!careerById(x));
   p.saved = ids(raw.saved, (x) => !!careerById(x));
   p.road = ids(raw.road, (x) => /^\d{1,2}-\d$/.test(x));
+  p.watched = ids(raw.watched, (x) => !!starVideoById(x)).slice(-500);
   if (raw.quests && typeof raw.quests === "object") {
     for (const [id, v] of Object.entries(raw.quests)) {
       const q = questById(id);
@@ -215,6 +234,7 @@ export function profileForDay(profile: SocialProfile, today: string): SocialProf
     clusters.size >= 4 && "four-clusters",
     p.streak >= 7 && "week-streak",
     Object.values(p.courses).some((c) => c.done) && "first-certificate",
+    (p.watched || []).length >= 10 && "star-fan",
   ].filter(Boolean) as string[];
   return { ...p, level, levelName: LEVELS[Math.min(level, LEVELS.length - 1)], levelXp: p.xp % XP.perLevel, badges };
 }

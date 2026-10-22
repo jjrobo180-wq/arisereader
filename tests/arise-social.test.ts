@@ -369,3 +369,16 @@ test("Connect courses have a checked YouTube video in every lesson, a star spotl
   assert.match(page, /Watch on YouTube/, "a way to watch when a school blocks embeds");
   for (const f of ["food", "sports", "air"]) assert.match(page, new RegExp(`${f}:'--f-${f}'`), `color for ${f}`);
 });
+test("watching a star video pays XP once per video, and unknown videos are refused", async () => {
+  const t = setup();
+  const j = t.as(11);
+  const first = await j("POST /api/social/watch", { body: { videoId: "PUP7U5vTMM0" } });
+  assert.equal(first.code, 200);
+  assert.equal(first.body.gained, 5);
+  assert.deepEqual(first.body.profile.watched, ["PUP7U5vTMM0"]);
+  const again = await j("POST /api/social/watch", { body: { videoId: "PUP7U5vTMM0" } });
+  assert.equal(again.body.gained, undefined);
+  assert.equal(again.body.profile.xp, first.body.profile.xp);
+  assert.equal((await j("POST /api/social/watch", { body: { videoId: "dQw4w9WgXcQ" } })).code, 400);
+  assert.equal((await t.as(1)("POST /api/social/watch", { body: { videoId: "PUP7U5vTMM0" } })).code, 403); // student accounts only
+});

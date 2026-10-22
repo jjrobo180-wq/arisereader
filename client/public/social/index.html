@@ -26,7 +26,7 @@ img{max-width:100%}
   --grad:linear-gradient(115deg,#10B9AF 0%,#5279ED 53%,#9363E7 100%);
   --grad-reader:linear-gradient(135deg,#7C3AED 0%,#C026D3 52%,#06B6D4 100%);
   --paper:#FFFFFF; --paper-ink:#1C2238; --paper-line:#D6DDF0; --seal:#5169ED; --seal-dot:#11B9AF;
-  --f-trades:#F0703A; --f-eng:#4F72E8; --f-film:#E5484D; --f-music:#D946A8; --f-health:#12A27A; --f-tech:#0EA5C6; --f-biz:#65A30D; --f-food:#D97706; --f-sports:#9333EA; --f-air:#0369A1;
+  --f-trades:#F0703A; --f-eng:#4F72E8; --f-film:#E5484D; --f-music:#D946A8; --f-health:#12A27A; --f-tech:#0EA5C6; --f-biz:#65A30D; --f-food:#D97706; --f-sports:#9333EA; --f-air:#0369A1; --f-games:#7C3AED;
   --font-display:Manrope,"DM Sans",system-ui,sans-serif;
   --font-body:"DM Sans",system-ui,sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -460,7 +460,7 @@ h1[style]{font-size:clamp(2.1rem,4.4vw,3rem)!important;letter-spacing:-.045em}
 /* ===== Connect-only pieces, in the same style as the rest of the page ===== */
 :root{
   --build:#F0703A; --serve:#4F72E8; --teach:#8B64E9; --heal:#E5484D; --help:#D946A8;
-  --create:#11B9AF; --tech:#0EA5C6; --nature:#2F9E57; --fly:#B98A12; --sun:#F29A14; --leaf:#12A27A; --coral:#E5484D;
+  --create:#11B9AF; --tech:#0EA5C6; --nature:#2F9E57; --fly:#B98A12; --perform:#C026D3; --sun:#F29A14; --leaf:#12A27A; --coral:#E5484D;
 }
 a{color:var(--blue)}
 .top .bar-row{min-height:60px}
@@ -639,6 +639,12 @@ tr:last-child td{border-bottom:0}
 .stars-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:18px}
 .star-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow-sm);display:grid;gap:10px;align-content:start;min-width:0}
 .star-card .btn{justify-self:start}
+.stars-grid.one{grid-template-columns:1fr}
+.try-it{display:grid;gap:2px;border-radius:12px;padding:10px 12px;background:color-mix(in oklab,var(--fc,#5169ED) 10%,var(--surface));border-left:4px solid var(--fc,#5169ED);font-size:.9rem}
+.try-it b{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:color-mix(in oklab,var(--fc,#5169ED) 75%,var(--ink,#111))}
+.star-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.star-foot:empty{display:none}
+.star-foot .seen{font-size:.76rem;font-weight:800;color:#0f8a5f}
 .with-star{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:800;color:#8A4B00}
 .with-star svg{width:14px;height:14px;fill:currentColor}
 .career-vid{display:grid;gap:8px}
@@ -664,6 +670,9 @@ const I = {
   create:'<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.6-1.7 0-1.4-1.2-1.6-1.2-2.8 0-1 .8-1.5 1.8-1.5H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
   tech:'<path d="M8 8l-4 4 4 4"/><path d="M16 8l4 4-4 4"/><path d="M14 5l-4 14"/>',
   nature:'<path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15"/><path d="M5 19l7-7"/>',
+  perform:'<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4"/><path d="M7 5H4a3 3 0 0 0 3 4"/>',
+  gamepad:'<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4"/><path d="M5 12.5h4"/><circle cx="15.5" cy="11.5" r="1"/><circle cx="18" cy="14" r="1"/>',
+  tv:'<rect x="3" y="4" width="18" height="13" rx="3"/><path d="M10 8l5 2.5-5 2.5z"/><path d="M8 21h8"/>',
   fly:'<path d="M12 15l-3-3c1.5-5 5-8 10-8 0 5-3 8.5-8 10z"/><path d="M9 12l-4 1 2-4 4-1"/><path d="M12 15l-1 4 4-2 1-4"/><circle cx="15" cy="9" r="1.5"/>',
   feed:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
   explore:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
@@ -754,7 +763,7 @@ function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/socia
 let CAT = null;                 // catalog: careers, quests, roadmap...
 let ME = null;                  // /me response
 let PLAN = null;                // /api/addons: the Learning Bundle, its trial and prices
-const S = { tab:'feed', interests:new Set(), lfield:'all', lpath:null, course:null, lesson:null, answers:{}, filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
+const S = { tab:'stars', sfield:'all', interests:new Set(), lfield:'all', lpath:null, course:null, lesson:null, answers:{}, filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
 const C = id => CAT.careers.find(c => c.id === id);
 const role = () => ME?.user.role || 'guest';
 const P = () => ME?.profile;
@@ -792,10 +801,10 @@ function tabs(){
   if (ME && r==='student' && ME.approvalStatus!=='approved') return [];
   if (ME && !ME.access && r!=='teacher') return [];
   if (r==='teacher' && !ME.access) return [['approvals','Approvals','inbox']];
-  if (r==='student') return [['feed','Home','feed'],['learn','Learning','learn'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]);
-  if (r==='teacher') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['learn','Learning','learn'],['events','Events','event'],['explore','Explore','explore']];
-  if (r==='admin') return [['feed','Home','feed'],['approvals','Approvals','inbox'],['learn','Learning','learn'],['explore','Explore','explore']];
-  if (r==='parent') return [['family','Home','feed'],['learn','Learning','learn'],['explore','Explore','explore'],['paths','Paths','paths']];
+  if (r==='student') return [['stars','Stars','tv'],['feed','Home','feed'],['learn','Learning','learn'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]);
+  if (r==='teacher') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['learn','Learning','learn'],['events','Events','event'],['explore','Explore','explore']];
+  if (r==='admin') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['learn','Learning','learn'],['explore','Explore','explore']];
+  if (r==='parent') return [['stars','Stars','tv'],['family','Home','feed'],['learn','Learning','learn'],['explore','Explore','explore'],['paths','Paths','paths']];
   return [];
 }
 function badgeFor(id){ return id==='approvals' ? (S.approvals?.length||0)+(S.accessRequests?.length||0) : 0; }
@@ -815,16 +824,19 @@ function renderChrome(){
 
 /* ================= SIGNED-OUT LANDING ================= */
 function landingHTML(){
-  const sample = ['electrician','nurse','cyber','welder','pilot','teacher','chef','designer'].map(C).filter(Boolean);
+  const sample = ['chef','progamer','athlete','gamedesigner','astronaut','electrician','musician','nurse'].map(C).filter(Boolean);
   return `<section class="learn-hero land">
       <div><div class="eyebrow">Career courses · Certificates · A closed class community</div>
-        <h1>Try a career <em>before</em> you pick one.</h1>
+        <h1>Learn from the stars. <em>Try a career</em> before you pick one.</h1>
+        <p class="lede" style="margin-bottom:10px">Watch Gordon Ramsay cook, Ninja talk about going pro, Shigeru Miyamoto design Mario, Steph Curry, Simone Biles and Chris Hadfield in space. Every career and course comes with videos from famous people who do it.</p>
         <p class="lede">A.R.I.S.E. Connect is like LinkedIn and LinkedIn Learning for students. Take short career courses, earn certificates for your profile, explore every path from apprenticeships to college, and celebrate wins with your class. Every student post is approved by a teacher, and there are no private messages.</p>
         <div class="join"><button class="btn" data-act="join">${svg('plus')}Sign up as a student</button><button class="btn ghost" data-act="go" data-v="/parent-signup">${svg('heart')}I’m a parent or guardian</button><button class="btn ghost" data-act="go" data-v="/teacher-signup">${svg('teach')}I’m a teacher</button></div>
         <p class="sub small" style="margin-top:10px">Families can get Connect with Math and History in the $10/month Learning Bundle covering up to three children. Teachers can add Connect separately. A.R.I.S.E. Reader and To-Do stay free. Already have an account? <a href="/" data-act="signin">Log in</a>.</p></div>
       <div class="hero-cert">${CAT.courses?certificateHTML(CAT.courses.find(c=>c.id==='musc')||CAT.courses[0], null, 'Your name', true):''}</div>
     </section>
     <div class="points">${[['Closed class community','Only your classmates and teachers see posts. No student searching or follow requests.'],['No private messages','Students can’t message anyone, and no one can message them.'],['Teacher approval','Teachers approve students for Connect and approve every student post.'],['Every path counts','Apprenticeships, military, community college, certificates and four-year college, side by side.']].map(([t,d])=>`<div class="box pad-s"><b class="pt">${svg('check')}${t}</b><p class="sub">${d}</p></div>`).join('')}</div>
+    ${STARS&&STARS.filter(starOk).length?`<section class="section"><div class="cat-head"><h2>Learn from the stars</h2><span class="muted">Tap a video to watch. No account needed.</span></div>
+      <div class="stars-grid">${oneEach(STARS.filter(starOk)).slice(0,9).map(v=>starCardHTML(v,'land')).join('')}</div></section>`:''}
     <section class="section"><div class="cat-head"><h2>Look around first</h2><span class="muted">Tap any career to see what the job is like.</span></div>
       <div class="grid">${sample.map(careerCard).join('')}</div></section>`;
 }
@@ -962,11 +974,11 @@ function careerModal(id){
       <button class="btn ghost" data-act="save" data-id="${id}">${svg('heart')}${saved?'Saved':'Save'}</button>` : '';
   return `<div class="overlay" data-act="close"><div class="modal light career" role="dialog" aria-modal="true" aria-labelledby="mt" data-stop style="--fc:${clusterColor(c.c)}">
     <div class="m-banner"><button class="icon-btn x" data-act="close" aria-label="Close">${svg('x')}</button></div>
-    <div class="m-top">${tile(c.c,clusterColor(c.c),'lg')}<h2 id="mt">${esc(c.name)}</h2><span class="sub">${esc(cl.name)}${yb?'':` · SOC ${esc(c.soc)}`}</span></div>
+    <div class="m-top">${tile(c.c,clusterColor(c.c),'lg')}<h2 id="mt">${esc(c.name)}</h2><span class="sub">${esc(cl.name)}${yb||!c.soc?'':` · SOC ${esc(c.soc)}`}</span></div>
     <div class="m-body">
       ${actions?`<div class="modal-actions start">${actions}</div>`:''}
       <p>${esc(yb?c.kid:c.teen)}</p>
-      ${okVid(c.video)?`<div class="career-vid"><h3 class="rail-h">See the job</h3>${videoHTML(c.video,'career')}</div>`:''}
+      ${starsFor(id).length?`<div class="career-vid"><h3 class="rail-h">Watch the pros</h3><div class="stars-grid one">${starsFor(id).map(v=>starCardHTML(v,'career',{noCareer:true})).join('')}</div></div>`:''}
       <div class="facts"><div class="fact"><span>Training</span><b>${esc(c.train)}</b></div>${yb?'':`<div class="fact"><span>Typical pay</span><b>${c.pay?`About $${c.pay}k a year`:'Varies a lot'}</b></div>`}<div class="fact"><span>Ways in</span><b>${esc(c.paths.join(' · '))}</b></div></div>
       <div><h3 class="rail-h">Tools you’d use</h3><div class="tags" style="margin-top:8px">${c.tools.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div>
       <div><h3 class="rail-h">Start now</h3><div class="startnow">${order.map(([k,l])=>`<div class="${k===band&&ME?'me':''}"><b>${l}</b><span>${esc(cl.start[k])}</span></div>`).join('')}</div></div>
@@ -1156,7 +1168,7 @@ function connectLockHTML(){
 }
 
 /* ================= LEARNING: career courses + certificates ================= */
-const FIELD_VAR = { trades:'--f-trades', eng:'--f-eng', film:'--f-film', music:'--f-music', health:'--f-health', tech:'--f-tech', biz:'--f-biz', food:'--f-food', sports:'--f-sports', air:'--f-air' };
+const FIELD_VAR = { trades:'--f-trades', eng:'--f-eng', film:'--f-film', music:'--f-music', health:'--f-health', tech:'--f-tech', biz:'--f-biz', food:'--f-food', sports:'--f-sports', air:'--f-air', games:'--f-games' };
 const fieldColor = f => `var(${FIELD_VAR[f]||'--blue'})`;
 const course = id => (CAT.courses||[]).find(c => c.id === id);
 const myCourse = id => (P()?.courses||{})[id] || null;
@@ -1181,19 +1193,76 @@ function courseCard(c){
     ${match?'<span class="badge-match">Matches you</span>':''}
     <div class="banner">${tile(c.icon,fieldColor(c.field))}<div><div class="eyebrow">${esc(CAT.courseFields[c.field])}</div><div class="mono">${esc(c.code)}</div></div></div>
     <div class="body"><h3>${esc(c.title)}</h3><p class="blurb">${esc(c.blurb)}</p>
-    <div class="meta"><span><b>${total}</b> lessons</span><span><b>${c.minutes}</b> min</span><span><b>+${CAT.xp.course}</b> XP</span>${c.lessons.some(l=>okVid(l.video))?`<span>${svg('play')} Videos</span>`:''}</div>
+    <div class="meta"><span><b>${total}</b> lessons</span><span><b>${c.minutes}</b> min</span><span><b>+${CAT.xp.course}</b> XP</span>${c.lessons.some(l=>lessonVid(l))?`<span>${svg('play')} Videos</span>`:''}</div>
     ${c.stars&&c.stars[0]?`<span class="with-star">${svg('star')}With ${esc(c.stars[0].star)}</span>`:''}
     <div class="tags">${c.paths.map(p=>`<span class="tag">${esc(CAT.coursePaths[p])}</span>`).join('')}</div>
     ${done?`<span class="earned">${svg('star')} Certificate earned</span>`:n?`<div><div class="meta" style="margin-bottom:6px"><span>${n} of ${total} lessons done</span></div><div class="bar"><i style="width:${n/total*100}%"></i></div></div>`:''}</div></button>`;
 }
 const INTERESTS=[{id:"build",label:"Building things"},{id:"how",label:"Figuring out how things work"},{id:"music",label:"Music"},{id:"stories",label:"Movies & stories"},{id:"help",label:"Helping people"},{id:"computers",label:"Computers & games"},{id:"money",label:"Business ideas"},{id:"food",label:"Food & cooking"},{id:"sports",label:"Sports"},{id:"space",label:"Planes & space"}];
 
+
+/* ================= STARS: every career, from famous people who do it ================= */
+function viewStars(){
+  if (STARS===null) return '<div class="skeleton"></div><div class="skeleton"></div>';
+  const all = STARS.filter(starOk);
+  const q = S.q.trim().toLowerCase();
+  const list = all.filter(v => {
+    const cs = v.careers.map(C).filter(Boolean);
+    if (S.sfield!=='all' && !cs.some(c => c.c===S.sfield)) return false;
+    return !q || [v.star, v.known, v.title, v.ytTitle||'', ...cs.map(c => c.name)].join(' ').toLowerCase().includes(q);
+  });
+  const areas = Object.entries(CAT.clusters).filter(([k]) => all.some(v => v.careers.some(id => C(id)?.c===k)));
+  const rows = CAT.careers.map(c => ({ c, vids: list.filter(v => v.careers[0]===c.id) })).filter(r => r.vids.length).sort((a,b)=>watchRank(a.c.id)-watchRank(b.c.id));
+  const student = role()==='student';
+  const watched = student ? (P()?.watched||[]).length : 0;
+  const tour = (() => { const seen = new Set(); return oneEach(all).filter(v => !seen.has(v.careers[0]) && seen.add(v.careers[0])).slice(0,3); })();
+  return `<section class="learn-hero">
+    <div><div class="eyebrow">A.R.I.S.E. Connect Stars</div>
+      <h1>Learn from <em>the stars.</em></h1>
+      <p class="lede">Gordon Ramsay in the kitchen, Ninja on going pro, Shigeru Miyamoto designing Mario, Simone Biles, Steph Curry, Chris Hadfield in space, Mike Rowe on the trades. Every video is a famous person showing a career you can explore here, with one thing to try after you watch.</p>
+      ${student?`<div class="learn-stats"><span><b>${watched}</b> watched</span><span><b>+${CAT.xp.watch}</b> XP per video</span><span><b>${all.length}</b> videos</span></div>`:`<div class="learn-stats"><span><b>${all.length}</b> videos</span><span><b>${rows.length}</b> careers</span></div>`}
+    </div>
+    <div class="continue"><div class="eyebrow">Today’s stars</div>
+      ${tour.map(v=>{const c=C(v.careers[0]);return `<button class="mini-course" data-act="starjump" data-id="${c.id}">${tile(c.c,clusterColor(c.c),'sm')}<span><b>${esc(v.star)}</b><span class="sub">${esc(c.name)}</span></span></button>`;}).join('')}
+    </div></section>
+  <div class="filters"><div class="seg" role="group" aria-label="Career area"><button data-act="sfield" data-v="all" aria-pressed="${S.sfield==='all'}">All</button>${areas.map(([k,v])=>`<button data-act="sfield" data-v="${k}" aria-pressed="${S.sfield===k}">${esc(v.name)}</button>`).join('')}</div></div>
+  ${rows.length ? rows.map(({c, vids}) => `<section class="section" id="stars-${c.id}" style="--fc:${clusterColor(c.c)}"><div class="cat-head"><h2 style="display:flex;align-items:center;gap:12px">${tile(c.c,clusterColor(c.c))}${esc(c.name)}</h2><button class="btn ghost" data-act="open" data-id="${c.id}">About the job</button></div>
+      <div class="stars-grid">${vids.map(v=>starCardHTML(v,'stars',{noCareer:true})).join('')}</div></section>`).join('') : '<div class="box pad">No videos match. Try “All” or a different search.</div>'}
+  <p class="sub small" style="text-align:center;margin:8px 0 24px">Videos play from YouTube in privacy-enhanced mode. Every one is of a famous or well-known person.</p>`;
+}
+async function loadStars(){
+  try { const r = await api('/videos'); STARS = Array.isArray(r.videos) ? r.videos : []; HIDDEN = new Set(Array.isArray(r.hidden) ? r.hidden : []); }
+  catch { STARS = []; }
+  render();
+}
+
 /* ================= VIDEOS ================= */
 /* A poster (YouTube's thumbnail) that turns into the player when pressed, so a page of videos loads
    fast and nothing plays by itself. Played through youtube-nocookie.com; "Watch on YouTube" is
    always there for schools that block embedded players. key tells two copies of one video apart. */
 const PLAYING = new Set();
-const okVid = v => v && /^[A-Za-z0-9_-]{11}$/.test(v.id||'');
+/* Videos YouTube says are gone or can't be embedded (GET /api/social/videos); skipped everywhere. */
+let HIDDEN = new Set();
+let STARS = null;               // every career star video (shared/ariseConnectVideos.ts), checked against YouTube
+const okVid = v => v && /^[A-Za-z0-9_-]{11}$/.test(v.id||'') && !HIDDEN.has(v.id);
+/** A lesson's star video, or its backup if YouTube removed the first. */
+const lessonVid = l => [l.video, ...(l.backups||[])].find(okVid) || null;
+/** K–5 (and anyone not signed in) only see star videos marked for all ages. */
+const starOk = v => okVid(v) && (v.ages==='all' || (ME && !young(bandNow())));
+const starsFor = careerId => (STARS||[]).filter(v => v.careers.includes(careerId) && starOk(v));
+/** A career star video in the same card style as course videos: player, caption, try-this, career link. */
+const asVid = v => ({ id:v.id, title:v.ytTitle||v.title, by:v.channel||'YouTube', star:v.star, role:v.known });
+function starCardHTML(v, key, opts={}){
+  const seen = role()==='student' && (P()?.watched||[]).includes(v.id);
+  const c = C(v.careers[0]);
+  return `<div class="star-card">${videoHTML(asVid(v), key)}
+    <div class="try-it"><b>Try this</b><span>${esc(v.try)}</span></div>
+    <div class="star-foot">${opts.noCareer||!c?'':`<button class="btn ghost" data-act="open" data-id="${c.id}">${tile(c.c,clusterColor(c.c),'sm')}${esc(c.name)}</button>`}${seen?'<span class="seen">✓ Watched</span>':''}${v.ages==='teen'?'<span class="tag">Grades 6–12</span>':''}</div></div>`;
+}
+const WATCH_FIRST = ['chef','progamer','gamedesigner','athlete','creator','astronaut','musician','actor','softdev','entrepreneur','scientist','pilot'];
+const watchRank = id => { const i = WATCH_FIRST.indexOf(id); return i < 0 ? 100 + CAT.careers.findIndex(c => c.id === id) : i; };
+/** One video per star: a quick tour of who's on Connect. */
+const oneEach = list => { const seen = new Set(); return [...list].sort((a,b)=>watchRank(a.careers[0])-watchRank(b.careers[0])).filter(v => !seen.has(v.star) && seen.add(v.star)); };
 function vidFrame(v){ return `<iframe src="https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`; }
 function videoHTML(v, key, opts={}){
   if (!okVid(v)) return '';
@@ -1253,7 +1322,7 @@ function viewCourse(){
     <div class="panel"><h3>What you'll learn</h3><ul class="checks">${c.learn.map(l=>`<li>${svg('check')}<span>${esc(l)}</span></li>`).join('')}</ul></div>
   </section>
   <section class="section"><h2>Lessons</h2>
-    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}"><span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min${okVid(l.video)?' · video':''} · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
+    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}"><span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min${lessonVid(l)?' · video':''} · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
   </section>
   ${(c.stars||[]).filter(okVid).length?`<section class="section" aria-labelledby="spot-h"><h2 id="spot-h">Star spotlight</h2><p class="muted" style="margin:-6px 0 16px">Famous people who do this work, or fight for it.</p>
     <div class="stars-grid">${c.stars.filter(okVid).map(v=>`<div class="star-card">${videoHTML(v,'course')}</div>`).join('')}</div></section>`:''}
@@ -1273,7 +1342,7 @@ function viewLesson(){
     <nav class="side" aria-label="Lessons">${c.lessons.map((x,k)=>{const d=m&&m.lessons[k];return `<button data-act="lesson" data-v="${k}" aria-current="${k===i}"><span class="num ${d?'done':''}">${d?svg('check'):k+1}</span>${esc(x.title)}</button>`}).join('')}</nav>
     <article class="article">
       <header><div class="mono muted">${esc(c.code)} · Lesson ${i+1} of ${c.lessons.length} · ${l.minutes} min</div><h1 style="margin-top:8px">${esc(l.title)}</h1></header>
-      ${okVid(l.video)?`<section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Watch</h2></div>${videoHTML(l.video,'lesson')}</section>`:''}
+      ${lessonVid(l)?`<section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Watch</h2></div>${videoHTML(lessonVid(l),'lesson')}</section>`:''}
       <section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Read</h2></div><div class="reading">${l.body.map(p=>`<p>${esc(p)}</p>`).join('')}</div></section>
       <section><div class="block-title"><span class="step-label">KEY TERMS</span></div><div class="terms">${l.terms.map(t=>`<div class="term"><b>${esc(t[0])}</b><span>${esc(t[1])}</span></div>`).join('')}</div></section>
       ${l.activity||l.tryIt?`<section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Try it</h2></div><div class="tryit">${l.activity?activityHTML(l.activity):`<p>${esc(l.tryIt)}</p>`}</div></section>`:''}
@@ -1343,7 +1412,7 @@ function credentialModal(id, fresh){
 }
 
 /* ================= RENDER ================= */
-const VIEWS = { learn:viewLearn, feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
+const VIEWS = { stars:viewStars, learn:viewLearn, feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
 function render(){
   renderChrome();
   const root = document.getElementById('root');
@@ -1390,7 +1459,7 @@ function signedOut(){ ME = null; render(); }
 function setProfile(p){ if (ME && p) ME.profile = p; }
 
 /* ================= ACTIONS ================= */
-document.getElementById('q').addEventListener('input', e=>{ S.q = e.target.value; if (S.tab!=='explore'){ S.tab='explore'; render(); const q=document.getElementById('q'); q.focus(); } else renderMain(); });
+document.getElementById('q').addEventListener('input', e=>{ S.q = e.target.value; if (S.tab==='stars') return renderMain(); if (S.tab!=='explore'){ S.tab='explore'; render(); const q=document.getElementById('q'); q.focus(); } else renderMain(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(modalId||htmlModal) closeModal(); if(S.menu){ S.menu=false; renderChrome(); } } });
 
 document.addEventListener('click', async e=>{
@@ -1437,7 +1506,16 @@ document.addEventListener('click', async e=>{
       case 'beatclear': Object.keys(BEAT).forEach(k=>BEAT[k].fill(false)); document.querySelectorAll('[data-act="beatcell"]').forEach(b=>b.setAttribute('aria-pressed','false')); break;
       case 'fp': S.filterP=v; renderMain(); break;
       case 'open': openModal(id); break;
-      case 'playvid': { const box = el.closest('.vid'); const v = { id, title: el.getAttribute('aria-label').replace(/^Play video: /,'') }; if (!box || !okVid(v)) break; PLAYING.add(el.dataset.v); box.innerHTML = vidFrame(v); break; }
+      case 'playvid': {
+        const box = el.closest('.vid'); const v = { id, title: el.getAttribute('aria-label').replace(/^Play video: /,'') }; if (!box || !okVid(v)) break; PLAYING.add(el.dataset.v); box.innerHTML = vidFrame(v);
+        // Watching a career star video counts once for XP.
+        if (role()==='student' && ME?.access && (STARS||[]).some(x=>x.id===id) && !(P()?.watched||[]).includes(id)) {
+          try { const r = await api('/watch',{method:'POST',body:{videoId:id}}); setProfile(r.profile); if (r.gained) toast(`+${r.gained} XP · Learned from ${(STARS.find(x=>x.id===id)||{}).star||'a star'}`); } catch {}
+        }
+        break;
+      }
+      case 'sfield': S.sfield=v; renderMain(); break;
+      case 'starjump': { S.tab='stars'; S.sfield='all'; render(); document.getElementById('stars-'+id)?.scrollIntoView({behavior:'smooth',block:'start'}); break; }
       case 'close': closeModal(); break;
       case 'child': S.childId = Number(id); render(); break;
       case 'compose': S.composeOpen=!S.composeOpen; renderMain(); if(S.composeOpen) (document.getElementById('cText')||document.getElementById('cStart'))?.focus(); break;
@@ -1532,6 +1610,7 @@ function burst(){
   render();
   try { CAT = await api('/catalog'); }
   catch (e) { return centerMessage('A.R.I.S.E. Connect can’t load right now', e.message || 'Please try again in a minute.', '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>'); }
+  loadStars();
   if (!sessionToken()) return render();
   try { ME = await api('/me'); }
   catch (e) {
@@ -1540,7 +1619,7 @@ function burst(){
     return centerMessage('A.R.I.S.E. Connect can’t load right now', e.message, '<button class="btn primary" style="margin-top:16px" onclick="location.reload()">Try again</button>');
   }
   await loadPlan();
-  S.tab = role()==='parent' ? 'family' : 'feed';
+  S.tab = 'stars';
   render();
   if (ME.access || role()==='teacher') loadForRole();
 })();

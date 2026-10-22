@@ -13,6 +13,8 @@
 import type { Express, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { createAttemptLimiter } from "./attemptLimiter";
+import { createVideoChecker } from "./connectVideos";
+import { STAR_VIDEOS, starVideoById } from "../shared/ariseConnectVideos";
 import {
   BANDS, CAREERS, CLUSTERS, LEVELS, LIMITS, QUESTS, REACTIONS, ROADMAP, SCHOLARSHIPS, XP, YOUNG_STARTERS,
   awardXp, bandForGrade, careerById, cleanPostText, cleanProfile, dayKey, isYoungBand, profileForDay, questById,
@@ -84,6 +86,8 @@ export type SocialDeps = {
    * user: does this account have it (used to check a student's teacher)? Left out, everyone may.
    */
   access?: { self(req: any): Promise<boolean>; user(id: number): Promise<boolean> };
+  /** Connect's videos checked against YouTube (server/connectVideos.ts). Left out, a real checker is made. */
+  videoChecker?: ReturnType<typeof createVideoChecker>;
   /** Separate teacher permission to enter Connect, not the student's normal classroom approval. */
   approvals?: {
     get(studentId: number): Promise<{ teacherId: number; status: "pending" | "approved" | "denied" } | null>;
@@ -289,6 +293,7 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     save: async () => { throw new Error("Connect access approval storage is not configured."); },
   };
   const today = () => dayKey(now());
+  const videoChecker = deps.videoChecker ?? createVideoChecker();
   const postsToday = createAttemptLimiter({ max: LIMITS.postsPerDay, windowMs: 24 * 3600_000, now });
   const eventsToday = createAttemptLimiter({ max: LIMITS.eventsPerDay, windowMs: 24 * 3600_000, now });
   const notify = (id: number, title: string, body: string) => { dir.notify?.(id, { title, body, url: "/social/" })?.catch?.(() => {}); };
@@ -397,6 +402,17 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       bands: BANDS, clusters: CLUSTERS, careers: CAREERS, quests: QUESTS, roadmap: ROADMAP, scholarships: SCHOLARSHIPS, levels: LEVELS, xp: XP, limits: LIMITS, starters: YOUNG_STARTERS,
       courses: COURSES, courseFields: COURSE_FIELDS, coursePaths: COURSE_PATH_LABELS, learningPaths: LEARNING_PATHS, courseSkills: COURSE_SKILLS,
     });
+  });
+
+  /* ---------- star videos (public, like the catalog: famous people showing their careers) */
+  app.get("/api/social/videos", async (_req: any, res: any) => {
+    try {
+      const out = await videoChecker.videos();
+      res.set?.("Cache-Control", "public, max-age=600");
+      res.json(out);
+    } catch {
+      res.json({ videos: STAR_VIDEOS, hidden: [], checked: 0 });
+    }
   });
 
   /* ---------- who am I */
@@ -576,6 +592,13 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     if (!careerById(id)) return { error: "Unknown career." };
     if (p.collected.includes(id)) return {};
     return { profile: awardXp({ ...p, collected: [...p.collected, id] }, XP.collect, today()), extra: { gained: XP.collect } };
+  })));
+
+  app.post("/api/social/watch", auth, paid((req, res) => withProfile(req, res, (p) => {
+    const id = String(req.body?.videoId || "");
+    if (!starVideoById(id)) return { error: "Unknown video." };
+    if ((p.watched || []).includes(id)) return {};
+    return { profile: awardXp({ ...p, watched: [...(p.watched || []), id].slice(-500) }, XP.watch, today()), extra: { gained: XP.watch } };
   })));
 
   app.post("/api/social/save", auth, paid((req, res) => withProfile(req, res, (p) => {
