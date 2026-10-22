@@ -197,6 +197,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "readerQuizzes", label: "Quizzes & grading", icon: <ClipboardCheck className="h-4 w-4" /> },
   { id: "readerGames", label: "Game time", icon: <Timer className="h-4 w-4" /> },
   { id: "readerPrizes", label: "Prizes", icon: <Sparkles className="h-4 w-4" /> },
+  { id: "readerCatalog", label: "Book catalog", icon: <BookOpen className="h-4 w-4" /> },
   { id: "arise", label: "Reading records", icon: <BookHeart className="h-4 w-4" /> },
   { id: "admin", label: "Admin console", icon: <Settings2 className="h-4 w-4" /> },
   { id: "behavior", label: "Behavior", icon: <Sparkles className="h-4 w-4" /> },
@@ -291,7 +292,7 @@ function readerTabFor(old: string | null): ReaderTab {
   const map: Record<string, ReaderTab> = {
     students: "readerStudents", "all-students": "readerStudents", pending: "readerApprovals", "book-requests": "readerApprovals", "grade-changes": "readerApprovals",
     parents: "readerParents", proctor: "readerQuizzes", "camera-quizzes": "readerQuizzes", comprehension: "readerQuizzes", "growth-check": "readerQuizzes",
-    "club-controls": "readerGames", prizes: "readerPrizes",
+    "club-controls": "readerGames", prizes: "readerPrizes", catalog: "readerCatalog",
   };
   return (old && map[old]) || "reader";
 }
@@ -886,7 +887,9 @@ function TeacherHubPage() {
     // Anything else is the account's own (the Reader's approvals, quizzes, messages), or the admin's.
     if (user?.isAdmin) { try { sessionStorage.setItem("admin_notif", JSON.stringify({ type, id: 0 })); } catch { /* fine */ } navigate("/admin"); return; }
     if (readerNeedsPremium) { window.location.href = appHref("/billing"); return; }
-    const reader: Record<string, ReaderTab> = { user: "readerApprovals", request: "readerApprovals", grade_change: "readerApprovals", unlisted: "readerApprovals", ai_quiz: "readerQuizzes", review: "readerQuizzes", club: "readerGames", message: "readerStudents", eye_gaze: "readerStudents" };
+    const reader: Record<string, ReaderTab> = { user: "readerApprovals", request: "readerApprovals", grade_change: "readerApprovals", unlisted: "readerApprovals", ai_quiz: "readerApprovals", review: "readerQuizzes", club: "readerGames", message: "readerStudents", eye_gaze: "readerStudents" };
+    if (type === "ai_quiz") { try { sessionStorage.setItem("reader-sub-approvals", "quizzes"); } catch { /* fine */ } }
+    if (type === "request") { try { sessionStorage.setItem("reader-sub-approvals", "books"); } catch { /* fine */ } }
     setTab(reader[type] ?? "reader");
     closeApps();
   };

@@ -194,7 +194,7 @@ export type IepGuide = {
 export const HUB_TABS = [
   "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
   "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerLive", "readerScenes",
-  "readerAdvisory",
+  "readerAdvisory", "readerCatalog",
 ] as const;
 export type HubTab = (typeof HUB_TABS)[number];
 

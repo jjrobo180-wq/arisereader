@@ -217,6 +217,8 @@ export function buildAdminFeed(src: AdminFeedSources, filters: FeedFilters): Fee
 export type TeacherFeedSources = {
   rows: StoredRow[];
   pendingStudents: PersonRow[];
+  /** Quiz requests from this teacher's own students, still waiting for approval. */
+  pendingQuizzes?: { id: number; book_title?: string | null; quiz_type?: string | null; student_name?: string | null; created_at?: string | null }[];
 };
 
 const isBookRequest = (row: StoredRow) => String(row.title || "").toLowerCase().includes("student book request");
@@ -229,6 +231,17 @@ export function buildTeacherFeed(src: TeacherFeedSources, filters: FeedFilters):
     title: "Student book request",
     body: clip(row.message || "", 240),
   }));
+  for (const q of src.pendingQuizzes || []) {
+    const key = `ai_quiz:${q.id}`;
+    const createdAt = at(q.created_at);
+    if (filters.dismissed.has(key)) continue;
+    if (filters.clearBefore && new Date(createdAt).getTime() <= filters.clearBefore) continue;
+    actions.push({
+      key, kind: "action", category: "ai_quiz", createdAt, target: { type: "ai_quiz", id: q.id },
+      title: `Quiz request: ${clip(q.book_title || "a book", 100)}`,
+      body: joinBits(q.student_name ? `${q.student_name} is waiting` : "", "Approve it under Approvals → Quiz requests"),
+    });
+  }
   for (const s of src.pendingStudents) {
     const key = `user:${s.id}`;
     const createdAt = at(s.created_at);

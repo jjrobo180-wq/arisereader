@@ -61,6 +61,7 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "readerScenes", label: "Scenes", icon: Clapperboard },
   { id: "readerGames", label: "Game time", icon: Timer },
   { id: "readerPrizes", label: "Prizes", icon: Sparkles },
+  { id: "readerCatalog", label: "Book catalog", icon: BookOpen },
   // Para Team (pages/ParaTeam.tsx) is its own page in the app: this item goes there.
   { id: "paraTeam", label: "Para Team", icon: HeartHandshake },
   { id: "whatsnew", label: "What's new", icon: Megaphone },

@@ -27,6 +27,7 @@ import { HubModal } from "./HubModal";
 import { ProgramLinks } from "./HubReader";
 import AddStudentsModal from "./AddStudentsModal";
 import HubAdvisoryLit from "./HubAdvisoryLit";
+import BookCatalog from "./BookCatalog";
 
 const LiveQuizPage = lazy(() => import("@/pages/LiveQuiz"));
 const ScenesPage = lazy(() => import("@/pages/TeacherScenes"));
@@ -81,7 +82,7 @@ function Embedded({ children }: { children: ReactNode }) {
 }
 
 /** The WorkHub tabs that make up the teacher's A.R.I.S.E. Reader account. */
-export const READER_TABS = ["reader", "readerLive", "readerScenes", "readerStudents", "readerAdvisory", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"] as const satisfies readonly HubTab[];
+export const READER_TABS = ["reader", "readerLive", "readerScenes", "readerStudents", "readerAdvisory", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerCatalog"] as const satisfies readonly HubTab[];
 export type ReaderTab = (typeof READER_TABS)[number];
 export const isReaderTab = (tab: HubTab): tab is ReaderTab => (READER_TABS as readonly HubTab[]).includes(tab);
 
@@ -89,7 +90,7 @@ type Student = { id: number; displayName?: string; display_name?: string; userna
 type SchoolStudent = { id: number; username: string; displayName: string; quizzesTaken: number; quizzesMastered: number; totalPoints: number; approvedByTeacher?: boolean; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null };
 type Teacher = { id: number; displayName: string; username: string };
 type PendingStudent = { id: number; username: string; displayName: string; teacherName?: string | null };
-type PendingQuiz = { id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group?: string; questions?: unknown };
+type PendingQuiz = { id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group?: string; questions?: unknown; mine?: boolean; teacher_name?: string | null };
 
 /** A pending AI quiz's questions in one shape: the prompt, its choices (A–D) and the correct letter. */
 function quizQuestions(raw: unknown): { prompt: string; image: string | null; choices: { letter: string; text: string }[]; correct: string }[] {
@@ -110,8 +111,13 @@ function PendingQuizReview({ quiz, busy, onDecide }: { quiz: PendingQuiz; busy: 
   const [open, setOpen] = useState(false);
   const questions = useMemo(() => quizQuestions(quiz.questions), [quiz.questions]);
   const kind = quiz.quiz_type === "eye_gaze" ? "Eye gaze" : quiz.quiz_type === "iarise" ? "iArise" : quiz.quiz_type === "favorite_topic" ? "Favorite topic" : "Book";
-  return <Row title={quiz.book_title} sub={`by ${quiz.author || "Unknown"} · asked for by ${quiz.student_name} · ${kind} quiz${quiz.age_group ? ` · grade ${quiz.age_group}` : ""} · ${questions.length} questions`}
-    right={<button type="button" className={smallBtn} aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? "Hide questions" : "Review questions"}</button>}>
+  const whose = quiz.mine ? <Pill tone="green">Your student</Pill> : quiz.teacher_name ? <Pill tone="slate">{quiz.teacher_name}’s student</Pill> : null;
+  return <Row title={<span className="inline-flex flex-wrap items-center gap-2">{quiz.book_title}{whose}</span>} sub={`by ${quiz.author || "Unknown"} · asked for by ${quiz.student_name} · ${kind} quiz${quiz.age_group ? ` · grade ${quiz.age_group}` : ""} · ${questions.length} questions`}
+    right={<>
+      <button type="button" className={smallBtn} aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? "Hide questions" : "Review questions"}</button>
+      <button type="button" disabled={busy || !questions.length} className={goodBtn} onClick={() => onDecide(true)} data-testid={`button-approve-quiz-${quiz.id}`}><Check className="h-4 w-4" /> Approve</button>
+      <button type="button" disabled={busy} className={badBtn} onClick={() => onDecide(false)}><X className="h-4 w-4" /> Send back</button>
+    </>}>
     {open && <div className="mt-3 space-y-3">
       {questions.length ? <ol className="space-y-2">{questions.map((q, i) =>
         <li key={i} className="rounded-xl bg-slate-50 p-3">
@@ -122,10 +128,6 @@ function PendingQuizReview({ quiz, busy, onDecide }: { quiz: PendingQuiz; busy: 
               {c.letter}) {c.text}{c.letter === q.correct ? <span className="ml-1">✓ correct</span> : null}
             </li>)}</ul>
         </li>)}</ol> : <Empty>The questions for this quiz could not be loaded.</Empty>}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={busy || !questions.length} className={goodBtn} onClick={() => onDecide(true)}><Check className="h-4 w-4" /> Approve quiz</button>
-        <button type="button" disabled={busy} className={badBtn} onClick={() => onDecide(false)}><X className="h-4 w-4" /> Send back</button>
-      </div>
     </div>}
   </Row>;
 }
@@ -254,7 +256,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
   useEffect(() => {
     if (!approved) return;
-    if ((tab === "readerStudents" || tab === "readerApprovals") && !school && !schoolBusy) void loadSchool();
+    if ((tab === "reader" || tab === "readerStudents" || tab === "readerApprovals") && !school && !schoolBusy) void loadSchool();
     if (tab === "readerParents" && !parents) request("/api/teacher/parent-connections").then((d) => setParents(Array.isArray(d?.students) ? d.students : [])).catch((e) => { setParents([]); failed(e, "Parent links could not be loaded."); });
     if (tab === "readerGames") {
       if (!controls) request("/api/teacher/club-arise/controls").then((d) => setControls(Array.isArray(d) ? d : [])).catch((e) => { setControls([]); failed(e, "Game controls could not be loaded."); });
@@ -277,7 +279,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
     try {
       await request(`/api/teacher-admin/pending-quizzes/${id}/${ok ? "approve" : "reject"}`, { method: "POST", ...(ok ? {} : { body: JSON.stringify({ reason: "Please review and resubmit." }) }) });
       setSchool((s) => (s ? { ...s, quizzes: s.quizzes.filter((q) => q.id !== id) } : s));
-      done(ok ? "Quiz approved." : "Quiz sent back.");
+      done(ok ? "Quiz approved. The student has been told it's ready." : "Quiz sent back.");
     } catch (e) { failed(e, "The quiz could not be updated."); }
     finally { setQuizBusy(false); }
   };
@@ -322,6 +324,16 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
   const [apSub, setApSub] = useSub<"join" | "grades" | "books" | "quizzes">("approvals", "join");
   const [qSub, setQSub] = useSub<"grade" | "camera" | "proctor">("quizzes", "grade");
   const approvals = pending.length + gradeChanges.length + bookRequests.length + (school ? school.quizzes.length + (user?.isAdmin ? school.pending.length : 0) : 0);
+  const myQuizRequests = school ? school.quizzes.filter((q) => q.mine).length : 0;
+  // Opening Approvals lands on the first list with something waiting, the first time each visit.
+  const [apPicked, setApPicked] = useState(false);
+  useEffect(() => {
+    if (tab !== "readerApprovals") { setApPicked(false); return; }
+    if (apPicked || !school) return;
+    const counts: Record<string, number> = { quizzes: school.quizzes.length, join: pending.length + (user?.isAdmin ? school.pending.length : 0), grades: gradeChanges.length, books: bookRequests.length };
+    if (!counts[apSub]) { const first = (["quizzes", "join", "grades", "books"] as const).find((k) => counts[k] > 0); if (first) setApSub(first); }
+    setApPicked(true);
+  }, [tab, school, apPicked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!approved) {
     return <Card title="A.R.I.S.E. Reader"><div className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /> Your teacher account is waiting for the administrator to approve it. Your Reader tools open here as soon as it is.</div></Card>;
@@ -349,9 +361,9 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
         <p className="text-sm font-semibold text-slate-400">A.R.I.S.E. Reader</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Your reading classroom</h1>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {([["Students", students.length, "readerStudents"], ["To approve", approvals, "readerApprovals"], ["To grade", toGrade, "readerQuizzes"], ["Book requests", bookRequests.length, "readerApprovals"]] as const).map(([label, value, to]) =>
+          {([["Students", students.length, "readerStudents"], ["To approve", approvals, "readerApprovals"], ["To grade", toGrade, "readerQuizzes"], ["Book catalog", "", "readerCatalog"]] as const).map(([label, value, to]) =>
             <button key={label} type="button" onClick={() => openTab(to)} className="rounded-2xl bg-white/10 p-3 text-left transition hover:bg-white/15 sm:p-4">
-              <div className="text-2xl font-bold sm:text-3xl">{loading && label === "Students" ? "…" : value}</div>
+              <div className="text-2xl font-bold sm:text-3xl">{label === "Book catalog" ? <BookOpen className="h-7 w-7 sm:h-8 sm:w-8" aria-hidden="true" /> : loading && label === "Students" ? "…" : value}</div>
               <div className="mt-1 text-xs font-semibold text-slate-300 sm:text-sm">{label}</div>
             </button>)}
         </div>
@@ -373,10 +385,11 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="Needs you" collapseKey="reader-needs">
           <ul className="space-y-2">
+            <NeedRow icon={<CheckCircle2 className="h-4 w-4" />} label="Quiz requests from your students" count={myQuizRequests} onOpen={() => { setApSub("quizzes"); openTab("readerApprovals"); }} />
             <NeedRow icon={<UserRound className="h-4 w-4" />} label="Students waiting to join" count={pending.length} onOpen={() => openTab("readerApprovals")} />
             <NeedRow icon={<PenLine className="h-4 w-4" />} label="Reading comprehension to grade" count={toGrade} onOpen={() => openTab("readerQuizzes")} />
             <NeedRow icon={<GraduationCap className="h-4 w-4" />} label="Grade change requests" count={gradeChanges.length} onOpen={() => openTab("readerApprovals")} />
-            <NeedRow icon={<BookOpen className="h-4 w-4" />} label="Book requests" count={bookRequests.length} onOpen={() => openTab("readerApprovals")} />
+            <NeedRow icon={<BookOpen className="h-4 w-4" />} label="Find-a-book requests" count={bookRequests.length} onOpen={() => { setApSub("books"); openTab("readerApprovals"); }} />
           </ul>
         </Card>
         <Card title="Proctor code" collapseKey="reader-proctor">
@@ -408,10 +421,10 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
     {tab === "readerApprovals" && <>
       <SubTabs value={apSub} onChange={setApSub} items={[
+        { id: "quizzes", label: "Quiz requests", count: school?.quizzes.length || 0 },
         { id: "join", label: "Joining", count: pending.length + (user?.isAdmin ? school?.pending.length || 0 : 0) },
         { id: "grades", label: "Grade changes", count: gradeChanges.length },
-        { id: "books", label: "Book requests", count: bookRequests.length },
-        { id: "quizzes", label: "AI quizzes", count: school?.quizzes.length || 0 },
+        { id: "books", label: "Find-a-book requests", count: bookRequests.length },
       ]} />
       {apSub === "join" && <Card title={`Students waiting to join your class${pending.length ? ` (${pending.length})` : ""}`}>
         {loading ? <Empty>Loading…</Empty> : pending.length ? <ul className="space-y-2">{pending.map((s) =>
@@ -425,14 +438,16 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
             <button type="button" className={badBtn} onClick={() => void decideGrade(r.id, "deny")}><X className="h-4 w-4" /> Deny</button>
           </>} />)}</ul> : <Empty>No grade change requests.</Empty>}
       </Card>}
-      {apSub === "books" && <Card title={`Book requests${bookRequests.length ? ` (${bookRequests.length})` : ""}`}>
-        {bookRequests.length ? <ul className="space-y-2">{bookRequests.map((r) =>
+      {apSub === "books" && <Card title={`Find-a-book requests${bookRequests.length ? ` (${bookRequests.length})` : ""}`}>
+        <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">These are students asking you to help them get a copy of a book. There's nothing to approve here: help them find it, then click <b>Done</b>. A student asking for a <b>quiz</b> shows up under <button type="button" className="font-semibold text-teal-700 underline" onClick={() => setApSub("quizzes")}>Quiz requests</button>.</p>
+        {bookRequests.length ? <ul className="mt-3 space-y-2">{bookRequests.map((r) =>
           <Row key={r.id} title={r.bookTitle} sub={<>Requested by {r.studentName} · {new Date(r.createdAt).toLocaleDateString()}{r.message ? <span className="mt-1 block text-slate-600">{r.message}</span> : null}</>}
-            right={<button type="button" className={smallBtn} onClick={() => void dismissBook(r.id)}>Dismiss</button>} />)}</ul> : <Empty>No book requests from students yet.</Empty>}
+            right={<button type="button" className={smallBtn} onClick={() => void dismissBook(r.id)}><Check className="h-4 w-4" /> Done</button>} />)}</ul> : <Empty>No book requests from students yet.</Empty>}
       </Card>}
-      {apSub === "quizzes" && <Card title={`AI quizzes to check${school?.quizzes.length ? ` (${school.quizzes.length})` : ""}`}>
-        {!school ? <Empty>Loading…</Empty> : school.quizzes.length ? <ul className="space-y-2">{school.quizzes.map((q) =>
-          <PendingQuizReview key={q.id} quiz={q} busy={quizBusy} onDecide={(ok) => void decideQuiz(q.id, ok)} />)}</ul> : <Empty>No quizzes waiting.</Empty>}
+      {apSub === "quizzes" && <Card title={`Quiz requests${school?.quizzes.length ? ` (${school.quizzes.length})` : ""}`}>
+        <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">A student asked for a quiz on a book that wasn't in the library yet, and A.R.I.S.E. wrote the questions. Click <b>Review questions</b> to check them, then <b>Approve</b>. The student gets a “Your quiz is ready!” banner and notification right away. Your own students are listed first.</p>
+        {!school ? <Empty>Loading…</Empty> : school.quizzes.length ? <ul className="mt-3 space-y-2">{school.quizzes.map((q) =>
+          <PendingQuizReview key={q.id} quiz={q} busy={quizBusy} onDecide={(ok) => void decideQuiz(q.id, ok)} />)}</ul> : <Empty>No quiz requests waiting.</Empty>}
       </Card>}
       {apSub === "join" && user?.isAdmin && <Card title={`Students waiting across the school${school?.pending.length ? ` (${school.pending.length})` : ""}`} collapseKey="reader-school-pending">
         {!school ? <Empty>Loading…</Empty> : school.pending.length ? <ul className="space-y-2">{school.pending.map((s) =>
@@ -512,6 +527,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       </Card>
     </>}
 
+    {tab === "readerCatalog" && <BookCatalog request={request} openPage={openPage} />}
     {tab === "readerPrizes" && <Card title="Prizes"><HubPrizeManager which="work" token={token} role="teacher" /></Card>}
 
     {pop && <StudentPopup pop={pop} onClose={closePop} />}
