@@ -73,6 +73,19 @@ test("the server hides videos YouTube says are gone or can't be embedded, and sh
   assert.ok(out.checked >= allConnectVideoIds().length - 1, "lesson and spotlight videos are checked too");
 });
 
+test("main course cards and individual lesson choices show the actual star video thumbnail", () => {
+  const page = readFileSync(new URL("../client/public/social/index.html", import.meta.url), "utf8");
+  assert.match(page, /const courseFeaturedVideo = c =>/);
+  assert.match(page, /class="course-celeb-hero"/);
+  assert.match(page, /class="course-celeb-chip"/);
+  assert.match(page, /class="lesson-star-thumb"/);
+  assert.match(page, /https:\/\/i\.ytimg\.com\/vi\//);
+  for (const c of COURSES) {
+    assert.ok(c.stars?.some((v) => v.star && v.id), `${c.id} has a featured celebrity with a video still`);
+    for (const l of c.lessons) assert.ok(l.video?.id && l.video?.star, `${c.id}: ${l.title} has a celebrity with a video still`);
+  }
+});
+
 test("the Connect page opens on Stars, skips videos YouTube removed, and only shows K–5 the all-ages videos", () => {
   const page = readFileSync(new URL("../client/public/social/index.html", import.meta.url), "utf8");
   assert.match(page, /S\.tab = 'stars';/);

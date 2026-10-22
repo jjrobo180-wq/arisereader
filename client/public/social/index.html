@@ -650,7 +650,16 @@ tr:last-child td{border-bottom:0}
 .with-star{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:800;color:#8A4B00}
 .with-star svg{width:14px;height:14px;fill:currentColor}
 .career-vid{display:grid;gap:8px}
-.lesson-star-thumb{width:112px;height:70px;object-fit:cover;object-position:center;border-radius:10px;flex-shrink:0;background:#192333}@media(max-width:520px){.lesson-star-thumb{width:84px;height:58px}}</style>
+.lesson-star-thumb{width:112px;height:70px;object-fit:cover;object-position:center;border-radius:10px;flex-shrink:0;background:#192333}@media(max-width:520px){.lesson-star-thumb{width:84px;height:58px}}/* Celebrity video stills on the main Connect course selection cards. */
+.course-celeb-hero{height:190px;position:relative;overflow:hidden;background:linear-gradient(125deg,color-mix(in srgb,var(--fc) 50%,#19243e),#1b2540)}
+.course-celeb-hero img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 42%}
+.course-celeb-hero::after{content:"";position:absolute;inset:35% 0 0;background:linear-gradient(transparent,rgba(12,20,38,.83));pointer-events:none}
+.course-celeb-chip{position:absolute;z-index:1;bottom:13px;left:15px;right:12px;display:flex;align-items:center;gap:7px;color:#fff;font-size:.9rem;font-weight:800;line-height:1.35;text-shadow:0 1px 5px rgba(0,0,0,.65)}
+.course-celeb-chip svg{height:16px;width:16px;flex:none;fill:#ffd66b;color:#ffd66b}
+.course-celeb-hero.no-thumb{height:78px}
+.course-celeb-hero.no-thumb::after{display:none}
+@media(max-width:520px){.course-celeb-hero{height:168px}.course-celeb-hero.no-thumb{height:68px}}
+</style>
 </head>
 <body>
 <header class="top"><div class="wrap bar-row">
@@ -1188,15 +1197,24 @@ function certificateHTML(c, cert, name, small){
     <div class="foot"><div><b>${cert?longDate(cert.date):longDate(ME?.today||new Date().toISOString().slice(0,10))}</b><br><span class="mono">${cert?esc(cert.code):'AC-PREVIEW'}</span></div>${SEAL}</div>
   </div></div>`;
 }
+/** Select the actual celebrity video that supplies the course's cover still.
+ * Match the visible celebrity name to this video, including when a backup is needed.
+ */
+const courseFeaturedVideo = c => (c.stars||[]).find(okVid) || c.lessons.map(lessonVid).find(Boolean) || null;
 function courseCard(c){
   const student = role()==='student', n = student ? lessonsDone(c) : 0, done = student && !!certOf(c.id), total = c.lessons.length;
   const match = S.interests.size && c.interests.some(i=>S.interests.has(i));
+  const featured = courseFeaturedVideo(c);
   return `<button class="card" data-act="course" data-id="${c.id}" style="--fc:${fieldColor(c.field)}">
     ${match?'<span class="badge-match">Matches you</span>':''}
     <div class="banner">${tile(c.icon,fieldColor(c.field))}<div><div class="eyebrow">${esc(CAT.courseFields[c.field])}</div><div class="mono">${esc(c.code)}</div></div></div>
+    ${featured?`<div class="course-celeb-hero">
+      <img src="https://i.ytimg.com/vi/${featured.id}/hqdefault.jpg" alt="Video still featuring ${esc(featured.star)}" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('no-thumb');this.remove()">
+      <span class="course-celeb-chip">${svg('star')} Learn with ${esc(featured.star)}</span>
+    </div>`:''}
     <div class="body"><h3>${esc(c.title)}</h3><p class="blurb">${esc(c.blurb)}</p>
     <div class="meta"><span><b>${total}</b> lessons</span><span><b>${c.minutes}</b> min</span><span><b>+${CAT.xp.course}</b> XP</span>${c.lessons.some(l=>lessonVid(l))?`<span>${svg('play')} Videos</span>`:''}</div>
-    ${c.stars&&c.stars[0]?`<span class="with-star">${svg('star')}With ${esc(c.stars[0].star)}</span>`:''}
+    ${featured?`<span class="with-star">${svg('star')}With ${esc(featured.star)}</span>`:''}
     <div class="tags">${c.paths.map(p=>`<span class="tag">${esc(CAT.coursePaths[p])}</span>`).join('')}</div>
     ${done?`<span class="earned">${svg('star')} Certificate earned</span>`:n?`<div><div class="meta" style="margin-bottom:6px"><span>${n} of ${total} lessons done</span></div><div class="bar"><i style="width:${n/total*100}%"></i></div></div>`:''}</div></button>`;
 }
@@ -1337,7 +1355,7 @@ function viewCourse(){
     <div class="panel"><h3>What you'll learn</h3><ul class="checks">${c.learn.map(l=>`<li>${svg('check')}<span>${esc(l)}</span></li>`).join('')}</ul></div>
   </section>
   <section class="section"><h2>Lessons</h2>
-    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}">${lessonVid(l)?`<img class="lesson-star-thumb" src="https://i.ytimg.com/vi/${lessonVid(l).id}/hqdefault.jpg" alt="Video still featuring ${esc(lessonVid(l).star)}" loading="lazy" onerror="this.style.display='none'">`:''}<span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min${lessonVid(l)?' · video':''} · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
+    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}">${lessonVid(l)?`<img class="lesson-star-thumb" src="https://i.ytimg.com/vi/${lessonVid(l).id}/hqdefault.jpg" alt="Video still featuring ${esc(lessonVid(l).star)}" loading="lazy" decoding="async" onerror="this.remove()">`:''}<span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min${lessonVid(l)?` · Video with ${esc(lessonVid(l).star)}`:''} · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
   </section>
   ${(c.stars||[]).filter(okVid).length?`<section class="section" aria-labelledby="spot-h"><h2 id="spot-h">Star spotlight</h2><p class="muted" style="margin:-6px 0 16px">Famous people who do this work, or fight for it.</p>
     <div class="stars-grid">${c.stars.filter(okVid).map(v=>`<div class="star-card">${videoHTML(v,'course')}</div>`).join('')}</div></section>`:''}
