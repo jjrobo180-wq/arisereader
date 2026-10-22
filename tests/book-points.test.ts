@@ -442,7 +442,9 @@ test("points are set when a quiz is added, and the library is switched once at s
   assert.ok(routes.includes("const startBookPointsSwitch = keepSwitching(bookPointsStore,"), "the switch is kept going until it has finished");
   assert.ok(routes.includes("setTimeout(startBookPointsSwitch, 7000);"));
   assert.ok(routes.includes("startSwitch: startBookPointsSwitch,"), "and the admin can start it from the Library");
-  assert.equal((routes.match(/keepPoints: pending\.quiz_type === 'iarise'/g) || []).length, 2, "an approved book quiz gets worked-out points; a site lesson keeps its own");
+  // Teacher Hub and Admin approvals share one quiz maker (readyQuizDeps.createBookQuiz in server/routes.ts).
+  assert.equal((routes.match(/keepPoints: pending\.quiz_type === 'iarise'/g) || []).length, 1, "an approved book quiz gets worked-out points; a site lesson keeps its own");
+  assert.equal((routes.match(/approvePendingQuiz\(readyQuizDeps, pendingRows\[0\]\)/g) || []).length, 2, "both approve routes use it");
 });
 
 test("the Library lets the admin see and change each book's points", () => {
