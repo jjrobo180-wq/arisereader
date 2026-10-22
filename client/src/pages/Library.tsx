@@ -27,7 +27,7 @@ import { EngagementHub } from "@/components/EngagementHub";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
 import { HALLOREAD_ACTIVE } from "@/lib/halloread";
 import { NEWS_ARTICLES } from "@shared/ariseNews";
-import QuickReadsShelf from "@/components/QuickReadsShelf";
+import QuickReadsShelf, { QuickReadRow, matchQuickReads } from "@/components/QuickReadsShelf";
 import { READABLE_BOOKS, readableBook } from "@shared/readsCatalog";
 import { POEMS } from "@shared/poems";
 import { loadReadsKeyIds } from "./reads/useReads";
@@ -1244,6 +1244,19 @@ export default function Library() {
     });
   }).filter(b => !favBookIds.includes(b.id) && !heritageIds.includes(b.id)) : [];
 
+  // Searching: the matches show right under the search bar, before any shelf.
+  const searchText = searchQuery.trim();
+  const searching = searchText.length > 0;
+  const regularHidden = showEyeGaze && !isSampleStudent && !user?.isAdmin;
+  const [searchShowAll, setSearchShowAll] = useState(false);
+  useEffect(() => { setSearchShowAll(false); }, [searchText]);
+  const searchBooks = !searching ? [] : (regularHidden ? animeComicBooks : sortedBooks.filter(b => !newsIdSet.has(b.id)))
+    .map((b, i) => ({ b, i, title: (b.title || "").toLowerCase().includes(searchText.toLowerCase()) }))
+    .sort((x, y) => Number(y.title) - Number(x.title) || x.i - y.i)
+    .map(x => x.b);
+  const searchReads = searching && !regularHidden ? matchQuickReads(searchText) : [];
+  const searchBooksShown = searchShowAll ? searchBooks : searchBooks.slice(0, 20);
+
   // Pagination — 10 books per page
   const booksPerPage = 10;
   const totalPages = Math.ceil(nonCurriculumBooks.length / booksPerPage);
@@ -1956,6 +1969,87 @@ export default function Library() {
               <div key={i} className="aspect-[2/3] bg-muted animate-pulse rounded-xl" />
             ))}
           </div>
+        ) : searching ? (
+          <section className="mb-10" aria-labelledby="search-results-h" data-testid="library-search-results">
+            <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 id="search-results-h" className="text-lg font-bold text-foreground">Results for "{searchText}"</h2>
+              <span className="text-sm text-muted-foreground">
+                {searchBooks.length} {searchBooks.length === 1 ? "book" : "books"}{searchReads.length > 0 ? `, ${searchReads.length} quick ${searchReads.length === 1 ? "read" : "reads"}` : ""}
+              </span>
+              <button type="button" onClick={() => setSearchQuery("")} className="ml-auto text-sm font-semibold text-primary hover:underline">Clear search</button>
+            </div>
+
+            {searchBooks.length === 0 && searchReads.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border py-10 text-center">
+                <BookOpen className="mx-auto mb-3 h-8 w-8 text-primary" />
+                <p className="mb-1 font-semibold">No book or quick read matches "{searchText}"</p>
+                <p className="mb-4 text-sm text-muted-foreground">Check the spelling, try the author's name, or make a quiz for it.</p>
+                {!(user?.role === 'teacher' || user?.isAdmin) && (
+                  <Button onClick={() => { setInstantBook(searchText); setInstantAuthor(""); setInstantError(""); setInstantMsg(""); setShowInstant(true); }} className="h-10 rounded-lg px-4 text-sm font-bold">
+                    <Sparkles className="mr-1.5 h-4 w-4" />Create a quiz for "{searchText}"
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                {searchBooks.length > 0 && (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {searchBooksShown.map((book) => {
+                      const result = results.find(r => r.bookId === book.id);
+                      const isDone = completedIds.has(book.id);
+                      return (
+                        <Card key={book.id} className="group cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" onClick={() => navigate(`/quiz/${book.id}`)} data-testid={`search-book-${book.id}`}>
+                          <div className="relative aspect-[2/3] overflow-hidden bg-muted">
+                            {!isDone && <ExtraCreditTag />}
+                            {book.coverUrl ? (
+                              <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-primary p-4 text-center text-white"><span className="text-sm font-bold">{book.title}</span></div>
+                            )}
+                            {isDone && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
+                          </div>
+                          <div className="p-3">
+                            <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{book.title}</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">{book.author}</p>
+                            <div className="mt-2">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold text-primary"><Trophy className="h-3 w-3" />{book.pointsValue || 10} pts</span>
+                            </div>
+                            {result && <p className="mt-1 text-xs font-semibold text-primary">{result.score}/{result.total} correct</p>}
+                            <div className="mt-2 flex gap-1.5">
+                              {book.readUrl && (
+                                <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(canReadHere(book) ? `/reads/book/${book.id}` : `/read/${book.id}`); }}>
+                                  <BookOpen className="mr-1 h-3 w-3" />Read
+                                </Button>
+                              )}
+                              <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${book.id}`); }}>
+                                {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+                {searchBooks.length > searchBooksShown.length && (
+                  <div className="mt-4 flex justify-center">
+                    <Button variant="outline" onClick={() => setSearchShowAll(true)}>Show all {searchBooks.length} books</Button>
+                  </div>
+                )}
+                {searchReads.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="mb-3 text-base font-bold text-foreground"><span aria-hidden="true">⚡ </span>Quick reads</h3>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {searchReads.slice(0, 12).map((a) => {
+                        const id = newsBookIds[a.slug];
+                        return <QuickReadRow key={a.slug} a={a} result={id ? results.find(r => r.bookId === id) : undefined} onOpen={(slug) => navigate(`/news/${slug}`)} />;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
         ) : books.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading books...</p>
