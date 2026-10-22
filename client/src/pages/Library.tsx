@@ -1557,15 +1557,6 @@ export default function Library() {
           </div>
         )}
 
-        {/* Read on Arise (books and articles readable right on the site) and, for students, Games beside it */}
-        {!(user?.role === "student" && user?.is_eye_gaze_user) && (
-          <ReadGamesRow
-            games={user?.role === "student"}
-            covers={READABLE_BOOKS.filter((b) => [21, 7, 24].includes(b.bookId)).map((b) => `${API_BASE}/api/book-cover/${b.bookId}`)}
-            books={READABLE_BOOKS.length} poems={POEMS.length} articles={NEWS_ARTICLES.length}
-            onReads={() => navigate("/reads")} onGames={() => navigate("/games")}
-          />
-        )}
 
         {user?.role === "student" && !user?.is_eye_gaze_user && <div className="mb-5"><AddonsCard showTodo={false} /></div>}
                 <EngagementHub
@@ -2087,6 +2078,18 @@ export default function Library() {
                 onOpen={(slug) => navigate(`/news/${slug}`)}
                 onSeeAll={() => navigate("/reads#quick")}
               />
+            )}
+
+            {/* Read on Arise: books, poems and articles to read right here (moved down from the top banner) */}
+            {!(user?.role === "student" && user?.is_eye_gaze_user) && (
+              <div className="mb-8">
+                <ReadGamesRow
+                  games={false}
+                  covers={READABLE_BOOKS.filter((b) => [21, 7, 24].includes(b.bookId)).map((b) => `${API_BASE}/api/book-cover/${b.bookId}`)}
+                  books={READABLE_BOOKS.length} poems={POEMS.length} articles={NEWS_ARTICLES.length}
+                  onReads={() => navigate("/reads")} onGames={() => navigate("/games")}
+                />
+              </div>
             )}
 
             {/* Anime & Comics Section */}

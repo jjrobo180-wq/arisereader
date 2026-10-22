@@ -69,7 +69,7 @@ export function LockScreen({ gate, title, onLeave, onForgot }: { gate: PassGate;
 function Sheet({ title, onClose, children, testId }: { title: string; onClose: () => void; children: ReactNode; testId?: string }) {
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k); }, [onClose]);
   return createPortal(
-    <div className="fixed inset-0 z-[660] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid={testId}>
+    <div className="fixed inset-0 kb-sheet z-[660] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid={testId}>
       <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[94dvh] w-full overflow-y-auto rounded-t-3xl bg-slate-50 p-5 shadow-2xl sm:max-w-sm sm:rounded-3xl">
         <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-lg font-black text-slate-900">{title}</h2><button type="button" onClick={onClose} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-200"><X size={20} /></button></div>
         {children}
