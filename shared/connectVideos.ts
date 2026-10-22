@@ -15,6 +15,7 @@
 // gone or can't be embedded, falling back to the backup. Played via youtube-nocookie.com.
 
 import { STAR_VIDEOS } from "./ariseConnectVideos";
+import { STAR_LESSON_VIDEOS, STAR_SPOTLIGHT } from "./starCourses";
 
 export type ConnectVideo = {
   id: string;
@@ -157,6 +158,10 @@ export const COURSE_STARS: Record<string, ConnectVideo[]> = {
     V("BXhFxMwVaEY", "Faker on his career and staying healthy", "Faker", "Faker", "Greatest League of Legends player ever"),
   ],
 };
+
+// The "Learn with a Star" courses bring their own lesson videos and spotlights (shared/starCourses).
+Object.assign(LESSON_VIDEOS, STAR_LESSON_VIDEOS);
+Object.assign(COURSE_STARS, STAR_SPOTLIGHT);
 
 /** Each career's first star video (all of them: STAR_VIDEOS in shared/ariseConnectVideos.ts). */
 export const CAREER_VIDEOS: Record<string, ConnectVideo> = {};
