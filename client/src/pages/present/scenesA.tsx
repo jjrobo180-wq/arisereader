@@ -9,7 +9,7 @@ import { BrandText } from "@/components/BrandText";
 import ExtraCreditTag from "@/components/ExtraCreditTag";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsReadMinutes, quickCategoryOf } from "@shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsCoverSrc, newsReadMinutes, quickCategoryOf } from "@shared/ariseNews";
 import { Scroll, Spot, coverOf, useScrollY, useSince, useTyped, type SceneProps } from "./kit";
 
 // ── 1. Welcome ──────────────────────────────────────────────────────────────────────────────────────────
@@ -210,7 +210,7 @@ export function QuickShelf({ spotHead = false }: { spotHead?: boolean }) {
           return (
             <div key={a.slug} className="w-[132px] flex-shrink-0 text-left">
               <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-slate-100 shadow-md">
-                <img src={`/covers/news/${a.slug}.svg`} alt="" className="h-full w-full object-cover" />
+                <img src={newsCoverSrc(a)} alt="" className="h-full w-full object-cover" style={a.photo?.focus ? { objectPosition: a.photo.focus } : undefined} />
                 <span className="absolute left-2 top-[4.25rem] rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-black text-[#17143b] shadow">⏱ {newsReadMinutes(a)} min</span>
               </div>
               <div className="mt-2 flex items-center gap-1.5">

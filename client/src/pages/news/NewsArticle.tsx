@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "wouter";
-import { NEWS_ARTICLES, NEWS_POINTS, newsBySlug, newsReadMinutes, type NewsArticle as Article, type NewsBlock } from "@shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_POINTS, newsBySlug, newsPhotoPage, newsReadMinutes, type NewsArticle as Article, type NewsBlock } from "@shared/ariseNews";
 import { NewsArt, formatNewsDate, sectionStyle, useNews } from "./useNews";
 import "./news.css";
 
@@ -74,7 +74,7 @@ export default function NewsArticle() {
       </header>
 
       <article className="nw-wrap">
-        <div className="nw-hero"><NewsArt article={article} /></div>
+        <div className="nw-hero"><NewsArt article={article} wide />{article.photo && <p className="nw-credit">Photo: <a href={newsPhotoPage(article)!} target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> (photographer and license on that page)</p>}</div>
         <div className="nw-head">
           <span className="nw-kicker">{article.kind === "news" && <span className="nw-section">World News</span>}<span className="nw-section">{article.section}</span></span>
           <h1>{article.title}</h1>

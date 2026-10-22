@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { BookOpen, Trophy, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsReadMinutes, quickCategoryOf, type NewsArticle } from "@shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsCoverSrc, newsReadMinutes, quickCategoryOf, type NewsArticle } from "@shared/ariseNews";
 
 type Result = { bookId: number; score: number; total: number };
 
@@ -22,7 +22,7 @@ export function QuickReadRow({ a, result, onOpen }: { a: NewsArticle; result?: R
   return (
     <button type="button" onClick={() => onOpen(a.slug)} aria-label={`${a.title}. ${newsReadMinutes(a)} minute read.${result ? ` Done, ${result.score} of ${result.total}.` : ""}`}
       className="group flex w-full min-w-0 items-center gap-3 rounded-xl bg-white p-2 pr-3 text-left ring-1 ring-black/5 transition-colors hover:bg-[#f6f4ff] hover:ring-[#7048e8]/30">
-      <img src={`/covers/news/${a.slug}.svg`} alt="" loading="lazy" className="h-14 w-14 flex-shrink-0 rounded-lg object-cover" style={{ objectPosition: "50% 42%" }} />
+      <img src={newsCoverSrc(a)} alt="" loading="lazy" className="h-14 w-14 flex-shrink-0 rounded-lg object-cover" style={{ objectPosition: a.photo?.focus ?? "50% 42%" }} />
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 text-sm font-bold leading-snug text-[#17143b]">{a.title}</span>
         <span className="mt-1 flex items-center gap-1.5 text-[11px] font-bold">
@@ -85,7 +85,7 @@ export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll
             <Card key={a.slug} className="group w-[160px] flex-shrink-0 cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl sm:w-[180px]"
               style={{ scrollSnapAlign: "start" }} onClick={() => onOpen(a.slug)}>
               <div className="relative aspect-[2/3] overflow-hidden bg-muted">
-                <img src={`/covers/news/${a.slug}.svg`} alt={`Cover of ${a.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
+                <img src={newsCoverSrc(a)} alt={a.photo ? a.photo.alt : `Cover of ${a.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" style={a.photo?.focus ? { objectPosition: a.photo.focus } : undefined} loading="lazy" />
                 {r && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
               </div>
               <div className="p-3">

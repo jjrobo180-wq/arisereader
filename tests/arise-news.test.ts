@@ -83,7 +83,7 @@ test("news stories become 5-point library quizzes exactly once", async () => {
   for (const b of store.books) {
     assert.equal(b.pointsValue, 5);
     assert.equal(b.keepPoints, true); // the site's own articles keep their 5 points
-    assert.match(b.coverUrl, /^\/covers\/news\/[a-z0-9-]+\.svg$/);
+    assert.match(b.coverUrl, /^(\/covers\/news\/[a-z0-9-]+\.svg|https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/.+)$/);
     assert.equal(b.questions.length, 5);
   }
   assert.deepEqual(JSON.parse(store.settings.get(NEWS_BOOKS_KEY)!), map);

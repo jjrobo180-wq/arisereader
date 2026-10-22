@@ -42,7 +42,23 @@ export type NewsArticle = {
   body: NewsBlock[];
   words: { word: string; meaning: string }[];
   questions: NewsQuestion[];
+  /**
+   * A real photo instead of a drawn picture (used for biographies of real people).
+   * `file` is the file name on Wikimedia Commons, where every photo is free to use;
+   * its page there names the photographer and license, and the story links to it.
+   * `focus` is a CSS object-position so faces stay in frame when the photo is cropped.
+   */
+  photo?: { file: string; alt: string; focus?: string };
 };
+
+const COMMONS = "https://commons.wikimedia.org/wiki/";
+const commonsName = (file: string) => encodeURIComponent(file.replace(/ /g, "_"));
+/** A sized copy of a story's photo (Wikimedia serves the right size), or null when it has none. */
+export const newsPhotoUrl = (a: NewsArticle, width = 960) => (a.photo ? `${COMMONS}Special:FilePath/${commonsName(a.photo.file)}?width=${width}` : null);
+/** The photo's page on Wikimedia Commons, with the photographer and license. */
+export const newsPhotoPage = (a: NewsArticle) => (a.photo ? `${COMMONS}File:${commonsName(a.photo.file)}` : null);
+/** The library cover: the real photo when a story has one, otherwise its drawn cover. */
+export const newsCoverSrc = (a: NewsArticle) => newsPhotoUrl(a, 500) ?? `/covers/news/${a.slug}.svg`;
 
 export const NEWS_AUTHOR = "Arise News";
 export const NEWS_POINTS = 5;
