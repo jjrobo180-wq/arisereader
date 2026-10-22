@@ -2,6 +2,43 @@
    (the same approach as the Teacher Hub's hubNight.css). */
 .todo-night { color-scheme: dark; background: #0e0d1a; color: #e6e4f2; }
 
+/* Safety net (October 2026): apps and pages that use colours not listed below still turn dark.
+   Dark written colours (#0…–#3…) become light, pale backgrounds (#e…, #f…) become dark, and the
+   gray, zinc, neutral and stone families and pale tints follow the same palette. Listed rules
+   further down are more specific and win, and notes keep their paper colours. */
+.todo-night [class*="text-[#0"], .todo-night [class*="text-[#1"], .todo-night [class*="text-[#2"], .todo-night [class*="text-[#3"],
+.todo-night .text-gray-900, .todo-night .text-gray-800, .todo-night .text-zinc-900, .todo-night .text-zinc-800,
+.todo-night .text-neutral-900, .todo-night .text-neutral-800, .todo-night .text-stone-900, .todo-night .text-stone-800,
+.todo-night .text-black, .todo-night .text-slate-950 { color: #f1effa; }
+.todo-night .text-gray-700, .todo-night .text-gray-600, .todo-night .text-zinc-700, .todo-night .text-zinc-600,
+.todo-night .text-neutral-700, .todo-night .text-neutral-600, .todo-night .text-stone-700, .todo-night .text-stone-600 { color: #cfcce3; }
+.todo-night .text-gray-500, .todo-night .text-gray-400, .todo-night .text-zinc-500, .todo-night .text-neutral-500, .todo-night .text-stone-500 { color: #9a97b8; }
+.todo-night [class*="bg-[#f"], .todo-night [class*="bg-[#e"], .todo-night [class*="bg-[#F"], .todo-night [class*="bg-[#E"],
+.todo-night .bg-gray-50, .todo-night .bg-zinc-50, .todo-night .bg-neutral-50, .todo-night .bg-stone-50,
+.todo-night .bg-gray-100, .todo-night .bg-zinc-100, .todo-night .bg-neutral-100, .todo-night .bg-stone-100 { background-color: #1f1d38; }
+.todo-night .border-gray-100, .todo-night .border-gray-200, .todo-night .border-gray-300, .todo-night .border-zinc-200, .todo-night .border-neutral-200,
+.todo-night .border-stone-200, .todo-night [class*="border-[#e"], .todo-night [class*="border-[#f"] { border-color: #2c2a4c; }
+.todo-night .ring-gray-200, .todo-night .ring-slate-100, .todo-night .ring-black\/5 { --tw-ring-color: #2c2a4c; }
+/* Pale tints of every colour */
+.todo-night .bg-amber-100, .todo-night .bg-yellow-50, .todo-night .bg-yellow-100, .todo-night .bg-orange-100 { background-color: rgba(245, 158, 11, 0.18); }
+.todo-night .bg-pink-50, .todo-night .bg-pink-100, .todo-night .bg-fuchsia-50, .todo-night .bg-rose-100 { background-color: rgba(236, 72, 153, 0.16); }
+.todo-night .bg-purple-50, .todo-night .bg-purple-100, .todo-night .bg-indigo-100 { background-color: rgba(139, 124, 255, 0.2); }
+.todo-night .bg-green-50, .todo-night .bg-green-100, .todo-night .bg-lime-50, .todo-night .bg-lime-100, .todo-night .bg-emerald-100 { background-color: rgba(52, 211, 153, 0.16); }
+.todo-night .bg-red-50, .todo-night .bg-red-100 { background-color: rgba(244, 63, 94, 0.16); }
+.todo-night .bg-cyan-50, .todo-night .bg-cyan-100, .todo-night .bg-sky-100, .todo-night .bg-blue-100 { background-color: rgba(56, 189, 248, 0.16); }
+.todo-night .text-amber-900, .todo-night .text-yellow-700, .todo-night .text-yellow-800, .todo-night .text-yellow-900, .todo-night .text-orange-700, .todo-night .text-orange-800, .todo-night .text-orange-900 { color: #fcd34d; }
+.todo-night .text-pink-600, .todo-night .text-pink-700, .todo-night .text-pink-800, .todo-night .text-pink-900, .todo-night .text-fuchsia-700, .todo-night .text-fuchsia-800 { color: #f9a8d4; }
+.todo-night .text-purple-600, .todo-night .text-purple-700, .todo-night .text-purple-800, .todo-night .text-purple-900, .todo-night .text-indigo-600, .todo-night .text-indigo-800 { color: #c4b5fd; }
+.todo-night .text-green-600, .todo-night .text-green-700, .todo-night .text-green-800, .todo-night .text-green-900, .todo-night .text-lime-700, .todo-night .text-lime-800, .todo-night .text-emerald-900 { color: #86efac; }
+.todo-night .text-red-600, .todo-night .text-red-700, .todo-night .text-red-800, .todo-night .text-red-900 { color: #fca5a5; }
+.todo-night .text-blue-700, .todo-night .text-blue-800, .todo-night .text-blue-900, .todo-night .text-sky-700, .todo-night .text-sky-800, .todo-night .text-sky-900, .todo-night .text-cyan-700, .todo-night .text-cyan-800 { color: #7dd3fc; }
+.todo-night .border-pink-200, .todo-night .border-purple-200, .todo-night .border-green-200, .todo-night .border-red-200, .todo-night .border-sky-200, .todo-night .border-blue-200,
+.todo-night .border-orange-200, .todo-night .border-yellow-200, .todo-night .border-cyan-200, .todo-night .border-amber-100, .todo-night .border-orange-100, .todo-night .border-pink-100 { border-color: #3d3a6b; }
+/* Pale gradients (cards that fade from white or a pale tint) become one dark surface. */
+.todo-night [class*="from-white"], .todo-night [class*="from-slate-50"], .todo-night [class*="from-gray-50"],
+.todo-night [class*="bg-gradient"][class*="from-"][class*="-50"], .todo-night [class*="bg-gradient"][class*="from-"][class*="-100"] { background-image: none; background-color: #1f1d38; }
+.todo-night .shadow-sm, .todo-night .shadow, .todo-night .shadow-md { --tw-shadow-color: rgba(0, 0, 0, 0.4); }
+
 /* Surfaces */
 .todo-night .bg-\[\#f6f7fc\] { background-color: #0e0d1a; }
 .todo-night .bg-white, .todo-night .hover\:bg-white:hover { background-color: #17162b; }
@@ -72,3 +109,22 @@
 .todo-night .text-slate-100 { color: #26244a; }
 .todo-night .hover\:border-sky-300:hover { border-color: #38bdf8; }
 .todo-night .text-sky-500 { color: #7dd3fc; }
+
+/* Found by checking every LifeHub screen at night (October 2026). */
+/* The header stayed light, with pale words on it. */
+.todo-night .bg-white\/95, .todo-night .bg-white\/90, .todo-night .bg-white\/80 { background-color: rgba(23, 22, 43, 0.95); }
+.todo-night .bg-white\/70, .todo-night .bg-white\/60, .todo-night .bg-white\/50 { background-color: rgba(23, 22, 43, 0.8); }
+.todo-night .text-violet-800 { color: #b9b0ff; }
+/* Pale words on the dark ink panels stay pale. */
+.todo-night .bg-\[\#292446\] .text-slate-300, .todo-night .bg-\[\#292446\] .text-slate-400, .todo-night .bg-slate-900 .text-slate-300 { color: #cfcce3; }
+.todo-night .bg-teal-50, .todo-night .bg-teal-50\/60, .todo-night .bg-teal-100 { background-color: rgba(20, 184, 166, 0.16); }
+.todo-night .text-teal-600, .todo-night .text-teal-700, .todo-night .text-teal-800, .todo-night .text-teal-900 { color: #5eead4; }
+.todo-night .border-teal-200, .todo-night .border-teal-300 { border-color: rgba(20, 184, 166, 0.4); }
+/* Calendar chips are tinted with their list's colour; at night their words are light so they read on any tint. */
+.todo-night .cal-chip { color: #ece9fb !important; }
+
+/* Notes and sticky notes keep their paper colours and dark writing, whatever colour codes they use. */
+.todo-night .note-card [class*="text-[#"], .todo-night .note-card .text-gray-900, .todo-night .note-card .text-gray-800 { color: #1e1b33; }
+/* The page itself, when the night class sits on a page's own root (Pro apps, Office, AI Apps). */
+.todo-night.bg-slate-50, .todo-night.bg-white { background-color: #0e0d1a; }
+.todo-night.text-slate-900 { color: #e6e4f2; }

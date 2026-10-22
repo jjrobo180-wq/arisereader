@@ -1,8 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { forgetStay } from "@/lib/useStayOnRefresh";
 import { API_BASE } from "@/lib/queryClient";
 import { setSchoolTheme, setTeacherBand } from "@/lib/schoolTheme";
 import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/lib/navigation";
 import { forgetThisDevice } from "@/lib/pushDevice";
+import { isHubAccount } from "@/lib/hubs";
+import { clearSessionBackup, keepStorage, readSessionBackup, saveSessionBackup } from "@/lib/sessionBackup";
 
 interface AuthUser {
   id: number;
@@ -19,6 +22,7 @@ interface AuthUser {
   schoolId?: number | null;
   totalPoints?: number;
   loginCount?: number;
+  mustChangePassword?: boolean;
 }
 
 type AdminPreviewMode = "regular" | "eye-gaze" | null;
@@ -31,7 +35,9 @@ interface AuthContextType {
   exitAdminPreview: () => void;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; independent?: boolean; directorySchool?: string }) => Promise<void>;
+  /** Redeems a one-use code from arisereader.com (teachers, parents, LifeHub accounts, the administrator). */
+  completeAdminHandoff: (code: string) => Promise<AuthUser>;
+  register: (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   refreshUser: () => Promise<void>;
@@ -42,10 +48,14 @@ const COOKIE_NAME = "arise_session";
 const SAMPLE_SESSION_KEY = "arise_sample_session";
 const SAMPLE_USERNAMES = new Set(["sample", "tutorial-eye", "sample-parent"]);
 
+// Stays signed in until they sign out. (Safari trims cookies written by a page to a week; the copy in
+// storage, see lib/sessionBackup.ts, brings the sign-in back when that happens.)
+const SESSION_DAYS = 180;
+
 function setCookie(name: string, value: string, days: number) {
   const d = new Date();
   d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = name + "=" + value + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
+  document.cookie = name + "=" + value + ";expires=" + d.toUTCString() + ";max-age=" + days * 24 * 60 * 60 + ";path=/;SameSite=Lax";
 }
 function getCookie(name: string): string | null {
   const cookies = document.cookie.split(";");
@@ -70,26 +80,37 @@ function decodeSession(raw: string): any {
 function saveSessionCookie(user: AuthUser | null, token: string | null) {
   if (user && token) {
     const data = encodeSession({ user, token });
-    setCookie(COOKIE_NAME, data, 7);
-  } else deleteCookie(COOKIE_NAME);
+    setCookie(COOKIE_NAME, data, SESSION_DAYS);
+    if (SAMPLE_USERNAMES.has(user.username)) clearSessionBackup(); else saveSessionBackup(data);
+  } else {
+    deleteCookie(COOKIE_NAME);
+    clearSessionBackup();
+  }
 }
 function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
   try {
-    const raw = getCookie(COOKIE_NAME);
+    // The cookie first; if the phone dropped it, the copy kept in storage (and the cookie is put back).
+    let raw = getCookie(COOKIE_NAME);
+    let fromBackup = false;
+    if (!raw) { raw = readSessionBackup(); fromBackup = !!raw; }
     if (!raw) return { user: null, token: null };
-    const data = decodeSession(raw);
+    let data: any;
+    try { data = decodeSession(raw); } catch { clearSessionBackup(); throw new Error("unreadable sign-in"); }
     if (typeof data.user?.username === "string" && SAMPLE_USERNAMES.has(data.user.username)) {
       deleteCookie(COOKIE_NAME);
+      clearSessionBackup();
       sessionStorage.removeItem(SAMPLE_SESSION_KEY);
       return { user: null, token: null };
     }
+    if (!data.token || !data.user) { if (fromBackup) clearSessionBackup(); return { user: null, token: null }; }
+    if (fromBackup) setCookie(COOKIE_NAME, raw, SESSION_DAYS);
     return { user: data.user || null, token: data.token || null };
   } catch {
     return { user: null, token: null };
   }
 }
 
-// Pages outside the app (Arise Social at /social/, Arise Math at /math/, Arise History at /history/) send people here to sign in or sign up,
+// Pages outside the app (A.R.I.S.E. Connect at /social/, Arise Math at /math/, Arise History at /history/) send people here to sign in or sign up,
 // and ask to be taken back afterwards. Only known pages are allowed, so this can't be used to send someone elsewhere.
 const RETURN_KEY = "arise_return_to";
 const RETURN_PAGES = new Set(["/social/", "/math/", "/history/"]);
@@ -108,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
   const [isLoading, setIsLoading] = useState(!!sessionRef.current.token);
   const [sessionValidated, setSessionValidated] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
   const [adminPreviewMode, setAdminPreviewMode] = useState<AdminPreviewMode>(() => {
     if (typeof window === "undefined") return null;
     const saved = sessionStorage.getItem("arise_admin_preview_mode");
@@ -135,9 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!rawUrl.includes("/api/")) return originalFetch(input, init);
       const headers = new Headers(input instanceof Request ? input.headers : undefined);
       new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-      // The preview header goes on every call except "who am I", which must keep
-      // answering with the admin account (the preview is layered on top here).
-      if (user.isAdmin && !/\/api\/me(?:[?#]|$)/.test(rawUrl)) {
+      // The preview header goes on every call except "who am I" (which must keep
+      // answering with the admin account — the preview is layered on top here) and
+      // the admin console / Arise WorkHub's own APIs. Those are the admin's own
+      // tools, never "preview as a student" territory — sending the header there
+      // would silently demote the admin to a student server-side and lock them
+      // out of Settings, banners, and the rest of the admin console with no
+      // visible error, which is exactly the bug this guards against.
+      const isAdminOrHubApi = /\/api\/(admin\/|teacher-hub\/)/.test(rawUrl);
+      if (user.isAdmin && !isAdminOrHubApi && !/\/api\/me(?:[?#]|$)/.test(rawUrl)) {
         const previewMode = sessionStorage.getItem("arise_admin_preview_mode");
         if (previewMode === "regular" || previewMode === "eye-gaze") headers.set("X-ARISE-Admin-Preview", previewMode);
       }
@@ -149,6 +177,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }) as typeof window.fetch;
     return () => { window.fetch = originalFetch; };
   }, [user?.id, user?.role, user?.isAdmin]);
+
+  // The installed app asks the browser to keep its storage, so the sign-in survives a force-close.
+  useEffect(() => { if (user) keepStorage(); }, [user?.id]);
 
   const persistSession = useCallback((u: AuthUser | null, t: string | null) => {
     sessionRef.current = { user: u, token: t };
@@ -174,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!sessionRef.current.token || sessionValidated) return;
+    let cancelled = false;
     setIsLoading(true);
     fetch(`${API_BASE}/api/me`, {
       headers: { Authorization: `Bearer ${sessionRef.current.token}` },
@@ -184,20 +216,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // hiccup keeps the sign-in they have, so opening the app in a school with poor Wi-Fi doesn't log them out.
         if (res.status === 401 || res.status === 403) {
           setUser(null); setToken(null); persistSession(null, null);
-          return null;
+          return { ok: true as const, userData: null };
         }
-        return res.ok ? res.json() : null;
+        if (!res.ok) return { ok: false as const, userData: null };
+        return res.json().then(userData => ({ ok: true as const, userData }));
       })
-      .then(userData => {
+      .then(({ ok, userData }) => {
+        if (cancelled) return;
         if (userData) {
           setUser(userData);
           sessionRef.current.user = userData;
           persistSession(userData, sessionRef.current.token);
         }
+        setIsLoading(false);
+        if (ok) {
+          // A real answer came back (signed out, or a fresh user object): this is
+          // settled, no need to check again this tab.
+          setSessionValidated(true);
+        } else {
+          // The server answered but something was wrong server-side (a 500, a
+          // flaky proxy) — try again shortly rather than running for the rest of
+          // this tab's life on whatever was cached in the sign-in cookie, which
+          // is exactly what let a stale isAdmin/role silently hide admin-only
+          // pages until the next full reload. Bumping retryTick re-triggers this
+          // effect even though sessionValidated is already false.
+          window.setTimeout(() => { if (!cancelled) setRetryTick((t) => t + 1); }, 15000);
+        }
       })
-      .catch(() => { /* offline or too slow to answer: keep the saved sign-in */ })
-      .finally(() => { setIsLoading(false); setSessionValidated(true); });
-  }, [persistSession, sessionValidated]);
+      .catch(() => {
+        // Offline or too slow to answer: keep the saved sign-in, but keep trying —
+        // see the comment above for why giving up permanently here is the bug.
+        if (cancelled) return;
+        setIsLoading(false);
+        window.setTimeout(() => { if (!cancelled) setRetryTick((t) => t + 1); }, 15000);
+      });
+    return () => { cancelled = true; };
+  }, [persistSession, sessionValidated, retryTick]);
 
   useEffect(() => {
     if (user && user.schoolId) {
@@ -218,6 +272,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
+    // A fresh sign-in must not inherit a previous administrator preview session.
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    setAdminPreviewMode(null);
     persistSession(null, null);
     const res = await fetch(`${API_BASE}/api/login`, {
       method: "POST",
@@ -239,12 +296,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     returnIfAsked();
   }, [persistSession]);
 
-  const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; independent?: boolean; directorySchool?: string }) => {
+  // Redeem a one-use sign-in code on arisetodo.com. The code is never a session token.
+  const completeAdminHandoff = useCallback(async (code: string) => {
+    if (!/^[a-f0-9]{64}$/.test(code)) throw new Error("The sign-in link is invalid.");
+    const res = await fetch(`${API_BASE}/api/auth/admin-handoff/consume`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+      cache: "no-store",
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.message || "Could not complete sign-in.");
+    if (!isHubAccount(data?.user) || typeof data.token !== "string") {
+      throw new Error("We couldn't confirm your account. Please sign in again.");
+    }
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    setAdminPreviewMode(null);
+    sessionStorage.removeItem(SAMPLE_SESSION_KEY);
+    resetAuthenticatedNavigation(data.user);
+    persistSession(data.user, data.token);
+    return data.user as AuthUser;
+  }, [persistSession]);
+
+  const register = useCallback(async (username: string, password: string, displayName: string, isEyeGazeUser?: boolean, teacherId?: number | null, schoolId?: number | null, gradeLevel?: string, unlisted?: { schoolName?: string; teacherName?: string; directoryTeacherId?: string; independent?: boolean; directorySchool?: string; advisoryId?: string }) => {
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     const res = await fetch(`${API_BASE}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, displayName, isEyeGazeUser, teacherId, schoolId, gradeLevel, unlistedSchoolName: unlisted?.schoolName || undefined, unlistedTeacherName: unlisted?.teacherName || undefined, independent: unlisted?.independent || undefined, directorySchool: unlisted?.directorySchool || undefined }),
+      body: JSON.stringify({ username, password, displayName, isEyeGazeUser, teacherId, schoolId, gradeLevel, unlistedSchoolName: unlisted?.schoolName || undefined, unlistedTeacherName: unlisted?.teacherName || undefined, directoryTeacherId: unlisted?.directoryTeacherId || undefined, independent: unlisted?.independent || undefined, directorySchool: unlisted?.directorySchool || undefined, advisoryId: unlisted?.advisoryId || undefined }),
     });
     if (!res.ok) {
       const data = await res.json();
@@ -283,6 +362,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => {});
     }
     persistSession(null, null);
+    forgetStay(); // the next person starts on Home, not on this person's open note
     window.dispatchEvent(new Event("arise-logout"));
   }, [persistSession]);
 
@@ -331,6 +411,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       exitAdminPreview,
       token,
       login,
+      completeAdminHandoff,
       register,
       logout,
       isLoading,

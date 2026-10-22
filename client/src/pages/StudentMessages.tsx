@@ -32,9 +32,10 @@ interface Message {
   createdAt: string;
 }
 
-export default function StudentMessages() {
+/** A full page at /messages/:id, or (with `studentId` and `onClose`) a pop-up over the Reader. */
+export default function StudentMessages({ studentId: givenId, onClose }: { studentId?: string; onClose?: () => void } = {}) {
   const [match, params] = useRoute("/messages/:id");
-  const studentId = match ? params.id : null;
+  const studentId = givenId ?? (match ? params.id : null);
   const { token } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
@@ -112,19 +113,19 @@ export default function StudentMessages() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} flex items-center justify-center bg-background`}>
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`${onClose ? "min-h-[50vh]" : "min-h-screen"} bg-background`}>
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-4xl mx-auto px-4 flex items-center gap-3 h-16">
-          <Button variant="ghost" size="sm" onClick={() => window.location.hash = "/teacher-dashboard"}>
+          <Button variant="ghost" size="sm" onClick={() => (onClose ? onClose() : (window.location.hash = "/teacher-dashboard"))}>
             <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
+            <span>{onClose ? "Close" : "Back"}</span>
           </Button>
           <div className="flex-1 text-center">
             <h1 className="text-lg font-bold text-white">

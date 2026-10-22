@@ -57,7 +57,7 @@ export function AppleHealthPanel({ member, apple, say }: { member: Member; apple
     try { await removeHealthLink(token, member.id); apple.setLinks((l) => l.filter((x) => x.memberId !== member.id)); say("Apple Health disconnected"); }
     catch (e: any) { say(e.message); }
   };
-  return <Panel eyebrow="Apple Health" title={link ? "Connected" : "Connect your iPhone"} right={<HeartPulse size={18} className="text-rose-500" />}>
+  return <div data-plugin-anchor="apple-health"><Panel eyebrow="Apple Health" title={link ? "Connected" : "Connect your iPhone"} right={<HeartPulse size={18} className="text-rose-500" />}>
     {link ? <>
       <p className="text-sm text-slate-600">Steps, active calories and weight come in from Apple Health. <span className="font-semibold text-slate-700">{ago(link.lastSyncAt)}.</span></p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -71,7 +71,7 @@ export function AppleHealthPanel({ member, apple, say }: { member: Member; apple
     </>}
     {apple.error && <p className="mt-2 text-xs text-amber-700">{apple.error}</p>}
     {setup && <AppleSetup member={member} onClose={() => { setSetup(false); apple.check(); }} />}
-  </Panel>;
+  </Panel></div>;
 }
 
 function CopyField({ label, value }: { label: string; value: string }) {

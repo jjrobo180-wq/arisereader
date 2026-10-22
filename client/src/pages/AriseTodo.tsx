@@ -1,16 +1,87 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
-import { useLocation } from "wouter";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { useTodoCloud } from "@/lib/useTodoCloud";
-import AriseTodoSignIn from "./AriseTodoSignIn";
+import { useSavedChoice } from "@/lib/useSavedChoice";
+import { useBackToStart } from "@/lib/useBackToStart";
+import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
+
+import { goToReader, goToSignIn } from "@/lib/hubs";
 import {
-  ArrowLeft, CalendarDays, Check, CheckCircle2,
+  ArrowLeft, CalendarDays, Check, CheckCircle2, CheckSquare,
   Circle, Clock3, FileUp, FolderPlus, Heart, Home, ListTodo,
   Pencil, Plus, Repeat2, Search, Sparkles, Trash2, Users, X,
   Sun, CalendarClock, CheckCheck, Download, ShieldCheck, Cloud, CloudOff, LogOut, RefreshCw, AlertCircle,
-  CalendarRange, Smile, Vote, Bell, BookOpen, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
+  CalendarRange, Smile, Vote, Bell, BookOpen, Pill as PillIcon, Plane, Wallet, StickyNote, Settings2, Moon, Apple, Target, Droplets, SmilePlus, Newspaper,
+  ChevronUp, ChevronDown, MoreHorizontal, Save, NotebookPen, Hourglass, ShoppingCart, Wind, BookMarked, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2,
+  Puzzle,
+  ShoppingBag,
+  Folder as Folder, ChevronRight as ChevronRight,
+  Archive, ArchiveRestore,
+  Table, FolderOpen, QrCode,
+  Lock, Rocket,
 } from "lucide-react";
-import { cleanFamily, emptyFamily, isCurrentFamily, isOn, type Family, type FamilySection } from "@shared/familyHub";
+import Randomizer from "@/components/family-hub/Randomizer";
+import Relationships from "@/components/family-hub/Relationships";
+import Dictionary from "@/components/family-hub/Dictionary";
+import LinkPage from "@/components/family-hub/LinkPage";
+import LifePlanApp, { PLAN_FOCUS_KEY } from "@/components/family-hub/LifePlanApp";
+import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
+import { linksApi } from "@/lib/profileLinks";
+import StickyBoard from "@/components/family-hub/StickyBoard";
+import KitPlugin from "@/components/plugin-kit/KitPlugin";
+import { kitIcon } from "@/components/plugin-kit/kitIcons";
+import { KIT_DEFS, isKitLifeId, kitDef, type KitLifeId } from "@shared/pluginKit";
+import Allowance from "@/components/family-hub/Allowance";
+import GiftCards from "@/components/family-hub/GiftCards";
+import Ious from "@/components/family-hub/Ious";
+import KitchenTimers from "@/components/family-hub/KitchenTimers";
+import LoanCalculator from "@/components/family-hub/LoanCalculator";
+import MedicalInfo from "@/components/family-hub/MedicalInfo";
+import Mileage from "@/components/family-hub/Mileage";
+import Milestones from "@/components/family-hub/Milestones";
+import Routines from "@/components/family-hub/Routines";
+import SleepApp from "@/components/family-hub/sleep/SleepApp";
+import Warranties from "@/components/family-hub/Warranties";
+import WorkoutLog from "@/components/family-hub/WorkoutLog";
+import WorldClock from "@/components/family-hub/WorldClock";
+import { Coins as CoinsNav2, CreditCard as CreditCardNav2, Dumbbell as DumbbellNav2, Gauge as GaugeNav2, Globe as GlobeNav2, GraduationCap as GraduationCapNav2, Hammer as HammerNav2, HandCoins as HandCoinsNav2, Handshake as HandshakeNav2, Heart as HeartNav2, HeartPulse as HeartPulseNav2, Landmark as LandmarkNav2, ListChecks as ListChecksNav2, Moon as MoonNav2, ShieldCheck as ShieldCheckNav2, Sparkles as SparklesNav2, Star as StarNav2, Stethoscope as StethoscopeNav2, Timer as TimerNav2, Utensils as UtensilsNav2 } from "lucide-react";
+import Birthdays from "@/components/family-hub/Birthdays";
+import CareTracker from "@/components/family-hub/CareTracker";
+import Collection from "@/components/family-hub/Collection";
+import Contacts from "@/components/family-hub/Contacts";
+import Converter from "@/components/family-hub/Converter";
+import Focus from "@/components/family-hub/Focus";
+import Gratitude from "@/components/family-hub/Gratitude";
+import Habits from "@/components/family-hub/Habits";
+import MealPlanner from "@/components/family-hub/MealPlanner";
+import Recipes from "@/components/family-hub/Recipes";
+import SavingsJars from "@/components/family-hub/SavingsJars";
+import Subscriptions from "@/components/family-hub/Subscriptions";
+import TipCalculator from "@/components/family-hub/TipCalculator";
+import Weather from "@/components/family-hub/Weather";
+import { ArrowLeftRight as ArrowLeftRightNav, BookOpen as BookOpenNav, Cake as CakeNav, Calculator as CalculatorNav, Car as CarNav, ChefHat as ChefHatNav, CloudSun as CloudSunNav, CreditCard as CreditCardNav, Flower2 as Flower2Nav, Gift as GiftNav, Heart as HeartNav, Mountain as MountainNav, PawPrint as PawPrintNav, Phone as PhoneNav, PiggyBank as PiggyBankNav, Repeat as RepeatNav, Timer as TimerNav, Tv as TvNav, UtensilsCrossed as UtensilsCrossedNav, Wrench as WrenchNav } from "lucide-react";
+import Journal from "@/components/family-hub/Journal";
+import Countdowns from "@/components/family-hub/Countdowns";
+import Grocery from "@/components/family-hub/Grocery";
+import Meditate from "@/components/family-hub/Meditate";
+import Bible from "@/components/family-hub/Bible";
+import Quotes from "@/components/family-hub/Quotes";
+import TodayInHistory from "@/components/family-hub/TodayInHistory";
+import Trending from "@/components/family-hub/Trending";
+import PluginStore, { ICONS as STORE_ICONS } from "@/components/plugin-store/PluginStore";
+import { OPEN_STORE_KEY, driveAppPlugin, dropAppPlugin, isAddable, lifeInstalled, pluginsFor, notesAppPlugin, officeAppPlugin, pluginOpens, setKitInstalled, setLifeNotesApp, setLifePlugin, setLifeSheetsApp, sheetsAppPlugin, type Plugin } from "@shared/pluginStore";
+import OfficeApp from "@/components/office/OfficeApp";
+import { SHEETS, legacySheets } from "@/components/office/officeKinds";
+import DriveApp from "@/components/family-hub/DriveApp";
+import DropApp from "@/components/family-hub/DropApp";
+import { cleanSpreadsheets, type Spreadsheet } from "@shared/sheetsApp";
+import { cleanDriveFiles } from "@shared/driveApp";
+import NotesKitApp from "@/components/plugin-kit/NotesKitApp";
+import { LEARNING_APPS, LearningIcon, openLearning, useLearningAccess } from "@/components/hub-pieces/LearningApps";
+import { PlanCard, UpgradeHost, appsBlocked, appsFull, openUpgrade, useTodoPlan } from "@/components/hub-pieces/TodoPlan";
+import { appsIn, countsAsApp } from "@shared/todoPlan";
+import { cleanFamily, cleanSectionOrder, emptyFamily, FAMILY_SECTIONS, isCurrentFamily, isOn, orderedToggleable, TOGGLEABLE, ADD_ON_SECTIONS, type Family, type FamilySection } from "@shared/familyHub";
 import FamilyHome from "@/components/family-hub/FamilyHome";
 import Chores from "@/components/family-hub/Chores";
 import Behavior from "@/components/family-hub/Behavior";
@@ -23,28 +94,57 @@ import Notes from "@/components/family-hub/Notes";
 import Health from "@/components/family-hub/Health";
 import Goals from "@/components/family-hub/Goals";
 import Cycle from "@/components/family-hub/Cycle";
+import Pills from "@/components/family-hub/Pills";
+import { dosesOn } from "@shared/pills";
 import Mood from "@/components/family-hub/Mood";
 import News from "@/components/family-hub/News";
 import NotificationSettings from "@/components/family-hub/NotificationSettings";
 import { EmailForwardCard, useEmailInbox } from "@/components/family-hub/EmailForward";
 import Members, { SECTION_INFO } from "@/components/family-hub/Members";
-import { Avatar } from "@/components/family-hub/ui";
+import { LockButton, LockedApp, PrivacyLockProvider } from "@/components/lock/PrivacyLock";
+import GettingStarted from "@/components/GettingStarted";
+import SnoozeBar from "@/components/SnoozeBar";
+import { startingRole } from "@shared/gettingStarted";
+import { appLocked } from "@shared/privacyLock";
+import { Avatar, Modal } from "@/components/family-hub/ui";
+import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
+import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
+import { foldMenu } from "@shared/hubLayout";
+import { hubThemeOf } from "@shared/appThemes";
+import { tileColorOf } from "@/components/teacher-hub/HubHomeEdit";
+import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
+import { STORE_KIND } from "@shared/hubSearch";
+import { DailyBrief, useMorningBrief } from "@/components/DailyBrief";
+import { NotificationBell } from "@/components/NotificationBell";
+import { lifeAlerts } from "@shared/lifeAlerts";
+import { buildLifeBrief } from "@shared/dailyBrief";
+import { HubChat } from "@/components/HubChat";
+import { HOME_SIZES, MENU_CLOSES, MENU_SIDES, moveSection, pinId, resizeSection, showSection, sizeOf } from "@shared/hubLayout";
+import { LIFE_PARTS, cleanLifeLayout, type LifeLayout } from "@shared/lifeLayout";
 import HubSwitch from "@/components/HubSwitch";
+import { SupportBanner, SupportButton, SupportMenuItem } from "@/components/SupportArise";
+import { HeartHandshake as ParaTeamIcon } from "lucide-react";
+import HeaderShortcut from "@/components/HeaderShortcut";
+import HubMark from "@/components/HubMark";
 import { HubTrialNote } from "@/components/HubTrialNote";
 import { useLifeHubTrial } from "@/components/TodoGate";
 
-// The parent portal (A.R.I.S.E. Reader for families) lives in LifeHub for parent accounts.
-const ParentDashboard = lazy(() => import("./ParentDashboard"));
+// The parents' A.R.I.S.E. Reader tab, built from LifeHub parts (loaded when opened).
+const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
+import "./hubThemes.css";
+import "@/components/teacher-hub/darkPalette.css";
 
 type Priority = "low" | "normal" | "high";
 type Repeat = "none" | "daily" | "weekly" | "monthly";
-type View = "all" | "today" | "upcoming" | "completed";
+type View = "all" | "today" | "upcoming" | "completed" | "archived";
 type List = { id: string; name: string; color: string };
 type Task = {
   id: string; title: string; notes: string; listId: string; assignee: string;
   due: string; time: string; priority: Priority; repeat: Repeat;
   done: boolean; createdAt: string; completedAt?: string;
+  /** Tucked out of every list (including Completed) without being deleted. Can always be brought back. */
+  archived?: boolean;
 };
 // Version 2 adds the Family Hub beside the lists and tasks. Version 1 workspaces open as version 2.
 type Data = { version: 2; lists: List[]; tasks: Task[]; family: Family };
@@ -91,6 +191,7 @@ const validate = (value: unknown): Data => {
       done: item.done === true,
       createdAt: short(item.createdAt, 40) || new Date().toISOString(),
       completedAt: short(item.completedAt, 40) || undefined,
+      archived: item.archived === true,
     })).filter(item => item.title);
   return { version: 2, lists: uniqueLists, tasks: [...new Map(tasks.map(item => [item.id, item])).values()], family: cleanFamily(raw.family) };
 };
@@ -145,10 +246,17 @@ const upgrade = (value: Data | Record<string, unknown>): Data => {
   return next;
 };
 const SECTION_ICONS: Record<FamilySection, typeof Home> = {
-  home: Home, tasks: ListTodo, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen,
+  home: Home, tasks: ListTodo, start: Rocket, chores: Sparkles, calendar: CalendarRange, behavior: Smile, health: Apple, goals: Target, cycle: Droplets, mood: SmilePlus, news: Newspaper, notifications: Bell, reader: BookOpen, pills: PillIcon,
   polls: Vote, trips: Plane, money: Wallet, notes: StickyNote, family: Settings2,
+  journal: NotebookPen, countdowns: Hourglass, grocery: ShoppingCart, meditate: Wind, bible: BookMarked, quotes: Quote, history: History, trending: TrendingUp,
+  randomizer: Shuffle, relationships: HeartHandshake, dictionary: BookOpenText, links: Link2, lifeplan: Sparkles, linked: Users,
+  habits: RepeatNav, gratitude: HeartNav, focus: TimerNav, bucket: MountainNav, recipes: ChefHatNav, meals: UtensilsCrossedNav, upkeep: WrenchNav, plants: Flower2Nav, birthdays: CakeNav, gifts: GiftNav, pets: PawPrintNav, contacts: PhoneNav, subscriptions: CreditCardNav, jars: PiggyBankNav, tips: CalculatorNav, reading: BookOpenNav, watchlist: TvNav, weather: CloudSunNav, convert: ArrowLeftRightNav, car: CarNav,
+  wishlist: HeartNav2, restaurants: UtensilsNav2, learning: GraduationCapNav2, projects: HammerNav2, loans: HandshakeNav2, cleaning: SparklesNav2, checkups: StethoscopeNav2, sleep: MoonNav2, workouts: DumbbellNav2, routines: ListChecksNav2, milestones: StarNav2, ious: HandCoinsNav2, allowance: CoinsNav2, giftcards: CreditCardNav2, warranties: ShieldCheckNav2, mileage: GaugeNav2, mortgage: LandmarkNav2, clocks: GlobeNav2, timers: TimerNav2, medical: HeartPulseNav2,
+  ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => [d.id, kitIcon(d.icon)])) as Record<KitLifeId, typeof Home>),
 };
-const SECTION_ORDER: FamilySection[] = ["home", "reader", "tasks", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "notifications", "family"];
+// Home, Reader, Tasks, Notifications and Family & settings stay put; everything between
+// Tasks and Notifications is the family's own toggleable block, in the order they chose.
+const sectionOrderFor = (family: Family): FamilySection[] => ["home", "reader", "tasks", ...orderedToggleable(family), "linked", "notifications", "family"];
 const SECTION_KEY = "arise-todo-section";
 const NIGHT_KEY = "arise-todo-night";
 const nextDate = (due: string, repeat: Repeat): string => {
@@ -173,28 +281,106 @@ const prettyDate = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateSt
 const inputClass = "w-full min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100";
 const buttonClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500";
 
+/** An App Store app's own icon (a cloud and sun for Standby, a moon for Sleep Studio…), not a generic sparkle. */
+function OfficeAppIcon({ icon, className }: { icon: string; className?: string }) { const Icon = STORE_ICONS[icon] ?? Sparkles; return <Icon className={className} />; }
+
 export default function AriseTodo() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { user, token, logout } = useAuth();
+  const onTodoSite = /^(www\.)?arisetodo\.com$/i.test(window.location.hostname);
+  const goToSiteHome = () => onTodoSite ? window.location.assign("/") : navigate("/");
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
   const rawSet = sync.setWorkspace;
+  // A.R.I.S.E. To-Do Free: up to 3 App Store apps across LifeHub and WorkHub (shared/todoPlan.ts). A
+  // change that would add a 4th is held back here (so a save never fails over it), and the
+  // upgrade box opens, at most once every ten minutes so a background sync can't keep popping it.
+  const todoPlan = useTodoPlan();
+  const todoPlanRef = useRef(todoPlan);
+  todoPlanRef.current = todoPlan;
+  const upgradeShownAt = useRef(0);
   const setData = useCallback((next: Data | ((previous: Data) => Data)) => {
-    rawSet(previous => typeof next === "function" ? next(upgrade(previous)) : next);
+    rawSet(previous => {
+      const value = typeof next === "function" ? next(upgrade(previous)) : next;
+      const plan = todoPlanRef.current;
+      if ((value as unknown) === previous || !plan || plan.unlimited) return value;
+      if (!appsBlocked(plan, "life", appsIn("life", previous), appsIn("life", value))) return value;
+      if (Date.now() - upgradeShownAt.current > 10 * 60_000) { upgradeShownAt.current = Date.now(); queueMicrotask(() => openUpgrade("apps")); }
+      return previous;
+    });
   }, [rawSet]);
   const setFamily = useCallback((update: (family: Family) => Family) => {
     // Unchanged family (e.g. an Apple Health check with nothing new) is not saved again.
     setData(previous => { const family = update(previous.family); return family === previous.family ? previous : { ...previous, family }; });
   }, [setData]);
   const [section, setSectionState] = useState<FamilySection>(() => {
-    // Parents start on their A.R.I.S.E. Reader tab (the parent portal) until they pick another.
-    const first: FamilySection = user?.role === "parent" ? "reader" : "home";
-    try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && SECTION_ORDER.includes(saved) ? saved : first; } catch { return first; }
+    // The old parent dashboard address opens the Reader tab (see OpenHubTab in App.tsx).
+    try {
+      const requested = sessionStorage.getItem("lifehub_tab");
+      if (requested === "home" || requested === "reader") {
+        sessionStorage.removeItem("lifehub_tab");
+        return requested;
+      }
+    } catch { /* fine */ }
+    // Sign-in opens LifeHub Home with its Reader menu visible; the user can
+    // enter Reader from the navigation rather than losing the hub sidebar.
+    const first: FamilySection = "home";
+    try { const saved = localStorage.getItem(SECTION_KEY) as FamilySection | null; return saved && (FAMILY_SECTIONS as readonly string[]).includes(saved) ? saved : first; } catch { return first; }
   });
+  const [draggingSection, setDraggingSection] = useState<FamilySection | null>(null);
+  // The Arise App Store. It opens straight away when the person switched here from WorkHub's store.
+  const [store, setStore] = useState(() => { try { const on = sessionStorage.getItem(OPEN_STORE_KEY) === "1"; sessionStorage.removeItem(OPEN_STORE_KEY); return on; } catch { return false; } });
+  // Going back to the old parent dashboard address while LifeHub is open lands on the Reader tab.
+  useEffect(() => {
+    try { if (sessionStorage.getItem("lifehub_tab") === "reader") { sessionStorage.removeItem("lifehub_tab"); setSectionState("reader"); } } catch { /* fine */ }
+  }, [location]);
   const setSection = (next: FamilySection) => {
     setSectionState(next);
     try { localStorage.setItem(SECTION_KEY, next); } catch {}
     window.scrollTo({ top: 0 });
+  };
+  // A tapped AI Reminders phone notification opens "#/lifehub?plan=<id>": go to AI Reminders with that
+  // reminder picked out (LifePlanApp reads it), then tidy the address so a refresh doesn't do it again.
+  useEffect(() => {
+    const open = () => {
+      const m = /[?&]plan=([\w-]{1,40})/.exec(window.location.hash);
+      if (!m) return;
+      try { sessionStorage.setItem(PLAN_FOCUS_KEY, m[1]); } catch { /* it still opens AI Reminders */ }
+      setSection("lifeplan");
+      window.dispatchEvent(new Event("arise-lifeplan-focus"));
+      try { window.history.replaceState(null, "", window.location.hash.replace(/([?&])plan=[\w-]{1,40}&?/, "$1").replace(/[?&]$/, "")); } catch { /* fine */ }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
+  // A tapped reminder opens "#/lifehub?go=<section>[&view=today]" (shared/todoReminders.ts goUrl):
+  // straight to the screen it's about, then the address is tidied so a refresh doesn't do it again.
+  useEffect(() => {
+    const open = () => {
+      const hash = window.location.hash, q = hash.indexOf("?");
+      if (q < 0) return;
+      const params = new URLSearchParams(hash.slice(q + 1));
+      const go = params.get("go");
+      if (!go) return;
+      if ((FAMILY_SECTIONS as readonly string[]).includes(go)) {
+        closeApps();
+        setSection(go as FamilySection);
+        const v = params.get("view");
+        if (go === "tasks" && (v === "today" || v === "upcoming" || v === "all")) setView(v);
+      }
+      params.delete("go"); params.delete("view");
+      const rest = params.toString();
+      try { window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.slice(0, q)}${rest ? `?${rest}` : ""}`); } catch { /* fine */ }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Goes to Home and scrolls to one of its parts once it has rendered (a part that's hidden, e.g. not yet added, has nothing to scroll to). */
+  const goToHomePart = (id: string) => {
+    setSection("home");
+    window.setTimeout(() => document.querySelector(`[data-home-part="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
   };
   const [memberFilter, setMemberFilter] = useState("");
   // Forwarded emails become tasks in an "Email" list (made the first time one arrives).
@@ -231,10 +417,21 @@ export default function AriseTodo() {
     return old.tasks.length || old.lists.some(list => !DEFAULT_LISTS.some(def => def.id === list.id && def.name === list.name)) ? old : null;
   });
   const [skipLegacy, setSkipLegacy] = useState(false);
-  const [selectedList, setSelectedList] = useState("all");
-  const [view, setView] = useState<View>("all");
+  // The list and view picked stay picked (on this device) until they're changed.
+  const [selectedList, setSelectedList] = useSavedChoice<string>("life-todo-list", "all");
+  const [view, setView] = useSavedChoice<View>("life-todo-view", "all", ["all", "today", "upcoming", "completed", "archived"]);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Task | null>(null);
+  // Refreshing with a to-do open opens it again once the lists have loaded.
+  const [openTaskId, setOpenTaskId] = useStayOnRefresh<string | null>("life-task", null);
+  const reopened = useRef(false);
+  useEffect(() => { if (reopened.current) setOpenTaskId(editing && data.tasks.some((t) => t.id === editing.id) ? editing.id : null); }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (reopened.current || !sync.loaded) return;
+    reopened.current = true;
+    const t = openTaskId ? data.tasks.find((x) => x.id === openTaskId) : undefined;
+    if (t) setEditing({ ...t });
+  }, [sync.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const [newListName, setNewListName] = useState("");
   const [addingList, setAddingList] = useState(false);
   const [message, setMessage] = useState("");
@@ -263,7 +460,7 @@ export default function AriseTodo() {
     await sync.flush();
     if (sync.view.kind !== "saved" && !window.confirm("Some changes may not have reached the cloud. Sign out anyway? A local safety copy is kept on this device.")) return;
     logout();
-    navigate("/lifehub");
+    goToSignIn();
   };
   useEffect(() => {
     if (!message) return;
@@ -271,23 +468,28 @@ export default function AriseTodo() {
     return () => window.clearTimeout(timeout);
   }, [message]);
 
-  const active = data.tasks.filter(task => !task.done);
+  const active = data.tasks.filter(task => !task.done && !task.archived);
   const countFor = (listId: string) => active.filter(task => task.listId === listId).length;
   const overdue = active.filter(task => task.due && task.due < currentDay);
   const dueToday = active.filter(task => task.due && task.due <= currentDay);
   const upcoming = active.filter(task => task.due && task.due > currentDay)
     .sort((a, b) => (a.due + a.time).localeCompare(b.due + b.time));
-  const completed = data.tasks.filter(task => task.done).length;
+  const completed = data.tasks.filter(task => task.done && !task.archived).length;
+  const archivedCount = data.tasks.filter(task => task.archived).length;
   const filtered = useMemo(() => data.tasks.filter(task => {
     if (selectedList !== "all" && task.listId !== selectedList) return false;
-    if (view === "completed" ? !task.done : task.done) return false;
-    if (view === "today" && (!task.due || task.due > currentDay)) return false;
-    if (view === "upcoming" && (!task.due || task.due <= currentDay)) return false;
+    if (view === "archived") { if (!task.archived) return false; }
+    else {
+      if (task.archived) return false;
+      if (view === "completed" ? !task.done : task.done) return false;
+      if (view === "today" && (!task.due || task.due > currentDay)) return false;
+      if (view === "upcoming" && (!task.due || task.due <= currentDay)) return false;
+    }
     if (memberFilter && task.assignee.trim().toLowerCase() !== memberFilter.toLowerCase()) return false;
     const q = search.trim().toLowerCase();
     return !q || [task.title, task.notes, task.assignee].some(text => text.toLowerCase().includes(q));
   }).sort((a, b) => {
-    if (view === "completed") return (b.completedAt || "").localeCompare(a.completedAt || "");
+    if (view === "completed" || view === "archived") return (b.completedAt || b.createdAt).localeCompare(a.completedAt || a.createdAt);
     if (a.due && b.due) return (a.due + a.time).localeCompare(b.due + b.time);
     if (a.due) return -1;
     if (b.due) return 1;
@@ -329,6 +531,15 @@ export default function AriseTodo() {
     setData(previous => ({ ...previous, tasks: previous.tasks.filter(item => item.id !== task.id) }));
     setEditing(null);
     setMessage("Task deleted");
+  };
+  const archiveTask = (task: Task) => {
+    setData(previous => ({ ...previous, tasks: previous.tasks.map(item => item.id === task.id ? { ...item, archived: true } : item) }));
+    setEditing(null);
+    setMessage("Task archived");
+  };
+  const unarchiveTask = (task: Task) => {
+    setData(previous => ({ ...previous, tasks: previous.tasks.map(item => item.id === task.id ? { ...item, archived: false } : item) }));
+    setMessage("Task restored");
   };
   const createList = (event: FormEvent) => {
     event.preventDefault();
@@ -388,60 +599,640 @@ export default function AriseTodo() {
     { id: "today", title: "Today", icon: Sun, count: dueToday.length },
     { id: "upcoming", title: "Upcoming", icon: CalendarClock, count: upcoming.length },
     { id: "completed", title: "Completed", icon: CheckCheck, count: completed },
+    { id: "archived", title: "Archived", icon: Archive, count: archivedCount },
   ];
 
   const family = data.family;
   const members = family.members;
   const memberByName = (name: string) => members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
   // The A.R.I.S.E. Reader tab is the parent portal, so only parents have it.
-  const sections = SECTION_ORDER.filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  const sections = sectionOrderFor(family).filter(id => isOn(id, family) && (id !== "reader" || user?.role === "parent"));
+  const installedSections = sections.filter((id) => ADD_ON_SECTIONS.includes(id));
+  const builtInSections = sections.filter((id) => !ADD_ON_SECTIONS.includes(id));
+  // Dragging (or, on a phone, the arrows) a menu item reorders it right where it sits.
+  // Home, Reader, Tasks, Notifications and Family & settings stay put.
+  const moveSectionBy = (id: FamilySection, dir: -1 | 1) => setFamily((f) => {
+    const current = cleanSectionOrder(f.sectionOrder);
+    const at = current.indexOf(id);
+    const to = at + dir;
+    if (at < 0 || to < 0 || to >= current.length) return f;
+    const next = [...current];
+    [next[at], next[to]] = [next[to], next[at]];
+    return { ...f, sectionOrder: next };
+  });
+  const moveSectionTo = (id: FamilySection, beforeId: FamilySection | null) => setFamily((f) => {
+    const current = cleanSectionOrder(f.sectionOrder).filter((s) => s !== id);
+    const at = beforeId && (TOGGLEABLE as readonly FamilySection[]).includes(beforeId) ? current.indexOf(beforeId) : current.length;
+    if (at < 0) return f;
+    current.splice(at, 0, id);
+    return { ...f, sectionOrder: current };
+  });
   const trial = useLifeHubTrial();
   const shown: FamilySection = sections.includes(section) ? section : "home";
-  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : 0;
+  // Doses still to take today show on the Pills tab.
+  const pillsDue = dosesOn(family, currentDay).filter((d) => !d.status).length;
+  // Linked profiles: invites waiting for this person to accept, shown as a badge and a note on Home.
+  const [linkInvites, setLinkInvites] = useState<{ ownerName: string }[]>([]);
+  useEffect(() => {
+    if (!token) return;
+    let live = true;
+    linksApi(token).list().then((r) => { if (live) setLinkInvites(r.withMe.filter((l) => l.status === "pending").map((l) => ({ ownerName: l.ownerName }))); }).catch(() => {});
+    return () => { live = false; };
+  }, [token, shown === "home" || shown === "linked"]);
+  const badge = (id: FamilySection) => id === "tasks" ? dueToday.length : id === "pills" ? pillsDue : id === "linked" ? linkInvites.length : 0;
+  // How the family arranged the hub (Customize): the phone menu and Home, the same choices as WorkHub.
+  // Installed Notes apps may be pinned to Home (see FamilyHome), so Customize keeps and names their tiles too.
+  const pinnableNotes = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  // Installed Sheets apps and Drive (App Store add-ons) may also be pinned to Home and need a
+  // menu entry, the same as a Notes-app install — see myNotesApps/phoneItems below.
+  const pinnableSheets = (family.sheetsInstalled ?? []).map((id) => sheetsAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const installedOffice = (family.sheetsInstalled ?? []).map((id) => officeAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const drivePlugin = family.driveInstalled ? driveAppPlugin("life") : undefined;
+  const dropPlugin = family.dropInstalled ? dropAppPlugin("life") : undefined;
+  /** Kit plugins added from WorkHub's shelf. LifeHub's own kits are sections, so these are only
+   *  the crossed-over ones; they open full-page like a Notes-app install. */
+  const myKits = (family.kitInstalled ?? []).map((k) => kitDef(k)).filter((d): d is NonNullable<ReturnType<typeof kitDef>> => !!d);
+  const pinnableApps = [...pinnableNotes, ...pinnableSheets, ...(drivePlugin ? [drivePlugin] : []), ...(dropPlugin ? [dropPlugin] : [])];
+  const layout = cleanLifeLayout(family.layout, pinnableApps.map((p) => p.id));
+  const setLayout = (next: LifeLayout) => setFamily((f) => ({ ...f, layout: next }));
+  // The current theme's structural feel, reused for the task list's row style below (see
+  // shared/appThemes.ts's HubTheme.homeLayout) — "cards" (today's) for Classic/Sunrise/Forest,
+  // a dense tap-chip wrap for Tile/Candy, bracketed text lines for Old Computer, and a quiet
+  // thin-divider list for Minimalist.
+  const taskLayout = hubThemeOf(layout.theme).homeLayout ?? "cards";
+  // The Tile theme is a Windows-Phone start screen: every app is a tile on Home, so there is no menu strip beside it.
+  const tileMode = taskLayout === "tiles";
+  const phone = usePhoneMenu(tileMode ? "drawer" : layout.menuSide, layout.menuClose);
+  // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
+  const dsk = shown === "tasks" ? "left" : tileMode ? "drawer" : layout.deskSide;
+  const deskAside = dsk === "drawer" ? "lg:hidden"
+    : dsk === "top" ? "lg:sticky lg:top-16 lg:z-30 lg:block lg:w-full"
+    : dsk === "compact" ? "lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:w-[76px] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r"
+    : `lg:sticky lg:top-16 lg:flex lg:h-[calc(100vh-4rem)] lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 xl:w-72 ${dsk === "right" ? "lg:border-l" : "lg:border-r"}`;
+  const [openFolders, setOpenFolders] = useState<string[]>([]);
+  // Search everything in LifeHub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
+  const [customizing, setCustomizing] = useState(false);
+  const [lockSettings, setLockSettings] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user && !family.briefOff);
+  /** Opening a menu section. Reading is a page of its own now (/reader), so that one leaves
+   *  LifeHub rather than switching section; everything else behaves as it always did. */
+  const goSection = (id: string) => {
+    if (id === "reader") { goToReader(); return; }
+    setSection(id as FamilySection);
+    window.scrollTo({ top: 0 });
+  };
+  // Built when search opens (it uses the menu, defined further down), so it never runs before that exists.
+  const buildSearchEntries = (): HubSearchEntry[] => {
+    if (!searching) return [];
+    const out: HubSearchEntry[] = [], f = family;
+    const dw = (d: string) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
+    // Apps: everything in the menu (sections and installed apps), with their icons, like a phone's search.
+    for (const it of phoneItems) out.push({ id: `s-${it.id}`, kind: "Section", title: it.label, icon: it.icon, color: it.color, open: it.onClick });
+    // Apps not added yet: under "In the App Store", opening straight on that app's page.
+    for (const p of pluginsFor("life", { teacher: user.role === "teacher" || !!user.isAdmin })) {
+      if (!isAddable(p) || lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)) continue;
+      const Icon = STORE_ICONS[p.icon] ?? kitIcon(p.icon);
+      out.push({ id: `store-${p.id}`, kind: STORE_KIND, title: p.name, sub: p.tagline, keywords: `${p.category} ${p.description}`.slice(0, 300), icon: <Icon />, color: p.color, open: () => { setStoreOpenApp(p.id); setStore(true); } });
+    }
+    // Only when the Daily Brief app is added (App Store), so searching can't open something removed.
+    if (!family.briefOff) out.push({ id: "brief", kind: "Section", title: "Daily Brief", sub: "Today at a glance", keywords: "morning summary today brief", icon: <Sun />, open: () => setBriefOpen(true) });
+    out.push({ id: "customize", kind: "Section", title: "Customize", sub: "Menu, folders and Home", keywords: "settings layout", icon: <Settings2 />, open: () => setCustomizing(true) });
+    out.push({ id: "passcode", kind: "Section", title: "Passcode & locks", sub: "Lock apps and notes", keywords: "lock passcode password privacy hide secure settings", icon: <Lock />, open: () => setLockSettings(true) });
+    out.push({ id: "store", kind: "Section", title: "App Store", keywords: "add plugins apps store", icon: <ShoppingBag />, open: () => setStore(true) });
+    for (const t of data.tasks) out.push({ id: t.id, kind: "Tasks", title: t.title, sub: [t.done ? "Done" : "", t.due && `Due ${dw(t.due)}`].filter(Boolean).join(" · "), keywords: t.notes, open: () => goSection("tasks") });
+    for (const e of f.events) out.push({ id: e.id, kind: "Calendar", title: e.title, sub: [dw(e.date), e.location].filter(Boolean).join(" · "), keywords: e.notes, open: () => goSection("calendar") });
+    for (const n of f.notes) out.push({ id: n.id, kind: "Notes", title: n.locked ? n.title || "Locked note" : n.title || n.body.slice(0, 60) || "Note", keywords: n.locked ? "" : n.body.slice(0, 400), open: () => goSection("notes") });
+    for (const m of f.members) out.push({ id: m.id, kind: "Family", title: m.name, sub: m.kind === "kid" ? "Kid" : "Adult", open: () => goSection("family") });
+    for (const r of f.recipes) out.push({ id: r.id, kind: "Recipes", title: r.title, sub: r.tags, keywords: r.ingredients.join(" "), open: () => goSection("recipes") });
+    for (const g of f.groceries) out.push({ id: g.id, kind: "Grocery list", title: g.name, sub: [g.qty, g.aisle, g.checked ? "In the cart" : ""].filter(Boolean).join(" · "), open: () => goSection("grocery") });
+    for (const m of f.meals) out.push({ id: m.id, kind: "Meals", title: m.text || f.recipes.find((r) => r.id === m.recipeId)?.title || "Meal", sub: `${dw(m.date)} · ${m.slot}`, open: () => goSection("meals") });
+    for (const c of f.contacts) out.push({ id: c.id, kind: "Contacts", title: c.name, sub: [c.role, c.phone].filter(Boolean).join(" · "), keywords: `${c.email} ${c.note}`, open: () => goSection("contacts") });
+    for (const b of f.birthdays) out.push({ id: b.id, kind: "Birthdays", title: b.name, sub: `${b.month}/${b.day}`, open: () => goSection("birthdays") });
+    for (const b of f.bills) out.push({ id: b.id, kind: "Bills", title: b.name, sub: `$${b.amount.toFixed(2)} · due the ${b.dueDay}`, keywords: b.category, open: () => goSection("money") });
+    for (const c of f.chores) out.push({ id: c.id, kind: "Chores", title: c.title, open: () => goSection("chores") });
+    for (const j of f.journal) out.push({ id: j.id, kind: "Journal", title: j.title || dw(j.date), sub: dw(j.date), keywords: j.body.slice(0, 300), open: () => goSection("journal") });
+    for (const c of f.countdowns) out.push({ id: c.id, kind: "Countdowns", title: c.title, sub: dw(c.date), open: () => goSection("countdowns") });
+    for (const t of f.trips) out.push({ id: t.id, kind: "Trips", title: t.name || "Trip", sub: [t.destination, dw(t.start)].filter(Boolean).join(" · "), open: () => goSection("trips") });
+    return out;
+  };
+  const [storeOpenApp, setStoreOpenApp] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
+  /** A Notes-app install (see shared/notesApp.ts; e.g. Work Notes, added from the App Store) open
+   *  full-page, by its App Store plugin id. Not a FamilySection, so it sits alongside `section`. */
+  const [notesAppOpen, setNotesAppOpenState] = useStayOnRefresh<string | null>("life-notes-app", null);
+  const setNotesAppOpen = (id: string | null) => { setNotesAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
+  /** Notes-app plugins this family added from the Store that aren't built into LifeHub. */
+  const myNotesApps = pinnableNotes;
+  const setNotesAppRecords = (pid: string, update: (all: Family["notesApps"][string]) => Family["notesApps"][string]) =>
+    setFamily((f) => ({ ...f, notesApps: { ...f.notesApps, [pid]: update(f.notesApps[pid] ?? []) } }));
+  /** Sheets, Drive, and Drop (App Store add-ons) open full-page, the same way a Notes-app install does. */
+  const [sheetsAppOpen, setSheetsAppOpenState] = useStayOnRefresh<string | null>("life-sheets-app", null);
+  const setSheetsAppOpen = (id: string | null) => { setSheetsAppOpenState(id); if (id) window.scrollTo({ top: 0 }); };
+  const [driveOpen, setDriveOpenState] = useStayOnRefresh("life-drive", false);
+  const setDriveOpen = (on: boolean) => { setDriveOpenState(on); if (on) window.scrollTo({ top: 0 }); };
+  const [dropOpen, setDropOpenState] = useStayOnRefresh("life-drop", false);
+  const setDropOpen = (on: boolean) => { setDropOpenState(on); if (on) window.scrollTo({ top: 0 }); };
+  /** A Kit plugin added from WorkHub's shelf (App Store), open full-page. LifeHub's own kit plugins
+   *  are menu sections; these crossed-over ones work like a Notes-app install. */
+  const [kitOpen, setKitOpenState] = useStayOnRefresh<string | null>("life-kit", null);
+  const setKitOpen = (id: string | null) => { setKitOpenState(id); if (id) window.scrollTo({ top: 0 }); };
+  /** The floating add menu (bottom right), the same idea as WorkHub's: one button that adds
+   *  anything, instead of a + wedged into the header beside the search, bell and ⋯ buttons. */
+  const [addMenu, setAddMenu] = useState(false);
+  const addRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!addMenu) return;
+    const away = (e: MouseEvent) => { if (addRef.current && !addRef.current.contains(e.target as Node)) setAddMenu(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAddMenu(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [addMenu]);
+  /** Leaves whatever full-page app is open. Every nav entry calls this before opening its own, so
+   *  one more app can never leave a stale one showing — which is what made tapping Home while Drop
+   *  was open look like a frozen screen. */
+  const closeApps = () => { setNotesAppOpenState(null); setSheetsAppOpenState(null); setDriveOpenState(false); setDropOpenState(false); setKitOpenState(null); };
+  // Tile theme: anything open on top of the start screen (a section, an app, the store) is "away" from Start.
+  // The Start button, the phone's back button and the edge swipe all return to Home.
+  const awayFromStart = tileMode && (shown !== "home" || !!notesAppOpen || !!sheetsAppOpen || driveOpen || dropOpen || !!kitOpen || store);
+  const backToStart = useBackToStart(awayFromStart, () => { closeApps(); setStore(false); setSection("home"); });
+  // The guided tour (WorkHubTour) opens real sections as it goes so each step points at the
+  // actual screen; it asks with this event.
+  useEffect(() => {
+    const open = (e: Event) => {
+      const want = (e as CustomEvent<{ section?: string }>).detail?.section as FamilySection | undefined;
+      if (!want || !sectionOrderFor(family).includes(want)) return;
+      closeApps();
+      setCustomizing(false);
+      setSection(want);
+      phone.setRail(true);
+    };
+    window.addEventListener("arise-tour:open", open);
+    return () => window.removeEventListener("arise-tour:open", open);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+  const sheets = useMemo(() => cleanSpreadsheets(family.sheets?.["life-sheets"]), [family.sheets]);
+  const setSheets = (update: (all: Spreadsheet[]) => Spreadsheet[]) =>
+    setFamily((f) => ({ ...f, sheets: { ...(f.sheets ?? {}), "life-sheets": update(cleanSpreadsheets((f.sheets ?? {})["life-sheets"])) } }));
+  const driveFiles = useMemo(() => cleanDriveFiles(family.drive), [family.drive]);
+  const setDriveFiles = (update: (all: ReturnType<typeof cleanDriveFiles>) => ReturnType<typeof cleanDriveFiles>) =>
+    setFamily((f) => ({ ...f, drive: update(cleanDriveFiles(f.drive)) }));
+  const learningAccess = useLearningAccess(token);
+  /** A program they don't have yet: a parent adds it on the Reader page (its Add-ons panel); anyone else, on the plan page. */
+  const getLearning = user?.role === "parent" ? () => {
+    closeApps(); setSection("reader");
+    window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+  } : undefined;
+  /** Arise Learning (Reader, Math, History, Connect) sits in LifeHub for parents. Teachers and admins have it in WorkHub. */
+  const learningHere = user?.role === "parent" && !user?.isAdmin;
+  /** A.R.I.S.E. Reader: a parent's own Reader page here; for a teacher or admin, their Reader in WorkHub. */
+  const readerHere = sections.includes("reader");
+  // A.R.I.S.E. Reader is its own page now (/reader), the same one for a parent and a teacher, so
+  // this no longer forks between a section here and a tab over in WorkHub.
+  const openReader = () => { closeApps(); goToReader(); };
+  const phoneItems: PhoneMenuItem[] = [
+    // Right below Home: A.R.I.S.E. Reader, then Arise Learning (Math, History, Connect), for everyone.
+    ...[...builtInSections, ...installedSections].filter((id) => id !== "reader").flatMap((id): PhoneMenuItem[] => { const Icon = SECTION_ICONS[id]; const item: PhoneMenuItem = { id, label: SECTION_INFO[id].label, icon: <Icon />, active: !notesAppOpen && shown === id, badge: badge(id), onClick: () => { closeApps(); goSection(id); } };
+      return id !== "home" || !learningHere ? [item] : [item,
+        { id: "reader", label: "Reader", icon: <BookOpen className="text-violet-700" />, active: !notesAppOpen && shown === "reader", color: "#6d28d9", onClick: openReader },
+        ...LEARNING_APPS.map((a) => ({ id: `learning-${a.id}`, label: a.short, icon: <a.icon className={a.text} />, active: false, color: a.color, onClick: () => openLearning(a.id, learningAccess[a.id], getLearning) }))]; }),
+    ...myNotesApps.map((p) => ({ id: `notes-app-${p.id}`, label: p.name, icon: <StickyNote />, active: notesAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setNotesAppOpen(p.id); } })),
+    ...pinnableSheets.map((p) => ({ id: `sheets-app-${p.id}`, label: p.name, icon: <Table />, active: sheetsAppOpen === p.id, color: p.color, onClick: () => { closeApps(); setSheetsAppOpen(p.id); } })),
+    ...installedOffice.map((p) => ({ id: `office-app-${p.id}`, label: p.name, icon: <OfficeAppIcon icon={p.icon} />, active: false, color: p.color, onClick: () => { closeApps(); if (p.target.kind === "officeApp") window.location.hash = p.target.href; } })),
+    { id: "arise-office", label: "Office", icon: <Table />, active: false, color: "#4f46e5", onClick: () => { window.location.hash = "#/office"; } },
+    { id: "arise-ai-apps", label: "AI Apps", icon: <Sparkles />, active: false, color: "#7c3aed", onClick: () => { window.location.hash = "#/ai-apps"; } },
+    ...(drivePlugin ? [{ id: "drive-app", label: drivePlugin.name, icon: <FolderOpen />, active: driveOpen, color: drivePlugin.color, onClick: () => { closeApps(); setDriveOpen(true); } }] : []),
+    ...(dropPlugin ? [{ id: "drop-app", label: dropPlugin.name, icon: <QrCode />, active: dropOpen, color: dropPlugin.color, onClick: () => { closeApps(); setDropOpen(true); } }] : []),
+    ...myKits.map((d) => ({ id: `kit-${d.id}`, label: d.name, icon: <Puzzle />, active: kitOpen === d.id, color: d.color, onClick: () => { closeApps(); setKitOpen(d.id); } })),
+    // The App Store sits in the phone menu and the app drawer, not tucked away in the ⋯ menu.
+    { id: "app-store", label: "App Store", icon: <ShoppingBag />, active: false, color: "#6a55dc", onClick: () => setStore(true) },
+  ];
+  // Passcode lock (components/lock/PrivacyLock.tsx): which app is open, and the apps that can be locked.
+  const openAppId = notesAppOpen ? `notes-app-${notesAppOpen}` : sheetsAppOpen ? `sheets-app-${sheetsAppOpen}` : driveOpen ? "drive-app" : dropOpen ? "drop-app" : kitOpen ? `kit-${kitOpen}` : shown;
+  const openAppName = phoneItems.find((i) => i.id === openAppId)?.label ?? SECTION_INFO[shown]?.label ?? "This app";
+  const lockableApps = phoneItems.filter((i) => i.id !== "home" && i.id !== "app-store" && !/^(arise-|learning-|office-app-)/.test(i.id)).map((i) => ({ id: i.id, label: i.label }));
   const makeId = uid;
   const calendarTasks = data.tasks.map(task => ({ id: task.id, title: task.title, due: task.due, time: task.time, assignee: task.assignee, done: task.done }));
   const common = { family, setFamily, today: currentDay, makeId, say: setMessage };
-  const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} />
+  // Where the Getting started page's buttons go (components/GettingStarted.tsx).
+  const guideCanOpen = (t: string) => ["customize", "store", "search", "passcode", "notifications"].includes(t)
+    || (t === "reader" ? sections.includes("reader") : (FAMILY_SECTIONS as readonly string[]).includes(t) && t !== "start");
+  const guideOpen = (t: string) => {
+    if (t === "customize") setCustomizing(true);
+    else if (t === "store") setStore(true);
+    else if (t === "search") setSearching(true);
+    else if (t === "passcode") setLockSettings(true);
+    else if (t === "reader") { closeApps(); setSection("reader"); }
+    else if (sections.includes(t as FamilySection)) { closeApps(); goSection(t); }
+    // An app they haven't added yet: its page in the App Store, ready to add.
+    else { setStoreOpenApp(`life-${t}`); setStore(true); }
+  };
+  const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
+    : shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
+        onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the App Store."); }} />
     : shown === "chores" ? <Chores {...common} />
     : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
     : shown === "behavior" ? <Behavior {...common} />
     : shown === "health" ? <Health {...common} />
     : shown === "goals" ? <Goals {...common} />
     : shown === "cycle" ? <Cycle {...common} />
+    : shown === "pills" ? <Pills {...common} />
     : shown === "mood" ? <Mood {...common} />
     : shown === "news" ? <News {...common} />
     : shown === "notifications" ? <NotificationSettings {...common} />
-    : shown === "reader" ? <Suspense fallback={<div className="grid min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><ParentDashboard embedded /></Suspense>
+    : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
     : shown === "polls" ? <Polls {...common} />
     : shown === "trips" ? <Trips {...common} />
     : shown === "money" ? <Money {...common} />
     : shown === "notes" ? <Notes {...common} />
+    : shown === "journal" ? <Journal {...common} />
+    : shown === "countdowns" ? <Countdowns {...common} />
+    : shown === "grocery" ? <Grocery {...common} />
+    : shown === "meditate" ? <Meditate {...common} />
+    : shown === "bible" ? <Bible {...common} />
+    : shown === "quotes" ? <Quotes {...common} />
+    : shown === "history" ? <TodayInHistory {...common} />
+    : shown === "trending" ? <Trending {...common} />
+    : shown === "randomizer" ? <Randomizer {...common} />
+    : shown === "relationships" ? <Relationships {...common} />
+    : shown === "dictionary" ? <Dictionary {...common} />
+    : shown === "links" ? <LinkPage {...common} />
+    : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
+    : shown === "linked" ? <LinkedProfiles {...common} />
+    : shown === "habits" ? <Habits {...common} />
+    : shown === "gratitude" ? <Gratitude {...common} />
+    : shown === "focus" ? <Focus {...common} />
+    : shown === "bucket" ? <Collection kind="bucket" {...common} />
+    : shown === "recipes" ? <Recipes {...common} />
+    : shown === "meals" ? <MealPlanner {...common} />
+    : shown === "upkeep" ? <CareTracker kind="upkeep" {...common} />
+    : shown === "plants" ? <CareTracker kind="plants" {...common} />
+    : shown === "birthdays" ? <Birthdays {...common} />
+    : shown === "gifts" ? <Collection kind="gifts" {...common} />
+    : shown === "pets" ? <CareTracker kind="pets" {...common} />
+    : shown === "contacts" ? <Contacts {...common} />
+    : shown === "subscriptions" ? <Subscriptions {...common} />
+    : shown === "jars" ? <SavingsJars {...common} />
+    : shown === "tips" ? <TipCalculator {...common} />
+    : shown === "reading" ? <Collection kind="reading" {...common} />
+    : shown === "watchlist" ? <Collection kind="watchlist" {...common} />
+    : shown === "weather" ? <Weather {...common} />
+    : shown === "convert" ? <Converter {...common} />
+    : shown === "car" ? <CareTracker kind="car" {...common} />
+    : shown === "wishlist" ? <Collection kind="wishlist" {...common} />
+    : shown === "restaurants" ? <Collection kind="restaurants" {...common} />
+    : shown === "learning" ? <Collection kind="learning" {...common} />
+    : shown === "projects" ? <Collection kind="projects" {...common} />
+    : shown === "loans" ? <Collection kind="loans" {...common} />
+    : shown === "cleaning" ? <CareTracker kind="cleaning" {...common} />
+    : shown === "checkups" ? <CareTracker kind="checkups" {...common} />
+    : shown === "sleep" ? <SleepApp {...common} />
+    : shown === "workouts" ? <WorkoutLog {...common} />
+    : shown === "routines" ? <Routines {...common} />
+    : shown === "milestones" ? <Milestones {...common} />
+    : shown === "ious" ? <Ious {...common} />
+    : shown === "allowance" ? <Allowance {...common} />
+    : shown === "giftcards" ? <GiftCards {...common} />
+    : shown === "warranties" ? <Warranties {...common} />
+    : shown === "mileage" ? <Mileage {...common} />
+    : shown === "mortgage" ? <LoanCalculator {...common} />
+    : shown === "clocks" ? <WorldClock {...common} />
+    : shown === "timers" ? <KitchenTimers {...common} />
+    : shown === "medical" ? <MedicalInfo {...common} />
     : shown === "family" ? <Members {...common} />
+    : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
 
-  if (!user) return <AriseTodoSignIn />;
+  // Signed-out visitors always use the unified sign-in and account creation page.
+  if (!user) return <Redirect to="/signin" replace />;
   if (!sync.loaded) return <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#f6f7fc] px-4 text-center text-slate-800">
     {sync.error ? <><CloudOff size={40} className="text-rose-500" /><h1 className="text-2xl font-black">We couldn't open your saved LifeHub lists.</h1><p className="max-w-md text-sm text-slate-600">{sync.error}</p><button onClick={sync.retry} className={buttonClass + " bg-violet-700 px-6 text-white"}><RefreshCw size={17} /> Try again</button><button onClick={() => void signOut()} className="text-sm font-bold text-slate-500">Switch account</button></> : <><RefreshCw className="animate-spin text-violet-600" size={34} /><p className="text-sm font-semibold text-slate-600">Opening your tasks from your account…</p></>}
   </div>;
   const saveStatus = sync.view.kind === "saved" ? "Saved to account" : sync.view.kind === "waiting" ? "Saving soon…" : sync.view.kind === "saving" ? "Saving to cloud…" : sync.view.kind === "retrying" ? "Waiting for connection…" : "Needs your attention";
 
-  return <div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""}`}>
-    <div className="flex min-h-screen w-full flex-col lg:flex-row">
-      <aside className="w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-72">
-        <div className="flex items-center justify-between gap-2 px-5 py-5 lg:px-6 lg:py-7">
-          <button onClick={() => navigate("/")} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to A.R.I.S.E. Reader">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#6d5ce7] text-white shadow-[0_5px_14px_#6d5ce72b]"><CheckCheck className="h-5 w-5" /></span>
-            <span className="min-w-0"><span className="block text-xs font-extrabold tracking-[.16em] text-[#7e76aa]">ARISE</span><span className="block text-xl font-black tracking-tight">LifeHub<span className="text-[#7968e5]">.</span></span></span>
-          </button>
-          <div className="flex items-center gap-2 lg:hidden"><button onClick={() => setSection("notifications")} aria-current={shown === "notifications" ? "page" : undefined} className={`flex h-10 w-10 items-center justify-center rounded-xl ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-slate-50 text-slate-600"}`} aria-label="Notification settings"><Bell size={20} /></button><button onClick={openAdd} className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6854cf]" aria-label="Add task"><Plus /></button></div>
+  /** Arise Learning, right below Home: A.R.I.S.E. Reader, then Math, History and Connect, each in its own color. */
+  const lifeLearning = <div className={dsk === "top" ? "flex shrink-0 items-center gap-1" : "pb-1 pt-2"} data-testid="life-learning">
+    {dsk !== "top" && dsk !== "compact" && <div className="flex items-center gap-2 px-1 pb-1.5 pt-1">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Arise Learning</span>
+      <span className="h-px flex-1 bg-gradient-to-r from-sky-300 via-amber-300 to-pink-300" aria-hidden />
+    </div>}
+    <div className={dsk === "top" ? "flex items-center gap-1" : "space-y-0.5"}>
+      <button type="button" onClick={openReader} aria-current={shown === "reader" ? "page" : undefined} data-testid="life-section-reader" title="A.R.I.S.E. Reader"
+        className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold transition ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""} ${shown === "reader" ? "bg-violet-50 text-violet-900" : "text-slate-700 hover:bg-slate-50 hover:text-slate-950"}`}>
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm" style={{ background: "linear-gradient(135deg, #6d28d9, #6d28d9cc)" }}><BookOpen className="h-4 w-4" /></span>
+        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>A.R.I.S.E. Reader</span>
+      </button>
+      {LEARNING_APPS.map((a) => {
+        const has = learningAccess[a.id];
+        return <button key={a.id} type="button" onClick={() => openLearning(a.id, has, getLearning)} data-testid={`life-learning-${a.id}`} title={has ? `Open ${a.label}` : `${a.label}: add it from your plan page`}
+          className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
+          <LearningIcon id={a.id} />
+          <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>{a.label}</span>
+          {!has && dsk !== "compact" && <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: a.soft, color: a.color }}>Add-on</span>}
+        </button>;
+      })}
+      {/* Para Team (pages/ParaTeam.tsx): paras and 1:1s often have a LifeHub account, so it's here too. */}
+      <button type="button" onClick={() => { window.location.hash = "/para-team"; }} data-testid="life-para-team" title="Para Team"
+        className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-700 text-white shadow-sm"><ParaTeamIcon className="h-4 w-4" /></span>
+        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>Para Team</span>
+      </button>
+      <SupportMenuItem isAdmin={user.isAdmin} testId="life-support"
+        className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50 ${dsk === "top" ? "" : "w-full"} ${dsk === "compact" ? "justify-center" : ""}`}>
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-600 text-white shadow-sm"><HeartNav className="h-4 w-4 fill-current" /></span>
+        <span className={`min-w-0 flex-1 truncate ${dsk === "compact" ? "sr-only" : ""}`}>Support A.R.I.S.E.</span>
+      </SupportMenuItem>
+    </div>
+  </div>;
+  /** One sidebar renderer for built-in navigation and installed App Store sections.
+   *  Store apps stay out of the built-in list, even if a saved folder previously mixed them. */
+  const renderSectionItems = (ids: FamilySection[], useFolders: boolean) => <>
+    {foldMenu(ids.filter((id) => id !== "reader").map((id) => ({ id })), useFolders ? layout.folders : []).filter((entry) => entry.kind === "item" || entry.items.length > 0 || entry.folder.items.length === 0).flatMap((entry) => {
+            if (entry.kind === "item") return [entry.item.id];
+            const f = entry.folder, here = entry.items.some((x) => x.id === shown), open = openFolders.includes(f.id) || here;
+            return [<button key={`folder-${f.id}`} type="button" onClick={() => setOpenFolders((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} aria-expanded={open} data-testid={`life-folder-${f.id}`}
+              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${here ? "text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+              <Folder className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{f.name}</span><ChevronRight className={`ml-auto h-4 w-4 transition ${open ? "rotate-90" : ""} ${dsk === "compact" ? "lg:hidden" : ""}`} />
+            </button>, ...(open ? entry.items.map((x) => `nested:${x.id}`) : [])];
+          }).map((raw, i) => {
+            if (typeof raw !== "string") return raw;
+            const nested = raw.startsWith("nested:"), id = (nested ? raw.slice(7) : raw) as FamilySection;
+            const Icon = SECTION_ICONS[id];
+            const movable = (TOGGLEABLE as readonly FamilySection[]).includes(id);
+            const toggleableShown = sections.filter((s) => (TOGGLEABLE as readonly FamilySection[]).includes(s));
+            const posInToggleable = toggleableShown.indexOf(id);
+            const el = (
+              <div
+                key={id}
+                draggable={movable}
+                onDragStart={movable ? (e) => { setDraggingSection(id); e.dataTransfer.effectAllowed = "move"; } : undefined}
+                onDragEnd={movable ? () => setDraggingSection(null) : undefined}
+                onDragOver={movable && draggingSection && draggingSection !== id ? (e) => e.preventDefault() : undefined}
+                onDrop={movable && draggingSection && draggingSection !== id ? (e) => { e.preventDefault(); moveSectionTo(draggingSection, id); setDraggingSection(null); } : undefined}
+                className={`group/navitem flex shrink-0 items-stretch gap-0.5 rounded-xl transition ${dsk === "top" ? "" : "lg:w-full"} ${nested && dsk !== "top" && dsk !== "compact" ? "lg:pl-4" : ""} ${draggingSection === id ? "opacity-40" : ""}`}
+              >
+                <button
+                  onClick={() => { closeApps(); goSection(id); }}
+                  aria-current={shown === id ? "page" : undefined}
+                  data-testid={`life-section-${id}`}
+                  className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm ${dsk === "top" ? "" : "lg:w-full"} ${dsk === "compact" ? "lg:justify-center lg:px-0" : ""} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}
+                >
+                  <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className={`whitespace-nowrap ${dsk === "compact" ? "lg:sr-only" : ""}`}>{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}
+                </button>
+                {movable && (
+                  <span className={`hidden shrink-0 flex-col justify-center opacity-0 transition group-hover/navitem:opacity-100 focus-within:opacity-100 ${dsk === "left" || dsk === "right" ? "lg:flex" : ""}`}>
+                    <button type="button" onClick={() => moveSectionBy(id, -1)} disabled={posInToggleable <= 0} aria-label={`Move ${SECTION_INFO[id].label} up`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveSectionBy(id, 1)} disabled={posInToggleable >= toggleableShown.length - 1} aria-label={`Move ${SECTION_INFO[id].label} down`} className="flex h-[18px] w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><ChevronDown className="h-3 w-3" /></button>
+                  </span>
+                )}
+              </div>
+            );
+            // Right below Home: A.R.I.S.E. Reader and the Arise Learning programs.
+            // Parents get Arise Learning here; teachers and admins have it in WorkHub instead.
+            return id === "home" && learningHere ? <Fragment key="home-and-learning">{el}{lifeLearning}</Fragment> : el;
+          })}
+  </>;
+  return <PrivacyLockProvider lock={family.lock} setLock={(lock) => setFamily((f) => ({ ...f, lock }))} apps={lockableApps} settings={lockSettings} onSettings={setLockSettings}><div className={`min-h-screen bg-[#f6f7fc] text-slate-900 ${night ? "todo-night" : ""} ${layout.theme && layout.theme !== "classic" ? `hub-theme-${layout.theme}` : ""}`}>
+    <UpgradeHost hub="life" />
+    {store && <PluginStore
+      hub="life"
+      initialOpen={storeOpenApp ?? undefined}
+      night={night}
+      teacher={user.role === "teacher" || !!user.isAdmin}
+      isInstalled={(p: Plugin) => lifeInstalled(p, family, family.notesInstalled, family.sheetsInstalled)}
+      kit={{ records: family.kit, setRecords: (update) => setFamily((f) => ({ ...f, kit: update(f.kit) })), today: currentDay, makeId }}
+      onToggle={(p: Plugin, on: boolean) => {
+        // Free has room for 3 App Store apps (across both hubs): a 4th opens the upgrade box instead.
+        if (on && countsAsApp("life", p) && appsFull(todoPlan, "life", appsIn("life", data))) { openUpgrade("apps"); return; }
+        // A Kit plugin from WorkHub's shelf. LifeHub's own kits are sections and fall through to
+        // setLifePlugin below, the same as before.
+        if (p.target.kind === "kit") {
+          const kitId = p.target.id;
+          setFamily((f) => ({ ...f, kitInstalled: setKitInstalled(f.kitInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (kitOpen === kitId) setKitOpen(null);
+          return;
+        }
+        if (p.target.kind === "notesApp") {
+          setFamily((f) => ({ ...f, notesInstalled: setLifeNotesApp(f.notesInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (notesAppOpen === p.target.id) setNotesAppOpen(null);
+          return;
+        }
+        if (p.target.kind === "sheetsApp" || p.target.kind === "officeApp") {
+          setFamily((f) => ({ ...f, sheetsInstalled: setLifeSheetsApp(f.sheetsInstalled, p, on) }));
+          if (on) setMessage(`${p.name} added. Find it in your menu.`);
+          else if (p.target.kind === "sheetsApp" && sheetsAppOpen === p.target.id) setSheetsAppOpen(null);
+          return;
+        }
+        setFamily((f) => setLifePlugin(f, p, on));
+        if (p.target.kind === "driveApp" && !on) setDriveOpen(false);
+        if (p.target.kind === "dropApp" && !on) setDropOpen(false);
+        // A widget (like the Widgets board) is a part of Home, not its own section: adding it
+        // should land you looking at it, the same as tapping Open does below, not leave you to
+        // go find it yourself.
+        if (p.target.kind === "widget" && p.target.widget === "board" && on) {
+          setMessage("Widgets added to Home. Tap Add widget to pick your first one.");
+          setStore(false);
+          goToHomePart("widgets");
+        }
+      }}
+      onOpen={(p: Plugin) => {
+        const at = pluginOpens(p);
+        if (at && "section" in at) setSection(at.section);
+        if (p.target.kind === "brief") { setBriefOpen(true); setStore(false); return; }
+        if (p.target.kind === "sheetsApp") { setSheetsAppOpen(p.target.id); setStore(false); return; }
+        if (p.target.kind === "officeApp") { setStore(false); window.location.hash = p.target.href; return; }
+        if (p.target.kind === "driveApp") { setDriveOpen(true); setStore(false); return; }
+        if (p.target.kind === "dropApp") { setDropOpen(true); setStore(false); return; }
+        if (p.target.kind === "kit") { closeApps(); setKitOpen(p.target.id); setStore(false); return; }
+        if (p.target.kind === "assistantPro") { setStore(false); navigate("/billing"); return; }
+        // A widget's "section" is really Home, so land on its own part there once it has rendered,
+        // instead of just the top of a Home that might be long.
+        if (p.target.kind === "widget" && p.target.widget === "board") goToHomePart("widgets");
+        setStore(false);
+        if (p.target.kind === "assistant") setMessage("Tap the ✦ button at the bottom right to chat.");
+      }}
+      onClose={() => { setStore(false); setStoreOpenApp(null); }}
+      notesApp={{
+        notes: family.notesApps,
+        setNotes: setNotesAppRecords,
+        makeId,
+      }}
+    />}
+    {customizing && <Modal title="Customize" eyebrow="LifeHub" onClose={() => setCustomizing(false)} wide>
+      <div className="space-y-6" data-testid="life-customize-panel">
+        <PlanCard hub="life" hubApps={appsIn("life", data)} />
+        <button type="button" onClick={() => { setCustomizing(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100" data-testid="life-take-tour">Take the tour again</button>
+        <section>
+          <h3 className="text-sm font-black text-slate-900">Menu on your phone</h3>
+          <p className="mb-3 mt-1 text-sm text-slate-500">Where it sits, and how it closes. The computer menu has its own choices below.</p>
+          <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
+            {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); phone.setRail(true); }} data-testid={`life-menu-side-${o.id}`}
+              className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${layout.menuSide === o.id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{o.label}</button>)}
+          </div>
+          {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p>
+            : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
+              {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); phone.setRail(true); }} data-testid={`life-menu-close-${o.id}`}
+                className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-[#292446] bg-slate-50" : "border-slate-200 bg-white"}`}>
+                <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-[#292446]" : "border-slate-300"}`} aria-hidden />
+                <span><span className="block font-bold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
+              </button>)}
+            </div>}
+        </section>
+        <DeskSidePicker layout={layout} setLayout={setLayout} />
+        <ThemePicker layout={layout} setLayout={setLayout} />
+        <FolderEditor layout={layout} setLayout={setLayout} makeId={makeId} items={sections.filter((x) => x !== "home").map((x) => ({ id: x, label: SECTION_INFO[x].label }))} />
+        <section>
+          <h3 className="text-sm font-black text-slate-900">Home screen</h3>
+          <p className="mb-3 mt-1 text-sm text-slate-500">Turn parts on or off, move them, and pick a size. You can also press and hold Home itself to drag things around.</p>
+          <ul className="space-y-1.5" aria-label="Parts of Home">
+            {layout.home.map((id, i) => {
+              const on = !layout.homeHidden.includes(id), part = LIFE_PARTS.find((x) => x.id === id) ?? { id, label: pinnableApps.find((p) => pinId(p.id) === id)?.name ?? id }, sz = sizeOf(layout, id);
+              return <li key={id} className={`flex min-h-11 flex-wrap items-center gap-2 rounded-xl border px-2 py-1 ${on ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50"}`} data-testid={`life-home-part-${id}`}>
+                <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-1 text-sm"><input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={(e) => setLayout(showSection(layout, id, e.target.checked))} /><span className={on ? "font-semibold text-slate-900" : "text-slate-500"}>{part.label}</span></label>
+                <span className="flex rounded-full bg-slate-100 p-0.5" role="radiogroup" aria-label={`Size of ${part.label}`}>{HOME_SIZES.map((z) => <button key={z.id} type="button" role="radio" aria-checked={sz === z.id} aria-label={z.label} onClick={() => setLayout(resizeSection(layout, id, z.id))} className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${sz === z.id ? "bg-[#292446] text-white" : "text-slate-600"}`}>{z.short}</button>)}</span>
+                <button type="button" onClick={() => setLayout(moveSection(layout, id, -1))} disabled={i === 0} aria-label={`Move ${part.label} up`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronUp size={16} /></button>
+                <button type="button" onClick={() => setLayout(moveSection(layout, id, 1))} disabled={i === layout.home.length - 1} aria-label={`Move ${part.label} down`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronDown size={16} /></button>
+              </li>;
+            })}
+          </ul>
+          <button type="button" onClick={() => setLayout({ ...layout, home: LIFE_PARTS.map((x) => x.id), homeHidden: family.widgets.board ? [] : ["widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
+        </section>
+        <section className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+          <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><ShoppingBag size={16} /> App Store</button>
+          <button type="button" onClick={() => { setCustomizing(false); setSection("family"); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200"><Settings2 size={16} /> Sections, family and settings</button>
+        </section>
+      </div>
+    </Modal>}
+    {/* The same header as WorkHub: the hub on the left, everything you do to it on the right. */}
+    <header className="sticky top-0 z-40 h-16 border-b border-[#e4e6f0] bg-white/95 backdrop-blur" data-testid="life-header">
+      <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
+        <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
+          <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
+          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">To Do</span>
+        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
+          {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
+          <div className={layout.shortcut ? "contents" : "hidden sm:contents"}>
+          <HeaderShortcut shortcut={layout.shortcut} choices={phoneItems} say={setMessage}
+            onChange={(next) => setFamily((f) => { const { shortcut: _old, ...rest } = f.layout ?? layout; return { ...f, layout: next ? { ...rest, shortcut: next } : rest }; })} />
+          </div>
+          <HubSearchButton onOpen={() => setSearching(true)} />
+          <span role="status" className={`hidden items-center gap-2 rounded-full px-3 py-2 text-xs font-bold sm:inline-flex ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={14} /> : sync.view.kind === "blocked" ? <AlertCircle size={14} /> : <RefreshCw size={14} />}{saveStatus}</span>
+          <NotificationBell
+            extraItems={lifeAlerts(family, calendarTasks, currentDay, Date.now(), pillsDue)}
+            onNavigate={(type) => { if (type.startsWith("life:")) setSection(type.slice(5) as FamilySection); else navigate(user.isAdmin ? "/admin" : "/profile"); }}
+            onSettings={() => setSection("notifications")}
+            triggerClassName={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 ${shown === "notifications" ? "bg-[#292446] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`} />
+          <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex">{night ? <Sun size={16} /> : <Moon size={16} />}</button>
+          <button onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="lifehub-plugin-store-header"><ShoppingBag size={16} /> <span className="hidden lg:inline">App Store</span></button>
+          <LockButton className="hidden sm:inline-flex" />
+          <button onClick={() => setCustomizing(true)} aria-label="Customize your LifeHub" className="hidden h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:inline-flex" data-testid="life-customize"><Settings2 size={16} /> <span className="hidden lg:inline">Customize</span></button>
+          <button onClick={() => void signOut()} aria-label="Sign out" title="Sign out" className="hidden h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 sm:inline-flex"><LogOut size={16} /></button>
+          <div className="relative sm:hidden">
+            <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700" data-testid="life-more"><MoreHorizontal size={20} /></button>
+            {more && <>
+              <div className="fixed inset-0 z-40" onClick={() => setMore(false)} aria-hidden />
+              <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                <div role="status" className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-600">{sync.view.kind === "saved" ? <CheckCircle2 size={16} className="text-emerald-600" /> : sync.view.kind === "blocked" ? <AlertCircle size={16} className="text-rose-600" /> : <Save size={16} />}{saveStatus}</div>
+                <button type="button" role="menuitem" onClick={() => { toggleNight(); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">{night ? <Sun size={16} /> : <Moon size={16} />}{night ? "Day mode" : "Night mode"}</button>
+                <button type="button" role="menuitem" onClick={() => { setLockSettings(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50" data-testid="life-more-lock"><Lock size={16} />Passcode & locks</button>
+                <button type="button" role="menuitem" onClick={() => { setCustomizing(true); setMore(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><Settings2 size={16} />Customize</button>
+                <button type="button" role="menuitem" onClick={() => void signOut()} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"><LogOut size={16} />Sign out</button>
+              </div>
+            </>}
+          </div>
         </div>
-        <nav aria-label="Family Hub" className="flex gap-1 overflow-x-auto px-4 pb-3 [scrollbar-width:none] lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 [&::-webkit-scrollbar]:hidden">
-          {sections.map(id => { const Icon = SECTION_ICONS[id]; return <button key={id} onClick={() => setSection(id)} aria-current={shown === id ? "page" : undefined} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${shown === id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-[18px] w-[18px]" /><span className="whitespace-nowrap">{SECTION_INFO[id].label}</span>{badge(id) > 0 && <span className={`ml-auto rounded-lg px-1.5 text-xs font-semibold ${shown === id ? "text-white/70" : "opacity-65"}`}>{badge(id)}</span>}</button>; })}
+      </div>
+    </header>
+    {family.widgets.chat && <HubChat hub="life" token={token} accent="bg-[#7968e5]" lift raiseRem={layout.menuSide === "bottom" && phone.open ? 4.9 : 0} />}
+    {searching && <HubSearch entries={buildSearchEntries()} hubName="LifeHub" accent="bg-[#292446]" onClose={() => setSearching(false)} />}
+    {/* One floating button that adds anything, mirroring WorkHub. It sits clear of the phone menu
+        when that menu is along the bottom or the right, so it never covers the menu's own buttons. */}
+    <div ref={addRef} className={`fixed z-50 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom))] lg:right-4 ${layout.menuSide === "bottom" && phone.open ? "bottom-[calc(env(safe-area-inset-bottom,0px)+4.9rem)]" : "bottom-[max(1.25rem,env(safe-area-inset-bottom))]"} ${layout.menuSide === "right" && phone.open ? "right-[88px]" : "right-4"}`}>
+      {addMenu && (
+        <div role="menu" aria-label="Add to your To Do" data-testid="life-add-menu"
+          className="absolute bottom-[calc(100%+0.6rem)] right-0 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {[
+            { key: "task", label: "Task", detail: "", icon: <CheckSquare size={16} />, go: openAdd },
+            { key: "list", label: "List", detail: "A new list of tasks", icon: <FolderPlus size={16} />, go: () => setAddingList(true) },
+            { key: "calendar", label: "Event", detail: "", icon: <CalendarDays size={16} />, go: () => goSection("calendar"), section: "calendar" },
+            { key: "grocery", label: "Grocery item", detail: "", icon: <ShoppingCart size={16} />, go: () => goSection("grocery"), section: "grocery" },
+            { key: "notes", label: "Note", detail: "", icon: <StickyNote size={16} />, go: () => goSection("notes"), section: "notes" },
+            { key: "money", label: "Bill or expense", detail: "", icon: <Wallet size={16} />, go: () => goSection("money"), section: "money" },
+          ].filter((item) => !item.section || sections.includes(item.section as FamilySection)).map((item) => (
+            <button key={item.key} type="button" role="menuitem" data-testid={`life-add-${item.key}`}
+              onClick={() => { setAddMenu(false); closeApps(); item.go(); }}
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <span className="text-slate-500">{item.icon}</span>
+              <span className="min-w-0">
+                <span className="block truncate">{item.label}</span>
+                {item.detail && <span className="block truncate text-xs text-slate-500">{item.detail}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <button type="button" onClick={() => setAddMenu((v) => !v)} aria-haspopup="menu" aria-expanded={addMenu}
+        aria-label="Add to your To Do" data-testid="life-add-button"
+        className="inline-flex h-14 items-center gap-2 rounded-full bg-[#6e5ae0] px-5 text-base font-semibold text-white shadow-lg transition hover:bg-[#5948c8]">
+        <Plus className={`h-5 w-5 transition-transform ${addMenu ? "rotate-45" : ""}`} size={20} /> Add
+      </button>
+    </div>
+    {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
+    {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-testid="life-start-back"
+      className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
+    <PhoneMenu items={phoneItems} side={tileMode ? "drawer" : layout.menuSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />
+    <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
+      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside}`}>
+        <nav aria-label="Family Hub" className={`hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
+          {renderSectionItems(builtInSections, true)}
+
         </nav>
+        {(installedSections.length > 0 || pinnableApps.length > 0 || installedOffice.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 lg:block ${dsk === "top" ? "lg:border-t lg:border-slate-100" : ""}`} data-testid="lifehub-my-apps">
+          <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
+          <div className={`space-y-0.5 ${dsk === "top" ? "lg:flex lg:flex-wrap lg:items-center lg:gap-1" : ""}`}>
+            {renderSectionItems(installedSections, false)}
+            {myNotesApps.map((p) => (
+              <button key={`notes-app-${p.id}`} type="button" onClick={() => { closeApps(); setNotesAppOpen(p.id); }} aria-current={notesAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-notes-app-${p.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${notesAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <StickyNote className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
+              </button>
+            ))}
+            {installedOffice.map((p) => <a key={p.id} href={p.target.kind === "officeApp" ? p.target.href : "#/lifehub"} data-testid={`lifehub-office-app-${p.id}`} className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-indigo-700"><OfficeAppIcon icon={p.icon} className="h-4 w-4 shrink-0" /><span className="truncate">{p.name}</span></a>)}
+            {pinnableSheets.map((p) => (
+              <button key={`sheets-app-${p.id}`} type="button" onClick={() => { closeApps(); setSheetsAppOpen(p.id); }} aria-current={sheetsAppOpen === p.id ? "page" : undefined} data-testid={`lifehub-sheets-app-${p.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${sheetsAppOpen === p.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <Table className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{p.name}</span>
+              </button>
+            ))}
+            {drivePlugin && (
+              <button type="button" onClick={() => { closeApps(); setDriveOpen(true); }} aria-current={driveOpen ? "page" : undefined} data-testid="lifehub-drive-app"
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${driveOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <FolderOpen className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{drivePlugin.name}</span>
+              </button>
+            )}
+            {dropPlugin && (
+              <button type="button" onClick={() => { closeApps(); setDropOpen(true); }} aria-current={dropOpen ? "page" : undefined} data-testid="lifehub-drop-app"
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${dropOpen ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <QrCode className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{dropPlugin.name}</span>
+              </button>
+            )}
+            {myKits.map((d) => (
+              <button key={`kit-${d.id}`} type="button" onClick={() => { closeApps(); setKitOpen(d.id); }} aria-current={kitOpen === d.id ? "page" : undefined} data-testid={`lifehub-kit-${d.id}`}
+                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:text-sm ${kitOpen === d.id ? "bg-[#292446] text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                <Puzzle className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span className="whitespace-nowrap">{d.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>}
+        <div className={`hidden px-3 pt-2 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
         <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0">
-          {viewTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} onClick={() => setView(tab.id)} className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-bold transition lg:w-full ${view === tab.id ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-[18px] w-[18px]" /><span>{tab.title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{tab.count}</span></button>; })}
+          {viewTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} onClick={() => setView(tab.id)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm lg:w-full ${view === tab.id ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span>{tab.title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{tab.count}</span></button>; })}
         </div>
         <div className="hidden px-6 pb-3 pt-8 lg:flex lg:items-center lg:justify-between"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus size={18} /></button></div>
         <div className="flex gap-2 overflow-x-auto px-4 pb-4 lg:block lg:space-y-0.5 lg:px-3">
@@ -451,30 +1242,23 @@ export default function AriseTodo() {
         </div>
         {addingList && <form onSubmit={createList} className="mx-4 mb-4 flex gap-2 lg:mx-5"><input className={inputClass + " min-w-0"} value={newListName} autoFocus maxLength={60} onChange={e => setNewListName(e.target.value)} placeholder="List name" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check size={18} /></button><button type="button" onClick={() => { setAddingList(false); setNewListName(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X size={18} /></button></form>}
         </>}
-        <div className="mt-auto hidden px-5 pb-7 pt-6 lg:block">
+        <div className={`mt-auto hidden px-5 pb-7 pt-6 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <div className="rounded-2xl bg-[#f4f1ff] p-4">
             <div className="mb-2 inline-flex rounded-xl bg-white p-2 text-[#715fe3]"><Heart size={18} /></div>
             <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">Tasks, chores, calendars, plans and bills for the whole family in one simple space.</p>
           </div>
-          <button onClick={() => navigate("/")} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> Back to A.R.I.S.E. Reader</button>
+          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to A.R.I.S.E. To-Do" : "Back to A.R.I.S.E. Reader"}</button>
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-4 pb-12 pt-6 sm:px-7 lg:px-9 lg:pt-10 xl:px-12">
+      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
           {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
             <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
           </header>}
 
-          <div className={`flex flex-wrap items-center gap-3 text-sm ${shown === "tasks" ? "" : "mb-6 justify-end"}`}>
-            {(user.role === "teacher" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
-            <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 font-bold text-slate-600 ring-1 ring-slate-200"><Users size={15} /> {user.displayName || user.username}</span>
-            <span role="status" className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold ${sync.view.kind === "saved" ? "bg-emerald-50 text-emerald-700" : sync.view.kind === "blocked" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{sync.view.kind === "saved" ? <Cloud size={15} /> : <RefreshCw size={15} />}{saveStatus}</span>
-            <button onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white px-3 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:text-violet-700">{night ? <Sun size={15} /> : <Moon size={15} />}<span className="hidden sm:inline">{night ? "Day mode" : "Night mode"}</span></button>
-            <button onClick={() => void signOut()} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold text-slate-500 hover:bg-white hover:text-rose-600"><LogOut size={15} /> Sign out</button>
-          </div>
           {sync.view.kind === "retrying" && <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800"><CloudOff size={18} /> Connection interrupted. Your changes are kept on this device and will be retried. <button className="underline" onClick={sync.retry}>Retry now</button></div>}
           {sync.view.kind === "blocked" && <section className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert">
             <div className="flex items-center gap-2"><AlertCircle size={18} /><strong>{sync.view.block === "conflict" ? "Tasks changed on another device" : "Cloud save needs attention"}</strong></div>
@@ -493,10 +1277,48 @@ export default function AriseTodo() {
             <div className="mt-3 flex flex-wrap gap-2"><button onClick={importOldTasks} className={buttonClass + " bg-indigo-700 text-white"}>Add old tasks to my account</button><button onClick={dismissLegacy} className={buttonClass + " bg-white text-indigo-700 ring-1 ring-indigo-200"}>Not now</button></div>
           </section>}
 
+          <SnoozeBar />
           {message && <div role="status" className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[600] w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl bg-[#292446] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_18px_40px_#16152a40]">{message}</div>}
           <div className="mt-4"><HubTrialNote trial={trial} which="life" upgradeHref="#/billing" onUpgrade={user.role === "parent" ? () => { setSection("reader"); window.setTimeout(() => document.getElementById("parent-plans")?.scrollIntoView({ behavior: "smooth" }), 600); } : undefined} /></div>
-          {shown !== "tasks" && <div className="mt-2">{familyContent}</div>}
-          {shown === "tasks" && <>
+          <LockedApp locked={appLocked(family.lock, openAppId)} name={openAppName}>
+          {notesAppOpen && notesAppPlugin("life", notesAppOpen) && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setNotesAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <NotesKitApp key={notesAppOpen} name={notesAppPlugin("life", notesAppOpen)!.name} blurb={notesAppPlugin("life", notesAppOpen)!.description}
+              notes={family.notesApps[notesAppOpen] ?? []} setNotes={(update) => setNotesAppRecords(notesAppOpen, update)} makeId={makeId} say={setMessage} />
+          </div>}
+          {sheetsAppOpen && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setSheetsAppOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <OfficeApp config={SHEETS} legacy={legacySheets(sheets, (sid) => setSheets((all) => all.filter((x) => x.id !== sid)))} say={setMessage} />
+          </div>}
+          {driveOpen && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setDriveOpen(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <DriveApp files={driveFiles} setFiles={setDriveFiles} say={setMessage} token={token} />
+          </div>}
+          {dropOpen && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setDropOpen(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <DropApp say={setMessage} token={token} />
+          </div>}
+          {kitOpen && kitDef(kitOpen) && <div className="mt-2 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setKitOpen(null)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"><ArrowLeft size={16} /> Back</button>
+              <button type="button" onClick={() => setStore(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><ShoppingBag size={16} /> App Store</button>
+            </div>
+            <KitPlugin key={kitOpen} def={kitDef(kitOpen)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
+          </div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
+          {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
           <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
             {[
@@ -507,7 +1329,7 @@ export default function AriseTodo() {
             ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 shadow-[0_3px_16px_#17152b08] sm:p-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">{stat.label}</span><span className={`rounded-xl p-2 ${stat.bg} ${stat.tint}`}><Icon size={17} /></span></div><p className="text-3xl font-black text-[#242238]">{stat.count}</p></div>; })}
           </div>
 
-          <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
             <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{selectedName}</p><h2 className="mt-1 text-xl font-black">{viewTabs.find(tab => tab.id === view)?.title}</h2></div>
@@ -518,12 +1340,23 @@ export default function AriseTodo() {
                 {members.map(m => <button key={m.id} onClick={() => setMemberFilter(memberFilter === m.name ? "" : m.name)} aria-pressed={memberFilter === m.name} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ring-1 bg-white text-slate-600 ring-slate-200" style={memberFilter === m.name ? { background: m.color, color: "#fff", boxShadow: `0 0 0 1px ${m.color}` } : undefined}><span>{m.emoji || "🙂"}</span>{m.name}<span className="opacity-70">{active.filter(t => t.assignee.trim().toLowerCase() === m.name.toLowerCase()).length}</span></button>)}
               </div>}
               <div className="relative mt-5"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks, notes, or names" aria-label="Search tasks" className={inputClass + " pl-10"} /></div>
-              <div className="mt-5 space-y-2">
+              <div className={
+                taskLayout === "terminal" ? "mt-5 space-y-0 border border-current/30 font-mono" :
+                taskLayout === "tiles" ? "mt-5 flex flex-wrap gap-2" :
+                "mt-5 space-y-2"
+              }>
                 {filtered.map(task => {
                   const list = data.lists.find(row => row.id === task.listId);
                   const late = !task.done && !!task.due && task.due < currentDay;
-                  return <div key={task.id} className="group flex min-w-0 items-start gap-3 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:p-4">
-                    <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={15} /></button>
+                  const rowClass =
+                    taskLayout === "terminal" ? "group flex min-w-0 items-start gap-3 border-b border-current/20 p-2.5 last:border-b-0" :
+                    taskLayout === "tiles" ? "group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-none border-2 border-black bg-white p-3 pl-4 sm:p-3.5 sm:pl-5" :
+                    "group flex min-w-0 items-start gap-3 rounded-2xl border border-[#ececf3] bg-white p-3 transition hover:border-violet-200 hover:bg-[#fcfbff] sm:p-4";
+                  return <div key={task.id} className={rowClass}>
+                    {taskLayout === "tiles" && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-2" style={{ background: list?.color || tileColorOf(task.id) }} />}
+                    {taskLayout === "terminal"
+                      ? <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className="mt-0.5 shrink-0 font-mono text-sm">[{task.done ? "x" : " "}]</button>
+                      : <button onClick={() => toggleDone(task)} aria-label={task.done ? `Reopen ${task.title}` : `Complete ${task.title}`} aria-pressed={task.done} className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition ${task.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-transparent hover:border-violet-500"}`}><Check size={15} /></button>}
                     <button onClick={() => setEditing({ ...task })} className="min-w-0 flex-1 text-left">
                       <p className={`break-words text-sm font-bold sm:text-base ${task.done ? "text-slate-400 line-through" : "text-slate-800"}`}>{task.title}</p>
                       {task.notes && <p className="mt-1 line-clamp-2 break-words text-xs leading-5 text-slate-500">{task.notes}</p>}
@@ -537,10 +1370,16 @@ export default function AriseTodo() {
                         {task.repeat !== "none" && <span className="inline-flex items-center gap-1 text-slate-400"><Repeat2 size={12} /> {task.repeat}</span>}
                       </div>
                     </button>
-                    <button onClick={() => setEditing({ ...task })} aria-label={`Edit ${task.title}`} className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Pencil size={16} /></button>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button onClick={() => setEditing({ ...task })} aria-label={`Edit ${task.title}`} title="Edit" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Pencil size={16} /></button>
+                      {task.archived
+                        ? <button onClick={() => unarchiveTask(task)} aria-label={`Restore ${task.title} from archive`} title="Restore" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><ArchiveRestore size={16} /></button>
+                        : <button onClick={() => archiveTask(task)} aria-label={`Archive ${task.title}`} title="Archive" className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-700"><Archive size={16} /></button>}
+                      <button onClick={() => removeTask(task)} aria-label={`Delete ${task.title}`} title="Delete" className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"><Trash2 size={16} /></button>
+                    </div>
                   </div>;
                 })}
-                {!filtered.length && <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center"><span className="rounded-2xl bg-violet-50 p-4 text-violet-600"><Sparkles size={26} /></span><p className="mt-4 text-lg font-extrabold">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : "A fresh start"}</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : "Add your first task and start planning your day."}</p><button onClick={openAdd} className={buttonClass + " mt-5 bg-violet-100 text-violet-700"}><Plus size={16} /> Add a task</button></div>}
+                {!filtered.length && <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center"><span className="rounded-2xl bg-violet-50 p-4 text-violet-600">{view === "archived" ? <Archive size={26} /> : <Sparkles size={26} />}</span><p className="mt-4 text-lg font-extrabold">{search ? "No matching tasks" : view === "completed" ? "Nothing completed yet" : view === "archived" ? "Nothing archived" : "A fresh start"}</p><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">{search ? "Try another search." : view === "today" ? "No tasks due today or overdue. Enjoy the breathing room." : view === "upcoming" ? "Nothing scheduled ahead yet." : view === "completed" ? "Finished tasks will appear here." : view === "archived" ? "Tasks you archive are tucked away here, and can always be brought back." : "Add your first task and start planning your day."}</p>{view !== "archived" && <button onClick={openAdd} className={buttonClass + " mt-5 bg-violet-100 text-violet-700"}><Plus size={16} /> Add a task</button>}</div>}
               </div>
               {selectedList !== "all" && !DEFAULT_LISTS.some(list => list.id === selectedList) && <button onClick={() => { const list = data.lists.find(item => item.id === selectedList); if (list) removeList(list); }} className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-rose-500 hover:underline"><Trash2 size={14} /> Delete this custom list</button>}
             </section>
@@ -564,21 +1403,22 @@ export default function AriseTodo() {
                 <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
               </section>
               <EmailForwardCard token={token} />
-              <button onClick={() => navigate("/")} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> A.R.I.S.E. Reader</button>
+              <button onClick={goToSiteHome} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> {onTodoSite ? "A.R.I.S.E. To-Do" : "A.R.I.S.E. Reader"}</button>
             </aside>
           </div>
           </>}
+          </LockedApp>
         </div>
       </main>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[94dvh] w-full overflow-y-auto rounded-t-[1.5rem] bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-7">
-        <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">Arise LifeHub</p><h2 id="todo-modal-title" className="mt-1 text-xl font-black">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
-        <form onSubmit={saveTask} className="space-y-4">
+    {editing && <div className="fixed inset-0 kb-sheet z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[96dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-6">
+        <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">Arise LifeHub</p><h2 id="todo-modal-title" className="mt-1 text-lg font-black sm:text-xl">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
+        <form onSubmit={saveTask} className="space-y-3">
           <label className="block text-xs font-bold text-slate-600">Task name<input autoFocus required maxLength={200} value={editing.title} onChange={event => setEditing({ ...editing, title: event.target.value })} className={inputClass + " mt-1.5"} placeholder="What needs to get done?" /></label>
-          <label className="block text-xs font-bold text-slate-600">Notes (optional)<textarea rows={3} maxLength={2000} value={editing.notes} onChange={event => setEditing({ ...editing, notes: event.target.value })} className={inputClass + " mt-1.5 py-3"} placeholder="Add more details..." /></label>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block text-xs font-bold text-slate-600">Notes (optional)<textarea rows={2} maxLength={2000} value={editing.notes} onChange={event => setEditing({ ...editing, notes: event.target.value })} className={inputClass + " mt-1.5 py-3"} placeholder="Add more details..." /></label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block text-xs font-bold text-slate-600">List<select className={inputClass + " mt-1.5"} value={editing.listId} onChange={event => setEditing({ ...editing, listId: event.target.value })}>{data.lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label>
             <label className="block text-xs font-bold text-slate-600">Priority<select className={inputClass + " mt-1.5"} value={editing.priority} onChange={event => setEditing({ ...editing, priority: event.target.value as Priority })}><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label>
             <label className="block text-xs font-bold text-slate-600">Due date<input type="date" className={inputClass + " mt-1.5"} value={editing.due} onChange={event => setEditing({ ...editing, due: event.target.value, repeat: event.target.value ? editing.repeat : "none" })} /></label>
@@ -594,13 +1434,18 @@ export default function AriseTodo() {
             <input className={inputClass + " mt-2"} maxLength={100} value={editing.assignee} onChange={event => setEditing({ ...editing, assignee: event.target.value })} placeholder={members.length ? "…or type any name" : "Me, partner, kid's name…"} aria-label="Assigned to" />
             <p className="mt-1.5 text-xs leading-5 text-slate-500">{members.length ? "Tap a family member, or type someone else's name." : "Add your family in “Family & settings” to pick them with one tap."}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
             <button type="submit" className={buttonClass + " flex-1 bg-[#6e5ce1] px-5 text-white hover:bg-[#5a48cb]"}><Check size={17} /> Save task</button>
             <button type="button" onClick={() => setEditing(null)} className={buttonClass + " border border-slate-200 bg-white text-slate-600"}>Cancel</button>
-            {data.tasks.some(item => item.id === editing.id) && <button type="button" onClick={() => removeTask(editing)} title="Delete task" aria-label="Delete task" className={buttonClass + " border border-rose-100 bg-rose-50 text-rose-600"}><Trash2 size={17} /></button>}
+            {data.tasks.some(item => item.id === editing.id) && <>
+              {editing.archived
+                ? <button type="button" onClick={() => unarchiveTask(editing)} title="Restore from archive" aria-label="Restore from archive" className={buttonClass + " border border-slate-200 bg-white text-slate-600"}><ArchiveRestore size={17} /></button>
+                : <button type="button" onClick={() => archiveTask(editing)} title="Archive task" aria-label="Archive task" className={buttonClass + " border border-slate-200 bg-white text-slate-600"}><Archive size={17} /></button>}
+              <button type="button" onClick={() => removeTask(editing)} title="Delete task" aria-label="Delete task" className={buttonClass + " border border-rose-100 bg-rose-50 text-rose-600"}><Trash2 size={17} /></button>
+            </>}
           </div>
         </form>
       </div>
     </div>}
-  </div>;
+  </div></PrivacyLockProvider>;
 }

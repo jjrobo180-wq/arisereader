@@ -1,0 +1,419 @@
+// A.R.I.S.E. Connect Learning: short career courses that end in a certificate on the student's profile.
+// Shared by server/ariseSocial.ts (which checks answers and issues certificates) and sent to /social/
+// through GET /api/social/catalog. Each course: 3 short lessons, each with reading, key terms, an optional
+// hands-on activity and a quick check. Answers are checked again on the server before a lesson counts.
+
+import { COURSE_STARS, LESSON_VIDEOS, type ConnectVideo } from "./connectVideos";
+import { STAR_COURSES, STAR_COURSE_SKILLS, STAR_PATHS } from "./starCourses";
+
+export type CourseField = "trades" | "eng" | "film" | "music" | "health" | "tech" | "biz" | "food" | "sports" | "air" | "games";
+export type CoursePath = "trade" | "cert" | "college";
+export type CourseQuestion = { q: string; o: string[]; a: number; why: string };
+export type CourseLesson = {
+  title: string; minutes: number; body: string[]; terms: [string, string][];
+  activity?: "ohm" | "beat" | "profit"; tryIt?: string; quiz: CourseQuestion[];
+  /** "Watch": the lesson's star video (shared/connectVideos.ts), attached below. */
+  video?: ConnectVideo;
+  /** The same lesson's backup star videos, used if YouTube ever removes the first. */
+  backups?: ConnectVideo[];
+};
+export type Course = {
+  id: string; code: string; field: CourseField; icon: string; title: string; minutes: number; points: number;
+  paths: CoursePath[]; interests: string[]; blurb: string; learn: string[]; careers: string[]; subjects: string[];
+  lessons: CourseLesson[];
+  /** Celebrity spotlight videos (shared/connectVideos.ts), attached below. */
+  stars?: ConnectVideo[];
+  /** "Learn with a Star" courses (shared/starCourses): the one celebrity the whole course is built around. */
+  star?: { name: string; role: string };
+};
+
+export const COURSE_FIELDS: Record<CourseField, string> = {
+  trades: "Trades", eng: "Engineering", film: "Film & Media", music: "Music Production",
+  health: "Healthcare", tech: "Tech & Coding", biz: "Business",
+  food: "Culinary", sports: "Sports", air: "Aviation & Space", games: "Games & Esports",
+};
+export const COURSE_PATH_LABELS: Record<CoursePath, string> = { trade: "Apprenticeship", cert: "Certificate program", college: "College degree" };
+
+export const COURSES: Course[] = [
+{id:"elec",code:"ELEC 101",field:"trades",icon:"bolt",title:"Electrical Basics",minutes:35,points:20,paths:["trade","cert"],interests:["build","how"],
+ blurb:"Learn how circuits work, how electricians stay safe, and how to start an apprenticeship.",
+ learn:["Use Ohm's law to figure out current in a circuit","Explain lockout/tagout and other job-site safety rules","Map the path from apprentice to licensed electrician"],
+ careers:["Electrician","Solar panel installer","Lineworker","Electrical inspector"],subjects:["Algebra","Physical science","Shop / CTE classes"],
+ lessons:[
+ {title:"How circuits work",minutes:12,activity:"ohm",
+  body:["A circuit is a complete loop that electricity travels around. Break the loop anywhere and the power stops. That is exactly what a light switch does: it opens or closes the loop.",
+   "Electricians talk about three things. Voltage is the push that moves electricity. Current is how much electricity is flowing. Resistance is anything that slows the flow down, like a light bulb or a heater.",
+   "These three are connected by Ohm's law: volts = amps × ohms. If you know two of them, you can always find the third. Electricians use this every day to pick the right wire size and breaker."],
+  terms:[["Voltage (V)","The push, measured in volts"],["Current (A)","The flow, measured in amps"],["Resistance (Ω)","What slows the flow, measured in ohms"]],
+  quiz:[{q:"A circuit has 12 volts and 4 ohms of resistance. How much current flows?",o:["48 amps","3 amps","8 amps","16 amps"],a:1,why:"Current = volts ÷ ohms, so 12 ÷ 4 = 3 amps."},
+        {q:"What does a light switch do in a circuit?",o:["Adds more voltage","Stores electricity for later","Opens or closes the loop","Changes the wire size"],a:2,why:"A switch breaks or completes the loop. No complete loop means no current."}]},
+ {title:"Safety on the job",minutes:10,
+  body:["Electricians treat every wire as live until they have tested it themselves. A meter check takes seconds and prevents serious injuries.",
+   "Before working on equipment, they use lockout/tagout: shut off the breaker, put a lock on it, and attach a tag with their name so nobody turns the power back on while they work.",
+   "Outlets near water, like in kitchens and bathrooms, are GFCI outlets. They watch for electricity leaking where it should not go and cut the power in a fraction of a second."],
+  terms:[["Lockout/tagout","Locking and labeling a power source so it stays off"],["GFCI","An outlet that shuts off fast if current leaks"],["PPE","Safety gear like glasses and insulated gloves"]],
+  tryIt:"Walk around your home with an adult and find the GFCI outlets. They have TEST and RESET buttons. Which rooms are they in, and why do you think so?",
+  quiz:[{q:"What is lockout/tagout?",o:["Locking the toolbox at night","Locking and labeling a power source so it stays off during work","Tagging wires with their color","Turning off the lights when you leave"],a:1,why:"It keeps someone else from turning the power back on while you are working."},
+        {q:"Where are you most likely to find a GFCI outlet?",o:["Next to the kitchen sink","Inside a closet","On the ceiling","Behind the TV"],a:0,why:"GFCI outlets go near water because water makes shocks more dangerous."}]},
+ {title:"Becoming an electrician",minutes:13,
+  body:["Most electricians start as apprentices. An apprenticeship is a paid job where you learn from experienced electricians while taking classes. In the US it usually lasts four to five years.",
+   "After the apprenticeship you take a licensing exam to become a journeyman electrician. With more experience and another exam, you can become a master electrician and run your own jobs or business.",
+   "Electricians can specialize in homes, big buildings, factories, or newer work like solar panels and EV chargers. In middle and high school, algebra, science and any shop or CTE classes give you a head start."],
+  terms:[["Apprentice","Paid trainee learning on the job"],["Journeyman","Licensed electrician who works on their own"],["Master electrician","Highest license; can lead jobs and pull permits"]],
+  quiz:[{q:"What makes an apprenticeship different from regular school?",o:["You only read books","You get paid while you learn on real jobs","It takes one weekend","You do not need any classes"],a:1,why:"Apprentices earn a paycheck while they learn from experienced workers."},
+        {q:"What usually comes right after finishing an apprenticeship?",o:["Master electrician license","Retiring","A journeyman license exam","Starting over as a helper"],a:2,why:"Journeyman is the first full license. Master comes later with more experience."}]}
+ ]},
+{id:"engr",code:"ENGR 101",field:"eng",icon:"truss",title:"Think Like an Engineer",minutes:40,points:20,paths:["college","cert"],interests:["build","how"],
+ blurb:"Use the engineering design process, meet the different kinds of engineers, and find out why triangles hold up bridges.",
+ learn:["Walk through the engineering design process","Match problems to the type of engineer who solves them","Explain why triangles make structures strong"],
+ careers:["Civil engineer","Mechanical engineer","Biomedical engineer","Engineering technician"],subjects:["Geometry","Physics","Robotics or STEM clubs"],
+ lessons:[
+ {title:"The design process",minutes:13,
+  body:["Engineers solve problems with a repeatable process: define the problem, research, brainstorm ideas, plan, build a prototype, test it, and improve it.",
+   "A prototype is an early model built to test an idea. It does not have to be pretty. Its job is to show what works and what fails.",
+   "The process is a loop, not a straight line. When a test fails, engineers learn from it, change the design, and test again. Failing early is part of the plan."],
+  terms:[["Prototype","An early test version of a design"],["Constraint","A limit, like budget, time or materials"],["Iterate","Improve a design and test it again"]],
+  tryIt:"Pick something in your room that annoys you, like a cord that keeps falling. Write the problem in one sentence, then sketch three different fixes.",
+  quiz:[{q:"What is a prototype?",o:["The final product sold in stores","An early model built to test an idea","A drawing of a building","A type of engineer"],a:1,why:"Prototypes are for testing. The final version comes after many rounds."},
+        {q:"A prototype fails its test. What does an engineer do next?",o:["Gives up on the idea","Hides the results","Learns from it, improves the design and tests again","Ships it anyway"],a:2,why:"Testing and improving is the core loop of engineering."}]},
+ {title:"Kinds of engineers",minutes:12,
+  body:["Civil engineers design bridges, roads, tunnels and water systems. Mechanical engineers design machines, engines and anything with moving parts.",
+   "Electrical engineers work on power systems and electronics. Biomedical engineers design medical devices like prosthetic legs and heart monitors.",
+   "Aerospace engineers work on aircraft and spacecraft, and environmental engineers protect air, water and soil. Most engineers earn a four-year degree. Engineering technicians often start with a two-year degree."],
+  terms:[["Civil","Bridges, roads, water"],["Mechanical","Machines and moving parts"],["Biomedical","Health devices and the human body"]],
+  quiz:[{q:"Who would design a prosthetic leg?",o:["Civil engineer","Biomedical engineer","Aerospace engineer","Environmental engineer"],a:1,why:"Biomedical engineers combine engineering with medicine and the human body."},
+        {q:"A city needs a new bridge. Which engineer leads the design?",o:["Civil engineer","Software engineer","Biomedical engineer","Electrical engineer"],a:0,why:"Civil engineers design public structures like bridges and roads."}]},
+ {title:"Strong shapes",minutes:15,
+  body:["Push on the corner of a square made of sticks and it folds into a slanted shape. Push on a triangle and it keeps its shape. That is why triangles show up everywhere in structures.",
+   "A truss is a frame made of connected triangles. Look at bridges, cranes, roof frames and power towers and you will see them.",
+   "Triangles spread a load across all three sides, so no single joint has to hold everything. Engineers test this with models before anything real gets built."],
+  terms:[["Load","The weight or force a structure carries"],["Truss","A frame made of triangles"],["Joint","Where two parts connect"]],
+  tryIt:"Build a square and a triangle out of straws and tape. Press down on a corner of each. Which one bends first?",
+  quiz:[{q:"Why do engineers use triangles in bridges and roofs?",o:["They are cheaper to paint","They keep their shape under a load","They are easier to draw","They weigh more"],a:1,why:"A triangle cannot fold without one of its sides changing length, so it stays rigid."},
+        {q:"Which path can lead to an engineering technician job?",o:["A two-year degree","No school at all, ever","Only a PhD","A cooking certificate"],a:0,why:"Many engineering technicians start with a two-year associate degree."}]}
+ ]},
+{id:"film",code:"FILM 101",field:"film",icon:"clap",title:"Directing Your First Scene",minutes:35,points:15,paths:["college","cert"],interests:["stories"],
+ blurb:"Plan shots like a director, use storyboards, and learn the 180-degree rule used on every film set.",
+ learn:["Describe what a director does before and during filming","Pick the right shot type for a moment","Use the 180-degree rule to keep scenes clear"],
+ careers:["Director","Cinematographer","Video editor","Production assistant"],subjects:["English / writing","Art","Media or video production"],
+ lessons:[
+ {title:"What a director does",minutes:11,
+  body:["The director turns a script into what you see on screen. They decide how scenes should feel and guide everyone toward that vision.",
+   "Before filming, directors break down the script, sketch storyboards (comic-style drawings of each shot), and make a shot list. They plan camera moves with the cinematographer, also called the director of photography.",
+   "On set, the director works with actors on their performance. After filming, they work with the editor to put the story together."],
+  terms:[["Storyboard","Drawings that show each planned shot"],["Shot list","The list of every shot to film"],["Cinematographer","Leads the camera and lighting team"]],
+  quiz:[{q:"What is a storyboard?",o:["The script's first page","Comic-style drawings of each planned shot","A list of actors","The movie poster"],a:1,why:"Storyboards let the whole crew see the plan before the camera rolls."},
+        {q:"Who does the director plan camera shots with?",o:["The caterer","The cinematographer","The ticket seller","The costume designer"],a:1,why:"The cinematographer, or director of photography, runs camera and lighting."}]},
+ {title:"Shot types",minutes:12,
+  body:["A wide shot shows the whole setting. When it opens a scene to show where we are, it is called an establishing shot.",
+   "A medium shot shows a character from about the waist up. It is good for body language and conversations.",
+   "A close-up fills the frame with a face or an object. Directors use close-ups when they want you to feel a character's emotion or notice an important detail."],
+  terms:[["Establishing shot","Shows where the scene happens"],["Medium shot","Waist up; good for talking"],["Close-up","Face or detail fills the screen"]],
+  tryIt:"Use a phone to film the same moment three ways: wide, medium and close-up. Watch them back. Which one makes you feel the most?",
+  quiz:[{q:"You want viewers to feel how scared a character is. Which shot fits best?",o:["Wide shot","Close-up","Establishing shot","Aerial shot"],a:1,why:"Close-ups put the audience right in front of the character's emotions."},
+        {q:"What is an establishing shot for?",o:["Showing where the scene takes place","Showing the end credits","Hiding the actors","Recording sound"],a:0,why:"It tells the audience where they are before the action starts."}]},
+ {title:"The 180-degree rule",minutes:12,
+  body:["Imagine a line drawn between two characters who are talking. If the camera stays on one side of that line, one character always faces right and the other always faces left.",
+   "Cross the line and suddenly both characters seem to face the same way. Viewers get confused about who is looking at whom.",
+   "Many directors start as production assistants, helping on set and learning how everything works. Others go to film school or build a portfolio of short films they make with friends."],
+  terms:[["180-degree line","Imaginary line the camera stays behind"],["Production assistant","Entry-level helper on a film set"],["Coverage","All the shots filmed for one scene"]],
+  quiz:[{q:"What does the 180-degree rule protect?",o:["The camera from damage","The direction characters face on screen","The actors' lines","The movie budget"],a:1,why:"Staying on one side keeps characters facing consistent directions so the scene makes sense."},
+        {q:"What is a common first job on a film set?",o:["Director","Production assistant","Studio owner","Lead actor"],a:1,why:"Production assistants learn how a set runs from the ground up."}]}
+ ]},
+{id:"musc",code:"MUSC 101",field:"music",icon:"music",title:"Make Your First Beat",minutes:40,points:20,paths:["cert","college"],interests:["music","computers"],
+ blurb:"Build a drum pattern on a real step grid, learn studio words like BPM and EQ, and explore audio careers.",
+ learn:["Build a beat in 4/4 time on a 16-step grid","Use BPM, levels, EQ and panning correctly","Name careers in music and audio"],
+ careers:["Music producer","Audio engineer","Sound designer for games","Live sound technician"],subjects:["Music / band","Math (counting & fractions)","Computer class"],
+ lessons:[
+ {title:"Inside the studio",minutes:12,
+  body:["Producers make music on a DAW, which stands for digital audio workstation. GarageBand, FL Studio, Ableton Live and Logic Pro are all DAWs.",
+   "Every song has a tempo measured in BPM, or beats per minute. A lot of hip-hop sits somewhere around 80 to 100 BPM, and a lot of house music around 120 to 128.",
+   "In a DAW you arrange sounds on a timeline, record instruments and voices, and mix everything so it sounds good together."],
+  terms:[["DAW","Software for making and recording music"],["BPM","Beats per minute, the song's speed"],["Track","One layer, like drums or vocals"]],
+  quiz:[{q:"What does DAW stand for?",o:["Digital audio workstation","Drum and wave","Digital art window","Direct audio wire"],a:0,why:"A DAW is the main tool producers use to build songs."},
+        {q:"What does BPM measure?",o:["How loud a song is","How fast the beat is","How long the song is","How many instruments play"],a:1,why:"BPM is beats per minute, the tempo of the song."}]},
+ {title:"Build a beat",minutes:15,activity:"beat",
+  body:["Most popular music is in 4/4 time: four beats in every bar. A step grid splits each bar into 16 steps, so each beat gets four steps.",
+   "A classic pattern puts the kick drum on beats 1 and 3 and the snare on beats 2 and 4. Hi-hats keep time in between.",
+   "Press Play below, then click squares to change the pattern. Try moving the kick around and hear how the groove changes."],
+  terms:[["Bar","One group of four beats in 4/4"],["Kick","The low, booming drum"],["Snare","The sharp crack on 2 and 4"]],
+  quiz:[{q:"In 4/4 time, how many beats are in one bar?",o:["2","3","4","16"],a:2,why:"The top number tells you: four beats per bar."},
+        {q:"In a classic beat, the snare usually lands on which beats?",o:["1 and 3","2 and 4","Only beat 1","Every step"],a:1,why:"Kick on 1 and 3, snare on 2 and 4 is the backbone of countless songs."}]},
+ {title:"Mixing & music careers",minutes:13,
+  body:["Mixing means making every sound fit together. Levels set how loud each track is. EQ shapes the lows, mids and highs of a sound. Panning places sounds left or right in your headphones.",
+   "Producers shape songs and work with artists. Audio engineers record and mix. Sound designers create sound effects for games and movies, and live sound techs run concerts.",
+   "Paths in include audio engineering certificate programs, college music technology degrees, and building a portfolio of your own tracks."],
+  terms:[["Levels","How loud each track is"],["EQ","Adjusts low, mid and high frequencies"],["Panning","Moves sound left or right"]],
+  quiz:[{q:"What does panning do?",o:["Makes a track louder","Moves a sound left or right","Speeds up the song","Removes the bass"],a:1,why:"Panning places sounds in the stereo field."},
+        {q:"Which tool shapes the lows, mids and highs of a sound?",o:["EQ","BPM","A bar","The snare"],a:0,why:"EQ, short for equalizer, adjusts frequencies."}]}
+ ]},
+{id:"hlth",code:"HLTH 101",field:"health",icon:"pulse",title:"Healthcare Heroes",minutes:35,points:20,paths:["cert","college"],interests:["help"],
+ blurb:"Take a pulse, learn how health workers protect patient privacy, and see quick ways into healthcare jobs.",
+ learn:["Measure and calculate a heart rate","Explain patient privacy and infection control","Compare CNA, EMT, LPN and RN paths"],
+ careers:["Certified nursing assistant (CNA)","EMT","Registered nurse","Medical assistant"],subjects:["Biology","Health class","Health science CTE"],
+ lessons:[
+ {title:"Vital signs",minutes:12,
+  body:["Vital signs are quick measurements that show how the body is doing: heart rate, breathing rate, blood pressure, temperature and oxygen level.",
+   "To take a pulse, place two fingers (not your thumb) on the inside of the wrist below the thumb. Count the beats for 15 seconds, then multiply by 4 to get beats per minute.",
+   "Why not the thumb? It has its own pulse, which can mix up your count. A normal resting heart rate for adults is usually 60 to 100 beats per minute."],
+  terms:[["Pulse","The heartbeat you feel in an artery"],["BPM","Beats per minute"],["Vital signs","Key body measurements"]],
+  tryIt:"Take your own pulse sitting down. Then do 20 jumping jacks and take it again. How much did it change?",
+  quiz:[{q:"You count 18 beats in 15 seconds. What is the heart rate?",o:["33 bpm","54 bpm","72 bpm","90 bpm"],a:2,why:"18 × 4 = 72 beats per minute."},
+        {q:"Why shouldn't you use your thumb to take someone's pulse?",o:["It is too short","Your thumb has its own pulse","It is not allowed","Thumbs are too cold"],a:1,why:"You might count your own heartbeat instead of the patient's."}]},
+ {title:"Privacy and teamwork",minutes:11,
+  body:["In the US, a law called HIPAA protects patients' health information. Health workers only share it with people who need it to give care.",
+   "Hospitals run on teamwork: doctors, nurses, nursing assistants, techs, pharmacists and more. Clear communication keeps patients safe.",
+   "Hand washing is one of the most important skills in healthcare. Scrub with soap for at least 20 seconds to stop germs from spreading."],
+  terms:[["HIPAA","US law protecting health information"],["Infection control","Steps that stop germs spreading"],["Care team","Everyone who helps one patient"]],
+  quiz:[{q:"What does HIPAA protect?",o:["Hospital parking","Patients' health information","Doctors' salaries","Medicine prices"],a:1,why:"HIPAA keeps private health details private."},
+        {q:"How long should you scrub with soap when washing hands?",o:["3 seconds","At least 20 seconds","5 minutes","Only if hands look dirty"],a:1,why:"Twenty seconds of scrubbing removes far more germs."}]},
+ {title:"Ways into healthcare",minutes:12,
+  body:["A certified nursing assistant (CNA) helps patients with daily care. CNA training can take just weeks to a few months, and some high schools offer it in CTE programs.",
+   "EMTs respond to emergencies. EMT training is usually one course of about a semester. LPNs, or licensed practical nurses, train for about a year.",
+   "Registered nurses (RNs) earn a two-year associate degree or a four-year bachelor's degree and pass a licensing exam. Many people start as CNAs or EMTs and keep climbing."],
+  terms:[["CNA","Nursing assistant; short training"],["EMT","Emergency medical technician"],["RN","Registered nurse; degree plus license"]],
+  quiz:[{q:"Which job can you train for in weeks to a few months?",o:["Surgeon","Certified nursing assistant","Pharmacist","Registered nurse"],a:1,why:"CNA programs are short, which makes them a fast way to start in healthcare."},
+        {q:"How do people become registered nurses?",o:["A two- or four-year nursing degree plus a licensing exam","A weekend class","Just apply at a hospital","Only by becoming a doctor first"],a:0,why:"RNs need a nursing degree and must pass the licensing exam."}]}
+ ]},
+{id:"tech",code:"TECH 101",field:"tech",icon:"code",title:"Code Your First Game",minutes:40,points:20,paths:["college","cert"],interests:["computers","how"],
+ blurb:"Learn the three building blocks of every game: variables, if statements and loops. Then explore tech careers.",
+ learn:["Track a score with a variable","Use if statements and loops to control a game","Name tech careers and certifications"],
+ careers:["Software developer","Game developer","Cybersecurity analyst","IT support specialist"],subjects:["Math","Computer science","Robotics or coding club"],
+ lessons:[
+ {title:"Variables",minutes:12,
+  body:["A variable is a labeled box that stores information. In a game, score = 0 creates a box called score and puts 0 inside.",
+   "Variables can change. When the player grabs a coin, the game runs score = score + 1. The new value replaces the old one.",
+   "Games use variables for everything: lives, speed, level, player name and more."],
+  terms:[["Variable","A named place to store a value"],["Value","What is stored, like 5 or \"Sam\""],["Assign","Put a value into a variable"]],
+  quiz:[{q:"What is a variable?",o:["A broken piece of code","A named place that stores information","A type of computer","A game level"],a:1,why:"Variables hold values your program can use and change."},
+        {q:"score = 5, then score = score + 2. What is score now?",o:["5","2","7","52"],a:2,why:"5 + 2 = 7, and that replaces the old value."}]},
+ {title:"If statements & loops",minutes:14,
+  body:["An if statement makes a decision: if lives == 0, show Game Over. If the condition is false, that code is skipped.",
+   "A loop repeats code. A game loop runs many times a second: check controls, move characters, check for crashes, draw the screen, repeat.",
+   "Put variables, ifs and loops together and you can build almost any game."],
+  terms:[["Condition","A true-or-false check"],["If statement","Runs code only when a condition is true"],["Loop","Repeats code"]],
+  tryIt:"Write out a game in plain words using one variable, one if and one loop. Example: repeat forever: if the player touches a coin, add 1 to score.",
+  quiz:[{q:"Which part of code repeats an action?",o:["A variable","A loop","A comment","A condition"],a:1,why:"Loops repeat code until told to stop."},
+        {q:"score = 8. The code says: if score > 10, show \"Level up!\" What happens?",o:["\"Level up!\" shows","Nothing shows","The game crashes","Score becomes 10"],a:1,why:"8 is not greater than 10, so the if block is skipped."}]},
+ {title:"Careers in tech",minutes:14,
+  body:["Software developers build apps and programs. Game developers build games. Web developers build websites. Cybersecurity analysts protect computers and networks from attacks.",
+   "Paths include a college computer science degree, coding bootcamps, and industry certifications.",
+   "One common starting certification is CompTIA A+, which covers computer hardware and IT support. Many people start in IT support and move into other tech jobs."],
+  terms:[["Developer","Someone who builds software"],["Cybersecurity","Protecting systems from attacks"],["CompTIA A+","An entry-level IT certification"]],
+  quiz:[{q:"What does a cybersecurity analyst do?",o:["Designs game characters","Protects computers and networks from attacks","Fixes printers only","Sells phones"],a:1,why:"Cybersecurity is all about defending systems and data."},
+        {q:"What is CompTIA A+?",o:["A video game","An entry-level IT certification","A college in California","A coding language"],a:1,why:"A+ is a widely known starting certification for IT support jobs."}]}
+ ]},
+{id:"weld",code:"WELD 101",field:"trades",icon:"flame",title:"Welding & Fabrication",minutes:30,points:15,paths:["trade","cert"],interests:["build"],
+ blurb:"Compare stick, MIG and TIG welding, learn the safety gear, and see how welders get certified.",
+ learn:["Explain what welding does and where it is used","Compare stick, MIG and TIG welding","Name the safety gear and certifications welders use"],
+ careers:["Welder","Pipefitter","Fabricator","Welding inspector"],subjects:["Geometry","Shop / CTE classes","Physical science"],
+ lessons:[
+ {title:"What welding is",minutes:9,
+  body:["Welding joins pieces of metal by melting their edges, often with extra filler metal, so they cool into one solid piece.",
+   "Welders build and repair bridges, ships, pipelines, cars, farm equipment and the steel frames of buildings.",
+   "Fabricators cut, bend and weld metal into parts and products, often reading blueprints to get every measurement right."],
+  terms:[["Weld","A joint where metal has fused"],["Filler metal","Extra metal added to the joint"],["Blueprint","A technical drawing with measurements"]],
+  quiz:[{q:"What does welding do?",o:["Glues plastic together","Joins metal by melting it so it fuses","Paints metal","Cuts wood"],a:1,why:"Melted metal cools into one solid joint."},
+        {q:"Which of these do welders help build?",o:["Bridges and ships","Only jewelry","Only paper products","Websites"],a:0,why:"Welding is used in heavy construction, shipbuilding, pipelines and more."}]},
+ {title:"Stick, MIG and TIG",minutes:11,
+  body:["Stick welding uses a rod coated in flux. It is tough and works well outdoors and on dirty or rusty metal.",
+   "MIG welding feeds a wire through a gun automatically. It is fast and is often the easiest for beginners to learn.",
+   "TIG welding is the most precise and clean. It takes more skill and is used on thin metal and materials like aluminum and stainless steel."],
+  terms:[["Stick (SMAW)","Flux-coated rod; rugged and outdoor-friendly"],["MIG (GMAW)","Wire-fed; fast and beginner-friendly"],["TIG (GTAW)","Precise; for thin and specialty metals"]],
+  quiz:[{q:"Which process feeds wire through a gun?",o:["Stick","MIG","TIG","None of them"],a:1,why:"MIG is wire-fed, which makes it fast."},
+        {q:"Which process is the most precise and used on thin aluminum?",o:["TIG","Stick","MIG","Soldering"],a:0,why:"TIG gives welders the most control."}]},
+ {title:"Safety & certification",minutes:10,
+  body:["The welding arc gives off light bright enough to burn your eyes, so welders always wear a helmet with a dark or auto-darkening lens.",
+   "They also wear fire-resistant clothing and heavy gloves, and they work with good ventilation to avoid breathing fumes.",
+   "Welders prove their skills by passing weld tests, often through the American Welding Society (AWS). Training happens in trade schools, community colleges and many high school CTE programs."],
+  terms:[["Auto-darkening helmet","Lens darkens instantly when the arc starts"],["AWS","American Welding Society"],["Weld test","A sample weld checked for strength"]],
+  quiz:[{q:"Why must welders wear a helmet with a dark lens?",o:["To look cool","The arc light can burn their eyes","To keep their hair clean","It's only for photos"],a:1,why:"Arc light is intense enough to injure eyes in seconds."},
+        {q:"Which organization is known for welding certifications?",o:["NBA","American Welding Society","NASA","FIFA"],a:1,why:"Many employers ask for AWS certifications."}]}
+ ]},
+{id:"biz",code:"BIZ 101",field:"biz",icon:"chart",title:"Start a Small Business",minutes:35,points:15,paths:["college","cert"],interests:["money"],
+ blurb:"Do the profit math on your own business idea, find your customer, and pitch it in under a minute.",
+ learn:["Calculate revenue, costs and profit","Describe a target customer","Write a short elevator pitch"],
+ careers:["Entrepreneur","Marketing specialist","Accountant","Sales manager"],subjects:["Math","English / speech","Business or DECA club"],
+ lessons:[
+ {title:"Profit math",minutes:12,activity:"profit",
+  body:["Revenue is all the money you take in from sales. Costs are what you spend to make and sell your product.",
+   "Profit = revenue − costs. If costs are bigger than revenue, the result is negative and you have a loss.",
+   "Use the calculator below to test a business idea. Change the price and watch what happens to your profit."],
+  terms:[["Revenue","Money from sales"],["Costs","Money spent to run the business"],["Profit","Revenue minus costs"]],
+  quiz:[{q:"You sell 20 shirts at $15 each. Your costs are $180. What is your profit?",o:["$300","$120","$180","$480"],a:1,why:"Revenue is 20 × $15 = $300. $300 − $180 = $120."},
+        {q:"What is revenue?",o:["Money left after paying costs","All the money taken in from sales","Money borrowed from the bank","The price of one item"],a:1,why:"Revenue is total sales before costs are taken out."}]},
+ {title:"Know your customer",minutes:11,
+  body:["A target customer is the specific group most likely to buy from you. \"Everyone\" is not a target customer.",
+   "Great businesses solve a real problem for that customer. Ask: who has this problem, and how do they solve it now?",
+   "Marketing is how you reach those customers: posters, social media, word of mouth, or a table at a school event."],
+  terms:[["Target customer","The group most likely to buy"],["Marketing","How you reach and attract customers"],["Competitor","Another business solving the same problem"]],
+  tryIt:"Pick a business idea. Write one sentence for each: who is my customer, what problem do I solve, and where will they hear about me?",
+  quiz:[{q:"Which is the best target customer for a dog-walking business?",o:["Everyone in the world","Busy dog owners in your neighborhood","Cat owners","People without pets"],a:1,why:"A specific group with the problem you solve is a real target customer."},
+        {q:"What is marketing?",o:["Counting money","How you reach and attract customers","Making the product","Paying taxes"],a:1,why:"Marketing gets your business in front of the right people."}]},
+ {title:"The pitch & careers",minutes:12,
+  body:["An elevator pitch is a short speech, about 30 to 60 seconds, that explains your business: the problem, your solution, and why you.",
+   "Investors, customers and partners decide fast, so a clear pitch matters.",
+   "Business skills lead to many careers: entrepreneur, marketing, sales, accounting and project management. Clubs like DECA and FBLA let students compete with real pitches."],
+  terms:[["Elevator pitch","A 30–60 second business summary"],["Investor","Someone who funds a business"],["Entrepreneur","Someone who starts a business"]],
+  quiz:[{q:"About how long is an elevator pitch?",o:["30 to 60 seconds","10 minutes","One hour","One school day"],a:0,why:"Short enough to say during an elevator ride."},
+        {q:"What should a pitch include?",o:["Only your favorite color","The problem, your solution and why you","Your full life story","Just the price"],a:1,why:"Problem, solution and why you is the core of any pitch."}]}
+ ]},
+{id:"culn",code:"CULN 101",field:"food",icon:"chef",title:"Kitchen Ready: Culinary Arts",minutes:35,points:15,paths:["trade","cert"],interests:["food","help"],
+ blurb:"Cook like a pro: keep food safe, use a knife the right way, and find out how a restaurant kitchen really runs.",
+ learn:["Keep food safe with clean, separate, cook and chill","Prep like a chef with mise en place and the claw grip","Name the jobs in a kitchen brigade and how to get your first one"],
+ careers:["Chef","Baker / pastry chef","Caterer","Food scientist","Restaurant manager"],subjects:["Math (measuring and scaling recipes)","Health or nutrition","Culinary or family and consumer science classes"],
+ lessons:[
+ {title:"Food safety first",minutes:12,
+  body:["Every cook's first job is keeping people from getting sick. Food safety comes down to four steps: clean, separate, cook and chill.",
+   "Clean means washing your hands for 20 seconds and cleaning boards and counters. Separate means keeping raw meat away from food that is ready to eat, so germs can't jump from one to the other. That jump is called cross-contamination.",
+   "Cook means heating food hot enough to kill germs, checked with a thermometer. Chill means getting food back in the fridge fast. Germs grow fastest between 40°F and 140°F, so cooks call that the danger zone."],
+  terms:[["Cross-contamination","Germs spreading from raw food to ready-to-eat food"],["Danger zone","40°F to 140°F, where germs grow fastest"],["Sanitize","Clean a surface so germs are killed"]],
+  tryIt:"With an adult, find the thermometer in your fridge (or put one in). Is it at 40°F or colder? If your fridge has none, list three foods that must stay cold.",
+  quiz:[{q:"Germs grow fastest between which temperatures?",o:["0°F and 32°F","40°F and 140°F","150°F and 200°F","Only above 212°F"],a:1,why:"40°F to 140°F is the danger zone. Keep cold food cold and hot food hot."},
+        {q:"What is cross-contamination?",o:["Mixing two spices","Germs spreading from raw food to ready-to-eat food","Cooking food twice","Freezing leftovers"],a:1,why:"Using the same board for raw chicken and salad is a classic example."}]},
+ {title:"Knife skills & mise en place",minutes:11,
+  body:["Chefs say mise en place (meez-on-plahs). It is French for everything in its place: washing, chopping and measuring every ingredient before you start cooking, so nothing burns while you hunt for the salt.",
+   "To cut safely, hold food with the claw grip: fingertips curled under, knuckles guiding the side of the knife. The blade can't reach fingertips that are tucked away.",
+   "A sharp knife is safer than a dull one, because it needs less force and is less likely to slip. Cooks learn cuts by name: dice (cubes), julienne (thin matchsticks) and mince (tiny pieces)."],
+  terms:[["Mise en place","Prepping and organizing every ingredient before cooking"],["Claw grip","Holding food with curled fingertips to protect them"],["Julienne","Cutting food into thin matchsticks"]],
+  tryIt:"With an adult, make a mise en place for a snack or sandwich: wash, cut and set out every ingredient in small bowls before you put it together.",
+  quiz:[{q:"What does mise en place mean in a kitchen?",o:["Cleaning up after dinner","Getting every ingredient prepped and organized before cooking","A kind of French bread","Cooking with no recipe"],a:1,why:"Everything in its place: prep first, then cook."},
+        {q:"Why is a sharp knife safer than a dull one?",o:["It looks nicer","It needs less force, so it slips less","It cuts by itself","It never needs washing"],a:1,why:"Pushing hard on a dull knife is how it slips and cuts you."}]},
+ {title:"The kitchen brigade & careers",minutes:12,
+  body:["Big restaurant kitchens run like a team called a brigade. The executive chef plans the menu and leads. The sous chef (soo-chef) is second in command and runs the kitchen during service.",
+   "Line cooks each own a station, such as the grill or the sauté pan, and a pastry chef makes desserts and breads. Most chefs start as prep or line cooks and work their way up.",
+   "Culinary school can help, but it is not required. Many cooks start with a food handler card, learn on the job, and later become chefs, bakers, caterers, food truck owners or food scientists."],
+  terms:[["Executive chef","The leader who plans the menu and runs the kitchen"],["Sous chef","Second in command in a kitchen"],["Line cook","A cook in charge of one station"]],
+  quiz:[{q:"Who is second in command in a restaurant kitchen?",o:["The host","The sous chef","The dishwasher","The customer"],a:1,why:"Sous means under in French: the sous chef works right under the executive chef."},
+        {q:"What is a common first job on the way to becoming a chef?",o:["Restaurant owner","Prep or line cook","Food critic","Executive chef"],a:1,why:"Most chefs start on the line and learn every station."}]}
+ ]},
+{id:"sprt",code:"SPRT 101",field:"sports",icon:"ball",title:"Careers in Sports",minutes:35,points:15,paths:["college","cert"],interests:["sports","help"],
+ blurb:"Love the game? Meet the trainers, coaches, scouts, analysts and broadcasters who make sports happen.",
+ learn:["Name the jobs that keep a team running beyond the players","Know what an athletic trainer does when someone gets hurt","Practice the skills coaches, scouts and broadcasters use"],
+ careers:["Athletic trainer","Coach","Sports broadcaster","Sports data analyst","Physical therapist"],subjects:["Biology and anatomy","Statistics","Speech, journalism or media"],
+ lessons:[
+ {title:"Jobs beyond the players",minutes:11,
+  body:["Only a very small number of high school athletes ever play professionally. But every team, league and stadium needs hundreds of people who never step on the field to play.",
+   "There are athletic trainers and team doctors, coaches and scouts, data analysts who turn stats into decisions, and broadcasters who call the game. The front office handles business: tickets, marketing, social media and contracts.",
+   "Stadiums need groundskeepers, equipment managers, event staff and engineers too. If you love sports, there is almost certainly a job that matches what you are good at."],
+  terms:[["Front office","The business side of a team: managers, marketing, tickets"],["Sports analytics","Using data and stats to make team decisions"],["Equipment manager","Keeps a team's gear ready for every game"]],
+  quiz:[{q:"Which job uses statistics to help a team make decisions?",o:["Groundskeeper","Sports data analyst","Ticket taker","Mascot"],a:1,why:"Analysts study numbers like shooting percentages to find what wins."},
+        {q:"Why learn about sports jobs beyond playing?",o:["Players never get paid","Very few athletes go pro, but many jobs keep sports running","Coaches don't need to know the game","Sports jobs don't use school subjects"],a:1,why:"There are far more jobs around the game than on the roster."}]},
+ {title:"Sports medicine",minutes:12,
+  body:["Athletic trainers are health care workers who prevent, check and treat injuries. They are on the sidelines at practices and games, taping ankles, checking injured players and deciding when it is safe to go back in.",
+   "A hit to the head can cause a concussion, a brain injury. The rule is: when in doubt, sit them out. A player with a possible concussion stops playing and gets checked by a professional.",
+   "New athletic trainers need a master's degree and a national certification. Physical therapists, who help people recover strength after injuries, earn a Doctor of Physical Therapy degree."],
+  terms:[["Athletic trainer","Health care worker who prevents and treats sports injuries"],["Concussion","A brain injury from a hit or jolt to the head"],["Physical therapist","Helps people rebuild strength and movement after injury"]],
+  quiz:[{q:"A player gets hit in the head and feels dizzy. What should happen?",o:["Keep playing to finish the game","Stop playing and get checked by a professional","Drink water and go back in","Wait until next season to tell anyone"],a:1,why:"When in doubt, sit them out. Playing with a concussion can make it much worse."},
+        {q:"What do new athletic trainers need?",o:["Nothing, just a whistle","A master's degree and national certification","Only a driver's license","A pro sports contract"],a:1,why:"Athletic training is a health care job with real medical training."}]},
+ {title:"Coaching, scouting & broadcasting",minutes:12,
+  body:["Coaches teach skills, plan strategy and help players grow. Many start by coaching younger kids or assisting a school team while they are still in school themselves.",
+   "Scouts find talent. They watch games and video, track stats and write reports about players. Teams use these reports to decide who to draft or sign.",
+   "Broadcasters bring games to fans. The play-by-play announcer describes the action as it happens, and the color commentator adds expert insight. You can start by announcing or streaming school games, writing for the school paper or keeping stats."],
+  terms:[["Play-by-play","Describing the action as it happens"],["Color commentator","Adds stories, stats and expert insight during a game"],["Scout","Studies players and reports on their talent"]],
+  tryIt:"Mute two minutes of any game and call the play-by-play out loud like a broadcaster. Then try two minutes as the color commentator.",
+  quiz:[{q:"What does a play-by-play announcer do?",o:["Sells tickets","Describes the action as it happens","Coaches the defense","Fixes the scoreboard"],a:1,why:"Play-by-play is the live description; color adds the insight."},
+        {q:"What is a good first step toward sports broadcasting?",o:["Wait until college","Announce or stream your school's games","Only watch TV","Buy an expensive camera first"],a:1,why:"Real practice calling games is how broadcasters build skill and a reel."}]}
+ ]},
+{id:"avia",code:"AVIA 101",field:"air",icon:"plane",title:"Fly & Explore: Aviation and Space",minutes:40,points:20,paths:["college","cert"],interests:["how","space"],
+ blurb:"Learn how planes stay up, how pilots and mechanics earn their wings, and what it takes to become an astronaut.",
+ learn:["Explain lift, weight, thrust and drag","Map the path to becoming a pilot or aircraft mechanic","Describe how astronauts are chosen and trained"],
+ careers:["Airline pilot","Aircraft mechanic","Air traffic controller","Aerospace engineer","Astronaut"],subjects:["Physics","Math","Civil Air Patrol or aviation clubs"],
+ lessons:[
+ {title:"How airplanes fly",minutes:13,
+  body:["Four forces act on every airplane. Weight pulls it down. Lift pushes it up. Thrust from the engines pushes it forward, and drag, the push of the air, holds it back.",
+   "Wings are shaped and tilted so they push air downward as the plane moves. Pushing air down pushes the wing up: that is lift, and it is Newton's third law at work.",
+   "To climb, lift has to be greater than weight. To speed up, thrust has to beat drag. When a plane cruises level at a steady speed, all four forces are in balance."],
+  terms:[["Lift","The upward force made by the wings"],["Thrust","The forward push from the engines"],["Drag","The air pushing back against the plane"]],
+  tryIt:"Fold two different paper airplanes. Throw each three times from the same spot and measure how far it flies. Which design has less drag?",
+  quiz:[{q:"Which force holds an airplane back?",o:["Lift","Thrust","Drag","Weight"],a:2,why:"Drag is air resistance pushing against the plane's motion."},
+        {q:"For a plane to climb, lift must be:",o:["Zero","Smaller than weight","Greater than weight","Equal to drag"],a:2,why:"More lift than weight means the plane goes up."}]},
+ {title:"Pilots & the people who keep planes flying",minutes:13,
+  body:["Student pilots can fly solo at 16 and earn a private pilot certificate at 17. Future airline pilots add an instrument rating and a commercial certificate, then build flight time, often as flight instructors. Most airline pilots need 1,500 flight hours.",
+   "Every flight also depends on aircraft maintenance technicians. They earn an FAA airframe and powerplant (A&P) certificate, usually through an 18 to 24 month program, and inspect and fix planes before they fly.",
+   "Air traffic controllers guide planes safely through the sky and on the ground, and aerospace engineers design new aircraft and spacecraft. Many of these careers can start in the military too."],
+  terms:[["Private pilot certificate","Your first pilot license, possible at age 17"],["A&P mechanic","An FAA-certified airframe and powerplant technician"],["Air traffic controller","Guides planes safely in the air and on runways"]],
+  quiz:[{q:"About how many flight hours do most airline pilots need?",o:["15","150","1,500","15,000"],a:2,why:"1,500 hours is the usual requirement for an airline transport pilot."},
+        {q:"What certificate do aircraft mechanics earn?",o:["A driver's license","An FAA airframe and powerplant (A&P) certificate","A chef's certificate","A pilot's wings"],a:1,why:"The A&P certificate lets a mechanic work on aircraft."}]},
+ {title:"To space and back",minutes:14,
+  body:["NASA astronauts are U.S. citizens with a master's degree in a science, technology, engineering or math field (or a medical degree or test pilot training), plus at least two years of work experience. Thousands apply; only a handful are picked.",
+   "Astronaut candidates train for about two years. They practice spacewalks in a giant swimming pool, learn to fly jets, study the space station's systems and robotics, and even learn Russian.",
+   "Most space jobs never leave the ground. Flight controllers in mission control watch every system on a spacecraft, and engineers and technicians design, build and test rockets and satellites."],
+  terms:[["Astronaut candidate","Someone chosen to train as an astronaut"],["Spacewalk (EVA)","Working outside a spacecraft in a spacesuit"],["Mission control","The team on the ground that guides every flight"]],
+  quiz:[{q:"Where do astronauts practice spacewalks?",o:["On a trampoline","In a giant swimming pool","On a mountain","In a movie studio"],a:1,why:"Floating in water feels a lot like floating in space."},
+        {q:"Which space job never leaves the ground?",o:["Space station commander","Flight controller in mission control","Spacewalker","Space shuttle pilot"],a:1,why:"Flight controllers guide missions from Earth."}]}
+ ]},
+{id:"game",code:"GAME 101",field:"games",icon:"gamepad",title:"Game Design & Esports",minutes:35,points:20,paths:["college","cert"],interests:["computers","how","stories"],
+ blurb:"Learn how Shigeru Miyamoto designs Mario, build your own level, and see the real jobs behind esports and streaming.",
+ learn:["Explain what makes a game level fun and easy to learn","Plan and playtest a level of your own","Name the careers in games and esports, and how to start safely"],
+ careers:["Video game designer","Level designer","Game programmer","Esports player or coach","Streamer and content creator"],subjects:["Math and logic","Art and storytelling","Computer science"],
+ lessons:[
+ {title:"What makes a game fun",minutes:11,
+  body:["Shigeru Miyamoto, who created Mario and Zelda, designed the very first level of Super Mario Bros. to teach you how to play without a single word of instructions. The first Goomba walks right at you, so you learn to jump.",
+   "Good games give players clear goals, choices that matter and quick feedback. A coin sound, a score going up or a door opening tells you that you did something right.",
+   "Designers also control difficulty. A level starts easy, adds one new idea at a time, then mixes ideas together for a challenge. Too hard and players quit; too easy and they get bored."],
+  terms:[["Game mechanic","An action the player can do, like jump, shoot or build"],["Feedback","The sound, light or score that tells you what happened"],["Difficulty curve","How a game gets harder, one idea at a time"]],
+  quiz:[{q:"How did World 1-1 of Super Mario Bros. teach players to jump?",o:["A long text tutorial","An enemy walks toward you at the start","A voice tells you which button","It didn't, players read the manual"],a:1,why:"The first Goomba makes jumping the natural thing to try."},
+        {q:"What is feedback in a game?",o:["Comments in the app store","The sound, light or score that shows what your action did","The game's price","The loading screen"],a:1,why:"Feedback tells players right away whether an action worked."}]},
+ {title:"Design your first level",minutes:12,
+  body:["Most designers start on paper. Sketch the level from the side or from above, mark where the player starts and where the goal is, and add obstacles and rewards along the way.",
+   "Then playtest. Watch someone else play without helping them. Where do they get stuck? Where do they smile? Write it down and change one thing at a time.",
+   "Miyamoto says ideas often come from real life: exploring caves and forests as a kid became The Legend of Zelda. Look around you for your next level idea."],
+  terms:[["Prototype","A quick early version you can test"],["Playtest","Watching real players try your game to find problems"],["Iteration","Improving a design a little at a time, then testing again"]],
+  tryIt:"Draw a one-screen level on paper with a start, a goal, two obstacles and one hidden reward. Have someone play it by pointing with a pencil, and change one thing based on what you see.",
+  quiz:[{q:"What is a playtest?",o:["Playing your own game alone until you win","Watching other people play to find problems","Testing the game's price","Checking spelling in the game"],a:1,why:"Players who didn't make the game show you what is really confusing or fun."},
+        {q:"Where did the idea for The Legend of Zelda come from?",o:["A movie","Miyamoto exploring caves and forests as a kid","A comic book","A school assignment"],a:1,why:"Real-life adventures inspired the feeling of exploring in Zelda."}]},
+ {title:"Esports, streaming & game careers",minutes:12,
+  body:["Pro players like Ninja and Faker practice for hours, study replays, and work with coaches, just like other athletes. Very few go pro, but esports also needs coaches, analysts, shoutcasters, event crews and team managers.",
+   "Making games is a team sport too: designers, programmers, artists, writers, sound designers, producers and testers all work on one game. Many high schools and colleges now have esports teams and game design classes, and some give scholarships.",
+   "Streaming and making videos is a real business, but online safety comes first: never share your full name, school or address, take breaks, and get a parent's OK before you go live."],
+  terms:[["Esports","Organized video game competitions with teams, coaches and leagues"],["Shoutcaster","The announcer who calls the action in an esports match"],["Producer","Keeps a game team on schedule and on budget"]],
+  quiz:[{q:"Which is a smart online safety rule for young streamers?",o:["Share your school so fans can visit","Never share your full name, school or address","Stream all night to grow faster","Accept every friend request"],a:1,why:"Keeping personal details private protects you and your family."},
+        {q:"Who besides players works in esports?",o:["Nobody","Coaches, analysts, shoutcasters and event crews","Only the players' parents","Only the game's programmers"],a:1,why:"Like pro sports, esports needs many jobs around the players."}]}
+ ]},
+];
+// "Learn with a Star": 20 celebrity-led courses, 5 lessons each (shared/starCourses).
+COURSES.push(...STAR_COURSES);
+
+/** Groups of courses shown together as a career path. */
+export const LEARNING_PATHS: { id: string; title: string; blurb: string; field: CourseField; courses: string[] }[] = [
+  { id: "trades", title: "Skilled Trades Starter", blurb: "Wire, weld and build your way into the trades.", field: "trades", courses: ["elec", "weld", "engr"] },
+  { id: "create", title: "Create & Perform", blurb: "Direct a scene and produce your first beat.", field: "film", courses: ["film", "musc"] },
+  { id: "future", title: "Build the Future", blurb: "Think like an engineer and code your first game.", field: "eng", courses: ["engr", "tech"] },
+  { id: "care", title: "Help & Lead", blurb: "Healthcare skills plus how to run a business.", field: "health", courses: ["hlth", "biz"] },
+  { id: "games", title: "Games & Tech", blurb: "Design a level like Miyamoto and code your first game.", field: "games", courses: ["game", "tech"] },
+  { id: "action", title: "Fly, Play & Cook", blurb: "Earn your wings, work in pro sports and run a kitchen.", field: "air", courses: ["avia", "sprt", "culn"] },
+];
+LEARNING_PATHS.unshift(...STAR_PATHS);
+
+/** Skills a finished course adds to the student's profile. */
+export const COURSE_SKILLS: Record<string, string[]> = {
+  elec: ["Circuits", "Electrical safety"], engr: ["Design process", "Prototyping"], film: ["Storyboarding", "Shot planning"],
+  musc: ["Beat making", "Mixing basics"], hlth: ["Vital signs", "Patient privacy"], tech: ["Variables & loops", "Game logic"],
+  weld: ["Welding safety", "MIG basics"], biz: ["Profit math", "Pitching"],
+  culn: ["Food safety", "Knife skills"], sprt: ["Injury first steps", "Play-by-play"], avia: ["Four forces of flight", "Aviation careers"],
+  game: ["Level design", "Playtesting"],
+  ...STAR_COURSE_SKILLS,
+};
+
+// Each lesson's "Watch" video and each course's celebrity spotlight (shared/connectVideos.ts).
+for (const c of COURSES) {
+  const videos = LESSON_VIDEOS[c.id] || [];
+  c.lessons.forEach((l, i) => { const list = videos[i] || []; if (list[0]) l.video = list[0]; if (list.length > 1) l.backups = list.slice(1); });
+  if (COURSE_STARS[c.id]?.length) c.stars = COURSE_STARS[c.id];
+}
+
+export const courseById = (id: string) => COURSES.find((c) => c.id === id);
+
+/** True when every answer matches the lesson's quick check. */
+export function answersCorrect(lesson: CourseLesson, answers: unknown): boolean {
+  return Array.isArray(answers) && answers.length === lesson.quiz.length && lesson.quiz.every((q, i) => Number(answers[i]) === q.a);
+}
+
+/** A certificate's ID, e.g. "AC-ELEC101-4K2F9". Stable for the same student, course and day. */
+export function certificateCode(userId: number, courseId: string, day: string): string {
+  const course = courseById(courseId);
+  let h = 2166136261;
+  for (const ch of `${userId}|${courseId}|${day}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return `AC-${(course?.code || courseId).replace(/\s+/g, "").toUpperCase()}-${h.toString(36).toUpperCase().padStart(5, "0").slice(0, 5)}`;
+}

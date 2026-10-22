@@ -1,32 +1,14 @@
-// The free-trial note shown at the top of every tab in Arise WorkHub and Arise LifeHub, and the
-// reminder of what stays once a trial ends: A.R.I.S.E. Reader is kept, the rest of the hub isn't.
-import { useEffect, useState, type ReactNode } from "react";
+// No part of the site has a free trial anymore (WorkHub and LifeHub are unconditionally free).
+// useHubTrial is kept as a no-op (always returns null) so existing callers don't need to change;
+// HubTrialNote/HubEndedNote below stay for the "hub is locked, pay to unlock" case, not trials.
+import { type ReactNode } from "react";
 import { Clock3, Lock } from "lucide-react";
-import { API_BASE } from "@/lib/queryClient";
 
 export type HubTrial = { daysLeft: number; endsAt: string } | null;
 
-const DAY = 86_400_000;
-const daysUntil = (iso: string) => Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / DAY));
-
-/** The teacher's WorkHub free month, or the parent's LifeHub trial, read from /api/addons. Null when not on a trial. */
-export function useHubTrial(token: string | null | undefined, which: "work" | "life", enabled = true): HubTrial {
-  const [trial, setTrial] = useState<HubTrial>(null);
-  useEffect(() => {
-    if (!enabled || !token) { setTrial(null); return; }
-    let live = true;
-    fetch(`${API_BASE}/api/addons`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!live || !d) return;
-        // A teacher's LifeHub comes with WorkHub, so both hubs follow the WorkHub free month.
-        const ends = d.hub?.via === "free-month" ? d.hub.endsAt : which === "life" && d.todo?.via === "trial" ? d.todo.trialEndsAt : null;
-        setTrial(ends ? { endsAt: ends, daysLeft: daysUntil(ends) } : null);
-      })
-      .catch(() => {});
-    return () => { live = false; };
-  }, [token, which, enabled]);
-  return trial;
+/** Always null now — neither WorkHub nor LifeHub has a trial. */
+export function useHubTrial(_token?: string | null, _which?: "work" | "life", _enabled = true): HubTrial {
+  return null;
 }
 
 export function HubTrialNote({ trial, which, upgradeHref, onUpgrade }: { trial: HubTrial; which: "work" | "life"; upgradeHref?: string; onUpgrade?: () => void }) {
@@ -45,14 +27,14 @@ export function HubTrialNote({ trial, which, upgradeHref, onUpgrade }: { trial: 
   </div>;
 }
 
-/** Shown above the Reader tools once a hub's trial is over. */
+/** Shown above the Reader tools when a hub is locked because there's no plan on the account. */
 export function HubEndedNote({ which, upgradeHref, onUpgrade, children }: { which: "work" | "life"; upgradeHref?: string; onUpgrade?: () => void; children?: ReactNode }) {
   const name = which === "work" ? "WorkHub" : "LifeHub";
   return <section className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-800 shadow-sm" data-testid={`${which}hub-ended`}>
     <div className="flex items-start gap-3">
       <span className="rounded-xl bg-slate-100 p-2 text-slate-600"><Lock className="h-5 w-5" /></span>
       <div className="min-w-0 flex-1">
-        <h2 className="text-lg font-bold text-slate-950">Your Arise {name} free trial has ended</h2>
+        <h2 className="text-lg font-bold text-slate-950">Arise {name} needs a plan</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">
           {which === "work" ? "Your caseload, calendar, tasks, notes and the rest of WorkHub (and LifeHub) are locked." : "Your lists, calendar, chores, food & fitness and the rest of LifeHub are locked."} Everything you saved is kept and comes back when you upgrade. Your A.R.I.S.E. Reader tools below still work.
         </p>

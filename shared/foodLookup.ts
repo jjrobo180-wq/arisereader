@@ -1,5 +1,6 @@
 // Automatic calories for the Family Hub food diary: turns answers from the USDA food database,
 // Open Food Facts and the AI estimate into one food shape. Pure functions, so they can be tested offline.
+import { expandUpcE } from "./barcode";
 
 export type FoundFood = { name: string; brand: string; serving: string; calories: number; protein: number; carbs: number; fat: number; source: "usda" | "off" | "ai" };
 
@@ -95,3 +96,13 @@ Reply with JSON only: {"items":[{"name":"Pepperoni pizza","serving":"2 large sli
 Calories are kcal; protein, carbs and fat are grams. Names are short and plain. If there is no food, reply {"items":[]}.`;
 
 export const isBarcode = (code: unknown): code is string => typeof code === "string" && /^\d{8,14}$/.test(code);
+
+/** The numbers to try for a barcode, in order. Food databases mostly list the small UPC-E codes
+ *  on cans and candy under the full UPC-A they stand for, and UPC-A codes with a leading 0. */
+export function barcodeCandidates(code: string): string[] {
+  const out = [code];
+  const upcA = code.length === 8 ? expandUpcE(code) : code.length === 12 ? code : null;
+  if (upcA && upcA !== code) out.push(upcA);
+  if (upcA) out.push(`0${upcA}`);
+  return out;
+}

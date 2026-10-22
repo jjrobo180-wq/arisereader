@@ -1,4 +1,12 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
+import { registerGoalQuizRoutes } from "./goalQuiz";
+import { dedupeBooksOnce } from "./bookDedupe";
+import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
+import { FREE_STORAGE_BYTES } from "../shared/driveApp";
+import { registerDriveAppRoutes } from "./driveApp";
+import { registerParaTeamRoutes, supabaseParaDb } from "./paraTeam";
+import { nameKey, registerAccountMergeRoutes, supabaseMergeDb, type Candidate } from "./accountMerge";
+import { registerDropAppRoutes } from "./dropApp";
 import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
 import type { Express } from "express";
@@ -8,6 +16,7 @@ import { storage } from "./storage";
 import { seedData } from "./storage";
 import { clearCache, AlreadySubmittedError } from "./storage";
 import { supabase, getAdminSupabase } from "./supabase";
+import { APPS_FULL, FAIR_USE, FREE_APPS, UNLIMITED_MONTHLY_CENTS, UNLIMITED_YEARLY_CENTS, UNLIMITED_YEARLY_OFFER, appsIn, growsPastFree } from "../shared/todoPlan";
 import { registerTimedCompetitionRoutes } from "./timedCompetition";
 import { registerHubInboxRoutes } from "./hubInbox";
 import { withBannerLink } from "../shared/banners";
@@ -19,11 +28,15 @@ import { competitionWindow } from "../shared/timedCompetitions";
 import { registerLiveQuizRoutes } from "./liveQuizzes";
 import { registerStudyRoutes } from "./study";
 import { registerPlanRoutes } from "./plans";
+import { registerAdvisoryChallengeRoutes } from "./advisoryChallenge";
+import { registerClassTeacherRoutes, supabaseClassTeacherStore } from "./classTeachers";
+import { advisorAccount, advisoriesForSchool, advisoryLabel, advisoryName } from "../shared/advisories";
+import { schoolYearOf } from "../shared/classTeachers";
 import { registerPrizeRoutes } from "./prizes";
 import { transferIndependentStudents } from "./independentTransfer";
 import { registerSchoolPickerRoutes, SchoolPickError } from "./schoolPicker";
 import { checkSchoolEmail } from "../shared/schoolEmail";
-import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teacherEmailCodeEmail, teacherWelcomeEmail, type TeacherAccount, type TeacherConfirmDeps } from "./teacherSignup";
+import { confirmTeacherEmail, createTeacherEmailCodes, resendTeacherCode, teacherEmailCodeEmail, teacherWelcomeEmail, todoEmailCodeEmail, type TeacherAccount, type TeacherConfirmDeps } from "./teacherSignup";
 import { usSchoolDirectory } from "./schoolDirectory";
 import { isIndependentSchoolName } from "../shared/independent";
 import { registerBoardQuestRoutes } from "./boardQuest";
@@ -43,16 +56,34 @@ import { registerComprehensionRoutes } from "./comprehension";
 import { recordLogin, registerStudentActivityRoutes } from "./studentActivity";
 import { countHubStudents, createHubGate, registerTeacherHubRoutes } from "./teacherHub";
 import { registerAriseTodoRoutes } from "./ariseTodo";
+import { registerWhatsNewRoutes } from "./whatsNew";
+import { registerAdminHandoffRoutes } from "./adminHandoff";
+import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
+import { registerLifePlanRoutes } from "./lifePlan";
+import { registerPassLockRoutes } from "./passLock";
+import { registerProfileLinkRoutes } from "./profileLinks";
+import { registerHubChatRoutes } from "./hubChat";
 import { registerAppleHealthRoutes } from "./appleHealth";
 import { registerTodoNewsRoutes } from "./todoNews";
+import { registerLifehubPluginRoutes } from "./lifehubPlugins";
 import { registerTeacherHubImportRoutes } from "./teacherHubImport";
-import { notifyUser, registerPushRoutes } from "./pushNotifications";
+import { registerLessonPlannerRoutes } from "./lessonPlanner";
+import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
+import { registerProAppsAI } from "./proAppsAI";
+import { notifyUser, registerProDevice, registerPushRoutes, setNudgeSource } from "./pushNotifications";
+import { POTTY_TIMERS_KEY, registerPottyTimerRoutes } from "./pottyTimers";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
+import { registerMathPhotoRoutes } from "./ariseMathPhoto";
+import { registerClassBehaviorRoutes } from "./classBehavior";
+import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
+import { registerAriseEnglishRoutes, type EnglishPerson } from "./ariseEnglish";
+import { createEnglishSpeech } from "./ariseEnglishVoice";
+import { registerStudentShowVoice } from "./studentShowVoice";
 import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
 import { createTextService, textConfigFromEnv } from "./textMessages";
@@ -62,14 +93,19 @@ import { adminBookPoints, isSetByAdmin, keepSwitching, registerBookPointsRoutes,
 import { lookupPages } from "./bookPages";
 import { ARISE_POINTS, cleanBookPoints, cleanPages, pointsForBook } from "../shared/bookPoints";
 import { createAdminAlerts, type Alert } from "./adminAlerts";
+import { addDismissals, cleanKeys, dismissedKeys, parseDismissals } from "../shared/notificationDismiss";
+import { cleanTeacherChoices, sortInvites, studentsToPrint } from "../shared/parentLetters";
 import { buildAdminFeed, buildMemberFeed, buildTeacherFeed, keyAction, legacyKey, splitReport, type Conversation } from "./notificationFeed";
 import { ALERT_EVENTS } from "../shared/adminAlerts";
+import { donateInfoFrom } from "../shared/donate";
 import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
+import { registerTodoAdminRoutes } from "./todoAdmin";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
 import bcrypt from "bcryptjs";
+import { createVerifiedStudentTemporaryHash, verifyStudentTemporaryHash } from "./bulkStudentPassword";
 import { hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import { raw, text as expressText } from "express";
 
@@ -92,6 +128,7 @@ type UnlistedSignup = {
   schoolId: number | null; schoolName: string | null; teacherName: string | null;
   createdAt: string; resolved: boolean; resolvedAt?: string;
   resolvedTeacherId?: number | null; resolvedSchoolId?: number | null;
+  pendingTeacherName?: string | null; pendingTeacherSchoolId?: number | null;
 };
 async function readUnlistedSignups(): Promise<UnlistedSignup[]> {
   const stored = await storage.getSetting(UNLISTED_SIGNUPS_KEY);
@@ -951,6 +988,31 @@ function clubDeniedEmail(studentName: string): string {
 
 // Notes who used the app each day (first and last visit), for the admin Stats tab.
 // One save every half minute at most; see server/adminStats.ts.
+/**
+ * Archives a profile (signed out everywhere, hidden from lists, nothing deleted) or restores it.
+ * Used by the Reader admin and by the To-Do admin's on/off switch.
+ */
+async function archiveProfile(userId: number, archive: boolean, byUserId: number): Promise<"ok" | "missing" | "admin"> {
+  const adminDb = getAdminSupabase();
+  const { data: target, error: findError } = await adminDb.from("users").select("id, role, is_admin, archived_at").eq("id", userId).maybeSingle();
+  if (findError) throw new Error(findError.message);
+  if (!target) return "missing";
+  if (target.is_admin) return "admin";
+  const patch = archive ? { archived_at: new Date().toISOString(), archived_by: byUserId } : { archived_at: null, archived_by: null };
+  const { error } = await adminDb.from("users").update(patch).eq("id", userId);
+  if (error) throw new Error(error.message);
+  // Sign the person out everywhere.
+  if (archive) await adminDb.from("sessions").delete().eq("user_id", userId);
+  clearCache('session_');
+  clearCache('allUsers');
+  clearCache('teachers');
+  clearCache('leaderboard');
+  clearCache('monthlyLeaderboard_');
+  clearCache('eye_gaze_leaderboard');
+  clearCache('advisoryLeaderboard');
+  return "ok";
+}
+
 const presence = createPresenceTracker({
   readSetting: async (key) => {
     const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
@@ -1008,6 +1070,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // One admin-managed changelog drives both public A.R.I.S.E. domains.
+  registerWhatsNewRoutes(app, authMiddleware);
   // Picking a school at sign-up: search the US school list, or (teachers) type one that is missing.
   // Its one route is public, so it can sit in front of the plan check.
   const schoolPicker = registerSchoolPickerRoutes(app, {
@@ -1172,6 +1236,7 @@ export async function registerRoutes(
     },
     userForToken: async (token) => (await storage.getSession(token))?.user ?? null,
     getUser: (id) => storage.getUser(id),
+    findUserByUsername: (username) => storage.getUserByUsername(username),
     // students only: a parent account carries its child's teacher too, and must not use up a place
     countTeacherStudents: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => (u.role || "student") === "student").length,
     countSchoolStudents: async (schoolId) => (await storage.getAllUsers()).filter((u: any) => (u.role || "student") === "student" && Number(u.school_id) === schoolId).length,
@@ -1187,6 +1252,61 @@ export async function registerRoutes(
     appUrl: APP_URL,
     envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
+  });
+  // Students' Advisory and Literature teachers: the sign-in pop-up, and the school's list on the
+  // Reader page's "Advisory & Lit" tab (server/classTeachers.ts).
+  const classTeacherStore = supabaseClassTeacherStore(supabase);
+  registerClassTeacherRoutes(app, { auth: authMiddleware, ...classTeacherStore });
+  // The Advisory Challenge standings (server/advisoryChallenge.ts): the pop-up, the library banner and the leaderboards.
+  const pagedRows = async (make: (from: number, to: number) => any) => {
+    const rows: any[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await make(from, from + 999);
+      if (error) throw new Error(error.message);
+      rows.push(...(data || []));
+      if (!data || data.length < 1000) return rows;
+    }
+  };
+  registerAdvisoryChallengeRoutes(app, {
+    auth: authMiddleware,
+    getSchool: classTeacherStore.getSchool,
+    allSchools: classTeacherStore.allSchools,
+    async schoolStudentIds(schoolId) {
+      const rows = await pagedRows((a, b) => supabase.from("users").select("id, username, role, is_admin").eq("school_id", schoolId).is("archived_at", null).order("id", { ascending: true }).range(a, b));
+      return rows.filter((r) => !r.is_admin && (r.role || "student") === "student" && !isSampleAccount(r)).map((r) => Number(r.id));
+    },
+    async advisoryPicks(schoolId, year) {
+      const rows = await pagedRows((a, b) => supabase.from("student_class_teachers").select("student_id, advisory_teacher_name").eq("school_id", schoolId).eq("school_year", year).order("student_id", { ascending: true }).range(a, b));
+      return rows.map((r) => ({ studentId: Number(r.student_id), advisory: String(r.advisory_teacher_name || "").trim() }));
+    },
+    pointsBetween: (ids, from, to, fromDay, endDay) => storage.getPointsBetween(ids, from, to, fromDay, endDay),
+    quizzesBetween: (ids, from, to, fromDay, endDay) => storage.getQuizzesBetween(ids, from, to, fromDay, endDay),
+    async parentChildren(parentId) {
+      const ids = await getParentStudentIds(parentId);
+      const kids = await Promise.all(ids.map((id) => storage.getUser(id)));
+      return kids.filter((k: any) => k && k.role === "student" && !k.archivedAt).map((k: any) => ({ id: Number(k.id), schoolId: k.schoolId ?? k.school_id ?? null }));
+    },
+  });
+  // The advisories at a school, for the sign-up page (no sign-in needed): names, grade and room only.
+  app.get("/api/public/schools/:id/advisories", async (req: any, res) => {
+    try {
+      const school = await classTeacherStore.getSchool(Number(req.params.id));
+      res.set("Cache-Control", "public, max-age=300");
+      res.json(school ? advisoriesForSchool(school.name).map((a) => ({ id: a.id, name: advisoryName(a), label: advisoryLabel(a), grade: a.grade || "", room: a.room || "" })) : []);
+    } catch {
+      res.json([]);
+    }
+  });
+  // A school's advisories (shared/advisories.ts), for placing uploaded students in one.
+  app.get("/api/schools/:id/advisories", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!req.user.isAdmin && Number(req.user.school_id) !== id) return res.status(403).json({ message: "That isn't your school." });
+      const school = await classTeacherStore.getSchool(id);
+      res.json(school ? advisoriesForSchool(school.name).map((a) => ({ id: a.id, name: advisoryName(a), label: advisoryLabel(a), teachers: a.teachers, room: a.room || "", grade: a.grade || "" })) : []);
+    } catch (e: any) {
+      res.status(500).json({ message: "Advisories could not be loaded." });
+    }
   });
   // Private LifeHub accounts and cross-device task syncing (for anyone, not just teachers).
   // Paid add-ons (shared/plans.ts): a request without the add-on gets 402 and the page shows how to get it.
@@ -1204,11 +1324,86 @@ export async function registerRoutes(
     };
   // Arise LifeHub: $10 a month for parents after their 30 free days; teachers get it with Arise WorkHub.
   app.use("/api/arise-todo", addonGate(
-    (method, path) => method === "POST" && path === "/api/arise-todo/register",
+    // Signing up is open, and so are the two steps that finish it. They happen before anyone can
+    // be signed in — the account is switched off until the emailed code is typed back — so putting
+    // them behind this gate answered "not authenticated" to the very person it was made for.
+    (method, path) => method === "POST" && (
+      path === "/api/arise-todo/register" ||
+      path === "/api/arise-todo/confirm-email" ||
+      path === "/api/arise-todo/resend-code"),
     async (user) => (user?.role === "parent" || user?.role === "teacher" ? (await plans.todoStatus(user)).access : true),
     "todo_required", "Arise LifeHub is an add-on for parents ($10 a month) and comes with Arise WorkHub for teachers.",
   ));
-  registerAriseTodoRoutes(app, authMiddleware);
+  registerAdminHandoffRoutes(app, authMiddleware);
+  registerClientErrorRoutes(app);
+  // A.R.I.S.E. To-Do Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
+  // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would
+  // add a 4th is refused. Nothing is ever taken away, and an account already over keeps every app
+  // it has; it just can't add more.
+  const HUB_TABLES = { work: { table: "teacher_hub_workspaces", id: "teacher_id" }, life: { table: "arise_todo_workspaces", id: "user_id" } } as const;
+  const savedHub = async (hub: "work" | "life", userId: number): Promise<unknown | null> => {
+    const t = HUB_TABLES[hub];
+    const { data, error } = await getAdminSupabase().from(t.table).select("workspace").eq(t.id, userId).maybeSingle();
+    if (error) throw error;
+    return data ? data.workspace : null;
+  };
+  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build"], authMiddleware, plans.aiMeter);
+  app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
+    try {
+      const user = req.adminPreview && req.realUser ? req.realUser : req.user;
+      const workspace = req.body?.workspace;
+      if (!user || !workspace || typeof workspace !== "object") return next();
+      const hub = req.path.startsWith("/api/teacher-hub") ? "work" : "life";
+      const other = hub === "work" ? "life" : "work";
+      const mine = appsIn(hub, workspace);
+      // No apps in this hub: this save can't be adding one, so skip the lookups.
+      if (mine === 0) return next();
+      if ((await plans.todoUnlimited(user)).unlimited) return next();
+      const [before, otherSaved] = await Promise.all([savedHub(hub, Number(user.id)), savedHub(other, Number(user.id))]);
+      const otherApps = appsIn(other, otherSaved);
+      if (growsPastFree(appsIn(hub, before) + otherApps, mine + otherApps)) {
+        return res.status(402).json({ code: APPS_FULL, limit: FREE_APPS, message: `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one, or get Unlimited ($${UNLIMITED_MONTHLY_CENTS / 100} a month) for every app and AI.` });
+      }
+      next();
+    } catch (error: any) {
+      // Never bypass subscription enforcement because Stripe or the database is slow:
+      // the existing saved hub stays untouched and the person can retry safely.
+      console.error("[todo-plan] Could not verify app allowance:", error?.message);
+      return res.status(503).json({ message: "Could not verify your App Store allowance. Please try again." });
+    }
+  });
+  /** Free or Unlimited, apps added in each hub, and this month's AI, for the hubs' plan card and upgrade box. */
+  app.get("/api/todo-plan", authMiddleware, async (req: any, res) => {
+    try {
+      const user = req.adminPreview && req.realUser ? req.realUser : req.user;
+      const id = Number(user.id);
+      const [plan, ai, work, life, payment, paidProduct] = await Promise.all([
+        plans.todoUnlimited(user), plans.aiUsage(user), savedHub("work", id).catch(() => null), savedHub("life", id).catch(() => null),
+        plans.stripeReady(), plans.unlimitedPaidBy(id),
+      ]);
+      res.set("Cache-Control", "no-store");
+      res.json({
+        unlimited: plan.unlimited, via: plan.via, endsAt: plan.endsAt,
+        apps: { work: appsIn("work", work), life: appsIn("life", life), limit: plan.unlimited ? null : FREE_APPS },
+        ai: { limit: ai.limit, used: ai.used, left: ai.left },
+        priceCents: UNLIMITED_MONTHLY_CENTS, yearlyCents: UNLIMITED_YEARLY_OFFER ? UNLIMITED_YEARLY_CENTS : null,
+        payment, paidByYou: !!paidProduct, paidProduct, fairUse: FAIR_USE,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Your plan could not be loaded." });
+    }
+  });
+  // The personal A.R.I.S.E. To-Do sign-up confirms its email with the same 6-digit code the teacher
+  // sign-up uses, so there is one mechanism to get right rather than two.
+  registerAriseTodoRoutes(app, authMiddleware, {
+    codes: teacherEmailCodes,
+    turnOn: (userId) => storage.approveTeacherAccount(userId),
+    sendCode: async ({ email, displayName }, code) => {
+      const result = await sendEmail(email, `${code} is your A.R.I.S.E. To-Do code`, todoEmailCodeEmail(displayName, code));
+      if (!result.sent) console.error("[arise-todo] could not email a code:", result.error);
+      return result.sent;
+    },
+  });
   // Share links from LifeHub (a poll to vote in, a list, the calendar, bills, a trip...) that family open without an account.
   const todoOwnerAllowed = async (id: number) => {
     const owner: any = await storage.getUser(id);
@@ -1220,12 +1415,82 @@ export async function registerRoutes(
     ownerName: async (id) => { const owner: any = await storage.getUser(id); return String(owner?.displayName || owner?.display_name || "").trim().split(/\s+/)[0] || ""; },
   });
   registerFoodLookupRoutes(app, authMiddleware);
+  registerLifePlanRoutes(app, authMiddleware);
+  registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
+  registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    hasAiPro: async (userId) => {
+      const owner: any = await storage.getUser(userId);
+      if (!owner) return false;
+      const raw = await storage.getSetting(`plan_ai_pro_${userId}`).catch(() => "");
+      let grant: any = null;
+      try { grant = raw ? JSON.parse(raw) : null; } catch { grant = null; }
+      return aiProAccessFor({ id: userId, role: owner.role, isAdmin: owner.isAdmin, username: owner.username }, grant && grant.kind === "ai_pro" && Number(grant.ownerId) === userId ? grant : null);
+    },
+  });
   registerAppleHealthRoutes(app, authMiddleware);
   registerTodoNewsRoutes(app, authMiddleware);
+  registerLifehubPluginRoutes(app, authMiddleware);
+  // One-time: merge duplicate copies of the same book quiz (server/bookDedupe.ts). Runs in the
+  // background a few seconds after start, once ever, with a backup saved first.
+  setTimeout(() => {
+    dedupeBooksOnce({ get: (k) => storage.getSetting(k), set: (k, v) => storage.upsertSetting(k, v) })
+      .then(() => { clearCache("allBooks"); clearCache("leaderboard"); clearCache("allUsers"); })
+      .catch((e) => console.error("[book-dedupe] stopped:", e?.message || e));
+  }, 15_000);
+  // WorkHub goal quizzes (server/goalQuiz.ts): AI writes a quiz from a student's goals, for the teacher.
+  registerGoalQuizRoutes(app, authMiddleware);
+  // Para Team (server/paraTeam.ts): a teacher's shared space with their paras and 1:1s.
+  registerParaTeamRoutes(app, { auth: authMiddleware, raw: raw as any, db: supabaseParaDb(getAdminSupabase) });
+  registerDriveAppRoutes(app, authMiddleware, raw, {
+    getAdminSupabase,
+    storageLimitFor: async (userId) => {
+      let best = 0;
+      for (const kind of STORAGE_PLAN_KINDS) {
+        const raw = await storage.getSetting(`plan_${kind}_${userId}`).catch(() => "");
+        if (!raw) continue;
+        try {
+          const grant = JSON.parse(raw);
+          if (grant?.kind === kind && Number(grant.ownerId) === userId && grantLive(grant)) {
+            best = Math.max(best, storageTierGb(kind) * 1024 * 1024 * 1024);
+          }
+        } catch { /* ignore malformed grant */ }
+      }
+      return FREE_STORAGE_BYTES + best;
+    },
+  });
+  registerDropAppRoutes(app, authMiddleware, raw, {
+    getAdminSupabase,
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    listSettingsByPrefix: async (prefix) => {
+      const { data, error } = await getAdminSupabase().from("settings").select("key, value").like("key", `${prefix}%`).limit(500);
+      if (error) throw new Error(error.message);
+      return (data || []) as Array<{ key: string; value: string }>;
+    },
+  });
   // Arise WorkHub, the paid add-on: only teachers with a Arise WorkHub plan can open it.
   registerTeacherHubRoutes(app, authMiddleware, { hubAccess: (user) => plans.hubAccess(user as any) });
   // Adding to the Hub from AI, photos, files, pasted text and connected calendars.
   registerTeacherHubImportRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
+  // The Lesson Planner's AI helper: ideas, full plans, standards, worksheets, slides, units and reteaches.
+  // Arise Office (Sheets, Docs, Slides) and the premium apps: each person's own files and app data.
+  const userDocStore = supabaseDocStore(getAdminSupabase);
+  // Linked profiles: share premium apps (Potty Training…) and LifeHub pages with another account (server/profileLinks.ts).
+  const profileLinks = registerProfileLinkRoutes(app, authMiddleware, {
+    getSetting: (key) => storage.getSetting(key), upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    getUser: (id) => storage.getUser(id), lifeHub: (ownerId) => savedHub("life", ownerId),
+  });
+  registerUserDocRoutes(app, authMiddleware, userDocStore, undefined, profileLinks.canUseApp);
+  // Health Nudges (a premium app) sends phone notifications from the settings it saved with the person's app data.
+  setNudgeSource(async (userId) => {
+    const raw = await userDocStore.read(`${userId}/apps/pro-health-nudges.json`);
+    if (!raw) return null;
+    try { const data = JSON.parse(raw)?.data; return data && data.push === true ? data : null; } catch { return null; }
+  });
+  registerProAppsAI(app, authMiddleware, plans.aiMeter);
+  registerLessonPlannerRoutes(app, authMiddleware, { gate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }) });
   // Asking everyone for a time that works for an IEP or re-evaluation meeting.
   // A teacher can connect their own Gmail or Outlook so those emails come from their real address.
   const hubGate = createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) });
@@ -1278,6 +1543,13 @@ export async function registerRoutes(
   registerAppleReminderRoutes(app, authMiddleware, { gate: hubGate, getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), key: () => secretKey(), textBody: expressText({ type: ["text/*", "application/octet-stream"], limit: "200kb" }), appUrl: APP_URL });
   // Notifications for the Home Screen app (Web Push): Arise WorkHub reminders.
   registerPushRoutes(app, authMiddleware, { hubGate: createHubGate({ hubAccess: (user) => plans.hubAccess(user as any) }), todoAllowed: todoOwnerAllowed });
+  // Potty Training: the reminder timer as a phone notification, sent even when the app is closed.
+  registerPottyTimerRoutes(app, authMiddleware, {
+    load: async () => (await storage.getSetting(POTTY_TIMERS_KEY)) || null,
+    save: (value) => storage.upsertSetting(POTTY_TIMERS_KEY, value),
+    notify: (userId, message) => notifyUser(userId, message),
+    registerDevice: registerProDevice,
+  });
   registerClubPlayRoutes(app, authMiddleware);
   registerLiveQuizRoutes(app, authMiddleware);
   // Study Squad: the study hall, its tables and study sets (kept in the settings table).
@@ -1398,6 +1670,22 @@ export async function registerRoutes(
     schoolId: u.school_id ? Number(u.school_id) : null, approvedByTeacher: u.approvedByTeacher !== false, archived: !!u.archivedAt,
   }) : null;
   registerAriseSocialRoutes(app, authMiddleware, {
+    // Each student has an individual, persistent approval record. A changed teacher
+    // invalidates the old permission; this requires no new database tables.
+    approvals: {
+      get: async (studentId) => {
+        const raw = await storage.getSetting(`arise_connect_access_${studentId}`);
+        if (!raw) return null;
+        try {
+          const data = JSON.parse(raw);
+          if (!Number.isSafeInteger(data.teacherId) || !["pending", "approved", "denied"].includes(data.status)) return null;
+          return { teacherId: Number(data.teacherId), status: data.status };
+        } catch { return null; }
+      },
+      save: async (studentId, record) => {
+        await storage.upsertSetting(`arise_connect_access_${studentId}`, JSON.stringify(record));
+      },
+    },
     // Arise Social is a $5/month add-on for each account (shared/plans.ts). An admin previewing as a student gets in.
     access: {
       self: async (req: any) => !!(req.adminPreview || req.realUser?.isAdmin) || plans.socialAccess(req.user),
@@ -1419,7 +1707,11 @@ export async function registerRoutes(
   // each page can show its free-trial countdown or how to keep it.
   for (const [base, which, name] of [["/api/math", "math", "Arise Math"], ["/api/history", "history", "Arise History"]] as const) {
     app.use(base, addonGate(
-      (method, path) => method === "GET" && (path === `${base}/catalog` || path === `${base}/me`),
+      // The printable worksheet is open too. It is opened with window.open in a new tab, and a new
+      // tab carries no Authorization header (this app signs in with a Bearer token, not a cookie),
+      // so behind the gate it answered 401 and the tab showed that error instead of the worksheet.
+      // Leaving it open is what the route intends: generated problems, never any student data.
+      (method, path) => method === "GET" && (path === `${base}/catalog` || path === `${base}/me` || path === `${base}/worksheet`),
       (user) => plans.appAccess(user, which),
       "bundle_required", `${name} needs a class add-on from your teacher or a family Learning Bundle. Start it from your plan page.`,
     ));
@@ -1433,6 +1725,28 @@ export async function registerRoutes(
       notify: (id, message) => notifyUser(id, message),
     },
   });
+  // Arise Math "Snap a problem": photo or typed problem → step-by-step help without the answer. See server/ariseMathPhoto.ts.
+  registerMathPhotoRoutes(app, authMiddleware, { gradeOf: async (id) => (await studentGrades())[String(id)] || null });
+  // Class behavior (WorkHub's Behavior tab): points, hall passes, and what parents see. See server/classBehavior.ts.
+  registerClassBehaviorRoutes(app, authMiddleware, {
+    directory: {
+      user: async (id) => toSocialUser(await storage.getUser(id)),
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      parentsOf: async (studentId) => Object.entries(await readParentStudentLinks()).filter(([, ids]) => normalizeLinkedIds(ids).includes(studentId)).map(([pid]) => Number(pid)).filter((n) => Number.isSafeInteger(n) && n > 0),
+      notify: (id, message) => notifyUser(id, message),
+    },
+  });
+  // Class Goal Board (WorkHub app, #/class-goal): a class goal, its points and the reward. See server/classGoals.ts.
+  registerClassGoalRoutes(app, authMiddleware, {
+    // Read straight from the database (storage.getSetting is cached and turns an error into "", which would then be saved over the real copy).
+    readSetting: async (key) => {
+      const { data, error } = await supabase.from("settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data?.value || "";
+    },
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+  });
   // Arise History (/history/): History Reads and quizzes with points, a class leaderboard, assignments and live review.
   // Same accounts as Arise Math; see server/ariseHistory.ts and migrations/arise_history.sql.
   registerAriseHistoryRoutes(app, authMiddleware, {
@@ -1442,6 +1756,26 @@ export async function registerRoutes(
       studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).map(toSocialUser).filter((u): u is SocialUser => !!u),
       childrenOf: (parentId) => getParentStudentIds(parentId),
       notify: (id, message) => notifyUser(id, message),
+    },
+  });
+  // English Explorer (#/english): the English-language-learner program. A teacher or the administrator turns it
+  // on per student; its points go on the regular leaderboards. See server/ariseEnglish.ts and migrations/arise_english.sql.
+  const toEnglishPerson = (u: any): EnglishPerson | null => u ? ({
+    id: Number(u.id), role: u.isAdmin ? "admin" : u.role === "teacher" ? "teacher" : u.role === "parent" ? "parent" : "student",
+    displayName: String(u.displayName || u.username || ""), username: String(u.username || ""), teacherId: u.teacherId ? Number(u.teacherId) : null,
+    schoolId: u.school_id ? Number(u.school_id) : null, archived: !!u.archivedAt,
+  }) : null;
+  // The student welcome show's AI voice (#/present): its fixed script, made once and saved. See server/studentShowVoice.ts.
+  registerStudentShowVoice(app);
+  registerAriseEnglishRoutes(app, authMiddleware, {
+    speech: createEnglishSpeech(),
+    audioBody: raw({ type: ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"], limit: "2mb" }),
+    directory: {
+      user: async (id) => toEnglishPerson(await storage.getUser(id)),
+      students: async () => (await storage.getAllUsers()).filter((u: any) => !u.isAdmin && (!u.role || u.role === "student")).map(toEnglishPerson).filter((u): u is EnglishPerson => !!u),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
+      notify: (id, message) => notifyUser(id, message),
+      pointsChanged: () => { clearCache("leaderboard"); clearCache("monthlyLeaderboard_"); clearCache("allUsers"); clearCache("advisoryLeaderboard"); clearCache("pointsBetween_"); },
     },
   });
   /** What anyone may see about a teacher on the public sign-up pages. */
@@ -1456,12 +1790,15 @@ export async function registerRoutes(
   const isStaffViewer = (req: any) => !req.adminPreview && !isDemoStudent(req.user) && (req.user?.isAdmin === true || req.user?.role === "teacher");
   /** Quiz questions without the answer key, for anyone taking the quiz. */
   const withoutAnswers = (questions: any[] | undefined) => (questions || []).map(({ correct_answer: _answer, ...rest }: any) => rest);
-  /** Checks one answer of an Eye Gazer or custom quiz, so the quiz can cheer right away without sending the answer key. */
+  /** Checks one answer of an Eye Gazer or custom quiz, so the quiz can cheer right away without sending the answer key.
+   *  Once an answer is kept, the built-in lessons also say which one was right, so the lesson can show it.
+   *  A negative attempt id is a try that is never saved: a preview, or practice of a quiz the student already finished. */
   const checkOneAnswer = async (
     req: any,
     res: any,
     table: "eye_gaze_attempts" | "custom_eye_gaze_attempts",
     loadQuestions: (quizId: number) => Promise<any[]>,
+    options: { canPractice?: (userId: number, quizId: number) => Promise<boolean>; showRightAnswer?: boolean } = {},
   ) => {
     try {
       const attemptId = parseInt(req.params.attemptId);
@@ -1471,18 +1808,24 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Choose an answer first." });
       }
       if (attemptId < 0) {
-        // previews (staff, admin preview and the sample accounts) aren't saved
+        // previews (staff, admin preview and the sample accounts) and practice aren't saved
         const canPreview = req.adminPreview || isDemoStudent(req.user) || req.user?.isAdmin || req.user?.role === "teacher";
-        if (!canPreview) return res.status(403).json({ message: "Start the quiz first." });
+        if (!canPreview && !(options.canPractice && await options.canPractice(req.user.id, -attemptId))) {
+          return res.status(403).json({ message: "Start the quiz first." });
+        }
         const question = (await loadQuestions(-attemptId)).find((q: any) => Number(q.id) === questionId);
         if (!question) return res.status(404).json({ message: "Question not found." });
-        return res.json({ correct: answer === String(question.correct_answer || "") });
+        return res.json({ correct: answer === String(question.correct_answer || ""), rightAnswer: String(question.correct_answer || "") });
       }
       const recorded = await storage.recordQuizAnswer(table, attemptId, req.user.id, questionId, answer);
       if (!recorded) return res.status(409).json({ message: "This quiz is already finished." });
       const question = (await loadQuestions(recorded.quizId)).find((q: any) => Number(q.id) === questionId);
       if (!question) return res.status(404).json({ message: "Question not found." });
-      res.json({ correct: recorded.answer === String(question.correct_answer || ""), answer: recorded.answer });
+      res.json({
+        correct: recorded.answer === String(question.correct_answer || ""),
+        answer: recorded.answer,
+        ...(options.showRightAnswer ? { rightAnswer: String(question.correct_answer || "") } : {}),
+      });
     } catch (error: any) {
       res.status(500).json({ message: "Could not check that answer." });
     }
@@ -1639,8 +1982,10 @@ export async function registerRoutes(
   });
   // Seed data on startup
   await seedData();
-  await storage.seedEyeGazeQuizzes();
-  await storage.seedExtraEyeGazeQuizzes();
+  // The built-in Eye Gazer lessons live in shared/eyegaze/lessons.ts; save any changes to them (in the background).
+  void storage.syncEyeGazeLessons()
+    .then((r) => { if (r.added || r.changed || r.retired) console.log(`[eye-gaze-lessons] saved: ${r.added} added, ${r.changed} changed, ${r.retired} old quizzes hidden`); })
+    .catch((e: any) => console.error("[eye-gaze-lessons] could not save the lessons:", e?.message));
 
   // Students who picked "Independent Reader" in the old school list become independent students.
   // Runs in the background on every start; once they are moved there is nothing left to do.
@@ -1710,6 +2055,22 @@ export async function registerRoutes(
     } catch (e) {}
   }, 300000);
 
+  // School directory teachers are names, never login accounts or authorization IDs.
+  const directoryTeacherKey = (schoolId: number) => `school_teacher_directory_${schoolId}`;
+  const directoryId = (schoolId: number, name: string) =>
+    `directory:${schoolId}:${encodeURIComponent(name.trim().toLowerCase())}`;
+  const directoryTeachers = async (schoolId: number): Promise<Array<{ name: string; grades?: string[] }>> => {
+    if (!Number.isSafeInteger(schoolId) || schoolId < 1) return [];
+    const raw = await storage.getSetting(directoryTeacherKey(schoolId));
+    try {
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data.filter((t) => t && typeof t.name === "string" && t.name.trim()) : [];
+    } catch { return []; }
+  };
+  const getDirectoryTeacher = async (schoolId: number, selectedId: string, grade?: string | null) =>
+    (await directoryTeachers(schoolId)).find(t => directoryId(schoolId, t.name) === selectedId &&
+      (!grade || !t.grades?.length || t.grades.includes(String(grade)))) || null;
+
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
@@ -1754,6 +2115,19 @@ export async function registerRoutes(
         }
       }
 
+      // Resolve the student's teacher into a permanent, data-only assignment.
+      // No teacher login, password or teacher_id is created for directory names.
+      let directoryTeacherName: string | null = null;
+      const requestedDirectory = typeof req.body.directoryTeacherId === "string" ? req.body.directoryTeacherId : "";
+      if (requestedDirectory) {
+        const sid = Number(schoolId);
+        const selected = await getDirectoryTeacher(sid, requestedDirectory, gradeLevel);
+        if (!selected || !sid || req.body.independent) return res.status(400).json({ message: "That teacher is not listed for this school and grade." });
+        directoryTeacherName = selected.name.trim();
+        teacherId = null;
+      } else if (!teacherId && schoolId && typeof req.body.unlistedTeacherName === "string") {
+        directoryTeacherName = req.body.unlistedTeacherName.trim().slice(0, 120) || null;
+      }
       const hashedPassword = bcrypt.hashSync(password, 10);
       const user = await storage.createUser({
         username: username.toLowerCase(),
@@ -1762,6 +2136,7 @@ export async function registerRoutes(
         isEyeGazeUser: !!isEyeGazeUser,
         role: 'student',
         teacherId: teacherId ? parseInt(teacherId) : null,
+        directoryTeacherName,
         approvedByTeacher: teacherId ? false : true,
         schoolId: schoolId ? parseInt(schoolId) : null,
       });
@@ -1773,6 +2148,11 @@ export async function registerRoutes(
         if (rawGrades) { try { userGrades = JSON.parse(rawGrades); } catch {} }
         userGrades[String(user.id)] = gradeLevel;
         await storage.upsertSetting('user_grades', JSON.stringify(userGrades));
+      }
+
+      // The advisory picked at sign-up (schools with advisories ask for that, not a teacher).
+      if (typeof req.body.advisoryId === "string" && req.body.advisoryId && schoolId && !req.body.independent) {
+        try { await placeInAdvisory(Number(user.id), req.body.advisoryId); } catch (e: any) { console.error("[register] advisory not saved:", e?.message); }
       }
 
       // "School/teacher not listed": these are school students, not independent
@@ -1788,7 +2168,7 @@ export async function registerRoutes(
       try {
         const signupType = req.body.independent || pickedIndependentSchool ? "independent"
           : unlistedSchoolName ? "school_not_listed"
-          : unlistedTeacherName ? "teacher_not_listed"
+          : unlistedTeacherName && !requestedDirectory ? "teacher_not_listed"
           : "school";
         const rawTypes = await storage.getSetting("student_signup_types");
         let signupTypes: Record<string, string> = {};
@@ -1797,7 +2177,7 @@ export async function registerRoutes(
         await storage.upsertSetting("student_signup_types", JSON.stringify(signupTypes));
       } catch {}
 
-      if (unlistedSchoolName || unlistedTeacherName) {
+      if (unlistedSchoolName || (unlistedTeacherName && !requestedDirectory)) {
         try {
           const requests = await readUnlistedSignups();
           requests.push({
@@ -1824,7 +2204,7 @@ export async function registerRoutes(
         const schoolText = noSchool ? "Independent reader (no school)" : facts.school || (unlistedSchoolName ? `Not listed: “${unlistedSchoolName}”` : "");
         const teacherText = facts.teacher
           ? `${facts.teacher}${user.approvedByTeacher === false ? " (waiting for their OK)" : ""}`
-          : unlistedTeacherName ? `Not listed: “${unlistedTeacherName}”` : "";
+          : directoryTeacherName || (unlistedTeacherName ? `Not listed: “${unlistedTeacherName}”` : "");
         await adminAlerts.notify("student_signup", {
           title: `New student: ${user.displayName}`,
           summary: [`@${user.username}`, (gradeLevel || facts.grade) && `Grade ${gradeLevel || facts.grade}`, schoolText, teacherText && `Teacher: ${teacherText}`].filter(Boolean).join(" · "),
@@ -1835,7 +2215,7 @@ export async function registerRoutes(
             ["Teacher", teacherText],
             ["Account", isEyeGazeUser ? "Eye Gazer" : "Reader"],
           ],
-          note: unlistedSchoolName || unlistedTeacherName ? "Their school or teacher wasn't in the list. Connect them under Admin → People → Students." : undefined,
+          note: unlistedSchoolName || (unlistedTeacherName && !requestedDirectory) ? "Their school or teacher wasn't in the list. Connect them under Admin → People → Students." : undefined,
           ref: `u${user.id}`,
         });
       })();
@@ -1853,9 +2233,19 @@ export async function registerRoutes(
   // Admin: students who signed up with "school/teacher not listed"
   app.get("/api/admin/unlisted-signups", authMiddleware, adminMiddleware, async (_req, res) => {
     try {
-      const requests = await readUnlistedSignups();
+      const requests = (await readUnlistedSignups()).filter(r => !r.resolved);
+      // Students are placed by advisory now, so each one shows their advisory (and ELA teacher), not a teacher.
+      const year = schoolYearOf();
+      const ids = requests.map(r => Number(r.userId)).filter(Boolean);
+      const { data: picks } = ids.length
+        ? await supabase.from("student_class_teachers").select("student_id, advisory_teacher_name, lit_teacher_name").eq("school_year", year).in("student_id", ids)
+        : { data: [] as any[] };
+      const pickOf = new Map((picks || []).map((p: any) => [Number(p.student_id), p]));
       res.set("Cache-Control", "no-store");
-      res.json(requests.filter(r => !r.resolved).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
+      res.json(requests.map(r => {
+        const p: any = pickOf.get(Number(r.userId));
+        return { ...r, advisory: p?.advisory_teacher_name || null, elaTeacher: p?.lit_teacher_name || null };
+      }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))));
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -1867,12 +2257,41 @@ export async function registerRoutes(
       const studentId = parseInt(req.params.userId);
       const schoolId = req.body.schoolId ? parseInt(req.body.schoolId) : null;
       const teacherId = req.body.teacherId ? parseInt(req.body.teacherId) : null;
+      const directoryTeacherId = typeof req.body.directoryTeacherId === "string" ? req.body.directoryTeacherId : "";
+      if (directoryTeacherId) {
+        const requests = await readUnlistedSignups();
+        const entry = requests.find(r => Number(r.userId) === studentId && !r.resolved);
+        if (!entry) return res.status(404).json({ message: "This student is no longer awaiting assignment." });
+        const student = await storage.getUser(studentId);
+        if (!student || student.role !== "student") return res.status(404).json({ message: "Student not found." });
+        const targetSchool = Number(schoolId || entry.schoolId || student.school_id);
+        const selected = await getDirectoryTeacher(targetSchool, directoryTeacherId, entry.gradeLevel);
+        if (!selected) return res.status(400).json({ message: "That teacher is not listed for this school and grade." });
+        const { error } = await supabase.from("users").update({
+          school_id: targetSchool, teacher_id: null,
+          directory_teacher_name: selected.name.trim(), approved_by_teacher: true,
+        }).eq("id", studentId).eq("role", "student");
+        if (error) throw new Error(error.message);
+        clearCache("allUsers");
+        entry.teacherName = selected.name.trim();
+        entry.resolved = true;
+        entry.resolvedAt = new Date().toISOString();
+        entry.resolvedSchoolId = targetSchool;
+        await storage.upsertSetting(UNLISTED_SIGNUPS_KEY, JSON.stringify(requests));
+        return res.json({ success: true, teacherName: selected.name.trim(), message: `${selected.name.trim()} assigned to this student.` });
+      }
       if (schoolId) await storage.assignStudentToSchool(studentId, schoolId);
+      // Placing the student in an advisory (the usual way now) instead of with one teacher.
+      const advisoryId = typeof req.body.advisoryId === "string" ? req.body.advisoryId : "";
+      if (advisoryId) {
+        const placed = await placeInAdvisory(studentId, advisoryId);
+        if (!placed.ok) return res.status(400).json({ message: placed.message });
+      }
       if (teacherId) {
         const teacher = await storage.getUser(teacherId);
         if (!teacher || teacher.role !== "teacher") return res.status(400).json({ message: "That teacher was not found." });
         // Keep the student approved so they never lose access while being moved.
-        const { error } = await supabase.from("users").update({ teacher_id: teacherId, approved_by_teacher: true }).eq("id", studentId);
+        const { error } = await supabase.from("users").update({ teacher_id: teacherId, directory_teacher_name: null, approved_by_teacher: true }).eq("id", studentId);
         if (error) throw new Error(error.message);
         const rawLinks = await storage.getSetting("teacher_students");
         let teacherStudents: Record<string, number[]> = {};
@@ -2060,70 +2479,113 @@ export async function registerRoutes(
     }
   });
 
+  // Families may create a parent account before their children have an A.R.I.S.E.
+  // account. A valid invitation is required only when linking an existing child.
   app.post("/api/auth/register-parent", async (req, res) => {
     try {
-      const { username, password, displayName, email, parentCode } = req.body;
-      if (!username || !password || !displayName) {
-        return res.status(400).json({ message: "All fields are required" });
+      const { username, password, displayName, email, parentCode } = req.body || {};
+      if (typeof username !== "string" || !/^[a-z0-9_-]{3,30}$/.test(username.trim().toLowerCase()) ||
+          typeof password !== "string" || password.length < 6 ||
+          typeof displayName !== "string" || displayName.trim().length < 2 || displayName.trim().length > 100) {
+        return res.status(400).json({ message: "Enter your name, a username (3–30 letters/numbers), and a password with at least 6 characters." });
       }
-      if (username.length < 3) {
-        return res.status(400).json({ message: "Username must be at least 3 characters" });
+      const normalizedCode = typeof parentCode === "string" ? parentCode.replace(/[-\s]/g, "").toUpperCase() : "";
+      let student: any = null;
+      if (normalizedCode) {
+        if (!/^[A-F0-9]{20}$/.test(normalizedCode)) {
+          return res.status(400).json({ message: "Check the parent code, or leave it blank and connect your child later." });
+        }
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Parent codes are unavailable right now. Please try again." });
+        const { data: invite, error } = await getAdminSupabase().from("parent_invite_codes")
+          .select("student_id").eq("code", normalizedCode).maybeSingle();
+        if (error) return res.status(503).json({ message: "Parent codes are unavailable right now." });
+        if (!invite) return res.status(400).json({ message: "That parent code was not found. Check it or leave it blank and connect your child later." });
+        student = await storage.getUser(invite.student_id);
+        if (!student || student.role !== "student") {
+          return res.status(400).json({ message: "That parent code was not found. Check it or connect your child later." });
+        }
       }
-      if (password.length < 6) {
-        return res.status(400).json({ message: "Password must be at least 6 characters" });
-      }
-      const normalizedCode = typeof parentCode === 'string' ? parentCode.replace(/[-\s]/g, '').toUpperCase() : '';
-      if (!/^[A-F0-9]{20}$/.test(normalizedCode)) {
-        return res.status(400).json({ message: "Enter the parent code from your child's school handout." });
-      }
-
-      const existing = await storage.getUserByUsername(username.toLowerCase());
-      if (existing) {
-        return res.status(409).json({ message: "Username already taken" });
-      }
-
-      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: "Parent codes are not configured yet." });
-      const { data: invite, error: inviteError } = await getAdminSupabase().from('parent_invite_codes')
-        .select('student_id').eq('code', normalizedCode).maybeSingle();
-      if (inviteError) return res.status(503).json({ message: "Parent codes are unavailable right now." });
-      if (!invite) return res.status(400).json({ message: "That parent code was not found. Please check the handout." });
-      const student = await storage.getUser(invite.student_id);
-      if (!student || student.role !== 'student') return res.status(400).json({ message: "That parent code was not found. Please check the handout." });
-
-      const hashedPassword = bcrypt.hashSync(password, 10);
+      const cleanUsername = username.trim().toLowerCase();
+      if (await storage.getUserByUsername(cleanUsername)) return res.status(409).json({ message: "Username already taken" });
       const user = await storage.createUser({
-        username: username.toLowerCase(),
-        password: hashedPassword,
-        displayName,
-        role: 'parent',
+        username: cleanUsername,
+        password: bcrypt.hashSync(password, 10),
+        displayName: displayName.trim(),
+        role: "parent",
         accountApproved: true,
-        email: email || null,
-        schoolId: student.school_id || null,
-        teacherId: student.teacherId || null,
+        email: typeof email === "string" && email.trim() ? email.trim() : null,
+        schoolId: student?.school_id || null,
+        teacherId: student?.teacherId || null,
       });
-      if (!user) throw new Error('Could not create parent account.');
-
-      // Link parent to student by storing parent_id in a setting
-      const rawLinks = await storage.getSetting('parent_student_links');
-      let parentLinks: ParentStudentLinks = {};
-      if (rawLinks) { try { parentLinks = JSON.parse(rawLinks); } catch {} }
-      parentLinks[String(user.id)] = [student.id];
-      await storage.upsertSetting('parent_student_links', JSON.stringify(parentLinks));
-
+      if (!user) throw new Error("Could not create parent account.");
+      if (student) {
+        const links = await readParentStudentLinks();
+        links[String(user.id)] = [student.id];
+        await storage.upsertSetting("parent_student_links", JSON.stringify(links));
+      }
       alertAdmin("parent_signup", {
-        title: `New parent: ${displayName}`,
-        summary: [`@${user.username}`, `Parent of ${student.displayName}`, email].filter(Boolean).join(" · "),
-        lines: [["Parent", `${displayName} (@${user.username})`], ["Email", email || ""], ["Student", `${student.displayName} (@${student.username})`]],
-        note: "They used the parent code from the student's handout, so the account is already connected.",
+        title: `New parent: ${user.displayName}`,
+        summary: [`@${user.username}`, student ? `Parent of ${student.displayName}` : "Independent family — child not added yet"].join(" · "),
+        lines: [["Parent", `${user.displayName} (@${user.username})`], ["Email", user.email || ""], ["Student", student ? `${student.displayName} (@${student.username})` : "Will add or link a child later"]],
+        note: student ? "Parent and student were securely linked using the invitation code." : "Parent signed up without a student code; they can create an independent child reader or link an existing child later.",
         ref: `u${user.id}`,
       });
-
       res.status(201).json({
         success: true,
-        message: "Your account is ready and connected to your student. You can log in now.",
+        linked: !!student,
+        message: student ? "Your parent account is ready and linked to your child." : "Your parent account is ready. You can set up your child's independent reader account or link a school account from A.R.I.S.E. Reader.",
       });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      console.error("[parent-signup] failed:", err?.message);
+      res.status(500).json({ message: "We couldn't create your parent account. Please try again." });
+    }
+  });
+
+  // The parent creates an independent student's account without signing out.
+  // Child credentials stay separate; the parent-child link is established server-side.
+  app.post("/api/parent/create-independent-student", authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user?.role !== "parent" || req.user?.accountApproved === false || isDemoStudent(req.user)) {
+        return res.status(403).json({ message: "Sign into your own parent account to add a child." });
+      }
+      const { displayName, username, password, gradeLevel, isEyeGazeUser } = req.body || {};
+      if (typeof displayName !== "string" || displayName.trim().length < 2 || displayName.trim().length > 100 ||
+          typeof username !== "string" || !/^[a-z0-9_-]{3,30}$/.test(username.trim().toLowerCase()) ||
+          typeof password !== "string" || password.length < 6 ||
+          !["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].includes(String(gradeLevel))) {
+        return res.status(400).json({ message: "Enter your child's name, a username, a password of at least 6 characters, and their grade." });
+      }
+      const links = await readParentStudentLinks();
+      const ids = normalizeLinkedIds(links[String(req.user.id)]);
+      // Check the family seat allowance before creating an account.
+      const room = await plans.parentLinkAllowed(ids, 2147483647);
+      if (!room.ok) return res.status(409).json({ message: room.message || "Your parent plan has reached its child limit." });
+      const cleanUsername = username.trim().toLowerCase();
+      if (await storage.getUserByUsername(cleanUsername)) return res.status(409).json({ message: "This username is already taken." });
+      const child = await storage.createUser({
+        username: cleanUsername, password: bcrypt.hashSync(password, 10),
+        displayName: displayName.trim(), role: "student",
+        isEyeGazeUser: isEyeGazeUser === true,
+        teacherId: null, schoolId: null, approvedByTeacher: true,
+      });
+      if (!child) throw new Error("Child account wasn't created");
+      const rawGrades = await storage.getSetting("user_grades");
+      let grades: Record<string, string> = {};
+      if (rawGrades) { try { grades = JSON.parse(rawGrades); } catch { /* create a new map */ } }
+      grades[String(child.id)] = String(gradeLevel);
+      await storage.upsertSetting("user_grades", JSON.stringify(grades));
+      const rawTypes = await storage.getSetting("student_signup_types");
+      let types: Record<string, string> = {};
+      if (rawTypes) { try { types = JSON.parse(rawTypes); } catch { /* create a new map */ } }
+      types[String(child.id)] = "independent";
+      await storage.upsertSetting("student_signup_types", JSON.stringify(types));
+      ids.push(child.id);
+      links[String(req.user.id)] = ids;
+      await storage.upsertSetting("parent_student_links", JSON.stringify(links));
+      res.status(201).json({ success: true, studentId: child.id, displayName: child.displayName, username: child.username, message: `${child.displayName}'s independent reader is ready and linked to your family.` });
+    } catch (err: any) {
+      console.error("[parent-independent-student] failed:", err?.message);
+      res.status(500).json({ message: "We couldn't set up your child's account. Please try again." });
     }
   });
 
@@ -2168,6 +2630,20 @@ export async function registerRoutes(
         }
       }
 
+      // A personal A.R.I.S.E. To-Do account that hasn't confirmed its email yet.
+      if (user.role === 'todo' && !user.accountApproved) {
+        let waitingForCode = false;
+        try { waitingForCode = await teacherEmailCodes.waiting(user.id); } catch {}
+        return res.status(403).json({
+          message: waitingForCode
+            ? "Almost there. Enter the 6-digit code we emailed you to turn on your account."
+            : "Your account needs its email confirmed. Ask for a new code to finish.",
+          confirmEmail: true,
+          todo: true,
+          username: user.username,
+        });
+      }
+
       // Teachers from before school emails were required, and parents, must be approved by admin
       if ((user.role === 'teacher' || user.role === 'parent') && !user.accountApproved) {
         return res.status(403).json({ message: `Your ${user.role} account is pending approval. The administrator will review it shortly.` });
@@ -2192,7 +2668,7 @@ export async function registerRoutes(
 
       res.json({
         token: session.token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0, loginCount },
+        user: { id: user.id, username: user.username, displayName: user.displayName, isAdmin: user.isAdmin, assessmentPromptShown: popupShown, is_eye_gaze_user: user.is_eye_gaze_user, role: user.role, teacherId: user.teacherId, approvedByTeacher: user.approvedByTeacher, accountApproved: user.accountApproved, email: user.email, schoolId: user.school_id, totalPoints: user.totalPoints || 0, loginCount, mustChangePassword: !!user.mustChangePassword },
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -2223,6 +2699,7 @@ export async function registerRoutes(
       email: me.email || null,
       schoolId: me.school_id || null,
       totalPoints: me.totalPoints || 0,
+      mustChangePassword: !!me.mustChangePassword,
     });
   });
 
@@ -2552,7 +3029,7 @@ export async function registerRoutes(
     // Also count eye gaze quizzes
     let eyeGazeCount = 0;
     try {
-      const egRes = await supabase.from('eye_gaze_quizzes').select('id', { count: 'exact', head: true });
+      const egRes = await supabase.from('eye_gaze_quizzes').select('id', { count: 'exact', head: true }).eq('is_active', true);
       eyeGazeCount = egRes.count || 0;
     } catch {}
     const stats = {
@@ -2586,7 +3063,7 @@ export async function registerRoutes(
 
     // Admin preview and sample accounts can retake quizzes freely without creating student records.
     if (!req.adminPreview && !sampleAccount) {
-      const existingAttempt = await storage.getAttempt(req.user.id, bookId);
+      const existingAttempt = await storage.getAttemptAnyCopy(req.user.id, bookId);
       if (existingAttempt) {
         return res.status(403).json({ message: "You have already taken this quiz", score: existingAttempt.score, total: existingAttempt.totalQuestions, points: existingAttempt.pointsEarned || 0 });
       }
@@ -2620,7 +3097,7 @@ export async function registerRoutes(
 
     // Admin preview and sample accounts can take the full quiz repeatedly without persisting attempts.
     if (!req.adminPreview && !sampleAccount) {
-      const existingAttempt = await storage.getAttempt(req.user.id, bookId);
+      const existingAttempt = await storage.getAttemptAnyCopy(req.user.id, bookId);
       if (existingAttempt) {
         return res.status(403).json({ message: "You have already taken this quiz" });
       }
@@ -3902,6 +4379,16 @@ export async function registerRoutes(
   // Admin routes
   registerStudentActivityRoutes(app, authMiddleware, adminMiddleware);
   registerAdminStatsRoutes(app, authMiddleware, adminMiddleware, { db: () => getAdminSupabase(), presence });
+  // The separate To-Do admin: people, plans, payments, trials and cancelling (client/src/pages/TodoAdmin.tsx).
+  registerTodoAdminRoutes(app, authMiddleware, adminMiddleware, {
+    db: () => getAdminSupabase(), plans, presence,
+    setArchived: async (userId, archive, byUserId) => {
+      const r = await archiveProfile(userId, archive, byUserId);
+      if (r === "missing") throw new Error("That person could not be found.");
+      if (r === "admin") throw new Error("Admin accounts can't be switched off.");
+    },
+    confirm: (userId) => storage.approveTeacherAccount(userId),
+  });
   app.post("/api/admin/students/:id/manual-points", authMiddleware, adminMiddleware, async (req: any, res) => {
     const studentId = Number(req.params.id);
     const points = req.body?.points;
@@ -3987,7 +4474,7 @@ export async function registerRoutes(
       const attempts = attemptsMap.get(s.id) || [];
       const totalPoints = Math.max(s.totalPoints || 0, attempts.reduce((sum, a) => sum + (a.points_earned || 0), 0));
       const quizzesMastered = attempts.filter(a => (a.points_earned || 0) > 0).length;
-      const teacherName = s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null;
+      const teacherName = s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : (s.directoryTeacherName || null);
       result.push({
         id: s.id,
         username: s.username,
@@ -3998,6 +4485,8 @@ export async function registerRoutes(
         totalPoints,
         approvedByTeacher: s.approvedByTeacher,
         teacherId: s.teacherId,
+        directoryTeacherName: s.directoryTeacherName || null,
+        schoolId: s.school_id || null,
         teacherName,
       });
     }
@@ -4233,6 +4722,21 @@ export async function registerRoutes(
     await storage.upsertSetting(notifDismissedKey(userId), JSON.stringify(Array.from(dismissed).slice(-800)));
   };
 
+  // The bell's "life:" / "work:" items are made from the person's own data in their browser, so the server
+  // only remembers which ones they cleared (shared/notificationDismiss.ts). Every feed carries the list, so
+  // a cleared item stays cleared after a refresh and on their other devices.
+  const notifLocalKey = (userId: number) => `notification_dismissed_local_${userId}`;
+  const getLocalDismissals = async (userId: number) => {
+    try { return parseDismissals(await storage.getSetting(notifLocalKey(userId))); } catch { return []; }
+  };
+  const addLocalDismissals = async (userId: number, keys: string[]) => {
+    if (!keys.length) return;
+    const next = addDismissals(await getLocalDismissals(userId), keys);
+    await storage.upsertSetting(notifLocalKey(userId), JSON.stringify(next));
+  };
+  const withLocal = async <T extends object>(userId: number, feed: T): Promise<T & { dismissedLocal: string[] }> =>
+    ({ ...feed, dismissedLocal: dismissedKeys(await getLocalDismissals(userId)) });
+
   const getNotificationClearBefore = async (userId: number): Promise<number> => {
     const raw = await storage.getSetting(notifClearBeforeKey(userId));
     const parsed = raw ? new Date(raw).getTime() : 0;
@@ -4349,7 +4853,7 @@ export async function registerRoutes(
     try {
       res.set("Cache-Control", "no-store");
       const userId = Number(req.user.id);
-      if (req.user.isAdmin) return res.json(await adminFeed(userId));
+      if (req.user.isAdmin) return res.json(await withLocal(userId, await adminFeed(userId)));
 
       if (req.user.role === "teacher") {
         const [dismissed, clearBefore, rowsRes, pendingRes] = await Promise.all([
@@ -4360,7 +4864,7 @@ export async function registerRoutes(
             .eq("teacher_id", userId).eq("approved_by_teacher", false).is("archived_at", null)
             .order("created_at", { ascending: false }).limit(100),
         ]);
-        return res.json(buildTeacherFeed({ rows: rowsRes.data || [], pendingStudents: pendingRes.data || [] }, { dismissed, clearBefore }));
+        return res.json(await withLocal(userId, buildTeacherFeed({ rows: rowsRes.data || [], pendingStudents: pendingRes.data || [] }, { dismissed, clearBefore })));
       }
 
       const [rowsRes, messagesRes] = await Promise.all([
@@ -4369,11 +4873,11 @@ export async function registerRoutes(
           .eq("user_id", userId).eq("sender_type", "teacher").eq("is_read", false)
           .order("created_at", { ascending: false }).limit(50),
       ]);
-      return res.json(buildMemberFeed({
+      return res.json(await withLocal(userId, buildMemberFeed({
         role: req.user.role === "parent" ? "parent" : "student",
         rows: rowsRes.data || [],
         unreadMessages: (messagesRes.data || []).map((m: any) => ({ id: m.id, messageText: m.message_text, createdAt: m.created_at })),
-      }));
+      })));
     } catch (error: any) {
       console.error("[notifications] load failed:", error?.message);
       return res.status(500).json({ message: "Could not load notifications" });
@@ -4388,7 +4892,11 @@ export async function registerRoutes(
       const role: "admin" | "teacher" | "member" = req.user.isAdmin ? "admin" : req.user.role === "teacher" ? "teacher" : "member";
       const body = req.body || {};
       const legacyCategory = String(body.type || "");
-      const clearAll = body.all === true || (!body.key && !Array.isArray(body.keys) && !body.itemType && !legacyCategory && body.id == null);
+      const localKeys = cleanKeys(body.local);
+      const clearAll = body.all === true || (!body.key && !Array.isArray(body.keys) && !body.itemType && !legacyCategory && body.id == null && !Array.isArray(body.local));
+
+      // Cleared "life:" / "work:" items are saved first, whatever else this request does.
+      await addLocalDismissals(userId, localKeys);
 
       if (clearAll) {
         await storage.upsertSetting(notifClearBeforeKey(userId), new Date().toISOString());
@@ -4869,7 +5377,23 @@ export async function registerRoutes(
         return schoolMatch && gradeMatch;
       });
       
-      res.json(filtered.map(publicTeacher));
+      const registered = filtered.map(publicTeacher);
+      // A school can list teachers who have not signed up yet. These are directory
+      // names, never user accounts: no password, permissions or teacher ID is created.
+      // Registration records a chosen directory name as an unlisted-teacher request
+      // so an administrator can link the student when that teacher joins.
+      const directory = schoolId ? await directoryTeachers(Number(schoolId)) : [];
+      const registeredNames = new Set(registered.map((t: any) => String(t.display_name || "").trim().toLowerCase()));
+      const pending = directory
+        .filter((t) => t && typeof t.name === "string" && t.name.trim().length > 0)
+        .filter((t) => !grade || !Array.isArray(t.grades) || !t.grades.length || t.grades.includes(String(grade)))
+        .filter((t) => !registeredNames.has(t.name.trim().toLowerCase()))
+        .map((t) => ({
+          id: directoryId(Number(schoolId), t.name),
+          display_name: t.name.trim(),
+          directory: true,
+        }));
+      res.json([...registered, ...pending]);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
@@ -5038,6 +5562,79 @@ export async function registerRoutes(
     const { classId } = req.body;
     await storage.assignStudentToClass(userId, classId || null);
     res.json({ message: "Class updated" });
+  });
+
+  // Directory teachers are selectable for students even when they never register.
+  // A directory teacher has a display name, not a teacher account or access to data.
+  app.post("/api/admin/schools/:id/directory-teachers", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const schoolId = Number(req.params.id);
+      const school = (await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId);
+      if (!school) return res.status(404).json({ message: "School not found." });
+      const name = typeof req.body.name === "string" ? req.body.name.trim().slice(0, 120) : "";
+      if (name.length < 2) return res.status(400).json({ message: "Enter a teacher's name." });
+      const grades = Array.isArray(req.body.grades)
+        ? Array.from(new Set(req.body.grades.map((g: any) => String(g)).filter((g: string) => /^(K|[1-9]|1[0-2])$/.test(g)))) as string[]
+        : [];
+      const directory = await directoryTeachers(schoolId);
+      const sameName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "") === name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (directory.some((t) => sameName(t.name))) return res.status(409).json({ message: "That teacher is already listed for this school." });
+      const registered = (await storage.getApprovedTeachers()).filter((u: any) => Number(u.school_id) === schoolId);
+      if (registered.some((t: any) => sameName(String(t.displayName || t.display_name || "")))) return res.status(409).json({ message: "That teacher already has an account for this school." });
+      directory.push({ name, grades });
+      await storage.upsertSetting(directoryTeacherKey(schoolId), JSON.stringify(directory));
+      res.status(201).json({ id: directoryId(schoolId, name), display_name: name, directory: true, grades });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not add teacher." });
+    }
+  });
+
+  app.post("/api/admin/students/:id/assign-teacher", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const studentId = Number(req.params.id);
+      if (!Number.isSafeInteger(studentId) || studentId < 1) return res.status(400).json({ message: "Invalid student." });
+      const student = await storage.getUser(studentId);
+      if (!student || student.role !== "student") return res.status(404).json({ message: "Student not found." });
+      const schoolId = Number(student.school_id);
+      const directoryTeacherId = typeof req.body?.directoryTeacherId === "string" ? req.body.directoryTeacherId : "";
+      const requestedTeacherId = req.body?.teacherId ? Number(req.body.teacherId) : null;
+      if (directoryTeacherId && requestedTeacherId) return res.status(400).json({ message: "Choose one teacher." });
+      let teacherId: number | null = null;
+      let directoryTeacherName: string | null = null;
+      if (directoryTeacherId) {
+        if (!schoolId) return res.status(400).json({ message: "Assign the student's school first." });
+        const rawGrades = await storage.getSetting("user_grades");
+        let grade: string | null = null;
+        try { grade = String(JSON.parse(rawGrades || "{}")[String(studentId)] || "") || null; } catch {}
+        const picked = await getDirectoryTeacher(schoolId, directoryTeacherId, grade);
+        if (!picked) return res.status(400).json({ message: "That teacher is not listed for this student's school and grade." });
+        directoryTeacherName = picked.name.trim();
+      } else if (requestedTeacherId !== null) {
+        if (!Number.isSafeInteger(requestedTeacherId) || requestedTeacherId < 1) return res.status(400).json({ message: "Invalid teacher." });
+        const teacher = await storage.getUser(requestedTeacherId);
+        if (!teacher || teacher.role !== "teacher" || teacher.accountApproved === false) return res.status(400).json({ message: "That teacher does not have an active teacher account." });
+        if (!schoolId || Number(teacher.school_id) !== schoolId) return res.status(400).json({ message: "That teacher belongs to a different school." });
+        teacherId = requestedTeacherId;
+      }
+      const { data, error } = await supabase.from("users").update({
+        teacher_id: teacherId, directory_teacher_name: directoryTeacherName, approved_by_teacher: true,
+      }).eq("id", studentId).eq("role", "student")
+        .select("id, teacher_id, directory_teacher_name").single();
+      if (error) throw new Error(error.message);
+      const rawLinks = await storage.getSetting("teacher_students");
+      let teacherStudents: Record<string, number[]> = {};
+      try { teacherStudents = rawLinks ? JSON.parse(rawLinks) : {}; } catch {}
+      for (const [key, ids] of Object.entries(teacherStudents)) {
+        if (Array.isArray(ids)) teacherStudents[key] = ids.filter((id) => Number(id) !== studentId);
+      }
+      if (teacherId) teacherStudents[String(teacherId)] = [...new Set([...(teacherStudents[String(teacherId)] || []), studentId])];
+      await storage.upsertSetting("teacher_students", JSON.stringify(teacherStudents));
+      clearCache("allUsers");
+      res.json({ success: true, teacherId: data.teacher_id, directoryTeacherName: data.directory_teacher_name,
+        teacherName: directoryTeacherName || (teacherId ? (await storage.getUser(teacherId))?.displayName : null) || null });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not save teacher assignment." });
+    }
   });
 
   // Admin: assign school to a teacher
@@ -6303,6 +6900,21 @@ export async function registerRoutes(
     res.json({ message: "Quiz request updated" });
   });
 
+  // Check the signed-in person's account password (used to reset a forgotten hub passcode,
+  // see shared/privacyLock.ts). Five wrong tries in 15 minutes and it waits.
+  const passwordChecks = new Map<number, number[]>();
+  app.post("/api/account/verify-password", authMiddleware, async (req: any, res) => {
+    const now = Date.now();
+    const tries = (passwordChecks.get(req.user.id) || []).filter((t) => now - t < 15 * 60_000);
+    if (tries.length >= 5) return res.status(429).json({ message: "Too many tries. Wait a few minutes and try again." });
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const { data: row } = await supabase.from("users").select("password").eq("id", req.user.id).maybeSingle();
+    const ok = !!row?.password && !!password && (await bcrypt.compare(password, row.password));
+    if (!ok) { passwordChecks.set(req.user.id, [...tries, now]); return res.status(400).json({ message: "That password isn't right." }); }
+    passwordChecks.delete(req.user.id);
+    res.json({ ok: true });
+  });
+
   // Change password (any logged-in user)
   app.post("/api/change-password", authMiddleware, async (req: any, res) => {
     const { currentPassword, newPassword } = req.body;
@@ -6317,6 +6929,27 @@ export async function registerRoutes(
       res.json({ message: "Password changed successfully" });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Failed to change password" });
+    }
+  });
+
+  // First sign-in after a teacher bulk-adds a student: the student is signed in
+  // with the default password (their student number) but must pick a new one
+  // before they're let any further into the app. No current-password check,
+  // since the whole point is that they're replacing a password they were handed,
+  // not one they chose — but it only works while mustChangePassword is still set.
+  app.post("/api/account/set-first-password", authMiddleware, async (req: any, res) => {
+    const { newPassword } = req.body || {};
+    if (!req.user.mustChangePassword) {
+      return res.status(400).json({ message: "Your password doesn't need to be changed right now." });
+    }
+    if (typeof newPassword !== "string" || newPassword.length < 4) {
+      return res.status(400).json({ message: "New password must be at least 4 characters" });
+    }
+    try {
+      await storage.setPasswordAndClearMustChange(req.user.id, newPassword);
+      res.json({ message: "Password set" });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Failed to set password" });
     }
   });
 
@@ -6940,32 +7573,40 @@ export async function registerRoutes(
     res.status(410).json({ message: "Use the current A.R.I.S.E. proctor verification screen." });
   });
 
-  app.get("/api/eye-gaze/quizzes", authMiddleware, async (req, res) => {
+  // The built-in lessons, each with how the student did on its scored (first) try.
+  app.get("/api/eye-gaze/quizzes", authMiddleware, async (req: any, res) => {
     try {
-      const quizzes = await storage.getAllEyeGazeQuizzes();
-      const quizzesWithStatus = [];
-      for (const quiz of quizzes) {
-        const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quiz.id);
-        quizzesWithStatus.push({ ...quiz, hasCompleted: completed });
-      }
-      res.json(quizzesWithStatus);
+      const [quizzes, done] = await Promise.all([storage.getAllEyeGazeQuizzes(), storage.getEyeGazeCompletions(req.user.id)]);
+      res.set("Cache-Control", "no-store");
+      res.json(quizzes.map((quiz: any) => {
+        const finished = done.get(Number(quiz.id));
+        return { ...quiz, hasCompleted: !!finished, score: finished?.score ?? null, total: finished?.total ?? null };
+      }));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.get("/api/eye-gaze/quizzes/:id", authMiddleware, async (req, res) => {
+  app.get("/api/eye-gaze/quizzes/:id", authMiddleware, async (req: any, res) => {
     try {
       const quizId = parseInt(req.params.id);
       const quiz = await storage.getEyeGazeQuiz(quizId);
       if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-      const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
+      const finished = (await storage.getEyeGazeCompletions(req.user.id)).get(quizId);
       res.set("Cache-Control", "no-store");
-      res.json({ ...quiz, questions: isStaffViewer(req) ? quiz.questions : withoutAnswers(quiz.questions), hasCompleted: completed });
+      res.json({
+        ...quiz,
+        questions: isStaffViewer(req) ? quiz.questions : withoutAnswers(quiz.questions),
+        hasCompleted: !!finished, score: finished?.score ?? null, total: finished?.total ?? null,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
+
+  /** Practice (no points, nothing saved) opens once the student has taken the scored quiz. */
+  const canPracticeEyeGaze = async (userId: number, quizId: number) =>
+    Number.isSafeInteger(quizId) && quizId > 0 && await storage.hasUserCompletedEyeGazeQuiz(userId, quizId);
 
   app.post("/api/eye-gaze/quizzes/:id/start", authMiddleware, async (req: any, res) => {
     try {
@@ -6977,6 +7618,15 @@ export async function registerRoutes(
       res.set("Cache-Control", "no-store");
       if (req.adminPreview || sampleAccount || staffPreview) {
         return res.json({ ...quiz, questions: isStaffViewer(req) ? quiz.questions : withoutAnswers(quiz.questions), attemptId: -quizId, preview: true });
+      }
+      if (quiz.is_active === false) {
+        return res.status(410).json({ message: "This lesson was replaced by a new one. Pick a lesson from Lessons." });
+      }
+      if (req.body?.practice) {
+        if (!(await canPracticeEyeGaze(req.user.id, quizId))) {
+          return res.status(403).json({ message: "Practice opens after the first quiz. Ask a grown-up to unlock the quiz." });
+        }
+        return res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: -quizId, practice: true });
       }
 
       const proctor = await validateProctorSession(
@@ -6991,7 +7641,7 @@ export async function registerRoutes(
       }
 
       const completed = await storage.hasUserCompletedEyeGazeQuiz(req.user.id, quizId);
-      if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
+      if (completed) return res.status(400).json({ message: "You already took this quiz. You can practice it again any time.", completed: true });
       const attempt = await storage.startEyeGazeAttempt(req.user.id, quizId, proctor);
       res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
     } catch (error: any) {
@@ -7004,8 +7654,14 @@ export async function registerRoutes(
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
       const sampleAccount = isDemoStudent(req.user);
-      if ((req.adminPreview || sampleAccount) && attemptId < 0) {
+      const staff = req.user?.isAdmin || req.user?.role === "teacher";
+      if (attemptId < 0) {
+        // A preview or a practice try: scored here, never saved, no points.
         const quizId = Math.abs(attemptId);
+        const practice = !(req.adminPreview || sampleAccount || staff);
+        if (practice && !(await canPracticeEyeGaze(req.user.id, quizId))) {
+          return res.status(403).json({ message: "Start the quiz first." });
+        }
         const questions = await storage.getEyeGazeQuizQuestions(quizId);
         let score = 0;
         const skillScores: Record<string, { correct: number; total: number }> = {};
@@ -7029,7 +7685,7 @@ export async function registerRoutes(
           passingScore,
           pointsEarned: 0,
           skill_scores: skillScores,
-          preview: true,
+          ...(practice ? { practice: true } : { preview: true }),
         });
       }
       const { data: ownedAttempt } = await getAdminSupabase().from("eye_gaze_attempts")
@@ -7062,7 +7718,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/eye-gaze/quizzes/:attemptId/check", authMiddleware, (req: any, res) =>
-    checkOneAnswer(req, res, "eye_gaze_attempts", (quizId) => storage.getEyeGazeQuizQuestions(quizId)));
+    checkOneAnswer(req, res, "eye_gaze_attempts", (quizId) => storage.getEyeGazeQuizQuestions(quizId), { canPractice: canPracticeEyeGaze, showRightAnswer: true }));
 
   app.get("/api/eye-gaze/profile", authMiddleware, async (req: any, res) => {
     try {
@@ -8301,7 +8957,7 @@ Important:
     }
   }
 
-  async function generateTtsAudio(text: string, calmMode: boolean, apiKey: string, style: "buddy" | "announcer" = "buddy"): Promise<Buffer> {
+  async function generateTtsAudio(text: string, calmMode: boolean, apiKey: string, style: "buddy" | "announcer" | "sleep" = "buddy", sleepVoice: "warm" | "deep" = "warm"): Promise<Buffer> {
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
@@ -8310,10 +8966,13 @@ Important:
       },
       body: JSON.stringify({
         model: "gpt-4o-mini-tts",
-        voice: style === "announcer" ? "cedar" : "marin",
+        voice: style === "announcer" ? "cedar" : style === "sleep" && sleepVoice === "deep" ? "cedar" : "marin",
         input: text,
         instructions: (style === "announcer"
           ? "Speak in a confident masculine game-show and sports-arena announcer style. Deep, energetic, cinematic, exciting, clear, and age-appropriate. Use dramatic pauses without shouting. Make Board Quest feel like a major competition."
+          : style === "sleep"
+            // LifeHub's Sleep app: stories, Scripture, prayers and relaxations for an adult falling asleep.
+            ? "You are a calm bedtime narrator reading aloud to an adult who is lying in the dark trying to fall asleep. Speak slowly, softly and warmly, in a low, gentle, unhurried voice, a little above a whisper but always clear. Keep an even, soothing tone: no excitement, no drama, no rising inflection at the ends of sentences. Let commas and periods breathe. Read Scripture and prayers reverently and peacefully."
           : calmMode
             ? "Speak like a warm, gentle, friendly children's educational character. Natural human pacing, soft enthusiasm, clear pronunciation, reassuring tone, no exaggerated baby talk."
             : "Speak like a lively, warm, friendly children's educational character hosting an interactive reading game. Sound natural and human, expressive and encouraging, with playful energy, clear pronunciation, and short natural pauses. Do not sound like a screen reader or announcer.")
@@ -8339,7 +8998,8 @@ Important:
     try {
       const text = String(req.body?.text || "").trim();
       const calmMode = !!req.body?.calmMode;
-      const style: "buddy" | "announcer" = req.body?.style === "announcer" ? "announcer" : "buddy";
+      const style: "buddy" | "announcer" | "sleep" = req.body?.style === "announcer" ? "announcer" : req.body?.style === "sleep" ? "sleep" : "buddy";
+      const sleepVoice: "warm" | "deep" = req.body?.voice === "deep" ? "deep" : "warm";
 
       if (!text) return res.status(400).json({ message: "Text is required." });
       if (text.length > 500) return res.status(400).json({ message: "Text is too long." });
@@ -8349,7 +9009,7 @@ Important:
         return res.status(503).json({ message: "AI voice is not configured." });
       }
 
-      const cacheKey = `${style}|${calmMode ? "calm" : "normal"}|${text}`;
+      const cacheKey = `${style}|${style === "sleep" ? sleepVoice : calmMode ? "calm" : "normal"}|${text}`;
       const cached = ttsAudioCache.get(cacheKey);
 
       if (cached) {
@@ -8362,7 +9022,7 @@ Important:
 
       let pending = ttsAudioInFlight.get(cacheKey);
       if (!pending) {
-        pending = generateTtsAudio(text, calmMode, apiKey, style);
+        pending = generateTtsAudio(text, calmMode, apiKey, style, sleepVoice);
         ttsAudioInFlight.set(cacheKey, pending);
       }
 
@@ -8490,7 +9150,7 @@ Important:
     try {
       const { style } = req.body;
       if (!style) return res.status(400).json({ message: "style is required" });
-      await storage.saveSetting(`celebration_style_${req.user.id}`, style);
+      await storage.upsertSetting(`celebration_style_${req.user.id}`, String(style).slice(0, 40));
       res.json({ success: true, style });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -8747,6 +9407,17 @@ Important:
         if (data.active) return res.json(data);
       }
       res.json(null);
+    } catch {
+      res.json(null);
+    }
+  });
+
+  // Public: the "Support A.R.I.S.E." donation link (shared/donate.ts). Shown even when the goal bar is
+  // off, so the Support button works as soon as a link is saved in Admin → Donation goal.
+  app.get("/api/donate-link", async (_req, res) => {
+    try {
+      res.set("Cache-Control", "public, max-age=300");
+      res.json(donateInfoFrom(await storage.getSetting('donation_settings')));
     } catch {
       res.json(null);
     }
@@ -9862,36 +10533,55 @@ Important:
     now: () => Date.now(),
   });
 
-  // Print-only parent invites. Teachers can print their roster; admins can print all students.
+  // Print-only parent invites. Teachers can print their roster; admins can print all students, one student,
+  // or just the classes of the teachers they pick ({ teacherIds: [12, 15, "none"] }), listed class by class.
   app.post('/api/parent-invites/print', authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: 'Teacher account approval required.' });
       if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ message: 'Parent codes are not configured.' });
       const studentId = req.body?.studentId;
       if (studentId !== undefined && (!Number.isSafeInteger(studentId) || studentId < 1)) return res.status(400).json({ message: 'Invalid student.' });
-      const allStudents = (await storage.getAllUsers()).filter((u: any) => u.role === 'student' && (req.user.isAdmin || u.teacherId === req.user.id));
-      const students = studentId === undefined ? allStudents : allStudents.filter((u: any) => u.id === studentId);
+      let choices: ReturnType<typeof cleanTeacherChoices> = null;
+      if (req.body?.teacherIds !== undefined) {
+        choices = cleanTeacherChoices(req.body.teacherIds);
+        if (!choices) return res.status(400).json({ message: 'Pick at least one teacher.' });
+      }
+      const users = await storage.getAllUsers();
+      const teacherNames = new Map<number, string>(users.filter((u: any) => u.role === 'teacher').map((u: any) => [Number(u.id), String(u.displayName || u.username || '')]));
+      const students = studentsToPrint(users as any[], { id: Number(req.user.id), isAdmin: !!req.user.isAdmin }, { studentId, choices });
       if (studentId !== undefined && students.length === 0) return res.status(404).json({ message: 'Student not found on your roster.' });
       const adminDb = getAdminSupabase();
-      const rows: Array<{ studentId: number; studentName: string; code: string }> = [];
-      for (const student of students) {
-        let { data: invite, error } = await adminDb.from('parent_invite_codes').select('code').eq('student_id', student.id).maybeSingle();
-        if (error) throw error;
-        if (!invite) {
-          const code = randomBytes(10).toString('hex').toUpperCase();
-          const inserted = await adminDb.from('parent_invite_codes').upsert({ student_id: student.id, code }, { onConflict: 'student_id', ignoreDuplicates: true }).select('code').maybeSingle();
-          if (inserted.error) throw inserted.error;
-          invite = inserted.data;
-          if (!invite) {
-            const again = await adminDb.from('parent_invite_codes').select('code').eq('student_id', student.id).single();
-            if (again.error) throw again.error;
-            invite = again.data;
-          }
+      // Look up everyone's code at once; make codes only for students who have none yet.
+      const codes = new Map<number, string>();
+      const ids = students.map((student: any) => Number(student.id));
+      const readCodes = async (list: number[]) => {
+        for (let i = 0; i < list.length; i += 200) {
+          const { data, error } = await adminDb.from('parent_invite_codes').select('student_id, code').in('student_id', list.slice(i, i + 200));
+          if (error) throw error;
+          for (const row of data || []) codes.set(Number(row.student_id), String(row.code));
         }
-        rows.push({ studentId: student.id, studentName: student.displayName, code: invite!.code.match(/.{1,4}/g)!.join('-') });
+      };
+      await readCodes(ids);
+      const missing = ids.filter((id) => !codes.has(id));
+      for (let i = 0; i < missing.length; i += 200) {
+        const chunk = missing.slice(i, i + 200);
+        const inserted = await adminDb.from('parent_invite_codes')
+          .upsert(chunk.map((id) => ({ student_id: id, code: randomBytes(10).toString('hex').toUpperCase() })), { onConflict: 'student_id', ignoreDuplicates: true });
+        if (inserted.error) throw inserted.error;
+        await readCodes(chunk);
       }
+      const rows = students.map((student: any) => {
+        const code = codes.get(Number(student.id));
+        if (!code) throw new Error(`No parent code for student ${student.id}`);
+        return {
+          studentId: student.id,
+          studentName: student.displayName,
+          teacherName: (student.teacherId ? teacherNames.get(Number(student.teacherId)) : String(student.directoryTeacherName || '').trim()) || undefined,
+          code: code.match(/.{1,4}/g)!.join('-'),
+        };
+      });
       res.set('Cache-Control', 'no-store');
-      res.json({ invites: rows.sort((a, b) => a.studentName.localeCompare(b.studentName)) });
+      res.json({ invites: sortInvites(rows) });
     } catch (error: any) {
       console.error('[parent-invites] Print failed:', error?.message);
       res.status(503).json({ message: 'Unable to prepare parent codes. Check that the parent_invite_codes table exists.' });
@@ -10074,7 +10764,7 @@ Important:
       const links = await readParentStudentLinks();
       const ids = normalizeLinkedIds(links[String(req.user.id)]);
       if (!ids.includes(Number(invite.student_id))) {
-        // One parent profile follows up to five children on the Free plan.
+        // One parent profile follows up to PLANS.parentMaxChildren (three) children.
         const room = await plans.parentLinkAllowed(ids, Number(invite.student_id));
         if (!room.ok) return res.status(409).json({ message: room.message });
         ids.push(Number(invite.student_id));
@@ -10085,13 +10775,67 @@ Important:
     } catch { res.status(500).json({ message: 'Could not link this student right now.' }); }
   });
 
-  // === Teacher Admin endpoints: limited admin access for ALL teachers ===
-  // These mirror admin endpoints but are accessible to any approved teacher
+  // === Teacher Admin endpoints ===
+  // Admins act on every student. A teacher only ever sees or touches the students assigned to
+  // them (users.teacher_id) -- never another teacher's class -- because student records are
+  // private: a teacher clicking "all" must not be able to browse the whole school.
+  /** True when this signed-in user may see or change this student. */
+  const canReachStudent = async (user: any, studentId: number): Promise<boolean> => {
+    if (user?.isAdmin) return true;
+    if (!Number.isFinite(studentId) || studentId <= 0) return false;
+    const student = await storage.getUser(studentId);
+    if (!student || student.isAdmin || student.role === "teacher" || student.role === "parent") return false;
+    if (Number(student.teacherId) === Number(user?.id)) return true;
+    // A school leadership account reaches every student at its own school.
+    const scope = user?.id ? await storage.schoolStaffScope(Number(user.id)) : null;
+    return !!scope && Number((student as any).school_id ?? (student as any).schoolId) === scope.schoolId
+      && (!scope.eyeGazeOnly || !!(student as any).is_eye_gaze_user);
+  };
+  const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
+
+  // Merging a student's two accounts (server/accountMerge.ts): the one a teacher made and the one
+  // the student made later. A teacher works with their own students plus unlisted students at
+  // their school (those who signed up on their own); an administrator with every student.
+  registerAccountMergeRoutes(app, {
+    auth: authMiddleware,
+    teacherOrAdmin: teacherOrAdminMiddleware,
+    db: supabaseMergeDb(getAdminSupabase),
+    canReach: canReachStudent,
+    afterMerge: () => { clearCache("allUsers"); clearCache("session_"); clearCache("setting_"); clearCache("leaderboard"); },
+    pool: async (user: any): Promise<Candidate[]> => {
+      const all = await storage.getAllUsers();
+      const teacherNames = new Map(all.filter((u: any) => u.role === "teacher").map((u: any) => [Number(u.id), u.displayName as string]));
+      const me = Number(user?.id);
+      const scope = user?.isAdmin ? null : await storage.schoolStaffScope(me);
+      const mySchool = user?.isAdmin ? null : Number((await storage.getUser(me) as any)?.school_id) || null;
+      const out: Candidate[] = [];
+      for (const s of all as any[]) {
+        if (!(s.role === "student" || (!s.role && !s.isAdmin)) || s.archivedAt) continue;
+        const school = Number(s.school_id) || null;
+        const mine = !!user?.isAdmin || Number(s.teacherId) === me
+          || (!!scope && school === scope.schoolId && (!scope.eyeGazeOnly || !!s.is_eye_gaze_user));
+        // Unlisted at this teacher's school. One with no school at all (an independent learner) is
+        // only offered when the name matches one of this teacher's own students, so a teacher can't
+        // browse every independent account.
+        const unlisted = !s.teacherId && (school === mySchool && school !== null || (!!scope && school === scope.schoolId) || school === null);
+        if (!mine && !unlisted) continue;
+        out.push({ id: Number(s.id), name: s.displayName || s.username, username: s.username, createdAt: String(s.createdAt || ""), points: Number(s.totalPoints || 0),
+          teacherId: s.teacherId ? Number(s.teacherId) : null, teacherName: s.teacherId ? teacherNames.get(Number(s.teacherId)) || null : null, schoolId: school, approved: s.approvedByTeacher !== false, mine });
+      }
+      if (user?.isAdmin) return out;
+      const myNames = new Set(out.filter((c) => c.mine).map((c) => nameKey(c.name)).filter((k) => k.includes(" ")));
+      return out.filter((c) => c.mine || c.schoolId !== null || myNames.has(nameKey(c.name)));
+    },
+  });
 
   // GET all students across all teachers (with stats + teacher names)
   app.get("/api/teacher-admin/all-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
-      const students = (await storage.getAllUsers()).filter((s: any) => s.role === 'student' || (!s.role && !s.isAdmin));
+      const staffScope = req.user.isAdmin ? null : await storage.schoolStaffScope(Number(req.user.id));
+      const students = (await storage.getAllUsers()).filter((s: any) => (s.role === 'student' || (!s.role && !s.isAdmin))
+        && (req.user.isAdmin || Number(s.teacherId) === Number(req.user.id)
+          || (!!staffScope && !s.archivedAt && Number(s.school_id ?? s.schoolId) === staffScope.schoolId
+            && (!staffScope.eyeGazeOnly || !!s.is_eye_gaze_user))));
       const allUsers = await storage.getAllUsers();
       const teacherMap = new Map();
       for (const u of allUsers) {
@@ -10101,7 +10845,10 @@ Important:
       let allUsersWithAttempts: any[] = [];
       for (let retry = 0; retry < 5; retry++) {
         try {
-          const { data, error } = await supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
+          let q = supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
+          if (staffScope) { q = q.eq("school_id", staffScope.schoolId); if (staffScope.eyeGazeOnly) q = q.eq("is_eye_gaze_user", true); }
+          else if (!req.user.isAdmin) q = q.eq("teacher_id", req.user.id);
+          const { data, error } = await q;
           if (!error && data) { allUsersWithAttempts = data; break; }
         } catch (e) {}
         if (retry < 4) await new Promise(r => setTimeout(r, 1000));
@@ -10110,6 +10857,17 @@ Important:
       for (const u of allUsersWithAttempts) {
         attemptsMap.set(u.id, u.attempts || []);
       }
+      // Each student's advisory this school year (set when their account was uploaded).
+      const advisoryOf = new Map<number, string>();
+      try {
+        const year = schoolYearOf();
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await supabase.from("student_class_teachers").select("student_id, advisory_teacher_name").eq("school_year", year).range(from, from + 999);
+          if (error || !data) break;
+          for (const r of data as any[]) if (r.advisory_teacher_name) advisoryOf.set(Number(r.student_id), String(r.advisory_teacher_name));
+          if (data.length < 1000) break;
+        }
+      } catch {}
       const result = students.map((s: any) => {
         const attempts = attemptsMap.get(s.id) || [];
         const totalPoints = attempts.reduce((sum: number, a: any) => sum + (a.points_earned || 0), 0);
@@ -10124,7 +10882,10 @@ Important:
           totalPoints,
           approvedByTeacher: s.approvedByTeacher,
           teacherId: s.teacherId,
-          teacherName: s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : null,
+          teacherName: s.teacherId ? (teacherMap.get(s.teacherId) || 'Teacher') : (s.directoryTeacherName || null),
+          directoryTeacherName: s.directoryTeacherName || null,
+          advisory: advisoryOf.get(Number(s.id)) || null,
+          schoolId: s.school_id || null,
           isEyeGazeUser: !!s.is_eye_gaze_user,
         };
       });
@@ -10134,13 +10895,48 @@ Important:
     }
   });
 
+  // Move one student to another advisory at their school (admin). Their ELA teacher is kept.
+  /** Puts a student in one of their school's advisories (and keeps their ELA teacher). */
+  async function placeInAdvisory(studentId: number, advisoryId: string): Promise<{ ok: true; advisory: string; name: string } | { ok: false; message: string; status: number }> {
+      const student = await storage.getUser(studentId);
+      if (!student || (student.role && student.role !== "student")) return { ok: false, status: 404, message: "Student not found." };
+      const schoolId = Number((student as any).school_id ?? (student as any).schoolId);
+      const school = schoolId ? await classTeacherStore.getSchool(schoolId) : null;
+      const found = school ? advisoriesForSchool(school.name).find((a) => a.id === advisoryId) : undefined;
+      if (!school || !found) return { ok: false, status: 400, message: "Choose one of the student's school's advisories." };
+      const year = schoolYearOf();
+      const before = await classTeacherStore.getPick(student.id, year).catch(() => null);
+      await classTeacherStore.savePick({
+        student_id: student.id, school_year: year, school_id: school.id,
+        advisory_teacher_id: null, advisory_teacher_name: advisoryName(found),
+        lit_teacher_id: before?.lit_teacher_id ?? null, lit_teacher_name: before?.lit_teacher_name ?? "",
+      });
+      const account = advisorAccount(found, await classTeacherStore.schoolTeachers(school.id));
+      const { error: moveError } = await supabase.from("users")
+        .update(account ? { teacher_id: account.id, directory_teacher_name: null } : { teacher_id: null, directory_teacher_name: advisoryName(found) })
+        .eq("id", student.id);
+      if (moveError) throw new Error(moveError.message);
+      try { clearCache("allUsers"); clearCache("advisoryLeaderboard"); } catch {}
+      return { ok: true, advisory: advisoryName(found), name: student.displayName || student.username };
+  }
+  app.post("/api/teacher-admin/students/:id/advisory", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      const placed = await placeInAdvisory(Number(req.params.id), String(req.body?.advisoryId || ""));
+      if (!placed.ok) return res.status(placed.status).json({ message: placed.message });
+      res.json({ ok: true, advisory: placed.advisory, message: `${placed.name} is now in ${placed.advisory}.` });
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message || "The advisory could not be changed." });
+    }
+  });
+
   // GET all teachers (for reassignment dropdown)
-  app.get("/api/teacher-admin/teachers", authMiddleware, teacherOrAdminMiddleware, async (_req, res) => {
+  app.get("/api/teacher-admin/teachers", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const allUsers = await storage.getAllUsers();
+      // Names only for teachers (enough to pick who to hand a student to); usernames are admin-only.
       const teachers = allUsers
         .filter((u: any) => u.role === 'teacher')
-        .map((t: any) => ({ id: t.id, displayName: t.displayName, username: t.username }));
+        .map((t: any) => (req.user.isAdmin ? { id: t.id, displayName: t.displayName, username: t.username } : { id: t.id, displayName: t.displayName }));
       res.json(teachers);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -10148,10 +10944,11 @@ Important:
   });
 
   // GET pending students across ALL teachers
-  app.get("/api/teacher-admin/pending-students", authMiddleware, teacherOrAdminMiddleware, async (_req, res) => {
+  app.get("/api/teacher-admin/pending-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const allUsers = await storage.getAllUsers();
-      const pending = allUsers.filter((u: any) => !u.approvedByTeacher && (u.role === 'student' || (!u.role && !u.isAdmin)));
+      const pending = allUsers.filter((u: any) => !u.approvedByTeacher && (u.role === 'student' || (!u.role && !u.isAdmin))
+        && (req.user.isAdmin || Number(u.teacherId) === Number(req.user.id)));
       const teacherMap = new Map();
       for (const u of allUsers) {
         if (u.role === 'teacher') teacherMap.set(u.id, u.displayName);
@@ -10173,6 +10970,7 @@ Important:
   app.post("/api/teacher-admin/students/:id/approve", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const seat = await plans.seatCheck(req.user);
       if (!seat.ok) return res.status(409).json({ message: seat.message });
       await supabase.from("users").update({ approved_by_teacher: true }).eq("id", studentId);
@@ -10190,6 +10988,7 @@ Important:
   app.post("/api/teacher-admin/students/:id/reset-password", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const { newPassword } = req.body;
       if (!newPassword || newPassword.length < 4) {
         return res.status(400).json({ message: "Password must be at least 4 characters" });
@@ -10206,6 +11005,7 @@ Important:
   app.get("/api/teacher-admin/students/:id/rewards", authMiddleware, teacherOrAdminMiddleware, async (req, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const key = `student_rewards_${studentId}`;
       const raw = await storage.getSetting(key);
       let rewards: any[] = [];
@@ -10220,6 +11020,7 @@ Important:
   app.post("/api/teacher-admin/students/:id/rewards", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const { title, message, requiredQuizCount, expiresAt } = req.body;
       if (!title || !message) {
         return res.status(400).json({ message: "Title and message are required" });
@@ -10250,6 +11051,7 @@ Important:
   app.delete("/api/teacher-admin/students/:id/rewards/:rewardId", authMiddleware, teacherOrAdminMiddleware, async (req, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const rewardId = parseInt(req.params.rewardId);
       const key = `student_rewards_${studentId}`;
       const raw = await storage.getSetting(key);
@@ -10267,6 +11069,7 @@ Important:
   app.post("/api/teacher-admin/students/:id/reassign", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
+      if (!(await canReachStudent((req as any).user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const { newTeacherId } = req.body;
       if (!newTeacherId) {
         return res.status(400).json({ message: "newTeacherId is required" });
@@ -10366,7 +11169,7 @@ Important:
           message: `Your quiz "${pending.book_title}" has been approved and is ready to take!`
         });
       }
-      await supabase.from('pending_ai_quizzes').update({ status: 'approved', reviewed_by: req.user.id, reviewed_at: new Date().toISOString() }).eq('id', req.params.id);
+      await supabase.from('pending_ai_quizzes').update({ status: 'approved', reviewer_id: req.user.id, reviewed_at: new Date().toISOString() }).eq('id', req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -10378,8 +11181,8 @@ Important:
     try {
       const { reason } = req.body;
       await supabase.from('pending_ai_quizzes').update({
-        status: 'rejected', reviewed_by: req.user.id,
-        reviewed_at: new Date().toISOString(), rejection_reason: reason || null
+        status: 'rejected', reviewer_id: req.user.id,
+        reviewed_at: new Date().toISOString(), review_reason: reason || "Not specified"
       }).eq('id', req.params.id);
       const { data: pendingRows } = await supabase.from('pending_ai_quizzes').select('student_id, book_title').eq('id', req.params.id);
       if (pendingRows && pendingRows[0]) {
@@ -10450,6 +11253,180 @@ Important:
     }
   });
 
+  // Add many students at once (CSV upload, pasted rows, or a small manual list).
+  // Each student's username AND starting password are their student number, so a
+  // teacher never has to invent or share individual logins — approvedByTeacher is
+  // true immediately (no "waiting for approval" step, since the teacher is the one
+  // adding them), and mustChangePassword is set so the student is asked to pick
+  // their own password the first time they sign in.
+  app.post("/api/teacher/students/bulk-add", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
+    try {
+      const rows = Array.isArray(req.body?.students) ? req.body.students : [];
+      if (!rows.length) return res.status(400).json({ message: "No students were given." });
+      if (rows.length > 500) return res.status(400).json({ message: "Add at most 500 students at a time." });
+
+      // Administrators choose the school and an optional registered OR directory teacher.
+      // Directory teachers have no login and must never receive a permission-bearing teacher_id.
+      const isBulkAdmin = !!req.user.isAdmin;
+      const selectedSchool = Number(req.body?.schoolId);
+      const schoolId = isBulkAdmin ? (Number.isInteger(selectedSchool) && selectedSchool > 0 ? selectedSchool : null) : (req.user.school_id ?? null);
+      if (isBulkAdmin) {
+        if (!schoolId || !(await storage.getAllSchools()).some((s: any) => Number(s.id) === schoolId)) {
+          return res.status(400).json({ message: "Choose a valid school before uploading students." });
+        }
+      }
+
+      const requestedTeacherId = Number(req.body?.teacherId);
+      const directoryTeacherInput = isBulkAdmin && typeof req.body?.directoryTeacherName === "string"
+        ? req.body.directoryTeacherName.trim() : "";
+      if (isBulkAdmin && directoryTeacherInput && Number.isInteger(requestedTeacherId) && requestedTeacherId > 0) {
+        return res.status(400).json({ message: "Choose one teacher, not both a registered and a directory teacher." });
+      }
+      let teacherId = isBulkAdmin
+        ? (Number.isInteger(requestedTeacherId) && requestedTeacherId > 0 ? requestedTeacherId : null)
+        : req.user.id;
+      let directoryTeacherName: string | null = null;
+
+      if (isBulkAdmin && teacherId) {
+        const teacherAccount = await storage.getUser(teacherId);
+        if (!teacherAccount || teacherAccount.role !== "teacher" || teacherAccount.archivedAt ||
+            teacherAccount.accountApproved === false || Number(teacherAccount.school_id) !== schoolId) {
+          return res.status(400).json({ message: "That teacher is not an approved account at the selected school." });
+        }
+      }
+      if (isBulkAdmin && directoryTeacherInput) {
+        const listing = await directoryTeachers(Number(schoolId));
+        const found = listing.find((t: any) => String(t.name || "").trim().toLowerCase() === directoryTeacherInput.toLowerCase());
+        if (!found) return res.status(400).json({ message: "That teacher is not in this school's teacher directory." });
+        directoryTeacherName = found.name.trim();
+      }
+
+      // Placing students in an advisory (the school's advisories, shared/advisories.ts): the advisory
+      // is saved as each student's Advisory for this school year, so the sign-in pop-up only asks
+      // for their ELA teacher. One of the advisors with an account becomes their teacher on the site.
+      let advisory: { name: string; teacherId: number | null } | null = null;
+      const advisoryId = isBulkAdmin && typeof req.body?.advisoryId === "string" ? req.body.advisoryId : "";
+      if (advisoryId) {
+        if (!schoolId) return res.status(400).json({ message: "Choose a school before choosing an advisory." });
+        const school = await classTeacherStore.getSchool(Number(schoolId));
+        const found = school ? advisoriesForSchool(school.name).find((a) => a.id === advisoryId) : undefined;
+        if (!found) return res.status(400).json({ message: "That advisory isn't at the selected school." });
+        const account = advisorAccount(found, await classTeacherStore.schoolTeachers(Number(schoolId)));
+        advisory = { name: advisoryName(found), teacherId: account?.id ?? null };
+        teacherId = advisory.teacherId;
+        directoryTeacherName = advisory.teacherId ? null : advisory.name;
+      }
+
+      const requestedClassId = Number(req.body?.classId);
+      const classId = isBulkAdmin && Number.isInteger(requestedClassId) && requestedClassId > 0 ? requestedClassId : null;
+      if (classId) {
+        const schoolClasses = await storage.getClassesBySchool(Number(schoolId));
+        if (!schoolClasses.some((c: any) => Number(c.id) === classId)) {
+          return res.status(400).json({ message: "That advisory/class does not belong to the selected school." });
+        }
+      }
+
+      // Clean and validate every row before creating anything, so a bad row doesn't
+      // leave a half-finished class behind.
+      const seen = new Set<string>();
+      const clean: { firstName: string; lastName: string; studentNumber: string; row: number }[] = [];
+      const problems: { row: number; message: string }[] = [];
+      rows.forEach((r: any, i: number) => {
+        const rowNum = i + 1;
+        const firstName = String(r?.firstName ?? r?.first ?? "").trim();
+        const lastName = String(r?.lastName ?? r?.last ?? "").trim();
+        const studentNumber = String(r?.studentNumber ?? r?.studentId ?? r?.number ?? "").trim();
+        if (!firstName && !lastName && !studentNumber) return; // a blank row, skip quietly
+        if (!firstName || !lastName) { problems.push({ row: rowNum, message: "First and last name are both required." }); return; }
+        if (!studentNumber) { problems.push({ row: rowNum, message: "Student number is required." }); return; }
+        if (studentNumber.length < 2 || studentNumber.length > 40) { problems.push({ row: rowNum, message: "Student number must be 2–40 characters." }); return; }
+        const key = studentNumber.toLowerCase();
+        if (seen.has(key)) { problems.push({ row: rowNum, message: `Student number "${studentNumber}" is repeated in this list.` }); return; }
+        seen.add(key);
+        clean.push({ firstName, lastName, studentNumber, row: rowNum });
+      });
+
+      if (!clean.length) return res.status(400).json({ message: "No usable rows were found.", problems });
+
+      if (teacherId) {
+        const teacher = await storage.getUser(teacherId);
+        const seat = await plans.seatCheck(teacher, clean.length);
+        if (!seat.ok) return res.status(409).json({ message: seat.message });
+      }
+
+      // Student numbers must be unique against the whole site, not just this batch. A student who
+      // already has an account is left as they are and skipped (re-uploading a list is safe);
+      // anything else using that number or username still stops the upload.
+      const skipped: { row: number; studentNumber: string; displayName: string; id: number }[] = [];
+      const toCreate: typeof clean = [];
+      for (const c of clean) {
+        const existingNumber = await storage.getUserByStudentNumber(c.studentNumber);
+        if (existingNumber) {
+          if (existingNumber.role === "student") skipped.push({ row: c.row, studentNumber: c.studentNumber, displayName: existingNumber.displayName || "", id: Number(existingNumber.id) });
+          else problems.push({ row: c.row, message: `Student number "${c.studentNumber}" is already in use.` });
+          continue;
+        }
+        // A student who made their own account with their student number as the username is the
+        // same student: skipped like any other existing account (and put in the advisory).
+        const existingName = await storage.getUserByUsername(c.studentNumber.toLowerCase());
+        if (existingName) {
+          if ((existingName.role || "student") === "student" && !existingName.isAdmin) skipped.push({ row: c.row, studentNumber: c.studentNumber, displayName: existingName.displayName || "", id: Number(existingName.id) });
+          else problems.push({ row: c.row, message: `"${c.studentNumber}" is already taken as a username.` });
+          continue;
+        }
+        toCreate.push(c);
+      }
+      if (problems.length) return res.status(409).json({ message: "Some rows need to be fixed before adding.", problems });
+
+      const created: { row: number; displayName: string; username: string; id: number }[] = [];
+      for (const c of toCreate) {
+        // Use a password hash known to work in /api/login, and verify before insertion.
+        const hashedPassword = createVerifiedStudentTemporaryHash(c.studentNumber);
+        const user = await storage.createUser({
+          username: c.studentNumber.toLowerCase(),
+          password: hashedPassword,
+          displayName: `${c.firstName} ${c.lastName}`.trim(),
+          role: "student",
+          teacherId,
+          directoryTeacherName,
+          schoolId,
+          approvedByTeacher: true,
+          accountApproved: true,
+          studentNumber: c.studentNumber,
+          mustChangePassword: true,
+        });
+        if (classId) await storage.assignStudentToClass(user.id, classId);
+        // Read back through the same storage lookup used by /api/login. Do not
+        // report an import as successful if any student's login won't work.
+        const saved = await storage.getUserByUsername(user.username);
+        if (!saved || saved.id !== user.id ||
+            saved.studentNumber !== c.studentNumber ||
+            !verifyStudentTemporaryHash(c.studentNumber, saved.password)) {
+          console.error("[student-bulk-add] Saved credentials failed login verification", { userId: user.id, row: c.row });
+          throw new Error("An imported account failed its sign-in verification. No further students were added. Please review existing uploads before retrying.");
+        }
+        created.push({ row: c.row, displayName: user.displayName, username: user.username, id: Number(user.id) });
+      }
+      // Everyone on the list, new or already here, gets this advisory for the school year.
+      // Their ELA teacher, if they already gave one, is kept.
+      if (advisory && schoolId) {
+        const schoolYear = schoolYearOf();
+        for (const id of [...created.map((c) => c.id), ...skipped.map((k) => k.id)]) {
+          const before = await classTeacherStore.getPick(id, schoolYear).catch(() => null);
+          await classTeacherStore.savePick({
+            student_id: id, school_year: schoolYear, school_id: Number(schoolId),
+            advisory_teacher_id: null, advisory_teacher_name: advisory.name,
+            lit_teacher_id: before?.lit_teacher_id ?? null, lit_teacher_name: before?.lit_teacher_name ?? "",
+          });
+        }
+      }
+      try { clearCache("allUsers"); } catch {}
+      res.json({ success: true, created: created.map(({ id, ...c }) => c), skipped: skipped.map(({ id, ...k }) => k), advisory: advisory?.name ?? null });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to add students." });
+    }
+  });
+
   app.post("/api/teacher/approve/:studentId", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.studentId);
@@ -10480,6 +11457,7 @@ Important:
   app.post("/api/teacher/reset-password/:studentId", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.studentId);
+      if (!(await canReachStudent(req.user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const tempPassword = 'arise' + Math.random().toString(36).slice(2, 8);
       const hashedPassword = bcrypt.hashSync(tempPassword, 10);
       await storage.resetPassword(studentId, hashedPassword);
@@ -10513,11 +11491,11 @@ Important:
   app.get("/api/teacher/student/:id/profile", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const studentId = parseInt(req.params.id);
-      // This is a read-only educator profile. Approved teachers can open any student
-      // shown in the All Students directory; editing and messaging stay roster-restricted.
+      // A teacher may only open the profile of a student assigned to them; admins may open any.
       const student = await storage.getUser(studentId);
       if (!student || student.isAdmin || student.role !== 'student') return res.status(404).json({ message: "Student not found" });
       if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: "Teacher account approval required" });
+      if (!req.user.isAdmin && Number(student.teacherId) !== Number(req.user.id)) return res.status(403).json(NOT_YOUR_STUDENT);
       const attempts = await storage.getUserAttempts(studentId);
       const books = await storage.getAllBooks();
       const bookMap = new Map(books.map(b => [b.id, b]));
@@ -10916,7 +11894,7 @@ Important:
       const rawLimit = req.body?.dailyGameLimit;
       const dailyGameLimit = rawLimit === null || rawLimit === "" || rawLimit === undefined
         ? null
-        : Math.max(0, Math.min(180, Math.floor(Number(rawLimit) || 0)));
+        : Math.max(0, Math.min(100, Math.floor(Number(rawLimit) || 0)));
       const gamesPerPassedQuiz = Math.max(0, Math.min(20, Math.floor(Number(req.body?.gamesPerPassedQuiz) || 0)));
       const weeklyUnlimitedOnPass = req.body?.weeklyUnlimitedOnPass !== false;
       const row = {
@@ -11188,8 +12166,6 @@ Important:
         { table: "notifications", column: "user_id" },
         { table: "quiz_requests", column: "user_id" },
         { table: "easter_egg_claims", column: "user_id" },
-        { table: "custom_quizzes", column: "creator_id" },
-        { table: "eye_gaze_quizzes", column: "creator_id" },
       ];
 
       for (const { table, column } of tables) {
@@ -11292,23 +12268,9 @@ Important:
       const userId = parseInt(req.params.userId);
       if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ message: "Invalid user." });
       if (userId === req.user.id) return res.status(400).json({ message: "You can't archive your own account." });
-      const adminDb = getAdminSupabase();
-      const { data: target, error: findError } = await adminDb.from("users").select("id, role, is_admin, archived_at").eq("id", userId).maybeSingle();
-      if (findError) throw new Error(findError.message);
-      if (!target) return res.status(404).json({ message: "User not found." });
-      if (target.is_admin) return res.status(400).json({ message: "Admin accounts can't be archived." });
-      const patch = archive ? { archived_at: new Date().toISOString(), archived_by: req.user.id } : { archived_at: null, archived_by: null };
-      const { error } = await adminDb.from("users").update(patch).eq("id", userId);
-      if (error) throw new Error(error.message);
-      // Sign the person out everywhere.
-      if (archive) await adminDb.from("sessions").delete().eq("user_id", userId);
-      clearCache('session_');
-      clearCache('allUsers');
-      clearCache('teachers');
-      clearCache('leaderboard');
-      clearCache('monthlyLeaderboard_');
-      clearCache('eye_gaze_leaderboard');
-      clearCache('advisoryLeaderboard');
+      const result = await archiveProfile(userId, archive, req.user.id);
+      if (result === "missing") return res.status(404).json({ message: "User not found." });
+      if (result === "admin") return res.status(400).json({ message: "Admin accounts can't be archived." });
       res.json({ success: true, archived: archive });
     } catch (error: any) {
       console.error("[admin-archive] Failed:", error?.message);
@@ -11710,6 +12672,13 @@ Important:
         return res.json({ ...quiz, questions: isStaffViewer(req) ? questions : withoutAnswers(questions), attemptId: -quizId, preview: true });
       }
       if (!(await customQuizVisibleTo(req.user, quiz))) return res.status(404).json({ message: "Quiz not found" });
+      if (req.body?.practice) {
+        // Practice (no points, nothing saved) opens once the student has taken the scored quiz.
+        if (!(await canPracticeCustom(req.user.id, quizId))) {
+          return res.status(403).json({ message: "Practice opens after the first quiz. Ask a grown-up to unlock the quiz." });
+        }
+        return res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: -quizId, practice: true });
+      }
 
       const proctor = await validateProctorSession(
         String(req.body?.proctorSessionToken || ""),
@@ -11723,7 +12692,7 @@ Important:
       }
 
       const completed = await storage.hasUserCompletedCustomQuiz(req.user.id, quizId);
-      if (completed) return res.status(400).json({ message: "You have already taken this quiz." });
+      if (completed) return res.status(400).json({ message: "You already took this quiz. You can practice it again any time.", completed: true });
       const attempt = await storage.startCustomEyeGazeAttempt(req.user.id, quizId, proctor);
       res.json({ ...quiz, questions: withoutAnswers(quiz.questions), attemptId: attempt.id, proctorType: proctor.type, proctorName: proctor.name });
     } catch (error: any) {
@@ -11736,7 +12705,8 @@ Important:
       const attemptId = parseInt(req.params.attemptId);
       const { answers } = req.body;
 
-      if ((req.adminPreview || isDemoStudent(req.user) || req.user?.isAdmin || req.user?.role === "teacher") && attemptId < 0) {
+      const previewer = req.adminPreview || isDemoStudent(req.user) || req.user?.isAdmin || req.user?.role === "teacher";
+      if (attemptId < 0 && (previewer || await canPracticeCustom(req.user.id, Math.abs(attemptId)))) {
         const quizId = Math.abs(attemptId);
         const questions = await storage.getCustomEyeGazeQuizQuestions(quizId);
         let score = 0;
@@ -11745,7 +12715,7 @@ Important:
         }
         const total = questions.length;
         const passingScore = Math.ceil(total * 0.7);
-        return res.json({ score, total, pct: total > 0 ? Math.round((score / total) * 100) : 0, passed: score >= passingScore, passingScore, pointsEarned: 0, preview: true });
+        return res.json({ score, total, pct: total > 0 ? Math.round((score / total) * 100) : 0, passed: score >= passingScore, passingScore, pointsEarned: 0, ...(previewer ? { preview: true } : { practice: true }) });
       }
 
       const { data: ownedAttempt } = await getAdminSupabase().from("custom_eye_gaze_attempts")
@@ -11779,7 +12749,15 @@ Important:
   });
 
   app.post("/api/custom-quizzes/:attemptId/check", authMiddleware, (req: any, res) =>
-    checkOneAnswer(req, res, "custom_eye_gaze_attempts", (quizId) => storage.getCustomEyeGazeQuizQuestions(quizId)));
+    checkOneAnswer(req, res, "custom_eye_gaze_attempts", (quizId) => storage.getCustomEyeGazeQuizQuestions(quizId), { canPractice: canPracticeCustom }));
+
+  /** Practice of a teacher's quiz opens once the student has taken it (and can still see it). */
+  async function canPracticeCustom(userId: number, quizId: number) {
+    if (!Number.isSafeInteger(quizId) || quizId < 1) return false;
+    if (!(await storage.hasUserCompletedCustomQuiz(userId, quizId))) return false;
+    const [quiz, user] = await Promise.all([storage.getCustomEyeGazeQuiz(quizId), storage.getUser(userId)]);
+    return customQuizVisibleTo(user, quiz);
+  }
 
   /** A student sees published quizzes for everyone, and their own teacher's quizzes. */
   async function customQuizVisibleTo(user: any, quiz: any) {
@@ -12338,6 +13316,18 @@ Important:
     }
   });
 
+  // "Let the games begin!": the Advisory Challenge introduction, shown once per account (any device).
+  // One settings row per account, so two people closing it at once never overwrite each other.
+  const gamesBeginKey = (id: unknown) => `games_begin_seen:${Number(id)}`;
+  app.get("/api/intro/games-begin", authMiddleware, async (req: any, res) => {
+    try { res.json({ seen: !!(await storage.getSetting(gamesBeginKey(req.user.id))) }); }
+    catch { res.json({ seen: true }); } // unsure: don't risk showing it twice
+  });
+  app.post("/api/intro/games-begin", authMiddleware, async (req: any, res) => {
+    try { await storage.upsertSetting(gamesBeginKey(req.user.id), new Date().toISOString()); res.json({ success: true }); }
+    catch { res.status(500).json({ message: "Could not save that you've seen this." }); }
+  });
+
   // Student: Dismiss tutorial (server-side, persists across devices)
   app.post("/api/tutorial/dismiss", authMiddleware, async (req: any, res) => {
     try {
@@ -12359,6 +13349,43 @@ Important:
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ message: 'Failed to reset tutorial' });
+    }
+  });
+
+  // Teacher/parent: Dismiss the A.R.I.S.E. To-Do WorkHub tour (server-side, persists across devices)
+  app.post("/api/todo-tour/dismiss", authMiddleware, async (req: any, res) => {
+    try {
+      const raw = await storage.getSetting('todo_tour_v2_shown_users');
+      let shown: Record<string, boolean> = {};
+      if (raw) { try { shown = JSON.parse(raw); } catch {} }
+      shown[String(req.user.id)] = true;
+      await storage.upsertSetting('todo_tour_v2_shown_users', JSON.stringify(shown));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to dismiss tour' });
+    }
+  });
+
+  // Teacher/parent: Check whether this user has already seen the WorkHub tour.
+  // v2 is the guided tour that points at the real screen; everyone sees it once, even if they closed the old one.
+  app.get("/api/todo-tour/status", authMiddleware, async (req: any, res) => {
+    try {
+      const raw = await storage.getSetting('todo_tour_v2_shown_users');
+      let shown: Record<string, boolean> = {};
+      if (raw) { try { shown = JSON.parse(raw); } catch {} }
+      res.json({ shown: !!shown[String(req.user.id)] });
+    } catch (e) {
+      res.json({ shown: false });
+    }
+  });
+
+  // Admin: Reset the WorkHub tour for all teachers/parents
+  app.post("/api/admin/reset-todo-tour", authMiddleware, adminMiddleware, async (req: any, res) => {
+    try {
+      await storage.upsertSetting('todo_tour_v2_shown_users', '{}');
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ message: 'Failed to reset tour' });
     }
   });
 

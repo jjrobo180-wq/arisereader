@@ -1,0 +1,33 @@
+name: Atmosphere production build
+on:
+  push:
+    branches: [master]
+    paths:
+      - "client/src/pages/AmbientStandby.tsx"
+      - "client/src/pages/AmbientStandby.css"
+      - "shared/pluginStore.ts"
+      - "client/src/App.tsx"
+      - ".github/workflows/atmosphere-build.yml"
+  pull_request:
+    paths:
+      - "client/src/pages/AmbientStandby.tsx"
+      - "client/src/pages/AmbientStandby.css"
+      - "shared/pluginStore.ts"
+      - "client/src/App.tsx"
+  workflow_dispatch:
+jobs:
+  production-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Production build
+        run: npm run build
+      - name: TypeScript diagnostics
+        continue-on-error: true
+        run: npm run check

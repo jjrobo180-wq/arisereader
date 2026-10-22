@@ -5,6 +5,7 @@ import { useRoute } from "wouter";
 import { CalendarDays, Check, CheckCircle2, Crown, Loader2, MapPin, Plane, RefreshCw, Target, Vote } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import type { SharedView } from "@shared/todoShare";
+import { LinkPageLinks } from "@/components/family-hub/LinkDirectory";
 
 const NAME_KEY = "arise-share-name";
 const VOTER_KEY = "arise-share-voter";
@@ -76,10 +77,25 @@ export default function TodoShare() {
         {view.kind === "chores" && <ChoresView view={view} today={data.today} />}
         {view.kind === "goals" && <GoalsView view={view} />}
         {view.kind === "health" && <HealthView view={view} today={data.today} />}
+        {view.kind === "links" && <LinksView view={view} />}
       </>}
       <p className="mt-6 text-center text-xs text-slate-400">Anyone with this link can see this page. Only share it with people you trust.</p>
     </div>
   </div>;
+}
+
+/** One shared LifeHub page's content (no poll voting), for Linked profiles (family-hub/LinkedProfiles.tsx). */
+export function SharedViewBody({ view, today }: { view: SharedView; today: string }) {
+  return <>
+    {view.kind === "tasks" && <TasksView view={view} today={today} />}
+    {view.kind === "calendar" && <CalendarView view={view} today={today} />}
+    {view.kind === "bills" && <BillsView view={view} />}
+    {view.kind === "trips" && <TripsView view={view} />}
+    {view.kind === "chores" && <ChoresView view={view} today={today} />}
+    {view.kind === "goals" && <GoalsView view={view} />}
+    {view.kind === "health" && <HealthView view={view} today={today} />}
+    {view.kind === "links" && <LinksView view={view} />}
+  </>;
 }
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -194,7 +210,7 @@ function TripsView({ view }: { view: Extract<SharedView, { kind: "trips" }> }) {
     <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-slate-500">{t.destination && <span className="inline-flex items-center gap-1"><MapPin size={14} />{t.destination}</span>}<span>{t.start ? `${day(t.start)}${t.end && t.end !== t.start ? ` – ${day(t.end)}` : ""}` : "No dates yet"}</span></p>
     {t.notes && <p className="mt-3 whitespace-pre-wrap rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">{t.notes}</p>}
     {t.stops.length > 0 && <><h3 className="mt-4 text-sm font-black">Plan</h3><ul className="mt-2 space-y-1.5">{t.stops.map((s, j) => <li key={j} className="text-sm"><span className="font-semibold text-slate-500">{[s.date && day(s.date), s.time && clock(s.time)].filter(Boolean).join(" ")}</span> {s.title}</li>)}</ul></>}
-    {t.packing.length > 0 && <><h3 className="mt-4 text-sm font-black">Packing list</h3><div className="mt-2 grid gap-3 sm:grid-cols-2">{t.packing.map((p) => <div key={p.person} className="rounded-2xl bg-slate-50 p-3">
+    {t.packing.length > 0 && <><h3 className="mt-4 text-sm font-black">Packing list</h3><div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">{t.packing.map((p) => <div key={p.person} className="rounded-2xl bg-slate-50 p-3">
       <p className="text-xs font-black uppercase tracking-wider text-slate-500">{p.person}</p>
       <ul className="mt-1 space-y-1">{p.items.map((it, k) => <li key={k} className={`flex items-center gap-2 text-sm ${it.packed ? "text-slate-400 line-through" : ""}`}>{it.packed ? <Check size={13} className="text-emerald-600" /> : <span className="h-3 w-3 rounded-sm border border-slate-300" />}{it.item}</li>)}</ul>
     </div>)}</div></>}
@@ -214,9 +230,19 @@ function ChoresView({ view, today }: { view: Extract<SharedView, { kind: "chores
   </Card>;
 }
 
+/** A family's link page: their links as big buttons, like a link tree. */
+function LinksView({ view }: { view: Extract<SharedView, { kind: "links" }> }) {
+  return <div className="rounded-[2rem] bg-gradient-to-b from-[#2d2555] to-[#6d5ce7] p-6 text-center text-white shadow-[0_18px_40px_#4b3fa033] sm:p-8">
+    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-3xl font-black">{view.title.trim().charAt(0).toUpperCase()}</div>
+    {view.bio && <p className="mx-auto mt-3 max-w-md text-sm text-violet-100">{view.bio}</p>}
+    <div className="mt-6">{view.links.length ? <LinkPageLinks links={view.links} style={view.style} big />
+      : <p className="rounded-2xl border border-dashed border-white/40 p-5 text-sm text-violet-100">No links yet.</p>}</div>
+  </div>;
+}
+
 function GoalsView({ view }: { view: Extract<SharedView, { kind: "goals" }> }) {
   if (!view.goals.length) return <Empty>No goals yet.</Empty>;
-  return <div className="grid gap-3 sm:grid-cols-2">{view.goals.map((g, i) => <Card key={i} className="!p-4">
+  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{view.goals.map((g, i) => <Card key={i} className="!p-4">
     <h2 className="flex items-start gap-2 font-black"><Target size={17} className={`mt-0.5 shrink-0 ${g.done ? "text-emerald-600" : "text-violet-600"}`} />{g.title}</h2>
     <p className="mt-1 text-xs text-slate-500">{[g.person, g.due && `by ${day(g.due)}`, g.done && "Done!"].filter(Boolean).join(" · ")}</p>
     {g.why && <p className="mt-2 text-sm text-slate-600">{g.why}</p>}

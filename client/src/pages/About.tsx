@@ -89,7 +89,7 @@ export default function About() {
           </div>
 
           {/* Educator profile */}
-          <div className="grid md:grid-cols-[280px_1fr] gap-6 sm:gap-8 px-6 sm:px-8 pt-8 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 sm:gap-8 px-6 sm:px-8 pt-8 items-center">
             <div className="relative mx-auto md:mx-0 w-full max-w-[280px]">
               <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-violet-500/35 via-fuchsia-500/25 to-cyan-400/25 blur-xl" />
               <img
@@ -119,7 +119,7 @@ export default function About() {
                   { label: "Confidence", Icon: Award },
                 ].map(({ label, Icon }) => (
                   <div key={label} className="rounded-xl bg-gradient-to-br from-violet-500/10 via-fuchsia-500/[.07] to-cyan-400/10 border border-violet-400/15 px-2 py-3 text-center">
-                    <div className="mx-auto grid h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Icon className="h-4 w-4" /></div>
+                    <div className="mx-auto grid grid-cols-1 h-9 w-9 place-items-center rounded-xl arise-icon-tile"><Icon className="h-4 w-4" /></div>
                     <div className="text-xs font-semibold mt-2">{label}</div>
                   </div>
                 ))}
@@ -194,7 +194,7 @@ export default function About() {
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 {
                   src: "/about/mr-j-classroom-1.webp?v=20261001",

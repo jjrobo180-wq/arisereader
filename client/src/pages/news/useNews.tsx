@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { SECTION_COLORS, type NewsArticle } from "@shared/ariseNews";
+import { SECTION_COLORS, newsPhotoUrl, type NewsArticle } from "@shared/ariseNews";
 import { newsHeroSvg } from "@shared/newsArt";
 
 export type NewsResult = { bookId: number; score: number; total: number; passed?: boolean; pointsEarned?: number };
@@ -50,9 +50,19 @@ export const sectionStyle = (a: NewsArticle) => {
   return { "--sec": c.ink, "--tint": c.tint, "--deep": c.deep } as CSSProperties;
 };
 
-export function NewsArt({ article, className = "nw-art", children }: { article: NewsArticle; className?: string; children?: ReactNode }) {
-  const svg = useMemo(() => newsHeroSvg(article), [article]);
-  return <div className={className} style={sectionStyle(article)}><div style={{ width: "100%", height: "100%" }} dangerouslySetInnerHTML={{ __html: svg }} />{children}</div>;
+export function NewsArt({ article, className = "nw-art", children, wide = false }: { article: NewsArticle; className?: string; children?: ReactNode; wide?: boolean }) {
+  // a real photo when the story has one (biographies); the drawn picture if it can't load
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const photo = !photoFailed && article.photo ? newsPhotoUrl(article, wide ? 1280 : 640) : null;
+  const svg = useMemo(() => (photo ? "" : newsHeroSvg(article)), [article, photo]);
+  return (
+    <div className={className} style={sectionStyle(article)}>
+      {photo
+        ? <img className="nw-photo" src={photo} alt={article.photo!.alt} loading="lazy" style={{ objectPosition: article.photo!.focus ?? "50% 30%" }} onError={() => setPhotoFailed(true)} />
+        : <div style={{ width: "100%", height: "100%" }} dangerouslySetInnerHTML={{ __html: svg }} />}
+      {children}
+    </div>
+  );
 }
 
 export const shortDate = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });

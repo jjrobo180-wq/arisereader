@@ -16,6 +16,8 @@ import {
 import { API_BASE } from "@/lib/queryClient";
 import { speakCharacterAI } from "@/lib/tts";
 import { useLocation } from "wouter";
+import GazeButton from "@/components/eye-gaze/GazeButton";
+import BuddyPractice from "@/components/eye-gaze/BuddyPractice";
 
 type BuddyPreset = "puppy" | "dino" | "robot" | "bunny";
 
@@ -41,12 +43,6 @@ const PRESETS: Record<BuddyPreset, { emoji: string; label: string; bg: string; a
   robot: { emoji: "🤖", label: "Robot", bg: "from-violet-100 to-indigo-50", accent: "bg-violet-600" },
   bunny: { emoji: "🐰", label: "Bunny", bg: "from-pink-100 to-rose-50", accent: "bg-rose-500" },
 };
-
-const LESSON_CHOICES = [
-  { word: "CAT", emoji: "🐱" },
-  { word: "DOG", emoji: "🐶" },
-  { word: "SUN", emoji: "☀️" },
-];
 
 function getTokenFromCookie(): string | null {
   try {
@@ -99,8 +95,6 @@ export default function EyeGazeProfileDashboard({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [voicePlaying, setVoicePlaying] = useState(false);
-  const [lessonMessage, setLessonMessage] = useState("Which word says CAT?");
-  const [lessonState, setLessonState] = useState<"ready" | "correct" | "retry">("ready");
 
   const firstName = displayName?.split(" ")[0] || "Learner";
 
@@ -207,30 +201,13 @@ export default function EyeGazeProfileDashboard({
     }
   };
 
-  const chooseLesson = (word: string) => {
-    if (word === "CAT") {
-      setLessonState("correct");
-      setLessonMessage("YES! You found CAT!");
-      speak(`Yes, ${firstName}! You found cat. Great job!`);
-    } else {
-      setLessonState("retry");
-      setLessonMessage("Good try! Look again.");
-      speak("Good try. Look again. Which word says cat?");
-    }
-
-    window.setTimeout(() => {
-      setLessonState("ready");
-      setLessonMessage("Which word says CAT?");
-    }, 1800);
-  };
-
   const heroBuddy = draft;
 
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7 pb-8 space-y-5">
       <section className="relative overflow-hidden rounded-[2.25rem] border border-teal-200 bg-[#fffaf0] shadow-sm">
         <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-teal-500 via-cyan-400 to-amber-300" />
-        <div className="relative grid lg:grid-cols-[330px_1fr] items-center gap-5 p-5 sm:p-7 lg:p-8">
+        <div className="relative grid grid-cols-1 lg:grid-cols-[330px_1fr] items-center gap-5 p-5 sm:p-7 lg:p-8">
           <button
             type="button"
             onClick={() => speak(`Hi ${firstName}! I'm ${heroBuddy.name}. Let's learn together!`)}
@@ -265,39 +242,20 @@ export default function EyeGazeProfileDashboard({
               </p>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => navigate("/eye-gaze-talker")}
-                className="min-h-[76px] rounded-2xl bg-teal-700 text-white font-black flex flex-col items-center justify-center gap-1"
-              >
-                <MessageCircle className="w-6 h-6" />
-                My Talker
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/eye-gaze-games")}
-                className="min-h-[76px] rounded-2xl bg-amber-300 text-slate-950 font-black flex flex-col items-center justify-center gap-1"
-              >
-                <Gamepad2 className="w-6 h-6" />
-                Games
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/leaderboard")}
-                className="min-h-[76px] rounded-2xl bg-sky-100 text-sky-900 font-black flex flex-col items-center justify-center gap-1"
-              >
-                <Trophy className="w-6 h-6" />
-                Progress
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/eye-gaze-account")}
-                className="min-h-[76px] rounded-2xl bg-slate-100 text-slate-800 font-black flex flex-col items-center justify-center gap-1"
-              >
-                <Settings className="w-6 h-6" />
-                Settings
-              </button>
+            <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {[
+                { label: "Lessons", icon: BookOpen, path: "/eye-gaze-lessons", tone: "bg-teal-700 text-white" },
+                { label: "My Talker", icon: MessageCircle, path: "/eye-gaze-talker", tone: "bg-teal-100 text-teal-950" },
+                { label: "Games", icon: Gamepad2, path: "/eye-gaze-games", tone: "bg-amber-300 text-slate-950" },
+                { label: "Progress", icon: Trophy, path: "/leaderboard", tone: "bg-sky-100 text-sky-900" },
+                { label: "Settings", icon: Settings, path: "/eye-gaze-account", tone: "bg-slate-100 text-slate-800" },
+              ].map(item => (
+                <GazeButton key={item.path} onSelect={() => navigate(item.path)} label={item.label}
+                  className={`min-h-[76px] rounded-2xl font-black flex flex-col items-center justify-center gap-1 ${item.tone}`}>
+                  <item.icon className="w-6 h-6" aria-hidden="true" />
+                  {item.label}
+                </GazeButton>
+              ))}
             </div>
           </div>
         </div>
@@ -390,7 +348,7 @@ export default function EyeGazeProfileDashboard({
           </label>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-3 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
           <button
             type="button"
             onClick={() => setDraft(prev => ({ ...prev, voiceEnabled: !prev.voiceEnabled }))}
@@ -433,45 +391,11 @@ export default function EyeGazeProfileDashboard({
         {message && <div role="status" className="mt-3 text-center font-black text-teal-800">{message}</div>}
       </section>
 
-      <section
-        className={`rounded-[2rem] overflow-hidden border-2 transition-colors ${lessonState === "correct" ? "border-emerald-300 bg-emerald-50" : lessonState === "retry" ? "border-amber-300 bg-amber-50" : "border-amber-200 bg-[#fffaf0]"}`}
-      >
-        <div className="grid lg:grid-cols-[330px_1fr]">
-          <div className="p-5 sm:p-6 bg-gradient-to-br from-amber-100 to-orange-50 flex flex-col justify-center">
-            <div className="inline-flex self-start rounded-full bg-amber-300 text-slate-950 px-4 py-2 text-xs font-black uppercase tracking-wider">
-              Try it with my buddy
-            </div>
-            <div className="mt-4 flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => speak(lessonMessage)}
-                className="flex-shrink-0"
-                aria-label="Hear the practice question"
-              >
-                <BuddyVisual buddy={heroBuddy} className="w-28 h-28 sm:w-32 sm:h-32 text-6xl sm:text-7xl" />
-              </button>
-              <div className="rounded-3xl bg-white border-4 border-teal-500 px-4 py-5 text-center flex-1">
-                <div className="text-xl sm:text-2xl font-black text-teal-950">{lessonMessage}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 sm:p-5 grid grid-cols-3 gap-3">
-            {LESSON_CHOICES.map(choice => (
-              <button
-                key={choice.word}
-                type="button"
-                onClick={() => chooseLesson(choice.word)}
-                className="min-h-[185px] rounded-3xl border-2 border-amber-100 bg-white hover:border-teal-400 transition-all flex flex-col items-center justify-center p-3"
-              >
-                <div className="text-5xl sm:text-6xl mb-3">{choice.emoji}</div>
-                <div className="text-2xl sm:text-4xl font-black text-slate-950 tracking-wide">{choice.word}</div>
-                <div className="mt-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Look or tap</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+      <BuddyPractice
+        buddy={<BuddyVisual buddy={heroBuddy} className="w-28 h-28 sm:w-32 sm:h-32 text-6xl sm:text-7xl" />}
+        buddyName={heroBuddy.name}
+        voice={draft.voiceEnabled}
+      />
 
       <section className="rounded-[2rem] bg-white/90 border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center flex-shrink-0">

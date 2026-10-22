@@ -1,13 +1,14 @@
-// Add-ons: the family Learning Bundle (Arise History, Math and Social), a teacher's class add-ons
-// (Math $12, History $12, Social $7), A.R.I.S.E. To-Do, the 30-day trial, and refunds when class
-// add-ons take over from a family's plan.
+// Add-ons: the family Learning Bundle (Arise History, Math and Social), a teacher's Class plan
+// (which now includes Math, History and Connect/Social together — there is no per-app class
+// add-on to buy any more), A.R.I.S.E. To-Do, and refunds when a child's teacher's Class plan
+// takes over from a family's plan. No part of the site has a free trial — everything needs a
+// plan from day one.
 // Run with: npx tsx --test tests/addon-plans.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { registerPlanRoutes } from "../server/plans";
-import { trialDaysLeft, trialEnd } from "../shared/plans";
 
-const OLD = "2026-09-01T00:00:00Z"; // signed up before the trial began: their 30 days start on October 9
+const OLD = "2026-09-01T00:00:00Z"; // an account that's been around a while
 const DURING = Date.parse("2026-10-20T18:00:00Z");
 const AFTER = Date.parse("2026-12-01T18:00:00Z");
 const USERS: Record<number, any> = {
@@ -21,8 +22,12 @@ const USERS: Record<number, any> = {
   80: { id: 80, displayName: "Sam Lee", role: "parent", createdAt: OLD },
   81: { id: 81, displayName: "Kai Lee", role: "student", teacherId: 50, school_id: 3, createdAt: OLD },
   90: { id: 90, displayName: "Personal", role: "todo", createdAt: OLD },
+  // Mx. New (52) is the only teacher in this cast who isn't grandfathered (signed up after the
+  // cutoff) and never buys a plan, so Robin is the one student with a genuinely plan-less teacher.
+  95: { id: 95, displayName: "Robin New", role: "student", teacherId: 52, school_id: 3, createdAt: OLD },
+  100: { id: 100, displayName: "Jo Park", role: "parent", createdAt: OLD },
 };
-const CHILDREN: Record<number, number[]> = { 70: [71, 72], 80: [81] };
+const CHILDREN: Record<number, number[]> = { 70: [71, 72], 80: [81], 100: [95] };
 const parentsOf = (s: number) => Object.entries(CHILDREN).filter(([, k]) => k.includes(s)).map(([p]) => Number(p));
 const sub = (kind: string, ownerId: number, extra: any = {}) => ({
   id: `sub_${kind.replace(/_/g, "")}${ownerId}`, status: "active", customer: `cus_${ownerId}`, metadata: { kind, ownerId: String(ownerId), buyerId: String(ownerId) },
@@ -100,115 +105,137 @@ function setup(opts: { clock?: number; enforced?: boolean } = {}) {
   return { plans, call, calls, pay, gate, settings, subs, setClock: (t: number) => { clock = t; } };
 }
 
-test("every account gets 30 free days, no card; older accounts count from October 9", async () => {
-  assert.equal(trialEnd(OLD), "2026-11-08T06:00:00.000Z");
-  assert.equal(trialEnd("2026-10-15T12:00:00Z"), "2026-11-14T12:00:00.000Z");
-  assert.equal(trialDaysLeft(OLD, DURING), 19);
-  const t = setup();
-  for (const id of [50, 70, 71]) for (const app of ["math", "history", "social"] as const) {
+test("nobody gets Math, History or Social for free — no trial, no card on file means no access", async () => {
+  // Plan rules must be enforced for "no access" to mean anything — otherwise everyone passes via
+  // "rules-off" (see the next test, which exercises that path on purpose). Users 50 and 51 (Ms.
+  // Rivera and Mr. Delgado) are both grandfathered (signed up before the cutoff), so their classes
+  // — and Dana (70), whose children are in those classes — are excluded here; their Class plans
+  // legitimately include every app for free, enforced or not. Mx. New (52) signed up after the
+  // cutoff and has no plan; Robin (95), one of Mx. New's students, and Jo Park (100), Robin's
+  // parent, have no coverage either — clean "really has nothing" cases.
+  const t = setup({ enforced: true });
+  for (const id of [52, 100, 95]) for (const app of ["math", "history", "social"] as const) {
     const s = await t.plans.appStatus(USERS[id], app);
-    assert.deepEqual([s.access, s.via], [true, "trial"], `user ${id} ${app}`);
+    assert.deepEqual([s.access, s.via], [false, null], `user ${id} ${app}`);
   }
-  const view = await t.call("GET", "/api/addons", 70);
-  assert.equal(view.body.bundle.trialDaysLeft, 19);
-  assert.equal(view.body.apps.math.via, "trial");
-  assert.equal(view.body.todo.via, "trial");
-  const later = setup({ clock: AFTER });
-  for (const id of [50, 70, 71]) assert.equal(await later.plans.appAccess(USERS[id], "math"), false, `user ${id} after the trial`);
-  assert.equal((await later.plans.todoStatus(USERS[70])).access, false);
+  const view = await t.call("GET", "/api/addons", 100);
+  assert.equal(view.body.apps.math.via, null);
+  assert.equal(view.body.todo.via, "free", "A.R.I.S.E. To-Do is free for a parent regardless");
+  const later = setup({ clock: AFTER, enforced: true });
+  for (const id of [52, 100, 95]) assert.equal(await later.plans.appAccess(USERS[id], "math"), false, `user ${id}, no plan`);
+  assert.equal((await later.plans.todoStatus(USERS[100])).access, true, "To-Do stays free for a parent");
   assert.equal((await later.plans.todoStatus(USERS[90])).access, true, "personal To-Do accounts are unchanged");
   assert.equal(await later.plans.appAccess(USERS[1], "history"), true, "admin");
 });
 
-test("parents: $10 a month covers all three apps for the whole family; $10 a month for To-Do", async () => {
-  const t = setup({ clock: AFTER });
-  const r = await t.call("POST", "/api/billing/addon-checkout", 70, { product: "bundle", returnPath: "/math/" });
+test("before plan rules are enforced, everyone passes through — including a teacher's class", async () => {
+  const t = setup(); // enforced defaults to off
+  for (const app of ["math", "history", "social"] as const) {
+    assert.equal(await t.plans.appAccess(USERS[52], app), true, `teacher, rules off, ${app}`);
+    assert.equal((await t.plans.appStatus(USERS[52], app)).via, "class-plan", `teacher, rules off, ${app}`);
+  }
+});
+
+test("parents: $10 a month covers all three apps for the whole family; A.R.I.S.E. To-Do is free, no checkout", async () => {
+  const t = setup({ clock: AFTER, enforced: true });
+  // Jo Park (100) is Robin's (95) parent, and Robin's teacher (Mx. New, 52) isn't grandfathered
+  // and has no Class plan — a genuinely uncovered family, so buying the bundle actually goes
+  // through (unlike Dana's family below, where it's refused up front).
+  const r = await t.call("POST", "/api/billing/addon-checkout", 100, { product: "bundle", returnPath: "/math/" });
   assert.equal(r.status, 200, JSON.stringify(r.body));
-  let f = t.calls.at(-1)!.form;
+  const f = t.calls.at(-1)!.form;
   assert.equal(f.get("line_items[0][price_data][unit_amount]"), "1000");
   assert.equal(f.get("metadata[kind]"), "bundle_family");
   assert.equal(f.get("success_url"), "https://www.arisereader.com/math/?paid={CHECKOUT_SESSION_ID}");
-  assert.equal((await t.pay("bundle_family", 70)).status, 200);
-  for (const id of [70, 71, 72]) for (const app of ["math", "history", "social"] as const) assert.equal((await t.plans.appStatus(USERS[id], app)).via, "family-plan", `user ${id} ${app}`);
-  assert.equal(await t.plans.appAccess(USERS[81], "math"), false, "another family");
-  assert.equal((await t.call("POST", "/api/billing/addon-checkout", 70, { product: "math" })).status, 400, "families buy the bundle, not one app");
-  const todo = await t.call("POST", "/api/billing/addon-checkout", 70, { product: "todo" });
-  assert.equal(todo.status, 200);
-  f = t.calls.at(-1)!.form;
-  assert.equal(f.get("line_items[0][price_data][unit_amount]"), "1000");
-  assert.equal(f.get("metadata[kind]"), "todo_family");
-  assert.equal(f.get("success_url"), "https://www.arisereader.com/?paid={CHECKOUT_SESSION_ID}#/billing");
+  assert.equal((await t.pay("bundle_family", 100)).status, 200);
+  for (const app of ["math", "history", "social"] as const) assert.equal((await t.plans.appStatus(USERS[95], app)).via, "family-plan", `Robin ${app}`);
+  // Ava (71), Max (72) and Kai (81) are all in a grandfathered teacher's class (Rivera or
+  // Delgado), so they see their access through the class instead — real coverage, just checked
+  // ahead of any family plan. That's also why Dana's family (70, parent of Ava and Max) can't
+  // buy the bundle at all: every one of her children is already covered.
+  for (const id of [71, 72, 81]) for (const app of ["math", "history", "social"] as const) assert.equal((await t.plans.appStatus(USERS[id], app)).via, "class-plan", `user ${id} ${app}`);
+  const blocked = await t.call("POST", "/api/billing/addon-checkout", 70, { product: "bundle" });
+  assert.equal(blocked.status, 409, "Dana's kids are already covered by their classes");
+  assert.equal((await t.call("POST", "/api/billing/addon-checkout", 100, { product: "math" })).status, 400, "families buy the bundle, not one app");
+  // A.R.I.S.E. To-Do is free for every parent — there's no checkout for it any more.
+  const todo = await t.call("POST", "/api/billing/addon-checkout", 100, { product: "todo" });
+  assert.equal(todo.status, 409);
+  assert.match(todo.body.message, /free/i);
+  assert.equal((await t.plans.todoStatus(USERS[100])).access, true, "To-Do is already on, free, no purchase needed");
 });
 
-test("teachers add each app for their class: Math $12, History $12, Social $7, on top of Class, up to 100 students", async () => {
+test("a teacher's Class plan includes Math, History and Connect for their whole class — nothing to buy separately", async () => {
   const locked = setup({ clock: AFTER, enforced: true });
-  const no = await locked.call("POST", "/api/billing/addon-checkout", 52, { product: "math" });
-  assert.equal(no.status, 409);
-  assert.match(no.body.message, /on top of the Class plan/);
-  const t = setup({ clock: AFTER });
-  for (const [app, cents] of [["math", "1200"], ["history", "1200"], ["social", "700"]]) {
+  // Mx. New (user 52) has no Class plan yet: every app is refused with the same message.
+  for (const app of ["math", "history", "social"]) {
+    const no = await locked.call("POST", "/api/billing/addon-checkout", 52, { product: app });
+    assert.equal(no.status, 409, app);
+    assert.match(no.body.message, /included with the Class plan/, app);
+  }
+  // Ms. Rivera (user 50) has the Class plan (grandfathered): every app is already included, so
+  // there's nothing left to buy, and the checkout says so instead of opening Stripe.
+  const t = setup({ clock: AFTER, enforced: true });
+  for (const app of ["math", "history", "social"] as const) {
+    assert.equal((await t.plans.appStatus(USERS[50], app)).via, "class-plan", app);
     const r = await t.call("POST", "/api/billing/addon-checkout", 50, { product: app });
-    assert.equal(r.status, 200, JSON.stringify(r.body));
-    const f = t.calls.at(-1)!.form;
-    assert.equal(f.get("line_items[0][price_data][unit_amount]"), cents, app);
-    assert.equal(f.get("line_items[0][price_data][recurring][interval]"), "month");
-    assert.equal(f.get("metadata[kind]"), `${app}_class`);
+    assert.equal(r.status, 409, app);
+    assert.match(r.body.message, /already includes/, app);
   }
   assert.equal((await t.call("POST", "/api/billing/addon-checkout", 50, { product: "bundle" })).status, 400, "no all-three class plan any more");
   assert.equal((await t.call("POST", "/api/billing/addon-checkout", 50, { product: "todo" })).status, 409, "To-Do is part of Teacher Hub");
   assert.equal((await t.call("POST", "/api/billing/addon-checkout", 71, { product: "math" })).status, 403, "students can't pay");
-  const early = setup({ clock: DURING });
-  assert.equal((await early.plans.todoStatus(USERS[50])).via, "hub");
+  // A.R.I.S.E. To-Do (Arise WorkHub/LifeHub) is unconditionally free for every teacher, via
+  // "free" — not tied to the Class plan or any grant.
+  const early = setup({ clock: DURING, enforced: true });
+  assert.equal((await early.plans.todoStatus(USERS[50])).via, "free");
 });
 
-test("a class add-on opens only its own app, for the teacher and the class", async () => {
-  const t = setup({ clock: AFTER });
-  assert.equal((await t.pay("math_class", 50)).status, 200);
-  for (const id of [50, 71, 81]) {
-    assert.equal((await t.plans.appStatus(USERS[id], "math")).via, "class-plan", `user ${id}`);
-    assert.equal(await t.plans.appAccess(USERS[id], "history"), false, `user ${id} history`);
-    assert.equal(await t.plans.appAccess(USERS[id], "social"), false, `user ${id} social`);
-  }
-  assert.equal(await t.plans.appAccess(USERS[72], "math"), false, "a student in another class");
-  const view = await t.call("GET", "/api/addons", 50);
+test("a leftover per-app grant (from before apps were combined) still opens only its own app for a teacher without the Class plan", async () => {
+  // Mx. New (user 52) isn't grandfathered and has no Class plan — a clean case to check an old,
+  // standalone math_class grant by itself, with no classPremium boost from Premium.
+  const t = setup({ clock: AFTER, enforced: true });
+  assert.equal((await t.pay("math_class", 52)).status, 200);
+  assert.equal((await t.plans.appStatus(USERS[52], "math")).via, "class-plan", "math, from the old grant");
+  assert.equal(await t.plans.appAccess(USERS[52], "history"), false, "history: no old grant, no Class plan");
+  assert.equal(await t.plans.appAccess(USERS[52], "social"), false, "social: no old grant, no Class plan");
+  const view = await t.call("GET", "/api/addons", 52);
   assert.equal(view.body.apps.math.plan.live, true);
   assert.equal(view.body.apps.history.access, false);
-  assert.deepEqual(view.body.prices.classApps, { math: 1200, history: 1200, social: 700 });
-  assert.equal((await t.call("POST", "/api/billing/addon-checkout", 50, { product: "math" })).status, 409, "already has Math");
 });
 
-test("a family is refunded once class add-ons cover all three apps for every child", async () => {
-  const t = setup({ clock: AFTER });
+test("a family is refunded once their child's teacher's Class plan covers every app", async () => {
+  // Ms. Rivera (Kai's teacher, user 50) is grandfathered, so she already has the Class plan — and
+  // the Class plan now includes Math, History and Connect together. Jo Park's family (Robin's
+  // teacher, Mx. New) has no Class plan at all, so that bundle just stays on. The refund only
+  // actually fires once the family's /api/addons view is loaded (creditFamilyIfCovered runs
+  // there, not at payment time), so both families need that GET before refunds can be checked.
+  const t = setup({ clock: AFTER, enforced: true });
+  assert.equal((await t.pay("bundle_family", 100)).status, 200);
   assert.equal((await t.pay("bundle_family", 80)).status, 200);
-  assert.equal((await t.pay("bundle_family", 70)).status, 200);
-  // Ms. Rivera (Ava's and Kai's teacher) adds Math and History: not all three yet, so nothing changes.
-  await t.pay("math_class", 50);
-  await t.pay("history_class", 50);
-  assert.equal(t.calls.filter((c) => c.url.endsWith("/refunds")).length, 0);
-  assert.equal(t.subs.sub_bundlefamily80.status, "active");
-  // Adding Social completes the set for Kai's family: half the month was unused, so $5 of $10 goes back.
-  await t.pay("social_class", 50);
-  const refunds = t.calls.filter((c) => c.url.endsWith("/refunds"));
-  assert.equal(refunds.length, 1);
-  assert.equal(refunds[0].form.get("payment_intent"), "pi_80");
-  assert.equal(refunds[0].form.get("amount"), "500");
-  assert.equal(t.subs.sub_bundlefamily80.status, "canceled");
+  await t.call("GET", "/api/addons", 100);
   const lee = await t.call("GET", "/api/addons", 80);
-  assert.deepEqual([lee.body.refund.cents, lee.body.refund.toCard], [500, true]);
+  assert.equal(t.subs.sub_bundlefamily100.status, "active", "Robin's teacher (Mx. New) has no Class plan, so Jo's bundle stays on");
+  const refunds = t.calls.filter((c) => c.url.endsWith("/refunds"));
+  assert.equal(refunds.length, 1, "Kai's family: his teacher's Class plan already covers everything");
+  assert.equal(refunds[0].form.get("payment_intent"), "pi_80");
+  assert.equal(t.subs.sub_bundlefamily80.status, "canceled");
+  assert.equal(lee.body.refund.toCard, true);
   assert.equal(lee.body.apps.history.via, "child-in-class", "the parent keeps their view through the child's class");
   assert.deepEqual(lee.body.children[0].coveredApps, ["math", "history", "social"]);
-  // Dana's family still has Max in a class without the add-ons, so her plan keeps going.
-  assert.equal(t.subs.sub_bundlefamily70.status, "active");
-  assert.equal((await t.plans.appStatus(USERS[72], "math")).via, "family-plan");
+  // Jo's family still has Robin in Mx. New's class, who has no Class plan, so her plan keeps going.
+  assert.equal(t.subs.sub_bundlefamily100.status, "active");
+  assert.equal((await t.plans.appStatus(USERS[95], "math")).via, "family-plan");
 });
 
-test("the old all-three class plan still covers every app", async () => {
-  const t = setup({ clock: AFTER });
-  await t.call("POST", "/api/admin/plans/grant", 1, { kind: "bundle_teacher", ownerId: 50, months: 1 });
-  for (const app of ["math", "history", "social"] as const) assert.equal((await t.plans.appStatus(USERS[71], app)).via, "class-plan", app);
-  const r = await t.call("POST", "/api/billing/addon-checkout", 80, { product: "bundle" });
-  assert.equal(r.status, 409, "Kai's family is already covered");
-  assert.equal((await t.call("POST", "/api/billing/addon-checkout", 50, { product: "social" })).status, 409, "already included");
+test("the old all-three class plan (bundle_teacher) still covers every app on its own, even without classPremium", async () => {
+  // Mx. New (user 52) has no Class plan and isn't grandfathered, so this isolates the legacy
+  // bundle_teacher grant from the new classPremium path.
+  const student: any = { id: 95, displayName: "Robin New", role: "student", teacherId: 52, school_id: 3, createdAt: OLD };
+  USERS[95] = student;
+  const t = setup({ clock: AFTER, enforced: true });
+  await t.call("POST", "/api/admin/plans/grant", 1, { kind: "bundle_teacher", ownerId: 52, months: 1 });
+  for (const app of ["math", "history", "social"] as const) assert.equal((await t.plans.appStatus(student, app)).via, "class-plan", app);
+  assert.equal((await t.call("POST", "/api/billing/addon-checkout", 52, { product: "social" })).status, 409, "already included");
 });
 
 test("the add-on pages stay open to teachers without Class; the old checkout won't sell add-ons", async () => {
@@ -218,7 +245,7 @@ test("the add-on pages stay open to teachers without Class; the old checkout won
   assert.equal((await t.call("POST", "/api/billing/checkout", 50, { kind: "math_class" })).status, 400);
 });
 
-test("the admin settings page: every program is open to the admin, free, with plan rules on and trials over", async () => {
+test("the admin settings page: every program is open to the admin, free, with plan rules on and no trial anywhere", async () => {
   const t = setup({ clock: AFTER, enforced: true });
   const r = await t.call("GET", "/api/admin/programs", 1);
   assert.equal(r.status, 200);
@@ -227,8 +254,8 @@ test("the admin settings page: every program is open to the admin, free, with pl
   // The teacher gate never stops the admin, and the add-ons card says "admin", not a trial.
   assert.equal(await t.gate("/api/teacher/anything", 1), true);
   const card = await t.call("GET", "/api/addons", 1);
-  assert.deepEqual([card.body.bundle.via, card.body.bundle.trialDaysLeft, card.body.todo.via], ["admin", null, "admin"]);
-  // A teacher with no plan, after the trial, is the contrast: nothing is open.
+  assert.deepEqual([card.body.bundle.via, card.body.todo.via], ["admin", "admin"]);
+  // A teacher with no plan is the contrast: nothing is open, since there's no trial to fall back on.
   const teacher = await Promise.all((["math", "history", "social"] as const).map((app) => t.plans.appStatus(USERS[52], app)));
   assert.deepEqual(teacher.map((a) => a.access), [false, false, false]);
 });

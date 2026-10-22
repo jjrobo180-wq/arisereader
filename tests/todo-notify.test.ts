@@ -33,7 +33,9 @@ test("reminders spread evenly and quiet hours can run past midnight", () => {
   assert.equal(inQuiet(p, 23 * 60), true);
   assert.equal(inQuiet(p, 6 * 60), true);
   assert.equal(inQuiet(p, 12 * 60), false);
-  assert.equal(dailyEstimate({ ...defaultNotify(), water: { ...defaultNotify().water, on: true, perDay: 6 } }, 5), 7);
+  // Morning summary, 6 water, and (since Oct 2026) the two to-do nudges and the food nudge.
+  assert.equal(dailyEstimate({ ...defaultNotify(), water: { ...defaultNotify().water, on: true, perDay: 6 } }, 5), 10);
+  assert.equal(dailyEstimate({ ...defaultNotify(), level: "important", water: { ...defaultNotify().water, on: true, perDay: 6 } }, 5), 1, "only important: just the morning summary");
 });
 
 test("water reminders: as many as chosen, each once, and they stop at the goal", () => {

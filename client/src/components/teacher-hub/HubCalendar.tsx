@@ -12,7 +12,9 @@ import {
 import { Card, Empty, Field, GhostButton, PrimaryButton, Select, TextArea } from "./ui";
 import { localDay, localZone } from "./HubImport";
 import { HubModal } from "./HubModal";
+import { useSavedChoice } from "@/lib/useSavedChoice";
 import { MyAvailability } from "./HubAvailability";
+import AbDays from "./HubAbDays";
 import { AskForCalendar, OthersSchedule } from "./HubOthersCalendars";
 import { OWNER_NAME_MAX, cleanOwner } from "@shared/hubOthers";
 import type { FreeWindow } from "@shared/availability";
@@ -65,16 +67,23 @@ const QUICK_KINDS = [["event", "Event", Calendar], ["reminder", "Reminder", Bell
  * reminder for it. Used by the Calendar tab and the + button on every screen.
  * Handed an `event`, it changes that event instead: the same boxes filled in, plus its notes.
  */
-export function AddEventModal({ onClose, onAdd, date, start, end, event, onSave, onDelete, reschedule = false }: {
+export function AddEventModal({ onClose, onAdd, date, start, end, event, onSave, onDelete, reschedule = false, students: caseload = [], forStudent = "" }: {
   onClose: () => void; onAdd?: (items: QuickItems) => void; date?: string; start?: string; end?: string;
+  /** Names on the caseload, to say which students an event is about. */
+  students?: string[];
+  /** The student the calendar is filtered to: a new event starts out about them. */
+  forStudent?: string;
   /** The event being changed. */
   event?: HubEvent; onSave?: (changes: EventEdit) => void; onDelete?: () => void;
   /** Opened to pick a new day and time, so the cursor starts on the day. */
   reschedule?: boolean;
 }) {
   const today = localDay();
-  const [form, setForm] = useState<QuickForm>({ kind: "event", title: event?.title || "", date: event?.date || date || today, start: event?.start || start || "", end: event?.end || end || "", location: event?.location || "", alsoRemind: false, repeat: event?.repeat || "", until: event?.until || "" });
+  const [form, setForm] = useState<QuickForm>({ kind: "event", title: event?.title || "", date: event?.date || date || today, start: event?.start || start || "", end: event?.end || end || "", location: event?.location || "", alsoRemind: false, repeat: event?.repeat || "", until: event?.until || "" , students: event?.students || (forStudent ? [forStudent] : []) });
   const [notes, setNotes] = useState(event?.notes || "");
+  // The students it's about ride along in the form, so the event made from it carries them.
+  const who = form.students || [];
+  const setWho = (next: string[]) => setForm((f) => ({ ...f, students: next }));
   const reminder = form.kind === "reminder";
   const items = event ? (eventEdit({ ...form, notes }) ? {} : null) : quickItems(form);
   // An event has to have a day, so coming back from a reminder with no date picks one again.
@@ -82,7 +91,7 @@ export function AddEventModal({ onClose, onAdd, date, start, end, event, onSave,
   function save(e?: FormEvent) {
     e?.preventDefault();
     if (!items) return;
-    if (event) onSave?.({ title: form.title, date: form.date, start: form.start, end: form.end, location: form.location, notes, repeat: form.repeat, until: form.until });
+    if (event) onSave?.({ title: form.title, date: form.date, start: form.start, end: form.end, location: form.location, notes, repeat: form.repeat, until: form.until, students: who });
     else onAdd?.(items);
     onClose();
   }
@@ -120,8 +129,16 @@ export function AddEventModal({ onClose, onAdd, date, start, end, event, onSave,
             </div>
             <p className="-mt-1 text-xs text-slate-500">Leave the times empty for an all-day event.</p>
             <Field placeholder="Where (optional)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} aria-label="Where" />
+            {!reschedule && caseload.length > 0 && (
+              <div data-testid="event-students">
+                <span className="mb-1 block text-xs font-medium text-slate-500">Students it's about (optional)</span>
+                <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
+                  {caseload.map((n) => { const on = who.includes(n); return <button key={n} type="button" aria-pressed={on} onClick={() => setWho(on ? who.filter((x) => x !== n) : [...who, n])} className={`min-h-9 rounded-full border px-3 text-xs font-semibold ${on ? "border-teal-600 bg-teal-600 text-white" : "border-slate-200 bg-white text-slate-600"}`}>{n}</button>; })}
+                </div>
+              </div>
+            )}
             {!reschedule && (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="text-xs font-medium text-slate-500">Repeats
                   <Select value={form.repeat || ""} onChange={(e) => setForm({ ...form, repeat: e.target.value, until: e.target.value ? form.until : "" })} aria-label="Repeats" data-testid="event-repeat">
                     <option value="">Does not repeat</option>
@@ -275,11 +292,12 @@ function EventRow({ event, now, names, workspace, setWorkspace, makeId, onDelete
         <div className="w-[4.75rem] shrink-0 pt-0.5 text-xs font-semibold leading-5 text-slate-700 sm:w-36">{eventTime(event)}{live && <span className="mt-1 block w-fit rounded-full bg-teal-600 px-2 text-[11px] text-white">Now</span>}</div>
         <div className="min-w-0 flex-1">
           <div className={`break-words font-medium ${event.done ? "text-slate-400 line-through" : "text-slate-900"}`}>{event.title}</div>
-          {(event.location || event.calendarId || event.repeat) && (
+          {(event.location || event.calendarId || event.repeat || event.students?.length) && (
             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
               {event.location && <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="break-words">{event.location}</span></span>}
               {event.repeat && <span className="inline-flex items-center gap-1" data-testid="event-repeats"><Repeat className="h-3.5 w-3.5 shrink-0" />{repeatText(event)}</span>}
               {event.calendarId && <span className="rounded-full bg-teal-50 px-2 py-0.5 font-medium text-teal-800">{names.get(event.calendarId) || "Connected calendar"}</span>}
+              {(event.students || []).map((n) => <span key={n} className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-800">{n}</span>)}
             </div>
           )}
           {event.notes && <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-xs text-slate-500">{event.notes}</p>}
@@ -358,7 +376,13 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
     return { from, to };
   }, [view, anchor, agendaDay, today]);
   // Everything on the calendar for that stretch: repeating events day by day, hidden ones left out.
-  const events = useMemo(() => calendarEvents(workspace, span.from, span.to), [workspace.events, workspace.hiddenEvents, span]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Filtered to one student: the events about them and the meetings booked for them.
+  const caseload = useMemo(() => workspace.students.map((s) => s.name), [workspace.students]);
+  const [whoPick, setWho] = useSavedChoice<string>("hub-cal-student", "");
+  const who = whoPick && caseload.includes(whoPick) ? whoPick : "";
+  const meetingStudent = useMemo(() => new Map(workspace.meetings.map((m) => [m.id, m.student])), [workspace.meetings]);
+  const allEvents = useMemo(() => calendarEvents(workspace, span.from, span.to), [workspace.events, workspace.hiddenEvents, span]); // eslint-disable-line react-hooks/exhaustive-deps
+  const events = useMemo(() => (who ? allEvents.filter((e) => (e.students || []).includes(who) || (e.meetingId && meetingStudent.get(e.meetingId) === who)) : allEvents), [allEvents, who, meetingStudent]);
   // What is still ahead right now. Events that are over drop out by themselves as the day goes on. A day gone by is shown whole.
   const wholeDay = oneDay && agendaDay < today;
   const visible = useMemo(() => (showPast || wholeDay ? events : stillAhead(events, now)), [events, showPast, wholeDay, now]);
@@ -433,6 +457,14 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
 
   return (
       <Card title={title} collapseKey={collapseKey} right={<PrimaryButton onClick={() => setAdding({ date: view === "month" && picked ? picked : oneDay && agendaDay > today ? agendaDay : undefined })}><Plus className="h-4 w-4" /> Add event</PrimaryButton>}>
+        {caseload.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2" data-testid="calendar-student-filter">
+            <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Show events for" className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
+              <option value="">Everyone's events</option>{caseload.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            {who && <span className="text-xs text-slate-500">Events and meetings about {who}. <button type="button" className="font-semibold text-teal-700 underline" onClick={() => setWho("")}>Show all</button></span>}
+          </div>
+        )}
         <div role="tablist" aria-label="Calendar view" className="mb-4 flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1" data-testid="calendar-views">
           {VIEWS.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={view === key} onClick={() => setView(key)}
@@ -517,7 +549,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
         )}
 
         {view === "week" && (
-          <div className="grid gap-2 md:grid-cols-7" data-testid="week-view">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-7" data-testid="week-view">
             {weekOf(anchor).map((date) => {
               const list = onDay(date);
               const over = date < today;
@@ -555,8 +587,10 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
                 return (
                   <button key={date} type="button" onClick={() => setPicked(date)} aria-label={`${dayLabel(date)}${count ? `, ${count} ${count === 1 ? "event" : "events"}` : ""}`} aria-pressed={chosen}
                     className={`flex min-h-12 flex-col items-center justify-start rounded-xl border py-1 text-sm ${chosen ? "border-teal-600 bg-teal-50" : "border-transparent"} ${date === today ? "font-bold text-teal-700" : inMonth ? "text-slate-800" : "text-slate-300"} ${date < today ? "opacity-60" : ""}`}>
-                    <span>{Number(date.slice(8))}</span>
-                    {count > 0 && <span className="mt-0.5 inline-flex h-1.5 min-w-1.5 rounded-full bg-teal-600 px-0" aria-hidden />}
+                    <span className="hub-figure text-[15px]">{Number(date.slice(8))}</span>
+                    <span aria-hidden="true"
+                      className={`mt-1 w-[18px] hub-bar ${date === today ? "hub-bar-today" : count >= 3 ? "hub-bar-busy" : ""} ${count ? "" : "opacity-0"}`}
+                      style={{ height: Math.min(20, 4 + count * 4) }} />
                   </button>
                 );
               })}
@@ -574,11 +608,11 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
         {view === "free" && (
           <div className="space-y-3" data-testid="free-view">
             <p className="text-sm text-slate-600">Worked out from your calendar: the gaps in your day with everything on it taken out. Nothing to set up.</p>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-              <span>My day runs</span>
-              <Field type="time" value={dayHours.from} onChange={(e) => changeDay({ from: e.target.value })} aria-label="Day starts" className="!w-32" />
-              <span>to</span>
-              <Field type="time" value={dayHours.to} onChange={(e) => changeDay({ to: e.target.value })} aria-label="Day ends" className="!w-32" />
+            <div className="flex flex-nowrap items-center gap-1.5 text-sm text-slate-600 sm:gap-2">
+              <span className="shrink-0">My day runs</span>
+              <Field type="time" value={dayHours.from} onChange={(e) => changeDay({ from: e.target.value })} aria-label="Day starts" className="!w-auto min-w-0 flex-1 !px-2 sm:!px-3 sm:max-w-[8rem]" />
+              <span className="shrink-0">to</span>
+              <Field type="time" value={dayHours.to} onChange={(e) => changeDay({ to: e.target.value })} aria-label="Day ends" className="!w-auto min-w-0 flex-1 !px-2 sm:!px-3 sm:max-w-[8rem]" />
             </div>
             {(() => {
               const workday: FreeWindow[] = [0, 1, 2, 3, 4, 5, 6].map((day) => ({ day, start: dayHours.from, end: dayHours.to }));
@@ -608,7 +642,7 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
         {view === "avail" && (
           <div className="space-y-3" data-testid="availability-view">
             <p className="text-sm text-slate-600">Your availability is the times you offer for meetings, such as parent conferences. Set it once. When you plan a meeting, the poll's 3 suggested days and times come from here, with anything already on your calendar skipped.</p>
-            <MyAvailability token={token} setNotice={setNotice} defaultOpen />
+            <MyAvailability token={token} setNotice={setNotice} />
             {hint && <div className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900" role="status">{hint}</div>}
           </div>
         )}
@@ -616,8 +650,8 @@ export function CalendarPanel({ workspace, setWorkspace, token, makeId, title = 
         {(view === "agenda" || view === "week" || view === "month") && !timeline && earlier > 0 && (
           <div className="mt-4 text-center"><button type="button" onClick={() => setShowPast((v) => !v)} className="min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">{showPast ? "Hide events that are over" : `Show ${earlier} that ${earlier === 1 ? "is" : "are"} over`}</button></div>
         )}
-        {adding && <AddEventModal date={adding.date} start={adding.start} end={adding.end} onClose={() => setAdding(null)} onAdd={addQuick} />}
-        {editing && <AddEventModal key={editing.event.id} event={editing.event} reschedule={editing.reschedule} onClose={() => setEditingState(null)} onSave={(changes) => setWorkspace((p) => updateEvent(p, editing.event.id, changes))} onDelete={() => removeEvent(editing.event, "all")} />}
+        {adding && <AddEventModal date={adding.date} start={adding.start} end={adding.end} onClose={() => setAdding(null)} onAdd={addQuick} students={caseload} forStudent={who} />}
+        {editing && <AddEventModal key={editing.event.id} event={editing.event} reschedule={editing.reschedule} students={caseload} onClose={() => setEditingState(null)} onSave={(changes) => setWorkspace((p) => updateEvent(p, editing.event.id, changes))} onDelete={() => removeEvent(editing.event, "all")} />}
         {hiddenRules.length > 0 && (
           <details className="mt-4 rounded-2xl bg-slate-50 p-3 text-sm" data-testid="hidden-events">
             <summary className="cursor-pointer font-semibold text-slate-700">Hidden from your calendar ({hiddenRules.length})</summary>
@@ -721,6 +755,8 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
     <>
       <CalendarPanel workspace={workspace} setWorkspace={setWorkspace} token={token} makeId={makeId} onReminderAdded={onReminderAdded} />
 
+      <AbDays workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} />
+
       <OthersSchedule workspace={workspace} today={today} />
 
       <Card title="Connected calendars" right={<span className="shrink-0 text-xs font-medium text-slate-500">{workspace.calendars.length} of {HUB_IMPORT_LIMITS.calendars}</span>}>
@@ -753,7 +789,7 @@ export default function HubCalendarTab({ workspace, setWorkspace, token, makeId,
             <label className="flex min-h-11 items-start gap-3 text-sm text-slate-700"><input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={busyOnly} onChange={(e) => setBusyOnly(e.target.checked)} data-testid="calendar-busy-only" /><span>Only keep when they are busy, not what their events are. <span className="text-slate-500">Each one shows as “Busy”. Their calendar may name students or families.</span></span></label>
           </div>
         )}
-        <form onSubmit={connect} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+        <form onSubmit={connect} className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <Field type="url" inputMode="url" placeholder={whose === "other" ? "Paste their calendar's link (it ends in .ics)" : "Paste your calendar's link (it ends in .ics)"} value={link} onChange={(e) => setLink(e.target.value)} disabled={full} aria-label="Calendar link" data-testid="hub-calendar-link" />
           <PrimaryButton type="submit" disabled={!link.trim() || !!busy || full}>
             {busy === "connect" ? <><Loader2 className="h-4 w-4 animate-spin" /> Connecting…</> : <><Link2 className="h-4 w-4" /> Connect</>}

@@ -1,0 +1,153 @@
+/* A.R.I.S.E. Reader inside Arise WorkHub and Arise LifeHub.
+   The Reader screens were made for the site's dark theme. Inside the hubs they take the hubs'
+   light look instead: the theme's colour variables are swapped for the hub's, and the few
+   light-on-dark colours those screens use are given their dark-on-light partners. */
+
+/* The colour variables also go on the page itself while a Reader screen is open, so dialogs and menus
+   that open outside the screen (in a portal) match it too. */
+.hub-reader, html.hub-reader-vars {
+  --background: 220 33% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --card-border: 214 32% 91%;
+  --border: 214 32% 91%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 214 32% 91%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 40%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --input: 214 32% 91%;
+  --destructive: 0 72% 45%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-accent: 210 40% 96%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --button-outline: rgba(15, 23, 42, 0.12);
+  --badge-outline: rgba(15, 23, 42, 0.08);
+  --elevate-1: rgba(15, 23, 42, 0.03);
+  --elevate-2: rgba(15, 23, 42, 0.06);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 4px 10px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 10px 24px rgba(15, 23, 42, 0.1);
+  --shadow-xl: 0 18px 40px rgba(15, 23, 42, 0.12);
+}
+.hub-reader { color-scheme: light; color: hsl(var(--foreground)); }
+/* WorkHub: slate with teal, like the rest of WorkHub. */
+.hub-reader--work, html.hub-reader-vars--work { --primary: 222 47% 11%; --primary-foreground: 0 0% 100%; --ring: 175 84% 32%; --sidebar-primary: 222 47% 11%; --sidebar-ring: 175 84% 32%; }
+/* LifeHub: violet, like the rest of LifeHub. */
+.hub-reader--life, html.hub-reader-vars--life { --primary: 249 68% 62%; --primary-foreground: 0 0% 100%; --ring: 249 68% 62%; --sidebar-primary: 249 68% 62%; --sidebar-ring: 249 68% 62%; }
+
+/* The site's branded pieces, in hub colours. */
+.hub-reader .arise-page-bg { background: transparent; }
+.hub-reader .arise-surface { background: #fff; border-color: hsl(var(--border)); box-shadow: 0 8px 28px rgba(23, 21, 43, 0.04); }
+.hub-reader .arise-gradient-text { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: hsl(var(--primary)); }
+.hub-reader .arise-icon-tile { background: hsl(var(--muted)); color: hsl(var(--primary)); box-shadow: none; }
+.hub-reader .arise-gradient-button { background: hsl(var(--primary)); color: #fff; box-shadow: none; }
+
+/* Dark panels and borders become the hubs' white cards and light lines. */
+.hub-reader .bg-\[\#0f0d1d\], .hub-reader .bg-\[\#0d0b1a\], .hub-reader .bg-\[\#0d0b1a\]\/92, .hub-reader .bg-\[\#17162b\], .hub-reader .bg-\[\#0b0a16\] { background-color: #fff; }
+.hub-reader .bg-white\/5, .hub-reader .bg-white\/10, .hub-reader .bg-white\/\[\.03\], .hub-reader .bg-white\/\[\.04\], .hub-reader .bg-white\/\[\.06\], .hub-reader .bg-white\/\[\.07\], .hub-reader .bg-black\/20 { background-color: hsl(var(--muted)); }
+.hub-reader .hover\:bg-white\/\[\.07\]:hover, .hub-reader .hover\:bg-white\/10:hover, .hub-reader .hover\:bg-white\/5:hover { background-color: hsl(var(--muted)); }
+.hub-reader .border-white\/10, .hub-reader .border-white\/15, .hub-reader .border-white\/5, .hub-reader .divide-white\/10 > * + * { border-color: hsl(var(--border)); }
+.hub-reader .via-\[\#151326\], .hub-reader .to-\[\#151326\], .hub-reader .to-\[\#10202a\], .hub-reader .from-\[\#262142\], .hub-reader .to-\[\#142c37\] { --tw-gradient-to: #fff; --tw-gradient-from: #fff; }
+
+/* Light text meant for dark backgrounds, made readable on white.
+   White text stays white on solid coloured buttons and badges. */
+.hub-reader .text-white:not([class*="bg-"]):not(.arise-gradient-button):not(.arise-icon-tile),
+.hub-reader .text-slate-100, .hub-reader .text-slate-200, .hub-reader .text-gray-100, .hub-reader .text-gray-200 { color: hsl(var(--foreground)); }
+.hub-reader .text-slate-300, .hub-reader .text-gray-300 { color: #334155; }
+.hub-reader .text-slate-400, .hub-reader .text-gray-400 { color: #64748b; }
+.hub-reader .text-amber-100\/80 { color: #92400e; }
+.hub-reader .text-violet-50,
+.hub-reader .text-violet-100,
+.hub-reader .text-violet-200,
+.hub-reader .text-violet-300,
+.hub-reader .text-violet-400 { color: #6d28d9; }
+.hub-reader .text-purple-50,
+.hub-reader .text-purple-100,
+.hub-reader .text-purple-200,
+.hub-reader .text-purple-300,
+.hub-reader .text-purple-400 { color: #7e22ce; }
+.hub-reader .text-fuchsia-50,
+.hub-reader .text-fuchsia-100,
+.hub-reader .text-fuchsia-200,
+.hub-reader .text-fuchsia-300,
+.hub-reader .text-fuchsia-400 { color: #a21caf; }
+.hub-reader .text-cyan-50,
+.hub-reader .text-cyan-100,
+.hub-reader .text-cyan-200,
+.hub-reader .text-cyan-300,
+.hub-reader .text-cyan-400 { color: #0e7490; }
+.hub-reader .text-sky-50,
+.hub-reader .text-sky-100,
+.hub-reader .text-sky-200,
+.hub-reader .text-sky-300,
+.hub-reader .text-sky-400 { color: #0369a1; }
+.hub-reader .text-blue-50,
+.hub-reader .text-blue-100,
+.hub-reader .text-blue-200,
+.hub-reader .text-blue-300,
+.hub-reader .text-blue-400 { color: #1d4ed8; }
+.hub-reader .text-indigo-50,
+.hub-reader .text-indigo-100,
+.hub-reader .text-indigo-200,
+.hub-reader .text-indigo-300,
+.hub-reader .text-indigo-400 { color: #4338ca; }
+.hub-reader .text-teal-50,
+.hub-reader .text-teal-100,
+.hub-reader .text-teal-200,
+.hub-reader .text-teal-300,
+.hub-reader .text-teal-400 { color: #0f766e; }
+.hub-reader .text-emerald-50,
+.hub-reader .text-emerald-100,
+.hub-reader .text-emerald-200,
+.hub-reader .text-emerald-300,
+.hub-reader .text-emerald-400 { color: #047857; }
+.hub-reader .text-green-50,
+.hub-reader .text-green-100,
+.hub-reader .text-green-200,
+.hub-reader .text-green-300,
+.hub-reader .text-green-400 { color: #15803d; }
+.hub-reader .text-amber-50,
+.hub-reader .text-amber-100,
+.hub-reader .text-amber-200,
+.hub-reader .text-amber-300,
+.hub-reader .text-amber-400 { color: #b45309; }
+.hub-reader .text-yellow-50,
+.hub-reader .text-yellow-100,
+.hub-reader .text-yellow-200,
+.hub-reader .text-yellow-300,
+.hub-reader .text-yellow-400 { color: #a16207; }
+.hub-reader .text-orange-50,
+.hub-reader .text-orange-100,
+.hub-reader .text-orange-200,
+.hub-reader .text-orange-300,
+.hub-reader .text-orange-400 { color: #c2410c; }
+.hub-reader .text-red-50,
+.hub-reader .text-red-100,
+.hub-reader .text-red-200,
+.hub-reader .text-red-300,
+.hub-reader .text-red-400 { color: #b91c1c; }
+.hub-reader .text-rose-50,
+.hub-reader .text-rose-100,
+.hub-reader .text-rose-200,
+.hub-reader .text-rose-300,
+.hub-reader .text-rose-400 { color: #be123c; }
+.hub-reader .text-pink-50,
+.hub-reader .text-pink-100,
+.hub-reader .text-pink-200,
+.hub-reader .text-pink-300,
+.hub-reader .text-pink-400 { color: #be185d; }
+
+/* Camera-quiz review, comprehension grading and prizes keep their own accent inks. */
+.hub-reader .np-r, .hub-reader .np-r-overlay { --r-red-ink: #b91c1c; --r-amber-ink: #b45309; --r-green-ink: #047857; }
+.hub-reader .cr { --c-green-ink: #047857; --c-red-ink: #b91c1c; }
+.hub-reader .pz { --pz-gold: #f2b62f; --pz-class: #0e7490; --pz-class-ink: #fff; --pz-school: #6d28d9; --pz-school-ink: #fff; --pz-good: #047857; }

@@ -127,7 +127,7 @@ test("a student with nothing recorded, a renamed student, and one who is gone", 
 
 test("the Notes tab and the Caseload carry the new screens", () => {
   const page = read("client/src/pages/TeacherHub.tsx"), notes = read("client/src/components/teacher-hub/HubNotes.tsx"), profile = read("client/src/components/teacher-hub/HubStudentProfile.tsx");
-  for (const part of ['{tab === "notes" && <HubNotes workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}', 'data-testid="hub-student-profile"', "<StudentProfileView workspace={workspace}", "profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab}"]) assert.ok(page.includes(part), part);
+  for (const part of ['{tab === "notes" && <HubNotes key={notesKey} workspace={workspace} setWorkspace={setWorkspace} remove={remove} makeId={id} />}', 'data-testid="hub-student-profile"', "<StudentProfileView workspace={workspace}", "profileId={profileStudent} setProfileId={setProfileStudent} openTab={setTab}"]) assert.ok(page.includes(part), part);
   assert.ok(!page.includes("function Notes("), "the old student-only notes screen is gone");
   for (const part of ['data-testid="note-scope"', '"Meeting or general"', 'data-testid="note-edit"', "Search notes", "Meetings &amp; general"]) assert.ok(notes.includes(part), part);
   for (const part of ['data-testid="student-profile"', "IEP goals", "Service minutes", "Meetings", "Parent contact", "Behavior", "Attendance", "Grades", "Schedule", "A.R.I.S.E. reading", "Add a note", 'aria-label="Switch student"']) assert.ok(profile.includes(part), part);

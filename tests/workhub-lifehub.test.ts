@@ -9,14 +9,39 @@ import { FAMILY_SECTIONS, TOGGLEABLE } from "../shared/familyHub";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("WorkHub: the Reader group comes right after Home, its teacher tools always show, the admin console only for admins", () => {
+test("WorkHub: A.R.I.S.E. Reader is a way out to its own page; the admin console stands alone", () => {
+  // The Reader's teacher tools moved to /reader (client/src/pages/AriseReader.tsx), so this menu
+  // item leaves the hub instead of opening tabs inside it. One tab is kept so the item still shows.
   assert.equal(HUB_GROUPS[1].id, "arise");
   assert.equal(HUB_GROUPS[1].label, "A.R.I.S.E. Reader");
+  assert.deepEqual(HUB_GROUPS[1].tabs, ["reader"], "the Reader group is a link now, not nine tabs");
   const visible = emptyWorkspace().visibleTabs;
-  assert.deepEqual(groupTabs("arise", { ...visible, admin: false }), ["reader", "arise"]);
-  assert.deepEqual(groupTabs("arise", { ...visible, admin: true }), ["reader", "arise", "admin"]);
-  assert.deepEqual(groupTabs("arise", { ...visible, reader: false, arise: false, admin: false }), ["reader"], "the Reader tools can't be hidden");
-  assert.ok(visibleGroups({ ...visible, arise: false }).some((g) => g.id === "arise"));
+  assert.ok(visibleGroups({ ...visible, arise: false }).some((g) => g.id === "arise"), "it can't be hidden away");
+
+  // The admin console used to live inside the Reader group, so it needed somewhere of its own.
+  const admin = HUB_GROUPS.find((g) => g.id === "admin");
+  assert.ok(admin, "the admin console has its own menu item");
+  assert.deepEqual(admin!.tabs, ["admin"]);
+  assert.deepEqual(groupTabs("admin", { ...visible, admin: true }), ["admin"], "admins see it");
+  assert.deepEqual(groupTabs("admin", { ...visible, admin: false }), [], "nobody else does");
+
+  // Tapping it goes to the page, and the old addresses land there too rather than on a hub tab.
+  const hub = read("client/src/pages/TeacherHub.tsx");
+  // (Since Oct 13, a teacher whose Reader plan is required but missing goes to Billing instead.)
+  assert.match(hub, /if \(id === "arise"\) \{ openReaderOrPlan\(\); return; \}/);
+  assert.match(hub, /const openReaderOrPlan = \(\) => \{ if \(readerNeedsPremium\) window\.location\.href = appHref\("\/billing"\); else goToReader\(\); \};/);
+  assert.match(hub, /onClick=\{\(\) => \{ afterPick\(\); openReaderOrPlan\(\); \}\}/, "the sidebar's Reader button leaves too");
+  // The point of the move: the hub must not be able to draw Reader screens inside itself.
+  assert.doesNotMatch(hub, /isReaderTab\(tab\) && <ReaderTools/, "no Reader screens inside the hub");
+  assert.doesNotMatch(hub, /setTab\("reader"\)/, "nothing switches the hub to a Reader tab");
+  const app = read("client/src/App.tsx");
+  assert.match(app, /<Route path="\/teacher-dashboard">\s*<Redirect to="\/reader" replace \/>/);
+  assert.match(app, /<Route path="\/parent-dashboard">\s*<Redirect to="\/reader" replace \/>/);
+  // LifeHub's Reading section leaves for the same page.
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /if \(id === "reader"\) \{ goToReader\(\); return; \}/);
+  // /reader is a real address, answered before the hash router, so the To-Do app unloads.
+  assert.match(app, /if \(isReaderPage\(\)\) \{/);
+  assert.match(read("client/src/lib/hubs.ts"), /window\.location\.assign\(READER_PAGE\)/);
 });
 
 test("LifeHub: a Reader tab (the parent portal) that can't be switched off", () => {
@@ -27,13 +52,16 @@ test("LifeHub: a Reader tab (the parent portal) that can't be switched off", () 
 test("new names across the site, with the old addresses still working", () => {
   const app = read("client/src/App.tsx");
   for (const path of ["/workhub", "/lifehub", "/teacher-hub", "/to-do"]) assert.ok(app.includes(`<Route path="${path}">`), path);
-  assert.match(app, /user\.role === 'teacher' \? <Redirect to="\/workhub"/);
-  assert.match(app, /user\.role === 'parent' \? <Redirect to="\/lifehub"/);
-  assert.match(app, /<Route path="\/teacher-dashboard">\s*<OpenHubTab to="\/workhub"/);
+  // after signing in, a teacher opens WorkHub's Home and a parent LifeHub's Home
+  assert.match(app, /if \(user\.role === "teacher"\) return <OpenHubTab to="\/workhub" storageKey="workhub_tab" value="overview" \/>;/);
+  assert.match(app, /if \(user\.role === "parent"\) return <OpenHubTab to="\/lifehub" storageKey="lifehub_tab" value="home" \/>;/);
+  // the old dashboards now go to the A.R.I.S.E. Reader page (since Oct 12)
+  assert.match(app, /<Route path="\/teacher-dashboard">\s*<Redirect to="\/reader" replace \/>/);
   const files = ["client/src/pages/TeacherHub.tsx", "client/src/pages/AriseTodo.tsx", "client/src/components/HubSwitch.tsx", "client/src/components/AddonsCard.tsx", "client/src/pages/Pricing.tsx", "client/src/pages/Billing.tsx"];
   for (const f of files) {
     const text = read(f);
-    assert.ok(!/Teacher Hub|A\.R\.I\.S\.E\. To-Do|\bTo-Do\b/.test(text), `${f} still uses an old name`);
+    // "A.R.I.S.E. To-Do" is the current name for the pair of hubs again (Oct 12), so only "Teacher Hub" is old.
+    assert.ok(!/Teacher Hub/.test(text), `${f} still uses an old name`);
   }
 });
 
@@ -42,7 +70,63 @@ test("after a trial: WorkHub and LifeHub keep only the A.R.I.S.E. Reader tools, 
   assert.match(hub, /if \(needsPlan\) return <ReaderOnly/);
   assert.match(hub, /<HubTrialNote trial=\{trial\} which="work"/);
   const gate = read("client/src/components/TodoGate.tsx");
-  assert.match(gate, /<ParentDashboard embedded \/>/);
+  assert.match(gate, /<Reader say=/);
   const life = read("client/src/pages/AriseTodo.tsx");
   assert.match(life, /<HubTrialNote trial=\{trial\} which="life"/);
+});
+
+test("the teacher's Reader account is rebuilt from WorkHub parts, with every old dashboard feature", () => {
+  const tools = read("client/src/components/teacher-hub/HubReaderTools.tsx");
+  assert.match(tools, /from "\.\/ui"/);
+  assert.match(tools, /HubModal/);
+  for (const api of ["/api/teacher/students", "/api/teacher/pending-students", "/api/teacher-admin/all-students", "/api/teacher-admin/pending-quizzes", "/api/teacher-admin/book-requests",
+    "/api/grade-change-requests", "/api/teacher/parent-connections", "/api/teacher/club-arise/controls", "/api/teacher/club-closing-hours", "/api/proctor-password",
+    "/api/teacher/growth-check/overview", "/reset-password", "/rewards", "/reassign"]) assert.ok(tools.includes(api), api);
+  for (const piece of ["HubComprehension", "HubCameraQuizzes", "HubPrizeManager", "HubPlayTime", "HubFamilyInvite", "HubParentInvite", "HubAddons"]) assert.ok(tools.includes(`<${piece}`), piece);
+  assert.doesNotMatch(read("client/src/pages/TeacherHub.tsx"), /<TeacherDashboard/);
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /<Reader say=\{setMessage\} night=\{night\} \/>/);
+  const parent = read("client/src/components/family-hub/Reader.tsx");
+  assert.match(parent, /from "\.\/ui"/);
+  for (const api of ["/api/parent/students", "/api/parent/student-profile", "/api/parent/student-controls/", "/api/parent/link-code", "/api/parent/proctor-password", "/api/family/growth-check/student/"]) assert.ok(parent.includes(api), api);
+  for (const piece of ["HubCameraQuizzes", "HubPlayTime", "HubPrizeManager", "HubPrizeBoard", "HubAddons", "generateCertificate", "saveFamilySettings"]) assert.ok(parent.includes(piece), piece);
+});
+
+test("inside the hubs, every Reader piece is the hub-built one (no site pieces dropped in)", () => {
+  const files = ["client/src/components/teacher-hub/HubReaderTools.tsx", "client/src/components/family-hub/Reader.tsx", "client/src/components/TodoGate.tsx"];
+  for (const f of files) {
+    const text = read(f);
+    for (const old of ["<AddonsCard", "<PlayTimeManager", "<PrizeManager", "<PrizeBoard", "<NoProctorReview", "<ComprehensionReview", "<FamilyEmailInvite", "<ParentEmailInvite", "<HubReaderScope", "<ParentDashboard", "<TeacherDashboard"]) {
+      assert.ok(!text.includes(old), `${f} still uses ${old}`);
+    }
+  }
+  // The pieces keep the same server calls as the site's own versions.
+  const calls: Record<string, string[]> = {
+    "HubAddons": ["/api/addons", "/api/billing/addon-checkout", "/api/billing/addon-portal", "/api/billing/confirm"],
+    "HubPlayTime": ["/api/play-time/manage", "/api/admin/play-time/default", "/grant", "/request-action"],
+    "HubPrizes": ["/api/prizes/mine", "/api/prizes", "/give", "/people"],
+    "HubComprehension": ["/api/comprehension/review", "/grade"],
+    "HubCameraQuizzes": ["/api/integrity/review", '"void"', '"restore"'],
+    "HubInvites": ["sendFamilyInviteEmail", "sendParentInviteEmail", "loadInviteTemplate"],
+  };
+  for (const [file, list] of Object.entries(calls)) {
+    const text = read(`client/src/components/hub-pieces/${file}.tsx`);
+    for (const c of list) assert.ok(text.includes(c), `${file}: ${c}`);
+  }
+});
+
+test("there's no way back to the old screens: old addresses and admins land in the hubs", () => {
+  const app = read("client/src/App.tsx");
+  assert.ok(!/pages\/(TeacherDashboard|ParentDashboard)/.test(app), "the old dashboards are gone");
+  assert.ok(!app.includes('import("./pages/Admin")'), "the admin page only opens inside WorkHub");
+  // The admin console is in the Reader now (not WorkHub): #/admin opens it there.
+  assert.match(app, /<Route path="\/admin">\s*\{user\?\.isAdmin \? <OpenReaderAdmin \/> : user \? <Redirect to="\/" replace \/> : <Redirect to="\/signin" replace \/>\}/);
+  assert.match(app, /<Route path="\/parent-dashboard">\s*<Redirect to="\/reader" replace \/>/);
+  assert.match(app, /<Route path="\/teacher-dashboard">\s*<Redirect to="\/reader" replace \/>/);
+  // Signing in lands admins and teachers in WorkHub on Home. No tab is asked for: setting one
+  // here opened the Hub on the admin console, which sits inside the A.R.I.S.E. Reader menu item.
+  // (One AfterSignIn decides this for every sign-in route since Oct 12.)
+  assert.match(app, /\{user \? <AfterSignIn onReaderDomain=\{onReaderDomain\} onTodoDomain=\{onTodoDomain\} \/> : <SignIn \/>\}/);
+  assert.ok(!/path="\/(register|register-independent)?"[\s\S]{0,40}OpenHubTab to="\/workhub"/.test(app), "the sign-in routes ask for no tab");
+  assert.match(read("client/src/pages/TeacherHub.tsx"), /sessionStorage\.getItem\("workhub_tab"\)[\s\S]*\}, \[location\]\);/);
+  assert.match(read("client/src/pages/AriseTodo.tsx"), /sessionStorage\.getItem\("lifehub_tab"\)[\s\S]*\}, \[location\]\);/);
 });

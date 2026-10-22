@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teacher Guide | A.R.I.S.E. Reader</title>
+  <meta name="description" content="Step-by-step guide for teachers: approve students, approve book quizzes and grade changes, grade reading comprehension, connect parents, set game time and prizes in A.R.I.S.E. Reader.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://www.arisereader.com/teacher-guide/">
+  <link rel="icon" href="/favicon.ico">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="A.R.I.S.E. Reader">
+  <meta property="og:title" content="Teacher Guide | A.R.I.S.E. Reader">
+  <meta property="og:description" content="How to approve students, approve book quizzes, grade, connect parents and use every A.R.I.S.E. Reader teacher tool.">
+  <meta property="og:url" content="https://www.arisereader.com/teacher-guide/">
+  <meta property="og:image" content="https://www.arisereader.com/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <style>
+    :root{
+      --bg:#f7f7fb;--card:#ffffff;--ink:#0f172a;--soft:#475569;--muted:#64748b;--line:#e2e8f0;
+      --brand:#6d28d9;--brand-soft:#f3efff;--teal:#0f766e;--teal-soft:#ecfdf5;--amber:#92400e;--amber-soft:#fffbeb;
+      --chip:#0f172a;--chip-ink:#fff;--dark:#0b0a16;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light;
+    }
+    @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+      --bg:#0b0a16;--card:#16152a;--ink:#f5f3ff;--soft:#cbd5e1;--muted:#a3aec2;--line:#ffffff1f;
+      --brand:#a78bfa;--brand-soft:#221a3d;--teal:#5eead4;--teal-soft:#0f2a2a;--amber:#fcd34d;--amber-soft:#2a2210;
+      --chip:#f5f3ff;--chip-ink:#0b0a16;color-scheme:dark;
+    }}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;scroll-padding-top:16px}
+    body{margin:0;background:var(--bg);color:var(--ink);line-height:1.65;font-size:17px}
+    a{color:var(--brand)} a:focus-visible,button:focus-visible{outline:3px solid #22d3ee;outline-offset:3px}
+    .wrap{max-width:1120px;margin:auto;padding:0 16px}
+    header.top{background:var(--dark);color:#f5f3ff}
+    header.top .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-top:16px;padding-bottom:16px}
+    .brand{text-decoration:none;color:#fff;font-weight:850;letter-spacing:.04em;font-size:1.1rem}.brand span{color:#67e8f9}
+    .top a.btn{color:#0b0a16}
+    .hero{background:var(--dark);color:#f5f3ff;padding:40px 0 56px}
+    .eyebrow{color:#67e8f9;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:.75rem;margin:0}
+    .hero h1{font-size:clamp(2.1rem,5.5vw,3.6rem);line-height:1.08;letter-spacing:-.035em;margin:12px 0 16px;max-width:820px}
+    .hero p.lead{font-size:1.12rem;color:#cbd5e1;max-width:720px;margin:0}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border-radius:99px;padding:10px 20px;font-weight:800;text-decoration:none;border:0;cursor:pointer;font-size:.95rem}
+    .btn.primary{background:linear-gradient(100deg,#a78bfa,#e879f9,#67e8f9);color:#0b0a16}
+    .btn.ghost{border:1px solid #ffffff55;color:#fff;background:transparent}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+    .layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:32px;margin-top:-28px;padding-bottom:56px}
+    nav.toc{position:sticky;top:16px;align-self:start;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;font-size:.92rem}
+    nav.toc strong{display:block;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+    nav.toc ol{margin:0;padding-left:20px}
+    nav.toc li{margin:4px 0}
+    nav.toc a{color:var(--ink);text-decoration:none} nav.toc a:hover{color:var(--brand);text-decoration:underline}
+    section.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px 26px;margin-bottom:20px}
+    section.card h2{margin:0 0 6px;font-size:1.5rem;line-height:1.25;letter-spacing:-.01em;display:flex;align-items:center;gap:12px}
+    .num{flex:none;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:12px;background:var(--brand-soft);color:var(--brand);font-weight:850;font-size:1rem}
+    .why{color:var(--soft);margin:0 0 14px}
+    h3{font-size:1.08rem;margin:20px 0 6px}
+    .path{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 12px;font-size:.85rem;font-weight:700}
+    .path span{background:var(--chip);color:var(--chip-ink);border-radius:8px;padding:3px 10px}
+    .path i{font-style:normal;color:var(--muted)}
+    ol.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+    ol.steps>li{counter-increment:s;position:relative;padding:10px 0 10px 44px;border-top:1px solid var(--line)}
+    ol.steps>li:first-child{border-top:0}
+    ol.steps>li::before{content:counter(s);position:absolute;left:0;top:10px;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--card);font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+    b.ui{background:var(--brand-soft);color:var(--brand);border-radius:6px;padding:1px 7px;font-weight:750;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+    .layout>*{min-width:0}
+    .tip,.warn{border-radius:14px;padding:12px 16px;margin:14px 0 0;font-size:.96rem}
+    .tip{background:var(--teal-soft);color:var(--ink);border-left:4px solid var(--teal)}
+    .warn{background:var(--amber-soft);color:var(--ink);border-left:4px solid var(--amber)}
+    .tip strong,.warn strong{display:block}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:8px}
+    .mini{border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+    .mini h4{margin:0 0 4px;font-size:1rem}
+    .mini p{margin:0;color:var(--soft);font-size:.95rem}
+    table{width:100%;border-collapse:collapse;font-size:.95rem;margin-top:8px}
+    th,td{text-align:left;padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}
+    th{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-top:0}
+    details{border-top:1px solid var(--line);padding:12px 0}
+    details:first-of-type{border-top:0}
+    summary{cursor:pointer;font-weight:750;min-height:28px}
+    details p{margin:8px 0 0;color:var(--soft)}
+    footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--muted);font-size:.9rem}
+    @media (max-width:860px){.layout{grid-template-columns:1fr;margin-top:-20px}nav.toc{position:static}}
+    @media (max-width:560px){section.card{padding:20px 18px}.grid{grid-template-columns:1fr}body{font-size:16px}ol.steps>li{padding-left:40px}}
+    @media print{
+      header.top,.actions,nav.toc,.noprint{display:none!important}
+      body{background:#fff;color:#000;font-size:12pt}
+      .hero{background:#fff;color:#000;padding:0 0 12px}.hero p.lead{color:#333}.eyebrow{color:#555}
+      .layout{display:block;margin:0}
+      section.card{border:1px solid #ccc;break-inside:avoid-page;page-break-inside:avoid}
+      .path span{background:#eee;color:#000}
+    }
+  </style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/">A.R.I.S.E. <span>Reader</span></a>
+  <a class="btn primary" href="/reader">Open my Reader tools</a>
+</div></header>
+
+<div class="hero"><div class="wrap">
+  <p class="eyebrow">Teacher guide</p>
+  <h1>Everything you can do in A.R.I.S.E. Reader, step by step</h1>
+  <p class="lead">How to approve students, approve book quizzes and grade changes, grade reading responses, connect families, and run live quizzes, game time and prizes. Each section tells you exactly where to click.</p>
+  <div class="actions">
+    <a class="btn primary" href="/reader">Open my Reader tools</a>
+    <a class="btn ghost" href="#approve-students">Jump to approving students</a>
+    <button class="btn ghost noprint" type="button" onclick="window.print()">Print this guide</button>
+  </div>
+</div></div>
+
+<div class="wrap layout">
+  <nav class="toc" aria-label="On this page">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#sign-in">Sign in and find your tools</a></li>
+      <li><a href="#overview">Your Overview page</a></li>
+      <li><a href="#approve-students">Approve students</a></li>
+      <li><a href="#add-students">Add students yourself</a></li>
+      <li><a href="#books">Approve new books (AI quizzes)</a></li>
+      <li><a href="#book-requests">Book requests</a></li>
+      <li><a href="#grade-changes">Grade change requests</a></li>
+      <li><a href="#grading">Grade reading responses</a></li>
+      <li><a href="#proctor">Proctor code &amp; camera quizzes</a></li>
+      <li><a href="#students">Manage your students</a></li>
+      <li><a href="#parents">Connect parents</a></li>
+      <li><a href="#live">Live quiz</a></li>
+      <li><a href="#scenes">Scenes</a></li>
+      <li><a href="#games">Game time</a></li>
+      <li><a href="#prizes">Prizes</a></li>
+      <li><a href="#advisory">Advisory &amp; Lit</a></li>
+      <li><a href="#english">English learners</a></li>
+      <li><a href="#library">The Library</a></li>
+      <li><a href="#faq">Quick answers</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section class="card" id="sign-in">
+      <h2><span class="num">1</span>Sign in and find your tools</h2>
+      <p class="why">All of your class tools live in one place: the <b class="ui">A.R.I.S.E. Reader</b> page.</p>
+      <ol class="steps">
+        <li>Go to <a href="https://www.arisereader.com/">www.arisereader.com</a> and sign in with your teacher username and password. New teachers sign up at <a href="/#/teacher-signup">Teacher signup</a>; the administrator approves new teacher accounts before the tools open.</li>
+        <li>You land in <b class="ui">WorkHub</b>. Open <b class="ui">A.R.I.S.E. Reader</b>, or go straight to <a href="/reader">www.arisereader.com/reader</a> (bookmark it).</li>
+        <li>Across the top you'll see the tabs: <b class="ui">Overview</b>, <b class="ui">Live quiz</b>, <b class="ui">Scenes</b>, <b class="ui">Students</b>, <b class="ui">Advisory &amp; Lit</b>, <b class="ui">Approvals</b>, <b class="ui">Parents</b>, <b class="ui">Quizzes &amp; grading</b>, <b class="ui">Game time</b> and <b class="ui">Prizes</b>. On a phone, swipe the tab row sideways to see them all.</li>
+      </ol>
+      <div class="tip"><strong>Tip</strong>The moon/sun button at the top switches night mode. The back button at the top left returns you to your hub.</div>
+    </section>
+
+    <section class="card" id="overview">
+      <h2><span class="num">2</span>Your Overview page</h2>
+      <p class="why">The first tab shows what needs your attention today.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Overview</span></div>
+      <div class="grid">
+        <div class="mini"><h4>The four counters</h4><p><b class="ui">Students</b>, <b class="ui">To approve</b>, <b class="ui">To grade</b> and <b class="ui">Book requests</b>. Tap any of them to jump straight to that list.</p></div>
+        <div class="mini"><h4>Needs you</h4><p>Students waiting to join, responses to grade, grade change requests and book requests, each with a count.</p></div>
+        <div class="mini"><h4>Start something</h4><p>Host a live quiz, Study Squad practice sets, the Leaderboard, Scenes, and your plan.</p></div>
+        <div class="mini"><h4>Proctor code</h4><p>Your class's code for proctored quizzes, with a <b class="ui">Copy</b> button (see section 9).</p></div>
+      </div>
+      <div class="tip"><strong>Good habit</strong>Check Overview once a day. If every counter reads 0, you're caught up.</div>
+    </section>
+
+    <section class="card" id="approve-students">
+      <h2><span class="num">3</span>Approve students who join your class</h2>
+      <p class="why">When students make their own accounts, they choose their school, grade and you as their teacher. They can't start until you approve them.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Approvals</span><i>›</i><span>Joining</span></div>
+      <ol class="steps">
+        <li>Ask students to go to <a href="https://www.arisereader.com/">www.arisereader.com</a> and sign up. On the sign-up form they pick their <b class="ui">School</b>, then their <b class="ui">Grade</b>, then choose your name under <b class="ui">Teacher</b>.</li>
+        <li>Open the <b class="ui">Approvals</b> tab. A red number on <b class="ui">Joining</b> shows how many students are waiting.</li>
+        <li>Check each name and username, then press <b class="ui">Approve</b>. The student moves into your class and can sign in and take quizzes right away.</li>
+      </ol>
+      <div class="warn"><strong>Don't recognize a name?</strong>Leave that student waiting and check with your school before approving. Only approve students who are really in your class.</div>
+    </section>
+
+    <section class="card" id="add-students">
+      <h2><span class="num">4</span>Add students yourself (whole roster at once)</h2>
+      <p class="why">Skip the sign-up step entirely by adding your roster. Students you add don't need approving.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Students</span><i>›</i><span>Add students</span></div>
+      <ol class="steps">
+        <li>Open <b class="ui">Students</b> and press <b class="ui">Add students</b>.</li>
+        <li>Download the template, or paste rows straight from a spreadsheet. Each row needs <b class="ui">First name</b>, <b class="ui">Last name</b> and <b class="ui">Student number</b>.</li>
+        <li>Upload or paste, check the preview, and add them.</li>
+        <li>Tell students: the <strong>username and starting password are both their student number</strong>. The first time they sign in they're asked to pick their own password.</li>
+      </ol>
+    </section>
+
+    <section class="card" id="books">
+      <h2><span class="num">5</span>Approve a new book (AI quiz)</h2>
+      <p class="why">If a student's book isn't in the Library, they can make a quiz for it. That quiz stays hidden until a teacher approves it, so you control what's added.</p>
+      <h3>What the student does</h3>
+      <ol class="steps">
+        <li>In the Library, the student searches for the book. If it's not there, they press <b class="ui">Create a Quiz</b> (or <b class="ui">Create AI Quiz</b>), and type the <b class="ui">Book Title</b> and <b class="ui">Author</b>.</li>
+        <li>A.R.I.S.E. writes the quiz and sends it to you for review. Teachers get a notification.</li>
+      </ol>
+      <h3>What you do</h3>
+      <div class="path"><span>Reader</span><i>›</i><span>Approvals</span><i>›</i><span>AI quizzes</span></div>
+      <ol class="steps">
+        <li>Open <b class="ui">Approvals</b> and choose <b class="ui">AI quizzes</b>. Each row shows the book, the author and the student who made it.</li>
+        <li>Press <b class="ui">Approve</b> to add the book and its quiz to the Library for everyone, or <b class="ui">Send back</b> if the title or author is wrong.</li>
+        <li>After approval, the book shows up in the Library on its points shelf. Students can find it fastest by typing the title in the Library search.</li>
+      </ol>
+      <div class="tip"><strong>Students still can't see an approved book?</strong>Ask them to refresh the page (or sign out and back in) and search the title. Books are also filtered by grade level, so a book that's well above or below a student's grade band may be hidden for that student. Contact the administrator if it still doesn't appear.</div>
+    </section>
+
+    <section class="card" id="book-requests">
+      <h2><span class="num">6</span>Book requests</h2>
+      <p class="why">Students can also send a note asking for a book to be added. These are requests, not quizzes.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Approvals</span><i>›</i><span>Book requests</span></div>
+      <ol class="steps">
+        <li>Open <b class="ui">Approvals</b> and choose <b class="ui">Book requests</b>. You'll see the book title, who asked, the date and their message.</li>
+        <li>To get the book added, have the student make the quiz with <b class="ui">Create a Quiz</b> (section 5) and approve it, or pass the request to the administrator.</li>
+        <li>Press <b class="ui">Dismiss</b> once it's handled, to clear it from your list.</li>
+      </ol>
+      <div class="warn"><strong>Note</strong><b class="ui">Dismiss</b> only clears the request from your list. It does not add the book. Approving the quiz under <b class="ui">AI quizzes</b> is what adds it.</div>
+    </section>
+
+    <section class="card" id="grade-changes">
+      <h2><span class="num">7</span>Grade change requests</h2>
+      <p class="why">A student's grade level decides which books they see. When a student asks to change their grade, you approve or deny it.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Approvals</span><i>›</i><span>Grade changes</span></div>
+      <ol class="steps">
+        <li>Open <b class="ui">Approvals</b> and choose <b class="ui">Grade changes</b>. Each row reads like <em>"Grade 7 → grade 8"</em>.</li>
+        <li>Press <b class="ui">Approve</b> if it's correct; their Library updates to the new grade's books. Press <b class="ui">Deny</b> if not.</li>
+      </ol>
+    </section>
+
+    <section class="card" id="grading">
+      <h2><span class="num">8</span>Grade reading responses (extra points)</h2>
+      <p class="why">After each book quiz, students can write about the book for up to <strong>10 extra points</strong>. You read and score those.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Quizzes &amp; grading</span><i>›</i><span>To grade</span></div>
+      <ol class="steps">
+        <li>Open <b class="ui">Quizzes &amp; grading</b>. The red number on <b class="ui">To grade</b> is how many responses are waiting.</li>
+        <li>Read the student's written answers.</li>
+        <li>Choose <b class="ui">Extra points</b> from 0 to 10 (or <b class="ui">No extra points</b>), add an optional <b class="ui">Note to the student</b>, and press <b class="ui">Save grade</b>. The points go onto the student's total.</li>
+        <li>To fix one you already graded, switch the list to <b class="ui">Graded</b>, open it, press <b class="ui">Change grade</b>, then <b class="ui">Save new grade</b>.</li>
+      </ol>
+      <div class="tip"><strong>How quiz points work</strong>The multiple-choice book quiz is scored automatically. Each book is worth its points value (5, 10, 15, 20, 25, 30 and so on), and students earn it by passing. You only grade the written responses.</div>
+    </section>
+
+    <section class="card" id="proctor">
+      <h2><span class="num">9</span>Proctor code and camera quizzes</h2>
+      <p class="why">Quizzes are taken either with you watching (proctored) or alone with the camera on.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Quizzes &amp; grading</span><i>›</i><span>Proctor &amp; growth</span></div>
+      <h3>Proctored quizzes</h3>
+      <ol class="steps">
+        <li>Your <b class="ui">Proctor code</b> is on the Overview page and under <b class="ui">Proctor &amp; growth</b>. Press <b class="ui">Copy</b> or read it out.</li>
+        <li>Students type the code to start a proctored quiz. Share it only while you're watching them test.</li>
+      </ol>
+      <h3>Camera quizzes</h3>
+      <div class="path"><span>Reader</span><i>›</i><span>Quizzes &amp; grading</span><i>›</i><span>Camera quizzes</span></div>
+      <ol class="steps">
+        <li>When a student takes a quiz alone, the camera takes pictures, and A.R.I.S.E. flags anything unusual (for example, answering much too fast).</li>
+        <li>Open <b class="ui">Camera quizzes</b> to review flagged quizzes: the <b class="ui">Pictures</b>, <b class="ui">What happened</b>, <b class="ui">Answer pace</b> and <b class="ui">Earlier tries that weren't turned in</b>.</li>
+        <li>If the quiz wasn't fair, remove the points (with an optional reason for your records). If it was fine, give the points back. Only teachers and the site admin can change points.</li>
+      </ol>
+      <div class="tip"><strong>Good to know</strong>Camera pictures are deleted automatically after 30 days. <b class="ui">Growth check</b> on the same screen shows each student's score and reading speed (words a minute).</div>
+    </section>
+
+    <section class="card" id="students">
+      <h2><span class="num">10</span>Manage your students</h2>
+      <div class="path"><span>Reader</span><i>›</i><span>Students</span></div>
+      <p class="why">Your class list shows each student's points and number of quizzes. Use the search box to find someone by name or username.</p>
+      <table>
+        <thead><tr><th>Button</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><b class="ui">Profile</b></td><td>Their reading history, quizzes, scores and points.</td></tr>
+          <tr><td><b class="ui">Message</b></td><td>Send the student a message inside A.R.I.S.E.</td></tr>
+          <tr><td><b class="ui">Certificates</b></td><td>View and print the student's reading certificates.</td></tr>
+          <tr><td><b class="ui">Password</b></td><td>Set a new password when a student forgets theirs (at least 4 characters). Tell them the new one.</td></tr>
+        </tbody>
+      </table>
+      <div class="tip"><strong>Forgotten password is the #1 question</strong>Students → find the student → <b class="ui">Password</b> → type a new one → <b class="ui">Change password</b>.</div>
+    </section>
+
+    <section class="card" id="parents">
+      <h2><span class="num">11</span>Connect parents and guardians</h2>
+      <p class="why">Every student has a private parent code. When a family signs up with it, they can follow their child's reading and set prizes at home.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Parents</span></div>
+      <ol class="steps">
+        <li>Open <b class="ui">Parents</b>. Every student is listed with their code and whether a parent is <b class="ui">linked</b> or <b class="ui">Not linked</b>.</li>
+        <li>Pick how to reach families:
+          <ul>
+            <li><b class="ui">Print letters for my class</b> prints a letter for every student, with their code, to send home.</li>
+            <li><b class="ui">Letter</b> prints one student's letter.</li>
+            <li><b class="ui">Copy</b> (the code) or <b class="ui">Link</b> (the sign-up link) to paste into an email or text.</li>
+            <li>Email the invitation from the site, or press <b class="ui">Open in my email app</b> to send it yourself.</li>
+          </ul>
+        </li>
+        <li>Connected parents appear under each student as <b class="ui">Active</b> or <b class="ui">Pending</b>.</li>
+      </ol>
+    </section>
+
+    <section class="card" id="live">
+      <h2><span class="num">12</span>Host a live quiz</h2>
+      <p class="why">A game the whole class plays at once on their own devices while you show the board.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Live quiz</span></div>
+      <ol class="steps">
+        <li>Choose a game: one of the <b class="ui">Premade classroom sets</b>, the <b class="ui">AI Game Maker</b> (type <em>What are you teaching?</em> and it builds the questions), or <b class="ui">Build manually</b>.</li>
+        <li>Review the questions, then launch.</li>
+        <li>Put your screen on the board. Students press <b class="ui">Join the game</b> and type the six-character <b class="ui">JOIN CODE</b>.</li>
+        <li>Questions, the timer, the reveal and the scores all run from your screen. Your games are saved under <b class="ui">My live games</b> to play again.</li>
+      </ol>
+    </section>
+
+    <section class="card" id="scenes">
+      <h2><span class="num">13</span>Scenes</h2>
+      <p class="why">Illustrated scenes from the book your class is reading, with live questions students answer from their seats.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Scenes</span></div>
+      <ol class="steps">
+        <li>Press <b class="ui">Create a Scene</b>, then enter the <b class="ui">Book title</b>, author and chapter, and pick a style (cinematic illustrated or graphic novel).</li>
+        <li>Optional: <b class="ui">Label people</b> to add character names to the picture.</li>
+        <li>Make it <b class="ui">Interactive</b> and use <b class="ui">Generate live comprehension question(s)</b> or <b class="ui">Add question</b>.</li>
+        <li>Press <b class="ui">Present</b>. Students follow on their own screens, and their answers appear under <b class="ui">Live responses</b>. Press <b class="ui">End live</b> when done.</li>
+      </ol>
+    </section>
+
+    <section class="card" id="games">
+      <h2><span class="num">14</span>Game time (Club A.R.I.S.E.)</h2>
+      <p class="why">Games reward reading. By default, passing a book quiz unlocks unlimited games for the rest of that week (Monday to Sunday). You can change that for anyone, and your locks always win.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Game time</span></div>
+      <h3>For each student</h3>
+      <ol class="steps">
+        <li>Under <b class="ui">Each student</b> you can see whether they <em>can play now</em>, are <em>locked</em>, or <em>need another passed quiz</em>.</li>
+        <li>Press <b class="ui">Lock</b> to turn games off for a student, and <b class="ui">Unlock</b> to turn them back on.</li>
+        <li>Set <b class="ui">Passed quiz reward</b> (unlimited that week, or off), <b class="ui">Games a day</b> (no limit, or 1 to 20), and <b class="ui">Games per passed quiz</b>. Changes save right away.</li>
+      </ol>
+      <h3>Class closing hours</h3>
+      <ol class="steps">
+        <li>Tick <b class="ui">Close Club A.R.I.S.E. for my class at set times</b>.</li>
+        <li>Choose <b class="ui">Closes at</b>, <b class="ui">Opens again at</b> and the days, then press <b class="ui">Save closing hours</b>. Times are Mountain Time; a closing time later than the opening time runs overnight.</li>
+      </ol>
+      <p class="why" style="margin-top:12px">The <b class="ui">Game time</b> card at the top also handles requests for more play time and bonus minutes.</p>
+    </section>
+
+    <section class="card" id="prizes">
+      <h2><span class="num">15</span>Prizes</h2>
+      <p class="why">Set real-world goals students can see and work toward, with a progress bar.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Prizes</span></div>
+      <ol class="steps">
+        <li>Type the <b class="ui">Prize</b> (for example <em>Homework pass</em> or <em>Pizza night</em>).</li>
+        <li>Write <b class="ui">How to win it</b> (for example <em>Finish your book and pass the quiz</em>). Optionally set <b class="ui">Quizzes to pass</b> (counted from today) and a <b class="ui">Last day to win it</b>.</li>
+        <li>Choose who it's for (one student, a few, or <b class="ui">The whole class</b>), then press <b class="ui">Add prize</b>.</li>
+        <li>When a student earns it, you hand over the prize.</li>
+      </ol>
+    </section>
+
+    <section class="card" id="advisory">
+      <h2><span class="num">16</span>Advisory &amp; Lit</h2>
+      <p class="why">After signing in, students are asked for their Advisory and Literature teachers. This tab lists the answers for your whole school.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>Advisory &amp; Lit</span></div>
+      <ol class="steps">
+        <li>Open the tab to see every student with their <b class="ui">Advisory</b> and <b class="ui">Literature</b> teacher.</li>
+        <li>Turn on <b class="ui">My students</b> to see only the students who named you.</li>
+        <li>Use <b class="ui">Download</b> or <b class="ui">Print</b> for a class list.</li>
+      </ol>
+    </section>
+
+    <section class="card" id="english">
+      <h2><span class="num">17</span>English learners (English Explorer)</h2>
+      <p class="why">English Explorer teaches English words to students who are learning English, from their very first words up to academic words and idioms. It has pictures, the AI voice, games and speaking practice. You choose which students get it.</p>
+      <div class="path"><span>Reader</span><i>›</i><span>English learners</span></div>
+      <h3>Turn it on for a student</h3>
+      <ol class="steps">
+        <li>Open <b class="ui">English learners</b> in the Reader menu and press <b class="ui">Turn on for students</b>.</li>
+        <li>Choose where they start (<b class="ui">Level 1: First Words</b> for a newcomer, up to <b class="ui">Level 6: Word Master</b>) and their <b class="ui">Home language</b>. With Spanish, students can also see and hear each word in Spanish.</li>
+        <li>Search for the student and press <b class="ui">Turn on</b>. They see <b class="ui">English Explorer</b> in their library right away.</li>
+      </ol>
+      <h3>Follow their progress</h3>
+      <ol class="steps">
+        <li>The list shows every English learner at your school, not only your class. Use <b class="ui">My class</b> to see just yours.</li>
+        <li>Press <b class="ui">Open</b> on a student to see their level, words mastered, how often they're right the first time in listening, reading, writing and speaking, minutes each day, the words they miss most, and every lesson they played. Change their level or language, or turn it off, under <b class="ui">Settings</b>.</li>
+        <li>Press <b class="ui">Download CSV</b> for a spreadsheet of all your English learners, or <b class="ui">Try it as a student</b> to play any lesson yourself (nothing you do there is saved).</li>
+      </ol>
+      <div class="tip"><strong>Points</strong>English Explorer points count on the A.R.I.S.E. leaderboards and the Advisory Challenge, up to 60 a day. The six levels follow the WIDA proficiency levels, and words come back for review on a spaced schedule until they're mastered.</div>
+    </section>
+
+    <section class="card" id="library">
+      <h2><span class="num">18</span>The Library (what students see)</h2>
+      <p class="why">Books are grouped on shelves by points value: 5, 10, 15, 20, 25, 30 and up. Students only see books for their grade band.</p>
+      <ul>
+        <li><strong>Search is the fastest way.</strong> Type the title. If it's not found, the student can make a quiz for it (section 5).</li>
+        <li><strong>Books assigned for your class</strong> appear at the top for your students.</li>
+        <li><strong>Accessible quiz mode</strong> and Eye Gaze quizzes are there for students who need them.</li>
+        <li>Students take the quiz when they finish a book. The question <em>"Have you finished reading this book?"</em> comes up before it starts.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="num">?</span>Quick answers</h2>
+      <details><summary>I approved a book but my students can't see it.</summary><p>Make sure you approved it under <b class="ui">Approvals › AI quizzes</b>. Dismissing a book request doesn't add the book. Then have students refresh and search the exact title. If the book is outside their grade band, it may be hidden for them. Still missing? Contact the administrator with the title.</p></details>
+      <details><summary>A student signed up but isn't in my class.</summary><p>Look under <b class="ui">Approvals › Joining</b> and press <b class="ui">Approve</b>. If they aren't there, they may have picked another teacher. Ask the administrator to move them to your class.</p></details>
+      <details><summary>A student forgot their password.</summary><p><b class="ui">Students</b> → find them → <b class="ui">Password</b> → set a new one and tell them.</p></details>
+      <details><summary>A student's grade level is wrong.</summary><p>Have them request the change, then approve it under <b class="ui">Approvals › Grade changes</b>.</p></details>
+      <details><summary>A student got points for a quiz they didn't really take.</summary><p>Open <b class="ui">Quizzes &amp; grading › Camera quizzes</b>, review the pictures and pace, and remove the points.</p></details>
+      <details><summary>Students are playing games instead of reading.</summary><p>In <b class="ui">Game time</b>, lock that student, set a daily limit, or set class closing hours.</p></details>
+      <details><summary>Everything is empty and there's a message about the Class plan.</summary><p>Your Reader tools need the school's Class plan. Ask your administrator, or press <b class="ui">Get the Class plan</b>.</p></details>
+      <details><summary>My teacher account says it's waiting for approval.</summary><p>The administrator approves new teacher accounts. Your tools open as soon as that's done.</p></details>
+    </section>
+
+    <div class="actions noprint" style="margin-top:8px">
+      <a class="btn primary" href="/reader">Open my Reader tools</a>
+    </div>
+  </main>
+</div>
+
+<footer><div class="wrap">A.R.I.S.E. Reader · <a href="/">arisereader.com</a> · <a href="/for-teachers/">For teachers</a> · <a href="/for-parents/">For parents</a></div></footer>
+</body>
+</html>

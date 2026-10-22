@@ -1,3 +1,4 @@
+import { useSavedChoice } from "@/lib/useSavedChoice";
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import MonthCountdown from "@/components/MonthCountdown";
 import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
@@ -5,6 +6,7 @@ import { isSampleAccount } from "@shared/sampleAccounts";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { useLocation } from "wouter";
+import { goToSignIn } from "@/lib/hubs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { refreshNotifications } from "@/lib/notifications";
 import { printParentInvites } from "@/lib/parentInvites";
+import PrintLettersByTeacher from "@/components/admin/PrintLettersByTeacher";
 import ParentEmailInvite from "@/components/ParentEmailInvite";
 import type { SiteBanner } from "@shared/banners";
 import FamilyEmailInvite from "@/components/FamilyEmailInvite";
@@ -81,6 +84,7 @@ interface Student {
   approvedByTeacher?: boolean;
   teacherId?: number;
   teacherName?: string | null;
+  directoryTeacherName?: string | null;
   quizzesMastered?: number;
   schoolId?: number | null;
 }
@@ -148,9 +152,9 @@ interface QuestionForm {
   correct: string;
 }
 
-type AdminTab = "overview" | "stats" | "todo" | "inbox" | "people" | "library" | "schools" | "settings";
+import { SETTINGS_SECTIONS, type AdminSection as AdminSectionId, type SettingsSection } from "@/lib/adminSections";
+type AdminTab = AdminSectionId;
 type PeopleTab = "students" | "teachers" | "parents" | "archived";
-type SettingsSection = "programs" | "alerts" | "banners" | "family-emails" | "club" | "ai" | "extras" | "security";
 const ADMIN_TABS: AdminTab[] = ["overview", "stats", "todo", "inbox", "people", "library", "schools", "settings"];
 const TAB_STORAGE = "arise_admin_tab";
 
@@ -161,7 +165,10 @@ let adminCache: { students: Student[]; books: BookItem[] } = {
 };
 
 /** The admin console. `embedded`: shown inside Arise WorkHub's A.R.I.S.E. Reader group (no sticky page header). */
-export default function Admin({ embedded = false }: { embedded?: boolean } = {}) {
+/** The parts of Overview, which the Reader shows as separate menu items. */
+export type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
+
+export default function Admin({ embedded = false, section, onSection, hideNav = false, settingsPart, onSettingsPart, settingsInSidebar = false, overviewPart, bare = false }: { embedded?: boolean; section?: AdminTab; onSection?: (next: AdminTab) => void; hideNav?: boolean; /** One part of Overview only. */ overviewPart?: OverviewPart; /** No header of its own: the Reader's menu already has its buttons. */ bare?: boolean; settingsPart?: SettingsSection; onSettingsPart?: (next: SettingsSection) => void; /** The host page lists Settings' parts in its desktop sidebar, so the row of tabs is only needed on phones. */ settingsInSidebar?: boolean } = {}) {
   const { user, token, logout, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -209,6 +216,10 @@ export default function Admin({ embedded = false }: { embedded?: boolean } = {})
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
   const [studentDetail, setStudentDetail] = useState<StudentDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailTeacherOptions, setDetailTeacherOptions] = useState<Array<{ id: number | string; display_name: string; directory?: boolean }>>([]);
+  const [detailTeacherBusy, setDetailTeacherBusy] = useState(false);
+  const [detailTeacherName, setDetailTeacherName] = useState("");
+  const [detailTeacherError, setDetailTeacherError] = useState("");
   const [books, setBooks] = useState<BookItem[]>(adminCache.books);
   const [quizCount, setQuizCount] = useState(0);
   const [coverBook, setCoverBook] = useState<BookItem | null>(null);
@@ -220,11 +231,19 @@ export default function Admin({ embedded = false }: { embedded?: boolean } = {})
   const bellActionRef = useRef(-1);
   const [inboxOpen, setInboxOpen] = useState<{ userId: number; nonce: number } | null>(null);
   // Which part of the page is showing. Kept for the browser tab, so a refresh comes back here.
-  const [tab, setTabState] = useState<AdminTab>(() => {
+  const [innerTab, setTabState] = useState<AdminTab>(() => {
     try { const saved = sessionStorage.getItem(TAB_STORAGE) as AdminTab | null; return saved && ADMIN_TABS.includes(saved) ? saved : "overview"; } catch { return "overview"; }
   });
+  // Arise WorkHub drives this from its one Reader menu; on its own page it keeps its own.
+  const tab = section ?? innerTab;
   const [peopleTab, setPeopleTab] = useState<PeopleTab>("students");
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>("alerts");
+  // Like the tab above: Arise WorkHub lists Settings' parts in its sidebar and drives this.
+  const [innerSettings, setInnerSettings] = useState<SettingsSection>("alerts");
+  const settingsSection = settingsPart ?? innerSettings;
+  const setSettingsSection = useCallback((next: SettingsSection) => {
+    setInnerSettings(next);
+    onSettingsPart?.(next);
+  }, [onSettingsPart]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [showResolvedReviews, setShowResolvedReviews] = useState(false);
   const [showCompletedRequests, setShowCompletedRequests] = useState(false);
@@ -236,7 +255,7 @@ export default function Admin({ embedded = false }: { embedded?: boolean } = {})
   const [rejectReason, setRejectReason] = useState("");
   const [rejectingQuizId, setRejectingQuizId] = useState<number | null>(null);
   const [showAddQuiz, setShowAddQuiz] = useState(false);
-  const [adminSortBy, setAdminSortBy] = useState<"points" | "popular" | "recent" | "classics" | "new">("points");
+  const [adminSortBy, setAdminSortBy] = useSavedChoice<"points" | "popular" | "recent" | "classics" | "new">("admin-books-sort", "points", ["points", "popular", "recent", "classics", "new"]);
   const [showAdminSortMenu, setShowAdminSortMenu] = useState(false);
   const [announcementText, setAnnouncementText] = useState("");
   const [announcementMsg, setAnnouncementMsg] = useState("");
@@ -522,8 +541,9 @@ export default function Admin({ embedded = false }: { embedded?: boolean } = {})
 
   const setTab = useCallback((next: AdminTab) => {
     setTabState(next);
+    onSection?.(next);
     try { sessionStorage.setItem(TAB_STORAGE, next); } catch {}
-  }, []);
+  }, [onSection]);
 
   /** Shows a tab (and part of it), then scrolls to an element on it and briefly highlights it. */
   const goTo = useCallback((next: AdminTab, targetId?: string, sub?: { people?: PeopleTab; settings?: SettingsSection }) => {
@@ -1766,6 +1786,7 @@ export default function Admin({ embedded = false }: { embedded?: boolean } = {})
   const [pendingTeachers, setPendingTeachers] = useState<any[]>([]);
   const [archiveRefresh, setArchiveRefresh] = useState(0);
   const [allTeachers, setAllTeachers] = useState<any[]>([]);
+  const [lettersByTeacherOpen, setLettersByTeacherOpen] = useState(false);
   const [showTeacherForm, setShowTeacherForm] = useState(false);
   const [teacherForm, setTeacherForm] = useState({ displayName: "", username: "", password: "", email: "" });
   const [teacherFormError, setTeacherFormError] = useState("");
@@ -2036,11 +2057,63 @@ export default function Admin({ embedded = false }: { embedded?: boolean } = {})
     } catch (e) {}
   };
 
+  // Real teacher accounts and account-free school-directory teachers share one picker.
+  const refreshDetailTeachers = async (schoolId: number | null | undefined, grade?: string) => {
+    if (!schoolId) { setDetailTeacherOptions([]); return; }
+    const params = new URLSearchParams({ schoolId: String(schoolId), ...(grade ? { grade } : {}) });
+    const res = await fetch(`${API_BASE}/api/teachers/by-school-grade?${params.toString()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Could not load teachers for this school.");
+    const data = await res.json();
+    setDetailTeacherOptions(Array.isArray(data) ? data : []);
+  };
+
+  const saveDetailTeacher = async (student: Student, choice: string) => {
+    setDetailTeacherBusy(true); setDetailTeacherError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${student.id}/assign-teacher`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(choice.startsWith("directory:") ? { directoryTeacherId: choice } : { teacherId: choice ? Number(choice) : null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not save teacher.");
+      setDetailStudent(prev => prev?.id === student.id ? { ...prev, teacherId: data.teacherId, teacherName: data.teacherName, directoryTeacherName: data.directoryTeacherName } : prev);
+      void fetchStudents();
+      say("Student teacher assignment saved.");
+    } catch (e: any) { setDetailTeacherError(e.message || "Could not save teacher."); }
+    finally { setDetailTeacherBusy(false); }
+  };
+
+  const addDetailTeacher = async (student: Student) => {
+    if (!student.schoolId || !detailTeacherName.trim()) return;
+    setDetailTeacherBusy(true); setDetailTeacherError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/schools/${student.schoolId}/directory-teachers`, {
+        method: "POST", headers: { "Authorization": `Bearer ${token || getTokenFromCookie()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: detailTeacherName.trim() }),
+      });
+      const added = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(added.message || "Could not add teacher.");
+      setDetailTeacherName("");
+      await refreshDetailTeachers(student.schoolId, userGradesMap[String(student.id)]);
+      await saveDetailTeacher(student, String(added.id));
+    } catch (e: any) { setDetailTeacherError(e.message || "Could not add teacher."); setDetailTeacherBusy(false); }
+  };
+
+  useEffect(() => {
+    if (!detailStudent) { setDetailTeacherOptions([]); return; }
+    setDetailTeacherError("");
+    void refreshDetailTeachers(detailStudent.schoolId, userGradesMap[String(detailStudent.id)])
+      .catch((error) => setDetailTeacherError(error.message || "Could not load teachers."));
+  }, [detailStudent?.id, detailStudent?.schoolId, userGradesMap[String(detailStudent?.id ?? "")]]);
+
   const handleViewStudent = async (student: Student) => {
     setDetailStudent(student);
     setStudentDetail(null);
     setDetailLoading(true);
     setIreadyGrade("");
+    setDetailTeacherName("");
+    setDetailTeacherError("");
     setIreadyScore("");
     setIreadyComp("");
     setIreadyVocab("");
@@ -2411,7 +2484,7 @@ Generate exactly 10 questions.`;
     adminCache.students = [];
     adminCache.books = [];
     logout();
-    navigate("/");
+    goToSignIn();
   };
 
   useEffect(() => {
@@ -2539,15 +2612,20 @@ Generate exactly 10 questions.`;
     if (filterBand && gradeToBandLabel(sGrade) !== filterBand) return false;
     if (filterSchool && String(s.schoolId || '') !== filterSchool) return false;
     if (filterGrade && sGrade !== filterGrade) return false;
-    if (filterTeacher && String(s.teacherId || '') !== filterTeacher) return false;
+    if (filterTeacher && !(filterTeacher.startsWith("directory:")
+      ? !s.teacherId && "directory:" + String(s.directoryTeacherName || "").toLowerCase().replace(/[^a-z0-9]/g, "") === filterTeacher
+      : String(s.teacherId || "") === filterTeacher)) return false;
     return true;
   });
   const activeFilterCount = [filterBand, filterSchool, filterGrade, filterTeacher].filter(Boolean).length;
 
   const sectionGroup = "divide-y divide-border/60 [&>*]:py-5 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0";
 
+  /** In the Reader, each part of Overview is its own menu item; on its own page all of them show. */
+  const showPart = (part: OverviewPart) => !overviewPart || overviewPart === part;
   const overviewTab = (
     <div className="space-y-4 sm:space-y-6">
+      {showPart("home") && <>
       <div>
         <h1 className="text-xl font-black sm:text-2xl">Welcome back{user?.displayName ? `, ${user.displayName}` : ""}</h1>
         <p className="mt-1 text-sm text-muted-foreground">Here's what's happening on A.R.I.S.E. Reader.</p>
@@ -2567,7 +2645,7 @@ Generate exactly 10 questions.`;
         data-testid="open-stats"
         className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-violet-500/25 bg-violet-500/[.07] p-3 text-left transition-colors hover:bg-violet-500/[.12] sm:p-4"
       >
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300"><BarChart3 className="h-5 w-5" /></span>
+        <span className="grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300"><BarChart3 className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
           <span className="block font-bold">Stats and charts</span>
           <span className="block text-xs text-muted-foreground">Growth over time, who's online, sign-ins, quizzes and the students who haven't been on lately.</span>
@@ -2575,6 +2653,8 @@ Generate exactly 10 questions.`;
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
       </button>
 
+      </>}
+      {showPart("attention") && <>
       <AdminSection
         id="needs-attention"
         icon={ListTodo}
@@ -2586,15 +2666,15 @@ Generate exactly 10 questions.`;
         {attention.length === 0 ? (
           <EmptyState icon={CheckCircle2} title="You're all caught up" hint="New requests, messages and approvals will show up here." />
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {attention.map((item) => (
               <li key={item.label}>
                 <button type="button" onClick={item.go} className="flex w-full items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5 text-left transition-colors hover:bg-muted/40">
-                  <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", item.tone === "violet" ? "bg-violet-500/15 text-violet-300" : item.tone === "orange" ? "bg-orange-500/15 text-orange-300" : item.tone === "amber" ? "bg-amber-500/15 text-amber-300" : item.tone === "emerald" ? "bg-emerald-500/15 text-emerald-300" : item.tone === "cyan" ? "bg-cyan-500/15 text-cyan-300" : "bg-blue-500/15 text-blue-300")}>
+                  <span className={cn("grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-lg", item.tone === "violet" ? "bg-violet-500/15 text-violet-300" : item.tone === "orange" ? "bg-orange-500/15 text-orange-300" : item.tone === "amber" ? "bg-amber-500/15 text-amber-300" : item.tone === "emerald" ? "bg-emerald-500/15 text-emerald-300" : item.tone === "cyan" ? "bg-cyan-500/15 text-cyan-300" : "bg-blue-500/15 text-blue-300")}>
                     <item.icon className="h-[18px] w-[18px]" />
                   </span>
                   <span className="min-w-0 flex-1 text-sm font-medium leading-snug">{item.label}</span>
-                  <span className="grid h-7 min-w-7 shrink-0 place-items-center rounded-full bg-fuchsia-500/15 px-2 text-sm font-black tabular-nums text-fuchsia-200">{item.count}</span>
+                  <span className="grid grid-cols-1 h-7 min-w-7 shrink-0 place-items-center rounded-full bg-fuchsia-500/15 px-2 text-sm font-black tabular-nums text-fuchsia-200">{item.count}</span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </button>
               </li>
@@ -2602,7 +2682,9 @@ Generate exactly 10 questions.`;
           </ul>
         )}
       </AdminSection>
+      </>}
 
+      {showPart("actions") && <>
       <AdminSection id="quick-actions" icon={Sparkles} tone="cyan" title="Quick actions">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => setShowAddQuiz(true)}><PlusCircle className="h-4 w-4" />Add a quiz</Button>
@@ -2613,7 +2695,9 @@ Generate exactly 10 questions.`;
         </div>
         <p className="mt-3 text-xs text-muted-foreground">Previews show A.R.I.S.E. exactly like a student. Quiz results in a preview don't count on leaderboards or competitions.</p>
       </AdminSection>
+      </>}
 
+      {showPart("leaderboard") && <>
       <AdminSection
         id="leaderboard"
         icon={Trophy}
@@ -2654,7 +2738,7 @@ Generate exactly 10 questions.`;
           <ol className="space-y-2">
             {adminLeaderboard.slice(0, lbExpanded ? 20 : 5).map((entry: any, idx: number) => (
               <li key={entry.id} className="grid grid-cols-[auto,minmax(0,1fr),auto] items-center gap-3 rounded-xl bg-muted/30 p-3">
-                <span className={cn("grid h-9 w-9 place-items-center rounded-full text-sm font-bold", idx === 0 ? "bg-amber-400/20 text-amber-300" : idx === 1 ? "bg-slate-300/15 text-slate-200" : idx === 2 ? "bg-orange-500/15 text-orange-300" : "bg-muted text-muted-foreground")}>{idx + 1}</span>
+                <span className={cn("grid grid-cols-1 h-9 w-9 place-items-center rounded-full text-sm font-bold", idx === 0 ? "bg-amber-400/20 text-amber-300" : idx === 1 ? "bg-slate-300/15 text-slate-200" : idx === 2 ? "bg-orange-500/15 text-orange-300" : "bg-muted text-muted-foreground")}>{idx + 1}</span>
                 <span className="min-w-0">
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate text-sm font-medium sm:text-base">{entry.displayName}</span>
@@ -2707,7 +2791,7 @@ Generate exactly 10 questions.`;
                 <div className="flex items-center gap-2 font-semibold text-foreground"><Trophy className="w-5 h-5 text-primary" /> Hallway Poster Setup</div>
                 <p className="mt-1 text-xs text-muted-foreground">Make the printed leaderboard feel like an awards poster. Add a headline and tell everyone exactly what the top winners earned.</p>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
                   <Label className="text-xs font-bold">Poster headline</Label>
                   <Input value={adminLbPosterTitle} onChange={(e) => setAdminLbPosterTitle(e.target.value)} maxLength={45} placeholder="READING CHAMPIONS" className="mt-1 font-bold" />
@@ -2733,7 +2817,7 @@ Generate exactly 10 questions.`;
                     .map((entry: any, idx: number) => {
                       const rewardKey = String(entry.id ?? idx + 1);
                       return (
-                        <div key={rewardKey} className="grid gap-2 sm:grid-cols-[44px_minmax(0,1fr)_minmax(190px,1fr)] items-center p-3">
+                        <div key={rewardKey} className="grid grid-cols-1 gap-2 sm:grid-cols-[44px_minmax(0,1fr)_minmax(190px,1fr)] items-center p-3">
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-foreground">#{idx + 1}</div>
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-foreground truncate">{entry.displayName || "Reader"}</div>
@@ -2755,6 +2839,7 @@ Generate exactly 10 questions.`;
           </div>
         </details>
       </AdminSection>
+      </>}
     </div>
   );
 
@@ -3073,7 +3158,7 @@ Generate exactly 10 questions.`;
         icon={Users}
         tone="blue"
         title={`Students (${students.length})`}
-        actions={<Button variant="outline" size="sm" onClick={() => printParentInvites().catch(e => window.alert(e.message))}><Printer className="h-4 w-4" />Print all parent letters</Button>}
+        actions={<div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => setLettersByTeacherOpen(true)} data-testid="print-letters-by-teacher"><Printer className="h-4 w-4" />Letters by teacher</Button><Button variant="outline" size="sm" onClick={() => printParentInvites().catch(e => window.alert(e.message))}><Printer className="h-4 w-4" />Print all parent letters</Button></div>}
       >
         <div className="mb-4 space-y-2"><FamilyEmailInvite /><InvitePrizesEditor /></div>
         <div className="mb-4 space-y-2">
@@ -3106,6 +3191,9 @@ Generate exactly 10 questions.`;
               <select value={filterTeacher} onChange={(e) => setFilterTeacher(e.target.value)} className={SELECT_CLASS} aria-label="Teacher">
                 <option value="">All teachers</option>
                 {allTeachers.map(t => <option key={t.id} value={String(t.id)}>{t.display_name || t.username}</option>)}
+                {Array.from(new Set(students.filter(s => !s.teacherId && s.directoryTeacherName).map(s => s.directoryTeacherName!))).sort().map(name => (
+                  <option key={name} value={"directory:" + name.toLowerCase().replace(/[^a-z0-9]/g, "")}>{name} (no account)</option>
+                ))}
               </select>
               {activeFilterCount > 0 && (
                 <button type="button" onClick={() => { setFilterBand(""); setFilterSchool(""); setFilterGrade(""); setFilterTeacher(""); }} className="text-left text-sm font-semibold text-primary hover:underline sm:col-span-2 lg:col-span-4">Clear filters</button>
@@ -3272,7 +3360,7 @@ Generate exactly 10 questions.`;
                     />
                   </>}
                 >
-                  <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 min-w-0 gap-2 sm:grid-cols-2">
                     <label className="min-w-0 text-xs text-muted-foreground">School
                       <select className={cn(SELECT_CLASS, "mt-1")} value={t.school_id || ""} onChange={(e) => void assignTeacherSchool(t.id, e.target.value)}>
                         <option value="">No school</option>
@@ -3735,22 +3823,16 @@ Generate exactly 10 questions.`;
         <h1 className="text-xl font-black sm:text-2xl">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">Your Arise programs, notifications, banners, Club hours and the rest of the site's switches.</p>
       </div>
-      <SegmentedTabs
-        ariaLabel="Settings"
-        dataAttr="data-settings-section"
-        value={settingsSection}
-        onChange={setSettingsSection}
-        options={[
-          { value: "programs", label: "Arise programs", icon: ShieldCheck },
-          { value: "alerts", label: "Notifications", icon: BellRing },
-          { value: "banners", label: "Banners", icon: Megaphone },
-          { value: "family-emails", label: "Family emails", icon: Mail },
-          { value: "club", label: "Club & play time", icon: Gamepad2 },
-          { value: "ai", label: "AI quizzes", icon: Brain },
-          { value: "extras", label: "Competition & extras", icon: Trophy },
-          { value: "security", label: "Proctor password", icon: KeyRound },
-        ]}
-      />
+      {/* In Arise WorkHub the sidebar lists these on desktop, so there the row of tabs is only kept for phones. */}
+      <div className={settingsInSidebar ? "md:hidden" : undefined}>
+        <SegmentedTabs
+          ariaLabel="Settings"
+          dataAttr="data-settings-section"
+          value={settingsSection}
+          onChange={setSettingsSection}
+          options={SETTINGS_SECTIONS.map((s) => ({ value: s.id, label: s.label, icon: s.icon }))}
+        />
+      </div>
       {settingsSection === "programs" && <AdminPrograms token={token || getTokenFromCookie()} />}
       {settingsSection === "alerts" && <AlertSettingsCard token={token || getTokenFromCookie()} />}
       {settingsSection === "banners" && (
@@ -3878,7 +3960,7 @@ Generate exactly 10 questions.`;
             <CardContent className="p-4 sm:p-5">
               <div className="flex flex-col gap-4">
                 <div className="flex items-start gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl arise-icon-tile">
+                  <div className="grid grid-cols-1 h-11 w-11 shrink-0 place-items-center rounded-2xl arise-icon-tile">
                     <Clock3 className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -3901,7 +3983,7 @@ Generate exactly 10 questions.`;
                   <span className="text-sm font-bold">Enable automatic closing hours</span>
                 </label>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label className="space-y-1.5">
                     <span className="text-xs font-black uppercase tracking-wide text-slate-400">Close games at</span>
                     <input type="time" value={clubClosingHours.start} onChange={(e) => setClubClosingHours(s => ({...s,start:e.target.value}))} className="min-h-11 w-full rounded-xl border border-white/10 bg-[#0f0d1d] px-3 text-white" />
@@ -3942,7 +4024,7 @@ Generate exactly 10 questions.`;
                           <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${schedule.enabled ? (schedule.closedNow ? "bg-fuchsia-500/15 text-fuchsia-200" : "bg-cyan-500/15 text-cyan-200") : "bg-white/[.06] text-slate-400"}`}>{!schedule.enabled ? "OFF" : schedule.closedNow ? "CLOSED NOW" : "OPEN NOW"}</span>
                         </div>
                         <label className="mb-3 flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={!!schedule.enabled} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,enabled:e.target.checked}}:item))}/> Use class hours</label>
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           <label className="text-xs font-bold text-slate-400">Close at<input type="time" value={schedule.start} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,start:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
                           <label className="text-xs font-bold text-slate-400">Reopen at<input type="time" value={schedule.end} onChange={e=>setTeacherClubClosingHours(items=>items.map((item:any)=>item.id===teacher.id?{...item,schedule:{...schedule,end:e.target.value}}:item))} className="mt-1 min-h-10 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-white"/></label>
                         </div>
@@ -4105,6 +4187,7 @@ Generate exactly 10 questions.`;
                   placeholder="https://donate.stripe.com/..."
                   className="bg-muted/30 border-border text-foreground"
                 />
+                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">Also powers the ♥ Support button for parents and on the Reader home page, even when the goal below is switched off. Use your Stripe Payment Link (https://).</p>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground">Milestones (one per line, format: amount|label)</span>
@@ -4243,33 +4326,33 @@ Generate exactly 10 questions.`;
 
   return (
     <div className={embedded ? "w-full max-w-full overflow-hidden rounded-3xl bg-background" : "min-h-screen w-full max-w-full overflow-x-hidden bg-background"} data-testid={embedded ? "workhub-admin" : undefined}>
-      <header className={embedded ? "w-full border-b border-border bg-card/85" : "sticky top-0 z-40 w-full border-b border-border bg-card/85 backdrop-blur-md"}>
+      {!bare && <header className={embedded ? "w-full border-b border-border bg-card/85" : "sticky top-0 z-40 w-full border-b border-border bg-card/85 backdrop-blur-md"}>
         <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-3 sm:px-4 lg:px-6">
           <button type="button" onClick={() => { setTab("overview"); window.scrollTo({ top: 0 }); }} className="flex min-w-0 items-center gap-2.5" aria-label="Admin overview">
-            <span className="arise-icon-tile grid h-9 w-9 shrink-0 place-items-center rounded-xl"><ShieldCheck className="h-[18px] w-[18px]" /></span>
+            <span className="arise-icon-tile grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl"><ShieldCheck className="h-[18px] w-[18px]" /></span>
             <span className="min-w-0 text-left leading-tight">
               <span className="block truncate text-[15px] font-black">Admin</span>
               <span className="hidden truncate text-[11px] text-muted-foreground sm:block">A.R.I.S.E. Reader</span>
             </span>
           </button>
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
-            {!embedded && <button type="button" onClick={() => navigate("/workhub")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Arise WorkHub" title="Your Arise WorkHub" data-testid="button-admin-teacher-hub">
+            {!embedded && <button type="button" onClick={() => navigate("/workhub")} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Arise WorkHub" title="Your Arise WorkHub" data-testid="button-admin-teacher-hub">
               <ClipboardList className="h-5 w-5 text-teal-400" />
               <span className="hidden text-sm font-semibold sm:inline">Arise WorkHub</span>
             </button>}
-            <button type="button" onClick={() => navigate("/leaderboard")} className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Leaderboard" title="Leaderboard" data-testid="button-admin-leaderboard">
+            <button type="button" onClick={() => navigate("/leaderboard")} className="grid grid-cols-1 h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:px-3" aria-label="Leaderboard" title="Leaderboard" data-testid="button-admin-leaderboard">
               <Trophy className="h-5 w-5 text-amber-400" />
               <span className="hidden text-sm font-semibold sm:inline">Leaderboard</span>
             </button>
             <NotificationBell onNavigate={handleNotifNavigate} onCounts={handleBellCounts} />
-            <button type="button" onClick={() => { setTab("inbox"); window.scrollTo({ top: 0 }); }} className="relative grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label={unreadMsgCount ? `Inbox, ${unreadMsgCount} unread` : "Inbox"} data-testid="button-admin-inbox">
+            <button type="button" onClick={() => { setTab("inbox"); window.scrollTo({ top: 0 }); }} className="relative grid grid-cols-1 h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label={unreadMsgCount ? `Inbox, ${unreadMsgCount} unread` : "Inbox"} data-testid="button-admin-inbox">
               <Inbox className="h-5 w-5" />
               {unreadMsgCount > 0 && <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-background">{unreadMsgCount > 9 ? "9+" : unreadMsgCount}</span>}
             </button>
             <div className="hidden sm:flex"><ReportProblemButton variant="ghost" size="sm" /></div>
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label="More">
+                <button type="button" className="grid grid-cols-1 h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted" aria-label="More">
                   <MoreVertical className="h-5 w-5" />
                 </button>
               </DropdownMenuTrigger>
@@ -4288,19 +4371,38 @@ Generate exactly 10 questions.`;
             </DropdownMenu>
           </div>
         </div>
-        <nav aria-label="Admin sections" className="border-t border-border/60 lg:hidden">
-          <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {NAV.map((item) => navButton(item, "bar"))}
+        {!hideNav && <nav aria-label="Admin sections" className="border-t border-border/60 lg:hidden">
+          <div className="mx-auto max-w-7xl px-2 py-1.5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" data-admin-nav-menu className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-border bg-card px-3 text-left text-sm font-semibold text-foreground">
+                  {(() => {
+                    const current = NAV.find((n) => n.id === tab) ?? NAV[0];
+                    return <><current.icon className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">{current.label}</span>{current.badge ? <CountBadge count={current.badge} /> : null}</>;
+                  })()}
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-[70vh] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto">
+                {NAV.map((item) => (
+                  <DropdownMenuItem key={item.id} data-admin-tab={item.id} className="gap-2 py-2" onSelect={() => { setTab(item.id); window.scrollTo({ top: 0 }); }}>
+                    <item.icon className="h-4 w-4" />
+                    <span className="min-w-0 flex-1">{item.label}</span>
+                    {item.badge ? <CountBadge count={item.badge} /> : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </nav>
-      </header>
+        </nav>}
+      </header>}
 
       <div className="mx-auto flex w-full max-w-7xl gap-6 px-3 sm:px-4 lg:px-6">
-        <aside className="hidden w-56 shrink-0 lg:block">
+        {!hideNav && <aside className="hidden w-56 shrink-0 lg:block">
           <nav aria-label="Admin sections" className="sticky top-14 space-y-1 py-6">
             {NAV.map((item) => navButton(item, "side"))}
           </nav>
-        </aside>
+        </aside>}
         <main className="min-w-0 flex-1 py-4 pb-24 sm:py-6">
           {tab === "overview" && overviewTab}
           {tab === "stats" && (
@@ -4718,6 +4820,8 @@ Generate exactly 10 questions.`;
         </DialogContent>
       </Dialog>
 
+      <PrintLettersByTeacher open={lettersByTeacherOpen} onOpenChange={setLettersByTeacherOpen} teachers={allTeachers.map((t) => ({ id: Number(t.id), name: String(t.display_name || t.username || "Teacher") }))} students={students} />
+
       <Dialog open={!!detailStudent} onOpenChange={(open) => { if (!open) { setDetailStudent(null); setStudentDetail(null); } }}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
@@ -4815,6 +4919,41 @@ Generate exactly 10 questions.`;
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Assign a registered teacher or an account-free teacher name. */}
+              <div className="rounded-xl border border-border bg-muted/30 p-3">
+                <Label className="mb-2 block text-xs text-muted-foreground">Assign Teacher</Label>
+                <select
+                  aria-label="Student's assigned teacher"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground"
+                  disabled={detailTeacherBusy || !detailStudent?.schoolId}
+                  value={detailStudent?.teacherId ? String(detailStudent.teacherId) :
+                    detailStudent?.directoryTeacherName
+                      ? detailTeacherOptions.find(t => t.directory && String(t.display_name).toLowerCase().replace(/[^a-z0-9]/g, "") ===
+                          String(detailStudent.directoryTeacherName).toLowerCase().replace(/[^a-z0-9]/g, ""))?.id?.toString() || ""
+                      : ""}
+                  onChange={(e) => { if (detailStudent) void saveDetailTeacher(detailStudent, e.target.value); }}
+                >
+                  <option value="">{detailStudent?.schoolId ? "No teacher assigned" : "Assign a school first"}</option>
+                  {detailTeacherOptions.map(t => <option key={String(t.id)} value={String(t.id)}>
+                    {t.display_name}{t.directory ? " (no account)" : ""}
+                  </option>)}
+                </select>
+                {detailStudent?.directoryTeacherName && <p className="mt-2 text-xs text-muted-foreground">
+                  Saved teacher: <strong>{detailStudent.directoryTeacherName}</strong>. No account required.
+                </p>}
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Input aria-label="Add teacher name without an account" value={detailTeacherName}
+                    onChange={e => setDetailTeacherName(e.target.value)} placeholder="Add a teacher by name (no account)"
+                    maxLength={120} disabled={detailTeacherBusy || !detailStudent?.schoolId} />
+                  <Button type="button" variant="outline" className="shrink-0"
+                    disabled={detailTeacherBusy || !detailStudent?.schoolId || detailTeacherName.trim().length < 2}
+                    onClick={() => { if (detailStudent) void addDetailTeacher(detailStudent); }}>
+                    {detailTeacherBusy ? "Saving…" : "Add & assign"}
+                  </Button>
+                </div>
+                {detailTeacherError && <p className="mt-2 text-xs text-red-500" role="alert">{detailTeacherError}</p>}
               </div>
 
               {/* Assign Grade */}

@@ -1,22 +1,23 @@
 // Arise WorkHub: asking everyone which times work for an IEP or re-evaluation meeting.
 // The teacher offers a few times and picks the people (parents, staff, anyone else).
 // Each gets an email with their own link; answers show up here, and the teacher books a time.
-import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import MeetingWizard, { type WizardState } from "./HubMeetingSteps";
-import { CalendarCheck, Check, Copy, Loader2, Mail, MessageSquare, Plus, Send, Trash2, X } from "lucide-react";
+import { CalendarCheck, Check, ChevronRight, Copy, Loader2, Mail, MessageSquare, Plus, Send, Trash2, X } from "lucide-react";
 import { API_BASE } from "@/lib/queryClient";
 import { INVITEE_ROLES, POLL_LIMITS, QUICK_ROLES, bookedEmailText, bookedSmsText, inviteEmailText, inviteSmsText, type PollAnswer } from "@shared/meetingPoll";
-import { roleLabel } from "@shared/hubGuide";
+import { rememberParents, roleLabel } from "@shared/hubGuide";
 import { meetingPeople } from "@shared/hubStudentTeam";
 import { bookMeeting, cleanSenderName } from "@shared/hubMeetings";
 import { addDays } from "@shared/hubDates";
-import { calendarEvents } from "@shared/hubHidden";
+import { allDayItems, bookedTimes } from "@shared/hubBusy";
+import PollTimes, { type PollTime } from "./HubPollTimes";
 import { busyPeople, othersCalendars, othersEvents } from "@shared/hubOthers";
-import { deadlineLabel, deadlineWords, meetingDeadline } from "@shared/meetingDeadline";
+import { deadlineName as nameOfDeadline, deadlineWords, meetingDeadline } from "@shared/meetingDeadline";
 import type { Workspace } from "@shared/teacherHub";
 import { AnswerEditor, InvitedPolls, MyAvailability, WeeklyEditor, api } from "./HubAvailability";
 import { localDay } from "./HubImport";
-import { FIT_WORDS, cleanWeekly, fitOption, suggestTimes, type Fit, type FreeWindow } from "@shared/availability";
+import { FIT_WORDS, cleanWeekly, fitOption, type Fit, type FreeWindow } from "@shared/availability";
 import { Card, Empty, Field, GhostButton, PrimaryButton, TextArea } from "./ui";
 
 type PollView = {
@@ -48,12 +49,13 @@ const SYMBOL: Record<PollAnswer, { mark: string; word: string; cls: string }> = 
   no: { mark: "✗", word: "Can't", cls: "bg-rose-100 text-rose-800" },
 };
 
-const blankTime = () => ({ date: "", start: "", end: "" });
+// What was typed in a poll form, kept while the pop-up is closed or the wizard goes back a step, so nothing has to be typed twice.
+const DRAFTS = new Map<string, any>();
 type Guest = { name: string; email: string; phone: string; role: string };
 const blankGuest = (role = "Parent or guardian"): Guest => ({ name: "", email: "", phone: "", role });
 
-export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId, start, onStarted, account, wizard, setWizard, studentOptions }: {
-  token: string | null; workspace: Workspace; setWorkspace: Setter; makeId: () => string; start: PollStart; onStarted: () => void; account: { name: string; email: string };
+export default function HubMeetingPolls({ token, workspace, setWorkspace, seats, makeId, start, onStarted, account, wizard, setWizard, studentOptions }: {
+  token: string | null; workspace: Workspace; setWorkspace: Setter; seats: number | null; makeId: () => string; start: PollStart; onStarted: () => void; account: { name: string; email: string };
   wizard: WizardState | null; setWizard: (next: WizardState | null) => void; studentOptions: () => ReactNode;
 }) {
   const [polls, setPolls] = useState<PollView[] | null>(null);
@@ -107,12 +109,18 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
         <InvitedPolls token={token} setNotice={setNotice} />
         {wizard && (
           <MeetingWizard
-            workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} sender={{ name: cleanSenderName(workspace.profile.senderName || account.name), school: workspace.profile.school }}
+            workspace={workspace} setWorkspace={setWorkspace} seats={seats} makeId={makeId} wizard={wizard} setWizard={setWizard} studentOptions={studentOptions} sender={{ name: cleanSenderName(workspace.profile.senderName || account.name), school: workspace.profile.school }}
             showPolls={() => { setWizard(null); window.setTimeout(() => document.querySelector('[data-testid="meeting-polls"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}
             pollBody={(meeting, onSent) => (
-              <Composer embedded box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account}
-                initial={{ meetingId: meeting.id, title: `${meeting.type}${meeting.student ? ` for ${meeting.student.split(" ")[0]}` : ""}` }}
-                onClose={() => undefined} onSent={(message, made) => { setNotice(message); if (made) setSendPopup(made); void load(); onSent(); }} />
+              <AskedAlready
+                sent={(polls || []).filter((p) => p.hubMeetingId === meeting.id)}
+                onNext={onSent}
+                card={(poll) => <PollCard poll={poll} token={token} senderName={poll.senderName || workspace.profile.senderName || account.name} contacts={workspace.spedContacts} onBooked={booked} onChanged={load} setNotice={setNotice} />}
+                form={() => (
+                  <Composer embedded box={box} textAvailable={textAvailable} token={token} workspace={workspace} setWorkspace={setWorkspace} account={account}
+                    initial={{ meetingId: meeting.id, title: `${meeting.type}${meeting.student ? ` for ${meeting.student.split(" ")[0]}` : ""}` }}
+                    onClose={() => undefined} onSent={(message, made) => { setNotice(message); if (made) setSendPopup(made); void load(); onSent(); }} />
+                )} />
             )}
           />
         )}
@@ -121,7 +129,7 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
           const latest = polls?.find((x) => x.id === sendPopup.id);
           const live: PollView = { ...sendPopup, status: latest?.status ?? sendPopup.status, invitees: sendPopup.invitees.map((i) => { const l = latest?.invitees.find((x) => x.id === i.id); return l ? { ...i, emailSent: l.emailSent, respondedAt: l.respondedAt } : i; }) };
           return (
-            <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Send the links" data-testid="send-popup">
+            <div className="fixed inset-0 kb-sheet z-[70] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Send the links" data-testid="send-popup">
               <div className="flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
                   <h2 className="text-lg font-bold">{live.status === "booked" ? "Tell everyone the time" : "Send the links"}</h2>
@@ -151,6 +159,29 @@ export default function HubMeetingPolls({ token, workspace, setWorkspace, makeId
   );
 }
 
+/** A numbered part of the poll form: 1 When, 2 Who, 3 Send. */
+function Section({ n, title, children }: { n: number; title: string; children: ReactNode }) {
+  return (
+    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900"><span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-sm text-white">{n}</span>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+/** Step 2 of the wizard: if times were already asked for this meeting, show that (with the answers) instead of an empty form. */
+function AskedAlready({ sent, card, form, onNext }: { sent: PollView[]; card: (poll: PollView) => ReactNode; form: () => ReactNode; onNext: () => void }) {
+  const [again, setAgain] = useState(false);
+  if (!sent.length || again) return <>{form()}</>;
+  return (
+    <div className="space-y-3" data-testid="poll-already-sent">
+      <div className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-900"><b>You already asked for times.</b> Answers show up here as people reply. Nothing was lost.</div>
+      {sent.map((p) => <div key={p.id}>{card(p)}</div>)}
+      <div className="flex flex-wrap gap-2"><GhostButton onClick={() => setAgain(true)}>Ask for different times</GhostButton><PrimaryButton onClick={onNext}>Next <ChevronRight className="h-4 w-4" /></PrimaryButton></div>
+    </div>
+  );
+}
+
 export function Composer({ box, textAvailable, token, workspace, setWorkspace, account, initial, onClose, onSent, embedded = false }: {
   embedded?: boolean;
   box: Box | null; textAvailable: boolean; token: string | null; workspace: Workspace; setWorkspace: Setter; account: { name: string; email: string }; initial: { meetingId: string; title: string }; onClose: () => void; onSent: (message: string, poll?: PollView) => void;
@@ -164,27 +195,38 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", key); document.body.style.overflow = before; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [title, setTitle] = useState(initial.title);
-  const [location, setLocation] = useState("");
-  const [message, setMessage] = useState("");
+  const draftKey = initial.meetingId || "new";
+  const saved = DRAFTS.get(draftKey);
+  const [title, setTitle] = useState<string>(saved?.title ?? initial.title);
+  const [location, setLocation] = useState<string>(saved?.location ?? "");
+  const [message, setMessage] = useState<string>(saved?.message ?? "");
   const [senderName, setSenderName] = useState(cleanSenderName(workspace.profile.senderName || account.name));
   const [replyTo, setReplyTo] = useState(workspace.profile.replyEmail || account.email);
-  const [times, setTimes] = useState([blankTime(), blankTime()]);
+  const [times, setTimes] = useState<PollTime[]>(saved?.times ?? []);
   const team = workspace.spedContacts.filter((c) => c.email);
   // The meeting's guide already knows the parents and who is on the team: they start ticked and filled in.
   const meeting = initial.meetingId ? workspace.meetings.find((m) => m.id === initial.meetingId) : undefined;
   const guide = meeting ? workspace.guides.find((g) => g.student === meeting.student) : undefined;
   // The student's team (from the Caseload, with or without a guide) and anyone else on the guide start ticked.
   const asked = meeting ? meetingPeople(workspace, meeting.student) : [];
-  const [picked, setPicked] = useState<Record<string, boolean>>(() => Object.fromEntries(asked.filter(({ person }) => team.some((c) => c.id === person.id)).map(({ person }) => [person.id, true])));
+  const [picked, setPicked] = useState<Record<string, boolean>>(() => saved?.picked ?? Object.fromEntries(asked.filter(({ person }) => team.some((c) => c.id === person.id)).map(({ person }) => [person.id, true])));
   // Someone on the team with no email saved yet gets a row of their own, so the email can be typed here.
   const noEmail: Guest[] = asked.filter(({ person }) => !team.some((c) => c.id === person.id)).map(({ person, role }) => ({ name: person.name, email: "", phone: "", role: roleLabel(role) }));
   const parents: Guest[] = [...[[guide?.parent1, guide?.parent1Phone, guide?.parent1Email], [guide?.parent2, guide?.parent2Phone, guide?.parent2Email]].filter(([n, ph, em]) => (n || "").trim() || (ph || "").trim() || (em || "").trim()).map(([n, ph, em]) => ({ name: (n || "").trim(), email: (em || "").trim(), phone: (ph || "").trim(), role: "Parent or guardian" })), ...noEmail];
-  const [guests, setGuests] = useState<Guest[]>(parents.length ? parents : [blankGuest()]);
+  const [guests, setGuests] = useState<Guest[]>(saved?.guests ?? (parents.length ? parents : [blankGuest()]));
+  // This student's team first; everyone else on the contact list stays one tap away. Without a meeting, all contacts are listed.
+  const teamHere = meeting ? team.filter((c) => asked.some(({ person }) => person.id === c.id)) : team;
+  const othersTeam = meeting ? team.filter((c) => !asked.some(({ person }) => person.id === c.id)) : [];
+  const personRow = (c: (typeof team)[number]) => (
+    <label key={c.id} className="flex min-h-11 min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+      <input type="checkbox" className="h-5 w-5 shrink-0" checked={!!picked[c.id]} onChange={() => setPicked({ ...picked, [c.id]: !picked[c.id] })} />
+      <span className="min-w-0 text-sm"><span className="block truncate font-medium">{c.name}</span><span className="block truncate text-xs text-slate-500">{roleLabel(c.role)} · {c.email}</span></span>
+    </label>
+  );
   const mailboxReady = !!box?.connected && !box.connected.needsReconnect;
   type Via = "self" | "mailbox" | "site";
-  const [sendVia, setSendVia] = useState<Via>("self");
-  const [pickedVia, setPickedVia] = useState(false);
+  const [sendVia, setSendVia] = useState<Via>(saved?.sendVia ?? "self");
+  const [pickedVia, setPickedVia] = useState<boolean>(saved?.pickedVia ?? false);
   // Until the teacher chooses: their connected email if they have one, else "I'll send it myself" (people open mail from someone they know).
   const via: Via = pickedVia ? (sendVia === "mailbox" && !mailboxReady ? "self" : sendVia) : (mailboxReady ? "mailbox" : "self");
   const [sendText, setSendText] = useState(false);
@@ -193,64 +235,40 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // My weekly availability: the poll's times are suggested from it.
+  // My weekly availability: the times to pick from.
   const [weekly, setWeekly] = useState<FreeWindow[] | null>(null);
   const [editWeekly, setEditWeekly] = useState(false);
   const [savingWeekly, setSavingWeekly] = useState(false);
-  const [length, setLength] = useState(60);
-  const [round, setRound] = useState(0);
-  const [suggestNote, setSuggestNote] = useState("");
+  const [length, setLength] = useState<number>(saved?.length ?? 60);
   const today = localDay();
   useEffect(() => { api(token, "GET", "/api/teacher-hub/availability").then((d) => setWeekly(cleanWeekly(d.weekly))).catch(() => setWeekly([])); }, [token]);
 
-  // The meeting's IEP deadline (from step 1 or the student's caseload date): times are suggested before it.
+  // The meeting's IEP deadline (from step 1 or the student's caseload date): times are offered before it.
   const deadline = meeting ? meetingDeadline(workspace, meeting) : "";
-  const deadlineName = meeting && deadlineLabel(meeting.type).startsWith("Reevaluation") ? "reevaluation deadline" : "IEP deadline";
-  // The people whose calendars are followed (a social worker, another teacher): times are suggested when they are not busy either.
+  const deadlineName = meeting ? nameOfDeadline(meeting.type) : "deadline";
+  // The people whose calendars are followed (a social worker, another teacher): their busy times are kept clear too.
   const people = othersCalendars(workspace);
   const [skipPeople, setSkipPeople] = useState<string[]>([]);
-  const theirEvents = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !skipPeople.includes(c.id)).map((c) => c.id));
-  function suggest(free: FreeWindow[], skip: number, minutes = length, without = skipPeople) {
-    // Repeating events are busy on every day they fall on (looking four months ahead); hidden events are not busy.
-    const theirs = othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !without.includes(c.id)).map((c) => c.id));
-    const busy = [...calendarEvents(workspace, today, addDays(today, 120)).filter((e) => e.meetingId !== initial.meetingId), ...theirs].filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end }));
-    const before = meeting?.date && meeting.date > today ? meeting.date : undefined;
-    const from = (() => { const d = new Date(`${today}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
-    // The IEP deadline: only times before it are suggested.
-    const until = deadline && deadline > from ? deadline : undefined;
-    let found = suggestTimes(free, { from, minutes, before, busy, skip, until });
-    if (!found.length && skip > 0) { setRound(0); found = suggestTimes(free, { from, minutes, before, busy, skip: 0, until }); }
-    if (!found.length) {
-      setSuggestNote(until
-        ? `None of your available times before the ${deadlineName} (${deadlineWords(deadline)}) are open long enough. Try a shorter meeting, add more availability, or type times below.`
-        : "None of your available times are long enough for that. Try a shorter meeting or add more availability.");
-      return;
-    }
-    setTimes(found.map((t) => ({ date: t.date, start: t.start, end: t.end })));
-    // A deadline that is today, tomorrow or already gone: the soonest times are offered instead.
-    const late = deadline && !until ? `The ${deadlineName} (${deadlineWords(deadline)}) is ${deadline < today ? "past" : "too close"}, so these are the soonest open times. ` : "";
-    setSuggestNote(late + (found.length < 3 ? `Only ${found.length} open ${found.length === 1 ? "time" : "times"} found in your availability${until ? ` before the ${deadlineName}` : ""}.` : ""));
-  }
-  // The first time this opens with no times typed in, the three times are already filled in.
-  const auto = useRef(false);
-  useEffect(() => {
-    if (auto.current || !weekly?.length) return;
-    auto.current = true;
-    if (times.every((t) => !t.date && !t.start)) suggest(weekly, 0);
-  }, [weekly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Everything already booked on my own calendar (events and meetings with a time), so no time is offered on top of it.
+  const myBooked = useMemo(() => bookedTimes(workspace, today, addDays(today, 120), initial.meetingId || ""), [workspace, today, initial.meetingId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const allDay = useMemo(() => allDayItems(workspace, today, addDays(today, 120)), [workspace, today]);
+  const busyAll = useMemo(() => [
+    ...myBooked,
+    ...othersEvents(workspace, today, addDays(today, 120), people.filter((c) => !skipPeople.includes(c.id)).map((c) => c.id)).filter((e) => e.start).map((e) => ({ date: e.date, start: e.start, end: e.end })),
+  ], [myBooked, workspace, today, skipPeople]); // eslint-disable-line react-hooks/exhaustive-deps
   async function saveWeekly() {
     if (!weekly) return;
     setSavingWeekly(true);
     try {
       const d = await api(token, "PUT", "/api/teacher-hub/availability", { weekly: cleanWeekly(weekly) });
-      const saved = cleanWeekly(d.weekly);
-      setWeekly(saved); setEditWeekly(false); auto.current = true; setRound(0);
-      if (saved.length) suggest(saved, 0);
+      setWeekly(cleanWeekly(d.weekly)); setEditWeekly(false);
     } catch (e: any) { setError(e?.message || "Could not save your availability."); }
     finally { setSavingWeekly(false); }
   }
+  useEffect(() => { DRAFTS.set(draftKey, { title, location, message, times, picked, guests, sendVia, pickedVia, length }); }, [draftKey, title, location, message, times, picked, guests, sendVia, pickedVia, length]);
 
   async function send() {
+    if (times.length < 2) { setError("Pick at least two times so people have a choice."); return; }
     setBusy(true); setError("");
     const invitees = [
       ...team.filter((c) => picked[c.id]).map((c) => ({ name: c.name, email: c.email, role: roleLabel(c.role) })),
@@ -262,7 +280,8 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         options: times.filter((t) => t.date || t.start), invitees,
       });
       // Remember the choice for next time.
-      setWorkspace((prev) => ({ ...prev, profile: { ...prev.profile, senderName, replyEmail: replyTo } }));
+      setWorkspace((prev) => ({ ...prev, profile: { ...prev.profile, senderName, replyEmail: replyTo },
+        guides: meeting ? prev.guides.map((g) => (g.student === meeting.student ? rememberParents(g, guests) : g)) : prev.guides }));
       const fell = data.mailboxProblem ? " Your connected email could not send, so these went out from A.R.I.S.E. Reader instead. Reconnect your email in the box above." : "";
       if (via === "self") return onSent("Your poll is ready. Send each person their link from the window that just opened, or later with “Send links” on the poll.", data.poll);
       onSent((data.notSent ? `Sent, but ${data.notSent} ${data.notSent === 1 ? "email" : "emails"} did not go through. Open the poll to see who.` : `Sent to ${invitees.length} ${invitees.length === 1 ? "person" : "people"}. Their answers will show up here.`) + fell);
@@ -271,7 +290,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
   }
 
   return (
-    <div className={embedded ? "" : "fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4"} {...(embedded ? {} : { role: "dialog", "aria-modal": true, "aria-label": "Ask for times", "data-testid": "poll-dialog", onMouseDown: (e: any) => { if (e.target === e.currentTarget) onClose(); } })}>
+    <div className={embedded ? "" : "fixed inset-0 kb-sheet z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4"} {...(embedded ? {} : { role: "dialog", "aria-modal": true, "aria-label": "Ask for times", "data-testid": "poll-dialog", onMouseDown: (e: any) => { if (e.target === e.currentTarget) onClose(); } })}>
     <div className={embedded ? "space-y-4" : "max-h-[94dvh] w-full max-w-3xl space-y-4 overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-3xl sm:p-6"} data-testid="poll-composer">
       {!embedded && (
         <div className="flex items-center justify-between gap-3">
@@ -279,102 +298,81 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
           <button type="button" onClick={onClose} aria-label="Close" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
         </div>
       )}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 min-w-0 gap-3 md:grid-cols-2">
         <Field placeholder="Meeting name, like IEP meeting for Jordan" aria-label="Meeting name" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={POLL_LIMITS.title} />
         <Field placeholder="Where (room or video link)" aria-label="Where" value={location} onChange={(e) => setLocation(e.target.value)} maxLength={POLL_LIMITS.location} />
       </div>
       <p className="text-xs text-slate-500">The email and the reply page show this name, so use a first name only.</p>
 
-      <div>
-        <div className="mb-2 text-sm font-semibold text-slate-800">Times that could work</div>
-        <div className="mb-3 rounded-2xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950" data-testid="suggest-times">
-          {weekly === null ? <span className="text-slate-600">Looking at your availability…</span> : (!weekly.length || editWeekly) ? (
-            <div className="space-y-3">
-              <div><span className="font-semibold">{weekly.length ? "Your availability" : "Set your availability first."}</span> {weekly.length ? "" : "Then three times you are available are filled in for you."}</div>
-              <WeeklyEditor value={weekly} onChange={setWeekly} label="you" />
-              <div className="flex flex-wrap gap-2">
-                <PrimaryButton onClick={saveWeekly} disabled={savingWeekly || !cleanWeekly(weekly).length}>{savingWeekly ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save and suggest 3 times</PrimaryButton>
-                {weekly.length > 0 && <GhostButton onClick={() => setEditWeekly(false)}>Cancel</GhostButton>}
-              </div>
-              {!weekly.length && <p className="text-xs text-slate-600">Or skip this and type your own times below.</p>}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div data-testid="suggest-why">Suggested from your availability{deadline && deadline > today ? <>, <b>before the {deadlineName} ({deadlineWords(deadline)})</b></> : ""}, and clear of anything already on your calendar{people.length > skipPeople.length ? " and on the calendars you follow" : ""}.</div>
-              {people.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Also keep clear of" data-testid="poll-clear-of">
-                  <span className="font-semibold">Also keep clear of:</span>
-                  {people.map((c) => { const on = !skipPeople.includes(c.id); return (
-                    <label key={c.id} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-900">
-                      <input type="checkbox" className="h-5 w-5" checked={on} onChange={() => { const next = on ? [...skipPeople, c.id] : skipPeople.filter((x) => x !== c.id); setSkipPeople(next); setRound(0); suggest(weekly, 0, length, next); }} /> {c.name}
-                    </label>
-                  ); })}
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <select aria-label="How long is the meeting" value={length} onChange={(e) => { const m = Number(e.target.value); setLength(m); setRound(0); suggest(weekly, 0, m); }} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 sm:text-sm">
-                  {[30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m} minutes</option>)}
-                </select>
-                <GhostButton onClick={() => { const next = round + 1; setRound(next); suggest(weekly, next); }}>Different times</GhostButton>
-                <GhostButton onClick={() => setEditWeekly(true)}>Edit my availability</GhostButton>
-              </div>
-              {suggestNote && <p className="text-xs text-amber-800" role="status">{suggestNote}</p>}
-            </div>
-          )}
+      {weekly !== null && (!weekly.length || editWeekly) && (
+        <div className="space-y-3 rounded-2xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950" data-testid="suggest-times">
+          <div><span className="font-semibold">{weekly.length ? "Your availability" : "Set your availability first."}</span> The times you can meet are offered from it.</div>
+          <WeeklyEditor value={weekly} onChange={setWeekly} label="you" />
+          <div className="flex flex-wrap gap-2">
+            <PrimaryButton onClick={saveWeekly} disabled={savingWeekly || !cleanWeekly(weekly).length}>{savingWeekly ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save</PrimaryButton>
+            {weekly.length > 0 && <GhostButton onClick={() => setEditWeekly(false)}>Cancel</GhostButton>}
+          </div>
         </div>
-        <div className="space-y-2">
-          {times.map((t, index) => (
-            <div key={index} className="grid grid-cols-[1fr_auto] items-center gap-2 sm:grid-cols-[1.4fr_1fr_1fr_auto]">
-              <Field type="date" aria-label={`Date ${index + 1}`} value={t.date} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, date: e.target.value } : x)))} />
-              <button type="button" aria-label={`Remove time ${index + 1}`} disabled={times.length <= 2} onClick={() => setTimes(times.filter((_, i) => i !== index))} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 sm:order-last"><Trash2 className="h-4 w-4" /></button>
-              <div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-2">
-                <Field type="time" aria-label={`Start ${index + 1}`} value={t.start} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, start: e.target.value } : x)))} />
-                <Field type="time" aria-label={`End ${index + 1} (optional)`} value={t.end} onChange={(e) => setTimes(times.map((x, i) => (i === index ? { ...x, end: e.target.value } : x)))} />
-              </div>
-              {/* A time that was typed in by hand may land on someone's busy time: say whose. */}
-              {busyPeople(theirEvents, t).length > 0 && <p className="col-span-full text-xs font-medium text-amber-800" role="status" data-testid="poll-busy-people">{busyPeople(theirEvents, t).join(" and ")} {busyPeople(theirEvents, t).length > 1 ? "are" : "is"} busy then.</p>}
-              {deadline && t.date && t.date >= deadline && <p className={`col-span-full text-xs font-medium ${t.date > deadline ? "text-red-700" : "text-amber-800"}`} role="status" data-testid="poll-after-deadline">This is {t.date === deadline ? "on" : "after"} the {deadlineName} ({deadlineWords(deadline)}).</p>}
-            </div>
-          ))}
-        </div>
-        {times.length < POLL_LIMITS.options && <div className="mt-2"><GhostButton onClick={() => setTimes([...times, blankTime()])}><Plus className="h-4 w-4" /> Add another time</GhostButton></div>}
-      </div>
-
-      <div>
-        <div className="mb-2 text-sm font-semibold text-slate-800">Who should be asked?</div>
-        {team.length > 0 && (
-          <div className="mb-3 grid gap-2 sm:grid-cols-2">
-            {team.map((c) => (
-              <label key={c.id} className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <input type="checkbox" className="h-5 w-5 shrink-0" checked={!!picked[c.id]} onChange={() => setPicked({ ...picked, [c.id]: !picked[c.id] })} />
-                <span className="min-w-0 text-sm"><span className="block truncate font-medium">{c.name}</span><span className="block truncate text-xs text-slate-500">{roleLabel(c.role)} · {c.email}</span></span>
+      )}
+      <Section n={1} title="When">
+        <PollTimes times={times} setTimes={setTimes} weekly={weekly} busy={busyAll} mine={myBooked} allDay={allDay} today={today} deadline={deadline} deadlineName={deadlineName}
+          length={length} setLength={setLength} max={POLL_LIMITS.options} onEditAvailability={() => setEditWeekly(true)} />
+        {people.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Also keep clear of" data-testid="poll-clear-of">
+            <span className="font-semibold text-slate-700">Also keep clear of:</span>
+            {people.map((c) => { const on = !skipPeople.includes(c.id); return (
+              <label key={c.id} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-900">
+                <input type="checkbox" className="h-5 w-5" checked={on} onChange={() => setSkipPeople(on ? [...skipPeople, c.id] : skipPeople.filter((x) => x !== c.id))} /> {c.name}
               </label>
-            ))}
+            ); })}
           </div>
         )}
+      </Section>
+
+      <Section n={2} title="Who">
+      <div className="min-w-0" data-testid="poll-people">
+        <div className="mb-1 text-sm font-semibold text-slate-800">{meeting ? `Who is coming to ${meeting.student.split(" ")[0]}'s ${meeting.type.toLowerCase()}?` : "Who should be asked?"}</div>
+        <p className="mb-3 text-xs text-slate-500">Tick everyone who should be asked for times. {meeting ? "Parents and this student's team are filled in for you. Change anyone you like." : ""}</p>
+        {teamHere.length > 0 && (
+          <div className="mb-4">
+            <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{meeting ? `${meeting.student.split(" ")[0]}'s team` : "My contacts"}</div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{teamHere.map(personRow)}</div>
+          </div>
+        )}
+        <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Parents and anyone else</div>
         <div className="space-y-2">
           {guests.map((g, index) => (
-            <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1.3fr_1fr_1fr_auto]">
-              <Field placeholder="Name" aria-label={`Name ${index + 1}`} value={g.name} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, name: e.target.value } : x)))} maxLength={POLL_LIMITS.name} />
-              <Field type="email" inputMode="email" placeholder={via === "self" ? "Email (optional)" : "Email"} aria-label={`Email ${index + 1}`} value={g.email} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, email: e.target.value } : x)))} maxLength={120} />
-              <Field type="tel" inputMode="tel" placeholder="Phone (optional)" aria-label={`Phone ${index + 1}`} value={g.phone} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, phone: e.target.value } : x)))} maxLength={30} />
-              <select aria-label={`Role ${index + 1}`} value={g.role} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, role: e.target.value } : x)))} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:min-h-10 sm:text-sm">
+            <div key={index} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-2.5">
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1"><Field placeholder="Name" aria-label={`Name ${index + 1}`} value={g.name} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, name: e.target.value } : x)))} maxLength={POLL_LIMITS.name} /></div>
+                <button type="button" aria-label={`Remove person ${index + 1}`} onClick={() => setGuests(guests.filter((_, i) => i !== index))} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+              </div>
+              <div className="mt-2 grid grid-cols-1 min-w-0 gap-2 sm:grid-cols-2">
+                <Field type="email" inputMode="email" placeholder={via === "self" ? "Email (optional)" : "Email"} aria-label={`Email ${index + 1}`} value={g.email} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, email: e.target.value } : x)))} maxLength={120} />
+                <Field type="tel" inputMode="tel" placeholder="Phone (optional)" aria-label={`Phone ${index + 1}`} value={g.phone} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, phone: e.target.value } : x)))} maxLength={30} />
+              </div>
+              <select aria-label={`Role ${index + 1}`} value={g.role} onChange={(e) => setGuests(guests.map((x, i) => (i === index ? { ...x, role: e.target.value } : x)))} className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-base sm:min-h-10 sm:text-sm">
                 {INVITEE_ROLES.map((r) => <option key={r}>{r}</option>)}
               </select>
-              <button type="button" aria-label={`Remove person ${index + 1}`} onClick={() => setGuests(guests.filter((_, i) => i !== index))} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
         </div>
-        <div className="mt-2"><GhostButton onClick={() => setGuests([...guests, blankGuest()])}><Plus className="h-4 w-4" /> Add another person</GhostButton></div>
         <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Add a person by role">
           {QUICK_ROLES.map((role) => (
             <button key={role} type="button" onClick={() => { setGuests((prev) => [...(seed && prev.length === 1 && !prev[0].name && !prev[0].email ? [] : prev), blankGuest(role)]); setSeed(false); }} className="min-h-11 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ {role}</button>
           ))}
         </div>
+        {meeting && othersTeam.length > 0 && (
+          <details className="mt-4 rounded-2xl border border-slate-200 p-2.5">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-slate-800">More people from my contacts ({othersTeam.length})</summary>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">{othersTeam.map(personRow)}</div>
+          </details>
+        )}
         {!team.length && <p className="mt-2 text-xs text-slate-500">Tip: add each student's team on the Caseload (press Edit on a student), with emails, and they'll be picked here for you.</p>}
-        {(parents.length > 0 || Object.keys(picked).length > 0) && <p className="mt-2 text-xs text-slate-500">This student's parents and team are already filled in. Change anyone you like.</p>}
       </div>
+      </Section>
 
+      <Section n={3} title="Send">
       <div>
         <div className="mb-2 text-sm font-semibold text-slate-800">How should it be sent?</div>
         <p className="mb-2 text-xs text-slate-500">People open messages from someone they know. Each way below has its own benefit.</p>
@@ -393,7 +391,7 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
             keep="People may not recognize the sender, and it can land in junk, so let them know to watch for it. Your name shows on it and replies go to the address you choose." />
         </div>
         {via !== "self" && (
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
             <label className="text-xs font-medium text-slate-600">Name on the message
               <Field className="mt-1" aria-label="Name on the email" value={senderName} onChange={(e) => setSenderName(e.target.value)} maxLength={POLL_LIMITS.senderName} />
             </label>
@@ -422,10 +420,11 @@ export function Composer({ box, textAvailable, token, workspace, setWorkspace, a
         {via === "self" && textAvailable && <p className="mt-2 text-xs text-slate-500">Want the site to text people for you? Choose one of the other two ways above, then tick “Also text”.</p>}
       </div>
 
-      <TextArea placeholder="A short note (optional)" aria-label="Note" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={POLL_LIMITS.message} className="min-h-16" />
+      <TextArea placeholder="A short note (optional)" aria-label="Note" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={POLL_LIMITS.message} className="mt-3 min-h-16" />
+      </Section>
       {error && <div role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
       <div className="flex flex-wrap gap-2">
-        <PrimaryButton onClick={send} disabled={busy || (sendText && via !== "self" && !textOk)}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {via === "self" ? "Create the poll" : "Send to everyone"}</PrimaryButton>
+        <PrimaryButton onClick={send} disabled={busy || times.length < 2 || (sendText && via !== "self" && !textOk)}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {via === "self" ? "Create the poll" : "Send to everyone"}</PrimaryButton>
         {!embedded && <GhostButton onClick={onClose}>Cancel</GhostButton>}
       </div>
     </div>

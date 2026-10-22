@@ -31,7 +31,7 @@ function writeStack(stack: string[]) {
 
 export function authenticatedHome(user: NavigationUser | null | undefined) {
   if (!user) return "/";
-  if (user.isAdmin) return "/admin";
+  if (user.isAdmin) return "/workhub";
   if (user.role === "teacher") return "/teacher-dashboard";
   if (user.role === "parent") return "/parent-dashboard";
   if (user.role === "todo") return "/lifehub";

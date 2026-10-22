@@ -60,9 +60,9 @@ export default function Chores({ family, setFamily, today, makeId, say }: Sectio
     </div>}
 
     {!family.chores.length ? <Panel><Empty icon={<Sparkles size={26} />} title="No chores yet" action={<button onClick={() => setDraft(blank())} className={soft}><Plus size={16} /> Add the first chore</button>}>Start with a few daily jobs. You can rotate a chore between kids so it changes hands every week.</Empty></Panel> : <>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <Panel eyebrow={shortDate(today, { weekday: "long", month: "long", day: "numeric" })} title={left ? `${left} chore${left === 1 ? "" : "s"} left today` : todays.length ? "All done today! 🎉" : "Nothing due today"}>
-          {todays.length ? <div className="grid gap-2 sm:grid-cols-2">
+          {todays.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {todays.map((c) => {
               const done = !!choreDoneOn(family, c.id, today);
               const owner = memberOf(family, choreOwner(c, today));

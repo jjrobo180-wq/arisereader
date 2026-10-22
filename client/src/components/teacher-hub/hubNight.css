@@ -1,5 +1,19 @@
 /* Teacher Hub night mode: the Hub's light colors swapped for dark ones, only inside .hub-night. */
 .hub-night { color-scheme: dark; background: #0b1220; color: #e2e8f0; }
+/* Safety net (October 2026): colours not listed below still turn dark. Dark written colours (#0…–#3…)
+   become light, pale backgrounds (#e…, #f…) and the gray families and pale tints become dark. The
+   listed rules below are more specific and win; note cards keep their paper colours. */
+.hub-night [class*="text-[#0"], .hub-night [class*="text-[#1"], .hub-night [class*="text-[#2"], .hub-night [class*="text-[#3"],
+.hub-night .text-gray-900, .hub-night .text-gray-800, .hub-night .text-black { color: #f1f5f9; }
+.hub-night .text-gray-700, .hub-night .text-gray-600 { color: #cbd5e1; }
+.hub-night .text-gray-500 { color: #94a3b8; }
+.hub-night [class*="bg-[#f"], .hub-night [class*="bg-[#e"], .hub-night .bg-gray-50, .hub-night .bg-gray-100 { background-color: #1a2540; }
+.hub-night [class*="border-[#e"], .hub-night .border-gray-200 { border-color: #26334f; }
+.hub-night .bg-pink-50, .hub-night .bg-pink-100, .hub-night .bg-purple-50, .hub-night .bg-violet-50, .hub-night .bg-indigo-50, .hub-night .bg-blue-50, .hub-night .bg-sky-50,
+.hub-night .bg-green-50, .hub-night .bg-yellow-50, .hub-night .bg-orange-50 { background-color: rgba(99, 102, 241, 0.16); }
+.hub-night [class*="from-white"], .hub-night [class*="bg-gradient"][class*="from-"][class*="-50"] { background-image: none; background-color: #1a2540; }
+.hub-night .note-card [class*="text-[#"] { color: #1e1b33; }
+
 .hub-night .bg-white, .hub-night .bg-white\/95 { background-color: #111a2e; }
 .hub-night .bg-slate-100, .hub-night .bg-slate-100\/95 { background-color: #0b1220; }
 .hub-night .bg-slate-50, .hub-night .hover\:bg-slate-50:hover, .hub-night .hover\:bg-slate-100:hover { background-color: #1a2540; }
@@ -47,3 +61,31 @@
 .hub-night .bg-teal-50\/60 { background-color: rgba(20, 184, 166, 0.14); }
 .hub-night .border-slate-900, .hub-night .border-slate-950 { border-color: #e2e8f0; }
 .hub-night .border-slate-950.bg-slate-950 { border-color: #475569; }
+
+/* Found by checking every WorkHub screen at night (October 2026). */
+/* The sidebar panel on tablets and computers was still white, with light words on it. */
+@media (min-width: 768px) {
+  .hub-night .md\:bg-white { background-color: #111a2e; }
+  .hub-night .md\:border-slate-200 { border-color: #26334f; }
+}
+.hub-night .bg-white\/80, .hub-night .bg-white\/90, .hub-night .bg-white\/60 { background-color: rgba(17, 26, 46, 0.92); }
+/* The chosen screen in the phone menu is marked in the accent; at night the accent is lightened so it reads on the dark menu. */
+.hub-paper.hub-night [data-hub-nav][aria-current="page"] { color: #c4b8ff; color: color-mix(in srgb, var(--hub-accent, #5b3be0) 40%, #ffffff); }
+/* Light words on the dark cards (the Reader tab's class cards) stay light. */
+.hub-night .bg-slate-950 .text-slate-300, .hub-night .bg-slate-950 .text-slate-400, .hub-night .bg-slate-900 .text-slate-300, .hub-night .bg-slate-900 .text-slate-400 { color: #cbd5e1; }
+/* Apps from the App Store (the Plugin Kit) use LifeHub's colours, so they get LifeHub's night colours too. */
+.hub-night .bg-\[\#f6f7fc\] { background-color: #0b1220; }
+.hub-night .text-\[\#232139\], .hub-night .text-\[\#242238\], .hub-night .text-\[\#2d2555\] { color: #f1f5f9; }
+.hub-night .text-\[\#7869d7\], .hub-night .text-\[\#7866e1\], .hub-night .text-violet-600, .hub-night .text-violet-700, .hub-night .hover\:text-violet-700:hover { color: #c4b8ff; }
+.hub-night .border-\[\#e7e8f0\], .hub-night .border-\[\#e7e8ef\], .hub-night .border-slate-400 { border-color: #2c3b5c; }
+.hub-night .bg-violet-50, .hub-night .hover\:bg-violet-50:hover { background-color: rgba(139, 124, 255, 0.16); }
+.hub-night .bg-violet-100, .hub-night .hover\:bg-violet-100:hover { background-color: rgba(139, 124, 255, 0.26); }
+.hub-night .bg-slate-300 { background-color: #3b4a6b; }
+.hub-night .hover\:bg-slate-200:hover { background-color: #26334f; }
+.hub-night .ring-slate-200, .hub-night .ring-slate-300 { --tw-ring-color: #2c3b5c; }
+.hub-night .ring-violet-100 { --tw-ring-color: #3d3a6b; }
+.hub-night .bg-rose-50, .hub-night .hover\:bg-rose-100:hover { background-color: rgba(244, 63, 94, 0.15); }
+.hub-night .border-rose-100, .hub-night .border-rose-200 { border-color: rgba(244, 63, 94, 0.35); }
+.hub-night .text-rose-500, .hub-night .text-rose-600, .hub-night .hover\:text-rose-500:hover, .hub-night .hover\:text-rose-600:hover { color: #fda4af; }
+.hub-night .text-emerald-700 { color: #6ee7b7; }
+.hub-night .bg-violet-50 .text-violet-700, .hub-night .bg-violet-50 .text-violet-800, .hub-night .text-violet-800 { color: #c4b8ff; }

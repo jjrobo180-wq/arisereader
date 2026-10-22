@@ -1,7 +1,23 @@
 // Building blocks for the Arise LifeHub Family Hub, in the LifeHub's own look.
-import { useEffect, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { ChevronDown, X } from "lucide-react";
 import type { Family, Member } from "@shared/familyHub";
+
+// Which panels are folded shut, remembered on this phone or computer.
+const COLLAPSED_KEY = "arise-lifehub-collapsed";
+function readCollapsed(): string[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "[]");
+    return Array.isArray(saved) ? saved.filter((k) => typeof k === "string") : [];
+  } catch { return []; }
+}
+function saveCollapsed(key: string, closed: boolean) {
+  try {
+    const keys = new Set(readCollapsed());
+    if (closed) keys.add(key); else keys.delete(key);
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify(Array.from(keys)));
+  } catch { /* the choice just isn't remembered */ }
+}
 
 export type SetFamily = (update: (family: Family) => Family) => void;
 export type SectionProps = {
@@ -19,13 +35,28 @@ export const soft = buttonClass + " bg-violet-50 text-violet-700 hover:bg-violet
 export const plain = buttonClass + " border border-slate-200 bg-white text-slate-600 hover:bg-slate-50";
 export const danger = buttonClass + " border border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100";
 
-export function Panel({ title, eyebrow, right, children, className = "" }: { title?: ReactNode; eyebrow?: string; right?: ReactNode; children: ReactNode; className?: string }) {
-  return <section className={`min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5 ${className}`}>
-    {(title || right) && <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div className="min-w-0">{eyebrow && <p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p>}{title && <h2 className="mt-0.5 text-lg font-black text-[#232139]">{title}</h2>}</div>
-      {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
+/** A titled box, in the LifeHub's own look. With a `collapseKey` its heading folds the box
+ *  shut and open, and it stays the way it was left until the person changes it again. */
+export function Panel({ title, eyebrow, right, children, className = "", collapseKey }: { title?: ReactNode; eyebrow?: string; right?: ReactNode; children: ReactNode; className?: string; collapseKey?: string }) {
+  const [closed, setClosed] = useState(() => !!collapseKey && readCollapsed().includes(collapseKey));
+  const folds = !!collapseKey && !!title;
+  const toggle = () => { saveCollapsed(collapseKey!, !closed); setClosed(!closed); };
+  return <section className={`min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-5 ${className}`} data-collapsed={folds && closed ? "true" : undefined}>
+    {(title || right) && <div className={`flex flex-wrap items-center justify-between gap-3 ${folds && closed ? "" : "mb-4"}`}>
+      <div className="min-w-0">
+        {eyebrow && <p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p>}
+        {title && (folds ? (
+          <button type="button" onClick={toggle} aria-expanded={!closed} title={closed ? "Show" : "Hide"} data-testid={`lifehub-fold-${collapseKey}`}
+            className="-ml-1.5 mt-0.5 flex min-h-11 items-center gap-1.5 rounded-xl px-1.5 text-left text-lg font-black text-[#232139] hover:bg-slate-50">
+            <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${closed ? "-rotate-90" : ""}`} />
+            <span className="min-w-0 break-words">{title}</span>
+          </button>
+        ) : <h2 className="mt-0.5 text-lg font-black text-[#232139]">{title}</h2>)}
+      </div>
+      {!(folds && closed) && right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
     </div>}
-    {children}
+    {/* Hidden, not removed, so what was typed or picked inside is still there when it opens again. */}
+    <div hidden={folds && closed}>{children}</div>
   </section>;
 }
 
@@ -51,8 +82,8 @@ export function Modal({ title, eyebrow = "Family Hub", onClose, children, wide }
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [onClose]);
-  return <div className="fixed inset-0 z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div role="dialog" aria-modal="true" aria-label={title} className={`max-h-[94dvh] w-full overflow-y-auto rounded-t-[1.5rem] bg-white p-5 shadow-2xl sm:rounded-[1.5rem] sm:p-7 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
+  return <div className="fixed inset-0 kb-sheet z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div role="dialog" aria-modal="true" aria-label={title} className={`max-h-[94dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[1.5rem] sm:p-7 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}>
       <div className="mb-5 flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">{eyebrow}</p><h2 className="mt-1 text-xl font-black">{title}</h2></div><button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
       {children}
     </div>
@@ -63,10 +94,18 @@ export function Label({ text, children, className = "" }: { text: string; childr
   return <label className={`block text-xs font-bold text-slate-600 ${className}`}>{text}<div className="mt-1.5">{children}</div></label>;
 }
 
+/** White or near-black, whichever reads better on a colour (a member's colour can be pale). */
+function inkOn(hex: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
+  const [r, g, b] = [1, 3, 5].map((i) => { const v = parseInt(hex.slice(i, i + 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 1.05 / (L + 0.05) >= (L + 0.05) / 0.05 ? "#ffffff" : "#1e1b33";
+}
+
 export function Avatar({ member, size = "md" }: { member?: Member; size?: "sm" | "md" | "lg" }) {
   const box = size === "sm" ? "h-6 w-6 text-[11px]" : size === "lg" ? "h-12 w-12 text-xl" : "h-8 w-8 text-sm";
   if (!member) return <span className={`inline-flex shrink-0 items-center justify-center rounded-full bg-slate-100 font-black text-slate-400 ${box}`}>?</span>;
-  return <span className={`inline-flex shrink-0 items-center justify-center rounded-full font-black text-white ${box}`} style={{ background: member.color }} aria-hidden="true">{member.emoji || member.name.slice(0, 1).toUpperCase()}</span>;
+  return <span className={`inline-flex shrink-0 items-center justify-center rounded-full font-black ${box}`} style={{ background: member.color, color: inkOn(member.color) }} aria-hidden="true">{member.emoji || member.name.slice(0, 1).toUpperCase()}</span>;
 }
 
 export function MemberTag({ member, fallback = "Anyone" }: { member?: Member; fallback?: string }) {

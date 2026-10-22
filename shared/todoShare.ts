@@ -16,7 +16,8 @@ export type ShareTarget =
   | { kind: "trips"; id: string }      // id "" = every upcoming trip
   | { kind: "chores" }
   | { kind: "goals" }
-  | { kind: "health"; id: string };    // one person's food & fitness
+  | { kind: "health"; id: string }     // one person's food & fitness
+  | { kind: "links" };                 // the family's link page
 
 const ID = /^[\w.-]{1,100}$/;
 
@@ -25,7 +26,7 @@ export function parseTarget(value: unknown): ShareTarget | null {
   if (typeof value !== "string" || value.length > 120) return null;
   const [kind, id = "", extra] = value.split(":");
   if (extra !== undefined || (id && !ID.test(id))) return null;
-  if (kind === "calendar" || kind === "bills" || kind === "chores" || kind === "goals") return id ? null : { kind };
+  if (kind === "calendar" || kind === "bills" || kind === "chores" || kind === "goals" || kind === "links") return id ? null : { kind };
   if (kind === "tasks") return { kind, id };
   if (kind === "trips") return id ? null : { kind: "trips", id: "" };
   if (kind === "trip") return id ? { kind: "trips", id } : null;
@@ -41,6 +42,7 @@ export function targetKey(t: ShareTarget): string {
 export type GuestVote = { voter: string; name: string; optionId: string };
 type Person = { name: string; emoji: string; color: string };
 export type SharedView =
+  | { kind: "links"; title: string; bio: string; style?: "buttons" | "directory"; links: { title: string; url: string; emoji: string; group?: string }[] }
   | { kind: "poll"; title: string; question: string; pollKind: string; open: boolean; closesOn: string; options: { id: string; label: string; votes: number }[]; total: number; guests: string[] }
   | { kind: "tasks"; title: string; lists: { name: string; color: string; tasks: { title: string; notes: string; due: string; time: string; assignee: string; priority: string; done: boolean }[] }[] }
   | { kind: "calendar"; title: string; days: { date: string; items: { title: string; time: string; endTime: string; location: string; color: string; calendar: string; people: string[] }[] }[] }
@@ -73,6 +75,11 @@ export function sharedView(workspace: unknown, target: ShareTarget, today: strin
   const family = cleanFamily(ws.family);
   const members = family.members;
   if (!isDay(today)) return null;
+
+  if (target.kind === "links") {
+    const page = family.linkPage;
+    return { kind: "links", title: page.title || opts.ownerName || "My links", bio: page.bio, ...(page.style === "directory" ? { style: "directory" as const } : {}), links: page.links.map((l) => ({ title: l.title, url: l.url, emoji: l.emoji, ...(l.group ? { group: l.group } : {}) })) };
+  }
 
   if (target.kind === "poll") {
     const result = pollVotes(family, target.id, opts.guests || []);
@@ -203,6 +210,7 @@ export function targetLabel(workspace: unknown, t: ShareTarget, ownerName = ""):
     case "trips": return t.id ? `Trip: ${family.trips.find((x) => x.id === t.id)?.name || "(deleted)"}` : "Upcoming trips";
     case "chores": return "Chore chart";
     case "goals": return "Goals";
+    case "links": return "Link page";
     case "health": return `Food & fitness: ${healthPeople(family, ownerName).find((m) => m.id === t.id)?.name || "(removed)"}`;
   }
 }

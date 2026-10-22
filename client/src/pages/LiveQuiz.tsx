@@ -103,16 +103,20 @@ export default function LiveQuiz() {
       cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || "Something went wrong. Please try again.");
+    if (!response.ok) { const e: any = new Error(data.message || "Something went wrong. Please try again."); e.code = data.code; throw e; }
     return data;
   }
+
+  // True once a call has come back "premium_required" — shown as a lock banner, not a raw error.
+  const [premiumLocked, setPremiumLocked] = useState(false);
+  const noteIfLocked = (e: unknown) => { if (e instanceof Error && (e as any).code === "premium_required") { setPremiumLocked(true); return true; } return false; };
 
   async function loadTeacherHome() {
     if (!isTeacher || id) return;
     try {
       const [saved, ready] = await Promise.all([api("/api/live-quizzes"), api("/api/live-quizzes/presets")]);
       setQuizzes(saved); setPresets(ready);
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { if (!noteIfLocked(e)) setError((e as Error).message); }
   }
 
   async function loadRoom(roomId: string) {
@@ -134,7 +138,7 @@ export default function LiveQuiz() {
       if (waiting || !alive) return;
       waiting = true;
       try { await loadRoom(id); if (alive) setError(""); }
-      catch (e) { if (alive) setError((e as Error).message); }
+      catch (e) { if (alive && !noteIfLocked(e)) setError((e as Error).message); }
       finally { waiting = false; }
     };
     void refresh();
@@ -159,7 +163,7 @@ export default function LiveQuiz() {
   async function run(key: string, operation: () => Promise<void>) {
     if (busy) return;
     setBusy(key); setError(""); setNotice("");
-    try { await operation(); } catch (e) { setError((e as Error).message); }
+    try { await operation(); } catch (e) { if (!noteIfLocked(e)) setError((e as Error).message); }
     finally { setBusy(""); }
   }
 
@@ -276,13 +280,17 @@ export default function LiveQuiz() {
         </div>
       </header>
 
+      {premiumLocked && <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-300/40 bg-amber-500/10 p-4 font-bold text-amber-100" data-testid="live-quiz-premium-locked">
+        <span className="min-w-0 flex-1">A.R.I.S.E. Live Classroom needs the Class plan.</span>
+        <a href="#/billing" className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl bg-amber-400 px-3 text-sm font-black text-slate-950 hover:bg-amber-300">Get the Class plan</a>
+      </div>}
       {error && <div role="alert" className="mb-5 rounded-2xl border border-red-400/50 bg-red-950/80 p-4 font-bold">{error}</div>}
       {notice && <div className="mb-5 rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 font-bold text-emerald-100">{notice}</div>}
 
       {!id && isTeacher && <>
         <section className="relative mb-5 overflow-hidden rounded-[2rem] border border-white/10 bg-[#11182e] p-5 shadow-2xl sm:p-8">
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-violet-500/10 to-orange-500/10" />
-          <div className="relative grid gap-6 lg:grid-cols-[1.1fr_.9fr] lg:items-center">
+          <div className="relative grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_.9fr] lg:items-center">
             <div>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-black tracking-widest text-cyan-200"><Sparkles size={14} /> LIVE GAME STUDIO</div>
               <h1 className="text-4xl font-black leading-tight sm:text-6xl">Turn any lesson into a live game.</h1>
@@ -307,7 +315,7 @@ export default function LiveQuiz() {
             </button>)}
         </nav>
 
-        {teacherView === "create" && <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
+        {teacherView === "create" && <div className="grid grid-cols-1 gap-5 xl:grid-cols-[420px_1fr]">
           <aside className="rounded-[2rem] border border-white/10 bg-[#11182e] p-4 sm:p-5">
             <p className="text-xs font-black tracking-widest text-cyan-300">1. PICK THE EXPERIENCE</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -330,7 +338,7 @@ export default function LiveQuiz() {
             <textarea value={aiTopic} onChange={e => setAiTopic(e.target.value)} maxLength={180}
               placeholder="Example: 7th grade ratios, or Chapters 1–3 of The Giver"
               className="mt-2 min-h-24 w-full resize-none rounded-2xl border border-white/15 bg-black/20 p-4 text-base font-semibold outline-none focus:border-cyan-300/50" />
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className="text-sm font-black">Grade / level
                 <select value={aiGrade} onChange={e => setAiGrade(e.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-white/15 bg-[#0b1020] px-3">
                   {["K–2", "3–5", "6–8", "9–12", "Mixed levels"].map(g => <option key={g}>{g}</option>)}
@@ -358,7 +366,7 @@ export default function LiveQuiz() {
 
         {teacherView === "sets" && <section>
           <div className="mb-4"><p className="text-xs font-black tracking-widest text-amber-300">READY TO PLAY</p><h2 className="text-3xl font-black">Premade classroom sets</h2><p className="mt-1 text-slate-300">Use them instantly or customize first.</p></div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{presets.map(preset => {
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{presets.map(preset => {
             const info = MODES[preset.gameType]; const Icon = info.icon;
             return <article key={preset.id} className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#11182e] p-5">
               <div className={"absolute inset-0 bg-gradient-to-br opacity-60 " + info.glow} />
@@ -378,7 +386,7 @@ export default function LiveQuiz() {
 
         {teacherView === "saved" && <section>
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black tracking-widest text-emerald-300">YOUR LIBRARY</p><h2 className="text-3xl font-black">My live games</h2></div><button onClick={() => openManual("quiz")} className="flex min-h-11 items-center gap-2 rounded-xl border border-white/20 px-4 font-black"><Plus size={17} /> New game</button></div>
-          <div className="grid gap-3 md:grid-cols-2">{quizzes.map(q => {
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{quizzes.map(q => {
             const info = MODES[q.gameType || "quiz"]; const Icon = info.icon;
             return <article key={q.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#11182e] p-4">
               <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl border " + info.panel}><Icon className={info.accent} /></div>
@@ -402,7 +410,7 @@ export default function LiveQuiz() {
               <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-black">Question {i + 1}</h3>{questions.length > 1 && <button onClick={() => setQuestions(prev => prev.filter((_, n) => n !== i))} className="text-sm font-bold text-rose-300">Remove</button>}</div>
               <input value={q.prompt} onChange={e => setQuestion(i, { prompt: e.target.value })} maxLength={240} placeholder="Question"
                 className="min-h-12 w-full rounded-xl border border-white/15 bg-[#18223e] px-3 font-semibold" />
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">{q.options.map((option, n) => <label key={n}
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{q.options.map((option, n) => <label key={n}
                 className={"flex min-h-12 items-center gap-2 rounded-xl border p-2 " + (q.correct === letters[n] ? "border-emerald-300 bg-emerald-500/10" : "border-white/10")}>
                 <input type="radio" name={`correct-${i}`} checked={q.correct === letters[n]} onChange={() => setQuestion(i, { correct: letters[n] })} />
                 <strong>{letters[n]}</strong>
@@ -430,7 +438,7 @@ export default function LiveQuiz() {
         <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#11182e] p-6 text-center shadow-2xl sm:p-10">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(249,115,22,.18),transparent_45%)]" />
           <div className="relative">
-            <div className="mx-auto grid h-20 w-20 place-items-center rounded-[1.75rem] bg-gradient-to-br from-orange-400 to-rose-600 shadow-[0_0_50px_rgba(249,115,22,.28)]"><Gamepad2 size={40} /></div>
+            <div className="mx-auto grid grid-cols-1 h-20 w-20 place-items-center rounded-[1.75rem] bg-gradient-to-br from-orange-400 to-rose-600 shadow-[0_0_50px_rgba(249,115,22,.28)]"><Gamepad2 size={40} /></div>
             <h1 className="mt-5 text-4xl font-black">Join the game</h1>
             <p className="mt-2 font-semibold text-slate-300">Enter the six-character code on your teacher’s screen.</p>
             <input value={code} maxLength={6} autoComplete="off" onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, ""))}
@@ -444,7 +452,7 @@ export default function LiveQuiz() {
         </div>
       </section>}
 
-      {id && !room && !error && <div className="grid min-h-[55vh] place-items-center"><div className="text-center"><Loader2 className="mx-auto animate-spin text-cyan-300" size={42} /><p className="mt-3 font-black text-slate-300">Loading live game…</p></div></div>}
+      {id && !room && !error && <div className="grid grid-cols-1 min-h-[55vh] place-items-center"><div className="text-center"><Loader2 className="mx-auto animate-spin text-cyan-300" size={42} /><p className="mt-3 font-black text-slate-300">Loading live game…</p></div></div>}
 
       {id && room && <div className="mx-auto max-w-6xl">
         <section className={"relative mb-4 overflow-hidden rounded-[2rem] border bg-[#11182e] p-4 sm:p-6 " + mode.panel}>
@@ -465,19 +473,19 @@ export default function LiveQuiz() {
           </div>
         </section>
 
-        {room.status === "lobby" && <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
+        {room.status === "lobby" && <section className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="rounded-[2rem] border border-white/10 bg-[#11182e] p-5 sm:p-8">
             <div className="text-center"><Users className="mx-auto text-cyan-300" size={46} /><h2 className="mt-3 text-3xl font-black">{room.players.length} {room.players.length === 1 ? "player" : "players"} ready</h2><p className="mt-2 font-semibold text-slate-300">{isTeacher ? "Students join with the code above. Start when the room is ready." : "Your teacher will start the game."}</p></div>
             <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">{room.players.map((p, index) => <div key={p.user_id} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 font-black">{initials(p.display_name)}</div>
+              <div className="grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 font-black">{initials(p.display_name)}</div>
               <span className="min-w-0 truncate font-black">{p.display_name}</span>{index === 0 && room.players.length > 1 && <Star className="ml-auto text-amber-300" size={15} />}
             </div>)}</div>
             {isTeacher && <button onClick={() => advance("start")} disabled={!!busy || room.players.length === 0} className="mt-7 min-h-16 w-full rounded-2xl bg-gradient-to-r from-orange-400 to-rose-500 text-xl font-black disabled:opacity-40"><Play className="mr-2 inline" /> Start {mode.name}</button>}
           </div>
           <aside className="rounded-[2rem] border border-white/10 bg-[#0d1327] p-5">
             <p className="text-xs font-black tracking-widest text-white/40">GAME PREVIEW</p>
-            {room.gameType === "wheel" ? <div className="mt-5 grid place-items-center"><div className="relative h-56 w-56 rounded-full border-[10px] border-white/10 bg-[conic-gradient(#ec4899_0_25%,#8b5cf6_25%_50%,#06b6d4_50%_75%,#f59e0b_75%)] shadow-[0_0_55px_rgba(217,70,239,.18)]"><div className="absolute inset-[32%] grid place-items-center rounded-full bg-slate-950 text-3xl">🎡</div></div><p className="mt-4 font-black">Categories spin before every question.</p></div>
-            : room.gameType === "jeopardy" && Object.keys(boardGroups).length ? <div className="mt-4 grid grid-cols-2 gap-2">{Object.entries(boardGroups).slice(0, 6).map(([category, cells]) => <div key={category} className="rounded-xl bg-blue-700 p-2 text-center"><strong className="block truncate text-xs uppercase">{category}</strong><div className="mt-2 grid gap-1">{cells.slice(0, 3).map(cell => <span key={cell.index} className="rounded bg-blue-950/70 py-1 font-black text-amber-300">{cell.value}</span>)}</div></div>)}</div>
+            {room.gameType === "wheel" ? <div className="mt-5 grid grid-cols-1 place-items-center"><div className="relative h-56 w-56 rounded-full border-[10px] border-white/10 bg-[conic-gradient(#ec4899_0_25%,#8b5cf6_25%_50%,#06b6d4_50%_75%,#f59e0b_75%)] shadow-[0_0_55px_rgba(217,70,239,.18)]"><div className="absolute inset-[32%] grid grid-cols-1 place-items-center rounded-full bg-slate-950 text-3xl">🎡</div></div><p className="mt-4 font-black">Categories spin before every question.</p></div>
+            : room.gameType === "jeopardy" && Object.keys(boardGroups).length ? <div className="mt-4 grid grid-cols-2 gap-2">{Object.entries(boardGroups).slice(0, 6).map(([category, cells]) => <div key={category} className="rounded-xl bg-blue-700 p-2 text-center"><strong className="block truncate text-xs uppercase">{category}</strong><div className="mt-2 grid grid-cols-1 gap-1">{cells.slice(0, 3).map(cell => <span key={cell.index} className="rounded bg-blue-950/70 py-1 font-black text-amber-300">{cell.value}</span>)}</div></div>)}</div>
             : <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-5 text-center"><div className="text-6xl">{mode.emoji}</div><h3 className="mt-3 text-xl font-black">{mode.name}</h3><p className="mt-2 text-sm font-semibold text-white/50">{MODES[room.gameType].description}</p><div className="mt-4 rounded-xl bg-black/20 p-3 text-sm font-black">{room.questionCount} rounds</div></div>}
           </aside>
         </section>}
@@ -494,8 +502,8 @@ export default function LiveQuiz() {
             </div>
           </div>
 
-          {room.gameType === "wheel" && <div className="mb-4 grid place-items-center overflow-hidden rounded-[2rem] border border-fuchsia-300/20 bg-fuchsia-500/10 p-4">
-            <div className="relative h-32 w-32 rounded-full border-[7px] border-white/15 bg-[conic-gradient(#ec4899_0_25%,#8b5cf6_25%_50%,#06b6d4_50%_75%,#f59e0b_75%)] transition-transform duration-1000" style={{ transform: `rotate(${wheelRotation}deg)` }}><div className="absolute inset-[34%] grid place-items-center rounded-full bg-slate-950 text-xl">🎡</div></div>
+          {room.gameType === "wheel" && <div className="mb-4 grid grid-cols-1 place-items-center overflow-hidden rounded-[2rem] border border-fuchsia-300/20 bg-fuchsia-500/10 p-4">
+            <div className="relative h-32 w-32 rounded-full border-[7px] border-white/15 bg-[conic-gradient(#ec4899_0_25%,#8b5cf6_25%_50%,#06b6d4_50%_75%,#f59e0b_75%)] transition-transform duration-1000" style={{ transform: `rotate(${wheelRotation}deg)` }}><div className="absolute inset-[34%] grid grid-cols-1 place-items-center rounded-full bg-slate-950 text-xl">🎡</div></div>
             <div className="mt-2 text-sm font-black text-fuchsia-200">The wheel landed on {room.question.category || "General"}!</div>
           </div>}
 
@@ -512,7 +520,7 @@ export default function LiveQuiz() {
             <h2 className={"font-black leading-tight " + (room.gameType === "flash" ? "text-4xl sm:text-6xl" : "text-3xl sm:text-5xl")}>{room.question.prompt}</h2>
           </section>
 
-          <div className="grid gap-3 sm:grid-cols-2">{room.question.options.map((option, n) => {
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{room.question.options.map((option, n) => {
             const letter = letters[n], chosen = room.myAnswer?.choice === letter;
             const right = room.status === "results" && room.question?.correct === letter;
             const hidden = hiddenChoices.includes(letter);

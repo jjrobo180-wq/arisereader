@@ -401,6 +401,211 @@ const SCENES: Record<string, Scene> = {
     return s;
   },
 
+  // ── 5-Minute Reads ──
+  "basketball-peach-baskets": (c) => {
+    let s = rect(0, 0, W, H, "#f6e3c4") + rect(0, 640, W, 260, "#c98b4f");
+    for (let i = 0; i < 16; i++) s += rect(i * 100, 640, 4, 260, "#a86e38");
+    s += rect(0, 250, W, 30, "#7a4a22") + rect(0, 280, W, 14, "#5c3517");
+    for (let i = 0; i < 20; i++) s += rect(20 + i * 80, 180, 12, 70, "#7a4a22");
+    // the peach basket on the railing
+    s += path("M690 290H910L880 430H720Z", "#c9842c") + path("M690 290H910", "none", 'stroke="#8a5a1c" stroke-width="10"');
+    for (let i = 1; i < 5; i++) s += path(`M${690 + i * 44} 290L${720 + i * 32} 430`, "none", 'stroke="#8a5a1c" stroke-width="5"');
+    for (let j = 1; j < 3; j++) s += path(`M${690 + j * 10} ${290 + j * 46}H${910 - j * 10}`, "none", 'stroke="#8a5a1c" stroke-width="5"');
+    for (const [x, y] of [[740, 270], [800, 262], [860, 272]] as const) s += circle(x, y, 30, "#ffa94d") + circle(x - 8, y - 10, 8, "#ffd8a8");
+    // the ball, a leather soccer-style ball
+    s += circle(800, 560, 70, "#8d5524") + path("M730 560Q800 520 870 560M800 490Q770 560 800 630", "none", 'stroke="#5c3517" stroke-width="6"');
+    s += path("M800 470L800 440M760 480L745 455M840 480L855 455", "none", 'stroke="#5c3517" stroke-width="6" stroke-linecap="round"');
+    return s;
+  },
+
+  "skateboarding-olympic-teens": (c) => {
+    let s = rect(0, 0, W, H, "#ffe3e3") + circle(1250, 200, 120, "#ffd43b");
+    s += path("M0 900V600Q300 600 420 760H1180Q1300 600 1600 600V900Z", "#74c0fc") + path("M420 760H1180", "none", 'stroke="#1c7ed6" stroke-width="14"');
+    // the board, mid-air
+    s += `<g transform="translate(800 420) rotate(-14)">` + rect(-210, -18, 420, 36, "#e8590c", 'rx="18"') + rect(-200, -10, 400, 8, "#ffc078", 'rx="4"');
+    for (const x of [-130, 130]) s += rect(x - 30, 18, 60, 14, "#868e96") + circle(x - 22, 46, 20, "#fff", 'stroke="#495057" stroke-width="6"') + circle(x + 22, 46, 20, "#fff", 'stroke="#495057" stroke-width="6"');
+    s += `</g>`;
+    s += path("M560 560Q640 600 700 530M1040 300Q1000 260 960 300", "none", 'stroke="#fa5252" stroke-width="8" stroke-linecap="round" stroke-dasharray="4 18"');
+    s += sparkle(560, 300, 34, "#fab005") + sparkle(1060, 520, 26, "#fab005");
+    return s;
+  },
+
+  "why-curveballs-curve": (c) => {
+    let s = rect(0, 0, W, H, "#d3f9d8") + path("M0 700Q800 600 1600 700V900H0Z", "#c08552");
+    s += path("M200 420C600 360 900 380 1200 560", "none", 'stroke="#ffffff" stroke-width="10" stroke-dasharray="8 22" stroke-linecap="round"');
+    s += circle(1220, 570, 22, "#fff", 'opacity=".5"');
+    // baseball with seams and spin arrows
+    s += circle(800, 420, 140, "#ffffff", 'stroke="#ced4da" stroke-width="6"');
+    s += path("M700 320Q760 420 700 520M900 320Q840 420 900 520", "none", 'stroke="#e03131" stroke-width="7"');
+    for (let i = 0; i < 6; i++) { const y = 340 + i * 30; s += path(`M${712 + Math.sin(i) * 8} ${y}l18 -8M${888 - Math.sin(i) * 8} ${y}l-18 -8`, "none", 'stroke="#e03131" stroke-width="4"'); }
+    s += path("M600 300A230 230 0 0 1 1000 300", "none", 'stroke="#2b8a3e" stroke-width="14" stroke-linecap="round"') + poly([[1000, 270], [1030, 320], [975, 320]], "#2b8a3e");
+    return s;
+  },
+
+  "pele-king-of-soccer": (c) => {
+    let s = rect(0, 0, W, H, "#ffe066") + rect(0, 640, W, 260, "#2f9e44");
+    for (let i = 0; i < 8; i++) s += rect(i * 200, 640, 100, 260, "#37b24d");
+    // a sock-ball tied with string
+    s += `<g transform="translate(800 500) rotate(-10)">` + `<ellipse cx="0" cy="0" rx="150" ry="120" fill="#f8f9fa" stroke="#adb5bd" stroke-width="6"/>`;
+    s += path("M-150 -20Q0 -60 150 -20M-140 50Q0 10 140 50", "none", 'stroke="#ced4da" stroke-width="8"');
+    s += path("M-10 -120Q-30 0 -10 120M40 -115Q20 0 40 115", "none", 'stroke="#a17c45" stroke-width="6"');
+    s += rect(-40, -24, 60, 30, "#ffd43b", 'opacity=".6"') + `</g>`;
+    // crown
+    s += poly([[680, 300], [700, 200], [750, 260], [800, 180], [850, 260], [900, 200], [920, 300]], "#f59f00", 'stroke="#e67700" stroke-width="6"');
+    for (const x of [700, 800, 900]) s += circle(x, x === 800 ? 180 : 200, 14, "#e03131");
+    return s;
+  },
+
+  "offside-rule-explained": (c) => {
+    let s = rect(0, 0, W, H, "#2f9e44");
+    for (let i = 0; i < 8; i++) s += rect(i * 200, 0, 100, H, "#37b24d");
+    s += rect(1500, 300, 100, 300, "none", 'stroke="#fff" stroke-width="10"') + rect(0, 0, W, H, "none", 'stroke="#fff" stroke-width="16"');
+    // the offside line
+    s += path("M1000 0V900", "none", 'stroke="#ffd43b" stroke-width="10" stroke-dasharray="30 20"');
+    const player = (x: number, y: number, col: string) => circle(x, y - 70, 34, "#ffd8a8") + rect(x - 40, y - 36, 80, 100, col, 'rx="22"') + rect(x - 34, y + 64, 26, 70, "#212529", 'rx="10"') + rect(x + 8, y + 64, 26, 70, "#212529", 'rx="10"');
+    s += player(1000, 420, "#1c7ed6") + player(1150, 540, "#fa5252") + player(640, 520, "#fa5252");
+    s += circle(560, 680, 30, "#fff", 'stroke="#212529" stroke-width="5"');
+    // the assistant's flag
+    s += rect(1260, 140, 10, 220, "#495057") + poly([[1270, 140], [1380, 150], [1270, 220]], "#ffd43b") + rect(1270, 165, 110, 18, "#fa5252", 'opacity=".9"');
+    return s;
+  },
+
+  "first-world-cup-1930": (c) => {
+    let s = rect(0, 0, W, H, "#e7f5ff") + circle(1200, 200, 90, "#ffe066");
+    s += path("M0 640Q200 610 400 640T800 640T1200 640T1600 640V900H0Z", "#4dabf7") + path("M0 700Q200 670 400 700T800 700T1200 700T1600 700V900H0Z", "#1c7ed6");
+    // ocean liner
+    s += path("M480 600H1120L1060 690H540Z", "#212529") + rect(540, 520, 520, 80, "#f8f9fa");
+    for (let i = 0; i < 8; i++) s += circle(580 + i * 64, 560, 12, "#74c0fc");
+    for (const x of [660, 800, 940]) s += rect(x - 30, 420, 60, 100, "#e8590c") + rect(x - 30, 420, 60, 22, "#212529");
+    s += path("M640 400Q600 340 640 300M780 400Q740 330 790 280", "none", 'stroke="#adb5bd" stroke-width="16" stroke-linecap="round" opacity=".7"');
+    // old leather ball on deck
+    s += circle(1000, 495, 24, "#a0522d") + path("M980 495H1020M1000 472V518", "none", 'stroke="#6b3a1f" stroke-width="4"');
+    return s;
+  },
+
+  "jackie-robinson-42": (c) => {
+    let s = rect(0, 0, W, H, "#d0ebff") + path("M0 650Q800 560 1600 650V900H0Z", "#2f9e44") + path("M600 900L800 680L1000 900Z", "#c08552");
+    // jersey with 42
+    s += path("M600 180L700 140H900L1000 180L1080 300L1000 340L980 300V620H620V300L600 340L520 300Z", "#ffffff", 'stroke="#1c4f9c" stroke-width="10"');
+    s += path("M740 140Q800 200 860 140", "none", 'stroke="#1c4f9c" stroke-width="10"');
+    s += `<text x="800" y="500" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="220" fill="#1c4f9c" text-anchor="middle">42</text>`;
+    s += sparkle(470, 200, 40, "#fab005") + sparkle(1140, 470, 30, "#fab005");
+    return s;
+  },
+
+  "katherine-johnson-numbers": (c) => {
+    let s = rect(0, 0, W, H, "#0b1d3a") + stars(52, 160, "#fff", H);
+    // an orbit path drawn like a calculation
+    s += `<ellipse cx="800" cy="470" rx="460" ry="190" fill="none" stroke="#74c0fc" stroke-width="6" stroke-dasharray="16 14"/>`;
+    s += circle(800, 470, 120, "#1c7ed6") + path("M720 420Q760 380 820 410T880 480Q840 540 780 520Z", "#40c057");
+    s += `<g transform="translate(1250 400) rotate(30)">` + path("M0 -40L18 10H-18Z", "#f8f9fa") + rect(-18, 10, 36, 50, "#f8f9fa") + poly([[-18, 40], [-34, 70], [-18, 60]], "#fa5252") + poly([[18, 40], [34, 70], [18, 60]], "#fa5252") + `</g>`;
+    const font = 'font-family="Georgia,serif" font-style="italic" fill="#ffe066" opacity=".9"';
+    s += `<text x="520" y="200" ${font} font-size="52">x² + y² = r²</text><text x="860" y="760" ${font} font-size="46">v = 17,500 mph</text><text x="470" y="760" ${font} font-size="40">t + Δt</text>`;
+    return s;
+  },
+
+  "wright-brothers-first-flight": (c) => {
+    let s = rect(0, 0, W, H, "#bfe3ff") + circle(1300, 180, 80, "#fff3bf");
+    s += path("M0 720Q400 660 800 720T1600 700V900H0Z", "#f1d9a6") + path("M0 790Q500 740 1000 790T1600 780V900H0Z", "#e3c27d");
+    // the Flyer: two long wings with struts
+    s += `<g transform="translate(800 400) rotate(-4)">`;
+    s += rect(-380, -60, 760, 22, "#f8f0e3", 'stroke="#8d6e4a" stroke-width="5"') + rect(-380, 40, 760, 22, "#f8f0e3", 'stroke="#8d6e4a" stroke-width="5"');
+    for (let i = -6; i <= 6; i++) s += path(`M${i * 60} -38V40`, "none", 'stroke="#8d6e4a" stroke-width="5"');
+    s += rect(-560, -24, 120, 14, "#f8f0e3", 'stroke="#8d6e4a" stroke-width="4"') + rect(-560, 20, 120, 14, "#f8f0e3", 'stroke="#8d6e4a" stroke-width="4"') + path("M-440 -10L-380 -20M-440 30L-380 40", "none", 'stroke="#8d6e4a" stroke-width="4"');
+    s += rect(400, -30, 40, 90, "#f8f0e3", 'stroke="#8d6e4a" stroke-width="4"') + circle(-20, 40, 18, "#495057");
+    s += path("M60 70V110M100 70V110", "none", 'stroke="#8d6e4a" stroke-width="5"') + `</g>`;
+    for (const x of [300, 1350]) s += path(`M${x} 300q30 -30 60 0q30 -30 60 0`, "none", 'stroke="#495057" stroke-width="6" stroke-linecap="round"');
+    return s;
+  },
+
+  "we-choose-the-moon": (c) => {
+    let s = rect(0, 0, W, H, "#120c30") + stars(88, 200, "#fff", H * 0.7);
+    s += circle(1180, 230, 130, "#f1f3f5") + circle(1140, 200, 26, "#dee2e6") + circle(1220, 270, 18, "#dee2e6");
+    // a podium with a microphone, and a rocket rising behind
+    s += `<g transform="translate(560 380) rotate(20)">` + path("M0 -170C30 -130 40 -60 40 40H-40C-40 -60 -30 -130 0 -170Z", "#f8f9fa") + circle(0, -60, 18, "#4dabf7") + poly([[-40, 10], [-80, 70], [-40, 50]], "#fa5252") + poly([[40, 10], [80, 70], [40, 50]], "#fa5252") + path("M-26 50Q0 140 26 50Z", "#ffa94d") + `</g>`;
+    s += path("M640 900L680 620H920L960 900Z", "#9c36b5") + rect(660, 600, 280, 30, "#7a2593", 'rx="8"');
+    s += rect(795, 470, 10, 140, "#adb5bd") + `<ellipse cx="800" cy="460" rx="26" ry="36" fill="#495057"/>`;
+    s += path("M850 430Q890 460 850 490M880 410Q940 460 880 510", "none", 'stroke="#ffe066" stroke-width="7" stroke-linecap="round"');
+    return s;
+  },
+
+  "lou-gehrig-luckiest-man": (c) => {
+    let s = rect(0, 0, W, H, "#f3d9fa") + path("M0 380Q800 240 1600 380V560H0Z", "#5f3dc4") + path("M0 470Q800 340 1600 470V600H0Z", "#7048e8");
+    const r = rand(9); for (let i = 0; i < 140; i++) s += circle(r() * W, 330 + r() * 210, 7, ["#ffe066", "#ffa8a8", "#fff", "#a5d8ff"][i % 4], 'opacity=".85"');
+    s += rect(0, 580, W, 320, "#2f9e44") + path("M500 900L800 640L1100 900Z", "#c08552");
+    // microphones on a stand
+    s += rect(795, 420, 10, 300, "#495057");
+    for (const [x, y] of [[760, 410], [800, 395], [840, 410]] as const) s += `<ellipse cx="${x}" cy="${y}" rx="22" ry="30" fill="#343a40"/>`;
+    s += rect(720, 712, 160, 14, "#495057", 'rx="7"');
+    s += `<text x="800" y="200" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="90" fill="#4f1460" text-anchor="middle">2,130</text>`;
+    return s;
+  },
+
+  "one-small-step": (c) => {
+    let s = rect(0, 0, W, H, "#000") + stars(12, 180, "#fff", H * 0.55);
+    s += circle(1280, 170, 70, "#1c7ed6") + path("M1240 140Q1270 120 1300 150T1330 190Q1290 210 1250 190Z", "#40c057");
+    s += path("M0 560Q400 520 800 560T1600 540V900H0Z", "#adb5bd") + path("M0 620Q500 590 1000 630T1600 610V900H0Z", "#868e96");
+    for (const [x, y, r0] of [[200, 700, 40], [1400, 760, 60], [1100, 680, 30]] as const) s += `<ellipse cx="${x}" cy="${y}" rx="${r0}" ry="${r0 / 3}" fill="#6c757d"/>`;
+    // a boot print
+    s += `<g transform="translate(800 720) rotate(-8)">` + `<ellipse cx="0" cy="0" rx="110" ry="46" fill="#5c636a"/>`;
+    for (let i = -4; i <= 4; i++) s += rect(i * 22 - 6, -36, 12, 72, "#495057", 'rx="5"');
+    s += `</g>`;
+    // a flag on a pole
+    s += rect(552, 220, 10, 360, "#ced4da") + rect(562, 222, 140, 84, "#fff");
+    for (let i = 0; i < 4; i++) s += rect(562, 222 + i * 22, 140, 11, "#e03131");
+    s += rect(562, 222, 60, 44, "#1c4f9c");
+    return s;
+  },
+
+  "malala-one-pen": (c) => {
+    let s = rect(0, 0, W, H, "#fff0f6");
+    for (let i = 0; i < 6; i++) s += circle(200 + i * 240, 120 + (i % 2) * 60, 40, ["#fcc2d7", "#d0bfff", "#a5d8ff"][i % 3], 'opacity=".7"');
+    // an open book
+    s += path("M800 520Q640 450 460 480V720Q640 690 800 760Z", "#ffffff", 'stroke="#9c36b5" stroke-width="8"') + path("M800 520Q960 450 1140 480V720Q960 690 800 760Z", "#ffffff", 'stroke="#9c36b5" stroke-width="8"');
+    for (let i = 0; i < 4; i++) s += path(`M520 ${540 + i * 44}Q640 ${525 + i * 44} 760 ${560 + i * 44}M840 ${560 + i * 44}Q960 ${525 + i * 44} 1080 ${540 + i * 44}`, "none", 'stroke="#d0bfff" stroke-width="6"');
+    // a pen
+    s += `<g transform="translate(860 330) rotate(35)">` + rect(-20, -180, 40, 280, "#7048e8", 'rx="10"') + poly([[-20, 100], [20, 100], [0, 150]], "#ffe066") + rect(-20, -120, 40, 14, "#ffd43b") + `</g>`;
+    s += sparkle(560, 360, 34, "#f59f00") + sparkle(1080, 300, 26, "#f59f00");
+    return s;
+  },
+
+  "how-roller-coasters-work": (c) => {
+    let s = rect(0, 0, W, H, "#e3fafc") + circle(1350, 160, 80, "#ffe066");
+    const track = "M0 760C200 760 300 160 520 160C700 160 700 620 860 620C960 620 960 420 1060 420C1160 420 1180 640 1300 640C1420 640 1500 560 1600 560";
+    s += path(track, "none", 'stroke="#495057" stroke-width="30"') + path(track, "none", 'stroke="#fa5252" stroke-width="16"');
+    for (let i = 0; i < 16; i++) { const x = 60 + i * 100; s += rect(x, i < 6 ? 300 + Math.abs(5 - i) * 40 : 560, 10, 400, "#adb5bd"); }
+    // the train just over the top
+    s += `<g transform="translate(600 210) rotate(38)">`;
+    for (let i = 0; i < 3; i++) s += rect(i * -110 - 50, -70, 96, 60, ["#1c7ed6", "#fab005", "#40c057"][i], 'rx="14"') + circle(i * -110 - 30, -10, 12, "#212529") + circle(i * -110 + 30, -10, 12, "#212529") + circle(i * -110, -86, 20, "#ffd8a8");
+    s += `</g>`;
+    s += path("M700 300l40 -20M720 340l46 -6", "none", 'stroke="#868e96" stroke-width="8" stroke-linecap="round"');
+    return s;
+  },
+
+  "why-cats-purr": (c) => {
+    let s = rect(0, 0, W, H, "#fff9db") + rect(0, 640, W, 260, "#e9c46a") + `<ellipse cx="800" cy="700" rx="440" ry="90" fill="#f4a261"/>`;
+    // a curled-up cat
+    s += `<ellipse cx="800" cy="580" rx="300" ry="160" fill="#868e96"/>` + path("M520 620Q470 520 560 470", "none", 'stroke="#868e96" stroke-width="60" stroke-linecap="round"');
+    s += circle(1000, 520, 110, "#868e96") + poly([[920, 450], [940, 360], [990, 430]], "#868e96") + poly([[1020, 430], [1070, 360], [1090, 450]], "#868e96");
+    s += poly([[935, 430], [948, 385], [975, 425]], "#f783ac") + poly([[1035, 425], [1065, 385], [1075, 430]], "#f783ac");
+    s += path("M950 520q20 16 40 0M1030 520q20 16 40 0", "none", 'stroke="#343a40" stroke-width="7" stroke-linecap="round"') + poly([[1000, 548], [990, 538], [1010, 538]], "#f783ac");
+    for (let i = 0; i < 3; i++) s += path(`M${1140 + i * 34} ${440 - i * 10}q16 30 0 60q-16 30 0 60`, "none", `stroke="#f08c00" stroke-width="7" stroke-linecap="round" opacity="${1 - i * 0.25}"`);
+    s += `<text x="1240" y="330" font-family="'Arial Black',Arial,sans-serif" font-size="56" fill="#f08c00">prrr</text>`;
+    return s;
+  },
+
+  "hiccup-science": (c) => {
+    let s = rect(0, 0, W, H, "#e5dbff");
+    for (let i = 0; i < 9; i++) s += circle(220 + i * 150, 140 + (i % 3) * 40, 16 + (i % 3) * 8, "#ffffff", 'opacity=".6"');
+    // lungs and a dome-shaped diaphragm
+    s += path("M790 230V380", "none", 'stroke="#f783ac" stroke-width="26" stroke-linecap="round"');
+    s += path("M770 360C640 330 560 440 580 580C600 660 700 650 760 600Z", "#ff8787") + path("M830 360C960 330 1040 440 1020 580C1000 660 900 650 840 600Z", "#ff8787");
+    s += path("M520 700Q800 560 1080 700", "none", 'stroke="#e8590c" stroke-width="30" stroke-linecap="round"');
+    s += path("M560 760Q800 640 1040 760", "none", 'stroke="#e8590c" stroke-width="10" stroke-dasharray="10 18" stroke-linecap="round" opacity=".6"');
+    s += `<text x="1140" y="300" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="110" fill="#7048e8" transform="rotate(-10 1140 300)">HIC!</text>`;
+    return s;
+  },
+
   "why-the-moon-changes-shape": (c) => {
     let s = rect(0, 0, W, H, "#0d1033") + stars(41, 200, "#fff", H);
     s += circle(800, 380, 260, "#f1f3f5", 'opacity=".08"') + circle(800, 380, 210, "#e9ecef");

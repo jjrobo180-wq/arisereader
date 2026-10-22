@@ -382,6 +382,119 @@ body.big .prompt{font-size:clamp(2.4rem,8vw,3.7rem)} body.big .prompt.long{font-
 .lopt.mine{outline:3px solid var(--fg);outline-offset:2px}
 
 .link{background:none;border:0;color:var(--primary-text);text-decoration:underline;text-underline-offset:3px;font-weight:600;font-size:inherit}
+
+/* ---------- lessons, practice modes, new games ---------- */
+.idea p{font-size:1.06rem;line-height:1.55;margin-top:6px}
+.remember{background:var(--primary-soft)}
+.remember .rem{font-size:1.2rem;font-weight:800;margin-top:6px;color:var(--primary-text);line-height:1.35}
+.ex-card{display:flex;flex-direction:column;gap:12px}
+.steps li.ans-step{list-style:none;margin-left:-1.4em;color:var(--leaf);font-weight:800}
+.modes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.mode{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card-2);color:var(--fg);min-height:118px;font:inherit}
+button.mode{cursor:pointer} button.mode:hover{border-color:var(--primary)}
+.mode b{font-size:.98rem} .mode span{font-size:.8rem;color:var(--muted);line-height:1.35} .mode em{font-style:normal;font-size:.76rem;font-weight:800;color:var(--primary-text)}
+.game-card .btn{margin-top:auto}
+.levels{display:flex;flex-direction:column}
+.level{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+.level:last-child{border-bottom:0;padding-bottom:0} .level b{display:block;font-size:.92rem} .level .btn{flex:none}
+.hintbox{border-left:4px solid var(--sun);background:color-mix(in oklab,var(--sun) 10%,var(--card));padding:10px 14px;border-radius:0 12px 12px 0;display:flex;flex-direction:column;gap:6px}
+.flipcard{border:2px dashed var(--line-2);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px;min-height:220px}
+.flipcard.back{border-style:solid;border-color:var(--primary);animation:pop .25s}
+.flipcard .big-ans{font-size:clamp(2.4rem,8vw,3.4rem);font-weight:800;color:var(--primary-text);line-height:1}
+.streak{display:flex;gap:8px} .streak i{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.28)} .streak i.on{background:#ffd27a;animation:pop .3s}
+.streak-card{gap:6px;flex-wrap:wrap} .streak-card i{width:16px;height:16px;background:color-mix(in oklab,var(--fg) 12%,transparent)} .streak-card i.on{background:#ffd27a}
+details.bigidea{width:100%;max-width:62ch;background:var(--primary-soft);border-radius:12px;padding:8px 12px}
+details.bigidea summary{cursor:pointer;font-weight:700;color:var(--primary-text);display:flex;gap:6px;align-items:center;min-height:32px}
+details.bigidea summary svg{width:18px;height:18px} details.bigidea p{margin:6px 0 2px;line-height:1.5}
+.mem{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.mem{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.mcard{min-height:76px;border-radius:14px;border:2px solid transparent;background:linear-gradient(135deg,var(--cover-a),var(--cover-b));color:#fff;font-weight:800;font-size:1.5rem;padding:6px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.mcard.up{background:var(--card-2);color:var(--fg);border-color:var(--primary);font-size:1.05rem}
+.mcard.up.a{font-size:1.4rem}
+.mcard.done{background:color-mix(in oklab,var(--leaf) 18%,var(--card));border-color:var(--leaf)}
+.mcard.pop{animation:pop .3s}
+.bq .prompt{font-size:clamp(1.5rem,5vw,2.2rem)}
+.skybox{position:relative;height:300px;border-radius:16px;overflow:hidden;background:linear-gradient(color-mix(in oklab,var(--sky) 24%,var(--card)),var(--card-2))}
+.bwrap{position:absolute;bottom:-40px;width:16%;min-width:70px;display:flex;justify-content:center;animation:rise 7.5s linear forwards}
+.balloon{position:relative;width:78px;height:94px;border:0;border-radius:50% 50% 46% 46%;background:var(--c);color:#fff;font-weight:800;font-size:1.15rem;box-shadow:inset -8px -10px 0 rgba(0,0,0,.1);font-variant-numeric:tabular-nums;padding:0 4px;overflow-wrap:anywhere;line-height:1.1}
+.balloon::after{content:'';position:absolute;left:50%;top:100%;width:1.5px;height:36px;background:rgba(0,0,0,.28)}
+.balloon.popped{animation:burst .3s forwards} .balloon.no{opacity:.3;animation:shake .3s}
+@keyframes rise{to{transform:translateY(-440px)}}
+@keyframes burst{to{transform:scale(1.7);opacity:0}}
+.tf-stmt{font-size:clamp(1.8rem,7vw,2.8rem);font-weight:800;text-align:center;padding:28px 16px;border-radius:16px;background:var(--card-2);font-variant-numeric:tabular-nums;border:3px solid transparent}
+.tf-stmt.good{border-color:var(--leaf)} .tf-stmt.bad{border-color:var(--coral);animation:shake .3s}
+.tf-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tf-btns button{min-height:76px;font-size:1.4rem;font-weight:800;border-radius:16px;border:0;color:#fff;display:flex;gap:8px;align-items:center;justify-content:center}
+.tf-btns svg{width:24px;height:24px} .tf-t{background:var(--leaf)} .tf-f{background:var(--coral)}
+@media (prefers-reduced-motion: reduce){ .bwrap{bottom:60px} }
+
+/* ---------- Solve it with me (interactive worked example) ---------- */
+.wk{display:flex;flex-direction:column;gap:14px}
+.wk-prob{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:var(--card-2)}
+.wk-dots{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.wk-dots i{width:28px;height:8px;border-radius:999px;background:var(--line)}
+.wk-dots i.on{background:var(--primary)} .wk-dots i.ok{background:var(--leaf)} .wk-dots i.shown{background:var(--sun)}
+.wk-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;counter-reset:wk}
+.wk-step{counter-increment:wk;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card)}
+.wk-step::before{content:counter(wk);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.9rem;background:var(--card-2);color:var(--muted)}
+.wk-step.cur{border-color:var(--primary);box-shadow:0 0 0 4px color-mix(in oklab,var(--primary) 14%,transparent);animation:wkin .25s ease-out}
+.wk-step.cur::before{background:var(--primary);color:var(--primary-ink)}
+.wk-step.ok::before{content:"✓";background:var(--leaf);color:#fff}
+.wk-step.shown::before{content:"✓";background:var(--sun);color:#fff}
+.wk-step .txt{font-size:1.08rem;line-height:1.6;font-variant-numeric:tabular-nums}
+.wk-step .txt .fill{display:inline-block;padding:0 .35em;border-radius:8px;font-weight:800;background:color-mix(in oklab,var(--leaf) 18%,var(--card));color:color-mix(in oklab,var(--leaf) 70%,var(--fg))}
+.wk-step.shown .txt .fill{background:color-mix(in oklab,var(--sun) 22%,var(--card));color:color-mix(in oklab,var(--sun) 60%,var(--fg))}
+.wk-in{display:inline-block;width:5.2em;min-width:0;padding:4px 8px;border-radius:10px;border:2px solid var(--primary);background:var(--card);font-weight:800;font-size:1.05rem;text-align:center;vertical-align:baseline}
+.wk-in.is-bad{border-color:var(--coral);animation:shake .35s}
+.wk-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.wk-fb{font-weight:700;font-size:.92rem;margin-top:8px} .wk-fb.good{color:var(--leaf)} .wk-fb.bad{color:var(--coral)} .wk-fb.tip{color:var(--muted)}
+.wk-win{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:14px;background:color-mix(in oklab,var(--leaf) 12%,var(--card));border:1.5px solid color-mix(in oklab,var(--leaf) 45%,transparent);animation:wkin .3s ease-out}
+.wk-win h3{font-size:1.2rem;color:color-mix(in oklab,var(--leaf) 75%,var(--fg))}
+.wk-win .big{font-size:1.6rem;font-weight:800;font-variant-numeric:tabular-nums}
+@keyframes wkin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- videos ---------- */
+.vid{position:relative;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000;border:0;padding:0;display:block;cursor:pointer}
+.vid img{width:100%;height:100%;object-fit:cover;display:block;opacity:.88}
+.vid .play{position:absolute;inset:0;display:grid;place-items:center}
+.vid .play span{width:68px;height:48px;border-radius:14px;background:#e62117;display:grid;place-items:center;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.vid .play span::after{content:"";border-left:18px solid #fff;border-top:11px solid transparent;border-bottom:11px solid transparent;margin-left:4px}
+.vid:hover .play span{filter:brightness(1.1)}
+.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-meta{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-top:8px}
+.vid-meta b{font-size:.95rem} .vid-meta span{font-size:.8rem;color:var(--muted)}
+.vid-more{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.vid-more button{display:flex;gap:10px;align-items:center;text-align:left;padding:6px 10px 6px 6px;border-radius:12px;border:1.5px solid var(--line);background:var(--card-2);max-width:100%}
+.vid-more button[aria-pressed="true"]{border-color:var(--primary)}
+.vid-more img{width:64px;height:36px;object-fit:cover;border-radius:8px;flex:none}
+.vid-more b{font-size:.8rem;line-height:1.25;display:block} .vid-more span{font-size:.72rem;color:var(--muted)}
+
+/* ---------- Snap a problem ---------- */
+.snap-promo{display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,color-mix(in oklab,var(--primary) 14%,var(--card)),color-mix(in oklab,var(--sun) 14%,var(--card)))}
+.snap-promo .cam{width:52px;height:52px;border-radius:16px;background:var(--primary);color:var(--primary-ink);display:grid;place-items:center;flex:none}
+.snap-promo .cam svg{width:28px;height:28px}
+.snap-promo > div{min-width:0;flex:1}
+.drop{border:2.5px dashed var(--line-2);border-radius:18px;padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;background:var(--card-2)}
+.drop.over{border-color:var(--primary);background:var(--primary-soft)}
+.drop .btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.drop label.btn{cursor:pointer}
+.drop input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.snap-img{max-height:320px;width:auto;max-width:100%;border-radius:12px;border:1px solid var(--line);display:block;margin:0 auto;background:#fff}
+.snap-text{width:100%;min-height:76px;resize:vertical;border-radius:12px;border:1px solid var(--line-2);padding:10px 12px;background:var(--card);font:inherit;font-size:1rem}
+.snap-prob{font-size:1.25rem;font-weight:800;line-height:1.45;white-space:pre-wrap;font-variant-numeric:tabular-nums}
+.snap-wait{display:flex;flex-direction:column;align-items:center;gap:14px;padding:30px 10px;text-align:center}
+.snap-wait .spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--primary);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.snap-finish{border:2px solid var(--primary);background:var(--primary-soft)}
+.snap-finish form{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.snap-finish input{flex:1;min-width:140px;font-size:1.1rem;font-weight:700}
+.exq{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--card-2)}
+.exq .q{font-size:1.1rem;font-weight:800;white-space:pre-wrap;font-variant-numeric:tabular-nums}
+.exq ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+.exq ol li b{display:block;font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.exq form{display:flex;gap:8px;flex-wrap:wrap} .exq form input{flex:1;min-width:120px}
+.exq .ans{font-weight:800;color:var(--leaf);font-size:1.05rem}
+@media (prefers-reduced-motion: reduce){ .wk-step.cur,.wk-win{animation:none} .snap-wait .spin{animation-duration:3s} }
 </style>
 </head>
 <body>
@@ -437,7 +550,9 @@ const I = {
   school:'<path d="M3 9l9-5 9 5-9 5z"/><path d="M7 11v5c0 1.5 2.5 3 5 3s5-1.5 5-3v-5"/>',
   book:'<path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/>',
   heart:'<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11.4 8.8 11.4s8.8-6 8.8-11.4z"/>',
-  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
+  back:'<path d="M15 18l-6-6 6-6"/>',
+  print:'<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>'
 };
 const svg = (k, extra='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${I[k]||''}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -602,6 +717,67 @@ function landingHTML(){
 }
 
 /* ================= STUDENT: PRACTICE ================= */
+/* ================= STATE STANDARDS (all 50 states and DC) ================= */
+const STATE_KEY = 'arise_math_state';
+const myState = () => { const saved = (()=>{ try { return localStorage.getItem(STATE_KEY); } catch { return null; } })(); return (CAT.states||[]).find(s=>s.id===saved) || (CAT.states||[]).find(s=>s.id==='CO') || (CAT.states||[])[0]; };
+const BAND_GRADE = { k2:'1', g35:'4', g68:'7', g912:'HS' };
+const coLessons = g => (CAT.gradeLessons?.[g] || []);
+const coGrade = () => (S.coGrade && CAT.grades?.includes(S.coGrade)) ? S.coGrade : BAND_GRADE[myBand()] || '4';
+const gradeShort = g => g==='K' ? 'K' : g==='HS' ? 'HS' : g;
+/** A lesson's code in the chosen state: the state's own code where it uses the Common Core codes, or the Common Core match. */
+const codeLabel = (st, code) => st?.ccss ? `${st.id} ${code}` : `Common Core ${code}`;
+const domainOf = code => code.startsWith('HS') ? code.slice(0,3) : (code.split('.')[1] || '');
+/** A grade's lessons grouped by domain (Operations, Fractions, Geometry…), in teaching order. */
+function byDomain(list){
+  const out = [];
+  for (const l of list){ const id = domainOf(l.code), name = (CAT.domains||[]).find(d=>d.id===id)?.name || id; let g = out.find(x=>x.id===id); if (!g) out.push(g = { id, name, items: [] }); g.items.push(l); }
+  return out;
+}
+const domainHead = name => `<p class="eyebrow" style="margin:14px 0 4px">${esc(name)}</p>`;
+function gradePick(){
+  const g = coGrade();
+  return `<div class="bandpick" role="group" aria-label="Grade">${(CAT.grades||[]).map(x=>`<button data-act="cograde" data-v="${x}" aria-pressed="${x===g}" title="${esc(CAT.gradeLabels[x])}">${gradeShort(x)}</button>`).join('')}</div>`;
+}
+function statePick(){
+  const st = myState();
+  return `<label class="f" style="max-width:280px"><span class="sr">State</span><select id="statePick" data-change="state" aria-label="State standards">${(CAT.states||[]).map(x=>`<option value="${x.id}" ${x.id===st?.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>`;
+}
+const stateNote = st => st ? (st.ccss ? esc(st.standards) : `Common Core codes shown. Check them against the ${esc(st.standards)}.`) : '';
+/** The chosen state's lessons for one grade. Students start a quiz; teachers can also print them. */
+function coCardHTML(){
+  if (!CAT.gradeLessons) return '';
+  const g = coGrade(), st = myState();
+  const rows = byDomain(coLessons(g)).map(d=>domainHead(d.name)+d.items.map(l=>{ const s=SK(l.skill), best=P()?.best?.[l.skill];
+    return `<div class="assign">${op(l.skill)}<div><b>${esc(s.name)}</b><span class="small muted">${esc(codeLabel(st, l.code))}${best!=null?` · Best ${best}/5`:''}</span></div><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-act="learn" data-v="${l.skill}">Learn</button>${role()==='student'?`<button class="btn primary sm" data-act="start" data-type="skill" data-v="${l.skill}">Start</button>`:''}</span></div>`; }).join('')).join('');
+  return `<div class="card"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>${esc(st?.name||'')} standards</h2><span class="small muted">${esc(CAT.gradeLabels[g])} · ${stateNote(st)}</span></div>${statePick()}</div><div style="margin-bottom:10px">${gradePick()}</div>${rows}</div>`;
+}
+/** Teachers: pick lessons from a grade and print a worksheet with an answer key. */
+function worksheetCardHTML(){
+  if (!CAT.gradeLessons) return '';
+  const g = coGrade(), st = myState(), ls = coLessons(g);
+  const picked = S.wsPick && S.wsPick.g===g ? S.wsPick.skills : ls.map(l=>l.skill);
+  return `<div class="card stack" id="wsCard"><div class="card-h" style="flex-wrap:wrap;gap:10px"><div><h2>Printable worksheets</h2><span class="small muted">${esc(st?.name||'')} · ${esc(CAT.gradeLabels[g])}. New problems every time, with an answer key.</span></div>${statePick()}</div>
+    <div>${gradePick()}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn outline sm" data-act="wsall">Tick all</button><button class="btn outline sm" data-act="wsnone">Tick none</button></div>
+    <div class="qlist">${byDomain(ls).map(d=>domainHead(d.name)+d.items.map(l=>`<label style="display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer"><input type="checkbox" class="wsSkill" value="${l.skill}" data-code="${esc(l.code)}" ${picked.includes(l.skill)?'checked':''} style="width:20px;height:20px">${op(l.skill)}<span style="min-width:0"><b>${esc(SK(l.skill).name)}</b> <span class="small muted">${esc(codeLabel(st, l.code))}</span></span><button type="button" class="btn sm" style="margin-left:auto" data-act="learn" data-v="${l.skill}">Preview</button></label>`).join('')).join('')}</div>
+    <div class="grid two">
+      <label class="f">Problems<select id="wsN">${[8,12,16,20,24,30,40].map(n=>`<option ${n===12?'selected':''}>${n}</option>`).join('')}</select></label>
+      <label class="f">Title (optional)<input type="text" id="wsTitle" maxlength="80" placeholder="Unit 2 review"></label>
+      <label class="f">Level<select id="wsLevel">${['scaffold','standard','challenge'].map(id=>`<option value="${id}" ${id==='standard'?'selected':''}>${esc(CAT.worksheetLevels?.[id]?.name||id)}</option>`).join('')}</select></label></div>
+    <p class="small muted" style="margin:0">${['scaffold','standard','challenge'].map(id=>`<b>${esc(CAT.worksheetLevels?.[id]?.name||id)}:</b> ${esc(CAT.worksheetLevels?.[id]?.note||'')}`).join(' ')}</p>
+    <div class="row" style="gap:18px;flex-wrap:wrap">
+      <label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="wsKey" checked style="width:20px;height:20px">Answer key</label>
+      <label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="wsPics" checked style="width:20px;height:20px">Pictures</label></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="worksheet">${svg('plus')}Make worksheet</button><button class="btn outline" data-act="worksheet" data-v="each">One page per lesson</button></div></div>`;
+}
+function openWorksheet(each){
+  const boxes = [...document.querySelectorAll('.wsSkill:checked')];
+  if (!boxes.length) return toast('Tick at least one lesson.');
+  const base = { n: document.getElementById('wsN').value, state: myState()?.id || 'CO',
+    level: document.getElementById('wsLevel').value, key: document.getElementById('wsKey').checked ? '1' : '0', pictures: document.getElementById('wsPics').checked ? '1' : '0', title: document.getElementById('wsTitle').value.trim() };
+  window.open('/api/math/worksheet?' + new URLSearchParams({ ...base, ...(each ? { each:'1' } : {}), skills: boxes.map(b=>b.value).join(','), codes: boxes.map(b=>b.dataset.code).join(',') }).toString(), '_blank', 'noopener');
+}
+
 function practiceHTML(){
   if (S.lplay) return livePlayHTML();
   if (S.run) return runnerHTML();
@@ -616,14 +792,16 @@ function practiceHTML(){
   const cards = CAT.bands[b].skills.map(id=>{ const s=SK(id), m=P().mastery[id], st=m&&m.t?Math.round(100*m.r/m.t):null, best=P().best[id];
     return `<div class="card qcard"><div class="row" style="flex-wrap:nowrap">${op(id)}<div style="min-width:0"><h3>${esc(s.name)}</h3><span class="meta">CCSS ${esc(s.std)}</span></div></div>
       <div><div class="row between small" style="margin-bottom:4px"><span class="muted">Strength</span><b class="tnum">${st==null?'New':st+'%'}</b></div><div class="bar leaf"><i style="width:${st||0}%"></i></div></div>
-      <div class="foot"><span class="meta">${best!=null?`Best ${best}/5`:'Not tried yet'}</span><button class="btn primary sm" data-act="start" data-type="skill" data-v="${id}">Start quiz</button></div></div>`; }).join('');
+      <div class="foot"><span class="meta">${best!=null?`Best ${best}/5`:'Not tried yet'}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-act="learn" data-v="${id}">Learn</button><button class="btn primary sm" data-act="start" data-type="skill" data-v="${id}">Start quiz</button></span></div></div>`; }).join('');
   return `<div class="card"><div class="card-h" style="margin-bottom:6px"><h1>Math quizzes</h1>
       <div class="bandpick" role="group" aria-label="Grade band">${['k2','g35','g68','g912'].map(x=>`<button data-act="band" data-v="${x}" aria-pressed="${x===b}">${bandLabel(x)}</button>`).join('')}</div></div>
       <p class="muted">Five questions per quiz. Earn ${CAT.points.firstTry} points for a first-try answer, ${CAT.points.withHelp} with help, and ${CAT.points.perfectBonus} bonus points for a perfect score.</p></div>
+    ${snapPromoHTML('Stuck on homework? Snap it.')}
     <div class="card"><div class="card-h"><h2>${T?`Assigned by ${esc(T)}`:'Assignments'}</h2></div>${asgHTML}</div>
     <div class="grid qcards">${cards}
       <div class="card qcard"><div class="row" style="flex-wrap:nowrap">${op('mixed')}<div><h3>Mixed review</h3><span class="meta">All three skills</span></div></div>
         <p class="small muted">Weighted toward the skills you find hardest.</p><div class="foot"><span></span><button class="btn outline sm" data-act="start" data-type="mixed">Start quiz</button></div></div></div>
+    ${coCardHTML()}
     ${ME.user.hasClass?`<div class="card"><div class="card-h"><h2>Join a live game</h2></div><div class="join"><label class="sr" for="joinCode">Game code</label><input type="text" id="joinCode" inputmode="numeric" placeholder="Game code" maxlength="7" autocomplete="off"><button class="btn primary" data-act="joinlive">Join</button></div>
       <p class="small muted" style="margin-top:8px">${esc(T||'Your teacher')} shows the code on the board.</p></div>`:''}`;
 }
@@ -638,7 +816,7 @@ function answerHTML(it){
       return `<button type="button" data-act="pick" data-v="${esc(c.v)}" class="${good?'is-good':bad?'is-bad':''}" ${it.done||bad?'disabled':''} aria-label="${esc(names[c.label]||c.label)}">${esc(c.label)}</button>`; }).join('')}</div>`;
   }
   const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
-  return `<form class="answer" id="ansForm" autocomplete="off"><label for="ans" class="sr">Your answer</label><input id="ans" inputmode="none" placeholder="?" spellcheck="false" class="${S.run.bad?'is-bad':''}" ${it.done?'disabled':''} value="${it.done&&it.answer!=null?esc(fmtV(it.answer)):''}"><button class="btn primary lg" type="submit" ${it.done||S.run.busy?'disabled':''}>Check</button></form>
+  return `<form class="answer" id="ansForm" autocomplete="off"><label for="ans" class="sr">Your answer</label><input id="ans" inputmode="none" placeholder="?" spellcheck="false" class="${S.run.bad?'is-bad':''}" ${it.done?'disabled':''} value="${it.done&&it.answer!=null?esc(it.answerLabel||fmtV(it.answer)):''}"><button class="btn primary lg" type="submit" ${it.done||S.run.busy?'disabled':''}>Check</button></form>
     ${it.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="key" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
 }
 function runnerHTML(){
@@ -658,7 +836,8 @@ function runnerHTML(){
       ${S.run.fb?`<p class="feedback ${S.run.fb.c}" role="status">${esc(S.run.fb.t)}</p>`:''}
       ${it.done?`<div><button class="btn primary lg" data-act="next" id="nextBtn" ${S.run.busy?'disabled':''}>${s.i+1<s.n?'Next question':'See my score'}</button></div>`:''}
       <div class="hints"><button class="btn" data-act="hint" ${shown>=it.stepsTotal||S.run.busy?'disabled':''}>${shown>=it.stepsTotal?'All steps shown':shown?`Next step (${shown+1} of ${it.stepsTotal})`:'Show a hint'}</button>
-        ${shown?`<ol class="steps">${it.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`:''}</div>
+        ${shown?`<ol class="steps">${it.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`:''}
+        ${it.skill!=='custom'&&CAT.learn?.[it.skill]?`<details class="bigidea"><summary>${svg('info')}Big idea</summary><p>${esc(LEARN_OF(it.skill).idea)}</p><p class="small"><b>Remember:</b> ${esc(LEARN_OF(it.skill).remember)}</p></details>`:''}</div>
     </div></div>`;
 }
 function resultsHTML(){
@@ -699,7 +878,7 @@ async function submitAnswer(value){
   S.run.session = r.session; S.run.bad = !r.correct && !it.done;
   if (r.correct) { S.run.fb = { t: it.result==='first' ? `Correct on the first try. +${r.gained} points` : `Correct. +${r.gained} points`, c:'good' }; ME.profile.points += r.gained; }
   else if (!it.done) S.run.fb = { t:'Not quite. Try once more, or open a hint.', c:'bad' };
-  else S.run.fb = { t:`The answer is ${it.kind==='choice'?it.answer:fmtV(it.answer)}. Read the steps, then keep going.`, c:'bad' };
+  else S.run.fb = { t:`The answer is ${it.answerLabel||(it.kind==='choice'?it.answer:fmtV(it.answer))}. Read the steps, then keep going.`, c:'bad' };
   render();
   if (it.done) setTimeout(()=>{ const b=document.getElementById('nextBtn'); if(b) b.focus({preventScroll:true}); },30);
 }
@@ -775,6 +954,124 @@ function rewardsHTML(){
       <div class="row" style="margin-top:12px;gap:6px">${M.map(m=>`<span class="chip ${p.solved>=m?'pill-ok':''}">${p.solved>=m?svg('check','style="width:13px;height:13px"'):''}${m}</span>`).join('')}</div></div>`;
 }
 
+/* ================= LEARN + PRACTICE MODES (no points: answers come with the set and are checked here) ================= */
+const LEARN_OF = id => CAT.learn?.[id] || { idea:'Read the question carefully, try it, and use a hint if you get stuck.', remember:'Hints show one step at a time.' };
+const MODES = {
+  guided:{ name:'Guided practice', icon:'eye', c:'sky', note:'A hint and answer choices on every question. A wrong answer shows the next step.', n:8 },
+  flash:{ name:'Flashcards', icon:'book', c:'teach', note:'Solve it in your head, flip the card, and check the answer and steps.', n:10 },
+  speed:{ name:'Speed round', icon:'bolt', c:'sun', note:'How many can you get right in 60 seconds?', n:40 },
+  mastery:{ name:'Mastery challenge', icon:'target', c:'leaf', note:'Type each answer. Get 5 right in a row to master the lesson.', n:20 },
+};
+const shuf = a => { const b=a.slice(); for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; };
+async function practiceSet(skills, n){ return (await api('/practice?' + new URLSearchParams({ skills: skills.slice(0,24).join(','), n:String(n) }))).problems; }
+const isRightLocal = (p, v) => p.kind==='choice' ? String(v)===String(p.answer) : Math.abs(parseNum(v)-Number(p.answer))<1e-9;
+const bestSpeed = id => keep.get('arise_math_speed_'+id, 0);
+let speedTimer = null;
+function stopSpeed(){ clearInterval(speedTimer); speedTimer=null; }
+async function openLesson(skill){
+  stopSpeed();
+  S.lesson = { skill, ex:null, shown:0, mode:null };
+  render(); window.scrollTo({top:0});
+  try { const ex = (await practiceSet([skill], 1))[0]; if (S.lesson?.skill===skill){ S.lesson.ex = ex; render(); } }
+  catch(e){ if (S.lesson?.skill===skill){ S.lesson.err = e.message; render(); } }
+}
+async function newExample(){ const L=S.lesson; try { const ex=(await practiceSet([L.skill],1))[0]; if (S.lesson===L){ L.ex=ex; L.shown=0; if (!L.mode && document.getElementById('wkBox')) paintWk(); else render(); } } catch(e){ toast(e.message); } }
+function printLesson(skill, level){
+  const st = myState();
+  window.open('/api/math/worksheet?' + new URLSearchParams({ skills:skill, n:'12', level, state:st?.id||'CO', codes:SK(skill).std }).toString(), '_blank', 'noopener');
+}
+// lessonHTML and the "Solve it with me" walkthrough live in the LEARN script below.
+async function startMode(mode){
+  const L = S.lesson; if (!L) return; stopSpeed();
+  let set; try { set = await practiceSet([L.skill], MODES[mode].n); } catch(e){ return toast(e.message); }
+  if (S.lesson!==L) return;
+  Object.assign(L, { mode, set, i:0, first:0, known:0, again:0, streak:0, right:0, miss:0, wrong:[], done:false, over:false, flip:false, fb:null, last:null, hint: mode==='guided' && set[0].steps.length>1 ? 1 : 0 });
+  if (mode==='speed'){
+    L.end = Date.now()+60000;
+    speedTimer = setInterval(()=>{ const left=Math.max(0,Math.ceil((L.end-Date.now())/1000)); const el=document.getElementById('spTime'); if(el) el.textContent=left+'s'; if(left<=0) finishSpeed(); }, 250);
+  }
+  render(); window.scrollTo({top:0}); focusMode();
+}
+const curP = () => S.lesson.set[S.lesson.i];
+function focusMode(){ setTimeout(()=>{ const i=document.getElementById('mAns'); if (i && window.matchMedia('(pointer:fine)').matches) i.focus({preventScroll:true}); }, 0); }
+async function moreProblems(){ const L=S.lesson; if (!L || L.set.length-L.i>=6 || L.loading) return; L.loading=true; try { const more=await practiceSet([L.skill], 20); if (S.lesson===L) L.set.push(...more); } catch {} L.loading=false; }
+function finishSpeed(){
+  const L=S.lesson; stopSpeed(); if (!L || L.mode!=='speed' || L.over) return;
+  L.over=true; L.prev=bestSpeed(L.skill); L.newBest=L.right>L.prev; if (L.newBest){ keep.set('arise_math_speed_'+L.skill, L.right); if (L.right>=5) confetti(); }
+  render();
+}
+function modeAnswer(v){
+  const L=S.lesson, p=curP(); if (!p || L.done || L.over) return;
+  const ok = isRightLocal(p, v);
+  if (L.mode==='speed'){ if (ok) L.right++; else L.miss++; L.last = ok ? { c:'good', t:'Right!' } : { c:'bad', t:`${p.plain}: the answer was ${p.answerLabel}` }; L.i++; moreProblems(); return render(); }
+  if (L.mode==='guided'){
+    if (ok){ L.done=true; if (!L.wrong.length) L.first++; L.hint=p.steps.length; L.fb={ c:'good', t: L.wrong.length ? 'You got it. Read the steps to see why it works.' : 'Right on the first try!' }; }
+    else { L.wrong.push(String(v)); L.hint=Math.min(p.steps.length, L.hint+1); L.fb={ c:'bad', t:'Not quite. Read the next step, then try again.' }; }
+    return render();
+  }
+  if (L.mode==='mastery'){
+    if (String(v).trim()==='') return;
+    if (p.kind==='num' && Number.isNaN(parseNum(v))) { L.fb={ c:'bad', t:'Type a number, like 12, −3, 3/4 or 2.5.' }; return render(); }
+    L.done=true;
+    if (ok){ L.streak++; L.fb={ c:'good', t: L.streak>=5 ? 'Five in a row. Mastered!' : `Right! ${5-L.streak} more in a row.` }; if (L.streak>=5){ L.over=true; confetti(); } }
+    else { L.streak=0; L.missed=true; L.typed=String(v); L.wrong.push(String(v)); L.fb={ c:'bad', t:`The answer is ${p.answerLabel}. Read the steps, then start a new streak.` }; }
+    moreProblems(); render(); setTimeout(()=>document.getElementById('mNext')?.focus({preventScroll:true}),0); return;
+  }
+}
+function modeNext(){
+  const L=S.lesson; L.i++; Object.assign(L, { done:false, wrong:[], fb:null, flip:false, missed:false, typed:'' });
+  if ((L.mode==='guided' || L.mode==='flash') && L.i>=L.set.length) L.over=true;
+  else L.hint = L.mode==='guided' && curP().steps.length>1 ? 1 : 0;
+  render(); window.scrollTo({top:0}); focusMode();
+}
+function modeQ(p){ return `<p class="ask">${esc(p.ask)}</p><div class="prompt ${p.long?'long':''}">${p.prompt}</div>${p.viz?`<div class="viz-wrap">${p.viz}</div>`:''}`; }
+function modeChoices(p, L, act='mpick'){
+  const right = c => L.done && (p.kind==='choice' ? c.v===p.answer : Number(c.v)===Number(p.answer));
+  return `<div class="choices">${p.choices.map(c=>{ const bad=L.wrong.includes(c.v), good=right(c);
+    return `<button type="button" data-act="${act}" data-v="${esc(c.v)}" class="${good?'is-good':bad?'is-bad':''}" ${L.done||bad?'disabled':''}>${esc(c.label)}</button>`; }).join('')}</div>`;
+}
+function modeHTML(){
+  const L=S.lesson, m=MODES[L.mode], s=SK(L.skill);
+  const sub = L.over ? 'Finished' : L.mode==='guided' ? `Question ${L.i+1} of ${L.set.length}` : L.mode==='flash' ? `Card ${L.i+1} of ${L.set.length}` : L.mode==='speed' ? `${L.right} right` : `${L.streak} in a row`;
+  const bar = L.mode==='mastery' ? `<div class="streak" aria-label="${L.streak} of 5 in a row">${range(0,4).map(i=>`<i class="${i<L.streak?'on':''}"></i>`).join('')}</div>`
+    : L.mode==='speed' ? '' : `<div class="pips">${range(0,Math.min(L.set.length,20)-1).map(i=>`<i class="${i<L.i?'first':i===L.i&&!L.over?'cur':''}"></i>`).join('')}</div>`;
+  const head = `<div class="cover run-head"><div class="run-top"><button class="btn sm glass" data-act="lback">${svg('back')}Lesson</button>${L.mode==='speed'&&!L.over?`<span class="run-pts tnum" id="spTime">${Math.max(0,Math.ceil((L.end-Date.now())/1000))}s</span>`:''}</div>
+    <div class="run-title"><b>${esc(m.name)}</b><span>${esc(s.name)} · ${sub}</span></div>${bar}</div>`;
+  let body;
+  if (L.over){
+    const big = L.mode==='guided' ? `${L.first}/${L.set.length}` : L.mode==='flash' ? `${L.known}` : L.mode==='speed' ? `${L.right}` : '5/5';
+    const line = L.mode==='guided' ? 'right on the first try' : L.mode==='flash' ? `card${L.known===1?'':'s'} you knew right away` : L.mode==='speed' ? `right in 60 seconds${L.miss?` · ${L.miss} missed`:''}` : 'in a row';
+    const note = L.mode==='speed' ? (L.newBest ? (L.prev ? `A new best! Your old best was ${L.prev}.` : 'Your first speed round. Try to beat it!') : `Your best is ${L.prev}. Keep going!`)
+      : L.mode==='mastery' ? 'You mastered this lesson. Try a speed round or a quiz next.'
+      : L.mode==='guided' ? (L.first>=L.set.length-1 ? 'Ready for the Mastery challenge without hints.' : 'Keep the hints coming until it clicks, then try Flashcards.')
+      : 'Flip through again any time.';
+    body = `<div><div class="result-score tnum">${big}</div><span class="muted small">${line}</span></div><p>${note}</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="lmode" data-v="${L.mode}">Go again</button><button class="btn" data-act="lback">${svg('back')}Back to the lesson</button></div>`;
+  } else {
+    const p = curP();
+    if (L.mode==='guided') body = `${modeQ(p)}
+      ${L.hint?`<div class="hintbox"><span class="eyebrow">Hint${L.hint>1?'s':''}</span><ol class="steps">${p.steps.slice(0,L.hint).map(x=>`<li>${x}</li>`).join('')}</ol></div>`:''}
+      ${modeChoices(p, L)}
+      ${L.fb?`<p class="feedback ${L.fb.c}" role="status">${esc(L.fb.t)}</p>`:''}
+      <div class="row" style="gap:8px;flex-wrap:wrap">${L.done?`<button class="btn primary lg" data-act="mnext">${L.i+1<L.set.length?'Next question':'See how I did'}</button>`:L.hint<p.steps.length?`<button class="btn" data-act="mhint">Show another step</button>`:''}</div>`;
+    else if (L.mode==='flash') body = `<div class="flipcard ${L.flip?'back':''}">${L.flip
+        ? `<span class="eyebrow">Answer</span><div class="big-ans">${esc(p.answerLabel)}</div><div class="prompt long" style="opacity:.7">${p.prompt}</div><ol class="steps">${p.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`
+        : `<span class="eyebrow">Solve it in your head</span>${modeQ(p)}`}</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">${L.flip?`<button class="btn primary lg" data-act="mknew">${svg('check')}I knew it</button><button class="btn lg" data-act="magain">Practice it again</button>`:`<button class="btn primary lg" data-act="mflip" id="mFlip">Flip the card</button>`}</div>`;
+    else if (L.mode==='speed') body = `${modeQ(p)}${modeChoices(p, { done:false, wrong:[] })}${L.last?`<p class="feedback ${L.last.c}" role="status">${esc(L.last.t)}</p>`:''}`;
+    else {
+      const keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
+      const ans = p.kind==='choice' ? modeChoices(p, L)
+        : `<form class="answer" id="mForm" autocomplete="off"><label for="mAns" class="sr">Your answer</label><input id="mAns" inputmode="none" placeholder="?" spellcheck="false" class="${L.missed?'is-bad':''}" ${L.done?'disabled':''} value="${esc(L.done?(L.missed?L.typed:p.answerLabel):'')}"><button class="btn primary lg" type="submit" ${L.done?'disabled':''}>Check</button></form>
+          ${L.done?'':`<div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="mkey" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>`}`;
+      body = `${modeQ(p)}${ans}${L.fb?`<p class="feedback ${L.fb.c}" role="status">${esc(L.fb.t)}</p>`:''}
+        ${L.missed?`<div class="hintbox"><span class="eyebrow">How to solve it</span><ol class="steps">${p.steps.map(x=>`<li>${x}</li>`).join('')}</ol></div>`:''}
+        ${L.done?`<div><button class="btn primary lg" data-act="mnext" id="mNext">Next question</button></div>`:''}`;
+    }
+  }
+  return `<div class="card flush">${head}<div class="run-body">${body}</div></div>`;
+}
+
 /* ================= STUDENT: GAMES (on the A.R.I.S.E. play timer) ================= */
 const sessionId = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
 async function heartbeat(){
@@ -802,22 +1099,28 @@ function tilesFor(band){
   for(let i=tiles.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [tiles[i],tiles[j]]=[tiles[j],tiles[i]]; }
   return { T, pair, tiles: tiles.map(v=>({ v, id:'t'+Math.random().toString(36).slice(2) })) };
 }
-async function startGame(){
-  const a = await heartbeat();
-  if (!canPlay(a)) { render(); return; }
-  const t = tilesFor(myBand());
-  GAME = { T:t.T, pair:t.pair, tiles:t.tiles, sel:null, score:0, end:Date.now()+60000, over:false, flash:null };
-  clearInterval(beatTimer); beatTimer = setInterval(async ()=>{ const x = await heartbeat(); if (GAME && !GAME.over && x && !canPlay(x)) endGame('Play time is up for now.'); }, 8000);
-  clearInterval(gameTimer);
-  gameTimer = setInterval(()=>{ if(!GAME) return clearInterval(gameTimer); const left=Math.max(0,Math.ceil((GAME.end-Date.now())/1000)); const el=document.getElementById('gTime'); if(el) el.textContent=left+'s'; if(left<=0) endGame(); },250);
-  render();
+const GAMES = {
+  target:{ name:'Target Pop', icon:'target', c:'primary', note:'Find pairs that add up to the target before the timer runs out.', secs:60 },
+  memory:{ name:'Memory Match', icon:'eye', c:'teach', note:'Flip cards to match each problem with its answer. Fewer flips is better.', secs:180 },
+  balloon:{ name:'Balloon Pop', icon:'up', c:'coral', note:'Pop the balloon with the right answer before it floats away.', secs:60 },
+  truefalse:{ name:'True or False', icon:'bolt', c:'sun', note:'Is the math right? Decide fast. 45 seconds.', secs:45 },
+  streak:{ name:'Streak Sprint', icon:'flame', c:'leaf', note:'Type each answer fast. Right answers in a row build your streak and multiply your points.', secs:45 },
+};
+/** Lessons whose question is about a picture (count the dots, read the clock), and ones whose short form isn't a true equation. */
+const SEE = new Set(['kcount','kmore','kshape','ksides','add20','sub20','pct','g2oddeven','g1time','g2time5','g2bar','g3fracshade','g5coord']);
+const NOT_EQ = new Set(['g4addfrac','g4fracmul','g8scimul','tens']);
+const FACTS = { k2:['kadd10','kmake10','g2facts','g1three','g1sub10s','kdecompose','g1unknown'], g35:['mult','div','g3mult10','g3add1000','g3twostep','g3eqfrac','g4mixed'], g68:['int','g7muldiv','g6exp','g7rational','g6divfrac','g6decops','g5order'], g912:['hsradical','hsexpgrowth','g7muldiv','int','g7rational','g8exp'] };
+const shortMath = p => p.kind==='num' && !SEE.has(p.skill) && !NOT_EQ.has(p.skill) && p.plain.length<=18 && /\d/.test(p.plain) && /^[-\d\s+−×÷().\/=?,:|²^√%]+$/.test(p.plain);
+const eqText = (p, label) => p.plain.includes('?') ? p.plain.replace('?', label) : `${p.plain} = ${label}`;
+async function gamePool(kind){
+  const band = myBand(), grade = coLessons(coGrade()).map(l=>l.skill);
+  const want = kind==='balloon' ? (p => !SEE.has(p.skill) && !p.viz && p.choices.length>=2 && (p.kind==='choice' || !NOT_EQ.has(p.skill))) : shortMath;
+  let list = (await practiceSet(shuf([...new Set([...grade, ...FACTS[band]])]), 40)).filter(want);
+  if (list.length < 12) list = list.concat((await practiceSet(FACTS[band], 30)).filter(want));
+  if (kind==='memory'){ const seen=new Set(); list = list.filter(p=>!seen.has(p.plain) && seen.add(p.plain)); }
+  return shuf(list);
 }
-function endGame(msg){
-  if (!GAME || GAME.over) return;
-  clearInterval(gameTimer); GAME.over = true; leavePlay();
-  toast(msg || `Round over: ${GAME.score} pairs`);
-  if (S.tab==='games') render();
-}
+function makeStmt(p){ const truth = Math.random()<.5, wrong = p.choices.filter(c=>Number(c.v)!==Number(p.answer)); const label = truth || !wrong.length ? p.answerLabel : wrong[Math.floor(Math.random()*wrong.length)].label; return { text: eqText(p, label), truth: truth || !wrong.length, right: eqText(p, p.answerLabel) }; }
 function tapTile(id){
   if (!GAME||GAME.over) return;
   const t=GAME.tiles.find(x=>x.id===id); if(!t) return;
@@ -828,7 +1131,121 @@ function tapTile(id){
   else GAME.flash={no:[a.id,t.id]};
   GAME.sel=null; render();
 }
+async function startGame(kind){
+  if (!GAMES[kind]) kind = 'target';
+  const a = await heartbeat();
+  if (!canPlay(a)) { render(); return; }
+  if (kind==='target'){ const t = tilesFor(myBand()); GAME = { kind, T:t.T, pair:t.pair, tiles:t.tiles, sel:null, score:0, flash:null }; }
+  else {
+    let pool; try { pool = await gamePool(kind); } catch(e){ return toast(e.message); }
+    if (pool.length < 6) return toast('Not enough questions for this game yet. Try another game.');
+    if (kind==='memory'){ const ps = pool.slice(0,6); GAME = { kind, cards: shuf(ps.flatMap((p,i)=>[{ id:'q'+i, side:'q', text:p.plain, key:p.answerLabel }, { id:'a'+i, side:'a', text:p.answerLabel, key:p.answerLabel }])), up:[], matched:[], flips:0, score:0, lock:false }; }
+    else if (kind==='balloon') GAME = { kind, pool, qi:0, score:0, miss:0, wait:false, last:null };
+    else if (kind==='streak') GAME = { kind, pool, qi:0, score:0, miss:0, streak:0, best:0, last:null };
+    else GAME = { kind, pool, qi:0, score:0, miss:0, stmt:makeStmt(pool[0]), last:null };
+  }
+  Object.assign(GAME, { start:Date.now(), end:Date.now()+GAMES[kind].secs*1000, over:false });
+  clearInterval(beatTimer); beatTimer = setInterval(async ()=>{ const x = await heartbeat(); if (GAME && !GAME.over && x && !canPlay(x)) endGame('Play time is up for now.'); }, 8000);
+  clearInterval(gameTimer);
+  gameTimer = setInterval(()=>{ if(!GAME) return clearInterval(gameTimer); const left=Math.max(0,Math.ceil((GAME.end-Date.now())/1000)); const el=document.getElementById('gTime'); if(el) el.textContent=left+'s'; if(left<=0) endGame(); },250);
+  render();
+  if (kind==='balloon') armBalloon();
+}
+function endGame(msg){
+  if (!GAME || GAME.over) return;
+  clearInterval(gameTimer); clearTimeout(GAME.bt); GAME.over = true; GAME.secs = Math.round((Date.now()-GAME.start)/1000); leavePlay();
+  toast(msg || (GAME.kind==='target' ? `Round over: ${GAME.score} pairs` : GAME.kind==='memory' ? `Time’s up: ${GAME.score} of 6 pairs` : GAME.kind==='streak' ? `Round over: ${GAME.score} right, best streak ${GAME.best}` : `Round over: ${GAME.score} right`));
+  if (S.tab==='games') render();
+}
+/* Memory Match: flip two cards; a problem and its answer stay up. */
+function flipCard(id){
+  const G = GAME; if (!G || G.over || G.kind!=='memory' || G.lock) return;
+  const c = G.cards.find(x=>x.id===id); if (!c || G.up.includes(id) || G.matched.includes(id)) return;
+  G.up.push(id); G.flips++;
+  if (G.up.length===2){
+    const [a,b] = G.up.map(x=>G.cards.find(y=>y.id===x));
+    if (a.side!==b.side && a.key===b.key){ G.matched.push(a.id,b.id); G.up=[]; G.score++; G.just=[a.id,b.id];
+      if (G.matched.length===G.cards.length){ render(); confetti(); return endGame(`All matched in ${Math.round((Date.now()-G.start)/1000)} seconds and ${G.flips} flips!`); } }
+    else { G.lock=true; G.just=null; setTimeout(()=>{ if (GAME!==G) return; G.up=[]; G.lock=false; if (S.tab==='games') render(); }, 900); }
+  } else G.just=null;
+  render();
+}
+/* Balloon Pop: the balloons rise on their own; tapping only changes the tapped balloon, so they keep rising. */
+const balloonQ = () => GAME.pool[GAME.qi % GAME.pool.length];
+function armBalloon(){
+  clearTimeout(GAME.bt);
+  const G = GAME; G.bt = setTimeout(()=>{ if (GAME!==G || G.over) return; G.miss++; G.last={ c:'bad', t:`Too slow! It was ${balloonQ().answerLabel}.` }; G.qi++; render(); armBalloon(); }, 7500);
+}
+function popBalloon(el, v){
+  const G = GAME; if (!G || G.over || G.kind!=='balloon' || G.wait) return;
+  const p = balloonQ(), ok = p.kind==='choice' ? String(v)===String(p.answer) : Number(v)===Number(p.answer);
+  if (ok){ clearTimeout(G.bt); G.wait=true; G.score++; el.classList.add('popped'); G.last={ c:'good', t:'Pop! That’s right.' };
+    setTimeout(()=>{ if (GAME!==G || G.over) return; G.wait=false; G.qi++; render(); armBalloon(); }, 320); }
+  else { el.classList.add('no'); el.disabled=true; G.miss++; const f=document.getElementById('bFb'); if (f){ f.className='feedback bad'; f.textContent='Not that one. Keep looking!'; } }
+}
+/* Streak Sprint: type each answer; a right streak raises the multiplier, a miss resets it to 0. */
+const streakQ = () => GAME.pool[GAME.qi % GAME.pool.length];
+const streakMult = s => s>=10?4:s>=6?3:s>=3?2:1;
+function streakAnswer(v){
+  const G = GAME; if (!G || G.over || G.kind!=='streak') return;
+  if (String(v).trim()==='') return;
+  const p = streakQ(), ok = isRightLocal(p, v);
+  if (p.kind==='num' && Number.isNaN(parseNum(v))) { G.last={ c:'bad', t:'Type a number, like 12, −3, 3/4 or 2.5.' }; return render(); }
+  if (ok){ const mult = streakMult(G.streak); G.streak++; G.score += mult; if (G.streak>G.best) G.best = G.streak; G.last = { c:'good', t: mult>1 ? `Right! ×${mult} streak bonus.` : 'Right!' }; }
+  else { G.streak = 0; G.miss++; G.last = { c:'bad', t:`Not quite — it was ${p.answerLabel}. Streak reset.` }; }
+  G.qi++; G.flash = ok ? 'good' : 'bad';
+  const inp = document.getElementById('gAns'); if (inp) inp.value='';
+  render(); setTimeout(()=>document.getElementById('gAns')?.focus({preventScroll:true}),0);
+}
+/* True or False */
+function tfAnswer(v){
+  const G = GAME; if (!G || G.over || G.kind!=='truefalse') return;
+  const ok = (v==='true') === G.stmt.truth;
+  if (ok) G.score++; else G.miss++;
+  G.last = ok ? { c:'good', t:'Right!' } : { c:'bad', t: G.stmt.truth ? `It was true: ${G.stmt.right}` : `False. ${G.stmt.right}` };
+  G.qi++; G.stmt = makeStmt(G.pool[G.qi % G.pool.length]); G.flash = ok ? 'good' : 'bad';
+  render();
+}
 const fmtG = v => N(+Number(v).toFixed(2));
+function gameBodyHTML(){
+  const G = GAME, s = Math.max(0,Math.ceil((G.end-Date.now())/1000));
+  const top = (label, big, score) => `<div class="target"><div><span class="eyebrow">${label}</span><div class="t">${big}</div></div><div style="text-align:right"><div class="timer" id="gTime">${s}s</div><span class="small muted tnum">${score}</span></div></div>`;
+  const quit = `<div><button class="btn sm" data-act="gamequit">${svg('x')}End round</button></div>`;
+  if (G.kind==='target') return `<div class="card stack">${top('Make the target', fmtG(G.T), `${G.score} pairs`)}
+      <div class="tiles">${G.tiles.map(t=>`<button class="tile ${G.flash?.ok?.includes(t.id)?'pop':''} ${G.flash?.no?.includes(t.id)?'no':''}" data-act="tile" data-v="${t.id}" aria-pressed="${G.sel===t.id}">${fmtG(t.v)}</button>`).join('')}</div>
+      <p class="small muted">Tap two numbers that add up to ${fmtG(G.T)}.</p>${quit}</div>`;
+  if (G.kind==='memory') return `<div class="card stack">${top('Memory Match', `${G.score}/6`, `${G.flips} flips`)}
+      <div class="mem">${G.cards.map(c=>{ const shown=G.up.includes(c.id)||G.matched.includes(c.id);
+        return `<button class="mcard ${shown?'up':''} ${G.matched.includes(c.id)?'done':''} ${G.just?.includes(c.id)?'pop':''} ${c.side}" data-act="mflipcard" data-v="${c.id}" aria-label="${shown?esc(c.text):'Hidden card'}">${shown?esc(c.text):'?'}</button>`; }).join('')}</div>
+      <p class="small muted">Match each problem with its answer.</p>${quit}</div>`;
+  if (G.kind==='balloon'){
+    const p = balloonQ(), cols = ['coral','sky','leaf','teach','sun'], xs = shuf([6,30,54,78]).slice(0,p.choices.length);
+    return `<div class="card stack">${top('Balloon Pop', `${G.score}`, `${G.miss} missed`)}
+      <div class="bq"><p class="ask">${esc(p.ask)}</p><div class="prompt long">${p.prompt}</div></div>
+      <div class="skybox" aria-label="Balloons">${p.choices.map((c,i)=>`<span class="bwrap" style="left:${xs[i]}%;animation-delay:${(i*0.25).toFixed(2)}s"><button class="balloon" style="--c:${cc(cols[(G.qi+i)%cols.length])}" data-act="balloon" data-v="${esc(c.v)}">${esc(c.label)}</button></span>`).join('')}</div>
+      <p class="${G.last?`feedback ${G.last.c}`:'small muted'}" id="bFb" role="status">${G.last?esc(G.last.t):'Tap the balloon with the right answer.'}</p>${quit}</div>`;
+  }
+  if (G.kind==='streak'){
+    const p = streakQ(), mult = streakMult(G.streak), keys=['1','2','3','4','5','6','7','8','9','0','−','/','.','⌫','Clear'];
+    return `<div class="card stack">${top('Streak Sprint', `${G.score}`, `best ${G.best}`)}
+      <div class="bq"><p class="ask">${esc(p.ask)}</p><div class="prompt long">${p.prompt}</div></div>
+      <div class="streak streak-card" aria-label="Current streak: ${G.streak}">${Array.from({length:10},(_,i)=>`<i class="${i<Math.min(G.streak,10)?'on':''}"></i>`).join('')}</div>
+      <p class="small muted tnum">${G.streak} in a row${mult>1?` · ×${mult} points`:''}</p>
+      <form class="answer" id="gForm" autocomplete="off"><label for="gAns" class="sr">Your answer</label><input id="gAns" inputmode="none" placeholder="?" autofocus spellcheck="false"><button class="btn primary lg" type="submit">Check</button></form>
+      <div class="keypad" aria-label="Number pad">${keys.map(k=>`<button type="button" data-act="gkey" data-v="${k}" class="${k==='Clear'?'wide':''}" aria-label="${k==='⌫'?'Delete':k==='−'?'Minus':k}">${k}</button>`).join('')}</div>
+      <p class="${G.last?`feedback ${G.last.c}`:'small muted'}" role="status">${G.last?esc(G.last.t):'Type the answer and hit Check.'}</p>${quit}</div>`;
+  }
+  return `<div class="card stack">${top('True or False?', `${G.score}`, `${G.miss} missed`)}
+      <div class="tf-stmt ${G.flash||''}">${esc(G.stmt.text)}</div>
+      <div class="tf-btns"><button class="tf-t" data-act="tf" data-v="true">${svg('check')}True</button><button class="tf-f" data-act="tf" data-v="false">${svg('x')}False</button></div>
+      <p class="${G.last?`feedback ${G.last.c}`:'small muted'}" role="status">${G.last?esc(G.last.t):'Is the math right?'}</p>${quit}</div>`;
+}
+function lastRoundHTML(){
+  const G = GAME; if (!G || !G.over) return '';
+  const big = G.kind==='target' ? `${G.score} pairs` : G.kind==='memory' ? `${G.score} of 6 pairs` : G.kind==='streak' ? `${G.score} points` : `${G.score} right`;
+  const sub = G.kind==='memory' ? `${G.flips} flips in ${G.secs} seconds` : G.kind==='target' ? '' : G.kind==='streak' ? `best streak ${G.best} · ${G.miss} missed` : `${G.miss} missed`;
+  return `<div class="card"><span class="eyebrow">Last round · ${esc(GAMES[G.kind].name)}</span><div class="result-score tnum">${big}</div>${sub?`<span class="small muted">${sub}</span>`:''}</div>`;
+}
 function gamesHTML(){
   const a = playAccess, open = canPlay(a) || !a;
   const left = a ? (a.unlimitedThisWeek ? 'Unlimited this week' : `${Math.floor(playLeft(a)/60)}:${String(playLeft(a)%60).padStart(2,'0')} left today`) : 'Uses your A.R.I.S.E. play time';
@@ -837,17 +1254,9 @@ function gamesHTML(){
     : a && !canPlay(a) && !(GAME && !GAME.over)
     ? `<div class="gate closed">${svg('lock')}<div><b>The game room is closed</b><div class="small muted">${esc(closedWhy(a))}</div>${!a.closedByAdmin&&!a.closedByTeacher&&!a.locked?(a.timeRequestStatus==='pending'?'<div class="small" style="margin-top:6px">Your request for more time is waiting for a grown-up.</div>':`<button class="btn sm" style="margin-top:8px" data-act="moretime">${svg('clock')}Ask for 10 more minutes</button>`):''}</div></div>`
     : `<div class="gate open">${svg('unlock')}<div><b>${esc(left)}</b><div class="small muted">Games share the daily play timer with the rest of A.R.I.S.E. Your teacher’s and family’s limits apply here too.</div></div></div>`;
-  let body;
-  if (GAME && !GAME.over){
-    const s = Math.max(0,Math.ceil((GAME.end-Date.now())/1000));
-    body = `<div class="card stack"><div class="target"><div><span class="eyebrow">Make the target</span><div class="t">${fmtG(GAME.T)}</div></div><div style="text-align:right"><div class="timer" id="gTime">${s}s</div><span class="small muted tnum">${GAME.score} pairs</span></div></div>
-      <div class="tiles">${GAME.tiles.map(t=>`<button class="tile ${GAME.flash?.ok?.includes(t.id)?'pop':''} ${GAME.flash?.no?.includes(t.id)?'no':''}" data-act="tile" data-v="${t.id}" aria-pressed="${GAME.sel===t.id}">${fmtG(t.v)}</button>`).join('')}</div>
-      <p class="small muted">Tap two numbers that add up to ${fmtG(GAME.T)}.</p></div>`;
-  } else {
-    body = `<div class="card stack">${GAME&&GAME.over?`<div><span class="eyebrow">Last round</span><div class="result-score tnum">${GAME.score} pairs</div></div>`:''}
-      <div class="row" style="flex-wrap:nowrap;align-items:flex-start">${ico('target','primary')}<div><h2>Target Pop</h2><p class="small muted">Find pairs that add up to the target before the 60-second timer runs out. Games are a reward, so they don’t add leaderboard points.</p></div></div>
-      <div><button class="btn primary lg" data-act="game" ${open?'':'disabled'}>${svg('game')}${GAME&&GAME.over?'Play again':'Play a round'}</button></div></div>`;
-  }
+  const body = GAME && !GAME.over ? gameBodyHTML()
+    : `${lastRoundHTML()}<div class="modes">${Object.entries(GAMES).map(([id,g])=>`<div class="mode game-card">${ico(g.icon,g.c)}<b>${g.name}</b><span>${g.note}</span><button class="btn primary sm" data-act="game" data-v="${id}" ${open?'':'disabled'}>${svg('game')}${GAME?.over&&GAME.kind===id?'Play again':'Play'}</button></div>`).join('')}</div>
+      <p class="small muted">Games use questions from your grade’s lessons. They’re a reward, so they don’t add leaderboard points.</p>`;
   return `<div class="card"><h1>Game room</h1><p class="muted" style="margin-top:4px">Quizzes come first. Games open with the play time your teacher and family allow.</p></div>${status}${body}`;
 }
 
@@ -873,9 +1282,9 @@ function classHTML(){
   const head = `<div class="card"><div class="card-h" style="margin-bottom:12px"><div><h1>My Class</h1><span class="small muted">${C.totals.students} student${C.totals.students===1?'':'s'} · practicing grades ${bandLabel(b)}</span></div>
       <div class="bandpick" role="group" aria-label="Class grade band">${['k2','g35','g68','g912'].map(x=>`<button data-act="classband" data-v="${x}" aria-pressed="${x===b}">${bandLabel(x)}</button>`).join('')}</div></div>
       <div class="statgrid"><div><b>${C.totals.accuracy==null?'–':C.totals.accuracy+'%'}</b><span>Average first-try accuracy</span></div><div><b>${C.totals.weekQuizzes}</b><span>Quizzes this week</span></div><div><b>${C.totals.check}</b><span>Need a check-in</span></div><div><b>${S.assign?S.assign.length:'–'}</b><span>Assignments</span></div></div></div>`;
-  if (!C.students.length) return head + `<div class="card"><p class="muted">Students show up here once they join your class on A.R.I.S.E. Reader and you approve them.</p></div>`;
+  if (!C.students.length) return head + snapPromoHTML('Show the class how to work through a problem') + `<div class="card"><p class="muted">Students show up here once they join your class on A.R.I.S.E. Reader and you approve them.</p></div>`;
   const pill = s => s.status==='check' ? '<span class="chip pill-warn">Check in</span>' : s.status==='new' ? '<span class="chip">Not started</span>' : '<span class="chip pill-ok">On track</span>';
-  return head + `<div class="card"><div class="card-h"><h2>Students</h2><span class="small muted">Tap a student for details</span></div><div class="table-wrap"><table><thead><tr><th>Student</th><th class="num">Points</th><th class="num">Quizzes</th><th class="num">Accuracy</th><th>Last practice</th><th>Status</th></tr></thead><tbody>
+  return head + snapPromoHTML('Show the class how to work through a problem') + `<div class="card"><div class="card-h"><h2>Students</h2><span class="small muted">Tap a student for details</span></div><div class="table-wrap"><table><thead><tr><th>Student</th><th class="num">Points</th><th class="num">Quizzes</th><th class="num">Accuracy</th><th>Last practice</th><th>Status</th></tr></thead><tbody>
       ${C.students.map(s=>`<tr class="click" data-act="student" data-v="${s.id}"><td><div class="row" style="flex-wrap:nowrap;gap:8px">${av(s.name,'xs',s.avatar)}<b>${esc(s.name)}</b></div></td><td class="num">${s.points}</td><td class="num">${s.quizzes}</td><td class="num">${s.accuracy==null?'–':s.accuracy+'%'}</td><td>${lastTxt(s.daysAway)}</td><td>${pill(s)}</td></tr>`).join('')}</tbody></table></div></div>
     <div class="card"><div class="card-h"><h2>Skill strength</h2><span class="small muted">First-try accuracy by skill</span></div><div class="table-wrap"><table><thead><tr><th>Student</th>${skills.map(id=>`<th>${esc(SK(id).name)}</th>`).join('')}</tr></thead><tbody>
       ${C.students.map(s=>`<tr><td>${esc(s.name)}</td>${s.skills.map(v=>`<td>${v==null?'<span class="small muted">–</span>':`<span class="heat ${v<50?'low':''}" style="--p:${Math.max(8,v-35)}%">${v}%</span>`}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
@@ -900,10 +1309,11 @@ function assignHTML(){
   const asg = S.assign, d = S.drafts, b = S.cls?.settings.band || 'g35';
   return `<div class="card"><h1>Assign practice</h1><p class="muted" style="margin-top:4px">Assignments show up first on each student’s Practice page, and they get a notification.</p></div>
     <div class="card stack"><h2>New assignment</h2><div class="grid two">
-      <label class="f">Skill<select id="aSkill">${CAT.bands[b].skills.map(id=>`<option value="${id}">${esc(SK(id).name)} (${esc(SK(id).std)})</option>`).join('')}<option value="mixed">Mixed review</option>${d.length?`<option value="custom">My questions (${d.length})</option>`:''}</select></label>
+      <label class="f">Skill<select id="aSkill">${CAT.bands[b].skills.map(id=>`<option value="${id}">${esc(SK(id).name)} (${esc(SK(id).std)})</option>`).join('')}<option value="mixed">Mixed review</option>${d.length?`<option value="custom">My questions (${d.length})</option>`:''}${(CAT.grades||[]).map(g=>coLessons(g).length?`<optgroup label="${esc(CAT.gradeLabels[g])}">${coLessons(g).map(l=>`<option value="${l.skill}">${esc(SK(l.skill).name)} (${esc(codeLabel(myState(), l.code))})</option>`).join('')}</optgroup>`:'').join('')}</select></label>
       <label class="f">Questions<select id="aN"><option>5</option><option>10</option></select></label>
       <label class="f">Due<input type="date" id="aDue" value="${plus(2)}" min="${plus(0)}"></label></div>
       <div><button class="btn primary" data-act="assign">${svg('plus')}Assign to class</button></div></div>
+    ${worksheetCardHTML()}
     <div class="card"><div class="card-h"><h2>Assigned</h2><span class="small muted tnum">${asg?asg.length:''}</span></div>
       ${asg==null?'<p class="small muted">Loading…</p>':asg.length?asg.map(a=>`<div class="assign">${op(a.skill)}<div><b>${esc(a.title)}</b><span class="small muted">${a.n} questions · Due ${fmtDue(a.due)} · ${a.done} of ${a.classSize} finished</span></div><button class="btn sm" data-act="unassign" data-v="${a.id}">Remove</button></div>`).join(''):'<p class="small muted">Nothing assigned yet.</p>'}</div>
     <div class="card stack"><h2>Write your own questions</h2><p class="small muted">Questions from your lesson. Students answer with a number; fractions like 3/4 work too. Pick “My questions” above to send them.</p>
@@ -949,7 +1359,7 @@ function currentChild(){ const kids=S.children||[]; return kids.find(k=>k.id===S
 function familyHTML(){
   if (S.err.children) return errCard(S.err.children, 'retry-children');
   if (!S.children) return loadingCard('your family');
-  if (!S.children.length) return `<div class="card stack"><h1>Arise Math</h1><p class="muted">Link your child’s A.R.I.S.E. Reader account from your parent dashboard, and their math progress will show up here.</p><div><a class="btn primary" href="/parent-dashboard">Open parent dashboard</a></div></div>`;
+  if (!S.children.length) return `<div class="card stack"><h1>Arise Math</h1><p class="muted">Link your child’s A.R.I.S.E. Reader account from your parent dashboard, and their math progress will show up here.</p><div><a class="btn primary" href="/parent-dashboard">Open parent dashboard</a></div></div>${coCardHTML()}`;
   const k = currentChild(), p = k.profile, first = k.firstName;
   const kids = S.children.length>1 ? `<div class="bandpick" role="group" aria-label="Choose a child">${S.children.map(c=>`<button data-act="child" data-v="${c.id}" aria-pressed="${c.id===k.id}">${esc(c.firstName)}</button>`).join('')}</div>` : '';
   const weakest = k.skills.filter(s=>s.strength!=null).sort((a,b)=>a.strength-b.strength)[0];
@@ -959,7 +1369,9 @@ function familyHTML(){
       ${p.history.slice(0,8).map(h=>`<tr><td>${esc(h.d)}</td><td>${esc(h.title)}</td><td class="num">${h.score}/${h.of}</td><td class="num">+${h.pts}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted">${esc(first)} hasn’t taken a math quiz yet.</p>`}</div>
     <div class="grid two"><div class="card"><div class="card-h"><h2>Skills</h2></div><div class="stack" style="gap:10px">${k.skills.map(s=>`<div><div class="row between small"><b>${esc(SK(s.id).name)}</b><span class="tnum">${s.strength==null?'Not started':s.strength+'%'}</span></div><div class="bar leaf"><i style="width:${s.strength||0}%"></i></div></div>`).join('')}</div></div>
       <div class="card"><div class="card-h"><h2>Certificates</h2><span class="small muted tnum">${p.certs.length}</span></div>${p.certs.length?p.certs.slice(0,4).map((c,i)=>`<div class="certrow">${ico('award','sun')}<div><b>${esc(c.t)}</b><span>${esc(c.d)}</span></div><button class="btn sm" data-act="cert" data-v="${i}">View</button></div>`).join(''):'<p class="small muted">Perfect quizzes and teacher awards show up here.</p>'}</div></div>
-    <div class="card"><div class="card-h"><h2>Talk about it at dinner</h2></div><p class="muted">${weakest?`${esc(first)} is working hardest on <b>${esc(SK(weakest.id).name.toLowerCase())}</b>. Ask them to teach you one problem and explain each step out loud.`:`Ask ${esc(first)} to show you their first math quiz and explain one answer.`}</p></div>`;
+    <div class="card"><div class="card-h"><h2>Talk about it at dinner</h2></div><p class="muted">${weakest?`${esc(first)} is working hardest on <b>${esc(SK(weakest.id).name.toLowerCase())}</b>. Ask them to teach you one problem and explain each step out loud.`:`Ask ${esc(first)} to show you their first math quiz and explain one answer.`}</p></div>
+    ${snapPromoHTML('Helping with homework? Snap a problem.')}
+    ${coCardHTML()}`;
 }
 
 /* ================= MODALS ================= */
@@ -1026,6 +1438,8 @@ setInterval(()=>{ const el=document.getElementById('ltimer'); const g = S.lplay?
 /* ================= RENDER ================= */
 function mainHTML(){
   if (!ME) return landingHTML();
+  if (S.snap) return snapHTML();
+  if (S.lesson) return lessonHTML();
   const r = role();
   if (r==='student'){
     if (S.tab==='practice') return practiceHTML();
@@ -1059,6 +1473,9 @@ async function saveMe(body){
   try { const r = await api('/me', { method:'PUT', body }); ME.profile = r.profile; ME.band = r.band; render(); }
   catch(e){ toast(e.message); }
 }
+document.addEventListener('change', e=>{
+  if (e.target && e.target.id==='statePick'){ try { localStorage.setItem(STATE_KEY, e.target.value); } catch {} render(); }
+});
 document.addEventListener('click', async e=>{
   const el = e.target.closest('[data-act]');
   if (S.menu && !e.target.closest('.menu') && !(el && el.dataset.act==='menu')) { S.menu=false; renderChrome(); }
@@ -1073,11 +1490,29 @@ document.addEventListener('click', async e=>{
     case 'menu': S.menu=!S.menu; return renderChrome();
     case 'tab':
       if (S.tab==='games' && v!=='games' && GAME && !GAME.over) endGame('Round ended.');
-      S.tab=v; S.menu=false; if (v==='practice' && S.result) S.result=null;
+      S.tab=v; S.menu=false; S.lesson=null; S.snap=null; stopSpeed(); if (v==='practice' && S.result) S.result=null;
       render(); window.scrollTo({top:0}); return loadFor(v);
     case 'home': S.result=null; return render();
     case 'band': { if (S.run) return; return saveMe({ band: v || null }).then(()=>{ S.board=null; }); }
-    case 'start': return startQuiz(el.dataset.type, v);
+    case 'start': S.lesson=null; stopSpeed(); return startQuiz(el.dataset.type, v);
+    case 'learn': return openLesson(v);
+    case 'lclose': stopSpeed(); S.lesson=null; render(); window.scrollTo({top:0}); return;
+    case 'exstep': if (S.lesson?.ex){ S.lesson.shown++; render(); } return;
+    case 'exall': if (S.lesson?.ex){ S.lesson.shown=S.lesson.ex.steps.length; render(); } return;
+    case 'exnew': return newExample();
+    case 'lprint': return printLesson(S.lesson.skill, v);
+    case 'lmode': return startMode(v);
+    case 'lback': stopSpeed(); if (S.lesson){ S.lesson.mode=null; render(); window.scrollTo({top:0}); } return;
+    case 'mpick': return modeAnswer(v);
+    case 'mnext': return modeNext();
+    case 'mhint': { const L=S.lesson, p=curP(); L.hint=Math.min(p.steps.length, L.hint+1); return render(); }
+    case 'mflip': S.lesson.flip=true; render(); setTimeout(()=>document.querySelector('[data-act="mknew"]')?.focus({preventScroll:true}),0); return;
+    case 'mknew': S.lesson.known++; return modeNext();
+    case 'magain': { const L=S.lesson; if (L.again<10){ L.again++; L.set.push(curP()); } return modeNext(); }
+    case 'mkey': { const inp=document.getElementById('mAns'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
+    case 'cograde': S.coGrade = v; S.wsPick = null; return render();
+    case 'worksheet': return openWorksheet(v==='each');
+    case 'wsall': case 'wsnone': document.querySelectorAll('.wsSkill').forEach(b=>{ b.checked = act==='wsall'; }); return;
     case 'quit': S.run=null; store.set('arise_math_run', null); return render();
     case 'pick': return submitAnswer(v);
     case 'key': { const inp=document.getElementById('ans'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
@@ -1092,7 +1527,12 @@ document.addEventListener('click', async e=>{
     case 'retry-class': S.err={}; S.cls=null; render(); return loadFor('class');
     case 'retry-live': S.err={}; S.live=undefined; render(); return loadFor('live');
     case 'retry-children': S.err={}; S.children=null; render(); return loadFor('family');
-    case 'game': return startGame();
+    case 'game': return startGame(v);
+    case 'gamequit': return endGame('Round ended.');
+    case 'mflipcard': return flipCard(v);
+    case 'balloon': return popBalloon(el, v);
+    case 'tf': return tfAnswer(v);
+    case 'gkey': { const inp=document.getElementById('gAns'); if(!inp) return; if(v==='⌫') inp.value=inp.value.slice(0,-1); else if(v==='Clear') inp.value=''; else inp.value+=v; inp.classList.remove('is-bad'); return; }
     case 'tile': return tapTile(v);
     case 'moretime': try { const r = await apiAt('/api/club-play/request-more-time', { method:'POST', body:{ minutes:10 } }); toast(r.message || 'Request sent.'); if (playAccess) playAccess.timeRequestStatus='pending'; render(); } catch(err){ toast(err.message); } return;
     case 'joinlive': {
@@ -1128,13 +1568,19 @@ document.addEventListener('click', async e=>{
     case 'child': S.childId=+v; return render();
   }
 });
-document.addEventListener('submit', e=>{ if (e.target.id==='ansForm'){ e.preventDefault(); submitAnswer(document.getElementById('ans').value); } });
+document.addEventListener('submit', e=>{ if (e.target.id==='ansForm'){ e.preventDefault(); submitAnswer(document.getElementById('ans').value); } if (e.target.id==='mForm'){ e.preventDefault(); modeAnswer(document.getElementById('mAns').value); } if (e.target.id==='gForm'){ e.preventDefault(); streakAnswer(document.getElementById('gAns').value); } });
 document.addEventListener('change', async e=>{
   if (e.target.id==='bsetBy'){ try { await api('/class/settings', { method:'PUT', body:{ boardBy:e.target.value } }); S.cls.settings.boardBy=e.target.value; S.board=null; render(); loadFor('board'); } catch(err){ toast(err.message); } }
 });
 document.addEventListener('keydown', e=>{
   if (e.key==='Escape'){ if (document.getElementById('modalRoot').innerHTML) closeModal(); if (S.menu){ S.menu=false; renderChrome(); } return; }
   if (e.key==='Enter' && e.target.id==='joinCode'){ e.preventDefault(); document.querySelector('[data-act="joinlive"]')?.click(); return; }
+  if (S.lesson?.mode && !S.lesson.over){
+    const L=S.lesson;
+    if (e.key==='Enter' && L.done && !['mNext','nextBtn'].includes(document.activeElement?.id) && document.activeElement?.tagName!=='BUTTON'){ e.preventDefault(); return modeNext(); }
+    if (L.mode==='flash' && e.key===' ' && !L.flip && document.activeElement?.tagName!=='BUTTON'){ e.preventDefault(); L.flip=true; return render(); }
+    return;
+  }
   if (!S.run || S.tab!=='practice') return;
   const it = S.run.session.item;
   if (it.done && e.key==='Enter' && document.activeElement?.id!=='nextBtn'){ e.preventDefault(); nextQuestion(); return; }
@@ -1164,6 +1610,385 @@ window.addEventListener('pagehide', ()=>{ if (GAME && !GAME.over) leavePlay(); }
   loadFor(S.tab);
   if (isStaff() && S.tab!=='class') loadFor('class');
 })();
+</script>
+<script>
+/* =====================================================================================
+   LEARN: "Solve it with me" walkthroughs, lesson videos, and "Snap a problem".
+   Kept in its own script so the lesson pieces are easy to find. Uses the helpers above
+   (S, CAT, api, esc, svg, render, toast, confetti, speakText, parseNum, SK, startMode).
+   ===================================================================================== */
+Object.assign(I, {
+  camera:'<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  play:'<path d="M7 4l13 8-13 8z"/>',
+  hand:'<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M11 10.5V4a1.5 1.5 0 0 1 3 0v6.5"/><path d="M14 10.5V5.5a1.5 1.5 0 0 1 3 0V13c0 4-2.5 7-6.5 7S5 17.5 5 15v-2.5a1.5 1.5 0 0 1 3 0V13"/>'
+});
+
+/* ---------------- answers ---------------- */
+const numOf = s => parseNum(String(s ?? '').replace(/,(?=\d{3}\b)/g, ''));
+/** Same rules as shared/ariseMathPhoto.ts: "x = 3/4", "0.75", "1 1/2", "24 sq ft". */
+function normAns(raw){
+  let s = String(raw ?? '').toLowerCase().replace(/[−–—]/g,'-').replace(/\$/g,'').replace(/,(?=\d{3}\b)/g,'');
+  return s.replace(/\s+/g,'').replace(/^[a-z]=/,'').replace(/\.$/,'').replace(/\*\*/g,'^').slice(0,80);
+}
+function ansNum(raw){
+  const s = normAns(raw);
+  let m = s.match(/^(-?\d+)(\d+)\/(\d+)$/);
+  if (m && /\d\s+\d+\/\d/.test(String(raw))) { const w=+m[1], f=+m[2]/+m[3]; return w<0 ? w-f : w+f; }
+  const t = s.replace(/%$/,'').replace(/(cm|mm|m|km|in|ft|yd|mi|g|kg|lb|oz|l|ml|units?|sq\.?units?|degrees?|°|cents?|¢)\^?\d?$/,'');
+  m = t.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);
+  if (m) return +m[2] ? +m[1] / +m[2] : NaN;
+  return /^-?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
+}
+function ansMatch(given, want){
+  const g = normAns(given); if (!g) return false;
+  const w = normAns(want); if (w && w===g) return true;
+  const a = ansNum(given), b = ansNum(want);
+  if (!Number.isNaN(a) && !Number.isNaN(b) && Math.abs(a-b) <= 1e-6*Math.max(1,Math.abs(b))) return true;
+  const parts = x => String(x).split(/,|;|\bor\b|\band\b/i).map(normAns).filter(Boolean).sort();
+  const wp = parts(want), gp = parts(given);
+  return wp.length>1 && wp.length===gp.length && wp.every((p,i)=>p===gp[i] || (!Number.isNaN(ansNum(p)) && ansNum(p)===ansNum(gp[i])));
+}
+
+/* ---------------- Solve it with me ---------------- */
+/** Finds the number a student can fill in for a step ("8 + 2 = [10]."), or null for a read-only step. */
+function blankOf(html){
+  if (/^\s*Check\b/i.test(String(html).replace(/<[^>]+>/g,''))) return null;   // a check repeats the given numbers
+  const parts = String(html).split(/(<[^>]+>)/);
+  let depth = 0;
+  const inSpan = parts.map(p => { if (p.startsWith('<')) { if (/^<span\b/i.test(p)) depth++; else if (/^<\/span/i.test(p)) depth = Math.max(0, depth-1); return true; } return depth>0; });
+  const NUM = '([−-]?\\d+(?:,\\d{3})*(?:\\.\\d+)?)';
+  const cut = (i, pos, num) => ({
+    before: parts.slice(0,i).join('') + parts[i].slice(0,pos),
+    after: parts[i].slice(pos + num.length) + parts.slice(i+1).join(''),
+    value: Number(num.replace(/,/g,'').replace('−','-')), raw: num,
+  });
+  for (let i=parts.length-1; i>=0; i--){
+    if (inSpan[i]) continue;
+    const t = parts[i], re = new RegExp('=\\s*'+NUM, 'g'); let m, last=null;
+    while ((m = re.exec(t))){
+      const rest = t.slice(m.index + m[0].length), left = t.slice(0, m.index).split(/[.:;]\s/).pop();
+      if (/^\s*(?:[×÷+\-−·*/^]\s*[\d(]|\d|\.\d)/.test(rest)) continue;   // the sum keeps going
+      if (/\?/.test(left)) continue;                                        // "5 × ? = 15": 15 is given
+      if (/^\s*0\b/.test(m[1]) && /\)/.test(left)) continue;              // "(x + 3)(x − 2) = 0"
+      last = m; }
+    if (last) return cut(i, last.index + last[0].length - last[1].length, last[1]);
+  }
+  for (let i=parts.length-1; i>=0; i--){
+    if (parts[i].startsWith('<') || !parts[i].trim()) continue;
+    if (inSpan[i]) break;
+    const m = parts[i].match(new RegExp('\\b(?:is|are|on|makes|gives|get|equals|be|rounds to)\\s+'+NUM+'(?=(?:\\s+[A-Za-z¢%°]+){0,2}\\s*[.!]?\\s*$)'));
+    if (m) return cut(i, m.index + m[0].length - m[1].length, m[1]);
+    break;
+  }
+  return null;
+}
+const plainHTML = h => { const d=document.createElement('div'); d.innerHTML=String(h); d.querySelectorAll('.fr').forEach(f=>{ const [a,b]=f.children; if (a&&b) f.textContent=` ${a.textContent} over ${b.textContent} `; }); return d.textContent.replace(/\s+/g,' ').trim(); };
+
+function wkState(){ const L=S.lesson; if (!L.wk || L.wk.ex!==L.ex) L.wk = { ex:L.ex, i:0, st:[], tries:0, fb:null }; return L.wk; }
+function walkthroughHTML(){
+  const L = S.lesson;
+  if (L.err) return `<p class="small muted">${esc(L.err)}</p>`;
+  if (!L.ex) return '<p class="small muted">Loading…</p>';
+  const p = L.ex, W = wkState(), n = p.steps.length, done = W.i >= n;
+  const dots = `<div class="wk-dots" aria-label="Step ${Math.min(W.i+1,n)} of ${n}">${p.steps.map((_,j)=>`<i class="${W.st[j]==='shown'?'shown':W.st[j]?'ok':j===W.i?'on':''}"></i>`).join('')}<span class="small muted" style="margin-left:6px">${done?'All steps done':`Step ${W.i+1} of ${n}`}</span></div>`;
+  const items = p.steps.slice(0, Math.min(W.i+1, n)).map((st, j) => {
+    const b = blankOf(st), cur = j===W.i && !done;
+    let txt;
+    if (b && cur) txt = `${b.before}<input class="wk-in ${W.bad?'is-bad':''}" id="wkIn" form="wkForm" autocomplete="off" spellcheck="false" inputmode="${b.value<0?'text':'decimal'}" aria-label="Fill in the missing number" placeholder="?">${b.after}`;
+    else if (b) txt = `${b.before}<span class="fill">${esc(b.raw)}</span>${b.after}`;
+    else txt = st;
+    const act = !cur ? '' : b
+      ? `<form id="wkForm" class="wk-act" autocomplete="off"><button class="btn primary" type="submit">${svg('check')}Check</button>${W.tries?`<button class="btn" type="button" data-act="wkshow">${svg('eye')}Show me</button>`:''}${canSpeak?`<button class="btn sm" type="button" data-act="wkread" data-v="${j}" aria-label="Read this step out loud">${svg('speaker')}</button>`:''}</form>`
+      : `<div class="wk-act"><button class="btn primary" data-act="wkgot">${j===n-1?'Finish':'Got it, next step'} →</button>${canSpeak?`<button class="btn sm" data-act="wkread" data-v="${j}" aria-label="Read this step out loud">${svg('speaker')}</button>`:''}</div>`;
+    const fb = cur && W.fb ? `<p class="wk-fb ${W.fb.c}" role="status">${esc(W.fb.t)}</p>` : '';
+    const tip = cur && b && !W.tries ? `<p class="wk-fb tip">Work out the missing number, then press Check.</p>` : '';
+    return `<li class="wk-step ${cur?'cur':W.st[j]==='shown'?'shown':'ok'}"><div><div class="txt">${txt}</div>${tip}${fb}${act}</div></li>`;
+  }).join('');
+  const lastB = blankOf(p.steps[n-1]), needFinal = p.kind==='choice' || !(lastB && Math.abs(lastB.value - Number(p.answer)) < 1e-9);
+  if (done && needFinal && !W.fin) {
+    const ask = p.kind==='choice'
+      ? `<div class="choices" style="margin-top:10px">${p.choices.map(c=>`<button type="button" data-act="wkpick" data-v="${esc(c.v)}" class="${W.fwrong?.includes(String(c.v))?'is-bad':''}" ${W.fwrong?.includes(String(c.v))?'disabled':''}>${esc(c.label)}</button>`).join('')}</div>`
+      : `<form id="wkFinForm" class="wk-act" autocomplete="off"><label for="wkFin" class="sr">The answer</label><input class="wk-in ${W.bad?'is-bad':''}" id="wkFin" spellcheck="false" placeholder="?" inputmode="${Number(p.answer)<0?'text':'decimal'}" style="width:7em"><button class="btn primary" type="submit">${svg('check')}Check</button>${W.ftries?`<button class="btn" type="button" data-act="wkfinshow">${svg('eye')}Show me</button>`:''}</form>`;
+    return `<div class="wk">
+      <div class="wk-prob"><p class="ask" style="margin:0">${esc(p.ask)}</p><div class="prompt ${p.long?'long':''}">${p.prompt}</div>${p.viz?`<div class="viz-wrap">${p.viz}</div>`:''}</div>
+      ${dots}<ol class="wk-list">${items}</ol>
+      <div class="wk-step cur" style="grid-template-columns:minmax(0,1fr)"><div><b>Last step: you answer it</b><p class="txt" style="margin-top:4px">Use the steps above to answer the question.</p>${ask}${W.fb?`<p class="wk-fb ${W.fb.c}" role="status">${esc(W.fb.t)}</p>`:''}</div></div></div>`;
+  }
+  const win = done ? `<div class="wk-win" role="status"><h3>${W.st.every(x=>x!=='shown') && W.fin!=='shown'?'You did every step yourself!':'You worked it out!'}</h3>
+      <div class="row" style="gap:10px"><span class="muted">Answer</span><span class="big">${esc(p.answerLabel)}</span></div>
+      <p class="small muted">Now try one on your own. The steps are there if you need them.</p>
+      <div class="row" style="gap:8px"><button class="btn primary" data-act="lmode" data-v="guided">${svg('hand')}Your turn</button><button class="btn outline" data-act="exnew">${svg('plus')}Do another with me</button></div></div>` : '';
+  return `<div class="wk">
+    <div class="wk-prob"><p class="ask" style="margin:0">${esc(p.ask)}</p><div class="prompt ${p.long?'long':''}">${p.prompt}</div>${p.viz?`<div class="viz-wrap">${p.viz}</div>`:''}</div>
+    ${dots}<ol class="wk-list">${items}</ol>${win}
+    ${done?'':`<div class="row" style="gap:8px"><button class="btn sm" data-act="exnew">${svg('plus')}Different numbers</button><button class="btn sm" data-act="wkall">Show every step</button></div>`}</div>`;
+}
+function paintWk(focus=true){
+  const box = document.getElementById('wkBox');
+  if (!box) return render();
+  box.innerHTML = walkthroughHTML();
+  if (focus) setTimeout(()=>{ const i=document.getElementById('wkIn') || document.getElementById('wkFin'); if (i) i.focus({preventScroll:true}); else document.querySelector('[data-act="wkgot"]')?.focus({preventScroll:true}); }, 0);
+}
+function wkAdvance(mark){
+  const W = wkState(), p = S.lesson.ex; W.st[W.i] = mark; W.i++; W.tries=0; W.fb=null; W.bad=false;
+  if (W.i >= p.steps.length && p.kind!=='choice' && W.st.every(x=>x!=='shown')) { const b = blankOf(p.steps[p.steps.length-1]); if (b && Math.abs(b.value - Number(p.answer)) < 1e-9) confetti(); }
+  paintWk();
+  setTimeout(()=>document.querySelector('.wk-step.cur, .wk-win')?.scrollIntoView({block:'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}), 30);
+}
+function wkCheck(){
+  const W = wkState(), b = blankOf(S.lesson.ex.steps[W.i]); if (!b) return wkAdvance('ok');
+  const raw = document.getElementById('wkIn')?.value || '';
+  if (!raw.trim()) { W.fb={c:'tip', t:'Type a number in the box first.'}; return paintWk(); }
+  const v = numOf(raw);
+  if (Number.isNaN(v)) { W.fb={c:'bad', t:'Type a number, like 12, −3, 3/4 or 2.5.'}; W.bad=true; return paintWk(); }
+  if (Math.abs(v - b.value) < 1e-9) { return wkAdvance('ok'); }
+  W.tries++; W.bad=true;
+  W.fb = { c:'bad', t: W.tries>=2 ? 'Not quite. Tap “Show me” to see it, then keep going.' : 'Not quite. Look at the picture and the step again, then try once more.' };
+  paintWk();
+}
+
+function wkFinal(v, shown){
+  const W = wkState(), p = S.lesson.ex;
+  if (shown) { W.fin = 'shown'; W.fb = null; return paintWk(); }
+  const ok = p.kind==='choice' ? String(v)===String(p.answer) : Math.abs(numOf(v) - Number(p.answer)) < 1e-9;
+  if (p.kind!=='choice' && Number.isNaN(numOf(v))) { W.fb = { c:'bad', t:'Type a number, like 12, −3, 3/4 or 2.5.' }; W.bad = true; return paintWk(); }
+  if (ok) { W.fin = 'ok'; W.fb = null; W.bad = false; if (W.st.every(x=>x!=='shown')) confetti(); return paintWk(); }
+  W.ftries = (W.ftries||0) + 1; W.bad = true;
+  if (p.kind==='choice') (W.fwrong = W.fwrong || []).push(String(v));
+  W.fb = { c:'bad', t: W.ftries>=2 && p.kind!=='choice' ? 'Not quite. Tap “Show me”, or look back at the steps.' : 'Not quite. Look back at the steps and try again.' };
+  paintWk();
+}
+
+/* ---------------- videos ---------------- */
+function videosOf(skill){ const t = CAT?.videos?.skills?.[skill]; return (t && CAT.videos.topics[t]) || []; }
+const ytThumb = id => `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
+const ytSearch = q => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+/** The video player for one skill (or a search link when there is no skill). `key` keeps its own state. */
+function videoCardHTML(key, skill, search){
+  const vids = skill ? videosOf(skill) : [];
+  S.vids = S.vids || {}; const st = S.vids[key] || (S.vids[key] = { i:0, playing:false });
+  const more = `<a class="btn sm" href="${ytSearch(search || (SK(skill).name + ' math lesson for kids'))}" target="_blank" rel="noopener noreferrer">${svg('play')}More videos on YouTube</a>`;
+  if (!vids.length) return `<div class="card"><div class="card-h"><h2>Watch a lesson</h2></div><p class="small muted" style="margin-bottom:10px">Find a short video lesson on this topic.</p>${more}</div>`;
+  const v = vids[Math.min(st.i, vids.length-1)];
+  const player = st.playing
+    ? `<div class="vid" data-playing data-id="${esc(v.id)}"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.id)}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
+    : `<button class="vid" data-act="vidplay" data-v="${esc(key)}" aria-label="Play video: ${esc(v.title)}"><img src="${ytThumb(v.id)}" alt="" loading="lazy"><span class="play"><span></span></span></button>`;
+  const list = vids.length>1 ? `<div class="vid-more">${vids.map((x,j)=>`<button data-act="vidpick" data-v="${esc(key)}" data-i="${j}" aria-pressed="${j===st.i}"><img src="${ytThumb(x.id)}" alt="" loading="lazy"><span><b>${esc(x.title)}</b><span>${esc(x.by)}</span></span></button>`).join('')}</div>` : '';
+  return `<div class="card" id="vid-${esc(key)}"><div class="card-h"><h2>Watch a lesson</h2><span class="small muted">${vids.length} video${vids.length>1?'s':''}</span></div>
+    ${player}<div class="vid-meta"><b>${esc(v.title)}</b><span>${esc(v.by)} · YouTube</span></div>${list}<div class="vid-more">${more}</div></div>`;
+}
+function paintVideo(key){
+  const el = document.getElementById('vid-'+key);
+  const html = key==='lesson' ? videoCardHTML('lesson', S.lesson?.skill) : videoCardHTML('snap', S.snap?.reply?.skill, S.snap?.reply?.videoSearch);
+  if (!el) return render();
+  const t = document.createElement('div'); t.innerHTML = html; el.replaceWith(t.firstElementChild);
+}
+
+/* ---------------- lesson page ---------------- */
+function lessonHTML(){
+  const L = S.lesson; if (L.mode) return modeHTML();
+  const s = SK(L.skill), lf = LEARN_OF(L.skill), st = myState(), student = role()==='student', lv = CAT.worksheetLevels || {};
+  return `<div class="card"><div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn sm" data-act="lclose">${svg('back')}Back</button><span class="small muted">Lesson</span></div>
+      <div class="row" style="flex-wrap:nowrap;margin-top:12px;gap:12px">${op(L.skill)}<div style="min-width:0"><h1>${esc(s.name)}</h1><span class="small muted">${esc(codeLabel(st, s.std))}</span></div></div></div>
+    <div class="grid two"><div class="card idea"><span class="eyebrow">Big idea</span><p>${esc(lf.idea)}</p></div><div class="card remember"><span class="eyebrow">Remember</span><p class="rem">${esc(lf.remember)}</p></div></div>
+    ${videoCardHTML('lesson', L.skill)}
+    <div class="card stack"><div class="card-h" style="margin-bottom:0"><div><h2>Solve it with me</h2><span class="small muted">Do each step yourself. Fill in the box, press Check, and we’ll go to the next step.</span></div></div><div id="wkBox">${walkthroughHTML()}</div></div>
+    ${snapPromoHTML('Stuck on a problem from class or homework?')}
+    <div class="card"><div class="card-h"><h2>Practice your way</h2><span class="small muted">${student?'Quizzes earn points. The rest are practice.':'Practice is for learning, so no points.'}</span></div>
+      <div class="modes">${student?`<button class="mode" data-act="start" data-type="skill" data-v="${L.skill}">${ico('award','primary')}<b>Quiz for points</b><span>Five questions that count on the leaderboard.</span></button>`:''}
+        ${Object.entries(MODES).map(([id,m])=>`<button class="mode" data-act="lmode" data-v="${id}">${ico(m.icon,m.c)}<b>${m.name}</b><span>${m.note}</span>${id==='speed'&&bestSpeed(L.skill)?`<em>Your best: ${bestSpeed(L.skill)}</em>`:''}</button>`).join('')}</div></div>
+    <div class="card"><div class="card-h"><h2>Print a worksheet</h2><span class="small muted">12 new problems with an answer key</span></div>
+      <div class="levels">${['scaffold','standard','challenge'].map(id=>`<div class="level"><div><b>${esc(lv[id]?.name||id)}</b><span class="small muted">${esc(lv[id]?.note||'')}</span></div><button class="btn ${id==='standard'?'primary':'outline'} sm" data-act="lprint" data-v="${id}">${svg('print')}Print</button></div>`).join('')}</div></div>`;
+}
+
+/* ---------------- Snap a problem ---------------- */
+function snapPromoHTML(lead){
+  return `<div class="card snap-promo"><div class="cam">${svg('camera')}</div><div><h2>${esc(lead || 'Stuck on a problem?')}</h2><p class="small muted">Snap a photo or a screenshot. We’ll walk through it one step at a time, you find the answer, then practice a few like it.</p></div><button class="btn primary" data-act="snap">${svg('camera')}Snap a problem</button></div>`;
+}
+const newSnap = () => ({ stage:'pick', img:null, text:'', err:null, reply:null, si:0, sst:[], stries:0, sfb:null, fin:{ fb:null, right:false, busy:false, tries:0 }, ex:[] });
+function snapHTML(){
+  const N = S.snap, head = `<div class="card"><div class="row" style="gap:10px;flex-wrap:nowrap;align-items:center"><button class="btn sm" data-act="snapclose">${svg('back')}Back</button><span class="small muted">Snap a problem</span></div>`;
+  if (N.stage==='loading') return `${head}<div class="snap-wait" role="status"><div class="spin" aria-hidden="true"></div><h2>Reading your problem…</h2><p class="muted small">Working out the steps. This takes a few seconds.</p></div></div>`;
+  if (N.stage==='pick') return `${head}<h1 style="margin-top:12px">Snap a problem</h1><p class="muted" style="margin-top:4px">Take a photo of one problem, upload a screenshot, or type it. You’ll get the steps, not the answer.</p></div>
+    <div class="card stack">
+      ${N.err?`<p class="feedback bad" role="alert">${esc(N.err)}</p>`:''}
+      <div class="drop" id="snapDrop">
+        ${N.img?`<img class="snap-img" src="${N.img}" alt="Your problem"><button class="btn sm" data-act="snapclear">${svg('x')}Use a different picture</button>`
+          :`<div class="cam" style="width:56px;height:56px;border-radius:16px;background:var(--primary-soft);color:var(--primary-text);display:grid;place-items:center">${svg('camera','style="width:30px;height:30px"')}</div>
+          <div class="btns"><label class="btn primary">${svg('camera')}Take a photo<input type="file" id="snapCam" accept="image/*" capture="environment"></label>
+            <label class="btn outline">${svg('image')}Upload a screenshot<input type="file" id="snapFile" accept="image/*"></label></div>
+          <p class="small muted">On a computer you can also paste a screenshot here (Ctrl+V or ⌘V), or drag a picture in.</p>`}
+      </div>
+      <label class="f"><span class="small muted">${N.img?'Anything to add? (optional, like “just number 4”)':'Or type the problem'}</span><textarea class="snap-text" id="snapText" maxlength="600" placeholder="${N.img?'Number 4 please':'Example: 3x + 5 = 20'}">${esc(N.text)}</textarea></label>
+      <div class="row" style="gap:8px"><button class="btn primary" data-act="snapgo">${svg('hand')}Help me solve it</button></div>
+      <p class="small muted">Tips: one problem at a time, good light, and hold the camera straight over the page.</p>
+    </div>`;
+  const R = N.reply;
+  return `${head}<div style="margin-top:12px" class="stack"><span class="eyebrow">${esc(R.topic)}</span>
+      ${N.img?`<img class="snap-img" src="${N.img}" alt="Your problem" style="max-height:200px;margin:0">`:''}
+      <div class="snap-prob">${esc(R.problem)}</div>
+      <div class="row" style="gap:8px"><button class="btn sm" data-act="snapfix">Not the right problem? Fix it</button><button class="btn sm" data-act="snapnew">${svg('camera')}Snap another</button></div></div></div>
+    ${R.bigIdea?`<div class="card idea"><span class="eyebrow">Big idea</span><p>${esc(R.bigIdea)}</p></div>`:''}
+    <div class="card stack"><div class="card-h" style="margin-bottom:0"><div><h2>Let’s solve it step by step</h2><span class="small muted">You do the math in each step. The answer is yours to find.</span></div></div><div id="snapSteps">${snapStepsHTML()}</div></div>
+    <div id="snapFinish">${snapFinishHTML()}</div>
+    ${videoCardHTML('snap', R.skill, R.videoSearch)}
+    ${R.examples.length?`<div class="card stack"><div class="card-h" style="margin-bottom:0"><div><h2>Practice problems like it</h2><span class="small muted">Try each one. If you get stuck, open the steps one at a time.</span></div></div><div id="snapEx" class="stack">${snapExamplesHTML()}</div></div>`:''}
+    ${R.skill?`<div class="card snap-promo"><div class="cam">${op(R.skill)}</div><div><h2>${esc(SK(R.skill).name)}</h2><p class="small muted">Open the lesson for more worked examples and practice with points.</p></div><button class="btn outline" data-act="snaplearn" data-v="${esc(R.skill)}">Open the lesson</button></div>`:''}`;
+}
+function snapStepsHTML(){
+  const N = S.snap, R = N.reply, n = R.steps.length, done = N.si >= n;
+  const items = R.steps.slice(0, Math.min(N.si+1, n)).map((st, j) => {
+    const cur = j===N.si && !done;
+    const ask = st.ask && st.check ? (cur
+      ? `<form id="snapStepForm" class="wk-act" autocomplete="off" style="align-items:center"><label for="snapStepIn" class="txt" style="font-weight:700">${esc(st.ask)}</label><input class="wk-in ${N.sbad?'is-bad':''}" id="snapStepIn" spellcheck="false" placeholder="?" style="width:7em"><button class="btn primary" type="submit">${svg('check')}Check</button>${N.stries?`<button class="btn" type="button" data-act="snapshow">${svg('eye')}Show me</button>`:''}</form>`
+      : `<p class="txt" style="margin-top:6px">${esc(st.ask)} <span class="fill">${esc(st.check)}</span></p>`) : '';
+    const fb = cur && N.sfb ? `<p class="wk-fb ${N.sfb.c}" role="status">${esc(N.sfb.t)}</p>` : '';
+    const got = cur && !(st.ask && st.check) ? `<div class="wk-act"><button class="btn primary" data-act="snapgot">Got it, next step →</button>${canSpeak?`<button class="btn sm" data-act="snapread" data-v="${j}" aria-label="Read this step out loud">${svg('speaker')}</button>`:''}</div>` : '';
+    return `<li class="wk-step ${cur?'cur':N.sst[j]==='shown'?'shown':'ok'}"><div><b>${esc(st.title)}</b><p class="txt" style="margin-top:4px">${esc(st.explain)}</p>${ask}${fb}${got}</div></li>`;
+  }).join('');
+  const dots = `<div class="wk-dots">${R.steps.map((_,j)=>`<i class="${N.sst[j]==='shown'?'shown':N.sst[j]?'ok':j===N.si?'on':''}"></i>`).join('')}<span class="small muted" style="margin-left:6px">${done?'Steps done. Now finish it below.':`Step ${N.si+1} of ${n}`}</span></div>`;
+  return `${dots}<ol class="wk-list" style="margin-top:12px">${items}</ol>`;
+}
+function snapFinishHTML(){
+  const N = S.snap, R = N.reply, F = N.fin;
+  if (N.si < R.steps.length) return '';
+  if (F.right) return `<div class="card wk-win" role="status"><h3>Yes! You solved it.</h3><p>You found the answer yourself. Try the practice problems below to lock it in.</p></div>`;
+  return `<div class="card snap-finish"><span class="eyebrow">Your turn to finish</span><p class="txt" style="font-size:1.08rem;margin-top:6px">${esc(R.finish)}</p>
+    <form id="snapFinForm" autocomplete="off"><label for="snapFinIn" class="sr">Your answer</label><input type="text" id="snapFinIn" placeholder="Your answer (${esc(R.answerForm)})" spellcheck="false"><button class="btn primary" type="submit" ${F.busy?'disabled':''}>${svg('check')}Check my answer</button></form>
+    ${F.fb?`<p class="wk-fb ${F.fb.c}" role="status">${esc(F.fb.t)}</p>`:''}</div>`;
+}
+function snapExamplesHTML(){
+  const N = S.snap;
+  return N.reply.examples.map((e, k) => {
+    const X = N.ex[k] || (N.ex[k] = { shown:0, fb:null, done:false, ans:false });
+    const steps = X.shown ? `<ol>${e.steps.slice(0, X.shown).map(s=>`<li><b>${esc(s.title)}</b>${esc(s.work)}</li>`).join('')}</ol>` : '';
+    const more = X.shown < e.steps.length ? `<button class="btn sm" data-act="exsstep" data-v="${k}">${X.shown?`Next step (${X.shown+1} of ${e.steps.length})`:'Show the first step'}</button>` : '';
+    return `<div class="exq"><span class="eyebrow">Practice ${k+1}</span><div class="q">${esc(e.problem)}</div>
+      ${X.done?`<p class="ans">${svg('check','style="width:18px;height:18px;vertical-align:-3px"')} ${esc(e.answer)}${X.ans?'':' · You got it!'}</p>`
+        :`<form class="exform" data-k="${k}" autocomplete="off"><label class="sr" for="exIn${k}">Your answer</label><input type="text" id="exIn${k}" placeholder="Your answer" spellcheck="false"><button class="btn primary sm" type="submit">Check</button></form>`}
+      ${X.fb && !X.done?`<p class="wk-fb ${X.fb.c}" role="status">${esc(X.fb.t)}</p>`:''}
+      ${steps}<div class="row" style="gap:8px">${more}${X.done?'':`<button class="btn sm" data-act="exsans" data-v="${k}">Show the answer</button>`}</div></div>`;
+  }).join('');
+}
+function paintSnap(part){
+  const ids = { steps:['snapSteps', snapStepsHTML], fin:['snapFinish', snapFinishHTML], ex:['snapEx', snapExamplesHTML] };
+  const [id, fn] = ids[part] || []; const el = id && document.getElementById(id);
+  if (!el) return render();
+  el.innerHTML = fn();
+}
+async function shrinkImage(file){
+  if (!file) throw new Error('No picture was picked.');
+  if (file.type && !/^image\//.test(file.type)) throw new Error('Pick a photo or a screenshot (JPG or PNG).');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('That picture couldn’t be opened. Try a JPG or PNG, or a screenshot.')); i.src = url; });
+    const sc = Math.min(1, 1600 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * sc)); c.height = Math.max(1, Math.round(img.naturalHeight * sc));
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.85);
+  } finally { URL.revokeObjectURL(url); }
+}
+async function takeImage(file){
+  if (!S.snap) return;
+  try { S.snap.img = await shrinkImage(file); S.snap.err = null; }
+  catch (e) { S.snap.err = e.message; }
+  render();
+}
+async function snapGo(){
+  const N = S.snap; N.text = (document.getElementById('snapText')?.value || '').trim();
+  if (!N.img && !N.text) { N.err = 'Add a photo or screenshot of the problem, or type it in.'; return render(); }
+  N.stage = 'loading'; N.err = null; render(); window.scrollTo({top:0});
+  try {
+    const r = await api('/photo-help', { method:'POST', body:{ image:N.img, text:N.text } });
+    if (S.snap !== N) return;
+    if (r.notMath) { N.stage='pick'; N.err=r.notMath; return render(); }
+    Object.assign(N, { stage:'help', reply:r, si:0, sst:[], stries:0, sfb:null, sbad:false, fin:{ fb:null, right:false, busy:false, tries:0 }, ex:[] });
+    if (S.vids) delete S.vids.snap;
+  } catch (e) { if (S.snap !== N) return; N.stage='pick'; N.err = e.message; }
+  render(); window.scrollTo({top:0});
+}
+function snapAdvance(mark){
+  const N = S.snap; N.sst[N.si] = mark; N.si++; N.stries=0; N.sfb=null; N.sbad=false;
+  paintSnap('steps'); paintSnap('fin');
+  setTimeout(()=>{ const t = document.getElementById('snapStepIn') || document.getElementById('snapFinIn'); t?.focus({preventScroll:true}); (document.querySelector('#snapSteps .wk-step.cur') || document.getElementById('snapFinish'))?.scrollIntoView({block:'nearest', behavior:'smooth'}); }, 30);
+}
+function snapStepCheck(){
+  const N = S.snap, st = N.reply.steps[N.si], v = document.getElementById('snapStepIn')?.value || '';
+  if (!v.trim()) { N.sfb = { c:'tip', t:'Type your answer in the box first.' }; return paintSnap('steps'); }
+  if (ansMatch(v, st.check)) return snapAdvance('ok');
+  N.stries++; N.sbad = true;
+  N.sfb = { c:'bad', t: (st.hint && N.stries===1 ? 'Not quite. Hint: ' + st.hint : N.stries>=2 ? 'Not quite. Tap “Show me” to see this step, then keep going.' : 'Not quite. Read the step again and try once more.') };
+  paintSnap('steps');
+  setTimeout(()=>document.getElementById('snapStepIn')?.focus({preventScroll:true}), 0);
+}
+async function snapFinish(){
+  const N = S.snap, F = N.fin, v = (document.getElementById('snapFinIn')?.value || '').trim();
+  if (!v) { F.fb = { c:'tip', t:'Type your answer first.' }; return paintSnap('fin'); }
+  F.busy = true; paintSnap('fin');
+  try {
+    const r = await api(`/photo-help/${encodeURIComponent(N.reply.id)}/check`, { method:'POST', body:{ answer:v } });
+    F.busy = false;
+    if (r.right) { F.right = true; confetti(); }
+    else { F.tries++; F.fb = { c:'bad', t: F.tries>=3 ? 'Not yet. Try the practice problems below. They show every step, then come back to this one.' : 'Not yet. Go back over each step, check your math, and try again.' }; }
+  } catch (e) { F.busy = false; F.fb = { c:'bad', t:e.message }; }
+  paintSnap('fin');
+  if (!F.right) setTimeout(()=>{ const i=document.getElementById('snapFinIn'); if (i){ i.value=v; i.focus({preventScroll:true}); } }, 0);
+}
+
+/* ---------------- events ---------------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act, v = el.dataset.v;
+  switch (act) {
+    case 'tab': S.snap = null; return;
+    case 'wkgot': return wkAdvance('ok');
+    case 'wkpick': return wkFinal(v);
+    case 'wkfinshow': return wkFinal(null, true);
+    case 'wkshow': return wkAdvance('shown');
+    case 'wkall': { const W = wkState(); for (let j=W.i; j<S.lesson.ex.steps.length; j++) W.st[j]='shown'; W.i = S.lesson.ex.steps.length; W.fin = 'shown'; W.fb = null; return paintWk(false); }
+    case 'wkread': { const st = S.lesson?.ex?.steps[+v]; if (!st) return; const b = blankOf(st); return speakText(plainHTML(b && +v===wkState().i ? b.before + ' what number? ' + b.after : st)); }
+    case 'vidplay': { S.vids[v].playing = true; return paintVideo(v); }
+    case 'vidpick': { S.vids[v].i = +el.dataset.i; S.vids[v].playing = true; return paintVideo(v); }
+    case 'snap': S.snap = newSnap(); render(); window.scrollTo({top:0}); return;
+    case 'snapclose': S.snap = null; render(); window.scrollTo({top:0}); return;
+    case 'snapnew': S.snap = newSnap(); render(); window.scrollTo({top:0}); return;
+    case 'snapclear': S.snap.img = null; return render();
+    case 'snapgo': return snapGo();
+    case 'snapfix': { const p = S.snap.reply?.problem || ''; S.snap = Object.assign(newSnap(), { text:p }); render(); setTimeout(()=>document.getElementById('snapText')?.focus(), 0); return; }
+    case 'snapgot': return snapAdvance('ok');
+    case 'snapshow': return snapAdvance('shown');
+    case 'snapread': { const st = S.snap?.reply?.steps[+v]; if (st) speakText(st.title + '. ' + st.explain + (st.ask ? ' ' + st.ask : '')); return; }
+    case 'snaplearn': S.snap = null; return openLesson(v);
+    case 'exsstep': { const X = S.snap.ex[+v]; X.shown++; return paintSnap('ex'); }
+    case 'exsans': { const X = S.snap.ex[+v]; X.shown = S.snap.reply.examples[+v].steps.length; X.done = true; X.ans = true; return paintSnap('ex'); }
+  }
+});
+document.addEventListener('submit', e => {
+  const f = e.target;
+  if (f.id==='wkForm') { e.preventDefault(); return wkCheck(); }
+  if (f.id==='wkFinForm') { e.preventDefault(); const v = document.getElementById('wkFin')?.value || ''; if (!v.trim()) { wkState().fb = { c:'tip', t:'Type your answer first.' }; return paintWk(); } return wkFinal(v); }
+  if (f.id==='snapStepForm') { e.preventDefault(); return snapStepCheck(); }
+  if (f.id==='snapFinForm') { e.preventDefault(); return snapFinish(); }
+  if (f.classList?.contains('exform')) {
+    e.preventDefault();
+    const k = +f.dataset.k, X = S.snap.ex[k], ex = S.snap.reply.examples[k], v = document.getElementById('exIn'+k)?.value || '';
+    if (!v.trim()) { X.fb = { c:'tip', t:'Type your answer first.' }; return paintSnap('ex'); }
+    if (ansMatch(v, ex.answer)) { X.done = true; X.shown = ex.steps.length; X.fb = null; }
+    else X.fb = { c:'bad', t: X.shown < ex.steps.length ? 'Not quite. Open the next step for help.' : 'Not quite. Look over the steps and try again.' };
+    paintSnap('ex');
+  }
+});
+document.addEventListener('input', e => { if (e.target.id==='snapText' && S.snap) S.snap.text = e.target.value; if (e.target.classList?.contains('wk-in')) e.target.classList.remove('is-bad'); });
+document.addEventListener('change', e => { if ((e.target.id==='snapCam' || e.target.id==='snapFile') && e.target.files?.[0]) takeImage(e.target.files[0]); });
+document.addEventListener('paste', e => {
+  if (!S.snap || S.snap.stage!=='pick') return;
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (item) { e.preventDefault(); takeImage(item.getAsFile()); }
+});
+document.addEventListener('dragover', e => { const d = e.target.closest?.('#snapDrop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
+document.addEventListener('dragleave', e => { e.target.closest?.('#snapDrop')?.classList.remove('over'); });
+document.addEventListener('drop', e => { const d = e.target.closest?.('#snapDrop'); if (!d) return; e.preventDefault(); d.classList.remove('over'); const f = [...(e.dataTransfer?.files || [])].find(x => x.type.startsWith('image/')); if (f) takeImage(f); });
 </script>
 <script src="/addons/addon-bar.js" defer></script>
 </body>

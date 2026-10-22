@@ -1,5 +1,6 @@
 // Writes a library cover for every Arise News story to client/public/covers/news.
 // Run after adding a story:  npx tsx script/buildNewsCovers.ts
+// (Stories with a real photo use it as their cover; they still get a drawn one as a backup.)
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { NEWS_ARTICLES } from "../shared/ariseNews";

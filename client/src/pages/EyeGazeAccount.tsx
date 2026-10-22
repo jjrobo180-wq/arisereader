@@ -352,7 +352,7 @@ export default function EyeGazeAccount() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4 mt-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
           <button
             type="button"
             onClick={() => setDwell(true)}
@@ -452,7 +452,7 @@ export default function EyeGazeAccount() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div className="rounded-3xl bg-sky-50 border border-sky-100 p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-5 h-5 text-sky-600" />

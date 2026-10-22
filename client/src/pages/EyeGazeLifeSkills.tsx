@@ -21,7 +21,7 @@ export default function EyeGazeLifeSkills() {
           className="w-full min-h-[260px] rounded-[2.2rem] border-4 border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-6 sm:p-8 text-left shadow-lg hover:-translate-y-1 hover:shadow-xl transition-all focus:outline-none focus:ring-4 focus:ring-cyan-200"
         >
           <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-            <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-white border-2 border-cyan-100 shadow-sm grid place-items-center text-7xl sm:text-8xl flex-shrink-0">
+            <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-white border-2 border-cyan-100 shadow-sm grid grid-cols-1 place-items-center text-7xl sm:text-8xl flex-shrink-0">
               🚽
             </div>
             <div className="flex-1">

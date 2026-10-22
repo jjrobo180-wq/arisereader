@@ -1,6 +1,6 @@
 // Keeps one library quiz (a `books` row plus its `questions`) for every Arise
 // News story. Pure logic over a small storage interface so it can be tested.
-import { NEWS_ARTICLES, NEWS_AUTHOR, NEWS_POINTS, type NewsArticle } from "../shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_AUTHOR, NEWS_POINTS, newsCoverSrc, type NewsArticle } from "../shared/ariseNews";
 
 export const NEWS_BOOKS_KEY = "arise_news_book_ids";
 export const NEWS_RETIRED_KEY = "arise_news_retired_book_ids";
@@ -14,7 +14,7 @@ export type NewsStore = {
   retireBook?(id: number): Promise<void>;
 };
 
-export const newsCoverUrl = (a: NewsArticle) => `/covers/news/${a.slug}.svg`;
+export const newsCoverUrl = (a: NewsArticle) => newsCoverSrc(a);
 
 /** Makes sure every story has its library quiz. Returns { slug: bookId }. Safe to call often. */
 export async function syncNewsBooks(store: NewsStore, articles: NewsArticle[] = NEWS_ARTICLES): Promise<Record<string, number>> {

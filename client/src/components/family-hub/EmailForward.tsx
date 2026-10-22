@@ -50,7 +50,7 @@ export function EmailForwardCard({ token }: { token: string | null }) {
   useEffect(() => { void load(); }, [token]);
   const run = async (work: () => Promise<unknown>, done: string) => { setBusy(true); setNote(""); try { await work(); await load(); setNote(done); } catch (e: any) { setNote(e.message); } finally { setBusy(false); } };
 
-  return <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
+  return <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5" data-plugin-anchor="email-forward">
     <div className="flex items-center gap-2"><Mail size={18} className="text-violet-600" /><h3 className="text-sm font-extrabold">Forward emails here</h3></div>
     {!view ? <p className="mt-2 text-xs text-slate-500">{note || "Loading…"}</p> : !view.ready ? <p className="mt-2 text-xs leading-5 text-slate-500">Email forwarding isn't switched on for the site yet. The site admin can turn it on in the Arise WorkHub's email setup.</p> : <>
       <p className="mt-2 text-xs leading-5 text-slate-500">Forward any email (a bill, a school flyer, an appointment) to your private address and it shows up as a task in your “Email” list.</p>

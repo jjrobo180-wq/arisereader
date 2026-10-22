@@ -70,10 +70,12 @@ type Props = {
   onClose: () => void;
   /** Open the photo or the file picker straight away. */
   start?: "photo" | "file";
+  /** A document handed in (a Drive file, say) and what to ask about it; read straight away. */
+  preload?: { file?: File; text?: string; title?: string };
 };
 
-export default function HubImport({ token, students, onAdd, onClose, start }: Props) {
-  const [text, setText] = useState("");
+export default function HubImport({ token, students, onAdd, onClose, start, preload }: Props) {
+  const [text, setText] = useState(preload?.text || "");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -85,6 +87,10 @@ export default function HubImport({ token, students, onAdd, onClose, start }: Pr
   const photoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // A handed-in document is attached and read at once, so it goes straight to the review.
+  const autoRead = useRef(false);
+  useEffect(() => { if (preload?.file) { autoRead.current = true; void addFiles([preload.file]); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (autoRead.current && attachments.length) { autoRead.current = false; void read(); } }, [attachments]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (start === "photo") photoRef.current?.click();
     else if (start === "file") fileRef.current?.click();
@@ -181,7 +187,7 @@ export default function HubImport({ token, students, onAdd, onClose, start }: Pr
   const canRead = !busy && (!!text.trim() || attachments.length > 0);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Add with AI" data-testid="hub-import">
+    <div className="fixed inset-0 kb-sheet z-[60] flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Add with AI" data-testid="hub-import">
       <div
         className={`flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl ${dragging ? "ring-4 ring-teal-400" : ""}`}
         onDragOver={(e) => { e.preventDefault(); if (!found) setDragging(true); }}
@@ -214,7 +220,7 @@ export default function HubImport({ token, students, onAdd, onClose, start }: Pr
                 aria-label="Type or paste here"
                 data-testid="hub-import-text"
               />
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <button type="button" onClick={() => photoRef.current?.click()} className="flex min-h-14 items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-left hover:bg-slate-50">
                   <ImagePlus className="h-5 w-5 shrink-0 text-teal-600" />
                   <span><span className="block text-sm font-semibold text-slate-900">Photo or screenshot</span><span className="block text-xs text-slate-500">Reminders, notes, a calendar, a whiteboard</span></span>
@@ -290,7 +296,7 @@ export default function HubImport({ token, students, onAdd, onClose, start }: Pr
                             </button>
                           </div>
                           {editing === key && (
-                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {Object.entries(HUB_IMPORT[kind].fields as Record<string, HubField>).map(([name, field]) => (
                                 <ItemField key={name} field={field} value={item[name]} onChange={(value) => change(kind, index, name, value)} />
                               ))}

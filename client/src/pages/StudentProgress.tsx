@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Award, CheckCircle2, Flame, Gift, Lock, Medal, Trophy, Zap } from "lucide-react";
 import { PrizeBoard } from "@/components/prizes/PrizeBoard";
+import MonthCountdown from "@/components/MonthCountdown";
+import { AdvisoryStandings, datesText, headline } from "@/components/AdvisoryChallenge";
+import { useAdvisoryChallenge } from "@/lib/advisoryChallenge";
+import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
 
 const SESSION_COOKIE = "arise_session";
 function getTokenFromCookie(): string | null {
@@ -51,7 +55,12 @@ type Engagement = {
 export default function StudentProgress() {
   const { user, token } = useAuth();
   const [, navigate] = useLocation();
-  const [tab, setTab] = useState<"badges" | "rewards" | "leaderboard">("badges");
+  // opens on the leaderboard: this month's race, then the Advisory Challenge
+  const [tab, setTab] = useState<"badges" | "rewards" | "leaderboard">("leaderboard");
+  const [month, setMonth] = useState(() => schoolYearMonth());
+  // Two boards, one at a time: the Advisory Challenge first, and the students' monthly race.
+  const [board, setBoard] = useState<"students" | "advisories">("advisories");
+  const challenge = useAdvisoryChallenge(token || getTokenFromCookie());
   const [badges, setBadges] = useState<Badge[]>([]);
   const [badgeCounts, setBadgeCounts] = useState({ unlocked: 0, total: 0 });
   const [rewards, setRewards] = useState<Reward[]>([]);
@@ -70,7 +79,7 @@ export default function StudentProgress() {
       const [badgesRes, rewardsRes, leaderboardRes, engagementRes] = await Promise.all([
         fetch(`${API_BASE}/api/engagement/badges`, { headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" }),
         fetch(`${API_BASE}/api/student/rewards`, { headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" }),
-        fetch(`${API_BASE}/api/leaderboard`, { headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" }),
+        fetch(`${API_BASE}/api/leaderboard?month=${encodeURIComponent(schoolYearMonth())}`, { headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" }),
         fetch(`${API_BASE}/api/engagement/summary`, { headers: { Authorization: `Bearer ${authToken}` }, cache: "no-store" }),
       ]);
       if (badgesRes.ok) {
@@ -175,7 +184,7 @@ export default function StudentProgress() {
               <CardContent className="p-4">
                 <div className="text-xs text-muted-foreground flex items-center gap-1"><Medal className="w-3.5 h-3.5" /> Rank</div>
                 <p className="font-black text-2xl">{myRank ? `#${myRank}` : "—"}</p>
-                <p className="text-xs text-muted-foreground">leaderboard</p>
+                <p className="text-xs text-muted-foreground">{monthLabel(month).split(" ")[0]} leaderboard</p>
               </CardContent>
             </Card>
           </div>
@@ -296,16 +305,31 @@ export default function StudentProgress() {
           </Card>
         )}
 
-        {tab === "leaderboard" && (
+        {tab === "leaderboard" && challenge && challenge.challenge && (
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/40" role="tablist" aria-label="Leaderboards" data-testid="leaderboard-boards">
+            <button type="button" role="tab" aria-selected={board === "advisories"} onClick={() => setBoard("advisories")}
+              className={`rounded-lg px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-2 ${board === "advisories" ? "bg-card shadow text-[#f2542d]" : "text-muted-foreground"}`}>
+              <span aria-hidden="true">🍕</span> Advisories
+            </button>
+            <button type="button" role="tab" aria-selected={board === "students"} onClick={() => setBoard("students")}
+              className={`rounded-lg px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-2 ${board === "students" ? "bg-card shadow text-primary" : "text-muted-foreground"}`}>
+              <Trophy className="w-4 h-4" /> Students
+            </button>
+          </div>
+        )}
+
+        {tab === "leaderboard" && (board === "students" || !challenge?.challenge) && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> Leaderboard</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Trophy className="w-5 h-5 text-primary" /> {monthLabel(month)} leaderboard</CardTitle>
+              <p className="text-sm text-muted-foreground">The reader with the most points this month is the monthly winner.</p>
             </CardHeader>
             <CardContent>
+              <MonthCountdown onNewMonth={(fresh) => { setMonth(fresh); load(); }} className="mb-4" />
               {leaderboard.length === 0 ? (
-                <p className="text-center py-10 text-sm text-muted-foreground">No rankings yet.</p>
+                <p className="text-center py-10 text-sm text-muted-foreground">No points yet this month. Pass a quiz to get on the board.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2" data-testid="monthly-leaderboard">
                   {leaderboard.map((entry, index) => {
                     const uid = entry.userId || entry.id;
                     const mine = uid === user?.id;
@@ -329,6 +353,25 @@ export default function StudentProgress() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* The Advisory Challenge standings, on their own tab. */}
+        {tab === "leaderboard" && board === "advisories" && challenge && challenge.challenge && (
+          <section className="overflow-hidden rounded-2xl border border-[#f2542d]/40 bg-[#1a1020] text-white" data-testid="advisory-challenge-board">
+            <div className="flex items-start gap-3 bg-gradient-to-br from-[#f2542d] to-[#c2361b] px-4 py-4 sm:px-5">
+              <span className="text-3xl leading-none" aria-hidden="true">🍕</span>
+              <div className="min-w-0">
+                <h2 className="text-lg font-black leading-tight">Advisory Challenge</h2>
+                <p className="mt-0.5 text-sm font-bold text-white/90">
+                  {headline(challenge as any)}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3 p-4 sm:p-5">
+              <p className="text-sm font-semibold leading-relaxed text-white/75">{datesText(challenge as any)}</p>
+              <AdvisoryStandings view={challenge} mineName={challenge.mine?.advisory} />
+            </div>
+          </section>
         )}
 
         <Card className="border-primary/20">

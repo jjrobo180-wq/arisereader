@@ -15,11 +15,13 @@ import { randomUUID } from "node:crypto";
 import { createAttemptLimiter } from "./attemptLimiter";
 import { bandForGrade } from "../shared/ariseSocial";
 import {
-  ACHIEVEMENTS, BANDS, CERT_TITLES, DAILY_GOAL, LEVEL_POINTS, LEVELS, LIMITS, MILESTONES, POINTS, SKILLS, STYLES,
+  ACHIEVEMENTS, BANDS, CERT_TITLES, DAILY_GOAL, GRADES, GRADE_LABELS, LEVEL_POINTS, LEVELS, LIMITS, MILESTONES, POINTS, SKILLS, GRADE_LESSONS, STATES, STYLES, DOMAINS, stateById,
   accuracy, addPoints, cleanCustom, cleanMathProfile, customProblem, earnedAchievements, emptyMathProfile, isBand, isRight, isSkill,
-  makeProblem, mathDay, mathWeek, parseAnswer, profileNow, strength, touchStreak,
+  makeProblem, answerLabel, mathDay, mathWeek, parseAnswer, profileNow, strength, touchStreak,
   type BandId, type CustomQuestion, type MathProfile, type Problem, type Rng, type SkillId,
 } from "../shared/ariseMath";
+import { LEARN, learnFor } from "../shared/ariseMathLearn";
+import { SKILL_VIDEO_TOPIC, VIDEO_TOPICS } from "../shared/ariseMathVideos";
 
 export type MathRole = "student" | "teacher" | "parent" | "admin";
 export type MathUser = { id: number; role: MathRole; displayName: string; teacherId: number | null; schoolId: number | null; approvedByTeacher: boolean; archived: boolean };
@@ -321,8 +323,40 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     res.json({
       bands: BANDS, skills: Object.fromEntries(Object.entries(SKILLS).map(([id, s]) => [id, { name: s.name, std: s.std, glyph: s.glyph, c: s.c, band: s.band }])),
       points: POINTS, levels: LEVELS, levelPoints: LEVEL_POINTS, dailyGoal: DAILY_GOAL, styles: STYLES, milestones: MILESTONES, achievements: ACHIEVEMENTS,
-      certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
+      grades: GRADES, gradeLabels: GRADE_LABELS, states: STATES, gradeLessons: GRADE_LESSONS, domains: DOMAINS, learn: LEARN, videos: { topics: VIDEO_TOPICS, skills: SKILL_VIDEO_TOPIC }, worksheetLevels: WORKSHEET_LEVELS, certTitles: CERT_TITLES, limits: { quizLength: LIMITS.quizLength, customPerAssignment: LIMITS.customPerAssignment }, live: { questions: LIVE_QUESTIONS, seconds: LIVE_SECONDS },
     });
+  });
+
+  /* ---------- printable worksheets (public: problems only, no student data) */
+  app.get("/api/math/worksheet", (req: any, res: any) => {
+    const q = req.query || {};
+    const skills = String(q.skills || "").split(",").filter(isSkill).slice(0, 12) as SkillId[];
+    if (!skills.length) return res.status(400).type("text/plain").send("Pick at least one lesson.");
+    const n = Math.max(4, Math.min(40, Math.round(Number(q.n) || 12)));
+    const html = worksheetHTML(skills, n, {
+      title: String(q.title || "").replace(/[\u0000-\u001f]/g, " ").slice(0, 80),
+      key: q.key !== "0", pictures: q.pictures !== "0",
+      codes: String(q.codes || "").split(",").slice(0, 12).map((c: string) => c.replace(/[^A-Za-z0-9.\-]/g, "").slice(0, 16)),
+      state: String(q.state || "").slice(0, 2).toUpperCase(),
+      each: q.each === "1",
+      level: (["scaffold", "standard", "challenge"].includes(String(q.level)) ? String(q.level) : "standard") as WorksheetLevel,
+    });
+    res.set?.("Cache-Control", "no-store");
+    res.type("text/html").send(html);
+  });
+
+  /* ---------- practice sets (public: fresh problems with answers and steps, for Learn, practice modes and games; no points) */
+  app.get("/api/math/practice", (req: any, res: any) => {
+    const q = req.query || {};
+    const skills = String(q.skills || "").split(",").filter(isSkill).slice(0, 24) as SkillId[];
+    if (!skills.length) return res.status(400).json({ message: "Pick at least one lesson." });
+    const n = Math.max(1, Math.min(40, Math.round(Number(q.n) || 10)));
+    const order = Array.from({ length: n }, (_, i) => skills[i % skills.length]);
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    const problems = order.map((sk) => { const p = makeProblem(sk, random);
+      return { skill: p.skill, ask: p.ask, prompt: p.prompt, plain: p.plain, viz: p.viz, long: p.long, kind: p.kind, choices: p.choices, answer: String(p.answer), answerLabel: answerLabel(p), steps: p.steps }; });
+    res.set?.("Cache-Control", "no-store");
+    res.json({ problems, learn: Object.fromEntries([...new Set(skills)].map((sk) => [sk, learnFor(sk)])) });
   });
 
   /* ---------- who am I */
@@ -365,7 +399,7 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     return {
       skill: it.skill, ask: it.ask, prompt: it.prompt, viz: it.viz, long: it.long, kind: it.kind, choices: it.choices,
       tries: it.tries, hints: it.hints, done: it.done, result: it.result, wrong: it.wrong,
-      steps: it.steps.slice(0, shown), stepsTotal: it.steps.length, answer: it.done ? String(it.answer) : null,
+      steps: it.steps.slice(0, shown), stepsTotal: it.steps.length, answer: it.done ? String(it.answer) : null, answerLabel: it.done ? answerLabel(it) : null,
     };
   }
   function sessionOut(s: SessionRow) {
@@ -791,4 +825,140 @@ export function registerAriseMathRoutes(app: Express, auth: RequestHandler, deps
     await store.savePlayer({ ...j.me, answer: value, answered_qi: g.qi, score: j.me.score + (right ? 1 : 0) });
     res.json({ ok: true });
   }));
+}
+
+/* ---------- printable worksheets */
+
+const escHTML = (t: string) => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
+/** Lessons whose question is about the picture itself (count the dots, read the clock), so it stays even with pictures off. */
+const MUST_SEE = new Set<string>(["kcount", "kmore", "kshape", "ksides", "add20", "sub20", "pct", "g2oddeven", "g1time", "g2time5", "g2bar", "g3fracshade", "g5coord"]);
+export type WorksheetLevel = "scaffold" | "standard" | "challenge";
+export const WORKSHEET_LEVELS: Record<WorksheetLevel, { name: string; note: string }> = {
+  scaffold: { name: "Scaffolded", note: "A worked example, pictures, answer choices and a first-step hint on every problem." },
+  standard: { name: "Standard", note: "Pictures where they help and room to show your work." },
+  challenge: { name: "Challenge", note: "No pictures or hints. Explain your thinking for each problem." },
+};
+export type WorksheetOpts = { title?: string; key?: boolean; pictures?: boolean; codes?: string[]; state?: string; each?: boolean; level?: WorksheetLevel };
+
+const WS_CSS = `
+  :root{--fg:#1d1b3a;--line:#c9c6e0;--line-2:#9c98c2;--primary:#4b3fd0;--soft:#f1effc;--sun:#f5a524;--leaf:#1f9d6b;--faint:#6b6890}
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--fg);background:#f4f3fb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .bar{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line)}
+  .bar button{min-height:44px;padding:0 18px;border:0;border-radius:12px;background:var(--fg);color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+  .bar .alt{background:#fff;color:var(--fg);border:1.5px solid var(--line-2)}
+  .lv{display:inline-flex;border:1.5px solid var(--line-2);border-radius:12px;overflow:hidden} .lv button{border-radius:0;background:#fff;color:var(--fg);padding:0 14px;font-weight:600}
+  .lv button[aria-pressed=true]{background:var(--primary);color:#fff}
+  .page{max-width:8.5in;margin:16px auto;background:#fff;padding:.55in .6in .45in;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  .sheet + .sheet{margin-top:28px;padding-top:24px;border-top:2px dashed #ccc}
+  .top{display:grid;grid-template-columns:1fr auto;gap:10px 18px;align-items:end;border-bottom:3px solid var(--fg);padding-bottom:10px}
+  .brand{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;font-size:9pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--primary)}
+  .tag{border:1.5px solid currentColor;border-radius:999px;padding:1px 10px;letter-spacing:.04em}
+  h1{margin:0;font-size:21pt;line-height:1.1} .sub{font-size:9.5pt;color:#555;margin-top:4px}
+  .who{display:grid;grid-template-columns:auto 1.7in;gap:6px 6px;font-size:10.5pt;align-items:end}
+  .who i{display:block;border-bottom:1px solid #333;height:1.1em}
+  .who .score{display:flex;align-items:center;gap:6px} .who .score i{width:.5in}
+  .help{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 4px}
+  .box{border:1.5px solid var(--line-2);border-radius:10px;padding:8px 12px;break-inside:avoid}
+  .box h3{margin:0 0 4px;font-size:9pt;letter-spacing:.06em;text-transform:uppercase;color:var(--primary)}
+  .box p{margin:0;font-size:10.5pt;line-height:1.35}
+  .box.tip{background:var(--soft);border-color:var(--soft)}
+  .ex{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:4px 18px;align-items:start}
+  .ex .exq{min-width:2.2in} .ex ol{margin:0;padding-left:1.2em;font-size:10.5pt;line-height:1.4} .ex .ans{font-weight:700;color:var(--leaf)}
+  .dir{margin:12px 0 10px;font-size:10.5pt} .dir b{color:var(--primary)}
+  .probs{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;counter-reset:q}
+  .q{counter-increment:q;position:relative;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px 10px 44px;break-inside:avoid;page-break-inside:avoid;min-height:1.15in;display:flex;flex-direction:column;gap:4px}
+  .q::before{content:counter(q);position:absolute;left:10px;top:10px;width:24px;height:24px;border-radius:50%;background:var(--fg);color:#fff;font-weight:700;font-size:11pt;display:grid;place-items:center}
+  .q.wide{grid-column:1/-1}
+  .ask{font-size:9.5pt;color:#444} .prompt{font-size:15pt;margin:2px 0}
+  .hint{font-size:9pt;color:#555;border-left:3px solid var(--sun);padding-left:6px}
+  .hint b{color:#9a6400}
+  .work{flex:1;min-height:.35in}
+  .ansline{font-size:10.5pt;display:flex;align-items:center;gap:6px;margin-top:auto} .ansline i{display:inline-block;border-bottom:1.3px solid #333;width:1.2in;height:1.1em}
+  .circle{font-size:10.5pt;margin-top:auto} .circle span{display:inline-block;border:1px solid var(--line-2);border-radius:999px;padding:1px 10px;margin:2px 0 0 6px;min-width:2.2em;text-align:center}
+  .explain{font-size:9pt;color:#555;margin-top:4px} .explain i{display:block;border-bottom:1px solid #bbb;height:1.35em}
+  .fr{display:inline-flex;flex-direction:column;align-items:center;font-size:.78em;line-height:1.05;vertical-align:middle}
+  .fr span:first-child{border-bottom:.08em solid currentColor;padding:0 .18em}
+  .blank{display:inline-block;min-width:1.6em;height:1.2em;border-bottom:1.5px solid #333;vertical-align:baseline;color:transparent}
+  .viz-wrap{margin:2px 0} .viz{display:block;max-width:100%;height:auto;max-height:1.25in}
+  .ex .viz{max-height:1.1in}
+  .cell{fill:#fff;stroke:#333;stroke-width:1.5} .dot.d1{fill:#4b3fd0} .dot.d2{fill:#f5a524} .dot.gone{fill:#ddd} .vx{stroke:#000;stroke-width:2.5;fill:none}
+  .rod{fill:#6e64d8} .rodline{stroke:#fff;stroke-width:1} .unit{fill:#f5a524}
+  .axis{stroke:#333;stroke-width:1.5} .gridl{stroke:#ddd;stroke-width:1} .tick{stroke:#333;stroke-width:1.2}
+  .pt{fill:#4b3fd0;stroke:#1d1b3a;stroke-width:1.5} .ln{stroke:#333;stroke-width:2;stroke-dasharray:6 5;fill:none}
+  .beam{stroke:#333;stroke-width:4} .pan{fill:#eee;stroke:#333;stroke-width:1.5} .fulcrum{fill:#333}
+  .hund{fill:#fff;stroke:#bbb;stroke-width:1} .hund.fill{fill:#8d84e6;stroke:#fff}
+  .seg-r{fill:#fff;stroke:#333;stroke-width:1.2} .seg-r.fill{fill:#b9b3f0} .lab{font-size:12px;fill:#333} .lab.sm{font-size:10px}
+  .key{break-before:page;page-break-before:always;margin-top:24px} .key ol{columns:2;column-gap:.4in;font-size:10.5pt;padding-left:1.4em} .key li{margin-bottom:9pt;break-inside:avoid} .key b{font-size:12pt}
+  .key .steps{font-size:9pt;color:#444;margin-top:2px}
+  footer{margin-top:10px;font-size:8pt;color:#777;display:flex;justify-content:space-between}
+  @media (max-width:700px){.page{padding:.35in .25in}.probs{grid-template-columns:1fr}.help{grid-template-columns:1fr}.top{grid-template-columns:1fr}.ex{grid-template-columns:1fr}}
+  @media print{body{background:#fff}.bar{display:none}.page{box-shadow:none;margin:0;max-width:none;padding:0}.sheet{break-after:page}.sheet:last-of-type{break-after:auto}.sheet + .sheet{border:0;margin:0;padding:0}@page{margin:.5in}}
+`;
+
+/**
+ * A worksheet to print, in three levels: Scaffolded (big idea, a worked example with every step, pictures,
+ * answer choices and a first-step hint under each problem), Standard (pictures and work space), and Challenge
+ * (no pictures or hints, with lines to explain your thinking). Fresh problems every time; a name, date and
+ * score line; and an answer key with the steps on its own page. "One page per lesson" makes a packet.
+ */
+export function worksheetHTML(skills: SkillId[], n: number, opts: WorksheetOpts, r: Rng = Math.random): string {
+  const st = stateById(opts.state || "CO");
+  const level: WorksheetLevel = opts.level && opts.level in WORKSHEET_LEVELS ? opts.level : "standard";
+  const L = WORKSHEET_LEVELS[level];
+  const pics = level === "scaffold" ? true : level === "challenge" ? false : opts.pictures !== false;
+  const withKey = opts.key !== false;
+  const sheets = opts.each && skills.length > 1
+    ? skills.map((sk, i) => sheetHTML([sk], n, SKILLS[sk].name, opts.codes?.[i] ? [opts.codes[i]] : undefined))
+    : [sheetHTML(skills, n, opts.title || "", opts.codes)];
+  const title = opts.each && skills.length > 1 ? opts.title || "Math practice packet" : sheets[0].title;
+  const count = opts.each && skills.length > 1 ? `${skills.length} lessons, one per page` : `${n} problems`;
+  const levelBtn = (id: WorksheetLevel) => `<button type="button" aria-pressed="${id === level}" onclick="var u=new URL(location.href);u.searchParams.set('level','${id}');location.href=u">${WORKSHEET_LEVELS[id].name}</button>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escHTML(title)} · A.R.I.S.E. Math worksheet</title><style>${WS_CSS}</style></head><body>
+<div class="bar"><b>${escHTML(title)}: ${count}${withKey ? " + answer key" : ""}</b>
+  <span class="lv" role="group" aria-label="Level">${(Object.keys(WORKSHEET_LEVELS) as WorksheetLevel[]).map(levelBtn).join("")}</span>
+  <span style="display:flex;gap:8px"><button class="alt" onclick="location.reload()">New problems</button><button onclick="window.print()">Print</button></span></div>
+<div class="page">${sheets.map((x) => x.page).join("")}${withKey ? sheets.map((x) => x.key).join("") : ""}</div></body></html>`;
+
+  function sheetHTML(list: SkillId[], count: number, givenTitle: string, givenCodes?: string[]) {
+    const items = Array.from({ length: count }, (_, i) => makeProblem(list[i % list.length], r));
+    const names = [...new Set(list.map((s) => SKILLS[s].name))];
+    const codes = givenCodes?.filter(Boolean).length ? givenCodes.filter(Boolean) : [...new Set(list.map((s) => SKILLS[s].std))];
+    const title = givenTitle || (names.length === 1 ? names[0] : "Math practice");
+    const stds = st ? (st.ccss ? `${escHTML(st.standards)} · ${codes.map(escHTML).join(", ")}` : `Common Core ${codes.map(escHTML).join(", ")} · for use with ${escHTML(st.standards)}`) : `Common Core ${codes.map(escHTML).join(", ")}`;
+    // The help at the top: Scaffolded gets the big idea, a tip and a worked example for up to two lessons;
+    // Standard gets the tips; Challenge gets nothing.
+    const lessons = [...new Set(list)];
+    const help = level === "challenge" ? "" : level === "standard"
+      ? `<div class="help">${lessons.slice(0, 4).map((sk) => `<div class="box tip"><h3>Remember${lessons.length > 1 ? ` · ${escHTML(SKILLS[sk].name)}` : ""}</h3><p>${escHTML(learnFor(sk).remember)}</p></div>`).join("")}</div>`
+      : lessons.slice(0, 2).map((sk) => {
+        const ex = makeProblem(sk, r), lf = learnFor(sk);
+        return `<div class="help"><div class="box"><h3>Big idea${lessons.length > 1 ? ` · ${escHTML(SKILLS[sk].name)}` : ""}</h3><p>${escHTML(lf.idea)}</p></div><div class="box tip"><h3>Remember</h3><p>${escHTML(lf.remember)}</p></div>
+          <div class="box ex"><div class="exq"><h3>Worked example</h3><div class="ask">${escHTML(ex.ask)}</div><div class="prompt">${ex.prompt}</div>${ex.viz ? `<div class="viz-wrap">${ex.viz}</div>` : ""}</div>
+            <ol>${ex.steps.map((x) => `<li>${x}</li>`).join("")}<li class="ans">Answer: ${escHTML(answerLabel(ex))}</li></ol></div></div>`;
+      }).join("");
+    const dir = level === "scaffold" ? "Use the example and the hint under each problem. Circle or write your answer."
+      : level === "challenge" ? "Solve each problem. Then explain your thinking in a sentence or a number sentence."
+      : "Solve each problem. Show your work in the box, then write your answer on the line.";
+    const problem = (p: Problem) => {
+      const see = !!p.viz && (pics || MUST_SEE.has(p.skill));
+      const wide = p.long && see;
+      const hint = level === "scaffold" && p.steps.length > 1 ? `<div class="hint"><b>Hint:</b> ${p.steps[0]}</div>` : "";
+      const answer = p.kind === "choice" || level === "scaffold"
+        ? `<div class="circle">Circle one:${p.choices.map((c) => `<span>${escHTML(c.label)}</span>`).join("")}</div>`
+        : `<div class="ansline">Answer: <i></i></div>`;
+      const explain = level === "challenge" ? `<div class="explain">Explain your thinking:<i></i><i></i></div>` : "";
+      return `<li class="q${wide ? " wide" : ""}"><div class="ask">${escHTML(p.ask)}</div>${see ? `<div class="viz-wrap">${p.viz}</div>` : ""}<div class="prompt">${p.prompt}</div>${hint}${level === "standard" && !p.viz ? '<div class="work"></div>' : ""}${answer}${explain}</li>`;
+    };
+    const page = `<section class="sheet"><div class="top"><div class="brand"><span>A.R.I.S.E. Math</span><span class="tag">${escHTML(L.name)}</span></div>
+      <div><h1>${escHTML(title)}</h1><div class="sub">${stds}</div></div>
+      <div class="who"><span>Name</span><i></i><span>Date</span><i></i><span>Score</span><span class="score"><i></i> / ${count}</span></div></div>
+      ${help}<p class="dir"><b>Directions:</b> ${dir}</p>
+      <ol class="probs">${items.map(problem).join("")}</ol>
+      <footer><span>${escHTML(L.name)} level · ${escHTML(L.note)}</span><span>A.R.I.S.E. Math</span></footer></section>`;
+    const key = `<section class="key"><div class="top"><div class="brand"><span>A.R.I.S.E. Math</span><span class="tag">Answer key</span></div><div><h1>Answer key</h1><div class="sub">${escHTML(title)} · ${escHTML(L.name)}</div></div></div>
+      <ol>${items.map((p) => `<li><b>${escHTML(answerLabel(p))}</b><div class="steps">${p.steps.join(" ")}</div></li>`).join("")}</ol></section>`;
+    return { title, page, key };
+  }
 }

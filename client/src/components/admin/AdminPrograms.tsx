@@ -53,7 +53,7 @@ export default function AdminPrograms({ token }: { token: string | null }) {
             const Icon = d?.icon ?? ShieldCheck;
             return (
               <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0" data-testid={`admin-program-${p.id}`}>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><Icon className="h-[18px] w-[18px]" /></span>
+                <span className="grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted text-foreground"><Icon className="h-[18px] w-[18px]" /></span>
                 <div className="min-w-0 flex-1 basis-40">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-bold">
                     <span className="[overflow-wrap:anywhere]">{p.name}</span>

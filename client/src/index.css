@@ -154,8 +154,57 @@
     @apply border-border;
   }
 
+  /* Safety net for every page and hub: nothing is allowed to make a phone's page slide sideways. `clip` (unlike `hidden`)
+     does not turn the page into a scroll box, so sticky headers keep working; boxes that scroll on purpose (tables, chip rows) still do. */
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  /* iPhone Safari zooms the whole page in when a text box with writing smaller than 16px is tapped,
+     and then the page slides sideways. On touch screens every field writes at 16px, so typing never
+     zooms (pinch-zoom still works). */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* iPhone Safari gives date and time fields a width of their own and ignores the box they sit in. */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+  }
+
+  /* A drop-down with a long option (a school name) must never be wider than the box it sits in, or a phone's page slides sideways. */
+  select {
+    max-width: 100%;
+    min-width: 0;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  /* Tapping a control twice quickly fired the browser's double-tap-to-zoom, so an impatient second
+     tap on the menu button left the page zoomed in. `manipulation` turns off double-tap zoom on
+     controls only — pinch-to-zoom still works everywhere, which matters for anyone who needs it,
+     so this is the fix rather than user-scalable=no on the viewport. It also drops the 300ms wait
+     some mobile browsers add before a tap counts, so buttons feel quicker. */
+  button, a, [role="button"], [role="menuitem"], [role="tab"], summary,
+  input[type="button"], input[type="submit"], input[type="checkbox"], input[type="radio"], label {
+    touch-action: manipulation;
   }
 
   h1, h2, h3, h4, h5, h6 {

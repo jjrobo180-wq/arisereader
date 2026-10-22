@@ -78,6 +78,27 @@ test("a to-do edit with no name, or for a to-do that is gone, changes nothing; a
   assert.deepEqual(saveTask(start, null, { title: "New one", dueDate: "", recurring: "", priority: false }, ids())[2], { id: "new1", title: "New one", dueDate: "", recurring: "", done: false });
 });
 
+test("to-dos retain an optional due time, and editing can clear it", () => {
+  const start = hub().tasks;
+  const added = saveTask(start, null, { title: "Call parents", dueDate: "2026-10-15", dueTime: "14:45", recurring: "", priority: true }, ids());
+  assert.equal(added[2].dueTime, "14:45");
+  assert.equal(added[2].priority, "high");
+  const changed = saveTask(added, added[2].id, { title: "Call parents", dueDate: "2026-10-16", dueTime: "", recurring: "", priority: false }, ids());
+  assert.equal(changed[2].dueTime, undefined, "removing the time clears the old value");
+  assert.equal(changed[2].priority, undefined, "unchecking important clears the flag");
+  const noDate = saveTask(start, null, { title: "Someday", dueDate: "", dueTime: "13:00", recurring: "", priority: false }, ids());
+  assert.equal(noDate[2].dueTime, undefined, "no time without a due date");
+});
+
+test("WorkHub visibly labels important checkboxes and displays due times", () => {
+  const modal = read("client/src/components/teacher-hub/HubTaskEdit.tsx");
+  const page = read("client/src/pages/TeacherHub.tsx");
+  assert.ok(modal.includes('label="Due time (optional)"'), "due-time control is visible in the form");
+  assert.ok(modal.includes('data-testid="task-important-label"'), "important label is separately identifiable");
+  assert.ok(modal.includes('className="text-slate-900">Mark as important'), "important label has explicit readable contrast");
+  assert.ok(page.includes("time={task.dueTime}"), "task list receives the saved time");
+});
+
 test("the screens offer Edit on events and to-dos", () => {
   const cal = read("client/src/components/teacher-hub/HubCalendar.tsx"), page = read("client/src/pages/TeacherHub.tsx"), modal = read("client/src/components/teacher-hub/HubTaskEdit.tsx");
   for (const part of ['data-testid="event-edit"', '"edit-event-form"', "updateEvent(p, editing.event.id, changes)", "Save changes", "onEdit={setEditing}"]) assert.ok(cal.includes(part), part);

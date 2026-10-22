@@ -9,8 +9,10 @@ import { localDay } from "./HubImport";
 import type { ToastAction } from "./HubToast";
 import { Field, GhostButton, Labeled, PrimaryButton, Select, TextArea } from "./ui";
 import { HubModal } from "./HubModal";
+import { LinkEditor, useHubLinks } from "./HubLinks";
+import { cleanLinks, type HubLink } from "@shared/hubLinks";
 
-export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDelete }: {
+export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDelete, lists, startList = "", workspace, onOpenLink }: {
   /** The to-do being changed, or null for a new one. */
   task: Task | null;
   startTitle?: string;
@@ -19,10 +21,20 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
   onClose: () => void;
   /** Shown as Delete when a to-do is being changed. */
   onDelete?: () => void;
+  /** The teacher's to-do lists, to pick one. Left out, there is no list picker. */
+  lists?: { id: string; name: string; color: string }[];
+  /** The list a new to-do starts on (the one being looked at). */
+  startList?: string;
+  /** The whole Hub, so the to-do can be linked to files, students, goals… (shared/hubLinks.ts). */
+  workspace?: Workspace;
+  /** Opens a linked thing. */
+  onOpenLink?: (l: HubLink) => void;
 }) {
+  const ctx = useHubLinks();
+  workspace = workspace ?? ctx?.workspace;
   const [draft, setDraft] = useState<TaskFields>(() => (task
-    ? { title: task.title, dueDate: task.dueDate, recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "" }
-    : { title: startTitle, dueDate: "", recurring: "", priority: false, notes: "" }));
+    ? { title: task.title, dueDate: task.dueDate, dueTime: task.dueTime || "", recurring: task.recurring, priority: task.priority === "high", notes: task.notes || "", links: cleanLinks(task.links), ...(lists ? { listId: task.listId || "" } : {}) }
+    : { title: startTitle, dueDate: "", dueTime: "", recurring: "", priority: false, notes: "", links: [], ...(lists ? { listId: startList } : {}) }));
   function save(e?: FormEvent) {
     e?.preventDefault();
     if (!draft.title.trim()) return;
@@ -34,15 +46,28 @@ export function TaskModal({ task, startTitle = "", today, onSave, onClose, onDel
     <HubModal title={task ? "Edit to-do" : "New to-do"} onClose={onClose} size="sm"
       footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => save()} disabled={!draft.title.trim()}>{task ? "Save changes" : "Save"}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>
         {task && onDelete && <button type="button" onClick={() => { onDelete(); onClose(); }} className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-red-600 hover:bg-red-50" data-testid="task-delete"><Trash2 className="h-4 w-4" /> Delete</button>}</div>}>
-      <form onSubmit={save} className="grid gap-3" data-testid="task-form">
+      <form onSubmit={save} className="grid grid-cols-1 gap-3" data-testid="task-form">
         <Labeled label="To-do"><Field data-autofocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required maxLength={200} /></Labeled>
-        <Labeled label="Due"><Field type="date" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /></Labeled>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Labeled label="Due date"><Field type="date" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value, dueTime: e.target.value ? draft.dueTime : "" })} /></Labeled>
+          <Labeled label="Due time (optional)"><Field type="time" aria-label="Due time (optional)" disabled={!draft.dueDate} value={draft.dueTime || ""} onChange={(e) => setDraft({ ...draft, dueTime: e.target.value })} /></Labeled>
+        </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Quick due dates">
           {[["Today", today], ["Tomorrow", addDays(today, 1)], ["Next week", addDays(today, 7)]].map(([label, value]) => <button key={label} type="button" className={chip(draft.dueDate === value)} onClick={() => setDraft({ ...draft, dueDate: value })}>{label}</button>)}
-          {draft.dueDate && <button type="button" className={chip(false)} onClick={() => setDraft({ ...draft, dueDate: "" })}>No date</button>}
+          {draft.dueDate && <button type="button" className={chip(false)} onClick={() => setDraft({ ...draft, dueDate: "", dueTime: "" })}>No date</button>}
         </div>
+        {lists && lists.length > 0 && (
+          <div role="group" aria-label="List">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">List</span>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" className={chip(!draft.listId)} onClick={() => setDraft({ ...draft, listId: "" })}>No list</button>
+              {lists.map((l) => <button key={l.id} type="button" className={chip(draft.listId === l.id)} onClick={() => setDraft({ ...draft, listId: l.id })}><span className="h-2.5 w-2.5 rounded-full" style={{ background: l.color }} />{l.name}</button>)}
+            </div>
+          </div>
+        )}
         <Labeled label="Repeats"><Select value={draft.recurring} onChange={(e) => setDraft({ ...draft, recurring: e.target.value })}><option value="">One-time</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option></Select></Labeled>
-        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /> Mark as important</label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-1 text-sm font-semibold text-slate-900" data-testid="task-important-label"><input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600" checked={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.checked })} /><span className="text-slate-900">Mark as important</span></label>
+        {workspace && <div className="rounded-2xl border border-slate-200 p-3"><LinkEditor workspace={workspace} links={draft.links || []} onChange={(links) => setDraft({ ...draft, links })} text={`${draft.title} ${draft.notes || ""}`} self={task ? { kind: "task", id: task.id } : undefined} onOpen={onOpenLink} /></div>}
         <Labeled label="Notes"><TextArea value={draft.notes || ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} maxLength={1000} placeholder="Details, a phone number, a link (optional)" /></Labeled>
         <button type="submit" hidden />
       </form>

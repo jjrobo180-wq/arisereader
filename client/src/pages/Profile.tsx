@@ -14,6 +14,7 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { generateCertificate } from "@/lib/certificate";
 import { printMyParentInvite } from "@/lib/parentInvites";
 import EyeGazeProfileDashboard from "@/components/EyeGazeProfileDashboard";
+import { ClassTeachersCard } from "@/components/ClassTeachersPopup";
 
 // Read token from cookie as fallback when context token is null
 const SESSION_COOKIE = "arise_session";
@@ -703,6 +704,7 @@ export default function Profile() {
             </CardContent>
           </Card>
         )}
+        {user?.role === 'student' && <ClassTeachersCard />}
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="arise-surface border-white/10 shadow-[0_18px_55px_rgba(0,0,0,.20)]">

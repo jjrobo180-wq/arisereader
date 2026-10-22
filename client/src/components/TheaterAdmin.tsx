@@ -82,14 +82,14 @@ export default function TheaterAdmin({ token }: { token: string | null }) {
           return <article key={movie.id} className="min-w-0 rounded-xl border border-border bg-background p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="mr-auto text-sm font-bold text-cyan-500">{index + 1}. {source?.provider === 'external' ? 'Provider link · Admin only' : source?.provider === 'video' ? 'Direct video' : 'YouTube'}</span>
-              <button disabled={busy || index === 0} onClick={() => move(index, -1)} aria-label={`Move ${movie.title} up`} className="grid h-11 w-11 place-items-center rounded-lg border border-border disabled:opacity-40"><ChevronUp size={18} /></button>
-              <button disabled={busy || index === catalog.movies.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${movie.title} down`} className="grid h-11 w-11 place-items-center rounded-lg border border-border disabled:opacity-40"><ChevronDown size={18} /></button>
+              <button disabled={busy || index === 0} onClick={() => move(index, -1)} aria-label={`Move ${movie.title} up`} className="grid grid-cols-1 h-11 w-11 place-items-center rounded-lg border border-border disabled:opacity-40"><ChevronUp size={18} /></button>
+              <button disabled={busy || index === catalog.movies.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${movie.title} down`} className="grid grid-cols-1 h-11 w-11 place-items-center rounded-lg border border-border disabled:opacity-40"><ChevronDown size={18} /></button>
               {pendingDeleteId === movie.id ? <>
                 <button disabled={busy} onClick={() => void remove(movie.id, movie.title)} className="min-h-11 rounded-lg border border-red-500 bg-red-500 px-3 text-sm font-black text-white">Delete now</button>
                 <button disabled={busy} onClick={() => setPendingDeleteId(null)} className="min-h-11 rounded-lg border border-border px-3 text-sm font-bold">Cancel</button>
-              </> : <button disabled={busy} onClick={() => { setPendingDeleteId(movie.id); setMessage(''); setError(''); }} aria-label={`Remove ${movie.title}`} className="grid h-11 w-11 place-items-center rounded-lg border border-red-500/30 text-red-500"><Trash2 size={18} /></button>}
+              </> : <button disabled={busy} onClick={() => { setPendingDeleteId(movie.id); setMessage(''); setError(''); }} aria-label={`Remove ${movie.title}`} className="grid grid-cols-1 h-11 w-11 place-items-center rounded-lg border border-red-500/30 text-red-500"><Trash2 size={18} /></button>}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="text-sm font-bold">Show or movie title<input disabled={busy} value={movie.title} maxLength={100} onChange={event => edit(movie.id, { title: event.target.value })} className={inputClass} /></label>
               <label className="text-sm font-bold">Category<input disabled={busy} value={movie.category} maxLength={50} list="cinema-categories" onChange={event => edit(movie.id, { category: event.target.value })} className={inputClass} /></label>
               <label className="text-sm font-bold sm:col-span-2">Video link<input disabled={busy} type="url" value={movie.sourceUrl} placeholder="https://www.youtube.com/watch?v=…" onChange={event => edit(movie.id, { sourceUrl: event.target.value })} className={inputClass} /></label>

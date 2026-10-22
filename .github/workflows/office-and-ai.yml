@@ -1,0 +1,54 @@
+name: Office and AI apps build
+on:
+  pull_request:
+    paths:
+      - "client/src/pages/AriseOffice.tsx"
+      - "client/src/components/office/**"
+      - "shared/office/**"
+      - "tests/office-*.test.ts"
+      - "client/src/pages/PremiumStudio.tsx"
+      - "client/src/lib/cloudDocs.ts"
+      - "client/src/App.tsx"
+      - "client/src/pages/TeacherHub.tsx"
+      - "client/src/components/teacher-hub/HubQuickAddStudent.tsx"
+      - "client/src/components/teacher-hub/HubMeetingPoll.tsx"
+      - "client/src/components/teacher-hub/HubMeetingSteps.tsx"
+      - "client/src/pages/Billing.tsx"
+      - "client/src/pages/Pricing.tsx"
+      - "tests/iep-meetings-quick-add.test.ts"
+      - "tests/office-app-store.test.ts"
+      - "shared/pluginStore.ts"
+      - "shared/todoPlan.ts"
+      - "tests/user-docs-routes.test.ts"
+      - "client/src/pages/AriseTodo.tsx"
+      - "server/userDocs.ts"
+      - "server/proAppsAI.ts"
+      - "server/routes.ts"
+      - ".github/workflows/office-and-ai.yml"
+  push:
+    branches:
+      - feature/office-and-premium-apps-20261013
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check (existing repository errors reported separately)
+        continue-on-error: true
+        run: npm run check
+      - name: IEP student synchronization test
+        run: npx tsx --test tests/iep-meetings-quick-add.test.ts
+      - name: Office saving and user isolation tests
+        run: npx tsx --test tests/user-docs-routes.test.ts
+      - name: Office/AI App Store integration tests
+        run: npx tsx --test tests/office-app-store.test.ts
+      - name: Sheets, Docs and Slides engine tests (formulas, Excel, Word and PowerPoint files)
+        run: npx tsx --test tests/office-formula.test.ts tests/office-workbook.test.ts tests/office-xlsx.test.ts tests/office-docs.test.ts tests/office-slides.test.ts
+      - name: Production build
+        run: npm run build

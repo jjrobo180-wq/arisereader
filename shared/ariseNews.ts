@@ -11,7 +11,9 @@
 // Keep paragraphs short, define harder words in `words`, and write five
 // questions that can be answered from the text.
 
-export type NewsSection = "Science" | "Animals" | "Space" | "World" | "History" | "Nature" | "Health" | "Sports" | "Arts" | "Reading";
+import { QUICK_READS } from "./quickReads";
+
+export type NewsSection = "Science" | "Animals" | "Space" | "World" | "History" | "Nature" | "Health" | "Sports" | "Soccer" | "Biography" | "Speeches" | "Fun Facts" | "Arts" | "Reading";
 
 export type NewsBlock =
   | { kind: "p"; text: string }
@@ -40,7 +42,23 @@ export type NewsArticle = {
   body: NewsBlock[];
   words: { word: string; meaning: string }[];
   questions: NewsQuestion[];
+  /**
+   * A real photo instead of a drawn picture (used for biographies of real people).
+   * `file` is the file name on Wikimedia Commons, where every photo is free to use;
+   * its page there names the photographer and license, and the story links to it.
+   * `focus` is a CSS object-position so faces stay in frame when the photo is cropped.
+   */
+  photo?: { file: string; alt: string; focus?: string };
 };
+
+const COMMONS = "https://commons.wikimedia.org/wiki/";
+const commonsName = (file: string) => encodeURIComponent(file.replace(/ /g, "_"));
+/** A sized copy of a story's photo (Wikimedia serves the right size), or null when it has none. */
+export const newsPhotoUrl = (a: NewsArticle, width = 960) => (a.photo ? `${COMMONS}Special:FilePath/${commonsName(a.photo.file)}?width=${width}` : null);
+/** The photo's page on Wikimedia Commons, with the photographer and license. */
+export const newsPhotoPage = (a: NewsArticle) => (a.photo ? `${COMMONS}File:${commonsName(a.photo.file)}` : null);
+/** The library cover: the real photo when a story has one, otherwise its drawn cover. */
+export const newsCoverSrc = (a: NewsArticle) => newsPhotoUrl(a, 500) ?? `/covers/news/${a.slug}.svg`;
 
 export const NEWS_AUTHOR = "Arise News";
 export const NEWS_POINTS = 5;
@@ -55,6 +73,10 @@ export const SECTION_COLORS: Record<NewsSection, { ink: string; tint: string; de
   Nature: { ink: "#2f9e44", tint: "#dcf3e0", deep: "#14522a" },
   Health: { ink: "#0c7fd6", tint: "#d9ecfb", deep: "#06406f" },
   Sports: { ink: "#e8590c", tint: "#fde3d3", deep: "#7b2a00" },
+  Soccer: { ink: "#2b8a3e", tint: "#d3f9d8", deep: "#0b4a1c" },
+  Biography: { ink: "#1971c2", tint: "#d0ebff", deep: "#0b3a6b" },
+  Speeches: { ink: "#9c36b5", tint: "#f3d9fa", deep: "#4f1460" },
+  "Fun Facts": { ink: "#f08c00", tint: "#fff3bf", deep: "#7a4500" },
   Arts: { ink: "#c2255c", tint: "#f9dbe6", deep: "#6b0e31" },
   Reading: { ink: "#7048e8", tint: "#e9e1fd", deep: "#3a1d8f" },
 };
@@ -65,7 +87,7 @@ const fact = (title: string, text: string): NewsBlock => ({ kind: "fact", title,
 const quote = (text: string, by?: string): NewsBlock => ({ kind: "quote", text, by });
 const list = (title: string, items: string[]): NewsBlock => ({ kind: "list", title, items });
 
-export const NEWS_ARTICLES: NewsArticle[] = [
+const ISSUE_ARTICLES: NewsArticle[] = [
   {
     slug: "asian-games-2026-close",
     kind: "news",
@@ -421,7 +443,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
   {
     slug: "spain-wins-world-cup",
     kind: "news",
-    section: "Sports",
+    section: "Soccer",
     title: "Spain Wins the Biggest World Cup Ever",
     dek: "A goal in extra time gave Spain its second title at the first 48-team World Cup.",
     grades: "Grades 3–7",
@@ -524,7 +546,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
   },
   {
     slug: "louis-braille",
-    section: "History",
+    section: "Biography",
     title: "The Teen Who Taught Fingers to Read",
     dek: "Louis Braille lost his sight as a little boy. At 15, he invented a way for blind people to read.",
     grades: "Grades 3–6",
@@ -658,7 +680,7 @@ export const NEWS_ARTICLES: NewsArticle[] = [
   },
   {
     slug: "math-of-a-soccer-ball",
-    section: "Sports",
+    section: "Soccer",
     title: "The Math Hiding in a Soccer Ball",
     dek: "The classic black-and-white ball is made of shapes that fit together like a puzzle.",
     grades: "Grades 4–7",
@@ -827,6 +849,23 @@ export const NEWS_ARTICLES: NewsArticle[] = [
     ],
   },
 ];
+
+/** Every story: the issue articles plus the 5-Minute Reads (sports, soccer, biographies, speeches, fun facts). */
+export const NEWS_ARTICLES: NewsArticle[] = [...ISSUE_ARTICLES, ...QUICK_READS];
+
+/** The kid-facing groups on the 5-Minute Reads shelf. Each group gathers one or more sections. */
+export const QUICK_CATEGORIES: { label: string; emoji: string; sections: NewsSection[] }[] = [
+  { label: "Sports", emoji: "🏀", sections: ["Sports"] },
+  { label: "Soccer", emoji: "⚽", sections: ["Soccer"] },
+  { label: "Biographies", emoji: "🌟", sections: ["Biography"] },
+  { label: "Famous Speeches", emoji: "🎤", sections: ["Speeches"] },
+  { label: "Fun Facts", emoji: "🤯", sections: ["Fun Facts"] },
+  { label: "Animals", emoji: "🐙", sections: ["Animals"] },
+  { label: "Space", emoji: "🚀", sections: ["Space"] },
+  { label: "Science & Nature", emoji: "🔬", sections: ["Science", "Nature", "Health"] },
+  { label: "History & Arts", emoji: "🎨", sections: ["History", "Arts", "Reading", "World"] },
+];
+export const quickCategoryOf = (a: NewsArticle) => QUICK_CATEGORIES.find((c) => c.sections.includes(a.section)) ?? QUICK_CATEGORIES[QUICK_CATEGORIES.length - 1];
 
 /** Recent news, newest first. */
 export const WORLD_NEWS = NEWS_ARTICLES.filter((a) => a.kind === "news").sort((a, b) => b.publishedOn.localeCompare(a.publishedOn));

@@ -1,17 +1,17 @@
-// Arise WorkHub's A.R.I.S.E. Reader group: every A.R.I.S.E. program in one place, the Reader's
-// teacher tools (approvals, students, quizzes, proctor, comprehension, growth check, prizes...)
-// and, for admins, the admin console. These are loaded only when opened.
+// Arise WorkHub's A.R.I.S.E. Reader group: links to every A.R.I.S.E. program and, for admins, the
+// admin console (loaded only when opened). The teacher's Reader tabs are in HubReaderTools.
 import { Suspense, lazy } from "react";
 import { BookOpen, Calculator, CheckCheck, Landmark, Users } from "lucide-react";
+import HubReaderScope from "@/components/HubReaderScope";
+import type { AdminSection, SettingsSection } from "@/lib/adminSections";
 
-const TeacherDashboard = lazy(() => import("@/pages/TeacherDashboard"));
 const Admin = lazy(() => import("@/pages/Admin"));
 
 const PROGRAMS = [
   { href: "/#/library", label: "A.R.I.S.E. Reader", detail: "Library, quizzes and reading", icon: BookOpen, tint: "bg-violet-50 text-violet-700" },
-  { href: "/math/", label: "Arise Math", detail: "Class add-on", icon: Calculator, tint: "bg-sky-50 text-sky-700" },
-  { href: "/history/", label: "Arise History", detail: "Class add-on", icon: Landmark, tint: "bg-amber-50 text-amber-700" },
-  { href: "/social/", label: "Arise Social", detail: "Class add-on", icon: Users, tint: "bg-pink-50 text-pink-700" },
+  { href: "/math/", label: "Arise Math", detail: "Included with your Class plan", icon: Calculator, tint: "bg-sky-50 text-sky-700" },
+  { href: "/history/", label: "Arise History", detail: "Included with your Class plan", icon: Landmark, tint: "bg-amber-50 text-amber-700" },
+  { href: "/social/", label: "A.R.I.S.E. Connect", detail: "Included with your Class plan", icon: Users, tint: "bg-pink-50 text-pink-700" },
   { href: "/#/lifehub", label: "Arise LifeHub", detail: "Your own lists and calendar", icon: CheckCheck, tint: "bg-emerald-50 text-emerald-700" },
 ];
 
@@ -36,13 +36,9 @@ export function ProgramLinks({ hideLifeHub = false }: { hideLifeHub?: boolean })
   </section>;
 }
 
-export function ReaderTab({ hideLifeHub }: { hideLifeHub?: boolean }) {
-  return <>
-    <ProgramLinks hideLifeHub={hideLifeHub} />
-    <Suspense fallback={<Loading what="your Reader tools" />}><TeacherDashboard embedded /></Suspense>
-  </>;
-}
-
-export function AdminTab() {
-  return <Suspense fallback={<Loading what="the admin console" />}><Admin embedded /></Suspense>;
+export function AdminTab({ night = false, section, onSection, settingsPart, onSettingsPart, settingsInSidebar = false, overviewPart, bare = false }: { night?: boolean; section?: AdminSection; onSection?: (next: AdminSection) => void; settingsPart?: SettingsSection; onSettingsPart?: (next: SettingsSection) => void; settingsInSidebar?: boolean; overviewPart?: "home" | "attention" | "actions" | "leaderboard"; bare?: boolean }) {
+  return <HubReaderScope which="work" night={night}>
+    {/* hideNav: the console's own menus are off, because WorkHub's Reader menu lists its sections. */}
+    <Suspense fallback={<Loading what="the admin console" />}><Admin embedded hideNav section={section} onSection={onSection} settingsPart={settingsPart} onSettingsPart={onSettingsPart} settingsInSidebar={settingsInSidebar} overviewPart={overviewPart} bare={bare} /></Suspense>
+  </HubReaderScope>;
 }

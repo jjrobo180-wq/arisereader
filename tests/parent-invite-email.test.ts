@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { CHILD_NAME_MAX, INVITES_PER_ADDRESS_PER_DAY, KEPT_NEW_FAMILIES, KEPT_PER_STUDENT, NEW_FAMILY_KEY, PARENT_INVITE_LOG_KEY, STAFF_INVITES_PER_DAY, cleanChildName, cleanParentEmail, inviteSummary, invitesFor, readInviteLog, recordInvite, sentInLastDay } from "../shared/parentInvites";
 import { inviteTemplate, listFamilyInvites, listParentInvites, sendFamilyInvite, sendParentInvite, type InviteSender, type ParentInviteDeps } from "../server/parentInviteEmails";
 import { familyInviteEmail, familyInviteText, parentProgramEmail, parentProgramText } from "../server/emailFormat";
+import { PLANS } from "../shared/plans";
 
 const read = (path: string) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const NOW = Date.parse("2026-10-07T16:30:00.000Z");
@@ -51,7 +52,7 @@ test("the parent gets one email that explains the program, the parent account an
     "Ms. Lee uses A.R.I.S.E. Reader with Dennis Flores",
     "Dennis already has a student account. To follow along you will need a free parent account",
     "What it is", "A score of 70% or higher earns that book's points",
-    "What a parent account does", "quiz history and reading growth", "Parent Proctor Code", "parent controls", "It is free, and one parent account can follow up to 5 children",
+    "What a parent account does", "quiz history and reading growth", "Parent Proctor Code", "parent controls", `It is free, and one parent account can follow up to ${PLANS.parentMaxChildren} children`,
     "How to sign up", "code is already filled in", "choose a username and a password",
     'href="https://www.arisereader.com/#/parent-signup?code=AB12-CD34-EF56-7890-0005"', "Create your free parent account",
     "AB12-CD34-EF56-7890-0005", "www.arisereader.com/#/parent-signup", "Already have a parent account?",
@@ -137,9 +138,9 @@ test("the list of who was invited is kept tidy", () => {
 });
 
 test("the box is on the admin's student details and the teacher's parent screen, and the routes need a sign-in", () => {
-  const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/pages/TeacherDashboard.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/ParentEmailInvite.tsx"), server = read("server/parentInviteEmails.ts");
+  const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/components/teacher-hub/HubReaderTools.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/ParentEmailInvite.tsx"), server = read("server/parentInviteEmails.ts");
   assert.ok(adminPage.includes("<ParentEmailInvite studentId={detailStudent.id} studentName={detailStudent.displayName} />"));
-  assert.ok(teacherPage.includes("<ParentEmailInvite studentId={student.id} studentName={student.displayName} />"));
+  assert.ok(teacherPage.includes('<HubParentInvite which="work" studentId={s.id} studentName={s.displayName} />'));
   assert.ok(routes.includes("registerParentInviteEmailRoutes(app, authMiddleware, {"));
   for (const part of ['app.get("/api/parent-invites/emails/:studentId", auth,', 'app.post("/api/parent-invites/email", auth,']) assert.ok(server.includes(part), part);
   for (const part of ['data-testid="parent-email-input"', "You can email a parent who hasn't signed up.", "Send invitation", "Send again"]) assert.ok(box.includes(part), part);
@@ -158,7 +159,7 @@ test("a family whose child has no account gets one email on how the child, then 
   for (const part of [
     "Your family is invited to read with us", "Ms. Lee invited you and Jordan Reyes to join A.R.I.S.E. Reader", "It is free. Jordan will need a student account, and you will need a parent account.",
     "What it is", "A score of 70% or higher earns that book's points",
-    "What you get as a parent", "See Jordan's quiz history and reading growth", "Parent Proctor Code", "follow up to 5 children",
+    "What you get as a parent", "See Jordan's quiz history and reading growth", "Parent Proctor Code", `follow up to ${PLANS.parentMaxChildren} children`,
     "How to sign up", "Jordan makes a student account.", ">Lincoln Elementary</strong> as the school, pick the grade, then choose", ">Ms. Lee</strong> as the teacher", "My teacher isn't listed",
     "Jordan logs in and opens Profile.", "Print / View My Parent Code", "You make your parent account</strong> with that code",
     'href="https://www.arisereader.com/#/register"', "Step 1: Create the student account",
@@ -238,11 +239,11 @@ test("the child's name is tidied, shown as text, and the new-family list stays a
 });
 
 test("the new-family box is at the top of the admin's Students list and on the teacher's Parents screen", () => {
-  const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/pages/TeacherDashboard.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/FamilyEmailInvite.tsx"), server = read("server/parentInviteEmails.ts"), lib = read("client/src/lib/parentInvites.ts");
+  const adminPage = read("client/src/pages/Admin.tsx"), teacherPage = read("client/src/components/teacher-hub/HubReaderTools.tsx"), routes = read("server/routes.ts"), box = read("client/src/components/FamilyEmailInvite.tsx"), server = read("server/parentInviteEmails.ts"), lib = read("client/src/lib/parentInvites.ts");
   const students = adminPage.slice(adminPage.indexOf('id="students"'));
   assert.ok(students.indexOf("<FamilyEmailInvite />") > 0 && students.indexOf("<FamilyEmailInvite />") < students.indexOf('<div className="relative min-w-0 flex-1">'), "above the search box");
-  const parents = teacherPage.slice(teacherPage.indexOf('tab === "parents"'));
-  assert.ok(parents.indexOf("<FamilyEmailInvite />") > 0 && parents.indexOf("<FamilyEmailInvite />") < parents.indexOf("parentConnectionsLoading ?"));
+  const parents = teacherPage.slice(teacherPage.indexOf('tab === "readerParents"'));
+  assert.ok(parents.indexOf('<HubFamilyInvite which="work" />') > 0 && parents.indexOf('<HubFamilyInvite which="work" />') < parents.indexOf("Your students' families"), "above the list of students' families");
   for (const part of ['app.get("/api/parent-invites/family-emails", auth,', 'app.post("/api/parent-invites/family-email", auth,']) assert.ok(server.includes(part), part);
   for (const part of ["parentAccountEmails: async () =>", "schoolName: async (schoolId"]) assert.ok(routes.includes(part), part);
   for (const part of ["'/api/parent-invites/family-emails'", "'/api/parent-invites/family-email'", "JSON.stringify({ email, childName, note })"]) assert.ok(lib.includes(part), part);
@@ -259,7 +260,7 @@ test("the invitation can be copied into the teacher's own email, with the studen
   for (const part of [
     "Hello,\n\nI use A.R.I.S.E. Reader with Dennis Flores, and I'd like to invite you to follow along.", "Dennis already has a student account. You will need a free parent account, which takes about two minutes to make.",
     "WHAT IT IS\n- Dennis picks a book and reads it.", "A score of 70% or higher earns that book's points.",
-    "WHAT A PARENT ACCOUNT DOES\n- See Dennis's quiz history and reading growth.", "Parent Proctor Code", "- It is free, and one parent account can follow up to 5 children.",
+    "WHAT A PARENT ACCOUNT DOES\n- See Dennis's quiz history and reading growth.", "Parent Proctor Code", `- It is free, and one parent account can follow up to ${PLANS.parentMaxChildren} children.`,
     "1. Open this link. Dennis's code is already filled in:\n   https://www.arisereader.com/#/parent-signup?code=AB12-CD34-EF56-7890-0005\n",
     "Dennis's parent code: AB12-CD34-EF56-7890-0005", "go to www.arisereader.com/#/parent-signup and type the code", "Already have a parent account?",
     "\n\nThank you,\nMs. Lee",
@@ -288,7 +289,7 @@ test("the new-family invitation can be copied too", async () => {
   const text = String(reply.body.text);
   for (const part of [
     "I'd like to invite you and Jordan Reyes to join A.R.I.S.E. Reader", "It is free. Jordan will need a student account, and you will need a parent account. Each takes a few minutes, and the steps are below.",
-    "- Jordan picks a book and reads it.", "- See Jordan's quiz history and reading growth.", "- One parent account can follow up to 5 children.",
+    "- Jordan picks a book and reads it.", "- See Jordan's quiz history and reading growth.", `- One parent account can follow up to ${PLANS.parentMaxChildren} children.`,
     "1. Jordan makes a student account here:\n   https://www.arisereader.com/#/register\n   On that page, choose Lincoln Elementary as the school, pick the grade, then choose me (Ms. Lee) as the teacher.",
     `tap "My teacher isn't listed" and type the name.`, `2. Jordan logs in and opens Profile. Under "Parent Sign-Up Letter", tap "Print / View My Parent Code".`,
     "3. You make your parent account with that code here:\n   https://www.arisereader.com/#/parent-signup\n",

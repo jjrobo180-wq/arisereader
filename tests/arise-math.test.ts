@@ -1,8 +1,9 @@
 // Run with: npx tsx --test tests/arise-math.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createMemoryMathStore, registerAriseMathRoutes, type MathUser } from "../server/ariseMath";
-import { BANDS, SKILLS, SKILL_IDS, cleanMathProfile, isRight, makeProblem, mathWeek, numberChoices, parseAnswer, profileNow, emptyMathProfile } from "../shared/ariseMath";
+import { createMemoryMathStore, registerAriseMathRoutes, type MathUser, worksheetHTML } from "../server/ariseMath";
+import { LEARN } from "../shared/ariseMathLearn";
+import { BANDS, SKILLS, SKILL_IDS, cleanMathProfile, isRight, makeProblem, answerLabel, mathWeek, numberChoices, parseAnswer, profileNow, emptyMathProfile, GRADES, GRADE_LESSONS, STATES, codeLabel, stateById } from "../shared/ariseMath";
 
 const people: Record<number, MathUser & { grade?: string }> = {
   1: { id: 1, role: "teacher", displayName: "Ms. Chen", teacherId: null, schoolId: 10, approvedByTeacher: true, archived: false },
@@ -76,7 +77,51 @@ test("every generator makes a question whose stored answer checks as right", () 
   assert.equal(parseAnswer("x = 4"), 4);
   assert.ok(Number.isNaN(parseAnswer("four")));
   assert.ok(numberChoices(2, false, r).every((c) => Number(c.v) >= 0), "no negative choices for young grades");
-  assert.deepEqual(Object.values(BANDS).flatMap((b) => b.skills).sort(), [...SKILL_IDS].sort());
+  // Every skill is in a grade band or a state's grade-by-grade lessons, and every listed skill exists.
+  const listed = new Set([...Object.values(BANDS).flatMap((b) => b.skills), ...Object.values(GRADE_LESSONS).flat().map((l) => l.skill)]);
+  assert.deepEqual([...listed].sort(), [...SKILL_IDS].sort());
+});
+
+test("every grade has lessons, every state is listed, and a worksheet prints problems with an answer key", () => {
+  for (const g of GRADES) assert.ok(GRADE_LESSONS[g].length >= 6, `grade ${g} has lessons`);
+  assert.equal(STATES.length, 51, "50 states and DC");
+  assert.equal(codeLabel(stateById("CO"), "3.OA.C.7"), "CO 3.OA.C.7");
+  assert.equal(codeLabel(stateById("TX"), "3.OA.C.7"), "Common Core 3.OA.C.7");
+  assert.match(worksheetHTML(["mult"], 8, { state: "TX" }), /for use with Texas Essential Knowledge and Skills/);
+  const html = worksheetHTML(["kcount", "g4perim", "frac"], 12, { key: true, pictures: true }, seeded(5));
+  assert.equal((html.match(/<li class="q/g) || []).length, 12);
+  assert.match(html, /Answer key/);
+  assert.doesNotMatch(html, /NaN|undefined/);
+  assert.doesNotMatch(worksheetHTML(["mult"], 8, { key: false }), /Answer key/);
+});
+
+test("every lesson has a big idea, and worksheets come in scaffolded, standard and challenge levels", async () => {
+  for (const id of SKILL_IDS) assert.ok(LEARN[id]?.idea && LEARN[id]?.remember, `${id} has a Learn entry`);
+  const scaffold = worksheetHTML(["add20", "g4perim"], 8, { level: "scaffold" }, seeded(7));
+  assert.match(scaffold, /Worked example/);
+  assert.equal((scaffold.match(/class="hint"/g) || []).length > 0, true);
+  assert.equal((scaffold.match(/Circle one/g) || []).length, 8, "scaffolded problems list choices");
+  const challenge = worksheetHTML(["add20"], 6, { level: "challenge" }, seeded(7));
+  assert.equal((challenge.match(/class="explain"/g) || []).length, 6);
+  assert.doesNotMatch(worksheetHTML(["mult", "g4perim"], 6, { level: "challenge" }), /class="viz-wrap"|class="hint"|Worked example/);
+  assert.match(challenge, /class="viz-wrap"/, "a question about the dots keeps its picture");
+  const packet = worksheetHTML(["add20", "mult", "g5dec"], 6, { each: true, level: "standard" }, seeded(3));
+  assert.equal((packet.match(/<section class="sheet">/g) || []).length, 3);
+  assert.equal((packet.match(/<section class="key">/g) || []).length, 3);
+  for (const html of [scaffold, challenge, packet].map((h) => h.replace(/<svg[\s\S]*?<\/svg>/g, ""))) assert.doesNotMatch(html, /NaN|undefined|\d\.\d{7,}/);
+  // Decimal lessons show 3.5, not 7/2, and choices have no float noise.
+  for (let i = 0; i < 400; i++) for (const sk of ["g4decimal", "g5metric", "g5decround", "g6decops"] as const) {
+    const p = makeProblem(sk, seeded(i));
+    for (const c of p.choices) assert.doesNotMatch(c.label, /\/2$|\d\.\d{7,}/, `${sk} ${c.label}`);
+    assert.ok(p.choices.some((c) => c.label === answerLabel(p)));
+  }
+  // Practice sets carry answers and steps but no points.
+  const t = setup();
+  const r = await t.as(11)("GET /api/math/practice", { query: { skills: "add20,g4perim,nope", n: "6" } });
+  assert.equal(r.body.problems.length, 6);
+  for (const p of r.body.problems) { assert.ok(["add20", "g4perim"].includes(p.skill)); assert.ok(p.steps.length && p.answerLabel); }
+  assert.ok(r.body.learn.add20.idea);
+  assert.equal((await t.as(11)("GET /api/math/me")).body.profile.points, 0);
 });
 
 test("answers and steps stay on the server until earned, and points follow the rules", async () => {

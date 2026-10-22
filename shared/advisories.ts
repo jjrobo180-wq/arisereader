@@ -1,0 +1,63 @@
+// Advisories: a school's homeroom groups, each led by one or more advisors. At DSST: Conservatory
+// Green Middle School every 6th-, 7th- and 8th-grade advisory has two co-advisors and two sections in one room.
+// Students are placed in an advisory when their accounts are uploaded (AddStudentsModal), so the
+// sign-in pop-up only asks for their ELA teacher.
+import { nameWords } from "./classTeachers";
+
+export type Advisory = {
+  id: string;
+  /** The advisors, as "First Last". */
+  teachers: string[];
+  grade?: string;
+  room?: string;
+  /** Section numbers from the school's roster, for reference. */
+  sections?: string[];
+};
+
+/** Conservatory Green Middle School, 2026-27 (from the school's Section Rosters, 10/19/2026). */
+const CONSERVATORY_GREEN_MS: Advisory[] = [
+  { id: "cgms-6010", teachers: ["Anne-Marie Boucher", "Jennifer Groussman"], grade: "6", room: "241", sections: ["6010", "6011"] },
+  { id: "cgms-6020", teachers: ["Casey Mullaney", "Bryttani Muniz"], grade: "6", room: "230", sections: ["6020", "6021"] },
+  { id: "cgms-6030", teachers: ["Kristina Charfauros", "Rebecca Miller"], grade: "6", room: "231", sections: ["6030", "6031"] },
+  { id: "cgms-6040", teachers: ["Sarah Garcia", "Delilah Micou"], grade: "6", room: "229", sections: ["6040", "6041"] },
+  { id: "cgms-6050", teachers: ["Dave Balestrini", "Max Tsui"], grade: "6", room: "226", sections: ["6050", "6051"] },
+  { id: "cgms-7010", teachers: ["Lucy Chase", "Jeffrey Shuster"], grade: "7", room: "212", sections: ["7010", "7011"] },
+  { id: "cgms-7020", teachers: ["Kennedy Isaac", "Sandra Ross"], grade: "7", room: "213", sections: ["7020", "7021"] },
+  { id: "cgms-7030", teachers: ["Veysel Altunel", "Francisco Padilla"], grade: "7", room: "215", sections: ["7030", "7031"] },
+  { id: "cgms-7040", teachers: ["Edward King", "Ellie Ruos"], grade: "7", room: "216", sections: ["7040", "7041"] },
+  { id: "cgms-7050", teachers: ["Meg Hines-Brazell", "Marissa Kast"], grade: "7", room: "217", sections: ["7050", "7051"] },
+  { id: "cgms-8010", teachers: ["Laurie Pochette", "Aaron Vohlers"], grade: "8", room: "223", sections: ["8010", "8011"] },
+  { id: "cgms-8020", teachers: ["Patricia Kettle", "Hope Penas"], grade: "8", room: "222", sections: ["8020", "8021"] },
+  { id: "cgms-8030", teachers: ["Kailley Callamaras", "Antonella Lescano"], grade: "8", room: "206", sections: ["8030", "8031"] },
+  { id: "cgms-8040", teachers: ["Mickey Brown", "Abraham Maggard"], grade: "8", room: "207", sections: ["8040", "8041"] },
+  { id: "cgms-8050", teachers: ["Derrick Garner", "Camilla Smith"], grade: "8", room: "210", sections: ["8050", "8051"] },
+];
+
+/** The advisories at a school, found by its name ("Conservatory Green Middle School (Denver, CO)"). */
+export function advisoriesForSchool(schoolName: string): Advisory[] {
+  const words = nameWords(schoolName).join(" ");
+  if (words.includes("conservatory green") && !words.includes("high")) return CONSERVATORY_GREEN_MS;
+  return [];
+}
+
+const lastName = (full: string) => full.trim().split(/\s+/).slice(-1)[0] || full;
+
+/** The advisory's name as students and teachers see it: "Chase & Shuster". */
+export const advisoryName = (a: Advisory) => a.teachers.map(lastName).join(" & ");
+
+/** A longer label for choosing one: "Chase & Shuster · Grade 7 · Room 212". */
+export const advisoryLabel = (a: Advisory) =>
+  [`${a.teachers.join(" & ")}`, a.grade ? `Grade ${a.grade}` : "", a.room ? `Room ${a.room}` : ""].filter(Boolean).join(" · ");
+
+/** The teacher account (if any) for one of the advisory's advisors, matched by name. */
+export function advisorAccount<T extends { id: number; displayName: string }>(a: Advisory, teachers: readonly T[]): T | null {
+  for (const name of a.teachers) {
+    const want = nameWords(name).join(" ");
+    const hit = teachers.find((t) => nameWords(t.displayName).join(" ") === want);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Is this teacher (by account name) one of the advisory's advisors? */
+export const isAdvisor = (a: Advisory, displayName: string) => a.teachers.some((n) => nameWords(n).join(" ") === nameWords(displayName).join(" "));

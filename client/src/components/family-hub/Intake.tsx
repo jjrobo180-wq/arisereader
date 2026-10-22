@@ -59,7 +59,7 @@ export default function Intake({ member, today, start, onSave, onCancel }: {
       {step === 1 && <>
         <label className="block text-sm font-bold text-slate-700">Current weight<div className="mt-1.5 flex items-center gap-2"><input type="number" inputMode="decimal" min={70} step={0.1} value={d.weight} onChange={(e) => setD({ ...d, weight: e.target.value })} placeholder="180" className={inputClass + " w-32"} /><span className="text-sm font-bold text-slate-500">lb</span></div></label>
         <div><p className="mb-2 text-sm font-bold text-slate-700">What's your goal?</p>
-          <div className="grid gap-3 sm:grid-cols-3">{([["lose", "Lose weight"], ["maintain", "Stay where I am"], ["gain", "Gain weight"]] as const).map(([g, l]) => <button key={g} type="button" onClick={() => setD({ ...d, goal: g, rate: g === "gain" ? 0.5 : g === "lose" ? Math.min(1, fastest || 1) : 0 })} aria-pressed={d.goal === g} className={choice(d.goal === g)}><span className="text-sm font-black">{l}</span></button>)}</div></div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{([["lose", "Lose weight"], ["maintain", "Stay where I am"], ["gain", "Gain weight"]] as const).map(([g, l]) => <button key={g} type="button" onClick={() => setD({ ...d, goal: g, rate: g === "gain" ? 0.5 : g === "lose" ? Math.min(1, fastest || 1) : 0 })} aria-pressed={d.goal === g} className={choice(d.goal === g)}><span className="text-sm font-black">{l}</span></button>)}</div></div>
         {(d.goal === "lose" || d.goal === "gain") && <label className="block text-sm font-bold text-slate-700">Goal weight<div className="mt-1.5 flex items-center gap-2"><input type="number" inputMode="decimal" min={d.goal === "lose" ? minGoalWeight(heightIn) : weight} step={0.5} value={d.goalWeight} onChange={(e) => setD({ ...d, goalWeight: e.target.value })} placeholder={d.goal === "lose" ? String(Math.max(minGoalWeight(heightIn), Math.round(weight * 0.9))) : String(Math.round(weight + 10))} className={inputClass + " w-32"} /><span className="text-sm font-bold text-slate-500">lb</span></div>
           {d.goal === "lose" && weight > 0 && Number(d.goalWeight) > 0 && Number(d.goalWeight) < weight && <span className="mt-1.5 block text-xs font-semibold text-slate-500">That's {fmt(weight - Number(d.goalWeight))} lb to lose.</span>}</label>}
         {weight > 0 && (d.goal === "maintain" || Number(d.goalWeight) > 0) && fieldProblem(["weight", "goalWeight"])}
@@ -67,7 +67,7 @@ export default function Intake({ member, today, start, onSave, onCancel }: {
 
       {step === 2 && <>
         <p className="text-sm text-slate-600">How fast do you want to {d.goal === "gain" ? "gain" : "lose"}? Slower is easier to stick with.</p>
-        <div className="grid gap-3">{(d.goal === "gain" ? GAIN_RATES : LOSE_RATES).map((r) => {
+        <div className="grid grid-cols-1 gap-3">{(d.goal === "gain" ? GAIN_RATES : LOSE_RATES).map((r) => {
           const blocked = d.goal === "lose" && r > fastest;
           const weeks = Math.ceil(Math.abs(weight - Number(d.goalWeight)) / r);
           return <button key={r} type="button" disabled={blocked} onClick={() => setD({ ...d, rate: r })} aria-pressed={d.rate === r} className={choice(d.rate === r) + (blocked ? " cursor-not-allowed opacity-45" : "")}>
@@ -77,12 +77,12 @@ export default function Intake({ member, today, start, onSave, onCancel }: {
         })}</div>
       </>}
 
-      {step === 3 && <div className="grid gap-3">{ACTIVITY_LEVELS.map((a) => <button key={a.id} type="button" onClick={() => setD({ ...d, activity: a.id })} aria-pressed={d.activity === a.id} className={choice(d.activity === a.id)}>
+      {step === 3 && <div className="grid grid-cols-1 gap-3">{ACTIVITY_LEVELS.map((a) => <button key={a.id} type="button" onClick={() => setD({ ...d, activity: a.id })} aria-pressed={d.activity === a.id} className={choice(d.activity === a.id)}>
         <span className="block text-sm font-black">{a.label}</span><span className="mt-0.5 block text-xs text-slate-500">{a.detail}. Don't count workouts you'll log; those add calories back each day.</span></button>)}</div>}
 
       {step === 4 && <>
         <p className="text-sm text-slate-600">How do you like to eat? This sets your protein, carbs and fat. You can change it any time.</p>
-        <div className="grid gap-3 sm:grid-cols-2">{DIET_STYLES.map((s) => <button key={s.id} type="button" onClick={() => setD({ ...d, diet: s.id })} aria-pressed={d.diet === s.id} className={choice(d.diet === s.id)}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{DIET_STYLES.map((s) => <button key={s.id} type="button" onClick={() => setD({ ...d, diet: s.id })} aria-pressed={d.diet === s.id} className={choice(d.diet === s.id)}>
           <span className="block text-sm font-black">{s.label}</span><span className="mt-0.5 block text-xs text-slate-500">{s.detail}</span>
           <span className="mt-2 block text-[11px] font-bold text-violet-600">Protein {s.protein}% · Carbs {s.carbs}% · Fat {s.fat}%</span></button>)}</div>
       </>}

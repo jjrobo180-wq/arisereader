@@ -12,8 +12,9 @@ async function call<T>(token: string | null, path: string, init?: RequestInit): 
   return body as T;
 }
 
+/** Foods from the databases. `corrected` is the search with its spelling fixed, when that is what found them. */
 export const searchFoods = (token: string | null, q: string, signal?: AbortSignal) =>
-  call<{ foods: FoundFood[] }>(token, `/search?q=${encodeURIComponent(q)}`, { signal }).then((b) => b.foods || []);
+  call<{ foods: FoundFood[]; corrected?: string }>(token, `/search?q=${encodeURIComponent(q)}`, { signal }).then((b) => ({ foods: b.foods || [], corrected: b.corrected || "" }));
 export const lookupBarcode = (token: string | null, code: string) =>
   call<{ food: FoundFood }>(token, `/barcode/${encodeURIComponent(code)}`).then((b) => b.food);
 export const estimateMeal = (token: string | null, text: string, image: string | null) =>
@@ -37,6 +38,3 @@ export function shrinkPhoto(file: File): Promise<string> {
     img.src = url;
   });
 }
-
-/** Barcode scanning with the camera works where the browser has BarcodeDetector (Chrome, Android, Edge). */
-export const canScan = () => typeof window !== "undefined" && "BarcodeDetector" in window && !!navigator.mediaDevices?.getUserMedia;

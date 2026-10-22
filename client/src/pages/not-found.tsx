@@ -7,7 +7,7 @@ export default function NotFound() {
     <div className="flex min-h-screen w-full items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md bg-card">
         <CardContent className="flex flex-col items-center gap-4 pt-8 pb-8 text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-500/15 text-violet-300">
+          <span className="grid grid-cols-1 h-14 w-14 place-items-center rounded-2xl bg-violet-500/15 text-violet-300">
             <BookOpen className="h-7 w-7" />
           </span>
           <div>

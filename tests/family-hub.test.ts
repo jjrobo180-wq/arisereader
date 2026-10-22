@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  billDue, billState, choreDoneOn, choreOwner, cleanFamily, emptyFamily, eventsOn, isOn, monthSummary, occursOn,
+  billDue, billState, choreDoneOn, choreOwner, cleanFamily, emptyFamily, eventsOn, isCurrentFamily, isOn, monthSummary, occursOn,
   starBalance, tally, toggleChore, type Chore, type FamilyEvent,
 } from "../shared/familyHub";
 
@@ -12,7 +12,7 @@ test("an old workspace with no family data opens as an empty hub", () => {
   const f = cleanFamily(undefined);
   assert.deepEqual(f, emptyFamily());
   assert.equal(f.calendars.length, 4);
-  assert.ok(isOn("chores", f));
+  assert.ok(!isOn("chores", f), "Chores is an App Store add-on since Oct 12, 2026: it starts off");
 });
 
 test("cleaning drops bad rows, caps text and keeps good data unchanged", () => {
@@ -20,6 +20,8 @@ test("cleaning drops bad rows, caps text and keeps good data unchanged", () => {
   good.members = [{ id: "m1", name: "Maya", emoji: "🦄", color: "#7566e8", kind: "kid" }];
   good.chores = [{ id: "c1", title: "Dishes", memberId: "m1", rotation: [], days: [1, 3], points: 2 }];
   good.notes = [{ id: "n1", title: "Wi-Fi", body: "pass", color: "#fff7d6", pinned: true, updatedAt: "2026-10-08T00:00:00Z" }];
+  // A family with chores saved that never chose either way has Chores added (see WAS_STANDARD).
+  good.sections = { ...good.sections, chores: true };
   assert.deepEqual(cleanFamily(JSON.parse(JSON.stringify(good))), good);
 
   const messy = cleanFamily({
@@ -41,7 +43,7 @@ test("cleaning drops bad rows, caps text and keeps good data unchanged", () => {
   assert.equal(messy.bills[0].amount, 1200.56);
   assert.equal(messy.bills[0].dueDay, 31);
   assert.deepEqual(messy.bills[0].paid, ["2026-10"]);
-  assert.deepEqual(messy.sections, { chores: false });
+  assert.deepEqual(messy.sections, { chores: false, money: true, polls: true }, "bills and polls saved: in use; chores was switched off");
   assert.equal(isOn("chores", messy), false);
   assert.equal(isOn("home", messy), true);
 });
@@ -121,4 +123,25 @@ test("family data saved by an older page is recognized and filled in", async () 
   delete older.health;
   assert.equal(isCurrentFamily(older), false);
   assert.ok(isCurrentFamily(cleanFamily(older)));
+});
+
+test("a family saved before newer parts existed is filled in, not opened as-is", () => {
+  // LifeHub crashed ("Cannot read properties of undefined (reading 'map')") for families saved
+  // before notesInstalled existed, because isCurrentFamily let them through unchanged.
+  const fresh: any = emptyFamily();
+  for (const key of Object.keys(fresh)) {
+    const old = { ...fresh }; delete old[key];
+    assert.equal(isCurrentFamily(old), false, `missing ${key} is caught`);
+    assert.ok(isCurrentFamily(cleanFamily(old)), `cleaning fills in ${key}`);
+  }
+});
+
+test("screens a family used before they became App Store add-ons stay added; empty or removed ones don't", () => {
+  // Before Oct 12, 2026 Pills, Chores, Money... were on for everyone, so nobody ever "added" them.
+  const old = cleanFamily({ pills: [{ id: "p1", name: "Vitamin D", times: ["08:00"], days: [0, 1, 2, 3, 4, 5, 6] }], chores: [{ id: "c1", title: "Dishes" }], sections: { chores: false } });
+  assert.equal(isOn("pills", old), true, "in use, never chosen: added");
+  assert.equal(isOn("chores", old), false, "switched off by the family: stays off");
+  assert.equal(isOn("cycle", old), false, "nothing saved: off");
+  const fresh = cleanFamily(JSON.parse(JSON.stringify(emptyFamily())));
+  assert.deepEqual(fresh.sections, {}, "a new family's starter rewards and budget don't count as use");
 });

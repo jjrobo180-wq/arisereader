@@ -243,10 +243,10 @@ export default function ARISEAvatar3D({characterId,equipped,className="",compact
 
   return <div ref={hostRef} className={"relative overflow-hidden "+className} aria-label={"Interactive 3D character: "+character.name}>
     <div data-canvas-host className="absolute inset-0"/>
-    {status==="loading"&&<div className="absolute inset-0 z-20 grid place-items-center bg-slate-950">
+    {status==="loading"&&<div className="absolute inset-0 z-20 grid grid-cols-1 place-items-center bg-slate-950">
       <div className="text-center"><div className="w-10 h-10 border-4 border-cyan-300 border-t-transparent rounded-full animate-spin mx-auto"/><p className="mt-3 text-sm font-black text-white/70">Loading {character.name}…</p></div>
     </div>}
-    {status==="error"&&<div className="absolute inset-0 z-20 grid place-items-center bg-slate-950 p-6">
+    {status==="error"&&<div className="absolute inset-0 z-20 grid grid-cols-1 place-items-center bg-slate-950 p-6">
       <div className="text-center"><p className="font-black">Character model did not load.</p><button type="button" onClick={()=>window.location.reload()} className="mt-3 rounded-xl bg-white text-slate-950 px-4 py-2 font-black">Reload</button></div>
     </div>}
     {controls&&status==="ready"&&<div className="absolute left-3 top-3 z-10 flex gap-2 rounded-2xl bg-slate-950/75 backdrop-blur p-1.5 border border-white/10">

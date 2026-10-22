@@ -1,4 +1,9 @@
+import { useSavedChoice } from "@/lib/useSavedChoice";
+import { shelvesByPoints } from "@shared/libraryShelves";
 import BannerTap from "@/components/BannerTap";
+import { AdvisoryChallengeBanner } from "@/components/AdvisoryChallenge";
+import { EnglishExplorerBanner, useEnglishExplorer } from "@/components/EnglishExplorerBanner";
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -10,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2, Users, Calculator, Landmark } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import AddonsCard from "@/components/AddonsCard";
-import ReadGamesRow from "@/components/ReadGamesRow";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
@@ -20,11 +24,10 @@ import BookAccessLinks from "@/components/BookAccessLinks";
 import ExtraCreditTag from "@/components/ExtraCreditTag";
 import { EngagementHub } from "@/components/EngagementHub";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
-import HalloreadAtmosphere from "@/components/HalloreadAtmosphere";
 import { HALLOREAD_ACTIVE } from "@/lib/halloread";
-import { FEATURES, NEWS_ARTICLES, NEWS_POINTS, SECTION_COLORS, WORLD_NEWS, newsReadMinutes } from "@shared/ariseNews";
+import { NEWS_ARTICLES } from "@shared/ariseNews";
+import QuickReadsShelf, { QuickReadRow, matchQuickReads } from "@/components/QuickReadsShelf";
 import { READABLE_BOOKS, readableBook } from "@shared/readsCatalog";
-import { POEMS } from "@shared/poems";
 import { loadReadsKeyIds } from "./reads/useReads";
 /** True when this library book can be read in Read on Arise. */
 const canReadHere = (book: { id: number; title: string }) => { const r = readableBook(book.id); return !!r && (r.key !== null || r.title === book.title); };
@@ -141,6 +144,7 @@ let libraryCache: { books: Book[]; results: QuizResult[]; announcement: string; 
 };
 
 export default function Library() {
+  const english = useEnglishExplorer();
   const { user, realUser, token, logout, refreshUser, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
   // Initialize from cache so data shows instantly on remount
@@ -155,7 +159,7 @@ export default function Library() {
   const [bookBands, setBookBands] = useState<Record<string, string>>({});
   const [userBand, setUserBand] = useState("");
   const [showBandInfo, setShowBandInfo] = useState(false);
-  const [sortBy, setSortBy] = useState<"points" | "popular" | "recent" | "classics" | "new">("points");
+  const [sortBy, setSortBy] = useSavedChoice<"points" | "popular" | "recent" | "classics" | "new">("library-sort", "points", ["points", "popular", "recent", "classics", "new"]);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -248,7 +252,7 @@ export default function Library() {
   const [customQuizzes, setCustomQuizzes] = useState<any[]>([]);
   const [regularCustomQuizzes, setRegularCustomQuizzes] = useState<any[]>([]);
   const [showEyeGaze, setShowEyeGaze] = useState(false);
-  const [eyeGazeSortBy, setEyeGazeSortBy] = useState<"new" | "title" | "level">("new");
+  const [eyeGazeSortBy, setEyeGazeSortBy] = useSavedChoice<"new" | "title" | "level">("library-eyegaze-sort", "new", ["new", "title", "level"]);
   const [eyeGazeView, setEyeGazeView] = useState<"quizzes" | "games">("quizzes");
   const [eyeGazeSearch, setEyeGazeSearch] = useState("");
 
@@ -1222,7 +1226,7 @@ export default function Library() {
     .sort((a,b)=>(Number(a.pointsValue||0)-Number(b.pointsValue||0))||a.title.localeCompare(b.title)) : [];
   const halloreadBookIds = new Set(halloreadBooks.map(b=>b.id));
   const newsIdSet = new Set(Object.values(newsBookIds).map(Number));
-  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !classReadingIds.includes(b.id) && !heritageIds.includes(b.id) && !halloreadBookIds.has(b.id) && !newsIdSet.has(b.id));
+  const nonCurriculumBooks = sortedBooks.filter(b => !CURRICULUM_BOOK_IDS.includes(b.id) && !iAriseBookIds.includes(b.id) && !iariseBookIds.includes(b.id) && !animeComicIds.includes(b.id) && !newsIdSet.has(b.id));
   const animeComicBooks = sortedBooks.filter(b => animeComicIds.includes(b.id));
   const classReadingBooks = sortedBooks.filter(b => classReadingIds.includes(b.id));
   const favoriteBooks = sortedBooks.filter(b => favBookIds.includes(b.id));
@@ -1238,25 +1242,30 @@ export default function Library() {
     });
   }).filter(b => !favBookIds.includes(b.id) && !heritageIds.includes(b.id)) : [];
 
+  // Searching: the matches show right under the search bar, before any shelf.
+  const searchText = searchQuery.trim();
+  const searching = searchText.length > 0;
+  const regularHidden = showEyeGaze && !isSampleStudent && !user?.isAdmin;
+  const [searchShowAll, setSearchShowAll] = useState(false);
+  useEffect(() => { setSearchShowAll(false); }, [searchText]);
+  const searchBooks = !searching ? [] : (regularHidden ? animeComicBooks : sortedBooks.filter(b => !newsIdSet.has(b.id)))
+    .map((b, i) => ({ b, i, title: (b.title || "").toLowerCase().includes(searchText.toLowerCase()) }))
+    .sort((x, y) => Number(y.title) - Number(x.title) || x.i - y.i)
+    .map(x => x.b);
+  const searchReads = searching && !regularHidden ? matchQuickReads(searchText) : [];
+  const searchBooksShown = searchShowAll ? searchBooks : searchBooks.slice(0, 20);
+
   // Pagination — 10 books per page
   const booksPerPage = 10;
   const totalPages = Math.ceil(nonCurriculumBooks.length / booksPerPage);
   const pagedBooks = nonCurriculumBooks.slice((currentPage - 1) * booksPerPage, currentPage * booksPerPage);
 
   // Group by points value (only when sorting by points)
-  const pointsGroups: Record<string, Book[]> = {};
-  const pointsOrder = ["5", "10", "20", "30"];
-  if (sortBy === "points") {
-    nonCurriculumBooks.forEach(b => {
-      const key = String(b.pointsValue || 10);
-      if (!pointsGroups[key]) pointsGroups[key] = [];
-      pointsGroups[key].push(b);
-    });
-  }
+  // One shelf per point value (15- and 25-point books used to be left out of this view entirely).
+  const { groups: pointsGroups, order: pointsOrder } = sortBy === "points" ? shelvesByPoints(nonCurriculumBooks) : { groups: {} as Record<string, Book[]>, order: [] as string[] };
 
   return (
     <div className="min-h-screen bg-background">
-      <HalloreadAtmosphere />
       {/* Header */}
       <header data-tour={isStudentHeader ? "welcome" : undefined} className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-0 min-h-16 sm:h-16 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
@@ -1357,6 +1366,11 @@ export default function Library() {
                             <GraduationCap className="mb-1.5 h-4 w-4 text-amber-500" /><span className="flex items-center gap-1.5 text-xs font-black">Study Squad<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </button>
                         )}
+                        {english && (
+                          <button onClick={() => { navigate("/english"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
+                            <span className="mb-1.5 block text-base leading-4" aria-hidden="true">🦜</span><span className="block text-xs font-black">English Explorer</span>
+                          </button>
+                        )}
                         {!user?.is_eye_gaze_user && (
                           <a href="/math/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                             <Calculator className="mb-1.5 h-4 w-4 text-cyan-500" /><span className="block text-xs font-black">Arise Math</span>
@@ -1369,7 +1383,7 @@ export default function Library() {
                         )}
                         {!user?.is_eye_gaze_user && (
                           <a href="/social/" className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
-                            <Users className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">Arise Social<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
+                            <Users className="mb-1.5 h-4 w-4 text-indigo-500" /><span className="flex items-center gap-1.5 text-xs font-black">A.R.I.S.E. Connect<span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[8px] font-black text-slate-950">NEW</span></span>
                           </a>
                         )}
                         <button onClick={() => { navigate("/progress"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
@@ -1393,7 +1407,7 @@ export default function Library() {
                     <div className="space-y-1">
                       {user?.isAdmin && <button onClick={() => { navigate("/admin"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Admin</button>}
                       {user?.role === 'teacher' && <button onClick={() => { navigate("/teacher-dashboard"); setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Settings className="mr-2 inline h-4 w-4" /> Teacher Dashboard</button>}
-                      <a href="/social/" className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Users className="mr-2 inline h-4 w-4" /> Arise Social</a>
+                      <a href="/social/" className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><Users className="mr-2 inline h-4 w-4" /> A.R.I.S.E. Connect</a>
                       <button onClick={() => { if (realUser?.isAdmin) { startAdminPreview("regular"); navigate("/profile"); } else { navigate(user?.is_eye_gaze_user ? "/eye-gaze-home" : "/profile"); } setShowMobileMenu(false); }} className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-muted"><User className="mr-2 inline h-4 w-4" /> Account</button>
                     </div>
                   )}
@@ -1429,6 +1443,10 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        {/* The Advisory Challenge: this student's advisory's place. Tapping it opens the leaderboard. */}
+        {user?.role === 'student' && <AdvisoryChallengeBanner onOpen={() => navigate("/leaderboard")} />}
+        {/* English Explorer: only for students a teacher turned it on for. */}
+        {user?.role === 'student' && <EnglishExplorerBanner onOpen={() => navigate("/english")} />}
         {/* Banner from admin - student banner only for students, teacher banner only for teachers/admins */}
         {user?.role === 'student' && studentBanner && studentBanner.active && studentBanner.text && (
           <BannerTap link={studentBanner.link} cueColor={studentBanner.textColor} className="mb-4 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-start gap-3 md:rounded-2xl" style={{ backgroundColor: studentBanner.bgColor + '20', borderColor: studentBanner.bgColor, borderWidth: 1, borderStyle: "solid" }}>
@@ -1537,15 +1555,7 @@ export default function Library() {
           </div>
         )}
 
-        {/* Read on Arise (books and articles readable right on the site) and, for students, Games beside it */}
-        {!(user?.role === "student" && user?.is_eye_gaze_user) && (
-          <ReadGamesRow
-            games={user?.role === "student"}
-            covers={READABLE_BOOKS.filter((b) => [21, 7, 24].includes(b.bookId)).map((b) => `${API_BASE}/api/book-cover/${b.bookId}`)}
-            books={READABLE_BOOKS.length} poems={POEMS.length} articles={NEWS_ARTICLES.length}
-            onReads={() => navigate("/reads")} onGames={() => navigate("/games")}
-          />
-        )}
+
         {user?.role === "student" && !user?.is_eye_gaze_user && <div className="mb-5"><AddonsCard showTodo={false} /></div>}
                 <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
@@ -1721,7 +1731,7 @@ export default function Library() {
                 >
                   <div className="flex items-center gap-4 p-5">
                     <div style={{ fontSize: "3rem", lineHeight: 1 }}>
-                      {quiz.cover_visual}
+                      {/^\//.test(String(quiz.cover_visual || "")) ? <img src={quiz.cover_visual} alt="" className="h-14 w-14 object-contain" /> : quiz.cover_visual}
                     </div>
                     <div className="flex-1 text-left">
                       <h3 className="font-bold text-base">{quiz.title}</h3>
@@ -1948,6 +1958,87 @@ export default function Library() {
               <div key={i} className="aspect-[2/3] bg-muted animate-pulse rounded-xl" />
             ))}
           </div>
+        ) : searching ? (
+          <section className="mb-10" aria-labelledby="search-results-h" data-testid="library-search-results">
+            <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 id="search-results-h" className="text-lg font-bold text-foreground">Results for "{searchText}"</h2>
+              <span className="text-sm text-muted-foreground">
+                {searchBooks.length} {searchBooks.length === 1 ? "book" : "books"}{searchReads.length > 0 ? `, ${searchReads.length} quick ${searchReads.length === 1 ? "read" : "reads"}` : ""}
+              </span>
+              <button type="button" onClick={() => setSearchQuery("")} className="ml-auto text-sm font-semibold text-primary hover:underline">Clear search</button>
+            </div>
+
+            {searchBooks.length === 0 && searchReads.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border py-10 text-center">
+                <BookOpen className="mx-auto mb-3 h-8 w-8 text-primary" />
+                <p className="mb-1 font-semibold">No book or quick read matches "{searchText}"</p>
+                <p className="mb-4 text-sm text-muted-foreground">Check the spelling, try the author's name, or make a quiz for it.</p>
+                {!(user?.role === 'teacher' || user?.isAdmin) && (
+                  <Button onClick={() => { setInstantBook(searchText); setInstantAuthor(""); setInstantError(""); setInstantMsg(""); setShowInstant(true); }} className="h-10 rounded-lg px-4 text-sm font-bold">
+                    <Sparkles className="mr-1.5 h-4 w-4" />Create a quiz for "{searchText}"
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                {searchBooks.length > 0 && (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {searchBooksShown.map((book) => {
+                      const result = results.find(r => r.bookId === book.id);
+                      const isDone = completedIds.has(book.id);
+                      return (
+                        <Card key={book.id} className="group cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" onClick={() => navigate(`/quiz/${book.id}`)} data-testid={`search-book-${book.id}`}>
+                          <div className="relative aspect-[2/3] overflow-hidden bg-muted">
+                            {!isDone && <ExtraCreditTag />}
+                            {book.coverUrl ? (
+                              <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-primary p-4 text-center text-white"><span className="text-sm font-bold">{book.title}</span></div>
+                            )}
+                            {isDone && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
+                          </div>
+                          <div className="p-3">
+                            <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{book.title}</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">{book.author}</p>
+                            <div className="mt-2">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold text-primary"><Trophy className="h-3 w-3" />{book.pointsValue || 10} pts</span>
+                            </div>
+                            {result && <p className="mt-1 text-xs font-semibold text-primary">{result.score}/{result.total} correct</p>}
+                            <div className="mt-2 flex gap-1.5">
+                              {book.readUrl && (
+                                <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(canReadHere(book) ? `/reads/book/${book.id}` : `/read/${book.id}`); }}>
+                                  <BookOpen className="mr-1 h-3 w-3" />Read
+                                </Button>
+                              )}
+                              <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${book.id}`); }}>
+                                {user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+                {searchBooks.length > searchBooksShown.length && (
+                  <div className="mt-4 flex justify-center">
+                    <Button variant="outline" onClick={() => setSearchShowAll(true)}>Show all {searchBooks.length} books</Button>
+                  </div>
+                )}
+                {searchReads.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="mb-3 text-base font-bold text-foreground"><span aria-hidden="true">⚡ </span>Quick reads</h3>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {searchReads.slice(0, 12).map((a) => {
+                        const id = newsBookIds[a.slug];
+                        return <QuickReadRow key={a.slug} a={a} result={id ? results.find(r => r.bookId === id) : undefined} onOpen={(slug) => navigate(`/news/${slug}`)} />;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
         ) : books.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading books...</p>
@@ -1977,467 +2068,56 @@ export default function Library() {
           </div>
         ) : (
           <>
-            {/* Hispanic Heritage Month Section */}
-            {hispanicHeritageBooks.length > 0 && (!showEyeGaze || isSampleStudent || user?.isAdmin) && (
-              <section className="relative mb-10 overflow-hidden rounded-[1.75rem] border border-amber-400/25 bg-gradient-to-br from-[#2a0b1f] via-[#3a1222] to-[#1f1a0b] text-white shadow-xl" aria-labelledby="hhm-heading">
-                <PapelPicado />
-                <div className="pointer-events-none absolute -right-16 top-16 h-48 w-48 rounded-full bg-amber-400/15 blur-3xl" />
-                <div className="pointer-events-none absolute -left-16 bottom-0 h-48 w-56 rounded-full bg-fuchsia-500/15 blur-3xl" />
-                <div className="relative px-4 pb-5 pt-2 sm:px-6">
-                  <p className="text-[10px] font-black uppercase tracking-[.24em] text-amber-300">15 de septiembre – 15 de octubre</p>
-                  <div className="mt-1 flex flex-wrap items-end gap-x-3 gap-y-1">
-                    <h2 id="hhm-heading" className="text-2xl font-black tracking-tight sm:text-3xl">
-                      Hispanic Heritage <span className="bg-gradient-to-r from-amber-300 via-orange-400 to-pink-400 bg-clip-text text-transparent">Month</span>
-                    </h2>
-                    <p className="pb-1 text-sm font-bold italic text-pink-200/80">Mes de la Herencia Hispana</p>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2.5 py-1 text-xs font-black text-amber-100">{hispanicHeritageBooks.length} teacher {hispanicHeritageBooks.length === 1 ? "pick" : "picks"}</span>
-                    <span className="rounded-full border border-teal-300/25 bg-teal-400/10 px-2.5 py-1 text-xs font-black text-teal-100">Celebrating Latino voices</span>
-                  </div>
-                  <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-orange-50/75">Stories of family, courage and home from Latino authors, chosen by our teachers. Read one, then take the quiz.</p>
-
-                  <div className="mt-5 flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
-                    {hispanicHeritageBooks.map((book, index) => {
-                      const result = results.find(r => r.bookId === book.id);
-                      const isDone = completedIds.has(book.id);
-                      const accent = HHM_COLORS[index % HHM_COLORS.length];
-                      const teacher = heritageTeacher(book.id);
-                      return (
-                        <article
-                          key={book.id}
-                          className="group relative flex w-[170px] flex-shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#1a0d14]/85 shadow-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl sm:w-[190px]"
-                          style={{ scrollSnapAlign: 'start', boxShadow: `0 0 0 1px ${accent}22` }}
-                          onClick={() => navigate(`/quiz/${book.id}`)}
-                          data-testid={`card-book-${book.id}`}
-                        >
-                          <div className="h-1.5 w-full" style={{ background: accent }} />
-                          <div className="relative aspect-[2/3] overflow-hidden bg-black/30">
-                            {!isDone && <ExtraCreditTag />}
-                            {book.coverUrl ? (
-                              <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center p-4 text-center" style={{ background: `linear-gradient(160deg, ${accent}, #3a1222)` }}>
-                                <span className="text-sm font-black">{book.title}</span>
-                              </div>
-                            )}
-                            {isDone && (
-                              <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>
-                            )}
-                          </div>
-                          <div className="flex flex-1 flex-col p-3">
-                            {teacher && (
-                              <p className="mb-1.5 w-fit rounded-lg px-2 py-1 text-[11px] font-black leading-snug" style={{ background: `${accent}26`, color: accent }}>Recommended by {teacher}</p>
-                            )}
-                            <h3 className="line-clamp-2 text-sm font-black leading-tight">{book.title}</h3>
-                            <p className="mt-1 text-xs text-orange-50/60">{book.author}</p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-200">
-                                <Trophy className="h-3 w-3" />
-                                {book.pointsValue || 10} pts
-                              </span>
-                              {result && <span className="text-xs font-semibold text-amber-100/80">{result.score}/{result.total} correct</span>}
-                            </div>
-                            <div className="mt-auto flex gap-1.5 pt-3">
-                              {book.readUrl && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);
-                                  }}
-                                >
-                                  <BookOpen className="mr-1 h-3 w-3" />
-                                  Read
-                                </Button>
-                              )}
-                              {!(user?.role === 'teacher' || user?.isAdmin) && (
-                                <Button
-                                  size="sm"
-                                  className="h-7 flex-1 border-0 text-xs font-black text-[#1a0d14] hover:opacity-90"
-                                  style={{ background: accent }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/quiz/${book.id}`);
-                                  }}
-                                >
-                                  Quiz
-                                </Button>
-                              )}
-                            </div>
-                            <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Arise News — articles to read right here, each a 5-point quiz */}
+            {/* 5-Minute Reads — short articles, sports, biographies and speeches, each a 5-point quiz */}
             {(!showEyeGaze || isSampleStudent || user?.isAdmin) && (
-              <section className="relative mb-10 overflow-hidden rounded-[1.75rem] bg-white p-4 text-[#17143b] shadow-xl sm:p-5" aria-labelledby="arise-news-shelf">
-                <div className="flex flex-wrap items-end gap-x-4 gap-y-2 border-b-[3px] border-[#17143b] pb-3">
-                  <h2 id="arise-news-shelf" className="text-3xl font-black leading-none tracking-tight sm:text-4xl">Arise <span className="text-[#7048e8]">News</span></h2>
-                  <p className="text-sm font-semibold text-[#5d5a7a]">World news and feature articles you can read right here · {NEWS_POINTS} points each</p>
-                  <button type="button" onClick={()=>navigate("/news")} className="ml-auto inline-flex min-h-[40px] items-center rounded-xl bg-[#17143b] px-4 text-sm font-black text-white hover:bg-[#2a2560]">See all {NEWS_ARTICLES.length} articles</button>
+              <QuickReadsShelf
+                newsBookIds={newsBookIds}
+                results={results}
+                onOpen={(slug) => navigate(`/news/${slug}`)}
+                onSeeAll={() => navigate("/reads#quick")}
+              />
+            )}
+
+            {/* Read on Arise: books you can read right on the site, in the same card format as the other shelves */}
+            {!(user?.role === "student" && user?.is_eye_gaze_user) && (
+              <section className="mb-10" aria-labelledby="read-on-arise-h" data-tour="reads">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <h2 id="read-on-arise-h" className="text-lg font-bold text-foreground">Read on Arise</h2>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{READABLE_BOOKS.length} books</span>
+                  <button type="button" onClick={() => navigate("/reads")} className="ml-auto text-sm font-semibold text-primary hover:underline">See all books &amp; poems</button>
                 </div>
-                <div className="mt-4 flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{scrollSnapType:"x mandatory"}}>
-                  {[...WORLD_NEWS, ...FEATURES].map((a)=>{
-                    const bookId=newsBookIds[a.slug];
-                    const result=bookId?results.find(r=>r.bookId===bookId):undefined;
-                    return <button key={a.slug} type="button" onClick={()=>navigate(`/news/${a.slug}`)} className="group w-[150px] flex-shrink-0 text-left sm:w-[170px]" style={{scrollSnapAlign:"start"}} aria-label={`${a.title}. ${a.dek}`}>
-                      <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-slate-100 shadow-md transition-transform duration-200 group-hover:-translate-y-1 group-hover:shadow-xl">
-                        <img src={`/covers/news/${a.slug}.svg`} alt="" className="h-full w-full object-cover" loading="lazy"/>
-                        {result&&<span className="absolute right-2 top-14 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-black text-white shadow">✓ {result.score}/{result.total}</span>}
-                      </div>
-                      <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-[#5d5a7a]">
-                        {a.kind==="news"?<span className="rounded-full bg-[#17143b] px-2 py-0.5 text-[10px] font-black text-white">News</span>:<span className="rounded-full px-2 py-0.5 text-[10px] font-black" style={{background:SECTION_COLORS[a.section].tint,color:SECTION_COLORS[a.section].deep}}>{a.section}</span>}
-                        <span>{newsReadMinutes(a)} min read</span>
-                      </div>
-                    </button>;
+                <p className="mb-4 ml-7 text-sm text-muted-foreground">Read the whole book right here, then take the quiz.</p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                  {READABLE_BOOKS.map((rb) => {
+                    const book = books.find(b => b.id === rb.bookId);
+                    const result = results.find(r => r.bookId === rb.bookId);
+                    const isDone = completedIds.has(rb.bookId);
+                    return (
+                      <Card key={rb.bookId} className="group flex-shrink-0 w-[160px] cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl sm:w-[180px]"
+                        style={{ scrollSnapAlign: 'start' }} onClick={() => navigate(`/reads/book/${rb.bookId}`)}>
+                        <div className="relative aspect-[2/3] overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
+                          <img src={`${API_BASE}/api/book-cover/${rb.bookId}`} alt={`Cover of ${rb.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
+                          {isDone && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{rb.title}</h3>
+                          <p className="mt-1 text-xs text-muted-foreground">{rb.author}</p>
+                          <div className="mt-2">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold text-primary"><Trophy className="h-3 w-3" />{book?.pointsValue || 10} pts</span>
+                          </div>
+                          {result && <p className="mt-1 text-xs font-semibold text-primary">{result.score}/{result.total} correct</p>}
+                          <div className="mt-2 flex gap-1.5">
+                            <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/reads/book/${rb.bookId}`); }}><BookOpen className="mr-1 h-3 w-3" />Read</Button>
+                            <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${rb.bookId}`); }}>{user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}</Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
                   })}
                 </div>
               </section>
-            )}
-
-            {/* Halloread — seasonal kid-friendly spooky shelf */}
-            {HALLOREAD_ACTIVE && halloreadBooks.length > 0 && (!showEyeGaze || isSampleStudent || user?.isAdmin) && (
-              <section className="relative mb-10 overflow-hidden rounded-[1.75rem] border border-orange-500/25 bg-gradient-to-br from-[#12091d] via-[#1d1028] to-[#2a130b] p-4 text-white shadow-xl sm:p-5">
-                <div className="pointer-events-none absolute -left-12 bottom-0 h-28 w-56 rounded-full bg-violet-200/10 blur-3xl" />
-                <div className="pointer-events-none absolute -right-12 top-2 h-24 w-56 rounded-full bg-orange-300/10 blur-3xl" />
-                <div className="relative flex flex-wrap items-center gap-2">
-                  <span className="text-2xl" aria-hidden="true">🎃</span>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[.22em] text-orange-300">October takeover</p>
-                    <h2 className="text-xl font-black tracking-tight sm:text-2xl">Halloread</h2>
-                  </div>
-                  <span className="rounded-full border border-orange-300/20 bg-orange-400/10 px-2.5 py-1 text-xs font-black text-orange-200">{halloreadBooks.length} spooky quizzes</span>
-                  <span className="rounded-full border border-violet-300/20 bg-violet-400/10 px-2.5 py-1 text-xs font-black text-violet-100">5–30 points</span>
-                </div>
-                <p className="relative mt-2 max-w-3xl text-sm font-semibold text-violet-100/70">Kid-friendly chills, ghosts, witches and creepy mysteries — spooky enough for Halloween, never gory. Start easy and work your way up to the 30-point reads.</p>
-                <div className="relative mt-4 flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{scrollSnapType:"x mandatory"}}>
-                  {halloreadBooks.map((book)=>{
-                    const result=results.find(r=>r.bookId===book.id);
-                    const isDone=completedIds.has(book.id);
-                    return <Card key={book.id} className="group w-[160px] flex-shrink-0 cursor-pointer overflow-hidden border-orange-400/20 bg-[#160d20] text-white transition-all duration-200 hover:-translate-y-1 hover:border-orange-300/50 hover:shadow-[0_12px_40px_rgba(249,115,22,.16)] sm:w-[180px]" style={{scrollSnapAlign:"start"}} onClick={()=>navigate(`/quiz/${book.id}`)}>
-                      <div className="relative aspect-[2/3] overflow-hidden bg-[#261337]">
-                        {!isDone&&<ExtraCreditTag/>}
-                        {book.coverUrl?<img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy"/>:<div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-950 to-orange-950 p-4 text-center"><span className="font-black">{book.title}</span></div>}
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#100716] to-transparent"/>
-                        {isDone&&<div className="absolute right-2 top-2 rounded-full bg-emerald-500 px-2 py-1 text-xs font-black text-white shadow">✓ Done</div>}
-                        <div className="absolute bottom-2 left-2 rounded-full bg-black/65 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-orange-200">Halloread</div>
-                      </div>
-                      <div className="p-3">
-                        <h3 className="line-clamp-2 text-sm font-bold leading-tight">{book.title}</h3>
-                        <p className="mt-1 line-clamp-1 text-xs text-violet-100/60">{book.author}</p>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-400/15 px-2 py-1 text-xs font-black text-orange-200"><Trophy className="h-3 w-3"/>{book.pointsValue||5} pts</span>
-                          <span className="text-[10px] font-black uppercase tracking-wide text-violet-200/70">{Number(book.pointsValue||0)>=25?"Big scare":Number(book.pointsValue||0)>=15?"Medium":"Starter"}</span>
-                        </div>
-                        {result&&<p className="mt-1 text-xs font-bold text-emerald-300">{result.score}/{result.total} correct</p>}
-                        <div className="mt-2 flex gap-1.5">
-                          {book.readUrl&&<Button size="sm" variant="outline" className="h-7 flex-1 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10" onClick={(e)=>{e.stopPropagation();navigate(canReadHere(book)?`/reads/book/${book.id}`:`/read/${book.id}`);}}><BookOpen className="mr-1 h-3 w-3"/>Read</Button>}
-                          {!(user?.role==="teacher"||user?.isAdmin)&&<Button size="sm" className="h-7 flex-1 bg-orange-500 text-xs font-black text-white hover:bg-orange-400" onClick={(e)=>{e.stopPropagation();navigate(`/quiz/${book.id}`);}}>Quiz</Button>}
-                        </div>
-                        <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id}/>
-                      </div>
-                    </Card>;
-                  })}
-                </div>
-              </section>
-            )}
-
-            {/* iARISE lessons now live in Read on Arise (/reads) */}
-
-            {/* What You're Reading in Class Section */}
-            {classReadingBooks.length > 0 && (
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-1">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                  <h2 className="text-lg font-bold text-foreground">What You're Reading in Class</h2>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{classReadingBooks.length} quizzes</span>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Books assigned for your class.</p>
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
-                  {classReadingBooks.map((book) => {
-                    const result = results.find(r => r.bookId === book.id);
-                    const isDone = completedIds.has(book.id);
-                    const passed = result?.passed;
-                    const score = result?.score;
-                    const total = result?.total;
-                    return (
-                      <Card
-                        key={book.id}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px]"
-                        style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => navigate(`/quiz/${book.id}`)}
-                      >
-                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {!isDone && <ExtraCreditTag />}
-                          {book.coverUrl ? (
-                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
-                            <p className="text-white/70 text-[10px]">{book.author}</p>
-                          </div>
-                          {isDone && (
-                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                          {passed && (
-                            <div className="absolute top-2 left-2 bg-blue-500 rounded-full px-2 py-0.5">
-                              <span className="text-white text-[10px] font-bold">PASSED</span>
-                            </div>
-                          )}
-                        </div>
-                        <CardContent className="p-3">
-                          <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
-                          <p className="text-xs text-muted-foreground">{book.author}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
-                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
-                            </span>
-                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
-                            {isDone && result && (
-                              <span className="text-[10px] text-muted-foreground ml-auto">{score}/{total}</span>
-                            )}
-                          </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Match My Level — books at current reading score + favorite picks */}
-            {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && favOnboarded && (matchLevelBooks.length > 0 || matchLevelOL.length > 0) && (
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-1">
-                  <Target className="w-5 h-5 text-emerald-500" />
-                  <h2 className="text-lg font-bold text-foreground">Match My Level</h2>
-                  {currentReadingLevel && (
-                    <span className="text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium">Grade {currentReadingLevel}</span>
-                  )}
-                  <button
-                    onClick={handleOpenChangeFavorites}
-                    className="ml-auto text-xs text-primary hover:underline font-medium"
-                  >Change Favorites</button>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Books picked for your reading level{favTopics.length > 0 ? ' and favorite topics' : ''}. Tap a book to take a quiz!</p>
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
-                  {/* Site books at current level */}
-                  {matchLevelBooks.map((book) => {
-                    const result = results.find(r => r.bookId === book.id);
-                    const isDone = completedIds.has(book.id);
-                    return (
-                      <Card
-                        key={`match-${book.id}`}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-emerald-500/20"
-                        style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => navigate(`/quiz/${book.id}`)}
-                      >
-                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {!isDone && <ExtraCreditTag />}
-                          {book.coverUrl ? (
-                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
-                            <p className="text-white/70 text-[10px]">{book.author}</p>
-                          </div>
-                          {isDone && (
-                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <CardContent className="p-3">
-                          <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-600">
-                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
-                            </span>
-                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
-                          </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  {/* Open Library suggestions at match level */}
-                  {matchLevelOL.map((sbook, idx) => {
-                    const existingQuiz = sortedBooks.find(b => b.title.toLowerCase() === sbook.title.toLowerCase());
-                    const isDone = existingQuiz && completedIds.has(existingQuiz.id);
-                    return (
-                      <Card
-                        key={`match-ol-${idx}`}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-emerald-500/20"
-                        style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
-                      >
-                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {existingQuiz && !isDone && <ExtraCreditTag />}
-                          {sbook.coverUrl ? (
-                            <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{sbook.title}</span>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{sbook.title}</p>
-                            <p className="text-white/70 text-[10px]">{sbook.author}</p>
-                          </div>
-                          {isDone && (
-                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <CardContent className="p-3">
-                          <p className="text-sm font-semibold text-foreground line-clamp-1">{sbook.title}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-[10px] text-emerald-600 font-medium">{existingQuiz ? 'Quiz ready!' : 'Tap for options'}</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Grow My Score — books to increase reading score + favorite picks */}
-            {!user?.isAdmin && user?.role !== 'teacher' && user?.role !== 'parent' && favOnboarded && (growScoreBooks.length > 0 || growScoreOL.length > 0) && (
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="w-5 h-5 text-orange-500" />
-                  <h2 className="text-lg font-bold text-foreground">Grow My Score</h2>
-                  {nextReadingLevel && (
-                    <span className="text-xs text-orange-600 bg-orange-500/10 px-2 py-0.5 rounded-full font-medium">Next: Grade {nextReadingLevel}</span>
-                  )}
-                  <button
-                    onClick={handleOpenChangeFavorites}
-                    className="ml-auto text-xs text-primary hover:underline font-medium"
-                  >Change Favorites</button>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Challenge yourself with harder books{favTopics.length > 0 ? ' matched to your favorite topics' : ''} to grow your reading score!</p>
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
-                  {/* Site books at grow level */}
-                  {growScoreBooks.map((book) => {
-                    const result = results.find(r => r.bookId === book.id);
-                    const isDone = completedIds.has(book.id);
-                    return (
-                      <Card
-                        key={`grow-${book.id}`}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-orange-500/20"
-                        style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => navigate(`/quiz/${book.id}`)}
-                      >
-                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {!isDone && <ExtraCreditTag />}
-                          {book.coverUrl ? (
-                            <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{book.title}</span>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{book.title}</p>
-                            <p className="text-white/70 text-[10px]">{book.author}</p>
-                          </div>
-                          {isDone && (
-                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <CardContent className="p-3">
-                          <p className="text-sm font-semibold text-foreground line-clamp-1">{book.title}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-500/20 text-orange-600">
-                              <Trophy className="w-3 h-3" />{book.pointsValue || 10} pts
-                            </span>
-                            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{book.ageGroup}</span>
-                          </div>
-                          <BookAccessLinks bookTitle={book.title} author={book.author} readUrl={book.readUrl} bookId={book.id} />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  {/* Open Library suggestions at grow level */}
-                  {growScoreOL.map((sbook, idx) => {
-                    const existingQuiz = sortedBooks.find(b => b.title.toLowerCase() === sbook.title.toLowerCase());
-                    const isDone = existingQuiz && completedIds.has(existingQuiz.id);
-                    return (
-                      <Card
-                        key={`grow-ol-${idx}`}
-                        className="group cursor-pointer overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[180px] ring-1 ring-orange-500/20"
-                        style={{ scrollSnapAlign: 'start' }}
-                        onClick={() => handleBookTap({ title: sbook.title, author: sbook.author, coverUrl: sbook.coverUrl, id: existingQuiz?.id })}
-                      >
-                        <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {existingQuiz && !isDone && <ExtraCreditTag />}
-                          {sbook.coverUrl ? (
-                            <img src={sbook.coverUrl} alt={`Cover of ${sbook.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center p-4">
-                              <span className="text-sm font-medium text-center text-muted-foreground">{sbook.title}</span>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-3">
-                            <p className="text-white text-xs font-semibold line-clamp-2 mb-1">{sbook.title}</p>
-                            <p className="text-white/70 text-[10px]">{sbook.author}</p>
-                          </div>
-                          {isDone && (
-                            <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1.5">
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <CardContent className="p-3">
-                          <p className="text-sm font-semibold text-foreground line-clamp-1">{sbook.title}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-[10px] text-orange-600 font-medium">{existingQuiz ? 'Quiz ready!' : 'Tap for options'}</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
             )}
 
             {/* Anime & Comics Section */}

@@ -54,7 +54,7 @@ export function registerStudentActivityRoutes(app: Express, auth: RequestHandler
       for (const r of reviewsQ.data || []) bookIds.add(Number(r.book_id));
       for (const c of cameraQ.data || []) bookIds.add(Number(c.quiz_id));
       const userIds = new Set<number>();
-      for (const a of awardsQ.data || []) userIds.add(Number(a.awarded_by));
+      for (const a of awardsQ.data || []) if (a.awarded_by) userIds.add(Number(a.awarded_by));
       for (const m of matchesQ.data || []) { userIds.add(Number(m.player1_id)); if (m.player2_id) userIds.add(Number(m.player2_id)); }
       const [booksQ, peopleQ] = await Promise.all([
         bookIds.size ? db.from("books").select("id, title, points_value").in("id", [...bookIds].filter((b) => b > 0)) : Promise.resolve({ data: [] as any[] }),
@@ -95,10 +95,11 @@ export function registerStudentActivityRoutes(app: Express, auth: RequestHandler
       for (const w of awardsQ.data || []) {
         const by = person.get(Number(w.awarded_by));
         const auto = /quick challenge/i.test(w.reason);
+        const english = /^English Explorer/.test(w.reason);
         items.push({
           at: w.created_at, kind: "points",
           title: `+${w.points} points: ${w.reason}`,
-          detail: auto ? "Earned by finishing the Daily Quick Challenge" : `Added by ${by ?? "staff"} · counted for ${w.earned_on}`,
+          detail: auto ? "Earned by finishing the Daily Quick Challenge" : english ? `Earned in English Explorer · counted for ${w.earned_on}` : `Added by ${by ?? "staff"} · counted for ${w.earned_on}`,
           points: Number(w.points),
         });
       }

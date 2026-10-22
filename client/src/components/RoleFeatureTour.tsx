@@ -150,7 +150,7 @@ function VisualStage({ role, step }: { role: TutorialRole; step: number }) {
 
         <div className="p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl border ${theme.soft}`}>
+            <div className={`grid grid-cols-1 h-12 w-12 shrink-0 place-items-center rounded-2xl border ${theme.soft}`}>
               <span className="text-2xl">{current.emoji}</span>
             </div>
             <div className="min-w-0">
@@ -176,7 +176,7 @@ function VisualStage({ role, step }: { role: TutorialRole; step: number }) {
           {role === "parent" && (
             <div className="mt-3 flex gap-2 rounded-2xl border border-white/8 bg-white/[.025] p-2">
               <button className="flex-1 rounded-xl bg-violet-500/15 px-3 py-2 text-[10px] font-black text-violet-200">← Previous child</button>
-              <div className="grid place-items-center rounded-xl border border-white/8 px-3 text-[9px] font-black text-white/40">Quick Switch</div>
+              <div className="grid grid-cols-1 place-items-center rounded-xl border border-white/8 px-3 text-[9px] font-black text-white/40">Quick Switch</div>
               <button className="flex-1 rounded-xl bg-cyan-500/15 px-3 py-2 text-[10px] font-black text-cyan-200">Next child →</button>
             </div>
           )}
@@ -280,12 +280,12 @@ export default function RoleFeatureTour() {
             <X className="h-5 w-5" />
           </button>
 
-          <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,.75fr)]">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,.75fr)]">
             <div className="border-b border-white/8 p-5 sm:p-7 lg:border-b-0 lg:border-r lg:p-8">
               <VisualStage role={role} step={step} />
               <div className="mt-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <div className={`grid h-9 w-9 place-items-center rounded-xl border ${theme.soft}`}><ThemeIcon className={`h-4 w-4 ${theme.accent}`} /></div>
+                  <div className={`grid grid-cols-1 h-9 w-9 place-items-center rounded-xl border ${theme.soft}`}><ThemeIcon className={`h-4 w-4 ${theme.accent}`} /></div>
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-[.22em] text-white/30">{theme.label} tour</p>
                     <p className="text-xs font-bold text-white/65">Interactive preview · Step {step + 1} of {steps.length}</p>
@@ -319,7 +319,7 @@ export default function RoleFeatureTour() {
               <div className="mt-6 space-y-3">
                 {current.details.map((detail, index) => (
                   <div key={detail} className="group flex gap-3 rounded-2xl border border-white/8 bg-white/[.035] p-4 transition hover:border-white/15 hover:bg-white/[.055]">
-                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/[.06]">
+                    <div className="grid grid-cols-1 h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/[.06]">
                       <CheckCircle2 className={`h-4 w-4 ${theme.accent}`} />
                     </div>
                     <p className="text-sm font-semibold leading-6 text-white/65">{detail}</p>

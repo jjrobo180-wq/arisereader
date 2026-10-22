@@ -1,4 +1,5 @@
 import { API_BASE } from './queryClient';
+import { batchSummary, escapeHtml, letterHtml, type Invite, type TeacherChoice } from '@shared/parentLetters';
 
 function tokenFromCookie(): string | null {
   try {
@@ -7,11 +8,15 @@ function tokenFromCookie(): string | null {
   } catch { return null; }
 }
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-}
+const LETTER_PAGE_CSS = `body{font-family:Arial,sans-serif;color:#222;margin:0;background:#eee}.toolbar{padding:16px;text-align:center}.toolbar p{margin:0 0 10px;font-size:15px}.toolbar button{background:#ef5b16;color:white;border:0;padding:12px 24px;border-radius:8px;font-size:16px}.letter{box-sizing:border-box;background:white;width:8.5in;min-height:11in;margin:20px auto;padding:0.85in;page-break-after:always}.brand{color:#ef5b16;font-weight:800;letter-spacing:.12em}.letter h1{font-size:28px;margin:35px 0}.letter p,.letter li{font-size:17px;line-height:1.6}.class-line{margin-top:-8px!important}.code-label{margin-top:38px;font-weight:bold}.code{font-size:29px;letter-spacing:.12em;font-weight:800;padding:18px;border:2px solid #ef5b16;border-radius:8px;text-align:center;margin:12px 0 30px}.note{border-top:1px solid #ccc;padding-top:20px;margin-top:40px;font-size:14px!important}@media print{body{background:white}.toolbar{display:none}.letter{margin:0;box-shadow:none;page-break-after:always}@page{size:letter;margin:0}}`;
 
-export async function printParentInvites(studentId?: number): Promise<void> {
+/**
+ * Opens the letters in a new tab to print or save as a PDF. With no arguments: every letter this account may
+ * print (a teacher's class, or every student for the administrator). With a student: just that letter. With
+ * `teacherIds` (administrator only): the classes of those teachers, class by class. A teacher is an account id,
+ * "directory:name" for a teacher listed by a school who has no account yet, or "none" for students with no teacher.
+ */
+export async function printParentInvites(studentId?: number, options: { teacherIds?: TeacherChoice[] } = {}): Promise<void> {
   // Open synchronously with the button click so mobile browsers allow the print tab.
   const page = window.open('', '_blank');
   if (!page) throw new Error('Allow pop-ups for this site to print parent letters.');
@@ -23,27 +28,16 @@ export async function printParentInvites(studentId?: number): Promise<void> {
     const response = await fetch(`${API_BASE}/api/parent-invites/print`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(studentId ? { studentId } : {}),
+      body: JSON.stringify({ ...(studentId ? { studentId } : {}), ...(options.teacherIds?.length ? { teacherIds: options.teacherIds } : {}) }),
       cache: 'no-store',
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Could not prepare letters.');
-    const invites: Array<{ studentName: string; code: string }> = data.invites || [];
-    if (!invites.length) throw new Error('No students found on this roster.');
-    const letters = invites.map(invite => `<section class="letter">
-      <div class="brand">A.R.I.S.E. READER</div>
-      <h1>Your family is invited to read with us!</h1>
-      <p>Dear parent or caregiver of <strong>${escapeHtml(invite.studentName)}</strong>,</p>
-      <p>Create a free parent account to follow your child's reading progress, see certificates, and connect with their teacher.</p>
-      <div class="code-label">Your child's private parent code</div>
-      <div class="code">${escapeHtml(invite.code)}</div>
-      <ol><li>Go to <strong>www.arisereader.com/parent-signup</strong>.</li><li>Enter your parent code and create your account.</li><li>Log in to see your child's reading dashboard.</li></ol>
-      <p>Already have a parent account without a linked student? Log in and enter this code on your dashboard.</p>
-      <p class="note">Keep this code with your family. Contact your child's teacher if the code does not work.</p>
-    </section>`).join('');
+    const invites: Invite[] = data.invites || [];
+    if (!invites.length) throw new Error(options.teacherIds?.length ? 'The teachers you picked have no students yet.' : 'No students found on this roster.');
     page.document.open();
     page.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>A.R.I.S.E. Reader Parent Letters</title>
-      <style>body{font-family:Arial,sans-serif;color:#222;margin:0;background:#eee}.toolbar{padding:16px;text-align:center}.toolbar button{background:#ef5b16;color:white;border:0;padding:12px 24px;border-radius:8px;font-size:16px}.letter{box-sizing:border-box;background:white;width:8.5in;min-height:11in;margin:20px auto;padding:0.85in;page-break-after:always}.brand{color:#ef5b16;font-weight:800;letter-spacing:.12em}.letter h1{font-size:28px;margin:35px 0}.letter p,.letter li{font-size:17px;line-height:1.6}.code-label{margin-top:38px;font-weight:bold}.code{font-size:29px;letter-spacing:.12em;font-weight:800;padding:18px;border:2px solid #ef5b16;border-radius:8px;text-align:center;margin:12px 0 30px}.note{border-top:1px solid #ccc;padding-top:20px;margin-top:40px;font-size:14px!important}@media print{body{background:white}.toolbar{display:none}.letter{margin:0;box-shadow:none;page-break-after:always}@page{size:letter;margin:0}}</style></head><body><div class="toolbar"><button id="print-button">Print or Save as PDF</button></div>${letters}</body></html>`);
+      <style>${LETTER_PAGE_CSS}</style></head><body><div class="toolbar"><p>${escapeHtml(batchSummary(invites))}</p><button id="print-button">Print or Save as PDF</button></div>${invites.map(letterHtml).join('')}</body></html>`);
     page.document.close();
     page.document.getElementById('print-button')?.addEventListener('click', () => page.print());
   } catch (error) {

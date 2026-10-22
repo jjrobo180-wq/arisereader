@@ -1,11 +1,12 @@
-// Teacher Hub, the paid add-on: who can open it and how it is bought.
+// Arise WorkHub / LifeHub (A.R.I.S.E. To-Do): free for every teacher and parent since Oct 11, 2026.
+// Premium is still paid from day one, and the two stay separate.
 // Run with: npx tsx --test tests/teacher-hub-plans.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
 import { registerPlanRoutes } from "../server/plans";
 
 const LATE = "2026-10-03T15:00:00Z";
-// A fixed day after these teachers' free month, so the tests read the same on any date.
+// A fixed day, so the tests read the same on any date.
 const NOW = Date.parse("2026-12-01T18:00:00Z");
 const DAY = 86_400_000;
 const USERS: Record<number, any> = {
@@ -74,90 +75,62 @@ function setup(opts: { enforced?: boolean; hubStudents?: number; now?: number } 
   return { plans, call, calls, gate, settings, clock };
 }
 
-test("no teacher has Teacher Hub without paying once the free month is over, even with rules off or at a free school", async () => {
-  const { plans, call } = setup();
-  assert.equal((await plans.hubAccess(USERS[50])).access, false);
-  assert.equal((await plans.hubAccess(USERS[60])).access, false, "CGMS teacher");
-  assert.equal((await plans.hubAccess(USERS[1])).access, true, "admin");
+test("every teacher and parent has the hubs free, with plan rules on or off; students don't", async () => {
+  for (const enforced of [false, true]) {
+    const { plans } = setup({ enforced });
+    for (const id of [50, 51, 60]) {
+      const h = await plans.hubAccess(USERS[id]);
+      assert.deepEqual([h.access, h.via, h.endsAt], [true, "free", null], `teacher ${id}, rules ${enforced}`);
+    }
+    assert.equal((await plans.hubAccess({ id: 8, role: "parent", createdAt: LATE } as any)).access, true, "parent");
+    assert.equal((await plans.hubAccess({ id: 9, role: "student", createdAt: LATE } as any)).access, false, "student");
+    assert.equal((await plans.hubAccess(USERS[1])).access, true, "admin");
+  }
+});
+
+test("the plan page says the hub is free", async () => {
+  const { call } = setup();
   const r = await call("GET", "/api/plan", 50);
-  assert.equal(r.body.premium, true, "Premium still open while rules are off");
-  assert.equal(r.body.hub.access, false);
-  assert.equal(r.body.hub.prices.monthlyCents, 1000);
-  assert.equal(r.body.hub.prices.schoolYearlyCents, 70000);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.hub.access, true);
+  assert.equal(r.body.hub.via, "free");
 });
 
-test("admin can switch Teacher Hub on for a teacher, with seats", async () => {
-  const { plans, call } = setup();
-  const g = await call("POST", "/api/admin/plans/grant", 1, { kind: "hub_teacher", ownerId: 50, months: 12, blocks: 2 });
-  assert.equal(g.status, 200, JSON.stringify(g.body));
-  const h = await plans.hubAccess(USERS[50]);
-  assert.deepEqual([h.access, h.via, h.seats], [true, "hub-teacher-plan", 200]);
-  assert.equal((await plans.entitlement(USERS[50])).via, "rules-off", "Premium untouched");
-  const list = await call("GET", "/api/admin/plans", 1);
-  assert.equal(list.body.plans[0].kind, "hub_teacher");
-  assert.equal(list.body.plans[0].students, 12);
+test("nobody can be charged for the hubs: both hub checkouts are refused before Stripe", async () => {
+  const { call, calls } = setup();
+  for (const kind of ["hub_teacher", "hub_school"]) {
+    const r = await call("POST", "/api/billing/checkout", 50, { kind, blocks: 2 });
+    assert.equal(r.status, 409, kind);
+    assert.match(r.body.message, /free/);
+  }
+  assert.equal(calls.length, 0, "Stripe never called");
 });
 
-test("a Premium plan does not give Teacher Hub, and a Hub plan does not give Premium", async () => {
+test("a Premium plan and the free hub don't affect each other", async () => {
   const { plans, call } = setup({ enforced: true });
   await call("POST", "/api/admin/plans/grant", 1, { kind: "teacher", ownerId: 50, months: 12, blocks: 1 });
   assert.equal((await plans.entitlement(USERS[50])).premium, true);
-  assert.equal((await plans.hubAccess(USERS[50])).access, false);
+  assert.equal((await plans.hubAccess(USERS[50])).access, true);
+  // an old WorkHub grant (from when it was sold) gives no Premium
   await call("POST", "/api/admin/plans/grant", 1, { kind: "hub_teacher", ownerId: 51, months: 12, blocks: 1 });
-  assert.equal((await plans.hubAccess(USERS[51])).access, true);
   assert.equal((await plans.entitlement(USERS[51])).premium, false);
+});
+
+test("Premium has no free trial: a brand-new teacher is locked out of Premium calls until they pay", async () => {
+  const signedUp = Date.parse("2026-12-20T16:00:00.000Z");
+  USERS[70] = { id: 70, displayName: "Ms. Brand New", role: "teacher", createdAt: new Date(signedUp).toISOString(), school_id: 3 };
+  try {
+    const { plans, gate } = setup({ enforced: true, now: signedUp + 60_000 });
+    assert.equal((await plans.entitlement(USERS[70])).premium, false);
+    assert.deepEqual(await gate("/api/teacher/students", 70), { passed: false, status: 402 });
+    assert.deepEqual(await gate("/api/teacher-hub/workspace", 70), { passed: true, status: 0 }, "the hub still opens");
+  } finally { delete USERS[70]; }
 });
 
 test("Teacher Hub calls pass the Premium lock, so a Hub-only teacher can use it", async () => {
   const { gate } = setup({ enforced: true });
   assert.deepEqual(await gate("/api/teacher-hub/workspace", 50), { passed: true, status: 0 });
   assert.deepEqual(await gate("/api/teacher/students", 50), { passed: false, status: 402 });
-});
-
-test("checkout for a Teacher Hub teacher plan: $10 a month per 100 students", async () => {
-  const { call, calls } = setup();
-  const r = await call("POST", "/api/billing/checkout", 50, { kind: "hub_teacher", blocks: 2 });
-  assert.equal(r.status, 200, JSON.stringify(r.body));
-  const f = calls[0].form;
-  assert.equal(f.get("line_items[0][quantity]"), "2");
-  assert.equal(f.get("line_items[0][price_data][unit_amount]"), "1000");
-  assert.equal(f.get("line_items[0][price_data][recurring][interval]"), "month");
-  assert.match(f.get("line_items[0][price_data][product_data][name]")!, /Arise WorkHub for a teacher/);
-  assert.equal(f.get("metadata[kind]"), "hub_teacher");
-});
-
-test("checkout for a Teacher Hub school plan: $700 a year, and a CGMS teacher can buy too", async () => {
-  const { call, calls } = setup();
-  const r = await call("POST", "/api/billing/checkout", 60, { kind: "hub_school" });
-  assert.equal(r.status, 200, JSON.stringify(r.body));
-  const f = calls[0].form;
-  assert.equal(f.get("line_items[0][quantity]"), "1");
-  assert.equal(f.get("line_items[0][price_data][unit_amount]"), "70000");
-  assert.equal(f.get("line_items[0][price_data][recurring][interval]"), "year");
-  assert.equal(f.get("metadata[ownerId]"), "7");
-  // and the Premium school plan at CGMS is still refused, because it's free there
-  const p = await call("POST", "/api/billing/checkout", 60, { kind: "school" });
-  assert.equal(p.status, 409);
-});
-
-test("a teacher plan can't be smaller than the Hub caseload", async () => {
-  const { call } = setup({ hubStudents: 150 });
-  const r = await call("POST", "/api/billing/checkout", 50, { kind: "hub_teacher", blocks: 1 });
-  assert.equal(r.status, 409);
-  assert.match(r.body.message, /150 students/);
-});
-
-test("a paid school Hub plan gives every teacher at the school Teacher Hub", async () => {
-  const { plans, call } = setup();
-  const c = await call("POST", "/api/billing/confirm", 51, { sessionId: "cs_test_paid" });
-  assert.equal(c.status, 200, JSON.stringify(c.body));
-  for (const id of [50, 51]) {
-    const h = await plans.hubAccess(USERS[id]);
-    assert.deepEqual([h.access, h.via, h.seats], [true, "hub-school-plan", 1000]);
-  }
-  assert.equal((await plans.hubAccess(USERS[60])).access, false, "another school");
-  const again = await call("POST", "/api/billing/checkout", 50, { kind: "hub_teacher", blocks: 1 });
-  assert.equal(again.status, 409, "no own plan needed");
 });
 
 test("Premium checkout is unchanged", async () => {
@@ -174,57 +147,4 @@ test("Premium checkout is unchanged", async () => {
   const none = await call("POST", "/api/billing/checkout", 50, {});
   assert.equal(none.status, 200);
   assert.equal(calls.filter((c) => c.method === "POST").at(-1).form.get("metadata[kind]"), "teacher");
-});
-
-// ─── A teacher's free first month ─────────────────────────────────────────────
-const FREE_FROM = Date.parse("2026-10-09T02:36:00.000Z");
-
-test("every teacher who already had an account gets Teacher Hub free for a month from the start date", async () => {
-  const { plans, call, clock } = setup({ now: FREE_FROM + 60_000 });
-  for (const id of [50, 51, 60]) {
-    const h = await plans.hubAccess(USERS[id]);
-    assert.deepEqual([h.access, h.via, h.seats, h.endsAt], [true, "free-month", null, "2026-11-09T02:36:00.000Z"], `teacher ${id}`);
-  }
-  const r = await call("GET", "/api/plan", 50);
-  assert.equal(r.body.hub.access, true);
-  assert.equal(r.body.hub.via, "free-month");
-  assert.equal(r.body.freeMonthEndsAt, "2026-11-09T02:36:00.000Z");
-  // the last minute of the month is still free; the month's end is not
-  clock.now = Date.parse("2026-11-09T02:35:00.000Z");
-  plans.forget();
-  assert.equal((await plans.hubAccess(USERS[50])).access, true);
-  clock.now = Date.parse("2026-11-09T02:36:00.000Z");
-  plans.forget();
-  assert.equal((await plans.hubAccess(USERS[50])).access, false);
-});
-
-test("a new teacher's 30-day Teacher Hub trial starts the day they make their account", async () => {
-  const signedUp = Date.parse("2026-12-20T16:00:00.000Z");
-  USERS[70] = { id: 70, displayName: "Ms. Brand New", role: "teacher", createdAt: new Date(signedUp).toISOString(), school_id: 3 };
-  try {
-    const { plans, clock } = setup({ now: signedUp + 5 * 60_000 });
-    const h = await plans.hubAccess(USERS[70]);
-    assert.deepEqual([h.access, h.via, h.endsAt], [true, "free-month", "2027-01-19T16:00:00.000Z"], "30 days");
-    assert.equal((await plans.hubAccess(USERS[50])).access, false, "an older teacher's month is already over");
-    clock.now = signedUp + 20 * DAY;
-    plans.forget();
-    assert.equal((await plans.hubAccess(USERS[70])).access, true, "day 20");
-    clock.now = signedUp + 32 * DAY;
-    plans.forget();
-    assert.equal((await plans.hubAccess(USERS[70])).access, false, "day 32");
-  } finally { delete USERS[70]; }
-});
-
-test("in the free month a teacher passes the Premium lock, and a paid Hub plan still counts first", async () => {
-  const { plans, call, gate } = setup({ enforced: true, now: FREE_FROM + DAY });
-  assert.deepEqual(await gate("/api/teacher/students", 50), { passed: true, status: 0 });
-  assert.deepEqual(await gate("/api/math/me", 50), { passed: true, status: 0 });
-  const e = await plans.entitlement(USERS[50]);
-  assert.deepEqual([e.premium, e.via, e.endsAt], [true, "free-month", "2026-11-09T02:36:00.000Z"]);
-  await call("POST", "/api/admin/plans/grant", 1, { kind: "hub_teacher", ownerId: 50, months: 12, blocks: 2 });
-  const h = await plans.hubAccess(USERS[50]);
-  assert.deepEqual([h.access, h.via, h.seats], [true, "hub-teacher-plan", 200]);
-  // students, parents and people who aren't teachers get no Teacher Hub from it
-  assert.equal((await plans.hubAccess({ id: 9, role: "student", createdAt: LATE } as any)).access, false);
-  assert.equal((await plans.hubAccess({ id: 8, role: "parent", createdAt: LATE } as any)).access, false);
 });

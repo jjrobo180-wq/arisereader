@@ -1,0 +1,63 @@
+/* A.R.I.S.E. To-Do & WorkHub: visual themes (see shared/appThemes.ts), chosen in Customize.
+   Same approach as todoNight.css / hubNight.css: each theme is a class on the hub root that
+   remaps the same small set of surface/border/text/accent utility classes the page actually
+   uses, so switching themes never touches any other page or hub. "classic" (the default) adds
+   no class and changes nothing. Only three themes exist: Classic (no class), Tile, and Old
+   Computer — this covers every screen (Home, Tasks, calendar, notes, settings/Customize, the
+   menu/nav chrome) because it remaps the shared utility classes those screens are all built
+   from, rather than theming one screen at a time. */
+
+/* ───────────────────────── Tile: Windows-Phone-style, a full flat-color revamp ───────────────────────── */
+.hub-theme-tile { color-scheme: dark; background: #0a0a0a; }
+.hub-theme-tile .bg-\[\#f6f7fc\], .hub-theme-tile .bg-\[\#f9fafc\], .hub-theme-tile .bg-slate-50,
+.hub-theme-tile .bg-slate-50\/60, .hub-theme-tile .bg-slate-50\/70, .hub-theme-tile .bg-slate-100, .hub-theme-tile .bg-slate-100\/60 { background-color: #0a0a0a; }
+.hub-theme-tile .bg-white, .hub-theme-tile .hover\:bg-white:hover { background-color: #141414; color: #ffffff; }
+.hub-theme-tile .bg-\[\#292446\] { background-color: #00a2e8; }
+.hub-theme-tile .bg-\[\#7968e5\] { background-color: #f2600c; }
+.hub-theme-tile .border-slate-100, .hub-theme-tile .border-slate-200, .hub-theme-tile .border-slate-300,
+.hub-theme-tile .border-\[\#e7e8f0\], .hub-theme-tile .border-\[\#e7e8ef\], .hub-theme-tile .border-\[\#ececf3\], .hub-theme-tile .border-\[\#e4e6f0\] { border-color: #000000; }
+/* Sharp corners everywhere — live tiles are square, never rounded. */
+.hub-theme-tile .rounded-xl, .hub-theme-tile .rounded-2xl, .hub-theme-tile .rounded-3xl,
+.hub-theme-tile .rounded-\[1\.1rem\], .hub-theme-tile .rounded-\[1\.4rem\], .hub-theme-tile .rounded-\[1\.6rem\],
+.hub-theme-tile .rounded-\[1\.75rem\], .hub-theme-tile .rounded-full { border-radius: 2px; }
+.hub-theme-tile .shadow-sm, .hub-theme-tile .shadow, .hub-theme-tile .shadow-md, .hub-theme-tile .shadow-lg, .hub-theme-tile .shadow-xl { box-shadow: none; }
+.hub-theme-tile .text-slate-900, .hub-theme-tile .text-slate-800, .hub-theme-tile .text-slate-700 { color: #ffffff; }
+.hub-theme-tile .text-slate-500, .hub-theme-tile .text-slate-400 { color: #9fcbe8; }
+/* The in-between greys were left dark on the black page (slate-600, and the pale 70% white boxes): readable now. */
+.hub-theme-tile .text-slate-600 { color: #d6e8f5; }
+.hub-theme-tile .text-slate-300, .hub-theme-tile .text-slate-200 { color: #7fa7c2; }
+.hub-theme-tile .bg-white\/95, .hub-theme-tile .bg-white\/90, .hub-theme-tile .bg-white\/80, .hub-theme-tile .bg-white\/70, .hub-theme-tile .bg-white\/60, .hub-theme-tile .bg-white\/50 { background-color: #141414; }
+.hub-theme-tile .text-violet-600, .hub-theme-tile .text-violet-700 { color: #00a2e8; }
+.hub-theme-tile .bg-violet-700, .hub-theme-tile .bg-emerald-700 { background-color: #f2600c; }
+.hub-theme-tile .bg-violet-50, .hub-theme-tile .bg-indigo-50 { background-color: #142230; }
+.hub-theme-tile .bg-slate-100.hover\:bg-slate-100:hover, .hub-theme-tile .hover\:bg-slate-100:hover { background-color: #1f1f1f; }
+.hub-theme-tile input, .hub-theme-tile select, .hub-theme-tile textarea { background-color: #141414; color: #ffffff; border-color: #000000; }
+/* The menu/nav chrome's active tab and app grid read as tiles too, flat and bold. */
+.hub-theme-tile nav, .hub-theme-tile [data-testid="life-phone-menu"] { background-color: #0a0a0a; border-color: #000000; }
+
+/* ───────────────────────── Old Computer: green phosphor CRT ───────────────────────── */
+.hub-theme-crt { color-scheme: dark; background: #0a0f0a; font-family: "Courier New", ui-monospace, monospace !important; }
+.hub-theme-crt * { font-family: "Courier New", ui-monospace, monospace !important; }
+.hub-theme-crt .bg-\[\#f6f7fc\], .hub-theme-crt .bg-\[\#f9fafc\], .hub-theme-crt .bg-slate-50, .hub-theme-crt .bg-slate-100 { background-color: #0a0f0a; }
+.hub-theme-crt .bg-white, .hub-theme-crt .hover\:bg-white:hover { background-color: #0d140d; color: #33ff33; }
+.hub-theme-crt .bg-\[\#292446\] { background-color: #0d140d; border: 1px solid #33ff33; }
+.hub-theme-crt .border-slate-100, .hub-theme-crt .border-slate-200, .hub-theme-crt .border-slate-300,
+.hub-theme-crt .border-\[\#e7e8f0\], .hub-theme-crt .border-\[\#e7e8ef\], .hub-theme-crt .border-\[\#ececf3\], .hub-theme-crt .border-\[\#e4e6f0\] { border-color: #1f4d1f; }
+.hub-theme-crt .rounded-xl, .hub-theme-crt .rounded-2xl, .hub-theme-crt .rounded-full, .hub-theme-crt .rounded-\[1\.75rem\] { border-radius: 0; }
+.hub-theme-crt .shadow-sm, .hub-theme-crt .shadow, .hub-theme-crt .shadow-md, .hub-theme-crt .shadow-lg, .hub-theme-crt .shadow-xl { box-shadow: 0 0 8px rgba(51, 255, 51, 0.35); }
+.hub-theme-crt .text-slate-900, .hub-theme-crt .text-slate-800, .hub-theme-crt .text-slate-700 { color: #33ff33; }
+.hub-theme-crt .text-slate-500, .hub-theme-crt .text-slate-400 { color: #1f9e1f; }
+.hub-theme-crt .text-slate-600 { color: #2fd62f; }
+.hub-theme-crt .text-slate-300, .hub-theme-crt .text-slate-200 { color: #1a8a1a; }
+.hub-theme-crt .bg-white\/95, .hub-theme-crt .bg-white\/90, .hub-theme-crt .bg-white\/80, .hub-theme-crt .bg-white\/70, .hub-theme-crt .bg-white\/60, .hub-theme-crt .bg-white\/50 { background-color: #0d140d; }
+.hub-theme-crt .text-violet-600, .hub-theme-crt .text-violet-700, .hub-theme-crt .text-indigo-700 { color: #33ff33; }
+.hub-theme-crt .bg-violet-50, .hub-theme-crt .bg-indigo-50 { background-color: #0f1f0f; }
+.hub-theme-crt .bg-violet-700, .hub-theme-crt .bg-emerald-700 { background-color: #1f4d1f; color: #33ff33; }
+.hub-theme-crt input, .hub-theme-crt select, .hub-theme-crt textarea { background-color: #0a0f0a; color: #33ff33; border-color: #1f4d1f; }
+/* A faint scanline overlay for the CRT feel, decorative only. */
+.hub-theme-crt { position: relative; }
+.hub-theme-crt::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 1px, transparent 1px, transparent 3px);
+  mix-blend-mode: multiply;
+}

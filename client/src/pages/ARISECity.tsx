@@ -1158,7 +1158,7 @@ export default function ARISECity() {
                 <p className="text-sm text-slate-400 font-semibold">You can interview, get hired, work shifts, and level up in this field.</p>
               </div>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {(Object.keys(CAREERS) as CareerId[]).map(id => {
                 const c = CAREERS[id];
                 return (
@@ -1359,7 +1359,7 @@ export default function ARISECity() {
 
       {modal === "store" && (
         <GameModal title="Central Shops" subtitle="Spend your earned money on items for your character." onClose={() => setModal(null)}>
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               ["Fresh Sneakers", 90, "👟"],
               ["City Backpack", 70, "🎒"],
@@ -1449,7 +1449,7 @@ export default function ARISECity() {
 
       {modal === "bank" && (
         <GameModal title="Community Bank" subtitle="See the financial progress you have built." onClose={() => setModal(null)}>
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-3xl bg-emerald-50 border border-emerald-100 p-5">
               <div className="text-sm font-black uppercase tracking-widest text-emerald-700">Cash</div>
               <div className="mt-2 text-4xl font-black">${save.money}</div>

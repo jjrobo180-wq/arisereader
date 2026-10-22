@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { onNotificationsRefresh, relativeTime, sessionToken } from "@/lib/notifications";
 import type { FeedCategory, FeedItem, FeedResponse } from "@shared/notifications";
+import { addDismissals, cleanKeys, dismissedKeys, isLocalKey, parseDismissals, type Dismissal } from "@shared/notificationDismiss";
 
 /** The kind of thing an item links to; each page decides where that goes. */
 export type ActionableType = string;
@@ -39,22 +40,73 @@ const CATEGORY_STYLE: Record<FeedCategory, { icon: typeof Bell; tone: string }> 
 
 const EMPTY: FeedResponse = { type: "student", items: [], actionCount: 0, updateCount: 0, unreadCount: 0 };
 
+// LifeHub's and WorkHub's items ("life:…", "work:…") are made from the person's own data. Clearing one saves its key
+// twice: in this browser (so it is gone at once, even offline) and on the account (so it is gone on their other
+// devices too). Both lists are only ever added to, so a cleared item never comes back by accident; it comes back
+// only if its key changes, e.g. a task moved to a new date.
+const cacheName = (userId: unknown) => `arise-bell-cleared:${userId ?? "anon"}`;
+const readCache = (name: string): Dismissal[] => {
+  try { return parseDismissals(window.localStorage.getItem(name)); } catch { return []; }
+};
+const writeCache = (name: string, list: Dismissal[]) => {
+  try { window.localStorage.setItem(name, JSON.stringify(list)); } catch { /* private window or full: the account copy still works */ }
+};
+
 export function NotificationBell({
   refreshKey = 0,
   onNavigate,
   onCounts,
+  extraItems,
+  triggerClassName,
+  onSettings,
 }: {
   refreshKey?: number;
   onNavigate?: (type: ActionableType, id: number) => void;
   onCounts?: (counts: NotificationCounts) => void;
+  /** More items for this hub, listed with the account's own (see shared/lifeAlerts.ts). */
+  extraItems?: FeedItem[];
+  /** Replaces the bell button's look, for a header that has its own style. */
+  triggerClassName?: string;
+  /** Adds a "Notification settings" row at the bottom of the dropdown. */
+  onSettings?: () => void;
 }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const cache = cacheName(user?.id);
   const [feed, setFeed] = useState<FeedResponse>(EMPTY);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   // Items already read or dismissed here, hidden at once while the server catches up.
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
+  // Cleared "life:" / "work:" items: this browser's copy, joined by the account's copy on every load.
+  const [cleared, setCleared] = useState<Dismissal[]>(() => readCache(cache));
+  const clearedRef = useRef(cleared);
+  clearedRef.current = cleared;
+  const cacheRef = useRef(cache);
+  cacheRef.current = cache;
+  const updateCleared = useCallback((update: (list: Dismissal[]) => Dismissal[]) => {
+    const next = update(clearedRef.current);
+    if (next === clearedRef.current) return next;
+    clearedRef.current = next;
+    writeCache(cacheRef.current, next);
+    setCleared(next);
+    return next;
+  }, []);
+  const clearedKeys = useMemo(() => new Set(dismissedKeys(cleared)), [cleared]);
+
+  // A different person signed in on this browser, or another tab cleared something: read that copy.
+  useEffect(() => {
+    setCleared(readCache(cache));
+    clearedRef.current = readCache(cache);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== cache) return;
+      const merged = readCache(cache);
+      clearedRef.current = merged;
+      setCleared(merged);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [cache]);
   const [actionError, setActionError] = useState("");
   const [position, setPosition] = useState<{ top: number; right: number; mobile: boolean }>({ top: 64, right: 16, mobile: true });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -78,17 +130,31 @@ export function NotificationBell({
       setFeed(next);
       setFailed(false);
       setLoaded(true);
+      // Cleared items: add the account's list to this browser's, and tell the account about any it has not heard of.
+      const fromAccount = cleanKeys(next.dismissedLocal);
+      const known = new Set(dismissedKeys(clearedRef.current));
+      const fresh = fromAccount.filter((key) => !known.has(key));
+      if (fresh.length) updateCleared((list) => addDismissals(list, fresh));
+      const accountHas = new Set(fromAccount);
+      const missing = dismissedKeys(clearedRef.current).filter((key) => !accountHas.has(key)).slice(-100);
+      if (missing.length && Array.isArray(data?.dismissedLocal)) {
+        void fetch(`${API_BASE}/api/notifications/mark-seen`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ local: missing }),
+        }).catch(() => { /* tried again on the next check */ });
+      }
       // Forget hidden keys the server no longer sends.
       setHidden((current) => {
         if (!current.size) return current;
         const live = new Set(next.items.map((item) => item.key));
-        const kept = new Set(Array.from(current).filter((key) => live.has(key)));
+        const kept = new Set(Array.from(current).filter((key) => live.has(key) || isLocalKey(key)));
         return kept.size === current.size ? current : kept;
       });
     } catch {
       if (mine === sequence.current) { setFailed(true); setLoaded(true); }
     }
-  }, [authToken]);
+  }, [authToken, updateCleared]);
 
   // Check now, every 20 seconds while the page is visible, whenever it comes back into view,
   // and whenever another part of the page says something changed.
@@ -112,7 +178,7 @@ export function NotificationBell({
 
   useEffect(() => { if (refreshKey > 0) void load(); }, [refreshKey, load]);
 
-  const items = useMemo(() => feed.items.filter((item) => !hidden.has(item.key)), [feed.items, hidden]);
+  const items = useMemo(() => [...(extraItems ?? []), ...feed.items].filter((item) => !hidden.has(item.key) && !clearedKeys.has(item.key)), [extraItems, feed.items, hidden, clearedKeys]);
   const actions = items.filter((item) => item.kind === "action");
   const updates = items.filter((item) => item.kind === "update");
   const badge = actions.length + updates.length;
@@ -148,23 +214,34 @@ export function NotificationBell({
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  /** Reads or dismisses items: hidden at once, then saved; shown again if saving fails. */
+  /** Reads or dismisses items: hidden at once, then saved; account items show again if saving fails, this-hub items stay cleared. */
   const markSeen = async (keys: string[], all = false) => {
     const auth = authToken();
     if (!auth || (!keys.length && !all)) return false;
     setActionError("");
-    setHidden((current) => new Set([...Array.from(current), ...keys]));
+    const local = cleanKeys(keys.filter(isLocalKey));
+    // A "life:" / "work:" key too odd to save is still hidden for this visit.
+    const mine = keys.filter((key) => !isLocalKey(key));
+    const oddOnes = keys.filter((key) => isLocalKey(key) && !local.includes(key));
+    // "life:" / "work:" items: saved in this browser first, so nothing can bring them back, whatever happens next.
+    if (local.length) updateCleared((list) => addDismissals(list, local));
+    setHidden((current) => new Set([...Array.from(current), ...mine, ...oddOnes]));
+    if (!all && !mine.length && !local.length) return true;
     try {
+      const body: Record<string, unknown> = all ? { all: true } : mine.length ? { keys: mine } : {};
+      if (local.length) body.local = local;
       const res = await fetch(`${API_BASE}/api/notifications/mark-seen`, {
         method: "POST",
         headers: { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" },
-        body: JSON.stringify(all ? { all: true } : { keys }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(String(res.status));
       void load();
       return true;
     } catch {
-      setHidden((current) => new Set(Array.from(current).filter((key) => !keys.includes(key))));
+      // The browser copy already hides the "life:" / "work:" items and the next check passes them on to the account.
+      if (!all && !mine.length) return true;
+      setHidden((current) => new Set(Array.from(current).filter((key) => !mine.includes(key))));
       setActionError("That didn't save. Check your connection and try again.");
       return false;
     }
@@ -203,22 +280,22 @@ export function NotificationBell({
           onClick={() => openItem(item)}
           className="flex min-w-0 flex-1 items-start gap-3 px-3 py-3 text-left transition hover:bg-white/[.04] focus-visible:bg-white/[.06] focus-visible:outline-none"
         >
-          <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl ${style.tone}`}><Icon className="h-4 w-4" /></span>
+          <span className={`mt-0.5 grid grid-cols-1 h-9 w-9 shrink-0 place-items-center rounded-xl ${style.tone}`}><Icon className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">
             <span className="flex items-start gap-2">
-              <span className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-foreground [overflow-wrap:anywhere]">{item.title}</span>
-              <span className="shrink-0 pt-0.5 text-[11px] font-semibold text-muted-foreground">{relativeTime(item.createdAt)}</span>
+              <span className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-[#f5f3ff] [overflow-wrap:anywhere]">{item.title}</span>
+              <span className="shrink-0 pt-0.5 text-[11px] font-semibold text-[#c4c0dc]">{relativeTime(item.createdAt)}</span>
             </span>
-            {item.body && <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{item.body}</span>}
+            {item.body && <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-[#c4c0dc] [overflow-wrap:anywhere]">{item.body}</span>}
             {item.kind === "action" && linked && (
-              <span className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-primary">Open <ChevronRight className="h-3 w-3" /></span>
+              <span className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-[#fb923c]">Open <ChevronRight className="h-3 w-3" /></span>
             )}
           </span>
         </button>
         <button
           type="button"
           onClick={() => void markSeen([item.key])}
-          className="grid w-11 shrink-0 place-items-center text-muted-foreground transition hover:bg-white/[.05] hover:text-foreground"
+          className="grid grid-cols-1 w-11 shrink-0 place-items-center text-[#c4c0dc] transition hover:bg-white/[.05] hover:text-[#ffffff]"
           aria-label={item.kind === "action" ? `Dismiss: ${item.title}` : `Mark as read: ${item.title}`}
           title={item.kind === "action" ? "Dismiss" : "Mark as read"}
         >
@@ -232,8 +309,8 @@ export function NotificationBell({
     <section aria-label={label}>
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/[.08] bg-[#151326]/95 px-3 py-2 backdrop-blur">
         <span className={`h-2 w-2 rounded-full ${dot}`} />
-        <span className="text-[11px] font-black uppercase tracking-[.14em] text-muted-foreground">{label}</span>
-        <span className="text-[11px] font-bold text-muted-foreground">· {list.length}</span>
+        <span className="text-[11px] font-black uppercase tracking-[.14em] text-[#c4c0dc]">{label}</span>
+        <span className="text-[11px] font-bold text-[#c4c0dc]">· {list.length}</span>
         <span className="ml-auto">{extra}</span>
       </div>
       <ul>{list.map(renderItem)}</ul>
@@ -246,21 +323,21 @@ export function NotificationBell({
       role="dialog"
       aria-label="Notifications"
       style={position.mobile ? { top: position.top, left: 8, right: 8 } : { top: position.top, right: position.right, width: 420 }}
-      className="fixed z-[10000] flex max-h-[min(78vh,640px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151326] shadow-[0_28px_90px_rgba(0,0,0,.55)] ring-1 ring-violet-400/10"
+      className="fixed z-[10000] flex max-h-[min(78vh,640px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#151326] text-[#f5f3ff] shadow-[0_28px_90px_rgba(0,0,0,.55)] ring-1 ring-violet-400/10"
     >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/[.06] to-cyan-400/[.07] px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-black">Notifications</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="text-sm font-black text-[#f5f3ff]">Notifications</p>
+          <p className="mt-0.5 text-xs text-[#c4c0dc]">
             {!loaded ? "Checking…" : badge === 0 ? "Nothing new" : [actions.length && `${actions.length} need${actions.length === 1 ? "s" : ""} you`, updates.length && `${updates.length} update${updates.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-white/[.07] hover:text-foreground" aria-label="Check for new notifications" title="Check now">
+          <button type="button" onClick={() => void load()} className="grid grid-cols-1 h-8 w-8 place-items-center rounded-lg text-[#c4c0dc] hover:bg-white/[.07] hover:text-[#ffffff]" aria-label="Check for new notifications" title="Check now">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
           {items.length > 0 && (
-            <button type="button" onClick={() => void clearAll()} className="rounded-lg px-2 py-1.5 text-xs font-bold text-muted-foreground hover:bg-white/[.07] hover:text-foreground">Clear all</button>
+            <button type="button" onClick={() => void clearAll()} className="rounded-lg px-2 py-1.5 text-xs font-bold text-[#c4c0dc] hover:bg-white/[.07] hover:text-[#ffffff]">Clear all</button>
           )}
         </div>
       </div>
@@ -274,25 +351,30 @@ export function NotificationBell({
 
       <div className="flex-1 overflow-y-auto overscroll-contain">
         {!loaded ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Checking notifications…</p>
+          <p className="py-10 text-center text-sm text-[#c4c0dc]">Checking notifications…</p>
         ) : items.length === 0 ? (
           <div className="px-5 py-10 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-cyan-500/10 text-cyan-300"><CheckCircle2 className="h-6 w-6" /></div>
-            <p className="mt-3 text-sm font-black">You're all caught up</p>
-            <p className="mt-1 text-xs text-muted-foreground">New tasks and updates show up here.</p>
+            <div className="mx-auto grid grid-cols-1 h-12 w-12 place-items-center rounded-full bg-cyan-500/10 text-cyan-300"><CheckCircle2 className="h-6 w-6" /></div>
+            <p className="mt-3 text-sm font-black text-[#f5f3ff]">You're all caught up</p>
+            <p className="mt-1 text-xs text-[#c4c0dc]">New tasks and updates show up here.</p>
           </div>
         ) : (
           <>
             {actions.length > 0 && section("Needs you", actions, "bg-fuchsia-400")}
             {updates.length > 0 && section("Updates", updates, "bg-cyan-400", (
-              <button type="button" onClick={() => void markSeen(updates.map((u) => u.key))} className="text-[11px] font-bold text-muted-foreground hover:text-foreground">Mark all read</button>
+              <button type="button" onClick={() => void markSeen(updates.map((u) => u.key))} className="text-[11px] font-bold text-[#c4c0dc] hover:text-[#ffffff]">Mark all read</button>
             ))}
           </>
         )}
       </div>
 
+      {onSettings && (
+        <button type="button" onClick={() => { setOpen(false); onSettings(); }} className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-white/[.03] px-4 text-left text-xs font-bold text-[#e6e3f7] hover:bg-white/[.07]" data-testid="notification-settings-link">
+          Notification settings <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
       {actions.length > 0 && (
-        <p className="shrink-0 border-t border-white/10 bg-white/[.03] px-4 py-2 text-[11px] leading-4 text-muted-foreground">
+        <p className="shrink-0 border-t border-white/10 bg-white/[.03] px-4 py-2 text-[11px] leading-4 text-[#c4c0dc]">
           Tasks clear by themselves once they're done. Use × to hide one for now.
         </p>
       )}
@@ -306,12 +388,12 @@ export function NotificationBell({
         type="button"
         onClick={toggle}
         data-testid="notification-bell"
-        className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-muted"
+        className={triggerClassName ?? "relative grid grid-cols-1 h-10 w-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-muted"}
         aria-label={badge ? `Notifications, ${badge} new` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
-        <Bell className="h-5 w-5 text-foreground" />
+        <Bell className={triggerClassName ? "h-[17px] w-[17px]" : "h-5 w-5 text-foreground"} />
         {badge > 0 && (
           <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-black leading-none text-white ring-2 ring-background">
             {badge > 99 ? "99+" : badge}

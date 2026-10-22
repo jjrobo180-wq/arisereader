@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+<rect width="600" height="900" fill="#0b4a1c"/>
+<svg x="0" y="96" width="600" height="572" viewBox="460 0 680 900" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1600" height="900" fill="#ffe066" /><rect x="0" y="640" width="1600" height="260" fill="#2f9e44" /><rect x="0" y="640" width="100" height="260" fill="#37b24d" /><rect x="200" y="640" width="100" height="260" fill="#37b24d" /><rect x="400" y="640" width="100" height="260" fill="#37b24d" /><rect x="600" y="640" width="100" height="260" fill="#37b24d" /><rect x="800" y="640" width="100" height="260" fill="#37b24d" /><rect x="1000" y="640" width="100" height="260" fill="#37b24d" /><rect x="1200" y="640" width="100" height="260" fill="#37b24d" /><rect x="1400" y="640" width="100" height="260" fill="#37b24d" /><g transform="translate(800 500) rotate(-10)"><ellipse cx="0" cy="0" rx="150" ry="120" fill="#f8f9fa" stroke="#adb5bd" stroke-width="6"/><path d="M-150 -20Q0 -60 150 -20M-140 50Q0 10 140 50" fill="none" stroke="#ced4da" stroke-width="8"/><path d="M-10 -120Q-30 0 -10 120M40 -115Q20 0 40 115" fill="none" stroke="#a17c45" stroke-width="6"/><rect x="-40" y="-24" width="60" height="30" fill="#ffd43b" opacity=".6"/></g><polygon points="680,300 700,200 750,260 800,180 850,260 900,200 920,300" fill="#f59f00" stroke="#e67700" stroke-width="6"/><circle cx="700" cy="200" r="14" fill="#e03131" /><circle cx="800" cy="180" r="14" fill="#e03131" /><circle cx="900" cy="200" r="14" fill="#e03131" /></svg>
+<rect width="600" height="96" fill="#ffffff"/>
+<text x="30" y="66" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#0b4a1c" letter-spacing="-1">ARISE<tspan fill="#2b8a3e"> NEWS</tspan></text>
+<text x="570" y="44" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#0b4a1c" text-anchor="end">ISSUE 2</text>
+<text x="570" y="68" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#2b8a3e" text-anchor="end">SOCCER</text>
+<rect y="668" width="600" height="232" fill="#0b4a1c"/>
+<rect x="30" y="686" width="120" height="8" fill="#2b8a3e"/>
+<text x="30" y="732" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Pelé: The Boy</text>
+<text x="30" y="788" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">Who Practiced</text>
+<text x="30" y="844" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="50" fill="#ffffff">with a Sock</text>
+<text x="570" y="690" font-family="Arial,sans-serif" font-weight="800" font-size="20" fill="#ffffff" text-anchor="end">5 PTS</text>
+</svg>

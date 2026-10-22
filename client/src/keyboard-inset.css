@@ -1,0 +1,16 @@
+/* While a phone's keyboard is up (html.kb-open, set by lib/keyboardInset.ts), sheets that sit at
+   the bottom of the screen (.kb-sheet) fit into the part of the screen that's still visible, so
+   they rest on top of the keyboard instead of behind it, and what's inside scrolls. */
+html.kb-open .kb-sheet {
+  top: var(--kb-top, 0px) !important;
+  bottom: auto !important;
+  height: var(--kb-height, 100%) !important;
+}
+html.kb-open .kb-sheet > * {
+  max-height: calc(100% - 0.5rem) !important;
+}
+/* A box brought to the top while typing (data-keyboard-top, like the food search) keeps room below
+   it, so it stays at the top while the list under it changes as you type. */
+html.kb-open .kb-sheet [data-keyboard-top] + * {
+  min-height: var(--kb-height, 50vh);
+}

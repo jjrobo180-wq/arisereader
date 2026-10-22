@@ -4,6 +4,7 @@
 import { daysBetween } from "./hubDates";
 import { guideProgress } from "./hubGuide";
 import { countedPlan, goalProgress, optionalDays, serviceStatus, type GoalStatus, type ServiceStatus } from "./hubProgress";
+import { subjectMinutes, type SubjectMinutes } from "./hubSubjects";
 import type {
   AriseRecord, Assignment, AttendanceEntry, BehaviorEntry, Goal, IepGuide, Meeting, NoteItem, ParentLog, ScheduleEntry, ServiceLog, ServicePlan, Student, Workspace,
 } from "./teacherHub";
@@ -23,6 +24,8 @@ export type StudentProfile = {
   goals: { goal: Goal; latest: number | null; percent: number; status: GoalStatus }[];
   services: { plan: ServicePlan; status: ServiceStatus }[];
   serviceLogs: ServiceLog[];
+  /** The service minutes added up by subject (Reading, Math…). */
+  subjects: SubjectMinutes[];
   meetings: { upcoming: Meeting[]; past: Meeting[] };
   guides: { guide: IepGuide; done: number; total: number }[];
   notes: NoteItem[];
@@ -66,7 +69,8 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
   const optional = optionalDays(workspace);
   const services = mine(workspace.services).map((saved) => countedPlan(saved, optional)).map((plan) => ({ plan, status: serviceStatus(plan, workspace.serviceLogs || [], today) }));
   const guides = mine(workspace.guides).map((guide) => ({ guide, ...guideProgress(guide) }));
-  const notes = newest(mine(workspace.notes));
+  // A note about several students shows for each of them.
+  const notes = newest((workspace.notes || []).filter((n) => fold(n.student) === name || (n.students || []).some((s) => fold(s) === name)));
   const parentLogs = newest(mine(workspace.parentLogs));
   const reading = newest(mine(workspace.ariseRecords));
 
@@ -75,6 +79,7 @@ export function studentProfile(workspace: Workspace, studentId: string, today: s
     iep: dated(student.iepDate, today),
     reeval: dated(student.reevalDate, today),
     goals, services, serviceLogs,
+    subjects: subjectMinutes(services.map((x) => x.plan), serviceLogs, today, workspace.services || []),
     meetings: {
       upcoming: meetings.filter(ahead).sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999"))),
       past: newest(meetings.filter((m) => !ahead(m))),

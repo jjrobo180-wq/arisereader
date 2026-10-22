@@ -12,7 +12,7 @@
         <meta name="author" content="A.R.I.S.E Reader" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <link rel="canonical" href="https://www.arisereader.com/" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"A.R.I.S.E. Reader","url":"https://www.arisereader.com/","logo":"https://www.arisereader.com/icon-512.png"},{"@type":"WebSite","name":"A.R.I.S.E. Reader","url":"https://www.arisereader.com/","description":"Reading quizzes, rewards, games, and reading progress tools for students, teachers and families."},{"@type":"SoftwareApplication","name":"A.R.I.S.E. Reader","applicationCategory":"EducationalApplication","operatingSystem":"Web","url":"https://www.arisereader.com/","description":"Educational reading platform with book quizzes, rewards, classroom games and student progress tracking."}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"A.R.I.S.E. Reader","url":"https://www.arisereader.com/","logo":"https://www.arisereader.com/favicon.svg"},{"@type":"WebSite","name":"A.R.I.S.E. Reader","url":"https://www.arisereader.com/","description":"Reading quizzes, rewards, games, and reading progress tools for students, teachers and families."},{"@type":"SoftwareApplication","name":"A.R.I.S.E. Reader","applicationCategory":"EducationalApplication","operatingSystem":"Web","url":"https://www.arisereader.com/","description":"Educational reading platform with book quizzes, rewards, classroom games and student progress tracking."}]}</script>
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.arisereader.com/" />
     <meta property="og:title" content="Reading Comprehension Quizzes &amp; Rewards | A.R.I.S.E. Reader" />
@@ -25,10 +25,21 @@
     <meta name="twitter:title" content="Reading Comprehension Quizzes &amp; Rewards | A.R.I.S.E. Reader" />
     <meta name="twitter:description" content="Book quizzes, reading progress, rewards and classroom games in one educational reading platform." />
     <meta name="twitter:image" content="https://www.arisereader.com/og-image.png" />
-    <link rel="icon" href="/favicon.ico" sizes="48x48" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.ico?v=seam1" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=seam1" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=seam1" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=seam1" />
+    <!-- A.R.I.S.E. To-Do uses its own uploaded mark; Reader retains its favicon. -->
+    <script>
+      if (/^(www\.)?arisetodo\.com$/i.test(window.location.hostname)) {
+        document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(function (link) { link.remove(); });
+        var todoIcon = document.createElement("link");
+        todoIcon.rel = "icon";
+        todoIcon.type = "image/svg+xml";
+        todoIcon.href = "/todo-favicon.svg?v=20261012";
+        document.head.appendChild(todoIcon);
+      }
+    </script>
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#0b0a16" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -37,7 +48,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800;900&family=Bungee&family=Cinzel:wght@700;900&family=Teko:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800;900&family=Jost:wght@200;300;400;500&family=Bungee&family=Cinzel:wght@700;900&family=Teko:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       #root:empty::before {content:"";position:fixed;inset:0;background:hsl(0 0% 10%);display:flex;align-items:center;justify-content:center}
       #root:empty::after {content:"A.R.I.S.E Reader";position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:hsl(21 100% 50%);font-family:Arial,sans-serif;font-size:1.5rem;font-weight:700;letter-spacing:.05em;animation:pulse 1.5s ease-in-out infinite}

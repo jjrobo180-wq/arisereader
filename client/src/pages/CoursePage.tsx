@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation, useParams } from "wouter";
 import { ArrowLeft, ChevronRight, ChevronLeft, CheckCircle2, Lock, Trophy, Clock, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getTokenFromCookie } from "@/lib/auth";
 
 interface Lesson {
   title: string;

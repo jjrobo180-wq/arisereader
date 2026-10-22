@@ -4,11 +4,14 @@
 // The page is client/src/pages/TeacherHub.tsx. The workspace is saved as one
 // JSON object per teacher (server/teacherHub.ts).
 
+import { cleanLock } from "./privacyLock";
 import { cleanBlocks, type SchoolBlock } from "./hubBlocks";
 import { cleanOptionalDays } from "./hubProgress";
 import { cleanPins, type Pin } from "./hubPins";
 import { cleanBanner } from "./hubBanner";
 import type { StepPlan } from "./meetingSteps";
+import { cleanAccent } from "./hubAccent";
+import { cleanHubNotify } from "./hubNotify";
 
 /** The longest a disability can be typed. */
 export const DISABILITY_MAX = 120;
@@ -33,11 +36,15 @@ export type Student = {
   team?: Record<string, string>;
 };
 
-export type Meeting = { id: string; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;
+export type Meeting = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; student: string; type: string; date: string; /** "HH:MM", or "". */ time?: string; end?: string; room?: string; notes: string; done: boolean; /** Progress through the ten steps (shared/meetingSteps.ts). */ plan?: StepPlan;
   /** YYYY-MM-DD: the IEP (or reevaluation) deadline the meeting has to happen before (shared/meetingDeadline.ts). */
-  deadline?: string };
+  deadline?: string;
+  /** Gen ed teachers told about the meeting, and whether each needs their class covered (shared/genEdCoverage.ts). */
+  coverage?: { id: string; teacher: string; email: string; needs: "" | "yes" | "no"; from: string; to: string }[];
+  /** Who the coverage request goes to (a lead teacher or supervisor): a name or email. */
+  coverageTo?: string };
 export type Lesson = { id: string; title: string; subject: string; group: string; date: string; objective: string; materials: string };
-export type Task = { id: string; title: string; dueDate: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The day a repeating to-do was last checked off. */ lastDone?: string;
+export type Task = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; title: string; dueDate: string; /** Optional HH:MM local time on the due date. */ dueTime?: string; recurring: string; done: boolean; /** "high" floats a to-do up when sorting by importance. */ priority?: "high"; /** The to-do list it is on (workspace.taskLists), like LifeHub's lists. Not set means no list. */ listId?: string; /** Tucked away out of every view (Archived shows it) without being deleted. */ archived?: boolean; /** The day a repeating to-do was last checked off. */ lastDone?: string;
   /** Anything worth keeping with it: details, a phone number, a link. */
   notes?: string;
   /** Set when the to-do came from the Apple Reminders app (see shared/appleReminders.ts): which reminder it is. */
@@ -49,7 +56,15 @@ export type Task = { id: string; title: string; dueDate: string; recurring: stri
   /** For a repeating to-do that just moved on to its next time: where it was, so that can be undone for a day. */
   rolled?: { dueDate: string; lastDone?: string; at: string };
 };
-export type NoteItem = { id: string; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string };
+export type NoteItem = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; /** Needs the hub passcode to open (shared/privacyLock.ts). */ locked?: boolean; /** "" for a note that is not about one student (a staff meeting, a training). */ student: string; type: string; body: string; date: string; /** Formatted version from the note editor (shared/richNote.ts); body stays the plain text. */ html?: string; /** What the note is called, if it was given a name ("Staff meeting, Oct 7"). */ title?: string;
+  /** More students the note is about (a group check-in, a meeting about several students). `student` stays the first. */
+  students?: string[];
+  /** The card's colour on the notes board, like LifeHub's notes. */
+  color?: string;
+  /** Pinned notes stay at the top. */
+  pinned?: boolean;
+  /** When it was last changed. */
+  updatedAt?: string };
 export type AriseRecord = { id: string; student: string; book: string; score: string; points: string; date: string };
 export type BehaviorEntry = { id: string; student: string; points: number; reason: string; date: string };
 export type AttendanceEntry = { id: string; student: string; date: string; status: "Present" | "Absent" | "Tardy" | "Excused"; className: string };
@@ -60,7 +75,7 @@ export type ScheduleEntry = { id: string; student: string; day: string; start: s
 /** One reading of how a student is doing on a goal. */
 export type GoalPoint = { id: string; date: string; value: number; note: string };
 /** An IEP goal tracked over time. `up` means a higher number is better (accuracy); `down` means lower is better (outbursts a week). */
-export type Goal = { id: string; student: string; area: string; text: string; baseline: number; target: number; unit: string; direction: "up" | "down"; startDate: string; targetDate: string; points: GoalPoint[] };
+export type Goal = { id: string; /** Things it is linked to (shared/hubLinks.ts). */ links?: import("./hubLinks").HubLink[]; student: string; area: string; text: string; baseline: number; target: number; unit: string; direction: "up" | "down"; startDate: string; targetDate: string; points: GoalPoint[] };
 /** Minutes of a service a student's IEP requires each week. */
 export type ServicePlan = {
   id: string; student: string; kind: string;
@@ -79,6 +94,8 @@ export type ServicePlan = {
   part?: string;
   /** Whose class it is: the teacher the service is pushed in to. */
   teacher?: string;
+  /** The subject the minutes are for (Reading, Math…): one of MINUTE_SUBJECTS in shared/hubSubjects.ts. */
+  subject?: string;
 };
 /** Minutes actually delivered on a day. */
 export type ServiceLog = { id: string; student: string; date: string; kind: string; minutes: number; note: string; /** When the session ran ("10:00" to "10:20"), if a time was given. */ start?: string; end?: string; /** The block (period) it was given in, when that was said. Without one it goes in its plan's block. */ block?: string;
@@ -87,6 +104,8 @@ export type ServiceLog = { id: string; student: string; date: string; kind: stri
   /** The half of the block it was given in, and whose class it was, when that was said. Without them it follows its plan. */
   part?: string;
   teacher?: string;
+  /** The subject, when it was said. Without one it follows its plan's subject. */
+  subject?: string;
 };
 export type EmailItem = { id: string; from: string; subject: string; body: string; action: string; draft: string; date: string; /** The teacher flagged it: it floats to the top. */ flagged?: boolean;
   /** For a forwarded email: when it was first sent, as written ("Thursday, October 8, 2026 9:57 AM"). */
@@ -110,6 +129,8 @@ export type HubEvent = {
   calendarId?: string;
   /** Set when the event is the booked time of a meeting; the meeting owns it. */
   meetingId?: string;
+  /** Students the event is about (a parent conference, a group session), so the calendar can be filtered by student. */
+  students?: string[];
   /** The teacher checked it off: it happened. */
   done?: boolean;
   /** How it repeats ("Weekly", "Monthly", ...). `date` is then its first day. See shared/hubRepeat.ts. */
@@ -170,14 +191,47 @@ export type IepGuide = {
 };
 
 export const HUB_TABS = [
-  "overview", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
+  "overview", "start", "calendar", "caseload", "goals", "minutes", "iep", "lessons", "tasks", "notes", "arise", "behavior", "attendance", "gradebook", "parents", "schedules", "email", "reader", "admin",
+  "readerStudents", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerLive", "readerScenes",
+  "readerAdvisory",
 ] as const;
 export type HubTab = (typeof HUB_TABS)[number];
 
+/** The WorkHub screens every account comes with, free and never counted against the App Store's
+ *  free apps: Home, Calendar, Tasks and Notes. Everything else is added from the App Store. */
+export const WORK_BUILT_IN_TABS: readonly HubTab[] = ["overview", "start", "calendar", "tasks", "notes", "goals"];
+
+/** WorkHub screens added from the App Store. Off until the teacher adds one, and each counts
+ *  towards the free plan's apps (shared/todoPlan.ts), the same way a LifeHub add-on section does.
+ *  The Reader's own screens and the admin console aren't here: those are decided by role and plan,
+ *  not by the App Store. */
+export const WORK_ADD_ON_TABS: readonly HubTab[] = [
+  "caseload", "minutes", "iep", "lessons", "arise", "behavior", "attendance",
+  "gradebook", "parents", "schedules", "email",
+];
+
+/** Whether a WorkHub screen shows. The built-in four unless switched off; an App Store screen only
+ *  once it has been added. An administrator sees everything, so nothing is hidden while running
+ *  the site. (The Reader and admin screens are gated elsewhere, by role and plan.) */
+export const isTabOn = (tab: HubTab, visible: Partial<Record<HubTab, boolean>>, isAdmin = false): boolean => {
+  // An App Store screen shows once it has been added — and always for an administrator, who needs
+  // every screen to run the site. (Checking `!== false` wouldn't do for an admin: a new workspace
+  // writes these as false, which is the default rather than a choice anyone made.)
+  if (WORK_ADD_ON_TABS.includes(tab)) return isAdmin || visible[tab] === true;
+  return visible[tab] !== false;
+};
+
 export type Workspace = {
   version: number;
-  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
+  profile: { school: string; gradeBand: string; subject: string; /** The name and reply address a teacher chose for meeting-poll emails. */ senderName?: string; replyEmail?: string; /** The one colour the Hub is tinted with (see shared/hubAccent.ts). */ accent?: string; /** How the big box on Home looks (see shared/hubBanner.ts). */ banner?: { color: string; image: string; size: "compact" | "normal" | "tall" } };
   visibleTabs: Record<HubTab, boolean>;
+  /** Set once this workspace's tabs have been read under the App Store rules (see cleanWorkspace). */
+  tabsV2?: boolean;
+  /** Set once screens in use were put back after the tabsV2 step (see restoreUsedTabs). */
+  tabsV3?: boolean;
+  /** The order the menu's groups show in, Home aside: group ids as strings, kept loose here to
+   *  avoid a circular import with shared/hubTabGroups.ts. See cleanGroupOrder there. */
+  groupOrder?: string[];
   students: Student[];
   meetings: Meeting[];
   lessons: Lesson[];
@@ -202,22 +256,64 @@ export type Workspace = {
   minuteBlocks?: SchoolBlock[];
   /** The school days that are optional: nothing is due on them, they are only for extra minutes. Not set means Wednesday. See shared/hubProgress.ts. */
   minuteOptionalDays?: string[];
+  /** How the teacher arranged the Hub in Customize (see shared/hubLayout.ts): the phone menu and Home. */
+  layout?: import("./hubLayout").HubLayout;
+  /** Which phone reminders to send, and when (see shared/hubNotify.ts). Not set means the defaults. */
+  notify?: import("./hubNotify").HubNotify;
   guides: IepGuide[];
   spedContacts: HubContact[];
   guideLinks: HubLink[];
   /** Up to five pinned banners (see shared/hubPins.ts). */
   pins: Pin[];
+  /** The teacher's to-do lists (Tasks), each with a colour, like LifeHub's lists. See shared/hubTasks.ts. */
+  taskLists?: TaskList[];
+  /** The Lesson Planner's classes (periods/blocks) and the state its standards come from. See shared/lessonPlanner.ts. */
+  lessonClasses?: unknown[];
+  /** Push-in class notes: what the class's teacher taught, the materials, each student, scaffolded work. Kept with the minutes. See shared/pushIn.ts. */
+  pushInNotes?: unknown[];
+  lessonState?: string;
+  /** Passcode lock for screens and notes (shared/privacyLock.ts). */
+  lock?: import("./privacyLock").PrivacyLock | null;
+  /** Quizzes made from students' goals, taken on A.R.I.S.E. Reader (shared/hubLinks.ts). */
+  goalQuizzes?: import("./hubLinks").GoalQuiz[];
 };
+export type TaskList = { id: string; name: string; color: string };
 
 export function emptyWorkspace(): Workspace {
   return {
     version: 1,
     profile: { school: "", gradeBand: "", subject: "" },
-    visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, true])) as Record<HubTab, boolean>,
+    visibleTabs: Object.fromEntries(HUB_TABS.map((tab) => [tab, !WORK_ADD_ON_TABS.includes(tab)])) as Record<HubTab, boolean>,
+    tabsV2: true,
+    tabsV3: true,
+    groupOrder: [],
     students: [], meetings: [], lessons: [], tasks: [], notes: [], ariseRecords: [], behavior: [], attendance: [],
     assignments: [], gradeScores: [], parentLogs: [], schedules: [], emails: [], goals: [], services: [], serviceLogs: [], events: [], calendars: [],
     guides: [], spedContacts: [], guideLinks: [], pins: [],
   };
+}
+
+/** The saved lists behind each App Store screen: if any has something in it, the screen is in use. */
+const TAB_DATA: Partial<Record<HubTab, readonly string[]>> = {
+  caseload: ["students"], minutes: ["services", "serviceLogs", "pushInNotes"], iep: ["meetings", "guides"], lessons: ["lessons", "lessonClasses"],
+  arise: ["ariseRecords"], behavior: ["behavior"], attendance: ["attendance"], gradebook: ["assignments", "gradeScores"],
+  parents: ["parentLogs"], schedules: ["schedules"], email: ["emails"],
+};
+/** Screens with something saved in them, judged from a raw saved workspace. */
+export function usedTabs(raw: any): HubTab[] {
+  return WORK_ADD_ON_TABS.filter((tab) => (TAB_DATA[tab] || []).some((k) => Array.isArray(raw?.[k]) && raw[k].length > 0));
+}
+/**
+ * When the App Store screens became add-ons (Oct 12, 2026), the one-time tabsV2 step hid every one
+ * of them, including screens a teacher was using: their caseload and minutes were still saved but
+ * the screens were gone. This puts back, once (tabsV3), every screen that has something saved in it.
+ * Screens with nothing in them stay as they are, and anything removed after this sticks.
+ */
+function restoreUsedTabs(raw: any, visible: Record<HubTab, boolean>): Record<HubTab, boolean> {
+  if (raw.tabsV3 === true) return visible;
+  const out = { ...visible };
+  for (const tab of usedTabs(raw)) out[tab] = true;
+  return out;
 }
 
 const LISTS = ["students", "meetings", "lessons", "tasks", "notes", "ariseRecords", "behavior", "attendance", "assignments", "gradeScores", "parentLogs", "schedules", "emails", "goals", "services", "serviceLogs", "events", "calendars", "guides", "spedContacts", "guideLinks"] as const;
@@ -229,11 +325,36 @@ export function normalizeWorkspace(raw: any): Workspace {
   const out: any = {
     ...base,
     ...raw,
-    profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}) },
-    visibleTabs: { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true },
+    lock: cleanLock(raw.lock),
+    profile: { ...base.profile, ...(raw.profile || {}), ...(raw.profile?.banner ? { banner: cleanBanner(raw.profile.banner) } : {}), accent: cleanAccent(raw.profile?.accent) || undefined },
+    // Workspaces saved before the App Store had WorkHub screens had every tab written as `true`
+    // by the old default, which would read as "already added" and leave nothing to add. Those are
+    // taken back to the built-in four once, marked with tabsV2 so it happens only that once.
+    // Nothing is deleted by hiding a screen: adding it back from the App Store brings it all back.
+    visibleTabs: restoreUsedTabs(raw, raw.tabsV2 === true
+      ? { ...base.visibleTabs, ...(raw.visibleTabs || {}), overview: true }
+      : { ...base.visibleTabs, ...Object.fromEntries(Object.entries(raw.visibleTabs || {}).filter(([tab]) => !WORK_ADD_ON_TABS.includes(tab as HubTab))), overview: true }),
+    tabsV2: true,
+    tabsV3: true,
+    // Goals became a standard screen (October 2026): switched on once for everyone, after which it
+    // can be hidden like Calendar or Notes.
+    goalsStd: true,
+    groupOrder: Array.isArray(raw.groupOrder) ? raw.groupOrder.filter((x: unknown) => typeof x === "string") : [],
   };
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
+  if (raw.goalsStd !== true) out.visibleTabs = { ...out.visibleTabs, goals: true };
   out.pins = cleanPins(raw.pins);
+  // Goal quizzes (shared/hubLinks.ts): kept as saved, with anything malformed dropped.
+  out.goalQuizzes = (Array.isArray(raw.goalQuizzes) ? raw.goalQuizzes : [])
+    .filter((q: any) => q && typeof q === "object" && typeof q.id === "string" && q.id && typeof q.student === "string")
+    .map((q: any) => ({ id: q.id.slice(0, 40), title: String(q.title || "Goal quiz").slice(0, 160), student: q.student.slice(0, 80),
+      questions: (Array.isArray(q.questions) ? q.questions : []).filter((x: any) => x && typeof x.prompt === "string" && Array.isArray(x.options) && x.options.length === 4 && Number.isInteger(x.correct) && x.correct >= 0 && x.correct < 4)
+        .slice(0, 15).map((x: any) => ({ prompt: x.prompt.slice(0, 400), options: x.options.map((o: unknown) => String(o).slice(0, 200)), correct: x.correct })),
+      goalIds: Array.isArray(q.goalIds) ? q.goalIds.filter((x: unknown) => typeof x === "string").slice(0, 40) : [], createdAt: String(q.createdAt || ""),
+      recorded: Array.isArray(q.recorded) ? q.recorded.filter((x: unknown) => typeof x === "string").slice(-200) : [],
+      results: (Array.isArray(q.results) ? q.results : []).filter((r: any) => r && typeof r.attemptId === "string").slice(-50)
+        .map((r: any) => ({ attemptId: r.attemptId.slice(0, 40), score: Number(r.score) || 0, total: Number(r.total) || 0, completedAt: String(r.completedAt || "").slice(0, 40) })) }))
+    .slice(0, 300);
   out.hiddenEvents = (Array.isArray(raw.hiddenEvents) ? raw.hiddenEvents : [])
     .filter((r: any) => r && typeof r === "object" && typeof r.id === "string" && typeof r.title === "string" && r.title.trim())
     .map((r: any): HiddenRule => ({ id: r.id, title: r.title, date: typeof r.date === "string" ? r.date : "", start: typeof r.start === "string" ? r.start : "" }))
@@ -242,6 +363,8 @@ export function normalizeWorkspace(raw: any): Workspace {
   if (blocks) out.minuteBlocks = blocks; else delete out.minuteBlocks;
   const optional = cleanOptionalDays(raw.minuteOptionalDays);
   if (optional) out.minuteOptionalDays = optional; else delete out.minuteOptionalDays;
+  // Phone reminder choices (shared/hubNotify.ts). Not set means the defaults.
+  if (raw.notify && typeof raw.notify === "object") out.notify = cleanHubNotify(raw.notify); else delete out.notify;
   return out as Workspace;
 }
 
@@ -289,7 +412,7 @@ export const HUB_IMPORT = {
   tasks: {
     label: "To-dos and reminders", tab: "tasks",
     hint: "Something the teacher has to do or remember. Use this for reminders and checklists.",
-    fields: { title: text("To-do", 200, { required: true }), dueDate: date("Due"), recurring: choice("Repeats", HUB_CHOICES.recurring) },
+    fields: { title: text("To-do", 200, { required: true }), dueDate: date("Due"), dueTime: time("Time (optional)"), recurring: choice("Repeats", HUB_CHOICES.recurring) },
   },
   events: {
     label: "Calendar", tab: "calendar",
@@ -300,6 +423,15 @@ export const HUB_IMPORT = {
     label: "IEP and meetings", tab: "iep",
     hint: "An IEP, reevaluation, planning, parent or progress meeting about one student. Do not also put it in events.",
     fields: { student: student(), type: choice("Kind", HUB_CHOICES.meetingType, "Other"), date: date("Date"), notes: text("Notes", 1000, { long: true }) },
+  },
+  goals: {
+    label: "IEP goals", tab: "goals",
+    hint: "An IEP or progress-monitoring goal for one student, as written in the material (an IEP, a goal page, a progress report). text is the goal in the document's own words. baseline is where the student starts and target where the goal says they will be, as numbers; unit is what they are measured in (%, words per minute, out of 10 trials…). Only goals the material actually states.",
+    fields: {
+      student: text("Student", 80, { required: true }), area: text("Area", 40), text: text("Goal", 600, { required: true, long: true }),
+      baseline: { kind: "number", label: "Baseline", min: -100000, max: 100000, fallback: 0 }, target: { kind: "number", label: "Target", min: -100000, max: 100000, fallback: null },
+      unit: text("Unit", 30), startDate: date("Start", { today: true }), targetDate: date("Target date"),
+    },
   },
   notes: {
     label: "Notes", tab: "notes",
@@ -489,6 +621,7 @@ export function describeHubItem(kind: HubImportKind, item: HubImportItem): { tit
     case "tasks": return { title: s("title"), detail: joined(s("dueDate") ? `Due ${s("dueDate")}` : "No due date", s("recurring")) };
     case "events": return { title: s("title"), detail: joined(s("date"), clock || "All day", s("location")) };
     case "meetings": return { title: joined(s("student") || "No student yet", s("type")), detail: joined(s("date") || "No date", s("notes")) };
+    case "goals": return { title: joined(s("student"), s("area") || "Goal"), detail: joined(s("text"), `${s("baseline") || 0} → ${s("target") || "?"}${s("unit") ? ` ${s("unit")}` : ""}`, s("targetDate") && `by ${s("targetDate")}`) };
     case "notes": return { title: s("body"), detail: joined(s("student") || "General", s("type"), s("date")) };
     case "students": return { title: s("name"), detail: joined(s("grade") && `Grade ${s("grade")}`, s("iepDate") && `IEP ${s("iepDate")}`, s("reevalDate") && `Reevaluation ${s("reevalDate")}`, s("disability1"), s("disability2"), s("accommodations")) };
     case "lessons": return { title: s("title"), detail: joined(s("subject"), s("group"), s("date"), s("objective")) };
@@ -530,11 +663,25 @@ export type HubMergeResult = {
  * Adds checked items to a workspace. Anything already there is not added twice,
  * and the caseload never grows past the plan (`seats`; null means no limit).
  */
-export function mergeHubImport(workspace: Workspace, items: HubImportItems, makeId: () => string, seats: number | null): HubMergeResult {
+/** Lists whose new items take the import's links. */
+const LINKED_LISTS = new Set(["tasks", "notes", "meetings", "goals"]);
+
+/**
+ * Adds checked import items to the Hub. `links` (shared/hubLinks.ts), when given, go on every new
+ * reminder, note, meeting and goal: what they were read from (a Drive file) and who they're about.
+ */
+export function mergeHubImport(workspace: Workspace, items: HubImportItems, makeId: () => string, seats: number | null, links?: import("./hubLinks").HubLink[]): HubMergeResult {
   const next: Workspace = { ...workspace };
   const added: HubMergeResult["added"] = {};
   let already = 0, overPlan = 0;
 
+  // Each linked item also links to the caseload student it is about.
+  const studentIds = new Map(workspace.students.map((x) => [fold(x.name), x.id]));
+  const linksFor = (row: any) => {
+    const sid = row?.student ? studentIds.get(fold(row.student)) : undefined;
+    const all = [...(links || []), ...(sid ? [{ kind: "student" as const, id: sid }] : [])];
+    return all.filter((l, i) => all.findIndex((x) => x.kind === l.kind && x.id === l.id) === i).slice(0, 30);
+  };
   const add = <K extends keyof Workspace>(kind: HubImportKind, list: K, rows: any[], keyOf: (row: any) => string, build: (item: any) => any) => {
     const seen = new Set((workspace[list] as any[]).map(keyOf));
     const fresh: any[] = [];
@@ -544,7 +691,7 @@ export function mergeHubImport(workspace: Workspace, items: HubImportItems, make
       if (seen.has(key)) { already++; continue; }
       if (list === "students" && seats !== null && workspace.students.length + fresh.length >= seats) { overPlan++; continue; }
       seen.add(key);
-      fresh.push({ id: makeId(), ...row });
+      fresh.push({ id: makeId(), ...row, ...(links?.length && LINKED_LISTS.has(String(list)) ? { links: linksFor(row) } : {}) });
     }
     if (!fresh.length) return;
     (next as any)[list] = NEWEST_FIRST.has(list) ? [...fresh, ...(next[list] as any[])] : [...(next[list] as any[]), ...fresh];
@@ -556,6 +703,10 @@ export function mergeHubImport(workspace: Workspace, items: HubImportItems, make
   add("events", "events", items.events, (r) => fold(r.title, r.date, r.start), (i) => i);
   add("meetings", "meetings", items.meetings, (r) => fold(r.student, r.type, r.date), (i) => ({ ...i, done: false }));
   add("notes", "notes", items.notes, (r) => fold(r.student, r.date, r.body), (i) => i);
+  add("goals", "goals", items.goals || [], (r) => fold(r.student, r.text), (i) => {
+    const baseline = Number(i.baseline) || 0, target = i.target === null || i.target === undefined || i.target === "" ? baseline : Number(i.target);
+    return { student: String(i.student), area: String(i.area || "Goal"), text: String(i.text), baseline, target, unit: String(i.unit || ""), direction: target < baseline ? "down" : "up", startDate: String(i.startDate || ""), targetDate: String(i.targetDate || ""), points: [] };
+  });
   add("lessons", "lessons", items.lessons, (r) => fold(r.title, r.date), (i) => i);
   add("schedules", "schedules", items.schedules, (r) => fold(r.student, r.day, r.start, r.label), (i) => i);
   add("parentLogs", "parentLogs", items.parentLogs, (r) => fold(r.student, r.date, r.message), (i) => i);

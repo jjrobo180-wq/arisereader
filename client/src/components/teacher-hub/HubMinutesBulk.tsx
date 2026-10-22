@@ -13,6 +13,7 @@ import {
   PUSH_IN, QUICK_MINUTES, blockGroups, bulkLine, bulkResult, cleanName, cleanReadRows, joinsPlan, knownName, linePlan, lineText, minuteNames, placeRead,
   type BulkCommon, type BulkMode, type BulkPick, type BulkPicks, type BulkResult, type ReadRow,
 } from "@shared/hubMinutesBulk";
+import { MINUTE_SUBJECTS } from "@shared/hubSubjects";
 import { HUB_IMPORT_LIMITS, type ServicePlan, type Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, Labeled, PrimaryButton, Select } from "./ui";
 import { HubModal } from "./HubModal";
@@ -68,7 +69,7 @@ export function ClassFields({ hasBlock, pushIn, part, teacher, known, usual = fa
 }) {
   if (!hasBlock && !pushIn) return null;
   return (
-    <div className="grid gap-3" data-testid="class-fields">
+    <div className="grid grid-cols-1 gap-3" data-testid="class-fields">
       {hasBlock && (
         <div>
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Part of the block</span>
@@ -216,7 +217,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
   return (
     <HubModal title={title} label="Minutes for several students" onClose={reading ? undefined : onClose}
       footer={<div className="flex flex-wrap items-center gap-2"><PrimaryButton onClick={() => { if (ready) onSave(result); }} disabled={!ready}>{saveLabel}</PrimaryButton><GhostButton onClick={onClose}>Cancel</GhostButton>{waiting && <span className="text-xs text-slate-500" data-testid="bulk-waiting">{waiting}</span>}</div>}>
-      <div className={`grid gap-4 ${dragging ? "rounded-2xl ring-4 ring-teal-300" : ""}`} onPaste={onPaste} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop} data-testid="bulk-form">
+      <div className={`grid grid-cols-1 gap-4 ${dragging ? "rounded-2xl ring-4 ring-teal-300" : ""}`} onPaste={onPaste} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop} data-testid="bulk-form">
         <div>
           <div role="tablist" aria-label="What to do with the minutes" className="flex gap-1 rounded-2xl bg-slate-100 p-1" data-testid="bulk-mode">
             {([["plan", "Every week"], ["log", "Just this day"]] as const).map(([mode, label]) => (
@@ -248,6 +249,7 @@ export function BulkMinutesModal({ workspace, today, token, start, onSave, onClo
           {!plan && <Labeled label="Date"><Field type="date" value={common.date} onChange={(e) => set({ date: e.target.value })} aria-label="Date" /></Labeled>}
           <Labeled label="Block"><Select value={common.block} onChange={(e) => set({ block: e.target.value })} aria-label="Block for everyone"><option value="">{plan ? "No block" : "Their usual block"}</option>{blocks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Labeled>
           <Labeled label="Kind"><Select value={common.kind} onChange={(e) => set({ kind: e.target.value })} aria-label="Kind for everyone">{!plan && <option value="">Their usual kind</option>}{SERVICE_KINDS.map((k) => <option key={k}>{k}</option>)}</Select></Labeled>
+          <Labeled label="Subject"><Select value={common.subject || ""} onChange={(e) => set({ subject: e.target.value })} aria-label="Subject for everyone" data-testid="bulk-subject"><option value="">{plan ? "No subject" : "Their usual subject"}</option>{MINUTE_SUBJECTS.map((x) => <option key={x}>{x}</option>)}</Select></Labeled>
           {!plan && <Labeled label="Note (optional)"><Field value={common.note} onChange={(e) => set({ note: e.target.value })} maxLength={200} aria-label="Note" /></Labeled>}
         </div>
 

@@ -1,9 +1,12 @@
 import { monthStartMs, nextYearMonth } from "./schoolTime";
+import { bookKey } from "../shared/bookIdentity";
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { supabase, getAdminSupabase } from "./supabase";
 import bcrypt from "bcryptjs";
 import { lookupPages } from "./bookPages";
 import { cleanPages, pointsForBook } from "../shared/bookPoints";
+import { EYE_GAZE_LESSONS, lessonRows } from "../shared/eyegaze/lessons";
+import { lessonsToHide, planQuestions, rowDiffers } from "./eyeGazeLessonSync";
 
 let bookQuizzes: any[] = [];
 
@@ -44,6 +47,22 @@ const inMonth = (iso: unknown, startMs: number, endMs: number) => {
   const t = typeof iso === "string" ? Date.parse(iso) : NaN;
   return Number.isFinite(t) && t >= startMs && t < endMs;
 };
+
+/** A student's points between two times: passed book quizzes (worth what the database says),
+ *  10 for each passed eye-gaze quiz, plus points a teacher gave (already summed for the window). */
+function windowPoints(user: any, startMs: number, endMs: number, manualPoints: number) {
+  const attempts = (user.attempts || []).filter((a: any) => Number(a.book_id) > 0 && inMonth(a.completed_at, startMs, endMs));
+  const eyeGaze = (user.eye_gaze_attempts || []).filter((a: any) => a.total > 0 && inMonth(a.completed_at, startMs, endMs));
+  const customEyeGaze = (user.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0 && inMonth(a.completed_at, startMs, endMs));
+  const passedQuiz = (a: any) => Number(a.total) > 0 && Number(a.score) >= Math.ceil(Number(a.total) * 0.7);
+  const points = attempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0)
+    + eyeGaze.filter(passedQuiz).length * 10 + customEyeGaze.filter(passedQuiz).length * 10 + manualPoints;
+  return {
+    points,
+    quizzesTaken: attempts.length + eyeGaze.length + customEyeGaze.length,
+    quizzesPassed: attempts.filter(passedQuiz).length + eyeGaze.filter(passedQuiz).length + customEyeGaze.filter(passedQuiz).length,
+  };
+}
 
 /** A quiz attempt that was already turned in. */
 export class AlreadySubmittedError extends Error {
@@ -134,11 +153,14 @@ function mapUser(row: any) {
     is_eye_gaze_user: row.is_eye_gaze_user,
     role: row.role || 'student',
     teacherId: row.teacher_id || null,
+    directoryTeacherName: row.directory_teacher_name || null,
     approvedByTeacher: row.approved_by_teacher !== false,
     accountApproved: row.account_approved !== false,
     email: row.email || null,
     school_id: row.school_id || null,
     archivedAt: row.archived_at || null,
+    studentNumber: row.student_number || null,
+    mustChangePassword: !!row.must_change_password,
   };
 }
 
@@ -292,7 +314,9 @@ export async function seedData() {
 export interface IStorage {
   getUser(id: number): Promise<any>;
   getUserByUsername(username: string): Promise<any>;
-  createUser(user: { username: string; password: string; displayName: string; schoolId?: number | null }): Promise<any>;
+  createUser(user: { username: string; password: string; displayName: string; schoolId?: number | null; studentNumber?: string | null; mustChangePassword?: boolean }): Promise<any>;
+  getUserByStudentNumber(studentNumber: string): Promise<any>;
+  setPasswordAndClearMustChange(userId: number, newPassword: string): Promise<void>;
   resetPassword(userId: number, newPassword: string): Promise<void>;
   getAllUsers(): Promise<any[]>;
   createSession(userId: number): Promise<any>;
@@ -302,6 +326,9 @@ export interface IStorage {
   getBook(id: number): Promise<any>;
   getQuestionsByBook(bookId: number): Promise<any[]>;
   getAttempt(userId: number, bookId: number): Promise<any>;
+  getAttemptAnyCopy(userId: number, bookId: number): Promise<any>;
+  findSameBook(title: string, author: string): Promise<any>;
+  sameBookIds(bookId: number): Promise<number[]>;
   createAttempt(userId: number, bookId: number, score: number, total: number, answers?: Record<string, string>, effectivePoints?: number, proctor?: { type: "parent" | "teacher" | "camera"; userId?: number | null; name: string } | null): Promise<any>;
   getUserAttempts(userId: number): Promise<any[]>;
   setAttemptPoints(attemptId: number, points: number): Promise<{ before: number; after: number } | null>;
@@ -341,22 +368,24 @@ export interface IStorage {
   getClassStats(schoolId: number): Promise<any[]>;
   // Monthly leaderboard
   getMonthlyLeaderboard(yearMonth: string): Promise<any[]>;
+  getPointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
+  getQuizzesBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>>;
   // Advisory leaderboard (grouped by teacher)
   getAdvisoryLeaderboard(): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: number) {
-    const data = await fetchSingle(supabase.from("users").select("*").eq("id", id).single());
+    const data = await fetchSingle(supabase.from("users").select("*").eq("id", id).maybeSingle());
     return mapUser(data);
   }
 
   async getUserByUsername(username: string) {
-    const data = await fetchSingle(supabase.from("users").select("*").eq("username", username).single());
+    const data = await fetchSingle(supabase.from("users").select("*").eq("username", username).maybeSingle());
     return mapUser(data);
   }
 
-  async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null }) {
+  async createUser(user: { username: string; password: string; displayName: string; isEyeGazeUser?: boolean; role?: string; teacherId?: number | null; directoryTeacherName?: string | null; approvedByTeacher?: boolean; accountApproved?: boolean; email?: string | null; schoolId?: number | null; studentNumber?: string | null; mustChangePassword?: boolean }) {
     const { data, error } = await supabase
       .from("users")
       .insert({
@@ -367,10 +396,13 @@ export class DatabaseStorage implements IStorage {
         is_eye_gaze_user: user.isEyeGazeUser || false,
         role: user.role || 'student',
         teacher_id: user.teacherId ?? null,
+        directory_teacher_name: user.directoryTeacherName ?? null,
         approved_by_teacher: user.approvedByTeacher ?? true,
         account_approved: user.accountApproved ?? true,
         email: user.email || null,
         school_id: user.schoolId ?? null,
+        student_number: user.studentNumber ?? null,
+        must_change_password: user.mustChangePassword ?? false,
       })
       .select()
       .single();
@@ -379,6 +411,19 @@ export class DatabaseStorage implements IStorage {
     clearCache('leaderboard');
     clearCache('monthlyLeaderboard');
     return mapUser(data);
+  }
+
+  async getUserByStudentNumber(studentNumber: string) {
+    const { data } = await supabase.from("users").select("*").eq("student_number", studentNumber).maybeSingle();
+    return mapUser(data);
+  }
+
+  /** Sets a new password directly, with no current-password check — used for the
+   *  forced "set your own password" step after a teacher bulk-adds a student with
+   *  a default password (their student number), and also clears the flag. */
+  async setPasswordAndClearMustChange(userId: number, newPassword: string) {
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await supabase.from("users").update({ password: hashed, must_change_password: false }).eq("id", userId);
   }
 
   async resetPassword(userId: number, newPassword: string) {
@@ -396,7 +441,7 @@ export class DatabaseStorage implements IStorage {
   async createSession(userId: number) {
     const token = crypto.randomUUID();
     const data = await fetchSingle(
-      supabase.from("sessions").insert({ token, user_id: userId }).select().single()
+      supabase.from("sessions").insert({ token, user_id: userId }).select().maybeSingle()
     );
     if (!data) throw new Error("Failed to create session");
     cache.delete('session_' + token);
@@ -406,11 +451,11 @@ export class DatabaseStorage implements IStorage {
   async getSession(token: string) {
     return cached('session_' + token, 120000, async () => {
       const session = await fetchSingle(
-        supabase.from("sessions").select("*").eq("token", token).single()
+        supabase.from("sessions").select("*").eq("token", token).maybeSingle()
       );
       if (!session) return null;
       const user = await fetchSingle(
-        supabase.from("users").select("*").eq("id", session.user_id).single()
+        supabase.from("users").select("*").eq("id", session.user_id).maybeSingle()
       );
       // An archived profile is signed out everywhere.
       if (!user || user.archived_at) return null;
@@ -455,7 +500,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBook(id: number) {
-    const data = await fetchSingle(supabase.from("books").select("*").eq("id", id).single());
+    const data = await fetchSingle(supabase.from("books").select("*").eq("id", id).maybeSingle());
     return mapBook(data);
   }
 
@@ -466,9 +511,37 @@ export class DatabaseStorage implements IStorage {
     return data.map(mapQuestion).filter((q): q is NonNullable<ReturnType<typeof mapQuestion>> => !!q);
   }
 
+  /** A book already on the shelf that is the same book as this title and author, if any. */
+  async findSameBook(title: string, author: string) {
+    const key = bookKey(title, author);
+    if (!key) return null;
+    const { data } = await supabase.from("books").select("*").order("id");
+    return (data || []).find((b: any) => bookKey(b.title, b.author) === key) || null;
+  }
+
+  /** Every copy of the same book as this one (itself included), so a quiz can't be taken twice under two copies. */
+  async sameBookIds(bookId: number): Promise<number[]> {
+    const { data: book } = await supabase.from("books").select("title, author").eq("id", bookId).maybeSingle();
+    const key = book ? bookKey(book.title, book.author) : "";
+    if (!key) return [bookId];
+    const { data } = await supabase.from("books").select("id, title, author");
+    const ids = (data || []).filter((b: any) => bookKey(b.title, b.author) === key).map((b: any) => Number(b.id));
+    return ids.includes(bookId) ? ids : [bookId, ...ids];
+  }
+
+  /** This student's attempt at this book, under this copy or any other copy of the same book. */
+  async getAttemptAnyCopy(userId: number, bookId: number) {
+    const own = await this.getAttempt(userId, bookId);
+    if (own) return own;
+    const ids = (await this.sameBookIds(bookId)).filter((id) => id !== bookId);
+    if (!ids.length) return null;
+    const { data } = await supabase.from("attempts").select("*").eq("user_id", userId).in("book_id", ids).limit(1);
+    return data && data[0] ? mapAttempt(data[0]) : null;
+  }
+
   async getAttempt(userId: number, bookId: number) {
     const data = await fetchSingle(
-      supabase.from("attempts").select("*").eq("user_id", userId).eq("book_id", bookId).single()
+      supabase.from("attempts").select("*").eq("user_id", userId).eq("book_id", bookId).maybeSingle()
     );
     return mapAttempt(data);
   }
@@ -487,7 +560,7 @@ export class DatabaseStorage implements IStorage {
     if (effectivePoints !== undefined && effectivePoints !== null) {
       bookPoints = Number(effectivePoints);
     } else {
-      const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).single());
+      const book = await fetchSingle(supabase.from("books").select("points_value").eq("id", bookId).maybeSingle());
       bookPoints = Number(book?.points_value ?? 0);
     }
     const passingScore = Math.ceil(total * 0.70);
@@ -504,7 +577,7 @@ export class DatabaseStorage implements IStorage {
         proctor_type: proctor?.type || null,
         proctor_user_id: proctor?.userId ?? null,
         proctor_name: proctor?.name || null,
-      }).select().single()
+      }).select().maybeSingle()
     );
     if (!data) throw new Error("Failed to create attempt");
     // Update user's total_points
@@ -523,7 +596,7 @@ export class DatabaseStorage implements IStorage {
 
   /** Sets one attempt's points (for example when a reviewer removes them) and moves the student's total by the difference. */
   async setAttemptPoints(attemptId: number, points: number) {
-    const row = await fetchSingle(supabase.from("attempts").select("user_id, points_earned").eq("id", attemptId).single());
+    const row = await fetchSingle(supabase.from("attempts").select("user_id, points_earned").eq("id", attemptId).maybeSingle());
     if (!row) return null;
     const before = Number(row.points_earned || 0);
     const after = Math.max(0, Number(points) || 0);
@@ -561,7 +634,7 @@ export class DatabaseStorage implements IStorage {
         sender_type: senderType,
         message_text: text,
         link_url: linkUrl || null,
-      }).select().single()
+      }).select().maybeSingle()
     );
     if (!data) throw new Error("Failed to create message");
     return mapMessage(data);
@@ -791,7 +864,7 @@ export class DatabaseStorage implements IStorage {
 
   async getStudentDetail(userId: number) {
     const user = await fetchSingle(
-      supabase.from("users").select("*").eq("id", userId).single()
+      supabase.from("users").select("*").eq("id", userId).maybeSingle()
     );
     if (!user) return null;
 
@@ -868,6 +941,19 @@ export class DatabaseStorage implements IStorage {
       if (pages === null && book.title && book.author) pages = await lookupPages(book.title, book.author);
       resolvedPoints = pointsForBook({ band: book.gradeBand || book.ageGroup, pages });
     }
+    // One copy of each book: the same book already here keeps its quiz (or gets this one if it
+    // had none) instead of a second copy appearing on the shelf (shared/bookIdentity.ts).
+    const twin = await this.findSameBook(book.title, book.author);
+    if (twin) {
+      const { count } = await supabase.from("questions").select("id", { count: "exact", head: true }).eq("book_id", twin.id);
+      if (!count && quizQuestions.length) {
+        const rows = quizQuestions.map((q, i) => ({ book_id: twin.id, question_text: q.question, option_a: q.options[0], option_b: q.options[1], option_c: q.options[2], option_d: q.options[3], correct_answer: q.correct, question_order: i }));
+        const { error } = await supabase.from("questions").insert(rows);
+        if (error) throw new Error(error.message);
+      }
+      clearCache('allBooks');
+      return mapBook(twin);
+    }
     const { data: created, error: bookError } = await supabase
       .from("books")
       .insert({
@@ -940,7 +1026,7 @@ export class DatabaseStorage implements IStorage {
 
   // Change password
   async changePassword(userId: number, currentPassword: string, newPassword: string) {
-    const user = await fetchSingle(supabase.from("users").select("password").eq("id", userId).single());
+    const user = await fetchSingle(supabase.from("users").select("password").eq("id", userId).maybeSingle());
     if (!user) throw new Error("User not found");
     const valid = await bcrypt.compare(currentPassword, user.password);
     if (!valid) throw new Error("Current password is incorrect");
@@ -976,7 +1062,7 @@ export class DatabaseStorage implements IStorage {
 
   // Proctor password
   async getNotifsSeenAt(): Promise<string> {
-    const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "notifs_seen_at").single());
+    const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "notifs_seen_at").maybeSingle());
     return data?.value || "";
   }
 
@@ -989,7 +1075,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNotifSeenAt(key: string): Promise<string> {
-    const data = await fetchSingle(supabase.from("settings").select("value").eq("key", `${key}_seen_at`).single());
+    const data = await fetchSingle(supabase.from("settings").select("value").eq("key", `${key}_seen_at`).maybeSingle());
     return data?.value || "";
   }
 
@@ -1006,7 +1092,7 @@ export class DatabaseStorage implements IStorage {
 
   async getProctorPassword(): Promise<string> {
     return cached('proctorPassword', 300000, async () => {
-      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "proctor_password").single());
+      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "proctor_password").maybeSingle());
       return data?.value || "";
     });
   }
@@ -1024,7 +1110,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAnnouncement(): Promise<string> {
     return cached('announcement', 300000, async () => {
-      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "announcement").single());
+      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", "announcement").maybeSingle());
       return data?.value || "";
     });
   }
@@ -1041,7 +1127,7 @@ export class DatabaseStorage implements IStorage {
 
   async getSetting(key: string): Promise<string> {
     return cached(`setting_${key}`, 300000, async () => {
-      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", key).single());
+      const data = await fetchSingle(supabase.from("settings").select("value").eq("key", key).maybeSingle());
       return data?.value || "";
     });
   }
@@ -1237,38 +1323,63 @@ export class DatabaseStorage implements IStorage {
 
       const result = [];
       for (const user of monthlyUsers) {
-        const monthlyAttempts = (user.attempts || []).filter((a: any) => Number(a.book_id) > 0 && inMonth(a.completed_at, startMs, endMs));
-        const monthlyPoints = monthlyAttempts.reduce((sum: number, a: any) => sum + Number(a.points_earned || 0), 0);
-
-        const monthlyEyeGaze = (user.eye_gaze_attempts || []).filter((a: any) => a.total > 0 && inMonth(a.completed_at, startMs, endMs));
-        const eyeGazePoints = monthlyEyeGaze.reduce((sum: number, a: any) => {
-          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
-          return sum + (passed ? 10 : 0);
-        }, 0);
-
-        const monthlyCustomEyeGaze = (user.custom_eye_gaze_attempts || []).filter((a: any) => a.status === "completed" && a.total > 0 && inMonth(a.completed_at, startMs, endMs));
-        const customEyeGazePoints = monthlyCustomEyeGaze.reduce((sum: number, a: any) => {
-          const passed = a.total > 0 && a.score >= Math.ceil(a.total * 0.7);
-          return sum + (passed ? 10 : 0);
-        }, 0);
-
-        const totalMonthlyPoints = monthlyPoints + eyeGazePoints + customEyeGazePoints + (manualByStudent.get(user.id) || 0);
-        const totalMonthlyQuizzes = monthlyAttempts.length + monthlyEyeGaze.length + monthlyCustomEyeGaze.length;
-        const passedQuiz = (a: any) => Number(a.total) > 0 && Number(a.score) >= Math.ceil(Number(a.total) * 0.7);
-        const monthlyPassed = monthlyAttempts.filter(passedQuiz).length + monthlyEyeGaze.filter(passedQuiz).length + monthlyCustomEyeGaze.filter(passedQuiz).length;
-        if (totalMonthlyQuizzes > 0 || (manualByStudent.get(user.id) || 0) > 0) {
+        const w = windowPoints(user, startMs, endMs, manualByStudent.get(user.id) || 0);
+        if (w.quizzesTaken > 0 || (manualByStudent.get(user.id) || 0) > 0) {
           result.push({
             id: user.id,
             username: user.username,
             displayName: user.display_name,
-            totalPoints: totalMonthlyPoints,
-            quizzesTaken: totalMonthlyQuizzes,
-            quizzesPassed: monthlyPassed,
+            totalPoints: w.points,
+            quizzesTaken: w.quizzesTaken,
+            quizzesPassed: w.quizzesPassed,
             totalBooks,
           });
         }
       }
       return result.sort((a, b) => b.totalPoints - a.totalPoints);
+    });
+  }
+
+  /** Each student's points earned between two times (the Advisory Challenge's window), counted the
+   *  same way as the monthly leaderboard: quizzes, eye-gaze quizzes and points a teacher gave. */
+  async getPointsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>> {
+    const stats = await this.windowStatsBetween(userIds, startMs, endMs, fromDay, endDayExclusive);
+    return new Map([...stats].map(([id, w]) => [id, w.points]));
+  }
+
+  /** How many quizzes each student took between two times (book quizzes and eye-gaze quizzes,
+   *  passed or not): the Advisory Challenge's "books read". */
+  async getQuizzesBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, number>> {
+    const stats = await this.windowStatsBetween(userIds, startMs, endMs, fromDay, endDayExclusive);
+    return new Map([...stats].map(([id, w]) => [id, w.quizzesTaken]));
+  }
+
+  private async windowStatsBetween(userIds: number[], startMs: number, endMs: number, fromDay: string, endDayExclusive: string): Promise<Map<number, ReturnType<typeof windowPoints>>> {
+    const ids = Array.from(new Set(userIds.filter((n) => Number.isFinite(n) && n > 0)));
+    const out = new Map<number, ReturnType<typeof windowPoints>>();
+    if (!ids.length) return out;
+    return cached(`pointsBetween_${startMs}_${endMs}_${ids.length}_${ids[0]}_${ids[ids.length - 1]}`, 60000, async () => {
+      const manual = new Map<number, number>();
+      const users: any[] = [];
+      for (let i = 0; i < ids.length; i += 200) {
+        const chunk = ids.slice(i, i + 200);
+        users.push(...await fetchList(
+          supabase.from("users").select(
+            "id, " +
+            "attempts:attempts!attempts_user_id_fkey(points_earned, completed_at, book_id, score, total), " +
+            "eye_gaze_attempts:eye_gaze_attempts!eye_gaze_attempts_user_id_fkey(score, total, completed_at), " +
+            "custom_eye_gaze_attempts:custom_eye_gaze_attempts!custom_eye_gaze_attempts_user_id_fkey(score, total, status, completed_at)"
+          ).in("id", chunk)
+        ));
+        if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          const { data, error } = await getAdminSupabase().from("manual_point_awards")
+            .select("student_id, points").in("student_id", chunk).gte("earned_on", fromDay).lt("earned_on", endDayExclusive);
+          if (error) throw new Error(error.message);
+          for (const a of data || []) manual.set(a.student_id, (manual.get(a.student_id) || 0) + Number(a.points || 0));
+        }
+      }
+      for (const u of users) out.set(Number(u.id), windowPoints(u, startMs, endMs, manual.get(u.id) || 0));
+      return out;
     });
   }
 
@@ -1357,7 +1468,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPassage(passageId: number): Promise<any | null> {
     return cached(`passage_${passageId}`, 300000, async () => {
-      return fetchSingle(supabase.from("reading_passages").select("*").eq("id", passageId).single());
+      return fetchSingle(supabase.from("reading_passages").select("*").eq("id", passageId).maybeSingle());
     });
   }
 
@@ -1492,7 +1603,7 @@ export class DatabaseStorage implements IStorage {
 
   async getReadingProfile(userId: number): Promise<any | null> {
     return cached(`reading_profile_${userId}`, 120000, async () => {
-      return fetchSingle(supabase.from("reading_profiles").select("*").eq("user_id", userId).single());
+      return fetchSingle(supabase.from("reading_profiles").select("*").eq("user_id", userId).maybeSingle());
     });
   }
 
@@ -1535,7 +1646,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAssessmentAttempt(attemptId: number): Promise<any | null> {
-    return fetchSingle(supabase.from("reading_assessment_attempts").select("*").eq("id", attemptId).single());
+    return fetchSingle(supabase.from("reading_assessment_attempts").select("*").eq("id", attemptId).maybeSingle());
   }
 
   // Set reading level from i-Ready scores (bypasses initial assessment)
@@ -1698,7 +1809,7 @@ export class DatabaseStorage implements IStorage {
         .in("status", ["reading", "questions"])
         .order("created_at", { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
     );
     if (existing) {
       let activeAttempt = existing;
@@ -1867,7 +1978,7 @@ export class DatabaseStorage implements IStorage {
     if (error) throw new Error(error.message);
 
     // Send notification message to student
-    await this.sendMessage(userId, undefined, "system", "You have been assigned a reading assessment retake. Visit the Progress Monitor to take it.");
+    await this.createMessage(userId, "system", "You have been assigned a reading assessment retake. Visit the Progress Monitor to take it.").catch(() => {});
     clearCache(`reading_profile_${userId}`);
     clearCache(`reading_recommendations_${userId}`);
     return data;
@@ -1899,7 +2010,50 @@ export class DatabaseStorage implements IStorage {
     return data || [];
   }
 
+  /**
+   * School leadership accounts (a principal, an LT login): teacher accounts listed by id in the
+   * "school_leader_ids" setting (a JSON array). They act as the teacher of every student at their
+   * own school. Returns that school's id, or null for an ordinary account.
+   */
+  async schoolLeaderSchool(userId: number): Promise<number | null> {
+    const scope = await this.schoolStaffScope(userId);
+    return scope && !scope.eyeGazeOnly ? scope.schoolId : null;
+  }
+
+  /**
+   * Shared school-staff accounts and whom they reach. "school_leader_ids": every student at their
+   * school. "eye_gaze_staff_ids" (an eye-gaze support team, e.g. the Hive): only the eye-gaze
+   * students at their school. Both are JSON arrays of teacher account ids. Null = an ordinary account.
+   */
+  async schoolStaffScope(userId: number): Promise<{ schoolId: number; eyeGazeOnly: boolean } | null> {
+    const idsOf = async (key: string) => {
+      try { const raw = JSON.parse((await this.getSetting(key)) || "[]"); return Array.isArray(raw) ? raw.map(Number) : []; } catch { return []; }
+    };
+    const leader = (await idsOf("school_leader_ids")).includes(Number(userId));
+    const eyeGaze = !leader && (await idsOf("eye_gaze_staff_ids")).includes(Number(userId));
+    if (!leader && !eyeGaze) return null;
+    const user: any = await this.getUser(Number(userId));
+    const schoolId = Number(user?.school_id ?? user?.schoolId);
+    return user && user.role === "teacher" && !user.archivedAt && schoolId > 0 ? { schoolId, eyeGazeOnly: eyeGaze } : null;
+  }
+
   async getTeacherStudents(teacherId: number): Promise<any[]> {
+    const scope = await this.schoolStaffScope(teacherId);
+    if (scope) {
+      let q = supabase
+        .from("users")
+        .select("*")
+        .eq("school_id", scope.schoolId);
+      if (scope.eyeGazeOnly) q = q.eq("is_eye_gaze_user", true);
+      const { data, error } = await q
+        .eq("is_admin", false)
+        .or("role.eq.student,role.is.null")
+        .is("archived_at", null)
+        .order("display_name", { ascending: true })
+        .range(0, 4999);
+      if (error) throw new Error(error.message);
+      return (data || []).map(mapUser);
+    }
     const { data, error } = await supabase
       .from("users")
       .select("*")
@@ -1961,10 +2115,28 @@ export class DatabaseStorage implements IStorage {
         .select("*")
         .eq("is_active", true)
         .order("level", { ascending: true })
+        .order("sort_order", { ascending: true })
         .order("id", { ascending: true });
       if (error) throw new Error(error.message);
       return data || [];
     });
+  }
+
+  /** A student's finished Eye Gazer lessons: quiz id → the scored (first) try. */
+  async getEyeGazeCompletions(userId: number): Promise<Map<number, { score: number; total: number; completedAt: string | null }>> {
+    const { data, error } = await supabase
+      .from("eye_gaze_attempts")
+      .select("quiz_id, score, total, completed_at")
+      .eq("user_id", userId)
+      .eq("status", "completed")
+      .order("completed_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    const done = new Map<number, { score: number; total: number; completedAt: string | null }>();
+    for (const row of data || []) {
+      const quizId = Number(row.quiz_id);
+      if (!done.has(quizId)) done.set(quizId, { score: Number(row.score || 0), total: Number(row.total || 0), completedAt: row.completed_at || null });
+    }
+    return done;
   }
 
   async getEyeGazeQuiz(quizId: number): Promise<any> {
@@ -2008,7 +2180,7 @@ export class DatabaseStorage implements IStorage {
         .eq("status", "in_progress")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
     );
     if (existing) {
       if (proctor && (!existing.proctor_type || !existing.proctor_name)) {
@@ -2191,98 +2363,66 @@ export class DatabaseStorage implements IStorage {
     clearCache("session_"); // Clear session cache so authMiddleware returns fresh user data
   }
 
-  async seedEyeGazeQuizzes(): Promise<void> {
-    const { data: existing, error: checkError } = await supabase
-      .from("eye_gaze_quizzes")
-      .select("id")
-      .limit(1);
-    if (checkError) return;
-    if (existing && existing.length > 0) {
-      console.log("Eye gaze quizzes already seeded");
-      return;
+  /**
+   * Saves the built-in Eye Gazer lessons (shared/eyegaze/lessons.ts) into eye_gaze_quizzes and
+   * eye_gaze_questions, matched by lesson_key, and hides every other built-in quiz (the old set).
+   * Only rows that changed are written, so a normal restart costs a few reads. Nothing is ever
+   * deleted except extra questions of a lesson that got shorter: finished quizzes and points stay.
+   */
+  async syncEyeGazeLessons(): Promise<{ added: number; changed: number; retired: number }> {
+    const wanted = EYE_GAZE_LESSONS.map((lesson, i) => lessonRows(lesson, i + 1));
+    const keys = new Set(wanted.map(w => w.quiz.lesson_key));
+    const { data: existing, error } = await supabase.from("eye_gaze_quizzes").select("*").not("lesson_key", "is", null);
+    if (error) throw new Error(error.message);
+    const byKey = new Map((existing || []).map((row: any) => [String(row.lesson_key), row]));
+    const ids = (existing || []).map((row: any) => Number(row.id));
+    let questions: any[] = [];
+    if (ids.length) {
+      const res = await supabase.from("eye_gaze_questions").select("*").in("quiz_id", ids);
+      if (res.error) throw new Error(res.error.message);
+      questions = res.data || [];
     }
-    const quizzes = JSON.parse(require("fs").readFileSync(__dirname + "/../passages/eye_gaze_quizzes.json", "utf-8"));
-    for (const quiz of quizzes) {
-      const { data: quizRow, error: quizError } = await supabase
-        .from("eye_gaze_quizzes")
-        .insert({
-          title: quiz.title,
-          description: quiz.description,
-          level: quiz.level,
-          cover_visual: quiz.cover_visual,
-          cover_visual_type: quiz.cover_visual_type || "emoji",
-          is_active: true,
-        })
-        .select()
-        .single();
-      if (quizError) {
-        console.error("Failed to insert eye gaze quiz:", quiz.title, quizError.message);
-        continue;
+    let added = 0, changed = 0;
+    for (const { quiz, questions: wantQuestions } of wanted) {
+      let row: any = byKey.get(quiz.lesson_key);
+      if (!row) {
+        const { data, error: insertError } = await supabase.from("eye_gaze_quizzes").insert(quiz).select().single();
+        if (insertError) throw new Error(insertError.message);
+        row = data; added++;
+      } else if (rowDiffers(row, quiz)) {
+        // (A lesson put back in the list shows again: its saved row says is_active true.)
+        const { error: updateError } = await supabase.from("eye_gaze_quizzes").update(quiz).eq("id", row.id);
+        if (updateError) throw new Error(updateError.message);
+        changed++;
       }
-      for (const q of quiz.questions) {
-        await supabase.from("eye_gaze_questions").insert({
-          quiz_id: quizRow.id,
-          prompt: q.prompt,
-          visual: q.visual,
-          visual_type: q.visual_type || "emoji",
-          option_a: q.option_a,
-          option_b: q.option_b,
-          option_c: q.option_c,
-          option_d: q.option_d,
-          correct_answer: q.correct_answer,
-          skill_type: q.skill_type,
-          question_order: q.question_order,
-        });
+      const plan = planQuestions(Number(row.id), questions.filter(q => Number(q.quiz_id) === Number(row.id)), wantQuestions);
+      if (plan.remove.length) {
+        const { error: deleteError } = await supabase.from("eye_gaze_questions").delete().in("id", plan.remove);
+        if (deleteError) throw new Error(deleteError.message);
       }
+      if (plan.insert.length) {
+        const { error: insertError } = await supabase.from("eye_gaze_questions").insert(plan.insert);
+        if (insertError) throw new Error(insertError.message);
+      }
+      for (const { id, values } of plan.update) {
+        const { error: updateError } = await supabase.from("eye_gaze_questions").update(values).eq("id", id);
+        if (updateError) throw new Error(updateError.message);
+      }
+      changed += plan.update.length + plan.remove.length;
     }
-    console.log("Eye gaze quizzes seeded successfully");
-  }
-
-  async seedExtraEyeGazeQuizzes(): Promise<void> {
-    // Insert the 20 additional quizzes (only those not already present by title)
-    const { data: existing } = await supabase
-      .from("eye_gaze_quizzes")
-      .select("title")
-      .eq("is_active", true);
-    const existingTitles = new Set((existing || []).map((q: any) => q.title));
-    const quizzes = JSON.parse(require("fs").readFileSync(__dirname + "/../passages/eye_gaze_quizzes_new.json", "utf-8"));
-    let added = 0;
-    for (const quiz of quizzes) {
-      if (existingTitles.has(quiz.title)) continue;
-      const { data: quizRow, error: quizError } = await supabase
-        .from("eye_gaze_quizzes")
-        .insert({
-          title: quiz.title,
-          description: quiz.description,
-          level: quiz.level,
-          cover_visual: quiz.cover_visual,
-          cover_visual_type: quiz.cover_visual_type || "emoji",
-          is_active: true,
-        })
-        .select()
-        .single();
-      if (quizError) {
-        console.error("Failed to insert eye gaze quiz:", quiz.title, quizError.message);
-        continue;
-      }
-      for (const q of quiz.questions) {
-        await supabase.from("eye_gaze_questions").insert({
-          quiz_id: quizRow.id,
-          prompt: q.prompt,
-          visual: q.visual,
-          visual_type: q.visual_type || "emoji",
-          option_a: q.option_a,
-          option_b: q.option_b,
-          option_c: q.option_c,
-          option_d: q.option_d,
-          correct_answer: q.correct_answer,
-          skill_type: q.skill_type,
-          question_order: q.question_order,
-        });
-      }
-      added++;
+    // Hide the old built-in quizzes (no lesson_key) and any lesson taken out of the list.
+    let retired = 0;
+    const old = await supabase.from("eye_gaze_quizzes").update({ is_active: false }).is("lesson_key", null).eq("is_active", true).select("id");
+    if (old.error) throw new Error(old.error.message);
+    retired += (old.data || []).length;
+    const stale = lessonsToHide(existing || [], keys);
+    if (stale.length) {
+      const res = await supabase.from("eye_gaze_quizzes").update({ is_active: false }).in("id", stale).select("id");
+      if (res.error) throw new Error(res.error.message);
+      retired += (res.data || []).length;
     }
-    console.log(`Extra eye gaze quizzes seeded: ${added} added`);
+    if (added || changed || retired) clearCache("eye_gaze_quizzes");
+    return { added, changed, retired };
   }
 
   // ─── CUSTOM EYE GAZE QUIZZES (Teacher/Parent created) ──────────────
@@ -2462,7 +2602,7 @@ export class DatabaseStorage implements IStorage {
         .eq("status", "in_progress")
         .order("id", { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
     );
     if (existing) {
       if (proctor && (!existing.proctor_type || !existing.proctor_name)) {
@@ -3181,9 +3321,9 @@ export class DatabaseStorage implements IStorage {
     // Get quiz accuracy trend
     const { data: quizAttempts } = await supabase
       .from('attempts')
-      .select('score, total, created_at')
+      .select('score, total, completed_at')
       .eq('user_id', studentId)
-      .order('created_at', { ascending: true });
+      .order('completed_at', { ascending: true });
     const quizAccuracy = quizAttempts && quizAttempts.length > 0
       ? Math.round((quizAttempts.reduce((sum: number, a: any) => sum + (a.score / a.total), 0) / quizAttempts.length) * 100)
       : 0;

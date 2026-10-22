@@ -9,14 +9,12 @@ export type PlanInfo = {
   /** Has the site admin turned plan rules on? */
   enforced: boolean;
   premium: boolean;
-  via: "rules-off" | "admin" | "demo" | "teacher-plan" | "school-plan" | "class" | "grandfathered" | "free-month" | null;
+  via: "rules-off" | "admin" | "demo" | "teacher-plan" | "school-plan" | "class" | "grandfathered" | null;
   seats: number | null;
   endsAt: string | null;
   /** Can Premium be bought online right now? */
   payment: boolean;
   prices: { teacherMonthlyCents: number; studentsPerBlock: number; maxBlocks: number; schoolYearlyCents: number; schoolStudentCap: number };
-  /** Teachers only: when their 30-day free trial ends, or ended. */
-  freeMonthEndsAt?: string;
   /** Teachers only. */
   students?: number;
   teacherPlan?: PlanView | null;
@@ -26,7 +24,7 @@ export type PlanInfo = {
 };
 export type HubInfo = {
   access: boolean;
-  via: "admin" | "hub-teacher-plan" | "hub-school-plan" | "free-month" | null;
+  via: "admin" | "free" | "hub-teacher-plan" | "hub-school-plan" | null;
   seats: number | null;
   endsAt: string | null;
   /** Students in the teacher's Hub caseload. */

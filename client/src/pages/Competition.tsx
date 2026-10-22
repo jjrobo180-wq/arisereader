@@ -584,7 +584,7 @@ export default function Competition() {
                           <h3 className="font-bold text-sm sm:text-base text-foreground">{adv.teacherName}'s Advisory</h3>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {adv.studentCount} student{adv.studentCount !== 1 ? "s" : ""} · {adv.quizzesCompleted} quiz{adv.quizzesCompleted !== 1 ? "zes" : ""} completed
+                          {adv.quizzesCompleted} book{adv.quizzesCompleted !== 1 ? "s" : ""} read
                         </p>
                       </div>
 

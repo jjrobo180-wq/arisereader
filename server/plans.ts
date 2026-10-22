@@ -9,9 +9,9 @@
 // "hub_school"), bought the same way. Plan rules, the free year and always-free
 // schools don't apply to it.
 //
-// Every teacher's first month is free, for Premium and Arise WorkHub alike (see
-// freeMonthFrom in shared/plans.ts). Nothing is stored for it: it is worked out
-// from the day the account was made.
+// Arise WorkHub is always free for a teacher or parent (see hubAccessFor). Premium
+// (Reader/Math/History for a teacher's class) has no free trial — a teacher pays
+// from day one, unless they are grandfathered or their school has a free plan.
 //
 // Two switches keep a live site safe:
 //   - Plan rules do nothing until the admin turns them on (setting "plans_enforced").
@@ -23,11 +23,14 @@
 import type { Express, RequestHandler } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
-  APP_IDS, APP_NAMES, PLANS, PLAN_KINDS, PREMIUM_REQUIRED, appAccessFor, appOfClassKind, classAppCents, classGrantCovers, classKindOf, clampBlocks, isAppId, isClassAppKind, entitlementFor, freeMonthEnd, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
+  APP_IDS, APP_NAMES, PLANS, PLAN_KINDS, PREMIUM_REQUIRED, appAccessFor, appOfClassKind, classAppCents, classGrantCovers, classKindOf, clampBlocks, isAppId, isClassAppKind, entitlementFor, grantLive, hubAccessFor, isAddonKind, isDemoAccount, isFreeSchoolName, isHubKind, isPlanKind, todoAccessFor,
   type AddonAccess, type AppId,
   isSchoolKind, parentCanLink, premiumMessage, priceOf, schoolKindOf, seatsFor,
   type Entitlement, type HubAccess, type PlanFacts, type PlanGrant, type PlanKind, type PlanPerson,
+  todoUnlimitedFor, stripeMode, cleanVipEmail, cleanVipList, onVipList, VIP_MAX, type VipEntry,
 } from "../shared/plans";
+import { TODO_PLAN_KINDS, infoFromGrant, stripeKeyMode, type PlanInfo } from "../shared/todoAdmin";
+import { AI_LIMIT, FAIR_USE, UNLIMITED_AI_PER_MONTH, UNLIMITED_MONTHLY_CENTS, UNLIMITED_NAME, UNLIMITED_YEARLY_OFFER, aiMonth } from "../shared/todoPlan";
 
 type AnyUser = {
   id: number; username?: string; displayName?: string; role?: string; isAdmin?: boolean; email?: string | null;
@@ -47,6 +50,8 @@ export type PlanDeps = {
   /** The signed-in user for a session token, or null. Used to check teachers before a route runs. */
   userForToken(token: string): Promise<AnyUser | null>;
   getUser(id: number): Promise<AnyUser | null | undefined>;
+  /** An account by its username, for putting an existing account on the VIP list. */
+  findUserByUsername?(username: string): Promise<AnyUser | null | undefined>;
   /** Approved students on a teacher's roster. */
   countTeacherStudents(teacherId: number): Promise<number>;
   /** Students at a school. */
@@ -83,6 +88,8 @@ const KEY = {
   /** A Checkout page that was opened and may have been paid: checked with Stripe until it resolves. */
   pending: (kind: PlanKind, id: number) => `plan_pending_${kind}_${id}`,
   index: "plan_index",
+  /** People given To-Do Unlimited by the admin, no payment (see VipEntry in shared/plans.ts). */
+  vip: "todo_vip",
   /** Schools the admin has made always free ("on"), and name-matched ones the admin has taken off ("off"). */
   freeSchools: "plans_free_schools",
   stripeKey: "stripe_secret_key",
@@ -90,10 +97,10 @@ const KEY = {
 };
 
 /** What a teacher without Premium may still reach: signing in and out, their plan, and paying for it. */
-const TEACHER_OPEN = ["/api/social", "/api/addons", "/api/teacher-hub", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
+const TEACHER_OPEN = ["/api/social", "/api/addons", "/api/teacher-hub", "/api/arise-todo", "/api/lifehub", "/api/hub-chat", "/api/hub-calendar", "/api/hub-files", "/api/hub-inbox", "/api/me", "/api/login", "/api/logout", "/api/auth", "/api/plan", "/api/billing", "/api/settings", "/api/banners", "/api/notifications", "/api/competition-settings", "/api/schools"];
 
 // Never 401 or 503 here: the app retries those for several seconds before showing the message.
-class Refused extends Error { constructor(message: string, readonly status = 400, readonly code?: string) { super(message); } }
+export class Refused extends Error { constructor(message: string, readonly status = 400, readonly code?: string) { super(message); } }
 
 const DAY = 86_400_000;
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -356,6 +363,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       endsAt: iso(endsAt), updatedAt: iso(at), buyerId: m.buyerId || undefined,
       stripeCustomerId: typeof sub.customer === "string" ? sub.customer : sub.customer?.id,
       stripeSubscriptionId: sub.id, stripeItemId: typeof item?.id === "string" ? item.id : undefined,
+      ...(sub.cancel_at_period_end === true && status === "active" ? { cancelAtPeriodEnd: true } : {}),
     };
   };
 
@@ -542,18 +550,18 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch { return { ok: true }; }
   };
 
-  /** Is there room on this teacher's plan for one more approved student? */
-  const seatCheck = async (teacher: AnyUser | null | undefined): Promise<{ ok: boolean; message?: string }> => {
+  /** Is there room on this teacher's plan for `count` more approved students (default 1)? */
+  const seatCheck = async (teacher: AnyUser | null | undefined, count = 1): Promise<{ ok: boolean; message?: string }> => {
     try {
       if (!teacher || teacher.isAdmin || teacher.role !== "teacher") return { ok: true };
       const e = await entitlement(teacher);
       if (e.via === "teacher-plan" && e.seats !== null) {
         const used = await deps.countTeacherStudents(teacher.id);
-        if (used >= e.seats) return { ok: false, message: `This teacher's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full. Another ${PLANS.teacher.studentsPerBlock} students can be added on the plan page.` };
+        if (used + count > e.seats) return { ok: false, message: `This teacher's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full. Another ${PLANS.teacher.studentsPerBlock} students can be added on the plan page.` };
       }
       if (e.via === "school-plan" && e.seats !== null && schoolOf(teacher)) {
         const used = await deps.countSchoolStudents(schoolOf(teacher)!);
-        if (used >= e.seats) return { ok: false, message: `The school's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full.` };
+        if (used + count > e.seats) return { ok: false, message: `The school's plan covers ${e.seats.toLocaleString("en-US")} students, and it is full.` };
       }
       return { ok: true };
     } catch { return { ok: true }; }
@@ -589,7 +597,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
             await applyStripeGrant({
               kind: m.kind, ownerId: m.ownerId, source: "stripe", status: "active",
               seats: priceOf(m.kind).seats(clampBlocks(obj?.metadata?.blocks)),
-              endsAt: iso(at + (isSchoolKind(m.kind) ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
+              endsAt: iso(at + (isSchoolKind(m.kind) || priceOf(m.kind).interval === "year" ? 366 : 32) * DAY), updatedAt: iso(at), buyerId: m.buyerId || undefined,
               stripeCustomerId: typeof obj.customer === "string" ? obj.customer : undefined, stripeSubscriptionId: obj.subscription,
             });
           }
@@ -631,14 +639,13 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       };
       if (user.role === "teacher" && !user.isAdmin) {
         const schoolId = schoolOf(user);
-        // When this teacher's free month ends, or ended.
-        body.freeMonthEndsAt = freeMonthEnd(user.createdAt);
         body.students = await deps.countTeacherStudents(user.id);
         body.teacherPlan = grantView(await readGrant("teacher", user.id));
         const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
         body.school = schoolId ? { id: schoolId, name: await deps.schoolName(schoolId), students: await deps.countSchoolStudents(schoolId), plan: grantView(schoolPlan) } : null;
       }
-      if (user.role === "teacher" || user.isAdmin) {
+      // Personal A.R.I.S.E. To-Do accounts have WorkHub too, so their plan page must say so.
+      if (user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) {
         const h = await hubAccess(user);
         const isTeacher = user.role === "teacher" && !user.isAdmin;
         body.hub = {
@@ -658,6 +665,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/billing/checkout", auth, async (req: any, res: any) => {
     try {
       if (isPlanKind(req.body?.kind) && isAddonKind(req.body.kind)) throw new Refused("Add-ons are bought with their own button.", 400);
+      if (isHubKind(req.body?.kind)) throw new Refused("A.R.I.S.E. To-Do Work and Life hubs are free. No payment is required.", 409);
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const hub = isHubKind(kind);
@@ -798,13 +806,18 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   // A teacher's class plan replaces a family's plan once it covers every child in the
   // family: the family plan is cancelled and the unused days refunded to the card.
 
-  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing" };
+  const ADDON_PAGES: Record<string, string> = { "/social/": "/social/", "/math/": "/math/", "/history/": "/history/", "/to-do": "/#/to-do", "/billing": "/#/billing", "/workhub": "/#/workhub", "/lifehub": "/#/lifehub" };
   const addonReturn = (req: any) => {
     const origin = new URL(siteOf(req)).origin;
     const asked = String(req.body?.returnPath || "/billing");
     const target = ADDON_PAGES[asked] ?? ADDON_PAGES["/billing"];
     const [path, hash] = target.split("#");
-    return { done: `${origin}${path}?paid={CHECKOUT_SESSION_ID}${hash ? `#${hash}` : ""}`, back: `${origin}${target}` };
+    // On arisetodo.com the app is served at /app and "/" is the educator landing page, so a
+    // hash-routed page has to be sent back to /app — otherwise someone who has just paid lands on
+    // marketing, the "?paid=" confirmation never runs, and the app goes on asking them to pay.
+    const onTodoSite = /^https:\/\/(www\.)?arisetodo\.com$/i.test(origin);
+    const base = onTodoSite && hash && (path === "" || path === "/") ? "/app" : path;
+    return { done: `${origin}${base}?paid={CHECKOUT_SESSION_ID}${hash ? `#${hash}` : ""}`, back: `${origin}${base}${hash ? `#${hash}` : ""}` };
   };
   const firstAndInitial = (name: unknown) => {
     const w = String(name || "").trim().split(/\s+/).filter(Boolean);
@@ -824,26 +837,34 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     if (!student || student.role !== "student" || student.approvedByTeacher === false || !posInt(student.teacherId)) return null;
     return teacherClassGrant(Number(student.teacherId), app);
   };
-  /** Are all of this parent's linked children (at least one) covered by class add-ons for these apps? */
+  /** Is this student covered for an app: an old per-app grant on their teacher, or (now) the teacher's Class plan, which includes every app. */
+  const studentCoveredFor = async (student: AnyUser | null | undefined, app: AppId): Promise<boolean> => {
+    if (!student || student.role !== "student" || student.approvedByTeacher === false || !posInt(student.teacherId)) return false;
+    if (await classPlanOf(student, app)) return true;
+    const teacher = await deps.getUser(Number(student.teacherId));
+    if (!teacher || teacher.role !== "teacher" || teacher.accountApproved === false) return false;
+    return (await entitlement(teacher)).premium;
+  };
+  /** Are all of this parent's linked children (at least one) covered by their teacher's class for these apps? */
   const childrenCoveredByClass = async (parent: AnyUser, apps: readonly AppId[] = APP_IDS): Promise<boolean> => {
     const ids = await linkedChildren(parent);
     if (!ids.length) return false;
     for (const id of ids) {
       const child = await deps.getUser(id);
-      for (const app of apps) if (!(await classPlanOf(child, app))) return false;
+      for (const app of apps) if (!(await studentCoveredFor(child, app))) return false;
     }
     return true;
   };
 
   /** Access to one app for this account, and why. Remembered briefly; a database hiccup lets the person in. */
   const appStatus = async (user: AnyUser | null | undefined, app: AppId): Promise<AddonAccess> => {
-    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null, trialEndsAt: null };
+    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null };
     const key = `${app}|${user.id}|${user.role || ""}|${user.isAdmin ? 1 : 0}`;
     const hit = addonCache.get(key);
     if (hit && now() - hit.at < CACHE_MS) return hit.value;
     try {
       const facts: Parameters<typeof appAccessFor>[2] = { now: now(), socialGrant: app === "social" ? await current("social", user.id) : null };
-      if (user.role === "teacher") facts.ownGrant = await teacherClassGrant(user.id, app);
+      if (user.role === "teacher") { facts.ownGrant = await teacherClassGrant(user.id, app); facts.classPremium = (await entitlement(user)).premium; }
       else if (user.role === "parent") {
         facts.ownGrant = await current("bundle_family", user.id);
         facts.allChildrenInClassPlans = await childrenCoveredByClass(user, [app]);
@@ -851,20 +872,24 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const parents = deps.studentParentIds ? await deps.studentParentIds(user.id) : [];
         facts.parentGrants = await Promise.all(parents.map((p) => current("bundle_family", p)));
         facts.classGrant = await classPlanOf(user, app);
+        if (user.role === "student" && user.approvedByTeacher !== false && posInt(user.teacherId)) {
+          const classTeacher = await deps.getUser(Number(user.teacherId));
+          if (classTeacher?.role === "teacher" && classTeacher.accountApproved !== false) facts.classPremium = (await entitlement(classTeacher)).premium;
+        }
       }
       const value = appAccessFor(person(user), app, facts);
       addonCache.set(key, { at: now(), value });
       return value;
     } catch (e: any) {
       console.error(`[plans] ${app} check failed:`, e?.message);
-      return { access: true, via: null, endsAt: null, trialEndsAt: null };
+      return { access: true, via: null, endsAt: null };
     }
   };
   const appAccess = async (user: AnyUser | null | undefined, app: AppId) => (await appStatus(user, app)).access;
   const socialAccess = (user: AnyUser | null | undefined) => appAccess(user, "social");
 
   const todoStatus = async (user: AnyUser | null | undefined): Promise<AddonAccess> => {
-    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null, trialEndsAt: null };
+    if (!user || !posInt(user.id)) return { access: false, via: null, endsAt: null };
     try {
       return todoAccessFor(person(user), {
         now: now(),
@@ -873,7 +898,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       });
     } catch (e: any) {
       console.error("[plans] LifeHub check failed:", e?.message);
-      return { access: true, via: null, endsAt: null, trialEndsAt: null };
+      return { access: true, via: null, endsAt: null };
     }
   };
 
@@ -944,6 +969,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (user.role !== "parent") throw new Refused("LifeHub plans are for parent accounts.", 403);
       return "todo_family";
     }
+    if (product === "unlimited" || product === "unlimited_year") {
+      if (user.role === "student" || (!user.role && !user.isAdmin)) throw new Refused("A.R.I.S.E. To-Do Unlimited is for adult accounts.", 403);
+      return product === "unlimited_year" ? "todo_unlimited_year" : "todo_unlimited";
+    }
     if (product === "bundle") {
       if (user.role === "teacher") throw new Refused("Teachers add Arise Math, Arise History and Arise Social for their class one at a time.", 400);
       if (user.role === "parent") return "bundle_family";
@@ -953,14 +982,10 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   };
   const addonView = async (user: AnyUser, kind: PlanKind, status: AddonAccess) => {
     const g = await readGrant(kind, user.id);
-    return {
-      ...status,
-      trialDaysLeft: status.trialEndsAt ? Math.max(0, Math.ceil((Date.parse(status.trialEndsAt) - now()) / DAY)) : null,
-      plan: grantView(g), paidByYou: !!g && g.buyerId === user.id && !!g.stripeCustomerId,
-    };
+    return { ...status, plan: grantView(g), paidByYou: !!g && g.buyerId === user.id && !!g.stripeCustomerId };
   };
 
-  /** Everything the add-on cards show: access, trial countdowns, plans and prices. */
+  /** Everything the add-on cards show: access, why, plans and prices. */
   app.get("/api/addons", auth, async (req: any, res: any) => {
     try {
       const user: AnyUser = req.adminPreview && req.realUser ? req.realUser : req.user;
@@ -975,18 +1000,16 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           if (grantLive(old, now())) apps[app] = { ...apps[app], plan: grantView(old), paidByYou: !!old && old.buyerId === user.id && !!old.stripeCustomerId, oldBundle: true };
         }
       }
-      // One summary for the three apps: the trial (the same for all three) and whether any of them is open.
+      // One summary for the three apps: whether any of them is open, and why.
       const all = APP_IDS.map((a) => apps[a]);
-      const trialEndsAt = all.find((a) => a.trialEndsAt)?.trialEndsAt ?? null;
       const bundle = user.role === "parent" || user.role === "student"
-        ? { ...apps.math, access: all.some((a) => a.access), via: all.every((a) => a.via === all[0].via) ? all[0].via : all.find((a) => a.via !== "trial")?.via ?? all[0].via }
-        : { access: all.some((a) => a.access), via: all.every((a) => a.via === "trial") ? "trial" : all.some((a) => a.access) ? "mixed" : null, endsAt: null, trialEndsAt,
-            trialDaysLeft: trialEndsAt ? Math.max(0, Math.ceil((Date.parse(trialEndsAt) - now()) / DAY)) : null, plan: null, paidByYou: false };
+        ? { ...apps.math, access: all.some((a) => a.access), via: all.every((a) => a.via === all[0].via) ? all[0].via : all[0].via }
+        : { access: all.some((a) => a.access), via: all.some((a) => a.access) ? "mixed" : null, endsAt: null, plan: null, paidByYou: false };
       const body: any = {
         role: user.isAdmin ? "admin" : user.role || "student",
-        payment: !!(await stripeKey()), trialDays: PLANS.trialDays,
+        payment: !!(await stripeKey()),
         prices: {
-          familyBundleCents: PLANS.bundle.familyMonthlyCents, todoCents: PLANS.todo.familyMonthlyCents, hubCents: PLANS.hub.monthlyCents,
+          familyBundleCents: PLANS.bundle.familyMonthlyCents, todoCents: 0, hubCents: 0,
           classSeats: PLANS.classApps.seats, classApps: Object.fromEntries(APP_IDS.map((a) => [a, classAppCents(a)])),
         },
         appNames: APP_NAMES,
@@ -996,8 +1019,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       if (user.role === "teacher" && !user.isAdmin) {
         const reading = await entitlement(user);
         body.premium = reading.premium;
-        // Why the teacher's reading plan is on (a free year, a free month, a plan) and until when,
-        // so the card can say the add-ons are a separate thing.
+        // Why the teacher's reading plan is on (a free year, a plan) and until when, so the card
+        // can say the add-ons are a separate thing.
         body.premiumVia = reading.via;
         body.premiumEndsAt = reading.endsAt;
         body.students = await deps.countTeacherStudents(user.id);
@@ -1009,7 +1032,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           const child = await deps.getUser(id);
           if (!child || child.role !== "student") continue;
           const covered: AppId[] = [];
-          for (const app of APP_IDS) if (await classPlanOf(child, app)) covered.push(app);
+          for (const app of APP_IDS) if (await studentCoveredFor(child, app)) covered.push(app);
           kids.push({ id, name: firstAndInitial(child.displayName), coveredByClass: covered.length === APP_IDS.length, coveredApps: covered });
         }
         body.children = kids;
@@ -1026,14 +1049,19 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const buyer: AnyUser = req.user;
       if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has every add-on.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
+      if (req.body?.product === "todo") throw new Refused("A.R.I.S.E. To-Do is free. No checkout is needed.", 409);
       const kind = productKind(buyer, req.body?.product);
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have this add-on. Use Manage billing to change it.", 409);
+      if (kind === "todo_unlimited" || kind === "todo_unlimited_year") {
+        if ((await todoUnlimited(buyer)).unlimited) throw new Refused("You're already on Unlimited. Use Manage billing to change it.", 409);
+        if (kind === "todo_unlimited_year" && !UNLIMITED_YEARLY_OFFER) throw new Refused("The yearly offer has ended. Unlimited is still available monthly.", 409);
+      }
       const app = appOfClassKind(kind);
       if (app) {
-        if (classGrantCovers(await current("bundle_teacher", buyer.id), app, now())) throw new Refused(`Your class plan already includes ${APP_NAMES[app]}.`, 409);
-        if (!(await entitlement(buyer)).premium) throw new Refused(`${APP_NAMES[app]} for a class is added on top of the Class plan. Get the Class plan on your plan page first.`, 409);
-        const students = await deps.countTeacherStudents(buyer.id);
-        if (students > PLANS.classApps.seats) throw new Refused(`A class add-on covers up to ${PLANS.classApps.seats} students, and you have ${students}.`, 409);
+        // The Class plan now includes Math, History and Connect for every student it covers —
+        // there is nothing left to sell separately to a teacher.
+        if (!(await entitlement(buyer)).premium) throw new Refused(`${APP_NAMES[app]} for a class is included with the Class plan. Get the Class plan on your plan page first.`, 409);
+        throw new Refused(`Your Class plan already includes ${APP_NAMES[app]} for your whole class. There's nothing extra to buy.`, 409);
       }
       if (kind === "bundle_family" && (await childrenCoveredByClass(buyer))) throw new Refused("Your children's teachers already cover Arise Math, Arise History and Arise Social for them, so there's nothing to buy.", 409);
       const pending = await readPending(kind, buyer.id);
@@ -1043,6 +1071,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       let customer: string | undefined;
       for (const k of PLAN_KINDS) { const g = await readGrant(k, buyer.id); if (g?.buyerId === buyer.id && g.stripeCustomerId) { customer = g.stripeCustomerId; break; } }
       const name = app ? `${APP_NAMES[app]} for a class (up to ${PLANS.classApps.seats} students)`
+        : kind === "todo_unlimited" ? UNLIMITED_NAME
+        : kind === "todo_unlimited_year" ? `${UNLIMITED_NAME}, yearly`
         : kind === "bundle_family" ? "A.R.I.S.E. Learning Bundle for a family (History, Math, Social)"
         : "Arise LifeHub for a family";
       const back = addonReturn(req);
@@ -1050,7 +1080,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         mode: "subscription",
         client_reference_id: `${kind}:${buyer.id}`,
         ...(customer ? { customer } : email ? { customer_email: email } : {}),
-        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: "month" }, product_data: { name } } }],
+        line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: priceOf(kind).cents, recurring: { interval: priceOf(kind).interval }, product_data: kind === "todo_unlimited" || kind === "todo_unlimited_year" ? { name, description: FAIR_USE.slice(0, 480) } : { name } } }],
         metadata,
         subscription_data: { metadata },
         success_url: back.done,
@@ -1081,6 +1111,74 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       res.json({ url: session.url });
     } catch (e) { fail(res, e, "add-on portal"); }
   });
+
+  // ─── A.R.I.S.E. To-Do: Free and the $5 upgrade ────────────────────────────
+  // Free: up to 3 App Store apps across both hubs, and no AI. Unlimited ($5 a month): every app,
+  // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
+  // can read the hubs.)
+  const readVip = async (fresh = false): Promise<VipEntry[]> => cleanVipList(parse<unknown>(await (fresh ? readFresh(KEY.vip) : read(KEY.vip)), []));
+  /** Is this person on the admin's VIP list? A failed read counts as "not on it" for the list, never as a crash. */
+  const onVip = async (user: AnyUser): Promise<boolean> => {
+    try {
+      const list = await readVip();
+      if (!list.length) return false;
+      // The session may carry only part of the account; the email and "switched on" flag come from the account itself.
+      const full = user.email === undefined || user.accountApproved === undefined ? ((await deps.getUser(user.id)) ?? user) : user;
+      return onVipList(list, full);
+    } catch (e: any) {
+      console.error("[plans] VIP list check failed:", e?.message);
+      return false;
+    }
+  };
+  const todoUnlimited = async (user: AnyUser) => {
+    // `current`, not `readGrant`: it looks up an unfinished Checkout with Stripe and syncs a
+    // subscription whose period has lapsed. Reading the saved grant alone meant a payment that
+    // the webhook never delivered — late, lost, or a webhook that was never set up — left someone
+    // who had paid being told to pay again, with nothing in the app ever going back to ask Stripe.
+    // Every other plan goes through `current`; To-Do Unlimited was the one that didn't.
+    const [unlimited, yearly, oldLifeHub, vip] = await Promise.all([current("todo_unlimited", user.id), current("todo_unlimited_year", user.id), current("todo_family", user.id), onVip(user)]);
+    return todoUnlimitedFor(user as PlanPerson, { unlimited, yearly, oldLifeHub, vip }, now());
+  };
+  const AI_KEY = (id: number) => `todo_ai_usage_u${id}`;
+  /** This month's AI uses for this person: the allowance, how many are used, and how many are left. */
+  const aiUsage = async (user: AnyUser) => {
+    const plan = await todoUnlimited(user);
+    const limit = plan.unlimited ? UNLIMITED_AI_PER_MONTH : 0;
+    const saved = parse<{ month?: string; count?: number }>(await read(AI_KEY(user.id)), {});
+    const used = saved.month === aiMonth(now()) ? Math.max(0, Number(saved.count) || 0) : 0;
+    return { limit, used, left: Math.max(0, limit - used), unlimited: plan.unlimited, admin: plan.via === "admin" };
+  };
+  /** Counts one AI use (after it worked). */
+  const countAiUse = async (user: AnyUser) => {
+    await serial(async () => {
+      const month = aiMonth(now());
+      const saved = parse<{ month?: string; count?: number }>(await read(AI_KEY(user.id)), {});
+      const count = saved.month === month ? Math.max(0, Number(saved.count) || 0) + 1 : 1;
+      await write(AI_KEY(user.id), JSON.stringify({ month, count }));
+    });
+  };
+  /**
+   * Express step in front of every hub AI route: answers 402 when this month's AI uses are gone,
+   * and counts a use once the route has answered successfully. Admins are never limited.
+   */
+  const aiMeter: RequestHandler = async (req: any, res: any, next: any) => {
+    try {
+      const user: AnyUser | undefined = req.adminPreview && req.realUser ? req.realUser : req.user;
+      if (!user) return next();
+      const usage = await aiUsage(user);
+      if (usage.admin) return next();
+      if (usage.left <= 0) {
+        return res.status(402).json({
+          code: AI_LIMIT, limit: usage.limit, used: usage.used, unlimited: usage.unlimited,
+          message: usage.unlimited
+            ? `You've reached this month's fair-use limit of ${usage.limit} AI uses. It resets on the 1st.`
+            : `AI is part of A.R.I.S.E. To-Do Unlimited: $${UNLIMITED_MONTHLY_CENTS / 100} a month for every app and AI.`,
+        });
+      }
+      res.on("finish", () => { if (res.statusCode < 400) void countAiUse(user).catch(() => {}); });
+      next();
+    } catch (e) { next(); }
+  };
 
   // ─── Admin ─────────────────────────────────────────────────────────────────
   /**
@@ -1129,9 +1227,8 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       res.set("Cache-Control", "no-store");
       res.json({
         enforced: await enforced(), plans: rows, freeSchools,
-        stripe: { keySet: !!key, keyPreview: mask(key), keyFromHosting: !!deps.envStripeKey?.(), webhookSet: !!secret, webhookPreview: mask(secret), webhookFromHosting: !!deps.envWebhookSecret?.() },
+        stripe: { mode: stripeMode(key), keySet: !!key, keyPreview: mask(key), keyFromHosting: !!deps.envStripeKey?.(), webhookSet: !!secret, webhookPreview: mask(secret), webhookFromHosting: !!deps.envWebhookSecret?.() },
         grandfather: { before: PLANS.grandfatherBefore, until: PLANS.grandfatherUntil },
-        freeMonth: { from: PLANS.freeMonthFrom, existingUntil: freeMonthEnd(null) },
       });
     } catch (e) { fail(res, e, "admin plans"); }
   });
@@ -1165,6 +1262,56 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       });
       res.json({ ok: true, free });
     } catch (e) { fail(res, e, "free school"); }
+  });
+
+  // ─── VIP list ──────────────────────────────────────────────────────────────
+  // People who get To-Do Unlimited (every app, AI to the fair-use ceiling) with no payment. Added by email, so it
+  // works the moment they confirm their account, or by username for an account that exists already.
+  const vipRows = async (list: VipEntry[]) => Promise.all(list.map(async (e) => {
+    const u = e.userId ? await deps.getUser(e.userId) : null;
+    return { email: e.email || "", userId: e.userId || null, label: e.label || "", addedAt: e.addedAt, account: u ? { id: u.id, username: u.username || "", displayName: u.displayName || "", role: u.role || "" } : null };
+  }));
+  app.get("/api/admin/plans/vip", auth, admin, async (_req: any, res: any) => {
+    try { res.set("Cache-Control", "no-store"); res.json({ vip: await vipRows(await readVip(true)), max: VIP_MAX }); }
+    catch (e) { fail(res, e, "vip list"); }
+  });
+  app.post("/api/admin/plans/vip", auth, admin, async (req: any, res: any) => {
+    try {
+      const who = String(req.body?.who ?? "").trim().replace(/^@/, "");
+      if (!who) throw new Refused("Type their email, or the username of an account that already exists.");
+      const label = String(req.body?.label ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+      let entry: VipEntry;
+      if (who.includes("@")) {
+        const email = cleanVipEmail(who);
+        if (!email) throw new Refused("That does not look like an email address.");
+        entry = { email, ...(label ? { label } : {}), addedAt: iso(now()) };
+      } else {
+        const u = deps.findUserByUsername ? await deps.findUserByUsername(who.toLowerCase()) : null;
+        if (!u || !posInt(u.id)) throw new Refused("No account has that username. For someone who has not signed up yet, use their email.");
+        entry = { userId: Number(u.id), ...(label ? { label } : {}), addedAt: iso(now()) };
+      }
+      await serial(async () => {
+        const list = await readVip(true);
+        if (list.some((e) => (entry.email && e.email === entry.email) || (entry.userId && e.userId === entry.userId))) throw new Refused("They are on the list already.", 409);
+        if (list.length >= VIP_MAX) throw new Refused(`The list is full (${VIP_MAX}). Remove someone first.`);
+        await write(KEY.vip, JSON.stringify([...list, entry]));
+      });
+      res.json({ ok: true, vip: await vipRows(await readVip(true)) });
+    } catch (e) { fail(res, e, "vip add"); }
+  });
+  app.post("/api/admin/plans/vip/remove", auth, admin, async (req: any, res: any) => {
+    try {
+      const email = cleanVipEmail(req.body?.email);
+      const userId = posInt(req.body?.userId);
+      if (!email && !userId) throw new Refused("Choose who to take off the list.");
+      await serial(async () => {
+        const list = await readVip(true);
+        const next = list.filter((e) => !((email && e.email === email) || (userId && e.userId === userId)));
+        if (next.length === list.length) throw new Refused("They are not on the list.", 404);
+        await write(KEY.vip, JSON.stringify(next));
+      });
+      res.json({ ok: true, vip: await vipRows(await readVip(true)) });
+    } catch (e) { fail(res, e, "vip remove"); }
   });
 
   /** Switches Premium on by hand for a teacher or a school: a purchase order, a gift, a pilot. */
@@ -1227,7 +1374,157 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "stripe keys"); }
   });
 
-  return { entitlement, hubAccess, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget };
+  // ─── For the To-Do admin screen (server/todoAdmin.ts) ──────────────────────
+  // Who is on which To-Do plan, what Stripe says people paid, and the actions: a free trial, ending one,
+  // cancelling a paid plan, and refunding the last payment.
+  const TODO_PAID_KINDS: PlanKind[] = ["todo_unlimited", "todo_unlimited_year"];
+  /** Every To-Do plan record, by person. */
+  const todoPlanInfos = async (): Promise<Map<number, PlanInfo[]>> => {
+    const index = await readIndex();
+    const out = new Map<number, PlanInfo[]>();
+    for (const kind of TODO_PLAN_KINDS) {
+      for (const id of index[kind as PlanKind] || []) {
+        const g = await readGrant(kind as PlanKind, id);
+        if (!g) continue;
+        out.set(id, [...(out.get(id) || []), infoFromGrant(g, now())]);
+      }
+    }
+    return out;
+  };
+  /** Which person each Stripe customer belongs to, from every plan anyone has bought. */
+  const customerOwners = async (): Promise<Map<string, number>> => {
+    const index = await readIndex();
+    const out = new Map<string, number>();
+    for (const kind of PLAN_KINDS) {
+      for (const id of index[kind]) {
+        const g = await readGrant(kind, id);
+        if (g?.stripeCustomerId) out.set(g.stripeCustomerId, posInt(g.buyerId) || (isSchoolKind(kind) ? 0 : id));
+      }
+    }
+    out.delete("");
+    return out;
+  };
+
+  type Paid = { cents: number; refunded: number; count: number; lastAt: string | null };
+  const PAID_TTL = 5 * 60_000, PAID_PAGES = 30;
+  let paidCache: { at: number; mode: "live" | "test"; byCustomer: Map<string, Paid>; cents: number; refunded: number; count: number; truncated: boolean } | null = null;
+  const chargeOk = (c: any) => c && c.status === "succeeded" && c.paid === true;
+  /** What Stripe has taken, in total and by customer. Counts the most recent 3,000 payments. */
+  const stripePayments = async (force = false) => {
+    if (!force && paidCache && now() - paidCache.at < PAID_TTL) return paidCache;
+    const key = await stripeKey();
+    if (!key) return null;
+    const byCustomer = new Map<string, Paid>();
+    let cents = 0, refunded = 0, count = 0, after = "", truncated = false;
+    for (let page = 0; ; page++) {
+      if (page >= PAID_PAGES) { truncated = true; break; }
+      const list = await stripe("GET", `/charges?limit=100${after ? `&starting_after=${encodeURIComponent(after)}` : ""}`);
+      const rows: any[] = Array.isArray(list?.data) ? list.data : [];
+      for (const c of rows) {
+        if (!chargeOk(c)) continue;
+        const amount = Math.max(0, Number(c.amount) || 0), back = Math.min(amount, Math.max(0, Number(c.amount_refunded) || 0));
+        cents += amount; refunded += back; count++;
+        const cus = typeof c.customer === "string" ? c.customer : c.customer?.id;
+        if (!cus) continue;
+        const at = Number(c.created) > 0 ? iso(Number(c.created) * 1000) : null;
+        const cur = byCustomer.get(cus) || { cents: 0, refunded: 0, count: 0, lastAt: null };
+        cur.cents += amount; cur.refunded += back; cur.count++;
+        if (at && (!cur.lastAt || at > cur.lastAt)) cur.lastAt = at;
+        byCustomer.set(cus, cur);
+      }
+      if (!list?.has_more || !rows.length) break;
+      after = String(rows[rows.length - 1].id);
+    }
+    paidCache = { at: now(), mode: stripeKeyMode(key) === "test" ? "test" : "live", byCustomer, cents, refunded, count, truncated };
+    return paidCache;
+  };
+  /** One person's payments, newest first. */
+  const personPayments = async (customerId: string) => {
+    if (!/^cus_[A-Za-z0-9]{6,100}$/.test(customerId)) return [];
+    const list = await stripe("GET", `/charges?customer=${customerId}&limit=24`);
+    return (Array.isArray(list?.data) ? list.data : []).filter(chargeOk).map((c: any) => ({
+      id: String(c.id), at: Number(c.created) > 0 ? iso(Number(c.created) * 1000) : "", cents: Number(c.amount) || 0, refundedCents: Number(c.amount_refunded) || 0,
+      description: String(c.description || "").slice(0, 120),
+    }));
+  };
+  const personCustomer = async (userId: number): Promise<string> => {
+    for (const kind of [...TODO_PAID_KINDS, "todo_family"] as PlanKind[]) {
+      const g = await readGrant(kind, userId, true);
+      if (g?.stripeCustomerId) return g.stripeCustomerId;
+    }
+    return "";
+  };
+
+  /** A free trial (days) or free access with no end (days = 0). Not while they are paying. */
+  const giveTrial = async (userId: number, days: number, note: string) => {
+    await serial(async () => {
+      for (const kind of TODO_PAID_KINDS) {
+        const held = await readGrant(kind, userId, true);
+        if (held?.source === "stripe" && grantLive(held, now())) throw new Refused("They are paying for Unlimited already. Cancel their plan first if you want to replace it.", 409);
+      }
+      const grant: PlanGrant = {
+        kind: "todo_unlimited", ownerId: userId, source: "admin", status: "active", seats: 1, trial: true,
+        endsAt: days > 0 ? iso(now() + days * DAY) : null, updatedAt: iso(now()),
+        note: note.replace(/\s+/g, " ").trim().slice(0, 120) || undefined,
+      };
+      await saveGrant(grant);
+    });
+  };
+  /** Ends a trial or free access the admin gave. */
+  const endTrial = async (userId: number) => {
+    await serial(async () => {
+      const held = await readGrant("todo_unlimited", userId, true);
+      if (!held || held.source !== "admin" || held.status === "canceled") throw new Refused("They have no free trial or free access to end.", 404);
+      await saveGrant({ ...held, status: "canceled", updatedAt: iso(now()) });
+    });
+  };
+  /** Cancels a paid plan: at the end of the period they paid for, or right now. */
+  const cancelPaid = async (userId: number, when: "period_end" | "now") => {
+    let sub = "";
+    for (const kind of TODO_PAID_KINDS) {
+      const held = await readGrant(kind, userId, true);
+      if (held?.source === "stripe" && held.stripeSubscriptionId && held.status !== "canceled" && grantLive(held, now())) { sub = held.stripeSubscriptionId; break; }
+    }
+    if (!sub) throw new Refused("They are not paying for a plan that can be cancelled.", 404);
+    if (when === "now") await stripe("DELETE", subscriptionPath(sub));
+    else await stripe("POST", subscriptionPath(sub), { cancel_at_period_end: true });
+    await syncSubscription(sub);
+    paidCache = null;
+  };
+  /** Puts a person on the VIP list (free Unlimited for good), or takes them off. Taking off also removes an email entry for them. */
+  const vipSet = async (who: { id: number; email: string }, on: boolean) => {
+    await serial(async () => {
+      const list = await readVip(true);
+      const email = cleanVipEmail(who.email);
+      const mine = (e: VipEntry) => e.userId === who.id || (!!email && e.email === email);
+      if (on && !list.some(mine) && list.length >= VIP_MAX) throw new Refused(`The VIP list is full (${VIP_MAX}). Remove someone first.`);
+      const next = on ? (list.some(mine) ? list : [...list, { userId: who.id, addedAt: iso(now()) }]) : list.filter((e) => !mine(e));
+      if (next.length !== list.length || on) await write(KEY.vip, JSON.stringify(next));
+    });
+  };
+  /** Takes back a cancel-at-period-end. */
+  const keepPlan = async (userId: number) => {
+    let sub = "";
+    for (const kind of TODO_PAID_KINDS) {
+      const held = await readGrant(kind, userId, true);
+      if (held?.source === "stripe" && held.stripeSubscriptionId && held.cancelAtPeriodEnd && grantLive(held, now())) { sub = held.stripeSubscriptionId; break; }
+    }
+    if (!sub) throw new Refused("Their plan is not set to cancel.", 404);
+    await stripe("POST", subscriptionPath(sub), { cancel_at_period_end: false });
+    await syncSubscription(sub);
+  };
+  /** Refunds the last payment that has not been refunded yet. Does not cancel the plan. */
+  const refundLast = async (userId: number) => {
+    const customer = await personCustomer(userId);
+    if (!customer) throw new Refused("There is no online payment to refund.", 404);
+    const charge = (await personPayments(customer)).find((c: any) => c.refundedCents < c.cents);
+    if (!charge) throw new Refused("There is no payment left to refund.", 404);
+    await stripe("POST", "/refunds", { charge: charge.id });
+    paidCache = null;
+    return { cents: charge.cents - charge.refundedCents, at: charge.at };
+  };
+
+  return { entitlement, hubAccess, adminTodo: { planInfos: todoPlanInfos, customerOwners, payments: stripePayments, personPayments, personCustomer, giveTrial, endTrial, cancelPaid, keepPlan, refundLast, readVip, vipSet, stripeKey }, socialAccess, appStatus, appAccess, todoStatus, isPremium, isFreeSchool, enforced, blockFreeStudent, parentLinkAllowed, seatCheck, seatCheckFor, teacherGate, applyEvent, forget, todoUnlimited, aiUsage, aiMeter, stripeReady: async () => !!(await stripeKey()), unlimitedPaidBy: async (userId: number) => { for (const k of ["todo_unlimited", "todo_unlimited_year"] as const) { const g = await readGrant(k, userId); if (g && g.buyerId === userId && g.stripeCustomerId && grantLive(g, now())) return k === "todo_unlimited_year" ? "unlimited_year" : "unlimited"; } return null; } };
 }
 
 export type Plans = ReturnType<typeof registerPlanRoutes>;

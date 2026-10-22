@@ -1,7 +1,7 @@
-// Arise WorkHub: the bell in the header. It lights up when someone answers one of your meeting polls.
+// Arise WorkHub: answers to your meeting polls. They count in the header's notification bell, and
+// opening that item shows the answers here.
 import { useCallback, useEffect, useState } from "react";
-import { Bell } from "lucide-react";
-import { pollReplies, type AlertPoll } from "@shared/hubPollAlerts";
+import { pollReplies, type AlertPoll, type PollReply } from "@shared/hubPollAlerts";
 import { api } from "./HubAvailability";
 import { HubModal } from "./HubModal";
 import { Empty, GhostButton, PrimaryButton } from "./ui";
@@ -11,13 +11,13 @@ const readSeen = (userId: unknown) => { try { const v = Number(localStorage.getI
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-export default function HubPollBell({ token, userId, enabled, onOpenMeetings }: { token: string | null; userId: unknown; enabled: boolean; onOpenMeetings: () => void }) {
+/** The answers to the teacher's polls, and how many they have not looked at yet. */
+export function usePollAnswers(token: string | null, userId: unknown, enabled: boolean) {
   const [polls, setPolls] = useState<AlertPoll[]>([]);
   const [seen, setSeen] = useState(() => readSeen(userId));
-  const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
-    try { const d = await api(token, "GET", "/api/teacher-hub/polls"); setPolls(d.polls || []); } catch { /* the bell just stays as it was */ }
+    try { const d = await api(token, "GET", "/api/teacher-hub/polls"); setPolls(d.polls || []); } catch { /* the count just stays as it was */ }
   }, [token]);
 
   useEffect(() => {
@@ -31,18 +31,13 @@ export default function HubPollBell({ token, userId, enabled, onOpenMeetings }: 
 
   const replies = pollReplies(polls, seen);
   const unread = replies.filter((r) => r.unread).length;
-  function markRead() { const now = Date.now(); setSeen(now); try { localStorage.setItem(keyFor(userId), String(now)); } catch { /* fine */ } }
-  if (!enabled) return null;
+  const markRead = () => { const now = Date.now(); setSeen(now); try { localStorage.setItem(keyFor(userId), String(now)); } catch { /* fine */ } };
+  return { replies, unread, markRead, reload: load };
+}
 
+export default function PollAnswers({ replies, markRead, onClose, onOpenMeetings }: { replies: PollReply[]; markRead: () => void; onClose: () => void; onOpenMeetings: () => void }) {
   return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} aria-label={unread ? `${unread} new poll ${unread === 1 ? "answer" : "answers"}` : "Poll answers"} title="Poll answers"
-        className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" data-testid="hub-poll-bell">
-        <Bell className="h-4 w-4" />
-        {unread > 0 && <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white" data-testid="hub-poll-badge">{unread}</span>}
-      </button>
-      {open && (
-        <HubModal title="Poll answers" onClose={() => setOpen(false)} closeOnBackdrop footer={<div className="flex flex-wrap gap-2"><GhostButton onClick={markRead}>Mark all read</GhostButton><PrimaryButton onClick={() => { markRead(); setOpen(false); onOpenMeetings(); }}>Open meetings</PrimaryButton></div>}>
+        <HubModal title="Poll answers" onClose={onClose} closeOnBackdrop footer={<div className="flex flex-wrap gap-2"><GhostButton onClick={markRead}>Mark all read</GhostButton><PrimaryButton onClick={() => { markRead(); onClose(); onOpenMeetings(); }}>Open meetings</PrimaryButton></div>}>
           {replies.length ? (
             <ul className="space-y-2" data-testid="hub-poll-replies">
               {replies.map((r) => (
@@ -59,7 +54,5 @@ export default function HubPollBell({ token, userId, enabled, onOpenMeetings }: 
             </ul>
           ) : <Empty>No answers yet. When someone answers a poll, it shows up here, and you get an email.</Empty>}
         </HubModal>
-      )}
-    </>
   );
 }

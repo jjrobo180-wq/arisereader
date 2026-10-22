@@ -1,15 +1,36 @@
 // Family Hub home: today across every switched-on part of the hub.
-import { Apple, CalendarDays, Check, ChevronRight, ListTodo, Plane, Receipt, Sparkles, Star, StickyNote, Sun, UserPlus, Vote } from "lucide-react";
+// Its parts can be arranged right here, like WorkHub's Home: press and hold (or Edit Home) to drag, resize or remove them.
+import { AlarmClock, Apple, CalendarDays, Check, ChevronRight, Clock, CloudSun, LayoutGrid, Link2, ListTodo, Plane, Receipt, Smile, Sparkles, Star, StickyNote, Sun, Target, UserPlus, Vote } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { HomeParts, type HomePart, type StartTile } from "@/components/teacher-hub/HubHomeEdit";
+import { HomeLinks } from "./LinkDirectory";
+import { LIFE_PARTS, cleanLifeLayout, type LifePart } from "@shared/lifeLayout";
+import { pinId } from "@shared/hubLayout";
 import { addDays, billDue, billState, choreDoneOn, choreDueOn, choreOwner, daysBetween, eventsOn, isOn, money, starBalance, tally, toggleChore, type FamilySection } from "@shared/familyHub";
+import { notesAppPlugin, type Plugin } from "@shared/pluginStore";
+import { hubThemeOf } from "@shared/appThemes";
+import { liveFaces } from "@shared/liveTiles";
+import type { Forecast } from "@shared/lifePlugins";
+import { useLifeFeed } from "./useLifeFeed";
+import { ClockBody, WeatherBody, useDrivePhotos } from "./LiveBodies";
 import { pollIsOpen } from "./Polls";
 import { MOODS } from "./Mood";
 import { goalProgress } from "./Goals";
 import { caloriesLeft, dayTotals, goalsFor, healthPeople } from "@shared/familyHealth";
 import type { CalendarTask } from "./FamilyCalendar";
+import WidgetBoard from "@/components/widgets/WidgetBoard";
+import { cleanWidgets } from "@shared/widgets";
 import { Avatar, Bar, Panel, Stat, clock12, memberOf, primary, shortDate, type SectionProps } from "./ui";
 
-export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name }: SectionProps & {
+const PART_ICONS: Record<LifePart, HomePart["icon"]> = { greeting: Sun, widgets: AlarmClock, stats: LayoutGrid, agenda: CalendarDays, chores: Sparkles, polls: Vote, trip: Plane, mood: Smile, goals: Target, health: Apple, stars: Star, bills: Receipt, notes: StickyNote, links: Link2 };
+const CATALOG: HomePart[] = LIFE_PARTS.map((p) => ({ id: p.id, label: p.label, icon: PART_ICONS[p.id] }));
+
+export default function FamilyHome({ family, setFamily, today, makeId, say, tasks, go, onToggleTask, name, openNotesApp, appTiles }: SectionProps & {
   tasks: CalendarTask[]; go: (section: FamilySection) => void; onToggleTask: (id: string) => void; name: string;
+  /** Opens an installed Notes app (see shared/notesApp.ts) full-page, by its App Store plugin id. */
+  openNotesApp: (id: string) => void;
+  /** The Tile theme's start screen: every app of the hub as a tile, so no menu is needed beside Home. */
+  appTiles?: StartTile[];
 }) {
   const on = (s: FamilySection) => isOn(s, family);
   const hour = new Date().getHours();
@@ -27,27 +48,23 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
   const pinned = on("notes") ? family.notes.filter((n) => n.pinned).slice(0, 4) : [];
   const kids = family.members.filter((m) => m.kind === "kid");
 
-  return <div className="space-y-6">
-    <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">{shortDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">{greeting}{name ? `, ${name}` : ""}<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">Here's what's happening with your family today.</p></div>
-    </header>
-
-    {!family.members.length && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
-      <span className="rounded-2xl bg-white/10 p-3 text-[#bcb2ff]"><UserPlus size={26} /></span>
-      <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
-      <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
-    </section>}
-
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+  /** Installed Notes apps (LifeHub Notes/Work Notes cross-installed from the Store) this family can pin to Home. */
+  const myNotesApps = (family.notesInstalled ?? []).map((id) => notesAppPlugin("life", id)).filter((p): p is Plugin => !!p);
+  const layout = cleanLifeLayout(family.layout, myNotesApps.map((p) => p.id));
+  // Widened past Record<LifePart, ...> below so a pinned Notes app (see pinId) can add its own entry.
+  const part: Record<string, ReactNode | null> = {
+    greeting: <><header className="flex flex-wrap items-start justify-between gap-4">
+      <div><p className="mb-1.5 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7] sm:mb-2">{shortDate(today, { weekday: "long", month: "long", day: "numeric" })}</p><h1 className="text-2xl font-black tracking-tight text-[#232139] sm:text-4xl">{greeting}{name ? `, ${name}` : ""}<span className="text-[#7866e1]">.</span></h1><p className="mt-1.5 text-sm leading-6 text-slate-500 sm:mt-2">Here's what's happening with your family today.</p></div>
+    </header></>,
+    widgets: family.widgets.board ? <WidgetBoard items={family.widgetBoard} makeId={makeId} accent="bg-[#292446]"
+      setItems={(update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) }))} /> : null,
+    stats: <><div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
       <button onClick={() => go("tasks")} className="text-left"><Stat label="Tasks due" value={dueTasks.length} icon={<ListTodo size={17} />} tint="bg-violet-50 text-violet-600" /></button>
       {on("chores") && <button onClick={() => go("chores")} className="text-left"><Stat label="Chores left today" value={choresLeft.length} icon={<Sparkles size={17} />} tint="bg-emerald-50 text-emerald-600" /></button>}
       {on("calendar") && <button onClick={() => go("calendar")} className="text-left"><Stat label="Events today" value={events.length} icon={<CalendarDays size={17} />} tint="bg-sky-50 text-sky-600" /></button>}
       {on("money") && <button onClick={() => go("money")} className="text-left"><Stat label="Bills due this week" value={bills.length} icon={<Receipt size={17} />} tint="bg-rose-50 text-rose-600" /></button>}
-    </div>
-
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="space-y-6">
-        <Panel eyebrow="Today" title="Agenda" right={<Sun size={18} className="text-amber-500" />}>
+    </div></>,
+    agenda: <><Panel eyebrow="Today" title="Agenda" right={<Sun size={18} className="text-amber-500" />} collapseKey="home-agenda">
           {events.length || dueTasks.length ? <ul className="space-y-2">
             {events.map((e) => <li key={e.id}><button onClick={() => go("calendar")} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left hover:border-violet-200">
               <span className="w-16 shrink-0 text-xs font-black text-violet-600">{e.time ? clock12(e.time) : "All day"}</span>
@@ -60,10 +77,9 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
               <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{t.title}</span><span className="text-[11px] font-semibold text-slate-500">{t.due < today ? <span className="text-rose-600">Overdue · {shortDate(t.due, { month: "short", day: "numeric" })}</span> : t.time ? clock12(t.time) : "Today"}{t.assignee ? ` · ${t.assignee}` : ""}</span></span>
             </li>)}
           </ul> : <p className="text-sm text-slate-500">A clear day. Nothing scheduled and no tasks due.</p>}
-        </Panel>
-
-        {on("chores") && chores.length > 0 && <Panel eyebrow="Chores" title={choresLeft.length ? `${choresLeft.length} left today` : "All chores done! 🎉"} right={<button onClick={() => go("chores")} className="text-xs font-bold text-violet-600">Chore chart</button>}>
-          <div className="grid gap-2 sm:grid-cols-2">{chores.map((c) => {
+        </Panel></>,
+    chores: (on("chores") && chores.length > 0 && <Panel eyebrow="Chores" title={choresLeft.length ? `${choresLeft.length} left today` : "All chores done! 🎉"} right={<button onClick={() => go("chores")} className="text-xs font-bold text-violet-600">Chore chart</button>} collapseKey="home-chores">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{chores.map((c) => {
             const done = !!choreDoneOn(family, c.id, today);
             const owner = memberOf(family, choreOwner(c, today));
             return <button key={c.id} onClick={() => { setFamily((f) => toggleChore(f, c, today, makeId)); if (!done) say(`${c.title} done${c.points ? ` · +${c.points} ⭐` : ""}`); }} aria-pressed={done} className={`flex items-center gap-3 rounded-xl border p-2.5 text-left ${done ? "border-emerald-200 bg-emerald-50" : "border-slate-100 hover:border-violet-200"}`}>
@@ -72,9 +88,8 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
               {owner ? <Avatar member={owner} size="sm" /> : <span className="text-[11px] font-bold text-slate-400">Anyone</span>}
             </button>;
           })}</div>
-        </Panel>}
-
-        {polls.length > 0 && <Panel eyebrow="Vote" title="Open polls" right={<button onClick={() => go("polls")} className="text-xs font-bold text-violet-600">All polls</button>}>
+        </Panel>) || null,
+    polls: (polls.length > 0 && <Panel eyebrow="Vote" title="Open polls" right={<button onClick={() => go("polls")} className="text-xs font-bold text-violet-600">All polls</button>} collapseKey="home-polls">
           <ul className="space-y-2">{polls.slice(0, 3).map((p) => {
             const t = tally(p);
             const waiting = family.members.filter((m) => !p.votes[m.id]);
@@ -84,33 +99,27 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
               <ChevronRight size={16} className="text-slate-400" />
             </button></li>;
           })}</ul>
-        </Panel>}
-      </div>
-
-      <aside className="space-y-5">
-        {trip && <button onClick={() => go("trips")} className="block w-full overflow-hidden rounded-[1.5rem] bg-[linear-gradient(115deg,#2b2a8f,#6d4fd8_60%,#f29a14_130%)] p-5 text-left text-white shadow-[0_12px_24px_#2924461f]">
+        </Panel>) || (on("polls") && !polls.length && family.members.length > 1 && <button onClick={() => go("polls")} className={primary + " w-full"}><Vote size={16} /> Start a dinner poll</button>) || null,
+    trip: (trip && <button onClick={() => go("trips")} className="block w-full overflow-hidden rounded-[1.5rem] bg-[linear-gradient(115deg,#2b2a8f,#6d4fd8_60%,#f29a14_130%)] p-5 text-left text-white shadow-[0_12px_24px_#2924461f]">
           <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-white/75"><Plane size={14} /> Next trip</p>
           <p className="mt-2 text-xl font-black">{trip.name}</p>
           <p className="mt-1 text-sm text-white/80">{daysBetween(today, trip.start) > 0 ? `${daysBetween(today, trip.start)} day${daysBetween(today, trip.start) === 1 ? "" : "s"} to go` : "Happening now"} · {shortDate(trip.start, { month: "short", day: "numeric" })}</p>
           {trip.packing.length > 0 && <div className="mt-3"><div className="h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white" style={{ width: `${(trip.packing.filter((p) => p.packed).length / trip.packing.length) * 100}%` }} /></div><p className="mt-1 text-[11px] text-white/70">{trip.packing.filter((p) => p.packed).length} of {trip.packing.length} packed</p></div>}
-        </button>}
-
-        {on("mood") && (() => {
+        </button>) || null,
+    mood: (on("mood") && (() => {
           const me = { id: "me" };
           const todayMood = family.moods.find((m) => m.memberId === me.id && m.date === today);
-          return <Panel eyebrow="Mood" title={todayMood ? `Feeling ${MOODS[todayMood.mood - 1].label.toLowerCase()} today` : "How are you today?"} right={<button onClick={() => go("mood")} className="text-xs font-bold text-violet-600">Tracker</button>}>
+          return <Panel eyebrow="Mood" title={todayMood ? `Feeling ${MOODS[todayMood.mood - 1].label.toLowerCase()} today` : "How are you today?"} right={<button onClick={() => go("mood")} className="text-xs font-bold text-violet-600">Tracker</button>} collapseKey="home-mood">
             <div className="grid grid-cols-5 gap-1">{MOODS.map((m) => <button key={m.value} aria-pressed={todayMood?.mood === m.value} aria-label={m.label} title={m.label}
               onClick={() => { setFamily((f) => { const id = `${me.id}:${today}`; const old = f.moods.find((x) => x.id === id); return { ...f, moods: [...f.moods.filter((x) => x.id !== id), { id, memberId: me.id, date: today, tags: [], note: "", ...old, mood: m.value }] }; }); say(`Mood logged: ${m.label}`); }}
               className="rounded-xl py-2 text-2xl transition hover:bg-slate-50" style={todayMood?.mood === m.value ? { background: m.color + "22", boxShadow: `inset 0 0 0 2px ${m.color}` } : undefined}>{m.face}</button>)}</div>
           </Panel>;
-        })()}
-
-        {on("goals") && family.goals.some((g) => !g.done) && <Panel eyebrow="Goals" title="In progress" right={<button onClick={() => go("goals")} className="text-xs font-bold text-violet-600">All goals</button>}>
+        })()) || null,
+    goals: (on("goals") && family.goals.some((g) => !g.done) && <Panel eyebrow="Goals" title="In progress" right={<button onClick={() => go("goals")} className="text-xs font-bold text-violet-600">All goals</button>} collapseKey="home-goals">
           <ul className="space-y-3">{family.goals.filter((g) => !g.done).slice(0, 4).map((g) => <li key={g.id}><button onClick={() => go("goals")} className="block w-full text-left">
             <div className="mb-1 flex justify-between gap-2 text-xs"><span className="truncate font-bold text-slate-700">{g.title}</span><span className="font-black text-violet-600">{Math.round(goalProgress(g) * 100)}%</span></div><Bar value={goalProgress(g)} max={1} /></button></li>)}</ul>
-        </Panel>}
-
-        {on("health") && <Panel eyebrow="Food & fitness" title="Today" right={<button onClick={() => go("health")} className="text-xs font-bold text-violet-600">Diary</button>}>
+        </Panel>) || null,
+    health: (on("health") && <Panel eyebrow="Food & fitness" title="Today" right={<button onClick={() => go("health")} className="text-xs font-bold text-violet-600">Diary</button>} collapseKey="home-health">
           <ul className="space-y-2.5">{healthPeople(family, name).map((m) => {
             const t = dayTotals(family.health, m.id, today);
             const g = goalsFor(family.health, m);
@@ -122,28 +131,66 @@ export default function FamilyHome({ family, setFamily, today, makeId, say, task
                 : !family.health.profiles[m.id] ? null : <span className={`text-right text-xs font-black ${left < 0 ? "text-rose-600" : "text-slate-700"}`}>{Math.abs(left).toLocaleString()}<span className="block text-[10px] font-bold text-slate-400">{left < 0 ? "over" : "cal left"}</span></span>}
             </li>;
           })}</ul>
-        </Panel>}
-
-        {on("behavior") && kids.length > 0 && <Panel eyebrow="Stars" title="Kids' stars" right={<button onClick={() => go("behavior")} className="text-xs font-bold text-violet-600">Tracker</button>}>
+        </Panel>) || null,
+    stars: (on("behavior") && kids.length > 0 && <Panel eyebrow="Stars" title="Kids' stars" right={<button onClick={() => go("behavior")} className="text-xs font-bold text-violet-600">Tracker</button>} collapseKey="home-stars">
           <ul className="space-y-2.5">{kids.map((k) => <li key={k.id} className="flex items-center gap-3"><Avatar member={k} /><span className="min-w-0 flex-1 truncate text-sm font-bold">{k.name}</span><span className="inline-flex items-center gap-1 text-sm font-black text-amber-600"><Star size={15} className="fill-amber-400 text-amber-400" />{starBalance(family, k.id).balance}</span></li>)}</ul>
-        </Panel>}
-
-        {on("money") && <Panel eyebrow="Bills" title="Due soon" right={<button onClick={() => go("money")} className="text-xs font-bold text-violet-600">Money hub</button>}>
+        </Panel>) || null,
+    bills: (on("money") && <Panel eyebrow="Bills" title="Due soon" right={<button onClick={() => go("money")} className="text-xs font-bold text-violet-600">Money hub</button>} collapseKey="home-bills">
           {bills.length ? <ul className="space-y-2">{bills.slice(0, 5).map(({ b, due, state }) => <li key={b.id + due} className="flex items-center gap-2 text-sm">
             <span className={`h-2 w-2 shrink-0 rounded-full ${state === "late" ? "bg-rose-500" : "bg-amber-400"}`} /><span className="min-w-0 flex-1 truncate font-semibold">{b.name}</span>
             <span className={`text-xs font-bold ${state === "late" ? "text-rose-600" : "text-slate-500"}`}>{state === "late" ? "Past due" : due === today ? "Today" : shortDate(due, { month: "short", day: "numeric" })}</span><span className="w-16 text-right text-xs font-black">{money(b.amount)}</span>
           </li>)}</ul> : <p className="text-xs text-slate-500">No bills due in the next week.</p>}
           {family.bills.length > 0 && <div className="mt-4 border-t border-slate-100 pt-3"><p className="mb-1.5 text-[11px] font-bold text-slate-500">Paid this month</p><Bar value={family.bills.filter((b) => b.paid.includes(month)).length} max={family.bills.length} color="#22c55e" /></div>}
-        </Panel>}
-
-        {pinned.length > 0 && <Panel eyebrow="Pinned" title="Notes" right={<StickyNote size={17} className="text-violet-500" />}>
+        </Panel>) || null,
+    notes: (pinned.length > 0 && <Panel eyebrow="Pinned" title="Notes" right={<StickyNote size={17} className="text-violet-500" />} collapseKey="home-notes">
           <div className="space-y-2">{pinned.map((n) => <button key={n.id} onClick={() => go("notes")} className="note-card block w-full rounded-xl p-3 text-left" style={{ background: n.color }}>
             {n.title && <p className="truncate text-sm font-black">{n.title}</p>}{n.body && <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-xs text-slate-600">{n.body}</p>}
           </button>)}</div>
-        </Panel>}
-
-        {on("polls") && !polls.length && family.members.length > 1 && <button onClick={() => go("polls")} className={primary + " w-full"}><Vote size={16} /> Start a dinner poll</button>}
-      </aside>
-    </div>
+        </Panel>) || null,
+    // My links: the Link page's links as tiles, one tap from Home. Nothing here until there are links.
+    links: (on("links") && family.linkPage.links.length > 0 && <Panel eyebrow="Link page" title="My links" right={<Link2 size={17} className="text-violet-500" />} collapseKey="home-links">
+          <HomeLinks links={family.linkPage.links} onOpenPage={() => go("links")} />
+        </Panel>) || null,
+  };
+  // A pinned Notes app gets a small tile that opens straight into it, same as tapping it in the menu.
+  for (const p of myNotesApps) part[pinId(p.id)] = (
+    <button onClick={() => openNotesApp(p.id)} className="flex w-full items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4 text-left transition hover:bg-slate-50">
+      <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: p.color }} aria-hidden><StickyNote size={20} /></span>
+      <span className="min-w-0 flex-1"><span className="block truncate font-black text-slate-900">{p.name}</span><span className="block truncate text-sm text-slate-500">{p.tagline}</span></span>
+    </button>
+  );
+  const pinnedCatalog: HomePart[] = myNotesApps.map((p) => ({ id: pinId(p.id), label: p.name, icon: StickyNote }));
+  const tileMode = hubThemeOf(layout.theme).homeLayout === "tiles";
+  // ─── The Tile theme's live tiles ───
+  // A beat each minute keeps "next event" and the like current; the clock inside its tile ticks by itself.
+  const [, beat] = useState(0);
+  useEffect(() => { if (!tileMode) return; const t = window.setInterval(() => beat((n) => n + 1), 60_000); return () => clearInterval(t); }, [tileMode]);
+  const place = family.weather.place;
+  const weatherOn = on("weather");
+  const feed = useLifeFeed<Forecast>(tileMode && weatherOn && place ? `/api/lifehub/weather?place=${encodeURIComponent(place)}&unit=${family.weather.unit}` : null);
+  const photos = useDrivePhotos(family.drive, tileMode && !!family.driveInstalled);
+  const faces = tileMode ? liveFaces(family, tasks, today, Date.now()) : {};
+  const openWeather = () => { if (!weatherOn) setFamily((f) => ({ ...f, sections: { ...f.sections, weather: true } })); go("weather"); };
+  const clockTile: StartTile = { id: "live-clock", label: "Clock", icon: <Clock />, size: "medium", color: "#1b6ec2", onClick: () => go(on("clocks") ? "clocks" : "calendar"), body: (size) => <ClockBody size={size} /> };
+  const weatherTile: StartTile = { id: "live-weather", label: "Weather", icon: <CloudSun />, size: "medium", color: "#0e8a8a", onClick: openWeather,
+    body: (size) => <WeatherBody size={size} w={weatherOn ? { data: feed.data, busy: feed.busy, error: feed.error, place } : { data: null, busy: false, error: "", place: "" }} /> };
+  const startLeads: StartTile[] = [
+    ...(!family.members.length ? [{ id: "setup-family", label: "Set up your family", sub: "Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.", icon: <UserPlus />, size: "large" as const, color: "#f2600c", onClick: () => go("family") }] : []),
+    clockTile, weatherTile,
+  ];
+  /** Each app's tile with what it has to say; the weather is its own tile above, and Drive's tile becomes the photo slideshow. */
+  const liveApps = (appTiles ?? []).filter((t) => t.id !== "app-weather").map((t) => {
+    const key = t.id.replace(/^app-/, "");
+    const shots = key === "drive-app" ? photos : undefined;
+    return { ...t, faces: faces[key], photos: shots?.length ? shots : undefined };
+  });
+  return <div className="space-y-4 sm:space-y-6">
+    {!family.members.length && !tileMode && <section className="flex flex-col gap-4 rounded-[1.5rem] bg-[#292446] p-5 text-white sm:flex-row sm:items-center">
+      <span className="rounded-2xl bg-white/10 p-3 text-[#bcb2ff]"><UserPlus size={26} /></span>
+      <div className="min-w-0 flex-1"><p className="text-lg font-black">Set up your family</p><p className="mt-1 text-sm text-slate-300">Add each person once. Then you can assign tasks and chores, track stars, and let everyone vote.</p></div>
+      <button onClick={() => go("family")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#a38cfa] px-5 text-sm font-bold text-[#1d1838] hover:bg-[#b6a4ff]">Add your family <ChevronRight size={16} /></button>
+    </section>}
+    <HomeParts parts={part} layout={layout} onChange={(next) => setFamily((f) => ({ ...f, layout: next }))} widgets={{ items: family.widgetBoard, makeId, setItems: (update) => setFamily((f) => ({ ...f, widgetBoard: update(cleanWidgets(f.widgetBoard)) })) }} catalog={[...CATALOG, ...pinnedCatalog]} accent="bg-[#292446]" homeLayout={hubThemeOf(layout.theme).homeLayout}
+      leadTiles={tileMode ? startLeads : undefined} appTiles={tileMode ? liveApps : undefined} />
   </div>;
 }

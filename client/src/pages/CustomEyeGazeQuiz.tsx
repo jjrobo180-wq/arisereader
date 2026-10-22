@@ -108,47 +108,6 @@ export default function CustomEyeGazeQuiz() {
   }, [isTeacherOrAdmin, quizId, authToken]);
 
   // Spectator mode render for teachers/admins
-  if (isTeacherOrAdmin && (spectatorLoading || spectatorQuestions.length > 0)) {
-    if (spectatorLoading) {
-      return (
-        <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "hsl(0 0% 10%)", color: "hsl(0 0% 96%)" }}>
-          <p>Loading quiz (Spectator Mode)...</p>
-        </div>
-      );
-    }
-    return (
-      <div style={{ minHeight: "100vh", padding: 16, background: "hsl(0 0% 10%)", color: "hsl(0 0% 96%)", fontFamily: "system-ui, sans-serif" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <button onClick={() => navigate("/library")} style={{ background: "none", border: 0, color: "hsl(0 0% 60%)", cursor: "pointer", fontSize: 16 }}>← Back</button>
-            <span style={{ padding: "4px 10px", borderRadius: 6, background: "hsl(200 80% 40% / 0.2)", color: "hsl(200 80% 70%)", fontSize: 13, fontWeight: 700 }}>Spectator Mode (Read-Only)</span>
-          </div>
-          {spectatorQuestions.map((q: any, i: number) => (
-            <div key={i} style={{ background: "hsl(0 0% 14%)", border: "1px solid hsl(0 0% 20%)", borderRadius: 10, padding: 16, marginBottom: 12 }}>
-              <p style={{ fontWeight: 600, marginBottom: 12 }}><span style={{ color: "hsl(21 100% 50%)" }}>Q{i + 1}.</span> {q.prompt}</p>
-              {q.question_image && (q.question_image.startsWith("http") || q.question_image.startsWith("data:")) && <img src={q.question_image} alt="Question" style={{ maxWidth: 120, maxHeight: 120, borderRadius: 8, marginBottom: 8 }} />}
-              {q.question_image && !(q.question_image.startsWith("http") || q.question_image.startsWith("data:")) && <span style={{ fontSize: 40, display: "block", marginBottom: 8 }}>{q.question_image}</span>}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {['a', 'b', 'c', 'd'].map(opt => {
-                  const text = q[`option_${opt}_text`];
-                  const img = q[`option_${opt}_image`];
-                  if (!text && !img) return null;
-                  return (
-                    <div key={opt} style={{ display: "flex", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, background: "hsl(0 0% 10%)" }}>
-                      <span style={{ width: 24, height: 24, borderRadius: "50%", background: "hsl(0 0% 20%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{opt.toUpperCase()}</span>
-                      {img && <img src={img} alt="Option" style={{ width: 40, height: 40, borderRadius: 6 }} />}
-                      {text && <span style={{ fontSize: 14 }}>{text}</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          <button onClick={() => navigate("/library")} style={{ background: "none", border: "1px solid hsl(0 0% 30%)", borderRadius: 8, color: "hsl(0 0% 80%)", padding: "8px 16px", cursor: "pointer", marginTop: 8 }}>Back to Library</button>
-        </div>
-      </div>
-    );
-  }
 
   // Neural AI voice cleanup
   useEffect(() => {
@@ -385,6 +344,50 @@ export default function CustomEyeGazeQuiz() {
 
   // Quiz screen
   const currentQ = quiz.questions[currentIdx];
+  // Below every hook: returning here any earlier makes this page run five fewer hooks on
+  // the render a teacher's account arrives on, which React treats as an error.
+  if (isTeacherOrAdmin && (spectatorLoading || spectatorQuestions.length > 0)) {
+    if (spectatorLoading) {
+      return (
+        <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "hsl(0 0% 10%)", color: "hsl(0 0% 96%)" }}>
+          <p>Loading quiz (Spectator Mode)...</p>
+        </div>
+      );
+    }
+    return (
+      <div style={{ minHeight: "100vh", padding: 16, background: "hsl(0 0% 10%)", color: "hsl(0 0% 96%)", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <button onClick={() => navigate("/library")} style={{ background: "none", border: 0, color: "hsl(0 0% 60%)", cursor: "pointer", fontSize: 16 }}>← Back</button>
+            <span style={{ padding: "4px 10px", borderRadius: 6, background: "hsl(200 80% 40% / 0.2)", color: "hsl(200 80% 70%)", fontSize: 13, fontWeight: 700 }}>Spectator Mode (Read-Only)</span>
+          </div>
+          {spectatorQuestions.map((q: any, i: number) => (
+            <div key={i} style={{ background: "hsl(0 0% 14%)", border: "1px solid hsl(0 0% 20%)", borderRadius: 10, padding: 16, marginBottom: 12 }}>
+              <p style={{ fontWeight: 600, marginBottom: 12 }}><span style={{ color: "hsl(21 100% 50%)" }}>Q{i + 1}.</span> {q.prompt}</p>
+              {q.question_image && (q.question_image.startsWith("http") || q.question_image.startsWith("data:")) && <img src={q.question_image} alt="Question" style={{ maxWidth: 120, maxHeight: 120, borderRadius: 8, marginBottom: 8 }} />}
+              {q.question_image && !(q.question_image.startsWith("http") || q.question_image.startsWith("data:")) && <span style={{ fontSize: 40, display: "block", marginBottom: 8 }}>{q.question_image}</span>}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {['a', 'b', 'c', 'd'].map(opt => {
+                  const text = q[`option_${opt}_text`];
+                  const img = q[`option_${opt}_image`];
+                  if (!text && !img) return null;
+                  return (
+                    <div key={opt} style={{ display: "flex", alignItems: "center", gap: 8, padding: 8, borderRadius: 8, background: "hsl(0 0% 10%)" }}>
+                      <span style={{ width: 24, height: 24, borderRadius: "50%", background: "hsl(0 0% 20%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{opt.toUpperCase()}</span>
+                      {img && <img src={img} alt="Option" style={{ width: 40, height: 40, borderRadius: 6 }} />}
+                      {text && <span style={{ fontSize: 14 }}>{text}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <button onClick={() => navigate("/library")} style={{ background: "none", border: "1px solid hsl(0 0% 30%)", borderRadius: 8, color: "hsl(0 0% 80%)", padding: "8px 16px", cursor: "pointer", marginTop: 8 }}>Back to Library</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentQ) return null;
   const options = [
     { letter: "A", text: currentQ.option_a_text, image: currentQ.option_a_image },

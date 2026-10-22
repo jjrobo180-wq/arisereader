@@ -116,7 +116,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
     <PageHead eyebrow="Calendar" title="Family calendar" blurb="Everyone's practices, appointments and plans in one place. Switch calendars and people on or off to see just what you need."
       action={<div className="flex flex-wrap items-center gap-2"><ShareButton target="calendar" title="Family calendar" say={say} /><button onClick={() => add()} className={primary + " min-h-11 px-5"}><Plus size={18} /> New event</button></div>} />
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Panel className="self-start" title={first.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
         right={<><button onClick={() => shiftMonth(-1)} className={plain} aria-label="Previous month"><ChevronLeft size={17} /></button><button onClick={() => { setMonth(today.slice(0, 7)); setPicked(today); }} className={plain}>Today</button><button onClick={() => shiftMonth(1)} className={plain} aria-label="Next month"><ChevronRight size={17} /></button></>}>
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 text-xs">
@@ -127,7 +127,7 @@ export default function FamilyCalendar({ family, setFamily, today, makeId, say, 
             return <button key={d} onClick={() => setPicked(d)} onDoubleClick={() => add(d)} aria-label={`${shortDate(d)}, ${items.length} item${items.length === 1 ? "" : "s"}`} aria-pressed={picked === d}
               className={`flex min-h-[64px] flex-col gap-1 p-1.5 text-left transition sm:min-h-[96px] ${inMonth ? "bg-white" : "bg-slate-50/70 text-slate-400"} ${picked === d ? "ring-2 ring-inset ring-violet-500" : "hover:bg-violet-50/40"}`}>
               <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${d === today ? "bg-violet-600 text-white" : ""}`}>{Number(d.slice(8))}</span>
-              <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">{items.slice(0, 3).map((it) => <span key={it.key} className="truncate rounded-md px-1.5 py-0.5 text-[10.5px] font-bold" style={{ background: it.color + "1f", color: it.color }}>{it.time && <span className="opacity-75">{clock12(it.time).replace(":00", "").replace(" ", "").toLowerCase()} </span>}{it.title}</span>)}{items.length > 3 && <span className="px-1 text-[10px] font-bold text-slate-400">+{items.length - 3} more</span>}</span>
+              <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">{items.slice(0, 3).map((it) => <span key={it.key} className="cal-chip truncate rounded-md px-1.5 py-0.5 text-[10.5px] font-bold" style={{ background: it.color + "1f", color: it.color }}>{it.time && <span className="opacity-75">{clock12(it.time).replace(":00", "").replace(" ", "").toLowerCase()} </span>}{it.title}</span>)}{items.length > 3 && <span className="px-1 text-[10px] font-bold text-slate-400">+{items.length - 3} more</span>}</span>
               <span className="flex flex-wrap gap-0.5 sm:hidden">{items.slice(0, 4).map((it) => <span key={it.key} className="h-1.5 w-1.5 rounded-full" style={{ background: it.color }} />)}</span>
             </button>;
           })}

@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { BookOpen, Gamepad2, HeartHandshake, Home, LogOut, MessageCircle, UserRound } from "lucide-react";
+import { BookOpen, Gamepad2, HeartHandshake, Home, LogOut, MessageCircle, Trophy, UserRound } from "lucide-react";
 import { cachedParentControls, fetchFamilySettings, pathAllowed, type ParentControls } from "@/lib/parentControls";
 
 export default function EyeGazeSiteShell({ children }: { children: ReactNode }) {
@@ -72,15 +72,18 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
 
   const nav = [
     { label: "Home", icon: Home, path: "/eye-gaze-home" },
+    { label: "Lessons & Books", icon: BookOpen, path: "/eye-gaze-lessons" },
     { label: "My Talker", icon: MessageCircle, path: "/eye-gaze-talker" },
     { label: "Games", icon: Gamepad2, path: "/eye-gaze-games" },
     { label: "Life Skills", icon: HeartHandshake, path: "/eye-gaze-life-skills" },
+    { label: "Leaderboard", icon: Trophy, path: "/leaderboard" },
     { label: "Profile", icon: UserRound, path: "/profile" },
   ];
   const visibleNav = nav.filter(item =>
     item.path === "/eye-gaze-home"
     || item.path === "/eye-gaze-account"
     || (item.path === "/eye-gaze-games" && (pathAllowed("/eye-gaze-games", parentControls) || pathAllowed("/library", parentControls)))
+    || (item.path === "/eye-gaze-lessons" && pathAllowed("/library", parentControls))
     || pathAllowed(item.path, parentControls)
   );
   const mobileNav = visibleNav;
@@ -123,7 +126,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
         </aside>}
         <div className={immersive ? "flex-1 min-w-0" : "eye-gaze-page flex-1 min-w-0"}>{children}</div>
       </div>
-      {!immersive && <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-teal-200 px-1 py-2 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobileNav.length)}, minmax(0, 1fr))` }}>
+      {!immersive && <nav className="xl:hidden sticky bottom-0 z-[70] bg-white border-t border-teal-200 px-1 py-2 grid grid-cols-1 gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, mobileNav.length)}, minmax(0, 1fr))` }}>
         {mobileNav.map(item => { const Icon=item.icon; const active=location===item.path; return <button key={item.path} type="button" onClick={() => navigate(item.path)} className={`min-h-[64px] rounded-2xl flex flex-col items-center justify-center text-[11px] font-black transition-colors ${active ? "bg-teal-100 text-teal-950" : "text-slate-500"}`}><Icon className="w-5 h-5 mb-1" />{item.label}</button>; })}
       </nav>}
     </div>

@@ -1,0 +1,90 @@
+/* Arise WorkHub, paper look: a calendar-app register — warm ground, hairlines instead of
+   shadowed cards, one accent, and light geometric numerals.
+
+   It works the way hubNight.css does: by restyling the utility classes the Hub already uses,
+   so every screen follows without its markup changing. Every rule is scoped
+   .hub-paper:not(.hub-night), so night mode still wins wherever the two would disagree. */
+
+.hub-paper:not(.hub-night) { background: #faf9f7; color: #16141f; }
+
+/* The page ground and the panels sitting on it. */
+.hub-paper:not(.hub-night) .bg-slate-100,
+.hub-paper:not(.hub-night) .bg-slate-100\/95 { background-color: #faf9f7; }
+.hub-paper:not(.hub-night) .bg-white,
+.hub-paper:not(.hub-night) .bg-white\/95 { background-color: #ffffff; }
+.hub-paper:not(.hub-night) .bg-slate-50 { background-color: #f5f3f0; }
+
+/* Hairlines carry the structure, so the shadows go. */
+.hub-paper:not(.hub-night) .shadow-sm,
+.hub-paper:not(.hub-night) .shadow-xl { box-shadow: none; }
+.hub-paper:not(.hub-night) .border-slate-100,
+.hub-paper:not(.hub-night) .border-slate-200,
+.hub-paper:not(.hub-night) .border-slate-300,
+.hub-paper:not(.hub-night) .divide-slate-100 > * + * { border-color: #e9e6f0; }
+
+/* Ink. The muted greys are darkened: the old ones sat near 3:1 on white. */
+.hub-paper:not(.hub-night) .text-slate-950,
+.hub-paper:not(.hub-night) .text-slate-900,
+.hub-paper:not(.hub-night) .text-slate-800 { color: #16141f; }
+.hub-paper:not(.hub-night) .text-slate-700,
+.hub-paper:not(.hub-night) .text-slate-600 { color: #4d4859; }
+.hub-paper:not(.hub-night) .text-slate-500,
+.hub-paper:not(.hub-night) .text-slate-400 { color: #6b6676; }
+
+/* One accent, the teacher's own (shared/hubAccent.ts). These are not scoped away from night
+   mode: a colour you picked should hold in both. */
+.hub-paper .bg-teal-700,
+.hub-paper .bg-teal-600 { background-color: var(--hub-accent, #5b3be0); }
+.hub-paper .hover\:bg-teal-800:hover,
+.hub-paper .hover\:bg-teal-700:hover { background-color: var(--hub-accent-deep, #4a2fc2); }
+.hub-paper .hub-bar-today { background: var(--hub-accent, #5b3be0); }
+.hub-paper:not(.hub-night) .text-teal-700,
+.hub-paper:not(.hub-night) .text-teal-800,
+.hub-paper:not(.hub-night) .text-teal-900,
+.hub-paper:not(.hub-night) .text-teal-950,
+.hub-paper:not(.hub-night) .text-teal-600 { color: var(--hub-accent-deep, #4a2fc2); }
+.hub-paper:not(.hub-night) .bg-teal-50,
+.hub-paper:not(.hub-night) .bg-teal-50\/60 { background-color: #f3efff; }
+.hub-paper:not(.hub-night) .bg-teal-100 { background-color: #e7e0ff; }
+.hub-paper:not(.hub-night) .border-teal-200,
+.hub-paper:not(.hub-night) .border-teal-300 { border-color: #d9cfff; }
+.hub-paper:not(.hub-night) .decoration-teal-200 { text-decoration-color: #d9cfff; }
+.hub-paper:not(.hub-night) .hover\:bg-teal-50:hover,
+.hub-paper:not(.hub-night) .hover\:bg-teal-100:hover { background-color: #f3efff; }
+
+/* Selected states stay ink rather than a second colour. */
+.hub-paper:not(.hub-night) .bg-slate-950 { background-color: #16141f; }
+.hub-paper:not(.hub-night) .hover\:bg-slate-800:hover { background-color: #2c2838; }
+
+/* Figures — dates, counts, minutes — in a light geometric face. */
+.hub-figure { font-family: "Jost", "Barlow", system-ui, sans-serif; font-weight: 200; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+/* Panel headings: quieter than the body, in the same face as the figures. */
+.hub-paper:not(.hub-night) .hub-card-title { font-family: "Jost", "Barlow", system-ui, sans-serif; font-weight: 400; letter-spacing: 0; font-size: 1.0625rem; }
+
+/* The density strip: how heavy each day looks before you read a word of it. */
+.hub-bar { display: block; width: 100%; border-radius: 3px; background: #e4e0ef; }
+.hub-bar-busy { background: #c9c2e8; }
+.hub-bar-today { background: #5b3be0; }
+.hub-night .hub-bar { background: #26334f; }
+.hub-night .hub-bar-busy { background: #3b4a6b; }
+.hub-night .hub-bar-today { background: #8b6cff; }
+
+/* On a phone the menu is a bar along the bottom: the chosen screen is marked in the accent
+   rather than filled in, which is what the design does. */
+@media (max-width: 767px) {
+  .hub-paper [data-hub-nav][aria-current="page"] { color: var(--hub-accent, #5b3be0); background: transparent; }
+}
+/* From the sidebar breakpoint up the chosen item is a filled pill. Stated here rather than in
+   utility classes: the paper rules above are more specific than a responsive utility, and a
+   text-slate-950 on this button beat md:text-white, leaving black words on a black pill. */
+@media (min-width: 768px) {
+  .hub-paper:not(.hub-night) [data-hub-nav][aria-current="page"] { background-color: #16141f; color: #ffffff; }
+  .hub-paper.hub-night [data-hub-nav][aria-current="page"] { background-color: #334155; color: #f1f5f9; }
+}
+
+/* Light text on the dark promo cards stays light in the paper look; the ink remap above
+   is only meant for text on paper. */
+.hub-paper:not(.hub-night) .bg-slate-950 .text-slate-400,
+.hub-paper:not(.hub-night) .bg-slate-950 .text-slate-300 { color: #cbd5e1; }
+.hub-paper:not(.hub-night) .text-\[\#7869d7\] { color: #5b48c9; }
