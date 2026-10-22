@@ -639,6 +639,20 @@ tr:last-child td{border-bottom:0}
 .star-tag{display:inline-flex;align-items:center;gap:6px;justify-self:start;font-size:.78rem;font-weight:800;color:#8A4B00;background:#FFF1D6;border:1px solid #F5D08A;border-radius:999px;padding:3px 10px}
 .star-tag svg{width:14px;height:14px;fill:currentColor}
 .stars-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:18px}
+/* Learn with a star: courses organized by the celebrity who teaches them */
+.star-course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:18px}
+.star-course{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border-radius:18px;overflow:hidden;background:var(--card,#fff);border:1px solid color-mix(in srgb,var(--fc) 30%,transparent);box-shadow:0 6px 18px rgba(16,24,40,.08);transition:transform .15s,box-shadow .15s}
+.star-course:hover,.star-course:focus-visible{transform:translateY(-3px);box-shadow:0 12px 28px rgba(16,24,40,.16)}
+.star-course:focus-visible{outline:3px solid var(--fc);outline-offset:2px}
+.sc-photo{position:relative;display:block;aspect-ratio:16/10;background:linear-gradient(125deg,color-mix(in srgb,var(--fc) 55%,#19243e),#1b2540)}
+.sc-photo img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 40%}
+.sc-photo::after{content:"";position:absolute;inset:40% 0 0;background:linear-gradient(transparent,rgba(12,20,38,.88));pointer-events:none}
+.sc-name{position:absolute;z-index:1;left:14px;right:12px;bottom:10px;color:#fff;font-size:1.25rem;font-weight:900;line-height:1.15;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.sc-field{position:absolute;z-index:1;top:10px;left:10px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(12,20,38,.72);color:#fff;font-size:.72rem;font-weight:800;letter-spacing:.02em}
+.sc-body{display:flex;flex-direction:column;gap:5px;padding:12px 14px 14px}
+.sc-role{font-size:.8rem;color:var(--muted,#5b6475);line-height:1.35}
+.sc-course{font-size:.98rem;line-height:1.3}
+.sc-meta{font-size:.78rem;font-weight:700;color:var(--muted,#5b6475)}
 .star-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow-sm);display:grid;gap:10px;align-content:start;min-width:0}
 .star-card .btn{justify-self:start}
 .stars-grid.one{grid-template-columns:1fr}
@@ -774,7 +788,7 @@ function goSignIn(path){ try { sessionStorage.setItem('arise_return_to', '/socia
 let CAT = null;                 // catalog: careers, quests, roadmap...
 let ME = null;                  // /me response
 let PLAN = null;                // /api/addons: the Learning Bundle, its trial and prices
-const S = { tab:'stars', sfield:'all', interests:new Set(), lfield:'all', lpath:null, course:null, lesson:null, answers:{}, filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
+const S = { tab:'stars', sfield:'all', starf:'all', interests:new Set(), lfield:'all', lpath:null, course:null, lesson:null, answers:{}, filterC:'all', filterP:'all', q:'', composeOpen:false, feed:null, approvals:null, accessRequests:null, events:null, children:null, childId:null, classInfo:null, menu:false, confirmDelete:null };
 const C = id => CAT.careers.find(c => c.id === id);
 const role = () => ME?.user.role || 'guest';
 const P = () => ME?.profile;
@@ -1221,6 +1235,33 @@ function courseCard(c){
 const INTERESTS=[{id:"build",label:"Building things"},{id:"how",label:"Figuring out how things work"},{id:"music",label:"Music"},{id:"stories",label:"Movies & stories"},{id:"help",label:"Helping people"},{id:"computers",label:"Computers & games"},{id:"money",label:"Business ideas"},{id:"food",label:"Food & cooking"},{id:"sports",label:"Sports"},{id:"space",label:"Planes & space"}];
 
 
+/* ================= LEARN WITH A STAR: the first lessons kids see, organized by the celebrity ================= */
+const STAR_FIELD_ORDER = ['music','food','games','film','sports','biz','trades','eng','air','health'];
+const starRank = c => { const i = STAR_FIELD_ORDER.indexOf(c.field); return i < 0 ? 99 : i; };
+function starCourseCard(c){
+  const student = role()==='student', n = student ? lessonsDone(c) : 0, done = student && !!certOf(c.id), total = c.lessons.length;
+  const v = courseFeaturedVideo(c);
+  return `<button class="star-course" data-act="course" data-id="${c.id}" style="--fc:${fieldColor(c.field)}" aria-label="Learn with ${esc(c.star.name)}: ${esc(c.title)}">
+    <span class="sc-photo">${v?`<img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="lazy" decoding="async" onerror="this.remove()">`:''}
+      <span class="sc-field">${svg(c.icon)}${esc(CAT.courseFields[c.field])}</span>
+      <span class="sc-name">${esc(c.star.name)}</span></span>
+    <span class="sc-body"><span class="sc-role">${esc(c.star.role)}</span><b class="sc-course">${esc(c.title)}</b>
+      <span class="sc-meta">${total} lessons · ${c.minutes} min${c.lessons.some(l=>lessonVid(l))?' · Star videos':''}</span>
+      ${done?`<span class="earned">${svg('star')} Certificate earned</span>`:n?`<span class="bar"><i style="width:${n/total*100}%"></i></span><span class="sc-meta">${n} of ${total} lessons done</span>`:''}</span></button>`;
+}
+function viewByStar(){
+  const all = CAT.courses.filter(c => c.star).sort((a,b) => starRank(a)-starRank(b));
+  if (!all.length) return '';
+  const fields = STAR_FIELD_ORDER.filter(f => all.some(c => c.field===f));
+  const q = S.q.trim().toLowerCase();
+  const list = all.filter(c => (S.starf==='all' || c.field===S.starf) && (!q || [c.star.name, c.star.role, c.title].join(' ').toLowerCase().includes(q)));
+  const lessons = all.reduce((n,c) => n + c.lessons.length, 0);
+  return `<section class="section" aria-labelledby="by-star-h"><div class="cat-head"><h2 id="by-star-h">Learn with a star</h2><span class="muted">${all.length} stars · ${lessons} lessons · pick who you want to learn from</span></div>
+    <div class="field-row" role="group" aria-label="Pick a kind of star"><button class="chip" data-act="starf" data-v="all" aria-pressed="${S.starf==='all'}">All stars</button>${fields.map(f=>`<button class="chip" data-act="starf" data-v="${f}" aria-pressed="${S.starf===f}">${esc(CAT.courseFields[f])} (${all.filter(c=>c.field===f).length})</button>`).join('')}</div>
+    ${list.length?`<div class="star-course-grid">${list.map(starCourseCard).join('')}</div>`:'<div class="empty">No stars match. Try “All stars”.</div>'}
+  </section>`;
+}
+
 /* ================= STARS: every career, from famous people who do it ================= */
 function viewStars(){
   if (S.lesson!=null && S.course) return viewLesson();
@@ -1241,12 +1282,13 @@ function viewStars(){
   return `<section class="learn-hero">
     <div><div class="eyebrow">A.R.I.S.E. Connect Stars</div>
       <h1>Learn from <em>the stars.</em></h1>
-      <p class="lede">Lessons taught through videos of famous people: Gordon Ramsay in the kitchen, Shigeru Miyamoto designing Mario, Ninja on esports, Steph Curry, Spielberg, Chris Hadfield in space, Mike Rowe on the trades. Each lesson has a star video, a short reading, key words and a quick check. ${student?'Finish a course to earn a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate.'}</p>
-      ${student?`<div class="learn-stats"><span><b>${(P().certificates||[]).length}</b> certificates</span><span><b>${inprog.length}</b> in progress</span><span><b>${watched}</b> star videos watched</span></div>`:`<div class="learn-stats"><span><b>${CAT.courses.length}</b> star courses</span><span><b>${all.length}</b> more star videos</span></div>`}
+      <p class="lede">Pick a star and learn from them: Taylor Swift on songwriting, Quincy Jones and Pharrell on producing, Hans Zimmer on movie music, Gordon Ramsay in the kitchen, Shigeru Miyamoto designing Mario, Steph Curry, Spielberg, Chris Hadfield in space and more. Each lesson has a star video, a short reading, key words and a quick check. ${student?'Finish a course to earn a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate.'}</p>
+      ${student?`<div class="learn-stats"><span><b>${(P().certificates||[]).length}</b> certificates</span><span><b>${inprog.length}</b> in progress</span><span><b>${watched}</b> star videos watched</span></div>`:`<div class="learn-stats"><span><b>${CAT.courses.filter(c=>c.star).length}</b> stars teaching</span><span><b>${CAT.courses.reduce((n,c)=>n+c.lessons.length,0)}</b> lessons</span><span><b>${all.length}</b> more star videos</span></div>`}
     </div>
     <div class="continue"><div class="eyebrow">${student&&inprog.length?'Continue learning':'Start with a star'}</div>
-      ${(student&&inprog.length?inprog:['culn','game','sprt'].map(course).filter(Boolean)).slice(0,3).map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${student&&inprog.length?`Lesson ${Math.min(lessonsDone(c)+1,c.lessons.length)} of ${c.lessons.length}`:c.stars&&c.stars[0]?`With ${esc(c.stars[0].star)}`:esc(CAT.courseFields[c.field])}</span></span></button>`).join('')}
+      ${(student&&inprog.length?inprog:['s-taylor','s-gordon','s-miyamoto'].map(course).filter(Boolean)).slice(0,3).map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${student&&inprog.length?`Lesson ${Math.min(lessonsDone(c)+1,c.lessons.length)} of ${c.lessons.length}`:c.star?`With ${esc(c.star.name)}`:c.stars&&c.stars[0]?`With ${esc(c.stars[0].star)}`:esc(CAT.courseFields[c.field])}</span></span></button>`).join('')}
     </div></section>
+  ${viewByStar()}
   ${viewLearn(true)}
   <section class="section"><div class="cat-head"><h2>More from the stars</h2><span class="muted">Short videos for every career, each with one thing to try</span></div></section>
   <div class="filters"><div class="seg" role="group" aria-label="Career area"><button data-act="sfield" data-v="all" aria-pressed="${S.sfield==='all'}">All</button>${areas.map(([k,v])=>`<button data-act="sfield" data-v="${k}" aria-pressed="${S.sfield===k}">${esc(v.name)}</button>`).join('')}</div></div>
@@ -1304,6 +1346,7 @@ function viewLearn(bare){
   const student = role()==='student';
   const lp = S.lpath ? CAT.learningPaths.find(p=>p.id===S.lpath) : null;
   let list = CAT.courses.filter(c => (S.lfield==='all'||c.field===S.lfield) && (!lp || lp.courses.includes(c.id)));
+  if (bare && !lp) list = list.filter(c => !c.star);
   if (S.interests.size) list = [...list].sort((a,b)=>(b.interests.some(i=>S.interests.has(i))?1:0)-(a.interests.some(i=>S.interests.has(i))?1:0));
   const inprog = student ? CAT.courses.filter(c => lessonsDone(c)>0 && !certOf(c.id)) : [];
   const first = esc((ME.user.name||'').split(' ')[0] || 'there');
@@ -1312,7 +1355,7 @@ function viewLearn(bare){
       <span class="path-icons">${p.courses.map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
       <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
       ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
-  <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'Star lessons'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
+  <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'More career courses'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
     <div class="field-row" role="group" aria-label="Pick a career field"><span class="sub">Pick a field:</span><button class="chip" data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All courses</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button class="chip" data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div>
     ${list.length?`<div class="grid">${list.map(courseCard).join('')}</div>`:'<div class="empty">No courses match. Try “All”.</div>'}
   </section>`;
@@ -1517,6 +1560,7 @@ document.addEventListener('click', async e=>{
       case 'fc': S.filterC=v; renderMain(); break;
       case 'learnhome': S.course=null; S.lesson=null; renderMain(); window.scrollTo(0,0); break;
       case 'lfield': S.lfield=v; renderMain(); break;
+      case 'starf': S.starf=v; renderMain(); break;
       case 'interest': S.interests.has(v)?S.interests.delete(v):S.interests.add(v); { const y=window.scrollY; renderMain(); window.scrollTo(0,y); } break;
       case 'lpath': S.lpath=v||null; renderMain(); break;
       case 'course': closeModal(); S.tab='stars'; S.course=id; S.lesson=null; render(); window.scrollTo(0,0); break;

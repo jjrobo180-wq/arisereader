@@ -4,6 +4,7 @@
 // hands-on activity and a quick check. Answers are checked again on the server before a lesson counts.
 
 import { COURSE_STARS, LESSON_VIDEOS, type ConnectVideo } from "./connectVideos";
+import { STAR_COURSES, STAR_COURSE_SKILLS, STAR_PATHS } from "./starCourses";
 
 export type CourseField = "trades" | "eng" | "film" | "music" | "health" | "tech" | "biz" | "food" | "sports" | "air" | "games";
 export type CoursePath = "trade" | "cert" | "college";
@@ -22,6 +23,8 @@ export type Course = {
   lessons: CourseLesson[];
   /** Celebrity spotlight videos (shared/connectVideos.ts), attached below. */
   stars?: ConnectVideo[];
+  /** "Learn with a Star" courses (shared/starCourses): the one celebrity the whole course is built around. */
+  star?: { name: string; role: string };
 };
 
 export const COURSE_FIELDS: Record<CourseField, string> = {
@@ -369,6 +372,8 @@ export const COURSES: Course[] = [
         {q:"Who besides players works in esports?",o:["Nobody","Coaches, analysts, shoutcasters and event crews","Only the players' parents","Only the game's programmers"],a:1,why:"Like pro sports, esports needs many jobs around the players."}]}
  ]},
 ];
+// "Learn with a Star": 20 celebrity-led courses, 5 lessons each (shared/starCourses).
+COURSES.push(...STAR_COURSES);
 
 /** Groups of courses shown together as a career path. */
 export const LEARNING_PATHS: { id: string; title: string; blurb: string; field: CourseField; courses: string[] }[] = [
@@ -379,6 +384,7 @@ export const LEARNING_PATHS: { id: string; title: string; blurb: string; field: 
   { id: "games", title: "Games & Tech", blurb: "Design a level like Miyamoto and code your first game.", field: "games", courses: ["game", "tech"] },
   { id: "action", title: "Fly, Play & Cook", blurb: "Earn your wings, work in pro sports and run a kitchen.", field: "air", courses: ["avia", "sprt", "culn"] },
 ];
+LEARNING_PATHS.unshift(...STAR_PATHS);
 
 /** Skills a finished course adds to the student's profile. */
 export const COURSE_SKILLS: Record<string, string[]> = {
@@ -387,6 +393,7 @@ export const COURSE_SKILLS: Record<string, string[]> = {
   weld: ["Welding safety", "MIG basics"], biz: ["Profit math", "Pitching"],
   culn: ["Food safety", "Knife skills"], sprt: ["Injury first steps", "Play-by-play"], avia: ["Four forces of flight", "Aviation careers"],
   game: ["Level design", "Playtesting"],
+  ...STAR_COURSE_SKILLS,
 };
 
 // Each lesson's "Watch" video and each course's celebrity spotlight (shared/connectVideos.ts).

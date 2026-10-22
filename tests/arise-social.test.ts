@@ -355,7 +355,7 @@ test("Connect courses have a checked YouTube video in every lesson, a star spotl
     for (const l of c.lessons) assert.ok(l.video && isVideoId(l.video.id) && l.video.title && l.video.by, `${c.id}: ${l.title}`);
     assert.ok((c.stars || []).length >= 1, `${c.id}: a star spotlight`);
     for (const v of c.stars || []) assert.ok(isVideoId(v.id) && v.star && v.role, `${c.id}: ${v.title}`);
-    assert.ok(c.lessons.length === 3 && c.lessons.every((l) => l.quiz.length >= 2), c.id);
+    assert.ok(c.lessons.length === (c.star ? 5 : 3) && c.lessons.every((l) => l.quiz.length >= 2), c.id);
   }
   for (const id of Object.keys(COURSE_STARS)) assert.ok(courseById(id), `stars for a real course: ${id}`);
   for (const [id, v] of Object.entries(CAREER_VIDEOS)) {

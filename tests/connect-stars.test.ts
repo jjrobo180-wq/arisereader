@@ -97,3 +97,37 @@ test("the Connect page opens on Stars, skips videos YouTube removed, and only sh
   assert.match(page, /<h3 class="rail-h">Watch the pros<\/h3>/);
   assert.doesNotMatch(page, /See the job/);
 });
+
+test("Learn with a Star: 100 new lessons in 20 celebrity-led courses, ten of them music, shown first by star", async () => {
+  const { STAR_COURSES, STAR_PATHS } = await import("../shared/starCourses");
+  const { LEARNING_PATHS, COURSE_SKILLS } = await import("../shared/connectCourses");
+  assert.equal(STAR_COURSES.length, 20);
+  assert.equal(STAR_COURSES.reduce((n, c) => n + c.lessons.length, 0), 100);
+  assert.ok(STAR_COURSES.filter((c) => c.field === "music").length >= 10, "lots of music");
+  const stars = new Set(STAR_COURSES.map((c) => c.star!.name));
+  assert.equal(stars.size, 20, "one star per course");
+  for (const c of STAR_COURSES) {
+    assert.ok(COURSES.includes(c), `${c.id} is a real Connect course`);
+    assert.ok(c.star?.name && c.star.role, `${c.id} names its star`);
+    assert.ok(COURSE_SKILLS[c.id]?.length, `${c.id} adds skills`);
+    for (const l of c.lessons) {
+      assert.equal(l.video?.star, c.star!.name, `${c.id}: ${l.title} is taught by its own star`);
+      assert.ok((l.backups || []).every((v) => v.star === c.star!.name), `${c.id}: ${l.title} backups are the same star`);
+      assert.ok(l.body.length >= 3 && l.terms.length >= 2 && l.quiz.length >= 2, `${c.id}: ${l.title} is a full lesson`);
+    }
+  }
+  // Right answers are spread out, not always the first choice.
+  const spots = [0, 0, 0, 0];
+  for (const c of STAR_COURSES) for (const l of c.lessons) for (const q of l.quiz) spots[q.a]++;
+  assert.ok(spots.every((n) => n > 25), `answers spread: ${spots}`);
+  assert.ok(STAR_PATHS.every((p) => LEARNING_PATHS.includes(p as any)));
+  assert.equal(LEARNING_PATHS[0].id, "music-stars");
+
+  const page = readFileSync(new URL("../client/public/social/index.html", import.meta.url), "utf8");
+  assert.match(page, /function viewByStar\(\)/);
+  assert.match(page, /<h2 id="by-star-h">Learn with a star<\/h2>/);
+  assert.match(page, /const STAR_FIELD_ORDER = \['music'/, "music stars come first");
+  // The star section is the first set of lessons on the Stars page, before the other courses.
+  const v = page.slice(page.indexOf("function viewStars(){"));
+  assert.ok(v.indexOf("${viewByStar()}") > 0 && v.indexOf("${viewByStar()}") < v.indexOf("${viewLearn(true)}"));
+});
