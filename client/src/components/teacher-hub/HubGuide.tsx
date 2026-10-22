@@ -6,6 +6,7 @@
 //
 // No one's name is built in. A teacher saves the people they work with once
 // (Sped team contacts) and picks who is assigned for each student.
+import { IepWriterLauncher } from "./HubIepWriter";
 import { WeeklyEditor } from "./HubAvailability";
 import { useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { ArrowLeft, Check, ChevronRight, Copy, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
@@ -380,6 +381,7 @@ export function GuideChecklist({ guide, workspace, setWorkspace, makeId, sender 
   return (
     <>
       <Progress done={progress.done} total={progress.total} />
+      {guide.student && <IepWriterLauncher workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} student={guide.student} />}
       {sections.map((section) => {
         const done = section.steps.filter((s) => s.done).length;
         return (
