@@ -10786,6 +10786,8 @@ Important:
     const student = await storage.getUser(studentId);
     if (!student || student.isAdmin || student.role === "teacher" || student.role === "parent") return false;
     if (Number(student.teacherId) === Number(user?.id)) return true;
+    // A co-advisor reaches the students in their advisory.
+    if (user?.id && (await storage.inTeachersAdvisory(Number(user.id), student))) return true;
     // A school leadership account reaches every student at its own school.
     const scope = user?.id ? await storage.schoolStaffScope(Number(user.id)) : null;
     return !!scope && Number((student as any).school_id ?? (student as any).schoolId) === scope.schoolId
@@ -10832,8 +10834,10 @@ Important:
   app.get("/api/teacher-admin/all-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const staffScope = req.user.isAdmin ? null : await storage.schoolStaffScope(Number(req.user.id));
+      const advScope = req.user.isAdmin || staffScope ? null : await storage.advisoryScope(Number(req.user.id));
       const students = (await storage.getAllUsers()).filter((s: any) => (s.role === 'student' || (!s.role && !s.isAdmin))
         && (req.user.isAdmin || Number(s.teacherId) === Number(req.user.id)
+          || (!!advScope && !s.archivedAt && Number(s.school_id ?? s.schoolId) === advScope.schoolId && advScope.names.includes(String(s.directoryTeacherName || "").trim()))
           || (!!staffScope && !s.archivedAt && Number(s.school_id ?? s.schoolId) === staffScope.schoolId
             && (!staffScope.eyeGazeOnly || !!s.is_eye_gaze_user))));
       const allUsers = await storage.getAllUsers();
@@ -10847,7 +10851,7 @@ Important:
         try {
           let q = supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
           if (staffScope) { q = q.eq("school_id", staffScope.schoolId); if (staffScope.eyeGazeOnly) q = q.eq("is_eye_gaze_user", true); }
-          else if (!req.user.isAdmin) q = q.eq("teacher_id", req.user.id);
+          else if (!req.user.isAdmin) q = q.in("id", students.length ? students.map((st: any) => Number(st.id)) : [-1]);
           const { data, error } = await q;
           if (!error && data) { allUsersWithAttempts = data; break; }
         } catch (e) {}
@@ -11495,7 +11499,7 @@ Important:
       const student = await storage.getUser(studentId);
       if (!student || student.isAdmin || student.role !== 'student') return res.status(404).json({ message: "Student not found" });
       if (!req.user.isAdmin && req.user.accountApproved === false) return res.status(403).json({ message: "Teacher account approval required" });
-      if (!req.user.isAdmin && Number(student.teacherId) !== Number(req.user.id)) return res.status(403).json(NOT_YOUR_STUDENT);
+      if (!(await canReachStudent(req.user, studentId))) return res.status(403).json(NOT_YOUR_STUDENT);
       const attempts = await storage.getUserAttempts(studentId);
       const books = await storage.getAllBooks();
       const bookMap = new Map(books.map(b => [b.id, b]));
@@ -11547,7 +11551,7 @@ Important:
       const studentId = parseInt(req.params.id);
       const student = await storage.getUser(studentId);
       if (!student) return res.status(404).json({ message: "Student not found" });
-      if (!req.user.isAdmin && student.teacherId !== req.user.id) {
+      if (!(await canReachStudent(req.user, studentId))) {
         return res.status(403).json({ message: "You can only view your own students" });
       }
       const messages = await storage.getUserMessages(studentId);
@@ -11563,7 +11567,7 @@ Important:
       const studentId = parseInt(req.params.id);
       const student = await storage.getUser(studentId);
       if (!student) return res.status(404).json({ message: "Student not found" });
-      if (!req.user.isAdmin && student.teacherId !== req.user.id) {
+      if (!(await canReachStudent(req.user, studentId))) {
         return res.status(403).json({ message: "You can only message your own students" });
       }
       const { messageText, linkUrl } = req.body;
@@ -11583,7 +11587,7 @@ Important:
       const studentId = parseInt(req.params.id);
       const student = await storage.getUser(studentId);
       if (!student) return res.status(404).json({ message: "Student not found" });
-      if (!req.user.isAdmin && student.teacherId !== req.user.id) {
+      if (!(await canReachStudent(req.user, studentId))) {
         return res.status(403).json({ message: "You can only view your own students" });
       }
       const attempts = await storage.getUserAttempts(studentId);

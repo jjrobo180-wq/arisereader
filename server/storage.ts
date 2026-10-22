@@ -2,6 +2,7 @@ import { monthStartMs, nextYearMonth } from "./schoolTime";
 import { bookKey } from "../shared/bookIdentity";
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { supabase, getAdminSupabase } from "./supabase";
+import { advisoriesForSchool, advisoryName } from "../shared/advisories";
 import bcrypt from "bcryptjs";
 import { lookupPages } from "./bookPages";
 import { cleanPages, pointsForBook } from "../shared/bookPoints";
@@ -2037,6 +2038,36 @@ export class DatabaseStorage implements IStorage {
     return user && user.role === "teacher" && !user.archivedAt && schoolId > 0 ? { schoolId, eyeGazeOnly: eyeGaze } : null;
   }
 
+  /**
+   * The advisories a teacher co-leads (shared/advisories.ts), as the names stored on students'
+   * directory_teacher_name ("Pochette & Vohlers"). Students uploaded into an advisory before
+   * their advisors had accounts carry only that name, not a teacher_id, so both co-advisors
+   * reach them through it. Matched by last name within the teacher's own school.
+   */
+  async advisoryScope(teacherId: number): Promise<{ schoolId: number; names: string[] } | null> {
+    const t: any = await this.getUser(Number(teacherId));
+    const schoolId = Number(t?.school_id ?? t?.schoolId);
+    if (!t || t.role !== "teacher" || t.archivedAt || !(schoolId > 0)) return null;
+    const words = (n: string) => String(n || "").toLowerCase().split(/[^a-z'-]+/).filter(Boolean);
+    const mine = words(t.displayName).filter((w) => !["mr", "mrs", "ms", "miss", "dr", "mx"].includes(w));
+    const last = mine[mine.length - 1];
+    if (!last || last.length < 2) return null;
+    const { data: school } = await supabase.from("schools").select("name").eq("id", schoolId).maybeSingle();
+    if (!school?.name) return null;
+    const names = advisoriesForSchool(String(school.name))
+      .filter((a) => a.teachers.some((full) => { const w = words(full); return w[w.length - 1] === last; }))
+      .map(advisoryName);
+    return names.length ? { schoolId, names } : null;
+  }
+
+  /** True when this student sits in an advisory this teacher co-leads. */
+  async inTeachersAdvisory(teacherId: number, student: any): Promise<boolean> {
+    const name = String(student?.directoryTeacherName ?? student?.directory_teacher_name ?? "").trim();
+    if (!name) return false;
+    const scope = await this.advisoryScope(teacherId);
+    return !!scope && scope.names.includes(name) && Number(student?.school_id ?? student?.schoolId) === scope.schoolId;
+  }
+
   async getTeacherStudents(teacherId: number): Promise<any[]> {
     const scope = await this.schoolStaffScope(teacherId);
     if (scope) {
@@ -2062,7 +2093,24 @@ export class DatabaseStorage implements IStorage {
       .is("archived_at", null)
       .order("display_name", { ascending: true });
     if (error) throw new Error(error.message);
-    return data.map(mapUser);
+    const own = (data || []).map(mapUser);
+    // plus the students in an advisory this teacher co-leads
+    const adv = await this.advisoryScope(teacherId);
+    if (!adv) return own;
+    const { data: extra, error: advError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("school_id", adv.schoolId)
+      .in("directory_teacher_name", adv.names)
+      .eq("is_admin", false)
+      .or("role.eq.student,role.is.null")
+      .eq("approved_by_teacher", true)
+      .is("archived_at", null)
+      .order("display_name", { ascending: true });
+    if (advError) return own;
+    const seen = new Set(own.map((u: any) => Number(u.id)));
+    const merged = [...own, ...(extra || []).map(mapUser).filter((u: any) => !seen.has(Number(u.id)))];
+    return merged.sort((a: any, b: any) => String(a.displayName || "").localeCompare(String(b.displayName || "")));
   }
 
   async getPendingStudents(teacherId: number): Promise<any[]> {
