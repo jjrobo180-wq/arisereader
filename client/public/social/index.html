@@ -650,7 +650,7 @@ tr:last-child td{border-bottom:0}
 .with-star{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:800;color:#8A4B00}
 .with-star svg{width:14px;height:14px;fill:currentColor}
 .career-vid{display:grid;gap:8px}
-</style>
+.lesson-star-thumb{width:112px;height:70px;object-fit:cover;object-position:center;border-radius:10px;flex-shrink:0;background:#192333}@media(max-width:520px){.lesson-star-thumb{width:84px;height:58px}}</style>
 </head>
 <body>
 <header class="top"><div class="wrap bar-row">
@@ -1337,7 +1337,7 @@ function viewCourse(){
     <div class="panel"><h3>What you'll learn</h3><ul class="checks">${c.learn.map(l=>`<li>${svg('check')}<span>${esc(l)}</span></li>`).join('')}</ul></div>
   </section>
   <section class="section"><h2>Lessons</h2>
-    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}"><span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min${lessonVid(l)?' · video':''} · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
+    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}">${lessonVid(l)?`<img class="lesson-star-thumb" src="https://i.ytimg.com/vi/${lessonVid(l).id}/hqdefault.jpg" alt="Video still featuring ${esc(lessonVid(l).star)}" loading="lazy" onerror="this.style.display='none'">`:''}<span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min${lessonVid(l)?' · video':''} · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
   </section>
   ${(c.stars||[]).filter(okVid).length?`<section class="section" aria-labelledby="spot-h"><h2 id="spot-h">Star spotlight</h2><p class="muted" style="margin:-6px 0 16px">Famous people who do this work, or fight for it.</p>
     <div class="stars-grid">${c.stars.filter(okVid).map(v=>`<div class="star-card">${videoHTML(v,'course')}</div>`).join('')}</div></section>`:''}
