@@ -4,6 +4,7 @@ import {
   AlertTriangle, BarChart3, Bell, BookPlus, Brain, CheckCircle2, ChevronRight, Eye, FileSearch, Gift,
   GraduationCap, MessageSquare, PartyPopper, RefreshCw, School, ShieldCheck, TrendingUp, UserPlus, Users, X,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { onNotificationsRefresh, relativeTime, sessionToken } from "@/lib/notifications";
@@ -36,7 +37,12 @@ const CATEGORY_STYLE: Record<FeedCategory, { icon: typeof Bell; tone: string }> 
   assessment: { icon: BarChart3, tone: "bg-violet-500/15 text-violet-300" },
   success: { icon: CheckCircle2, tone: "bg-emerald-500/15 text-emerald-300" },
   info: { icon: Bell, tone: "bg-slate-500/15 text-slate-300" },
+  quiz_ready: { icon: Brain, tone: "bg-emerald-500/15 text-emerald-300" },
 };
+
+/** A quiz a student asked for is approved: the bell opens it itself, on every page (shared/readyQuizzes.ts). */
+const quizLink = (target?: { type: string; id: number }) =>
+  target?.type === "quiz" ? `/quiz/${target.id}` : target?.type === "custom_quiz" ? `/custom-quiz/${target.id}` : null;
 
 const EMPTY: FeedResponse = { type: "student", items: [], actionCount: 0, updateCount: 0, unreadCount: 0 };
 
@@ -71,6 +77,7 @@ export function NotificationBell({
   onSettings?: () => void;
 }) {
   const { token, user } = useAuth();
+  const [, navigate] = useLocation();
   const cache = cacheName(user?.id);
   const [feed, setFeed] = useState<FeedResponse>(EMPTY);
   const [loaded, setLoaded] = useState(false);
@@ -261,6 +268,8 @@ export function NotificationBell({
       return;
     }
     void markSeen([item.key]);
+    const quiz = quizLink(item.target);
+    if (quiz) { setOpen(false); navigate(quiz); return; }
     if (item.target) { setOpen(false); onNavigate?.(item.target.type, item.target.id); }
   };
 
@@ -287,6 +296,9 @@ export function NotificationBell({
               <span className="shrink-0 pt-0.5 text-[11px] font-semibold text-[#c4c0dc]">{relativeTime(item.createdAt)}</span>
             </span>
             {item.body && <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-[#c4c0dc] [overflow-wrap:anywhere]">{item.body}</span>}
+            {quizLink(item.target) && (
+              <span className="mt-1.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-black text-emerald-300">Take the quiz <ChevronRight className="h-3 w-3" /></span>
+            )}
             {item.kind === "action" && linked && (
               <span className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-[#fb923c]">Open <ChevronRight className="h-3 w-3" /></span>
             )}
