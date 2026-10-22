@@ -111,7 +111,7 @@ function PendingQuizReview({ quiz, busy, onDecide }: { quiz: PendingQuiz; busy: 
   const [open, setOpen] = useState(false);
   const questions = useMemo(() => quizQuestions(quiz.questions), [quiz.questions]);
   const kind = quiz.quiz_type === "eye_gaze" ? "Eye gaze" : quiz.quiz_type === "iarise" ? "iArise" : quiz.quiz_type === "favorite_topic" ? "Favorite topic" : "Book";
-  const whose = quiz.mine ? <Pill tone="green">Your student</Pill> : quiz.teacher_name ? <Pill tone="slate">{quiz.teacher_name}’s student</Pill> : null;
+  const whose = quiz.mine ? <Pill tone="green">Your student</Pill> : <Pill tone="slate">{quiz.teacher_name ? `${quiz.teacher_name}’s student` : "No teacher yet"}</Pill>;
   return <Row title={<span className="inline-flex flex-wrap items-center gap-2">{quiz.book_title}{whose}</span>} sub={`by ${quiz.author || "Unknown"} · asked for by ${quiz.student_name} · ${kind} quiz${quiz.age_group ? ` · grade ${quiz.age_group}` : ""} · ${questions.length} questions`}
     right={<>
       <button type="button" className={smallBtn} aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? "Hide questions" : "Review questions"}</button>
@@ -444,11 +444,18 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
           <Row key={r.id} title={r.bookTitle} sub={<>Requested by {r.studentName} · {new Date(r.createdAt).toLocaleDateString()}{r.message ? <span className="mt-1 block text-slate-600">{r.message}</span> : null}</>}
             right={<button type="button" className={smallBtn} onClick={() => void dismissBook(r.id)}><Check className="h-4 w-4" /> Done</button>} />)}</ul> : <Empty>No book requests from students yet.</Empty>}
       </Card>}
-      {apSub === "quizzes" && <Card title={`Quiz requests${school?.quizzes.length ? ` (${school.quizzes.length})` : ""}`}>
-        <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">A student asked for a quiz on a book that wasn't in the library yet, and A.R.I.S.E. wrote the questions. Click <b>Review questions</b> to check them, then <b>Approve</b>. The student gets a “Your quiz is ready!” banner and notification right away. Your own students are listed first.</p>
-        {!school ? <Empty>Loading…</Empty> : school.quizzes.length ? <ul className="mt-3 space-y-2">{school.quizzes.map((q) =>
-          <PendingQuizReview key={q.id} quiz={q} busy={quizBusy} onDecide={(ok) => void decideQuiz(q.id, ok)} />)}</ul> : <Empty>No quiz requests waiting.</Empty>}
-      </Card>}
+      {apSub === "quizzes" && <>
+        <Card title={`Quiz requests from your students${school ? ` (${school.quizzes.filter((q) => q.mine).length})` : ""}`}>
+          <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">A student asked for a quiz on a book that wasn't in the library yet, and A.R.I.S.E. wrote the questions. Click <b>Review questions</b> to check them, then <b>Approve</b>. The student gets a “Your quiz is ready!” banner and notification right away.</p>
+          {!school ? <Empty>Loading…</Empty> : school.quizzes.some((q) => q.mine) ? <ul className="mt-3 space-y-2">{school.quizzes.filter((q) => q.mine).map((q) =>
+            <PendingQuizReview key={q.id} quiz={q} busy={quizBusy} onDecide={(ok) => void decideQuiz(q.id, ok)} />)}</ul> : <Empty>None of your students are waiting on a quiz.</Empty>}
+        </Card>
+        <Card title={`Other students' quiz requests${school ? ` (${school.quizzes.filter((q) => !q.mine).length})` : ""}`} collapseKey="reader-other-quiz-requests">
+          <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Requests from students in other teachers' classes (or with no teacher yet). You can approve these too, so no student is left waiting. Each one shows whose student it is.</p>
+          {!school ? <Empty>Loading…</Empty> : school.quizzes.some((q) => !q.mine) ? <ul className="mt-3 space-y-2">{school.quizzes.filter((q) => !q.mine).map((q) =>
+            <PendingQuizReview key={q.id} quiz={q} busy={quizBusy} onDecide={(ok) => void decideQuiz(q.id, ok)} />)}</ul> : <Empty>No other quiz requests waiting.</Empty>}
+        </Card>
+      </>}
       {apSub === "join" && user?.isAdmin && <Card title={`Students waiting across the school${school?.pending.length ? ` (${school.pending.length})` : ""}`} collapseKey="reader-school-pending">
         {!school ? <Empty>Loading…</Empty> : school.pending.length ? <ul className="space-y-2">{school.pending.map((s) =>
           <Row key={s.id} title={s.displayName || s.username} sub={`@${s.username}${s.teacherName ? ` · ${s.teacherName}` : ""}`} right={<button type="button" className={goodBtn} onClick={() => void approveAny(s.id)}><Check className="h-4 w-4" /> Approve</button>} />)}</ul>

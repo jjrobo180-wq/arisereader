@@ -39,6 +39,8 @@ test("Approvals: quiz requests come first, Approve is on the row, find-a-book re
   assert.ok(page.includes("data-testid={`button-approve-quiz-${quiz.id}`}"), "Approve shows without opening the questions");
   assert.ok(page.includes('label="Quiz requests from your students"'), "the overview counts them");
   assert.ok(page.includes("There's nothing to approve here"), "find-a-book requests explain themselves");
+  assert.ok(page.includes("Quiz requests from your students${school") && page.includes("Other students' quiz requests"), "your students and everyone else's are in separate sections");
+  assert.ok(page.includes("school.quizzes.filter((q) => !q.mine).map((q) =>\n            <PendingQuizReview"), "and other students' requests can be approved too");
   assert.ok(!page.includes(">Dismiss</button>} />)}</ul> : <Empty>No bo"), "Dismiss is now Done");
 });
 
