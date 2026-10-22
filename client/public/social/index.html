@@ -801,10 +801,10 @@ function tabs(){
   if (ME && r==='student' && ME.approvalStatus!=='approved') return [];
   if (ME && !ME.access && r!=='teacher') return [];
   if (r==='teacher' && !ME.access) return [['approvals','Approvals','inbox']];
-  if (r==='student') return [['stars','Stars','tv'],['feed','Home','feed'],['learn','Learning','learn'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]);
-  if (r==='teacher') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['learn','Learning','learn'],['events','Events','event'],['explore','Explore','explore']];
-  if (r==='admin') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['learn','Learning','learn'],['explore','Explore','explore']];
-  if (r==='parent') return [['stars','Stars','tv'],['family','Home','feed'],['learn','Learning','learn'],['explore','Explore','explore'],['paths','Paths','paths']];
+  if (r==='student') return [['stars','Stars','tv'],['feed','Home','feed'],['explore','Explore','explore'],['quests','Quests','quest'],['events','Events','event']].concat(young(ME.user.band)?[]:[['paths','Paths','paths']]);
+  if (r==='teacher') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['class','My Class','class'],['events','Events','event'],['explore','Explore','explore']];
+  if (r==='admin') return [['stars','Stars','tv'],['feed','Home','feed'],['approvals','Approvals','inbox'],['explore','Explore','explore']];
+  if (r==='parent') return [['stars','Stars','tv'],['family','Home','feed'],['explore','Explore','explore'],['paths','Paths','paths']];
   return [];
 }
 function badgeFor(id){ return id==='approvals' ? (S.approvals?.length||0)+(S.accessRequests?.length||0) : 0; }
@@ -866,7 +866,7 @@ function leftHTML(){
           <button data-act="tab" data-v="quests"><span>Day streak</span><b>${p.streak}</b></button>
         </div></div>
       <div class="box pad-s"><div class="eyebrow">Keep learning</div>
-        ${inprog.map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${lessonsDone(c)} of ${c.lessons.length} lessons</span><span class="bar"><i style="width:${lessonsDone(c)/c.lessons.length*100}%"></i></span></span></button>`).join('') || `<p class="sub">Nothing in progress. Pick a course in Learning.</p><button class="linkbtn" data-act="tab" data-v="learn">Browse courses →</button>`}
+        ${inprog.map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${lessonsDone(c)} of ${c.lessons.length} lessons</span><span class="bar"><i style="width:${lessonsDone(c)/c.lessons.length*100}%"></i></span></span></button>`).join('') || `<p class="sub">Nothing in progress. Pick a course in Learning.</p><button class="linkbtn" data-act="tab" data-v="stars">Browse courses →</button>`}
       </div>`;
   }
   if (r==='teacher' || r==='admin'){
@@ -890,7 +890,7 @@ function railHTML(){
   const recs = (CAT.courses||[]).filter(x => role()!=='student' || (!certOf(x.id) && lessonsDone(x)===0)).slice(0,3);
   let html = `<div class="box pad-s"><h3 class="rail-h">Courses for you</h3>
       ${recs.map(x=>`<button class="mini-course" data-act="course" data-id="${x.id}">${tile(x.icon,fieldColor(x.field),'sm')}<span><b>${esc(x.title)}</b><span class="sub">${esc(CAT.courseFields[x.field])} · ${x.minutes} min · +${CAT.xp.course} XP</span></span></button>`).join('')}
-      <button class="linkbtn" data-act="tab" data-v="learn">Browse all courses →</button></div>
+      <button class="linkbtn" data-act="tab" data-v="stars">Browse all courses →</button></div>
     <div class="box pad-s"><h3 class="rail-h">Career spotlight</h3><button class="mini-course" data-act="open" data-id="${c.id}">${tile(c.c,clusterColor(c.c),'sm')}<span><b>${esc(c.name)}</b><span class="sub">${esc(young(bandNow())?c.kid:(c.teen.match(/^[^.]*\./)||[c.teen])[0])}</span></span></button></div>`;
   const up = (role()==='parent' ? (currentChild()?.events||[]) : (S.events||[]))[0];
   if (up){ const d=fmtDate(up.date); html += `<div class="box pad-s"><h3 class="rail-h">Next up</h3><div class="suggest"><div class="date"><div class="m">${d.m}</div><div class="d">${d.d}</div></div><div class="who"><b>${esc(up.title)}</b><span class="sub">${esc([up.time,up.format].filter(Boolean).join(' · '))}</span></div></div></div>`; }
@@ -921,7 +921,7 @@ function composer(){
   if (!u.canPost) return `<div class="notice">${svg('info')}<div><b>${esc(u.postBlock||'Posting isn’t open yet.')}</b><br><span class="sub">You can still take courses, explore careers and do quests.</span></div></div>`;
   const yb = role()==='student' && young(u.band);
   if (!S.composeOpen) return `<div class="box composer"><div class="composer-row">${av(u.name,'m',true)}<button class="pillinput" data-act="compose">${yb?'Share something with your class':role()==='student'?'Share what you learned, a project, or a certificate…':'Share something with your class'}</button></div>
-    ${role()==='student'?`<div class="composer-opts"><button data-act="compose">${svg('quest')}Quest win</button><button data-act="tab" data-v="learn">${svg('learn')}Certificate</button><button data-act="tab" data-v="explore">${svg('explore')}Career</button></div>`:''}</div>`;
+    ${role()==='student'?`<div class="composer-opts"><button data-act="compose">${svg('quest')}Quest win</button><button data-act="tab" data-v="stars">${svg('learn')}Certificate</button><button data-act="tab" data-v="explore">${svg('explore')}Career</button></div>`:''}</div>`;
   if (yb) return `<div class="box composer"><div class="composer-row">${av(u.name,'m',true)}<b>Share with your class</b></div>
       <div class="two"><label class="field"><span>Pick a sentence</span><select id="cStart" class="select">${CAT.starters.map((s,i)=>`<option value="${i}">${esc(s)}…</option>`).join('')}</select></label>
       <label class="field"><span>Pick a job</span><select id="cCareer" class="select">${CAT.careers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label></div>
@@ -1053,9 +1053,9 @@ function viewProfile(){
       <div class="p-id"><h1>${esc(u.name)}</h1><p class="p-headline">${esc(headline())}</p>
         <p class="sub">${esc(CAT.bands[u.band].crew)} · Level ${p.level+1} ${esc(p.levelName)} · ${p.xp} XP · ${p.streak}-day streak</p>
         <p class="sub">${svg('shield')} Visible to your class only</p></div>
-      <div class="p-actions"><button class="btn" data-act="tab" data-v="learn">${svg('plus')}Add a certificate</button><button class="btn ghost" data-act="tab" data-v="explore">Explore careers</button></div></div>
+      <div class="p-actions"><button class="btn" data-act="tab" data-v="stars">${svg('plus')}Add a certificate</button><button class="btn ghost" data-act="tab" data-v="explore">Explore careers</button></div></div>
       ${yb?'':`<div class="open-to"><b>Open to</b><span>${tops.length?`Job shadows and summer programs in ${esc(tops.join(' and '))}`:'Job shadows, summer programs and club invites'}</span></div>`}</div>
-    <div class="box pad"><div class="box-head flat"><h2 class="sec-h">Licenses &amp; certifications</h2><button class="icon-btn" data-act="tab" data-v="learn" aria-label="Earn a certificate">${svg('plus')}</button></div>
+    <div class="box pad"><div class="box-head flat"><h2 class="sec-h">Licenses &amp; certifications</h2><button class="icon-btn" data-act="tab" data-v="stars" aria-label="Earn a certificate">${svg('plus')}</button></div>
       ${certs.length?`<ul class="cert-rows">${certs.map(x=>{const c=course(x.id); if(!c) return ''; return `<li>${tile(c.icon,fieldColor(c.field))}<div><b>${esc(c.title)}</b><span class="sub">A.R.I.S.E. Connect · ${esc(CAT.courseFields[c.field])}</span><span class="sub small">Issued ${esc(longDate(x.date))} · Credential ID <span class="mono">${esc(x.code)}</span></span><button class="btn ghost small" data-act="credential" data-id="${c.id}">Show credential</button></div></li>`}).join('')}</ul>`:'<p class="sub">Finish a course in Learning to earn your first certificate.</p>'}</div>
     ${skills.length?`<div class="box pad"><h2 class="sec-h">Skills</h2><ul class="skills">${skills.map(k=>`<li><div><b>${esc(k)}</b><span class="sub small">From A.R.I.S.E. Connect courses</span></div></li>`).join('')}</ul></div>`:''}
     <div class="box pad"><h2 class="sec-h">Quests completed</h2>${done.length?`<ul class="clubs">${done.map(q=>`<li>${tile(q.c,clusterColor(q.c),'sm')}<div><b>${esc(q.title)}</b><span class="sub">${esc(CAT.clusters[q.c].name)} · +${q.xp} XP</span></div></li>`).join('')}</ul>`:`<p class="sub">No quests finished yet. <a href="#" data-act="tab" data-v="quests">Start one</a>.</p>`}</div>
@@ -1203,6 +1203,8 @@ const INTERESTS=[{id:"build",label:"Building things"},{id:"how",label:"Figuring 
 
 /* ================= STARS: every career, from famous people who do it ================= */
 function viewStars(){
+  if (S.lesson!=null && S.course) return viewLesson();
+  if (S.course) return viewCourse();
   if (STARS===null) return '<div class="skeleton"></div><div class="skeleton"></div>';
   const all = STARS.filter(starOk);
   const q = S.q.trim().toLowerCase();
@@ -1215,16 +1217,18 @@ function viewStars(){
   const rows = CAT.careers.map(c => ({ c, vids: list.filter(v => v.careers[0]===c.id) })).filter(r => r.vids.length).sort((a,b)=>watchRank(a.c.id)-watchRank(b.c.id));
   const student = role()==='student';
   const watched = student ? (P()?.watched||[]).length : 0;
-  const tour = (() => { const seen = new Set(); return oneEach(all).filter(v => !seen.has(v.careers[0]) && seen.add(v.careers[0])).slice(0,3); })();
+  const inprog = student ? CAT.courses.filter(c => lessonsDone(c)>0 && !certOf(c.id)) : [];
   return `<section class="learn-hero">
     <div><div class="eyebrow">A.R.I.S.E. Connect Stars</div>
       <h1>Learn from <em>the stars.</em></h1>
-      <p class="lede">Gordon Ramsay in the kitchen, Ninja on going pro, Shigeru Miyamoto designing Mario, Simone Biles, Steph Curry, Chris Hadfield in space, Mike Rowe on the trades. Every video is a famous person showing a career you can explore here, with one thing to try after you watch.</p>
-      ${student?`<div class="learn-stats"><span><b>${watched}</b> watched</span><span><b>+${CAT.xp.watch}</b> XP per video</span><span><b>${all.length}</b> videos</span></div>`:`<div class="learn-stats"><span><b>${all.length}</b> videos</span><span><b>${rows.length}</b> careers</span></div>`}
+      <p class="lede">Lessons taught through videos of famous people: Gordon Ramsay in the kitchen, Shigeru Miyamoto designing Mario, Ninja on esports, Steph Curry, Spielberg, Chris Hadfield in space, Mike Rowe on the trades. Each lesson has a star video, a short reading, key words and a quick check. ${student?'Finish a course to earn a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate.'}</p>
+      ${student?`<div class="learn-stats"><span><b>${(P().certificates||[]).length}</b> certificates</span><span><b>${inprog.length}</b> in progress</span><span><b>${watched}</b> star videos watched</span></div>`:`<div class="learn-stats"><span><b>${CAT.courses.length}</b> star courses</span><span><b>${all.length}</b> more star videos</span></div>`}
     </div>
-    <div class="continue"><div class="eyebrow">Today’s stars</div>
-      ${tour.map(v=>{const c=C(v.careers[0]);return `<button class="mini-course" data-act="starjump" data-id="${c.id}">${tile(c.c,clusterColor(c.c),'sm')}<span><b>${esc(v.star)}</b><span class="sub">${esc(c.name)}</span></span></button>`;}).join('')}
+    <div class="continue"><div class="eyebrow">${student&&inprog.length?'Continue learning':'Start with a star'}</div>
+      ${(student&&inprog.length?inprog:['culn','game','sprt'].map(course).filter(Boolean)).slice(0,3).map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${student&&inprog.length?`Lesson ${Math.min(lessonsDone(c)+1,c.lessons.length)} of ${c.lessons.length}`:c.stars&&c.stars[0]?`With ${esc(c.stars[0].star)}`:esc(CAT.courseFields[c.field])}</span></span></button>`).join('')}
     </div></section>
+  ${viewLearn(true)}
+  <section class="section"><div class="cat-head"><h2>More from the stars</h2><span class="muted">Short videos for every career, each with one thing to try</span></div></section>
   <div class="filters"><div class="seg" role="group" aria-label="Career area"><button data-act="sfield" data-v="all" aria-pressed="${S.sfield==='all'}">All</button>${areas.map(([k,v])=>`<button data-act="sfield" data-v="${k}" aria-pressed="${S.sfield===k}">${esc(v.name)}</button>`).join('')}</div></div>
   ${rows.length ? rows.map(({c, vids}) => `<section class="section" id="stars-${c.id}" style="--fc:${clusterColor(c.c)}"><div class="cat-head"><h2 style="display:flex;align-items:center;gap:12px">${tile(c.c,clusterColor(c.c))}${esc(c.name)}</h2><button class="btn ghost" data-act="open" data-id="${c.id}">About the job</button></div>
       <div class="stars-grid">${vids.map(v=>starCardHTML(v,'stars',{noCareer:true})).join('')}</div></section>`).join('') : '<div class="box pad">No videos match. Try “All” or a different search.</div>'}
@@ -1274,7 +1278,7 @@ function videoHTML(v, key, opts={}){
 }
 /* Every celebrity video across the courses, once each, with the course it belongs to. */
 function allStars(){ const seen=new Set(), out=[]; (CAT.courses||[]).forEach(c=>(c.stars||[]).forEach(v=>{ if(!seen.has(v.id)&&okVid(v)){ seen.add(v.id); out.push({v,c}); } })); return out; }
-function viewLearn(){
+function viewLearn(bare){
   if (S.lesson!=null && S.course) return viewLesson();
   if (S.course) return viewCourse();
   const student = role()==='student';
@@ -1283,6 +1287,17 @@ function viewLearn(){
   if (S.interests.size) list = [...list].sort((a,b)=>(b.interests.some(i=>S.interests.has(i))?1:0)-(a.interests.some(i=>S.interests.has(i))?1:0));
   const inprog = student ? CAT.courses.filter(c => lessonsDone(c)>0 && !certOf(c.id)) : [];
   const first = esc((ME.user.name||'').split(' ')[0] || 'there');
+  const sections = `<section class="section"><div class="cat-head"><h2>Career paths</h2><span class="muted">Groups of courses that go together</span></div>
+    <div class="paths">${CAT.learningPaths.map(p=>{const n=student?p.courses.filter(id=>certOf(id)).length:0;return `<button class="box path${S.lpath===p.id?' on':''}" data-act="lpath" data-v="${p.id}" aria-pressed="${S.lpath===p.id}">
+      <span class="path-icons">${p.courses.map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
+      <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
+      ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
+  <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'Star lessons'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
+    <div class="filters"><div class="seg" role="group" aria-label="Career field"><button data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div></div>
+    <div class="interest-row"><span class="sub">I'm into:</span>${INTERESTS.map(i=>`<button class="chip" data-act="interest" data-v="${i.id}" aria-pressed="${S.interests.has(i.id)}">${i.label}</button>`).join('')}</div>
+    ${list.length?`<div class="grid">${list.map(courseCard).join('')}</div>`:'<div class="empty">No courses match. Try “All”.</div>'}
+  </section>`;
+  if (bare) return sections;
   return `<section class="learn-hero">
     <div><div class="eyebrow">A.R.I.S.E. Connect Learning</div>
       <h1>${student?`Hi ${first}, `:''}<em>try a career</em> before you pick one.</h1>
@@ -1299,7 +1314,7 @@ function viewLearn(){
       <span class="path-icons">${p.courses.map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
       <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
       ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
-  <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'All courses'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
+  <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'Star lessons'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
     <div class="filters"><div class="seg" role="group" aria-label="Career field"><button data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div></div>
     <div class="interest-row"><span class="sub">I'm into:</span>${INTERESTS.map(i=>`<button class="chip" data-act="interest" data-v="${i.id}" aria-pressed="${S.interests.has(i.id)}">${i.label}</button>`).join('')}</div>
     ${list.length?`<div class="grid">${list.map(courseCard).join('')}</div>`:'<div class="empty">No courses match. Try “All”.</div>'}
@@ -1311,7 +1326,7 @@ function viewCourse(){
   const n = student ? lessonsDone(c) : 0, next = m ? m.lessons.findIndex(x=>!x) : 0;
   const cta = cert ? `<button class="btn goldbtn" data-act="credential" data-id="${c.id}">${svg('star')} View certificate</button>`
     : `<button class="btn" data-act="lesson" data-v="${next<0?0:next}">${!student?'Preview lessons':n?`Continue lesson ${next+1}`:'Start course'}</button>`;
-  return `<div class="back"><button class="linkbtn" data-act="learnhome">← All courses</button></div>
+  return `<div class="back"><button class="linkbtn" data-act="learnhome">← All star lessons</button></div>
   <section class="course-hero" style="--fc:${fieldColor(c.field)}">
     <div>
       <div style="display:flex;gap:12px;align-items:center">${tile(c.icon,fieldColor(c.field))}<div><div class="eyebrow">${esc(CAT.courseFields[c.field])}</div><div class="mono muted">${esc(c.code)}</div></div></div>
@@ -1412,7 +1427,7 @@ function credentialModal(id, fresh){
 }
 
 /* ================= RENDER ================= */
-const VIEWS = { stars:viewStars, learn:viewLearn, feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
+const VIEWS = { stars:viewStars, learn:viewStars, feed:viewFeed, explore:viewExplore, quests:viewQuests, events:viewEvents, profile:viewProfile, paths:viewPaths, family:viewFamily, approvals:viewApprovals, class:viewClass };
 function render(){
   renderChrome();
   const root = document.getElementById('root');
@@ -1478,7 +1493,7 @@ document.addEventListener('click', async e=>{
       case 'menu': S.menu = !S.menu; renderChrome(); break;
       case 'buy': el.disabled = true; await buySocial(id ? Number(id) : null).finally(()=>{ el.disabled = false; }); break;
       case 'manage': await manageSocial(id ? Number(id) : null); break;
-      case 'tab': if (v==='learn' && S.tab!=='learn') { S.course=null; S.lesson=null; } S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') { if (role()==='teacher') load('accessRequests'); if (ME.access) load('approvals'); } break;
+      case 'tab': if (v==='stars' && S.tab!=='stars') { S.course=null; S.lesson=null; } S.tab=v; S.menu=false; closeModal(); render(); window.scrollTo(0,0); if (v==='class') load('class'); if (v==='approvals') { if (role()==='teacher') load('accessRequests'); if (ME.access) load('approvals'); } break;
        case 'request-access': { el.disabled = true; const r = await api('/access/request',{method:'POST'}).finally(()=>{el.disabled=false;}); ME.approvalStatus = r.approvalStatus; toast('Request sent to your teacher'); render(); break; }
        case 'review-access': { el.disabled = true; await api(`/access/requests/${encodeURIComponent(id)}/review`,{method:'POST',body:{decision:v}}); S.accessRequests = (S.accessRequests||[]).filter(p=>String(p.id)!==String(id)); toast(v==='approve'?'Student approved for Connect':'Request denied'); render(); break; }
       case 'fc': S.filterC=v; renderMain(); break;
@@ -1486,7 +1501,7 @@ document.addEventListener('click', async e=>{
       case 'lfield': S.lfield=v; renderMain(); break;
       case 'interest': S.interests.has(v)?S.interests.delete(v):S.interests.add(v); { const y=window.scrollY; renderMain(); window.scrollTo(0,y); } break;
       case 'lpath': S.lpath=v||null; renderMain(); break;
-      case 'course': closeModal(); S.tab='learn'; S.course=id; S.lesson=null; render(); window.scrollTo(0,0); break;
+      case 'course': closeModal(); S.tab='stars'; S.course=id; S.lesson=null; render(); window.scrollTo(0,0); break;
       case 'lesson': S.lesson=Number(v); S.answers={}; renderMain(); window.scrollTo(0,0); break;
       case 'answer': { const c=course(S.course), q=c.lessons[S.lesson].quiz[Number(el.dataset.q)], qi=Number(el.dataset.q), oi=Number(el.dataset.o); const a=S.answers[qi]||{tried:[],right:false}; a.tried.push(oi); if(oi===q.a) a.right=true; S.answers[qi]=a; const y=window.scrollY; renderMain(); window.scrollTo(0,y); break; }
       case 'finishlesson': {
