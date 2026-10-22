@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { BookOpen, Trophy, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsReadMinutes, quickCategoryOf, type NewsArticle } from "@shared/ariseNews";
 
 type Result = { bookId: number; score: number; total: number };
@@ -34,7 +37,7 @@ export function QuickReadRow({ a, result, onOpen }: { a: NewsArticle; result?: R
 
 /**
  * 5-Minute Reads: the library's shelf of short pieces (sports, biographies, famous speeches,
- * fun facts and more). Each is a 5-question quiz. Kept slim: two scrolling rows of small cards.
+ * fun facts and more), in the same card format as the other quiz shelves.
  */
 export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll }: {
   newsBookIds: Record<string, number>;
@@ -51,39 +54,54 @@ export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll
     const id = newsBookIds[slug];
     return id ? results.find((r) => r.bookId === id) : undefined;
   };
-  const done = all.filter((a) => resultFor(a.slug)).length;
 
   return (
-    <section className="mb-8 rounded-2xl bg-[#fff8e6] p-3 text-[#17143b] ring-1 ring-amber-200/70 sm:p-4" aria-labelledby="quick-reads-h">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 id="quick-reads-h" className="text-lg font-black leading-tight sm:text-xl"><span aria-hidden="true">⚡ </span>5-Minute Reads</h2>
-        <p className="order-last w-full min-w-0 text-xs font-semibold text-[#5d5a7a] sm:order-none sm:w-auto sm:flex-1 sm:text-sm">
-          Short stories you can finish fast. 5-question quiz, {NEWS_POINTS} points each{done > 0 ? `. You've done ${done}.` : "."}
-        </p>
-        <button type="button" onClick={onSeeAll} className="ml-auto min-h-9 rounded-lg px-2 text-sm font-black text-[#7048e8] hover:bg-white">
-          See all {all.length}
-        </button>
+    <section className="mb-10" aria-labelledby="quick-reads-h">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <Zap className="h-5 w-5 text-primary" />
+        <h2 id="quick-reads-h" className="text-lg font-bold text-foreground">5-Minute Reads</h2>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{all.length} quizzes</span>
+        <span className="text-xs font-medium text-primary">{NEWS_POINTS} points each</span>
+        <button type="button" onClick={onSeeAll} className="ml-auto text-sm font-semibold text-primary hover:underline">See all</button>
       </div>
+      <p className="mb-3 ml-7 text-sm text-muted-foreground">Short stories you can finish in 5 minutes, then a 5-question quiz.</p>
 
-      <div className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-thin" role="group" aria-label="Pick a kind of read">
+      <div className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-thin" role="group" aria-label="Pick a kind of read">
         {["All", ...cats.map((c) => c.label)].map((label) => {
-          const c = cats.find((x) => x.label === label);
           const on = cat === label;
           return (
             <button key={label} type="button" aria-pressed={on} onClick={() => setCat(label)}
-              className={`min-h-9 flex-shrink-0 rounded-full px-3 text-xs font-black transition-colors sm:text-sm ${on ? "bg-[#17143b] text-white" : "bg-white text-[#17143b] ring-1 ring-black/10 hover:bg-[#f1efff]"}`}>
-              {c ? <span aria-hidden="true" className="mr-1">{c.emoji}</span> : null}{label}
+              className={`min-h-8 flex-shrink-0 rounded-full px-3 text-xs font-semibold transition-colors ${on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
+              {label}
             </button>
           );
         })}
       </div>
 
-      <div className="mt-2 grid auto-cols-[15.5rem] grid-flow-col grid-rows-2 gap-2 overflow-x-auto pb-1 scrollbar-thin sm:auto-cols-[17rem]" style={{ scrollSnapType: "x proximity" }}>
-        {shown.map((a) => (
-          <div key={a.slug} style={{ scrollSnapAlign: "start" }} className="flex min-w-0">
-            <QuickReadRow a={a} result={resultFor(a.slug)} onOpen={onOpen} />
-          </div>
-        ))}
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: "x mandatory" }}>
+        {shown.map((a) => {
+          const r = resultFor(a.slug);
+          return (
+            <Card key={a.slug} className="group w-[160px] flex-shrink-0 cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl sm:w-[180px]"
+              style={{ scrollSnapAlign: "start" }} onClick={() => onOpen(a.slug)}>
+              <div className="relative aspect-[2/3] overflow-hidden bg-muted">
+                <img src={`/covers/news/${a.slug}.svg`} alt={`Cover of ${a.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
+                {r && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
+              </div>
+              <div className="p-3">
+                <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{a.title}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{quickCategoryOf(a).label} · {newsReadMinutes(a)} min</p>
+                <div className="mt-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold text-primary"><Trophy className="h-3 w-3" />{NEWS_POINTS} pts</span>
+                </div>
+                {r && <p className="mt-1 text-xs font-semibold text-primary">{r.score}/{r.total} correct</p>}
+                <div className="mt-2">
+                  <Button size="sm" variant="default" className="h-7 w-full text-xs"><BookOpen className="mr-1 h-3 w-3" />Read &amp; Quiz</Button>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
       </div>
     </section>
   );

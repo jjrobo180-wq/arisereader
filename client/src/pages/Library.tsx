@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { BookOpen, LogOut, User, Settings, Trophy, PlusCircle, X, Search, Inbox, ChevronDown, Send, MoreVertical, Brain, Sparkles, BarChart3, Clock, GraduationCap, Bookmark, ShieldCheck, CheckCircle2, Gift, Target, TrendingUp, Gamepad2, Users, Calculator, Landmark } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import AddonsCard from "@/components/AddonsCard";
-import ReadGamesRow from "@/components/ReadGamesRow";
 import { BrandText } from "@/components/BrandText";
 import { getMascotEmoji } from "@/lib/schoolTheme";
 import { ReportProblemButton } from "@/components/ReportProblemButton";
@@ -29,7 +28,6 @@ import { HALLOREAD_ACTIVE } from "@/lib/halloread";
 import { NEWS_ARTICLES } from "@shared/ariseNews";
 import QuickReadsShelf, { QuickReadRow, matchQuickReads } from "@/components/QuickReadsShelf";
 import { READABLE_BOOKS, readableBook } from "@shared/readsCatalog";
-import { POEMS } from "@shared/poems";
 import { loadReadsKeyIds } from "./reads/useReads";
 /** True when this library book can be read in Read on Arise. */
 const canReadHere = (book: { id: number; title: string }) => { const r = readableBook(book.id); return !!r && (r.key !== null || r.title === book.title); };
@@ -2080,16 +2078,46 @@ export default function Library() {
               />
             )}
 
-            {/* Read on Arise: books, poems and articles to read right here (moved down from the top banner) */}
+            {/* Read on Arise: books you can read right on the site, in the same card format as the other shelves */}
             {!(user?.role === "student" && user?.is_eye_gaze_user) && (
-              <div className="mb-8">
-                <ReadGamesRow
-                  games={false}
-                  covers={READABLE_BOOKS.filter((b) => [21, 7, 24].includes(b.bookId)).map((b) => `${API_BASE}/api/book-cover/${b.bookId}`)}
-                  books={READABLE_BOOKS.length} poems={POEMS.length} articles={NEWS_ARTICLES.length}
-                  onReads={() => navigate("/reads")} onGames={() => navigate("/games")}
-                />
-              </div>
+              <section className="mb-10" aria-labelledby="read-on-arise-h" data-tour="reads">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <h2 id="read-on-arise-h" className="text-lg font-bold text-foreground">Read on Arise</h2>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{READABLE_BOOKS.length} books</span>
+                  <button type="button" onClick={() => navigate("/reads")} className="ml-auto text-sm font-semibold text-primary hover:underline">See all books &amp; poems</button>
+                </div>
+                <p className="mb-4 ml-7 text-sm text-muted-foreground">Read the whole book right here, then take the quiz.</p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
+                  {READABLE_BOOKS.map((rb) => {
+                    const book = books.find(b => b.id === rb.bookId);
+                    const result = results.find(r => r.bookId === rb.bookId);
+                    const isDone = completedIds.has(rb.bookId);
+                    return (
+                      <Card key={rb.bookId} className="group flex-shrink-0 w-[160px] cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl sm:w-[180px]"
+                        style={{ scrollSnapAlign: 'start' }} onClick={() => navigate(`/reads/book/${rb.bookId}`)}>
+                        <div className="relative aspect-[2/3] overflow-hidden bg-muted">
+                          {!isDone && <ExtraCreditTag />}
+                          <img src={`${API_BASE}/api/book-cover/${rb.bookId}`} alt={`Cover of ${rb.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
+                          {isDone && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{rb.title}</h3>
+                          <p className="mt-1 text-xs text-muted-foreground">{rb.author}</p>
+                          <div className="mt-2">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-bold text-primary"><Trophy className="h-3 w-3" />{book?.pointsValue || 10} pts</span>
+                          </div>
+                          {result && <p className="mt-1 text-xs font-semibold text-primary">{result.score}/{result.total} correct</p>}
+                          <div className="mt-2 flex gap-1.5">
+                            <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/reads/book/${rb.bookId}`); }}><BookOpen className="mr-1 h-3 w-3" />Read</Button>
+                            <Button size="sm" variant="default" className="h-7 flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${rb.bookId}`); }}>{user?.role === 'teacher' || user?.isAdmin ? 'View' : 'Quiz'}</Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </section>
             )}
 
             {/* Anime & Comics Section */}
