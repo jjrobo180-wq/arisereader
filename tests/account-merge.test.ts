@@ -132,6 +132,9 @@ test("duplicates are found by full name or student number, keeping the teacher's
   const ids = pairs.map((p) => `${p.keep.id}>${p.dup.id}`).sort();
   assert.deepEqual(ids, ["1>2", "1>7", "3>4"]);
   assert.equal(pairs.find((p) => p.dup.id === 4)!.reason, "Same student number");
+  // An admin sees every account as theirs: the student-number account stays even when it's newer.
+  const admin = findDuplicates([c(1, "Adrian Stubbs", { mine: true, username: "adrianstubbs" }), c(9, "Adrian Stubbs", { mine: true, username: "92817", createdAt: "2026-10-19" })]);
+  assert.deepEqual(admin.map((p) => `${p.keep.id}>${p.dup.id}`), ["9>1"]);
 });
 
 test("the merge route: the kept account must be the teacher's; the other must be theirs or an unlisted signup", async () => {

@@ -210,7 +210,7 @@ export type Candidate = { id: number; name: string; username: string; createdAt:
 export type DuplicatePair = { keep: Candidate; dup: Candidate; reason: string };
 
 /** Pairs of accounts that look like the same student. The one to keep is the one in the teacher's
- *  class, else the older one (a teacher's account usually came first). */
+ *  class, then the one that signs in with a student number, then the older one. */
 export function findDuplicates(students: Candidate[]): DuplicatePair[] {
   const groups = new Map<string, Candidate[]>();
   const push = (key: string, s: Candidate) => { if (!key) return; const g = groups.get(key) || []; if (!g.some((x) => x.id === s.id)) g.push(s); groups.set(key, g); };
@@ -229,7 +229,9 @@ export function findDuplicates(students: Candidate[]): DuplicatePair[] {
   const seen = new Set<string>(), out: DuplicatePair[] = [];
   for (const [key, g] of groups) {
     if (g.length < 2) continue;
-    const order = [...g].sort((a, b) => Number(b.mine) - Number(a.mine) || a.createdAt.localeCompare(b.createdAt) || a.id - b.id);
+    // Keep: one of this teacher's own, then the student-number sign-in (what the login handouts use), then the oldest.
+    const numeric = (c: Candidate) => /^\d{4,}$/.test(c.username);
+    const order = [...g].sort((a, b) => Number(b.mine) - Number(a.mine) || Number(numeric(b)) - Number(numeric(a)) || a.createdAt.localeCompare(b.createdAt) || a.id - b.id);
     const keep = order[0];
     for (const dup of order.slice(1)) {
       const id = `${keep.id}-${dup.id}`;
