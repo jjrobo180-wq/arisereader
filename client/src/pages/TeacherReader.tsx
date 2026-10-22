@@ -6,7 +6,7 @@
 // each menu item are the Reader's real ones (HubReaderTools), shown in the same dark colors.
 // Across the top, a banner invites the teacher into Arise WorkHub, which comes with the account.
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BellRing, HeartHandshake, Languages, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, School, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, HeartHandshake, Languages, LineChart, Menu as MenuIcon, PanelLeftClose, Vote, Zap, BarChart3, BookOpen, Gift, Megaphone, Calculator, Heart, Landmark, CheckCircle2, ClipboardCheck, Clapperboard, Home, MessageSquare, Sparkles, Timer, Trophy, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { READER_APP, TODO_APP, appHref, isReaderHost } from "@/lib/hubs";
@@ -55,7 +55,7 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "readerQuizzes", label: "Quizzes & grading", icon: ClipboardCheck },
   { id: "readerLive", label: "Live quiz", icon: Trophy },
   { id: "readerParents", label: "Parents", icon: MessageSquare },
-  { id: "readerAdvisory", label: "Advisory & Lit", icon: School },
+  { id: "readerAdvisory", label: "View all students", icon: Users },
   { id: "english", label: "English learners", icon: Languages },
   { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
   { id: "readerScenes", label: "Scenes", icon: Clapperboard },

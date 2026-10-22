@@ -47,7 +47,7 @@ export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   lessons: "Lessons", gradebook: "Gradebook",
   behavior: "Behavior", attendance: "Attendance",
   parents: "Parents", email: "Email",
-  reader: "Overview", readerLive: "Live quiz", readerScenes: "Scenes", readerStudents: "Students", readerAdvisory: "Advisory & Lit", readerApprovals: "Approvals", readerParents: "Parents", readerQuizzes: "Quizzes & grading",
+  reader: "Overview", readerLive: "Live quiz", readerScenes: "Scenes", readerStudents: "Students", readerAdvisory: "View all students", readerApprovals: "Approvals", readerParents: "Parents", readerQuizzes: "Quizzes & grading",
   readerGames: "Game time", readerPrizes: "Prizes", readerCatalog: "Book catalog", arise: "Reading records", admin: "Admin console",
 };
 

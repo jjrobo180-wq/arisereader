@@ -1272,8 +1272,8 @@ export async function registerRoutes(
     envStripeKey: () => process.env.STRIPE_SECRET_KEY || "",
     envWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || "",
   });
-  // Students' Advisory and Literature teachers: the sign-in pop-up, and the school's list on the
-  // Reader page's "Advisory & Lit" tab (server/classTeachers.ts).
+  // Students' Advisory and Literature teachers: the sign-in pop-up, and (joined in alongside
+  // scores) the Reader page's "View all students" tab (server/classTeachers.ts).
   const classTeacherStore = supabaseClassTeacherStore(supabase);
   registerClassTeacherRoutes(app, { auth: authMiddleware, ...classTeacherStore });
   // The Advisory Challenge standings (server/advisoryChallenge.ts): the pop-up, the library banner and the leaderboards.
@@ -9677,12 +9677,11 @@ Important:
       let requests: any[] = [];
       if (rawRequests) { try { requests = JSON.parse(rawRequests); } catch {} }
       
-      // For teachers, only show their students' requests
+      // Every teacher can see every grade-change request at their own school (View all students).
       let pending = requests.filter((r: any) => r.status === 'pending');
       if (req.user.role === 'teacher' && !req.user.isAdmin) {
-        const teacherStudents = await storage.getTeacherStudents(req.user.id);
-        const studentIds = new Set(teacherStudents.map((s: any) => s.id));
-        pending = pending.filter((r: any) => studentIds.has(r.userId));
+        const reachable = await Promise.all(pending.map((r: any) => canReachStudent(req.user, Number(r.userId))));
+        pending = pending.filter((_r: any, i: number) => reachable[i]);
       }
       res.json({ requests: pending });
     } catch (error: any) {
@@ -9733,12 +9732,10 @@ Important:
       if (!request) return res.status(404).json({ message: 'Request not found' });
       if (request.status !== 'pending') return res.status(400).json({ message: 'Request already processed' });
       
-      // For teachers, verify this is their student
+      // For teachers, verify they can reach this student (any student at their own school).
       if (req.user.role === 'teacher' && !req.user.isAdmin) {
-        const teacherStudents = await storage.getTeacherStudents(req.user.id);
-        const studentIds = new Set(teacherStudents.map((s: any) => s.id));
-        if (!studentIds.has(request.userId)) {
-          return res.status(403).json({ message: 'This student is not in your class' });
+        if (!(await canReachStudent(req.user, Number(request.userId)))) {
+          return res.status(403).json({ message: 'You can only see and change students at your own school.' });
         }
       }
       
@@ -10830,9 +10827,9 @@ Important:
   });
 
   // === Teacher Admin endpoints ===
-  // Admins act on every student. A teacher only ever sees or touches the students assigned to
-  // them (users.teacher_id) -- never another teacher's class -- because student records are
-  // private: a teacher clicking "all" must not be able to browse the whole school.
+  // Admins act on every student. So does every teacher, at their own school: any teacher can
+  // view and manage any student at their school (not only their own class), via "View all
+  // students" on the Reader menu.
   /** True when this signed-in user may see or change this student. */
   const canReachStudent = async (user: any, studentId: number): Promise<boolean> => {
     if (user?.isAdmin) return true;
@@ -10844,8 +10841,16 @@ Important:
     if (user?.id && (await storage.inTeachersAdvisory(Number(user.id), student))) return true;
     // A school leadership account reaches every student at its own school.
     const scope = user?.id ? await storage.schoolStaffScope(Number(user.id)) : null;
-    return !!scope && Number((student as any).school_id ?? (student as any).schoolId) === scope.schoolId
-      && (!scope.eyeGazeOnly || !!(student as any).is_eye_gaze_user);
+    if (!!scope && Number((student as any).school_id ?? (student as any).schoolId) === scope.schoolId
+      && (!scope.eyeGazeOnly || !!(student as any).is_eye_gaze_user)) return true;
+    // Any ordinary teacher reaches every student at their own school.
+    if (user?.role === "teacher" && user?.id) {
+      const teacher: any = await storage.getUser(Number(user.id));
+      const teacherSchoolId = Number(teacher?.school_id ?? teacher?.schoolId);
+      const studentSchoolId = Number((student as any).school_id ?? (student as any).schoolId);
+      if (teacherSchoolId > 0 && teacherSchoolId === studentSchoolId) return true;
+    }
+    return false;
   };
   const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
 
@@ -10889,11 +10894,18 @@ Important:
     try {
       const staffScope = req.user.isAdmin ? null : await storage.schoolStaffScope(Number(req.user.id));
       const advScope = req.user.isAdmin || staffScope ? null : await storage.advisoryScope(Number(req.user.id));
+      // Any ordinary teacher reaches every student at their own school too (View all students).
+      let ownSchoolId: number | null = null;
+      if (!req.user.isAdmin && req.user.role === "teacher") {
+        const me: any = await storage.getUser(Number(req.user.id));
+        ownSchoolId = Number(me?.school_id ?? me?.schoolId) || null;
+      }
       const students = (await storage.getAllUsers()).filter((s: any) => (s.role === 'student' || (!s.role && !s.isAdmin))
         && (req.user.isAdmin || Number(s.teacherId) === Number(req.user.id)
           || (!!advScope && !s.archivedAt && Number(s.school_id ?? s.schoolId) === advScope.schoolId && advScope.names.includes(String(s.directoryTeacherName || "").trim()))
           || (!!staffScope && !s.archivedAt && Number(s.school_id ?? s.schoolId) === staffScope.schoolId
-            && (!staffScope.eyeGazeOnly || !!s.is_eye_gaze_user))));
+            && (!staffScope.eyeGazeOnly || !!s.is_eye_gaze_user))
+          || (!!ownSchoolId && !s.archivedAt && Number(s.school_id ?? s.schoolId) === ownSchoolId)));
       const allUsers = await storage.getAllUsers();
       const teacherMap = new Map();
       for (const u of allUsers) {

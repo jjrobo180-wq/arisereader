@@ -162,7 +162,7 @@ test("a teacher who signs in on arisereader.com lands in the teacher Reader, wit
   assert.match(page, /\{greeting\(\)\}, \{user\.displayName\}/);
   assert.match(page, /Needs you today/);
   assert.match(page, /See standings/);
-  assert.deepEqual(["Overview", "Students", "Approvals", "Quizzes & grading", "Live quiz", "Parents", "Advisory & Lit", "Leaderboard"].map((l) => page.includes(`label: "${l}"`)), Array(8).fill(true));
+  assert.deepEqual(["Overview", "Students", "Approvals", "Quizzes & grading", "Live quiz", "Parents", "View all students", "Leaderboard"].map((l) => page.includes(`label: "${l}"`)), Array(8).fill(true));
   assert.match(page, /export const shortSchool = /);
 });
 

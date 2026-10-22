@@ -26,7 +26,7 @@ import { Card, Empty, Field, GhostButton, Labeled, PrimaryButton, Select, TextAr
 import { HubModal } from "./HubModal";
 import { ProgramLinks } from "./HubReader";
 import AddStudentsModal from "./AddStudentsModal";
-import HubAdvisoryLit from "./HubAdvisoryLit";
+import ViewAllStudents from "./ViewAllStudents";
 import BookCatalog from "./BookCatalog";
 
 const LiveQuizPage = lazy(() => import("@/pages/LiveQuiz"));
@@ -87,8 +87,8 @@ export type ReaderTab = (typeof READER_TABS)[number];
 export const isReaderTab = (tab: HubTab): tab is ReaderTab => (READER_TABS as readonly HubTab[]).includes(tab);
 
 type Student = { id: number; displayName?: string; display_name?: string; username: string; totalPoints?: number; total_points?: number; quizzesTaken?: number; quizzes_taken?: number };
-type SchoolStudent = { id: number; username: string; displayName: string; quizzesTaken: number; quizzesMastered: number; totalPoints: number; approvedByTeacher?: boolean; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null };
-type Teacher = { id: number; displayName: string; username: string };
+export type SchoolStudent = { id: number; username: string; displayName: string; quizzesTaken: number; quizzesMastered: number; totalPoints: number; approvedByTeacher?: boolean; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null };
+export type Teacher = { id: number; displayName: string; username: string };
 type PendingStudent = { id: number; username: string; displayName: string; teacherName?: string | null };
 type PendingQuiz = { id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group?: string; questions?: unknown; mine?: boolean; teacher_name?: string | null };
 
@@ -134,7 +134,7 @@ function PendingQuizReview({ quiz, busy, onDecide }: { quiz: PendingQuiz; busy: 
 type BookRequest = { id: number; bookTitle: string; studentName: string; message: string; createdAt: string };
 type ParentLink = { id: number; displayName: string; username: string; code: string; signupUrl: string; parents: Array<{ id: number; displayName: string; username: string; email?: string | null; accountApproved: boolean }> };
 type Closing = { enabled: boolean; start: string; end: string; days: number[]; adminOverrideClosedNow?: boolean };
-type Action = { student: { id: number; name: string; username: string; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null }; kind: "password" | "reward" | "reassign" };
+export type Action = { student: { id: number; name: string; username: string; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null }; kind: "password" | "reward" | "reassign" };
 
 const nameOf = (s: Student) => s.displayName || s.display_name || s.username;
 const pointsOf = (s: Student) => s.totalPoints ?? s.total_points ?? 0;
@@ -142,7 +142,7 @@ const quizzesOf = (s: Student) => s.quizzesTaken ?? s.quizzes_taken ?? 0;
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Small inline pill, WorkHub style. */
-function Pill({ tone, children }: { tone: "green" | "amber" | "red" | "slate"; children: ReactNode }) {
+export function Pill({ tone, children }: { tone: "green" | "amber" | "red" | "slate"; children: ReactNode }) {
   const look = { green: "bg-emerald-50 text-emerald-800", amber: "bg-amber-50 text-amber-800", red: "bg-red-50 text-red-700", slate: "bg-slate-100 text-slate-600" }[tone];
   return <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold ${look}`}>{children}</span>;
 }
@@ -408,7 +408,9 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       onDone={(text, reload) => { done(text); if (reload) { void loadSchool(); void loadClass(); } }} />}
     {tab === "readerStudents" && <MergeAccountsCard request={request} onMerged={(text) => { done(text); void loadSchool(); void loadClass(); }} />}
 
-    {tab === "readerAdvisory" && <HubAdvisoryLit />}
+    {tab === "readerAdvisory" && <ViewAllStudents
+      school={school} schoolBusy={schoolBusy} onReloadSchool={() => void loadSchool()}
+      onView={(id) => setPop({ kind: "profile", id: Number(id) })} onAction={openAction} request={request} />}
     {tab === "readerLive" && <>
       <Card title="Live quiz"><p className="text-sm text-slate-600">Host a game your whole class plays at once. Pick a ready-made quiz or make one, then show the join code on the board.</p></Card>
       <Embedded><LiveQuizPage /></Embedded>

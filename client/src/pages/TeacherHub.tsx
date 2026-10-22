@@ -58,7 +58,7 @@ import {
   MoreHorizontal,
   ChevronLeft as RailHide, ChevronRight as RailShow, LayoutGrid as AppsIcon, Search as AppsSearch,
   Trophy, Clapperboard, ShoppingBag, Folder as FolderIcon, ChevronRight as FolderChevron,
-  Table, FolderOpen, QrCode, ShieldCheck, School,
+  Table, FolderOpen, QrCode, ShieldCheck,
   type LucideIcon,
   Lock, Rocket, Heart, HeartHandshake,
 } from "lucide-react";
@@ -191,7 +191,7 @@ const TAB_META: Array<{ id: HubTab; label: string; icon: ReactNode }> = [
   { id: "readerLive", label: "Live quiz", icon: <Trophy className="h-4 w-4" /> },
   { id: "readerScenes", label: "Scenes", icon: <Clapperboard className="h-4 w-4" /> },
   { id: "readerStudents", label: "Students", icon: <Users className="h-4 w-4" /> },
-  { id: "readerAdvisory", label: "Advisory & Lit", icon: <School className="h-4 w-4" /> },
+  { id: "readerAdvisory", label: "View all students", icon: <Users className="h-4 w-4" /> },
   { id: "readerApprovals", label: "Approvals", icon: <CheckCircle2 className="h-4 w-4" /> },
   { id: "readerParents", label: "Parents", icon: <MessageSquare className="h-4 w-4" /> },
   { id: "readerQuizzes", label: "Quizzes & grading", icon: <ClipboardCheck className="h-4 w-4" /> },
