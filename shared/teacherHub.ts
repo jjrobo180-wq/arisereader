@@ -4,6 +4,7 @@
 // The page is client/src/pages/TeacherHub.tsx. The workspace is saved as one
 // JSON object per teacher (server/teacherHub.ts).
 
+import { cleanIepDrafts } from "./iepWriter";
 import { cleanLock } from "./privacyLock";
 import { cleanBlocks, type SchoolBlock } from "./hubBlocks";
 import { cleanOptionalDays } from "./hubProgress";
@@ -276,6 +277,8 @@ export type Workspace = {
   lock?: import("./privacyLock").PrivacyLock | null;
   /** Quizzes made from students' goals, taken on A.R.I.S.E. Reader (shared/hubLinks.ts). */
   goalQuizzes?: import("./hubLinks").GoalQuiz[];
+  /** IEPs being written in the IEP Writer, one per student meeting (shared/iepWriter). */
+  iepDrafts?: import("./iepWriter").IepDraft[];
 };
 export type TaskList = { id: string; name: string; color: string };
 
@@ -344,6 +347,7 @@ export function normalizeWorkspace(raw: any): Workspace {
   for (const key of LISTS) out[key] = Array.isArray(raw[key]) ? raw[key] : [];
   if (raw.goalsStd !== true) out.visibleTabs = { ...out.visibleTabs, goals: true };
   out.pins = cleanPins(raw.pins);
+  out.iepDrafts = cleanIepDrafts(raw.iepDrafts);
   // Goal quizzes (shared/hubLinks.ts): kept as saved, with anything malformed dropped.
   out.goalQuizzes = (Array.isArray(raw.goalQuizzes) ? raw.goalQuizzes : [])
     .filter((q: any) => q && typeof q === "object" && typeof q.id === "string" && q.id && typeof q.student === "string")

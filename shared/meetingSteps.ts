@@ -12,7 +12,7 @@ export const MEETING_STEPS: readonly { n: number; title: string; short: string }
   { n: 4, title: "Tell everyone the final time, and the gen ed teacher", short: "Tell everyone" },
   { n: 5, title: "Work through the checklist", short: "Checklist" },
   { n: 6, title: "Gather data and work samples", short: "Gather" },
-  { n: 7, title: "Draft the goals and reports", short: "Draft" },
+  { n: 7, title: "Write the IEP (goals and reports)", short: "Write IEP" },
   { n: 8, title: "Send the drafts to parents and the team", short: "Send drafts" },
   { n: 9, title: "Hold the meeting", short: "Meeting" },
   { n: 10, title: "Finish up and send the final copy", short: "Finish" },

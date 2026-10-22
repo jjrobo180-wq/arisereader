@@ -25,15 +25,15 @@ const contacts: HubContact[] = [
 test("a new guide is the whole checklist for that kind of meeting, with nothing done and nobody assigned", () => {
   const iep = newGuide("  Jordan   Lee ", "IEP meeting", makeId);
   assert.equal(iep.student, "Jordan Lee");
-  assert.deepEqual(iep.sections.map((s) => s.title), ["Lock in the meeting schedule", "IEP document", "Between meetings", "Meeting ready"]);
-  assert.deepEqual(iep.sections.map((s) => s.steps.length), [13, 8, 1, 1]);
-  assert.deepEqual(guideProgress(iep), { done: 0, total: 23 });
+  assert.deepEqual(iep.sections.map((s) => s.title), ["Lock in the meeting schedule", "IEP document", "Between meetings", "Meeting ready", "After the meeting"]);
+  assert.deepEqual(iep.sections.map((s) => s.steps.length), [13, 20, 2, 2, 4]);
+  assert.deepEqual(guideProgress(iep), { done: 0, total: 41 });
   assert.deepEqual(iep.team, {}, "who is on the team is chosen for each student");
   for (const field of ["planningDate", "meetingDate", "meetingTime", "room", "parent1", "parent1Phone", "parent2", "parent2Phone"] as const) assert.equal(iep[field], "", field);
   assert.ok(iep.sections.every((s) => s.steps.every((step) => step.done === false && step.note === "" && step.text)));
 
   const reeval = newGuide("Maya Torres", "Re-evaluation", makeId);
-  assert.deepEqual(reeval.sections.map((s) => s.title), ["Re-evaluation checklist", "IEP document", "Between meetings", "Meeting ready"], "a re-evaluation has its own first part in place of the scheduling one");
+  assert.deepEqual(reeval.sections.map((s) => s.title), ["Re-evaluation checklist", "IEP document", "Between meetings", "Meeting ready", "After the meeting"], "a re-evaluation has its own first part in place of the scheduling one");
   assert.equal(reeval.sections[0].steps.length, 18);
   assert.equal(reeval.sections[0].steps[0].text, "Open the evaluation folder");
 
@@ -41,13 +41,13 @@ test("a new guide is the whole checklist for that kind of meeting, with nothing 
   for (const guide of [iep, reeval]) {
     const ids = guide.sections.flatMap((s) => [s.id, ...s.steps.map((step) => step.id)]);
     assert.equal(new Set(ids).size, ids.length);
-    assert.ok(JSON.stringify(guide).length < 5000, `${guide.kind} is ${JSON.stringify(guide).length} characters`);
+    assert.ok(JSON.stringify(guide).length < 9000, `${guide.kind} is ${JSON.stringify(guide).length} characters`);
   }
   assert.notEqual(iep.id, reeval.id);
   assert.equal(newGuide("Sam", "Something else" as any, makeId).kind, "IEP meeting");
   // ids that keep coming out the same still end up different
   const stuck = newGuide("Sam", "IEP meeting", () => "same");
-  assert.equal(new Set(stuck.sections.flatMap((s) => s.steps.map((step) => step.id))).size, 23);
+  assert.equal(new Set(stuck.sections.flatMap((s) => s.steps.map((step) => step.id))).size, 41);
 });
 
 test("no person's name or address is built into the guide", () => {
@@ -66,7 +66,7 @@ test("a step can be checked off, given a note, reworded, deleted, and joined by 
   let guide = changeStep(start, doc.id, first.id, { done: true });
   guide = changeStep(guide, doc.id, second.id, { note: "Draft: https://docs.example.org/d/abc" });
   assert.deepEqual(guide.sections[1].steps.slice(0, 2).map((s) => [s.done, s.note]), [[true, ""], [false, "Draft: https://docs.example.org/d/abc"]]);
-  assert.deepEqual(guideProgress(guide), { done: 1, total: 23 });
+  assert.deepEqual(guideProgress(guide), { done: 1, total: 41 });
   assert.equal(guide.sections[0], start.sections[0], "the other parts are left alone");
   assert.equal(start.sections[1].steps[0].done, false, "the guide handed in is not changed");
   assert.equal(changeStep(guide, doc.id, first.id, { done: false }).sections[1].steps[0].done, false, "a check can be taken back");
@@ -77,13 +77,13 @@ test("a step can be checked off, given a note, reworded, deleted, and joined by 
   assert.equal(changeStep(guide, doc.id, second.id, { note: "x".repeat(5000) }).sections[1].steps[1].note.length, GUIDE_LIMITS.note);
 
   guide = removeStep(guide, doc.id, second.id);
-  assert.equal(guide.sections[1].steps.length, 7);
+  assert.equal(guide.sections[1].steps.length, 19);
   assert.ok(!guide.sections[1].steps.some((s) => s.id === second.id));
 
   const ready = guide.sections[3];
   guide = addStep(guide, ready.id, "  Print 5 copies of the agenda ", makeId);
   guide = addStep(guide, ready.id, "   ", makeId);
-  assert.deepEqual(guide.sections[3].steps.map((s) => [s.text, s.done, s.note]), [["Complete the IEP agenda and link it here", false, ""], ["Print 5 copies of the agenda", false, ""]]);
+  assert.deepEqual(guide.sections[3].steps.map((s) => [s.text, s.done, s.note]), [["Complete the IEP agenda and link it here", false, ""], ["Invite the student (required for a transition IEP)", false, ""], ["Print 5 copies of the agenda", false, ""]]);
   const ids = guide.sections.flatMap((s) => s.steps.map((step) => step.id));
   assert.equal(new Set(ids).size, ids.length, "a new step gets its own id");
   let crowded = guide;
@@ -99,7 +99,7 @@ test("each student has their own guide, and changing one leaves the others alone
   const start = normalizeWorkspace({ guides: [a, b] });
   const next = changeGuide(start, a.id, (g) => ({ ...changeStep(g, g.sections[0].id, g.sections[0].steps[0].id, { done: true }), room: "Room 12" }));
   assert.equal(next.guides[0].room, "Room 12");
-  assert.deepEqual(guideProgress(next.guides[0]), { done: 1, total: 23 });
+  assert.deepEqual(guideProgress(next.guides[0]), { done: 1, total: 41 });
   assert.equal(next.guides[1], b, "the other student's guide is the same one");
   assert.equal(start.guides[0].room, "", "the workspace handed in is not changed");
   assert.equal(changeGuide(start, "gone", (g) => ({ ...g, room: "x" })), start);
