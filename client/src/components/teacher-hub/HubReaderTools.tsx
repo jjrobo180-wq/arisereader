@@ -256,7 +256,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
 
   useEffect(() => {
     if (!approved) return;
-    if ((tab === "reader" || tab === "readerStudents" || tab === "readerApprovals") && !school && !schoolBusy) void loadSchool();
+    if ((tab === "reader" || tab === "readerStudents" || tab === "readerApprovals" || tab === "readerAdvisory") && !school && !schoolBusy) void loadSchool();
     if (tab === "readerParents" && !parents) request("/api/teacher/parent-connections").then((d) => setParents(Array.isArray(d?.students) ? d.students : [])).catch((e) => { setParents([]); failed(e, "Parent links could not be loaded."); });
     if (tab === "readerGames") {
       if (!controls) request("/api/teacher/club-arise/controls").then((d) => setControls(Array.isArray(d) ? d : [])).catch((e) => { setControls([]); failed(e, "Game controls could not be loaded."); });
