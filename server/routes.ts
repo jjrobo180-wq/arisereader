@@ -5,6 +5,7 @@ import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PL
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
 import { registerParaTeamRoutes, supabaseParaDb } from "./paraTeam";
+import { nameKey, registerAccountMergeRoutes, supabaseMergeDb, type Candidate } from "./accountMerge";
 import { registerDropAppRoutes } from "./dropApp";
 import { YOUTUBE_CHANNEL_OPTIONS, normalizeYoutubeChannels, youtubeChannelAllowed } from "../shared/youtubeChannels";
 import { normalizeEyeGazeBackground } from "../shared/eyeGazeAppearance";
@@ -10789,6 +10790,41 @@ Important:
       && (!scope.eyeGazeOnly || !!(student as any).is_eye_gaze_user);
   };
   const NOT_YOUR_STUDENT = { message: "You can only see and change your own students." };
+
+  // Merging a student's two accounts (server/accountMerge.ts): the one a teacher made and the one
+  // the student made later. A teacher works with their own students plus unlisted students at
+  // their school (those who signed up on their own); an administrator with every student.
+  registerAccountMergeRoutes(app, {
+    auth: authMiddleware,
+    teacherOrAdmin: teacherOrAdminMiddleware,
+    db: supabaseMergeDb(getAdminSupabase),
+    canReach: canReachStudent,
+    afterMerge: () => { clearCache("allUsers"); clearCache("session_"); clearCache("setting_"); clearCache("leaderboard"); },
+    pool: async (user: any): Promise<Candidate[]> => {
+      const all = await storage.getAllUsers();
+      const teacherNames = new Map(all.filter((u: any) => u.role === "teacher").map((u: any) => [Number(u.id), u.displayName as string]));
+      const me = Number(user?.id);
+      const scope = user?.isAdmin ? null : await storage.schoolStaffScope(me);
+      const mySchool = user?.isAdmin ? null : Number((await storage.getUser(me) as any)?.school_id) || null;
+      const out: Candidate[] = [];
+      for (const s of all as any[]) {
+        if (!(s.role === "student" || (!s.role && !s.isAdmin)) || s.archivedAt) continue;
+        const school = Number(s.school_id) || null;
+        const mine = !!user?.isAdmin || Number(s.teacherId) === me
+          || (!!scope && school === scope.schoolId && (!scope.eyeGazeOnly || !!s.is_eye_gaze_user));
+        // Unlisted at this teacher's school. One with no school at all (an independent learner) is
+        // only offered when the name matches one of this teacher's own students, so a teacher can't
+        // browse every independent account.
+        const unlisted = !s.teacherId && (school === mySchool && school !== null || (!!scope && school === scope.schoolId) || school === null);
+        if (!mine && !unlisted) continue;
+        out.push({ id: Number(s.id), name: s.displayName || s.username, username: s.username, createdAt: String(s.createdAt || ""), points: Number(s.totalPoints || 0),
+          teacherId: s.teacherId ? Number(s.teacherId) : null, teacherName: s.teacherId ? teacherNames.get(Number(s.teacherId)) || null : null, schoolId: school, approved: s.approvedByTeacher !== false, mine });
+      }
+      if (user?.isAdmin) return out;
+      const myNames = new Set(out.filter((c) => c.mine).map((c) => nameKey(c.name)).filter((k) => k.includes(" ")));
+      return out.filter((c) => c.mine || c.schoolId !== null || myNames.has(nameKey(c.name)));
+    },
+  });
 
   // GET all students across all teachers (with stats + teacher names)
   app.get("/api/teacher-admin/all-students", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {

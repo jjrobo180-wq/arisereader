@@ -3,6 +3,7 @@
 // made of WorkHub cards, buttons, lists and pop-ups. Everything the old teacher dashboard did is here.
 // The Reader pieces inside (camera-quiz review, comprehension grading, prizes, play time, email
 // invites, add-ons) are the hub-built ones in components/hub-pieces.
+import { MergeAccountsCard } from "./MergeAccounts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import {
@@ -392,6 +393,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       onView={(id) => setPop({ kind: "profile", id: Number(id) })} onMessage={(id) => setPop({ kind: "messages", id: Number(id) })} onCertificates={(id) => setPop({ kind: "certificates", id: Number(id) })}
       onAction={openAction} request={request}
       onDone={(text, reload) => { done(text); if (reload) { void loadSchool(); void loadClass(); } }} />}
+    {tab === "readerStudents" && <MergeAccountsCard request={request} onMerged={(text) => { done(text); void loadSchool(); void loadClass(); }} />}
 
     {tab === "readerAdvisory" && <HubAdvisoryLit />}
     {tab === "readerLive" && <>
