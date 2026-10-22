@@ -365,7 +365,7 @@ test("Connect courses have a checked YouTube video in every lesson, a star spotl
   assert.ok(["culn", "sprt", "avia"].every((id) => courseById(id)), "the new courses");
   const page = (await import("node:fs")).readFileSync(new URL("../client/public/social/index.html", import.meta.url), "utf8");
   assert.match(page, /https:\/\/www\.youtube-nocookie\.com\/embed\/\$\{v\.id\}/, "plays without YouTube tracking cookies");
-  assert.match(page, /const okVid = v => v && \/\^\[A-Za-z0-9_-\]\{11\}\$\/\.test\(v\.id\|\|''\);/, "only well-formed ids reach the player");
+  assert.ok(page.includes("const okVid = v => v && /^[A-Za-z0-9_-]{11}$/.test(v.id||'') && !HIDDEN.has(v.id);"), "only well-formed, still-available ids reach the player");
   assert.match(page, /Watch on YouTube/, "a way to watch when a school blocks embeds");
   for (const f of ["food", "sports", "air"]) assert.match(page, new RegExp(`${f}:'--f-${f}'`), `color for ${f}`);
 });
