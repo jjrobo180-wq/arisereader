@@ -272,6 +272,23 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Shown while the administrator views the app as a real teacher account (view only). */
+function ViewAsTeacherBar() {
+  const { realUser, viewAsTeacher, exitViewAsTeacher } = useAuth();
+  const [location, navigate] = useLocation();
+  // back in the admin console, the admin is themselves again
+  useEffect(() => { if (viewAsTeacher && location === "/admin") exitViewAsTeacher(); }, [location, viewAsTeacher, exitViewAsTeacher]);
+  if (!realUser?.isAdmin || !viewAsTeacher) return null;
+  return (
+    <div role="status" className="fixed left-1/2 top-2 z-[260] flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/15 bg-slate-950/95 py-1.5 pl-3 pr-1.5 text-white shadow-2xl backdrop-blur-xl">
+      <span className="min-w-0 truncate text-xs font-bold"><span className="mr-1.5 text-[10px] font-black uppercase tracking-widest text-amber-300">Viewing as</span>{viewAsTeacher.displayName}{viewAsTeacher.schoolName ? <span className="text-slate-400"> · {viewAsTeacher.schoolName}</span> : null}<span className="ml-1.5 text-slate-400">· view only</span></span>
+      {!/(^|\.)arisereader\.com$/i.test(window.location.hostname) && <button type="button" onClick={() => navigate("/workhub")} className="flex-shrink-0 rounded-xl px-2.5 py-2 text-xs font-black text-slate-200 hover:bg-white/10">Hub</button>}
+      <button type="button" onClick={() => navigate("/reader")} className="flex-shrink-0 rounded-xl px-2.5 py-2 text-xs font-black text-slate-200 hover:bg-white/10">Reader</button>
+      <button type="button" onClick={() => { exitViewAsTeacher(); navigate("/admin"); }} className="flex-shrink-0 rounded-xl bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 hover:bg-amber-200">Exit</button>
+    </div>
+  );
+}
+
 function AdminPreviewBar() {
   const { realUser, adminPreviewMode, startAdminPreview, exitAdminPreview } = useAuth();
   const [location, navigate] = useLocation();
@@ -917,6 +934,7 @@ function AppInner() {
       <Router hook={useHashPathLocation}>
         <AuthenticatedNavigationTracker />
         <AdminPreviewBar />
+      <ViewAsTeacherBar />
         <EyeGazeSiteShell>
           <ClubPlayGate><AppRoutes /></ClubPlayGate>
           <EyeGazeCelebrations />

@@ -33,6 +33,10 @@ interface AuthContextType {
   adminPreviewMode: AdminPreviewMode;
   startAdminPreview: (mode?: Exclude<AdminPreviewMode, null>) => void;
   exitAdminPreview: () => void;
+  /** The real teacher account the administrator is viewing the app as (view only), if any. */
+  viewAsTeacher: (AuthUser & { schoolName?: string | null }) | null;
+  startViewAsTeacher: (teacher: AuthUser & { schoolName?: string | null }) => void;
+  exitViewAsTeacher: () => void;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
   /** Redeems a one-use code from arisereader.com (teachers, parents, LifeHub accounts, the administrator). */
@@ -45,6 +49,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 const COOKIE_NAME = "arise_session";
+const VIEW_AS_KEY = "arise_admin_view_teacher";
 const SAMPLE_SESSION_KEY = "arise_sample_session";
 const SAMPLE_USERNAMES = new Set(["sample", "tutorial-eye", "sample-parent"]);
 
@@ -136,8 +141,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return saved === "eye-gaze" ? "eye-gaze" : saved === "regular" ? "regular" : null;
   });
 
+  const [viewAsTeacher, setViewAsTeacher] = useState<(AuthUser & { schoolName?: string | null }) | null>(() => {
+    if (typeof window === "undefined") return null;
+    try { const v = JSON.parse(sessionStorage.getItem(VIEW_AS_KEY) || "null"); return v && Number(v.id) > 0 ? v : null; } catch { return null; }
+  });
+  const startViewAsTeacher = useCallback((teacher: AuthUser & { schoolName?: string | null }) => {
+    if (!sessionRef.current.user?.isAdmin || !(Number(teacher?.id) > 0)) return;
+    const t = { ...teacher, isAdmin: false, role: "teacher" };
+    sessionStorage.removeItem("arise_admin_preview_mode");
+    sessionStorage.removeItem(VIEW_AS_KEY);
+    setAdminPreviewMode(null);
+    sessionStorage.setItem(VIEW_AS_KEY, JSON.stringify(t));
+    setViewAsTeacher(t);
+  }, []);
+  const exitViewAsTeacher = useCallback(() => {
+    sessionStorage.removeItem(VIEW_AS_KEY);
+    setViewAsTeacher(null);
+  }, []);
+
+  // a fresh sign-in (or sign-out) clears it from storage; drop it here too
+  useEffect(() => {
+    try { if (!sessionStorage.getItem(VIEW_AS_KEY)) setViewAsTeacher(null); } catch { /* fine */ }
+  }, [user?.id]);
+
   const startAdminPreview = useCallback((mode: Exclude<AdminPreviewMode, null> = "regular") => {
     if (!sessionRef.current.user?.isAdmin) return;
+    sessionStorage.removeItem(VIEW_AS_KEY);
+    setViewAsTeacher(null);
     const nextMode = mode === "eye-gaze" ? "eye-gaze" : "regular";
     sessionStorage.setItem("arise_admin_preview_mode", nextMode);
     setAdminPreviewMode(nextMode);
@@ -145,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const exitAdminPreview = useCallback(() => {
     sessionStorage.removeItem("arise_admin_preview_mode");
+    sessionStorage.removeItem(VIEW_AS_KEY);
     if (sessionRef.current.user) resetAuthenticatedNavigation(sessionRef.current.user);
     setAdminPreviewMode(null);
   }, []);
@@ -165,7 +196,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // out of Settings, banners, and the rest of the admin console with no
       // visible error, which is exactly the bug this guards against.
       const isAdminOrHubApi = /\/api\/(admin\/|teacher-hub\/)/.test(rawUrl);
-      if (user.isAdmin && !isAdminOrHubApi && !/\/api\/me(?:[?#]|$)/.test(rawUrl)) {
+      // "View as a teacher" goes on everything but "who am I" and the admin console's own APIs
+      // (the teacher's hub included, since that's what a teacher sees).
+      const viewAsId = user.isAdmin ? (() => { try { return Number(JSON.parse(sessionStorage.getItem(VIEW_AS_KEY) || "null")?.id) || 0; } catch { return 0; } })() : 0;
+      if (viewAsId > 0 && !/\/api\/admin\//.test(rawUrl) && !/\/api\/me(?:[?#]|$)/.test(rawUrl)) headers.set("X-ARISE-View-As-Teacher", String(viewAsId));
+      else if (user.isAdmin && !isAdminOrHubApi && !/\/api\/me(?:[?#]|$)/.test(rawUrl)) {
         const previewMode = sessionStorage.getItem("arise_admin_preview_mode");
         if (previewMode === "regular" || previewMode === "eye-gaze") headers.set("X-ARISE-Admin-Preview", previewMode);
       }
@@ -274,6 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     // A fresh sign-in must not inherit a previous administrator preview session.
     sessionStorage.removeItem("arise_admin_preview_mode");
+    sessionStorage.removeItem(VIEW_AS_KEY);
     setAdminPreviewMode(null);
     persistSession(null, null);
     const res = await fetch(`${API_BASE}/api/login`, {
@@ -311,6 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("We couldn't confirm your account. Please sign in again.");
     }
     sessionStorage.removeItem("arise_admin_preview_mode");
+    sessionStorage.removeItem(VIEW_AS_KEY);
     setAdminPreviewMode(null);
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     resetAuthenticatedNavigation(data.user);
@@ -349,6 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     sessionStorage.removeItem("arise_admin_preview_mode");
+    sessionStorage.removeItem(VIEW_AS_KEY);
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
     sessionStorage.removeItem("arise_parent_child_id");
     clearAuthenticatedNavigation();
@@ -384,7 +422,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [logout]);
 
-  const contextUser: AuthUser | null = user?.isAdmin && adminPreviewMode
+  const contextUser: AuthUser | null = user?.isAdmin && viewAsTeacher
+    ? viewAsTeacher
+    : user?.isAdmin && adminPreviewMode
     ? {
         ...user,
         username: "admin-preview",
@@ -409,6 +449,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       adminPreviewMode,
       startAdminPreview,
       exitAdminPreview,
+      viewAsTeacher: user?.isAdmin ? viewAsTeacher : null,
+      startViewAsTeacher,
+      exitViewAsTeacher,
       token,
       login,
       completeAdminHandoff,

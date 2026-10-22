@@ -1055,6 +1055,22 @@ export async function authMiddleware(req: any, res: any, next: any) {
       }
     : session.user;
   req.sessionToken = token;
+  // "View as a teacher": the administrator sees the app exactly as one real teacher account
+  // does, to check it looks right. View-only: nothing can be changed while viewing.
+  const viewAsId = Number(req.headers["x-arise-view-as-teacher"] || 0);
+  if (session.user?.isAdmin && !previewMode && Number.isSafeInteger(viewAsId) && viewAsId > 0) {
+    const teacher: any = await storage.getUser(viewAsId).catch(() => null);
+    if (!teacher || teacher.isAdmin || teacher.role !== "teacher" || teacher.archivedAt) {
+      return res.status(404).json({ message: "That teacher account can't be viewed." });
+    }
+    const method = String(req.method || "GET").toUpperCase();
+    if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+      return res.status(403).json({ message: `View only: you're looking at ${teacher.displayName || "this teacher"}'s account, so changes are turned off.`, viewOnly: true });
+    }
+    req.viewAsTeacher = Number(teacher.id);
+    req.user = teacher;
+    return next();
+  }
   if (!previewMode) presence.touch(session.user);
   next();
 }
@@ -2680,11 +2696,35 @@ export async function registerRoutes(
     res.json({ message: "Logged out" });
   });
 
+  // Admin: the real teacher accounts it can view the app as (see "View as a teacher" in authMiddleware).
+  app.get("/api/admin/view-as/teachers", authMiddleware, async (req: any, res) => {
+    const admin = req.realUser;
+    if (!admin?.isAdmin) return res.status(403).json({ message: "Admin access required" });
+    try {
+      const users = await storage.getAllUsers();
+      const { data: schools } = await supabase.from("schools").select("id, name");
+      const schoolName = new Map((schools || []).map((x: any) => [Number(x.id), String(x.name)]));
+      const teachers = (users as any[])
+        .filter((u) => u.role === "teacher" && !u.isAdmin && !u.archivedAt)
+        .map((u) => ({
+          id: Number(u.id), username: u.username, displayName: u.displayName || u.username,
+          isAdmin: false, role: "teacher", teacherId: null, approvedByTeacher: u.approvedByTeacher, accountApproved: u.accountApproved,
+          is_eye_gaze_user: false, email: null, schoolId: u.school_id ?? null, school_id: u.school_id ?? null,
+          schoolName: u.school_id ? schoolName.get(Number(u.school_id)) || null : null, totalPoints: 0, mustChangePassword: false,
+        }))
+        .sort((a, b) => String(a.displayName).localeCompare(String(b.displayName)));
+      res.set("Cache-Control", "no-store");
+      res.json(teachers);
+    } catch (e: any) {
+      res.status(500).json({ message: "Teachers could not be loaded." });
+    }
+  });
+
   app.get("/api/me", authMiddleware, async (req: any, res) => {
     // Always the signed-in account. During an admin's student preview the app keeps
     // the admin account and layers the preview on top; answering with the preview
     // student here made the app forget it was an admin (Club Arise then refused it).
-    const me = req.adminPreview && req.realUser ? req.realUser : req.user;
+    const me = (req.adminPreview || req.viewAsTeacher) && req.realUser ? req.realUser : req.user;
     res.set("Cache-Control", "no-store");
     res.json({
       id: me.id,

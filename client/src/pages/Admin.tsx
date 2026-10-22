@@ -31,6 +31,7 @@ import AdminInbox from "@/components/admin/AdminInbox";
 import AlertSettingsCard from "@/components/admin/AlertSettings";
 import AdminPrograms from "@/components/admin/AdminPrograms";
 import BookPointsDialog from "@/components/admin/BookPointsDialog";
+import ViewAsTeacherDialog from "@/components/admin/ViewAsTeacherDialog";
 import BookPointsSwitch from "@/components/admin/BookPointsSwitch";
 import { ARISE_POINTS, cleanPages, pointsForBook } from "@shared/bookPoints";
 // charts are only downloaded when the Stats tab is opened
@@ -55,6 +56,7 @@ import {
   GraduationCap, Library, Settings, BellRing, Megaphone, Gamepad2, Sparkles, MoreVertical, UserPlus, PartyPopper,
   TrendingUp, School, SlidersHorizontal, Camera,
   ClipboardList,
+  UserCheck,
 } from "lucide-react";
 
 // Read token from cookie as fallback when context token is null
@@ -171,6 +173,7 @@ export type OverviewPart = "home" | "attention" | "actions" | "leaderboard";
 export default function Admin({ embedded = false, section, onSection, hideNav = false, settingsPart, onSettingsPart, settingsInSidebar = false, overviewPart, bare = false }: { embedded?: boolean; section?: AdminTab; onSection?: (next: AdminTab) => void; hideNav?: boolean; /** One part of Overview only. */ overviewPart?: OverviewPart; /** No header of its own: the Reader's menu already has its buttons. */ bare?: boolean; settingsPart?: SettingsSection; onSettingsPart?: (next: SettingsSection) => void; /** The host page lists Settings' parts in its desktop sidebar, so the row of tabs is only needed on phones. */ settingsInSidebar?: boolean } = {}) {
   const { user, token, logout, startAdminPreview } = useAuth();
   const [, navigate] = useLocation();
+  const [showViewAsTeacher, setShowViewAsTeacher] = useState(false);
   const { toast } = useToast();
   const say = useCallback((text: string, ok = true) => {
     toast({ title: ok ? text : "Something went wrong", description: ok ? undefined : text, variant: ok ? "default" : "destructive" });
@@ -2692,8 +2695,9 @@ Generate exactly 10 questions.`;
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => { setShowTeacherForm(true); goTo("people", "teacher-form", { people: "teachers" }); }}><UserPlus className="h-4 w-4" />Add a teacher</Button>
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => { startAdminPreview("regular"); navigate("/profile"); }}><Users className="h-4 w-4" />View as a student</Button>
           <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => { startAdminPreview("eye-gaze"); navigate("/eye-gaze-home"); }}><Eye className="h-4 w-4" />View as an Eye Gazer</Button>
+          <Button variant="outline" className="h-auto justify-start gap-2 whitespace-normal py-3 text-left leading-snug" onClick={() => setShowViewAsTeacher(true)}><UserCheck className="h-4 w-4" />View as a teacher</Button>
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">Previews show A.R.I.S.E. exactly like a student. Quiz results in a preview don't count on leaderboards or competitions.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Previews show A.R.I.S.E. exactly like a student. Quiz results in a preview don't count on leaderboards or competitions. "View as a teacher" opens a real teacher's account, view only.</p>
       </AdminSection>
       </>}
 
@@ -4364,6 +4368,7 @@ Generate exactly 10 questions.`;
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => { startAdminPreview("regular"); navigate("/profile"); }}><Users className="h-4 w-4" />Preview as a student</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => { startAdminPreview("eye-gaze"); navigate("/eye-gaze-home"); }}><Eye className="h-4 w-4" />Preview as an Eye Gazer</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 py-2" onSelect={() => setShowViewAsTeacher(true)}><UserCheck className="h-4 w-4" />View as a teacher</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 py-2" onSelect={() => { setTab("settings"); setSettingsSection("alerts"); }}><BellRing className="h-4 w-4" />Notification settings</DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 py-2 text-red-400 focus:text-red-300" onSelect={handleLogout}><LogOut className="h-4 w-4" />Log out</DropdownMenuItem>
@@ -5135,6 +5140,7 @@ Generate exactly 10 questions.`;
         </DialogContent>
       </Dialog>
 
+      <ViewAsTeacherDialog open={showViewAsTeacher} onOpenChange={setShowViewAsTeacher} />
       <BookPointsDialog book={pointsBook} token={token || getTokenFromCookie()} onClose={() => setPointsBook(null)} onSaved={fetchBooks} />
 
       <Dialog open={!!coverBook} onOpenChange={(open) => { if (!open) { setCoverBook(null); setCoverUrl(""); setCoverSuccess(""); } }}>
