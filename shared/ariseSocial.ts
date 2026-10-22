@@ -3,12 +3,13 @@
 // server/ariseSocial.ts and sent to the page at /social/ by GET /api/social/catalog.
 // Career courses and certificates live in shared/connectCourses.ts.
 import { courseById } from "./connectCourses";
+import { CAREER_VIDEOS, type ConnectVideo } from "./connectVideos";
 
 export type BandId = "k2" | "g35" | "g68" | "g912";
 export type ClusterId = "build" | "serve" | "teach" | "heal" | "help" | "create" | "tech" | "nature" | "fly";
 export type Cluster = { name: string; start: Record<BandId, string> };
 /** pay: approximate U.S. median yearly wage in thousands of dollars (BLS, May 2024); null when it varies too much to say. */
-export type Career = { id: string; name: string; c: ClusterId; soc: string; pay: number | null; paths: string[]; train: string; kid: string; teen: string; tools: string[] };
+export type Career = { id: string; name: string; c: ClusterId; soc: string; pay: number | null; paths: string[]; train: string; kid: string; teen: string; tools: string[]; /** A career video (shared/connectVideos.ts), attached below. */ video?: ConnectVideo };
 export type Quest = { id: string; c: ClusterId; title: string; xp: number; steps: string[]; reader?: boolean };
 
 export const BANDS: Record<BandId, { label: string; crew: string }> = {
@@ -59,6 +60,9 @@ export const CAREERS: Career[] = [
   {id:'aviationmech', name:'Aircraft Mechanic', c:'fly', soc:'49-3011', pay:78, paths:['Trade school','Military'], train:'18–24 mo FAA-approved school', kid:'Aircraft mechanics fix airplanes so they fly safely.', teen:'Inspect and repair engines and systems on planes and helicopters. FAA certification is your ticket.', tools:['Borescope','Torque wrench','Maintenance manual']},
   {id:'pilot', name:'Airline Pilot', c:'fly', soc:'53-2011', pay:220, paths:['Certificate','4-year','Military'], train:'Flight school + 1,500 flight hours', kid:'Pilots fly airplanes full of people around the world.', teen:'Fly passenger or cargo jets. Many pilots start in the military or flight school and build hours as instructors.', tools:['Flight deck','Weather briefs','Checklists']}
 ];
+// Each career's video, from CareerOneStop (shared/connectVideos.ts).
+for (const c of CAREERS) if (CAREER_VIDEOS[c.id]) c.video = CAREER_VIDEOS[c.id];
+
 
 export const QUESTS: Record<BandId, Quest[]> = {
   k2:[

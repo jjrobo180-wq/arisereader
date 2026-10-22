@@ -346,3 +346,26 @@ test("course progress is cleaned: unknown courses dropped, a course is only done
   assert.equal(answersCorrect(courseById("elec")!.lessons[0], "nope"), false);
   for (const c of COURSES) for (const l of c.lessons) for (const q of l.quiz) assert.ok(q.a >= 0 && q.a < q.o.length, `${c.id}: ${q.q}`);
 });
+
+test("Connect courses have a checked YouTube video in every lesson, a star spotlight, and career videos", async () => {
+  const { LESSON_VIDEOS, COURSE_STARS, CAREER_VIDEOS, isVideoId } = await import("../shared/connectVideos");
+  const { CAREERS } = await import("../shared/ariseSocial");
+  for (const c of COURSES) {
+    assert.equal((LESSON_VIDEOS[c.id] || []).length, c.lessons.length, `${c.id}: one video per lesson`);
+    for (const l of c.lessons) assert.ok(l.video && isVideoId(l.video.id) && l.video.title && l.video.by, `${c.id}: ${l.title}`);
+    assert.ok((c.stars || []).length >= 1, `${c.id}: a star spotlight`);
+    for (const v of c.stars || []) assert.ok(isVideoId(v.id) && v.star && v.role, `${c.id}: ${v.title}`);
+    assert.ok(c.lessons.length === 3 && c.lessons.every((l) => l.quiz.length >= 2), c.id);
+  }
+  for (const id of Object.keys(COURSE_STARS)) assert.ok(courseById(id), `stars for a real course: ${id}`);
+  for (const [id, v] of Object.entries(CAREER_VIDEOS)) {
+    assert.ok(isVideoId(v.id), id);
+    assert.ok(CAREERS.find((c) => c.id === id)?.video === v, `${id} is attached to its career`);
+  }
+  assert.ok(["culn", "sprt", "avia"].every((id) => courseById(id)), "the new courses");
+  const page = (await import("node:fs")).readFileSync(new URL("../client/public/social/index.html", import.meta.url), "utf8");
+  assert.match(page, /https:\/\/www\.youtube-nocookie\.com\/embed\/\$\{v\.id\}/, "plays without YouTube tracking cookies");
+  assert.match(page, /const okVid = v => v && \/\^\[A-Za-z0-9_-\]\{11\}\$\/\.test\(v\.id\|\|''\);/, "only well-formed ids reach the player");
+  assert.match(page, /Watch on YouTube/, "a way to watch when a school blocks embeds");
+  for (const f of ["food", "sports", "air"]) assert.match(page, new RegExp(`${f}:'--f-${f}'`), `color for ${f}`);
+});

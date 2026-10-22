@@ -3,22 +3,29 @@
 // through GET /api/social/catalog. Each course: 3 short lessons, each with reading, key terms, an optional
 // hands-on activity and a quick check. Answers are checked again on the server before a lesson counts.
 
-export type CourseField = "trades" | "eng" | "film" | "music" | "health" | "tech" | "biz";
+import { COURSE_STARS, LESSON_VIDEOS, type ConnectVideo } from "./connectVideos";
+
+export type CourseField = "trades" | "eng" | "film" | "music" | "health" | "tech" | "biz" | "food" | "sports" | "air";
 export type CoursePath = "trade" | "cert" | "college";
 export type CourseQuestion = { q: string; o: string[]; a: number; why: string };
 export type CourseLesson = {
   title: string; minutes: number; body: string[]; terms: [string, string][];
   activity?: "ohm" | "beat" | "profit"; tryIt?: string; quiz: CourseQuestion[];
+  /** "Watch": the lesson's video (shared/connectVideos.ts), attached below. */
+  video?: ConnectVideo;
 };
 export type Course = {
   id: string; code: string; field: CourseField; icon: string; title: string; minutes: number; points: number;
   paths: CoursePath[]; interests: string[]; blurb: string; learn: string[]; careers: string[]; subjects: string[];
   lessons: CourseLesson[];
+  /** Celebrity spotlight videos (shared/connectVideos.ts), attached below. */
+  stars?: ConnectVideo[];
 };
 
 export const COURSE_FIELDS: Record<CourseField, string> = {
   trades: "Trades", eng: "Engineering", film: "Film & Media", music: "Music Production",
   health: "Healthcare", tech: "Tech & Coding", biz: "Business",
+  food: "Culinary", sports: "Sports", air: "Aviation & Space",
 };
 export const COURSE_PATH_LABELS: Record<CoursePath, string> = { trade: "Apprenticeship", cert: "Certificate program", college: "College degree" };
 
@@ -245,6 +252,91 @@ export const COURSES: Course[] = [
   terms:[["Elevator pitch","A 30–60 second business summary"],["Investor","Someone who funds a business"],["Entrepreneur","Someone who starts a business"]],
   quiz:[{q:"About how long is an elevator pitch?",o:["30 to 60 seconds","10 minutes","One hour","One school day"],a:0,why:"Short enough to say during an elevator ride."},
         {q:"What should a pitch include?",o:["Only your favorite color","The problem, your solution and why you","Your full life story","Just the price"],a:1,why:"Problem, solution and why you is the core of any pitch."}]}
+ ]},
+{id:"culn",code:"CULN 101",field:"food",icon:"chef",title:"Kitchen Ready: Culinary Arts",minutes:35,points:15,paths:["trade","cert"],interests:["food","help"],
+ blurb:"Cook like a pro: keep food safe, use a knife the right way, and find out how a restaurant kitchen really runs.",
+ learn:["Keep food safe with clean, separate, cook and chill","Prep like a chef with mise en place and the claw grip","Name the jobs in a kitchen brigade and how to get your first one"],
+ careers:["Chef","Baker / pastry chef","Caterer","Food scientist","Restaurant manager"],subjects:["Math (measuring and scaling recipes)","Health or nutrition","Culinary or family and consumer science classes"],
+ lessons:[
+ {title:"Food safety first",minutes:12,
+  body:["Every cook's first job is keeping people from getting sick. Food safety comes down to four steps: clean, separate, cook and chill.",
+   "Clean means washing your hands for 20 seconds and cleaning boards and counters. Separate means keeping raw meat away from food that is ready to eat, so germs can't jump from one to the other. That jump is called cross-contamination.",
+   "Cook means heating food hot enough to kill germs, checked with a thermometer. Chill means getting food back in the fridge fast. Germs grow fastest between 40°F and 140°F, so cooks call that the danger zone."],
+  terms:[["Cross-contamination","Germs spreading from raw food to ready-to-eat food"],["Danger zone","40°F to 140°F, where germs grow fastest"],["Sanitize","Clean a surface so germs are killed"]],
+  tryIt:"With an adult, find the thermometer in your fridge (or put one in). Is it at 40°F or colder? If your fridge has none, list three foods that must stay cold.",
+  quiz:[{q:"Germs grow fastest between which temperatures?",o:["0°F and 32°F","40°F and 140°F","150°F and 200°F","Only above 212°F"],a:1,why:"40°F to 140°F is the danger zone. Keep cold food cold and hot food hot."},
+        {q:"What is cross-contamination?",o:["Mixing two spices","Germs spreading from raw food to ready-to-eat food","Cooking food twice","Freezing leftovers"],a:1,why:"Using the same board for raw chicken and salad is a classic example."}]},
+ {title:"Knife skills & mise en place",minutes:11,
+  body:["Chefs say mise en place (meez-on-plahs). It is French for everything in its place: washing, chopping and measuring every ingredient before you start cooking, so nothing burns while you hunt for the salt.",
+   "To cut safely, hold food with the claw grip: fingertips curled under, knuckles guiding the side of the knife. The blade can't reach fingertips that are tucked away.",
+   "A sharp knife is safer than a dull one, because it needs less force and is less likely to slip. Cooks learn cuts by name: dice (cubes), julienne (thin matchsticks) and mince (tiny pieces)."],
+  terms:[["Mise en place","Prepping and organizing every ingredient before cooking"],["Claw grip","Holding food with curled fingertips to protect them"],["Julienne","Cutting food into thin matchsticks"]],
+  tryIt:"With an adult, make a mise en place for a snack or sandwich: wash, cut and set out every ingredient in small bowls before you put it together.",
+  quiz:[{q:"What does mise en place mean in a kitchen?",o:["Cleaning up after dinner","Getting every ingredient prepped and organized before cooking","A kind of French bread","Cooking with no recipe"],a:1,why:"Everything in its place: prep first, then cook."},
+        {q:"Why is a sharp knife safer than a dull one?",o:["It looks nicer","It needs less force, so it slips less","It cuts by itself","It never needs washing"],a:1,why:"Pushing hard on a dull knife is how it slips and cuts you."}]},
+ {title:"The kitchen brigade & careers",minutes:12,
+  body:["Big restaurant kitchens run like a team called a brigade. The executive chef plans the menu and leads. The sous chef (soo-chef) is second in command and runs the kitchen during service.",
+   "Line cooks each own a station, such as the grill or the sauté pan, and a pastry chef makes desserts and breads. Most chefs start as prep or line cooks and work their way up.",
+   "Culinary school can help, but it is not required. Many cooks start with a food handler card, learn on the job, and later become chefs, bakers, caterers, food truck owners or food scientists."],
+  terms:[["Executive chef","The leader who plans the menu and runs the kitchen"],["Sous chef","Second in command in a kitchen"],["Line cook","A cook in charge of one station"]],
+  quiz:[{q:"Who is second in command in a restaurant kitchen?",o:["The host","The sous chef","The dishwasher","The customer"],a:1,why:"Sous means under in French: the sous chef works right under the executive chef."},
+        {q:"What is a common first job on the way to becoming a chef?",o:["Restaurant owner","Prep or line cook","Food critic","Executive chef"],a:1,why:"Most chefs start on the line and learn every station."}]}
+ ]},
+{id:"sprt",code:"SPRT 101",field:"sports",icon:"ball",title:"Careers in Sports",minutes:35,points:15,paths:["college","cert"],interests:["sports","help"],
+ blurb:"Love the game? Meet the trainers, coaches, scouts, analysts and broadcasters who make sports happen.",
+ learn:["Name the jobs that keep a team running beyond the players","Know what an athletic trainer does when someone gets hurt","Practice the skills coaches, scouts and broadcasters use"],
+ careers:["Athletic trainer","Coach","Sports broadcaster","Sports data analyst","Physical therapist"],subjects:["Biology and anatomy","Statistics","Speech, journalism or media"],
+ lessons:[
+ {title:"Jobs beyond the players",minutes:11,
+  body:["Only a very small number of high school athletes ever play professionally. But every team, league and stadium needs hundreds of people who never step on the field to play.",
+   "There are athletic trainers and team doctors, coaches and scouts, data analysts who turn stats into decisions, and broadcasters who call the game. The front office handles business: tickets, marketing, social media and contracts.",
+   "Stadiums need groundskeepers, equipment managers, event staff and engineers too. If you love sports, there is almost certainly a job that matches what you are good at."],
+  terms:[["Front office","The business side of a team: managers, marketing, tickets"],["Sports analytics","Using data and stats to make team decisions"],["Equipment manager","Keeps a team's gear ready for every game"]],
+  quiz:[{q:"Which job uses statistics to help a team make decisions?",o:["Groundskeeper","Sports data analyst","Ticket taker","Mascot"],a:1,why:"Analysts study numbers like shooting percentages to find what wins."},
+        {q:"Why learn about sports jobs beyond playing?",o:["Players never get paid","Very few athletes go pro, but many jobs keep sports running","Coaches don't need to know the game","Sports jobs don't use school subjects"],a:1,why:"There are far more jobs around the game than on the roster."}]},
+ {title:"Sports medicine",minutes:12,
+  body:["Athletic trainers are health care workers who prevent, check and treat injuries. They are on the sidelines at practices and games, taping ankles, checking injured players and deciding when it is safe to go back in.",
+   "A hit to the head can cause a concussion, a brain injury. The rule is: when in doubt, sit them out. A player with a possible concussion stops playing and gets checked by a professional.",
+   "New athletic trainers need a master's degree and a national certification. Physical therapists, who help people recover strength after injuries, earn a Doctor of Physical Therapy degree."],
+  terms:[["Athletic trainer","Health care worker who prevents and treats sports injuries"],["Concussion","A brain injury from a hit or jolt to the head"],["Physical therapist","Helps people rebuild strength and movement after injury"]],
+  quiz:[{q:"A player gets hit in the head and feels dizzy. What should happen?",o:["Keep playing to finish the game","Stop playing and get checked by a professional","Drink water and go back in","Wait until next season to tell anyone"],a:1,why:"When in doubt, sit them out. Playing with a concussion can make it much worse."},
+        {q:"What do new athletic trainers need?",o:["Nothing, just a whistle","A master's degree and national certification","Only a driver's license","A pro sports contract"],a:1,why:"Athletic training is a health care job with real medical training."}]},
+ {title:"Coaching, scouting & broadcasting",minutes:12,
+  body:["Coaches teach skills, plan strategy and help players grow. Many start by coaching younger kids or assisting a school team while they are still in school themselves.",
+   "Scouts find talent. They watch games and video, track stats and write reports about players. Teams use these reports to decide who to draft or sign.",
+   "Broadcasters bring games to fans. The play-by-play announcer describes the action as it happens, and the color commentator adds expert insight. You can start by announcing or streaming school games, writing for the school paper or keeping stats."],
+  terms:[["Play-by-play","Describing the action as it happens"],["Color commentator","Adds stories, stats and expert insight during a game"],["Scout","Studies players and reports on their talent"]],
+  tryIt:"Mute two minutes of any game and call the play-by-play out loud like a broadcaster. Then try two minutes as the color commentator.",
+  quiz:[{q:"What does a play-by-play announcer do?",o:["Sells tickets","Describes the action as it happens","Coaches the defense","Fixes the scoreboard"],a:1,why:"Play-by-play is the live description; color adds the insight."},
+        {q:"What is a good first step toward sports broadcasting?",o:["Wait until college","Announce or stream your school's games","Only watch TV","Buy an expensive camera first"],a:1,why:"Real practice calling games is how broadcasters build skill and a reel."}]}
+ ]},
+{id:"avia",code:"AVIA 101",field:"air",icon:"plane",title:"Fly & Explore: Aviation and Space",minutes:40,points:20,paths:["college","cert"],interests:["how","space"],
+ blurb:"Learn how planes stay up, how pilots and mechanics earn their wings, and what it takes to become an astronaut.",
+ learn:["Explain lift, weight, thrust and drag","Map the path to becoming a pilot or aircraft mechanic","Describe how astronauts are chosen and trained"],
+ careers:["Airline pilot","Aircraft mechanic","Air traffic controller","Aerospace engineer","Astronaut"],subjects:["Physics","Math","Civil Air Patrol or aviation clubs"],
+ lessons:[
+ {title:"How airplanes fly",minutes:13,
+  body:["Four forces act on every airplane. Weight pulls it down. Lift pushes it up. Thrust from the engines pushes it forward, and drag, the push of the air, holds it back.",
+   "Wings are shaped and tilted so they push air downward as the plane moves. Pushing air down pushes the wing up: that is lift, and it is Newton's third law at work.",
+   "To climb, lift has to be greater than weight. To speed up, thrust has to beat drag. When a plane cruises level at a steady speed, all four forces are in balance."],
+  terms:[["Lift","The upward force made by the wings"],["Thrust","The forward push from the engines"],["Drag","The air pushing back against the plane"]],
+  tryIt:"Fold two different paper airplanes. Throw each three times from the same spot and measure how far it flies. Which design has less drag?",
+  quiz:[{q:"Which force holds an airplane back?",o:["Lift","Thrust","Drag","Weight"],a:2,why:"Drag is air resistance pushing against the plane's motion."},
+        {q:"For a plane to climb, lift must be:",o:["Zero","Smaller than weight","Greater than weight","Equal to drag"],a:2,why:"More lift than weight means the plane goes up."}]},
+ {title:"Pilots & the people who keep planes flying",minutes:13,
+  body:["Student pilots can fly solo at 16 and earn a private pilot certificate at 17. Future airline pilots add an instrument rating and a commercial certificate, then build flight time, often as flight instructors. Most airline pilots need 1,500 flight hours.",
+   "Every flight also depends on aircraft maintenance technicians. They earn an FAA airframe and powerplant (A&P) certificate, usually through an 18 to 24 month program, and inspect and fix planes before they fly.",
+   "Air traffic controllers guide planes safely through the sky and on the ground, and aerospace engineers design new aircraft and spacecraft. Many of these careers can start in the military too."],
+  terms:[["Private pilot certificate","Your first pilot license, possible at age 17"],["A&P mechanic","An FAA-certified airframe and powerplant technician"],["Air traffic controller","Guides planes safely in the air and on runways"]],
+  quiz:[{q:"About how many flight hours do most airline pilots need?",o:["15","150","1,500","15,000"],a:2,why:"1,500 hours is the usual requirement for an airline transport pilot."},
+        {q:"What certificate do aircraft mechanics earn?",o:["A driver's license","An FAA airframe and powerplant (A&P) certificate","A chef's certificate","A pilot's wings"],a:1,why:"The A&P certificate lets a mechanic work on aircraft."}]},
+ {title:"To space and back",minutes:14,
+  body:["NASA astronauts are U.S. citizens with a master's degree in a science, technology, engineering or math field (or a medical degree or test pilot training), plus at least two years of work experience. Thousands apply; only a handful are picked.",
+   "Astronaut candidates train for about two years. They practice spacewalks in a giant swimming pool, learn to fly jets, study the space station's systems and robotics, and even learn Russian.",
+   "Most space jobs never leave the ground. Flight controllers in mission control watch every system on a spacecraft, and engineers and technicians design, build and test rockets and satellites."],
+  terms:[["Astronaut candidate","Someone chosen to train as an astronaut"],["Spacewalk (EVA)","Working outside a spacecraft in a spacesuit"],["Mission control","The team on the ground that guides every flight"]],
+  quiz:[{q:"Where do astronauts practice spacewalks?",o:["On a trampoline","In a giant swimming pool","On a mountain","In a movie studio"],a:1,why:"Floating in water feels a lot like floating in space."},
+        {q:"Which space job never leaves the ground?",o:["Space station commander","Flight controller in mission control","Spacewalker","Space shuttle pilot"],a:1,why:"Flight controllers guide missions from Earth."}]}
  ]}
 ];
 
@@ -254,6 +346,7 @@ export const LEARNING_PATHS: { id: string; title: string; blurb: string; field: 
   { id: "create", title: "Create & Perform", blurb: "Direct a scene and produce your first beat.", field: "film", courses: ["film", "musc"] },
   { id: "future", title: "Build the Future", blurb: "Think like an engineer and code your first game.", field: "eng", courses: ["engr", "tech"] },
   { id: "care", title: "Help & Lead", blurb: "Healthcare skills plus how to run a business.", field: "health", courses: ["hlth", "biz"] },
+  { id: "action", title: "Fly, Play & Cook", blurb: "Earn your wings, work in pro sports and run a kitchen.", field: "air", courses: ["avia", "sprt", "culn"] },
 ];
 
 /** Skills a finished course adds to the student's profile. */
@@ -261,7 +354,15 @@ export const COURSE_SKILLS: Record<string, string[]> = {
   elec: ["Circuits", "Electrical safety"], engr: ["Design process", "Prototyping"], film: ["Storyboarding", "Shot planning"],
   musc: ["Beat making", "Mixing basics"], hlth: ["Vital signs", "Patient privacy"], tech: ["Variables & loops", "Game logic"],
   weld: ["Welding safety", "MIG basics"], biz: ["Profit math", "Pitching"],
+  culn: ["Food safety", "Knife skills"], sprt: ["Injury first steps", "Play-by-play"], avia: ["Four forces of flight", "Aviation careers"],
 };
+
+// Each lesson's "Watch" video and each course's celebrity spotlight (shared/connectVideos.ts).
+for (const c of COURSES) {
+  const videos = LESSON_VIDEOS[c.id] || [];
+  c.lessons.forEach((l, i) => { if (videos[i]) l.video = videos[i]; });
+  if (COURSE_STARS[c.id]?.length) c.stars = COURSE_STARS[c.id];
+}
 
 export const courseById = (id: string) => COURSES.find((c) => c.id === id);
 

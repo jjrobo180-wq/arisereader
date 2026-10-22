@@ -26,7 +26,7 @@ img{max-width:100%}
   --grad:linear-gradient(115deg,#10B9AF 0%,#5279ED 53%,#9363E7 100%);
   --grad-reader:linear-gradient(135deg,#7C3AED 0%,#C026D3 52%,#06B6D4 100%);
   --paper:#FFFFFF; --paper-ink:#1C2238; --paper-line:#D6DDF0; --seal:#5169ED; --seal-dot:#11B9AF;
-  --f-trades:#F0703A; --f-eng:#4F72E8; --f-film:#E5484D; --f-music:#D946A8; --f-health:#12A27A; --f-tech:#0EA5C6; --f-biz:#65A30D;
+  --f-trades:#F0703A; --f-eng:#4F72E8; --f-film:#E5484D; --f-music:#D946A8; --f-health:#12A27A; --f-tech:#0EA5C6; --f-biz:#65A30D; --f-food:#D97706; --f-sports:#9333EA; --f-air:#0369A1;
   --font-display:Manrope,"DM Sans",system-ui,sans-serif;
   --font-body:"DM Sans",system-ui,sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -144,7 +144,8 @@ main{padding-block:40px 90px}
 .panel h3{font-size:1.1rem;margin-bottom:14px}
 .checks{list-style:none;padding:0;margin:0;display:grid;gap:11px}
 .checks li{display:flex;gap:11px;align-items:flex-start}
-.checks svg{flex:none;margin-top:3px;color:var(--good)}
+.checks svg{flex:none;width:18px;height:18px;margin-top:3px;color:var(--good)}
+.meta svg{width:13px;height:13px;vertical-align:-2px;margin-right:2px}
 .lessons{list-style:none;padding:0;margin:0;display:grid;gap:12px}
 .lesson-row{display:flex;align-items:center;gap:15px;padding:15px 18px;background:#fff;border:1px solid var(--line);border-radius:16px;cursor:pointer;width:100%;text-align:left;box-shadow:var(--shadow-sm);transition:transform .2s,box-shadow .2s;color:var(--ink)}
 .lesson-row:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
@@ -620,6 +621,27 @@ tr:last-child td{border-bottom:0}
 @media (max-width:860px){.lesson-layout{grid-template-columns:minmax(0,1fr)}}
 .terms,.tryit,.reading{min-width:0}
 
+
+/* Videos (shared/connectVideos.ts): a poster that turns into the YouTube player when pressed. */
+.vid-wrap{margin:0;display:grid;gap:10px;min-width:0}
+.vid{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#0B0D18}
+.vid .poster{position:absolute;inset:0;display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer}
+.vid .poster:focus-visible{outline:3px solid var(--blue);outline-offset:-3px}
+.vid img{width:100%;height:100%;object-fit:cover;display:block}
+.vid .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:68px;height:68px;border-radius:50%;background:rgba(10,12,24,.72);color:#fff;display:grid;place-items:center;transition:transform .15s ease}
+.vid .play svg{width:30px;height:30px;margin-left:4px;fill:currentColor}
+.vid .poster:hover .play{transform:translate(-50%,-50%) scale(1.08)}
+.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-cap{display:grid;gap:3px;font-size:.92rem;line-height:1.4}
+.vid-cap .sub a{color:var(--blue);font-weight:700}
+.star-tag{display:inline-flex;align-items:center;gap:6px;justify-self:start;font-size:.78rem;font-weight:800;color:#8A4B00;background:#FFF1D6;border:1px solid #F5D08A;border-radius:999px;padding:3px 10px}
+.star-tag svg{width:14px;height:14px;fill:currentColor}
+.stars-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:18px}
+.star-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow-sm);display:grid;gap:10px;align-content:start;min-width:0}
+.star-card .btn{justify-self:start}
+.with-star{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:800;color:#8A4B00}
+.with-star svg{width:14px;height:14px;fill:currentColor}
+.career-vid{display:grid;gap:8px}
 </style>
 </head>
 <body>
@@ -655,6 +677,10 @@ const I = {
   class:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M14 15.3c.6-.2 1.3-.3 2-.3 3.3 0 6 2 6 5"/>',
   heart:'<path d="M20.8 8.6a5 5 0 0 0-8.8-3.2A5 5 0 0 0 3.2 8.6c0 5.4 8.8 11.4 8.8 11.4s8.8-6 8.8-11.4z"/>',
   star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  play:'<path d="M7 4.5v15l13-7.5z"/>',
+  chef:'<path d="M7 14.5V20h10v-5.5"/><path d="M7 14.5a4 4 0 0 1-1.6-7.6A4.5 4.5 0 0 1 12 4a4.5 4.5 0 0 1 6.6 2.9A4 4 0 0 1 17 14.5z"/><path d="M7 17h10"/>',
+  ball:'<circle cx="12" cy="12" r="9"/><path d="M3.5 9.5c3 1.4 6.2 1.4 9 0s6-1.4 8 0"/><path d="M3.5 14.5c3-1.4 6.2-1.4 9 0s6 1.4 8 0"/><path d="M12 3v18"/>',
+  plane:'<path d="M10.5 21l1.5-6-7-1.5V11l7 1V5.5a1.5 1.5 0 0 1 3 0V12l7-1v2.5L15 15l1.5 6-3-1.5z"/>',
   book:'<path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/>',
   plus:'<path d="M12 5v14"/><path d="M5 12h14"/>',
   x:'<path d="M6 6l12 12"/><path d="M18 6L6 18"/>',
@@ -940,6 +966,7 @@ function careerModal(id){
     <div class="m-body">
       ${actions?`<div class="modal-actions start">${actions}</div>`:''}
       <p>${esc(yb?c.kid:c.teen)}</p>
+      ${okVid(c.video)?`<div class="career-vid"><h3 class="rail-h">See the job</h3>${videoHTML(c.video,'career')}</div>`:''}
       <div class="facts"><div class="fact"><span>Training</span><b>${esc(c.train)}</b></div>${yb?'':`<div class="fact"><span>Typical pay</span><b>${c.pay?`About $${c.pay}k a year`:'Varies a lot'}</b></div>`}<div class="fact"><span>Ways in</span><b>${esc(c.paths.join(' · '))}</b></div></div>
       <div><h3 class="rail-h">Tools you’d use</h3><div class="tags" style="margin-top:8px">${c.tools.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div>
       <div><h3 class="rail-h">Start now</h3><div class="startnow">${order.map(([k,l])=>`<div class="${k===band&&ME?'me':''}"><b>${l}</b><span>${esc(cl.start[k])}</span></div>`).join('')}</div></div>
@@ -1129,7 +1156,7 @@ function connectLockHTML(){
 }
 
 /* ================= LEARNING: career courses + certificates ================= */
-const FIELD_VAR = { trades:'--f-trades', eng:'--f-eng', film:'--f-film', music:'--f-music', health:'--f-health', tech:'--f-tech', biz:'--f-biz' };
+const FIELD_VAR = { trades:'--f-trades', eng:'--f-eng', film:'--f-film', music:'--f-music', health:'--f-health', tech:'--f-tech', biz:'--f-biz', food:'--f-food', sports:'--f-sports', air:'--f-air' };
 const fieldColor = f => `var(${FIELD_VAR[f]||'--blue'})`;
 const course = id => (CAT.courses||[]).find(c => c.id === id);
 const myCourse = id => (P()?.courses||{})[id] || null;
@@ -1154,11 +1181,30 @@ function courseCard(c){
     ${match?'<span class="badge-match">Matches you</span>':''}
     <div class="banner">${tile(c.icon,fieldColor(c.field))}<div><div class="eyebrow">${esc(CAT.courseFields[c.field])}</div><div class="mono">${esc(c.code)}</div></div></div>
     <div class="body"><h3>${esc(c.title)}</h3><p class="blurb">${esc(c.blurb)}</p>
-    <div class="meta"><span><b>${total}</b> lessons</span><span><b>${c.minutes}</b> min</span><span><b>+${CAT.xp.course}</b> XP</span></div>
+    <div class="meta"><span><b>${total}</b> lessons</span><span><b>${c.minutes}</b> min</span><span><b>+${CAT.xp.course}</b> XP</span>${c.lessons.some(l=>okVid(l.video))?`<span>${svg('play')} Videos</span>`:''}</div>
+    ${c.stars&&c.stars[0]?`<span class="with-star">${svg('star')}With ${esc(c.stars[0].star)}</span>`:''}
     <div class="tags">${c.paths.map(p=>`<span class="tag">${esc(CAT.coursePaths[p])}</span>`).join('')}</div>
     ${done?`<span class="earned">${svg('star')} Certificate earned</span>`:n?`<div><div class="meta" style="margin-bottom:6px"><span>${n} of ${total} lessons done</span></div><div class="bar"><i style="width:${n/total*100}%"></i></div></div>`:''}</div></button>`;
 }
-const INTERESTS=[{id:"build",label:"Building things"},{id:"how",label:"Figuring out how things work"},{id:"music",label:"Music"},{id:"stories",label:"Movies & stories"},{id:"help",label:"Helping people"},{id:"computers",label:"Computers & games"},{id:"money",label:"Business ideas"}];
+const INTERESTS=[{id:"build",label:"Building things"},{id:"how",label:"Figuring out how things work"},{id:"music",label:"Music"},{id:"stories",label:"Movies & stories"},{id:"help",label:"Helping people"},{id:"computers",label:"Computers & games"},{id:"money",label:"Business ideas"},{id:"food",label:"Food & cooking"},{id:"sports",label:"Sports"},{id:"space",label:"Planes & space"}];
+
+/* ================= VIDEOS ================= */
+/* A poster (YouTube's thumbnail) that turns into the player when pressed, so a page of videos loads
+   fast and nothing plays by itself. Played through youtube-nocookie.com; "Watch on YouTube" is
+   always there for schools that block embedded players. key tells two copies of one video apart. */
+const PLAYING = new Set();
+const okVid = v => v && /^[A-Za-z0-9_-]{11}$/.test(v.id||'');
+function vidFrame(v){ return `<iframe src="https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`; }
+function videoHTML(v, key, opts={}){
+  if (!okVid(v)) return '';
+  const k = `${key}:${v.id}`;
+  return `<figure class="vid-wrap">
+    <div class="vid" data-vid="${v.id}">${PLAYING.has(k) ? vidFrame(v) : `<button class="poster" data-act="playvid" data-id="${v.id}" data-v="${esc(k)}" aria-label="Play video: ${esc(v.title)}"><img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="lazy"><span class="play">${svg('play')}</span></button>`}</div>
+    ${opts.noCaption?'':`<figcaption class="vid-cap">${v.star?`<span class="star-tag">${svg('star')}${esc(v.star)}</span>`:''}<b>${esc(v.title)}</b><span class="sub">${v.role?esc(v.role)+' · ':''}${esc(v.by)} · <a href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener">Watch on YouTube</a></span></figcaption>`}
+  </figure>`;
+}
+/* Every celebrity video across the courses, once each, with the course it belongs to. */
+function allStars(){ const seen=new Set(), out=[]; (CAT.courses||[]).forEach(c=>(c.stars||[]).forEach(v=>{ if(!seen.has(v.id)&&okVid(v)){ seen.add(v.id); out.push({v,c}); } })); return out; }
 function viewLearn(){
   if (S.lesson!=null && S.course) return viewLesson();
   if (S.course) return viewCourse();
@@ -1171,12 +1217,14 @@ function viewLearn(){
   return `<section class="learn-hero">
     <div><div class="eyebrow">A.R.I.S.E. Connect Learning</div>
       <h1>${student?`Hi ${first}, `:''}<em>try a career</em> before you pick one.</h1>
-      <p class="lede">Short courses in the trades, engineering, film, music production, healthcare, tech and business. ${student?'Every course ends with a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate. You can preview every lesson.'}</p>
+      <p class="lede">Short courses with videos from real pros and stars: the trades, engineering, film, music, healthcare, tech, business, cooking, sports, and aviation and space. ${student?'Every course ends with a certificate for your profile.':'Students pass each lesson’s quick check to earn a certificate. You can preview every lesson.'}</p>
       ${student?`<div class="learn-stats"><span><b>${(P().certificates||[]).length}</b> certificates</span><span><b>${inprog.length}</b> in progress</span><span><b>${P().xp}</b> XP</span></div>`:''}
     </div>
     <div class="continue"><div class="eyebrow">${student&&inprog.length?'Continue learning':student?'Start here':'Popular courses'}</div>
       ${(student&&inprog.length?inprog:CAT.courses.filter(c=>!student||!certOf(c.id))).slice(0,3).map(c=>`<button class="mini-course" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}<span><b>${esc(c.title)}</b><span class="sub">${student&&inprog.length?`Lesson ${Math.min(lessonsDone(c)+1,c.lessons.length)} of ${c.lessons.length}`:`${esc(CAT.courseFields[c.field])} · ${c.minutes} min`}</span>${student&&inprog.length?`<span class="bar"><i style="width:${lessonsDone(c)/c.lessons.length*100}%"></i></span>`:''}</span></button>`).join('') || '<p class="sub">Start any course below.</p>'}
     </div></section>
+  ${allStars().length?`<section class="section" aria-labelledby="stars-h"><div class="cat-head"><h2 id="stars-h">Learn from the stars</h2><span class="muted">Famous people talk about the work they love</span></div>
+    <div class="stars-grid">${allStars().slice(0,6).map(({v,c})=>`<div class="star-card">${videoHTML(v,'home')}<button class="btn ghost" data-act="course" data-id="${c.id}">${tile(c.icon,fieldColor(c.field),'sm')}Take ${esc(c.title)}</button></div>`).join('')}</div></section>`:''}
   <section class="section"><div class="cat-head"><h2>Career paths</h2><span class="muted">Groups of courses that go together</span></div>
     <div class="paths">${CAT.learningPaths.map(p=>{const n=student?p.courses.filter(id=>certOf(id)).length:0;return `<button class="box path${S.lpath===p.id?' on':''}" data-act="lpath" data-v="${p.id}" aria-pressed="${S.lpath===p.id}">
       <span class="path-icons">${p.courses.map(id=>{const c=course(id);return tile(c.icon,fieldColor(c.field),'sm')}).join('')}</span>
@@ -1205,8 +1253,10 @@ function viewCourse(){
     <div class="panel"><h3>What you'll learn</h3><ul class="checks">${c.learn.map(l=>`<li>${svg('check')}<span>${esc(l)}</span></li>`).join('')}</ul></div>
   </section>
   <section class="section"><h2>Lessons</h2>
-    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}"><span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
+    <ol class="lessons">${c.lessons.map((l,i)=>{const d=m&&m.lessons[i];return `<li><button class="lesson-row" data-act="lesson" data-v="${i}"><span class="num ${d?'done':''}">${d?svg('check'):i+1}</span><span class="t"><b>${esc(l.title)}</b><span class="muted" style="font-size:.9rem">${l.minutes} min${okVid(l.video)?' · video':''} · ${l.quiz.length} quick-check questions${l.activity?' · interactive':''}</span></span><span class="muted" aria-hidden="true">→</span></button></li>`}).join('')}</ol>
   </section>
+  ${(c.stars||[]).filter(okVid).length?`<section class="section" aria-labelledby="spot-h"><h2 id="spot-h">Star spotlight</h2><p class="muted" style="margin:-6px 0 16px">Famous people who do this work, or fight for it.</p>
+    <div class="stars-grid">${c.stars.filter(okVid).map(v=>`<div class="star-card">${videoHTML(v,'course')}</div>`).join('')}</div></section>`:''}
   <section class="section"><h2>Career snapshot</h2><div class="two">
     <div class="panel kv"><div><span class="eyebrow">Jobs this leads toward</span><span>${c.careers.map(esc).join(' · ')}</span></div></div>
     <div class="panel kv"><div><span class="eyebrow">Ways in</span><span>${c.paths.map(p=>esc(CAT.coursePaths[p])).join(' · ')}</span></div></div>
@@ -1223,6 +1273,7 @@ function viewLesson(){
     <nav class="side" aria-label="Lessons">${c.lessons.map((x,k)=>{const d=m&&m.lessons[k];return `<button data-act="lesson" data-v="${k}" aria-current="${k===i}"><span class="num ${d?'done':''}">${d?svg('check'):k+1}</span>${esc(x.title)}</button>`}).join('')}</nav>
     <article class="article">
       <header><div class="mono muted">${esc(c.code)} · Lesson ${i+1} of ${c.lessons.length} · ${l.minutes} min</div><h1 style="margin-top:8px">${esc(l.title)}</h1></header>
+      ${okVid(l.video)?`<section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Watch</h2></div>${videoHTML(l.video,'lesson')}</section>`:''}
       <section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Read</h2></div><div class="reading">${l.body.map(p=>`<p>${esc(p)}</p>`).join('')}</div></section>
       <section><div class="block-title"><span class="step-label">KEY TERMS</span></div><div class="terms">${l.terms.map(t=>`<div class="term"><b>${esc(t[0])}</b><span>${esc(t[1])}</span></div>`).join('')}</div></section>
       ${l.activity||l.tryIt?`<section><div class="block-title"><span class="step-label">STEP ${step++}</span><h2>Try it</h2></div><div class="tryit">${l.activity?activityHTML(l.activity):`<p>${esc(l.tryIt)}</p>`}</div></section>`:''}
@@ -1386,6 +1437,7 @@ document.addEventListener('click', async e=>{
       case 'beatclear': Object.keys(BEAT).forEach(k=>BEAT[k].fill(false)); document.querySelectorAll('[data-act="beatcell"]').forEach(b=>b.setAttribute('aria-pressed','false')); break;
       case 'fp': S.filterP=v; renderMain(); break;
       case 'open': openModal(id); break;
+      case 'playvid': { const box = el.closest('.vid'); const v = { id, title: el.getAttribute('aria-label').replace(/^Play video: /,'') }; if (!box || !okVid(v)) break; PLAYING.add(el.dataset.v); box.innerHTML = vidFrame(v); break; }
       case 'close': closeModal(); break;
       case 'child': S.childId = Number(id); render(); break;
       case 'compose': S.composeOpen=!S.composeOpen; renderMain(); if(S.composeOpen) (document.getElementById('cText')||document.getElementById('cStart'))?.focus(); break;
