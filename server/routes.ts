@@ -62,6 +62,7 @@ import { registerClientErrorRoutes } from "./clientErrors";
 import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerLifePlanRoutes } from "./lifePlan";
+import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
 import { registerHubChatRoutes } from "./hubChat";
 import { registerAppleHealthRoutes } from "./appleHealth";
@@ -1415,6 +1416,7 @@ export async function registerRoutes(
   });
   registerFoodLookupRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
+  registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
   registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
     getSetting: (key) => storage.getSetting(key),
     upsertSetting: (key, value) => storage.upsertSetting(key, value),
