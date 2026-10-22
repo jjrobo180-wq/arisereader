@@ -1085,6 +1085,10 @@ async function adminMiddleware(req: any, res: any, next: any) {
   next();
 }
 
+// GET /api/teacher-admin/all-students' attempts-for-stats join, shared briefly across whichever
+// teachers at a school open "View all students" close together -- see that route below.
+const allStudentsAttemptsCache = new Map<string, { data: any[]; expires: number }>();
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -10913,17 +10917,30 @@ Important:
       }
       // Fetch attempts for stats. Scoped by school_id (one filter) rather than a per-student .in()
       // list, which used to grow to the whole school for an ordinary teacher and could time out.
-      let allUsersWithAttempts: any[] = [];
-      for (let retry = 0; retry < 5; retry++) {
-        try {
-          let q = supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
-          if (staffScope) { q = q.eq("school_id", staffScope.schoolId); if (staffScope.eyeGazeOnly) q = q.eq("is_eye_gaze_user", true); }
-          else if (ownSchoolId) q = q.eq("school_id", ownSchoolId);
-          else if (!req.user.isAdmin) q = q.in("id", students.length ? students.map((st: any) => Number(st.id)) : [-1]);
-          const { data, error } = await q;
-          if (!error && data) { allUsersWithAttempts = data; break; }
-        } catch (e) {}
-        if (retry < 4) await new Promise(r => setTimeout(r, 1000));
+      // A whole school's attempts is a sizable join (hundreds of students, thousands of quiz
+      // attempts), so it's shared for a short while rather than re-run for every teacher who
+      // opens "View all students" back to back.
+      const attemptsCacheKey = staffScope ? `school:${staffScope.schoolId}:${staffScope.eyeGazeOnly ? "eg" : "all"}`
+        : ownSchoolId ? `school:${ownSchoolId}:all`
+        : req.user.isAdmin ? "admin:all" : null;
+      const cachedAttempts = attemptsCacheKey ? allStudentsAttemptsCache.get(attemptsCacheKey) : undefined;
+      let allUsersWithAttempts: any[];
+      if (cachedAttempts && cachedAttempts.expires > Date.now()) {
+        allUsersWithAttempts = cachedAttempts.data;
+      } else {
+        allUsersWithAttempts = [];
+        for (let retry = 0; retry < 5; retry++) {
+          try {
+            let q = supabase.from("users").select("id, role, attempts:attempts!attempts_user_id_fkey(points_earned)").eq("is_admin", false);
+            if (staffScope) { q = q.eq("school_id", staffScope.schoolId); if (staffScope.eyeGazeOnly) q = q.eq("is_eye_gaze_user", true); }
+            else if (ownSchoolId) q = q.eq("school_id", ownSchoolId);
+            else if (!req.user.isAdmin) q = q.in("id", students.length ? students.map((st: any) => Number(st.id)) : [-1]);
+            const { data, error } = await q;
+            if (!error && data) { allUsersWithAttempts = data; break; }
+          } catch (e) {}
+          if (retry < 4) await new Promise(r => setTimeout(r, 1000));
+        }
+        if (attemptsCacheKey && allUsersWithAttempts.length) allStudentsAttemptsCache.set(attemptsCacheKey, { data: allUsersWithAttempts, expires: Date.now() + 30000 });
       }
       const attemptsMap = new Map();
       for (const u of allUsersWithAttempts) {
