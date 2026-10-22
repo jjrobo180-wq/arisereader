@@ -10,6 +10,7 @@ import { addMeetingWithDeadline, changeMeetingBasics, deadlineLabel, deadlineWor
 import { newGuideFor } from "@shared/hubStudentTeam";
 import type { GuideSender } from "@shared/hubGuide";
 import { GuideChecklist } from "./HubGuide";
+import { IepWriterLauncher } from "./HubIepWriter";
 import { clock12, type Meeting, type Workspace } from "@shared/teacherHub";
 import { Field, GhostButton, PrimaryButton, Select } from "./ui";
 import HubQuickAddStudent from "./HubQuickAddStudent";
@@ -21,7 +22,7 @@ type Setter = Dispatch<SetStateAction<Workspace>>;
 /** What each of the later steps says, and whether it can put a to-do on the list. */
 const HELP: Record<number, { text: string; todo?: string }> = {
   6: { text: "Pull together current data, progress notes and a few work samples so the team can see how the student is doing.", todo: "Gather data and work samples" },
-  7: { text: "Write the draft goals and reports ahead of time so there is something to talk about.", todo: "Draft goals and reports" },
+  7: { text: "Write the IEP above: the drop boxes write the present levels, goals, accommodations, services and Prior Written Notice for you, and score them against the IEP Quality Rubric.", todo: "Write the IEP draft" },
   8: { text: "Share the drafts with parents and the team before the meeting so nothing is a surprise.", todo: "Send drafts to parents and the team" },
   9: { text: "Hold the meeting. Take quick notes as you go. You can put them in the meeting's notes on your timeline." },
   10: { text: "Finish the paperwork, send the final copy to the parents and the team, and file everything.", todo: "Finish paperwork and send the final copy" },
@@ -248,6 +249,7 @@ export default function MeetingWizard({ workspace, setWorkspace, seats, makeId, 
           {step === 5 && (meeting ? (guide
             ? <GuideChecklist guide={guide} workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} sender={sender} />
             : <p className="text-sm text-slate-600">Getting the checklist ready…</p>) : <NeedMeeting go={() => go(1)} />)}
+          {step === 7 && meeting && <IepWriterLauncher workspace={workspace} setWorkspace={setWorkspace} makeId={makeId} student={meeting.student} meetingId={meeting.id} />}
           {HELP[step] && <>
             <p className="text-sm text-slate-600">{HELP[step].text}</p>
             {HELP[step].todo && meeting && (added[step]
