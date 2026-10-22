@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  canAdd, canCheckOff, canEdit, cleanItemData, cleanUrl, eventsOn, goalSummary, isInviteCode, logsCsv, makeInviteCode, scheduleOn, sortTasks,
+  bulletinUp, bulletinsOn, canAdd, canCheckOff, canEdit, cleanItemData, cleanUrl, eventsOn, goalSummary, isInviteCode, logsCsv, makeInviteCode, scheduleOn, sortTasks, weekEnd,
   type ParaItem,
 } from "../shared/paraTeam";
 import { registerParaTeamRoutes, uploadExtension, type ItemRow, type MemberRow, type ParaDb, type TeamRow } from "../server/paraTeam";
@@ -42,7 +42,7 @@ test("who may do what: leads run the plan, paras add and change their own, anyon
     assert.equal(canAdd("para", k), false, `${k} is the teacher's`);
     assert.equal(canAdd("lead", k), true);
   }
-  for (const k of ["message", "event", "task", "log", "lesson", "link"] as const) assert.equal(canAdd("para", k), true, k);
+  for (const k of ["message", "event", "task", "log", "lesson", "link", "bulletin"] as const) assert.equal(canAdd("para", k), true, k);
   assert.equal(canAdd("lead", "file"), false, "files only come from uploading");
   assert.equal(canEdit("para", 5, { kind: "lesson", createdBy: 5 }), true);
   assert.equal(canEdit("para", 5, { kind: "lesson", createdBy: 6 }), false);
@@ -277,4 +277,35 @@ test("Para Team is reachable from WorkHub, LifeHub and the teacher Reader, and i
   const sql = read("migrations/para_teams.sql");
   for (const t of ["para_teams", "para_team_members", "para_team_items"]) assert.match(sql, new RegExp(`alter table public\\.${t} enable row level security;`));
   assert.match(sql, /revoke all on table public\.para_teams, public\.para_team_members, public\.para_team_items from anon, authenticated;/);
+});
+
+test("bulletins: a day, a week, set dates or until taken down, important ones first", () => {
+  assert.deepEqual(cleanItemData("bulletin", { title: " ", body: "", from: "2026-10-21" }), { ok: false, message: "Write the bulletin first." });
+  assert.deepEqual(cleanItemData("bulletin", { title: "Fire drill", from: "" }), { ok: false, message: "Pick the day it starts." });
+  assert.equal(cleanItemData("bulletin", { title: "x", from: "2026-10-21", until: "2026-10-20" }).ok, false, "can't end before it starts");
+  const ok = cleanItemData("bulletin", { title: "Fire drill at 10:15", from: "2026-10-21", until: "", color: "purple" });
+  assert.ok(ok.ok);
+  if (ok.ok) assert.deepEqual({ color: ok.data.color, important: ok.data.important, until: ok.data.until }, { color: "yellow", important: false, until: "" });
+
+  const b = { title: "t", body: "", from: "2026-10-19", until: "2026-10-23", color: "yellow" as const, important: false };
+  assert.equal(bulletinUp(b, "2026-10-19"), true);
+  assert.equal(bulletinUp(b, "2026-10-23"), true);
+  assert.equal(bulletinUp(b, "2026-10-24"), false);
+  assert.equal(bulletinUp(b, "2026-10-18"), false);
+  assert.equal(bulletinUp({ ...b, until: "" }, "2027-01-01"), true, "stays up until taken down");
+  assert.equal(weekEnd("2026-10-21"), "2026-10-23", "Wednesday → Friday");
+  assert.equal(weekEnd("2026-10-23"), "2026-10-23");
+  assert.equal(weekEnd("2026-10-25"), "2026-10-30", "Sunday → the coming Friday");
+
+  const mk = (id: string, important: boolean, at: string, from = "2026-10-21"): ParaItem => ({ id, teamId: "t", kind: "bulletin", createdBy: 1, createdAt: at, updatedAt: at, data: { ...b, from, until: "", important } } as unknown as ParaItem);
+  const on = bulletinsOn([mk("a", false, "2026-10-21T09:00"), mk("b", true, "2026-10-20T09:00"), mk("c", false, "2026-10-21T10:00"), mk("d", true, "2026-10-21T08:00", "2026-10-22")], "2026-10-21");
+  assert.deepEqual(on.map((i) => i.id), ["b", "c", "a"]);
+});
+
+test("the bulletin board is a tab and shows on Today", () => {
+  const page = read("client/src/pages/ParaTeam.tsx");
+  assert.match(page, /id: "bulletin", label: "Bulletin board"/);
+  assert.match(page, /section === "bulletin" && <BulletinSection/);
+  assert.match(read("client/src/components/para-team/DaySections.tsx"), /bulletinsOn\(team\.items, today\)/);
+  assert.match(read("migrations/para_teams.sql"), /'note', 'bulletin'\)/);
 });

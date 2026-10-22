@@ -12,7 +12,7 @@ export const SMALL = "inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5
 export const CARD = "rounded-2xl border border-slate-200 bg-white p-4 sm:p-5";
 export const CHIP = "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold";
 
-export type Section = "today" | "messages" | "calendar" | "tasks" | "schedule" | "students" | "data" | "lessons" | "docs" | "team";
+export type Section = "today" | "bulletin" | "messages" | "calendar" | "tasks" | "schedule" | "students" | "data" | "lessons" | "docs" | "team";
 
 export type Para = {
   team: ParaTeamView;

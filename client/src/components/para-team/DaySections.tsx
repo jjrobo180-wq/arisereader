@@ -4,9 +4,10 @@ import { ChevronLeft, ChevronRight, MapPin, Pin, Plus, Send, Users } from "lucid
 import { HubModal } from "@/components/teacher-hub/HubModal";
 import { Field, Labeled } from "@/components/teacher-hub/ui";
 import {
-  EVENT_LABEL, EVENT_TYPES, WEEKDAYS, WEEKDAY_SHORT, addDaysKey, canCheckOff, clock, eventsOn, ofKind, scheduleOn, sortTasks, weekdayOf,
+  EVENT_LABEL, EVENT_TYPES, WEEKDAYS, WEEKDAY_SHORT, addDaysKey, bulletinsOn, canCheckOff, clock, eventsOn, ofKind, scheduleOn, sortTasks, weekdayOf,
   type EventData, type ParaItem, type ScheduleData, type TaskData,
 } from "@shared/paraTeam";
+import { BulletinNote } from "./Bulletins";
 import { Area, CARD, Choice, CHIP, DeleteButton, EmptyNote, PRIMARY, SECOND, SMALL, SectionHead, Who, dayWords, nowTime, usePara, when } from "./kit";
 
 const EVENT_TONE: Record<EventData["type"], string> = {
@@ -38,9 +39,24 @@ export function TodaySection() {
   const weekend = [0, 6].includes(weekdayOf(today));
   const nowId = blocks.find((b) => b.data.start <= now && (!b.data.end || now < b.data.end))?.id;
   const nextId = nowId ? null : blocks.find((b) => b.data.start > now)?.id;
+  const board = bulletinsOn(team.items, today);
 
   return <>
     <SectionHead title={dayWords(today, true)} line={`${team.name}. Here's the day for ${everyone ? "the whole team" : "you"}.`} />
+
+    {/* Today's bulletins, from the Bulletin board. */}
+    {board.length > 0 ? (
+      <section className="mb-4" aria-labelledby="today-board">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 id="today-board" className="text-lg font-extrabold text-slate-950">On the bulletin board</h2>
+          <span className="flex items-center gap-1"><button type="button" className={SMALL} onClick={() => p.go("bulletin", "new")}><Plus className="h-3.5 w-3.5" />Post</button><button type="button" className={SMALL} onClick={() => p.go("bulletin")}>See the board</button></span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{board.slice(0, 6).map((b) => <BulletinNote key={b.id} b={b} compact />)}</div>
+        {board.length > 6 && <button type="button" className={`${SMALL} mt-2`} onClick={() => p.go("bulletin")}>{board.length - 6} more on the board</button>}
+      </section>
+    ) : (
+      <button type="button" onClick={() => p.go("bulletin", "new")} className="mb-4 flex w-full items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 py-3 text-left text-sm font-semibold text-slate-600 hover:bg-white"><Plus className="h-4 w-4" />Post a bulletin for today or this week</button>
+    )}
 
     {(pinned.length > 0 || notes.length > 0) && (
       <section className="mb-4 space-y-2" aria-label="Pinned">

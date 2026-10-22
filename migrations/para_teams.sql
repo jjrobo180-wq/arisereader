@@ -25,7 +25,7 @@ create index if not exists para_team_members_user_idx on public.para_team_member
 create table if not exists public.para_team_items (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references public.para_teams(id) on delete cascade,
-  kind text not null check (kind in ('message', 'event', 'task', 'schedule', 'student', 'log', 'lesson', 'link', 'file', 'note')),
+  kind text not null check (kind in ('message', 'event', 'task', 'schedule', 'student', 'log', 'lesson', 'link', 'file', 'note', 'bulletin')),
   data jsonb not null default '{}'::jsonb,
   created_by integer references public.users(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -40,3 +40,8 @@ alter table public.para_team_members enable row level security;
 alter table public.para_team_items enable row level security;
 revoke all on table public.para_teams, public.para_team_members, public.para_team_items from anon, authenticated;
 grant select, insert, update, delete on table public.para_teams, public.para_team_members, public.para_team_items to service_role;
+
+-- Bulletin board (added Oct 21, 2026): a table made before then needs its kind check widened.
+alter table public.para_team_items drop constraint if exists para_team_items_kind_check;
+alter table public.para_team_items add constraint para_team_items_kind_check
+  check (kind in ('message', 'event', 'task', 'schedule', 'student', 'log', 'lesson', 'link', 'file', 'note', 'bulletin'));

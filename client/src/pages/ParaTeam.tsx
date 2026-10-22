@@ -5,20 +5,22 @@
 import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
-  ArrowLeft, BarChart3, BookOpen, CalendarDays, CheckSquare, Clock3, FolderOpen, HeartHandshake, Home, MessageSquare, Plus, Users, UserRound, type LucideIcon,
+  ArrowLeft, BarChart3, Megaphone, BookOpen, CalendarDays, CheckSquare, Clock3, FolderOpen, HeartHandshake, Home, MessageSquare, Plus, Users, UserRound, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { hubNightClass } from "@/lib/hubNight";
 import { goToReader, isHubAccount, isReaderHost } from "@/lib/hubs";
 import { LAST_TEAM_KEY, PENDING_JOIN_KEY, paraApi, useMyTeams, useParaTeam } from "@/lib/paraTeam";
-import { canCheckOff, dayKey, isInviteCode, ofKind, type ParaTeamView } from "@shared/paraTeam";
+import { bulletinsOn, canCheckOff, dayKey, isInviteCode, ofKind, type ParaTeamView } from "@shared/paraTeam";
 import { Field, Labeled } from "@/components/teacher-hub/ui";
 import { CARD, PRIMARY, SECOND, ParaProvider, makePara, type Section } from "@/components/para-team/kit";
+import { BulletinSection } from "@/components/para-team/Bulletins";
 import { CalendarSection, MessagesSection, ScheduleSection, TasksSection, TodaySection } from "@/components/para-team/DaySections";
 import { DataSection, DocsSection, LessonsSection, StudentsSection, TeamSection } from "@/components/para-team/WorkSections";
 
 const SECTIONS: Array<{ id: Section; label: string; icon: LucideIcon }> = [
   { id: "today", label: "Today", icon: Home },
+  { id: "bulletin", label: "Bulletin board", icon: Megaphone },
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "tasks", label: "To-do", icon: CheckSquare },
@@ -201,7 +203,8 @@ function TeamScreen({ teamId, teams, onPick, onNew, onGone, say, back }: {
 
   const unread = ofKind(team.items, "message").filter((m) => m.createdBy !== team.me && (!seen || m.createdAt > seen)).length;
   const myOpen = ofKind(team.items, "task").filter((t) => !t.data.done && canCheckOff(team.me, t.data) && t.data.due && t.data.due <= today).length;
-  const badge = (s: Section) => (s === "messages" ? unread : s === "tasks" ? myOpen : 0);
+  const boardUp = bulletinsOn(team.items, today).length;
+  const badge = (s: Section) => (s === "messages" ? unread : s === "tasks" ? myOpen : s === "bulletin" ? boardUp : 0);
 
   return (
     <ParaProvider value={para}>
@@ -248,6 +251,7 @@ function TeamScreen({ teamId, teams, onPick, onNew, onGone, say, back }: {
         <main className="min-w-0 flex-1" key={`${section}:${focus || ""}`}>
           <Suspense fallback={null}>
             {section === "today" && <TodaySection />}
+            {section === "bulletin" && <BulletinSection focus={focus} />}
             {section === "messages" && <MessagesSection />}
             {section === "calendar" && <CalendarSection focus={focus} />}
             {section === "tasks" && <TasksSection />}

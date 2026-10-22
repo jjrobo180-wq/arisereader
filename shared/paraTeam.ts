@@ -7,7 +7,7 @@
 // kind holds and who may change it; the server (server/paraTeam.ts) uses it on every write and
 // the screens (client/src/pages/ParaTeam.tsx) use it to show only the buttons that will work.
 
-export const PARA_KINDS = ["message", "event", "task", "schedule", "student", "log", "lesson", "link", "file", "note"] as const;
+export const PARA_KINDS = ["message", "event", "task", "schedule", "student", "log", "lesson", "link", "file", "note", "bulletin"] as const;
 export type ParaKind = (typeof PARA_KINDS)[number];
 export type ParaRole = "lead" | "para";
 export const isParaKind = (k: unknown): k is ParaKind => typeof k === "string" && (PARA_KINDS as readonly string[]).includes(k);
@@ -20,16 +20,17 @@ export const UPLOAD_ONLY: readonly ParaKind[] = ["file"];
 
 /** The most of each kind one team keeps. Plenty for a school year; stops a runaway script. */
 export const KIND_LIMIT: Record<ParaKind, number> = {
-  message: 20000, event: 3000, task: 3000, schedule: 400, student: 120, log: 50000, lesson: 3000, link: 1000, file: 2000, note: 300,
+  message: 20000, event: 3000, task: 3000, schedule: 400, student: 120, log: 50000, lesson: 3000, link: 1000, file: 2000, note: 300, bulletin: 3000,
 };
 /** How many of the newest of each kind the app loads at once (older messages and data stay saved). */
 export const KIND_LOAD: Record<ParaKind, number> = {
-  message: 400, event: 3000, task: 3000, schedule: 400, student: 120, log: 4000, lesson: 3000, link: 1000, file: 2000, note: 300,
+  message: 400, event: 3000, task: 3000, schedule: 400, student: 120, log: 4000, lesson: 3000, link: 1000, file: 2000, note: 300, bulletin: 500,
 };
 
 export const DOC_FOLDERS = ["IEPs & plans", "Schedules", "Behavior", "Curriculum", "Forms", "Other"] as const;
 export type DocFolder = (typeof DOC_FOLDERS)[number];
 export const EVENT_TYPES = ["event", "meeting", "absence", "duty"] as const;
+export const BULLETIN_COLORS = ["yellow", "blue", "green", "pink", "orange"] as const;
 export const EVENT_LABEL: Record<(typeof EVENT_TYPES)[number], string> = { event: "Event", meeting: "Meeting", absence: "Out / absent", duty: "Duty" };
 export const LOG_TYPES = ["note", "behavior", "goal", "tally"] as const;
 export const LOG_LABEL: Record<(typeof LOG_TYPES)[number], string> = { note: "Daily note", behavior: "Behavior (ABC)", goal: "Goal trial", tally: "Tally" };
@@ -51,10 +52,13 @@ export type LessonData = { title: string; date: string; subject: string; student
 export type LinkData = { title: string; url: string; folder: DocFolder; note: string };
 export type FileData = { name: string; path: string; size: number; contentType: string; folder: DocFolder; note: string };
 export type NoteData = { title: string; body: string; pinned: boolean };
+/** A bulletin on the team's board: anyone posts one for a day, a week or any dates. It shows on the
+ *  board and on everyone's Today page from `from` through `until` ("" = until it's taken down). */
+export type BulletinData = { title: string; body: string; from: string; until: string; color: (typeof BULLETIN_COLORS)[number]; important: boolean };
 
 export type ParaData = {
   message: MessageData; event: EventData; task: TaskData; schedule: ScheduleData; student: StudentData;
-  log: LogData; lesson: LessonData; link: LinkData; file: FileData; note: NoteData;
+  log: LogData; lesson: LessonData; link: LinkData; file: FileData; note: NoteData; bulletin: BulletinData;
 };
 
 export type ParaItem<K extends ParaKind = ParaKind> = { id: string; kind: K; data: ParaData[K]; createdBy: number | null; createdAt: string; updatedAt: string };
@@ -187,6 +191,15 @@ export function cleanItemData<K extends ParaKind>(kind: K, raw: unknown): CleanR
       if (!title) return no("Give the note a title.");
       return ok({ title, body: str(r.body, 6000), pinned: r.pinned === true });
     }
+    case "bulletin": {
+      const title = line(r.title, 120), body = str(r.body, 1500);
+      if (!title && !body) return no("Write the bulletin first.");
+      const from = day(r.from);
+      if (!from) return no("Pick the day it starts.");
+      let until = day(r.until);
+      if (until && until < from) return no("The last day can't be before the first day.");
+      return ok({ title, body, from, until, color: oneOf(r.color, BULLETIN_COLORS, "yellow"), important: r.important === true });
+    }
   }
   return no("That isn't something a Para Team keeps.");
 }
@@ -256,6 +269,21 @@ export function scheduleOn(items: readonly ParaItem[], key: string, staffId?: nu
   return ofKind(items, "schedule")
     .filter((i) => i.data.days.includes(wd) && (staffId === undefined || i.data.staffId === 0 || i.data.staffId === staffId))
     .sort((a, b) => a.data.start.localeCompare(b.data.start) || a.data.activity.localeCompare(b.data.activity));
+}
+
+/** Is the bulletin up on this day? */
+export const bulletinUp = (b: BulletinData, key: string): boolean => b.from <= key && (!b.until || key <= b.until);
+
+/** The bulletins up today: important first, then newest. */
+export function bulletinsOn(items: readonly ParaItem[], key: string): ParaItem<"bulletin">[] {
+  return ofKind(items, "bulletin").filter((i) => bulletinUp(i.data, key))
+    .sort((a, b) => Number(b.data.important) - Number(a.data.important) || b.createdAt.localeCompare(a.createdAt));
+}
+
+/** The last school day of the week (Friday) for a day, for "this week" bulletins. */
+export function weekEnd(key: string): string {
+  const wd = weekdayOf(key);
+  return addDaysKey(key, wd === 6 ? 6 : 5 - wd >= 0 ? 5 - wd : 0);
 }
 
 export function eventsOn(items: readonly ParaItem[], key: string): ParaItem<"event">[] {
