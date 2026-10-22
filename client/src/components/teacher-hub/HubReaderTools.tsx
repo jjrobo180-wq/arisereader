@@ -418,7 +418,7 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
       </Card>}
       {apSub === "grades" && <Card title={`Grade change requests${gradeChanges.length ? ` (${gradeChanges.length})` : ""}`}>
         {gradeChanges.length ? <ul className="space-y-2">{gradeChanges.map((r) =>
-          <Row key={r.id} title={r.studentName} sub={`Grade ${r.currentGrade} → grade ${r.requestedGrade}`} right={<>
+          <Row key={r.id} title={`${r.displayName || r.username || "A student"} wants to change grades`} sub={`Now: ${r.oldGrade ? `Grade ${r.oldGrade}${r.oldBand ? ` (${r.oldBand} books)` : ""}` : "no grade set"} → Asking for: Grade ${r.newGrade}${r.newBand ? ` (${r.newBand} books)` : ""}. Approving changes which books and leaderboard they see.`} right={<>
             <button type="button" className={goodBtn} onClick={() => void decideGrade(r.id, "approve")}><Check className="h-4 w-4" /> Approve</button>
             <button type="button" className={badBtn} onClick={() => void decideGrade(r.id, "deny")}><X className="h-4 w-4" /> Deny</button>
           </>} />)}</ul> : <Empty>No grade change requests.</Empty>}
