@@ -55,3 +55,15 @@ export function addReadyQuiz(list: ReadyQuiz[], q: ReadyQuiz): ReadyQuiz[] {
 export function pendingReadyQuizzes(list: ReadyQuiz[], taken: { book: Set<number>; custom: Set<number> }): ReadyQuiz[] {
   return list.filter((q) => !(q.kind === "book" ? taken.book : taken.custom).has(q.id));
 }
+
+/**
+ * Approval notices sent before quizzes had links ("Quiz Approved!", type "success") name the book
+ * only in the message. Returns that book title so the bell can still open the quiz, or null.
+ */
+export function legacyApprovedTitle(row: { type?: unknown; title?: unknown; message?: unknown }): string | null {
+  if (String(row.type ?? "") !== "success" || String(row.title ?? "") !== "Quiz Approved!") return null;
+  const msg = String(row.message ?? "");
+  if (/eye gaze quiz/i.test(msg)) return null;
+  const m = /quiz (?:for )?"([^"]+)" has been approved/i.exec(msg);
+  return m ? m[1].trim() || null : null;
+}

@@ -74,6 +74,8 @@ import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
 import { registerProAppsAI } from "./proAppsAI";
 import { notifyUser, registerProDevice, registerPushRoutes, setNudgeSource } from "./pushNotifications";
 import { approvePendingQuiz, registerReadyQuizRoutes, type ReadyQuizDeps } from "./readyQuizzes";
+import { legacyApprovedTitle, readyQuizNotificationType } from "../shared/readyQuizzes";
+import { bookKey } from "../shared/bookIdentity";
 import { POTTY_TIMERS_KEY, registerPottyTimerRoutes } from "./pottyTimers";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
@@ -4950,9 +4952,34 @@ export async function registerRoutes(
           .eq("user_id", userId).eq("sender_type", "teacher").eq("is_read", false)
           .order("created_at", { ascending: false }).limit(50),
       ]);
+      // Older "Quiz Approved!" notices have no link: find the book they approved so tapping still opens the quiz.
+      let memberRows: any[] = rowsRes.data || [];
+      const legacyTitles = memberRows.map((row: any) => legacyApprovedTitle(row)).filter(Boolean) as string[];
+      if (legacyTitles.length) {
+        try {
+          const [{ data: asked }, { data: allBooks }] = await Promise.all([
+            supabase.from("pending_ai_quizzes").select("book_title, author").eq("student_id", userId).eq("status", "approved"),
+            supabase.from("books").select("id, title, author").order("id"),
+          ]);
+          const authorOf = new Map((asked || []).map((q: any) => [String(q.book_title || "").trim().toLowerCase(), q.author || ""]));
+          const bookFor = (title: string) => {
+            const key = bookKey(title, authorOf.get(title.toLowerCase()) || "");
+            const exact = key ? (allBooks || []).find((b: any) => bookKey(b.title, b.author) === key) : null;
+            if (exact) return Number(exact.id);
+            const t = bookKey(title, "").split("|")[0];
+            const byTitle = (allBooks || []).filter((b: any) => bookKey(b.title, "").split("|")[0] === t);
+            return byTitle.length === 1 ? Number(byTitle[0].id) : 0;
+          };
+          memberRows = memberRows.map((row: any) => {
+            const title = legacyApprovedTitle(row);
+            const id = title ? bookFor(title) : 0;
+            return id ? { ...row, type: readyQuizNotificationType({ kind: "book", id }) } : row;
+          });
+        } catch { /* the notice still shows, just without a link */ }
+      }
       return res.json(await withLocal(userId, buildMemberFeed({
         role: req.user.role === "parent" ? "parent" : "student",
-        rows: rowsRes.data || [],
+        rows: memberRows,
         unreadMessages: (messagesRes.data || []).map((m: any) => ({ id: m.id, messageText: m.message_text, createdAt: m.created_at })),
       })));
     } catch (error: any) {

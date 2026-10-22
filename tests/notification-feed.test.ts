@@ -177,3 +177,15 @@ test("alert types are read back into a category and a link", () => {
   assert.deepEqual(describeStoredType("alert:approval_request"), { category: "reward" });
   assert.deepEqual(describeStoredType("info"), { category: "info" });
 });
+
+test("old 'Quiz Approved!' notices still find their book", async () => {
+  const { legacyApprovedTitle } = await import("../shared/readyQuizzes");
+  assert.equal(legacyApprovedTitle({ type: "success", title: "Quiz Approved!", message: 'Your quiz "Diary Of A Wimpy Kid The Get Away" has been approved and is ready to take!' }), "Diary Of A Wimpy Kid The Get Away");
+  assert.equal(legacyApprovedTitle({ type: "success", title: "Quiz Approved!", message: 'Your quiz for "Holes" has been approved and is ready to take!' }), "Holes");
+  assert.equal(legacyApprovedTitle({ type: "success", title: "Quiz Approved!", message: 'Your eye gaze quiz "Cats" has been approved and is ready to take!' }), null);
+  assert.equal(legacyApprovedTitle({ type: "quiz_ready:book:5", title: "Your quiz is ready!", message: "x" }), null);
+  const { bookKey } = await import("../shared/bookIdentity");
+  assert.equal(bookKey("Diary Of A Wimpy Kid The Get Away", "").split("|")[0], bookKey("Diary of a Wimpy Kid: The Getaway", "").split("|")[0]);
+  const { readFileSync } = await import("node:fs");
+  assert.match(readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8"), /legacyApprovedTitle\(row\)/);
+});
