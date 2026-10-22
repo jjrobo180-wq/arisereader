@@ -392,6 +392,8 @@ main{padding-block:40px 90px}
 .path-icons{display:flex;gap:6px}
 .interest-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-12px 0 24px}
 .interest-row .sub{display:inline;margin-right:4px;font-weight:700}
+.field-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 20px}
+.field-row .sub{display:inline;margin-right:4px;font-weight:700}
 
 .profile-top{overflow:hidden}
 .p-banner{height:170px;background:linear-gradient(120deg,color-mix(in srgb,var(--pc) 80%,#10B9AF),color-mix(in srgb,var(--pc) 70%,#9363E7));position:relative}
@@ -1293,8 +1295,7 @@ function viewLearn(bare){
       <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
       ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
   <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'Star lessons'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
-    <div class="filters"><div class="seg" role="group" aria-label="Career field"><button data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div></div>
-    <div class="interest-row"><span class="sub">I'm into:</span>${INTERESTS.map(i=>`<button class="chip" data-act="interest" data-v="${i.id}" aria-pressed="${S.interests.has(i.id)}">${i.label}</button>`).join('')}</div>
+    <div class="field-row" role="group" aria-label="Pick a career field"><span class="sub">Pick a field:</span><button class="chip" data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All courses</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button class="chip" data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div>
     ${list.length?`<div class="grid">${list.map(courseCard).join('')}</div>`:'<div class="empty">No courses match. Try “All”.</div>'}
   </section>`;
   if (bare) return sections;
@@ -1315,8 +1316,7 @@ function viewLearn(bare){
       <b>${esc(p.title)}</b><span class="sub">${esc(p.blurb)}</span>
       ${student?`<span class="sub small">${n} of ${p.courses.length} certificates</span><span class="bar"><i style="width:${n/p.courses.length*100}%"></i></span>`:`<span class="sub small">${p.courses.length} courses</span>`}</button>`}).join('')}</div></section>
   <section class="section"><div class="cat-head"><h2>${lp?esc(lp.title):'Star lessons'}</h2><span class="muted">${list.length} course${list.length===1?'':'s'}${lp?` · <button class="linkbtn" data-act="lpath" data-v="">Show all courses</button>`:''}</span></div>
-    <div class="filters"><div class="seg" role="group" aria-label="Career field"><button data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div></div>
-    <div class="interest-row"><span class="sub">I'm into:</span>${INTERESTS.map(i=>`<button class="chip" data-act="interest" data-v="${i.id}" aria-pressed="${S.interests.has(i.id)}">${i.label}</button>`).join('')}</div>
+    <div class="field-row" role="group" aria-label="Pick a career field"><span class="sub">Pick a field:</span><button class="chip" data-act="lfield" data-v="all" aria-pressed="${S.lfield==='all'}">All courses</button>${Object.entries(CAT.courseFields).map(([k,v])=>`<button class="chip" data-act="lfield" data-v="${k}" aria-pressed="${S.lfield===k}">${esc(v)}</button>`).join('')}</div>
     ${list.length?`<div class="grid">${list.map(courseCard).join('')}</div>`:'<div class="empty">No courses match. Try “All”.</div>'}
   </section>`;
 }
