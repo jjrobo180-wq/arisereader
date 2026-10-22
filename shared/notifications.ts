@@ -1,4 +1,5 @@
 // The notification bell's feed, shared by the server that builds it and the bell that shows it.
+import { parseReadyQuizType } from "./readyQuizzes";
 //
 // Two kinds of items:
 //  - "action": something waiting for this person (a teacher to approve, an AI quiz to review,
@@ -11,7 +12,7 @@ export type FeedCategory =
   | "teacher" | "parent" | "student" | "unlisted"
   | "ai_quiz" | "request" | "review" | "club" | "grade_change" | "eye_gaze" | "reward"
   | "message" | "report"
-  | "signup" | "quiz" | "assessment"
+  | "signup" | "quiz" | "assessment" | "quiz_ready"
   | "success" | "info";
 
 /** Where the bell sends someone who opens an item; the page decides what each type means. */
@@ -66,6 +67,9 @@ const ALERT_CATEGORY: Record<string, FeedCategory> = {
 
 /** The category and link of a stored notification, from its `type`. */
 export function describeStoredType(type: unknown): { category: FeedCategory; target?: FeedTarget } {
+  // A quiz the student asked for was approved: the item opens it (see shared/readyQuizzes.ts).
+  const ready = parseReadyQuizType(type);
+  if (ready) return { category: "quiz_ready", target: { type: ready.kind === "custom" ? "custom_quiz" : "quiz", id: ready.id } };
   const alert = parseAlertType(type);
   if (alert) {
     const category = ALERT_CATEGORY[alert.event] || "info";

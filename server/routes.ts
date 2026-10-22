@@ -73,6 +73,7 @@ import { registerLessonPlannerRoutes } from "./lessonPlanner";
 import { registerUserDocRoutes, supabaseDocStore } from "./userDocs";
 import { registerProAppsAI } from "./proAppsAI";
 import { notifyUser, registerProDevice, registerPushRoutes, setNudgeSource } from "./pushNotifications";
+import { approvePendingQuiz, registerReadyQuizRoutes, type ReadyQuizDeps } from "./readyQuizzes";
 import { POTTY_TIMERS_KEY, registerPottyTimerRoutes } from "./pottyTimers";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
@@ -6707,6 +6708,52 @@ export async function registerRoutes(
     }
   });
 
+  // Approving a student's AI quiz publishes it and tells the student it's ready: a bell item that
+  // opens the quiz, a push, and the "Your quiz is ready" banner on their library (server/readyQuizzes.ts).
+  const readyQuizDeps: ReadyQuizDeps = {
+    getSetting: (key) => storage.getSetting(key),
+    upsertSetting: (key, value) => storage.upsertSetting(key, value),
+    createEyeGazeQuiz: async (pending, questions) => {
+      const quiz = await storage.createCustomEyeGazeQuiz(
+        pending.student_id, pending.book_title.slice(0, 60),
+        `AI-generated eye gaze quiz about ${pending.author}`,
+        pending.age_group || "Custom", questions, "global", null, "eye_gaze"
+      );
+      return Number(quiz.id);
+    },
+    createBookQuiz: async (pending, questions) => {
+      const book = await storage.createBookWithQuestions({
+        title: pending.book_title, author: pending.author, ageGroup: pending.age_group, coverUrl: pending.cover_url,
+        description: `Quiz for "${pending.book_title}" by ${pending.author}`,
+        pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
+        keepPoints: pending.quiz_type === 'iarise', readUrl: null,
+      }, questions);
+      return Number(book.id);
+    },
+    iariseLesson: async (pending, bookId) => {
+      const lessonResult = await generateIariseLessonContent(pending.book_title, pending.age_group);
+      if ("error" in lessonResult) return;
+      const rawCourses = await storage.getSetting('iarise_course_content');
+      let courses: any = {};
+      if (rawCourses) { try { courses = JSON.parse(rawCourses); } catch {} }
+      courses[String(bookId)] = lessonResult;
+      await storage.upsertSetting('iarise_course_content', JSON.stringify(courses));
+    },
+    insertNotification: async (row) => { await supabase.from('notifications').insert(row); },
+    push: (userId, message) => notifyUser(userId, message),
+    takenBooks: async (userId, ids) => {
+      if (!ids.length) return [];
+      const { data } = await supabase.from('attempts').select('book_id').eq('user_id', userId).in('book_id', ids);
+      return (data || []).map((r: any) => Number(r.book_id));
+    },
+    takenCustom: async (userId, ids) => {
+      if (!ids.length) return [];
+      const { data } = await supabase.from('custom_eye_gaze_attempts').select('quiz_id').eq('user_id', userId).eq('status', 'completed').in('quiz_id', ids);
+      return (data || []).map((r: any) => Number(r.quiz_id));
+    },
+  };
+  registerReadyQuizRoutes(app, authMiddleware, readyQuizDeps);
+
   // Admin/Teacher: approve a pending AI quiz
   app.post("/api/admin/pending-quizzes/:id/approve", authMiddleware, async (req: any, res) => {
     try {
@@ -6718,89 +6765,11 @@ export async function registerRoutes(
         .eq('status', 'pending');
       if (fetchError) throw new Error(fetchError.message);
       if (!pendingRows || pendingRows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
-      const pending = pendingRows[0];
-      const questions = JSON.parse(pending.questions);
-
-      if (pending.quiz_type === 'eye_gaze') {
-        // Create as a custom eye gaze quiz
-        const quiz = await storage.createCustomEyeGazeQuiz(
-          pending.student_id,
-          pending.book_title.slice(0, 60),
-          `AI-generated eye gaze quiz about ${pending.author}`,
-          pending.age_group || "Custom",
-          questions,
-          "global", null, "eye_gaze"
-        );
-        // Notify student
-        await supabase.from('notifications').insert({
-          user_id: pending.student_id,
-          type: 'success',
-          title: 'Quiz Approved!',
-          message: `Your eye gaze quiz "${pending.book_title}" has been approved and is ready to take!`
-        });
-      } else {
-        // Create as a book quiz
-        const book = await storage.createBookWithQuestions({
-          title: pending.book_title,
-          author: pending.author,
-          ageGroup: pending.age_group,
-          coverUrl: pending.cover_url,
-          description: `Quiz for "${pending.book_title}" by ${pending.author}`,
-          pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
-          keepPoints: pending.quiz_type === 'iarise',
-          readUrl: null,
-        }, questions);
-
-        // Assign grade band
-        try {
-          const rawBands = await storage.getSetting('book_grade_bands');
-          let bookBands: Record<string, string> = {};
-          if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
-          bookBands[String(book.id)] = pending.age_group;
-          await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
-        } catch {}
-
-        // For iArise, generate lesson content and store book ID
-        if (pending.quiz_type === 'iarise') {
-          try {
-            const lessonResult = await generateIariseLessonContent(pending.book_title, pending.age_group);
-            if (!("error" in lessonResult)) {
-              const rawCourses = await storage.getSetting('iarise_course_content');
-              let courses: any = {};
-              if (rawCourses) { try { courses = JSON.parse(rawCourses); } catch {} }
-              courses[String(book.id)] = lessonResult;
-              await storage.upsertSetting('iarise_course_content', JSON.stringify(courses));
-            }
-          } catch {}
-          const booksKey = `student_iarise_books_${pending.student_id}`;
-          const booksRaw = await storage.getSetting(booksKey);
-          let existingBookIds: number[] = [];
-          if (booksRaw) { try { existingBookIds = JSON.parse(booksRaw); } catch {} }
-          existingBookIds.push(book.id);
-          await storage.upsertSetting(booksKey, JSON.stringify(existingBookIds));
-        } else if (pending.quiz_type === 'favorite_topic') {
-          const booksKey = `student_favorite_books_${pending.student_id}`;
-          const booksRaw = await storage.getSetting(booksKey);
-          let existingBookIds: number[] = [];
-          if (booksRaw) { try { existingBookIds = JSON.parse(booksRaw); } catch {} }
-          existingBookIds.push(book.id);
-          await storage.upsertSetting(booksKey, JSON.stringify(existingBookIds));
-        }
-
-        // Notify student
-        await supabase.from('notifications').insert({
-          user_id: pending.student_id,
-          type: 'success',
-          title: 'Quiz Approved!',
-          message: `Your quiz for "${pending.book_title}" has been approved and is ready to take!`
-        });
-      }
-
-      // Mark as approved
+      const ready = await approvePendingQuiz(readyQuizDeps, pendingRows[0]);
       await supabase.from('pending_ai_quizzes')
         .update({ status: 'approved', reviewer_id: req.user.id, reviewed_at: new Date().toISOString() })
         .eq('id', req.params.id);
-      res.json({ message: "Quiz approved and published!" });
+      res.json({ message: "Quiz approved and published! The student has been told it's ready.", quiz: ready });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -11168,7 +11137,8 @@ Important:
     }
   });
 
-  // POST approve pending AI quiz (teacher-admin version)
+  // POST approve pending AI quiz (teacher-admin version). Same as the admin one: publishes the quiz,
+  // puts it on the student's lists and tells the student it's ready.
   app.post("/api/teacher-admin/pending-quizzes/:id/approve", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
       const { data: pendingRows, error: fetchError } = await supabase
@@ -11178,43 +11148,9 @@ Important:
         .eq('status', 'pending');
       if (fetchError) throw new Error(fetchError.message);
       if (!pendingRows || pendingRows.length === 0) return res.status(404).json({ message: "Pending quiz not found" });
-      const pending = pendingRows[0];
-      const questions = JSON.parse(pending.questions);
-
-      if (pending.quiz_type === 'eye_gaze') {
-        const quiz = await storage.createCustomEyeGazeQuiz(
-          pending.student_id, pending.book_title.slice(0, 60),
-          `AI-generated eye gaze quiz about ${pending.author}`,
-          pending.age_group || "Custom", questions, "global", null, "eye_gaze"
-        );
-        await supabase.from('notifications').insert({
-          user_id: pending.student_id, type: 'success',
-          title: 'Quiz Approved!',
-          message: `Your eye gaze quiz "${pending.book_title}" has been approved and is ready to take!`
-        });
-      } else {
-        const book = await storage.createBookWithQuestions({
-          title: pending.book_title, author: pending.author,
-          ageGroup: pending.age_group, coverUrl: pending.cover_url,
-          description: `Quiz for "${pending.book_title}" by ${pending.author}`,
-          pointsValue: pending.quiz_type === 'iarise' ? 2 : 0,
-          keepPoints: pending.quiz_type === 'iarise', readUrl: null,
-        }, questions);
-        try {
-          const rawBands = await storage.getSetting('book_grade_bands');
-          let bookBands: Record<string, string> = {};
-          if (rawBands) { try { bookBands = JSON.parse(rawBands); } catch {} }
-          bookBands[String(book.id)] = pending.age_group;
-          await storage.upsertSetting('book_grade_bands', JSON.stringify(bookBands));
-        } catch {}
-        await supabase.from('notifications').insert({
-          user_id: pending.student_id, type: 'success',
-          title: 'Quiz Approved!',
-          message: `Your quiz "${pending.book_title}" has been approved and is ready to take!`
-        });
-      }
+      const ready = await approvePendingQuiz(readyQuizDeps, pendingRows[0]);
       await supabase.from('pending_ai_quizzes').update({ status: 'approved', reviewer_id: req.user.id, reviewed_at: new Date().toISOString() }).eq('id', req.params.id);
-      res.json({ success: true });
+      res.json({ success: true, quiz: ready });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

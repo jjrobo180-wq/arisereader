@@ -3,6 +3,7 @@ import { shelvesByPoints } from "@shared/libraryShelves";
 import BannerTap from "@/components/BannerTap";
 import { AdvisoryChallengeBanner } from "@/components/AdvisoryChallenge";
 import { EnglishExplorerBanner, useEnglishExplorer } from "@/components/EnglishExplorerBanner";
+import { QuizReadyBanner } from "@/components/QuizReadyBanner";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -1443,6 +1444,8 @@ export default function Library() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        {/* Quizzes this student asked for that a teacher approved: shown first, until taken. */}
+        {user?.role === 'student' && <QuizReadyBanner />}
         {/* The Advisory Challenge: this student's advisory's place. Tapping it opens the leaderboard. */}
         {user?.role === 'student' && <AdvisoryChallengeBanner onOpen={() => navigate("/leaderboard")} />}
         {/* English Explorer: only for students a teacher turned it on for. */}
