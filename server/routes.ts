@@ -2802,6 +2802,31 @@ export async function registerRoutes(
     }
   });
 
+  // The book catalog for teachers: every book a student can take a quiz on, with its grade band and
+  // points, so a teacher can see what's in the library and send students to the right books.
+  app.get("/api/teacher/book-catalog", authMiddleware, teacherOrAdminMiddleware, async (_req: any, res) => {
+    try {
+      res.set("Cache-Control", "private, max-age=120");
+      const allBooks = await storage.getAllBooks();
+      let quizIds: Set<number> | null = null;
+      try { quizIds = await storage.getQuizBookIds(); } catch { quizIds = null; }
+      const parse = (raw: any) => { try { return raw ? JSON.parse(raw) : {}; } catch { return {}; } };
+      const bands: Record<string, string> = parse(await storage.getSetting('book_grade_bands'));
+      const overlaps: Record<string, string[]> = parse(await storage.getSetting('book_grade_overlaps'));
+      const books = allBooks
+        .filter((b: any) => b.pointsValue > 0 && (!quizIds || quizIds.has(Number(b.id))))
+        .map((b: any) => ({
+          id: b.id, title: b.title, author: b.author || "", coverUrl: b.coverUrl || null, points: b.pointsValue,
+          band: bands[String(b.id)] || b.ageGroup || "", alsoBands: Array.isArray(overlaps[String(b.id)]) ? overlaps[String(b.id)] : [],
+          readOnArise: !!b.readUrl,
+        }))
+        .sort((a: any, b: any) => String(a.title).localeCompare(String(b.title)));
+      res.json({ books });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Could not load the catalog." });
+    }
+  });
+
   app.get("/api/books", authMiddleware, async (req: any, res) => {
     const allBooks = await storage.getAllBooks();
     // Regular library only shows books with a quiz to take: worth points AND with questions.
@@ -4897,15 +4922,26 @@ export async function registerRoutes(
       if (req.user.isAdmin) return res.json(await withLocal(userId, await adminFeed(userId)));
 
       if (req.user.role === "teacher") {
-        const [dismissed, clearBefore, rowsRes, pendingRes] = await Promise.all([
+        const [dismissed, clearBefore, rowsRes, pendingRes, quizRes] = await Promise.all([
           getDismissedNotificationKeys(userId),
           getNotificationClearBefore(userId),
           unreadRows(userId),
           supabase.from("users").select("id, display_name, username, created_at")
             .eq("teacher_id", userId).eq("approved_by_teacher", false).is("archived_at", null)
             .order("created_at", { ascending: false }).limit(100),
+          supabase.from("pending_ai_quizzes").select("id, book_title, quiz_type, student_id, created_at")
+            .eq("status", "pending").order("created_at", { ascending: false }).limit(100),
         ]);
-        return res.json(await withLocal(userId, buildTeacherFeed({ rows: rowsRes.data || [], pendingStudents: pendingRes.data || [] }, { dismissed, clearBefore })));
+        // Quiz requests from this teacher's own students, live: they leave the bell once approved.
+        const quizRows = quizRes.data || [];
+        let pendingQuizzes: any[] = [];
+        if (quizRows.length) {
+          const { data: mine } = await supabase.from("users").select("id, display_name, username")
+            .eq("teacher_id", userId).in("id", [...new Set(quizRows.map((q: any) => q.student_id))]);
+          const names = new Map((mine || []).map((s: any) => [Number(s.id), s.display_name || s.username]));
+          pendingQuizzes = quizRows.filter((q: any) => names.has(Number(q.student_id))).map((q: any) => ({ ...q, student_name: names.get(Number(q.student_id)) }));
+        }
+        return res.json(await withLocal(userId, buildTeacherFeed({ rows: rowsRes.data || [], pendingStudents: pendingRes.data || [], pendingQuizzes }, { dismissed, clearBefore })));
       }
 
       const [rowsRes, messagesRes] = await Promise.all([
@@ -6050,19 +6086,8 @@ export async function registerRoutes(
           status: 'pending'
         });
         alertAiQuizReview(req.user, `${cleanTitle} by ${cleanAuthor}`, "Book quiz");
-        // Tell the teachers too. The admin's bell lists these from the pending quizzes themselves.
-        try {
-          const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
-          const notifyIds = (teachers || []).map((t: any) => t.id);
-          for (const uid of notifyIds) {
-            await supabase.from('notifications').insert({
-              user_id: uid,
-              type: 'info',
-              title: 'AI Quiz Pending Review',
-              message: `Student requested an AI quiz for "${cleanTitle}" by ${cleanAuthor}. Review and approve it in the admin panel.`
-            });
-          }
-        } catch {}
+        // Only the student's own teacher is told; their bell lists it until it's approved (server/notificationFeed.ts).
+        void tellTeacherQuizRequest(req.user, `"${cleanTitle}" by ${cleanAuthor}`);
       } catch {}
 
       return res.status(201).json({ 
@@ -6427,19 +6452,8 @@ export async function registerRoutes(
           status: 'pending'
         });
         alertAiQuizReview(req.user, cleanTopic, "Favorite topic quiz");
-        // Tell the teachers too. The admin's bell lists these from the pending quizzes themselves.
-        try {
-          const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
-          const notifyIds = (teachers || []).map((t: any) => t.id);
-          for (const uid of notifyIds) {
-            await supabase.from('notifications').insert({
-              user_id: uid,
-              type: 'info',
-              title: 'AI Quiz Pending Review',
-              message: `Student requested an AI quiz about "${cleanTopic}" (favorite topic). Review and approve it in the admin panel.`
-            });
-          }
-        } catch {}
+        // Only the student's own teacher is told; their bell lists it until it's approved (server/notificationFeed.ts).
+        void tellTeacherQuizRequest(req.user, `"${cleanTopic}"`);
       } catch {}
 
       return res.status(201).json({ 
@@ -6609,19 +6623,8 @@ export async function registerRoutes(
           status: 'pending'
         });
         alertAiQuizReview(req.user, cleanTopic, "iArise quiz");
-        // Tell the teachers too. The admin's bell lists these from the pending quizzes themselves.
-        try {
-          const { data: teachers } = await supabase.from('users').select('id').eq('role', 'teacher');
-          const notifyIds = (teachers || []).map((t: any) => t.id);
-          for (const uid of notifyIds) {
-            await supabase.from('notifications').insert({
-              user_id: uid,
-              type: 'info',
-              title: 'AI Quiz Pending Review',
-              message: `Student requested an AI iArise quiz about "${cleanTopic}". Review and approve it in the admin panel.`
-            });
-          }
-        } catch {}
+        // Only the student's own teacher is told; their bell lists it until it's approved (server/notificationFeed.ts).
+        void tellTeacherQuizRequest(req.user, `"${cleanTopic}"`);
       } catch {}
 
       return res.status(201).json({ 
@@ -6707,6 +6710,21 @@ export async function registerRoutes(
       res.status(500).json({ message: error.message });
     }
   });
+
+  /** A student asked for an AI quiz: push it to their own teacher. Their bell shows it from the
+   *  pending quiz itself, so it goes away by itself once someone approves it. */
+  async function tellTeacherQuizRequest(student: any, what: string) {
+    try {
+      let teacherId = Number(student?.teacherId || 0);
+      if (!teacherId) {
+        const { data } = await supabase.from('users').select('teacher_id').eq('id', student.id).maybeSingle();
+        teacherId = Number(data?.teacher_id || 0);
+      }
+      if (!teacherId) return;
+      const name = student.display_name || student.displayName || student.username || 'A student';
+      await notifyUser(teacherId, { title: 'New quiz request', body: `${name} asked for a quiz for ${what}. Open Approvals → Quiz requests to approve it.`, url: '/reader', tag: `quiz-request-${student.id}` });
+    } catch { /* push is optional */ }
+  }
 
   // Approving a student's AI quiz publishes it and tells the student it's ready: a bell item that
   // opens the quiz, a push, and the "Your quiz is ready" banner on their library (server/readyQuizzes.ts).
@@ -11116,8 +11134,10 @@ Important:
   });
 
   // GET pending AI quizzes (already accessible to teachers via /api/admin/pending-quizzes, but adding a teacher-admin alias)
-  app.get("/api/teacher-admin/pending-quizzes", authMiddleware, teacherOrAdminMiddleware, async (_req, res) => {
+  // Every pending quiz request; the teacher's own students come first and are marked "mine".
+  app.get("/api/teacher-admin/pending-quizzes", authMiddleware, teacherOrAdminMiddleware, async (req: any, res) => {
     try {
+      res.set("Cache-Control", "no-store");
       const { data, error } = await supabase
         .from('pending_ai_quizzes')
         .select('*')
@@ -11125,12 +11145,22 @@ Important:
         .order('created_at', { ascending: false });
       if (error) throw new Error(error.message);
       const studentIds = [...new Set((data || []).map((r: any) => r.student_id))];
-      let studentMap: Record<number, string> = {};
+      const studentMap: Record<number, { name: string; teacherId: number | null }> = {};
+      const teacherNames: Record<number, string> = {};
       if (studentIds.length > 0) {
-        const { data: students } = await supabase.from('users').select('id, display_name').in('id', studentIds);
-        (students || []).forEach((s: any) => { studentMap[s.id] = s.display_name; });
+        const { data: students } = await supabase.from('users').select('id, display_name, username, teacher_id').in('id', studentIds);
+        (students || []).forEach((s: any) => { studentMap[s.id] = { name: s.display_name || s.username || 'Unknown', teacherId: s.teacher_id ? Number(s.teacher_id) : null }; });
+        const tids = [...new Set(Object.values(studentMap).map((s) => s.teacherId).filter((t): t is number => !!t))];
+        if (tids.length) {
+          const { data: teachers } = await supabase.from('users').select('id, display_name, username').in('id', tids);
+          (teachers || []).forEach((t: any) => { teacherNames[t.id] = t.display_name || t.username; });
+        }
       }
-      const pending = (data || []).map((row: any) => ({ ...row, student_name: studentMap[row.student_id] || 'Unknown' }));
+      const me = Number(req.user.id);
+      const pending = (data || []).map((row: any) => {
+        const st = studentMap[row.student_id];
+        return { ...row, student_name: st?.name || 'Unknown', teacher_id: st?.teacherId ?? null, teacher_name: st?.teacherId ? (teacherNames[st.teacherId] || null) : null, mine: !!st && st.teacherId === me };
+      }).sort((a: any, b: any) => Number(b.mine) - Number(a.mine));
       res.json({ pending });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

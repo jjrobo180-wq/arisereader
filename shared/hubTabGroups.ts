@@ -48,7 +48,7 @@ export const SUB_LABELS: Partial<Record<HubTab, string>> = {
   behavior: "Behavior", attendance: "Attendance",
   parents: "Parents", email: "Email",
   reader: "Overview", readerLive: "Live quiz", readerScenes: "Scenes", readerStudents: "Students", readerAdvisory: "Advisory & Lit", readerApprovals: "Approvals", readerParents: "Parents", readerQuizzes: "Quizzes & grading",
-  readerGames: "Game time", readerPrizes: "Prizes", arise: "Reading records", admin: "Admin console",
+  readerGames: "Game time", readerPrizes: "Prizes", readerCatalog: "Book catalog", arise: "Reading records", admin: "Admin console",
 };
 
 /** A group's name when only one of its tabs shows. */
@@ -71,7 +71,7 @@ export function cleanGroupOrder(v: unknown): HubGroupId[] {
 }
 
 /** Home and the Reader's teacher tools always show; the admin console only when the page says so (admins). */
-export const ALWAYS_SHOWN: readonly HubTab[] = ["overview", "reader", "readerLive", "readerScenes", "readerStudents", "readerAdvisory", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes"];
+export const ALWAYS_SHOWN: readonly HubTab[] = ["overview", "reader", "readerLive", "readerScenes", "readerStudents", "readerAdvisory", "readerApprovals", "readerParents", "readerQuizzes", "readerGames", "readerPrizes", "readerCatalog"];
 const shown = (visible: Partial<Record<HubTab, boolean>>, tab: HubTab, isAdmin = false) =>
   ALWAYS_SHOWN.includes(tab) || (tab === "admin" ? visible.admin === true : isTabOn(tab, visible, isAdmin));
 
