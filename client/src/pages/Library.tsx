@@ -1,4 +1,6 @@
 import { useSavedChoice } from "@/lib/useSavedChoice";
+import { BookTitleSuggest, DidYouMeanList, type PickedBook } from "@/components/BookTitleSuggest";
+import type { BookCandidate } from "@shared/bookMatch";
 import { shelvesByPoints } from "@shared/libraryShelves";
 import BannerTap from "@/components/BannerTap";
 import { AdvisoryChallengeBanner } from "@/components/AdvisoryChallenge";
@@ -241,6 +243,9 @@ export default function Library() {
   const [pendingEyeGazeQuizId, setPendingEyeGazeQuizId] = useState<number | null>(null);
   const [instantBook, setInstantBook] = useState("");
   const [instantAuthor, setInstantAuthor] = useState("");
+  // "Did you mean": the real book the student picked, and the choices when what they typed didn't match one.
+  const [pickedBook, setPickedBook] = useState<PickedBook | null>(null);
+  const [didYouMean, setDidYouMean] = useState<BookCandidate[] | null>(null);
   const [instantMsg, setInstantMsg] = useState("");
   const [instantError, setInstantError] = useState("");
   const [instantLoading, setInstantLoading] = useState(false);
@@ -660,10 +665,14 @@ export default function Library() {
     }
   };
 
-  const handleInstantQuiz = async () => {
+  const handleInstantQuiz = async (how: { picked?: PickedBook | null; keepTyped?: boolean } = {}) => {
     setInstantError("");
     setInstantMsg("");
-    if (!instantBook.trim() || !instantAuthor.trim()) return;
+    const picked = how.picked !== undefined ? how.picked : (pickedBook && pickedBook.title === instantBook ? pickedBook : null);
+    const titleNow = picked ? picked.title : instantBook.trim();
+    const authorNow = picked ? picked.author : instantAuthor.trim();
+    if (!titleNow || !authorNow) return;
+    setDidYouMean(null);
     setInstantLoading(true);
     setShowGenerating(true);
     setShowInstant(false);
@@ -676,9 +685,16 @@ export default function Library() {
           Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ bookTitle: instantBook.trim(), author: instantAuthor.trim() }),
+        body: JSON.stringify({ bookTitle: titleNow, author: authorNow, ...(picked ? { picked } : {}), ...(how.keepTyped ? { keepTyped: true } : {}) }),
       });
       const data = await res.json();
+      if (res.status === 409 && data.didYouMean) {
+        // Not a real book as typed: show "Did you mean" and let the student pick.
+        setShowGenerating(false);
+        setDidYouMean(Array.isArray(data.suggestions) ? data.suggestions : []);
+        setShowInstant(true);
+        return;
+      }
       if (res.ok) {
         if (data.pendingReview) {
           // Quiz sent for review — show the review animation
@@ -713,6 +729,8 @@ export default function Library() {
     setShowGenerating(false);
     setInstantBook("");
     setInstantAuthor("");
+    setPickedBook(null);
+    setDidYouMean(null);
     setInstantMsg("");
     setPendingReviewMsg(null);
     // Show disclaimer before launching the quiz
@@ -982,6 +1000,7 @@ export default function Library() {
     // Generate quiz using the instant quiz endpoint
     setInstantBook(book.title);
     setInstantAuthor(book.author || "");
+    setPickedBook({ title: book.title, author: book.author || "", source: "catalog", bookId: book.id });
     setShowGenerating(true);
     setPendingBookId(null);
     try {
@@ -989,7 +1008,7 @@ export default function Library() {
       const res = await fetch(`${API_BASE}/api/instant-quiz`, {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ bookTitle: book.title, author: book.author || "Unknown" }),
+        body: JSON.stringify({ bookTitle: book.title, author: book.author || "Unknown", picked: { title: book.title, author: book.author || "", source: "catalog", bookId: book.id } }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -1606,24 +1625,30 @@ export default function Library() {
                       <Input
                         id="instant-title"
                         value={instantBook}
-                        onChange={(e) => setInstantBook(e.target.value)}
+                        onChange={(e) => { setInstantBook(e.target.value); setDidYouMean(null); }}
                         placeholder="e.g., Charlotte's Web"
+                        autoComplete="off"
                       />
+                      {!didYouMean && <BookTitleSuggest title={instantBook} author={instantAuthor} token={token || getTokenFromCookie()} picked={pickedBook}
+                        onPick={(b) => { setPickedBook(b); setInstantBook(b.title); setInstantAuthor(b.author); }} />}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="instant-author">Author *</Label>
                       <Input
                         id="instant-author"
                         value={instantAuthor}
-                        onChange={(e) => setInstantAuthor(e.target.value)}
+                        onChange={(e) => { setInstantAuthor(e.target.value); setDidYouMean(null); }}
                         placeholder="e.g., E.B. White"
                       />
                     </div>
+                    {didYouMean && <DidYouMeanList suggestions={didYouMean} typed={instantBook}
+                      onPick={(b) => { setPickedBook(b); setInstantBook(b.title); setInstantAuthor(b.author); void handleInstantQuiz({ picked: b }); }}
+                      onKeep={() => void handleInstantQuiz({ picked: null, keepTyped: true })} />}
                     <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300">
                       A 10-question quiz will be created instantly. We use premium AI technology — not ChatGPT or Google — with guidelines set by educators. After students complete quizzes, educators review questions and adjust scoring as needed.
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={handleInstantQuiz} disabled={!instantBook.trim() || !instantAuthor.trim() || instantLoading} className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
+                      <Button onClick={() => void handleInstantQuiz()} disabled={!instantBook.trim() || !instantAuthor.trim() || instantLoading} className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white">
                         <Sparkles className="w-4 h-4 mr-1" />
                         Create Quiz
                       </Button>

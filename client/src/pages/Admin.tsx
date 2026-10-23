@@ -1,4 +1,5 @@
 import { useSavedChoice } from "@/lib/useSavedChoice";
+import QuizCheckPanel, { needsBookCheck } from "@/components/QuizCheckPanel";
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import MonthCountdown from "@/components/MonthCountdown";
 import { monthLabel, schoolYearMonth } from "@shared/schoolMonth";
@@ -254,6 +255,8 @@ export default function Admin({ embedded = false, section, onSection, hideNav = 
   const [lbExpanded, setLbExpanded] = useState(false);
   // AI Quiz Review state
   const [pendingQuizzes, setPendingQuizzes] = useState<any[]>([]);
+  // Approving a risky AI quiz needs "I checked these against the book" (components/QuizCheckPanel.tsx).
+  const [bookChecked, setBookChecked] = useState<Record<number, boolean>>({});
   const [expandedQuiz, setExpandedQuiz] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectingQuizId, setRejectingQuizId] = useState<number | null>(null);
@@ -2885,6 +2888,7 @@ Generate exactly 10 questions.`;
                     >{isExpanded ? 'Hide' : 'Review'}</button>
                   </div>
 
+                  <QuizCheckPanel verification={quiz.verification} quizType={quiz.quiz_type} checked={!!bookChecked[quiz.id]} onChecked={(v) => setBookChecked((p) => ({ ...p, [quiz.id]: v }))} />
                   {isExpanded && (
                     <div className="mt-4 space-y-3">
                       {questions.length === 0 && (
@@ -2907,6 +2911,8 @@ Generate exactly 10 questions.`;
                         return (
                         <div key={qIdx} className="bg-muted/50 rounded-lg p-3">
                           <p className="text-sm font-medium mb-2">{qIdx + 1}. {questionText}</p>
+                          {(q.evidence || q.source) ? <p className="mb-2 text-xs text-muted-foreground">Where in the book: {q.evidence || "not given"}{typeof q.source === "string" && /^https?:\/\//.test(q.source) ? <> · <a href={q.source} target="_blank" rel="noopener noreferrer" className="underline">source</a></> : null}</p>
+                            : quiz.quiz_type === "book" ? <p className="mb-2 text-xs font-medium text-amber-600">No source given for this question. Check it against the book.</p> : null}
                           {qImage && (
                             <div className="mb-2">
                               {qImage.startsWith('http') || qImage.startsWith('data:') ? (
@@ -2947,7 +2953,7 @@ Generate exactly 10 questions.`;
                         </div>
                       ) : (
                         <div className="flex flex-col sm:flex-row gap-2">
-                          <Button size="sm" variant="default" onClick={() => handleApproveQuiz(quiz.id)}>
+                          <Button size="sm" variant="default" disabled={needsBookCheck(quiz.verification, quiz.quiz_type) && !bookChecked[quiz.id]} onClick={() => handleApproveQuiz(quiz.id)}>
                             <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve & Publish
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setRejectingQuizId(quiz.id)}>
