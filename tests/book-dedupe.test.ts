@@ -69,3 +69,11 @@ test("the already-here check reads every book, not just the first 1000, and runs
   assert.match(routes, /setInterval\(runBookDedupe, 6 \* 60 \* 60 \* 1000\)/);
   assert.match(routes, /allBooks\.find\(\(b: any\) => sameBook\(b, \{ title: cleanTitle, author: cleanAuthor \}\)\)/);
 });
+
+test("a second quiz on any copy of a book is refused at the moment it's saved", () => {
+  const storage = read("../server/storage.ts"), routes = read("../server/routes.ts");
+  assert.match(storage, /return withBookLock\(`attempt:\$\{userId\}:\$\{key \|\| bookId\}`/);
+  assert.match(storage, /if \(await this\.getAttemptAnyCopy\(userId, bookId\)\) throw alreadyTaken\(\);/);
+  assert.match(routes, /error\?\.code === "ALREADY_TAKEN"/);
+  assert.match(read("../migrations/one_copy_per_book_20261023.sql"), /create unique index if not exists books_one_copy_per_book/);
+});

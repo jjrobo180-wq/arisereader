@@ -245,6 +245,9 @@ async function allBookRows(columns: string): Promise<any[]> {
   return out;
 }
 
+/** The error a second attempt at the same book gets. */
+export function alreadyTaken() { return Object.assign(new Error("You have already taken this quiz"), { code: "ALREADY_TAKEN" }); }
+
 /** Runs one book creation at a time per book, so two at once can't both add it. */
 const bookLocks = new Map<string, Promise<unknown>>();
 function withBookLock<T>(key: string, work: () => Promise<T>): Promise<T> {
@@ -573,6 +576,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAttempt(
+    userId: number,
+    bookId: number,
+    score: number,
+    total: number,
+    answers?: Record<string, string>,
+    effectivePoints?: number,
+    proctor?: { type: "parent" | "teacher" | "camera"; userId?: number | null; name: string } | null
+  ) {
+    // A student takes each book's quiz once, ever, on any copy of the book. Checked again right
+    // here, one save at a time per student and book, so two taps or two tabs can't both get in.
+    const book = await fetchSingle(supabase.from("books").select("title, author").eq("id", bookId).maybeSingle());
+    const key = book ? bookKey(book.title, book.author) : "";
+    return withBookLock(`attempt:${userId}:${key || bookId}`, async () => {
+      if (await this.getAttemptAnyCopy(userId, bookId)) throw alreadyTaken();
+      try {
+        return await this.saveAttempt(userId, bookId, score, total, answers, effectivePoints, proctor);
+      } catch (e: any) {
+        // The database refuses a second attempt too (migrations/one_copy_per_book_20261023.sql).
+        if (/already_taken_this_book|duplicate key|23505/i.test(String(e?.message || e?.code || "")) || await this.getAttemptAnyCopy(userId, bookId)) throw alreadyTaken();
+        throw e;
+      }
+    });
+  }
+
+  private async saveAttempt(
     userId: number,
     bookId: number,
     score: number,
@@ -999,7 +1027,14 @@ export class DatabaseStorage implements IStorage {
       })
       .select()
       .single();
-    if (bookError) throw new Error(bookError.message);
+    if (bookError) {
+      // The database keeps one row per book (migrations/one_copy_per_book_20261023.sql): use that one.
+      if (/duplicate key|books_one_copy_per_book|23505/i.test(`${bookError.message} ${(bookError as any).code || ""}`)) {
+        const again = await this.findSameBook(book.title, book.author);
+        if (again) { clearCache('allBooks'); return mapBook(again); }
+      }
+      throw new Error(bookError.message);
+    }
 
     const questionRows = quizQuestions.map((q, i) => ({
       book_id: created.id,
