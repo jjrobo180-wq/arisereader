@@ -8,10 +8,12 @@ export const NEWS_RETIRED_KEY = "arise_news_retired_book_ids";
 export type NewsStore = {
   getSetting(key: string): Promise<string>;
   upsertSetting(key: string, value: string): Promise<void>;
-  getAllBooks(): Promise<{ id: number; title: string; author: string }[]>;
+  getAllBooks(): Promise<{ id: number; title: string; author: string; coverUrl?: string | null }[]>;
   createBookWithQuestions(book: any, questions: any[]): Promise<{ id: number }>;
   /** Takes a book out of the library (points to 0) without touching anyone's past results. */
   retireBook?(id: number): Promise<void>;
+  /** Changes a book's cover. */
+  updateBookCover?(id: number, coverUrl: string): Promise<void>;
 };
 
 export const newsCoverUrl = (a: NewsArticle) => newsCoverSrc(a);
@@ -35,6 +37,15 @@ export async function syncNewsBooks(store: NewsStore, articles: NewsArticle[] = 
       a.questions.map((q) => ({ question: q.question, options: q.options, correct: q.correct })),
     );
     map[a.slug] = Number(created.id); changed = true;
+  }
+  // Library covers follow the story's real photo (older rows still pointed at drawn covers).
+  if (store.updateBookCover) {
+    const byBook = new Map(books.map((b) => [Number(b.id), b]));
+    for (const a of articles) {
+      const book = byBook.get(Number(map[a.slug]));
+      const want = newsCoverUrl(a);
+      if (book && book.coverUrl !== want) await store.updateBookCover(Number(book.id), want);
+    }
   }
   // stories taken out of the issue leave the library; students keep any points they earned
   let retired: number[] = [];

@@ -1,6 +1,6 @@
 import { isSampleAccount } from "../shared/sampleAccounts";
 import { registerGoalQuizRoutes } from "./goalQuiz";
-import { dedupeBooksOnce } from "./bookDedupe";
+import { dedupeBooks } from "./bookDedupe";
 import { aiProAccessFor, storageTierGb, isStoragePlanKind, grantLive, STORAGE_PLAN_KINDS } from "../shared/plans";
 import { FREE_STORAGE_BYTES } from "../shared/driveApp";
 import { registerDriveAppRoutes } from "./driveApp";
@@ -75,7 +75,7 @@ import { registerProAppsAI } from "./proAppsAI";
 import { notifyUser, registerProDevice, registerPushRoutes, setNudgeSource } from "./pushNotifications";
 import { approvePendingQuiz, registerReadyQuizRoutes, type ReadyQuizDeps } from "./readyQuizzes";
 import { legacyApprovedTitle, readyQuizNotificationType } from "../shared/readyQuizzes";
-import { bookKey } from "../shared/bookIdentity";
+import { bookKey, sameBook } from "../shared/bookIdentity";
 import { POTTY_TIMERS_KEY, registerPottyTimerRoutes } from "./pottyTimers";
 import { registerMeetingPollRoutes } from "./meetingPoll";
 import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
@@ -113,7 +113,7 @@ import { hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import { raw, text as expressText } from "express";
 import { confirmPicked, lookupBook, type LookupDeps } from "./bookLookup";
 import type { BookCandidate, QuizVerification } from "../shared/bookMatch";
-import { checkBookContent, contentNotice } from "../shared/bookContent";
+import { checkBookContent, contentNotice, isKidSafeSuggestion } from "../shared/bookContent";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -1516,13 +1516,13 @@ export async function registerRoutes(
   registerAppleHealthRoutes(app, authMiddleware);
   registerTodoNewsRoutes(app, authMiddleware);
   registerLifehubPluginRoutes(app, authMiddleware);
-  // One-time: merge duplicate copies of the same book quiz (server/bookDedupe.ts). Runs in the
-  // background a few seconds after start, once ever, with a backup saved first.
-  setTimeout(() => {
-    dedupeBooksOnce({ get: (k) => storage.getSetting(k), set: (k, v) => storage.upsertSetting(k, v) })
-      .then(() => { clearCache("allBooks"); clearCache("leaderboard"); clearCache("allUsers"); })
-      .catch((e) => console.error("[book-dedupe] stopped:", e?.message || e));
-  }, 15_000);
+  // Merge duplicate copies of the same book quiz (server/bookDedupe.ts): a few seconds after start,
+  // then every 6 hours, with a backup saved first whenever something is merged.
+  const runBookDedupe = () => dedupeBooks({ get: (k) => storage.getSetting(k), set: (k, v) => storage.upsertSetting(k, v) })
+    .then((n) => { if (n) { clearCache("allBooks"); clearCache("leaderboard"); clearCache("allUsers"); } })
+    .catch((e) => console.error("[book-dedupe] stopped:", e?.message || e));
+  setTimeout(runBookDedupe, 15_000);
+  setInterval(runBookDedupe, 6 * 60 * 60 * 1000).unref?.();
   // WorkHub goal quizzes (server/goalQuiz.ts): AI writes a quiz from a student's goals, for the teacher.
   registerGoalQuizRoutes(app, authMiddleware);
   // Para Team (server/paraTeam.ts): a teacher's shared space with their paras and 1:1s.
@@ -6178,9 +6178,10 @@ export async function registerRoutes(
 
       // Check if this book already exists with a quiz
       const allBooks = await storage.getAllBooks();
-      const existing = (matched?.bookId ? allBooks.find((b: any) => b.id === matched!.bookId) : null) || allBooks.find((b: any) =>
-        b.title.toLowerCase().trim() === cleanTitle.toLowerCase()
-      );
+      // The same book under small differences ("Mixed Up" / "Mixed-Up", "J.K." / "J. K.") is still this book.
+      const existing = (matched?.bookId ? allBooks.find((b: any) => b.id === matched!.bookId) : null)
+        || allBooks.find((b: any) => sameBook(b, { title: cleanTitle, author: cleanAuthor }))
+        || allBooks.find((b: any) => b.title.toLowerCase().trim() === cleanTitle.toLowerCase() && !b.author);
       if (existing && existing.pointsValue > 0) {
         // Book already has a quiz, redirect to it
         return res.json({ bookId: existing.id, message: "A quiz for this book already exists!", existing: true });
@@ -6347,7 +6348,7 @@ export async function registerRoutes(
           if (searchData.docs && searchData.docs.length > 0) {
             // Collect up to 4 results with covers per topic
             let count = 0;
-            for (const doc of searchData.docs) {
+            for (const doc of searchData.docs) { if (!isKidSafeSuggestion({ title: doc.title, author: doc.author_name?.[0], subjects: doc.subject })) continue;
               if (count >= 4) break;
               if (doc.cover_i) {
                 suggestions.push({
@@ -6361,7 +6362,7 @@ export async function registerRoutes(
             }
             // If not enough with covers, add some without
             if (count < 2) {
-              for (const doc of searchData.docs) {
+              for (const doc of searchData.docs) { if (!isKidSafeSuggestion({ title: doc.title, author: doc.author_name?.[0], subjects: doc.subject })) continue;
                 if (count >= 2) break;
                 if (!doc.cover_i) {
                   suggestions.push({
@@ -6475,7 +6476,7 @@ export async function registerRoutes(
               const matchData = await matchRes.json();
               if (matchData.docs) {
                 let count = 0;
-                for (const doc of matchData.docs) {
+                for (const doc of matchData.docs) { if (!isKidSafeSuggestion({ title: doc.title, author: doc.author_name?.[0], subjects: doc.subject })) continue;
                   if (count >= 3) break;
                   if (doc.cover_i) {
                     olMatchBooks.push({
@@ -6494,7 +6495,7 @@ export async function registerRoutes(
               const growData = await growRes.json();
               if (growData.docs) {
                 let count = 0;
-                for (const doc of growData.docs) {
+                for (const doc of growData.docs) { if (!isKidSafeSuggestion({ title: doc.title, author: doc.author_name?.[0], subjects: doc.subject })) continue;
                   if (count >= 3) break;
                   if (doc.cover_i) {
                     olGrowBooks.push({

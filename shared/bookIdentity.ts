@@ -28,5 +28,17 @@ export function planMerge(books: { id: number; title: string; author: string }[]
     const keep = [...list].sort((a, b) => (attemptCount.get(b.id) || 0) - (attemptCount.get(a.id) || 0) || (questionCount.get(b.id) || 0) - (questionCount.get(a.id) || 0) || a.id - b.id)[0];
     for (const b of list) if (b.id !== keep.id) merge.set(b.id, keep.id);
   }
+  // A "Favorite Topic" quiz that is really a published book ("Real Pigeons") folds into that book's own row.
+  const titleOnly = (t: unknown) => bookKey(t, "x").split("|")[0];
+  const real = new Map<string, number>();
+  for (const b of books) if (!isTopicAuthor(b.author) && !merge.has(b.id)) { const t = titleOnly(b.title); if (t && !real.has(t)) real.set(t, b.id); }
+  for (const b of books) {
+    if (!isTopicAuthor(b.author) || merge.has(b.id)) continue;
+    const keep = real.get(titleOnly(b.title));
+    if (keep && keep !== b.id) merge.set(b.id, keep);
+  }
   return merge;
 }
+
+/** The made-up author on topic quizzes ("Spy Stories", "Space"). */
+export const isTopicAuthor = (author: unknown) => /^favorite topics?$/i.test(String(author ?? "").trim());
