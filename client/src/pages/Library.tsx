@@ -24,7 +24,7 @@ import { ReportProblemButton } from "@/components/ReportProblemButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuizGeneratingOverlay from "@/components/QuizGeneratingOverlay";
 import BookAccessLinks from "@/components/BookAccessLinks";
-import ExtraCreditTag from "@/components/ExtraCreditTag";
+import QuizTakersTag, { ExtraCreditNote } from "@/components/QuizTakersTag";
 import { EngagementHub } from "@/components/EngagementHub";
 import { Arise2UpdateButton } from "@/components/Arise2Update";
 import { HALLOREAD_ACTIVE } from "@/lib/halloread";
@@ -152,6 +152,8 @@ export default function Library() {
   const [, navigate] = useLocation();
   // Initialize from cache so data shows instantly on remount
   const [books, setBooks] = useState<Book[]>(libraryCache.books);
+  /** How many students took each book's quiz, for the note on each cover. */
+  const [quizTakers, setQuizTakers] = useState<Record<number, number> | null>(null);
   const [quizCount, setQuizCount] = useState(libraryCache.quizCount || 0);
   const [results, setResults] = useState<QuizResult[]>(libraryCache.results);
   const [liveTotalPoints, setLiveTotalPoints] = useState<number>(user?.totalPoints || 0);
@@ -298,6 +300,8 @@ export default function Library() {
       return;
     }
     try {
+      void fetch(`${API_BASE}/api/books/quiz-takers`, { headers: { Authorization: `Bearer ${authToken}` } })
+        .then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && typeof d === "object") setQuizTakers(d); }).catch(() => {});
       const booksRes = await fetch(`${API_BASE}/api/books`, { headers: { Authorization: `Bearer ${authToken}` } });
       if (booksRes.ok) {
         const booksData = await booksRes.json();
@@ -1994,6 +1998,7 @@ export default function Library() {
                 {searchBooks.length} {searchBooks.length === 1 ? "book" : "books"}{searchReads.length > 0 ? `, ${searchReads.length} quick ${searchReads.length === 1 ? "read" : "reads"}` : ""}
               </span>
               <button type="button" onClick={() => setSearchQuery("")} className="ml-auto text-sm font-semibold text-primary hover:underline">Clear search</button>
+              <ExtraCreditNote className="basis-full" />
             </div>
 
             {searchBooks.length === 0 && searchReads.length === 0 ? (
@@ -2017,7 +2022,7 @@ export default function Library() {
                       return (
                         <Card key={book.id} className="group cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" onClick={() => navigate(`/quiz/${book.id}`)} data-testid={`search-book-${book.id}`}>
                           <div className="relative aspect-[2/3] overflow-hidden bg-muted">
-                            {!isDone && <ExtraCreditTag />}
+                            <QuizTakersTag count={quizTakers ? quizTakers[book.id] || 0 : undefined} mine={isDone} />
                             {book.coverUrl ? (
                               <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
                             ) : (
@@ -2115,7 +2120,8 @@ export default function Library() {
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{READABLE_BOOKS.length} books</span>
                   <button type="button" onClick={() => navigate("/reads")} className="ml-auto text-sm font-semibold text-primary hover:underline">See all books &amp; poems</button>
                 </div>
-                <p className="mb-4 ml-7 text-sm text-muted-foreground">Read the whole book right here, then take the quiz.</p>
+                <p className="mb-1 ml-7 text-sm text-muted-foreground">Read the whole book right here, then take the quiz.</p>
+                <ExtraCreditNote className="mb-4 ml-7" />
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {READABLE_BOOKS.map((rb) => {
                     const book = books.find(b => b.id === rb.bookId);
@@ -2125,7 +2131,7 @@ export default function Library() {
                       <Card key={rb.bookId} className="group flex-shrink-0 w-[160px] cursor-pointer overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl sm:w-[180px]"
                         style={{ scrollSnapAlign: 'start' }} onClick={() => navigate(`/reads/book/${rb.bookId}`)}>
                         <div className="relative aspect-[2/3] overflow-hidden bg-muted">
-                          {!isDone && <ExtraCreditTag />}
+                          <QuizTakersTag count={quizTakers ? quizTakers[rb.bookId] || 0 : undefined} mine={isDone} />
                           <img src={`${API_BASE}/api/book-cover/${rb.bookId}`} alt={`Cover of ${rb.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" loading="lazy" />
                           {isDone && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
                         </div>
@@ -2157,7 +2163,8 @@ export default function Library() {
                   <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{animeComicBooks.length} quizzes</span>
                   <span className="text-xs text-primary font-medium">5 points each</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4 ml-7">Fun quizzes from your favorite anime and comic books.</p>
+                <p className="text-sm text-muted-foreground mb-1 ml-7">Fun quizzes from your favorite anime and comic books.</p>
+                <ExtraCreditNote className="mb-4 ml-7" />
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin" style={{ scrollSnapType: 'x mandatory' }}>
                   {animeComicBooks.map((book) => {
                     const result = results.find(r => r.bookId === book.id);
@@ -2173,7 +2180,7 @@ export default function Library() {
                         onClick={() => navigate(`/quiz/${book.id}`)}
                       >
                         <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                          {!isDone && <ExtraCreditTag />}
+                          <QuizTakersTag count={quizTakers ? quizTakers[book.id] || 0 : undefined} mine={isDone} />
                           {book.coverUrl ? (
                             <img src={`${API_BASE}/api/book-cover/${book.id}`} alt={`Cover of ${book.title}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
                           ) : (
@@ -2216,7 +2223,8 @@ export default function Library() {
             const groupBooks = pointsGroups[pts];
             return (
             <div key={pts} className="mb-10" data-tour={pts === pointsOrder.filter(k => pointsGroups[k])[0] ? "point-books" : undefined}>
-              <h2 className="text-lg font-bold mb-4 text-foreground">{pts} Point Books</h2>
+              <h2 className="text-lg font-bold mb-1 text-foreground">{pts} Point Books</h2>
+              <ExtraCreditNote className="mb-4" />
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {groupBooks.map((book) => {
                   const result = results.find(r => r.bookId === book.id);
@@ -2229,7 +2237,7 @@ export default function Library() {
                       data-testid={`card-book-${book.id}`}
                     >
                       <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                        {!isDone && <ExtraCreditTag />}
+                        <QuizTakersTag count={quizTakers ? quizTakers[book.id] || 0 : undefined} mine={isDone} />
                         {book.coverUrl ? (
                           <img
                             src={`${API_BASE}/api/book-cover/${book.id}`}
@@ -2325,6 +2333,7 @@ export default function Library() {
               </div>
             ) : (
             <>
+            <ExtraCreditNote className="mb-4" />
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {pagedBooks.map((book) => {
                 const result = results.find(r => r.bookId === book.id);
@@ -2336,7 +2345,7 @@ export default function Library() {
                     onClick={() => navigate(`/quiz/${book.id}`)}
                   >
                     <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                      {!isDone && <ExtraCreditTag />}
+                      <QuizTakersTag count={quizTakers ? quizTakers[book.id] || 0 : undefined} mine={isDone} />
                       {book.coverUrl ? (
                         <img
                           src={`${API_BASE}/api/book-cover/${book.id}`}
