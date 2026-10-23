@@ -6,6 +6,12 @@ import "./news.css";
 
 const SIZES = [17, 19, 21, 24];
 const SIZE_KEY = "news_text_size";
+function PhotoCredit({article}:{article: Article}) {
+  const [credit, setCredit] = useState<{page:string;author:string;license:string}|null>(null);
+  useEffect(() => { let live = true; if (article.photo?.wikipediaTitle) fetch(`/api/news/photo-credit/${article.slug}`).then(r=>r.ok?r.json():null).then(d=>{ if(live && d?.page) setCredit(d); }).catch(()=>{}); return ()=>{live=false;}; },[article.slug,article.photo?.wikipediaTitle]);
+  if (article.photo?.wikipediaTitle) return credit ? <p className="nw-credit">Photo: <a href={credit.page} target="_blank" rel="noopener noreferrer">{credit.author}</a> · {credit.license} · Wikimedia Commons</p> : <p className="nw-credit">Photo: Wikimedia Commons (credit loads when image is available)</p>;
+  return article.photo ? <p className="nw-credit">Photo: <a href={newsPhotoPage(article)!} target="_blank" rel="noopener noreferrer">{article.photo.credit ?? "Wikimedia Commons"}</a>{article.photo.license ? ` · ${article.photo.license}` : ""} · <a href={newsPhotoPage(article)!} target="_blank" rel="noopener noreferrer">Image details</a></p> : null;
+}
 const Back = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>;
 
 /** Marks the first time each glossary word appears, with its meaning on hover. */
@@ -74,7 +80,7 @@ export default function NewsArticle() {
       </header>
 
       <article className="nw-wrap">
-        <div className="nw-hero"><NewsArt article={article} wide />{article.photo && <p className="nw-credit">Photo: <a href={newsPhotoPage(article)!} target="_blank" rel="noopener noreferrer">{article.photo.credit ?? "Wikimedia Commons"}</a>{article.photo.license ? ` · ${article.photo.license}` : " (photographer and license on that page)"} · <a href={newsPhotoPage(article)!} target="_blank" rel="noopener noreferrer">Image license & details</a></p>}</div>
+        <div className="nw-hero"><NewsArt article={article} wide /><PhotoCredit article={article} /></div>
         <div className="nw-head">
           <span className="nw-kicker">{article.kind === "news" && <span className="nw-section">World News</span>}<span className="nw-section">{article.section}</span></span>
           <h1>{article.title}</h1>
