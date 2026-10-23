@@ -51,3 +51,21 @@ test("merge plan keeps the copy students used, else the one with questions", asy
   const m = planMerge(books, att, q);
   assert.deepEqual(Object.fromEntries(m), { 453: 38, 1427: 38, 303: 835, 77: 78 });
 });
+
+test("a Favorite Topic copy of a real book folds into the real book; real topics stay", async () => {
+  const { planMerge } = await import("../shared/bookIdentity");
+  const books = [
+    { id: 811, title: "real pigeons", author: "Andrew McDonald" }, { id: 836, title: "Real Pigeons", author: "Favorite Topic" },
+    { id: 845, title: "Animals", author: "Favorite Topic" }, { id: 1434, title: "Dumped", author: "Dee Phillips" }, { id: 1435, title: "Dumped", author: "Dee Phillips" },
+    { id: 1462, title: "Mixed-Up", author: "Kami Garcia" }, { id: 1463, title: "Mixed Up", author: "Kami Garcia" },
+  ];
+  assert.deepEqual(Object.fromEntries(planMerge(books, new Map(), new Map())), { 836: 811, 1435: 1434, 1463: 1462 });
+});
+
+test("the already-here check reads every book, not just the first 1000, and runs one at a time", () => {
+  const storage = read("../server/storage.ts"), routes = read("../server/routes.ts");
+  assert.match(storage, /const rows = await allBookRows\("\*"\);/);
+  assert.match(storage, /return withBookLock\(bookKey\(book\.title, book\.author\)/);
+  assert.match(routes, /setInterval\(runBookDedupe, 6 \* 60 \* 60 \* 1000\)/);
+  assert.match(routes, /allBooks\.find\(\(b: any\) => sameBook\(b, \{ title: cleanTitle, author: cleanAuthor \}\)\)/);
+});

@@ -22,6 +22,7 @@ export function newsBooks(): Promise<Record<string, number>> {
       upsertSetting: (k, v) => storage.upsertSetting(k, v),
       getAllBooks: () => storage.getAllBooks(),
       createBookWithQuestions: (b, q) => storage.createBookWithQuestions(b, q),
+      updateBookCover: (id, url) => storage.updateBookCover(id, url),
       async retireBook(id) {
         const { error } = await getAdminSupabase().from("books").update({ points_value: 0 }).eq("id", id);
         if (error) throw new Error(error.message);

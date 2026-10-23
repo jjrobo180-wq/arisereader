@@ -6,6 +6,7 @@
 //     counts if Open Library confirms that book exists.
 // Scoring and the exact/close/none decision are in shared/bookMatch.ts.
 import { normalizeTitle, rankCandidates, titleSimilarity, type BookCandidate, type LookupResult } from "../shared/bookMatch";
+import { isKidSafeSuggestion } from "../shared/bookContent";
 
 type CatalogBook = { id: number; title: string; author?: string | null; coverUrl?: string | null; cover_url?: string | null };
 export type LookupDeps = {
@@ -69,7 +70,8 @@ export async function lookupBook(deps: LookupDeps, title: string, author: string
     ...(a && !opts.quick ? [openLibrary(deps.fetch, { title: t, author: a })] : []),
     ...(!opts.quick && deps.aiGuess ? [confirmAiGuess(deps, t, a)] : []),
   ]);
-  return rankCandidates(t, a, [...catalog, ...lists.flat()]);
+  // Students only ever see books for kids and teens (shared/bookContent.ts).
+  return rankCandidates(t, a, [...catalog, ...lists.flat()].filter(isKidSafeSuggestion));
 }
 
 /** Ask the AI which real book was meant, then keep its answer only if Open Library has that book. */
@@ -96,6 +98,6 @@ export async function confirmPicked(deps: LookupDeps, picked: { title?: unknown;
   }
   const base = title.split(":")[0].trim();
   const found = await openLibrary(deps.fetch, { title: base, ...(author ? { author } : {}) });
-  const hit = found.find((c) => titleSimilarity(title, c.subtitle ? `${c.title}: ${c.subtitle}` : c.title) >= 0.9 || titleSimilarity(title, c.title) >= 0.95);
+  const hit = found.filter(isKidSafeSuggestion).find((c) => titleSimilarity(title, c.subtitle ? `${c.title}: ${c.subtitle}` : c.title) >= 0.9 || titleSimilarity(title, c.title) >= 0.95);
   return hit ? { ...hit, title, author: hit.author, source: picked.source === "ai" ? "ai" : "openlibrary" } : null;
 }

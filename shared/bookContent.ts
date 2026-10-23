@@ -78,3 +78,41 @@ export function contentNotice(c: ContentCheck | null | undefined): string {
     ? " Warning: this looks like an adult book. We recommend not approving it."
     : " Note: this book may have mature content. Check it before approving.";
 }
+
+// ── "Did you mean" for students ──────────────────────────────────────────────────────────────
+// Suggestions come from Open Library, which has every book ever printed, adult ones included.
+// A student should never be shown one, so a suggestion is dropped when any sign says it's not for kids.
+
+/** Authors who write only adult romance or erotica. */
+const ADULT_ONLY_AUTHORS = [
+  "rachel reid", "e l james", "colleen hoover", "ana huang", "penelope douglas", "sylvia day", "anais nin",
+  "henry miller", "jackie collins", "pauline reage", "marquis de sade", "rina kent", "h d carlton", "tillie cole",
+  "lucy score", "elle kennedy", "k a tucker", "j r ward", "christina lauren", "tarryn fisher", "kennedy ryan",
+  "lauren asher", "vi keeland", "pepper winters", "meghan march", "c d reiss", "sierra simone", "monica murphy",
+];
+/** Adult books by famous authors whose other books are fine. */
+const ADULT_ONLY_TITLES = ["fifty shades", "lolita", "tropic of cancer", "tropic of capricorn", "story of o", "kama sutra", "kamasutra", "the joy of sex", "delta of venus", "120 days of sodom", "american psycho"];
+/** Words that never belong in a book title shown to a student. */
+// (Not "naked", "dick" or "mistress": "Naked Mole Rat Gets Dressed", "Moby-Dick", "Mistress Masham's Repose".)
+const EXPLICIT_WORDS = /\b(sex|sexy|sexual|sexuality|erotic|erotica|erotics|porn|porno|pornography|nude|nudes|nudity|orgasm|orgy|fetish|bdsm|kinky|lust|lustful|seduce|seduced|seduction|horny|slut|sluts|whore|whores|hooker|stripper|playboy|penthouse|dominatrix|bondage|threesome|fuck|fucked|fucking|fuckin|shit|bitch|bitches|cunt|pussy|boobs|tits|asshole|rape|raped|incest|cocaine|heroin|marijuana|cannabis|suicide|serial killer)\b/;
+/** Library subjects that mark a book as adult, always. */
+const ADULT_SUBJECT_WORDS = /\b(erotica|erotic|sex|sexual|sexuality|nudity|nude|pornography|explicit|adult fiction|fiction adult|new adult|romance adult|bdsm|sadomasochism|dark romance|mafia romance|prostitution|incest)\b/;
+/** Subjects that mark a book as adult unless the library also marks it for kids or teens. */
+const GROWN_UP_SUBJECT_WORDS = /\b(romance|love stories|contemporary romance|romantic suspense|content warning|alcoholism|drug abuse|rape)\b/;
+const KID_SUBJECT = /\b(juvenile|children|childrens|young adult|picture books?|middle grade|school stories|readers|beginner|easy reading|kids)\b/;
+
+/** May a student see this book as a "Did you mean" suggestion? */
+export function isKidSafeSuggestion(c: { title?: unknown; subtitle?: unknown; author?: unknown; subjects?: unknown }): boolean {
+  const title = norm(`${c.title ?? ""} ${c.subtitle ?? ""}`), author = norm(String(c.author ?? ""));
+  if (!title) return false;
+  if (EXPLICIT_WORDS.test(title)) return false;
+  if (ADULT_ONLY_AUTHORS.some((a) => sameAuthor(author, a))) return false;
+  for (const a of ADULT_AUTHORS) if (sameAuthor(author, a.author)) return false;
+  for (const t of ADULT_TITLES) if (sameAuthor(author, t.author) && (title === t.title || title.startsWith(`${t.title} `))) return false;
+  if (ADULT_ONLY_TITLES.some((t) => title === t || title.startsWith(`${t} `))) return false;
+  const subjects = (Array.isArray(c.subjects) ? c.subjects : []).map((s) => norm(String(s))).filter(Boolean);
+  if (subjects.some((s) => ADULT_SUBJECT_WORDS.test(s))) return false;
+  // Romance, "love stories" and heavier topics are fine only when the library also marks the book for kids or teens.
+  if (subjects.some((s) => GROWN_UP_SUBJECT_WORDS.test(s)) && !subjects.some((s) => KID_SUBJECT.test(s))) return false;
+  return true;
+}

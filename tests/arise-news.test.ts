@@ -214,3 +214,9 @@ test("twenty athlete, science and world-culture reads are finished and unique", 
   if(a.section==="Biography") assert.ok(a.photo?.wikipediaTitle,a.slug+" needs licensed real-person photo lookup");
  }
 });
+
+test("every 5-Minute Read has a real photo to show, never only a drawing", async () => {
+  const { NEWS_ARTICLES } = await import("../shared/ariseNews");
+  const missing = NEWS_ARTICLES.filter((a) => !a.photo?.file && !a.photo?.wikipediaTitle).map((a) => a.slug);
+  assert.deepEqual(missing, []);
+});

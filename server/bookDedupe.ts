@@ -4,14 +4,16 @@
 // copy students already used, or the one with questions. A student who took two copies keeps their
 // first attempt; the later one is removed and its points taken back off their total.
 //
-// It runs once, on the first server start after it ships, and never again (the settings key). Everything
-// it removes is saved first, as JSON, in settings under BACKUP_KEY, so it can be put back by hand.
+// Oct 23, 2026: it now runs on every server start and every 6 hours, not just once, because copies kept
+// coming back (a book list capped at 1000 rows hid newer books from the "already here?" check, and title
+// fixes turned two different rows into the same book). When nothing is doubled it changes nothing.
+// Everything a run removes is saved first, as JSON, in settings under a dated backup key, so it can be
+// put back by hand.
 import { supabase } from "./supabase";
 import { planMerge } from "../shared/bookIdentity";
 export { planMerge };
 
-const DONE_KEY = "book_dedupe_20261019_done";
-const BACKUP_KEY = "book_dedupe_20261019_backup";
+const backupKey = () => `book_dedupe_backup_${new Date().toISOString().replace(/[:.]/g, "-")}`;
 
 type Row = Record<string, any>;
 
@@ -47,16 +49,25 @@ async function repoint(table: string, column: string, merge: Map<number, number>
   }
 }
 
-export async function dedupeBooksOnce(settings: { get: (k: string) => Promise<string>; set: (k: string, v: string) => Promise<void> }): Promise<void> {
-  if (await settings.get(DONE_KEY).catch(() => "")) return;
-  const books = await all("books", "id, title, author") as { id: number; title: string; author: string }[];
+let running = false;
+/** Merges every set of copies of one book into a single row. Safe to call often. Returns how many copies it merged. */
+export async function dedupeBooks(settings: { get: (k: string) => Promise<string>; set: (k: string, v: string) => Promise<void> }): Promise<number> {
+  if (running) return 0;
+  running = true;
+  try { return await dedupeRun(settings); } finally { running = false; }
+}
+/** Old name, kept for callers. */
+export const dedupeBooksOnce = dedupeBooks;
+
+async function dedupeRun(settings: { get: (k: string) => Promise<string>; set: (k: string, v: string) => Promise<void> }): Promise<number> {
+  const books = await all("books", "id, title, author, cover_url") as { id: number; title: string; author: string; cover_url?: string | null }[];
   const attempts = await all("attempts", "id, user_id, book_id, completed_at, points_earned", (q) => q.gt("book_id", 0));
   const qs = await all("questions", "id, book_id");
   const attemptCount = new Map<number, number>(), questionCount = new Map<number, number>();
   for (const a of attempts) attemptCount.set(a.book_id, (attemptCount.get(a.book_id) || 0) + 1);
   for (const q of qs) questionCount.set(q.book_id, (questionCount.get(q.book_id) || 0) + 1);
   const merge = planMerge(books, attemptCount, questionCount);
-  if (!merge.size) { await settings.set(DONE_KEY, new Date().toISOString()); return; }
+  if (!merge.size) return 0;
 
   // A student with attempts on two copies of one book keeps the first; the rest are doubles.
   const firsts = new Map<string, Row>(); const doubles: Row[] = [];
@@ -70,7 +81,7 @@ export async function dedupeBooksOnce(settings: { get: (k: string) => Promise<st
   const { data: dupBooks } = await supabase.from("books").select("*").in("id", dupIds);
   const { data: dupQuestions } = await supabase.from("questions").select("*").in("book_id", dupIds);
   const { data: dupAttempts } = doubles.length ? await supabase.from("attempts").select("*").in("id", doubles.map((d) => d.id)) : { data: [] };
-  await settings.set(BACKUP_KEY, JSON.stringify({ at: new Date().toISOString(), merge: Object.fromEntries(merge), books: dupBooks || [], questions: dupQuestions || [], attempts: dupAttempts || [] }));
+  await settings.set(backupKey(), JSON.stringify({ at: new Date().toISOString(), merge: Object.fromEntries(merge), books: dupBooks || [], questions: dupQuestions || [], attempts: dupAttempts || [] }));
 
   // Doubles: points back off, then the attempt goes.
   const back = new Map<number, number>();
@@ -112,11 +123,19 @@ export async function dedupeBooksOnce(settings: { get: (k: string) => Promise<st
   const { error: bErr } = await supabase.from("books").delete().in("id", dupIds);
   if (bErr) throw new Error(`books: ${bErr.message}`);
 
-  // Small tidy-ups on the copies that stay.
-  await supabase.from("books").update({ author: "Dav Pilkey" }).eq("author", "Fav Pilkey");
-  for (const b of books) if (!merge.has(b.id) && /\s{2,}/.test(b.title)) await supabase.from("books").update({ title: b.title.replace(/\s{2,}/g, " ") }).eq("id", b.id);
-  for (const b of books) if (!merge.has(b.id) && b.title === "Where The Side Walk Ends") await supabase.from("books").update({ title: "Where the Sidewalk Ends" }).eq("id", b.id);
+  // The copy that stays takes the better title spelling and cover from the ones that went
+  // ("real pigeons" → "Real Pigeons"; a tiny search-engine thumbnail → the Open Library cover).
+  const byId = new Map(books.map((b) => [b.id, b]));
+  for (const [dup, keepId] of merge) {
+    const keep = byId.get(keepId), gone = byId.get(dup);
+    if (!keep || !gone) continue;
+    const patch: Record<string, string> = {};
+    if (keep.title === keep.title.toLowerCase() && gone.title !== gone.title.toLowerCase()) patch.title = gone.title;
+    const weak = (u?: string | null) => !u || /encrypted-tbn|gstatic\.com|-S\.jpg$|-M\.jpg$/.test(u);
+    if (weak(keep.cover_url) && gone.cover_url && !weak(gone.cover_url)) patch.cover_url = gone.cover_url;
+    if (Object.keys(patch).length) { await supabase.from("books").update(patch).eq("id", keepId); Object.assign(keep, patch); }
+  }
 
-  await settings.set(DONE_KEY, new Date().toISOString());
   console.log(`[book-dedupe] merged ${merge.size} duplicate book copies; removed ${doubles.length} double attempts`);
+  return merge.size;
 }

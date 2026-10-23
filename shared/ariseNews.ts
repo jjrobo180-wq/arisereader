@@ -12,6 +12,7 @@
 // questions that can be answered from the text.
 
 import { QUICK_READS } from "./quickReads";
+import { READ_PHOTOS, READ_PHOTO_FALLBACKS } from "./readPhotos";
 
 export type NewsSection = "Science" | "Animals" | "Space" | "World" | "History" | "Nature" | "Health" | "Sports" | "Soccer" | "Biography" | "Speeches" | "Fun Facts" | "Arts" | "Reading";
 
@@ -48,7 +49,7 @@ export type NewsArticle = {
    * its page there names the photographer and license, and the story links to it.
    * `focus` is a CSS object-position so faces stay in frame when the photo is cropped.
    */
-  photo?: { file?: string; wikipediaTitle?: string; alt: string; focus?: string; credit?: string; license?: string };
+  photo?: { file?: string; wikipediaTitle?: string; alt: string; focus?: string; credit?: string; license?: string; alsoTry?: string[]; search?: string; mustMention?: string };
 };
 
 const COMMONS = "https://commons.wikimedia.org/wiki/";
@@ -855,7 +856,13 @@ const ISSUE_ARTICLES: NewsArticle[] = [
 ];
 
 /** Every story: the issue articles plus the 5-Minute Reads (sports, soccer, biographies, speeches, fun facts). */
-export const NEWS_ARTICLES: NewsArticle[] = [...ISSUE_ARTICLES, ...QUICK_READS];
+// Every story has a real photo: the ones that had none get theirs from shared/readPhotos.ts, and
+// stories whose page often has only a logo get more places to look.
+export const NEWS_ARTICLES: NewsArticle[] = [...ISSUE_ARTICLES, ...QUICK_READS].map((a) => {
+  if (!a.photo?.file && !a.photo?.wikipediaTitle && READ_PHOTOS[a.slug]) return { ...a, photo: { ...READ_PHOTOS[a.slug] } };
+  if (a.photo?.wikipediaTitle && READ_PHOTO_FALLBACKS[a.slug]) return { ...a, photo: { ...a.photo, ...READ_PHOTO_FALLBACKS[a.slug] } };
+  return a;
+});
 
 /** The kid-facing groups on the 5-Minute Reads shelf. Each group gathers one or more sections. */
 export const QUICK_CATEGORIES: { label: string; emoji: string; sections: NewsSection[] }[] = [

@@ -233,6 +233,30 @@ function mapSession(row: any) {
   };
 }
 
+/** Every row of books (PostgREST returns at most 1000 per request). */
+async function allBookRows(columns: string): Promise<any[]> {
+  const out: any[] = [];
+  for (let from = 0; from < 200_000; from += 1000) {
+    const { data, error } = await supabase.from("books").select(columns).order("id").range(from, from + 999);
+    if (error) throw new Error(error.message);
+    out.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+/** Runs one book creation at a time per book, so two at once can't both add it. */
+const bookLocks = new Map<string, Promise<unknown>>();
+function withBookLock<T>(key: string, work: () => Promise<T>): Promise<T> {
+  if (!key) return work();
+  const before = bookLocks.get(key) || Promise.resolve();
+  const run = before.catch(() => undefined).then(work);
+  const tail = run.catch(() => undefined);
+  bookLocks.set(key, tail);
+  tail.then(() => { if (bookLocks.get(key) === tail) bookLocks.delete(key); });
+  return run;
+}
+
 export async function seedData() {
   const seedPassword = process.env.ADMIN_SEED_PASSWORD;
   // Load quiz data at call time
@@ -476,7 +500,7 @@ export class DatabaseStorage implements IStorage {
       let offset = 0;
       const chunkSize = 1000;
       while (true) {
-        const { data, error } = await supabase.from("books").select("*").range(offset, offset + chunkSize - 1);
+        const { data, error } = await supabase.from("books").select("*").order("id").range(offset, offset + chunkSize - 1);
         if (error || !data || data.length === 0) break;
         allData = allData.concat(data);
         if (data.length < chunkSize) break;
@@ -516,8 +540,9 @@ export class DatabaseStorage implements IStorage {
   async findSameBook(title: string, author: string) {
     const key = bookKey(title, author);
     if (!key) return null;
-    const { data } = await supabase.from("books").select("*").order("id");
-    return (data || []).find((b: any) => bookKey(b.title, b.author) === key) || null;
+    // Every book, read fresh (a plain select stops at 1000 rows, which hid newer books and let copies in).
+    const rows = await allBookRows("*");
+    return rows.find((b: any) => bookKey(b.title, b.author) === key) || null;
   }
 
   /** Every copy of the same book as this one (itself included), so a quiz can't be taken twice under two copies. */
@@ -525,8 +550,8 @@ export class DatabaseStorage implements IStorage {
     const { data: book } = await supabase.from("books").select("title, author").eq("id", bookId).maybeSingle();
     const key = book ? bookKey(book.title, book.author) : "";
     if (!key) return [bookId];
-    const { data } = await supabase.from("books").select("id, title, author");
-    const ids = (data || []).filter((b: any) => bookKey(b.title, b.author) === key).map((b: any) => Number(b.id));
+    const data = await allBookRows("id, title, author");
+    const ids = data.filter((b: any) => bookKey(b.title, b.author) === key).map((b: any) => Number(b.id));
     return ids.includes(bookId) ? ids : [bookId, ...ids];
   }
 
@@ -942,6 +967,12 @@ export class DatabaseStorage implements IStorage {
       if (pages === null && book.title && book.author) pages = await lookupPages(book.title, book.author);
       resolvedPoints = pointsForBook({ band: book.gradeBand || book.ageGroup, pages });
     }
+    // Two requests for the same book at once (a double tap on Create Quiz) wait their turn, so the
+    // second sees the first one's row instead of adding another copy.
+    return withBookLock(bookKey(book.title, book.author), () => this.createBookLocked(book, quizQuestions, resolvedPoints));
+  }
+
+  private async createBookLocked(book: any, quizQuestions: any[], resolvedPoints: number) {
     // One copy of each book: the same book already here keeps its quiz (or gets this one if it
     // had none) instead of a second copy appearing on the shelf (shared/bookIdentity.ts).
     const twin = await this.findSameBook(book.title, book.author);

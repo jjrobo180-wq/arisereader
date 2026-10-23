@@ -44,3 +44,23 @@ test("live games: a new question gets a fresh timer, and reveal/next name the qu
   assert.match(server, /p_question: question/);
   assert.match(server, /now\.current_question !== question/);
 });
+
+test("Did you mean never shows students adult books", async () => {
+  const { isKidSafeSuggestion } = await import("../shared/bookContent");
+  assert.equal(isKidSafeSuggestion({ title: "Fifty Shades of Grey", author: "E L James" }), false);
+  assert.equal(isKidSafeSuggestion({ title: "It Ends with Us", author: "Colleen Hoover" }), false);
+  assert.equal(isKidSafeSuggestion({ title: "Dumped", author: "Some Writer", subjects: ["Erotica", "Fiction"] }), false);
+  assert.equal(isKidSafeSuggestion({ title: "The Sex Book", author: "Someone" }), false);
+  assert.equal(isKidSafeSuggestion({ title: "A Billionaire Love", author: "Someone", subjects: ["Romance", "Fiction"] }), false);
+  // kids' and teen books are fine, even with words that look alarming
+  assert.equal(isKidSafeSuggestion({ title: "Dog Man", author: "Dav Pilkey", subjects: ["Juvenile fiction"] }), true);
+  assert.equal(isKidSafeSuggestion({ title: "Moby-Dick", author: "Herman Melville" }), true);
+  assert.equal(isKidSafeSuggestion({ title: "Naked Mole Rat Gets Dressed", author: "Mo Willems" }), true);
+  assert.equal(isKidSafeSuggestion({ title: "Anne of Green Gables", author: "L. M. Montgomery", subjects: ["Love stories", "Juvenile fiction"] }), true);
+});
+
+test("both the lookup and a picked suggestion go through the kid filter", () => {
+  const src = readFileSync(new URL("../server/bookLookup.ts", import.meta.url), "utf8");
+  assert.match(src, /\.filter\(isKidSafeSuggestion\)\)/);
+  assert.match(src, /found\.filter\(isKidSafeSuggestion\)\.find/);
+});
