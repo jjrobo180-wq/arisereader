@@ -9,6 +9,8 @@
 // Speeches: quote only public-domain words at length (U.S. government
 // speeches such as Kennedy's or NASA's); otherwise keep quotes very short.
 import type { NewsArticle, NewsBlock, NewsQuestion } from "./ariseNews";
+import { OCTOBER_READS } from "./octoberReads";
+import { OCTOBER_FEATURES } from "./octoberFeatures";
 
 const p = (text: string): NewsBlock => ({ kind: "p", text });
 const h = (text: string): NewsBlock => ({ kind: "h", text });
@@ -856,4 +858,4 @@ function mixAll(a: NewsArticle): NewsQuestion[] {
   }
 }
 
-export const QUICK_READS: NewsArticle[] = WRITTEN.map((a) => ({ ...a, questions: mixAll(a) }));
+export const QUICK_READS: NewsArticle[] = [...OCTOBER_READS, ...OCTOBER_FEATURES, ...WRITTEN.map((a) => ({ ...a, questions: mixAll(a) }))];

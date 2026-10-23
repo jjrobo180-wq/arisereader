@@ -48,7 +48,7 @@ export type NewsArticle = {
    * its page there names the photographer and license, and the story links to it.
    * `focus` is a CSS object-position so faces stay in frame when the photo is cropped.
    */
-  photo?: { file: string; alt: string; focus?: string };
+  photo?: { file: string; alt: string; focus?: string; credit?: string; license?: string };
 };
 
 const COMMONS = "https://commons.wikimedia.org/wiki/";

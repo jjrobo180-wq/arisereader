@@ -103,7 +103,7 @@ test("an existing news book is reused if the map was lost", async () => {
 
 test("every story has a cover file in the build", async () => {
   const { existsSync } = await import("node:fs");
-  for (const a of NEWS_ARTICLES) assert.ok(existsSync(`client/public/covers/news/${a.slug}.svg`), `missing cover for ${a.slug}`);
+  for (const a of NEWS_ARTICLES) assert.ok(a.photo?.file || existsSync(`client/public/covers/news/${a.slug}.svg`), `missing cover for ${a.slug}`);
 });
 
 test("a story taken out of the issue leaves the library once", async () => {
@@ -123,4 +123,24 @@ test("Arise News is now Arise Originals, and quizzes saved under the old name st
   const { NEWS_AUTHOR, isNewsAuthor } = await import("../shared/ariseNews");
   assert.equal(NEWS_AUTHOR, "Arise Originals");
   assert.ok(isNewsAuthor("Arise Originals") && isNewsAuthor("Arise News") && !isNewsAuthor("iArise") && !isNewsAuthor(null));
+});
+
+test("new October quick reads have full reading length, sources, photo credits and quizzes", async () => {
+  const { OCTOBER_READS } = await import("../shared/octoberReads");
+  const { OCTOBER_FEATURES } = await import("../shared/octoberFeatures");
+  const all = [...OCTOBER_READS, ...OCTOBER_FEATURES];
+  assert.equal(all.length, 8);
+  assert.equal(all.filter(a => a.section === "Biography").length, 4);
+  assert.equal(all.filter(a => a.section !== "Biography").length, 4);
+  for (const a of all) {
+    const count = newsWordCount(a);
+    assert.ok(count >= 585 && count <= 650, a.slug + ": " + count + " words");
+    assert.equal(newsReadMinutes(a), 5);
+    assert.ok(a.photo?.file?.endsWith(".jpg"), a.slug + " needs a real cover photo");
+    assert.ok(a.photo?.credit && a.photo?.license, a.slug + " needs photographer credit");
+    assert.ok((a.sources?.length ?? 0) >= 1);
+    assert.equal(a.questions.length, 5);
+    assert.ok(new Set(a.questions.map(q => q.correct)).size >= 3);
+    for (const q of a.questions) assert.equal(new Set(q.options).size, 4);
+  }
 });

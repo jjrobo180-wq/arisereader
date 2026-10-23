@@ -74,7 +74,7 @@ export default function NewsArticle() {
       </header>
 
       <article className="nw-wrap">
-        <div className="nw-hero"><NewsArt article={article} wide />{article.photo && <p className="nw-credit">Photo: <a href={newsPhotoPage(article)!} target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> (photographer and license on that page)</p>}</div>
+        <div className="nw-hero"><NewsArt article={article} wide />{article.photo && <p className="nw-credit">Photo: <a href={newsPhotoPage(article)!} target="_blank" rel="noopener noreferrer">{article.photo.credit ?? "Wikimedia Commons"}</a>{article.photo.license ? ` · ${article.photo.license}` : " (photographer and license on that page)"} · <a href={newsPhotoPage(article)!} target="_blank" rel="noopener noreferrer">Image license & details</a></p>}</div>
         <div className="nw-head">
           <span className="nw-kicker">{article.kind === "news" && <span className="nw-section">World News</span>}<span className="nw-section">{article.section}</span></span>
           <h1>{article.title}</h1>
