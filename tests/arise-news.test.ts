@@ -144,3 +144,20 @@ test("new October quick reads have full reading length, sources, photo credits a
     for (const q of a.questions) assert.equal(new Set(q.options).size, 4);
   }
 });
+
+test("creator and topic batches are full, distinct 5-minute articles with five quiz questions", async () => {
+ const { CREATOR_READS } = await import("../shared/creatorReads2026");
+ const { TOPIC_READS } = await import("../shared/topicReads2026");
+ assert.equal(CREATOR_READS.length,5);
+ assert.equal(TOPIC_READS.length,5);
+ for (const a of [...CREATOR_READS,...TOPIC_READS]){
+   const count=newsWordCount(a);
+   assert.ok(count>=580 && count<=650,a.slug+" has "+count+" words");
+   assert.equal(newsReadMinutes(a),5);
+   assert.equal(a.questions.length,5);
+   assert.ok(new Set(a.questions.map(q=>q.correct)).size>=3,a.slug+" predictable answer key");
+   for(const q of a.questions) assert.equal(new Set(q.options).size,4,q.question);
+   assert.ok(a.sources && a.sources.length>=1,a.slug+" missing sources");
+   if(a.section==="Biography") assert.ok(a.photo?.wikipediaTitle,a.slug+" must request genuine celebrity photo");
+ }
+});
