@@ -13,6 +13,8 @@ import { OCTOBER_READS } from "./octoberReads";
 import { OCTOBER_FEATURES } from "./octoberFeatures";
 import { CREATOR_READS } from "./creatorReads2026";
 import { TOPIC_READS } from "./topicReads2026";
+import { MUSIC_READS } from "./musicReads2026";
+import { FRESH_READS } from "./freshReads2026";
 
 const p = (text: string): NewsBlock => ({ kind: "p", text });
 const h = (text: string): NewsBlock => ({ kind: "h", text });
@@ -860,4 +862,4 @@ function mixAll(a: NewsArticle): NewsQuestion[] {
   }
 }
 
-export const QUICK_READS: NewsArticle[] = [...CREATOR_READS, ...TOPIC_READS, ...OCTOBER_READS, ...OCTOBER_FEATURES, ...WRITTEN.map((a) => ({ ...a, questions: mixAll(a) }))];
+export const QUICK_READS: NewsArticle[] = [...CREATOR_READS, ...MUSIC_READS, ...FRESH_READS, ...TOPIC_READS, ...OCTOBER_READS, ...OCTOBER_FEATURES, ...WRITTEN.map((a) => ({ ...a, questions: mixAll(a) }))];
