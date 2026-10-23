@@ -36,7 +36,7 @@ export default function AriseNews() {
             <span>{today}</span>
             <span className="nw-topline-issue">Issue {NEWS_ISSUE.number} · {NEWS_ISSUE.name}</span>
           </div>
-          <h1 className="nw-wordmark">Arise <span>Originals</span></h1>
+          <h1 className="nw-wordmark">A.R.I.S.E. <span>Originals</span></h1>
           <p className="nw-tagline">Read an article. Pass the quiz. Earn {NEWS_POINTS} points.</p>
           <div className="nw-progress-strip" aria-label={`${done} of ${NEWS_ARTICLES.length} quizzes done`}>
             <span><b>{NEWS_ARTICLES.length}</b> articles</span>
@@ -51,7 +51,7 @@ export default function AriseNews() {
         {/* World News: the newest story leads, the rest in a column beside it */}
         <section className="nw-block" aria-labelledby="world-news">
           <div className="nw-block-head">
-            <h2 id="world-news">World News</h2>
+            <h2 id="world-news">Current Events</h2>
             <p>Recent events, checked against trusted sources.</p>
           </div>
           <div className="nw-front">
@@ -64,7 +64,7 @@ export default function AriseNews() {
                 <div className="nw-meta"><span>{newsReadMinutes(lead)} min read</span><Status result={resultFor(lead)} /></div>
               </Link>
             )}
-            <ol className="nw-latest" aria-label="More world news">
+            <ol className="nw-latest" aria-label="More current events">
               {latest.map((a) => (
                 <li key={a.slug}>
                   <Link href={`/news/${a.slug}`} className="nw-latest-item" style={sectionStyle(a)}>
@@ -112,7 +112,7 @@ export default function AriseNews() {
           ) : <p className="nw-empty">No articles in this topic yet.</p>}
         </section>
       </div>
-      <footer className="nw-foot"><div className="nw-wrap">Arise Originals are written for readers on Arise. News stories list their sources at the end.</div></footer>
+      <footer className="nw-foot"><div className="nw-wrap">A.R.I.S.E. Originals are written for readers on A.R.I.S.E. Reader. Every story includes source information.</div></footer>
     </main>
   );
 }
