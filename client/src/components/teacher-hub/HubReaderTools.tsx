@@ -3,6 +3,7 @@
 // made of WorkHub cards, buttons, lists and pop-ups. Everything the old teacher dashboard did is here.
 // The Reader pieces inside (camera-quiz review, comprehension grading, prizes, play time, email
 // invites, add-ons) are the hub-built ones in components/hub-pieces.
+import QuizCheckPanel, { needsBookCheck } from "@/components/QuizCheckPanel";
 import { MergeAccountsCard } from "./MergeAccounts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
@@ -90,10 +91,10 @@ type Student = { id: number; displayName?: string; display_name?: string; userna
 export type SchoolStudent = { id: number; username: string; displayName: string; quizzesTaken: number; quizzesMastered: number; totalPoints: number; approvedByTeacher?: boolean; teacherId?: number; teacherName?: string | null; advisory?: string | null; schoolId?: number | null };
 export type Teacher = { id: number; displayName: string; username: string };
 type PendingStudent = { id: number; username: string; displayName: string; teacherName?: string | null };
-type PendingQuiz = { id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group?: string; questions?: unknown; mine?: boolean; teacher_name?: string | null };
+type PendingQuiz = { id: number; student_name: string; book_title: string; author: string; quiz_type: string; age_group?: string; questions?: unknown; mine?: boolean; teacher_name?: string | null; verification?: unknown };
 
 /** A pending AI quiz's questions in one shape: the prompt, its choices (A–D) and the correct letter. */
-function quizQuestions(raw: unknown): { prompt: string; image: string | null; choices: { letter: string; text: string }[]; correct: string }[] {
+function quizQuestions(raw: unknown): { prompt: string; image: string | null; choices: { letter: string; text: string }[]; correct: string; evidence: string; source: string }[] {
   let list: any = raw;
   for (let i = 0; i < 2 && typeof list === "string"; i++) { try { list = JSON.parse(list); } catch { list = []; } }
   if (!Array.isArray(list)) return [];
@@ -102,22 +103,25 @@ function quizQuestions(raw: unknown): { prompt: string; image: string | null; ch
       ? ["a", "b", "c", "d"].map((k) => ({ letter: k.toUpperCase(), text: String(q[`option_${k}_text`] ?? "") })).filter((c) => c.text)
       : (Array.isArray(q?.options) ? q.options : []).map((o: any, i: number) => ({ letter: String.fromCharCode(65 + i), text: typeof o === "string" ? o : String(o?.text ?? "") }));
     const image = typeof (q?.question_image || q?.image) === "string" ? (q.question_image || q.image) : null;
-    return { prompt: String(q?.prompt || q?.question || ""), image, choices, correct: String(q?.correct_answer ?? q?.correct ?? "A").toUpperCase().charAt(0) };
+    return { prompt: String(q?.prompt || q?.question || ""), image, choices, correct: String(q?.correct_answer ?? q?.correct ?? "A").toUpperCase().charAt(0), evidence: typeof q?.evidence === "string" ? q.evidence : "", source: typeof q?.source === "string" && /^https?:\/\//.test(q.source) ? q.source : "" };
   });
 }
 
 /** One AI quiz a student asked for: open it to read every question and answer, then approve or send it back. */
 function PendingQuizReview({ quiz, busy, onDecide }: { quiz: PendingQuiz; busy: boolean; onDecide: (ok: boolean) => void }) {
   const [open, setOpen] = useState(false);
+  const [checked, setChecked] = useState(false);
   const questions = useMemo(() => quizQuestions(quiz.questions), [quiz.questions]);
+  const mustCheck = needsBookCheck(quiz.verification, quiz.quiz_type);
   const kind = quiz.quiz_type === "eye_gaze" ? "Eye gaze" : quiz.quiz_type === "iarise" ? "iArise" : quiz.quiz_type === "favorite_topic" ? "Favorite topic" : "Book";
   const whose = quiz.mine ? <Pill tone="green">Your student</Pill> : <Pill tone="slate">{quiz.teacher_name ? `${quiz.teacher_name}’s student` : "No teacher yet"}</Pill>;
   return <Row title={<span className="inline-flex flex-wrap items-center gap-2">{quiz.book_title}{whose}</span>} sub={`by ${quiz.author || "Unknown"} · asked for by ${quiz.student_name} · ${kind} quiz${quiz.age_group ? ` · grade ${quiz.age_group}` : ""} · ${questions.length} questions`}
     right={<>
       <button type="button" className={smallBtn} aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? "Hide questions" : "Review questions"}</button>
-      <button type="button" disabled={busy || !questions.length} className={goodBtn} onClick={() => onDecide(true)} data-testid={`button-approve-quiz-${quiz.id}`}><Check className="h-4 w-4" /> Approve</button>
+      <button type="button" disabled={busy || !questions.length || (mustCheck && !checked)} title={mustCheck && !checked ? "Open the questions and tick the box once you've checked them against the book" : undefined} className={goodBtn} onClick={() => onDecide(true)} data-testid={`button-approve-quiz-${quiz.id}`}><Check className="h-4 w-4" /> Approve</button>
       <button type="button" disabled={busy} className={badBtn} onClick={() => onDecide(false)}><X className="h-4 w-4" /> Send back</button>
     </>}>
+    <QuizCheckPanel verification={quiz.verification} quizType={quiz.quiz_type} checked={checked} onChecked={setChecked} />
     {open && <div className="mt-3 space-y-3">
       {questions.length ? <ol className="space-y-2">{questions.map((q, i) =>
         <li key={i} className="rounded-xl bg-slate-50 p-3">
@@ -127,6 +131,8 @@ function PendingQuizReview({ quiz, busy, onDecide }: { quiz: PendingQuiz; busy: 
             <li key={c.letter} className={`rounded-lg px-2 py-1 text-sm ${c.letter === q.correct ? "bg-emerald-50 font-semibold text-emerald-800" : "text-slate-600"}`}>
               {c.letter}) {c.text}{c.letter === q.correct ? <span className="ml-1">✓ correct</span> : null}
             </li>)}</ul>
+          {(q.evidence || q.source) ? <p className="mt-1.5 text-xs text-slate-500">Where in the book: {q.evidence || "not given"}{q.source ? <> · <a href={q.source} target="_blank" rel="noopener noreferrer" className="underline">source</a></> : null}</p>
+            : quiz.quiz_type === "book" ? <p className="mt-1.5 text-xs font-medium text-amber-700">No source given for this question. Check it against the book.</p> : null}
         </li>)}</ol> : <Empty>The questions for this quiz could not be loaded.</Empty>}
     </div>}
   </Row>;

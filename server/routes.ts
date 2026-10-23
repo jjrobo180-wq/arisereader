@@ -111,6 +111,8 @@ import bcrypt from "bcryptjs";
 import { createVerifiedStudentTemporaryHash, verifyStudentTemporaryHash } from "./bulkStudentPassword";
 import { hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import { raw, text as expressText } from "express";
+import { confirmPicked, lookupBook, type LookupDeps } from "./bookLookup";
+import type { BookCandidate, QuizVerification } from "../shared/bookMatch";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -176,7 +178,7 @@ async function getPerplexityApiKey(): Promise<string> {
   return "";
 }
 
-async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string }>; bookGradeLevel: string; pointsValue: number } | { error: string }> {
+async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string; evidence?: string; source?: string }>; bookGradeLevel: string; pointsValue: number; sources: string[]; aiUnsure: boolean } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
@@ -198,7 +200,13 @@ First, analyze the book and determine:
 Then create 10 multiple-choice questions appropriate for ${ageGroup || "middle school"} students.
 
 Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
-{"bookGradeLevel":"5","vocabComplexity":2,"lengthCategory":2,"questions":[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A"}]}
+{"bookFound":true,"bookGradeLevel":"5","vocabComplexity":2,"lengthCategory":2,"questions":[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A","evidence":"Chapter 3: where in the book this happens","source":"https://the-web-page-that-confirms-it"}]}
+
+Accuracy rules (most important, students are graded on these):
+- Every question must be about something that really happens in THIS exact book, checked against a published summary, review or reference page. Do not mix in events from other books in a series.
+- For each question give "evidence" (where in the book it happens) and "source" (the URL of the page you checked).
+- Exactly one option may be correct. The wrong options must be clearly wrong, not partly true.
+- If you cannot find reliable information about this exact book, set "bookFound" to false and still return your best questions, so a teacher knows to check them.
 
 Rules:
 - Questions should test reading comprehension, plot details, character understanding, and themes
@@ -218,10 +226,10 @@ Rules:
       body: JSON.stringify({
         model: "sonar",
         messages: [
-          { role: "system", content: "You are a quiz generator. Return ONLY valid JSON arrays, no markdown or explanation." },
+          { role: "system", content: "You are a careful quiz generator for a school. Only use facts you can confirm from published sources about the exact book. Return ONLY valid JSON, no markdown or explanation." },
           { role: "user", content: prompt }
         ],
-        temperature: 0.7,
+        temperature: 0.2,
       }),
       signal: AbortSignal.timeout(60000),
     });
@@ -261,21 +269,69 @@ Rules:
       const correctLetter = (q.correct || "A").toUpperCase().charAt(0);
       const options = (q.options || []).slice(0, 4);
       while (options.length < 4) options.push("None of the above");
+      const evidence = typeof q.evidence === "string" ? q.evidence.trim().slice(0, 300) : "";
+      const source = typeof q.source === "string" && /^https?:\/\//.test(q.source.trim()) ? q.source.trim().slice(0, 500) : "";
       return {
         question: q.question || "What is this book about?",
         options,
         correct: correctLetter,
+        ...(evidence ? { evidence } : {}),
+        ...(source ? { source } : {}),
       };
     }).filter((q: any) => q.options.length === 4);
 
     if (validQuestions.length < 5) {
       return { error: "AI generated too few valid questions" };
     }
+    // AI tends to put the right answer first; move each one to a random spot so kids can't guess a pattern.
+    for (const q of validQuestions as any[]) {
+      const ci = Math.max(0, "ABCD".indexOf(q.correct));
+      const right = q.options[ci];
+      const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+      q.options = order.map((i) => q.options[i]);
+      q.correct = "ABCD"[q.options.indexOf(right)] || "A";
+    }
 
-    return { questions: validQuestions, bookGradeLevel, pointsValue };
+    // The pages the AI actually searched (Perplexity returns them), plus any it named per question.
+    const cited = [
+      ...(Array.isArray(data.citations) ? data.citations : []),
+      ...(Array.isArray(data.search_results) ? data.search_results.map((r: any) => r?.url) : []),
+      ...validQuestions.map((q: any) => q.source),
+    ].filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//.test(u));
+    const sources = [...new Set(cited)].slice(0, 12);
+    const aiUnsure = parsed.bookFound === false;
+
+    return { questions: validQuestions, bookGradeLevel, pointsValue, sources, aiUnsure };
   } catch (e: any) {
     return { error: `AI generation failed: ${e.message}` };
   }
+}
+
+/** "Did you mean": the AI's guess at the real published book a student meant ("Dog Man 2" → "Dog Man Unleashed"). Checked against Open Library before it's shown. */
+async function aiGuessBook(title: string, author: string): Promise<{ title: string; author: string } | null> {
+  const apiKey = await getPerplexityApiKey();
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(PERPLEXITY_API_URL, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "sonar",
+        temperature: 0,
+        messages: [
+          { role: "system", content: "You identify published books. Return ONLY JSON." },
+          { role: "user", content: `A student typed this book: title "${title.replace(/"/g, "'")}", author "${author.replace(/"/g, "'")}". It may have typos, a series number instead of the real title (like "Dog Man 2"), or a wrong author. What is the exact published title (with its subtitle, as printed on the cover) and author of the book they most likely mean? If you can't tell, return {"title":"","author":""}. Format: {"title":"...","author":"..."}` },
+        ],
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as any;
+    const m = String(data.choices?.[0]?.message?.content || "").match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const g = JSON.parse(m[0]);
+    return g?.title ? { title: String(g.title).slice(0, 200), author: String(g.author || "").slice(0, 120) } : null;
+  } catch { return null; }
 }
 
 // Generate iArise lesson content via AI — short readable lessons for students
@@ -6029,7 +6085,25 @@ export async function registerRoutes(
     res.json({ message: "Eye gaze quiz guidelines saved successfully" });
   });
 
+  // "Did you mean": the real books that match what a student typed. ?quick=1 while typing (no AI).
+  const bookLookupDeps: LookupDeps = {
+    fetch,
+    catalog: async () => (await storage.getAllBooks()).map((b: any) => ({ id: b.id, title: b.title, author: b.author, coverUrl: b.coverUrl })),
+    aiGuess: aiGuessBook,
+  };
+  app.get("/api/book-lookup", authMiddleware, async (req: any, res) => {
+    try {
+      const title = String(req.query.title || ""), author = String(req.query.author || "");
+      res.set("Cache-Control", "no-store");
+      res.json(await lookupBook(bookLookupDeps, title, author, { quick: req.query.quick === "1" }));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Lookup failed" });
+    }
+  });
+
   // Student: generate an instant AI quiz for a book
+  // The title must be a real book: the student types it, we show "Did you mean" and they pick one
+  // (body.picked). Keeping their own words (body.keepTyped) is allowed but flagged for the teacher.
   app.post("/api/instant-quiz", authMiddleware, async (req: any, res) => {
     try {
       const { bookTitle, author } = req.body;
@@ -6049,12 +6123,29 @@ export async function registerRoutes(
       const fixTitle = (raw: string): string => {
         return raw.trim().toLowerCase().replace(/(^|[\s&-])(\w)/g, (_, sep, char) => sep + char.toUpperCase());
       };
-      const cleanTitle = fixTitle(bookTitle);
-      const cleanAuthor = fixTitle(author);
+      // Which real book is it? A picked suggestion is checked again here; otherwise we look it up.
+      let matched: BookCandidate | null = null;
+      let match: QuizVerification["match"] = "none";
+      let suggestions: BookCandidate[] = [];
+      if (req.body?.picked) {
+        matched = await confirmPicked(bookLookupDeps, req.body.picked);
+        if (!matched) return res.status(400).json({ message: "We couldn't confirm that book. Please search again." });
+        match = "picked";
+      } else {
+        const found = await lookupBook(bookLookupDeps, bookTitle, author);
+        suggestions = found.suggestions;
+        if (found.status === "exact" && found.best) { matched = found.best; match = "exact"; }
+        else if (!req.body?.keepTyped) {
+          return res.status(409).json({ didYouMean: true, status: found.status, suggestions: found.suggestions,
+            message: found.suggestions.length ? "Did you mean one of these books?" : "We couldn't find that book. Check the title and author." });
+        } else match = found.suggestions.length ? "kept" : "none";
+      }
+      const cleanTitle = matched ? matched.title : fixTitle(bookTitle);
+      const cleanAuthor = matched ? matched.author : fixTitle(author);
 
       // Check if this book already exists with a quiz
       const allBooks = await storage.getAllBooks();
-      const existing = allBooks.find((b: any) =>
+      const existing = (matched?.bookId ? allBooks.find((b: any) => b.id === matched!.bookId) : null) || allBooks.find((b: any) =>
         b.title.toLowerCase().trim() === cleanTitle.toLowerCase()
       );
       if (existing && existing.pointsValue > 0) {
@@ -6075,9 +6166,9 @@ export async function registerRoutes(
         return res.status(500).json({ message: result.error });
       }
 
-      // Fetch book cover from Open Library
-      let coverUrl: string | null = null;
-      try {
+      // Fetch book cover from Open Library (the matched book's own cover first)
+      let coverUrl: string | null = matched?.coverUrl || null;
+      if (!coverUrl) try {
         const coverRes = await fetch(
           `https://covers.openlibrary.org/b/title/${encodeURIComponent(cleanTitle)}?format=json&limit=1`,
           { signal: AbortSignal.timeout(5000) }
@@ -6104,6 +6195,13 @@ export async function registerRoutes(
         } catch {}
       }
 
+      // How this quiz's book was checked, for the approval screen (shared/bookMatch.ts quizRiskFlags).
+      const verification: QuizVerification = {
+        typed: { title: String(bookTitle).trim().slice(0, 200), author: String(author).trim().slice(0, 120) },
+        match, book: matched, suggestions: match === "kept" || match === "none" ? suggestions.slice(0, 3) : undefined,
+        sources: result.sources, questionsWithEvidence: result.questions.filter((q: any) => q.evidence || q.source).length,
+        questionCount: result.questions.length, aiUnsure: result.aiUnsure, checkedAt: new Date().toISOString(),
+      };
       // Save the generated quiz for admin/teacher review before publishing
       try {
         await supabase.from('pending_ai_quizzes').insert({
@@ -6114,7 +6212,8 @@ export async function registerRoutes(
           cover_url: coverUrl,
           age_group: ageGroup,
           quiz_type: 'book',
-          status: 'pending'
+          status: 'pending',
+          verification,
         });
         alertAiQuizReview(req.user, `${cleanTitle} by ${cleanAuthor}`, "Book quiz");
         // Only the student's own teacher is told; their bell lists it until it's approved (server/notificationFeed.ts).
