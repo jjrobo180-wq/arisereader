@@ -1,5 +1,6 @@
 // No-proctor quizzes: a student takes a quiz on their own while the browser
-// reports when they leave the quiz and sends a camera snapshot every 30 seconds.
+// reports when they leave the quiz and sends camera snapshots at random moments (about one
+// every 30 seconds on average; see client/src/lib/noProctorMonitor.ts).
 // Teachers, parents and the admin review the record later; teachers and the
 // admin can remove the points from a quiz that looks wrong.
 import type { Express, RequestHandler } from "express";
@@ -401,6 +402,36 @@ export function registerQuizIntegrityRoutes(app: Express, authMiddleware: Reques
       res.status(500).json({ message: "Could not change the points." });
     }
   };
+  /** Deletes one try's pictures from storage and marks them gone (the record and its timeline stay). */
+  const deletePictures = async (sessionId: string) => {
+    const { data: shots } = await db().from(EVENTS).select("detail").eq("session_id", sessionId).eq("type", "snapshot");
+    const paths = (shots || []).map((x: any) => x.detail?.path).filter((p: unknown): p is string => typeof p === "string");
+    for (let i = 0; i < paths.length; i += 100) await db().storage.from(NO_PROCTOR.bucket).remove(paths.slice(i, i + 100));
+    await db().from(SESSIONS).update({ snapshots_purged: true }).eq("id", sessionId);
+  };
+
+  // A teacher, LT or the admin has looked at a camera quiz and deletes its pictures now rather than
+  // waiting 30 days (earlier unfinished tries of the same quiz too). The timeline and points stay.
+  app.post("/api/integrity/review/:id/delete-pictures", authMiddleware, async (req: any, res) => {
+    try {
+      const scope = await scopeFor(req);
+      if (!scope?.canVoid) return res.status(403).json({ message: "Only teachers and the admin can delete quiz pictures." });
+      const id = String(req.params.id);
+      if (!isUuid(id)) return res.status(404).json({ message: "Quiz record not found." });
+      const { data: s, error } = await db().from(SESSIONS).select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      if (!s || s.status !== "submitted" || !inScope(scope, s.student_id)) return res.status(404).json({ message: "Quiz record not found." });
+      const { data: earlier } = await db().from(SESSIONS).select("id,created_at")
+        .eq("student_id", s.student_id).eq("quiz_kind", s.quiz_kind).eq("quiz_id", s.quiz_id).eq("status", "expired");
+      const ids = [s.id, ...(earlier || []).filter((e: any) => Date.parse(e.created_at) < Date.parse(s.created_at)).map((e: any) => e.id)];
+      for (const sid of ids) await deletePictures(sid);
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("[no-proctor] delete pictures", error?.message);
+      res.status(500).json({ message: "Could not delete the pictures." });
+    }
+  });
+
   app.post("/api/integrity/review/:id/void", authMiddleware, setVoided(true));
   app.post("/api/integrity/review/:id/restore", authMiddleware, setVoided(false));
 
@@ -410,12 +441,7 @@ export function registerQuizIntegrityRoutes(app: Express, authMiddleware: Reques
     const cutoff = new Date(Date.now() - NO_PROCTOR.keepSnapshotsDays * 24 * 60 * 60 * 1000).toISOString();
     const { data: old, error } = await db().from(SESSIONS).select("id").lt("created_at", cutoff).eq("snapshots_purged", false).limit(25);
     if (error) throw error;
-    for (const row of old || []) {
-      const { data: shots } = await db().from(EVENTS).select("detail").eq("session_id", row.id).eq("type", "snapshot");
-      const paths = (shots || []).map((x: any) => x.detail?.path).filter((p: unknown): p is string => typeof p === "string");
-      for (let i = 0; i < paths.length; i += 100) await db().storage.from(NO_PROCTOR.bucket).remove(paths.slice(i, i + 100));
-      await db().from(SESSIONS).update({ snapshots_purged: true }).eq("id", row.id);
-    }
+    for (const row of old || []) await deletePictures(row.id);
   };
   const runPurge = () => { void purgeOld().catch((e) => console.error("[no-proctor] cleanup", e?.message)); };
   (setTimeout(runPurge, 90_000) as any).unref?.();

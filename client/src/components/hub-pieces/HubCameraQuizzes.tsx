@@ -2,7 +2,7 @@
 // Same as the site's NoProctorReview: what was flagged, the pictures, what happened, answer pace,
 // earlier tries, and (for the teacher or admin) removing or giving back the points.
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, Clock3, RotateCcw, ShieldCheck, Undo2, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Clock3, RotateCcw, ShieldCheck, Trash2, Undo2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { KitModal, Pill, Segments, fmtWhen, kit, type Which } from "./kit";
@@ -104,6 +104,7 @@ function Review({ which, id, headers, onClose, onChanged }: { which: Which; id: 
   const [removing, setRemoving] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const load = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/integrity/review/${id}`, { headers: headers(), cache: "no-store" });
@@ -136,6 +137,18 @@ function Review({ which, id, headers, onClose, onChanged }: { which: Which; id: 
     finally { setBusy(false); }
   };
 
+  /** Deletes this quiz's pictures now (after viewing), instead of waiting 30 days. */
+  const deletePictures = async () => {
+    setBusy(true); setError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/integrity/review/${id}/delete-pictures`, { method: "POST", headers: headers() });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.message || "The pictures could not be deleted.");
+      setDeleting(false); setZoom(null); await load(); onChanged();
+    } catch (e: any) { setError(e?.message || "The pictures could not be deleted."); }
+    finally { setBusy(false); }
+  };
+
   const s = detail?.session, pics = detail?.snapshots || [];
   const start = detail?.timeline.find((e) => e.type === "start");
   const pace = useMemo(() => {
@@ -163,8 +176,14 @@ function Review({ which, id, headers, onClose, onChanged }: { which: Which; id: 
           : <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><ShieldCheck className="h-4 w-4" /> Stayed on the quiz the whole time, with the camera on.</p>}
         {s.voided && <p className={k.bad}>Points removed{s.voidedAt ? ` on ${fmtWhen(s.voidedAt)}` : ""}{s.voidReason ? `: "${s.voidReason}"` : "."}</p>}
 
-        <section><h3 className={`mb-2 ${k.h}`}>Pictures</h3>
-          {s.snapshotsPurged ? <p className={k.small}>The pictures were deleted after 30 days.</p>
+        <section><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className={k.h}>Pictures</h3>
+            {detail.canVoid && !s.snapshotsPurged && (pics.length > 0 || detail.earlierTries.some((t) => t.snapshots.length)) && (deleting
+              ? <span className="flex flex-wrap items-center gap-2"><span className={k.small}>Delete every picture from this quiz? This can't be undone.</span>
+                  <button type="button" className={k.danger} disabled={busy} onClick={() => void deletePictures()} data-testid="np-review-delete-pictures-confirm">{busy ? "Deleting…" : "Delete pictures"}</button>
+                  <button type="button" className={k.ghost} onClick={() => setDeleting(false)}>Cancel</button></span>
+              : <button type="button" className={k.ghost} onClick={() => setDeleting(true)} data-testid="np-review-delete-pictures"><Trash2 className="h-4 w-4" /> Delete pictures</button>)}
+          </div>
+          {s.snapshotsPurged ? <p className={k.small}>The pictures have been deleted. The timeline and points stay.</p>
             : pics.length ? <div className="flex gap-2 overflow-x-auto pb-1">{pics.map((p, i) => <button key={p.url} type="button" onClick={() => setZoom(i)} aria-label={`Picture at ${clock(offset(p, s.startedAt))}`}
               className={`w-28 shrink-0 overflow-hidden rounded-xl border text-left ${p.reason === "left" ? "border-amber-400" : "border-slate-200"}`}>
               <img src={p.url} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" />
@@ -198,7 +217,7 @@ function Review({ which, id, headers, onClose, onChanged }: { which: Which; id: 
     </div>
     {zoom !== null && pics[zoom] && s && <div className="fixed inset-0 z-[700] flex items-center justify-center bg-slate-950/90 p-4" onClick={(e) => { if (e.target === e.currentTarget) setZoom(null); }} role="dialog" aria-label="Picture">
       <figure className="max-h-full max-w-3xl"><img src={pics[zoom].url} alt={`Picture at ${clock(offset(pics[zoom], s.startedAt))}`} className="max-h-[80vh] rounded-2xl" />
-        <figcaption className="mt-2 text-center text-sm text-white"><b>{clock(offset(pics[zoom], s.startedAt))}</b> {SHOT[pics[zoom].reason] || "Every 30 seconds"} · {zoom + 1} of {pics.length}</figcaption></figure>
+        <figcaption className="mt-2 text-center text-sm text-white"><b>{clock(offset(pics[zoom], s.startedAt))}</b> {SHOT[pics[zoom].reason] || "Random picture"} · {zoom + 1} of {pics.length}</figcaption></figure>
       <button type="button" disabled={zoom === 0} onClick={() => setZoom(zoom - 1)} aria-label="Previous picture" className="absolute left-3 top-1/2 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30"><ChevronLeft /></button>
       <button type="button" disabled={zoom === pics.length - 1} onClick={() => setZoom(zoom + 1)} aria-label="Next picture" className="absolute right-3 top-1/2 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white disabled:opacity-30"><ChevronRight /></button>
       <button type="button" onClick={() => setZoom(null)} aria-label="Close picture" className="absolute right-3 top-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white"><X /></button>

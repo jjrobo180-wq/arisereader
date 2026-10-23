@@ -129,8 +129,8 @@ test("pausing stops counting; stop removes every listener and turns the camera o
   for (const t of ["blur", "focus", "pagehide"]) assert.equal(win.count(t), 0);
 });
 
-test("pictures: one at the start, every 30 seconds, and at a leave", () => {
-  const { m } = make();
+test("pictures: one at the start, at random times (15–45 s apart), and at a leave", () => {
+  const { m } = make(undefined, { random: () => 0.5 });
   m.start();
   mock.timers.tick(1000);
   const shots = () => fetches.filter((f) => f.url.includes("/snapshot")).map((f) => new URL(f.url).searchParams.get("reason"));
@@ -145,6 +145,26 @@ test("pictures: one at the start, every 30 seconds, and at a leave", () => {
   mock.timers.tick(2000);
   assert.deepEqual(shots(), ["start", "interval", "left"]);
   m.stop();
+});
+
+test("the random gap runs from half to one and a half times the average", () => {
+  const shots = () => fetches.filter((f) => f.url.includes("/snapshot")).map((f) => new URL(f.url).searchParams.get("reason")).filter((r) => r === "interval").length;
+  const seconds = (n: number) => { for (let i = 0; i < n; i++) mock.timers.tick(1000); };
+  const early = make(undefined, { random: () => 0 });
+  early.m.start();
+  seconds(14);
+  assert.equal(shots(), 0);
+  seconds(1);
+  assert.equal(shots(), 1, "the shortest gap is 15 seconds");
+  early.m.stop();
+  fetches.length = 0;
+  const late = make(undefined, { random: () => 1 });
+  late.m.start();
+  seconds(44);
+  assert.equal(shots(), 0);
+  seconds(1);
+  assert.equal(shots(), 1, "the longest gap is 45 seconds");
+  late.m.stop();
 });
 
 test("leaving inside the app counts as a leave; stopping the quiz does not", () => {
