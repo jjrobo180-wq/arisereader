@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { NEWS_ARTICLES, NEWS_POINTS, SECTION_COLORS, newsBySlug, newsByTitle, newsReadMinutes, newsWordCount } from "../shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_POINTS, SECTION_COLORS, newsBySlug, newsByTitle, newsReadMinutes, newsWordCount, newsCoverSrc } from "../shared/ariseNews";
 
 test("every story has a unique slug and title", () => {
   assert.ok(NEWS_ARTICLES.length >= 12);
@@ -83,7 +83,7 @@ test("news stories become 5-point library quizzes exactly once", async () => {
   for (const b of store.books) {
     assert.equal(b.pointsValue, 5);
     assert.equal(b.keepPoints, true); // the site's own articles keep their 5 points
-    assert.match(b.coverUrl, /^(\/covers\/news\/[a-z0-9-]+\.svg|https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/.+)$/);
+    assert.match(b.coverUrl, /^(\/api\/news\/cover\/[a-z0-9-]+|\/covers\/news\/[a-z0-9-]+\.svg|https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/.+)$/);
     assert.equal(b.questions.length, 5);
   }
   assert.deepEqual(JSON.parse(store.settings.get(NEWS_BOOKS_KEY)!), map);
@@ -103,7 +103,7 @@ test("an existing news book is reused if the map was lost", async () => {
 
 test("every story has a cover file in the build", async () => {
   const { existsSync } = await import("node:fs");
-  for (const a of NEWS_ARTICLES) assert.ok(a.photo?.file || existsSync(`client/public/covers/news/${a.slug}.svg`), `missing cover for ${a.slug}`);
+  for (const a of NEWS_ARTICLES) assert.ok(a.photo?.file || a.photo?.wikipediaTitle || existsSync(`client/public/covers/news/${a.slug}.svg`) || newsCoverSrc(a).startsWith("/api/news/cover/"), `missing cover for ${a.slug}`);
 });
 
 test("a story taken out of the issue leaves the library once", async () => {
@@ -159,5 +159,32 @@ test("creator and topic batches are full, distinct 5-minute articles with five q
    for(const q of a.questions) assert.equal(new Set(q.options).size,4,q.question);
    assert.ok(a.sources && a.sources.length>=1,a.slug+" missing sources");
    if(a.section==="Biography") assert.ok(a.photo?.wikipediaTitle,a.slug+" must request genuine celebrity photo");
+ }
+});
+
+test("all twenty new October five-minute reads meet editorial acceptance requirements", async () => {
+ const [{CREATOR_READS},{MUSIC_READS},{TOPIC_READS},{FRESH_READS}] = await Promise.all([
+   import("../shared/creatorReads2026"),import("../shared/musicReads2026"),import("../shared/topicReads2026"),import("../shared/freshReads2026")
+ ]);
+ const all=[...CREATOR_READS,...MUSIC_READS,...TOPIC_READS,...FRESH_READS];
+ assert.equal(all.length,20);
+ assert.equal(all.filter(a=>a.section==="Biography").length,10);
+ assert.equal(new Set(all.map(a=>a.slug)).size,20);
+ for(const a of all){
+   const count=newsWordCount(a);
+   assert.ok(count>=585 && count<=650, a.slug+": "+count);
+   assert.equal(newsReadMinutes(a),5);
+   assert.equal(a.questions.length,5);
+   assert.ok(a.sources?.length, a.slug+" needs sources");
+   assert.ok(a.words.length>=3);
+   const text=JSON.stringify(a.body).toLowerCase();
+   for(const w of a.words) assert.ok(text.includes(w.word.toLowerCase()),a.slug+" lacks "+w.word);
+   for(const q of a.questions) {
+     assert.equal(q.options.length,4);
+     assert.equal(new Set(q.options).size,4);
+     assert.ok(["A","B","C","D"].includes(q.correct));
+   }
+   assert.ok(new Set(a.questions.map(q=>q.correct)).size>=3,a.slug+" predictable quiz");
+   if(a.section==="Biography") assert.ok(a.photo?.wikipediaTitle,a.slug+" needs real-photo lookup");
  }
 });
