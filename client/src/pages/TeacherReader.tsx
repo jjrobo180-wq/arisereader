@@ -50,9 +50,10 @@ const WhatsNew = lazy(() => import("./WhatsNew"));
 const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "reader", label: "Overview", icon: Home },
   { id: "challenge", label: "Advisory Challenge", icon: Trophy },
-  { id: "readerStudents", label: "Students", icon: Users },
+  { id: "readerStudents", label: "My Students", icon: Users },
   { id: "readerApprovals", label: "Approvals", icon: CheckCircle2 },
   { id: "readerQuizzes", label: "Quizzes & grading", icon: ClipboardCheck },
+  { id: "readerCatalog", label: "Book catalog", icon: BookOpen },
   { id: "readerLive", label: "Live quiz", icon: Trophy },
   { id: "readerParents", label: "Parents", icon: MessageSquare },
   { id: "readerAdvisory", label: "View all students", icon: Users },
@@ -61,7 +62,6 @@ const MENU: Array<{ id: View; label: string; icon: LucideIcon }> = [
   { id: "readerScenes", label: "Scenes", icon: Clapperboard },
   { id: "readerGames", label: "Game time", icon: Timer },
   { id: "readerPrizes", label: "Prizes", icon: Sparkles },
-  { id: "readerCatalog", label: "Book catalog", icon: BookOpen },
   // Para Team (pages/ParaTeam.tsx) is its own page in the app: this item goes there.
   { id: "paraTeam", label: "Para Team", icon: HeartHandshake },
   { id: "whatsnew", label: "What's new", icon: Megaphone },
@@ -280,9 +280,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             return (
               <button key={m.id} type="button" onClick={() => go(m.id)} aria-current={on ? "page" : undefined} aria-label={m.label}
                 className="relative flex min-h-[56px] w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center text-[10px] leading-tight"
-                style={m.id === "challenge"
-                  ? { fontWeight: 800, background: on ? "#ffc93c" : "rgba(255,201,60,0.14)", color: on ? "#2a1206" : "#ffd98a" }
-                  : { fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
+                style={{ fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
                 <Icon className="h-5 w-5" />
                 <span className="line-clamp-2">{m.label}</span>
                 {n > 0 && <span className="absolute right-1 top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-extrabold text-white" style={{ background: "#7c3aed" }}>{n}</span>}
@@ -307,9 +305,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
             return (
               <button key={m.id} type="button" onClick={() => go(m.id)} aria-current={on ? "page" : undefined} data-testid={`reader-tab-${m.id}`}
                 className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-left text-[15px]"
-                style={m.id === "challenge"
-                  ? { fontWeight: 800, background: on ? "#ffc93c" : "rgba(255,201,60,0.14)", color: on ? "#2a1206" : "#ffd98a", boxShadow: "inset 0 0 0 1px rgba(255,201,60,0.45)" }
-                  : { fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
+                style={{ fontWeight: on ? 800 : 600, background: on ? "rgba(124,58,237,0.22)" : "transparent", color: on ? "#ffffff" : "#c9c5dc" }}>
                 <span>{m.label}</span>
                 {n > 0 && <span className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-extrabold text-white" style={{ background: "#7c3aed" }}>{n}</span>}
               </button>
@@ -345,7 +341,7 @@ export default function TeacherReader({ tab, setTab, workhubHref }: { tab: Reade
           {!isParent && view === "reader" && <>
             <h1 className="text-[30px] font-black tracking-[-0.02em]">{greeting()}, {user.displayName}</h1>
             <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-              {([["Students", counts?.students, "readerStudents"], ["To approve", toApprove, "readerApprovals"], ["To grade", counts?.toGrade, "readerQuizzes"], ["Book requests", counts?.books, "readerApprovals"]] as const).map(([label, value, to]) => (
+              {([["My Students", counts?.students, "readerStudents"], ["To approve", toApprove, "readerApprovals"], ["To grade", counts?.toGrade, "readerQuizzes"], ["Book requests", counts?.books, "readerApprovals"]] as const).map(([label, value, to]) => (
                 <button key={label} type="button" onClick={() => go(to)} className="flex flex-col gap-1 rounded-2xl border p-4 text-left" style={{ background: "#151326", borderColor: dim, color: "#ece9f7" }}>
                   <span className="text-[30px] font-black">{counts ? value ?? 0 : "…"}</span>
                   <span className="text-sm font-bold" style={{ color: "#a29fb8" }}>{label}</span>

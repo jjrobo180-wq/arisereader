@@ -126,7 +126,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
               <button type="button" className="np-option np-option-camera" onClick={() => setView("camera")}>
                 <span className="np-option-icon"><Camera /></span>
                 <b>On my own</b>
-                <span>Your camera stays on and takes a picture every 30 seconds.</span>
+                <span>Your camera stays on and takes pictures at random times.</span>
               </button>
             </div>
           </>
@@ -172,7 +172,7 @@ export default function NoProctorGate({ book, questionCount, quizId, authToken, 
                 {stream && <span className="np-rec"><i /> Camera on</span>}
               </div>
               <ul className="np-rules">
-                <li><Camera /><span>Your camera takes a picture every 30 seconds and whenever you leave the quiz.</span></li>
+                <li><Camera /><span>Your camera takes pictures at random times, and whenever you leave the quiz.</span></li>
                 <li><ShieldCheck /><span>Stay on this screen until you turn the quiz in. Leaving once gets a warning. Leaving again turns the quiz in with the answers you have.</span></li>
                 <li><ClipboardX /><span>Copy and paste are turned off.</span></li>
                 <li><Users /><span>Your teacher, your parent and the site admin can see the pictures. They're deleted after 30 days.</span></li>

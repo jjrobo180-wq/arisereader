@@ -1,6 +1,7 @@
 // Watches a no-proctor quiz in the browser: counts every time the student
-// leaves the quiz, takes a camera snapshot every 30 seconds (and when they
-// leave or come back), and reports it all to the server.
+// leaves the quiz, takes camera snapshots at random moments (about one every
+// 30 seconds on average, so a student can't time them) and when they leave or
+// come back, and reports it all to the server.
 
 export type MonitorEvent = { type: string; t: number; kind?: string; ms?: number };
 export type MonitorOptions = {
@@ -10,7 +11,10 @@ export type MonitorOptions = {
   startedAt: number;
   /** Leaves already counted (when picking up after a reload). */
   leaves: number;
+  /** The average gap between pictures. Each gap is random, from half of this to one and a half times it. */
   snapshotEveryMs: number;
+  /** A number from 0 to 1 (Math.random); only replaced in tests. */
+  random?: () => number;
   onLeave: (leaves: number) => void;
   onReturn: (leaves: number, awayMs: number) => void;
   onCamera: (on: boolean) => void;
@@ -110,13 +114,24 @@ export class NoProctorMonitor {
     window.addEventListener("blur", this.onBlur);
     window.addEventListener("focus", this.onFocus);
     window.addEventListener("pagehide", this.onPageHide);
-    this.snapTimer = window.setInterval(() => this.snap("interval"), this.o.snapshotEveryMs);
+    this.scheduleSnap();
     this.flushTimer = window.setInterval(() => this.flush(), 5000);
     this.cameraTimer = window.setInterval(() => {
       if (this.cameraOn && this.stream && this.stream.getVideoTracks().every((t) => t.readyState === "ended")) this.cameraLost();
     }, 4000);
     void this.keepScreenOn();
     window.setTimeout(() => this.snap(firstPicture), 900);
+  }
+
+  /** The next random-time picture: somewhere from half to one and a half times the average gap. */
+  private scheduleSnap() {
+    const r = Math.min(1, Math.max(0, (this.o.random ?? Math.random)()));
+    const wait = Math.round(this.o.snapshotEveryMs * (0.5 + r));
+    this.snapTimer = window.setTimeout(() => {
+      if (!this.running) return;
+      this.snap("interval");
+      this.scheduleSnap();
+    }, wait);
   }
 
   /** Stops counting leaves (for example while the quiz is being turned in). */
@@ -156,7 +171,7 @@ export class NoProctorMonitor {
     window.removeEventListener("focus", this.onFocus);
     window.removeEventListener("pagehide", this.onPageHide);
     window.clearTimeout(this.blurTimer);
-    window.clearInterval(this.snapTimer);
+    window.clearTimeout(this.snapTimer);
     window.clearInterval(this.flushTimer);
     window.clearInterval(this.cameraTimer);
     this.stream?.getTracks().forEach((t) => t.stop());

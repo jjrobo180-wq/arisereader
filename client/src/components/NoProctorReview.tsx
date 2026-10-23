@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Camera, ChevronLeft, ChevronRight, Clock3, RotateCcw, ShieldCheck, Undo2, X } from "lucide-react";
+import { AlertTriangle, Camera, ChevronLeft, ChevronRight, Clock3, RotateCcw, ShieldCheck, Trash2, Undo2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import "./noproctor-review.css";
@@ -204,6 +204,7 @@ function ReviewDialog({ id, headers, onClose, onChanged }: { id: string; headers
   const [removing, setRemoving] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -244,6 +245,25 @@ function ReviewDialog({ id, headers, onClose, onChanged }: { id: string; headers
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prevOverflow; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Deletes this quiz's pictures now (after viewing), instead of waiting 30 days. */
+  const deletePictures = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/integrity/review/${id}/delete-pictures`, { method: "POST", headers: headers() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not delete the pictures.");
+      setDeleting(false);
+      setZoom(null);
+      await load();
+      onChanged();
+    } catch (e: any) {
+      setError(e?.message || "Could not delete the pictures.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const changePoints = async (remove: boolean) => {
     setBusy(true);
@@ -319,8 +339,15 @@ function ReviewDialog({ id, headers, onClose, onChanged }: { id: string; headers
             )}
 
             <h4>Pictures</h4>
+            {detail.canVoid && !s.snapshotsPurged && pictures.length > 0 && (deleting ? (
+              <p className="np-r-muted">Delete every picture from this quiz? This can't be undone.{" "}
+                <button type="button" className="np-r-btn danger" disabled={busy} onClick={() => void deletePictures()}>{busy ? "Deleting…" : "Delete pictures"}</button>{" "}
+                <button type="button" className="np-r-link" onClick={() => setDeleting(false)}>Cancel</button></p>
+            ) : (
+              <button type="button" className="np-r-btn" onClick={() => setDeleting(true)}><Trash2 /> Delete pictures</button>
+            ))}
             {s.snapshotsPurged ? (
-              <p className="np-r-muted">The pictures were deleted after 30 days.</p>
+              <p className="np-r-muted">The pictures have been deleted. The timeline and points stay.</p>
             ) : pictures.length ? (
               <div className="np-r-film">
                 {pictures.map((p, i) => (

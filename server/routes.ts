@@ -11402,7 +11402,14 @@ Important:
         // Admin sees all students (role = student only, no teachers)
         students = (await storage.getAllUsers()).filter((u: any) => u.role === 'student' || (!u.role && !u.isAdmin));
       }
-      res.json(students);
+      // Each student's quizzes and points, counted the way the leaderboard counts them (book,
+      // eye-gaze and custom quizzes, plus manual awards). The account row alone has no quiz count.
+      const stats = new Map<number, any>();
+      try { for (const row of await storage.getLeaderboard()) stats.set(Number(row.id), row); } catch {}
+      res.json(students.map((s: any) => {
+        const row = stats.get(Number(s.id));
+        return row ? { ...s, totalPoints: row.totalPoints, quizzesTaken: row.quizzesTaken, quizzesPassed: row.quizzesPassed, quizzesMastered: row.quizzesPassed } : s;
+      }));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

@@ -367,9 +367,9 @@ export default function ReaderTools({ tab, openTab, night }: { tab: ReaderTab; o
         <p className="text-sm font-semibold text-slate-400">A.R.I.S.E. Reader</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Your reading classroom</h1>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {([["Students", students.length, "readerStudents"], ["To approve", approvals, "readerApprovals"], ["To grade", toGrade, "readerQuizzes"], ["Book catalog", "", "readerCatalog"]] as const).map(([label, value, to]) =>
+          {([["My Students", students.length, "readerStudents"], ["To approve", approvals, "readerApprovals"], ["To grade", toGrade, "readerQuizzes"], ["Book catalog", "", "readerCatalog"]] as const).map(([label, value, to]) =>
             <button key={label} type="button" onClick={() => openTab(to)} className="rounded-2xl bg-white/10 p-3 text-left transition hover:bg-white/15 sm:p-4">
-              <div className="text-2xl font-bold sm:text-3xl">{label === "Book catalog" ? <BookOpen className="h-7 w-7 sm:h-8 sm:w-8" aria-hidden="true" /> : loading && label === "Students" ? "…" : value}</div>
+              <div className="text-2xl font-bold sm:text-3xl">{label === "Book catalog" ? <BookOpen className="h-7 w-7 sm:h-8 sm:w-8" aria-hidden="true" /> : loading && label === "My Students" ? "…" : value}</div>
               <div className="mt-1 text-xs font-semibold text-slate-300 sm:text-sm">{label}</div>
             </button>)}
         </div>

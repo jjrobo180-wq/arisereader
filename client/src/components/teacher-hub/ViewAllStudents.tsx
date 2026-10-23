@@ -12,7 +12,7 @@ import { Pill, type SchoolStudent, type Teacher, type Action } from "./HubReader
 import { Card, Empty, Field, Select } from "./ui";
 
 type LitEntry = { studentId: number; lit: { name: string } | null; advisory: { name: string } | null };
-type ClassTeachersData = { entries?: LitEntry[] };
+type ClassTeachersData = { entries?: LitEntry[]; schools?: Array<{ id: number; name: string }> };
 
 /** A school student joined with their Lit (ELA) teacher's name, from /api/teacher/class-teachers. */
 type Row = SchoolStudent & { litTeacher: string | null };
@@ -38,11 +38,19 @@ export default function ViewAllStudents({ school, schoolBusy, onReloadSchool, on
   // Advisory), so it's fetched here and joined in by student id.
   const loadLit = useCallback(async () => {
     try {
-      const r = await fetch(`${API_BASE}/api/teacher/class-teachers`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      const d: ClassTeachersData = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error((d as any)?.message || "The Lit teacher list could not be loaded.");
+      const get = async (query = ""): Promise<ClassTeachersData> => {
+        const r = await fetch(`${API_BASE}/api/teacher/class-teachers${query}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const d: ClassTeachersData = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((d as any)?.message || "The Lit teacher list could not be loaded.");
+        return d;
+      };
+      const first = await get();
+      // An administrator's list covers every school, and the server answers one school at a time.
+      const all = first.schools?.length && !first.entries?.length
+        ? await Promise.all(first.schools.map((sch) => get(`?schoolId=${sch.id}`).catch(() => ({} as ClassTeachersData))))
+        : [first];
       const m = new Map<number, string>();
-      for (const e of d.entries || []) if (e.lit?.name) m.set(e.studentId, e.lit.name);
+      for (const d of all) for (const e of d.entries || []) if (e.lit?.name) m.set(e.studentId, e.lit.name);
       setLitByStudent(m);
     } catch (e) {
       setError(e instanceof Error ? e.message : "The Lit teacher list could not be loaded.");
