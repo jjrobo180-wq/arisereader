@@ -188,3 +188,29 @@ test("all twenty new October five-minute reads meet editorial acceptance require
    if(a.section==="Biography") assert.ok(a.photo?.wikipediaTitle,a.slug+" needs real-photo lookup");
  }
 });
+
+test("twenty athlete, science and world-culture reads are finished and unique", async () => {
+ const [{ATHLETE_READS},{INTERNATIONAL_ATHLETES},{SCIENCE_READS},{CULTURE_READS}] = await Promise.all([
+  import("../shared/athleteReads2026"),import("../shared/internationalAthletes2026"),
+  import("../shared/scienceReads2026"),import("../shared/cultureReads2026")
+ ]);
+ const all=[...ATHLETE_READS,...INTERNATIONAL_ATHLETES,...SCIENCE_READS,...CULTURE_READS];
+ assert.equal(all.length,20);
+ assert.equal(all.filter(x=>x.section==="Biography").length,10);
+ assert.equal(new Set(all.map(x=>x.slug)).size,20);
+ for(const a of all){
+  const n=newsWordCount(a);
+  assert.ok(n>=585&&n<=650,a.slug+": "+n+" words");
+  assert.equal(newsReadMinutes(a),5);
+  assert.equal(a.questions.length,5);
+  assert.ok((a.sources?.length??0)>=1,a.slug+" needs sources");
+  assert.ok(a.words.length>=3);
+  for(const w of a.words) assert.ok(JSON.stringify(a.body).toLowerCase().includes(w.word.toLowerCase()),a.slug+" glossary missing "+w.word);
+  for(const q of a.questions){
+   assert.equal(q.options.length,4);
+   assert.equal(new Set(q.options).size,4);
+  }
+  assert.ok(new Set(a.questions.map(q=>q.correct)).size>=3);
+  if(a.section==="Biography") assert.ok(a.photo?.wikipediaTitle,a.slug+" needs licensed real-person photo lookup");
+ }
+});
