@@ -220,3 +220,16 @@ test("every 5-Minute Read has a real photo to show, never only a drawing", async
   const missing = NEWS_ARTICLES.filter((a) => !a.photo?.file && !a.photo?.wikipediaTitle).map((a) => a.slug);
   assert.deepEqual(missing, []);
 });
+
+test("the browser finds real photos for the Originals and swaps any drawn cover for them", async () => {
+  const { readFileSync } = await import("node:fs");
+  const lib = readFileSync(new URL("../client/src/lib/readPhotos.ts", import.meta.url), "utf8");
+  assert.match(lib, /pilicense: "free"/);
+  assert.match(readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8"), /installReadPhotos\(\);\ncreateRoot/);
+  const { newsCoverSrc, readPhotoFound, NEWS_ARTICLES } = await import("../shared/ariseNews");
+  const a = NEWS_ARTICLES.find((x) => x.slug === "octopus-genius")!;
+  assert.match(newsCoverSrc(a), /^\/api\/news\/cover\/octopus-genius\?v=\d+$/);
+  readPhotoFound["octopus-genius"] = "https://upload.wikimedia.org/x/Octopus.jpg";
+  assert.equal(newsCoverSrc(a), "https://upload.wikimedia.org/x/Octopus.jpg");
+  delete readPhotoFound["octopus-genius"];
+});

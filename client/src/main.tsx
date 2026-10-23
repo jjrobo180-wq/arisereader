@@ -4,6 +4,7 @@ import "./index.css";
 import "./login-mobile-fix.css";
 import "./keyboard-inset.css";
 import { watchKeyboard } from "./lib/keyboardInset";
+import { installReadPhotos } from "./lib/readPhotos";
 
 // Old personal-account signup links must open the shared A.R.I.S.E. sign-in/
 // sign-up screen, never the retired LifeHub signup view.
@@ -60,4 +61,6 @@ window.fetch = async function(input: RequestInfo | URL, init?: RequestInit): Pro
 // Sheets that sit at the bottom of the screen move up above the phone's keyboard while it's open.
 watchKeyboard();
 
+// Real photos on every A.R.I.S.E. Original cover (client/src/lib/readPhotos.ts).
+installReadPhotos();
 createRoot(document.getElementById("root")!).render(<App />);

@@ -55,11 +55,15 @@ export type NewsArticle = {
 const COMMONS = "https://commons.wikimedia.org/wiki/";
 const commonsName = (file: string) => encodeURIComponent(file.replace(/ /g, "_"));
 /** A sized copy of a story's photo (Wikimedia serves the right size), or null when it has none. */
-export const newsPhotoUrl = (a: NewsArticle, width = 960) => (a.photo?.file ? `${COMMONS}Special:FilePath/${commonsName(a.photo.file)}?width=${width}` : a.photo?.wikipediaTitle ? `/api/news/cover/${a.slug}` : null);
+export const newsPhotoUrl = (a: NewsArticle, width = 960) => (a.photo?.file ? `${COMMONS}Special:FilePath/${commonsName(a.photo.file)}?width=${width}` : a.photo?.wikipediaTitle ? (readPhotoFound[a.slug] ?? `/api/news/cover/${a.slug}?v=${NEWS_COVER_VERSION}`) : null);
 /** The photo's page on Wikimedia Commons, with the photographer and license. */
 export const newsPhotoPage = (a: NewsArticle) => (a.photo?.file ? `${COMMONS}File:${commonsName(a.photo.file)}` : a.photo?.wikipediaTitle ? `https://en.wikipedia.org/wiki/${encodeURIComponent(a.photo.wikipediaTitle.replace(/ /g, "_"))}` : null);
+/** Real photos the browser has already found for stories, by slug (filled by client/src/lib/readPhotos.ts). */
+export const readPhotoFound: Record<string, string> = {};
+/** Bumped when covers change, so browsers don't keep showing an old cached drawing. */
+export const NEWS_COVER_VERSION = 3;
 /** The library cover: the real photo when a story has one, otherwise its drawn cover. */
-export const newsCoverSrc = (a: NewsArticle) => newsPhotoUrl(a, 500) ?? `/api/news/cover/${a.slug}`;
+export const newsCoverSrc = (a: NewsArticle) => readPhotoFound[a.slug] ?? newsPhotoUrl(a, 500) ?? `/api/news/cover/${a.slug}?v=${NEWS_COVER_VERSION}`;
 
 export const NEWS_AUTHOR = "Arise Originals";
 /** Every author name these quizzes have had (they were "Arise News" before being renamed). */
