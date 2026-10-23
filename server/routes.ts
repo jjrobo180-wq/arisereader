@@ -113,6 +113,7 @@ import { hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import { raw, text as expressText } from "express";
 import { confirmPicked, lookupBook, type LookupDeps } from "./bookLookup";
 import type { BookCandidate, QuizVerification } from "../shared/bookMatch";
+import { checkBookContent, contentNotice } from "../shared/bookContent";
 
 // Email helper using Resend REST API
 // Supports both direct API key and custom-cred proxy (for published sites)
@@ -178,7 +179,7 @@ async function getPerplexityApiKey(): Promise<string> {
   return "";
 }
 
-async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string; evidence?: string; source?: string }>; bookGradeLevel: string; pointsValue: number; sources: string[]; aiUnsure: boolean } | { error: string }> {
+async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string; evidence?: string; source?: string }>; bookGradeLevel: string; pointsValue: number; sources: string[]; aiUnsure: boolean; audience?: string; contentWarning?: string } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
     return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
@@ -200,13 +201,15 @@ First, analyze the book and determine:
 Then create 10 multiple-choice questions appropriate for ${ageGroup || "middle school"} students.
 
 Return ONLY a JSON object (no markdown, no explanation, no code blocks) with this exact format:
-{"bookFound":true,"bookGradeLevel":"5","vocabComplexity":2,"lengthCategory":2,"questions":[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A","evidence":"Chapter 3: where in the book this happens","source":"https://the-web-page-that-confirms-it"}]}
+{"bookFound":true,"bookGradeLevel":"5","vocabComplexity":2,"lengthCategory":2,"audience":"children","contentWarning":"","questions":[{"question":"The question text here?","options":["Option A text","Option B text","Option C text","Option D text"],"correct":"A","evidence":"Chapter 3: where in the book this happens","source":"https://the-web-page-that-confirms-it"}]}
 
 Accuracy rules (most important, students are graded on these):
 - Every question must be about something that really happens in THIS exact book, checked against a published summary, review or reference page. Do not mix in events from other books in a series.
 - For each question give "evidence" (where in the book it happens) and "source" (the URL of the page you checked).
 - Exactly one option may be correct. The wrong options must be clearly wrong, not partly true.
 - If you cannot find reliable information about this exact book, set "bookFound" to false and still return your best questions, so a teacher knows to check them.
+- "audience" is who the book is written for: "children", "teen" or "adult". Use "adult" for adult romance, erotica, adult memoirs or self-help, and anything published for adults.
+- "contentWarning" is a short note if the book has sexual content, drug use, strong language, graphic violence or other content a school should know about. Leave it "" if there is none.
 
 Rules:
 - Questions should test reading comprehension, plot details, character understanding, and themes
@@ -300,8 +303,10 @@ Rules:
     ].filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//.test(u));
     const sources = [...new Set(cited)].slice(0, 12);
     const aiUnsure = parsed.bookFound === false;
+    const audience = typeof parsed.audience === "string" ? parsed.audience.toLowerCase().trim().slice(0, 20) : undefined;
+    const contentWarning = typeof parsed.contentWarning === "string" ? parsed.contentWarning.trim().slice(0, 240) : undefined;
 
-    return { questions: validQuestions, bookGradeLevel, pointsValue, sources, aiUnsure };
+    return { questions: validQuestions, bookGradeLevel, pointsValue, sources, aiUnsure, audience, contentWarning };
   } catch (e: any) {
     return { error: `AI generation failed: ${e.message}` };
   }
@@ -1250,11 +1255,11 @@ export async function registerRoutes(
       console.error("[admin-alerts] quiz alert failed:", e?.message);
     }
   };
-  const alertAiQuizReview = (user: any, title: string, kind: string) => alertAdmin("ai_quiz_review", {
+  const alertAiQuizReview = (user: any, title: string, kind: string, notice = "") => alertAdmin("ai_quiz_review", {
     title: `AI quiz needs review: “${title}”`,
     summary: `${personName(user)} · ${kind}`,
-    lines: [["Student", `${personName(user)} (@${user?.username || "?"})`], ["Quiz", title], ["Kind", kind]],
-    note: "Approve or reject it under Admin → To-do → AI quiz review. The student is told either way.",
+    lines: [["Student", `${personName(user)} (@${user?.username || "?"})`], ["Quiz", title], ["Kind", kind], ...(notice ? [["Notice", notice.trim()]] as [string, string][] : [])],
+    note: `${notice ? `${notice.trim()} ` : ""}Approve or reject it under Admin → To-do → AI quiz review. The student is told either way.`,
     row: false,
   });
 
@@ -6228,8 +6233,13 @@ export async function registerRoutes(
         typed: { title: String(bookTitle).trim().slice(0, 200), author: String(author).trim().slice(0, 120) },
         match, book: matched, suggestions: match === "kept" || match === "none" ? suggestions.slice(0, 3) : undefined,
         sources: result.sources, questionsWithEvidence: result.questions.filter((q: any) => q.evidence || q.source).length,
-        questionCount: result.questions.length, aiUnsure: result.aiUnsure, checkedAt: new Date().toISOString(),
+        questionCount: result.questions.length, aiUnsure: result.aiUnsure,
+        // Adult books still go to the teacher, with a notice and a recommendation not to approve.
+        content: checkBookContent({ title: cleanTitle, author: cleanAuthor, subjects: matched?.subjects, aiAudience: result.audience, aiWarning: result.contentWarning }),
+        checkedAt: new Date().toISOString(),
       };
+      if (verification.book) verification.book = { ...verification.book, subjects: undefined };
+      if (verification.suggestions) verification.suggestions = verification.suggestions.map((b) => ({ ...b, subjects: undefined }));
       // Save the generated quiz for admin/teacher review before publishing
       try {
         await supabase.from('pending_ai_quizzes').insert({
@@ -6243,9 +6253,9 @@ export async function registerRoutes(
           status: 'pending',
           verification,
         });
-        alertAiQuizReview(req.user, `${cleanTitle} by ${cleanAuthor}`, "Book quiz");
+        alertAiQuizReview(req.user, `${cleanTitle} by ${cleanAuthor}`, "Book quiz", contentNotice(verification.content));
         // Only the student's own teacher is told; their bell lists it until it's approved (server/notificationFeed.ts).
-        void tellTeacherQuizRequest(req.user, `"${cleanTitle}" by ${cleanAuthor}`);
+        void tellTeacherQuizRequest(req.user, `"${cleanTitle}" by ${cleanAuthor}`, contentNotice(verification.content));
       } catch {}
 
       return res.status(201).json({ 
@@ -6871,7 +6881,7 @@ export async function registerRoutes(
 
   /** A student asked for an AI quiz: push it to their own teacher. Their bell shows it from the
    *  pending quiz itself, so it goes away by itself once someone approves it. */
-  async function tellTeacherQuizRequest(student: any, what: string) {
+  async function tellTeacherQuizRequest(student: any, what: string, notice = "") {
     try {
       let teacherId = Number(student?.teacherId || 0);
       if (!teacherId) {
@@ -6880,7 +6890,7 @@ export async function registerRoutes(
       }
       if (!teacherId) return;
       const name = student.display_name || student.displayName || student.username || 'A student';
-      await notifyUser(teacherId, { title: 'New quiz request', body: `${name} asked for a quiz for ${what}. Open Approvals → Quiz requests to approve it.`, url: '/reader', tag: `quiz-request-${student.id}` });
+      await notifyUser(teacherId, { title: 'New quiz request', body: `${name} asked for a quiz for ${what}.${notice} Open Approvals → Quiz requests to review it.`, url: '/reader', tag: `quiz-request-${student.id}` });
     } catch { /* push is optional */ }
   }
 
