@@ -8,6 +8,7 @@ import { storage, clearCache } from "./storage";
 import { getAdminSupabase } from "./supabase";
 import { NEWS_POINTS } from "../shared/ariseNews";
 import { syncNewsBooks, type NewsStore } from "./ariseNewsSync";
+import { registerNewsPhotoRoutes } from "./newsPhotos";
 
 let inFlight: Promise<Record<string, number>> | null = null;
 let cached: { at: number; map: Record<string, number> } | null = null;
@@ -35,6 +36,7 @@ export function newsBooks(): Promise<Record<string, number>> {
 }
 
 export function registerAriseNewsRoutes(app: Express, authMiddleware: RequestHandler) {
+  registerNewsPhotoRoutes(app);
   app.get("/api/news/books", authMiddleware, async (_req, res) => {
     try {
       res.json({ books: await newsBooks(), points: NEWS_POINTS });
