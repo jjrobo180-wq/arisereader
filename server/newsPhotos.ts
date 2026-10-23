@@ -63,9 +63,9 @@ export async function resolveLicensedPhoto(article: (typeof NEWS_ARTICLES)[numbe
 
 export function registerNewsPhotoRoutes(app: Express) {
   app.get("/api/news/cover/:slug", async (req, res) => {
-    const article = NEWS_ARTICLES.find(a => a.slug === req.params.slug && !!a.photo?.wikipediaTitle);
+    const article = NEWS_ARTICLES.find(a => a.slug === req.params.slug);
     if (!article) { res.status(404).end(); return; }
-    const photo = await resolveLicensedPhoto(article);
+    const photo = article.photo?.wikipediaTitle ? await resolveLicensedPhoto(article) : null;
     if (photo) {
       res.set("Cache-Control", "public, max-age=21600");
       res.redirect(302, photo.url);
