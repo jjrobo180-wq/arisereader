@@ -1,6 +1,6 @@
 // Keeps one library quiz (a `books` row plus its `questions`) for every Arise
 // News story. Pure logic over a small storage interface so it can be tested.
-import { NEWS_ARTICLES, NEWS_AUTHOR, NEWS_POINTS, newsCoverSrc, type NewsArticle } from "../shared/ariseNews";
+import { NEWS_ARTICLES, NEWS_AUTHOR, NEWS_POINTS, isNewsAuthor, newsCoverSrc, type NewsArticle } from "../shared/ariseNews";
 
 export const NEWS_BOOKS_KEY = "arise_news_book_ids";
 export const NEWS_RETIRED_KEY = "arise_news_retired_book_ids";
@@ -28,7 +28,7 @@ export async function syncNewsBooks(store: NewsStore, articles: NewsArticle[] = 
   for (const a of articles) {
     if (map[a.slug] && byId.has(Number(map[a.slug]))) continue;
     // reuse a row from an earlier run (say, if saving the map failed) before making a new one
-    const existing = books.find((b) => b.title === a.title && b.author === NEWS_AUTHOR);
+    const existing = books.find((b) => b.title === a.title && isNewsAuthor(b.author));
     if (existing) { map[a.slug] = Number(existing.id); changed = true; continue; }
     const created = await store.createBookWithQuestions(
       { title: a.title, author: NEWS_AUTHOR, ageGroup: a.grades, coverUrl: newsCoverUrl(a), description: a.dek, pointsValue: NEWS_POINTS, readUrl: null, keepPoints: true },

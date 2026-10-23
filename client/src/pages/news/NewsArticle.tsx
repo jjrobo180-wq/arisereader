@@ -65,7 +65,7 @@ export default function NewsArticle() {
       <header className="nw-mast">
         <div className="nw-wrap nw-mast-row">
           <Link href="/news" className="nw-back"><Back /><span>All articles</span></Link>
-          <span className="nw-logo" style={{ fontSize: 26 }}>Arise <span>News</span></span>
+          <span className="nw-logo" style={{ fontSize: 26 }}>Arise <span>Originals</span></span>
           <div className="nw-tools" role="group" aria-label="Text size">
             <button type="button" onClick={() => setSize(SIZES[step - 1])} disabled={step <= 0} aria-label="Smaller text">A−</button>
             <button type="button" onClick={() => setSize(SIZES[step + 1])} disabled={step >= SIZES.length - 1} aria-label="Bigger text">A+</button>
@@ -79,7 +79,7 @@ export default function NewsArticle() {
           <span className="nw-kicker">{article.kind === "news" && <span className="nw-section">World News</span>}<span className="nw-section">{article.section}</span></span>
           <h1>{article.title}</h1>
           <p className="nw-dek">{article.dek}</p>
-          <div className="nw-byline"><span>By <b>Arise News</b></span><span>{article.kind === "news" ? "Published " : ""}{formatNewsDate(article.publishedOn)}</span><span>{newsReadMinutes(article)} min read</span><span>{article.grades}</span></div>
+          <div className="nw-byline"><span>By <b>Arise Originals</b></span><span>{article.kind === "news" ? "Published " : ""}{formatNewsDate(article.publishedOn)}</span><span>{newsReadMinutes(article)} min read</span><span>{article.grades}</span></div>
         </div>
 
         <div className="nw-layout">
