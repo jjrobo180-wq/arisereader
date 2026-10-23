@@ -12,7 +12,7 @@
 // questions that can be answered from the text.
 
 import { QUICK_READS } from "./quickReads";
-import { READ_PHOTOS, READ_PHOTO_FALLBACKS } from "./readPhotos";
+import { READ_PHOTOS, READ_PHOTO_FALLBACKS, READ_PHOTO_FILES } from "./readPhotos";
 
 export type NewsSection = "Science" | "Animals" | "Space" | "World" | "History" | "Nature" | "Health" | "Sports" | "Soccer" | "Biography" | "Speeches" | "Fun Facts" | "Arts" | "Reading";
 
@@ -863,6 +863,9 @@ const ISSUE_ARTICLES: NewsArticle[] = [
 // Every story has a real photo: the ones that had none get theirs from shared/readPhotos.ts, and
 // stories whose page often has only a logo get more places to look.
 export const NEWS_ARTICLES: NewsArticle[] = [...ISSUE_ARTICLES, ...QUICK_READS].map((a) => {
+  // An exact photo file wins: it loads straight from Wikimedia Commons, like the biographies.
+  const file = !a.photo?.file ? READ_PHOTO_FILES[a.slug] : undefined;
+  if (file) return { ...a, photo: { ...(READ_PHOTOS[a.slug] || {}), ...(a.photo || {}), alt: a.photo?.alt || READ_PHOTOS[a.slug]?.alt || a.title, file } };
   if (!a.photo?.file && !a.photo?.wikipediaTitle && READ_PHOTOS[a.slug]) return { ...a, photo: { ...READ_PHOTOS[a.slug] } };
   if (a.photo?.wikipediaTitle && READ_PHOTO_FALLBACKS[a.slug]) return { ...a, photo: { ...a.photo, ...READ_PHOTO_FALLBACKS[a.slug] } };
   return a;
