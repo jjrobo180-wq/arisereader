@@ -2064,7 +2064,7 @@ export default function Library() {
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {searchReads.slice(0, 12).map((a) => {
                         const id = newsBookIds[a.slug];
-                        return <QuickReadRow key={a.slug} a={a} result={id ? results.find(r => r.bookId === id) : undefined} onOpen={(slug) => navigate(`/news/${slug}`)} />;
+                        return <QuickReadRow key={a.slug} a={a} result={id ? results.find(r => r.bookId === id) : undefined} takers={quizTakers && id ? quizTakers[id] || 0 : undefined} onOpen={(slug) => navigate(`/news/${slug}`)} />;
                       })}
                     </div>
                   </div>
@@ -2105,6 +2105,7 @@ export default function Library() {
             {(!showEyeGaze || isSampleStudent || user?.isAdmin) && (
               <QuickReadsShelf
                 newsBookIds={newsBookIds}
+                quizTakers={quizTakers}
                 results={results}
                 onOpen={(slug) => navigate(`/news/${slug}`)}
                 onSeeAll={() => navigate("/reads#quick")}

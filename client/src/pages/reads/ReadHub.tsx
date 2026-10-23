@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { API_BASE } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
+import { quizTakersText } from "@/components/QuizTakersTag";
 import { READABLE_BOOKS, type ReadableBook } from "@shared/readsCatalog";
 import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, newsReadMinutes, quickCategoryOf } from "@shared/ariseNews";
 import { NewsArt, sectionStyle } from "../news/useNews";
@@ -24,6 +26,16 @@ export default function ReadHub() {
   const quick = useMemo(() => [...NEWS_ARTICLES].sort((a, b) => b.publishedOn.localeCompare(a.publishedOn)), []);
   const quickCats = QUICK_CATEGORIES.filter((c) => quick.some((a) => c.sections.includes(a.section)));
   const quickShown = cat === "All" ? quick : quick.filter((a) => quickCategoryOf(a).label === cat);
+  // How many readers took each quick read's quiz: each read's quiz id, and the counts by quiz id.
+  const { token } = useAuth();
+  const [newsIds, setNewsIds] = useState<Record<string, number>>({});
+  const [takers, setTakers] = useState<Record<number, number> | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    const headers = { Authorization: `Bearer ${token}` };
+    void fetch(`${API_BASE}/api/news/books`, { headers }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.books) setNewsIds(d.books); }).catch(() => {});
+    void fetch(`${API_BASE}/api/books/quiz-takers`, { headers }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && typeof d === "object") setTakers(d); }).catch(() => {});
+  }, [token]);
   // the library's "See all quick reads" button lands on /reads#quick
   useEffect(() => { if (window.location.hash === "#quick") setTimeout(() => document.getElementById("quick")?.scrollIntoView({ block: "start" }), 50); }, []);
   const readPoems = useMemo(() => new Set(poemsRead(user?.id)), [user?.id]);
@@ -85,6 +97,7 @@ export default function ReadHub() {
                   <span className="nw-kicker"><span className="nw-section">{quickCategoryOf(a).emoji} {quickCategoryOf(a).label}</span></span>
                   <h3>{a.title}</h3>
                   <div className="nw-meta"><span>⏱ {newsReadMinutes(a)} min read</span><span className="nw-pts">{NEWS_POINTS} pts</span></div>
+                  {takers && newsIds[a.slug] ? <div className="nw-meta"><span><span aria-hidden="true">👥 </span>{quizTakersText(takers[newsIds[a.slug]] || 0, !!result(newsIds[a.slug]))}</span></div> : null}
                 </div>
               </Link>
             ))}

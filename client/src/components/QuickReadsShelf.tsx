@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { BookOpen, Trophy, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import QuizTakersTag, { quizTakersText } from "@/components/QuizTakersTag";
 import { NEWS_ARTICLES, NEWS_POINTS, QUICK_CATEGORIES, SECTION_COLORS, newsCoverSrc, newsReadMinutes, quickCategoryOf, type NewsArticle } from "@shared/ariseNews";
 
 type Result = { bookId: number; score: number; total: number };
@@ -16,7 +17,7 @@ export function matchQuickReads(query: string): NewsArticle[] {
 }
 
 /** One quick read as a slim row: picture, title, kind and minutes. */
-export function QuickReadRow({ a, result, onOpen }: { a: NewsArticle; result?: Result; onOpen: (slug: string) => void }) {
+export function QuickReadRow({ a, result, onOpen, takers }: { a: NewsArticle; result?: Result; onOpen: (slug: string) => void; /** Students who took its quiz. */ takers?: number }) {
   const col = SECTION_COLORS[a.section];
   const c = quickCategoryOf(a);
   return (
@@ -30,6 +31,7 @@ export function QuickReadRow({ a, result, onOpen }: { a: NewsArticle; result?: R
           <span className="flex-shrink-0 text-[#5d5a7a]">{newsReadMinutes(a)} min</span>
           {result && <span className="flex-shrink-0 text-emerald-700">✓ {result.score}/{result.total}</span>}
         </span>
+        {takers !== undefined && <span className="mt-0.5 block truncate text-[11px] font-semibold text-[#5d5a7a]"><span aria-hidden="true">👥 </span>{quizTakersText(takers, !!result)}</span>}
       </span>
     </button>
   );
@@ -39,8 +41,10 @@ export function QuickReadRow({ a, result, onOpen }: { a: NewsArticle; result?: R
  * 5-Minute Reads: the library's shelf of short pieces (sports, biographies, famous speeches,
  * fun facts and more), in the same card format as the other quiz shelves.
  */
-export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll }: {
+export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll, quizTakers }: {
   newsBookIds: Record<string, number>;
+  /** Students who took each quiz, by book id (null while loading). */
+  quizTakers?: Record<number, number> | null;
   results: Result[];
   onOpen: (slug: string) => void;
   onSeeAll: () => void;
@@ -86,6 +90,7 @@ export default function QuickReadsShelf({ newsBookIds, results, onOpen, onSeeAll
               style={{ scrollSnapAlign: "start" }} onClick={() => onOpen(a.slug)}>
               <div className="relative aspect-[2/3] overflow-hidden bg-muted">
                 <img src={newsCoverSrc(a)} alt={a.photo ? a.photo.alt : `Cover of ${a.title}`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" style={a.photo?.focus ? { objectPosition: a.photo.focus } : undefined} loading="lazy" />
+                <QuizTakersTag count={quizTakers && newsBookIds[a.slug] ? quizTakers[newsBookIds[a.slug]] || 0 : undefined} mine={!!r} />
                 {r && <div className="absolute right-2 top-2 rounded-full bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-md">✓ Done</div>}
               </div>
               <div className="p-3">
