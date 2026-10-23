@@ -17,6 +17,8 @@ export type BookCandidate = {
   bookId?: number;
   /** How popular it is (Open Library editions), used to break ties. */
   editions?: number;
+  /** Open Library subjects (used to spot adult books). */
+  subjects?: string[];
   score?: number;
 };
 
@@ -37,6 +39,8 @@ export type QuizVerification = {
   questionCount: number;
   /** The AI said it couldn't find this book or wasn't sure about its details. */
   aiUnsure?: boolean;
+  /** Whether the book is right for students (shared/bookContent.ts). */
+  content?: { level: "adult" | "mature" | "ok"; reasons: string[] };
   checkedAt: string;
 };
 
@@ -155,6 +159,8 @@ export function rankCandidates(typedTitle: string, typedAuthor: string, candidat
 export function quizRiskFlags(v: QuizVerification | null | undefined): { level: "high" | "medium"; text: string }[] {
   if (!v) return [{ level: "medium", text: "This quiz was made before book checks existed. Check the questions against the book before approving." }];
   const out: { level: "high" | "medium"; text: string }[] = [];
+  if (v.content?.level === "adult") out.push({ level: "high", text: `Adult book. We recommend not approving this quiz. ${v.content.reasons.join(" ")}`.trim() });
+  else if (v.content?.level === "mature") out.push({ level: "medium", text: `May have mature content. Check the book before approving. ${v.content.reasons.join(" ")}`.trim() });
   if (v.match === "none") out.push({ level: "high", text: `"${v.typed.title}" didn't match any real book. The quiz may be about the wrong book or made up.` });
   if (v.match === "kept") out.push({ level: "high", text: `The student kept "${v.typed.title}" instead of picking a real book${v.suggestions?.[0] ? ` (closest: "${v.suggestions[0].title}" by ${v.suggestions[0].author})` : ""}.` });
   if (v.aiUnsure) out.push({ level: "high", text: "The AI said it couldn't find details about this book. Its questions may be guessed." });

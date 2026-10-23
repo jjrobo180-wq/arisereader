@@ -60,6 +60,11 @@ function cookieToken() {
     return value ? JSON.parse(atob(value)).token as string : null;
   } catch { return null; }
 }
+/** Whole seconds until a question's deadline, using the gap between this device's clock and the server's. */
+export function secondsLeft(deadline: string, offset: number) {
+  return Math.max(0, Math.ceil((Date.parse(deadline) - (Date.now() - offset)) / 1000));
+}
+
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join("") || "?";
 }
@@ -121,11 +126,15 @@ export default function LiveQuiz() {
 
   async function loadRoom(roomId: string) {
     const next: Room = await api(`/api/live-sessions/${roomId}`);
+    const nextOffset = Date.now() - Date.parse(next.serverTime);
     setRoom(next);
-    setOffset(Date.now() - Date.parse(next.serverTime));
+    setOffset(nextOffset);
     if (lastQuestion.current !== next.currentQuestion) {
       lastQuestion.current = next.currentQuestion;
       setHiddenChoices([]);
+      // A new question starts with its own full timer. Without this, the 0 left over from the last
+      // question made the teacher's screen reveal the new question at once, so it looked skipped.
+      setTimeLeft(next.deadline ? secondsLeft(next.deadline, nextOffset) : 30);
     }
   }
 
@@ -148,17 +157,30 @@ export default function LiveQuiz() {
 
   useEffect(() => {
     if (!room || room.status !== "question" || !room.deadline) return;
-    const tick = () => setTimeLeft(Math.max(0, Math.ceil((Date.parse(room.deadline!) - (Date.now() - offset)) / 1000)));
+    const tick = () => setTimeLeft(secondsLeft(room.deadline!, offset));
     tick();
     const timer = window.setInterval(tick, 150);
     return () => clearInterval(timer);
   }, [room?.status, room?.deadline, offset]);
 
+  // When the timer runs out, the teacher's screen reveals the answer. This works from the question's
+  // own deadline (never a timer value left over from the last question), and tells the server which
+  // question it means, so it can't reveal a different one.
   useEffect(() => {
-    if (!isTeacher || !room || room.status !== "question" || timeLeft > 0 || lastAuto.current === room.currentQuestion) return;
-    lastAuto.current = room.currentQuestion;
-    void advance("reveal");
-  }, [isTeacher, room?.status, room?.currentQuestion, timeLeft]);
+    if (!isTeacher || !id || !room || room.status !== "question" || !room.deadline) return;
+    const question = room.currentQuestion;
+    if (lastAuto.current === question) return;
+    const wait = Math.max(0, Date.parse(room.deadline) - (Date.now() - offset)) + 300;
+    const timer = window.setTimeout(async () => {
+      if (lastAuto.current === question) return;
+      lastAuto.current = question;
+      try {
+        await api(`/api/live-sessions/${id}/advance`, { method: "POST", body: JSON.stringify({ action: "reveal", question }) });
+        await loadRoom(id);
+      } catch { lastAuto.current = -1; }
+    }, wait);
+    return () => window.clearTimeout(timer);
+  }, [isTeacher, id, room?.status, room?.currentQuestion, room?.deadline, offset]);
 
   async function run(key: string, operation: () => Promise<void>) {
     if (busy) return;
@@ -226,8 +248,10 @@ export default function LiveQuiz() {
 
   async function advance(action: "start" | "reveal" | "next") {
     if (!id) return;
+    // Say which question the button was showing: a double click or a slow screen can't move two rounds.
+    const question = action === "start" ? undefined : room?.currentQuestion;
     await run(`advance-${action}`, async () => {
-      await api(`/api/live-sessions/${id}/advance`, { method: "POST", body: JSON.stringify({ action }) });
+      await api(`/api/live-sessions/${id}/advance`, { method: "POST", body: JSON.stringify({ action, question }) });
       await loadRoom(id);
     });
   }

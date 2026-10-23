@@ -15,7 +15,7 @@ export type LookupDeps = {
   aiGuess?: (title: string, author: string) => Promise<{ title: string; author: string } | null>;
 };
 
-const OL_FIELDS = "key,title,subtitle,author_name,cover_i,first_publish_year,edition_count";
+const OL_FIELDS = "key,title,subtitle,author_name,cover_i,first_publish_year,edition_count,subject";
 const cover = (id?: number | null) => (id ? `https://covers.openlibrary.org/b/id/${id}-L.jpg` : null);
 
 async function openLibrary(f: typeof fetch, params: Record<string, string>, ms = 7000): Promise<(BookCandidate & { subtitle?: string | null })[]> {
@@ -29,6 +29,8 @@ async function openLibrary(f: typeof fetch, params: Record<string, string>, ms =
       .map((d: any) => ({
         title: String(d.title), subtitle: d.subtitle ? String(d.subtitle) : null, author: String(d.author_name[0]),
         source: "openlibrary" as const, coverUrl: cover(d.cover_i), year: d.first_publish_year || null, key: d.key, editions: Number(d.edition_count) || 0,
+        // A few subjects, so the approval screen can warn about adult books (shared/bookContent.ts).
+        subjects: Array.isArray(d.subject) ? d.subject.slice(0, 40).map((x: unknown) => String(x).slice(0, 60)) : undefined,
       }));
   } catch { return []; }
 }

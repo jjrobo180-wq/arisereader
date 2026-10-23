@@ -479,11 +479,26 @@ export function registerLiveQuizRoutes(app: Express, auth: any) {
     const action = String(req.body?.action || "");
     if (!["start", "reveal", "next"].includes(action))
       return res.status(400).json({ message: "Choose a valid live quiz action." });
-    const { data, error: issue } = await db().rpc("live_advance_action", {
+    // The question the teacher's screen was showing. The database only reveals or moves on from that
+    // question, so a double click or a stale screen can never skip one.
+    const question = Number.isInteger(req.body?.question) ? Number(req.body.question) : null;
+    const client = db();
+    let { data, error: issue } = await client.rpc("live_advance_action", {
       p_session: req.params.id,
       p_teacher: req.user.id,
       p_action: action,
+      p_question: question,
     });
+    // Until migrations/live_advance_expected_question.sql is applied, the database function has no
+    // p_question. Check the question here instead, then use the old function.
+    if (issue && (issue.code === "PGRST202" || /p_question|could not find the function/i.test(issue.message || ""))) {
+      if (question !== null && action !== "start") {
+        const { data: now } = await client.from("live_sessions").select("status,current_question,teacher_id").eq("id", req.params.id).maybeSingle();
+        if (now && now.teacher_id === req.user.id && now.current_question !== question)
+          return res.json({ status: now.status, currentQuestion: now.current_question, changed: false });
+      }
+      ({ data, error: issue } = await client.rpc("live_advance_action", { p_session: req.params.id, p_teacher: req.user.id, p_action: action }));
+    }
     if (issue) return error(res, issue);
     res.json(data);
   });
