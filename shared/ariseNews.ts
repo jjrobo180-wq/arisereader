@@ -48,17 +48,17 @@ export type NewsArticle = {
    * its page there names the photographer and license, and the story links to it.
    * `focus` is a CSS object-position so faces stay in frame when the photo is cropped.
    */
-  photo?: { file: string; alt: string; focus?: string; credit?: string; license?: string };
+  photo?: { file?: string; wikipediaTitle?: string; alt: string; focus?: string; credit?: string; license?: string };
 };
 
 const COMMONS = "https://commons.wikimedia.org/wiki/";
 const commonsName = (file: string) => encodeURIComponent(file.replace(/ /g, "_"));
 /** A sized copy of a story's photo (Wikimedia serves the right size), or null when it has none. */
-export const newsPhotoUrl = (a: NewsArticle, width = 960) => (a.photo ? `${COMMONS}Special:FilePath/${commonsName(a.photo.file)}?width=${width}` : null);
+export const newsPhotoUrl = (a: NewsArticle, width = 960) => (a.photo?.file ? `${COMMONS}Special:FilePath/${commonsName(a.photo.file)}?width=${width}` : a.photo?.wikipediaTitle ? `/api/news/cover/${a.slug}` : null);
 /** The photo's page on Wikimedia Commons, with the photographer and license. */
-export const newsPhotoPage = (a: NewsArticle) => (a.photo ? `${COMMONS}File:${commonsName(a.photo.file)}` : null);
+export const newsPhotoPage = (a: NewsArticle) => (a.photo?.file ? `${COMMONS}File:${commonsName(a.photo.file)}` : a.photo?.wikipediaTitle ? `https://en.wikipedia.org/wiki/${encodeURIComponent(a.photo.wikipediaTitle.replace(/ /g, "_"))}` : null);
 /** The library cover: the real photo when a story has one, otherwise its drawn cover. */
-export const newsCoverSrc = (a: NewsArticle) => newsPhotoUrl(a, 500) ?? `/covers/news/${a.slug}.svg`;
+export const newsCoverSrc = (a: NewsArticle) => newsPhotoUrl(a, 500) ?? `/api/news/cover/${a.slug}`;
 
 export const NEWS_AUTHOR = "Arise Originals";
 /** Every author name these quizzes have had (they were "Arise News" before being renamed). */
