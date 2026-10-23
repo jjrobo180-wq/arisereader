@@ -1027,7 +1027,14 @@ export class DatabaseStorage implements IStorage {
       })
       .select()
       .single();
-    if (bookError) throw new Error(bookError.message);
+    if (bookError) {
+      // The database keeps one row per book (migrations/one_copy_per_book_20261023.sql): use that one.
+      if (/duplicate key|books_one_copy_per_book|23505/i.test(`${bookError.message} ${(bookError as any).code || ""}`)) {
+        const again = await this.findSameBook(book.title, book.author);
+        if (again) { clearCache('allBooks'); return mapBook(again); }
+      }
+      throw new Error(bookError.message);
+    }
 
     const questionRows = quizQuestions.map((q, i) => ({
       book_id: created.id,
