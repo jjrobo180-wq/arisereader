@@ -3346,8 +3346,9 @@ export async function registerRoutes(
         effectivePoints,
         verifiedProctor
       );
-    } catch (error) {
+    } catch (error: any) {
       if (integritySession) await noProctor.release(integritySession).catch(() => {});
+      if (error?.code === "ALREADY_TAKEN") return res.status(403).json({ message: "You have already taken this quiz" });
       throw error;
     }
     let integrity: { flag: string; autoSubmitted: boolean } | undefined;
