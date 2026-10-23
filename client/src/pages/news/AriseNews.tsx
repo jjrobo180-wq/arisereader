@@ -36,7 +36,7 @@ export default function AriseNews() {
             <span>{today}</span>
             <span className="nw-topline-issue">Issue {NEWS_ISSUE.number} · {NEWS_ISSUE.name}</span>
           </div>
-          <h1 className="nw-wordmark">Arise <span>News</span></h1>
+          <h1 className="nw-wordmark">Arise <span>Originals</span></h1>
           <p className="nw-tagline">Read an article. Pass the quiz. Earn {NEWS_POINTS} points.</p>
           <div className="nw-progress-strip" aria-label={`${done} of ${NEWS_ARTICLES.length} quizzes done`}>
             <span><b>{NEWS_ARTICLES.length}</b> articles</span>
@@ -112,7 +112,7 @@ export default function AriseNews() {
           ) : <p className="nw-empty">No articles in this topic yet.</p>}
         </section>
       </div>
-      <footer className="nw-foot"><div className="nw-wrap">Arise News articles are written for readers on Arise. News stories list their sources at the end.</div></footer>
+      <footer className="nw-foot"><div className="nw-wrap">Arise Originals are written for readers on Arise. News stories list their sources at the end.</div></footer>
     </main>
   );
 }

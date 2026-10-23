@@ -118,3 +118,9 @@ test("a story taken out of the issue leaves the library once", async () => {
   await syncNewsBooks(store, NEWS_ARTICLES);
   assert.equal(retired.length, 1);
 });
+
+test("Arise News is now Arise Originals, and quizzes saved under the old name still count", async () => {
+  const { NEWS_AUTHOR, isNewsAuthor } = await import("../shared/ariseNews");
+  assert.equal(NEWS_AUTHOR, "Arise Originals");
+  assert.ok(isNewsAuthor("Arise Originals") && isNewsAuthor("Arise News") && !isNewsAuthor("iArise") && !isNewsAuthor(null));
+});

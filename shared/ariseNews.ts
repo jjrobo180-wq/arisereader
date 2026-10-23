@@ -60,7 +60,11 @@ export const newsPhotoPage = (a: NewsArticle) => (a.photo ? `${COMMONS}File:${co
 /** The library cover: the real photo when a story has one, otherwise its drawn cover. */
 export const newsCoverSrc = (a: NewsArticle) => newsPhotoUrl(a, 500) ?? `/covers/news/${a.slug}.svg`;
 
-export const NEWS_AUTHOR = "Arise News";
+export const NEWS_AUTHOR = "Arise Originals";
+/** Every author name these quizzes have had (they were "Arise News" before being renamed). */
+export const NEWS_AUTHORS: readonly string[] = [NEWS_AUTHOR, "Arise News"];
+/** Is this library quiz one of the Arise Originals stories (under either name)? */
+export const isNewsAuthor = (author: string | null | undefined) => !!author && NEWS_AUTHORS.includes(author);
 export const NEWS_POINTS = 5;
 export const NEWS_ISSUE = { number: 2, name: "October 2026", publishedOn: "2026-10-04" };
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
-import { NEWS_AUTHOR, newsByTitle } from "@shared/ariseNews";
+import { isNewsAuthor, newsByTitle } from "@shared/ariseNews";
 import { readableBook } from "@shared/readsCatalog";
 import { useLocation, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ export default function ReadBook() {
         }
         const data = await res.json();
         // Arise News stories are read on their own page
-        const story = data?.author === NEWS_AUTHOR ? newsByTitle(data?.title) : null;
+        const story = isNewsAuthor(data?.author) ? newsByTitle(data?.title) : null;
         if (story) { navigate(`/news/${story.slug}`, { replace: true }); return; }
         setBook(data);
       } catch (err) {

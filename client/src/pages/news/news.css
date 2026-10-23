@@ -49,7 +49,7 @@
 /* masthead: date line, big wordmark, tagline */
 .nw-topline { display: flex; align-items: center; gap: 16px; padding: 14px 0 0; font-size: 14px; font-weight: 600; color: #c9c4ef; }
 .nw-topline-issue { margin-left: auto; }
-.nw-wordmark { margin: 18px 0 4px; text-align: center; font-weight: 800; font-size: clamp(54px, 10vw, 128px); line-height: .9; letter-spacing: -0.05em; font-variation-settings: "wdth" 85; }
+.nw-wordmark { margin: 18px 0 4px; text-align: center; font-weight: 800; font-size: clamp(40px, 8vw, 112px); overflow-wrap: anywhere; line-height: .9; letter-spacing: -0.05em; font-variation-settings: "wdth" 85; }
 .nw-wordmark span { color: #a99bff; }
 .nw-tagline { margin: 10px 0 18px; text-align: center; font-family: var(--body); font-style: italic; font-size: clamp(16px, 2vw, 19px); color: #d9d5f5; }
 .nw-progress-strip b { color: #fff; font-weight: 800; }
