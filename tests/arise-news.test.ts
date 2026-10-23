@@ -83,7 +83,7 @@ test("news stories become 5-point library quizzes exactly once", async () => {
   for (const b of store.books) {
     assert.equal(b.pointsValue, 5);
     assert.equal(b.keepPoints, true); // the site's own articles keep their 5 points
-    assert.match(b.coverUrl, /^(\/api\/news\/cover\/[a-z0-9-]+|\/covers\/news\/[a-z0-9-]+\.svg|https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/.+)$/);
+    assert.match(b.coverUrl, /^(\/api\/news\/cover\/[a-z0-9-]+(\?v=\d+)?|\/covers\/news\/[a-z0-9-]+\.svg|https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/.+)$/);
     assert.equal(b.questions.length, 5);
   }
   assert.deepEqual(JSON.parse(store.settings.get(NEWS_BOOKS_KEY)!), map);
@@ -219,4 +219,17 @@ test("every 5-Minute Read has a real photo to show, never only a drawing", async
   const { NEWS_ARTICLES } = await import("../shared/ariseNews");
   const missing = NEWS_ARTICLES.filter((a) => !a.photo?.file && !a.photo?.wikipediaTitle).map((a) => a.slug);
   assert.deepEqual(missing, []);
+});
+
+test("the browser finds real photos for the Originals and swaps any drawn cover for them", async () => {
+  const { readFileSync } = await import("node:fs");
+  const lib = readFileSync(new URL("../client/src/lib/readPhotos.ts", import.meta.url), "utf8");
+  assert.match(lib, /pilicense: "free"/);
+  assert.match(readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8"), /installReadPhotos\(\);\ncreateRoot/);
+  const { newsCoverSrc, readPhotoFound, NEWS_ARTICLES } = await import("../shared/ariseNews");
+  const a = NEWS_ARTICLES.find((x) => x.slug === "octopus-genius")!;
+  assert.match(newsCoverSrc(a), /^\/api\/news\/cover\/octopus-genius\?v=\d+$/);
+  readPhotoFound["octopus-genius"] = "https://upload.wikimedia.org/x/Octopus.jpg";
+  assert.equal(newsCoverSrc(a), "https://upload.wikimedia.org/x/Octopus.jpg");
+  delete readPhotoFound["octopus-genius"];
 });

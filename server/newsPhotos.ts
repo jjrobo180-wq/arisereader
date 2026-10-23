@@ -119,7 +119,7 @@ export function registerNewsPhotoRoutes(app: Express) {
     }
     // No silently invented photos: an unmistakable original SVG fallback if a real,
     // reusable image could not be verified.
-    res.type("image/svg+xml").set("Cache-Control", "public, max-age=3600").send(newsCoverSvg(article));
+    res.type("image/svg+xml").set("Cache-Control", "no-store").send(newsCoverSvg(article));
   });
   app.get("/api/news/photo-credit/:slug", async (req, res) => {
     const article = NEWS_ARTICLES.find(a => a.slug === req.params.slug && !!a.photo?.wikipediaTitle);
