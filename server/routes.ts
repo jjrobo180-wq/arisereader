@@ -2889,6 +2889,34 @@ export async function registerRoutes(
     }
   });
 
+  // How many students have taken each book's quiz, for the "N readers took this quiz" note on
+  // every library cover: { [bookId]: distinct students }. Counted for 10 minutes at a time.
+  let quizTakers: { at: number; counts: Record<number, number> } | null = null;
+  app.get("/api/books/quiz-takers", authMiddleware, async (_req: any, res) => {
+    try {
+      if (!quizTakers || Date.now() - quizTakers.at > 10 * 60_000) {
+        const seen = new Map<number, Set<number>>();
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await supabase.from("attempts").select("book_id, user_id").gt("book_id", 0).order("id", { ascending: true }).range(from, from + 999);
+          if (error) throw new Error(error.message);
+          for (const r of data || []) {
+            const book = Number(r.book_id);
+            if (!seen.has(book)) seen.set(book, new Set());
+            seen.get(book)!.add(Number(r.user_id));
+          }
+          if (!data || data.length < 1000) break;
+        }
+        const counts: Record<number, number> = {};
+        for (const [book, users] of seen) counts[book] = users.size;
+        quizTakers = { at: Date.now(), counts };
+      }
+      res.set("Cache-Control", "private, max-age=300");
+      res.json(quizTakers.counts);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Could not count quiz takers." });
+    }
+  });
+
   app.get("/api/books", authMiddleware, async (req: any, res) => {
     const allBooks = await storage.getAllBooks();
     // Regular library only shows books with a quiz to take: worth points AND with questions.
