@@ -226,10 +226,7 @@ test("the browser finds real photos for the Originals and swaps any drawn cover 
   const lib = readFileSync(new URL("../client/src/lib/readPhotos.ts", import.meta.url), "utf8");
   assert.match(lib, /pilicense: "free"/);
   assert.match(readFileSync(new URL("../client/src/main.tsx", import.meta.url), "utf8"), /installReadPhotos\(\);\ncreateRoot/);
-  const { newsCoverSrc, readPhotoFound, NEWS_ARTICLES } = await import("../shared/ariseNews");
-  const a = NEWS_ARTICLES.find((x) => x.slug === "octopus-genius")!;
-  assert.match(newsCoverSrc(a), /^\/api\/news\/cover\/octopus-genius\?v=\d+$/);
-  readPhotoFound["octopus-genius"] = "https://upload.wikimedia.org/x/Octopus.jpg";
-  assert.equal(newsCoverSrc(a), "https://upload.wikimedia.org/x/Octopus.jpg");
-  delete readPhotoFound["octopus-genius"];
+  const { newsCoverSrc, NEWS_ARTICLES } = await import("../shared/ariseNews");
+  // Every story loads its own exact photo straight from Wikimedia Commons, like the biographies.
+  for (const a of NEWS_ARTICLES) assert.match(newsCoverSrc(a), /^https:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/.+\.(jpe?g|png)\?width=\d+$/i, a.slug);
 });
