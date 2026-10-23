@@ -22,3 +22,13 @@ test("the library shows the count on covers and the extra credit under section t
   const routes = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
   assert.ok(routes.indexOf('app.get("/api/books/quiz-takers"') < routes.indexOf('app.get("/api/books/:id"'), "registered before /api/books/:id");
 });
+
+test("5-Minute Reads show the count too (library shelf, search rows and the Read on Arise page)", () => {
+  const shelf = readFileSync(new URL("../client/src/components/QuickReadsShelf.tsx", import.meta.url), "utf8");
+  assert.ok(shelf.includes("<QuizTakersTag count={quizTakers && newsBookIds[a.slug]"), "on each shelf cover");
+  assert.ok(shelf.includes("{quizTakersText(takers, !!result)}"), "on each search row");
+  const hub = readFileSync(new URL("../client/src/pages/reads/ReadHub.tsx", import.meta.url), "utf8");
+  assert.ok(hub.includes("quizTakersText(takers[newsIds[a.slug]] || 0"), "on the Read on Arise page");
+  const lib = readFileSync(new URL("../client/src/pages/Library.tsx", import.meta.url), "utf8");
+  assert.ok(lib.includes("quizTakers={quizTakers}"), "the library hands the counts to the shelf");
+});
