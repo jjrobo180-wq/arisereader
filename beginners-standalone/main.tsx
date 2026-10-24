@@ -4,7 +4,8 @@ import {
   ArrowLeft, ArrowRight, Award, Bookmark, BookOpen, Check, CheckCircle2,
   ChevronDown, ChevronRight, Clock3, Compass, Flame, Gift, GraduationCap,
   Headphones, LayoutGrid, LockKeyhole, LogOut, Menu, Search, Settings2,
-  ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X, Play, Grid3X3, type LucideIcon
+  ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X, Play, Grid3X3,
+  Music2, Gamepad2, Clapperboard, Palette, Globe2, type LucideIcon
 } from "lucide-react";
 import { BEGINNER_LESSONS, type BeginnerLesson } from "./lessons";
 import SwipeFeed from "./SwipeFeed";
@@ -59,13 +60,15 @@ function say(text:string) {
 }
 function stopSpeech(){if("speechSynthesis" in window)window.speechSynthesis.cancel()}
 function displayName(name:string){return name.trim().replace(/\s+/g," ").slice(0,32)}
+const COVER_ICONS:Record<string,LucideIcon>={Sports:Trophy,Music:Music2,Creators:Clapperboard,Gaming:Gamepad2,Style:Palette,Culture:Globe2};
 function LessonCover({lesson,children,className=""}:{lesson:BeginnerLesson;children?:React.ReactNode;className?:string}) {
   const [failed,setFailed]=useState(false);
   useEffect(()=>setFailed(false),[lesson.id]);
+  const PosterIcon=COVER_ICONS[lesson.category]||BookOpen;
   return <div className={"lesson-cover "+className} style={{background:"radial-gradient(ellipse at 45% 25%,"+lesson.accent+" 0%,#322447 52%,#171323 100%)"}}>
     {!!lesson.imageFile&&!failed&&<img src={COVER_URL(lesson.imageFile)} alt={lesson.subject} loading="lazy" onError={()=>setFailed(true)}/>}
     <div className="cover-shade"/>
-    {(!lesson.imageFile||failed)&&<div className="cover-fallback" aria-hidden="true"><BookOpen size={56}/></div>}
+    {(!lesson.imageFile||failed)&&<div className="cover-editorial" aria-hidden="true"><div className="cover-editorial-background"/><PosterIcon className="cover-editorial-icon" size={82}/><span className="cover-editorial-label">{lesson.subject}</span><span className="cover-editorial-line"/></div>}
     {children}
   </div>
 }
