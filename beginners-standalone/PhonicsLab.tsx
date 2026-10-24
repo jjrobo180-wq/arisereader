@@ -57,7 +57,9 @@ export default function PhonicsLab({activity,onComplete,onExit}:Props){
     // Do not pretend that TTS pronounces isolated consonant phonemes accurately.
     // A spoken example word is a more honest, helpful approximation.
     const cue=soundHint(part,activity.unit);
-    playWord(cue.replace(/\/([^/]+)\//g,"$1 sound"));
+    const example=cue.split("as in ")[1];
+    // Whole example words are modeled, not misleading synthesized isolated consonants.
+    playWord(example?example.replace(/\s*\(.*/, "").trim():word.word);
   }
   function addTile(id:string){
     if(correct||chosen.includes(id)||filledCount>=word.parts.length)return;
@@ -111,7 +113,7 @@ export default function PhonicsLab({activity,onComplete,onExit}:Props){
       </div>
     </div>
     {phase==="teach"?<div className="phonics-teach">
-      <div className="phonics-hero-mark">a<span>+</span>b</div>
+      <div className="phonics-hero-mark">{words[0].parts[0]}<span>+</span>{words[0].parts[1]}</div>
       <h1>{activity.title}</h1>
       <p className="phonics-objective">{activity.objective}</p>
       <div className="phonics-model">
