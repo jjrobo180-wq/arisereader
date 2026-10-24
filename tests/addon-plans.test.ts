@@ -1,6 +1,6 @@
 // Add-ons: the family Learning Bundle (Arise History, Math and Social), a teacher's Class plan
 // (which now includes Math, History and Connect/Social together — there is no per-app class
-// add-on to buy any more), A.R.I.S.E. To-Do, and refunds when a child's teacher's Class plan
+// add-on to buy any more), Arise To Duo, and refunds when a child's teacher's Class plan
 // takes over from a family's plan. No part of the site has a free trial — everything needs a
 // plan from day one.
 // Run with: npx tsx --test tests/addon-plans.test.ts
@@ -120,7 +120,7 @@ test("nobody gets Math, History or Social for free — no trial, no card on file
   }
   const view = await t.call("GET", "/api/addons", 100);
   assert.equal(view.body.apps.math.via, null);
-  assert.equal(view.body.todo.via, "free", "A.R.I.S.E. To-Do is free for a parent regardless");
+  assert.equal(view.body.todo.via, "free", "Arise To Duo is free for a parent regardless");
   const later = setup({ clock: AFTER, enforced: true });
   for (const id of [52, 100, 95]) assert.equal(await later.plans.appAccess(USERS[id], "math"), false, `user ${id}, no plan`);
   assert.equal((await later.plans.todoStatus(USERS[100])).access, true, "To-Do stays free for a parent");
@@ -136,7 +136,7 @@ test("before plan rules are enforced, everyone passes through — including a te
   }
 });
 
-test("parents: $10 a month covers all three apps for the whole family; A.R.I.S.E. To-Do is free, no checkout", async () => {
+test("parents: $10 a month covers all three apps for the whole family; Arise To Duo is free, no checkout", async () => {
   const t = setup({ clock: AFTER, enforced: true });
   // Jo Park (100) is Robin's (95) parent, and Robin's teacher (Mx. New, 52) isn't grandfathered
   // and has no Class plan — a genuinely uncovered family, so buying the bundle actually goes
@@ -157,7 +157,7 @@ test("parents: $10 a month covers all three apps for the whole family; A.R.I.S.E
   const blocked = await t.call("POST", "/api/billing/addon-checkout", 70, { product: "bundle" });
   assert.equal(blocked.status, 409, "Dana's kids are already covered by their classes");
   assert.equal((await t.call("POST", "/api/billing/addon-checkout", 100, { product: "math" })).status, 400, "families buy the bundle, not one app");
-  // A.R.I.S.E. To-Do is free for every parent — there's no checkout for it any more.
+  // Arise To Duo is free for every parent — there's no checkout for it any more.
   const todo = await t.call("POST", "/api/billing/addon-checkout", 100, { product: "todo" });
   assert.equal(todo.status, 409);
   assert.match(todo.body.message, /free/i);
@@ -184,7 +184,7 @@ test("a teacher's Class plan includes Math, History and Connect for their whole 
   assert.equal((await t.call("POST", "/api/billing/addon-checkout", 50, { product: "bundle" })).status, 400, "no all-three class plan any more");
   assert.equal((await t.call("POST", "/api/billing/addon-checkout", 50, { product: "todo" })).status, 409, "To-Do is part of Teacher Hub");
   assert.equal((await t.call("POST", "/api/billing/addon-checkout", 71, { product: "math" })).status, 403, "students can't pay");
-  // A.R.I.S.E. To-Do (Arise WorkHub/LifeHub) is unconditionally free for every teacher, via
+  // Arise To Duo (Arise WorkHub/LifeHub) is unconditionally free for every teacher, via
   // "free" — not tied to the Class plan or any grant.
   const early = setup({ clock: DURING, enforced: true });
   assert.equal((await early.plans.todoStatus(USERS[50])).via, "free");

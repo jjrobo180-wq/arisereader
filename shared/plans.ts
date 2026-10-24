@@ -367,7 +367,7 @@ export type HubAccess = { access: boolean; via: HubVia | null; seats: number | n
 export function hubAccessFor(person: PlanPerson | null | undefined, _facts: { now?: number; teacherGrant?: PlanGrant | null; schoolGrant?: PlanGrant | null }): HubAccess {
   if (!person) return { access: false, via: null, seats: null, endsAt: null };
   if (person.isAdmin || person.role === "admin") return { access: true, via: "admin", seats: null, endsAt: null };
-  // Both hubs are for anyone with an adult account: teachers, parents and personal A.R.I.S.E. To-Do accounts.
+  // Both hubs are for anyone with an adult account: teachers, parents and personal Arise To Duo accounts.
   if (person.role === "teacher" || person.role === "parent" || person.role === "todo") return { access: true, via: "free", seats: null, endsAt: null };
   return { access: false, via: null, seats: null, endsAt: null };
 }
@@ -468,7 +468,7 @@ export function todoAccessFor(person: PlanPerson | null | undefined, _facts: { n
 }
 
 /**
- * Is this person on A.R.I.S.E. To-Do Unlimited ($5 a month or $50 a year: every App Store app, and AI to the fair-use ceiling)?
+ * Is this person on Arise To Duo Unlimited ($5 a month or $50 a year: every App Store app, and AI to the fair-use ceiling)?
  * Admins and sample accounts always are; anyone else needs a live Unlimited plan, or a LifeHub
  * plan bought before Unlimited existed.
  */
@@ -539,7 +539,7 @@ export const BUNDLE_REQUIRED = "bundle_required";
 export const TODO_REQUIRED = "todo_required";
 
 export const HUB_REQUIRED = "hub_required";
-export const hubMessage = "A.R.I.S.E. To-Do is free for parents and teachers. Please sign in to continue.";
+export const hubMessage = "Arise To Duo is free for parents and teachers. Please sign in to continue.";
 
 /** The message shown when something needs Premium. */
 export const PREMIUM_REQUIRED = "premium_required";

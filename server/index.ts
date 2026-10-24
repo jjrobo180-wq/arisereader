@@ -42,7 +42,7 @@ app.get("/sitemap.xml", (req, res, next) => {
   ].join("\n"));
 });
 
-// The A.R.I.S.E. To-Do custom domain gets the educator marketing page at its root.
+// The Arise To Duo custom domain gets the educator marketing page at its root.
 // Keep the existing A.R.I.S.E. Reader homepage unchanged on its own hostname.
 // The HTML is a self-contained public page; static assets and API routes are unaffected.
 app.get("/", (req, res, next) => {

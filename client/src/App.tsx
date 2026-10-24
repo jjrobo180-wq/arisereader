@@ -365,9 +365,9 @@ function ReaderToTodoRedirect() {
     window.location.replace("https://arisetodo.com/app#/lifehub");
   }, []);
   return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f6f7fc] p-6 text-center text-slate-900">
-    <h1 className="text-2xl font-black">A.R.I.S.E. To-Do has its own home.</h1>
+    <h1 className="text-2xl font-black">Arise To Duo has its own home.</h1>
     <p className="max-w-md text-sm text-slate-600">Your LifeHub workspace is now available at arisetodo.com. You can sign in with your existing A.R.I.S.E. account.</p>
-    <a href="https://arisetodo.com/app#/lifehub" className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white">Open A.R.I.S.E. To-Do</a>
+    <a href="https://arisetodo.com/app#/lifehub" className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white">Open Arise To Duo</a>
   </main>;
 }
 
@@ -442,7 +442,7 @@ function TodoPublicHomeRedirect() {
   useEffect(() => {
     window.location.replace("/");
   }, []);
-  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href="/" className="font-semibold text-indigo-700 underline">Open the A.R.I.S.E. To-Do homepage</a></main>;
+  return <main className="min-h-screen bg-[#f9fafc] p-8 text-center"><a href="/" className="font-semibold text-indigo-700 underline">Open the Arise To Duo homepage</a></main>;
 }
 
 function AppRoutes() {

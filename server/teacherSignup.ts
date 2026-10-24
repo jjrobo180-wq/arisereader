@@ -218,12 +218,12 @@ const frame = (inner: string) => `
   `;
 const P = 'style="color: #ccc; font-size: 16px; line-height: 1.6;"';
 
-/** To someone signing up for A.R.I.S.E. To-Do: the code that proves the email is theirs. */
+/** To someone signing up for Arise To Duo: the code that proves the email is theirs. */
 export function todoEmailCodeEmail(displayName: string, code: string): string {
   return frame(`
       <h2 style="color: #FF5900; font-size: 22px;">Confirm your email</h2>
       <p ${P}>Hi ${esc(displayName)},</p>
-      <p ${P}>Type this code on the sign-up page to finish setting up your A.R.I.S.E. To-Do account:</p>
+      <p ${P}>Type this code on the sign-up page to finish setting up your Arise To Duo account:</p>
       <div style="background: #2a2a2a; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
         <p style="color: #FF5900; font-size: 34px; letter-spacing: 8px; margin: 0; font-weight: bold;">${esc(code)}</p>
       </div>

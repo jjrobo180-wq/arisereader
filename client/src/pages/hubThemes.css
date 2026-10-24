@@ -1,4 +1,4 @@
-/* A.R.I.S.E. To-Do & WorkHub: visual themes (see shared/appThemes.ts), chosen in Customize.
+/* Arise To Duo & WorkHub: visual themes (see shared/appThemes.ts), chosen in Customize.
    Same approach as todoNight.css / hubNight.css: each theme is a class on the hub root that
    remaps the same small set of surface/border/text/accent utility classes the page actually
    uses, so switching themes never touches any other page or hub. "classic" (the default) adds

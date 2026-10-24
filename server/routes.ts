@@ -1420,7 +1420,7 @@ export async function registerRoutes(
   ));
   registerAdminHandoffRoutes(app, authMiddleware);
   registerClientErrorRoutes(app);
-  // A.R.I.S.E. To-Do Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
+  // Arise To Duo Free and the $5 upgrade (shared/todoPlan.ts). These run before the routes they
   // guard. Free has no AI, and up to 3 App Store apps across WorkHub and LifeHub: a save that would
   // add a 4th is refused. Nothing is ever taken away, and an account already over keeps every app
   // it has; it just can't add more.
@@ -1477,13 +1477,13 @@ export async function registerRoutes(
       res.status(500).json({ message: "Your plan could not be loaded." });
     }
   });
-  // The personal A.R.I.S.E. To-Do sign-up confirms its email with the same 6-digit code the teacher
+  // The personal Arise To Duo sign-up confirms its email with the same 6-digit code the teacher
   // sign-up uses, so there is one mechanism to get right rather than two.
   registerAriseTodoRoutes(app, authMiddleware, {
     codes: teacherEmailCodes,
     turnOn: (userId) => storage.approveTeacherAccount(userId),
     sendCode: async ({ email, displayName }, code) => {
-      const result = await sendEmail(email, `${code} is your A.R.I.S.E. To-Do code`, todoEmailCodeEmail(displayName, code));
+      const result = await sendEmail(email, `${code} is your Arise To Duo code`, todoEmailCodeEmail(displayName, code));
       if (!result.sent) console.error("[arise-todo] could not email a code:", result.error);
       return result.sent;
     },
@@ -2714,7 +2714,7 @@ export async function registerRoutes(
         }
       }
 
-      // A personal A.R.I.S.E. To-Do account that hasn't confirmed its email yet.
+      // A personal Arise To Duo account that hasn't confirmed its email yet.
       if (user.role === 'todo' && !user.accountApproved) {
         let waitingForCode = false;
         try { waitingForCode = await teacherEmailCodes.waiting(user.id); } catch {}
@@ -13566,7 +13566,7 @@ Important:
     }
   });
 
-  // Teacher/parent: Dismiss the A.R.I.S.E. To-Do WorkHub tour (server-side, persists across devices)
+  // Teacher/parent: Dismiss the Arise To Duo WorkHub tour (server-side, persists across devices)
   app.post("/api/todo-tour/dismiss", authMiddleware, async (req: any, res) => {
     try {
       const raw = await storage.getSetting('todo_tour_v2_shown_users');

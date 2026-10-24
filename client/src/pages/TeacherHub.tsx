@@ -485,7 +485,7 @@ function TeacherHubPage() {
   }, [subMenu]);
   useEffect(() => { setLastInGroup((prev) => (prev[groupOf(tab).id] === tab ? prev : { ...prev, [groupOf(tab).id]: tab })); }, [tab]);
 
-  // WorkHub is for anyone with an adult account, personal A.R.I.S.E. To-Do accounts included —
+  // WorkHub is for anyone with an adult account, personal Arise To Duo accounts included —
   // which is what the server has always said (hubAccessFor in shared/plans.ts: "Both hubs are for
   // anyone with an adult account"). This gate disagreed and turned those people away at the door.
   // What stays paid is the A.R.I.S.E. programs inside, not the hub itself.
@@ -493,7 +493,7 @@ function TeacherHubPage() {
   // Opening the Hub and keeping it saved (see useHubWorkspace).
   const sync = useHubWorkspace({ enabled: canUseHub, token, userId: user?.id });
   const { workspace, setWorkspace: setWorkspaceRaw, loaded, loadError, needsPlan, seats, view, bytes } = sync;
-  // A.R.I.S.E. To-Do Free: up to 3 App Store apps across WorkHub and LifeHub (shared/todoPlan.ts). A
+  // Arise To Duo Free: up to 3 App Store apps across WorkHub and LifeHub (shared/todoPlan.ts). A
   // change that would add a 4th is held back here (so a save never fails over it), and the
   // upgrade box opens, at most once every ten minutes so a background refresh can't keep popping it.
   const todoPlan = useTodoPlan();
@@ -768,7 +768,7 @@ function TeacherHubPage() {
         <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
           <h1 className="mt-4 text-2xl font-bold text-slate-950">This one's for grown-ups</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Arise WorkHub comes with any A.R.I.S.E. To-Do account — yours, a parent's or a teacher's. Student accounts are for reading, so sign in with an adult account to open it.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Arise WorkHub comes with any Arise To Duo account — yours, a parent's or a teacher's. Student accounts are for reading, so sign in with an adult account to open it.</p>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <GhostButton onClick={() => { logout(); goToSignIn(); }}><LogOut className="h-4 w-4" /> Sign out</GhostButton>
             <a href="#/signin?mode=signup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Create an account</a>

@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do's Free plan and $5 Unlimited upgrade in the hubs (rules in shared/todoPlan.ts):
+// Arise To Duo's Free plan and $5 Unlimited upgrade in the hubs (rules in shared/todoPlan.ts):
 //  - useTodoPlan: Free or Unlimited, apps added in each hub, and this month's AI, from the server.
 //  - openUpgrade(...): opens the "Get Unlimited" box from anywhere (a 4th app, AI tapped on Free).
 //  - appsBlocked(...): would a change add an app past Free's 3? (The hubs ask before saving.)
@@ -129,7 +129,7 @@ export function UpgradeHost({ hub }: { hub: "work" | "life" }) {
   const title = plan?.unlimited ? "You're on Unlimited"
     : reason === "apps" ? `You're using your ${FREE_APPS} free apps`
     : reason === "ai" ? "AI is part of Unlimited"
-    : "Get A.R.I.S.E. To-Do Unlimited";
+    : "Get Arise To Duo Unlimited";
   const lead = plan?.unlimited ? "Every app in the App Store, and AI for everyday use, in WorkHub and LifeHub."
     : reason === "apps" ? `The free plan includes up to ${FREE_APPS} apps from the App Store. Remove one to make room, or go Unlimited for all 450+.`
     : reason === "ai" ? `Add with AI, the AI assistant and meal estimates come with Unlimited, along with every app in the App Store, for ${price} a month.`

@@ -644,7 +644,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
         const schoolPlan = schoolId ? ((await isFreeSchool(schoolId)) ? freeGrant(schoolId) : await readGrant("school", schoolId)) : null;
         body.school = schoolId ? { id: schoolId, name: await deps.schoolName(schoolId), students: await deps.countSchoolStudents(schoolId), plan: grantView(schoolPlan) } : null;
       }
-      // Personal A.R.I.S.E. To-Do accounts have WorkHub too, so their plan page must say so.
+      // Personal Arise To Duo accounts have WorkHub too, so their plan page must say so.
       if (user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) {
         const h = await hubAccess(user);
         const isTeacher = user.role === "teacher" && !user.isAdmin;
@@ -665,7 +665,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
   app.post("/api/billing/checkout", auth, async (req: any, res: any) => {
     try {
       if (isPlanKind(req.body?.kind) && isAddonKind(req.body.kind)) throw new Refused("Add-ons are bought with their own button.", 400);
-      if (isHubKind(req.body?.kind)) throw new Refused("A.R.I.S.E. To-Do Work and Life hubs are free. No payment is required.", 409);
+      if (isHubKind(req.body?.kind)) throw new Refused("Arise To Duo Work and Life hubs are free. No payment is required.", 409);
       const teacher = approvedTeacher(req);
       const kind: PlanKind = isPlanKind(req.body?.kind) ? req.body.kind : "teacher";
       const hub = isHubKind(kind);
@@ -970,7 +970,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       return "todo_family";
     }
     if (product === "unlimited" || product === "unlimited_year") {
-      if (user.role === "student" || (!user.role && !user.isAdmin)) throw new Refused("A.R.I.S.E. To-Do Unlimited is for adult accounts.", 403);
+      if (user.role === "student" || (!user.role && !user.isAdmin)) throw new Refused("Arise To Duo Unlimited is for adult accounts.", 403);
       return product === "unlimited_year" ? "todo_unlimited_year" : "todo_unlimited";
     }
     if (product === "bundle") {
@@ -1049,7 +1049,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
       const buyer: AnyUser = req.user;
       if (req.adminPreview || !buyer || buyer.isAdmin) throw new Refused("The admin account already has every add-on.", 409);
       if (buyer.accountApproved === false) throw new Refused("Your account is still waiting for approval.", 403);
-      if (req.body?.product === "todo") throw new Refused("A.R.I.S.E. To-Do is free. No checkout is needed.", 409);
+      if (req.body?.product === "todo") throw new Refused("Arise To Duo is free. No checkout is needed.", 409);
       const kind = productKind(buyer, req.body?.product);
       if (grantLive(await current(kind, buyer.id), now())) throw new Refused("You already have this add-on. Use Manage billing to change it.", 409);
       if (kind === "todo_unlimited" || kind === "todo_unlimited_year") {
@@ -1112,7 +1112,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
     } catch (e) { fail(res, e, "add-on portal"); }
   });
 
-  // ─── A.R.I.S.E. To-Do: Free and the $5 upgrade ────────────────────────────
+  // ─── Arise To Duo: Free and the $5 upgrade ────────────────────────────
   // Free: up to 3 App Store apps across both hubs, and no AI. Unlimited ($5 a month): every app,
   // and AI up to a fair-use ceiling. See shared/todoPlan.ts. (The app check is in routes.ts, which
   // can read the hubs.)
@@ -1172,7 +1172,7 @@ export function registerPlanRoutes(app: Express, auth: RequestHandler, admin: Re
           code: AI_LIMIT, limit: usage.limit, used: usage.used, unlimited: usage.unlimited,
           message: usage.unlimited
             ? `You've reached this month's fair-use limit of ${usage.limit} AI uses. It resets on the 1st.`
-            : `AI is part of A.R.I.S.E. To-Do Unlimited: $${UNLIMITED_MONTHLY_CENTS / 100} a month for every app and AI.`,
+            : `AI is part of Arise To Duo Unlimited: $${UNLIMITED_MONTHLY_CENTS / 100} a month for every app and AI.`,
         });
       }
       res.on("finish", () => { if (res.statusCode < 400) void countAiUse(user).catch(() => {}); });

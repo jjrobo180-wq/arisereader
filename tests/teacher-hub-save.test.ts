@@ -219,7 +219,7 @@ test("every reason a save can stop has plain words", () => {
   assert.match(blockMessage("seats_full", "Your plan covers 100 students."), /100 students/);
 });
 
-test("A.R.I.S.E. To-Do reads the teacher's own Hub calendar: repeats worked out, hidden and other people's events left out", async () => {
+test("Arise To Duo reads the teacher's own Hub calendar: repeats worked out, hidden and other people's events left out", async () => {
   const { call } = setup();
   await put(call, {
     events: [

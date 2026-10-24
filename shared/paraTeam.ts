@@ -1,7 +1,7 @@
 // Para Team: one shared space for a teacher (the lead) and the paras and 1:1s who work with them.
 //
 // The teacher makes a team and sends its invite link. Whoever opens it and signs in (a free
-// A.R.I.S.E. To-Do account is enough) joins as a para. Everything the team shares is an "item":
+// Arise To Duo account is enough) joins as a para. Everything the team shares is an "item":
 // a message, a calendar event, a to-do, a block of the daily schedule, a student card, a data
 // entry, a lesson plan, a linked doc, an uploaded file or a team note. This file says what each
 // kind holds and who may change it; the server (server/paraTeam.ts) uses it on every write and

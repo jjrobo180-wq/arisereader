@@ -1,4 +1,4 @@
-// Arise WorkHub / LifeHub (A.R.I.S.E. To-Do): free for every teacher and parent since Oct 11, 2026.
+// Arise WorkHub / LifeHub (Arise To Duo): free for every teacher and parent since Oct 11, 2026.
 // Premium is still paid from day one, and the two stay separate.
 // Run with: npx tsx --test tests/teacher-hub-plans.test.ts
 import test from "node:test";
