@@ -119,7 +119,7 @@ export default function SwipeFeed({
       <div>
         <div className="eyebrow"><Sparkles size={13} /> DISCOVER YOUR NEXT LESSON</div>
         <h1>Swipe to Learn <span className="swipe-sparkle">✦</span></h1>
-        <p>Swipe through the same lessons in a new way. One story, one reading skill, one quiz at a time.</p>
+        <p>Swipe through the same lessons in a new way. One sound-spelling pattern, three word builds, then a high-interest story and quiz.</p>
       </div>
       <div className="view-switcher" role="group" aria-label="Choose how to browse lessons">
         <button type="button" aria-pressed={false} onClick={onLibrary}>
@@ -211,7 +211,7 @@ export default function SwipeFeed({
           </button>)}</div>
           {lessons.length === 1 && <p>You're viewing the only lesson in this filter.</p>}
         </div>
-        <div className="swipe-safety"><Headphones size={17}/> A swipe discovers the next topic. Points come only from passing the real reading quiz.</div>
+        <div className="swipe-safety"><Headphones size={17}/> Swiping discovers lessons, but building words comes first. Points require completed phonics practice and a passing quiz.</div>
       </aside>
     </div> : <div className="empty swipe-empty">
       <BookOpen size={40}/>
