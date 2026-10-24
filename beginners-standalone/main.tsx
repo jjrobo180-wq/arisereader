@@ -1,13 +1,16 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowLeft, ArrowRight, Award, Bookmark, BookOpen, Check, CheckCircle2,
   ChevronDown, ChevronRight, Clock3, Compass, Flame, Gift, GraduationCap,
   Headphones, LayoutGrid, LockKeyhole, LogOut, Menu, Search, Settings2,
-  ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X, Play, Grid3X3, type LucideIcon
+  ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X, Play, Grid3X3,
+  Music2, Gamepad2, Clapperboard, Palette, Globe2, type LucideIcon
 } from "lucide-react";
 import { BEGINNER_LESSONS, type BeginnerLesson } from "./lessons";
 import SwipeFeed from "./SwipeFeed";
+import { UNIT_CONFIG } from "./curriculum-factory";
+import { exportProgress, importProgress } from "./progress-backup";
 import "./styles.css";
 import "./swipe.css";
 
@@ -59,13 +62,15 @@ function say(text:string) {
 }
 function stopSpeech(){if("speechSynthesis" in window)window.speechSynthesis.cancel()}
 function displayName(name:string){return name.trim().replace(/\s+/g," ").slice(0,32)}
+const COVER_ICONS:Record<string,LucideIcon>={Sports:Trophy,Music:Music2,Creators:Clapperboard,Gaming:Gamepad2,Style:Palette,Culture:Globe2};
 function LessonCover({lesson,children,className=""}:{lesson:BeginnerLesson;children?:React.ReactNode;className?:string}) {
   const [failed,setFailed]=useState(false);
   useEffect(()=>setFailed(false),[lesson.id]);
+  const PosterIcon=COVER_ICONS[lesson.category]||BookOpen;
   return <div className={"lesson-cover "+className} style={{background:"radial-gradient(ellipse at 45% 25%,"+lesson.accent+" 0%,#322447 52%,#171323 100%)"}}>
     {!!lesson.imageFile&&!failed&&<img src={COVER_URL(lesson.imageFile)} alt={lesson.subject} loading="lazy" onError={()=>setFailed(true)}/>}
     <div className="cover-shade"/>
-    {(!lesson.imageFile||failed)&&<div className="cover-fallback" aria-hidden="true"><BookOpen size={56}/></div>}
+    {(!lesson.imageFile||failed)&&<div className="cover-editorial" aria-hidden="true"><div className="cover-editorial-background"/><PosterIcon className="cover-editorial-icon" size={82}/><span className="cover-editorial-label">{lesson.subject}</span><span className="cover-editorial-line"/></div>}
     {children}
   </div>
 }
@@ -83,6 +88,9 @@ function App() {
   const [topic,setTopic]=useState("All");
   const [difficulty,setDifficulty]=useState("All");
   const [search,setSearch]=useState("");
+  const [sortBy,setSortBy]=useState("recommended");
+  const [skillFilter,setSkillFilter]=useState("All");
+  const [pageCount,setPageCount]=useState(24);
   const [menuOpen,setMenuOpen]=useState(false);
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [showTheme,setShowTheme]=useState(false);
@@ -95,6 +103,8 @@ function App() {
   const [selected,setSelected]=useState<number|null>(null);
   const [outcome,setOutcome]=useState<Outcome|null>(null);
   const [notice,setNotice]=useState("");
+  const [backupStatus,setBackupStatus]=useState("");
+  const restoreInput=useRef<HTMLInputElement>(null);
   useEffect(()=>{storagePut(PROFILE_KEY,profiles)},[profiles]);
   useEffect(()=>{if(profile&&activeId){storagePut(PROGRESS_PREFIX+activeId,progress)}},[activeId,progress,profile?.id]);
   useEffect(()=>{if(!profile&&activeId){setActiveId("");try{localStorage.removeItem(ACTIVE_KEY)}catch{}}},[activeId,profile]);
@@ -105,11 +115,23 @@ function App() {
   const points=LESSONS.reduce((sum,l)=>sum+(progress.attempts[l.id]?.passedAt?DIFFICULTY[l.level].points:0),0);
   const percent=Math.round(completed/Math.max(1,LESSONS.length)*100);
   const currentTheme=progress.theme||"reader";
-  const visible=useMemo(()=>LESSONS.filter(l=>
-    (topic==="All"||l.category===topic)&&
-    (difficulty==="All"||DIFFICULTY[l.level].label===difficulty)&&
-    (search.trim()===""||[l.title,l.skill,l.category,l.subject,l.hook].join(" ").toLowerCase().includes(search.trim().toLowerCase()))
-  ),[topic,difficulty,search]);
+  const visible=useMemo(()=>{
+    const rows=LESSONS.filter(l=>
+      (topic==="All"||l.category===topic)&&
+      (difficulty==="All"||DIFFICULTY[l.level].label===difficulty)&&
+      (skillFilter==="All"||l.skill===skillFilter)&&
+      (search.trim()===""||[l.title,l.skill,l.category,l.subject,l.hook].join(" ").toLowerCase().includes(search.trim().toLowerCase()))
+    );
+    return rows.sort((a,b)=>{
+      if(sortBy==="az")return a.title.localeCompare(b.title);
+      if(sortBy==="easy")return a.level-b.level||a.title.localeCompare(b.title);
+      if(sortBy==="hard")return b.level-a.level||a.title.localeCompare(b.title);
+      if(sortBy==="new")return Number(a.id.startsWith("original-"))-Number(b.id.startsWith("original-"))||a.title.localeCompare(b.title);
+      return Number(!!progress.attempts[a.id]?.passedAt)-Number(!!progress.attempts[b.id]?.passedAt)||a.level-b.level||a.title.localeCompare(b.title);
+    });
+  },[topic,difficulty,skillFilter,search,sortBy,progress.attempts]);
+  useEffect(()=>{setPageCount(24);setFeedIndex(0)},[topic,difficulty,skillFilter,search,sortBy]);
+  const visiblePage=visible.slice(0,pageCount);
   const recent=LESSONS.filter(l=>progress.attempts[l.id]&&!progress.attempts[l.id].passedAt).slice(0,4);
   const recommended=LESSONS.filter(l=>!progress.attempts[l.id]?.passedAt).slice(0,5);
   const saved=LESSONS.filter(l=>progress.saved.includes(l.id));
@@ -137,6 +159,7 @@ function App() {
     setShowProfileMenu(false);
     setTopic("All");
     setDifficulty("All");
+    setSkillFilter("All");
     setFeedIndex(0);
     setSearch("");
     if (v === "lessons" || v === "swipe") setProgress(p=>({...p,browseView:v}));
@@ -149,6 +172,7 @@ function App() {
     setView(v);
     setFeedIndex(0);
     setSearch("");
+    if(v==="swipe")setSkillFilter("All");
     setProgress(p=>({...p,browseView:v}));
     window.scrollTo({top:0,behavior:"smooth"});
   }
@@ -188,6 +212,39 @@ function App() {
     setStep(learnCount+activeLesson.questions.length);
   }
   function tryAgain() {stopSpeech();setStep(0);setAnswers([]);setSelected(null);setOutcome(null);setNotice("")}
+  function downloadProgress(){
+    if(!profile)return;
+    try{
+      const text=exportProgress(profile.name,progress);
+      const blob=new Blob([text],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement("a");
+      link.href=url;
+      link.download="arise-beginners-"+profile.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,30)+"-progress.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),250);
+      setBackupStatus("Backup downloaded. Keep the file somewhere private.");
+    }catch{
+      setBackupStatus("Couldn't create this backup. Check your browser's download settings.");
+    }
+  }
+  async function restoreProgress(event:React.ChangeEvent<HTMLInputElement>){
+    const file=event.target.files?.[0];
+    if(!file)return;
+    try{
+      if(file.size>1024*1024)throw Error("Backup files must be smaller than 1 MB.");
+      const payload=importProgress(await file.text());
+      if(!window.confirm("Replace "+profile?.name+"'s current local Beginners progress with the backup for "+payload.nickname+"? This cannot be undone without your existing backup."))return;
+      setProgress(payload.progress);
+      setBackupStatus("Backup restored for "+profile?.name+". Your lessons and points have been recalculated.");
+    }catch(error:any){
+      setBackupStatus(error?.message||"This backup couldn't be read.");
+    }finally{
+      event.target.value="";
+    }
+  }
   const nav:Array<{id:View;title:string;icon:LucideIcon}>= [
     {id:"home",title:"Dashboard",icon:LayoutGrid},
     {id:"lessons",title:"Lesson Library",icon:BookOpen},
@@ -249,13 +306,16 @@ function App() {
           {recent.length>0&&<section className="shelf"><PanelTitle eyebrow="KEEP IT GOING" title="Continue Practicing" sub="Build fluency at your own pace." right={<button className="text-link" onClick={()=>show("progress")}>My progress <ChevronRight size={17}/></button>}/><div className="shelf-row">{recent.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div></section>}
           <section className="shelf"><PanelTitle eyebrow="PICK YOUR VIBE" title="Lessons Made for You" sub="Real skills. Topics worth talking about." right={<button type="button" onClick={()=>show("lessons")} className="text-link">View all lessons <ChevronRight size={17}/></button>}/><div className="shelf-row">{recommended.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div></section>
           <section className="tiers"><div><div className="eyebrow">THE POINT SYSTEM</div><h2>Every level counts.</h2><p>Pass a lesson quiz with at least 80% to earn its points. Earn once per lesson, practice as often as you like.</p></div><div className="tier-blocks">{([1,2,3] as Difficulty[]).map(level=><button type="button" key={level} onClick={()=>{show("lessons");setDifficulty(DIFFICULTY[level].label)}} className={"tier-block tier-"+level}><span>{DIFFICULTY[level].label}</span><strong>+{DIFFICULTY[level].points}</strong><small>points</small></button>)}</div></section>
+          <section className="shelf"><PanelTitle eyebrow="YOUR READING ROADMAP" title="10 Skills to Build" sub="Start where you need support. Every skill opens its own set of original real-world lessons." right={<button type="button" className="text-link" onClick={()=>show("progress")}>Track my growth <ChevronRight size={17}/></button>}/><div className="pathway-grid">{UNIT_CONFIG.map(u=>{const group=LESSONS.filter(l=>l.skill===u.skill);const passed=group.filter(l=>progress.attempts[l.id]?.passedAt).length;return <button key={u.number} type="button" className="pathway-item" onClick={()=>{show("lessons");setSkillFilter(u.skill)}}><span className="pathway-number">{String(u.number).padStart(2,"0")}</span><span className="pathway-copy"><strong>{u.skill}</strong><small>{passed} of {group.length} completed · {DIFFICULTY[u.level].points} pts each</small><span className="pathway-track"><i style={{width:Math.round(passed/group.length*100)+"%"}}/></span></span><ChevronRight size={17}/></button>})}</div></section>
           <section className="shelf"><PanelTitle eyebrow="EXPLORE BY INTEREST" title="Choose your category" sub="Reading starts with a topic you actually care about."/><div className="categories">{TOPICS.slice(1).map((category,i)=><button key={category} type="button" onClick={()=>{show("lessons");setTopic(category)}} className={"category-tile category-"+i}><span>{["🏀","🎤","🎥","🎮","👟","🌎"][i]}</span><strong>{category}</strong><small>{LESSONS.filter(l=>l.category===category).length} lessons</small><ChevronRight size={17}/></button>)}</div></section>
         </>}
         {view==="lessons"&&<section className="browse"><PanelTitle eyebrow="A.R.I.S.E. BEGINNERS" title="Lesson Library" sub="Instead of books and book quizzes, every cover opens a reading lesson with its own five-question skill check." right={<div className="view-switcher" role="group" aria-label="Choose how to browse lessons"><button type="button" className="selected" aria-pressed={true}><Grid3X3 size={16}/> Library</button><button type="button" aria-pressed={false} onClick={()=>switchBrowse("swipe")}><Play size={15} fill="currentColor"/> Swipe Feed</button></div>}/>
           <div className="filter-bar"><div className="search-bar"><Search size={19}/><input aria-label="Search lessons" placeholder="Search athletes, artists, skills..." value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Filter difficulty" value={difficulty} onChange={e=>setDifficulty(e.target.value)}><option>All</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
           <div className="topic-chips">{TOPICS.map(t=><button type="button" key={t} onClick={()=>setTopic(t)} className={"chip "+(topic===t?"selected":"")}>{t}</button>)}</div>
-          <div className="result-caption">{visible.length} lessons found</div><div className="lesson-grid">{visible.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div>
-          {!visible.length&&<div className="empty"><Search size={34}/><h3>No lessons found</h3><p>Try a different search or category.</p><button className="secondary-btn" onClick={()=>{setTopic("All");setDifficulty("All");setSearch("")}}>Clear filters</button></div>}
+          <div className="advanced-filters"><label>Reading skill <select aria-label="Filter by reading skill" value={skillFilter} onChange={e=>setSkillFilter(e.target.value)}><option value="All">All reading skills</option>{UNIT_CONFIG.map(u=><option value={u.skill} key={u.number}>{u.number}. {u.skill}</option>)}</select></label><label>Sort lessons <select aria-label="Sort lessons" value={sortBy} onChange={e=>setSortBy(e.target.value)}><option value="recommended">Recommended</option><option value="new">New collection first</option><option value="easy">Easy to Hard</option><option value="hard">Hard to Easy</option><option value="az">Title A–Z</option></select></label></div>
+          <div className="result-caption">{visible.length} lessons found · Showing {Math.min(pageCount,visible.length)}</div><div className="lesson-grid">{visiblePage.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div>
+          {visible.length>pageCount&&<div className="load-more-wrap"><button type="button" className="secondary-btn" onClick={()=>setPageCount(n=>n+24)}>Load 24 more lessons <ChevronDown size={18}/></button><span>{visible.length-pageCount} more available</span></div>}
+          {!visible.length&&<div className="empty"><Search size={34}/><h3>No lessons found</h3><p>Try a different search or category.</p><button className="secondary-btn" onClick={()=>{setTopic("All");setDifficulty("All");setSkillFilter("All");setSearch("");setSortBy("recommended")}}>Clear filters</button></div>}
         </section>}
         {view==="swipe"&&<SwipeFeed
           lessons={visible}
@@ -280,6 +340,7 @@ function App() {
         {view==="progress"&&<section><PanelTitle eyebrow="KEEP LEVELING UP" title="My Reading Progress" sub="Look at your mastery by lesson, not a label or grade level."/><div className="stats-grid"><div className="stat"><span className="stat-icon purple-bg"><Star/></span><div><strong>{points}</strong><small>Points earned</small></div></div><div className="stat"><span className="stat-icon cyan-bg"><Award/></span><div><strong>{completed}</strong><small>Lesson passes</small></div></div><div className="stat"><span className="stat-icon gold-bg"><Target/></span><div><strong>{percent}%</strong><small>Catalog complete</small></div></div></div>
           <div className="progress-panel"><div className="progress-top"><strong>Your progress so far</strong><span>{completed} of {LESSONS.length} lessons</span></div><div className="progress-track big"><span style={{width:percent+"%"}}/></div><p>You'll earn each lesson's points once, the first time you pass its skill check with 80% or higher.</p></div>
           <div className="progress-list">{LESSONS.map(l=>{const attempt=progress.attempts[l.id];return <button key={l.id} type="button" onClick={()=>launch(l)} className="progress-row"><LessonCover lesson={l} className="progress-thumbnail"/><div className="progress-copy"><strong>{l.title}</strong><span>{l.skill} · {DIFFICULTY[l.level].label}</span>{attempt&&<small>{attempt.attempts} {attempt.attempts===1?"attempt":"attempts"} · best {attempt.bestScore}%</small>}</div><span className={"progress-status "+(attempt?.passedAt?"complete":"")}>{attempt?.passedAt?<><Check size={15}/> Passed</>:attempt?"Practice again":"Start"} <ChevronRight size={16}/></span></button>})}</div>
+          <div className="backup-panel"><div><div className="eyebrow">SAVE YOUR WORK</div><h3>Keep a copy of your learning progress</h3><p>This version saves progress in this browser. Download a private backup for recovery or a move to another device. Import replaces only the current local profile, never Reader accounts.</p></div><div className="backup-actions"><button type="button" className="secondary-btn" onClick={downloadProgress}>Download backup</button><button type="button" className="secondary-btn" onClick={()=>restoreInput.current?.click()}>Restore backup</button><input ref={restoreInput} aria-label="Import an A.R.I.S.E. Beginners progress backup" type="file" accept=".json,application/json" className="backup-input" onChange={restoreProgress}/></div>{backupStatus&&<p role="status" className="backup-status">{backupStatus}</p>}</div>
           <p className="small-disclaimer">Completing lessons does not by itself measure oral reading fluency, decoding speed or a student's reading grade level. Use regular individual reading assessments alongside the program.</p>
         </section>}
         {view==="leaderboard"&&<section><PanelTitle eyebrow="A LITTLE FRIENDLY MOTIVATION" title="Leaderboard" sub="Local leaderboard for learner profiles saved on this browser only."/>
