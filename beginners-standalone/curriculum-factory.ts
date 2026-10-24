@@ -139,7 +139,7 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
       level:unit.level,
       points:unit.level*10,
       duration:unit.level===1?6:unit.level===2?8:10,
-      hook:"Original reading adventure: "+seed.subject+". Decode, understand and earn "+(unit.level*10)+" points.",
+      hook:story.match(/^[^.!?]+[.!?]/)?.[0] || story.slice(0,130),
       subject:seed.subject,
       imageFile:"",
       accent:unit.accent,
