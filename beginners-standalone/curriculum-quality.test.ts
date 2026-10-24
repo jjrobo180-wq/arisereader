@@ -2,6 +2,7 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { BEGINNER_LESSONS } from "./lessons";
 import { makeCurriculumUnit, UNIT_CONFIG } from "./curriculum-factory";
+import { UNIT_WORD_CHAINS } from "./phonics-curriculum";
 import { seeds as one } from "./curriculum/unit-1";
 import { seeds as two } from "./curriculum/unit-2";
 import { seeds as three } from "./curriculum/unit-3";
@@ -55,11 +56,13 @@ test("100 new lessons cover ten explicit skill progressions and all pass the con
         assert.equal(new Set(question.choices.map(x=>x.trim().toLowerCase())).size,3,l.title+" duplicated answer options in Q"+q);
         assert.ok(question.hint.length>25,l.title+" missing meaningful hint Q"+q);
       }
-      assert.equal(l.questions[2].choices[l.questions[2].correct],seed.place,l.title+" setting answer incorrect");
+      const lastWord=UNIT_WORD_CHAINS[i][j].split(",")[2].replace(/\|/g,"");
+      assert.equal(l.questions[2].choices[l.questions[2].correct],lastWord,l.title+" phonics word-building answer incorrect");
+      assert.ok(l.questions[2].prompt.includes("Blend the word parts"),l.title+" phonics prompt missing");
       assert.equal(l.questions[3].choices[l.questions[3].correct],seed.item,l.title+" object answer incorrect");
       assert.equal(l.questions[4].choices[l.questions[4].correct],seed.ending,l.title+" outcome answer incorrect");
       // The contrasting answers must not also be stated in the story.
-      for(let q=2;q<=4;q++){
+      for(let q=3;q<=4;q++){
         for(let c=0;c<3;c++){
           if(c===l.questions[q].correct)continue;
           const wrong=l.questions[q].choices[c].toLowerCase();
