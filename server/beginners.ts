@@ -81,7 +81,7 @@ export function registerBeginnersRoutes(app: Express, auth: RequestHandler) {
   app.post("/api/beginners/attempt", auth, async (req: any, res) => {
     readOnly(res);
     const userId = permitted(req,res); if (userId === null) return;
-    if (req.user.role !== "student" || req.user.isAdmin) return res.status(403).json({message:"Only student accounts can earn Beginners points."});
+    if ((req.user.role || "student") !== "student" || req.user.isAdmin) return res.status(403).json({message:"Only student accounts can earn Beginners points."});
     const l = beginnerLesson(String(req.body?.lessonId || ""));
     const answers: unknown = req.body?.answers;
     if (!l || !Array.isArray(answers) || answers.length !== l.questions.length ||
