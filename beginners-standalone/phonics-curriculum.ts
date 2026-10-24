@@ -88,7 +88,7 @@ export const ORIGINAL_WORD_CHAINS: Record<string, {unit:number;chain:string}> = 
   "beyonce-beat":{unit:9,chain:"mu|sic,pu|pil,ti|ger"},
   "football-focus":{unit:8,chain:"g|oa|l,c|oa|l,c|oa|t"},
   "ronaldo-net":{unit:3,chain:"n|e|t,p|e|t,w|e|t"},
-  "sabrina-spotlight":{unit:6,chain:"sh|i|n|e,sh|i|p,ch|i|p"},
+  "sabrina-spotlight":{unit:6,chain:"sh|i|p,sh|o|p,ch|o|p"},
   "mark-rober-build":{unit:9,chain:"ro|bot,rock|et,pock|et"},
   "mbappe-final-sprint":{unit:8,chain:"g|oa|l,c|oa|l,c|oa|t"}
 };
