@@ -1203,14 +1203,14 @@ export default function AriseTodo() {
     {briefOpen && <DailyBrief hub="life" brief={buildLifeBrief(family, data.tasks, currentDay, new Date().getHours(), (user.displayName || "").split(" ")[0])} onClose={() => setBriefOpen(false)} onOpen={goSection} />}
     {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-testid="life-start-back"
       className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
-    <PhoneMenu items={phoneItems} side={tileMode ? "drawer" : layout.menuSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />
-    <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} ${shown === "tasks" ? "duo-book:flex-row" : ""}`}>
-      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} ${shown === "tasks" ? "duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:pb-24 duo-book:[&>*]:shrink-0" : ""}`}>
-        <nav aria-label="Family Hub" className={`hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
+    {duo.mode !== "book" && <PhoneMenu items={phoneItems} side={tileMode ? "drawer" : layout.menuSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />}
+    <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} duo-book:flex-row`}>
+      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:p-0 duo-book:pb-10 duo-book:[&>*]:shrink-0`} data-testid="life-side">
+        <nav aria-label="Family Hub" className={`duo-book:flex duo-book:flex-col duo-book:gap-0.5 duo-book:overflow-visible duo-book:px-3 duo-book:pt-4 hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
           {renderSectionItems(builtInSections, true)}
 
         </nav>
-        {(installedSections.length > 0 || pinnableApps.length > 0 || installedOffice.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 lg:block ${dsk === "top" ? "lg:border-t lg:border-slate-100" : ""}`} data-testid="lifehub-my-apps">
+        {(installedSections.length > 0 || pinnableApps.length > 0 || installedOffice.length > 0 || myKits.length > 0) && <div className={`hidden px-3 pb-1 pt-3 lg:block duo-book:block ${dsk === "top" ? "lg:border-t lg:border-slate-100" : ""}`} data-testid="lifehub-my-apps">
           <p className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My apps</p>
           <div className={`space-y-0.5 ${dsk === "top" ? "lg:flex lg:flex-wrap lg:items-center lg:gap-1" : ""}`}>
             {renderSectionItems(installedSections, false)}
@@ -1247,7 +1247,7 @@ export default function AriseTodo() {
             ))}
           </div>
         </div>}
-        <div className={`hidden px-3 pt-2 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
+        <div className={`hidden px-3 pt-2 duo-book:block ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
         {shown === "tasks" && <>
         <div className="hidden px-6 pb-3 pt-7 lg:block duo-book:block duo-book:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
         <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0 duo-book:block duo-book:space-y-1 duo-book:border-t-0 duo-book:px-3 duo-book:pb-0 duo-book:pt-0 duo-stack:flex-wrap duo-stack:overflow-visible">
@@ -1281,7 +1281,7 @@ export default function AriseTodo() {
         </div>
       </aside>
 
-      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:px-5 duo-book:pt-4" : "duo:px-6"} ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
+      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:pt-4" : "duo:px-6"} duo-book:px-5 duo-book:pb-10 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
           {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4 duo-book:hidden">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>

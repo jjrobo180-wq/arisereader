@@ -6,8 +6,8 @@
 // one roomy column ("stack"). The 5.4" outer screen is an ordinary phone and keeps the phone layout.
 //
 // How we tell: the CSS viewport-segments media queries when the browser reports the fold, otherwise
-// the screen's size and shape (a touch screen whose short side is 580-720 points and long side
-// 820-960). Customize > "Arise To Duo" can force it on or off, and ?duo=1 / ?duo=0 does the same
+// the screen's size and shape (a touch screen whose short side is 560-780 points and long side
+// 780-1000, so no iPad). Customize > "Arise To Duo" can force it on or off, and ?duo=1 / ?duo=0 does the same
 // for testing on a computer.
 //
 // The mode is written to <html data-duo="book|stack">, which the duo-book: / duo-stack: / duo:
@@ -39,7 +39,9 @@ export function looksLikeDuoInner(): boolean {
   const sw = window.screen?.width || 0, sh = window.screen?.height || 0;
   const short = Math.min(sw, sh), long = Math.max(sw, sh);
   const touch = mq("(pointer: coarse)") || (navigator.maxTouchPoints || 0) > 0;
-  return touch && short >= 580 && short <= 720 && long >= 820 && long <= 960;
+  // Book-size and book-shaped, but smaller than any iPad (iPad mini is 744 x 1133, a 9th-gen iPad 810 x 1080).
+  const ratio = short ? long / short : 0;
+  return touch && short >= 560 && short <= 780 && long >= 780 && long <= 1000 && ratio >= 1.05 && ratio <= 1.5;
 }
 
 function modeFor(choice: DuoChoice): DuoMode {
