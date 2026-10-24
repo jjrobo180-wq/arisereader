@@ -281,3 +281,10 @@ body.club-play-active .bq-setup { padding-bottom: calc(35px + var(--club-timer-h
   color:#fff;
   box-shadow:0 10px 28px rgba(124,58,237,.22);
 }
+
+/* Arise To Duo split screen (/duo): the split screen has one floating button for both panes
+   (pages/DuoSplit.tsx), so each pane's own Add and AI buttons are hidden. lib/duoPaneBridge.ts
+   still presses them when the shared button is dropped on that pane. */
+html[data-duo-pane] [data-testid="life-add-button"],
+html[data-duo-pane] [data-testid="quick-add-event"],
+html[data-duo-pane] [data-testid="hub-chat-open"] { display: none !important; }

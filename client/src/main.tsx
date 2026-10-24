@@ -5,6 +5,10 @@ import "./login-mobile-fix.css";
 import "./keyboard-inset.css";
 import { watchKeyboard } from "./lib/keyboardInset";
 import { installReadPhotos } from "./lib/readPhotos";
+import { installDuoPaneBridge } from "./lib/duoPaneBridge";
+
+// A pane of the Arise To Duo split screen: one shared floating button instead of each pane's own.
+installDuoPaneBridge();
 
 // Old personal-account signup links must open the shared A.R.I.S.E. sign-in/
 // sign-up screen, never the retired LifeHub signup view.

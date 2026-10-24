@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Folder, LayoutGrid, Search, X } from "lucide-react";
 import { foldMenu, type MenuClose, type MenuEntry, type MenuFolder, type MenuSide } from "@shared/hubLayout";
+import { inDuoPane } from "@/lib/useAriseDuo";
 
 export type PhoneMenuItem = { id: string; label: string; icon: ReactNode; active: boolean; badge?: number; color?: string; onClick: () => void };
 
@@ -12,9 +13,12 @@ const KEY = "arise-life-rail";
 
 /** Whether the phone menu is showing, remembered on this device, and what the page must leave room for. */
 export function usePhoneMenu(side: MenuSide, close: MenuClose) {
-  const [rail, setRailState] = useState(() => { try { return localStorage.getItem(KEY) !== "closed"; } catch { return true; } });
-  const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem(KEY, open ? "open" : "closed"); } catch { /* not remembered */ } };
-  const open = side !== "drawer" && (close === "always" || rail);
+  // In a pane of the Arise To Duo split screen the menu starts tucked away, and opening it there
+  // doesn't change how it starts everywhere else.
+  const pane = inDuoPane();
+  const [rail, setRailState] = useState(() => { if (pane) return false; try { return localStorage.getItem(KEY) !== "closed"; } catch { return true; } });
+  const setRail = (open: boolean) => { setRailState(open); if (pane) return; try { localStorage.setItem(KEY, open ? "open" : "closed"); } catch { /* not remembered */ } };
+  const open = side !== "drawer" && ((close === "always" && !pane) || rail);
   /** Room the page leaves for the menu on a phone (nothing on a computer). */
   const pad = side === "drawer" ? "" : side === "left" ? (open ? "max-lg:pl-[80px]" : "max-lg:pl-9") : side === "right" ? (open ? "max-lg:pr-[80px]" : "max-lg:pr-9")
     : side === "top" ? (open ? "max-lg:pt-[76px]" : "max-lg:pt-6") : open ? "max-lg:pb-[92px]" : "";

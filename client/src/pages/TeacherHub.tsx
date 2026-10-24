@@ -125,6 +125,7 @@ import { workAlerts } from "@shared/hubAlerts";
 import HubImport, { localDay } from "@/components/teacher-hub/HubImport";
 import { RecentlyDone, TaskModal, taskChecker } from "@/components/teacher-hub/HubTaskEdit";
 import { useStayOnRefresh } from "@/lib/useStayOnRefresh";
+import { inDuoPane, useAriseDuo } from "@/lib/useAriseDuo";
 import { HubLinkProvider, ItemConnections } from "@/components/teacher-hub/HubLinks";
 import { API_BASE } from "@/lib/queryClient";
 import { goalQuizzes, resolveLink, type HubLink } from "@shared/hubLinks";
@@ -409,7 +410,8 @@ function TeacherHubPage() {
   // On a phone the header keeps the essentials, and the rest sits under "More".
   const [more, setMore] = useState(false);
   /** The menu strip down the left side on a phone: shown, or tucked away behind a small tab. Remembered on this device. */
-  const [rail, setRailState] = useState(() => { try { return localStorage.getItem("arise-hub-rail") !== "closed"; } catch { return true; } });
+  // In a pane of the Arise To Duo split screen the menu starts tucked away (and that isn't remembered).
+  const [rail, setRailState] = useState(() => { if (inDuoPane()) return false; try { return localStorage.getItem("arise-hub-rail") !== "closed"; } catch { return true; } });
   /** A WorkHub plugin (from the Plugin Kit) open as its own page. Picking any tab closes it. */
   const [kitOpen, setKitOpen] = useStayOnRefresh<string | null>("work-kit", null);
   /** A Notes-app install (see shared/notesApp.ts) open full-page, by its App Store plugin id. */
@@ -433,7 +435,9 @@ function TeacherHubPage() {
     return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = overflow; setAppsQuery(""); setHubGridFolder(null); };
   }, [apps]);
   const appsSwipe = useRef<number | null>(null);
-  const setRail = (open: boolean) => { setRailState(open); try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
+  // Arise To Duo: on the iPhone Duo's inner screen the header keeps its extra buttons in ⋯ More.
+  useAriseDuo();
+  const setRail = (open: boolean) => { setRailState(open); if (inDuoPane()) return; try { localStorage.setItem("arise-hub-rail", open ? "open" : "closed"); } catch { /* not remembered */ } };
   const moreRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!more) return;
@@ -590,7 +594,7 @@ function TeacherHubPage() {
   const MENU_LABEL = `${across ? "w-[72px]" : "w-[66px]"} line-clamp-2 break-words text-[10px] leading-[1.15] md:w-auto md:max-w-none md:line-clamp-none md:text-sm md:leading-normal`;
   /** The app drawer: no menu on screen, just a button that opens every section as app icons. */
   const drawerMenu = side === "drawer";
-  const menuOpen = layout.menuClose === "always" || rail;
+  const menuOpen = (layout.menuClose === "always" && !inDuoPane()) || rail;
   const canHide = layout.menuClose !== "always";
   /** On a phone the menu may close by itself once a section is picked. */
   const afterPick = () => { if (layout.menuClose === "auto" && typeof window !== "undefined" && window.innerWidth < 768) setRail(false); };
@@ -1003,30 +1007,30 @@ function TeacherHubPage() {
           </a>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {/* The To-Do Admin (people, plans, payments) lives in WorkHub's header, not LifeHub's. */}
-            {user.isAdmin && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-100" data-testid="todo-admin-link"><ShieldCheck className="h-4 w-4" /> <span className="hidden lg:inline">Admin</span></a>}
+            {user.isAdmin && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-100 duo:hidden" data-testid="todo-admin-link"><ShieldCheck className="h-4 w-4" /> <span className="hidden lg:inline">Admin</span></a>}
             <HubSwitch current="hub" night={night} />
             {/* The ⚡ shortcut: on a phone only once one is set, so the name "WorkHub" fits in the header. */}
-            <div className={layout.shortcut ? "contents" : "hidden sm:contents"}>
+            <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>
             <HeaderShortcut shortcut={layout.shortcut} choices={shortcutChoices()} say={(m) => toasts.show(m, [])}
               onChange={(next) => setWorkspace((p) => { const { shortcut: _old, ...rest } = p.layout ?? layout; return { ...p, layout: (next ? { ...rest, shortcut: next } : rest) as HubLayout }; })} />
             </div>
             <HubSearchButton onOpen={() => setSearching(true)} />
-            <span className="hidden sm:contents"><SaveBadge view={view} /></span>
+            <span className="hidden sm:contents duo:hidden"><SaveBadge view={view} /></span>
             <NotificationBell
               extraItems={hubReady ? workAlerts(workspace, TODAY(), Date.now(), pollAnswers.unread, pollAnswers.replies.filter((r) => r.unread).map((r) => r.at).sort().pop() || "") : undefined}
               onNavigate={openAlert}
               onSettings={() => setNotifyOpen(true)}
               triggerClassName="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50" />
-            <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
+            <button type="button" onClick={toggleNight} aria-pressed={night} aria-label={night ? "Switch to day mode" : "Switch to night mode"} title={night ? "Day mode" : "Night mode"} className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 sm:inline-flex duo:hidden" data-testid="hub-night-toggle">{night ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
             {/* On a phone this lives in the floating add button instead, so the header stays clear. */}
-            <button type="button" onClick={() => startAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4" data-testid="hub-add-with-ai">
+            <button type="button" onClick={() => startAdding({})} className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 sm:inline-flex sm:px-4 duo:hidden" data-testid="hub-add-with-ai">
               <WandSparkles className="h-4 w-4" /> <span>Add<span className="hidden sm:inline"> with AI</span></span>
             </button>
-            <button type="button" onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex" data-testid="hub-plugin-store"><ShoppingBag className="h-4 w-4" /> <span className="hidden lg:inline">App Store</span></button>
-            <LockButton className="hidden sm:inline-flex" />
-            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize your Hub" aria-expanded={customize} data-tour="customize" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize</span></button>
-            <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"><LogOut className="h-4 w-4" /></button>
-            <div ref={moreRef} className="relative sm:hidden">
+            <button type="button" onClick={() => setStore(true)} aria-label="App Store" title="App Store" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex duo:hidden" data-testid="hub-plugin-store"><ShoppingBag className="h-4 w-4" /> <span className="hidden lg:inline">App Store</span></button>
+            <LockButton className="hidden sm:inline-flex duo:hidden" />
+            <button type="button" onClick={() => setCustomize((v) => !v)} aria-label="Customize your Hub" aria-expanded={customize} data-tour="customize" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex duo:hidden"><Settings2 className="h-4 w-4" /> <span className="hidden lg:inline">Customize</span></button>
+            <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out" className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex duo:hidden"><LogOut className="h-4 w-4" /></button>
+            <div ref={moreRef} className="relative sm:hidden duo:block">
               <button type="button" onClick={() => setMore((v) => !v)} aria-label="More" aria-haspopup="menu" aria-expanded={more} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50" data-testid="hub-more"><MoreHorizontal className="h-5 w-5" /></button>
               {more && (
                 <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl" data-testid="hub-more-menu">
