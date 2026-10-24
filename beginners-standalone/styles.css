@@ -452,3 +452,12 @@ button:disabled{cursor:not-allowed;opacity:.5}
   .advanced-filters label,.advanced-filters select,.advanced-filters label:first-child select{width:100%;max-width:none;min-width:0}
   .pathway-grid{grid-template-columns:1fr}.pathway-item{padding:12px}
 }
+
+.backup-panel{margin:22px 0 18px;padding:20px 23px;border:1px solid var(--border);border-radius:16px;background:var(--panel);display:grid;grid-template-columns:1fr auto;align-items:center;gap:15px}
+.backup-panel h3{margin:7px 0 8px;font-size:19px;font-weight:700}
+.backup-panel p{margin:0;font-size:12px;color:var(--muted);line-height:1.55}
+.backup-actions{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.backup-actions .secondary-btn{font-size:12px;min-height:41px}
+.backup-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.backup-panel .backup-status{grid-column:1/-1;color:var(--accent-2);font-size:12px;font-weight:600}
+@media(max-width:660px){.backup-panel{grid-template-columns:1fr;padding:18px}.backup-actions{flex-direction:row;flex-wrap:wrap}.backup-actions .secondary-btn{flex:1;min-width:140px}}
