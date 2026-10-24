@@ -1003,7 +1003,7 @@ function TeacherHubPage() {
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3 md:px-6">
           <a href="#/workhub" onClick={(e) => { e.preventDefault(); setTab("overview"); }} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="WorkHub home" title="WorkHub home">
             <span className="flex h-7 w-7 shrink-0 overflow-hidden rounded-lg sm:h-8 sm:w-8"><HubMark tone="work" className="h-full w-full" /></span>
-            <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">WorkHub</span>
+            <span className="min-w-0 truncate whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">WorkHub</span>
           </a>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {/* The To-Do Admin (people, plans, payments) lives in WorkHub's header, not LifeHub's. */}

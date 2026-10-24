@@ -288,3 +288,10 @@ body.club-play-active .bq-setup { padding-bottom: calc(35px + var(--club-timer-h
 html[data-duo-pane] [data-testid="life-add-button"],
 html[data-duo-pane] [data-testid="quick-add-event"],
 html[data-duo-pane] [data-testid="hub-chat-open"] { display: none !important; }
+
+/* Each side of the split screen is phone-width or less (a regular iPhone held sideways gives each
+   side about 420 points), so its header keeps only the logo, search, alerts and ⋯ More. Switching
+   hubs is done from the handle on the fold, and Support is still in the hub itself. */
+html[data-duo-pane] [data-testid="hub-name"],
+html[data-duo-pane] [data-testid="support-button"],
+html[data-duo-pane] [data-testid="hub-todo-switch"] { display: none !important; }
