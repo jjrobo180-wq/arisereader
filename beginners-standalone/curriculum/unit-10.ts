@@ -101,7 +101,7 @@ export const seeds: CurriculumSeed[] = [
     "story": "At the level design studio, a small group tries an unfamiliar puzzle. A preview screen shows a maze and three possible routes before the player begins. The students study the pictures, read the labels, and predict which path might be safe. Their first idea fails, but they identify a missing clue. With this new information, the testers make a clearer plan.",
     "words": [
       "preview",
-      "look",
+      "scan",
       "press",
       "pray"
     ]
