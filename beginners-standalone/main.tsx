@@ -4,7 +4,7 @@ import {
   ArrowLeft, ArrowRight, Award, Bookmark, BookOpen, Check, CheckCircle2,
   ChevronDown, ChevronRight, Clock3, Compass, Flame, Gift, GraduationCap,
   Headphones, LayoutGrid, LockKeyhole, LogOut, Menu, Search, Settings2,
-  ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X
+  ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X, type LucideIcon
 } from "lucide-react";
 import { BEGINNER_LESSONS, type BeginnerLesson } from "./lessons";
 import "./styles.css";
@@ -163,7 +163,7 @@ function App() {
     setStep(learnCount+activeLesson.questions.length);
   }
   function tryAgain() {stopSpeech();setStep(0);setAnswers([]);setSelected(null);setOutcome(null);setNotice("")}
-  const nav:Array<{id:View;title:string;icon:React.ComponentType<{size?:number}>}>= [
+  const nav:Array<{id:View;title:string;icon:LucideIcon}>= [
     {id:"home",title:"Dashboard",icon:LayoutGrid},
     {id:"lessons",title:"Lesson Library",icon:BookOpen},
     {id:"saved",title:"Saved Lessons",icon:Bookmark},
