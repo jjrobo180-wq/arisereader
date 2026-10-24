@@ -38,7 +38,9 @@ function onGesture() {
   if (unlocked) return;
   unlocked = true;
   const el = voiceElement();
-  if (!el.src) {
+  // Playing already means it is unlocked. Otherwise play a moment of silence now, inside the tap
+  // (a line refused before this tap has already fallen back to the device voice).
+  if (el.paused) {
     el.src = SILENT;
     void el.play().then(() => { if (el.src === SILENT) el.pause(); }).catch(() => { unlocked = false; });
   }
