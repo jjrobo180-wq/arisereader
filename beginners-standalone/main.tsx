@@ -15,6 +15,7 @@ import { UNIT_CONFIG } from "./curriculum-factory";
 import { exportProgress, importProgress } from "./progress-backup";
 import "./styles.css";
 import "./swipe.css";
+import "./phonics.css";
 
 type View = "home" | "lessons" | "swipe" | "saved" | "progress" | "leaderboard" | "rewards";
 type Difficulty = 1 | 2 | 3;
