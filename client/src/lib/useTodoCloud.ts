@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { HubSaver, type SaveView } from "@/lib/hubSaver";
+import { announceSaved, onOtherCopySaved } from "@/lib/paneSync";
 
 const api = `${API_BASE}/api/arise-todo/workspace`;
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
@@ -71,6 +72,7 @@ export function useTodoCloud<W extends object>({
             setView(next);
             if (next.kind === "saved" && saver.current) saveDraft(saver.current.current(), false);
           },
+          onSaved: () => announceSaved("todo", userRef.current),
           setTimer: (fn, ms) => window.setTimeout(fn, ms),
           clearTimer: timer => window.clearTimeout(timer as number),
           debounceMs: 650,
@@ -143,7 +145,10 @@ export function useTodoCloud<W extends object>({
     window.addEventListener("online", online);
     window.addEventListener("beforeunload", beforeUnload);
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void check(); }, 30000);
+    // The other pane (or tab) just saved: catch up now.
+    const stopListening = onOtherCopySaved("todo", userRef.current, () => { lastCheck.current = 0; void check(); });
     return () => {
+      stopListening();
       window.removeEventListener("pagehide", send);
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("online", online);

@@ -32,6 +32,19 @@ function readChoice(): DuoChoice {
   return "auto";
 }
 
+/** True inside one of the two panes of the split screen (/duo). A pane is phone-size, so it keeps
+ *  the ordinary phone layout, and it remembers its own place apart from the other pane. */
+export function inDuoPane(): boolean {
+  try { return window.self !== window.top && window.name.startsWith("duo-pane-"); } catch { return false; }
+}
+
+/** Which way the split screen divides right now: side by side ("book") or one above the other. */
+export function splitDirection(): "book" | "stack" {
+  if (mq("(horizontal-viewport-segments: 2)")) return "book";
+  if (mq("(vertical-viewport-segments: 2)")) return "stack";
+  return window.innerWidth >= window.innerHeight ? "book" : "stack";
+}
+
 /** Is this the Duo's inner screen (or another book-size foldable opened up)? */
 export function looksLikeDuoInner(): boolean {
   if (typeof window === "undefined") return false;
@@ -45,7 +58,7 @@ export function looksLikeDuoInner(): boolean {
 }
 
 function modeFor(choice: DuoChoice): DuoMode {
-  if (choice === "off") return null;
+  if (choice === "off" || inDuoPane()) return null;
   if (choice === "auto" && !looksLikeDuoInner()) return null;
   // Side by side when the fold runs top to bottom (the usual open-book way); stacked otherwise.
   if (mq("(horizontal-viewport-segments: 2)")) return "book";

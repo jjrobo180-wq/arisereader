@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { HubSaver, type SaveView } from "@/lib/hubSaver";
+import { announceSaved, onOtherCopySaved } from "@/lib/paneSync";
 import { HUB_REQUIRED } from "@shared/plans";
 import { workspaceBytes } from "@shared/hubSave";
 import { emptyWorkspace, normalizeWorkspace, type Workspace } from "@shared/teacherHub";
@@ -95,7 +96,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
               return { status: res.status, body: await res.json().catch(() => null) };
             },
             onView: setView,
-            onSaved: ({ bytes: size }) => setBytes(size),
+            onSaved: ({ bytes: size }) => { setBytes(size); announceSaved("workhub", userId); },
             setTimer: (run, ms) => window.setTimeout(run, ms),
             clearTimer: (handle) => window.clearTimeout(handle as number),
           },
@@ -158,7 +159,10 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
     window.addEventListener("beforeunload", onBeforeUnload);
     // A tab left open all day still catches up with work done on another device.
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void check(); }, 90_000);
+    // The other pane (or tab) just saved: catch up now.
+    const stopListening = onOtherCopySaved("workhub", userId, () => { lastCheck.current = 0; void check(); });
     return () => {
+      stopListening();
       window.removeEventListener("pagehide", save);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("online", onOnline);
