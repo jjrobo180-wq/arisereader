@@ -131,8 +131,7 @@ export const BEGINNER_LESSONS: BeginnerLesson[] = [
       q("What happens just before the ball rolls in?",["Ari kicks.","The game starts.","The crowd goes home."],0,"Retell the actions in order."),
       q("Which title fits the story?",["The Final Goal","A Day at the Zoo","The Lost Shoe"],0,"Choose the main idea.")
     ]
-  }
-
+  },
   {
     id:"ronaldo-net",title:"Ronaldo Finds the Net",category:"Sports",skill:"Short vowel and rhymes",level:1,points:10,duration:5,
     hook:"Read the kick, the net, and the big celebration.",subject:"Cristiano Ronaldo",imageFile:"Cristiano Ronaldo 2275 (cropped).jpg",accent:"#36d6bc",
