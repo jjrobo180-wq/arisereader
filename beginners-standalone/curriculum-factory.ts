@@ -89,6 +89,12 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
     const other2=seeds[(index+7)%10];
     const chainThirdParts=UNIT_WORD_CHAINS[unitNumber-1][index].split(",")[2].split("|");
     const chainThird=chainThirdParts.join("");
+    // Some heart-word seeds include the answer itself among their original
+    // spelling contrasts. Replace duplicate choices before constructing Q3.
+    const thirdDistractors=[contrastA,contrastB,target,matching,"pan","sit","map"]
+      .filter((word,index,array)=>word.toLowerCase()!==chainThird.toLowerCase()&&
+        array.findIndex(other=>other.toLowerCase()===word.toLowerCase())===index)
+      .slice(0,2);
     const advancedMeanings:Record<string,string>={
       evidence:"Which word means facts that help support a claim?",
       compare:"Which word means to look for similarities and differences?",
@@ -124,7 +130,7 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
       question(secondPrompt,matching,secondWrong1,secondWrong2,(index+unitNumber+1)%3,
         "Read and compare the spelling and sound of the target and its partner."),
       question("Blend the word parts "+chainThirdParts.join(" + ")+". What word do they make?",
-        chainThird,contrastA,contrastB,(index+unitNumber+2)%3,
+        chainThird,thirdDistractors[0],thirdDistractors[1],(index+unitNumber+2)%3,
         "Blend each grapheme or syllable from left to right, then read the whole word."),
       question(promptB[index],seed.item,other1.item,other2.item,(index+unitNumber)%3,
         "Look for the object the characters use or notice."),
