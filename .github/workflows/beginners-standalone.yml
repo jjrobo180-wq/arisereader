@@ -27,3 +27,9 @@ jobs:
         run: npx tsc --project beginners-standalone/tsconfig.json --noEmit
       - name: Independent production build
         run: npx vite build --config beginners-standalone/vite.config.ts
+      - name: Install Chromium browser test tools
+        run: |
+          npm install --no-save --no-package-lock --legacy-peer-deps @playwright/test
+          npx playwright install --with-deps chromium
+      - name: Test lesson flow, points, backups, and mobile navigation in Chromium
+        run: npx playwright test --config beginners-standalone/playwright.config.ts
