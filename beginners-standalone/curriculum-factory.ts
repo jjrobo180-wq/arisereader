@@ -1,5 +1,5 @@
 import type { BeginnerCategory, BeginnerLesson, BeginnerQuestion } from "./lessons";
-import { UNIT_WORD_CHAINS } from "./phonics-curriculum";
+import { UNIT_WORD_CHAINS, soundHint } from "./phonics-curriculum";
 
 export type CurriculumSeed = {
   title: string;
@@ -100,7 +100,7 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
       solution:"Which word means an answer to a problem?"
     };
     const phonicsPrompt=unitNumber<=3
-      ? "Blend the sounds "+target.split("").map(letter=>"/"+letter+"/").join(" ")+". Which word do you read?"
+      ? "Blend the sounds "+target.split("").map(letter=>soundHint(letter,unitNumber).split(" — ")[0]).join(" ")+". Which word do you read?"
       : unitNumber===4
         ? "Which word exactly matches "+target.toUpperCase().split("").join("-")+"?"
         : unitNumber<=8
