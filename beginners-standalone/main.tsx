@@ -9,6 +9,7 @@ import {
 import { BEGINNER_LESSONS, type BeginnerLesson } from "./lessons";
 import SwipeFeed from "./SwipeFeed";
 import "./styles.css";
+import "./swipe.css";
 
 type View = "home" | "lessons" | "swipe" | "saved" | "progress" | "leaderboard" | "rewards";
 type Difficulty = 1 | 2 | 3;
