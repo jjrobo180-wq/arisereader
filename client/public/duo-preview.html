@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Arise To Duo on iPhone Duo · Preview</title>
+<link rel="icon" type="image/svg+xml" href="/todo-favicon.svg?v=20261012" />
+<style>
+:root{--bg:#0f0d1f;--panel:#1b1833;--line:#2f2a52;--text:#ecebf7;--muted:#a19dc4;--accent:#8b78f0;--body:#1d1b2e}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.app{display:flex;flex-direction:column;height:100%}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{font-weight:800;font-size:15px;margin-right:auto;white-space:nowrap}
+.brand small{display:block;font-weight:600;font-size:11px;color:var(--muted)}
+.group{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.group > span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+.seg{display:inline-flex;background:#110f24;border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button,.btn{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:13px;min-height:36px;padding:0 12px;border-radius:9px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button:hover:not([aria-pressed="true"]),.btn:hover{color:var(--text)}
+.btn{border:1px solid var(--line);background:#110f24}
+.stage{position:relative;flex:1;min-height:0;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 50% 40%,#2a2550 0%,var(--bg) 70%)}
+.scaler{transform-origin:center center}
+.device{position:relative;background:var(--body);padding:16px;border-radius:44px;box-shadow:0 0 0 2px #3a3658 inset,0 50px 90px rgba(0,0,0,.55),0 0 0 1px #000}
+.device.outer{padding:14px;border-radius:52px}
+.screen{position:relative;overflow:hidden;background:#fff;border-radius:30px}
+.device.outer .screen{border-radius:40px}
+.screen iframe{display:block;border:0;width:100%;height:100%;background:#fff}
+.crease{position:absolute;pointer-events:none;z-index:2}
+.crease.v{top:0;bottom:0;left:50%;width:14px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,rgba(0,0,0,.06) 40%,rgba(255,255,255,.18) 50%,rgba(0,0,0,.06) 60%,transparent)}
+.crease.h{left:0;right:0;top:50%;height:14px;transform:translateY(-50%);background:linear-gradient(180deg,transparent,rgba(0,0,0,.06) 40%,rgba(255,255,255,.18) 50%,rgba(0,0,0,.06) 60%,transparent)}
+.hinge{position:absolute;background:#2b2840;border-radius:6px}
+.hinge.v{top:30%;bottom:30%;left:-7px;width:7px}
+.hinge.h{left:30%;right:30%;top:-7px;height:7px}
+.island{position:absolute;z-index:3;top:11px;left:50%;transform:translateX(-50%);width:96px;height:28px;border-radius:20px;background:#000}
+.foot{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;padding:9px 16px;border-top:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12px}
+.foot b{color:var(--text)}
+.hide-sm{display:inline}
+@media(max-width:700px){.hide-sm{display:none}.bar{gap:8px}.seg button,.btn{font-size:12px;padding:0 9px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <div class="brand">Arise To Duo on iPhone Duo<small>Live preview · your real account</small></div>
+    <div class="group" role="group" aria-label="How the phone is held">
+      <span>Phone</span>
+      <div class="seg" id="modes">
+        <button type="button" data-mode="open" aria-pressed="true">Open</button>
+        <button type="button" data-mode="turned" aria-pressed="false">Open, turned</button>
+        <button type="button" data-mode="folded" aria-pressed="false">Folded</button>
+      </div>
+    </div>
+    <div class="group" role="group" aria-label="What to show">
+      <span>Show</span>
+      <div class="seg" id="views">
+        <button type="button" data-view="home" aria-pressed="true">LifeHub</button>
+        <button type="button" data-view="tasks" aria-pressed="false">To-Do list</button>
+        <button type="button" data-view="split" aria-pressed="false">Split screen</button>
+        <button type="button" data-view="site" aria-pressed="false">Front page</button>
+      </div>
+    </div>
+    <button type="button" class="btn" id="reload" title="Reload the phone">↻ Reload</button>
+  </div>
+  <div class="stage" id="stage">
+    <div class="scaler" id="scaler">
+      <div class="device" id="device">
+        <span class="hinge" id="hinge"></span>
+        <div class="screen" id="screen">
+          <span class="island" id="island" hidden></span>
+          <span class="crease" id="crease"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">
+    <span id="size"></span>
+    <span class="hide-sm">Everything inside the phone is the live app: what you change here really changes.</span>
+  </div>
+</div>
+<script>
+(function () {
+  // The iPhone Duo's screens in points: inner 7.6" 1878 x 2670 px, outer 5.4" 1398 x 2034 px (at 3x).
+  var MODES = {
+    open:   { w: 890, h: 626, frame: "duo-preview-inner", crease: "v", label: "Open flat: 7.6\" inner screen, 890 × 626 points, fold down the middle" },
+    turned: { w: 626, h: 890, frame: "duo-preview-inner", crease: "h", label: "Open, turned: 7.6\" inner screen, 626 × 890 points, fold across the middle" },
+    folded: { w: 466, h: 678, frame: "duo-preview-outer", crease: "",  label: "Folded: 5.4\" outer screen, 466 × 678 points" }
+  };
+  var VIEWS = {
+    home:  "/app#/lifehub?pane=home",
+    tasks: "/app#/lifehub?pane=tasks",
+    split: "/app#/duo",
+    site:  "/"
+  };
+  var KEY = "arise_duo_preview_v1";
+  var state = { mode: "open", view: "home" };
+  try { var saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved && MODES[saved.mode] && VIEWS[saved.view]) state = saved; } catch (e) {}
+  var q = new URLSearchParams(location.search);
+  if (MODES[q.get("mode")]) state.mode = q.get("mode");
+  if (VIEWS[q.get("show")]) state.view = q.get("show");
+
+  var stage = document.getElementById("stage"), scaler = document.getElementById("scaler"), device = document.getElementById("device");
+  var screen = document.getElementById("screen"), crease = document.getElementById("crease"), hinge = document.getElementById("hinge");
+  var island = document.getElementById("island"), size = document.getElementById("size");
+  var frame = null;
+
+  function pressed(groupId, attr, value) {
+    document.querySelectorAll("#" + groupId + " button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute(attr) === value)); });
+  }
+
+  function fit() {
+    var m = MODES[state.mode], pad = device.classList.contains("outer") ? 28 : 32;
+    var w = m.w + pad, h = m.h + pad;
+    var s = Math.min((stage.clientWidth - 32) / w, (stage.clientHeight - 32) / h, 1);
+    scaler.style.transform = "scale(" + Math.max(s, 0.2) + ")";
+    size.innerHTML = "<b>" + m.label + "</b>" + (s < 1 ? " · shown at " + Math.round(s * 100) + "% to fit your window" : " · shown at real size");
+  }
+
+  function render() {
+    var m = MODES[state.mode];
+    pressed("modes", "data-mode", state.mode);
+    pressed("views", "data-view", state.view);
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    device.classList.toggle("outer", state.mode === "folded");
+    screen.style.width = m.w + "px";
+    screen.style.height = m.h + "px";
+    crease.className = "crease" + (m.crease ? " " + m.crease : "");
+    crease.hidden = !m.crease;
+    hinge.className = "hinge " + (m.crease || "v");
+    hinge.hidden = !m.crease;
+    island.hidden = state.mode !== "folded";
+    // A new frame each time: its name tells the app which Duo screen it is on.
+    if (frame) frame.remove();
+    frame = document.createElement("iframe");
+    frame.name = m.frame;
+    frame.title = "Arise To Duo";
+    frame.src = VIEWS[state.view];
+    screen.insertBefore(frame, screen.firstChild);
+    fit();
+  }
+
+  document.getElementById("modes").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { state.mode = b.dataset.mode; render(); } });
+  document.getElementById("views").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { state.view = b.dataset.view; render(); } });
+  document.getElementById("reload").addEventListener("click", render);
+  window.addEventListener("resize", fit);
+  render();
+})();
+</script>
+</body>
+</html>
