@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowLeft, ArrowRight, Award, Bookmark, BookOpen, Check, CheckCircle2,
@@ -10,6 +10,7 @@ import {
 import { BEGINNER_LESSONS, type BeginnerLesson } from "./lessons";
 import SwipeFeed from "./SwipeFeed";
 import { UNIT_CONFIG } from "./curriculum-factory";
+import { exportProgress, importProgress } from "./progress-backup";
 import "./styles.css";
 import "./swipe.css";
 
@@ -102,6 +103,8 @@ function App() {
   const [selected,setSelected]=useState<number|null>(null);
   const [outcome,setOutcome]=useState<Outcome|null>(null);
   const [notice,setNotice]=useState("");
+  const [backupStatus,setBackupStatus]=useState("");
+  const restoreInput=useRef<HTMLInputElement>(null);
   useEffect(()=>{storagePut(PROFILE_KEY,profiles)},[profiles]);
   useEffect(()=>{if(profile&&activeId){storagePut(PROGRESS_PREFIX+activeId,progress)}},[activeId,progress,profile?.id]);
   useEffect(()=>{if(!profile&&activeId){setActiveId("");try{localStorage.removeItem(ACTIVE_KEY)}catch{}}},[activeId,profile]);
@@ -209,6 +212,39 @@ function App() {
     setStep(learnCount+activeLesson.questions.length);
   }
   function tryAgain() {stopSpeech();setStep(0);setAnswers([]);setSelected(null);setOutcome(null);setNotice("")}
+  function downloadProgress(){
+    if(!profile)return;
+    try{
+      const text=exportProgress(profile.name,progress);
+      const blob=new Blob([text],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement("a");
+      link.href=url;
+      link.download="arise-beginners-"+profile.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,30)+"-progress.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),250);
+      setBackupStatus("Backup downloaded. Keep the file somewhere private.");
+    }catch{
+      setBackupStatus("Couldn't create this backup. Check your browser's download settings.");
+    }
+  }
+  async function restoreProgress(event:React.ChangeEvent<HTMLInputElement>){
+    const file=event.target.files?.[0];
+    if(!file)return;
+    try{
+      if(file.size>1024*1024)throw Error("Backup files must be smaller than 1 MB.");
+      const payload=importProgress(await file.text());
+      if(!window.confirm("Replace "+profile?.name+"'s current local Beginners progress with the backup for "+payload.nickname+"? This cannot be undone without your existing backup."))return;
+      setProgress(payload.progress);
+      setBackupStatus("Backup restored for "+profile?.name+". Your lessons and points have been recalculated.");
+    }catch(error:any){
+      setBackupStatus(error?.message||"This backup couldn't be read.");
+    }finally{
+      event.target.value="";
+    }
+  }
   const nav:Array<{id:View;title:string;icon:LucideIcon}>= [
     {id:"home",title:"Dashboard",icon:LayoutGrid},
     {id:"lessons",title:"Lesson Library",icon:BookOpen},
@@ -304,6 +340,7 @@ function App() {
         {view==="progress"&&<section><PanelTitle eyebrow="KEEP LEVELING UP" title="My Reading Progress" sub="Look at your mastery by lesson, not a label or grade level."/><div className="stats-grid"><div className="stat"><span className="stat-icon purple-bg"><Star/></span><div><strong>{points}</strong><small>Points earned</small></div></div><div className="stat"><span className="stat-icon cyan-bg"><Award/></span><div><strong>{completed}</strong><small>Lesson passes</small></div></div><div className="stat"><span className="stat-icon gold-bg"><Target/></span><div><strong>{percent}%</strong><small>Catalog complete</small></div></div></div>
           <div className="progress-panel"><div className="progress-top"><strong>Your progress so far</strong><span>{completed} of {LESSONS.length} lessons</span></div><div className="progress-track big"><span style={{width:percent+"%"}}/></div><p>You'll earn each lesson's points once, the first time you pass its skill check with 80% or higher.</p></div>
           <div className="progress-list">{LESSONS.map(l=>{const attempt=progress.attempts[l.id];return <button key={l.id} type="button" onClick={()=>launch(l)} className="progress-row"><LessonCover lesson={l} className="progress-thumbnail"/><div className="progress-copy"><strong>{l.title}</strong><span>{l.skill} · {DIFFICULTY[l.level].label}</span>{attempt&&<small>{attempt.attempts} {attempt.attempts===1?"attempt":"attempts"} · best {attempt.bestScore}%</small>}</div><span className={"progress-status "+(attempt?.passedAt?"complete":"")}>{attempt?.passedAt?<><Check size={15}/> Passed</>:attempt?"Practice again":"Start"} <ChevronRight size={16}/></span></button>})}</div>
+          <div className="backup-panel"><div><div className="eyebrow">SAVE YOUR WORK</div><h3>Keep a copy of your learning progress</h3><p>This version saves progress in this browser. Download a private backup for recovery or a move to another device. Import replaces only the current local profile, never Reader accounts.</p></div><div className="backup-actions"><button type="button" className="secondary-btn" onClick={downloadProgress}>Download backup</button><button type="button" className="secondary-btn" onClick={()=>restoreInput.current?.click()}>Restore backup</button><input ref={restoreInput} aria-label="Import an A.R.I.S.E. Beginners progress backup" type="file" accept=".json,application/json" className="backup-input" onChange={restoreProgress}/></div>{backupStatus&&<p role="status" className="backup-status">{backupStatus}</p>}</div>
           <p className="small-disclaimer">Completing lessons does not by itself measure oral reading fluency, decoding speed or a student's reading grade level. Use regular individual reading assessments alongside the program.</p>
         </section>}
         {view==="leaderboard"&&<section><PanelTitle eyebrow="A LITTLE FRIENDLY MOTIVATION" title="Leaderboard" sub="Local leaderboard for learner profiles saved on this browser only."/>
