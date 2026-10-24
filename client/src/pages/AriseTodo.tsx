@@ -1134,7 +1134,7 @@ export default function AriseTodo() {
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
-          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">Arise To Duo</span>
+          <span className="min-w-0 truncate whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">Arise To Duo</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {duo.isDuo && <button type="button" onClick={() => navigate("/duo")} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#292446] px-3 text-sm font-bold text-white" data-testid="duo-open-split"><Columns2 size={16} /> Split screen</button>}
