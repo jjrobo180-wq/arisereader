@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent, type WheelEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent, type WheelEvent } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
@@ -30,7 +30,7 @@ const PHOTO = (name:string) => name
   ? "https://commons.wikimedia.org/wiki/Special:Redirect/file/" + encodeURIComponent(name) + "?width=900"
   : "";
 const EMPTY: State = {progress:{},saved:[],completed:0,beginnerPoints:0};
-function LessonArt({lesson, className="", children}: {lesson:Lesson;className?:string;children?:React.ReactNode}) {
+function LessonArt({lesson, className="", children}: {lesson:Lesson;className?:string;children?:ReactNode}) {
   const [broken,setBroken] = useState(false);
   useEffect(()=>setBroken(false),[lesson.id]);
   return <div className={"relative overflow-hidden bg-[#141625] " + className}
