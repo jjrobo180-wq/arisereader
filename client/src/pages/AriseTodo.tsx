@@ -133,6 +133,8 @@ import { useLifeHubTrial } from "@/components/TodoGate";
 const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 import "./hubThemes.css";
+import "./ariseDuo.css";
+import { useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 
 type Priority = "low" | "normal" | "high";
@@ -663,6 +665,14 @@ export default function AriseTodo() {
   // The Tile theme is a Windows-Phone start screen: every app is a tile on Home, so there is no menu strip beside it.
   const tileMode = taskLayout === "tiles";
   const phone = usePhoneMenu(tileMode ? "drawer" : layout.menuSide, layout.menuClose);
+  // Arise To Duo: the iPhone Duo's inner screen gets two panes that meet at the fold (see useAriseDuo).
+  const duo = useAriseDuo();
+  useEffect(() => {
+    if (!duo.isDuo) return;
+    const before = document.title;
+    document.title = "Arise To Duo";
+    return () => { document.title = before; };
+  }, [duo.isDuo]);
   // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
   const dsk = shown === "tasks" ? "left" : tileMode ? "drawer" : layout.deskSide;
   const deskAside = dsk === "drawer" ? "lg:hidden"
@@ -1080,6 +1090,15 @@ export default function AriseTodo() {
               </button>)}
             </div>}
         </section>
+        <section data-testid="life-duo-choice">
+          <h3 className="text-sm font-black text-slate-900">Arise To Duo</h3>
+          <p className="mb-3 mt-1 text-sm text-slate-500">The layout for the iPhone Duo's big inner screen: your lists on one side of the fold, your tasks on the other. Auto turns it on when you open the Duo.</p>
+          <div role="radiogroup" aria-label="Arise To Duo layout" className="flex flex-wrap gap-2">
+            {([["auto", "Auto"], ["on", "Always on"], ["off", "Off"]] as [DuoChoice, string][]).map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={duo.choice === id} onClick={() => duo.setChoice(id)}
+              className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${duo.choice === id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{label}</button>)}
+          </div>
+          {duo.choice === "on" && !duo.isDuo && <p className="mt-2 text-xs text-slate-500">This window is too small for it right now.</p>}
+        </section>
         <DeskSidePicker layout={layout} setLayout={setLayout} />
         <ThemePicker layout={layout} setLayout={setLayout} />
         <FolderEditor layout={layout} setLayout={setLayout} makeId={makeId} items={sections.filter((x) => x !== "home").map((x) => ({ id: x, label: SECTION_INFO[x].label }))} />
@@ -1110,7 +1129,7 @@ export default function AriseTodo() {
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
-          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">To Do</span>
+          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">{duo.isDuo ? "Arise To Duo" : "To Do"}</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
@@ -1185,8 +1204,8 @@ export default function AriseTodo() {
     {awayFromStart && <button type="button" onClick={backToStart} aria-label="Back to Start" data-testid="life-start-back"
       className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 z-40 inline-flex h-14 items-center gap-1.5 rounded-full bg-[#292446] pl-4 pr-5 text-sm font-extrabold text-white shadow-xl transition active:scale-90"><ArrowLeft className="h-5 w-5" /> Start</button>}
     <PhoneMenu items={phoneItems} side={tileMode ? "drawer" : layout.menuSide} hideLauncher={tileMode && !awayFromStart} close={layout.menuClose} open={phone.open} setRail={phone.setRail} afterPick={phone.afterPick} top={64} folders={layout.folders} deskDrawer={dsk === "drawer"} />
-    <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
-      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside}`}>
+    <div className={`flex min-h-[calc(100vh-4rem)] w-full flex-col ${dsk === "top" ? "" : dsk === "right" ? "lg:flex-row-reverse" : "lg:flex-row"} ${shown === "tasks" ? "duo-book:flex-row" : ""}`}>
+      <aside className={`w-full border-b border-[#e4e6f0] bg-white lg:[&>*]:shrink-0 ${shown === "tasks" ? (layout.menuSide === "bottom" ? "" : phone.pad) : "max-lg:hidden"} ${deskAside} ${shown === "tasks" ? "duo-book:sticky duo-book:top-16 duo-book:flex duo-book:h-[calc(100dvh-4rem)] duo-book:w-[var(--duo-left)] duo-book:shrink-0 duo-book:flex-col duo-book:overflow-y-auto duo-book:border-b-0 duo-book:border-r duo-book:pb-24 duo-book:[&>*]:shrink-0" : ""}`}>
         <nav aria-label="Family Hub" className={`hidden gap-1 overflow-x-auto px-3 pb-2.5 pt-4 [scrollbar-width:none] sm:px-4 sm:pb-3 [&::-webkit-scrollbar]:hidden ${dsk === "top" ? "lg:flex lg:px-4 lg:py-2" : "lg:block lg:space-y-0.5 lg:px-3 lg:pb-0 lg:pt-6"}`}>
           {renderSectionItems(builtInSections, true)}
 
@@ -1230,17 +1249,27 @@ export default function AriseTodo() {
         </div>}
         <div className={`hidden px-3 pt-2 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}><button type="button" onClick={() => setStore(true)} className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-[#5f4dc8]" data-testid="lifehub-plugin-store"><ShoppingBag size={18} />App Store</button></div>
         {shown === "tasks" && <>
-        <div className="hidden px-6 pb-3 pt-7 lg:block"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
-        <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0">
-          {viewTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} onClick={() => setView(tab.id)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm lg:w-full ${view === tab.id ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span>{tab.title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{tab.count}</span></button>; })}
+        <div className="hidden px-6 pb-3 pt-7 lg:block duo-book:block duo-book:pt-5"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">Tasks</span></div>
+        <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 pb-4 pt-3 lg:block lg:space-y-1 lg:border-t-0 lg:px-3 lg:pb-0 lg:pt-0 duo-book:block duo-book:space-y-1 duo-book:border-t-0 duo-book:px-3 duo-book:pb-0 duo-book:pt-0 duo-stack:flex-wrap duo-stack:overflow-visible">
+          {viewTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} onClick={() => setView(tab.id)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold transition sm:min-h-11 sm:gap-3 sm:px-4 sm:text-sm lg:w-full duo-book:min-h-11 duo-book:w-full ${view === tab.id ? "bg-[#eeeafe] text-[#5f4dc8]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /><span>{tab.title}</span><span className="ml-auto rounded-lg px-1.5 text-xs font-semibold opacity-65">{tab.count}</span></button>; })}
         </div>
-        <div className="hidden px-6 pb-3 pt-8 lg:flex lg:items-center lg:justify-between"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus size={18} /></button></div>
-        <div className="flex gap-2 overflow-x-auto px-4 pb-4 lg:block lg:space-y-0.5 lg:px-3">
-          <button onClick={() => setSelectedList("all")} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold lg:flex lg:min-h-10 lg:w-full lg:items-center lg:gap-3 ${selectedList === "all" ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><Circle size={12} className="hidden lg:block" />Everything</button>
-          {data.lists.map(list => <button key={list.id} onClick={() => setSelectedList(list.id)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold lg:min-h-10 lg:w-full ${selectedList === list.id ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: list.color }} /><span className="max-w-32 truncate">{list.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline">{countFor(list.id)}</span></button>)}
-          <button onClick={() => setAddingList(true)} className="flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-bold text-slate-500 lg:hidden"><Plus size={14} /> List</button>
+        <div className="hidden px-6 pb-3 pt-8 lg:flex lg:items-center lg:justify-between duo-book:flex duo-book:items-center duo-book:justify-between duo-book:pt-6"><span className="text-[11px] font-black uppercase tracking-[.16em] text-slate-400">My lists</span><button onClick={() => setAddingList(true)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-700" title="New list" aria-label="New list"><FolderPlus size={18} /></button></div>
+        <div className="flex gap-2 overflow-x-auto px-4 pb-4 lg:block lg:space-y-0.5 lg:px-3 duo-book:block duo-book:space-y-0.5 duo-book:px-3 duo-stack:flex-wrap duo-stack:overflow-visible">
+          <button onClick={() => setSelectedList("all")} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold lg:flex lg:min-h-10 lg:w-full lg:items-center lg:gap-3 duo-book:flex duo-book:min-h-11 duo-book:w-full duo-book:items-center duo-book:gap-3 ${selectedList === "all" ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><Circle size={12} className="hidden lg:block duo-book:block" />Everything</button>
+          {data.lists.map(list => <button key={list.id} onClick={() => setSelectedList(list.id)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold lg:min-h-10 lg:w-full duo-book:min-h-11 duo-book:w-full ${selectedList === list.id ? "bg-[#f4f2ff] text-[#6c5cce]" : "text-slate-500 hover:bg-slate-50"}`}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: list.color }} /><span className="max-w-32 truncate">{list.name}</span><span className="ml-auto hidden text-xs opacity-60 lg:inline duo-book:inline">{countFor(list.id)}</span></button>)}
+          <button onClick={() => setAddingList(true)} className="flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-bold text-slate-500 lg:hidden duo-book:hidden"><Plus size={14} /> List</button>
         </div>
         {addingList && <form onSubmit={createList} className="mx-4 mb-4 flex gap-2 lg:mx-5"><input className={inputClass + " min-w-0"} value={newListName} autoFocus maxLength={60} onChange={e => setNewListName(e.target.value)} placeholder="List name" aria-label="New list name" /><button type="submit" className="rounded-xl bg-[#705ee2] px-3 text-white" aria-label="Save list"><Check size={18} /></button><button type="button" onClick={() => { setAddingList(false); setNewListName(""); }} className="rounded-xl bg-slate-100 px-2 text-slate-500" aria-label="Cancel list"><X size={18} /></button></form>}
+        {duo.mode === "book" && <div className="space-y-3 px-3 pt-6" data-testid="duo-left-extras">
+          <section className="rounded-2xl bg-[#292446] p-4 text-white">
+            <div className="flex items-center justify-between gap-2"><span className="text-[11px] font-extrabold uppercase tracking-[.14em] text-[#bcb2ff]">Your progress</span><span className="text-xl font-black">{data.tasks.length ? Math.round(completed / data.tasks.length * 100) : 0}%</span></div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#a38cfa] transition-all" style={{ width: `${data.tasks.length ? completed / data.tasks.length * 100 : 0}%` }} /></div>
+          </section>
+          <section className="rounded-2xl border border-[#e7e8f0] bg-white p-4">
+            <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold">Coming up next</h3><CalendarDays size={16} className="text-violet-500" /></div>
+            {upcoming.length ? <div className="mt-3 space-y-1">{upcoming.slice(0, 5).map(task => <button key={task.id} onClick={() => setEditing({ ...task })} className="flex min-h-10 w-full items-center justify-between gap-3 border-b border-slate-100 text-left last:border-b-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{prettyDate(task.due)}</span></button>)}</div> : <p className="mt-2 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
+          </section>
+        </div>}
         </>}
         <div className={`mt-auto hidden px-5 pb-7 pt-6 ${dsk === "left" || dsk === "right" ? "lg:block" : ""}`}>
           <div className="rounded-2xl bg-[#f4f1ff] p-4">
@@ -1252,9 +1281,9 @@ export default function AriseTodo() {
         </div>
       </aside>
 
-      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
+      <main data-tour="life-content" className={`min-w-0 flex-1 px-3 pb-10 pt-4 sm:px-7 sm:pt-6 lg:px-9 lg:pt-10 xl:px-12 ${shown === "tasks" ? "duo-book:px-5 duo-book:pt-4" : "duo:px-6"} ${shown === "tasks" && layout.menuSide === "top" ? phone.pad.replace(/max-lg:pt-\S+/, "") : phone.pad}`}>
         <div className="mx-auto max-w-[1250px]">
-          {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4">
+          {shown === "tasks" && <header className="mb-5 flex flex-wrap items-start justify-between gap-4 duo-book:hidden">
             <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[.2em] text-[#7869d7]">Your everyday organizer</p><h1 className="text-3xl font-black tracking-tight text-[#232139] sm:text-4xl">Make room for what matters<span className="text-[#7866e1]">.</span></h1><p className="mt-2 text-sm leading-6 text-slate-500">One place to stay on top of life, work, and everything in between.</p></div>
             <button onClick={openAdd} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#705de0] px-5 text-sm font-bold text-white shadow-[0_8px_24px_#705de02b] hover:bg-[#604bd4] lg:inline-flex"><Plus size={18} /> New task</button>
           </header>}
@@ -1320,17 +1349,17 @@ export default function AriseTodo() {
           {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown !== "tasks" && <div className="mt-2">{shown === "home" && linkInvites.length > 0 && <button type="button" onClick={() => setSection("linked")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-left text-sm text-violet-900 hover:bg-violet-100" data-testid="link-invite-home"><Users size={18} className="shrink-0" /><span className="min-w-0 flex-1"><span className="font-bold">{linkInvites[0].ownerName}{linkInvites.length > 1 ? ` and ${linkInvites.length - 1} more` : ""}</span> {linkInvites.length > 1 ? "want" : "wants"} to share with you.</span><span className="font-bold">See it →</span></button>}{shown === "home" && <div className="mb-4"><SupportBanner /></div>}{shown === "home" && family.widgets.stickies ? <StickyBoard family={family} setFamily={setFamily} makeId={makeId}>{familyContent}</StickyBoard> : familyContent}</div>}
           {!notesAppOpen && !sheetsAppOpen && !driveOpen && !dropOpen && !kitOpen && shown === "tasks" && <>
 
-          <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4 duo-book:mt-0 duo-book:grid-cols-4 duo-book:gap-2 duo-stack:grid-cols-4">
             {[
               { label: "Open tasks", count: active.length, icon: ListTodo, tint: "text-violet-600", bg: "bg-violet-50" },
               { label: "Due today", count: active.filter(task => task.due === currentDay).length, icon: Sun, tint: "text-amber-600", bg: "bg-amber-50" },
               { label: "Overdue", count: overdue.length, icon: Clock3, tint: "text-rose-600", bg: "bg-rose-50" },
               { label: "Completed", count: completed, icon: CheckCircle2, tint: "text-emerald-600", bg: "bg-emerald-50" },
-            ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 shadow-[0_3px_16px_#17152b08] sm:p-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold text-slate-500">{stat.label}</span><span className={`rounded-xl p-2 ${stat.bg} ${stat.tint}`}><Icon size={17} /></span></div><p className="text-3xl font-black text-[#242238]">{stat.count}</p></div>; })}
+            ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="rounded-2xl border border-[#e7e8ef] bg-white p-4 shadow-[0_3px_16px_#17152b08] sm:p-5 duo-book:p-3"><div className="mb-3 flex items-center justify-between duo-book:mb-1"><span className="text-xs font-bold text-slate-500 duo-book:text-[11px] duo-book:leading-4">{stat.label}</span><span className={`rounded-xl p-2 duo-book:hidden ${stat.bg} ${stat.tint}`}><Icon size={17} /></span></div><p className="text-3xl font-black text-[#242238] duo-book:text-2xl">{stat.count}</p></div>; })}
           </div>
 
-          <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6">
+          <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px] duo-book:mt-4 duo-book:gap-4">
+            <section className="min-w-0 rounded-[1.5rem] border border-[#e7e8f0] bg-white p-4 shadow-[0_8px_28px_#17152b08] sm:p-6 duo-book:p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-[11px] font-extrabold uppercase tracking-[.15em] text-violet-600">{selectedName}</p><h2 className="mt-1 text-xl font-black">{viewTabs.find(tab => tab.id === view)?.title}</h2></div>
                 <div className="flex flex-wrap items-center gap-2"><ShareButton target={selectedList === "all" ? "tasks" : `tasks:${selectedList}`} title={selectedList === "all" ? "Our to-do lists" : selectedName} say={setMessage} label={selectedList === "all" ? "Share lists" : "Share list"} /><button onClick={openAdd} className={buttonClass + " bg-[#6e5ae0] text-white hover:bg-[#5948c8]"}><Plus size={17} /> Add task</button></div>
@@ -1385,14 +1414,14 @@ export default function AriseTodo() {
             </section>
 
             <aside className="space-y-5">
-              <section className="rounded-[1.5rem] bg-[#292446] p-5 text-white shadow-[0_12px_24px_#2924461f]">
+              <section className="rounded-[1.5rem] bg-[#292446] p-5 text-white shadow-[0_12px_24px_#2924461f] duo-book:hidden">
                 <div className="flex items-center gap-2 text-[#bcb2ff]"><Sparkles size={17} /><span className="text-[11px] font-extrabold uppercase tracking-[.14em]">Your progress</span></div>
                 <p className="mt-5 text-3xl font-black">{data.tasks.length ? Math.round(completed / data.tasks.length * 100) : 0}%</p>
                 <p className="mt-1 text-xs text-slate-300">of all tasks completed</p>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#a38cfa] transition-all" style={{ width: `${data.tasks.length ? completed / data.tasks.length * 100 : 0}%` }} /></div>
                 <p className="mt-4 text-xs font-medium leading-5 text-slate-300">Every little step counts. Keep going at your own pace.</p>
               </section>
-              <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5">
+              <section className="rounded-[1.5rem] border border-[#e7e8f0] bg-white p-5 duo-book:hidden">
                 <div className="flex items-center justify-between"><h3 className="text-sm font-extrabold">Coming up next</h3><CalendarDays size={17} className="text-violet-500" /></div>
                 {upcoming.length ? <div className="mt-4 space-y-3">{upcoming.slice(0, 5).map(task => <button key={task.id} onClick={() => setEditing({ ...task })} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 pb-3 text-left last:border-b-0 last:pb-0"><span className="min-w-0 truncate text-xs font-semibold text-slate-700">{task.title}</span><span className="shrink-0 text-[11px] font-bold text-violet-600">{prettyDate(task.due)}</span></button>)}</div> : <p className="mt-3 text-xs leading-5 text-slate-500">Your calendar is clear for now.</p>}
               </section>
@@ -1412,9 +1441,9 @@ export default function AriseTodo() {
       </main>
     </div>
 
-    {editing && <div className="fixed inset-0 kb-sheet z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[96dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-6">
-        <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">Arise LifeHub</p><h2 id="todo-modal-title" className="mt-1 text-lg font-black sm:text-xl">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
+    {editing && <div className="fixed inset-0 kb-sheet z-[500] flex items-end justify-center bg-[#16152a]/65 p-0 backdrop-blur-sm sm:items-center sm:p-4 duo-book:items-stretch duo-book:justify-start duo-book:bg-[#16152a]/25 duo-book:p-0 duo-book:backdrop-blur-none" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditing(null); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="todo-modal-title" className="max-h-[96dvh] w-full overflow-y-auto overscroll-contain rounded-t-[1.5rem] bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-[1.5rem] sm:p-6 duo-book:h-[100dvh] duo-book:max-h-none duo-book:w-[var(--duo-left)] duo-book:max-w-none duo-book:rounded-none duo-book:rounded-r-[1.5rem] duo-book:p-5">
+        <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.15em] text-violet-600">{duo.isDuo ? "Arise To Duo" : "Arise LifeHub"}</p><h2 id="todo-modal-title" className="mt-1 text-lg font-black sm:text-xl">{data.tasks.some(item => item.id === editing.id) ? "Edit task" : "Add a new task"}</h2></div><button onClick={() => setEditing(null)} aria-label="Close task editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={20} /></button></div>
         <form onSubmit={saveTask} className="space-y-3">
           <label className="block text-xs font-bold text-slate-600">Task name<input autoFocus required maxLength={200} value={editing.title} onChange={event => setEditing({ ...editing, title: event.target.value })} className={inputClass + " mt-1.5"} placeholder="What needs to get done?" /></label>
           <label className="block text-xs font-bold text-slate-600">Notes (optional)<textarea rows={2} maxLength={2000} value={editing.notes} onChange={event => setEditing({ ...editing, notes: event.target.value })} className={inputClass + " mt-1.5 py-3"} placeholder="Add more details..." /></label>
