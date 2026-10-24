@@ -77,7 +77,7 @@ export default function ReadingRunnerPro({ onBack }: { onBack: () => void }) {
   const dw = settings.dwellMenus;
 
   return (
-    <main className="rr-font fixed inset-0 z-[120] h-[100dvh] overflow-hidden bg-slate-950 text-white select-none">
+    <main className="rr-font fixed inset-0 z-[120] h-[100dvh] touch-manipulation overflow-hidden bg-slate-950 text-white select-none">
       <style>{CSS}</style>
       {view === "title" && (
         <section className="absolute inset-0" data-runner-ui>

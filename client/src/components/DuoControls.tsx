@@ -7,7 +7,7 @@
 // one above the other on a regular phone held upright.
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeftRight, Columns2, Rows2, X } from "lucide-react";
+import { ArrowLeftRight, Columns2, X } from "lucide-react";
 import { inDuoPane, inSplitScreen, looksLikeDuoInner, splitDirection, turnDuoOff, useAriseDuo } from "@/lib/useAriseDuo";
 import { paneLabel, paneOptionsFor, useSplitPicks, type SplitPicks, type SplitSide } from "@/lib/duoSplit";
 
@@ -101,7 +101,7 @@ export default function DuoControls({ canWork, onClose, split, dark = "#292446" 
         <button type="button" onClick={() => setPicks((p) => ({ left: p.right, right: p.left }))} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-100 px-4 text-sm font-bold text-slate-800 hover:bg-slate-200" data-testid="duo-swap"><ArrowLeftRight className="h-4 w-4" /> Swap</button>
         {inSplit
           ? <button type="button" onClick={closeSplit} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50" data-testid="duo-close-split"><X className="h-4 w-4" /> Close split screen</button>
-          : !pane && <button type="button" onClick={openSplit} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold text-white" style={{ background: dark }} data-testid="duo-open-split-screen">{dir === "book" ? <Columns2 className="h-4 w-4" /> : <Rows2 className="h-4 w-4" />} Open split screen</button>}
+          : !pane && <button type="button" onClick={openSplit} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold text-white" style={{ background: dark }} data-testid="duo-open-split-screen">{dir === "book" ? <Columns2 className="h-4 w-4" /> : <Columns2 className="h-4 w-4 rotate-90" />} Open split screen</button>}
       </div>
     </section>
   </div>;

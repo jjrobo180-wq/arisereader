@@ -105,7 +105,8 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
     if (memo) {
       setWorkspace(memo.workspace);
       setBytes(workspaceBytes(memo.workspace));
-      setSeats(typeof memo.extra?.seats === "number" ? memo.extra.seats : null);
+      const seatCount = memo.extra?.seats;
+      setSeats(typeof seatCount === "number" ? seatCount : null);
       setView(JSON.stringify(memo.workspace) === JSON.stringify(memo.saved) ? { kind: "saved" } : { kind: "waiting" });
       setLoaded(true);
       void (async () => {

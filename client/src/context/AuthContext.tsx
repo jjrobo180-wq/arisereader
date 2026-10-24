@@ -7,6 +7,7 @@ import { forgetThisDevice } from "@/lib/pushDevice";
 import { isHubAccount } from "@/lib/hubs";
 import { clearSessionBackup, keepStorage, readSessionBackup, saveSessionBackup } from "@/lib/sessionBackup";
 import { SAMPLE_TOKEN, SAMPLE_USER, isSampleMode, resetSample } from "@/lib/sampleMode";
+import { setEyeGazeUser } from "@/lib/gazeDefaults";
 
 interface AuthUser {
   id: number;
@@ -450,6 +451,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Library had legacy tutorial content keyed to the literal username "sample".
       ? { ...user, username: "sample-student", is_eye_gaze_user: false }
       : user;
+  // Eye-gaze accounts get look-to-press in the games on every device, tablets included.
+  setEyeGazeUser(!!contextUser?.is_eye_gaze_user);
 
   return (
     <AuthContext.Provider value={{

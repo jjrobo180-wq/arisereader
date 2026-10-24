@@ -89,7 +89,7 @@ export default function EyeGazeSiteShell({ children }: { children: ReactNode }) 
   const mobileNav = visibleNav;
 
   return (
-    <div data-eye-gaze-shell className="min-h-screen text-slate-900" style={{ backgroundColor: background }}>
+    <div data-eye-gaze-shell className="min-h-screen touch-manipulation text-slate-900" style={{ backgroundColor: background }}>
       <style>{`
         [data-eye-gaze-shell] {
           --background: 150 39% 93%;

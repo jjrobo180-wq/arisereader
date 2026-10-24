@@ -3,13 +3,14 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from "rea
 import { ArrowLeft, Settings, Volume2, VolumeX, X } from "lucide-react";
 import GazeButton from "@/components/eye-gaze/GazeButton";
 import type { Quality } from "@/game/stage/stage";
+import { lookByDefault, restoreLook } from "@/lib/gazeDefaults";
 
 export type StageSettings = { dwell: boolean; voice: boolean; quality: Quality; music: number; sfx: number };
-const coarse = () => typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches && !window.matchMedia?.("(pointer: fine)").matches;
 const KEY = (uid: unknown) => `arise-eye-gaze-stage:settings:${uid ?? "guest"}`;
 export function loadStageSettings(uid: unknown): StageSettings {
-  const d: StageSettings = { dwell: !coarse(), voice: true, quality: "medium", music: 0.35, sfx: 0.85 };
-  try { const v = localStorage.getItem(KEY(uid)); return v ? { ...d, ...JSON.parse(v) } : d; } catch { return d; }
+  // Look-to-press starts on for eye-gaze readers on any device, a tablet included (lib/gazeDefaults.ts).
+  const d: StageSettings = { dwell: lookByDefault(), voice: true, quality: "medium", music: 0.35, sfx: 0.85 };
+  try { const v = localStorage.getItem(KEY(uid)); return v ? restoreLook("stage", uid, { ...d, ...JSON.parse(v) } as StageSettings, { dwell: true }) : d; } catch { return d; }
 }
 export function useStageSettings(uid: unknown) {
   const [s, set] = useState<StageSettings>(() => loadStageSettings(uid));
@@ -37,8 +38,9 @@ export default function StageShell({ title, badge, accent = "#38bdf8", hostRef, 
       <div className="grid gap-1.5 rounded-2xl bg-slate-100 p-1.5" style={{ gridTemplateColumns: `repeat(${opts.length},minmax(0,1fr))` }}>
         {opts.map(([v, l]) => <GazeButton key={String(v)} dwell={D} ms={900} onSelect={() => set(v)} className={"isolate min-h-11 rounded-xl text-sm font-black " + (value === v ? "text-white shadow" : "text-slate-700")}><span className="absolute inset-0 -z-10 rounded-xl" style={{ background: value === v ? accent : "transparent" }} />{l}</GazeButton>)}
       </div></div>);
+  // touch-manipulation: quick taps (popping, answering) are taps, never the tablet's double-tap zoom.
   return (
-    <main className="sg-font fixed inset-0 z-[120] h-[100dvh] select-none overflow-hidden bg-slate-900 text-slate-950">
+    <main className="sg-font fixed inset-0 z-[120] h-[100dvh] touch-manipulation select-none overflow-hidden bg-slate-900 text-slate-950">
       <style>{STAGE_CSS}</style>
       <div ref={hostRef} className="absolute inset-0" />
       <header data-stage-ui className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start gap-2 p-2 sm:p-3" style={{ paddingTop: "max(.5rem, env(safe-area-inset-top))" }}>

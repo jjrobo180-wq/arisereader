@@ -92,9 +92,11 @@ function DwellButton({
       type="button"
       aria-label={label}
       onClick={() => { stop(); onSelect(); }}
-      onMouseEnter={start}
-      onMouseLeave={stop}
-      onFocus={start}
+      // Look (or a mouse) arms the dwell; a finger never does — on a tablet the fake mouse-enter
+      // that comes before a tap used to start it and could swallow the tap itself.
+      onPointerEnter={(e) => { if (e.pointerType !== "touch") start(); }}
+      onPointerLeave={stop}
+      onFocus={(e) => { if (e.currentTarget.matches(":focus-visible")) start(); }}
       onBlur={stop}
       className={`${className.includes("absolute") ? "absolute" : "relative"} overflow-hidden ${active ? "ring-4 ring-blue-500 ring-offset-2" : ""} ${className}`}
       style={style}

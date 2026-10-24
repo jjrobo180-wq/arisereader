@@ -22,6 +22,9 @@ function Hold({ on, off, dwell, children, className, label }: { on: () => void; 
   return <button type="button" aria-label={label} className={className + (active ? " scale-95 ring-4 ring-amber-300" : "")}
     onPointerEnter={e => { if (dwell && e.pointerType !== "touch") { window.clearTimeout(timer.current); timer.current = window.setTimeout(start, 260); } }}
     onPointerLeave={stop} onPointerDown={e => { e.preventDefault(); start(); }} onPointerUp={e => { if (e.pointerType === "touch") stop(); }} onPointerCancel={stop}
+    // A held finger must stay a hold: without this a tablet treats the slightest movement as the start
+    // of a scroll and cancels the touch, so walking stopped almost at once.
+    style={{ touchAction: "none", WebkitTouchCallout: "none" }}
     onContextMenu={e => e.preventDefault()}>{children}</button>;
 }
 

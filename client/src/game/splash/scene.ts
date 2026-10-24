@@ -10,6 +10,7 @@ import { makeCreature, type Creature } from "./creatures";
 import { Fx } from "@/game/skybound/fx";
 import { bakeStatic, glowSprite } from "@/game/runner/models";
 import { makeWater, heightAt, MAX_RIPPLES, type Ripple } from "./water";
+import { touchOnly } from "@/lib/gazeDefaults";
 
 export type Quality = "low" | "medium" | "high";
 const R = 9.6; // pond radius
@@ -46,7 +47,7 @@ export class PondScene {
   onSound: ((name: string) => void) | null = null;
 
   constructor(private host: HTMLElement, private quality: Quality) {
-    const q = quality, phone = Math.min(window.innerWidth, window.innerHeight) < 600;
+    const q = quality, phone = (Math.min(window.innerWidth, window.innerHeight) < 600 || touchOnly() /* tablets too: the full-screen glow pass is too heavy for them */);
     this.renderer = new THREE.WebGLRenderer({ antialias: q !== "low", powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q === "high" ? 2 : q === "medium" ? 1.5 : 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.NeutralToneMapping; this.renderer.toneMappingExposure = 1.05;

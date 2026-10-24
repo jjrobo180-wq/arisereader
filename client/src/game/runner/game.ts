@@ -12,6 +12,7 @@ import { RunnerAudio } from "./audio";
 import type { RunnerInput, Steer } from "./input";
 import type { CardStyle } from "./textures";
 import { coinGeometry, coinMaterials, makeBarrier, makeCard, makeDog, makeFinishGate, makeHero, makePower, makeRamp, makeTrain, type DogRig, type HeroRig } from "./models";
+import { touchOnly } from "@/lib/gazeDefaults";
 
 export type GameOptions = { difficulty: Difficulty; assists: Assists; quality: Quality; cardStyle: CardStyle; steer: Steer; demo?: boolean; seed?: number; music?: boolean };
 export type HudState = { caught: number; goal: number; coins: number; hearts: number; loseHearts: boolean; score: number; magnet: number; shield: number; state: Sim["state"]; lookingUp: boolean };
@@ -36,7 +37,7 @@ export class RunnerGame {
 
   constructor(private host: HTMLElement, public mission: Mission, public opts: GameOptions, private audio: RunnerAudio, private input: RunnerInput | null, private cb: GameCallbacks = {}) {
     this.sim = new Sim(mission, { difficulty: opts.difficulty, assists: opts.demo ? { autoJump: true, autoDodge: true, guide: true } : opts.assists, seed: opts.seed, demo: opts.demo });
-    const q = opts.quality; this.phone = Math.min(window.innerWidth, window.innerHeight) < 600;
+    const q = opts.quality; this.phone = (Math.min(window.innerWidth, window.innerHeight) < 600 || touchOnly() /* tablets too: the full-screen glow pass is too heavy for them */);
     this.renderer = new THREE.WebGLRenderer({ antialias: q !== "low", powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q === "high" ? 2 : q === "medium" ? 1.5 : 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.NeutralToneMapping; this.renderer.toneMappingExposure = 1.05;
