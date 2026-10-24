@@ -70,7 +70,7 @@ test("100 new lessons cover ten explicit skill progressions and all pass the con
         assert.equal(seed.words[0].length,3,l.title+" should test one CVC word");
         assert.equal(seed.words[0].slice(1),seed.words[1].slice(1),l.title+" word pair should rhyme");
       }
-      assert.ok(l.slides[0].text.includes(seed.place)&&l.slides[0].text.includes(seed.item));
+      assert.ok(l.slides[0].text.toLowerCase().includes(seed.place.toLowerCase())&&l.slides[0].text.toLowerCase().includes(seed.item.toLowerCase()),l.title+" passage evidence capitalization mismatch");
     }
   }
   assert.deepEqual(byLevel,{1:40,2:40,3:20});
