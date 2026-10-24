@@ -30,7 +30,7 @@ function speak(text:string,rate=.74){
 export default function PhonicsLab({activity,onComplete,onExit}:Props){
   const [phase,setPhase]=useState<"teach"|"build"|"read">("teach");
   const [index,setIndex]=useState(0);
-  const [chosen,setChosen]=useState<string[]>([]);
+  const [chosen,setChosen]=useState<(string|null)[]>([]);
   const [wrongChecks,setWrongChecks]=useState(0);
   const [totalChecks,setTotalChecks]=useState(0);
   const [firstTries,setFirstTries]=useState(0);
@@ -41,7 +41,8 @@ export default function PhonicsLab({activity,onComplete,onExit}:Props){
   const words=activity.wordBuilds;
   const word=words[index];
   const tiles=useMemo(()=>tileChoices(word,words),[word,words]);
-  const chosenTexts=chosen.map(id=>tiles.find(t=>t.id===id)?.text||"");
+  const chosenTexts=word.parts.map((_,i)=>tiles.find(t=>t.id===chosen[i])?.text||"");
+  const filledCount=chosen.filter(Boolean).length;
   const clue=word.parts.map(part=>soundHint(part,activity.unit));
   const primaryName=activity.unit===9?"SYLLABLES":activity.unit===10?"WORD PARTS":"SOUND SPELLINGS";
   useEffect(()=>{
@@ -59,15 +60,22 @@ export default function PhonicsLab({activity,onComplete,onExit}:Props){
     playWord(cue.replace(/\/([^/]+)\//g,"$1 sound"));
   }
   function addTile(id:string){
-    if(correct||chosen.includes(id)||chosen.length>=word.parts.length)return;
-    setChosen(items=>[...items,id]);setMessage("");
+    if(correct||chosen.includes(id)||filledCount>=word.parts.length)return;
+    setChosen(items=>{
+      const next=word.parts.map((_,i)=>items[i]||null);
+      const slot=next.findIndex(x=>!x);
+      if(slot>=0)next[slot]=id;
+      return next;
+    });
+    setMessage("");
   }
   function clearTile(i:number){
     if(correct)return;
-    setChosen(ids=>ids.filter((_,j)=>i!==j));setMessage("");
+    setChosen(ids=>word.parts.map((_,j)=>j===i?null:ids[j]||null));
+    setMessage("");
   }
   function check(){
-    if(correct||chosen.length!==word.parts.length)return;
+    if(correct||filledCount!==word.parts.length)return;
     setTotalChecks(n=>n+1);
     if(buildMatches(word,chosenTexts)){
       setCorrect(true);
@@ -84,8 +92,16 @@ export default function PhonicsLab({activity,onComplete,onExit}:Props){
   function next(){
     if(!correct)return;
     if(index===2){setPhase("read");setMessage("");return;}
+    const upcoming=words[index+1];
+    const sameLength=word.parts.length===upcoming.parts.length;
+    const differences=sameLength?word.parts.filter((part,i)=>part!==upcoming.parts[i]).length:0;
+    if(activity.unit<=8&&sameLength&&differences===1){
+      // Keep every unchanged sound tile from the previous word. Only the
+      // changed phoneme must be moved, so students actually chain words.
+      setChosen(upcoming.parts.map((part,i)=>part===word.parts[i]?"target-"+i:null));
+    }else setChosen([]);
     setIndex(i=>i+1);
-    setChosen([]);setWrongChecks(0);setCorrect(false);setShowSpelling(false);setMessage("");
+    setWrongChecks(0);setCorrect(false);setShowSpelling(false);setMessage("");
   }
   return <section className="phonics-lab" aria-label={"Word-building laboratory: "+activity.title}>
     <div className="phonics-header">
@@ -145,17 +161,17 @@ export default function PhonicsLab({activity,onComplete,onExit}:Props){
               {chosenTexts[i]||<span className="phonics-slot-number">{i+1}</span>}
             </button>)}
         </div>
-        <p className="phonics-instruction">{correct?"Great work! You mapped every sound-spelling part.": "Tap tiles below to fill the boxes. Tap a filled box to remove a tile."}</p>
+        <p className="phonics-instruction">{correct?"Great work! You mapped every sound-spelling part.":index>0&&filledCount>0?"The unchanged sounds stayed in place. Fill the open box or tap a tile to change it.":"Tap tiles below to fill the boxes. Tap a filled box to remove a tile."}</p>
         <div className="phonics-tiles" role="group" aria-label="Available letter and word-part tiles">
           {tiles.map(tile=><button type="button" key={tile.id} aria-label={"Add tile "+tile.text}
-            disabled={correct||chosen.includes(tile.id)||chosen.length>=word.parts.length}
+            disabled={correct||chosen.includes(tile.id)||filledCount>=word.parts.length}
             onClick={()=>addTile(tile.id)} className="phonics-tile">{tile.text}</button>)}
         </div>
         <div className="phonics-check-row">
           <button type="button" className="secondary-btn" disabled={correct||chosen.length===0}
             onClick={()=>{setChosen([]);setMessage("");}}><RotateCcw size={17}/> Clear</button>
           {!correct?<button type="button" className="primary-btn"
-            disabled={chosen.length!==word.parts.length} onClick={check}><Check size={17}/> Check Word</button>:
+            disabled={filledCount!==word.parts.length} onClick={check}><Check size={17}/> Check Word</button>:
             <button type="button" className="primary-btn" onClick={next}>{index===2?"Practice Reading":"Next Word"} <ArrowRight size={17}/></button>}
         </div>
         {message&&<div role="status" aria-live="polite" className={"phonics-feedback "+(correct?"correct":"retry")}>
