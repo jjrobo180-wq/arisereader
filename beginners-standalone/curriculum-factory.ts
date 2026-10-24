@@ -1,4 +1,5 @@
 import type { BeginnerCategory, BeginnerLesson, BeginnerQuestion } from "./lessons";
+import { UNIT_WORD_CHAINS, soundHint } from "./phonics-curriculum";
 
 export type CurriculumSeed = {
   title: string;
@@ -86,6 +87,14 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
     const [target,matching,contrastA,contrastB]=seed.words;
     const other1=seeds[(index+3)%10];
     const other2=seeds[(index+7)%10];
+    const chainThirdParts=UNIT_WORD_CHAINS[unitNumber-1][index].split(",")[2].split("|");
+    const chainThird=chainThirdParts.join("");
+    // Some heart-word seeds include the answer itself among their original
+    // spelling contrasts. Replace duplicate choices before constructing Q3.
+    const thirdDistractors=[contrastA,contrastB,target,matching,"pan","sit","map"]
+      .filter((word,index,array)=>word.toLowerCase()!==chainThird.toLowerCase()&&
+        array.findIndex(other=>other.toLowerCase()===word.toLowerCase())===index)
+      .slice(0,2);
     const advancedMeanings:Record<string,string>={
       evidence:"Which word means facts that help support a claim?",
       compare:"Which word means to look for similarities and differences?",
@@ -99,7 +108,7 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
       solution:"Which word means an answer to a problem?"
     };
     const phonicsPrompt=unitNumber<=3
-      ? "Blend the sounds "+target.split("").map(letter=>"/"+letter+"/").join(" ")+". Which word do you read?"
+      ? "Blend the sounds "+target.split("").map(letter=>soundHint(letter,unitNumber).split(" — ")[0]).join(" ")+". Which word do you read?"
       : unitNumber===4
         ? "Which word exactly matches "+target.toUpperCase().split("").join("-")+"?"
         : unitNumber<=8
@@ -120,8 +129,9 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
       question(phonicsPrompt,target,contrastA,contrastB,(index+unitNumber)%3,"Say the sounds in order, then check every letter."),
       question(secondPrompt,matching,secondWrong1,secondWrong2,(index+unitNumber+1)%3,
         "Read and compare the spelling and sound of the target and its partner."),
-      question(promptA[index],seed.place,other1.place,other2.place,(index+unitNumber+2)%3,
-        "The place is named in the story. Reread the first part."),
+      question("Blend the word parts "+chainThirdParts.join(" + ")+". What word do they make?",
+        chainThird,thirdDistractors[0],thirdDistractors[1],(index+unitNumber+2)%3,
+        "Blend each grapheme or syllable from left to right, then read the whole word."),
       question(promptB[index],seed.item,other1.item,other2.item,(index+unitNumber)%3,
         "Look for the object the characters use or notice."),
       question(promptC[index],seed.ending,other1.ending,other2.ending,(index+unitNumber+1)%3,

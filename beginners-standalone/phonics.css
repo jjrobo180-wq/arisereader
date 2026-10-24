@@ -1,0 +1,91 @@
+/* A.R.I.S.E. Beginners | Explicit Phonics Sound Lab
+   Accessible interactive letter tiles with the existing theme palette. */
+.phonics-lab{display:flex;flex-direction:column;gap:22px;color:var(--text);padding:0 0 30px;}
+.phonics-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.phonics-kicker{display:inline-flex;align-items:center;gap:7px;color:var(--accent-2);font-size:11px;letter-spacing:.1em;font-weight:750}
+.phonics-count{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
+.phonics-mini-track{display:flex;gap:4px}
+.phonics-mini-track i{display:block;width:20px;height:6px;background:rgba(255,255,255,.12);border-radius:9px}
+.phonics-mini-track i.current{background:var(--accent-2)}
+.phonics-mini-track i.done{background:#56d5a2}
+.phonics-teach,.phonics-build,.phonics-read{display:flex;flex-direction:column;gap:14px}
+.phonics-teach h1,.phonics-build h1,.phonics-read h1{font-size:clamp(25px,4vw,38px);font-weight:750;letter-spacing:-.03em;line-height:1.12;margin:0}
+.phonics-hero-mark{display:flex;align-items:center;justify-content:center;width:75px;height:75px;border:1px solid rgba(221,177,246,.25);border-radius:22px;color:var(--accent-2);font-size:28px;font-weight:700;background:rgba(149,85,226,.12);box-shadow:0 13px 32px rgba(0,0,0,.16)}
+.phonics-hero-mark span{padding:0 3px;color:#9be5de;font-size:18px}
+.phonics-objective,.phonics-build-description{line-height:1.7;color:#ccc0df;font-size:15px;margin:0}
+.phonics-model,.phonics-work-mat{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:clamp(17px,3vw,29px);box-shadow:0 12px 40px rgba(0,0,0,.12)}
+.phonics-box-eyebrow{color:var(--accent-2);font-size:11px;font-weight:750;letter-spacing:.12em;margin-bottom:16px}
+.phonics-model-word{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 20px}
+.phonics-model-word>span:not(.phonics-equals){display:flex;align-items:center;justify-content:center;padding:10px 15px;min-width:58px;min-height:68px;border-radius:14px;background:var(--panel-2);border:2px solid rgba(191,140,251,.46);font-size:clamp(25px,4vw,35px);font-weight:700;line-height:1}
+.phonics-model-word .phonics-equals{border:0;color:var(--muted);font-size:24px;margin:0 3px}
+.phonics-model-word strong{font-size:clamp(25px,4vw,35px);font-weight:750;color:#faf4ff;letter-spacing:-.025em}
+.phonics-model p{font-size:14px;color:var(--muted);line-height:1.7;margin:0 0 13px}
+.phonics-voice-btn,.phonics-clue-button{display:inline-flex;align-items:center;gap:9px;background:rgba(161,101,232,.13);border:1px solid rgba(177,125,234,.35);color:#f3e7ff;border-radius:12px;padding:11px 16px;font-size:14px;font-weight:700;width:max-content;max-width:100%;min-height:46px}
+.phonics-voice-btn:hover,.phonics-clue-button:hover{background:rgba(174,102,240,.22)}
+.phonics-skill-note{display:flex;align-items:flex-start;gap:10px;color:var(--muted);font-size:13px;line-height:1.6;border-left:3px solid var(--accent-2);padding:10px 14px;background:rgba(177,115,237,.075);border-radius:0 12px 12px 0}
+.phonics-skill-note svg{color:var(--accent-2);flex:none}
+.phonics-main-button{min-height:54px;font-size:15px;align-self:flex-start}
+.phonics-quiet-exit{align-self:flex-start;border:0;background:transparent;color:var(--muted);font-size:13px;text-decoration:underline;padding:8px}
+.phonics-step-label{color:var(--accent-2);font-size:12px;font-weight:750;letter-spacing:.13em;margin:0}
+.phonics-from{color:var(--muted);font-size:13px;margin:0}
+.phonics-from strong{font-size:16px;color:#fff}
+.phonics-listen-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:5px 0}
+.phonics-clue-button{border-color:var(--border);background:transparent;font-size:13px;color:#bcaed2}
+.phonics-spelling-hint{font-size:15px;color:#fff;padding:12px 15px;background:rgba(108,211,178,.08);border:1px solid rgba(108,211,178,.25);border-radius:11px}
+.phonics-spelling-hint strong{font-size:22px;letter-spacing:.08em;color:#bbfadd}
+.phonics-spelling-hint small{display:block;color:var(--muted);margin-top:4px;font-size:11px}
+.phonics-sound-ribbon{border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:16px;padding:17px}
+.phonics-sound-ribbon .phonics-box-eyebrow{margin-bottom:11px}
+.phonics-sound-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:9px}
+.phonics-sound-cue{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(193,159,227,.19);border-radius:11px;padding:13px 8px;background:var(--panel);min-height:78px;color:#fff}
+.phonics-sound-cue:hover{border-color:var(--accent-2)}
+.phonics-sound-cue>span{font-size:23px;font-weight:700;color:#e5cef7}
+.phonics-sound-cue small{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:10px;line-height:1.25;text-align:center}
+.phonics-sound-ribbon>p{color:var(--muted);font-size:11px;line-height:1.5;margin:12px 0 0}
+.phonics-slots{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;padding:12px 0 4px;min-height:96px}
+.phonics-slot{display:flex;align-items:center;justify-content:center;min-width:clamp(47px,9vw,69px);height:clamp(66px,11vw,80px);padding:7px 11px;border:2px dashed rgba(195,163,231,.47);border-bottom:4px solid rgba(195,163,231,.56);border-radius:14px;background:rgba(255,255,255,.025);font-size:clamp(22px,3vw,29px);font-weight:700;color:#fff;transition:background .15s,border-color .15s}
+.phonics-slot:not(:disabled):hover{border-color:var(--accent-2)}
+.phonics-slot.filled{border-style:solid;background:rgba(156,91,238,.16);border-color:rgba(193,137,255,.68)}
+.phonics-slot.correct{background:rgba(49,175,135,.17);border-color:rgba(83,220,168,.75);color:#adf9d9}
+.phonics-slot-number{font-size:15px;color:rgba(255,255,255,.36)}
+.phonics-instruction{text-align:center;font-size:12px;color:var(--muted);line-height:1.5;margin:8px auto 12px}
+.phonics-tiles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:18px 0;padding:5px}
+.phonics-tile{min-width:64px;min-height:66px;padding:12px 15px;border:1px solid rgba(232,219,255,.27);border-bottom:4px solid rgba(231,202,255,.38);border-radius:14px;background:linear-gradient(155deg,var(--panel-2),var(--panel));font-size:26px;color:#fefaff;font-weight:700;transition:transform .12s,border-color .12s,opacity .12s}
+.phonics-tile:not(:disabled):hover{border-color:var(--accent-2);transform:translateY(-3px)}
+.phonics-tile:disabled{opacity:.28;cursor:default}
+.phonics-check-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:flex-end;margin:20px 0 12px}
+.phonics-check-row>button{min-height:45px}
+.phonics-feedback{display:flex;gap:10px;align-items:flex-start;padding:14px 15px;border-radius:12px;font-size:13px;line-height:1.6;font-weight:600}
+.phonics-feedback svg{flex:none;margin-top:2px}
+.phonics-feedback.correct{color:#b0f9d7;background:rgba(50,175,131,.13);border:1px solid rgba(70,199,151,.27)}
+.phonics-feedback.retry{color:#f9dfaa;background:rgba(202,158,75,.1);border:1px solid rgba(223,176,81,.26)}
+.phonics-audio-note{color:#ffcf92;font-size:12px;margin:6px 0}
+.phonics-finish-symbol{display:flex;align-items:center;justify-content:center;width:90px;height:90px;border-radius:24px;color:#b3ffe0;background:rgba(48,178,135,.12);border:1px solid rgba(99,230,182,.25)}
+.phonics-reading-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:11px 0}
+.phonics-reading-strip button{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:9px;border-radius:15px;background:var(--panel);border:1px solid var(--border);color:#fff;padding:20px 8px;min-height:120px}
+.phonics-reading-strip button:hover{border-color:var(--accent-2)}
+.phonics-reading-strip strong{font-weight:700;font-size:clamp(19px,3.5vw,27px);overflow-wrap:anywhere;text-align:center}
+.phonics-reading-strip svg{color:var(--accent-2)}
+.phonics-strip-number{font-size:10px;font-weight:750;color:var(--muted);letter-spacing:.16em}
+.phonics-read-result{display:flex;align-items:center;gap:14px;background:rgba(107,81,152,.1);border:1px solid var(--border);border-radius:13px;padding:15px}
+.phonics-read-result strong{font-size:25px;font-weight:750;color:#b4fbd9;white-space:nowrap}
+.phonics-read-result span{font-size:12px;line-height:1.45;color:var(--muted)}
+.phonics-score-pill{display:flex;align-items:center;justify-content:center;gap:8px;color:#b9f6dc;background:rgba(71,187,141,.11);border:1px solid rgba(93,211,165,.21);border-radius:12px;padding:11px;font-size:13px;font-weight:600;max-width:max-content;margin:10px auto}
+@media(max-width:660px){
+  .phonics-lab{gap:15px}
+  .phonics-objective{font-size:14px}
+  .phonics-teach h1,.phonics-build h1,.phonics-read h1{font-size:29px}
+  .phonics-sound-grid{grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}
+  .phonics-sound-cue{padding:10px 4px;min-height:72px}
+  .phonics-slot{min-width:48px}
+  .phonics-tile{min-width:55px;min-height:57px;font-size:23px;padding:8px 11px}
+  .phonics-model-word>span:not(.phonics-equals){min-height:58px;min-width:45px;padding:8px 10px}
+  .phonics-reading-strip{gap:5px}
+  .phonics-reading-strip button{min-height:110px}
+  .phonics-main-button{width:100%}
+}
+@media(max-width:400px){
+  .phonics-header{align-items:flex-start;flex-direction:column;gap:5px}
+  .phonics-check-row .primary-btn{flex:1}
+  .phonics-tiles{gap:6px;padding:0}
+}

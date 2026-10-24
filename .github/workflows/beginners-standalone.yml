@@ -22,7 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Lesson and points tests
-        run: npx tsx --test beginners-standalone/lessons.test.ts beginners-standalone/feed-navigation.test.ts beginners-standalone/curriculum-quality.test.ts beginners-standalone/progress-backup.test.ts
+        run: npx tsx --test beginners-standalone/lessons.test.ts beginners-standalone/feed-navigation.test.ts beginners-standalone/curriculum-quality.test.ts beginners-standalone/progress-backup.test.ts beginners-standalone/phonics-quality.test.ts
       - name: TypeScript check
         run: npx tsc --project beginners-standalone/tsconfig.json --noEmit
       - name: Independent production build

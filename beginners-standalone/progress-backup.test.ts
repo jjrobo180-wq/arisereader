@@ -4,7 +4,7 @@ import {BEGINNER_LESSONS} from "./lessons";
 import {exportProgress,importProgress} from "./progress-backup";
 const first=BEGINNER_LESSONS[0];
 test("Valid backups restore the exact learner-specific scores, themes and saved lessons",()=>{
-  const progress={attempts:{[first.id]:{bestScore:100,lastScore:80,attempts:2,passedAt:"2026-10-23T18:00:00.000Z"}},saved:[first.id],theme:"aurora",browseView:"swipe" as const};
+  const progress={attempts:{[first.id]:{bestScore:100,lastScore:80,attempts:2,passedAt:"2026-10-23T18:00:00.000Z",phonics:{buildsCompleted:3 as const,correctOnFirstCheck:2,checks:4}}},saved:[first.id],theme:"aurora",browseView:"swipe" as const};
   const text=exportProgress("Reader 1",progress);
   const result=importProgress(text);
   assert.equal(result.nickname,"Reader 1");

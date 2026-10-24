@@ -1,6 +1,7 @@
 // Backups are an explicit, offline user action. They never contact A.R.I.S.E. Reader.
 import { BEGINNER_LESSONS } from "./lessons";
-export type LocalAttempt = {bestScore:number;lastScore:number;attempts:number;passedAt:string|null};
+export type LocalPhonics = {buildsCompleted:3;correctOnFirstCheck:number;checks:number};
+export type LocalAttempt = {bestScore:number;lastScore:number;attempts:number;passedAt:string|null;phonics?:LocalPhonics};
 export type LocalProgress = {attempts:Record<string,LocalAttempt>;saved:string[];theme:string;browseView?:"lessons"|"swipe"};
 const IDS=new Set(BEGINNER_LESSONS.map(l=>l.id));
 const THEMES=new Set(["reader","midnight","aurora","sunset"]);
@@ -32,6 +33,16 @@ export function importProgress(text:string):{nickname:string;progress:LocalProgr
     const passed=rec.passedAt;
     if(passed!==null&&(typeof passed!=="string"||!Number.isFinite(Date.parse(passed))||passed.length>40))throw Error("Invalid pass date");
     attempts[id]={attempts:count,bestScore:score(rec.bestScore),lastScore:score(rec.lastScore),passedAt:passed as string|null};
+    if(rec.phonics!==undefined){
+      const p=rec.phonics as Record<string,unknown>;
+      if(!p||typeof p!=="object"||p.buildsCompleted!==3||
+        !Number.isInteger(p.correctOnFirstCheck)||typeof p.correctOnFirstCheck!=="number"||
+        p.correctOnFirstCheck<0||p.correctOnFirstCheck>3||
+        !Number.isInteger(p.checks)||typeof p.checks!=="number"||p.checks<3||p.checks>10000){
+        throw Error("Invalid phonics building record.");
+      }
+      attempts[id].phonics={buildsCompleted:3,correctOnFirstCheck:p.correctOnFirstCheck,checks:p.checks};
+    }
     if(attempts[id].passedAt&&attempts[id].bestScore<80)throw Error("A passed lesson must have a best score of at least 80%.");
   }
   const rawSaved=b.progress.saved;
