@@ -54,7 +54,7 @@ export const UNIT_WORD_CHAINS: string[][] = [
     "w|a|v|e,s|a|v|e,s|a|f|e","t|u|n|e,d|u|n|e,d|u|d|e"
   ],
   [
-    "r|ai|n,s|ai|n,t|r|ai|n","b|oa|t,c|oa|t,g|oa|t",
+    "r|ai|n,p|ai|n,g|ai|n","b|oa|t,c|oa|t,g|oa|t",
     "s|ee|d,n|ee|d,f|ee|d","g|r|ee|n,s|ee|n,t|ee|n",
     "s|t|ar,s|t|ar|t,s|m|ar|t","p|ar|k,d|ar|k,b|ar|k",
     "t|ur|n,b|ur|n,ch|ur|n","b|ir|d,th|ir|d,th|ir|s|t",
