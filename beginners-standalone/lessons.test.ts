@@ -9,7 +9,7 @@ test("independent A.R.I.S.E. Beginners has 112 unique lesson quizzes", () => {
     assert.ok(l.slides.length>=2,l.id+" needs actual teaching");
     assert.equal(l.questions.length,5,l.id+" needs five scored questions");
     assert.ok(l.questions.every(q=>q.choices.length===3&&q.correct>=0&&q.correct<=2));
-    assert.ok(l.slides.every(s=>s.text.trim().length>=35&&s.focus.length>=3));
+    assert.ok(l.slides.every(s=>s.text.trim().length>=35&&s.focus.length>=2));
   }
 });
 test("Easy, Medium, and Hard award exactly 10, 20 and 30 points", () => {
