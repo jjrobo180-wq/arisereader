@@ -4,7 +4,6 @@ import type { Request } from 'express';
 import { authMiddleware, registerRoutes } from "./routes";
 import { loggablePath } from "./logPath";
 import { registerHomeWorldRoutes } from "./homeWorld";
-import { registerBeginnersRoutes } from "./beginners";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
 import path from "node:path";
@@ -193,7 +192,6 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
-  registerBeginnersRoutes(app, authMiddleware);
   registerHomeWorldRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

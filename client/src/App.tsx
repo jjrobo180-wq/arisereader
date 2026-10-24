@@ -165,7 +165,6 @@ const StudentMessages = lazyPage(() => import("./pages/StudentMessages"));
 const StudentCertificates = lazyPage(() => import("./pages/StudentCertificates"));
 const About = lazyPage(() => import("./pages/About"));
 const FypPage = lazyPage(() => import("./pages/FypPage"));
-const Beginners = lazyPage(() => import("./pages/Beginners"));
 const FypSharePage = lazyPage(() => import("./pages/FypSharePage"));
 const FypMyBooksPage = lazyPage(() => import("./pages/FypMyBooksPage"));
 const ReadingClub = lazyPage(() => import("./pages/ReadingClub"));
@@ -645,10 +644,6 @@ function AppRoutes() {
       </Route>
       <Route path="/about">
         <About />
-      </Route>
-      {/* A.R.I.S.E. Beginners uses Reader accounts and a server-graded lesson feed. */}
-      <Route path="/beginners">
-        {!user ? <Redirect to="/signin" replace /> : <Beginners />}
       </Route>
       <Route path="/reading-club">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ReadingClub />}
