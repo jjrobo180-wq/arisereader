@@ -69,11 +69,6 @@ const promptC=[
   "What is the final result?",
   "What happens last in the story?"
 ];
-const syllableCount = (word:string):number=>{
-  // Used only to classify curated targets and one-syllable distractors,
-  // not to make claims about arbitrary English words.
-  return word.length>=5?2:1;
-};
 function options(right:string,wrong1:string,wrong2:string,slot:number):{choices:[string,string,string];correct:number}{
   const items=[wrong1,wrong2];
   items.splice(slot,0,right);
@@ -83,7 +78,7 @@ function question(prompt:string,right:string,wrong1:string,wrong2:string,slot:nu
   return {prompt,...options(right,wrong1,wrong2,slot),hint};
 }
 function cleanSlug(title:string){return title.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}
-function capitalized(word:string){return word.charAt(0).toUpperCase()+word.slice(1)}
+
 export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):BeginnerLesson[]{
   const unit=UNIT_CONFIG[unitNumber-1];
   if(!unit||seeds.length!==10)throw Error("Curriculum unit must have exactly 10 authored stories: "+unitNumber);
@@ -91,6 +86,18 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
     const [target,matching,contrastA,contrastB]=seed.words;
     const other1=seeds[(index+3)%10];
     const other2=seeds[(index+7)%10];
+    const advancedMeanings:Record<string,string>={
+      evidence:"Which word means facts that help support a claim?",
+      compare:"Which word means to look for similarities and differences?",
+      sequence:"Which word means the order in which events happen?",
+      signal:"Which word means a clue that tells you something is changing?",
+      conclude:"Which word means to reach an answer after considering clues?",
+      explain:"Which word means to make an idea clear with reasons?",
+      preview:"Which word means to look at something before examining it fully?",
+      identify:"Which word means to recognize and name something?",
+      observe:"Which word means to look closely and notice details?",
+      solution:"Which word means an answer to a problem?"
+    };
     const phonicsPrompt=unitNumber<=3
       ? "Blend the sounds "+target.split("").map(letter=>"/"+letter+"/").join(" ")+". Which word do you read?"
       : unitNumber===4
@@ -99,18 +106,18 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
           ? "Find the "+unit.pattern+" word practiced in this lesson."
           : unitNumber===9
             ? "Which word is the longer, two-syllable practice word?"
-            : "Which word is our evidence-and-meaning practice word?";
+            : advancedMeanings[target];
     const secondPrompt=unitNumber<=3?"Which word rhymes with "+target.toUpperCase()+"?"
-      : unitNumber===4?"Which word is also a word worth recognizing right away?"
+      : unitNumber===4?"Read "+matching.toUpperCase().split("").join("-")+". Which word do the letters spell?"
       : unitNumber<=8?"Which word shares the same spelling pattern as "+target.toUpperCase()+"?"
       : unitNumber===9?"Which second word can you divide into two spoken parts?"
-      : "Which word helps a reader talk about evidence?";
-    const secondWrong1=unitNumber===4?"runn":"beep";
-    const secondWrong2=unitNumber===4?"jummp":"bop";
-    const choicesA=[contrastA,contrastB];
-    // Use alternate contrasts for q2 instead of repeating q1's answers.
+      : "Which word is closest in meaning to "+target.toUpperCase()+"?";
+    const secondWrong1=unitNumber===4?other1.words[0]:unitNumber<=8?"cat":unitNumber===9?"log":"sing";
+    const secondWrong2=unitNumber===4?other2.words[0]:unitNumber<=8?"dog":unitNumber===9?"sun":"sleep";
+    // For vowel teams and blends, CAT/DOG are clear non-pattern distractors;
+    // for longer words, choose genuinely one-syllable or unrelated meanings.
     const questions:BeginnerQuestion[]=[
-      question(phonicsPrompt,target,...choicesA,(index+unitNumber)%3,"Say the sounds in order, then check every letter."),
+      question(phonicsPrompt,target,contrastA,contrastB,(index+unitNumber)%3,"Say the sounds in order, then check every letter."),
       question(secondPrompt,matching,secondWrong1,secondWrong2,(index+unitNumber+1)%3,
         "Read and compare the spelling and sound of the target and its partner."),
       question(promptA[index],seed.place,other1.place,other2.place,(index+unitNumber+2)%3,
@@ -121,7 +128,7 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
         "The ending is explicitly stated near the end of the story.")
     ];
     const story=seed.story.trim();
-    const instruction=unit.coaching+" Read: "+target+", "+matching+".";
+    const instruction=unit.coaching+" Read and compare these examples: "+target+", "+matching+".";
     const again="Read the passage a second time. Name the setting, the important object, and the ending. "
       +"Notice the word "+target+" and its partner "+matching+". "+unit.more;
     return {
