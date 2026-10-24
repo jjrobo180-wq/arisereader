@@ -4,12 +4,14 @@ import {
   ArrowLeft, ArrowRight, Award, Bookmark, BookOpen, Check, CheckCircle2,
   ChevronDown, ChevronRight, Clock3, Compass, Flame, Gift, GraduationCap,
   Headphones, LayoutGrid, LockKeyhole, LogOut, Menu, Search, Settings2,
-  ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X, type LucideIcon
+  ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X, Play, Grid3X3, type LucideIcon
 } from "lucide-react";
 import { BEGINNER_LESSONS, type BeginnerLesson } from "./lessons";
+import SwipeFeed from "./SwipeFeed";
 import "./styles.css";
+import "./swipe.css";
 
-type View = "home" | "lessons" | "saved" | "progress" | "leaderboard" | "rewards";
+type View = "home" | "lessons" | "swipe" | "saved" | "progress" | "leaderboard" | "rewards";
 type Difficulty = 1 | 2 | 3;
 type Profile = { id: string; name: string; createdAt: string };
 type Attempt = { bestScore: number; lastScore: number; attempts: number; passedAt: string | null };
@@ -17,6 +19,7 @@ type LearnerProgress = {
   attempts: Record<string, Attempt>;
   saved: string[];
   theme: string;
+  browseView?: "lessons" | "swipe";
 };
 type Outcome = {
   passed: boolean;
@@ -28,7 +31,7 @@ type Outcome = {
 const PROFILE_KEY = "arise-beginners-v2-profiles";
 const ACTIVE_KEY = "arise-beginners-v2-active";
 const PROGRESS_PREFIX = "arise-beginners-v2-progress-";
-const DEFAULT_PROGRESS: LearnerProgress = {attempts:{},saved:[],theme:"reader"};
+const DEFAULT_PROGRESS: LearnerProgress = {attempts:{},saved:[],theme:"reader",browseView:"lessons"};
 const LESSONS: BeginnerLesson[] = BEGINNER_LESSONS;
 const DIFFICULTY: Record<Difficulty, {label:string;points:number; color:string}> = {
   1:{label:"Easy",points:10,color:"#58d1ad"},
@@ -43,7 +46,7 @@ const THEMES = [
 ];
 const TOPICS = ["All","Sports","Music","Creators","Gaming","Style","Culture"];
 const COVER_URL = (file: string) => file ? "https://commons.wikimedia.org/wiki/Special:Redirect/file/" + encodeURIComponent(file) + "?width=1000" : "";
-const blankProgress = ():LearnerProgress=>({attempts:{},saved:[],theme:"reader"});
+const blankProgress = ():LearnerProgress=>({attempts:{},saved:[],theme:"reader",browseView:"lessons"});
 function storageGet<T>(key:string,fallback:T):T {
   try { const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback; } catch {return fallback}
 }
@@ -76,6 +79,7 @@ function App() {
   const profile=profiles.find(p=>p.id===activeId)||null;
   const [progress,setProgress]=useState<LearnerProgress>(()=>activeId?storageGet<LearnerProgress>(PROGRESS_PREFIX+activeId,blankProgress()):blankProgress());
   const [view,setView]=useState<View>("home");
+  const [feedIndex,setFeedIndex]=useState(0);
   const [topic,setTopic]=useState("All");
   const [difficulty,setDifficulty]=useState("All");
   const [search,setSearch]=useState("");
@@ -114,7 +118,7 @@ function App() {
     stopSpeech();setActiveId(p.id);
     setProgress(storageGet<LearnerProgress>(PROGRESS_PREFIX+p.id,blankProgress()));
     try{localStorage.setItem(ACTIVE_KEY,p.id)}catch{}
-    setView("home");setShowNewProfile(false);setShowProfileMenu(false);setMenuOpen(false);setSearch("");setTopic("All");setDifficulty("All");
+    setView("home");setFeedIndex(0);setShowNewProfile(false);setShowProfileMenu(false);setMenuOpen(false);setSearch("");setTopic("All");setDifficulty("All");
   }
   function addProfile(e:React.FormEvent) {
     e.preventDefault();const name=displayName(newName);
@@ -126,7 +130,28 @@ function App() {
     setActiveId(id);try{localStorage.setItem(ACTIVE_KEY,id)}catch{}
     setView("home");
   }
-  function show(v:View) {setView(v);setMenuOpen(false);setShowProfileMenu(false);setTopic("All");setDifficulty("All");setSearch("");window.scrollTo({top:0,behavior:"smooth"})}
+  function show(v:View) {
+    stopSpeech();
+    setView(v);
+    setMenuOpen(false);
+    setShowProfileMenu(false);
+    setTopic("All");
+    setDifficulty("All");
+    setFeedIndex(0);
+    setSearch("");
+    if (v === "lessons" || v === "swipe") setProgress(p=>({...p,browseView:v}));
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  // Switching layouts preserves category and difficulty filters and never changes
+  // a lesson attempt or points. The preference belongs to this local learner profile.
+  function switchBrowse(v:"lessons" | "swipe") {
+    stopSpeech();
+    setView(v);
+    setFeedIndex(0);
+    setSearch("");
+    setProgress(p=>({...p,browseView:v}));
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
   function launch(l:BeginnerLesson){stopSpeech();setActiveLesson(l);setStep(0);setAnswers([]);setSelected(null);setOutcome(null);setNotice("")}
   function closeLesson(){stopSpeech();setActiveLesson(null);setSelected(null);setAnswers([]);setOutcome(null);setNotice("")}
   function toggleSaved(id:string){setProgress(p=>({...p,saved:p.saved.includes(id)?p.saved.filter(x=>x!==id):[...p.saved,id]}))}
@@ -166,6 +191,7 @@ function App() {
   const nav:Array<{id:View;title:string;icon:LucideIcon}>= [
     {id:"home",title:"Dashboard",icon:LayoutGrid},
     {id:"lessons",title:"Lesson Library",icon:BookOpen},
+    {id:"swipe",title:"Swipe Feed",icon:Play},
     {id:"saved",title:"Saved Lessons",icon:Bookmark},
     {id:"progress",title:"My Progress",icon:Target},
     {id:"leaderboard",title:"Leaderboard",icon:Trophy},
@@ -196,7 +222,7 @@ function App() {
     <header className="site-header">
       <button type="button" className="mobile-menu icon-btn" aria-label="Open menu" onClick={()=>setMenuOpen(v=>!v)}><Menu size={22}/></button>
       <button type="button" className="brand" onClick={()=>show("home")} aria-label="Beginners dashboard"><span className="brand-mark">A<span>✦</span></span><span className="brand-copy">A.R.I.S.E. <strong>BEGINNERS</strong><small>READ · LEARN · RISE</small></span></button>
-      <div className="header-links"><button className="header-link" onClick={()=>show("lessons")}>Explore Lessons</button><button className="header-link" onClick={()=>show("leaderboard")}>Leaderboard</button></div>
+      <div className="header-links"><button className="header-link" onClick={()=>show("lessons")}>Lesson Library</button><button className="header-link" onClick={()=>show("swipe")}>Swipe Feed</button><button className="header-link" onClick={()=>show("leaderboard")}>Leaderboard</button></div>
       <div className="header-right">
         <div className="points-pill"><Star size={16} fill="currentColor"/><strong>{points}</strong><span>points</span></div>
         <button type="button" className="icon-btn" aria-label="Change theme" title="Change theme" onClick={()=>setShowTheme(true)}><Settings2 size={20}/></button>
@@ -218,18 +244,38 @@ function App() {
             <LessonCover lesson={feature} className="feature-art"/>
             <div className="feature-content"><div className="feature-kicker"><Sparkles size={15}/> YOUR NEXT LESSON</div><h2>{feature.title}</h2><p>{feature.hook}</p><div className="feature-meta"><Label level={feature.level}/><span><Clock3 size={15}/>{feature.duration} min</span></div><button className="primary-btn" onClick={()=>launch(feature)}><BookOpen size={18}/> Start Lesson <ArrowRight size={17}/></button></div>
           </div>
+          <div className="browse-choice" aria-label="Choose your way to discover lessons"><div><div className="eyebrow">TWO WAYS TO EXPLORE</div><h2>How do you want to learn?</h2><p>Choose the classic A.R.I.S.E. lesson library or swipe through the very same lessons. Your scores and points stay together.</p></div><div className="browse-choice-actions"><button type="button" className={"browse-choice-btn "+(progress.browseView!=="swipe"?"preferred":"")} onClick={()=>show("lessons")}><Grid3X3 size={19}/><span><strong>Library View</strong><small>Explore all lesson covers</small></span><ArrowRight size={17}/></button><button type="button" className={"browse-choice-btn "+(progress.browseView==="swipe"?"preferred":"")} onClick={()=>show("swipe")}><Play size={18}/><span><strong>Swipe Feed</strong><small>Swipe to discover what’s next</small></span><ArrowRight size={17}/></button></div></div>
           <div className="stats-grid"><div className="stat"><span className="stat-icon purple-bg"><Star size={21}/></span><div><strong>{points}</strong><small>Total Points</small></div></div><div className="stat"><span className="stat-icon cyan-bg"><CheckCircle2 size={21}/></span><div><strong>{completed}</strong><small>Lessons Passed</small></div></div><div className="stat"><span className="stat-icon gold-bg"><Trophy size={21}/></span><div><strong>{Math.max(0,LESSONS.length-completed)}</strong><small>Lessons to Explore</small></div></div></div>
           {recent.length>0&&<section className="shelf"><PanelTitle eyebrow="KEEP IT GOING" title="Continue Practicing" sub="Build fluency at your own pace." right={<button className="text-link" onClick={()=>show("progress")}>My progress <ChevronRight size={17}/></button>}/><div className="shelf-row">{recent.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div></section>}
           <section className="shelf"><PanelTitle eyebrow="PICK YOUR VIBE" title="Lessons Made for You" sub="Real skills. Topics worth talking about." right={<button type="button" onClick={()=>show("lessons")} className="text-link">View all lessons <ChevronRight size={17}/></button>}/><div className="shelf-row">{recommended.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div></section>
           <section className="tiers"><div><div className="eyebrow">THE POINT SYSTEM</div><h2>Every level counts.</h2><p>Pass a lesson quiz with at least 80% to earn its points. Earn once per lesson, practice as often as you like.</p></div><div className="tier-blocks">{([1,2,3] as Difficulty[]).map(level=><button type="button" key={level} onClick={()=>{show("lessons");setDifficulty(DIFFICULTY[level].label)}} className={"tier-block tier-"+level}><span>{DIFFICULTY[level].label}</span><strong>+{DIFFICULTY[level].points}</strong><small>points</small></button>)}</div></section>
           <section className="shelf"><PanelTitle eyebrow="EXPLORE BY INTEREST" title="Choose your category" sub="Reading starts with a topic you actually care about."/><div className="categories">{TOPICS.slice(1).map((category,i)=><button key={category} type="button" onClick={()=>{show("lessons");setTopic(category)}} className={"category-tile category-"+i}><span>{["🏀","🎤","🎥","🎮","👟","🌎"][i]}</span><strong>{category}</strong><small>{LESSONS.filter(l=>l.category===category).length} lessons</small><ChevronRight size={17}/></button>)}</div></section>
         </>}
-        {view==="lessons"&&<section className="browse"><PanelTitle eyebrow="A.R.I.S.E. BEGINNERS" title="Lesson Library" sub="Instead of books and book quizzes, every cover opens a reading lesson with its own five-question skill check."/>
+        {view==="lessons"&&<section className="browse"><PanelTitle eyebrow="A.R.I.S.E. BEGINNERS" title="Lesson Library" sub="Instead of books and book quizzes, every cover opens a reading lesson with its own five-question skill check." right={<div className="view-switcher" role="group" aria-label="Choose how to browse lessons"><button type="button" className="selected" aria-pressed={true}><Grid3X3 size={16}/> Library</button><button type="button" aria-pressed={false} onClick={()=>switchBrowse("swipe")}><Play size={15} fill="currentColor"/> Swipe Feed</button></div>}/>
           <div className="filter-bar"><div className="search-bar"><Search size={19}/><input aria-label="Search lessons" placeholder="Search athletes, artists, skills..." value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Filter difficulty" value={difficulty} onChange={e=>setDifficulty(e.target.value)}><option>All</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
           <div className="topic-chips">{TOPICS.map(t=><button type="button" key={t} onClick={()=>setTopic(t)} className={"chip "+(topic===t?"selected":"")}>{t}</button>)}</div>
           <div className="result-caption">{visible.length} lessons found</div><div className="lesson-grid">{visible.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div>
           {!visible.length&&<div className="empty"><Search size={34}/><h3>No lessons found</h3><p>Try a different search or category.</p><button className="secondary-btn" onClick={()=>{setTopic("All");setDifficulty("All");setSearch("")}}>Clear filters</button></div>}
         </section>}
+        {view==="swipe"&&<SwipeFeed
+          lessons={visible}
+          index={feedIndex}
+          onIndexChange={setFeedIndex}
+          saved={progress.saved}
+          passed={passedIds}
+          onOpen={launch}
+          onSave={toggleSaved}
+          onLibrary={()=>switchBrowse("lessons")}
+          topic={topic}
+          onTopic={v=>{setTopic(v);setFeedIndex(0)}}
+          difficulty={difficulty}
+          onDifficulty={v=>{setDifficulty(v);setFeedIndex(0)}}
+          points={points}
+          completed={completed}
+          total={LESSONS.length}
+          disabled={!!activeLesson||showTheme||showNewProfile}
+          Cover={LessonCover}
+        />}
         {view==="saved"&&<section><PanelTitle eyebrow="YOUR COLLECTION" title="Saved Lessons" sub="Bookmark anything that catches your eye. Your favorites stay here on this browser."/><div className="lesson-grid">{saved.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div>{!saved.length&&<div className="empty"><Bookmark size={38}/><h3>Your collection is empty</h3><p>Hit the bookmark on any lesson to save it.</p><button className="primary-btn" onClick={()=>show("lessons")}>Explore Lessons <ArrowRight size={17}/></button></div>}</section>}
         {view==="progress"&&<section><PanelTitle eyebrow="KEEP LEVELING UP" title="My Reading Progress" sub="Look at your mastery by lesson, not a label or grade level."/><div className="stats-grid"><div className="stat"><span className="stat-icon purple-bg"><Star/></span><div><strong>{points}</strong><small>Points earned</small></div></div><div className="stat"><span className="stat-icon cyan-bg"><Award/></span><div><strong>{completed}</strong><small>Lesson passes</small></div></div><div className="stat"><span className="stat-icon gold-bg"><Target/></span><div><strong>{percent}%</strong><small>Catalog complete</small></div></div></div>
           <div className="progress-panel"><div className="progress-top"><strong>Your progress so far</strong><span>{completed} of {LESSONS.length} lessons</span></div><div className="progress-track big"><span style={{width:percent+"%"}}/></div><p>You'll earn each lesson's points once, the first time you pass its skill check with 80% or higher.</p></div>
@@ -243,7 +289,7 @@ function App() {
         {view==="rewards"&&<section><PanelTitle eyebrow="LEARN AND EARN" title="My Rewards" sub="Track points earned from real reading work."/><div className="reward-hero"><div><div className="eyebrow">YOUR BEGINNERS BALANCE</div><strong>{points} <span>points</span></strong><p>Points here are separate from all other A.R.I.S.E. programs.</p></div><Trophy size={72}/></div><div className="reward-grid">{[{icon:"🍿",name:"Snack target",amount:50},{icon:"🍟",name:"Snack pack target",amount:100},{icon:"🎁",name:"Gift card target",amount:300}].map(r=><div className="reward-card" key={r.name}><div className="reward-icon">{r.icon}</div><h3>{r.name}</h3><p>{r.amount} points · suggested class target</p><div className="progress-track"><span style={{width:Math.min(100,Math.round(points/r.amount*100))+"%"}}/></div><small>{points>=r.amount?"Point goal reached":"Earn "+(r.amount-points)+" more points"}</small></div>)}</div><div className="leaderboard-note"><ShieldCheck size={19}/> These are example targets, not orders or actual prizes. Redemption is disabled; a teacher or guardian controls any real-world rewards. Browser points aren't verified for real rewards.</div></section>}
       </main>
     </div>
-    <nav className="mobile-bottom" aria-label="Bottom menu">{nav.slice(0,5).map(n=><button key={n.id} type="button" onClick={()=>show(n.id)} className={view===n.id?"active":""}><n.icon size={20}/><span>{n.id==="home"?"Home":n.id==="lessons"?"Lessons":n.id==="leaderboard"?"Ranks":n.id==="progress"?"Progress":"Saved"}</span></button>)}</nav>
+    <nav className="mobile-bottom" aria-label="Bottom menu">{[nav[0],nav[1],nav[2],nav[4],nav[3]].map(n=><button key={n.id} type="button" onClick={()=>show(n.id)} className={view===n.id?"active":""}><n.icon size={20}/><span>{n.id==="home"?"Home":n.id==="lessons"?"Library":n.id==="swipe"?"Swipe":n.id==="progress"?"Progress":"Saved"}</span></button>)}</nav>
     {showTheme&&<div className="overlay" role="dialog" aria-modal="true" aria-label="Choose a theme"><div className="theme-modal"><div className="modal-top"><div><div className="eyebrow">MAKE IT YOURS</div><h2>Choose your A.R.I.S.E. theme</h2></div><button className="icon-btn" type="button" onClick={()=>setShowTheme(false)} aria-label="Close theme settings"><X size={22}/></button></div><p className="modal-sub">Inspired by Reader's deep plum and neon accent palette. This preference stays with your local Beginners profile.</p><div className="theme-grid">{THEMES.map(t=><button key={t.id} type="button" onClick={()=>setProgress(p=>({...p,theme:t.id}))} className={"theme-tile "+(currentTheme===t.id?"chosen":"")}><span className="theme-swatches">{t.swatch.map(c=><i key={c} style={{background:c}}/>)}</span><strong>{t.name}</strong><small>{t.note}</small>{currentTheme===t.id&&<span className="theme-check"><Check size={15}/></span>}</button>)}</div><button type="button" className="primary-btn theme-done" onClick={()=>setShowTheme(false)}>Done <Check size={17}/></button></div></div>}
     {showNewProfile&&<div className="overlay" role="dialog" aria-modal="true" aria-label="Add a learner"><div className="theme-modal narrow"><div className="modal-top"><h2>Add learner on this device</h2><button className="icon-btn" onClick={()=>setShowNewProfile(false)} aria-label="Close"><X/></button></div><p className="modal-sub">This creates a separate local Beginners progress record, not an A.R.I.S.E. Reader account.</p><form onSubmit={addProfile} className="add-profile-form"><label htmlFor="another-name">Nickname</label><input id="another-name" maxLength={32} value={newName} onChange={e=>{setNewName(e.target.value);setEntryError("")}} placeholder="Learner nickname" autoFocus required/>{entryError&&<p className="form-error" role="alert">{entryError}</p>}<button type="submit" className="primary-btn">Add Learner <ArrowRight size={16}/></button></form></div></div>}
     {activeLesson&&<div className="lesson-overlay" role="dialog" aria-modal="true" aria-label={activeLesson.title}>
