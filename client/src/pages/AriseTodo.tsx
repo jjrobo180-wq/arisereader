@@ -294,7 +294,7 @@ export default function AriseTodo() {
   const sync = useTodoCloud<Data>({ userId: user?.id, token: user ? token : null, blank: fresh, isValid: isValidTodo });
   const data = useMemo(() => upgrade(sync.workspace), [sync.workspace]);
   const rawSet = sync.setWorkspace;
-  // A.R.I.S.E. To-Do Free: up to 3 App Store apps across LifeHub and WorkHub (shared/todoPlan.ts). A
+  // Arise To Duo Free: up to 3 App Store apps across LifeHub and WorkHub (shared/todoPlan.ts). A
   // change that would add a 4th is held back here (so a save never fails over it), and the
   // upgrade box opens, at most once every ten minutes so a background sync can't keep popping it.
   const todoPlan = useTodoPlan();
@@ -671,11 +671,10 @@ export default function AriseTodo() {
   // Arise To Duo: the iPhone Duo's inner screen gets two panes that meet at the fold (see useAriseDuo).
   const duo = useAriseDuo();
   useEffect(() => {
-    if (!duo.isDuo) return;
     const before = document.title;
     document.title = "Arise To Duo";
     return () => { document.title = before; };
-  }, [duo.isDuo]);
+  }, []);
   // The menu on a computer (Customize). Tasks keeps the full sidebar so its lists stay at hand.
   const dsk = shown === "tasks" ? "left" : tileMode ? "drawer" : layout.deskSide;
   const deskAside = dsk === "drawer" ? "lg:hidden"
@@ -1133,7 +1132,7 @@ export default function AriseTodo() {
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
         <button type="button" onClick={() => setSection("home")} className="flex min-w-0 items-center gap-2 rounded-xl" aria-label="LifeHub home">
           <span className="flex h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-[0_5px_14px_#6d5ce72b]"><HubMark tone="life" className="h-full w-full" /></span>
-          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">{duo.isDuo ? "Arise To Duo" : "To Do"}</span>
+          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">Arise To Duo</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
           {duo.isDuo && <button type="button" onClick={() => navigate("/duo")} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#292446] px-3 text-sm font-bold text-white" data-testid="duo-open-split"><Columns2 size={16} /> Split screen</button>}
@@ -1282,7 +1281,7 @@ export default function AriseTodo() {
             <p className="text-sm font-extrabold text-[#2d2555]">A calmer day starts here.</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">Tasks, chores, calendars, plans and bills for the whole family in one simple space.</p>
           </div>
-          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to A.R.I.S.E. To-Do" : "Back to A.R.I.S.E. Reader"}</button>
+          <button onClick={goToSiteHome} className="mt-4 flex min-h-10 items-center gap-2 text-xs font-bold text-slate-500 hover:text-violet-700"><ArrowLeft size={15} /> {onTodoSite ? "Back to Arise To Duo" : "Back to A.R.I.S.E. Reader"}</button>
         </div>
       </aside>
 
@@ -1437,7 +1436,7 @@ export default function AriseTodo() {
                 <div className="mt-4 flex flex-wrap gap-2"><button onClick={exportData} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><Download size={16} /> Back up</button><button onClick={() => fileInput.current?.click()} className={buttonClass + " border border-slate-200 bg-slate-50 text-slate-700"}><FileUp size={16} /> Restore</button></div>
               </section>
               <EmailForwardCard token={token} />
-              <button onClick={goToSiteHome} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> {onTodoSite ? "A.R.I.S.E. To-Do" : "A.R.I.S.E. Reader"}</button>
+              <button onClick={goToSiteHome} className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-500 hover:text-violet-700 lg:hidden"><ArrowLeft size={14} /> {onTodoSite ? "Arise To Duo" : "A.R.I.S.E. Reader"}</button>
             </aside>
           </div>
           </>}

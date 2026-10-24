@@ -77,7 +77,7 @@ function ReaderPage() {
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-violet-700"><BookHeart className="h-7 w-7" /></span>
         <h1 className="mt-4 text-2xl font-bold text-slate-950">A.R.I.S.E. Reader</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">The Reader's class tools come with a teacher or parent account. Your account has Arise WorkHub and A.R.I.S.E. To-Do, which stay free.</p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">The Reader's class tools come with a teacher or parent account. Your account has Arise WorkHub and Arise To Duo, which stay free.</p>
         <a href={back.href} className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">
           <ArrowLeft className="h-4 w-4" /> Back to {back.label}
         </a>

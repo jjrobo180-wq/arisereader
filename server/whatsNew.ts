@@ -1,5 +1,5 @@
 /**
- * Shared public changelog/blog for A.R.I.S.E. Reader and A.R.I.S.E. To-Do.
+ * Shared public changelog/blog for A.R.I.S.E. Reader and Arise To Duo.
  * Both hostnames reach this same server and persisted settings row. Never accept
  * an admin flag, author or user ID from a request body: the session decides.
  */

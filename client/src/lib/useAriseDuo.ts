@@ -1,4 +1,4 @@
-// Arise To Duo: A.R.I.S.E. To-Do laid out for the iPhone Duo's folding inner screen.
+// Arise To Duo: Arise To Duo laid out for the iPhone Duo's folding inner screen.
 //
 // The Duo's inner screen is 7.6" (1878 x 2670 px, about 626 x 890 points). Opened flat like a book
 // it is 890 wide x 626 tall with the fold straight down the middle, so To-Do splits into two panes

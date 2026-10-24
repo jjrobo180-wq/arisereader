@@ -195,13 +195,13 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
       </div>
     );
   };
-  /** A.R.I.S.E. To-Do as one more checklist row, matching classRow/apps styling — it's always
+  /** Arise To Duo as one more checklist row, matching classRow/apps styling — it's always
    * free, so it's never a separate titled section, just another included line item. */
   const todoRow = () => (
     <div key="todo" className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3" data-testid="addons-todo-row">
       <BookOpen className="h-6 w-6 shrink-0 text-emerald-600" />
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-black text-[#141b32]">A.R.I.S.E. To-Do</span>
+        <span className="block text-sm font-black text-[#141b32]">Arise To Duo</span>
         <span className="block text-xs text-slate-500">{role === "teacher" ? "Work and Life hubs — free on every plan" : "Lists, chores, the family calendar and more — free for every parent"}</span>
       </span>
       <span className="text-xs font-bold text-emerald-700">Free</span>
@@ -228,8 +228,8 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
           <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-600">{role === "teacher" ? "Included with your Class plan" : "Learning Bundle"}</p>
           <h2 className="mt-1 text-xl font-black text-[#141b32]">Arise History, Arise Math & A.R.I.S.E. Connect</h2>
           <p className="mt-1 text-sm text-slate-600">
-            {role === "teacher" ? `One price covers everything: Reader, Math, History and Connect are all included in your Class plan, for up to ${data.prices.classSeats} students. A.R.I.S.E. To-Do (Work and Life hubs) is free on every plan.`
-              : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher's Class plan already covers them, we refund your unused days. A.R.I.S.E. To-Do (Work and Life hubs) is free on every plan.`
+            {role === "teacher" ? `One price covers everything: Reader, Math, History and Connect are all included in your Class plan, for up to ${data.prices.classSeats} students. Arise To Duo (Work and Life hubs) is free on every plan.`
+              : role === "parent" ? `One plan covers you and every child you’ve linked: ${money(data.prices.familyBundleCents)}/month. If a child’s teacher's Class plan already covers them, we refund your unused days. Arise To Duo (Work and Life hubs) is free on every plan.`
               : "Three more ways to learn and earn points, right next to your reading."}
           </p>
         </div>
@@ -251,7 +251,7 @@ export default function AddonsCard({ returnPath = "/billing", showTodo = true, c
         {showTodo && role === "parent" && (
           <a href="/#/lifehub" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-violet-300 hover:bg-violet-50">
             <BookOpen className="h-6 w-6 shrink-0 text-emerald-600" />
-            <span className="min-w-0"><span className="block text-sm font-black text-[#141b32]">A.R.I.S.E. To-Do</span><span className="block truncate text-xs text-slate-600">Free on every plan</span></span>
+            <span className="min-w-0"><span className="block text-sm font-black text-[#141b32]">Arise To Duo</span><span className="block truncate text-xs text-slate-600">Free on every plan</span></span>
           </a>
         )}
       </div>

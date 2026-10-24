@@ -121,7 +121,7 @@ function OverviewPanel({ data, error, onRetry }: { data: Overview | null; error:
         )}
       </Section>
 
-      <Section title="A.R.I.S.E. To-Do" hint="People with a To-Do account, and how they are paying.">
+      <Section title="Arise To Duo" hint="People with a To-Do account, and how they are paying.">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="To-Do accounts" value={n(p.todoTotal)} sub={`${n(nw.todo.week)} new this week · ${n(active.todo.week)} active this week`} />
           <Stat label="Paying" value={n(p.paid)} sub={`${n(p.monthly)} monthly · ${n(p.yearly)} yearly`} tone={p.paid ? "good" : undefined} />
@@ -223,7 +223,7 @@ function PersonSheet({ id, onClose, onChanged }: { id: number; onClose: () => vo
                   onChange={(next) => void act("active", "/active", { active: next }, next ? `${name} is switched on.` : `${name} is switched off and signed out.`, next ? undefined : `Switch off ${name}?\n\nThey will be signed out everywhere and can't sign in until you switch them back on. Nothing they made is deleted.`)} />
               </div>
               <div className="divide-y divide-slate-100 pt-1">
-                <div className={row}><span className="text-slate-500">Kind of account</span><b className="text-right">{p.role === "todo" ? "A.R.I.S.E. To-Do" : p.role[0].toUpperCase() + p.role.slice(1)}</b></div>
+                <div className={row}><span className="text-slate-500">Kind of account</span><b className="text-right">{p.role === "todo" ? "Arise To Duo" : p.role[0].toUpperCase() + p.role.slice(1)}</b></div>
                 <div className={row}><span className="text-slate-500">Signed up</span><b className="text-right">{date(p.createdAt) || "—"}</b></div>
                 <div className={row}><span className="text-slate-500">Last on the site</span><b className="text-right">{ago(p.lastActiveAt)}</b></div>
                 <div className={row}><span className="text-slate-500">Days used, last 5 weeks</span><b className="text-right">{detail.usedOn.days}</b></div>
@@ -404,7 +404,7 @@ export default function TodoAdmin() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-3 sm:px-5">
           <div className="flex min-w-0 items-center gap-2">
             <a href="#/lifehub" aria-label="Back to LifeHub" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100"><ArrowLeft className="h-5 w-5" /></a>
-            <div className="min-w-0"><div className="truncate text-base font-black sm:text-lg">To-Do Admin</div><div className="hidden truncate text-xs text-slate-500 sm:block">People, plans and payments for A.R.I.S.E. To-Do</div></div>
+            <div className="min-w-0"><div className="truncate text-base font-black sm:text-lg">To-Do Admin</div><div className="hidden truncate text-xs text-slate-500 sm:block">People, plans and payments for Arise To Duo</div></div>
           </div>
           <button type="button" onClick={refresh} className={btnLine} aria-label="Refresh"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /><span className="hidden sm:inline">Refresh</span></button>
         </div>

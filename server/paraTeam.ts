@@ -92,7 +92,7 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
   const adultOnly: RequestHandler = (req: any, res, next) => {
     const u = req.user || {};
     if (u.isAdmin === true || u.role === "teacher" || u.role === "parent" || u.role === "todo") return next();
-    res.status(403).json({ message: "Para Team is for school staff. Sign in with your WorkHub account (a free A.R.I.S.E. To-Do account works)." });
+    res.status(403).json({ message: "Para Team is for school staff. Sign in with your WorkHub account (a free Arise To Duo account works)." });
   };
   const auth: RequestHandler[] = [deps.auth, adultOnly];
   const now = () => (deps.now ? deps.now() : new Date());

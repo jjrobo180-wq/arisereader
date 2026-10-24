@@ -22,7 +22,7 @@ const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}
 const longDay = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "");
 const REASON: Record<string, string> = {
   "family-plan": "Included with your family's plan", "class-plan": "On for your class", "child-in-class": "Included through your children's class plans",
-  "social-plan": "Included with your A.R.I.S.E. Connect plan", admin: "Included for admins", demo: "Included in this sample account", hub: "Free with A.R.I.S.E. To-Do", "todo-plan": "A.R.I.S.E. To-Do is free", free: "Always free",
+  "social-plan": "Included with your A.R.I.S.E. Connect plan", admin: "Included for admins", demo: "Included in this sample account", hub: "Free with Arise To Duo", "todo-plan": "Arise To Duo is free", free: "Always free",
 };
 const APPS: { id: AppId; href: string; label: string; sub: string; icon: typeof Landmark }[] = [
   { id: "history", href: "/history/", label: "Arise History", sub: "True stories and quizzes", icon: Landmark },
@@ -81,7 +81,7 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
   }
 
   return <div className="space-y-4" data-testid="hub-addons">
-    {(role === "parent" || teacher) && <p className={k.text}>{[free, "A.R.I.S.E. To-Do Work & Life are both free. Optional learning bundles are billed separately."].filter(Boolean).join(" ")}</p>}
+    {(role === "parent" || teacher) && <p className={k.text}>{[free, "Arise To Duo Work & Life are both free. Optional learning bundles are billed separately."].filter(Boolean).join(" ")}</p>}
 
     <div>
       <p className={k.eyebrow}>{teacher ? "Class add-ons" : "Learning Bundle"}</p>
@@ -121,7 +121,7 @@ export default function HubAddons({ which, returnPath = "/billing", showLifeHub 
     {showLifeHub && (role === "parent" || teacher) && <div className={`${k.soft} space-y-3`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3"><span className={k.tile}><CheckSquare className="h-5 w-5" /></span>
-          <span className="min-w-0"><span className={`block ${k.h}`}>A.R.I.S.E. To-Do — Work &amp; Life</span><span className={`block ${k.small}`}>Both hubs are free for parents and teachers, with no trial or subscription.</span></span>
+          <span className="min-w-0"><span className={`block ${k.h}`}>Arise To Duo — Work &amp; Life</span><span className={`block ${k.small}`}>Both hubs are free for parents and teachers, with no trial or subscription.</span></span>
         </div>
         <div className="flex flex-wrap gap-2"><a className={k.ghost} href="/#/workhub">Open Work</a><a className={k.ghost} href="/#/lifehub">Open Life</a></div>
       </div>

@@ -66,7 +66,7 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "good", title: "Premium is free for you this school year", lines: [
         "You signed up before October 1, 2026, so you keep everything at no cost.",
         `Your free year runs until ${day(plan.endsAt)}. There is nothing to pay before then.`,
-        "A.R.I.S.E. To-Do is free for everyone. A.R.I.S.E. Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included in your Class plan.",
+        "Arise To Duo is free for everyone. A.R.I.S.E. Reader, Arise Math, Arise History and A.R.I.S.E. Connect are all included in your Class plan.",
       ] };
     case "rules-off":
       return { tone: "plain", title: "Plans haven't started yet", lines: ["Every teacher tool is open to you for now. You don't need to do anything."] };
@@ -77,7 +77,7 @@ function status(plan: PlanInfo): { title: string; lines: string[]; tone: "good" 
       return { tone: "need", title: "Your teacher account needs Premium", lines: [
         "The Class plan includes A.R.I.S.E. Reader, your teacher dashboard, book quizzes, live class games, game controls, Arise Math, Arise History and A.R.I.S.E. Connect — all in one price.",
         "Your students keep reading, taking quizzes and playing for free either way.",
-        "A.R.I.S.E. To-Do (Work & Life hubs) is free either way too — no plan needed.",
+        "Arise To Duo (Work & Life hubs) is free either way too — no plan needed.",
       ] };
   }
 }
@@ -223,7 +223,7 @@ export default function Billing() {
                   <li><span className="bl-check"><Check /></span>Arise Math included</li>
                   <li><span className="bl-check"><Check /></span>Arise History included</li>
                   <li><span className="bl-check"><Check /></span>A.R.I.S.E. Connect included</li>
-                  <li><span className="bl-check"><Check /></span>A.R.I.S.E. To-Do — always free</li>
+                  <li><span className="bl-check"><Check /></span>Arise To Duo — always free</li>
                 </ul>
                 <Stepper blocks={blocks} min={needed} onChange={setBlocks} />
                 <button type="button" className="pr-pill pr-wide" disabled={!!busy || !plan.payment} onClick={() => go("teacher", "/api/billing/checkout", { kind: "teacher", blocks, returnTo: siteAddress() })} data-testid="billing-buy-teacher">
@@ -298,7 +298,7 @@ function HubSection({ plan, hub, blocks, min, setBlocks, busy, go, open, pricing
   const own = hub.teacherPlan?.live ? hub.teacherPlan : null;
   const school = hub.schoolPlan?.live ? hub.schoolPlan : null;
   const price = blocks * H.monthlyCents;
-  // A.R.I.S.E. To-Do (Work & Life hubs) is free for every teacher, unconditionally — nothing to
+  // Arise To Duo (Work & Life hubs) is free for every teacher, unconditionally — nothing to
   // show here unless there's old paid billing left over to clean up.
   if (hub.via === "free") return own?.paidOnline ? (
     <div className="bl-hub" data-testid="billing-hub">

@@ -1,6 +1,6 @@
 // Where adults live: teachers, parents, LifeHub-only accounts and the administrator all sign in
 // with the same screen on either site, and their hub always opens on arisetodo.com
-// (their own free Work and Life spaces on A.R.I.S.E. To-Do).
+// (their own free Work and Life spaces on Arise To Duo).
 // Students keep A.R.I.S.E. Reader. Signing out of a hub always goes back to the sign-in screen.
 
 type HubUser = { isAdmin?: boolean; role?: string | null } | null | undefined;

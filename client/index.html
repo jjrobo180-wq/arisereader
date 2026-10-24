@@ -29,7 +29,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=seam1" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=seam1" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=seam1" />
-    <!-- A.R.I.S.E. To-Do uses its own uploaded mark; Reader retains its favicon. -->
+    <!-- Arise To Duo uses its own uploaded mark; Reader retains its favicon. -->
     <script>
       if (/^(www\.)?arisetodo\.com$/i.test(window.location.hostname)) {
         document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(function (link) { link.remove(); });
@@ -46,6 +46,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="A.R.I.S.E." />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      // arisetodo.com is Arise To Duo: its own name in the tab, on the home screen and in the installed app.
+      if (/^(www\.)?arisetodo\.com$/i.test(window.location.hostname)) {
+        document.title = "Arise To Duo";
+        var appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+        if (appTitle) appTitle.setAttribute("content", "Arise To Duo");
+        var manifest = document.querySelector('link[rel="manifest"]');
+        if (manifest) manifest.setAttribute("href", "/todo.webmanifest");
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800;900&family=Jost:wght@200;300;400;500&family=Bungee&family=Cinzel:wght@700;900&family=Teko:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />

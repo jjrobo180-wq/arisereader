@@ -1,4 +1,4 @@
-// Linked profiles (A.R.I.S.E. To-Do): share parts of your account with another person's account — a
+// Linked profiles (Arise To Duo): share parts of your account with another person's account — a
 // co-parent, a grandparent, a sitter, a teacher. You invite them by email; nothing is shared until
 // they accept. For each thing you choose Off, View or Edit, and you can change it or stop sharing any
 // time. They can leave any time.

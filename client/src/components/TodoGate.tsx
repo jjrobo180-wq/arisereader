@@ -18,7 +18,7 @@ export const useLifeHubTrial = () => useContext(TrialContext);
 
 export default function TodoGate({ children }: { children: ReactNode }) {
   const { user, token, logout } = useAuth();
-  const gated = false; // A.R.I.S.E. To-Do is always free for adult accounts.
+  const gated = false; // Arise To Duo is always free for adult accounts.
   const [todo, setTodo] = useState<Todo | null>(null);
   const [failed, setFailed] = useState(false);
   // A short note after a save on the Reader-only page, like LifeHub's own.

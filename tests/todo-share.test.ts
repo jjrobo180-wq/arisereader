@@ -1,4 +1,4 @@
-// A.R.I.S.E. To-Do share links and phone reminders.
+// Arise To Duo share links and phone reminders.
 // Run with: npx tsx --test tests/todo-share.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";

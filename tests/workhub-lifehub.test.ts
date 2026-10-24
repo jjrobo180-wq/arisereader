@@ -60,7 +60,7 @@ test("new names across the site, with the old addresses still working", () => {
   const files = ["client/src/pages/TeacherHub.tsx", "client/src/pages/AriseTodo.tsx", "client/src/components/HubSwitch.tsx", "client/src/components/AddonsCard.tsx", "client/src/pages/Pricing.tsx", "client/src/pages/Billing.tsx"];
   for (const f of files) {
     const text = read(f);
-    // "A.R.I.S.E. To-Do" is the current name for the pair of hubs again (Oct 12), so only "Teacher Hub" is old.
+    // "Arise To Duo" is the current name for the pair of hubs again (Oct 12), so only "Teacher Hub" is old.
     assert.ok(!/Teacher Hub/.test(text), `${f} still uses an old name`);
   }
 });

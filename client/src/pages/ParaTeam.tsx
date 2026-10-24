@@ -94,7 +94,7 @@ function NotStaff() {
   return <Centered>
     <HeartHandshake className="mx-auto h-10 w-10 text-teal-700" />
     <h1 className="mt-3 text-xl font-black text-slate-950">Para Team is for school staff</h1>
-    <p className="mt-2 text-sm text-slate-600">Sign in with a teacher account or a free A.R.I.S.E. To-Do account to use it.</p>
+    <p className="mt-2 text-sm text-slate-600">Sign in with a teacher account or a free Arise To Duo account to use it.</p>
   </Centered>;
 }
 

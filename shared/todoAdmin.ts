@@ -13,7 +13,7 @@ export function stripeKeyMode(key: unknown): "live" | "test" | "unset" {
 export type PersonRole = "student" | "teacher" | "parent" | "todo";
 export const ROLE_FILTERS = ["todo", "teacher", "parent", "student", "all"] as const;
 export type RoleFilter = (typeof ROLE_FILTERS)[number];
-export const ROLE_LABEL: Record<RoleFilter, string> = { todo: "A.R.I.S.E. To-Do", teacher: "Teachers", parent: "Parents", student: "Students", all: "Everyone" };
+export const ROLE_LABEL: Record<RoleFilter, string> = { todo: "Arise To Duo", teacher: "Teachers", parent: "Parents", student: "Students", all: "Everyone" };
 export const PLAN_FILTERS = ["all", "paid", "trial", "vip", "free", "problem", "off"] as const;
 export type PlanFilter = (typeof PLAN_FILTERS)[number];
 export const PLAN_FILTER_LABEL: Record<PlanFilter, string> = { all: "All plans", paid: "Paying", trial: "Free trial or gift", vip: "Free forever (VIP)", free: "Free plan", problem: "Needs a look", off: "Switched off" };
