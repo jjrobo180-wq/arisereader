@@ -19,7 +19,7 @@ import {
   Folder as Folder, ChevronRight as ChevronRight,
   Archive, ArchiveRestore,
   Table, FolderOpen, QrCode,
-  Lock, Rocket,
+  Lock, Rocket, Columns2,
 } from "lucide-react";
 import Randomizer from "@/components/family-hub/Randomizer";
 import Relationships from "@/components/family-hub/Relationships";
@@ -134,7 +134,7 @@ const Reader = lazy(() => import("@/components/family-hub/Reader"));
 import "./todoNight.css";
 import "./hubThemes.css";
 import "./ariseDuo.css";
-import { useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
+import { inDuoPane, useAriseDuo, type DuoChoice } from "@/lib/useAriseDuo";
 import "@/components/teacher-hub/darkPalette.css";
 
 type Priority = "low" | "normal" | "high";
@@ -316,6 +316,9 @@ export default function AriseTodo() {
     setData(previous => { const family = update(previous.family); return family === previous.family ? previous : { ...previous, family }; });
   }, [setData]);
   const [section, setSectionState] = useState<FamilySection>(() => {
+    // A pane of the split screen (/duo) opens the section in its address: #/lifehub?pane=notes.
+    const paneAsk = /[?&]pane=([\w-]{1,40})/.exec(window.location.hash)?.[1];
+    if (paneAsk && (FAMILY_SECTIONS as readonly string[]).includes(paneAsk)) return paneAsk as FamilySection;
     // The old parent dashboard address opens the Reader tab (see OpenHubTab in App.tsx).
     try {
       const requested = sessionStorage.getItem("lifehub_tab");
@@ -338,7 +341,7 @@ export default function AriseTodo() {
   }, [location]);
   const setSection = (next: FamilySection) => {
     setSectionState(next);
-    try { localStorage.setItem(SECTION_KEY, next); } catch {}
+    try { if (!inDuoPane()) localStorage.setItem(SECTION_KEY, next); } catch {}
     window.scrollTo({ top: 0 });
   };
   // A tapped AI Reminders phone notification opens "#/lifehub?plan=<id>": go to AI Reminders with that
@@ -1098,6 +1101,7 @@ export default function AriseTodo() {
               className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${duo.choice === id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{label}</button>)}
           </div>
           {duo.choice === "on" && !duo.isDuo && <p className="mt-2 text-xs text-slate-500">This window is too small for it right now.</p>}
+          {!inDuoPane() && <button type="button" onClick={() => { setCustomizing(false); navigate("/duo"); }} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100"><Columns2 size={16} /> Open split screen: two views at once</button>}
         </section>
         <DeskSidePicker layout={layout} setLayout={setLayout} />
         <ThemePicker layout={layout} setLayout={setLayout} />
@@ -1132,6 +1136,7 @@ export default function AriseTodo() {
           <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">{duo.isDuo ? "Arise To Duo" : "To Do"}</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
+          {duo.isDuo && <button type="button" onClick={() => navigate("/duo")} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#292446] px-3 text-sm font-bold text-white" data-testid="duo-open-split"><Columns2 size={16} /> Split screen</button>}
           {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <div className={layout.shortcut ? "contents" : "hidden sm:contents"}>

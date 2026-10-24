@@ -3,7 +3,9 @@
 // sign-in starts clean. Works like useState.
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 
-const PREFIX = "arise-stay:";
+// Each pane of the split screen (/duo) is a frame named "duo-pane-left" / "duo-pane-right" and
+// remembers its own place, so the two panes don't open each other's apps after a refresh.
+const PREFIX = "arise-stay:" + (typeof window !== "undefined" && /^duo-pane-/.test(window.name || "") ? `${window.name}:` : "");
 
 function readStay<T>(key: string, initial: T): T {
   try {
