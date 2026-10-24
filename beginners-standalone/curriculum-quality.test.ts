@@ -91,7 +91,7 @@ test("All 112 published lessons have safe, unambiguous multiple-choice data",()=
     }
     counted[l.level]++;
   }
-  assert.deepEqual(counted,{1:43,2:45,3:24});
+  assert.deepEqual(counted,{1:44,2:44,3:24});
 });
 test("Reading skill checks always grade against one answer out of three",()=>{
   for(const l of BEGINNER_LESSONS){
