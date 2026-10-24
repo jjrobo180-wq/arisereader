@@ -9,8 +9,11 @@ async function createLearner(page:any,name:string){
   await expect(page.getByText(new RegExp("Hey, "+name))).toBeVisible();
 }
 async function buildTileWord(page:any,parts:string[]){
-  for(const part of parts){
-    const buttons=page.locator(".phonics-tiles .phonics-tile:not([disabled])").filter({hasText:new RegExp("^"+part+"$")});
+  for(let i=0;i<parts.length;i++){
+    const present=(await page.locator(".phonics-slots .phonics-slot").nth(i).textContent())?.trim();
+    // A true word chain preserves unchanged grapheme tiles between challenges.
+    if(present===parts[i])continue;
+    const buttons=page.locator(".phonics-tiles .phonics-tile:not([disabled])").filter({hasText:new RegExp("^"+parts[i]+"$")});
     await buttons.first().click();
   }
   await page.getByRole("button",{name:"Check Word"}).click();
@@ -35,6 +38,10 @@ async function finishSoundLab(page:any,lesson:BeginnerLesson,wrongOnFirst=false)
     }
     await buildTileWord(page,word.parts);
     await page.getByRole("button",{name:i===2?"Practice Reading":"Next Word"}).click();
+    if(i===0){
+      await expect(page.locator(".phonics-slots .phonics-slot.filled")).toHaveCount(word.parts.length-1);
+      await expect(page.locator(".phonics-slots .phonics-slot:not(.filled)")).toHaveCount(1);
+    }
   }
   await expect(page.getByRole("heading",{name:"Now read what you built."})).toBeVisible();
   await page.getByRole("button",{name:/Continue to Supported Reading/}).click();
