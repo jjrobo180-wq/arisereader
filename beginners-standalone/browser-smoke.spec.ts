@@ -38,7 +38,8 @@ async function finishSoundLab(page:any,lesson:BeginnerLesson,wrongOnFirst=false)
     }
     await buildTileWord(page,word.parts);
     await page.getByRole("button",{name:i===2?"Practice Reading":"Next Word"}).click();
-    if(i===0){
+    if(i===0&&activity.unit<=8&&word.parts.length===activity.wordBuilds[1].parts.length&&
+      word.parts.filter((part,k)=>part!==activity.wordBuilds[1].parts[k]).length===1){
       await expect(page.locator(".phonics-slots .phonics-slot.filled")).toHaveCount(word.parts.length-1);
       await expect(page.locator(".phonics-slots .phonics-slot:not(.filled)")).toHaveCount(1);
     }
@@ -120,6 +121,25 @@ test("Digraphs work as one grapheme tile and same quiz is impossible before thre
   const activity=getPhonicsActivity(lesson,BEGINNER_LESSONS.findIndex(l=>l.id===lesson.id));
   await buildTileWord(page,activity.wordBuilds[0].parts);
   await expect(page.getByRole("button",{name:"Next Word"})).toBeVisible();
+});
+
+test("Medium digraph and Hard morphology lessons require phonics practice and award 20/30 only once",async({page})=>{
+  await createLearner(page,"Levels QA");
+  await page.getByRole("button",{name:"Lesson Library",exact:true}).first().click();
+  const medium=BEGINNER_LESSONS.find(l=>l.id==="original-shop-the-new-sound")!;
+  const hard=BEGINNER_LESSONS.find(l=>l.id==="original-the-highlight-evidence-hunt")!;
+  for(const [lesson,earned] of [[medium,20],[hard,30]] as [BeginnerLesson,number][]){
+    await page.getByRole("textbox",{name:"Search lessons"}).fill(lesson.title);
+    await page.getByRole("button",{name:"Start "+lesson.title}).click();
+    await expect(page.locator(".lesson-footer")).toHaveCount(0);
+    await finishSoundLab(page,lesson);
+    await finishQuiz(page,lesson);
+    await expect(page.locator(".earn-note")).toContainText("+"+earned);
+    await page.getByRole("button",{name:/Back to Library/}).click();
+  }
+  await expect(page.locator(".points-pill strong")).toHaveText("50");
+  await page.reload();
+  await expect(page.locator(".points-pill strong")).toHaveText("50");
 });
 test("Offline learner progress can be backed up",async({page})=>{
   await createLearner(page,"Backup QA");
