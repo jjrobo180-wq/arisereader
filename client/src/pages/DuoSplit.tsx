@@ -33,6 +33,7 @@ export const PANE_OPTIONS: PaneOption[] = [
   life("countdowns", "Countdowns"),
   life("lifeplan", "AI Reminders"),
   life("focus", "Focus timer"),
+  life("browser", "Browser"),
 ];
 
 const KEY = "arise_duo_split_v1";

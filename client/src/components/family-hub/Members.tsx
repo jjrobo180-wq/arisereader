@@ -85,6 +85,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   clocks: { label: "World clock", detail: "Time where your people are", icon: <GlobeIcon2 size={17} /> },
   timers: { label: "Kitchen timers", detail: "Several timers at once", icon: <TimerIcon2 size={17} /> },
   medical: { label: "Medical info", detail: "Allergies, medicines, blood type", icon: <HeartPulseIcon2 size={17} /> },
+  browser: { label: "Browser", detail: "Browse, bookmark and save pages as tasks", icon: <GlobeIcon2 size={17} /> },
   // The Plugin Kit's LifeHub plugins (shared/pluginKit.ts).
   ...(Object.fromEntries(KIT_DEFS.filter((d) => d.hub === "life").map((d) => { const Icon = kitIcon(d.icon); return [d.id, { label: d.name, detail: d.tagline, icon: <Icon size={17} /> }]; })) as Record<KitLifeId, { label: string; detail: string; icon: ReactNode }>),
 };
