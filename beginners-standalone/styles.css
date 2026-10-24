@@ -427,3 +427,28 @@ button:disabled{cursor:not-allowed;opacity:.5}
   .swipe-poster .cover-editorial-label{font-size:38px}
   .cover-editorial-label{font-size:17px}
 }
+
+/* Full-library navigation: a hundred extra lessons without rendering all cards at once. */
+.advanced-filters{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:13px 0 17px}
+.advanced-filters label{display:flex;flex-direction:column;gap:7px;color:var(--muted);font-size:12px;font-weight:650;min-width:170px}
+.advanced-filters select{min-height:44px;max-width:360px;border:1px solid var(--border);border-radius:11px;background:var(--panel);color:var(--text);font-weight:550;padding:10px 13px}
+.advanced-filters label:first-child select{min-width:min(290px,80vw)}
+.advanced-filters select:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+.load-more-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px 0}
+.load-more-wrap .secondary-btn{min-width:230px}
+.load-more-wrap span{font-size:12px;color:var(--muted)}
+.pathway-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pathway-item{display:flex;align-items:center;gap:11px;min-width:0;padding:15px;text-align:left;border:1px solid var(--border);border-radius:14px;color:var(--text);background:var(--panel);transition:border-color .2s,transform .2s}
+.pathway-item:hover{border-color:var(--accent);transform:translateY(-2px)}
+.pathway-number{display:flex;align-items:center;justify-content:center;flex:none;width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,var(--accent),var(--accent-2));color:#fff;font-size:14px;font-weight:700}
+.pathway-copy{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px}
+.pathway-copy strong{font-size:13px;font-weight:700;line-height:1.3}
+.pathway-copy small{font-size:11px;color:var(--muted)}
+.pathway-copy .pathway-track{height:5px;width:100%;max-width:190px;overflow:hidden;background:rgba(255,255,255,.09);border-radius:10px;margin-top:3px}
+.pathway-track i{display:block;height:100%;background:var(--accent-2);border-radius:10px}
+.pathway-item>svg{color:var(--muted);flex:none}
+@media(max-width:850px){.pathway-grid{grid-template-columns:1fr}}
+@media(max-width:570px){.advanced-filters{flex-direction:column;align-items:stretch}
+  .advanced-filters label,.advanced-filters select,.advanced-filters label:first-child select{width:100%;max-width:none;min-width:0}
+  .pathway-grid{grid-template-columns:1fr}.pathway-item{padding:12px}
+}
