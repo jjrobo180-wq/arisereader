@@ -20,7 +20,20 @@ export const DUO_KEY = "arise_to_duo_choice";
 
 const mq = (q: string) => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(q).matches;
 
+/** Inside the iPhone Duo viewer (/duo-preview.html) the app runs in a frame sized exactly like
+ *  the Duo's inner screen ("duo-preview-inner") or its outer screen ("duo-preview-outer"). */
+function previewChoice(): DuoChoice | null {
+  try {
+    if (window.self === window.top) return null;
+    if (window.name === "duo-preview-inner") return "on";
+    if (window.name === "duo-preview-outer") return "off";
+  } catch { /* not in the viewer */ }
+  return null;
+}
+
 function readChoice(): DuoChoice {
+  const preview = previewChoice();
+  if (preview) return preview; // the viewer never changes the person's own setting
   try {
     const params = new URLSearchParams(window.location.search || window.location.hash.split("?")[1] || "");
     const fromUrl = params.get("duo");
@@ -92,6 +105,7 @@ export function useAriseDuo() {
   }, [mode]);
 
   const setChoice = (next: DuoChoice) => {
+    if (previewChoice()) { setChoiceState(next); return; }
     try { if (next === "auto") localStorage.removeItem(DUO_KEY); else localStorage.setItem(DUO_KEY, next); } catch { /* ignore */ }
     setChoiceState(next);
   };
