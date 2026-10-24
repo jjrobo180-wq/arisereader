@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { BEGINNER_LESSONS, type BeginnerLesson } from "./lessons";
 import SwipeFeed from "./SwipeFeed";
+import { UNIT_CONFIG } from "./curriculum-factory";
 import "./styles.css";
 import "./swipe.css";
 
@@ -86,6 +87,9 @@ function App() {
   const [topic,setTopic]=useState("All");
   const [difficulty,setDifficulty]=useState("All");
   const [search,setSearch]=useState("");
+  const [sortBy,setSortBy]=useState("recommended");
+  const [skillFilter,setSkillFilter]=useState("All");
+  const [pageCount,setPageCount]=useState(24);
   const [menuOpen,setMenuOpen]=useState(false);
   const [showProfileMenu,setShowProfileMenu]=useState(false);
   const [showTheme,setShowTheme]=useState(false);
@@ -108,11 +112,23 @@ function App() {
   const points=LESSONS.reduce((sum,l)=>sum+(progress.attempts[l.id]?.passedAt?DIFFICULTY[l.level].points:0),0);
   const percent=Math.round(completed/Math.max(1,LESSONS.length)*100);
   const currentTheme=progress.theme||"reader";
-  const visible=useMemo(()=>LESSONS.filter(l=>
-    (topic==="All"||l.category===topic)&&
-    (difficulty==="All"||DIFFICULTY[l.level].label===difficulty)&&
-    (search.trim()===""||[l.title,l.skill,l.category,l.subject,l.hook].join(" ").toLowerCase().includes(search.trim().toLowerCase()))
-  ),[topic,difficulty,search]);
+  const visible=useMemo(()=>{
+    const rows=LESSONS.filter(l=>
+      (topic==="All"||l.category===topic)&&
+      (difficulty==="All"||DIFFICULTY[l.level].label===difficulty)&&
+      (skillFilter==="All"||l.skill===skillFilter)&&
+      (search.trim()===""||[l.title,l.skill,l.category,l.subject,l.hook].join(" ").toLowerCase().includes(search.trim().toLowerCase()))
+    );
+    return rows.sort((a,b)=>{
+      if(sortBy==="az")return a.title.localeCompare(b.title);
+      if(sortBy==="easy")return a.level-b.level||a.title.localeCompare(b.title);
+      if(sortBy==="hard")return b.level-a.level||a.title.localeCompare(b.title);
+      if(sortBy==="new")return Number(b.id.startsWith("original-"))-Number(a.id.startsWith("original-"))||a.title.localeCompare(b.title);
+      return Number(!!progress.attempts[a.id]?.passedAt)-Number(!!progress.attempts[b.id]?.passedAt)||a.level-b.level||a.title.localeCompare(b.title);
+    });
+  },[topic,difficulty,skillFilter,search,sortBy,progress.attempts]);
+  useEffect(()=>{setPageCount(24);setFeedIndex(0)},[topic,difficulty,skillFilter,search,sortBy]);
+  const visiblePage=visible.slice(0,pageCount);
   const recent=LESSONS.filter(l=>progress.attempts[l.id]&&!progress.attempts[l.id].passedAt).slice(0,4);
   const recommended=LESSONS.filter(l=>!progress.attempts[l.id]?.passedAt).slice(0,5);
   const saved=LESSONS.filter(l=>progress.saved.includes(l.id));
@@ -140,6 +156,7 @@ function App() {
     setShowProfileMenu(false);
     setTopic("All");
     setDifficulty("All");
+    setSkillFilter("All");
     setFeedIndex(0);
     setSearch("");
     if (v === "lessons" || v === "swipe") setProgress(p=>({...p,browseView:v}));
@@ -152,6 +169,7 @@ function App() {
     setView(v);
     setFeedIndex(0);
     setSearch("");
+    if(v==="swipe")setSkillFilter("All");
     setProgress(p=>({...p,browseView:v}));
     window.scrollTo({top:0,behavior:"smooth"});
   }
@@ -252,13 +270,16 @@ function App() {
           {recent.length>0&&<section className="shelf"><PanelTitle eyebrow="KEEP IT GOING" title="Continue Practicing" sub="Build fluency at your own pace." right={<button className="text-link" onClick={()=>show("progress")}>My progress <ChevronRight size={17}/></button>}/><div className="shelf-row">{recent.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div></section>}
           <section className="shelf"><PanelTitle eyebrow="PICK YOUR VIBE" title="Lessons Made for You" sub="Real skills. Topics worth talking about." right={<button type="button" onClick={()=>show("lessons")} className="text-link">View all lessons <ChevronRight size={17}/></button>}/><div className="shelf-row">{recommended.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div></section>
           <section className="tiers"><div><div className="eyebrow">THE POINT SYSTEM</div><h2>Every level counts.</h2><p>Pass a lesson quiz with at least 80% to earn its points. Earn once per lesson, practice as often as you like.</p></div><div className="tier-blocks">{([1,2,3] as Difficulty[]).map(level=><button type="button" key={level} onClick={()=>{show("lessons");setDifficulty(DIFFICULTY[level].label)}} className={"tier-block tier-"+level}><span>{DIFFICULTY[level].label}</span><strong>+{DIFFICULTY[level].points}</strong><small>points</small></button>)}</div></section>
+          <section className="shelf"><PanelTitle eyebrow="YOUR READING ROADMAP" title="10 Skills to Build" sub="Start where you need support. Every skill opens its own set of original real-world lessons." right={<button type="button" className="text-link" onClick={()=>show("progress")}>Track my growth <ChevronRight size={17}/></button>}/><div className="pathway-grid">{UNIT_CONFIG.map(u=>{const group=LESSONS.filter(l=>l.skill===u.skill);const passed=group.filter(l=>progress.attempts[l.id]?.passedAt).length;return <button key={u.number} type="button" className="pathway-item" onClick={()=>{show("lessons");setSkillFilter(u.skill)}}><span className="pathway-number">{String(u.number).padStart(2,"0")}</span><span className="pathway-copy"><strong>{u.skill}</strong><small>{passed} of {group.length} completed · {DIFFICULTY[u.level].points} pts each</small><span className="pathway-track"><i style={{width:Math.round(passed/group.length*100)+"%"}}/></span></span><ChevronRight size={17}/></button>})}</div></section>
           <section className="shelf"><PanelTitle eyebrow="EXPLORE BY INTEREST" title="Choose your category" sub="Reading starts with a topic you actually care about."/><div className="categories">{TOPICS.slice(1).map((category,i)=><button key={category} type="button" onClick={()=>{show("lessons");setTopic(category)}} className={"category-tile category-"+i}><span>{["🏀","🎤","🎥","🎮","👟","🌎"][i]}</span><strong>{category}</strong><small>{LESSONS.filter(l=>l.category===category).length} lessons</small><ChevronRight size={17}/></button>)}</div></section>
         </>}
         {view==="lessons"&&<section className="browse"><PanelTitle eyebrow="A.R.I.S.E. BEGINNERS" title="Lesson Library" sub="Instead of books and book quizzes, every cover opens a reading lesson with its own five-question skill check." right={<div className="view-switcher" role="group" aria-label="Choose how to browse lessons"><button type="button" className="selected" aria-pressed={true}><Grid3X3 size={16}/> Library</button><button type="button" aria-pressed={false} onClick={()=>switchBrowse("swipe")}><Play size={15} fill="currentColor"/> Swipe Feed</button></div>}/>
           <div className="filter-bar"><div className="search-bar"><Search size={19}/><input aria-label="Search lessons" placeholder="Search athletes, artists, skills..." value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Filter difficulty" value={difficulty} onChange={e=>setDifficulty(e.target.value)}><option>All</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
           <div className="topic-chips">{TOPICS.map(t=><button type="button" key={t} onClick={()=>setTopic(t)} className={"chip "+(topic===t?"selected":"")}>{t}</button>)}</div>
-          <div className="result-caption">{visible.length} lessons found</div><div className="lesson-grid">{visible.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div>
-          {!visible.length&&<div className="empty"><Search size={34}/><h3>No lessons found</h3><p>Try a different search or category.</p><button className="secondary-btn" onClick={()=>{setTopic("All");setDifficulty("All");setSearch("")}}>Clear filters</button></div>}
+          <div className="advanced-filters"><label>Reading skill <select aria-label="Filter by reading skill" value={skillFilter} onChange={e=>setSkillFilter(e.target.value)}><option value="All">All reading skills</option>{UNIT_CONFIG.map(u=><option value={u.skill} key={u.number}>{u.number}. {u.skill}</option>)}</select></label><label>Sort lessons <select aria-label="Sort lessons" value={sortBy} onChange={e=>setSortBy(e.target.value)}><option value="recommended">Recommended</option><option value="new">New collection first</option><option value="easy">Easy to Hard</option><option value="hard">Hard to Easy</option><option value="az">Title A–Z</option></select></label></div>
+          <div className="result-caption">{visible.length} lessons found · Showing {Math.min(pageCount,visible.length)}</div><div className="lesson-grid">{visiblePage.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved={progress.saved.includes(l.id)} onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div>
+          {visible.length>pageCount&&<div className="load-more-wrap"><button type="button" className="secondary-btn" onClick={()=>setPageCount(n=>n+24)}>Load 24 more lessons <ChevronDown size={18}/></button><span>{visible.length-pageCount} more available</span></div>}
+          {!visible.length&&<div className="empty"><Search size={34}/><h3>No lessons found</h3><p>Try a different search or category.</p><button className="secondary-btn" onClick={()=>{setTopic("All");setDifficulty("All");setSkillFilter("All");setSearch("");setSortBy("recommended")}}>Clear filters</button></div>}
         </section>}
         {view==="swipe"&&<SwipeFeed
           lessons={visible}
