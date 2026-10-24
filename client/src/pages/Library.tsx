@@ -1362,9 +1362,6 @@ export default function Library() {
                       </div>
                       <div className="mb-2"><Arise2UpdateButton compact /></div>
                       <div className="grid grid-cols-2 gap-1.5">
-                        <button onClick={() => { navigate("/beginners"); setShowMobileMenu(false); }} className="rounded-xl border border-fuchsia-300/40 bg-fuchsia-500/10 p-3 text-left hover:bg-fuchsia-500/15">
-                          <Sparkles className="mb-1.5 h-4 w-4 text-fuchsia-500" /><span className="block text-xs font-black">Beginners</span><span className="text-[10px] text-muted-foreground">Swipe to learn</span>
-                        </button>
                         <button data-tour="fyp" onClick={() => { navigate("/fyp"); setShowMobileMenu(false); }} className="rounded-xl border border-border bg-muted/25 p-3 text-left hover:bg-muted">
                           <Sparkles className="mb-1.5 h-4 w-4 text-amber-500" /><span className="block text-xs font-black">Discover</span>
                         </button>
@@ -1585,12 +1582,6 @@ export default function Library() {
         )}
 
 
-        {user?.role === "student" && !user?.is_eye_gaze_user && (
-          <button type="button" onClick={() => navigate("/beginners")} className="mb-5 flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-fuchsia-400/25 bg-gradient-to-r from-slate-950 via-purple-950 to-fuchsia-900 px-5 py-4 text-left text-white shadow-lg transition hover:brightness-110">
-            <span><span className="block text-[10px] font-black uppercase tracking-[.2em] text-fuchsia-200">New · A.R.I.S.E. Beginners</span><span className="mt-1 block text-lg font-black">Swipe through sports, music & creator reading lessons</span><span className="mt-1 block text-xs text-fuchsia-100">Learn real reading skills. Pass skill checks. Earn Beginners points.</span></span>
-            <span className="inline-flex shrink-0 items-center rounded-xl bg-white px-4 py-2 text-xs font-black text-purple-950">Explore lessons →</span>
-          </button>
-        )}
         {user?.role === "student" && !user?.is_eye_gaze_user && <div className="mb-5"><AddonsCard showTodo={false} /></div>}
                 <EngagementHub
           onCreateQuiz={() => { setShowInstant(true); setInstantError(""); setInstantMsg(""); }}
