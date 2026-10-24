@@ -2,8 +2,8 @@
 // pages, and save any page as a task. Limited for now (see shared/browserApp.ts): a site that
 // doesn't allow being shown inside another website opens in Safari instead. The full browser
 // comes with the Arise To Duo iPhone app.
-import { useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Bookmark, BookmarkCheck, ExternalLink, Globe, ListPlus, Loader2, RotateCw, Search, ShieldAlert, Sparkles, Trash2, X } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { ArrowLeft, ArrowRight, Bookmark, Columns2, Maximize2, Minimize2, BookmarkCheck, ExternalLink, Globe, ListPlus, Loader2, RotateCw, Search, ShieldAlert, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { addressFor, hostOf, type BrowserMark } from "@shared/browserApp";
@@ -14,6 +14,11 @@ type Props = SectionProps & { onAddTask?: (title: string, url: string) => void }
 
 const HISTORY_KEY = "arise_browser_history_v1"; // this device only
 const NOTE_KEY = "arise_browser_note_closed";
+const SIZE_KEY = "arise_browser_size";
+/** How much of the screen the browser takes: its place in the page, the whole screen (or the whole
+ *  pane on the split screen), or one whole side of the iPhone Duo's fold. */
+type Size = "normal" | "full" | "side";
+const duoBook = () => typeof document !== "undefined" && document.documentElement.dataset.duo === "book";
 const readHistory = (): { url: string; title: string }[] => { try { const v = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); return Array.isArray(v) ? v.slice(0, 30) : []; } catch { return []; } };
 
 function Letter({ url }: { url: string }) {
@@ -30,6 +35,18 @@ export default function Browser({ family, setFamily, makeId, say, onAddTask }: P
   const [round, setRound] = useState(0);
   const [history, setHistory] = useState(readHistory);
   const [noteOpen, setNoteOpen] = useState(() => { try { return localStorage.getItem(NOTE_KEY) !== "1"; } catch { return true; } });
+  const [size, setSizeState] = useState<Size>(() => { try { const v = localStorage.getItem(SIZE_KEY); return v === "full" || v === "side" ? v : "normal"; } catch { return "normal"; } });
+  const [book, setBook] = useState(duoBook);
+  const setSize = (next: Size) => { setSizeState(next); try { localStorage.setItem(SIZE_KEY, next); } catch { /* not remembered */ } };
+  useEffect(() => {
+    const update = () => setBook(duoBook());
+    window.addEventListener("resize", update);
+    const keys = (e: KeyboardEvent) => { if (e.key === "Escape" && size !== "normal") setSize("normal"); };
+    window.addEventListener("keydown", keys);
+    return () => { window.removeEventListener("resize", update); window.removeEventListener("keydown", keys); };
+  }, [size]); // eslint-disable-line react-hooks/exhaustive-deps
+  // "One side" only means something on the Duo opened flat; anywhere else it is the whole screen.
+  const shownSize: Size = size === "side" && !book ? "full" : size;
   const page = at >= 0 ? stack[at] : null;
   const marks = family.browserMarks ?? [];
   const marked = page ? marks.find((m) => m.url === page.url) : undefined;
@@ -74,8 +91,11 @@ export default function Browser({ family, setFamily, makeId, say, onAddTask }: P
   const iconBtn = "grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-600 hover:bg-slate-100 disabled:opacity-30";
 
   return (
-    <div className="flex min-h-[calc(100dvh-9rem)] flex-col gap-3" data-testid="life-browser">
-      {noteOpen && <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900" data-testid="browser-limited-note">
+    <div data-testid="life-browser" data-size={shownSize}
+      className={shownSize === "normal" ? "flex min-h-[calc(100dvh-9rem)] flex-col gap-3"
+        : `fixed bottom-0 right-0 top-0 z-[400] flex flex-col gap-2 bg-[#f6f7fc] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] ${shownSize === "full" ? "left-0" : "border-l border-slate-200"}`}
+      style={shownSize === "side" ? { width: "calc(100vw - var(--duo-left, 50vw))" } : undefined}>
+      {noteOpen && shownSize === "normal" && <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900" data-testid="browser-limited-note">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
         <p className="min-w-0 flex-1"><b>Limited for now.</b> Google, YouTube, Facebook and many other big sites don't allow being opened inside another website, so those open in Safari. The full browser, with every site, comes with the <b>Arise To Duo iPhone app</b>, coming soon to the App Store.</p>
         <button type="button" onClick={closeNote} aria-label="Hide this note" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg hover:bg-sky-100"><X className="h-4 w-4" /></button>
@@ -92,7 +112,11 @@ export default function Browser({ family, setFamily, makeId, say, onAddTask }: P
         {page && <button type="button" onClick={() => setRound((r) => r + 1)} aria-label="Reload" className={`${iconBtn} max-sm:hidden`}><RotateCw className="h-5 w-5" /></button>}
         {page && <button type="button" onClick={toggleMark} aria-label={marked ? "Remove bookmark" : "Bookmark this page"} aria-pressed={!!marked} className={iconBtn}>{marked ? <BookmarkCheck className="h-5 w-5 text-sky-600" /> : <Bookmark className="h-5 w-5" />}</button>}
         {page && onAddTask && <button type="button" onClick={saveTask} aria-label="Save this page as a task" title="Save as a task" className={iconBtn}><ListPlus className="h-5 w-5" /></button>}
-        {page && <button type="button" onClick={() => safari(page.url)} aria-label="Open in Safari" title="Open in Safari" className={iconBtn}><ExternalLink className="h-5 w-5" /></button>}
+        {page && <button type="button" onClick={() => safari(page.url)} aria-label="Open in Safari" title="Open in Safari" className={`${iconBtn} ${shownSize === "normal" ? "" : "max-sm:hidden"}`}><ExternalLink className="h-5 w-5" /></button>}
+        {book && <button type="button" onClick={() => setSize(shownSize === "side" ? "normal" : "side")} aria-pressed={shownSize === "side"} aria-label={shownSize === "side" ? "Back to normal size" : "Fill one side of the screen"} title="One side" data-testid="browser-side"
+          className={`${iconBtn} ${shownSize === "side" ? "bg-sky-100 text-sky-700" : ""}`}><Columns2 className="h-5 w-5" /></button>}
+        <button type="button" onClick={() => setSize(shownSize === "full" ? "normal" : "full")} aria-pressed={shownSize === "full"} aria-label={shownSize === "full" ? "Exit full screen" : "Full screen"} title={shownSize === "full" ? "Exit full screen" : "Full screen"} data-testid="browser-full"
+          className={`${iconBtn} ${shownSize === "full" ? "bg-sky-100 text-sky-700" : ""}`}>{shownSize === "full" ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</button>
       </div>
 
       {loading && <div className="grid flex-1 place-items-center rounded-2xl border border-slate-200 bg-white p-10 text-slate-500"><Loader2 className="h-7 w-7 animate-spin" /></div>}
@@ -101,7 +125,7 @@ export default function Browser({ family, setFamily, makeId, say, onAddTask }: P
         <iframe key={`${page.url}#${round}`} src={page.url} title={page.title || "Web page"} data-testid="browser-frame"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
           referrerPolicy="strict-origin-when-cross-origin"
-          className="min-h-[60dvh] w-full flex-1 rounded-2xl border border-slate-200 bg-white" />
+          className={`w-full flex-1 rounded-2xl border border-slate-200 bg-white ${shownSize === "normal" ? "min-h-[60dvh]" : "min-h-0"}`} />
       )}
 
       {!loading && page && !page.frameable && (
@@ -124,7 +148,7 @@ export default function Browser({ family, setFamily, makeId, say, onAddTask }: P
       )}
 
       {!loading && !page && (
-        <div className="space-y-5">
+        <div className={`space-y-5 ${shownSize === "normal" ? "" : "min-h-0 flex-1 overflow-y-auto px-1 pb-4"}`}>
           <section>
             <h2 className="mb-2 text-sm font-black text-slate-900">Bookmarks</h2>
             {marks.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
