@@ -120,5 +120,14 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
+    // Arise To Duo (client/src/lib/useAriseDuo.ts): <html data-duo="book|stack"> on the iPhone Duo's inner screen.
+    require("tailwindcss/plugin")(({ addVariant }: { addVariant: (name: string, selector: string) => void }) => {
+      addVariant("duo", "[data-duo] &");
+      addVariant("duo-book", '[data-duo="book"] &');
+      addVariant("duo-stack", '[data-duo="stack"] &');
+    }),
+  ],
 } satisfies Config;

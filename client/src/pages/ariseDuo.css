@@ -1,0 +1,6 @@
+/* Arise To Duo (client/src/lib/useAriseDuo.ts): where the fold sits on the iPhone Duo's inner screen.
+   --duo-left is the width of the left pane, so the two panes meet exactly at the fold. */
+:root[data-duo="book"] { --duo-left: 50vw; }
+@supports (width: env(viewport-segment-width 0 0, 1px)) {
+  :root[data-duo="book"] { --duo-left: env(viewport-segment-width 0 0, 50vw); }
+}
