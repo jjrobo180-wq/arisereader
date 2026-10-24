@@ -2,8 +2,8 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { BEGINNER_LESSONS } from "./lessons";
 
-test("independent A.R.I.S.E. Beginners has 12 unique lesson quizzes", () => {
-  assert.equal(BEGINNER_LESSONS.length, 12);
+test("independent A.R.I.S.E. Beginners has 112 unique lesson quizzes", () => {
+  assert.equal(BEGINNER_LESSONS.length, 112);
   assert.equal(new Set(BEGINNER_LESSONS.map(l=>l.id)).size, BEGINNER_LESSONS.length);
   for(const l of BEGINNER_LESSONS){
     assert.ok(l.slides.length>=2,l.id+" needs actual teaching");
