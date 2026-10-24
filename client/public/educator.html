@@ -1,7 +1,23 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <script>/* An app link like /#/lifehub (an older notification or bookmark) belongs to the app at /app. */ if (/^#\//.test(location.hash)) location.replace("/app" + location.hash);</script>
+  <script>/* An app link like /#/lifehub (an older notification or bookmark) belongs to the app at /app. */ if (/^#\//.test(location.hash)) location.replace("/app" + location.hash);
+  /* Opened as the Home Screen app (a shortcut saved from this page starts here): this page is for
+     visitors, so go straight into the app — the hub when signed in, the sign-in screen otherwise. The
+     sign-in is the cookie, or the copy the app keeps in storage for when a phone drops the cookie. */
+  (function () {
+    var standalone = false;
+    try { standalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches || window.matchMedia("(display-mode: fullscreen)").matches; } catch (e) {}
+    if (!standalone || window.self !== window.top) return;
+    var signedIn = /(?:^|;\s*)arise_session=/.test(document.cookie);
+    try { signedIn = signedIn || !!window.localStorage.getItem("arise_session_backup"); } catch (e) {}
+    location.replace(signedIn ? "/app#/" : "/app#/signin");
+  })();</script>
+<link rel="manifest" href="/todo.webmanifest" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Arise To Duo" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="theme-color" content="#F8FAFD" />
@@ -407,7 +423,7 @@
 <header class="site-header">
  <div class="container nav-inner">
   <a class="logo" href="#top" aria-label="Arise To Duo home"><img class="logo-symbol" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2310C8B3%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23527BED%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23955FE5%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%0A%20%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2262%22%20height%3D%2262%22%20rx%3D%2218%22%20fill%3D%22url%28%23g%29%22%2F%3E%0A%20%3Crect%20x%3D%2213%22%20y%3D%2215%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%224%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%20opacity%3D%22.95%22%2F%3E%0A%20%3Cpath%20d%3D%22M17%2022.3l4%203.8%208-10%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%3Cpath%20d%3D%22M36%2023h14M17%2043h12M36%2043h14%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.96%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt="" /><span>Arise <span class="todo">To Duo</span></span></a>
-  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="#duo">iPhone Duo</a><a href="#features">Features</a><a href="#app-showcase">Explore apps</a><a href="#features">For educators</a><a href="#life">Everyday life</a><a href="#demo">Try it</a><a href="#how">How it works</a><a href="#whats-new">What's new</a><a href="#pricing">Pricing</a><a class="mobile-auth" href="/app#/signin">Sign in</a><a class="mobile-auth" href="/app#/signin">Create account</a></nav>
+  <nav class="nav-links" id="navLinks" aria-label="Main navigation"><a href="#duo">iPhone Duo</a><a href="#duo-live">Try it live</a><a href="#features">Features</a><a href="#app-showcase">Explore apps</a><a href="#features">For educators</a><a href="#life">Everyday life</a><a href="#demo">Try it</a><a href="#how">How it works</a><a href="#whats-new">What's new</a><a href="#pricing">Pricing</a><a class="mobile-auth" href="/app#/signin">Sign in</a><a class="mobile-auth" href="/app#/signin">Create account</a></nav>
   <div class="nav-auth"><a class="header-signin" href="#pricing">Pricing</a><a class="header-signin" href="/app#/signin">Sign in</a><a class="button button-primary" href="/app#/signin">Get started <svg><use href="#i-arrow"/></svg></a></div>
   <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks"><svg><use href="#i-menu"/></svg></button>
  </div>
@@ -419,7 +435,7 @@
   <div class="eyebrow"><i class="dot"></i> Built for the new iPhone Duo</div>
   <h1>The to-do app<span class="gradient-text">built for iPhone Duo.</span></h1>
   <p class="lede">Open your Duo and Arise To Duo opens with it: your lists on one side of the fold, your tasks on the other. Or open two views at once, like your to-do list next to your notes, or LifeHub next to WorkHub. Tasks, calendar, chores, meals, budget, habits and 100+ add-on apps, arranged your way. Built for families and individuals. Just as fantastic for teachers.</p>
-  <div class="hero-actions"><a class="button button-primary" href="/app#/signin">Create a free account <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="/app#/signin">Already a member? Sign in</a><a class="hero-demo-link" href="#duo">See it on the Duo ↓</a></div>
+  <div class="hero-actions"><a class="button button-primary" href="/app#/signin">Create a free account <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="/app#/signin">Already a member? Sign in</a><a class="hero-demo-link" href="#duo-live">Try it on the Duo ↓</a></div>
   <div class="hero-micro"><span class="mini-mark"><svg><use href="#i-check"/></svg> Made for the fold</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> Two views at once</span><span class="mini-line"></span><span class="mini-mark"><svg><use href="#i-check"/></svg> Works on any phone or computer</span></div>
  </div>
  <div class="hero-art" aria-label="Arise To Duo dashboard preview"><div class="halo"></div>
@@ -498,6 +514,23 @@
   <span class="duo-fold" aria-hidden="true"></span>
  </div>
 </div>
+<div class="container duo-live" id="duo-live">
+ <div class="duo-live-head">
+  <div><div class="section-kicker">Try it live</div><h3 class="duo-live-title">The real app on a life-size iPhone Duo.</h3>
+  <p class="duo-live-desc">Open it flat, turn it, or fold it. Tap around, add a task, open split screen from the Duo button. This is a <b>sample profile</b> — it never uses your account, and nothing you do here is saved.</p></div>
+ </div>
+ <div class="duo-live-frame">
+  <iframe src="/duo-preview.html?sample=1&amp;embed=1" title="Arise To Duo on an iPhone Duo — interactive sample" loading="lazy" allow="clipboard-write"></iframe>
+ </div>
+</div>
+<style>
+.duo-live{margin-top:64px}
+.duo-live-title{margin:6px 0 6px;font-size:clamp(22px,3vw,30px);line-height:1.15;color:#1f1d38}
+.duo-live-desc{margin:0;max-width:720px;color:#5f6886;font-size:15px;line-height:1.6}
+.duo-live-frame{margin-top:22px;height:min(760px,82vh);min-height:520px;border-radius:20px;overflow:hidden;box-shadow:0 40px 80px rgba(41,36,70,.22);background:#14122a}
+.duo-live-frame iframe{display:block;width:100%;height:100%;border:0}
+@media(max-width:600px){.duo-live{margin-top:44px}.duo-live-frame{height:640px;min-height:0;border-radius:16px}}
+</style>
 </section>
 <section class="app-showcase" id="app-showcase" aria-labelledby="app-showcase-title">
  <div class="container">
@@ -661,7 +694,7 @@
    e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'});plainAddress();
  });
  // Already signed in on this site: "Sign in" opens the hub straight away, so say so.
- if(/(?:^|;\s*)arise_session=/.test(document.cookie)){
+ if(/(?:^|;\s*)arise_session=/.test(document.cookie)||(function(){try{return !!localStorage.getItem('arise_session_backup')}catch(e){return false}})()){
    Array.from(document.querySelectorAll('a[href="/app#/signin"]')).forEach(a=>{ if(/^\s*sign in\s*$/i.test(a.textContent)) a.textContent='Open my hub'; });
  }
  const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));

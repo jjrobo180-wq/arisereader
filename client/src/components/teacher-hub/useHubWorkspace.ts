@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import { API_BASE } from "@/lib/queryClient";
 import { HubSaver, type SaveView } from "@/lib/hubSaver";
 import { announceSaved, onOtherCopySaved } from "@/lib/paneSync";
+import { recallHub, rememberHub } from "@/lib/hubMemory";
 import { HUB_REQUIRED } from "@shared/plans";
 import { workspaceBytes } from "@shared/hubSave";
 import { emptyWorkspace, normalizeWorkspace, type Workspace } from "@shared/teacherHub";
@@ -62,14 +63,63 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
   const tokenRef = useRef(token);
   tokenRef.current = token;
   const lastCheck = useRef(0);
+  const userRef = useRef(userId);
+  userRef.current = userId;
+  const workspaceRef = useRef(workspace);
+  workspaceRef.current = workspace;
+  const seatsRef = useRef(seats);
+  seatsRef.current = seats;
+  const checkRef = useRef<() => Promise<void>>(async () => {});
+
+  const makeSaver = useCallback((start: Workspace, updatedAt: string | null, isLive: () => boolean) => new HubSaver<Workspace>(
+    {
+      put: async (request, options) => {
+        const body = JSON.stringify(request);
+        // A save sent while the page is closing has to be small enough to be allowed to finish.
+        const res = await fetch(`${API_BASE}/api/teacher-hub/workspace`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...authHeaders(tokenRef.current) },
+          body,
+          keepalive: options.keepalive && body.length < 60_000,
+        });
+        return { status: res.status, body: await res.json().catch(() => null) };
+      },
+      onView: (next) => { if (isLive()) setView(next); },
+      onSaved: ({ bytes: size }) => { if (isLive()) setBytes(size); announceSaved("workhub", userRef.current); },
+      setTimer: (run, ms) => window.setTimeout(run, ms),
+      clearTimer: (handle) => window.clearTimeout(handle as number),
+    },
+    { workspace: start, updatedAt },
+  ), []);
 
   // Opening the Hub.
   useEffect(() => {
     if (!enabled || !token) return;
     let cancelled = false;
-    setLoaded(false);
+    const live = () => !cancelled;
     setLoadError("");
     setNeedsPlan(false);
+    // Coming back from LifeHub (or anywhere else on this page): show the copy kept in memory at once
+    // and catch up with the server in the background — no "Opening your Arise WorkHub…" screen.
+    const memo = recallHub<Workspace>("work", userId);
+    if (memo) {
+      setWorkspace(memo.workspace);
+      setBytes(workspaceBytes(memo.workspace));
+      setSeats(typeof memo.extra?.seats === "number" ? memo.extra.seats : null);
+      setView(JSON.stringify(memo.workspace) === JSON.stringify(memo.saved) ? { kind: "saved" } : { kind: "waiting" });
+      setLoaded(true);
+      void (async () => {
+        if (memo.pending) await memo.pending.catch(() => {});
+        if (cancelled) return;
+        const latest = recallHub<Workspace>("work", userId) ?? memo;
+        saver.current?.dispose();
+        saver.current = makeSaver(latest.saved, latest.updatedAt, live);
+        saver.current.change(memo.pending ? workspaceRef.current : memo.workspace);
+        window.setTimeout(() => { if (!cancelled) { lastCheck.current = 0; void checkRef.current(); } }, 60);
+      })();
+      return () => { cancelled = true; leave(); };
+    }
+    setLoaded(false);
     fetch(`${API_BASE}/api/teacher-hub/workspace`, { headers: authHeaders(token), cache: "no-store" })
       .then(async (r) => {
         const data = await r.json().catch(() => null);
@@ -82,26 +132,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
         if ("needsPlan" in result) { setNeedsPlan(true); setLoaded(true); return; }
         const { data, start } = result;
         saver.current?.dispose();
-        saver.current = new HubSaver<Workspace>(
-          {
-            put: async (request, options) => {
-              const body = JSON.stringify(request);
-              // A save sent while the page is closing has to be small enough to be allowed to finish.
-              const res = await fetch(`${API_BASE}/api/teacher-hub/workspace`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json", ...authHeaders(tokenRef.current) },
-                body,
-                keepalive: options.keepalive && body.length < 60_000,
-              });
-              return { status: res.status, body: await res.json().catch(() => null) };
-            },
-            onView: setView,
-            onSaved: ({ bytes: size }) => { setBytes(size); announceSaved("workhub", userId); },
-            setTimer: (run, ms) => window.setTimeout(run, ms),
-            clearTimer: (handle) => window.clearTimeout(handle as number),
-          },
-          { workspace: start, updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null },
-        );
+        saver.current = makeSaver(start, typeof data.updatedAt === "string" ? data.updatedAt : null, live);
         setSeats(typeof data.seats === "number" ? data.seats : null);
         setWorkspace(start);
         setBytes(workspaceBytes(start));
@@ -113,14 +144,28 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
         setLoadError(err?.message || "Could not load Arise WorkHub.");
         setLoaded(true);
       });
-    return () => { cancelled = true; };
-  }, [enabled, token, userId, round]);
+    return () => { cancelled = true; leave(); };
+  }, [enabled, token, userId, round]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Every change goes to the saver.
-  useEffect(() => { saver.current?.change(workspace); }, [workspace]);
+  // Every change goes to the saver — once a real copy is showing. (On an instant open the saver can
+  // exist before the remembered copy has rendered; the empty placeholder must never be handed over.)
+  useEffect(() => { if (loaded) saver.current?.change(workspace); }, [workspace, loaded]);
 
-  // Leaving the page saves it first.
-  useEffect(() => () => { void saver.current?.finish(); saver.current = null; }, []);
+  /** Leaving WorkHub (for LifeHub, say): what is waiting is saved first, and the copy is kept in
+   *  memory so coming back is instant. Not after signing out (there is no token by then). */
+  function leave() {
+    const instance = saver.current;
+    saver.current = null;
+    if (!instance) return;
+    const uid = userRef.current;
+    const signedIn = !!tokenRef.current;
+    const unsaved = instance.hasUnsaved();
+    const pending = unsaved
+      ? instance.finish().then(() => { if (signedIn) rememberHub<Workspace>("work", uid, { saved: instance.saved, updatedAt: instance.baseUpdatedAt, pending: undefined }); })
+      : undefined;
+    if (!unsaved) instance.dispose();
+    if (signedIn) rememberHub<Workspace>("work", uid, { workspace: instance.current(), saved: instance.saved, updatedAt: instance.baseUpdatedAt, pending, extra: { seats: seatsRef.current } });
+  }
 
   // Has the Hub been changed somewhere else? Only asked when nothing here is waiting to be saved.
   const check = useCallback(async () => {
@@ -145,6 +190,7 @@ export function useHubWorkspace({ enabled, token, userId }: { enabled: boolean; 
       /* offline: nothing to refresh */
     }
   }, []);
+  checkRef.current = check;
 
   useEffect(() => {
     const save = () => { void saver.current?.flush(); };

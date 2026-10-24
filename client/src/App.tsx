@@ -60,13 +60,20 @@ import NotFound from "./pages/not-found";
 // Keep the initial login/library bundle light. The 3D worlds load only when a student opens them.
 const CHUNK_RELOAD_PREFIX = "arise_chunk_reload:";
 function lazyPage(loader: () => Promise<{ default: ComponentType<any> }>) {
-  return lazy(async () => {
+  // Once a page's code has arrived it is drawn straight away on every later visit, with no
+  // loading spinner in between (React.lazy on its own still shows the fallback for a moment).
+  // preload() fetches it ahead of time — the hubs preload each other so switching is instant.
+  let ready: ComponentType<any> | null = null;
+  let loading: Promise<{ default: ComponentType<any> }> | null = null;
+  const load = () => loading ??= (async () => {
     const retryKey = typeof window !== "undefined" ? CHUNK_RELOAD_PREFIX + window.location.hash : "";
     try {
       const mod = await loader();
       if (retryKey) sessionStorage.removeItem(retryKey);
+      ready = mod.default;
       return mod;
     } catch (error) {
+      loading = null;
       const message = error instanceof Error ? error.message : String(error || "");
       const staleChunk = /failed to fetch dynamically imported module|importing a module script failed|chunkloaderror|loading chunk|dynamically imported module/i.test(message);
       if (staleChunk && typeof window !== "undefined" && retryKey && sessionStorage.getItem(retryKey) !== "1") {
@@ -77,7 +84,14 @@ function lazyPage(loader: () => Promise<{ default: ComponentType<any> }>) {
       if (retryKey) sessionStorage.removeItem(retryKey);
       throw error;
     }
-  });
+  })();
+  const Lazy = lazy(load);
+  function Page(props: Record<string, unknown>) {
+    // Decided once per visit, so a page never swaps from the lazy wrapper to the real one mid-visit.
+    const [Ready] = useState(() => ready);
+    return Ready ? <Ready {...props} /> : <Lazy {...props} />;
+  }
+  return Object.assign(Page, { preload: () => { void load().catch(() => {}); } });
 }
 const AvatarWorld = lazyPage(() => import("./pages/AvatarWorld"));
 const Games = lazyPage(() => import("./pages/Games"));
@@ -457,6 +471,17 @@ function AppRoutes() {
   const domain = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
   const onReaderDomain = domain === "arisereader.com" || domain === "www.arisereader.com";
   const onTodoDomain = domain === "arisetodo.com" || domain === "www.arisetodo.com";
+  // An adult in one hub is a tap away from the other (and from the split screen): fetch both hubs'
+  // code while the page is idle, so switching between Arise WorkHub and Arise LifeHub is instant.
+  const hubAdult = isHubAccount(user);
+  useEffect(() => {
+    if (!hubAdult) return;
+    const run = () => { TeacherHub.preload(); AriseTodo.preload(); DuoSplit.preload(); };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) { const id = w.requestIdleCallback(run, { timeout: 2500 }); return () => w.cancelIdleCallback?.(id); }
+    const t = window.setTimeout(run, 1200);
+    return () => window.clearTimeout(t);
+  }, [hubAdult]);
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-blue-50">

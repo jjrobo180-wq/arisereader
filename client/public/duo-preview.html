@@ -38,13 +38,22 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/
 .foot{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;padding:9px 16px;border-top:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12px}
 .foot b{color:var(--text)}
 .hide-sm{display:inline}
+.sample-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#2e2a55;color:#d8d2ff;font-size:10px;font-weight:800;letter-spacing:.04em;vertical-align:1px}
+/* Embedded on the arisetodo.com homepage: lighter chrome around the phone. */
+html.embed,html.embed body{background:transparent}
+html.embed .bar{border:0;border-radius:18px 18px 0 0}
+html.embed .stage{background:radial-gradient(circle at 50% 40%,#2a2550 0%,#14122a 75%)}
+html.embed .foot{border-radius:0 0 18px 18px}
+html.embed #reload{display:none}
+.full{color:var(--text);font-weight:700;text-decoration:none;white-space:nowrap}
+.full:hover{text-decoration:underline}
 @media(max-width:700px){.hide-sm{display:none}.bar{gap:8px}.seg button,.btn{font-size:12px;padding:0 9px}}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="bar">
-    <div class="brand">Arise To Duo on iPhone Duo<small>Live preview · your real account</small></div>
+    <div class="brand">Arise To Duo on iPhone Duo<small id="brandNote">Live preview · your real account</small></div>
     <div class="group" role="group" aria-label="How the phone is held">
       <span>Phone</span>
       <div class="seg" id="modes">
@@ -77,7 +86,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/
   </div>
   <div class="foot">
     <span id="size"></span>
-    <span class="hide-sm">Everything inside the phone is the live app: what you change here really changes.</span>
+    <span class="hide-sm" id="footNote">Everything inside the phone is the live app: what you change here really changes.</span>
   </div>
 </div>
 <script>
@@ -95,9 +104,21 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/
     site:  "/"
   };
   var KEY = "arise_duo_preview_v1";
-  var state = { mode: "open", view: "home" };
-  try { var saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved && MODES[saved.mode] && VIEWS[saved.view]) state = saved; } catch (e) {}
   var q = new URLSearchParams(location.search);
+  // ?sample=1: a made-up sample profile instead of the visitor's own account (lib/sampleMode.ts in
+  // the app). Nothing is saved to any account, and it is forgotten when the tab closes, so every
+  // visitor starts from the same fresh sample. ?embed=1: shown inside the arisetodo.com homepage.
+  var SAMPLE = q.get("sample") === "1", EMBED = q.get("embed") === "1";
+  if (EMBED) document.documentElement.classList.add("embed");
+  if (SAMPLE) {
+    delete VIEWS.site; // the homepage itself, inside the homepage
+    var siteBtn = document.querySelector('#views [data-view="site"]'); if (siteBtn) siteBtn.remove();
+    document.getElementById("brandNote").innerHTML = 'Try it now <span class="sample-tag">SAMPLE PROFILE</span>';
+    document.getElementById("footNote").innerHTML = "A sample profile, not your account: nothing you do here is saved." + (EMBED ? ' <a class="full" href="/duo-preview.html?sample=1" target="_blank" rel="noopener">Open full screen ↗</a>' : "");
+    document.title = "Try Arise To Duo on iPhone Duo · Sample";
+  }
+  var state = { mode: "open", view: "home" };
+  if (!SAMPLE) try { var saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved && MODES[saved.mode] && VIEWS[saved.view]) state = saved; } catch (e) {}
   if (MODES[q.get("mode")]) state.mode = q.get("mode");
   if (VIEWS[q.get("show")]) state.view = q.get("show");
 
@@ -122,7 +143,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/
     var m = MODES[state.mode];
     pressed("modes", "data-mode", state.mode);
     pressed("views", "data-view", state.view);
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    if (!SAMPLE) try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
     device.classList.toggle("outer", state.mode === "folded");
     screen.style.width = m.w + "px";
     screen.style.height = m.h + "px";
