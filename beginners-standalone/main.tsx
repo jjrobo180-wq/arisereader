@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { BEGINNER_LESSONS, type BeginnerLesson } from "./lessons";
 import SwipeFeed from "./SwipeFeed";
+import PhonicsLab, { type PhonicsResult } from "./PhonicsLab";
+import { getPhonicsActivity } from "./phonics-curriculum";
 import { UNIT_CONFIG } from "./curriculum-factory";
 import { exportProgress, importProgress } from "./progress-backup";
 import "./styles.css";
@@ -17,7 +19,7 @@ import "./swipe.css";
 type View = "home" | "lessons" | "swipe" | "saved" | "progress" | "leaderboard" | "rewards";
 type Difficulty = 1 | 2 | 3;
 type Profile = { id: string; name: string; createdAt: string };
-type Attempt = { bestScore: number; lastScore: number; attempts: number; passedAt: string | null };
+type Attempt = { bestScore: number; lastScore: number; attempts: number; passedAt: string | null; phonics?: PhonicsResult };
 type LearnerProgress = {
   attempts: Record<string, Attempt>;
   saved: string[];
@@ -103,6 +105,7 @@ function App() {
   const [selected,setSelected]=useState<number|null>(null);
   const [outcome,setOutcome]=useState<Outcome|null>(null);
   const [notice,setNotice]=useState("");
+  const [phonicsResult,setPhonicsResult]=useState<PhonicsResult|null>(null);
   const [backupStatus,setBackupStatus]=useState("");
   const restoreInput=useRef<HTMLInputElement>(null);
   useEffect(()=>{storagePut(PROFILE_KEY,profiles)},[profiles]);
@@ -176,11 +179,17 @@ function App() {
     setProgress(p=>({...p,browseView:v}));
     window.scrollTo({top:0,behavior:"smooth"});
   }
-  function launch(l:BeginnerLesson){stopSpeech();setActiveLesson(l);setStep(0);setAnswers([]);setSelected(null);setOutcome(null);setNotice("")}
-  function closeLesson(){stopSpeech();setActiveLesson(null);setSelected(null);setAnswers([]);setOutcome(null);setNotice("")}
+  function launch(l:BeginnerLesson){
+    stopSpeech();setActiveLesson(l);setStep(-1);setPhonicsResult(null);
+    setAnswers([]);setSelected(null);setOutcome(null);setNotice("");
+  }
+  function closeLesson(){
+    stopSpeech();setActiveLesson(null);setPhonicsResult(null);
+    setSelected(null);setAnswers([]);setOutcome(null);setNotice("");
+  }
   function toggleSaved(id:string){setProgress(p=>({...p,saved:p.saved.includes(id)?p.saved.filter(x=>x!==id):[...p.saved,id]}))}
   function goNext(){
-    if(!activeLesson||outcome)return;
+    if(!activeLesson||outcome||step<0||!phonicsResult)return;
     const learnCount=activeLesson.slides.length;
     if(step<learnCount){setStep(v=>v+1);return}
     if(selected===null){setNotice("Choose an answer to continue.");return}
@@ -205,13 +214,17 @@ function App() {
         attempts:(p.attempts[activeLesson.id]?.attempts||0)+1,
         bestScore:Math.max(p.attempts[activeLesson.id]?.bestScore||0,score),
         lastScore:score,
-        passedAt:p.attempts[activeLesson.id]?.passedAt||(passed?new Date().toISOString():null)
+        passedAt:p.attempts[activeLesson.id]?.passedAt||(passed?new Date().toISOString():null),
+        phonics:phonicsResult
       }
     }}));
     setOutcome({passed,score,firstPass,earned:firstPass?activeLesson.points:0,review});
     setStep(learnCount+activeLesson.questions.length);
   }
-  function tryAgain() {stopSpeech();setStep(0);setAnswers([]);setSelected(null);setOutcome(null);setNotice("")}
+  function tryAgain(){
+    stopSpeech();setStep(-1);setPhonicsResult(null);setAnswers([]);
+    setSelected(null);setOutcome(null);setNotice("");
+  }
   function downloadProgress(){
     if(!profile)return;
     try{
@@ -255,6 +268,7 @@ function App() {
     {id:"rewards",title:"My Rewards",icon:Gift}
   ];
   const feature=LESSONS.find(l=>!progress.attempts[l.id]?.passedAt)||LESSONS[0];
+  const phonicsActivity=activeLesson?getPhonicsActivity(activeLesson,LESSONS.findIndex(l=>l.id===activeLesson.id)):null;
   if(!profile)return <div className="landing" data-theme="reader">
     <div className="landing-orbit orbit-one"/><div className="landing-orbit orbit-two"/>
     <div className="landing-top"><div className="brand-mark">A<span>✦</span></div><div className="brand-copy">A.R.I.S.E.<strong> BEGINNERS</strong></div></div>
@@ -339,7 +353,7 @@ function App() {
         {view==="saved"&&<section><PanelTitle eyebrow="YOUR COLLECTION" title="Saved Lessons" sub="Bookmark anything that catches your eye. Your favorites stay here on this browser."/><div className="lesson-grid">{saved.map(l=><LessonCard key={l.id} lesson={l} done={!!progress.attempts[l.id]?.passedAt} saved onOpen={()=>launch(l)} onSave={()=>toggleSaved(l.id)}/>)}</div>{!saved.length&&<div className="empty"><Bookmark size={38}/><h3>Your collection is empty</h3><p>Hit the bookmark on any lesson to save it.</p><button className="primary-btn" onClick={()=>show("lessons")}>Explore Lessons <ArrowRight size={17}/></button></div>}</section>}
         {view==="progress"&&<section><PanelTitle eyebrow="KEEP LEVELING UP" title="My Reading Progress" sub="Look at your mastery by lesson, not a label or grade level."/><div className="stats-grid"><div className="stat"><span className="stat-icon purple-bg"><Star/></span><div><strong>{points}</strong><small>Points earned</small></div></div><div className="stat"><span className="stat-icon cyan-bg"><Award/></span><div><strong>{completed}</strong><small>Lesson passes</small></div></div><div className="stat"><span className="stat-icon gold-bg"><Target/></span><div><strong>{percent}%</strong><small>Catalog complete</small></div></div></div>
           <div className="progress-panel"><div className="progress-top"><strong>Your progress so far</strong><span>{completed} of {LESSONS.length} lessons</span></div><div className="progress-track big"><span style={{width:percent+"%"}}/></div><p>You'll earn each lesson's points once, the first time you pass its skill check with 80% or higher.</p></div>
-          <div className="progress-list">{LESSONS.map(l=>{const attempt=progress.attempts[l.id];return <button key={l.id} type="button" onClick={()=>launch(l)} className="progress-row"><LessonCover lesson={l} className="progress-thumbnail"/><div className="progress-copy"><strong>{l.title}</strong><span>{l.skill} · {DIFFICULTY[l.level].label}</span>{attempt&&<small>{attempt.attempts} {attempt.attempts===1?"attempt":"attempts"} · best {attempt.bestScore}%</small>}</div><span className={"progress-status "+(attempt?.passedAt?"complete":"")}>{attempt?.passedAt?<><Check size={15}/> Passed</>:attempt?"Practice again":"Start"} <ChevronRight size={16}/></span></button>})}</div>
+          <div className="progress-list">{LESSONS.map(l=>{const attempt=progress.attempts[l.id];return <button key={l.id} type="button" onClick={()=>launch(l)} className="progress-row"><LessonCover lesson={l} className="progress-thumbnail"/><div className="progress-copy"><strong>{l.title}</strong><span>{l.skill} · {DIFFICULTY[l.level].label}</span>{attempt&&<small>{attempt.attempts} {attempt.attempts===1?"attempt":"attempts"} · best {attempt.bestScore}%{attempt.phonics?" · Word builds "+attempt.phonics.buildsCompleted+"/3":""}</small>}</div><span className={"progress-status "+(attempt?.passedAt?"complete":"")}>{attempt?.passedAt?<><Check size={15}/> Passed</>:attempt?"Practice again":"Start"} <ChevronRight size={16}/></span></button>})}</div>
           <div className="backup-panel"><div><div className="eyebrow">SAVE YOUR WORK</div><h3>Keep a copy of your learning progress</h3><p>This version saves progress in this browser. Download a private backup for recovery or a move to another device. Import replaces only the current local profile, never Reader accounts.</p></div><div className="backup-actions"><button type="button" className="secondary-btn" onClick={downloadProgress}>Download backup</button><button type="button" className="secondary-btn" onClick={()=>restoreInput.current?.click()}>Restore backup</button><input ref={restoreInput} aria-label="Import an A.R.I.S.E. Beginners progress backup" type="file" accept=".json,application/json" className="backup-input" onChange={restoreProgress}/></div>{backupStatus&&<p role="status" className="backup-status">{backupStatus}</p>}</div>
           <p className="small-disclaimer">Completing lessons does not by itself measure oral reading fluency, decoding speed or a student's reading grade level. Use regular individual reading assessments alongside the program.</p>
         </section>}
@@ -356,13 +370,19 @@ function App() {
     {activeLesson&&<div className="lesson-overlay" role="dialog" aria-modal="true" aria-label={activeLesson.title}>
       <div className="lesson-frame">
         <div className="lesson-head"><button type="button" onClick={closeLesson} className="back-btn"><ArrowLeft size={18}/> Exit Lesson</button><div className="lesson-head-title"><strong>{activeLesson.title}</strong><span>{DIFFICULTY[activeLesson.level].label} · {activeLesson.points} points</span></div><button type="button" aria-label="Close" className="icon-btn" onClick={closeLesson}><X size={22}/></button></div>
-        <div className="lesson-progress"><span style={{width:outcome?"100%":Math.round(step/(activeLesson.slides.length+activeLesson.questions.length)*100)+"%"}}/></div>
+        <div className="lesson-progress"><span style={{width:outcome?"100%":Math.round((step+1)/(activeLesson.slides.length+activeLesson.questions.length+1)*100)+"%"}}/></div>
         <div className="lesson-body">
-          {outcome?<div className="finish-screen"><div className="finish-icon">{outcome.passed?"🏆":"💪"}</div><div className="eyebrow">{outcome.passed?"LESSON PASSED":"KEEP PRACTICING"}</div><h1>{outcome.passed?"You earned that win!":"Let's build it together."}</h1><div className="score-circle">{outcome.score}<span>%</span></div><p className="finish-description">{outcome.passed?"You demonstrated these reading skills on the lesson check.": "Read through the lesson again and go for 80% or higher."}</p><div className="earn-note">{outcome.firstPass?"+"+outcome.earned+" Beginners points earned":outcome.passed?"Points for this lesson were already earned.":"You can retry for the full "+activeLesson.points+" points."}</div><div className="review"><h3>Answer review</h3>{outcome.review.map((r,i)=><div key={i} className={"review-item "+(r.right?"right":"wrong")}><span>{r.right?<CheckCircle2 size={19}/>:<Target size={19}/>}</span><div><strong>{i+1}. {r.question}</strong><p>{r.right?"You got it.":"Your answer: "+r.chosenLabel+" · Correct: "+r.correctLabel}</p>{!r.right&&<small>{r.hint}</small>}</div></div>)}</div><div className="finish-actions"><button type="button" className="secondary-btn" onClick={tryAgain}><ArrowLeft size={17}/> Practice again</button><button type="button" className="primary-btn" onClick={closeLesson}>Back to Library <ArrowRight size={17}/></button></div></div>
-          :step<activeLesson.slides.length?<div className="teach-screen"><div className="lesson-step-label"><span>LEARN IT</span> · Part {step+1} of {activeLesson.slides.length}</div><h1>{activeLesson.slides[step].heading}</h1><div className="lesson-passage">{activeLesson.slides[step].text}</div><button type="button" className="speak-btn" onClick={()=>say(activeLesson.slides[step].text)}><Volume2 size={18}/> Listen to passage</button><div className="word-panel"><div className="word-panel-head"><Headphones size={18}/> LET'S PRACTICE THESE WORDS</div><div className="word-list">{activeLesson.slides[step].focus.map(word=><button key={word} type="button" onClick={()=>say(word)}>{word}<Volume2 size={13}/></button>)}</div><p>{activeLesson.slides[step].instruction}</p></div><div className="lesson-note"><Sparkles size={16}/> Real skill practice before every quiz, built around subjects students already know.</div></div>
+          {outcome?<div className="finish-screen"><div className="finish-icon">{outcome.passed?"🏆":"💪"}</div><div className="eyebrow">{outcome.passed?"LESSON PASSED":"KEEP PRACTICING"}</div><h1>{outcome.passed?"You earned that win!":"Let's build it together."}</h1><div className="score-circle">{outcome.score}<span>%</span></div>
+            {phonicsResult&&<div className="phonics-score-pill"><CheckCircle2 size={17}/> Word building: {phonicsResult.buildsCompleted}/3 completed · {phonicsResult.correctOnFirstCheck}/3 first-try builds</div>}<p className="finish-description">{outcome.passed?"You demonstrated these reading skills on the lesson check.": "Read through the lesson again and go for 80% or higher."}</p><div className="earn-note">{outcome.firstPass?"+"+outcome.earned+" Beginners points earned":outcome.passed?"Points for this lesson were already earned.":"You can retry for the full "+activeLesson.points+" points."}</div><div className="review"><h3>Answer review</h3>{outcome.review.map((r,i)=><div key={i} className={"review-item "+(r.right?"right":"wrong")}><span>{r.right?<CheckCircle2 size={19}/>:<Target size={19}/>}</span><div><strong>{i+1}. {r.question}</strong><p>{r.right?"You got it.":"Your answer: "+r.chosenLabel+" · Correct: "+r.correctLabel}</p>{!r.right&&<small>{r.hint}</small>}</div></div>)}</div><div className="finish-actions"><button type="button" className="secondary-btn" onClick={tryAgain}><ArrowLeft size={17}/> Practice again</button><button type="button" className="primary-btn" onClick={closeLesson}>Back to Library <ArrowRight size={17}/></button></div></div>
+          :step===-1&&phonicsActivity?<PhonicsLab key={activeLesson.id}
+            activity={phonicsActivity}
+            onExit={closeLesson}
+            onComplete={result=>{setPhonicsResult(result);setStep(0);}}
+          />
+          :step<activeLesson.slides.length?<div className="teach-screen"><div className="lesson-step-label"><span>SUPPORTED TOPIC READING</span> · Part {step+1} of {activeLesson.slides.length}</div><h1>{activeLesson.slides[step].heading}</h1><div className="lesson-passage">{activeLesson.slides[step].text}</div><button type="button" className="speak-btn" onClick={()=>say(activeLesson.slides[step].text)}><Volume2 size={18}/> Listen to passage</button><div className="word-panel"><div className="word-panel-head"><Headphones size={18}/> LET'S PRACTICE THESE WORDS</div><div className="word-list">{activeLesson.slides[step].focus.map(word=><button key={word} type="button" onClick={()=>say(word)}>{word}<Volume2 size={13}/></button>)}</div><p>{activeLesson.slides[step].instruction}</p></div><div className="lesson-note"><Sparkles size={16}/> Phonics is taught in the Sound Lab. This high-interest story includes harder words and is designed for supported reading or read-aloud, not as a controlled decodable passage.</div></div>
           :<div className="test-screen"><div className="lesson-step-label"><span>SKILL CHECK</span> · Question {step-activeLesson.slides.length+1} of {activeLesson.questions.length}</div><h1>{activeLesson.questions[step-activeLesson.slides.length].prompt}</h1><button type="button" className="speak-btn" onClick={()=>say(activeLesson.questions[step-activeLesson.slides.length].prompt)}><Volume2 size={18}/> Hear the question</button><div className="options">{activeLesson.questions[step-activeLesson.slides.length].choices.map((option,i)=><button key={i} type="button" onClick={()=>{setSelected(i);setNotice("")}} className={"option "+(selected===i?"selected":"")}><span>{String.fromCharCode(65+i)}</span><strong>{option}</strong>{selected===i&&<CheckCircle2 size={18}/>}</button>)}</div>{notice&&<div role="alert" className="inline-error">{notice}</div>}</div>}
         </div>
-        {!outcome&&<footer className="lesson-footer"><div className="lesson-footer-note">{step<activeLesson.slides.length?"Take your time. Practice before your check.":"Score 80% or higher to earn your lesson points."}</div><button type="button" className="primary-btn" onClick={goNext}>{step===activeLesson.slides.length+activeLesson.questions.length-1?"Finish Lesson":step===activeLesson.slides.length-1?"Start Skill Check":"Continue"} <ArrowRight size={18}/></button></footer>}
+        {!outcome&&step>=0&&<footer className="lesson-footer"><div className="lesson-footer-note">{step<activeLesson.slides.length?"Take your time. Practice before your check.":"Score 80% or higher to earn your lesson points."}</div><button type="button" className="primary-btn" onClick={goNext}>{step===activeLesson.slides.length+activeLesson.questions.length-1?"Finish Lesson":step===activeLesson.slides.length-1?"Start Skill Check":"Continue"} <ArrowRight size={18}/></button></footer>}
       </div>
     </div>}
   </div>
