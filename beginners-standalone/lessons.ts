@@ -1,3 +1,14 @@
+import { makeCurriculumUnit } from "./curriculum-factory";
+import { seeds as unit1 } from "./curriculum/unit-1";
+import { seeds as unit2 } from "./curriculum/unit-2";
+import { seeds as unit3 } from "./curriculum/unit-3";
+import { seeds as unit4 } from "./curriculum/unit-4";
+import { seeds as unit5 } from "./curriculum/unit-5";
+import { seeds as unit6 } from "./curriculum/unit-6";
+import { seeds as unit7 } from "./curriculum/unit-7";
+import { seeds as unit8 } from "./curriculum/unit-8";
+import { seeds as unit9 } from "./curriculum/unit-9";
+import { seeds as unit10 } from "./curriculum/unit-10";
 // A.R.I.S.E. Beginners: age-respectful, culturally engaging foundational reading lessons.
 // Original sample curriculum; teachers should review lessons before classroom use. These passages are original and not quotes from celebrities.
 // The stand-alone classroom beta saves progress on this device. Never use locally stored points to distribute prizes automatically.
@@ -192,6 +203,16 @@ export const BEGINNER_LESSONS: BeginnerLesson[] = [
       q("What is the best summary?",["A player creates a scoring chance with a pass.","A player learns to swim.","Two friends buy new shoes."],0,"Choose the main action and result.")
     ]
   },
+  ...makeCurriculumUnit(1,unit1),
+  ...makeCurriculumUnit(2,unit2),
+  ...makeCurriculumUnit(3,unit3),
+  ...makeCurriculumUnit(4,unit4),
+  ...makeCurriculumUnit(5,unit5),
+  ...makeCurriculumUnit(6,unit6),
+  ...makeCurriculumUnit(7,unit7),
+  ...makeCurriculumUnit(8,unit8),
+  ...makeCurriculumUnit(9,unit9),
+  ...makeCurriculumUnit(10,unit10),
 ];
 export const BEGINNER_PUBLIC_LESSONS = BEGINNER_LESSONS.map(({questions,...lesson}) => ({
   ...lesson,
