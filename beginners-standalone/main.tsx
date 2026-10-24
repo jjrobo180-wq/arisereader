@@ -123,7 +123,7 @@ function App() {
       if(sortBy==="az")return a.title.localeCompare(b.title);
       if(sortBy==="easy")return a.level-b.level||a.title.localeCompare(b.title);
       if(sortBy==="hard")return b.level-a.level||a.title.localeCompare(b.title);
-      if(sortBy==="new")return Number(b.id.startsWith("original-"))-Number(a.id.startsWith("original-"))||a.title.localeCompare(b.title);
+      if(sortBy==="new")return Number(a.id.startsWith("original-"))-Number(b.id.startsWith("original-"))||a.title.localeCompare(b.title);
       return Number(!!progress.attempts[a.id]?.passedAt)-Number(!!progress.attempts[b.id]?.passedAt)||a.level-b.level||a.title.localeCompare(b.title);
     });
   },[topic,difficulty,skillFilter,search,sortBy,progress.attempts]);
