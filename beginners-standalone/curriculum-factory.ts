@@ -85,6 +85,8 @@ export function makeCurriculumUnit(unitNumber:number, seeds:CurriculumSeed[]):Be
   if(!unit||seeds.length!==10)throw Error("Curriculum unit must have exactly 10 authored stories: "+unitNumber);
   return seeds.map((seed,index)=>{
     const [target,matching,contrastA,contrastB]=seed.words;
+    const other1=seeds[(index+3)%10];
+    const other2=seeds[(index+7)%10];
     const chainThirdParts=UNIT_WORD_CHAINS[unitNumber-1][index].split(",")[2].split("|");
     const chainThird=chainThirdParts.join("");
     const advancedMeanings:Record<string,string>={
