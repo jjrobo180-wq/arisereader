@@ -1,0 +1,29 @@
+name: Independent Beginners build
+on:
+  pull_request:
+    paths:
+      - 'beginners-standalone/**'
+      - '.github/workflows/beginners-standalone.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'beginners-standalone/**'
+      - '.github/workflows/beginners-standalone.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lesson and points tests
+        run: npx tsx --test beginners-standalone/lessons.test.ts
+      - name: TypeScript check
+        run: npx tsc --project beginners-standalone/tsconfig.json --noEmit
+      - name: Independent production build
+        run: npx vite build --config beginners-standalone/vite.config.ts
