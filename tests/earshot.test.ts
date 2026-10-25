@@ -169,7 +169,7 @@ test("Podscroll: its own site, calling the public routes", () => {
   assert.match(read("podscroll/main.tsx"), /from "\.\.\/client\/src\/components\/family-hub\/earshot\/EarshotPlayer"/);
   assert.doesNotMatch(read("client/src/components/family-hub/earshot/EarshotPlayer.tsx"), /from "@\//, "the shared player imports nothing from the Arise app");
   const manifest = JSON.parse(read("podscroll/public/manifest.webmanifest"));
-  assert.equal(manifest.name, "Podscroll"); assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.name, "Pod+"); assert.equal(manifest.display, "standalone");
 });
 
 // ---------------------------------------------------------------------------
