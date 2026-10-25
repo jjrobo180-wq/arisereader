@@ -38,6 +38,7 @@ function byteLength(text: string): number {
 
 export class HubSaver<W> {
   private latest: W;
+  private savedValue: W;
   private savedJson: string;
   private base: string | null;
   private timer: unknown = null;
@@ -49,8 +50,14 @@ export class HubSaver<W> {
 
   constructor(private deps: SaverDeps<W>, start: { workspace: W; updatedAt: string | null }) {
     this.latest = start.workspace;
+    this.savedValue = start.workspace;
     this.savedJson = JSON.stringify(start.workspace);
     this.base = start.updatedAt;
+  }
+
+  /** The copy the server last confirmed (what baseUpdatedAt names). */
+  get saved(): W {
+    return this.savedValue;
   }
 
   /** The moment of the copy this page started from, which the next save names. */
@@ -113,6 +120,7 @@ export class HubSaver<W> {
     if (this.disposed) return;
     this.cancelTimer();
     this.latest = workspace;
+    this.savedValue = workspace;
     this.savedJson = JSON.stringify(workspace);
     this.base = updatedAt;
     this.blocked = null;
@@ -181,6 +189,7 @@ export class HubSaver<W> {
     const { status, body } = reply;
     if (status >= 200 && status < 300 && body && body.success === true && typeof body.updatedAt === "string") {
       this.base = body.updatedAt;
+      this.savedValue = workspace;
       this.savedJson = json;
       this.attempt = 0;
       this.blocked = null;

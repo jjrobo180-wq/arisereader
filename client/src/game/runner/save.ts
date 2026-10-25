@@ -3,6 +3,7 @@ import { DEFAULT_ASSISTS, type Assists, type Difficulty, type RunResult } from "
 import type { Steer } from "./input";
 import type { CardStyle } from "./textures";
 import type { Quality } from "./world";
+import { lookByDefault, restoreLook } from "@/lib/gazeDefaults";
 
 export type RunnerSettings = {
   difficulty: Difficulty; steer: Steer; laneDelay: number; assists: Record<Difficulty, Assists>; cardStyle: CardStyle;
@@ -11,10 +12,10 @@ export type RunnerSettings = {
 export type WorldProgress = { stars: number; best: number; plays: number; clears: number };
 export type RunnerProgress = { worlds: Record<number, WorldProgress>; coins: number; last: number };
 
-const coarse = () => typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches && !window.matchMedia?.("(pointer: fine)").matches;
+// Look to steer and look-to-press start on for eye-gaze readers on any device, a tablet included (lib/gazeDefaults.ts).
 export const defaultSettings = (): RunnerSettings => ({
-  difficulty: "easy", steer: coarse() ? "touch" : "look", laneDelay: 300, assists: structuredClone(DEFAULT_ASSISTS), cardStyle: "both",
-  quality: "medium", music: 0.45, sfx: 0.85, voice: true, dwellMenus: !coarse(),
+  difficulty: "easy", steer: lookByDefault() ? "look" : "touch", laneDelay: 300, assists: structuredClone(DEFAULT_ASSISTS), cardStyle: "both",
+  quality: "medium", music: 0.45, sfx: 0.85, voice: true, dwellMenus: lookByDefault(),
 });
 
 const key = (uid: number | string | undefined, what: string) => `arise-reading-runner-v2:${what}:${uid ?? "guest"}`;
@@ -24,7 +25,7 @@ function write(k: string, v: unknown) { try { localStorage.setItem(k, JSON.strin
 export function loadSettings(uid?: number | string): RunnerSettings {
   const d = defaultSettings(), s = read<RunnerSettings>(key(uid, "settings"));
   if (!s) return d;
-  return { ...d, ...s, assists: { ...d.assists, ...(s.assists || {}) } } as RunnerSettings;
+  return restoreLook("runner", uid, { ...d, ...s, assists: { ...d.assists, ...(s.assists || {}) } } as RunnerSettings, { steer: "look", dwellMenus: true });
 }
 export function saveSettings(uid: number | string | undefined, s: RunnerSettings) { write(key(uid, "settings"), s); }
 

@@ -1,3 +1,4 @@
+import "./lib/sampleBoot";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -6,6 +7,10 @@ import "./keyboard-inset.css";
 import { watchKeyboard } from "./lib/keyboardInset";
 import { installReadPhotos } from "./lib/readPhotos";
 import { installDuoPaneBridge } from "./lib/duoPaneBridge";
+import { installMediaUnlock } from "./lib/mediaUnlock";
+
+// Sound on tablets: the first tap unlocks game sounds and voice lines (lib/mediaUnlock.ts).
+installMediaUnlock();
 
 // A pane of the Arise To Duo split screen: one shared floating button instead of each pane's own.
 installDuoPaneBridge();

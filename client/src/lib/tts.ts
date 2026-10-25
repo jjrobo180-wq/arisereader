@@ -1,3 +1,4 @@
+import { voiceElement } from "@/lib/mediaUnlock";
 import { API_BASE } from "@/lib/queryClient";
 
 // TTS helper for Eye Gaze quizzes using Web Speech API
@@ -263,7 +264,12 @@ export async function speakCharacterAI(
     }
 
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    // The one shared player, unlocked by the first tap (lib/mediaUnlock.ts): a new Audio() made
+    // here, after the voice was fetched, is refused on iPad and iPhone — the lines went silent.
+    const audio = voiceElement();
+    audio.pause();
+    audio.onplay = null; audio.onended = null; audio.onerror = null;
+    audio.src = url;
     activeBuddyAudio = audio;
     activeBuddyAudioUrl = url;
     activeBuddyOnEnd = options?.onEnd || null;

@@ -12,11 +12,12 @@ import { DEFAULT_DWELL, type Difficulty, type NinjaResult } from "@shared/ninja/
 import { NinjaGame, type NinjaHud, type Quality, type Steer } from "@/game/ninja/game";
 import { NinjaAudio } from "@/game/ninja/audio";
 import type { CardStyle } from "@/game/runner/textures";
+import { lookByDefault, restoreLook } from "@/lib/gazeDefaults";
 
 type Settings = { difficulty: Difficulty; steer: Steer; look: "quick" | "normal" | "steady"; slowLook: boolean; glow: Record<Difficulty, boolean>; cardStyle: CardStyle; voice: boolean; dwellMenus: boolean; music: number; sfx: number; quality: Quality };
 type Progress = { levels: Record<number, { stars: number; best: number; clears: number }>; last: number };
-const coarse = () => !!window.matchMedia?.("(pointer: coarse)").matches && !window.matchMedia?.("(pointer: fine)").matches;
-const DEFAULTS = (): Settings => ({ difficulty: "easy", steer: coarse() ? "touch" : "look", look: "normal", slowLook: true, glow: { easy: true, medium: false, hard: false }, cardStyle: "both", voice: true, dwellMenus: !coarse(), music: 0.45, sfx: 0.85, quality: "medium" });
+// Look to slice and look-to-press start on for eye-gaze readers on any device, a tablet included (lib/gazeDefaults.ts).
+const DEFAULTS = (): Settings => ({ difficulty: "easy", steer: lookByDefault() ? "look" : "touch", look: "normal", slowLook: true, glow: { easy: true, medium: false, hard: false }, cardStyle: "both", voice: true, dwellMenus: lookByDefault(), music: 0.45, sfx: 0.85, quality: "medium" });
 const LOOK_SCALE = { quick: 0.7, normal: 1, steady: 1.6 } as const;
 const key = (uid: unknown, w: string) => `arise-reading-ninja-v2:${w}:${uid ?? "guest"}`;
 function load<T extends object>(k: string, d: T): T { try { const v = localStorage.getItem(k); return v ? { ...d, ...JSON.parse(v) } : d; } catch { return d; } }
@@ -54,7 +55,7 @@ function Backdrop({ level, quality, audio }: { level: NinjaLevel; quality: Quali
 
 export default function ReadingNinja({ onBack }: { onBack: () => void }) {
   const { user } = useAuth(); const uid = user?.id;
-  const [settings, setSettings] = useState<Settings>(() => load(key(uid, "settings"), DEFAULTS()));
+  const [settings, setSettings] = useState<Settings>(() => restoreLook("ninja", uid, load(key(uid, "settings"), DEFAULTS()), { steer: "look", dwellMenus: true }));
   const [progress, setProgress] = useState<Progress>(() => load(key(uid, "progress"), { levels: {}, last: 0 }));
   const [view, setView] = useState<"title" | "levels" | "play">("title");
   const [level, setLevel] = useState(() => Math.min(LEVELS.length - 1, progress.last || 0));
@@ -81,7 +82,7 @@ export default function ReadingNinja({ onBack }: { onBack: () => void }) {
   const D = settings.dwellMenus; const totalStars = Object.values(progress.levels).reduce((a, l) => a + l.stars, 0);
 
   return (
-    <main className="nj-font fixed inset-0 z-[120] h-[100dvh] select-none overflow-hidden bg-slate-950 text-white">
+    <main className="nj-font fixed inset-0 z-[120] h-[100dvh] touch-manipulation select-none overflow-hidden bg-slate-950 text-white">
       <style>{CSS}</style>
       {view === "title" && <section data-ninja-ui className="absolute inset-0">
         <Backdrop level={LEVELS[level]} quality={settings.quality} audio={audio} />

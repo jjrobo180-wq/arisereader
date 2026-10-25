@@ -108,6 +108,9 @@ import SnoozeBar from "@/components/SnoozeBar";
 import { startingRole } from "@shared/gettingStarted";
 import { appLocked } from "@shared/privacyLock";
 import { Avatar, Modal } from "@/components/family-hub/ui";
+import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
+import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
+import { LayoutGrid as LayoutGridIcon, PanelLeft, Palette } from "lucide-react";
 import { PhoneMenu, usePhoneMenu, type PhoneMenuItem } from "@/components/family-hub/PhoneMenu";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
 import { foldMenu } from "@shared/hubLayout";
@@ -685,6 +688,8 @@ export default function AriseTodo() {
   const [openFolders, setOpenFolders] = useState<string[]>([]);
   // Search everything in LifeHub (header button, Ctrl/⌘ K or "/") and the Daily Brief app.
   const [customizing, setCustomizing] = useState(false);
+  // Which Customize tab to open on: the header's Duo button opens straight to "Duo & split screen".
+  const [customizeTab, setCustomizeTab] = useState<string | undefined>(undefined);
   const [lockSettings, setLockSettings] = useState(false);
   const [searching, setSearching] = useState(false);
   const [briefOpen, setBriefOpen] = useMorningBrief("life", currentDay, !!user && !family.briefOff);
@@ -1074,42 +1079,37 @@ export default function AriseTodo() {
         makeId,
       }}
     />}
-    {customizing && <Modal title="Customize" eyebrow="LifeHub" onClose={() => setCustomizing(false)} wide>
-      <div className="space-y-6" data-testid="life-customize-panel">
-        <PlanCard hub="life" hubApps={appsIn("life", data)} />
-        <button type="button" onClick={() => { setCustomizing(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100" data-testid="life-take-tour">Take the tour again</button>
-        <section>
-          <h3 className="text-sm font-black text-slate-900">Menu on your phone</h3>
-          <p className="mb-3 mt-1 text-sm text-slate-500">Where it sits, and how it closes. The computer menu has its own choices below.</p>
-          <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
-            {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); phone.setRail(true); }} data-testid={`life-menu-side-${o.id}`}
-              className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${layout.menuSide === o.id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{o.label}</button>)}
-          </div>
-          {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p>
-            : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
-              {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); phone.setRail(true); }} data-testid={`life-menu-close-${o.id}`}
-                className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-[#292446] bg-slate-50" : "border-slate-200 bg-white"}`}>
-                <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-[#292446]" : "border-slate-300"}`} aria-hidden />
-                <span><span className="block font-bold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
-              </button>)}
-            </div>}
-        </section>
-        <section data-testid="life-duo-choice">
-          <h3 className="text-sm font-black text-slate-900">Arise To Duo</h3>
-          <p className="mb-3 mt-1 text-sm text-slate-500">The layout for the iPhone Duo's big inner screen: your lists on one side of the fold, your tasks on the other. Auto turns it on when you open the Duo.</p>
-          <div role="radiogroup" aria-label="Arise To Duo layout" className="flex flex-wrap gap-2">
-            {([["auto", "Auto"], ["on", "Always on"], ["off", "Off"]] as [DuoChoice, string][]).map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={duo.choice === id} onClick={() => duo.setChoice(id)}
-              className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${duo.choice === id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{label}</button>)}
-          </div>
-          {duo.choice === "on" && !duo.isDuo && <p className="mt-2 text-xs text-slate-500">This window is too small for it right now.</p>}
-          {!inDuoPane() && <button type="button" onClick={() => { setCustomizing(false); navigate("/duo"); }} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100"><Columns2 size={16} /> Open split screen: two views at once</button>}
-        </section>
-        <DeskSidePicker layout={layout} setLayout={setLayout} />
-        <ThemePicker layout={layout} setLayout={setLayout} />
-        <FolderEditor layout={layout} setLayout={setLayout} makeId={makeId} items={sections.filter((x) => x !== "home").map((x) => ({ id: x, label: SECTION_INFO[x].label }))} />
-        <section>
-          <h3 className="text-sm font-black text-slate-900">Home screen</h3>
-          <p className="mb-3 mt-1 text-sm text-slate-500">Turn parts on or off, move them, and pick a size. You can also press and hold Home itself to drag things around.</p>
+    {customizing && <CustomizeSheet eyebrow="LifeHub" storageKey="life-customize-tab" initialTab={customizeTab} testId="life-customize-panel"
+      onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }}
+      tabs={[
+        { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
+          <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes." testId="life-customize-phone-menu">
+            <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
+              {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); phone.setRail(true); }} data-testid={`life-menu-side-${o.id}`}
+                className={`min-h-11 rounded-full px-4 text-sm font-bold ring-1 ${layout.menuSide === o.id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{o.label}</button>)}
+            </div>
+            {layout.menuSide === "drawer" ? <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">A round button at the bottom of the screen opens every section as app icons, with a search box. Swipe it up or tap it; swipe down or tap outside to close.</p>
+              : <div role="radiogroup" aria-label="How the menu closes" className="grid grid-cols-1 gap-2">
+                {MENU_CLOSES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuClose === o.id} onClick={() => { setLayout({ ...layout, menuClose: o.id }); phone.setRail(true); }} data-testid={`life-menu-close-${o.id}`}
+                  className={`flex min-h-11 items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm ${layout.menuClose === o.id ? "border-[#292446] bg-slate-50" : "border-slate-200 bg-white"}`}>
+                  <span className={`mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 ${layout.menuClose === o.id ? "border-[5px] border-[#292446]" : "border-slate-300"}`} aria-hidden />
+                  <span><span className="block font-bold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
+                </button>)}
+              </div>}
+          </CustomizeGroup>
+          <DeskSidePicker layout={layout} setLayout={setLayout} />
+          <FolderEditor layout={layout} setLayout={setLayout} makeId={makeId} items={sections.filter((x) => x !== "home").map((x) => ({ id: x, label: SECTION_INFO[x].label }))} />
+        </> },
+        { id: "look", label: "Look", icon: <Palette />, content: <>
+          <CustomizeGroup title="Day or night" help="Night mode is easier on the eyes after dark.">
+            <div role="radiogroup" aria-label="Day or night" className="flex flex-wrap gap-2">
+              {([[false, "Day", <Sun key="d" size={16} />], [true, "Night", <Moon key="n" size={16} />]] as const).map(([value, label, icon]) => <button key={label} type="button" role="radio" aria-checked={night === value} onClick={() => { if (night !== value) toggleNight(); }}
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold ring-1 ${night === value ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-600 ring-slate-200"}`}>{icon}{label}</button>)}
+            </div>
+          </CustomizeGroup>
+          <ThemePicker layout={layout} setLayout={setLayout} />
+        </> },
+        { id: "home", label: "Home screen", icon: <LayoutGridIcon />, content: <CustomizeGroup title="Home screen" help="Turn parts on or off, move them, and pick a size. You can also press and hold Home itself to drag things around.">
           <ul className="space-y-1.5" aria-label="Parts of Home">
             {layout.home.map((id, i) => {
               const on = !layout.homeHidden.includes(id), part = LIFE_PARTS.find((x) => x.id === id) ?? { id, label: pinnableApps.find((p) => pinId(p.id) === id)?.name ?? id }, sz = sizeOf(layout, id);
@@ -1122,13 +1122,20 @@ export default function AriseTodo() {
             })}
           </ul>
           <button type="button" onClick={() => setLayout({ ...layout, home: LIFE_PARTS.map((x) => x.id), homeHidden: family.widgets.board ? [] : ["widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
-        </section>
-        <section className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-          <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><ShoppingBag size={16} /> App Store</button>
-          <button type="button" onClick={() => { setCustomizing(false); setSection("family"); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200"><Settings2 size={16} /> Sections, family and settings</button>
-        </section>
-      </div>
-    </Modal>}
+        </CustomizeGroup> },
+        { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <div data-testid="life-duo-choice"><DuoControls canWork={user.role === "teacher" || !!user.isAdmin} onClose={() => { setCustomizing(false); setCustomizeTab(undefined); }} /></div> },
+        { id: "more", label: "Plan & more", icon: <Sparkles />, content: <>
+          <PlanCard hub="life" hubApps={appsIn("life", data)} />
+          <CustomizeGroup title="More settings">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button type="button" onClick={() => { setCustomizing(false); setStore(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><ShoppingBag size={16} /> App Store</button>
+              <button type="button" onClick={() => { setCustomizing(false); setSection("family"); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200"><Settings2 size={16} /> Sections, family and settings</button>
+              <button type="button" onClick={() => { setCustomizing(false); setLockSettings(true); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200"><Lock size={16} /> Passcode & locks</button>
+              <button type="button" onClick={() => { setCustomizing(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-50 px-4 text-sm font-bold text-violet-800 ring-1 ring-violet-200 hover:bg-violet-100" data-testid="life-take-tour">Take the tour again</button>
+            </div>
+          </CustomizeGroup>
+        </> },
+      ]} />}
     {/* The same header as WorkHub: the hub on the left, everything you do to it on the right. */}
     <header className="sticky top-0 z-40 h-16 border-b border-[#e4e6f0] bg-white/95 backdrop-blur" data-testid="life-header">
       <div className="flex h-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5 lg:px-6">
@@ -1137,7 +1144,7 @@ export default function AriseTodo() {
           <span className="min-w-0 truncate whitespace-nowrap text-[15px] font-extrabold tracking-tight text-slate-700" data-testid="hub-name">Arise To Duo</span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
-          {duo.isDuo && <button type="button" onClick={() => navigate("/duo")} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#292446] px-3 text-sm font-bold text-white" data-testid="duo-open-split"><Columns2 size={16} /> Split screen</button>}
+          <DuoHeaderButton onOpen={() => { setCustomizeTab("duo"); setCustomizing(true); }} />
           {(user.role === "parent" || user.isAdmin) && <SupportButton isAdmin={user.isAdmin} />}
           {(user.role === "teacher" || user.role === "parent" || user.role === "todo" || user.isAdmin) && <HubSwitch current="todo" night={night} />}
           <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>

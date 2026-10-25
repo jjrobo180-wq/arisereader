@@ -11,11 +11,12 @@ import { ANIMALS, answerChoices, isCorrectAnswer, namesOtherAnimal, type Animal 
 import { PondScene, type Quality } from "@/game/splash/scene";
 import { portrait } from "@/game/splash/portraits";
 import { SplashAudio } from "@/game/splash/audio";
+import { lookByDefault, restoreLook } from "@/lib/gazeDefaults";
 
 type Status = "pick" | "flying" | "ask" | "listening" | "correct" | "wrong" | "finished";
 type Settings = { talk: boolean; choices: number; voice: boolean; facts: boolean; dwell: boolean; music: number; sfx: number; quality: Quality };
-const coarse = () => !!window.matchMedia?.("(pointer: coarse)").matches && !window.matchMedia?.("(pointer: fine)").matches;
-const DEFAULTS = (): Settings => ({ talk: true, choices: 3, voice: true, facts: true, dwell: !coarse(), music: 0.4, sfx: 0.9, quality: "medium" });
+// Look-to-press starts on for eye-gaze readers on any device, a tablet included (lib/gazeDefaults.ts).
+const DEFAULTS = (): Settings => ({ talk: true, choices: 3, voice: true, facts: true, dwell: lookByDefault(), music: 0.4, sfx: 0.9, quality: "medium" });
 const key = (uid: unknown, what: string) => `arise-animal-splash-v2:${what}:${uid ?? "guest"}`;
 const load = <T,>(k: string, d: T): T => { try { const v = localStorage.getItem(k); return v ? { ...d, ...JSON.parse(v) } : d; } catch { return d; } };
 const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -57,7 +58,7 @@ function speakThen(text: string, voice: boolean, onEnd?: () => void) {
 
 export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
   const { user } = useAuth(); const uid = user?.id;
-  const [settings, setSettings] = useState<Settings>(() => load(key(uid, "settings"), DEFAULTS()));
+  const [settings, setSettings] = useState<Settings>(() => restoreLook("animal-splash", uid, load(key(uid, "settings"), DEFAULTS()), { dwell: true }));
   const [collected, setCollected] = useState<string[]>(() => load<{ ids: string[] }>(key(uid, "pond"), { ids: [] }).ids.filter(id => ANIMALS.some(a => a.id === id)));
   const [status, setStatus] = useState<Status>(() => (collected.length >= ANIMALS.length ? "finished" : "pick"));
   const [active, setActive] = useState<Animal | null>(null);
@@ -178,7 +179,7 @@ export default function AnimalSplashGame({ onBack }: { onBack: () => void }) {
   const answering = status === "ask" || status === "listening";
 
   return (
-    <main className="as-font fixed inset-0 z-[120] h-[100dvh] select-none overflow-hidden bg-sky-200 text-slate-950">
+    <main className="as-font fixed inset-0 z-[120] h-[100dvh] touch-manipulation select-none overflow-hidden bg-sky-200 text-slate-950">
       <style>{CSS}</style>
       <div ref={host} className="absolute inset-0" style={failed ? { background: "linear-gradient(#9be3ff,#cff3ff 45%,#7ed07a 46%,#2f8fc0 70%)" } : undefined} />
 

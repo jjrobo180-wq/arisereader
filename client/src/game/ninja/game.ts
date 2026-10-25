@@ -11,6 +11,7 @@ import { bakeStatic, glowSprite, makeProp } from "@/game/runner/models";
 import { groundTexture, skylineTexture, type CardStyle } from "@/game/runner/textures";
 import { splatTextures, tokenTexture } from "./textures";
 import type { NinjaAudio } from "./audio";
+import { touchOnly } from "@/lib/gazeDefaults";
 
 export type Quality = "low" | "medium" | "high";
 export type Steer = "look" | "touch";
@@ -35,7 +36,7 @@ export class NinjaGame {
 
   constructor(private host: HTMLElement, public level: NinjaLevel, public opts: NinjaGameOptions, private audio: NinjaAudio, private cb: NinjaCallbacks = {}) {
     this.sim = new NinjaSim(level, { difficulty: opts.difficulty, dwellMs: opts.dwellMs, slowLook: opts.slowLook, seed: opts.seed, demo: opts.demo });
-    const q = opts.quality, phone = Math.min(window.innerWidth, window.innerHeight) < 600, L = level.look;
+    const q = opts.quality, phone = (Math.min(window.innerWidth, window.innerHeight) < 600 || touchOnly() /* tablets too: the full-screen glow pass is too heavy for them */), L = level.look;
     this.renderer = new THREE.WebGLRenderer({ antialias: q !== "low", powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q === "high" ? 2 : q === "medium" ? 1.5 : 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.NeutralToneMapping; this.renderer.toneMappingExposure = 1.05;

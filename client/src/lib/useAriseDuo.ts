@@ -7,8 +7,9 @@
 //
 // How we tell: the CSS viewport-segments media queries when the browser reports the fold, otherwise
 // the screen's size and shape (a touch screen whose short side is 560-780 points and long side
-// 780-1000, so no iPad). Customize > "Arise To Duo" can force it on or off, and ?duo=1 / ?duo=0 does the same
-// for testing on a computer.
+// 780-1000, so no iPad). The Duo menu (components/DuoControls.tsx, the same in both hubs, in
+// Customize and on the split screen) can force it on or off, and ?duo=1 / ?duo=0 does the same
+// for testing on a computer. turnDuoOff() switches the layout off AND closes the split screen.
 //
 // The mode is written to <html data-duo="book|stack">, which the duo-book: / duo-stack: / duo:
 // Tailwind variants (tailwind.config.ts) key off, and the page is named "Arise To Duo".
@@ -80,9 +81,51 @@ function modeFor(choice: DuoChoice): DuoMode {
   return window.innerWidth > window.innerHeight && window.innerWidth >= 720 ? "book" : "stack";
 }
 
+const CHOICE_EVENT = "arise-duo-choice";
+/** Sent to this page and every page around it (the split screen, the Duo viewer) when Duo is turned off. */
+export const DUO_OFF_MESSAGE = "arise-duo-off";
+
+function writeChoice(next: DuoChoice): void {
+  try { if (next === "auto") localStorage.removeItem(DUO_KEY); else localStorage.setItem(DUO_KEY, next); } catch { /* ignore */ }
+  // Every other copy of the hook on this page (the header's Duo button, Customize, the page itself) follows.
+  try { window.dispatchEvent(new CustomEvent(CHOICE_EVENT, { detail: next })); } catch { /* old browser */ }
+}
+
+/** Is the split screen showing right now, from this page or from a pane inside it? */
+export function inSplitScreen(): boolean {
+  if (inDuoPane()) return true;
+  return typeof window !== "undefined" && /^#\/duo(?:[?/]|$)/.test(window.location.hash);
+}
+
+/** The one "Turn Duo off": the two-pane layout goes off on this device, and the split screen closes
+ *  wherever it is open — even when this is one of its panes, or it sits inside the Duo viewer. */
+export function turnDuoOff(): void {
+  if (!previewChoice()) writeChoice("off");
+  else try { window.dispatchEvent(new CustomEvent(CHOICE_EVENT, { detail: "off" })); } catch { /* fine */ }
+  let w: Window = window;
+  for (let hops = 0; hops < 6; hops++) {
+    try { w.postMessage({ type: DUO_OFF_MESSAGE }, window.location.origin); } catch { /* another site */ }
+    if (w === w.parent) break;
+    w = w.parent;
+  }
+}
+
 export function useAriseDuo() {
   const [choice, setChoiceState] = useState<DuoChoice>(() => (typeof window === "undefined" ? "auto" : readChoice()));
   const [mode, setMode] = useState<DuoMode>(() => (typeof window === "undefined" ? null : modeFor(choice)));
+
+  // One setting for the whole device: when it changes anywhere (Customize, the Duo menu, another
+  // pane or tab), every copy of this hook follows, so there is never a second place to switch it off.
+  useEffect(() => {
+    const onChoice = (e: Event) => {
+      const next = (e as CustomEvent<DuoChoice>).detail;
+      if (next === "auto" || next === "on" || next === "off") setChoiceState(next);
+    };
+    const onStorage = (e: StorageEvent) => { if (e.key === DUO_KEY || e.key === null) setChoiceState(readChoice()); };
+    window.addEventListener(CHOICE_EVENT, onChoice);
+    window.addEventListener("storage", onStorage);
+    return () => { window.removeEventListener(CHOICE_EVENT, onChoice); window.removeEventListener("storage", onStorage); };
+  }, []);
 
   useEffect(() => {
     const update = () => setMode(modeFor(choice));
@@ -106,7 +149,7 @@ export function useAriseDuo() {
 
   const setChoice = (next: DuoChoice) => {
     if (previewChoice()) { setChoiceState(next); return; }
-    try { if (next === "auto") localStorage.removeItem(DUO_KEY); else localStorage.setItem(DUO_KEY, next); } catch { /* ignore */ }
+    writeChoice(next);
     setChoiceState(next);
   };
 

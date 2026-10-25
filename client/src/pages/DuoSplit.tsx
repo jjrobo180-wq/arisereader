@@ -1,62 +1,34 @@
 // Arise To Duo split screen: /#/duo. Two views open at once, one on each side of the iPhone Duo's
 // fold: LifeHub and WorkHub, or the To-Do list and Notes, or any two LifeHub sections.
-// No bars across the top: a small handle on the fold picks what each side shows, swaps them or
-// closes the split, and ONE floating button serves both sides: drag it to a side and it adds to
+// No bars across the top: a small handle on the fold opens the Duo menu (components/DuoControls.tsx,
+// the same one as in Customize): what each side shows, swap, close the split, or turn Duo off.
+// ONE floating button serves both sides: drag it to a side and it adds to
 // (or asks the AI in) that side's hub. Each pane hides its own buttons (lib/duoPaneBridge.ts).
 // Each pane is the real app in a frame named "duo-pane-left" / "duo-pane-right", so it keeps the
 // phone layout that fits half the screen, remembers its own place (useStayOnRefresh), and saves
 // straight to the account. When one pane saves, the other catches up at once (lib/paneSync).
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Redirect, useLocation } from "wouter";
-import { ArrowLeftRight, GripVertical, GripHorizontal, Plus, Sparkles, X } from "lucide-react";
+import { GripVertical, GripHorizontal, Plus, Sparkles, X } from "lucide-react";
 import type { DuoPaneAction, DuoPaneReply } from "@/lib/duoPaneBridge";
 import { useAuth } from "@/context/AuthContext";
-import { splitDirection } from "@/lib/useAriseDuo";
+import { DUO_OFF_MESSAGE, splitDirection } from "@/lib/useAriseDuo";
+import { PANE_OPTIONS, paneOptionsFor, useSplitPicks, type SplitSide } from "@/lib/duoSplit";
+import DuoControls, { DUO_CLOSE_SPLIT_MESSAGE } from "@/components/DuoControls";
 
-type PaneOption = { id: string; label: string; path: string; group: "LifeHub" | "WorkHub"; work?: boolean };
+// Kept for anything that imported the list from here before it moved to lib/duoSplit.ts.
+export { PANE_OPTIONS };
 
-const life = (id: string, label: string): PaneOption => ({ id, label, path: `/lifehub?pane=${id}`, group: "LifeHub" });
-
-export const PANE_OPTIONS: PaneOption[] = [
-  { id: "workhub", label: "WorkHub", path: "/workhub", group: "WorkHub", work: true },
-  life("home", "LifeHub Home"),
-  life("tasks", "To-Do list"),
-  life("notes", "Notes"),
-  life("calendar", "Calendar"),
-  life("grocery", "Grocery list"),
-  life("meals", "Meal planner"),
-  life("chores", "Chores"),
-  life("goals", "Goals"),
-  life("habits", "Habits"),
-  life("journal", "Journal"),
-  life("money", "Money"),
-  life("countdowns", "Countdowns"),
-  life("lifeplan", "AI Reminders"),
-  life("focus", "Focus timer"),
-  life("browser", "Browser"),
-];
-
-const KEY = "arise_duo_split_v1";
 const FAB_KEY = "arise_duo_split_fab";
-type Side = "left" | "right";
+type Side = SplitSide;
 // Where the fold is, when the browser says (otherwise the two views share the screen evenly).
 const knowsFold = () => { try { return CSS.supports("width", "env(viewport-segment-width 0 0, 1px)"); } catch { return false; } };
-
-function loadPicks(canWork: boolean): { left: string; right: string } {
-  const fallback = { left: "tasks", right: canWork ? "workhub" : "notes" };
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || "null");
-    const ok = (id: unknown) => typeof id === "string" && PANE_OPTIONS.some((o) => o.id === id && (!o.work || canWork));
-    if (saved && ok(saved.left) && ok(saved.right)) return { left: saved.left, right: saved.right };
-  } catch { /* fresh start */ }
-  return fallback;
-}
 
 export default function DuoSplit() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const canWork = !!user && (user.role === "teacher" || !!user.isAdmin);
-  const [picks, setPicks] = useState(() => loadPicks(canWork));
+  const [picks, setPicks] = useSplitPicks(canWork);
   const [dir, setDir] = useState<"book" | "stack">(() => splitDirection());
   const [fabSide, setFabSide] = useState<Side>(() => { try { return localStorage.getItem(FAB_KEY) === "left" ? "left" : "right"; } catch { return "right"; } });
   const [fabMenu, setFabMenu] = useState(false);
@@ -76,7 +48,6 @@ export default function DuoSplit() {
     return () => { document.title = before; window.removeEventListener("resize", update); window.removeEventListener("orientationchange", update); };
   }, []);
 
-  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(picks)); } catch { /* not remembered */ } }, [picks]);
   useEffect(() => { try { localStorage.setItem(FAB_KEY, fabSide); } catch { /* not remembered */ } }, [fabSide]);
 
   // A pane answers when it couldn't do what the button asked (no AI assistant added there, say).
@@ -90,15 +61,23 @@ export default function DuoSplit() {
     window.addEventListener("message", onReply);
     return () => window.removeEventListener("message", onReply);
   }, []);
+  // "Turn Duo off" or "Close split screen" from the Duo menu — here, or inside either pane.
+  const backTo = picks.left === "workhub" ? "/workhub" : "/lifehub";
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      const t = (e.data as { type?: string } | null)?.type;
+      if (t === DUO_OFF_MESSAGE || t === DUO_CLOSE_SPLIT_MESSAGE) navigate(backTo);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [backTo, navigate]);
   useEffect(() => { if (!toast) return; const t = window.setTimeout(() => setToast(""), 3500); return () => window.clearTimeout(t); }, [toast]);
 
   if (!user) return <Redirect to="/signin" replace />;
 
-  const options = PANE_OPTIONS.filter((o) => !o.work || canWork);
+  const options = paneOptionsFor(canWork);
   const optFor = (side: Side) => options.find((o) => o.id === picks[side]) || options[0];
-  const pick = (side: Side, id: string) => setPicks((p) => ({ ...p, [side]: id }));
-  const swap = () => { setPicks((p) => ({ left: p.right, right: p.left })); setFoldMenu(false); };
-  const close = () => navigate(picks.left === "workhub" ? "/workhub" : "/lifehub");
   const sideName = (side: Side) => (dir === "book" ? (side === "left" ? "Left side" : "Right side") : (side === "left" ? "Top" : "Bottom"));
 
   // The one floating button: tap for Add / Ask AI on its side, or drag it to the other side.
@@ -172,26 +151,15 @@ export default function DuoSplit() {
 
       {drag && <span aria-hidden className="pointer-events-none fixed z-50 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[#6e5ae0] text-white shadow-2xl" style={{ left: drag.x, top: drag.y }}><Plus className="h-6 w-6" /></span>}
 
-      {foldMenu && <div className="fixed inset-0 z-50 grid place-items-center bg-[#16152a]/40 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setFoldMenu(false); }}>
-        <div role="dialog" aria-modal="true" aria-label="Split screen" className="max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl" data-testid="duo-fold-menu">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-black text-slate-900">Split screen</h2>
-            <button type="button" onClick={() => setFoldMenu(false)} aria-label="Done" className="grid h-11 w-11 place-items-center rounded-xl text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+      {foldMenu && <div className="fixed inset-0 kb-sheet z-50 flex items-end justify-center bg-[#16152a]/40 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setFoldMenu(false); }}>
+        <div role="dialog" aria-modal="true" aria-label="Arise To Duo" onKeyDown={(e) => { if (e.key === "Escape") setFoldMenu(false); }}
+          className="flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl" data-testid="duo-fold-menu">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
+            <h2 className="text-lg font-black text-slate-900">Arise To Duo</h2>
+            <button type="button" onClick={() => setFoldMenu(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white" data-autofocus><X className="h-4 w-4" /> Done</button>
           </div>
-          <div className={`grid gap-4 ${dir === "book" ? "grid-cols-2" : "grid-cols-1"}`}>
-            {(["left", "right"] as Side[]).map((side) => (
-              <fieldset key={side} className="min-w-0">
-                <legend className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{sideName(side)}</legend>
-                <div className="flex flex-wrap gap-1.5">
-                  {options.map((o) => <button key={o.id} type="button" aria-pressed={picks[side] === o.id} onClick={() => pick(side, o.id)}
-                    className={`min-h-10 rounded-full px-3 text-sm font-semibold ring-1 ${picks[side] === o.id ? "bg-[#292446] text-white ring-[#292446]" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}>{o.label}</button>)}
-                </div>
-              </fieldset>
-            ))}
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-            <button type="button" onClick={swap} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-100 px-4 text-sm font-bold text-slate-800"><ArrowLeftRight className="h-4 w-4" /> Swap sides</button>
-            <button type="button" onClick={close} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#292446] px-4 text-sm font-bold text-white"><X className="h-4 w-4" /> Close split screen</button>
+          <div className="min-h-0 overflow-y-auto overscroll-contain px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <DuoControls canWork={canWork} split={{ picks, setPicks }} onClose={() => setFoldMenu(false)} />
           </div>
         </div>
       </div>}

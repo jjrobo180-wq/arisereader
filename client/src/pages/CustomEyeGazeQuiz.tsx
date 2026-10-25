@@ -581,13 +581,15 @@ export default function CustomEyeGazeQuiz() {
             <button
               key={opt.letter}
               onClick={(e) => handleSelectAnswer(opt.letter, e.currentTarget)}
-              onMouseEnter={() => {
-                if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
+              // Read the answer aloud when looked at (or hovered with a mouse) — not on a finger's
+              // fake mouse-enter, which on a tablet redrew the button and swallowed the tap.
+              onPointerEnter={(e) => {
+                if (e.pointerType === "touch" || !ttsEnabled || selectedAnswer || autoAdvancing) return;
                 setHoveredOption(opt.letter);
                 if (opt.text) speakOption(opt.text, (sub) => setSubtitle(sub));
               }}
-              onMouseLeave={() => {
-                if (!ttsEnabled || selectedAnswer || autoAdvancing) return;
+              onPointerLeave={(e) => {
+                if (e.pointerType === "touch" || !ttsEnabled || selectedAnswer || autoAdvancing) return;
                 setHoveredOption(null);
                 stopSpeaking();
                 setSubtitle("");

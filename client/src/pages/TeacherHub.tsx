@@ -2,6 +2,9 @@ import { EmailWords, ForwardingCard, OPEN_EMAIL_EVENT, openHubEmail, useHubInbox
 import { markEmailRead } from "@shared/hubInbox";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DeskSidePicker, FolderEditor, ThemePicker } from "@/components/HubCustomizeExtras";
+import CustomizeSheet, { CustomizeGroup } from "@/components/CustomizeSheet";
+import DuoControls, { DuoHeaderButton } from "@/components/DuoControls";
+import { Columns2, LayoutGrid, PanelLeft, Palette } from "lucide-react";
 import { hubThemeOf } from "@shared/appThemes";
 import { HubSearch, HubSearchButton, type HubSearchEntry } from "@/components/HubSearch";
 import { SupportBanner, SupportMenuItem } from "@/components/SupportArise";
@@ -400,6 +403,8 @@ function TeacherHubPage() {
     goToReader();
   }, [tab, setTab]);
   const [customize, setCustomize] = useState(false);
+  // Which Customize tab to open on: the header's Duo button opens straight to "Duo & split screen".
+  const [customizeTab, setCustomizeTab] = useState<string | undefined>(undefined);
   const [lockSettings, setLockSettings] = useState(false);
   /** Bumped to reopen the notes board on a note a link points at. */
   const [notesKey, setNotesKey] = useState(0);
@@ -1008,6 +1013,7 @@ function TeacherHubPage() {
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {/* The To-Do Admin (people, plans, payments) lives in WorkHub's header, not LifeHub's. */}
             {user.isAdmin && <a href="#/todo-admin" aria-label="To-Do Admin" title="To-Do Admin" className="hidden sm:inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-100 duo:hidden" data-testid="todo-admin-link"><ShieldCheck className="h-4 w-4" /> <span className="hidden lg:inline">Admin</span></a>}
+            <DuoHeaderButton onOpen={() => { setCustomizeTab("duo"); setCustomize(true); }} />
             <HubSwitch current="hub" night={night} />
             {/* The ⚡ shortcut: on a phone only once one is set, so the name "WorkHub" fits in the header. */}
             <div className={layout.shortcut ? "contents" : "hidden sm:contents duo:hidden"}>
@@ -1442,15 +1448,11 @@ function TeacherHubPage() {
               </span>
             </div>
           )}
-          {customize && (
-            <Card title="Customize" right={<button onClick={() => setCustomize(false)} className="min-h-11 text-sm font-medium text-slate-500">Close</button>}>
-              <PlanCard hub="work" hubApps={appsIn("work", workspace)} />
-              <button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm font-semibold text-violet-900 hover:bg-violet-100" data-testid="hub-take-tour"><Sparkles className="h-4 w-4 shrink-0" /> Take the tour: see where everything is in your WorkHub</button>
-              <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="mb-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections to your WorkHub, or switch over to LifeHub's.</span></button>
-              <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2" data-testid="customize-layout">
-                <div>
-                  <h3 className="mb-1 text-sm font-semibold text-slate-900">Menu on your phone</h3>
-                  <p className="mb-3 text-sm text-slate-600">Where it sits, and how it closes. The computer menu has its own choices below.</p>
+          {customize && <CustomizeSheet eyebrow="WorkHub" storageKey="work-customize-tab" initialTab={customizeTab} dark="#020617" testId="customize-layout"
+            onClose={() => { setCustomize(false); setCustomizeTab(undefined); }}
+            tabs={[
+              { id: "layout", label: "Layout", icon: <PanelLeft />, content: <>
+                <CustomizeGroup title="Menu on your phone" help="Where it sits, and how it closes.">
                   <div role="radiogroup" aria-label="Where the menu sits" className="mb-3 flex flex-wrap gap-2">
                     {MENU_SIDES.map((o) => <button key={o.id} type="button" role="radio" aria-checked={layout.menuSide === o.id} onClick={() => { setLayout({ ...layout, menuSide: o.id }); setRail(true); }} data-testid={`menu-side-${o.id}`}
                       className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${layout.menuSide === o.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>{o.label}</button>)}
@@ -1462,15 +1464,38 @@ function TeacherHubPage() {
                       <span><span className="block font-semibold text-slate-900">{o.label}</span><span className="block text-xs text-slate-500">{o.detail}</span></span>
                     </button>)}
                   </div>}
+                </CustomizeGroup>
+                <DeskSidePicker layout={layout} setLayout={setLayout} dark="#020617" />
+                <FolderEditor layout={layout} setLayout={setLayout} makeId={id} items={menu.filter((m) => m.id !== "home").map((m) => ({ id: m.id, label: groupLabel(m.id, visible) }))} />
+              </> },
+              { id: "look", label: "Look", icon: <Palette />, content: <>
+                <CustomizeGroup title="Day or night" help="Night mode is easier on the eyes after dark.">
+                  <div role="radiogroup" aria-label="Day or night" className="flex flex-wrap gap-2">
+                    {([[false, "Day", <Sun key="d" className="h-4 w-4" />], [true, "Night", <Moon key="n" className="h-4 w-4" />]] as const).map(([value, label, icon]) => <button key={label} type="button" role="radio" aria-checked={night === value} onClick={() => { if (night !== value) toggleNight(); }}
+                      className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${night === value ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700"}`}>{icon}{label}</button>)}
+                  </div>
+                </CustomizeGroup>
+                <CustomizeGroup title="Accent colour" help="The one colour the Hub is tinted with: buttons, links, today's bar and anything chosen.">
+                <div role="radiogroup" aria-label="Accent colour" className="flex flex-wrap items-center gap-2">
+                  {HUB_ACCENTS.map((c) => (
+                    <button key={c.hex} type="button" role="radio" aria-checked={accent === c.hex} aria-label={c.name} title={c.name}
+                      onClick={() => setWorkspace((p) => ({ ...p, profile: { ...p.profile, accent: c.hex } }))}
+                      data-testid={`hub-accent-${c.name.toLowerCase()}`}
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-full border-2 ${accent === c.hex ? "border-slate-900" : "border-white ring-1 ring-slate-300"}`}
+                      style={{ backgroundColor: c.hex }}>
+                      {accent === c.hex && <Check className="h-4 w-4" style={{ color: textOn(c.hex) }} />}
+                    </button>
+                  ))}
+                  <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700">Any colour
+                    <input type="color" value={accent} aria-label="Pick any accent colour" data-testid="hub-accent-any"
+                      onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, accent: e.target.value } }))}
+                      className="h-11 w-14 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
+                  </label>
                 </div>
-                <div className="space-y-6">
-                  <DeskSidePicker layout={layout} setLayout={setLayout} dark="#020617" />
-                  <ThemePicker layout={layout} setLayout={setLayout} dark="#020617" />
-                  <FolderEditor layout={layout} setLayout={setLayout} makeId={id} items={menu.filter((m) => m.id !== "home").map((m) => ({ id: m.id, label: groupLabel(m.id, visible) }))} />
-                </div>
-                <div>
-                  <h3 className="mb-1 text-sm font-semibold text-slate-900">Home screen</h3>
-                  <p className="mb-3 text-sm text-slate-600">Turn parts on or off and move them up or down. The picture box shows a photo of your choice; tap Style on it to add one.</p>
+                </CustomizeGroup>
+                <ThemePicker layout={layout} setLayout={setLayout} dark="#020617" />
+              </> },
+              { id: "home", label: "Home screen", icon: <LayoutGrid />, content: <CustomizeGroup title="Home screen" help="Turn parts on or off and move them up or down. The picture box shows a photo of your choice; tap Style on it to add one.">
                   <ul className="space-y-1.5" aria-label="Parts of Home">
                     {layout.home.map((id, i) => {
                       const on = !layout.homeHidden.includes(id);
@@ -1489,30 +1514,8 @@ function TeacherHubPage() {
                     })}
                   </ul>
                   <button type="button" onClick={() => setLayout({ ...layout, home: HOME_SECTIONS.map((x) => x.id), homeHidden: (workspace as any).widgetsOn ? ["picture"] : ["picture", "widgets"], homeSize: {} })} className="mt-2 min-h-11 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4">Reset Home to the usual layout</button>
-                </div>
-              </div>
-              <div className="mb-5">
-                <h3 className="mb-1 text-sm font-semibold text-slate-900">Accent colour</h3>
-                <p className="mb-3 text-sm text-slate-600">The one colour the Hub is tinted with: buttons, links, today's bar and anything chosen.</p>
-                <div role="radiogroup" aria-label="Accent colour" className="flex flex-wrap items-center gap-2">
-                  {HUB_ACCENTS.map((c) => (
-                    <button key={c.hex} type="button" role="radio" aria-checked={accent === c.hex} aria-label={c.name} title={c.name}
-                      onClick={() => setWorkspace((p) => ({ ...p, profile: { ...p.profile, accent: c.hex } }))}
-                      data-testid={`hub-accent-${c.name.toLowerCase()}`}
-                      className={`inline-flex h-11 w-11 items-center justify-center rounded-full border-2 ${accent === c.hex ? "border-slate-900" : "border-white ring-1 ring-slate-300"}`}
-                      style={{ backgroundColor: c.hex }}>
-                      {accent === c.hex && <Check className="h-4 w-4" style={{ color: textOn(c.hex) }} />}
-                    </button>
-                  ))}
-                  <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700">Any colour
-                    <input type="color" value={accent} aria-label="Pick any accent colour" data-testid="hub-accent-any"
-                      onChange={(e) => setWorkspace((p) => ({ ...p, profile: { ...p.profile, accent: e.target.value } }))}
-                      className="h-11 w-14 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
-                  </label>
-                </div>
-              </div>
-              <h3 className="mb-1 text-sm font-semibold text-slate-900">Tabs</h3>
-              <p className="mb-4 text-sm text-slate-600">Hide anything you do not use. Hiding a tab does not delete its records. Tabs that go together share one place in the menu. To reorder the menu, drag an item in it (or use its arrows on hover).</p>
+              </CustomizeGroup> },
+              { id: "tabs", label: "Tabs", icon: <ListChecks />, content: <CustomizeGroup title="Tabs" help="Hide anything you do not use. Hiding a tab does not delete its records. To reorder the menu, drag an item in it (or use its arrows on hover).">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {cleanGroupOrder(workspace.groupOrder).map((id) => HUB_GROUPS.find((g) => g.id === id)!)
                   .map((g) => ({ ...g, tabs: g.tabs.filter((t) => !isReaderTab(t) && t !== "admin") })).filter((g) => g.tabs.length)
@@ -1537,9 +1540,17 @@ function TeacherHubPage() {
                     );
                   })}
               </div>
-              <HubDataPanel workspace={workspace} bytes={bytes} token={token} onAdopt={sync.adopt} />
-            </Card>
-          )}
+              </CustomizeGroup> },
+              { id: "duo", label: "Duo & split screen", icon: <Columns2 />, content: <DuoControls canWork onClose={() => { setCustomize(false); setCustomizeTab(undefined); }} dark="#020617" /> },
+              { id: "more", label: "Plan & data", icon: <Sparkles />, content: <>
+                <PlanCard hub="work" hubApps={appsIn("work", workspace)} />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button type="button" onClick={() => { setStore(true); setCustomize(false); }} className="flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-slate-300 p-3 text-left text-sm text-slate-600 hover:bg-slate-50" data-testid="customize-plugin-store"><ShoppingBag className="h-5 w-5 shrink-0 text-slate-500" /><span><span className="block font-semibold text-slate-900">Browse the App Store</span>Add apps, tabs and connections.</span></button>
+                  <button type="button" onClick={() => { setCustomize(false); window.dispatchEvent(new Event("arise-tour:start")); }} className="flex min-h-11 items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-left text-sm font-semibold text-violet-900 hover:bg-violet-100" data-testid="hub-take-tour"><Sparkles className="h-4 w-4 shrink-0" /> Take the tour again</button>
+                </div>
+                <HubDataPanel workspace={workspace} bytes={bytes} token={token} onAdopt={sync.adopt} />
+              </> },
+            ]} />}
 
           {subTabs.length > 1 && (
             // On desktop the sidebar lists every A.R.I.S.E. Reader sub-tab, and under Admin console

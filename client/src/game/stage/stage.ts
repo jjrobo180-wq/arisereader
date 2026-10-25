@@ -8,6 +8,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Fx } from "@/game/skybound/fx";
+import { touchOnly } from "@/lib/gazeDefaults";
 
 export type Quality = "low" | "medium" | "high";
 export type Pickable = { id: string; dwellMs?: number; enabled?: () => boolean; onDwell: () => void; onHover?: (on: boolean) => void; ringScale?: number };
@@ -27,7 +28,7 @@ export class Stage {
   readonly dwellMs: number; private envTex: THREE.Texture | null = null;
 
   constructor(private host: HTMLElement, public opts: StageOptions) {
-    const q = opts.quality, phone = Math.min(window.innerWidth, window.innerHeight) < 600;
+    const q = opts.quality, phone = (Math.min(window.innerWidth, window.innerHeight) < 600 || touchOnly() /* tablets too: the full-screen glow pass is too heavy for them */);
     this.dwellMs = opts.dwellMs ?? 1100; this.dwell = opts.dwell ?? true;
     this.camera = new THREE.PerspectiveCamera(opts.fov ?? 42, 1, 0.1, 600);
     this.camera.position.set(...(opts.camPos ?? [0, 0, 16])); this.camera.lookAt(new THREE.Vector3(...(opts.target ?? [0, 0, 0])));
@@ -51,7 +52,7 @@ export class Stage {
       this.composer = new EffectComposer(this.renderer, rt); this.composer.addPass(new RenderPass(this.scene, this.camera));
       this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), opts.bloom ?? 0.35, 0.5, opts.bloomThreshold ?? 1)); this.composer.addPass(new OutputPass());
     }
-    host.addEventListener("pointerdown", this.pd); window.addEventListener("pointermove", this.pm, { passive: true }); window.addEventListener("pointerup", this.pu); host.addEventListener("pointerleave", this.leave);
+    host.addEventListener("pointerdown", this.pd); window.addEventListener("pointermove", this.pm, { passive: true }); window.addEventListener("pointerup", this.pu); window.addEventListener("pointercancel", this.cancel); host.addEventListener("pointerleave", this.leave);
     this.resizeObs = new ResizeObserver(() => this.resize()); this.resizeObs.observe(host); this.resize();
     this.last = performance.now(); this.raf = requestAnimationFrame(this.frame);
     if (import.meta.env.DEV) (window as unknown as { __stage?: Stage }).__stage = this;
@@ -108,6 +109,8 @@ export class Stage {
     if (obj && obj === d.obj) { const p = this.picks.get(obj)!; if (p.enabled?.() ?? true) { this.setHovered(null); p.onDwell(); } }
   };
   private leave = () => { this.setHovered(null); this.pointerHover = false; };
+  /** A touch the tablet took over (a system swipe, a palm): forget it, so nothing stays "held down". */
+  private cancel = () => { this.pointerDown = false; this.downAt = null; };
 
   private resize() {
     const w = Math.max(1, this.host.clientWidth), h = Math.max(1, this.host.clientHeight);
@@ -158,7 +161,7 @@ export class Stage {
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.raf);
     const w = window as unknown as { __stage?: Stage }; if (w.__stage === this) delete w.__stage; this.resizeObs.disconnect();
-    this.host.removeEventListener("pointerdown", this.pd); window.removeEventListener("pointermove", this.pm); window.removeEventListener("pointerup", this.pu); this.host.removeEventListener("pointerleave", this.leave);
+    this.host.removeEventListener("pointerdown", this.pd); window.removeEventListener("pointermove", this.pm); window.removeEventListener("pointerup", this.pu); window.removeEventListener("pointercancel", this.cancel); this.host.removeEventListener("pointerleave", this.leave);
     this.envTex?.dispose(); this.fx.dispose(); this.scene.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) m.geometry?.dispose(); });
     this.composer?.dispose(); this.renderer.dispose(); this.renderer.domElement.remove();
   }

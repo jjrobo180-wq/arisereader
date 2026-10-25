@@ -2,7 +2,7 @@
   "name": "Arise To Duo",
   "short_name": "Arise To Duo",
   "id": "/app",
-  "start_url": "/app#/lifehub",
+  "start_url": "/app#/",
   "scope": "/",
   "icons": [
     {
@@ -40,7 +40,7 @@
     {
       "name": "Arise WorkHub",
       "short_name": "WorkHub",
-      "url": "/#/workhub",
+      "url": "/app#/workhub",
       "icons": [
         {
           "src": "/favicon.svg?v=seam1",
@@ -52,7 +52,7 @@
     {
       "name": "Arise LifeHub",
       "short_name": "LifeHub",
-      "url": "/#/lifehub",
+      "url": "/app#/lifehub",
       "icons": [
         {
           "src": "/favicon.svg?v=seam1",

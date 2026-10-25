@@ -6,6 +6,8 @@ import { clearAuthenticatedNavigation, resetAuthenticatedNavigation } from "@/li
 import { forgetThisDevice } from "@/lib/pushDevice";
 import { isHubAccount } from "@/lib/hubs";
 import { clearSessionBackup, keepStorage, readSessionBackup, saveSessionBackup } from "@/lib/sessionBackup";
+import { SAMPLE_TOKEN, SAMPLE_USER, isSampleMode, resetSample } from "@/lib/sampleMode";
+import { setEyeGazeUser } from "@/lib/gazeDefaults";
 
 interface AuthUser {
   id: number;
@@ -83,6 +85,7 @@ function decodeSession(raw: string): any {
   try { return JSON.parse(decodeURIComponent(escape(binary))); } catch { return JSON.parse(binary); }
 }
 function saveSessionCookie(user: AuthUser | null, token: string | null) {
+  if (isSampleMode()) return; // the sample never touches the visitor's sign-in
   if (user && token) {
     const data = encodeSession({ user, token });
     setCookie(COOKIE_NAME, data, SESSION_DAYS);
@@ -93,6 +96,8 @@ function saveSessionCookie(user: AuthUser | null, token: string | null) {
   }
 }
 function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
+  // Inside the sample Duo viewer: the made-up sample profile, never the visitor's own sign-in.
+  if (isSampleMode()) return { user: SAMPLE_USER as AuthUser, token: SAMPLE_TOKEN };
   try {
     // The cookie first; if the phone dropped it, the copy kept in storage (and the cookie is put back).
     let raw = getCookie(COOKIE_NAME);
@@ -109,6 +114,9 @@ function loadSessionCookie(): { user: AuthUser | null; token: string | null } {
     }
     if (!data.token || !data.user) { if (fromBackup) clearSessionBackup(); return { user: null, token: null }; }
     if (fromBackup) setCookie(COOKIE_NAME, raw, SESSION_DAYS);
+    // Signed in before the storage copy existed (or opened offline, before the server check below
+    // could write it): keep the copy now, so a Home Screen app that loses its cookie stays signed in.
+    else if (!readSessionBackup()) saveSessionBackup(raw);
     return { user: data.user || null, token: data.token || null };
   } catch {
     return { user: null, token: null };
@@ -132,8 +140,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<{ user: AuthUser | null; token: string | null }>(loadSessionCookie());
   const [user, setUser] = useState<AuthUser | null>(sessionRef.current.user);
   const [token, setToken] = useState<string | null>(sessionRef.current.token);
-  const [isLoading, setIsLoading] = useState(!!sessionRef.current.token);
-  const [sessionValidated, setSessionValidated] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!sessionRef.current.token && !isSampleMode());
+  const [sessionValidated, setSessionValidated] = useState(() => isSampleMode());
   const [retryTick, setRetryTick] = useState(0);
   const [adminPreviewMode, setAdminPreviewMode] = useState<AdminPreviewMode>(() => {
     if (typeof window === "undefined") return null;
@@ -385,6 +393,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persistSession]);
 
   const logout = useCallback(() => {
+    // The sample profile can't sign out of anything: it starts over from the fresh sample instead.
+    if (isSampleMode()) { resetSample(); window.dispatchEvent(new Event("arise-logout")); window.location.replace(window.location.pathname + "#/lifehub"); window.location.reload(); return; }
     sessionStorage.removeItem("arise_admin_preview_mode");
     sessionStorage.removeItem(VIEW_AS_KEY);
     sessionStorage.removeItem(SAMPLE_SESSION_KEY);
@@ -441,6 +451,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Library had legacy tutorial content keyed to the literal username "sample".
       ? { ...user, username: "sample-student", is_eye_gaze_user: false }
       : user;
+  // Eye-gaze accounts get look-to-press in the games on every device, tablets included.
+  setEyeGazeUser(!!contextUser?.is_eye_gaze_user);
 
   return (
     <AuthContext.Provider value={{
