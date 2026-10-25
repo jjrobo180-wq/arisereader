@@ -375,5 +375,12 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     req.user = { id: device, role: "public", displayName: typeof req.body?.name === "string" ? req.body.name : "" };
     next();
   };
+  // Screen measurements Podscroll sends once when opened from a phone's home screen (sizes and the
+  // element at the bottom edge; nothing about the person), so layout on devices that can't be tested
+  // here can be checked in the server log.
+  app.post("/api/podscroll/screen", gate, (req: any, res) => {
+    try { const s = JSON.stringify(req.body ?? {}); if (s.length < 4000) console.log("[podscroll] screen", s); } catch { /* unreadable */ }
+    res.status(204).end();
+  });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
 }

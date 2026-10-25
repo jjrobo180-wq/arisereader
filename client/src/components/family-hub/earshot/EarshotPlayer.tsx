@@ -750,6 +750,36 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     addEventListener("resize", fit); addEventListener("orientationchange", fit);
     return () => { removeEventListener("resize", fit); removeEventListener("orientationchange", fit); };
   }, [standalone]);
+  // Under the frame, the page itself shows the current cover (darkened), so if iOS leaves any part of
+  // the screen uncovered it's the art there, never a dark strip.
+  const activeArt = items[active]?.ep?.art || items[active]?.show.art || "";
+  useEffect(() => {
+    if (!standalone) return;
+    const root = document.documentElement.style;
+    if ((tab === "foryou" || tab === "following") && activeArt) root.background = `linear-gradient(rgba(0,0,0,.6), rgba(0,0,0,.6)), url("${hiRes(activeArt, 60)}") center / cover no-repeat #0e0d10`;
+    else root.removeProperty("background");
+  }, [standalone, activeArt, tab]);
+  // Once per visit from the home screen: the screen's real measurements, to the server log.
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!standalone || (navigator as Navigator & { standalone?: boolean }).standalone !== true) return;
+    const t = setTimeout(() => {
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;left:0;top:0;visibility:hidden;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0";
+      document.body.appendChild(probe);
+      const cs = getComputedStyle(probe); const safe = [parseFloat(cs.paddingTop), parseFloat(cs.paddingBottom)]; probe.remove();
+      const rect = (el: Element | null) => { if (!el) return null; const r = el.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; };
+      const at = (y: number) => { const el = document.elementFromPoint(innerWidth / 2, y) as HTMLElement | null; return el ? `${el.tagName.toLowerCase()} ${String(el.className || "").slice(0, 80)}` : null; };
+      api("/api/earshot/screen", { method: "POST", body: {
+        v: 1, ua: navigator.userAgent.slice(0, 160), inner: [innerWidth, innerHeight], outer: [outerWidth, outerHeight], screen: [screen.width, screen.height],
+        vv: visualViewport ? [Math.round(visualViewport.height), Math.round(visualViewport.offsetTop)] : null, doc: document.documentElement.clientHeight, body: document.body.clientHeight,
+        safe, psH: getComputedStyle(document.documentElement).getPropertyValue("--ps-h"), shell: rect(shellRef.current), feed: rect(feedRef.current),
+        card: rect(document.querySelector(`article[data-i="${activeRef.current}"]`)), bottom: at(innerHeight - 3), dpr: devicePixelRatio,
+      } }).catch(() => {});
+    }, 4000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [standalone]);
   const chooseSleep = (v: number | "end" | null) => { setSleepAt(v); say(v === null ? "Sleep timer off." : v === "end" ? "Stopping at the end of this episode." : `Stopping in ${Math.round((v - Date.now()) / 60000)} minutes.`); };
   // The 1× button on the Podscroll player steps through the speeds, as in Apple Podcasts.
   const cycleSpeed = () => {
@@ -768,7 +798,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // other tabs (pad), the notices and the sheets.
   const pad = (n: ReactNode) => standalone ? <div className="box-border h-full pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)]">{n}</div> : n;
   const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
-  return <div className={`${shell} flex flex-col overflow-hidden bg-[#120e14] text-white shadow-2xl`}>
+  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${standalone ? "bg-transparent" : "bg-[#120e14]"} text-white shadow-2xl`}>
     <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
       {genreMode && tab === "foryou"
         ? <span className="flex items-center gap-2 rounded-full bg-black/55 py-1.5 pl-3 pr-1.5 text-sm font-bold backdrop-blur">{GENRE[genreMode]?.name}<button type="button" aria-label="Back to For You" onClick={() => setGenreMode(null)} className="grid h-7 w-7 place-items-center rounded-full bg-white/15"><X size={14} /></button></span>
