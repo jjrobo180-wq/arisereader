@@ -564,7 +564,16 @@ export function createPlayer(o: PlayOptions = {}) {
   }
   /** Content time placed in a session's copy. */
   const fromContent = (s: Session, ct: number) => ctToCopy(contentOf(s).pieces, ct);
-  return { setOnFinal: (f: (s: Session) => void) => { onFinal = f; }, sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, readGaps, uncovered, toContent, fromContent, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
+  /** A clip of what this listener heard: [a, b) seconds of their own copy, cut on MP3 frames. Only their
+   *  own session for that episode, and only once the copy has arrived that far. */
+  async function clipOf(sid: string, voter: string, episodeId: string, a: number, b: number): Promise<Blob | null> {
+    const s = sessions.get(sid);
+    if (!s || s.voter !== voter || s.episodeId !== episodeId || !(b > a)) return null;
+    const X = s.copy.scanner;
+    if (!X.count || X.timeOf(X.count) < b - 0.05) return null;
+    return extractCopy(s, Math.max(0, a), b);
+  }
+  return { setOnFinal: (f: (s: Session) => void) => { onFinal = f; }, sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, readGaps, uncovered, toContent, fromContent, clipOf, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
 }
 export type Player = ReturnType<typeof createPlayer>;
 

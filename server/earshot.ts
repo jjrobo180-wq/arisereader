@@ -254,12 +254,43 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     catch (e) { appleDown(res, e); }
   });
 
+  /** Explore previews: an episode's best ~45 seconds (picked by AI from its transcript), with that
+   *  stretch's audio cut once and kept in storage so every later play starts at once. */
+  const previewing = createAttemptLimiter({ max: 150, windowMs: 10 * 60_000 });
+  app.get(`${P}/moment/:episodeId`, authMiddleware, async (req: any, res) => {
+    const id = cleanPodId(req.params.episodeId), show = cleanPodId(req.query?.show);
+    if (!id || !show) return res.status(400).json({ message: "That isn't an episode." });
+    if (limited(previewing, req, res, "previews")) return;
+    try {
+      let m = await dir.moment(show, id);
+      if (!m.audio && options.socialDb) {
+        const blob = await dir.cutRange(show, id, m.s, m.e);
+        const bucket = options.socialDb().storage.from("podcast-uploads"), path = `moments/${id}.mp3`;
+        const { error } = await bucket.upload(path, blob, { contentType: "audio/mpeg", upsert: true });
+        if (error) throw new Error(`storage: ${error.message}`);
+        m = await dir.keepMomentAudio(id, m, bucket.getPublicUrl(path).data.publicUrl);
+      }
+      res.set("Cache-Control", "private, max-age=3600");
+      res.json(m);
+    } catch (e: any) {
+      if (e?.soft) return res.status(404).json({ message: "No preview for this episode." });
+      console.error("[earshot] moment:", e?.message);
+      res.status(502).json({ message: "The preview isn't ready. Try again in a moment." });
+    }
+  });
+
   // ---------------- smart ad skip: marks, votes, skips (server/podcastAds.ts) ----------------
   // Voters are "u<id>" on Arise (LifeHub) and "d<device>" on Podscroll, so both apps share one pool.
   const adStore = options.adStore ?? (sharedAdStore ??= memoryAdStore());
   const player = options.player;
   registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
-  if (options.socialDb) registerSocialRoutes(app, authMiddleware, { prefix: P, getDb: options.socialDb, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, allowed: (req: any) => !isStudent(req) });
+  if (options.socialDb) registerSocialRoutes(app, authMiddleware, {
+    prefix: P, getDb: options.socialDb, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, allowed: (req: any) => !isStudent(req),
+    // A clip's audio: cut from the listener's own copy when they're playing through the server (exactly
+    // what they heard), otherwise from the host's copy at the same times.
+    cutClip: async (voter, c) => (c.sid && player ? await player.clipOf(c.sid, voter, c.episodeId, c.s, c.e).catch(() => null) : null)
+      ?? (c.showId ? await dir.cutRange(c.showId, c.episodeId, c.s, c.e).catch(() => null) : null),
+  });
   if (player) {
     if (!openingsStarted.has(player)) { openingsStarted.add(player); startOpenings(player, dir); }
     registerPlayRoutes(app, authMiddleware, {

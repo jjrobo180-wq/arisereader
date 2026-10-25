@@ -105,6 +105,23 @@ export function pacedFetcher(inner: Fetcher, pace = APPLE_PACE, maxWait = 12_000
 // Two-level cache: memory, then the database, then the source
 // ---------------------------------------------------------------------------
 
+/** An episode's best ~45 seconds for Explore's previews (seconds in the host's copy). best: the AI picked it. */
+export type Moment = { s: number; e: number; quote: string; hook: string; best: boolean; audio?: string };
+export const MOMENT_SYSTEM = `You pick the single best moment of a podcast for a 45-second preview that makes someone want the whole episode. It has to stand on its own: a complete thought, a story beat, a surprising fact, a strong opinion or a funny exchange, starting at the start of a sentence. Never an ad, sponsor read, promo, intro, outro, or a request to subscribe or rate. Lines are "#number [seconds] text". Reply with JSON only: {"start": first line number, "end": last line number, "hook": a 3-8 word teaser in plain words, "quote": the most striking sentence in it, word for word}. The stretch should run 30 to 60 seconds.`;
+/** The AI's pick checked against the transcript: real lines, in order, 20-70 s long (trimmed to 60). */
+export function pickMoment(segs: { s: number; e: number; t: string }[], v: any): Moment | null {
+  if (typeof v === "string") { try { v = JSON.parse(v.slice(v.indexOf("{"), v.lastIndexOf("}") + 1)); } catch { return null; } }
+  const a = Math.floor(Number(v?.start)), b = Math.floor(Number(v?.end));
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a < 0 || b < a || b >= segs.length) return null;
+  const s = segs[a].s; let e = segs[b].e;
+  if (e - s < 20) return null;
+  if (e - s > 70) e = s + 60;
+  const quote = String(v?.quote || "").replace(/\s+/g, " ").trim().slice(0, 240);
+  const said = segs.slice(a, b + 1).map((x) => x.t).join(" ").toLowerCase();
+  const real = quote && said.includes(quote.toLowerCase().slice(0, 40));
+  return { s: Math.round(s * 100) / 100, e: Math.round(e * 100) / 100, quote: real ? quote : segs[a].t.slice(0, 240), hook: String(v?.hook || "").replace(/\s+/g, " ").trim().slice(0, 60), best: true };
+}
+
 export function layeredCache<T>(kv: KV, prefix: string, ttlMs: number, max = 2000) {
   const mem = new Map<string, { at: number; value: T }>();
   const missing = new Map<string, number>();
@@ -657,6 +674,57 @@ export function createDirectory(options: DirectoryOptions = {}) {
     return { summary: String(v?.summary || "").slice(0, 200), picks: out.filter((p) => !seen.has(p.show.id) && (seen.add(p.show.id), true)) };
   }
 
-  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft };
+  // ---- Explore previews: each episode's best ~45 seconds ----
+  const moments = layeredCache<Moment>(kv, "m1:", 365 * 24 * 3600_000, 3000);
+  const MOMENT_WINDOW = 180, MOMENTS_PER_DAY = Number(process.env.EARSHOT_MOMENTS_PER_DAY) || 150;
+  let momentDay = ""; let momentsToday = 0;
+  /** Where an MP3 episode's audio starts and how many bytes a second takes (from the host's copy, as a bot). */
+  async function audioMap(showId: string, episodeId: string) {
+    const { ep } = await findEpisode(showId, episodeId);
+    if (!ep) throw Object.assign(new Error("gone"), { soft: true });
+    const p = await probe(ep.audio);
+    if (!p.info || !p.total) throw Object.assign(new Error("format"), { soft: true });
+    return { ep, total: p.total, start: p.info.audioStart, bps: p.info.bytesPerSec, dur: p.info.duration || ep.secs };
+  }
+  /** The audio between s and e seconds of an episode (the host's copy, as fetched for its transcript). */
+  async function cutRange(showId: string, episodeId: string, s: number, e: number): Promise<Blob> {
+    const m = await audioMap(showId, episodeId);
+    const from = Math.floor(m.start + Math.max(0, s) * m.bps), to = Math.min(m.total - 1, Math.floor(m.start + e * m.bps) - 1);
+    if (!(to > from) || to - from > 4_000_000) throw Object.assign(new Error("range"), { soft: true });
+    const res = await web(m.ep.audio, { headers: { Range: `bytes=${from}-${to}`, "User-Agent": AUDIO_AGENT }, signal: AbortSignal.timeout(30_000) });
+    if (res.status !== 206 && !res.ok) throw new Error(`audio ${res.status}`);
+    const blob = await res.blob();
+    // A host that ignores Range sends the whole file: never pass that on as a clip.
+    if (res.status !== 206 || blob.size > 4_000_000) throw Object.assign(new Error("range"), { soft: true });
+    return new Blob([blob], { type: "audio/mpeg" });
+  }
+  /** The best ~45 seconds of an episode for a preview. Three minutes from about a third of the way in
+   *  (past intros and pre-rolls) are transcribed and the AI picks the strongest stretch that stands on
+   *  its own, never an ad. Without AI, or past today's limit, it's 45 seconds from that point. Kept for
+   *  everyone, so each episode is only read once. */
+  async function moment(showId: string, episodeId: string): Promise<Moment> {
+    const known = await moments.peek(episodeId);
+    if (known) return known.value;
+    return moments.refresh(episodeId, async () => {
+      const m = await audioMap(showId, episodeId);
+      const w0 = Math.max(0, Math.min(Math.round(m.dur * 0.33), Math.round(m.dur - MOMENT_WINDOW - 5)));
+      const plain: Moment = { s: w0 + 15, e: Math.min(m.dur, w0 + 60), quote: "", hook: "", best: false };
+      const today = new Date().toISOString().slice(0, 10);
+      if (today !== momentDay) { momentDay = today; momentsToday = 0; }
+      if (!aiOn() || momentsToday >= MOMENTS_PER_DAY || budgetLeft() < MOMENT_WINDOW / 60) return plain;
+      momentsToday++;
+      const audio = await cutRange(showId, episodeId, w0, w0 + MOMENT_WINDOW);
+      minutesToday += MOMENT_WINDOW / 60;
+      const out = await transcribe(audio, `moment-${episodeId}.mp3`);
+      const segs = out.segments.map((x) => ({ s: w0 + x.start, e: w0 + x.end, t: x.text.trim() })).filter((x) => x.t);
+      if (segs.length < 3) return plain;
+      const pick = pickMoment(segs, await ask(MOMENT_SYSTEM, segs.map((x, i) => `#${i} [${Math.round(x.s - w0)}s] ${x.t}`).join("\n")).catch(() => null));
+      return pick ?? { ...plain, quote: segs.find((x) => x.s >= plain.s)?.t ?? "" };
+    });
+  }
+  /** Keeps where a moment's audio is stored, once it's been cut and saved. */
+  const keepMomentAudio = (episodeId: string, m: Moment, audio: string) => moments.refresh(episodeId, async () => ({ ...m, audio }));
+
+  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft, cutRange, moment, keepMomentAudio };
 }
 export type Directory = ReturnType<typeof createDirectory>;
