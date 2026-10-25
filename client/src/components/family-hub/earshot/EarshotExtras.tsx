@@ -33,56 +33,52 @@ export function ShowPage({ show, load, following, onFollow, onPlayFrom, onClose,
   const list = useMemo(() => (eps ? (oldest ? eps.slice().reverse() : eps) : []), [eps, oldest]);
   const resumeAt = list.findIndex((e) => spots[e.id]);
   const art = hiRes(full.art);
-  return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#120e14] text-white [scrollbar-width:none]" role="dialog" aria-label={full.name}>
+  return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#0e0d10] text-white [scrollbar-width:none]" role="dialog" aria-label={full.name}>
     <div className="relative">
-      <div className="absolute inset-0 overflow-hidden"><div className="absolute -inset-[20%] bg-cover bg-center opacity-60 blur-3xl saturate-150" style={{ backgroundImage: `url("${art}")` }} /><div className="absolute inset-0 bg-gradient-to-b from-black/30 via-[#120e14]/40 to-[#120e14]" /></div>
-      <div className="relative flex flex-col items-center px-5 pb-5 pt-14 text-center">
-        <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-black/45 backdrop-blur"><ChevronLeft size={22} /></button>
-        <img src={art} alt={`${full.name} cover art`} referrerPolicy="no-referrer" className="aspect-square w-[min(62vw,280px)] rounded-[22px] object-cover shadow-[0_30px_60px_-15px_rgba(0,0,0,.8)] ring-1 ring-white/15" />
-        <h2 className="mt-5 text-2xl font-semibold leading-tight sm:text-3xl">{full.name}</h2>
-        <p className="mt-1 text-sm text-white/65">{full.author}</p>
-        <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-          {GENRE[full.genre] && <button type="button" onClick={() => onGenre(full.genre)} className="rounded-full bg-white/12 px-3 py-1 text-xs font-bold">{GENRE[full.genre].name}</button>}
-          {!!eps?.length && <span className="rounded-full bg-white/12 px-3 py-1 text-xs font-bold">{eps.length} episodes</span>}
-        </div>
-        <div className="mt-5 flex w-full max-w-sm gap-2">
-          <button type="button" disabled={!list.length} onClick={() => onPlayFrom(full, list, Math.max(0, resumeAt))} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full text-base font-semibold bg-white text-[#111013] disabled:opacity-50"><Play size={18} fill="currentColor" />{resumeAt >= 0 ? "Resume" : oldest ? "Play from the start" : "Play latest"}</button>
-          <button type="button" onClick={() => onFollow(full)} className={`flex min-h-12 items-center gap-1.5 rounded-full px-5 text-sm font-semibold ${following ? "bg-white text-[#120e14]" : "bg-white/12"}`}>{following ? <Check size={16} /> : <Plus size={16} />}{following ? "Following" : "Follow"}</button>
+      <div className="absolute inset-0 overflow-hidden"><div className="absolute -inset-[20%] bg-cover bg-center opacity-30 blur-3xl" style={{ backgroundImage: `url("${art}")` }} /><div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0e0d10]" /></div>
+      <div className="relative flex flex-col items-center px-5 pb-6 pt-16 text-center">
+        <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-3 grid h-10 w-10 place-items-center rounded-full text-white/80 hover:bg-white/10"><ChevronLeft size={22} /></button>
+        <img src={art} alt={`${full.name} cover art`} referrerPolicy="no-referrer" className="aspect-square w-[min(72vw,320px)] rounded-2xl object-cover shadow-[0_24px_50px_-20px_rgba(0,0,0,.9)]" />
+        <h2 className="mt-6 text-[22px] font-semibold leading-tight tracking-tight">{full.name}</h2>
+        <p className="mt-1 text-sm text-white/45">{[full.author, eps?.length ? `${eps.length} episodes` : ""].filter(Boolean).join(" · ")}</p>
+        <div className="mt-5 flex w-full max-w-xs gap-2">
+          <button type="button" disabled={!list.length} onClick={() => onPlayFrom(full, list, Math.max(0, resumeAt))} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-[#0e0d10] disabled:opacity-40"><Play size={15} fill="currentColor" />{resumeAt >= 0 ? "Resume" : oldest ? "Play first" : "Play latest"}</button>
+          <button type="button" onClick={() => onFollow(full)} aria-label={following ? "Unfollow" : "Follow"} className={`grid min-h-11 min-w-11 place-items-center rounded-full ring-1 ${following ? "text-white ring-white/30" : "text-white/80 ring-white/15"}`}>{following ? <Check size={17} /> : <Plus size={17} />}</button>
         </div>
       </div>
     </div>
-    <div className="px-4 pb-10">
-      <button type="button" role="switch" aria-checked={adFree} onClick={() => onAdFree(!adFree)} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-left">
-        <span><b className="block text-sm">Support this show</b><span className="block text-xs text-white/55">{adFree ? "Its ads play in full, so the show gets paid." : "Turn on to never skip this show's ads."}</span></span>
-        <span className={`relative h-7 w-12 flex-none rounded-full transition ${adFree ? "" : "bg-white/15"}`} style={adFree ? { background: ACCENT } : undefined}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${adFree ? "left-6" : "left-1"}`} /></span>
-      </button>
-      <div className="mt-6 flex items-center justify-between">
-        <h3 className="text-xl font-semibold">Episodes</h3>
-        <div className="flex rounded-full bg-white/10 p-0.5">{([[false, "Newest"], [true, "Oldest"]] as const).map(([v, l]) => <button key={l} type="button" aria-pressed={oldest === v} onClick={() => setOldest(v)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${oldest === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
+    <div className="px-5 pb-12">
+      <div className="flex items-center justify-between border-b border-white/[.06] pb-3">
+        <h3 className="text-[13px] font-semibold uppercase tracking-[.14em] text-white/45">Episodes</h3>
+        <button type="button" onClick={() => setOldest((o) => !o)} className="text-xs text-white/45">{oldest ? "Oldest first" : "Newest first"}</button>
       </div>
-      <p className="mt-1 text-xs text-white/45">Play any episode and the ones below it keep playing, back to back.</p>
-      {!eps && !err && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div>}
-      {err && <p className="py-8 text-center text-sm text-white/60">{err}</p>}
-      {eps && !eps.length && <p className="py-8 text-center text-sm text-white/60">No playable episodes right now.</p>}
-      <ol className="mt-3 flex flex-col gap-1">
+      {!eps && !err && <div className="grid place-items-center py-10"><Loader2 className="animate-spin text-white/40" /></div>}
+      {err && <p className="py-8 text-center text-sm text-white/50">{err}</p>}
+      {eps && !eps.length && <p className="py-8 text-center text-sm text-white/50">No playable episodes right now.</p>}
+      <ol className="divide-y divide-white/[.06]">
         {list.map((e, i) => {
           const spot = spots[e.id]; const pct = spot && e.secs ? Math.min(100, (spot.t / e.secs) * 100) : 0;
-          return <li key={e.id} className="group grid grid-cols-[124px_1fr_auto] gap-3 rounded-2xl p-2 hover:bg-white/5">
-            <button type="button" onClick={() => onPlayFrom(full, list, i)} aria-label={`Play ${e.title}`} className="relative aspect-video overflow-hidden rounded-xl bg-white/5">
-              <img src={hiRes(e.art || full.art, 400)} alt="" referrerPolicy="no-referrer" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
-              <span className="absolute inset-0 grid place-items-center bg-black/25"><span className="grid h-9 w-9 place-items-center rounded-full bg-black/55 backdrop-blur"><Play size={16} fill="currentColor" /></span></span>
-              {pct > 0 && <span className="absolute inset-x-0 bottom-0 h-1 bg-white/25"><span className="block h-full" style={{ width: `${pct}%`, background: ACCENT }} /></span>}
-              {e.secs > 0 && <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1 text-[10px] font-bold tabular-nums">{clock(e.secs)}</span>}
+          const left = spot && e.secs ? Math.max(0, e.secs - spot.t) : 0;
+          return <li key={e.id} className="py-4">
+            <button type="button" onClick={() => onPlayFrom(full, list, i)} className="block w-full text-left">
+              <span className="block text-[11px] text-white/35">{e.date ? agoWords(e.date) : ""}</span>
+              <span className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-white/90">{e.title}</span>
+              {e.about && <span className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-white/40">{e.about}</span>}
             </button>
-            <button type="button" onClick={() => onPlayFrom(full, list, i)} className="min-w-0 text-left">
-              <b className="line-clamp-2 block text-sm leading-snug">{e.title}</b>
-              <span className="mt-0.5 block text-[11px] font-bold uppercase tracking-wider text-white/40">{[e.date ? agoWords(e.date) : "", e.secs ? durationWords(e.secs) : ""].filter(Boolean).join(" · ")}</span>
-              {e.about && <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-white/55">{e.about}</span>}
-            </button>
-            <button type="button" onClick={() => onAddTo(e)} aria-label={`Add ${e.title} to a mode`} className="mt-1 grid h-9 w-9 place-items-center self-start rounded-full bg-white/10"><ListPlus size={17} /></button>
+            <div className="mt-2.5 flex items-center gap-3">
+              <button type="button" onClick={() => onPlayFrom(full, list, i)} aria-label={`Play ${e.title}`} className="flex items-center gap-2 rounded-full bg-white/[.07] py-1.5 pl-2 pr-3 text-xs font-medium text-white/80">
+                <Play size={12} fill="currentColor" />
+                {pct > 0 ? <><span className="relative h-1 w-10 overflow-hidden rounded-full bg-white/20"><span className="absolute inset-y-0 left-0 bg-white" style={{ width: `${pct}%` }} /></span>{durationWords(left)} left</> : (e.secs ? durationWords(e.secs) : "Play")}
+              </button>
+              <button type="button" onClick={() => onAddTo(e)} aria-label={`Add ${e.title} to a mode`} className="ml-auto grid h-8 w-8 place-items-center rounded-full text-white/40 hover:text-white/80"><ListPlus size={17} strokeWidth={1.7} /></button>
+            </div>
           </li>;
         })}
       </ol>
+      <button type="button" role="switch" aria-checked={adFree} onClick={() => onAdFree(!adFree)} className="mt-6 flex w-full items-center justify-between gap-3 border-t border-white/[.06] pt-4 text-left">
+        <span><span className="block text-sm text-white/80">Support this show</span><span className="block text-xs text-white/35">{adFree ? "Its ads play in full." : "Never skip this show's ads."}</span></span>
+        <span className={`relative h-6 w-10 flex-none rounded-full transition ${adFree ? "bg-white" : "bg-white/15"}`}><span className={`absolute top-1 h-4 w-4 rounded-full transition ${adFree ? "left-5 bg-[#0e0d10]" : "left-1 bg-white"}`} /></span>
+      </button>
     </div>
   </div>;
 }
@@ -108,7 +104,7 @@ export function AddToSheet({ es, ep, saved, onSave, update, say, onClose, toSave
   };
   return <Sheet title="Add to" onClose={onClose}>
     <div className="overflow-y-auto px-4 pb-5">
-      <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5"><img src={hiRes(ep.art, 200)} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-lg object-cover" /><span className="min-w-0"><b className="line-clamp-1 block text-sm">{ep.title}</b><span className="line-clamp-1 block text-xs text-white/55">{ep.show}</span></span></div>
+      <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5"><img src={hiRes(ep.art, 200)} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-lg object-cover" /><span className="min-w-0"><b className="line-clamp-1 text-sm">{ep.title}</b><span className="line-clamp-1 text-xs text-white/55">{ep.show}</span></span></div>
       <Toggle on={saved} onClick={onSave} icon="🔖" title="Saved" sub="Your Library" />
       <div className="mt-4 flex items-center justify-between"><h4 className="text-sm font-semibold">Pod Modes</h4><button type="button" onClick={all} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold">{allIn ? "Remove from all" : "Add to all"}</button></div>
       {es.modes.map((m) => <Toggle key={m.id} on={inMode(m)} onClick={() => toggle(m.id)} icon={m.icon} title={m.name} sub={`${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}`} />)}
@@ -183,7 +179,7 @@ export function ModeView({ mode, update, onPlay, onClose }: { mode: PodMode; upd
       {!mode.episodes.length && <p className="py-10 text-center text-sm text-white/55">Nothing here yet. Tap Save (or the + on a show's episodes) and pick “{mode.name}”.</p>}
       <ol className="flex flex-col gap-1">{mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[52px_1fr_auto] items-center gap-3 rounded-xl p-2 hover:bg-white/5">
         <button type="button" onClick={() => onPlay(mode.episodes, i)} aria-label={`Play ${e.title}`}><img src={hiRes(e.art, 200)} alt="" referrerPolicy="no-referrer" className="h-[52px] w-[52px] rounded-lg object-cover" /></button>
-        <button type="button" onClick={() => onPlay(mode.episodes, i)} className="min-w-0 text-left"><b className="line-clamp-1 block text-sm">{e.title}</b><span className="line-clamp-1 block text-xs text-white/55">{e.show}{e.secs ? ` · ${durationWords(e.secs)}` : ""}</span></button>
+        <button type="button" onClick={() => onPlay(mode.episodes, i)} className="min-w-0 text-left"><b className="line-clamp-1 text-sm">{e.title}</b><span className="line-clamp-1 text-xs text-white/55">{e.show}{e.secs ? ` · ${durationWords(e.secs)}` : ""}</span></button>
         <span className="flex gap-1">
           <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-xs disabled:opacity-30">↑</button>
           <button type="button" onClick={() => remove(e.id)} aria-label={`Remove ${e.title}`} className="grid h-8 w-8 place-items-center rounded-full bg-white/10"><X size={14} /></button>

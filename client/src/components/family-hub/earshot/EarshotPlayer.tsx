@@ -804,14 +804,18 @@ type CardProps = {
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
   onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onNext: () => void;
 };
-/** The cover: big, sharp (Apple's art at 1200px), lit by its own colors. */
+/** Slow drift for the cover while it plays (the artwork "breathes"); still for reduced motion. */
+const COVER_MOTION = `@keyframes esDrift{0%{transform:scale(1.04) translate(0,0)}50%{transform:scale(1.12) translate(-2.5%,-2%)}100%{transform:scale(1.06) translate(2%,1.5%)}}
+@keyframes esGlow{0%,100%{opacity:.45;transform:scale(.96)}50%{opacity:.7;transform:scale(1.04)}}
+@media (prefers-reduced-motion:reduce){.es-drift,.es-glow{animation:none!important}}`;
+/** The cover: big and plain, lit softly by its own colors; it drifts slowly while playing. */
 function Cover({ art, alt, eager, playing, children }: { art: string; alt: string; eager: boolean; playing: boolean; children?: ReactNode }) {
   const big = hiRes(art, 1000);
-  return <div className="relative aspect-square w-[min(78vw,44vh,520px)] max-w-full">
-    <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="absolute inset-[6%] top-[10%] h-[90%] w-[88%] rounded-[30px] object-cover opacity-80 blur-2xl saturate-150" />
-    <div className={`relative h-full w-full overflow-hidden rounded-[26px] shadow-[0_28px_60px_-12px_rgba(0,0,0,.85)] ring-1 ring-white/15 transition-transform duration-700 ${playing ? "scale-[1.02]" : "scale-100"}`}>
-      <img src={big} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="h-full w-full bg-white/5 object-cover" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/25" />
+  return <div className="relative aspect-square w-[min(88vw,52vh,560px)] max-w-full">
+    <style>{COVER_MOTION}</style>
+    <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="es-glow absolute inset-[8%] h-[84%] w-[84%] rounded-[24px] object-cover blur-3xl" style={{ animation: playing ? "esGlow 9s ease-in-out infinite" : "none", opacity: playing ? undefined : 0.35 }} />
+    <div className={`relative h-full w-full overflow-hidden rounded-[18px] shadow-[0_30px_60px_-24px_rgba(0,0,0,.9)] transition-transform duration-700 ease-out ${playing ? "scale-100" : "scale-[.94]"}`}>
+      <img src={big} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="es-drift h-full w-full bg-white/5 object-cover" style={{ animation: playing ? "esDrift 28s ease-in-out infinite alternate" : "none", transform: playing ? undefined : "scale(1.04)", transition: "transform 1.2s ease-out" }} />
     </div>
     {children}
   </div>;
@@ -832,73 +836,74 @@ function Card(p: CardProps) {
   };
   const pct = p.dur ? Math.min(100, (p.time / p.dur) * 100) : 0;
   return <article data-i={p.i} className="relative h-full snap-start overflow-hidden [scroll-snap-stop:always]" aria-label={ep ? `${ep.title}, ${item.show.name}` : item.show.name}>
-    <div className="absolute -inset-[15%] bg-cover bg-center opacity-75 blur-3xl saturate-150" style={{ backgroundImage: `url("${hiRes(art, 300)}")` }} />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-[#120e14]" />
+    <div className="absolute -inset-[15%] bg-cover bg-center opacity-40 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")` }} />
+    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-[#0e0d10]/70 to-[#0e0d10]" />
     <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
     {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
 
-    <div className="pointer-events-none relative z-[2] flex h-full flex-col pt-14">
+    <div className="pointer-events-none relative z-[2] flex h-full flex-col pt-[4.5rem]">
       <div className="flex flex-none justify-center px-4">
         <Cover art={art} alt={`${item.show.name} cover art`} eager={p.i < 3} playing={p.playing}>
           {!p.playing && ep && (p.unlocked && p.active
-            ? <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/45 ring-1 ring-white/25 backdrop-blur-md" aria-hidden><Play size={28} fill="currentColor" className="ml-1" /></span>
-            : <span className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/55 px-4 py-2 text-sm font-semibold ring-1 ring-white/20 backdrop-blur-md"><Play size={16} fill="currentColor" style={{ color: ACCENT }} />Tap to listen</span>)}
+            ? null
+            : <span className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/50 px-4 py-2 text-sm font-medium backdrop-blur-md"><Play size={14} fill="currentColor" />Tap to listen</span>)}
           {item.state === "loading" && <span className="absolute inset-0 grid place-items-center rounded-[26px] bg-black/40"><Loader2 className="animate-spin" /></span>}
           {item.state === "none" && <span className="pointer-events-auto absolute inset-x-4 top-1/2 -translate-y-1/2 rounded-2xl bg-black/80 p-3 text-center text-sm">No playable episodes right now.<button type="button" onClick={p.onNext} className="mt-2 block w-full rounded-full bg-white/15 py-1.5 font-bold">Next podcast</button></span>}
         </Cover>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden px-5 pr-20 pt-4 [mask-image:linear-gradient(180deg,#000_60%,transparent)]">
-        {p.notes && ep?.about && <p className="text-sm leading-relaxed text-white/70">{ep.about}</p>}
+      <div className="mx-auto min-h-0 w-full max-w-[560px] flex-1 overflow-hidden px-6 pt-4 [mask-image:linear-gradient(180deg,#000_60%,transparent)]">
+        {p.notes && ep?.about && <p className="line-clamp-3 text-[13px] leading-relaxed text-white/40">{ep.about}</p>}
       </div>
 
-      <div className="flex flex-none flex-col gap-1.5 px-4 pb-4 pr-20">
-        <p className="truncate text-[11px] font-medium uppercase tracking-[.14em] text-white/45">{GENRE[item.show.genre]?.name ?? "Podcast"}{item.why ? <span className="text-white/30"> · {item.why}</span> : null}</p>
-        <button type="button" onClick={p.onShow} className="pointer-events-auto w-fit max-w-full truncate text-left text-[15px] font-semibold hover:underline">{item.show.name}</button>
-        <h2 className="line-clamp-2 text-xl font-bold leading-tight tracking-tight sm:text-2xl">{ep?.title ?? "Loading the newest episode…"}</h2>
-        <p className="truncate text-xs text-white/65">{[item.show.author, ep?.secs ? durationWords(ep.secs) : "", ep?.date ? agoWords(ep.date) : ""].filter(Boolean).join(" · ")}</p>
-        {ep && p.active && <div className="pointer-events-auto flex flex-wrap items-center gap-2">
-          {p.ad && <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#120e14]">
-            <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={14} />{p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
-            <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={13} /></button>
-          </span>}
-          {!p.marking && p.unlocked && <button type="button" onClick={p.onMark} className="flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold"><Megaphone size={14} />Mark ad</button>}
+      <div className="mx-auto flex w-full max-w-[560px] flex-none flex-col px-6 pb-6">
+        <div className="pointer-events-auto flex items-center gap-2">
+          <button type="button" onClick={p.onShow} className="min-w-0 truncate text-left text-[13px] text-white/50 hover:text-white/80">{item.show.name}</button>
+          <button type="button" onClick={p.onFollow} aria-label={p.following ? `Unfollow ${item.show.name}` : `Follow ${item.show.name}`} className={`flex-none rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${p.following ? "text-white/40 ring-white/10" : "text-white/80 ring-white/25"}`}>{p.following ? "Following" : "Follow"}</button>
+        </div>
+        <h2 className="mt-1 line-clamp-2 text-[19px] font-semibold leading-snug tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
+        <div className="pointer-events-auto mt-3 flex items-center justify-between text-white/70">
+          <Act label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={21} strokeWidth={1.6} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Act>
+          {p.commentsOn && <Act label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={21} strokeWidth={1.6} /></Act>}
+          <Act label="Episodes" onClick={p.onShow}><ListVideo size={21} strokeWidth={1.6} /></Act>
+          <Act label="Read along" onClick={p.onRead} disabled={!ep || !p.active}><FileText size={20} strokeWidth={1.6} /></Act>
+          <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={21} strokeWidth={1.6} className={p.saved ? "fill-current text-white" : ""} /></Act>
+          <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={20} strokeWidth={1.6} /></Act>
+        </div>
+        {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">
+          <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#0e0d10]">
+            <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
+            <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={12} /></button>
+          </span>
         </div>}
-        {ep && <div className="pointer-events-auto mt-1 flex flex-col gap-1">
-          <div className="relative h-6 w-full">
-            <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/20" />
-            {p.dur > 0 && p.adMarks.filter((a) => a.e - a.s < p.dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.8, ((a.e - a.s) / p.dur) * 100)}%`, background: a.sure ? "rgba(255,210,63,.85)" : "rgba(255,210,63,.4)" }} />)}
-            <div className="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full" style={{ width: `${pct}%`, background: ACCENT }} />
+        {ep && <div className="pointer-events-auto mt-4 flex flex-col">
+          <div className="relative h-5 w-full">
+            <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white/15" />
+            {p.dur > 0 && p.adMarks.filter((a) => a.e - a.s < p.dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.6, ((a.e - a.s) / p.dur) * 100)}%`, background: a.sure ? "rgba(255,214,102,.55)" : "rgba(255,214,102,.25)" }} />)}
+            <div className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white" style={{ width: `${pct}%` }} />
             <input type="range" min={0} max={Math.max(1, Math.floor(p.dur))} value={Math.floor(p.time)} onChange={(e) => p.onSeek(Number(e.target.value))} aria-label="Seek" disabled={!p.active}
-              className="absolute inset-0 h-6 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white" />
+              className="absolute inset-0 h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white" />
           </div>
-          <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums text-white/60"><span>{clock(p.time)}</span><span>-{clock(Math.max(0, p.dur - p.time))}</span></div>
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10"><RotateCcw size={18} /></button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-12 w-12 flex-none place-items-center rounded-full bg-white text-[#111013] shadow-lg">{p.playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}</button>
-            <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10"><RotateCw size={18} /></button>
+          <div className="flex items-center justify-between text-[11px] tabular-nums text-white/40"><span>{clock(p.time)}</span><span>-{clock(Math.max(0, p.dur - p.time))}</span></div>
+          <div className="mt-2 flex items-center justify-between">
+            {p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="Mark an ad" title="Mark an ad" className="grid h-10 w-10 place-items-center rounded-full text-white/40 hover:text-white/80"><Megaphone size={18} strokeWidth={1.7} /></button> : <span className="w-10" />}
+            <div className="flex items-center gap-6">
+              <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="grid h-11 w-11 place-items-center rounded-full text-white/85"><RotateCcw size={24} strokeWidth={1.6} /></button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-16 w-16 place-items-center rounded-full bg-white text-[#0e0d10] transition active:scale-95">{p.playing ? <Pause size={26} fill="currentColor" strokeWidth={0} /> : <Play size={26} fill="currentColor" strokeWidth={0} className="ml-1" />}</button>
+              <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="grid h-11 w-11 place-items-center rounded-full text-white/85"><RotateCw size={24} strokeWidth={1.6} /></button>
+            </div>
+            <span className="w-10" />
           </div>
         </div>}
       </div>
     </div>
 
-    <div className="absolute bottom-5 right-2 z-[3] flex flex-col items-center gap-3">
-      <button type="button" onClick={p.onFollow} aria-label={p.following ? `Unfollow ${item.show.name}` : `Follow ${item.show.name}`} className="relative mb-2">
-        <img src={item.show.art} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-full object-cover ring-2 ring-white" />
-        <span className={`absolute -bottom-2 left-1/2 grid h-5 w-5 -translate-x-1/2 place-items-center rounded-full ${p.following ? "bg-white text-[#120e14]" : "bg-rose-500 text-white"}`}>{p.following ? <Check size={13} /> : <Plus size={13} />}</span>
-      </button>
-      <Rail label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={30} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Rail>
-      {p.commentsOn && <Rail label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={30} /></Rail>}
-      <Rail label="Episodes" onClick={p.onShow}><ListVideo size={28} /></Rail>
-      <Rail label="Read" onClick={p.onRead} disabled={!ep || !p.active}><FileText size={28} /></Rail>
-      <Rail label={p.saved ? "Saved" : "Save"} onClick={p.onSave} disabled={!ep}><Bookmark size={30} className={p.saved ? "fill-current" : ""} style={p.saved ? { color: ACCENT } : undefined} /></Rail>
-      <Rail label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={28} /></Rail>
-    </div>
   </article>;
 }
-function Rail({ children, label, n, on, onClick, disabled }: { children: ReactNode; label: string; n?: number; on?: boolean; onClick: () => void; disabled?: boolean }) {
-  return <button type="button" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={on} className="flex min-w-12 flex-col items-center gap-0.5 text-xs font-bold drop-shadow disabled:opacity-40">
-    {children}<span>{typeof n === "number" ? compact(n) : label === "Comments" || label === "Like" || label === "Share" ? "" : label}</span>
+/** One quiet action under the title: an icon, and its count when there is one. */
+function Act({ children, label, n, on, onClick, disabled }: { children: ReactNode; label: string; n?: number; on?: boolean; onClick: () => void; disabled?: boolean }) {
+  return <button type="button" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={on} title={label} className="flex h-10 min-w-10 items-center justify-center gap-1.5 text-[12px] tabular-nums transition hover:text-white disabled:opacity-30">
+    {children}{typeof n === "number" && n > 0 ? <span>{compact(n)}</span> : null}
   </button>;
 }
 
@@ -1107,7 +1112,7 @@ function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, on
 }
 const Row = ({ art, title, sub, onClick }: { art: string; title: string; sub: string; onClick: () => void }) => <button type="button" onClick={onClick} className="grid grid-cols-[52px_1fr] items-center gap-3 rounded-xl p-2 text-left hover:bg-white/5"><img src={art} alt="" referrerPolicy="no-referrer" loading="lazy" className="h-[52px] w-[52px] rounded-lg object-cover" /><span className="min-w-0"><b className="block truncate text-sm">{title}</b><span className="block truncate text-xs text-white/55">{sub}</span></span></button>;
 const Shelf = ({ title, children }: { title: string; children: ReactNode }) => <section className="mt-6"><h3 className="text-lg font-semibold">{title}</h3><div className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{children}</div></section>;
-const Tile = ({ art, title, sub, onClick }: { art: string; title: string; sub: string; onClick: () => void }) => <button type="button" onClick={onClick} className="w-32 flex-none text-left"><img src={art} alt="" referrerPolicy="no-referrer" loading="lazy" className="aspect-square w-32 rounded-xl object-cover" /><b className="mt-1.5 line-clamp-2 block text-sm leading-tight">{title}</b><span className="line-clamp-1 block text-xs text-white/55">{sub}</span></button>;
+const Tile = ({ art, title, sub, onClick }: { art: string; title: string; sub: string; onClick: () => void }) => <button type="button" onClick={onClick} className="w-32 flex-none text-left"><img src={art} alt="" referrerPolicy="no-referrer" loading="lazy" className="aspect-square w-32 rounded-xl object-cover" /><b className="mt-1.5 line-clamp-2 text-sm leading-tight">{title}</b><span className="line-clamp-1 text-xs text-white/55">{sub}</span></button>;
 
 // ===========================================================================
 // Library
@@ -1127,8 +1132,8 @@ function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotD
     <p className="mt-2 text-xs leading-relaxed text-white/45">Likes, follows, shares and listening raise a genre; quick skips lower it. About one in seven picks is something new on purpose.</p>
     <div className="mt-6 flex gap-1.5">{(["liked", "saved", "following"] as const).map((w) => <button key={w} type="button" aria-pressed={which === w} onClick={() => setWhich(w)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize ${which === w ? "bg-white text-[#120e14]" : "bg-white/10 text-white/70"}`}>{w}</button>)}</div>
     <div className="mt-3 grid grid-cols-3 gap-3">
-      {which === "following" ? es.follows.map((s) => <div key={s.id} className="text-left"><img src={s.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 block text-xs">{s.name}</b></div>)
-        : eps.map((e) => <button key={e.id} type="button" onClick={() => onOpen(e)} className="text-left"><img src={e.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 block text-xs leading-tight">{e.title}</b><span className="line-clamp-1 block text-[11px] text-white/50">{e.show}</span></button>)}
+      {which === "following" ? es.follows.map((s) => <div key={s.id} className="text-left"><img src={s.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs">{s.name}</b></div>)
+        : eps.map((e) => <button key={e.id} type="button" onClick={() => onOpen(e)} className="text-left"><img src={e.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs leading-tight">{e.title}</b><span className="line-clamp-1 text-[11px] text-white/50">{e.show}</span></button>)}
     </div>
     {((which === "following" && !es.follows.length) || (which !== "following" && !eps.length)) && <p className="py-6 text-center text-sm text-white/55">{which === "liked" ? "Double-tap an episode to like it." : which === "saved" ? "Tap the bookmark to save an episode for later." : "Tap + on a podcast to follow it."}</p>}
     <div className="mt-8">{asking

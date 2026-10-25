@@ -99,7 +99,7 @@ function PostCard({ post: p, api, say, onPlay, onPerson, onGone }: { post: Post;
     {p.caption && <p className="whitespace-pre-wrap px-3 pt-2 text-sm leading-relaxed">{p.caption}</p>}
     <button type="button" onClick={() => onPlay(toShow(p.episode, p.author.name), ep)} className="mx-3 mt-2.5 grid w-[calc(100%-1.5rem)] grid-cols-[72px_1fr_auto] items-center gap-3 rounded-xl bg-black/20 p-2 text-left">
       <img src={hiRes(ep.art, 300)} alt="" referrerPolicy="no-referrer" className="h-[72px] w-[72px] rounded-lg object-cover" />
-      <span className="min-w-0"><span className="line-clamp-2 block text-sm font-semibold leading-snug">{ep.title}</span><span className="mt-0.5 line-clamp-1 block text-xs text-white/55">{ep.show}</span>{ep.secs > 0 && <span className="block text-[11px] text-white/40">{durationWords(ep.secs)}</span>}</span>
+      <span className="min-w-0"><span className="line-clamp-2 text-sm font-semibold leading-snug">{ep.title}</span><span className="mt-0.5 line-clamp-1 text-xs text-white/55">{ep.show}</span>{ep.secs > 0 && <span className="block text-[11px] text-white/40">{durationWords(ep.secs)}</span>}</span>
       <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-[#111013]"><Play size={15} fill="currentColor" /></span>
     </button>
     <div className="flex items-center gap-4 px-4 py-2.5">
@@ -136,7 +136,7 @@ function PersonPage({ api, say, handle, onClose, onPlay, onPerson }: { api: Api;
       <div className="flex gap-1.5">{([["own", "Their podcast"], ["share", "Shared"], ["bookmark", "Bookmarks"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={which === v} onClick={() => setWhich(v)} className={`rounded-full px-3.5 py-1.5 text-xs ${which === v ? "bg-white font-semibold text-[#111013]" : "text-white/50 ring-1 ring-white/10"}`}>{data.me && v === "own" ? "My podcast" : l} {(data.posts || []).filter((p) => p.kind === v).length || ""}</button>)}</div>
       <div className="mt-3 flex flex-col gap-3">
         {!list.length && <p className="py-8 text-center text-sm text-white/55">{which === "own" ? "No episodes yet." : which === "bookmark" ? "No bookmarks yet." : "Nothing shared yet."}</p>}
-        {which === "bookmark" ? <div className="grid grid-cols-3 gap-2.5">{list.map((p) => { const ep = toEpisode(p.episode); return <button key={p.id} type="button" onClick={() => onPlay(toShow(p.episode), ep)} className="text-left"><img src={hiRes(ep.art, 300)} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 block text-xs leading-tight">{ep.title}</b></button>; })}</div>
+        {which === "bookmark" ? <div className="grid grid-cols-3 gap-2.5">{list.map((p) => { const ep = toEpisode(p.episode); return <button key={p.id} type="button" onClick={() => onPlay(toShow(p.episode), ep)} className="text-left"><img src={hiRes(ep.art, 300)} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs leading-tight">{ep.title}</b></button>; })}</div>
           : list.map((p) => <PostCard key={p.id} post={p} api={api} say={say} onPlay={onPlay} onPerson={onPerson} onGone={() => setData((d) => (d ? { ...d, posts: d.posts.filter((x) => x.id !== p.id) } : d))} />)}
       </div>
     </div>}
@@ -172,7 +172,7 @@ export function ShareSheet({ api, say, ep, onLink, onClose, social }: { api: Api
   const post = () => { setBusy(true); api("/api/earshot/social/posts", { method: "POST", body: { episode: postEpisodeOf(ep), caption } }).then(() => { say("Posted to your profile."); onClose(); }).catch((e) => say(e?.needProfile || /profile first/i.test(e?.message || "") ? "Make your profile in the Social tab first." : e.message)).finally(() => setBusy(false)); };
   return <Sheet title="Share" onClose={onClose}>
     <div className="px-4 pb-5">
-      <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5"><img src={hiRes(ep.art, 200)} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-lg object-cover" /><span className="min-w-0"><b className="line-clamp-1 block text-sm">{ep.title}</b><span className="line-clamp-1 block text-xs text-white/55">{ep.show}</span></span></div>
+      <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-2.5"><img src={hiRes(ep.art, 200)} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-lg object-cover" /><span className="min-w-0"><b className="line-clamp-1 text-sm">{ep.title}</b><span className="line-clamp-1 text-xs text-white/55">{ep.show}</span></span></div>
       {social && <><textarea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={280} rows={3} placeholder="Say why it's worth a listen…" className={`${inputCls} mt-3 py-2`} />
         <button type="button" onClick={post} disabled={busy} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-full font-semibold bg-white text-[#111013] disabled:opacity-50"><Send size={17} />{busy ? "Posting…" : "Post to my profile"}</button></>}
       <button type="button" onClick={() => { onClose(); onLink(); }} className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white/10 font-bold"><Share2 size={17} />Send a link</button>
