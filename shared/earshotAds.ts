@@ -88,7 +88,7 @@ export const SPONSOR_BRANDS = [
 ];
 const brandPattern = new RegExp(`\\b(${SPONSOR_BRANDS.map((b) => b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
 
-export type AdHints = { sponsors?: string[]; leadins?: string[]; intro?: string | null; preroll?: number | null; show?: string; title?: string };
+export type AdHints = { sponsors?: string[]; leadins?: string[]; intro?: string | null; preroll?: number | null; show?: string; title?: string; inserted?: boolean };
 
 /** How ad-like one line is: 3+ is a strong sign on its own. */
 export function lineAdScore(text: string, hints: AdHints = {}): number {
@@ -214,6 +214,7 @@ export function adPromptMessage(segs: TxSegment[], scores: number[], hints: AdHi
   if (hints.sponsors?.length) head.push(`This show's sponsors in past episodes: ${hints.sponsors.slice(0, 15).join(", ")}`);
   if (hints.leadins?.length) head.push(`This show's ad breaks often start with: ${hints.leadins.slice(0, 6).map((x) => `"${x}"`).join(", ")}`);
   if (hints.intro) head.push(`After any opening ads, this show's episodes usually begin: "${hints.intro}"`);
+  if (hints.inserted) head.push("Note: this audio is a slot the podcast host fills differently for each listener, so it is usually ads or promos for other shows, perhaps with a few seconds of the show at its very start or end. A promo often opens with a clip from the other show (people talking about its topic) before naming it: mark the whole promo, clip included, from its first line. Leave out only lines that clearly continue this episode.");
   const lines = segs.map((s, i) => `${i + offset}: ${scores[i] >= 2 ? "★ " : ""}${s.t}`);
   return `${head.join("\n")}${head.length ? "\n\n" : ""}${lines.join("\n")}`.slice(0, 70_000);
 }

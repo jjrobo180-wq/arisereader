@@ -360,9 +360,9 @@ export function createDirectory(options: DirectoryOptions = {}) {
     }).catch(() => ({ transcript: null, chapters: "" }));
   }
   /** Ads in a stretch of transcript: phrases, the show's memory, AI cut at the exact word, chapters. */
-  async function analyzeAds(o: { showId: string; showName: string; title?: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean; status?: { aiFailed?: boolean } }): Promise<AdRange[]> {
+  async function analyzeAds(o: { showId: string; showName: string; title?: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean; status?: { aiFailed?: boolean }; inserted?: boolean }): Promise<AdRange[]> {
     const prof = (await profiles.peek(o.showId))?.value ?? null;
-    const hints = { ...profileHints(prof, o.showName), title: o.title };
+    const hints = { ...profileHints(prof, o.showName), title: o.title, inserted: o.inserted };
     const { scores } = phraseBlocks(o.segs, hints);
     const phrase = phraseAds(o.segs, hints);
     let ai: AdRange[] | null = null;
@@ -551,7 +551,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       // Transcribed already, but the AI couldn't read it then: read it again (text only).
       if (redo && done!.value.segments.length) {
         const status: { aiFailed?: boolean } = {};
-        const ads = await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: done!.value.segments, words: (done!.value as any).words ?? [], chapters: [], duration: secs, from: 0, to: secs, opening: false, status });
+        const ads = await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: done!.value.segments, words: (done!.value as any).words ?? [], chapters: [], duration: secs, from: 0, to: secs, opening: false, status, inserted: true });
         return { ...done!.value, ads, aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
       }
       if (budgetLeft() < secs / 60) throw new Error("budget");
@@ -561,7 +561,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const segments = out.segments.map((x) => ({ s: x.start, e: x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: w.start, e: w.end, w: w.word.trim() })).filter((w) => w.w);
       const status: { aiFailed?: boolean } = {};
-      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false, status }) : [];
+      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false, status, inserted: true }) : [];
       return { v: 3, source: "ai", segments, words, ads, chapters: [], chunk: -2, chunkSecs: secs, more: false, pieces: [], aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
     });
     return c.ads;
