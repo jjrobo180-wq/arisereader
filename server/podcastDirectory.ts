@@ -209,15 +209,19 @@ export const openAiJson: AskJson = async (system, user) => {
   const body: any = await res.json().catch(() => null);
   return String(body?.choices?.[0]?.message?.content || "");
 };
+/** Speech to text: Groq's Whisper when GROQ_API_KEY is set (about 9x cheaper and faster), else OpenAI's. */
 export const openAiTranscribe: Transcriber = async (audio, name, prompt) => {
+  const groq = !!process.env.GROQ_API_KEY;
   const form = new FormData();
   form.append("file", audio, name);
-  form.append("model", "whisper-1");
-  if (prompt) form.append("prompt", prompt.slice(0, 800));
+  form.append("model", groq ? (process.env.EARSHOT_GROQ_MODEL || "whisper-large-v3-turbo") : "whisper-1");
+  if (prompt) form.append("prompt", prompt.slice(0, groq ? 400 : 800));
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "segment");
   form.append("timestamp_granularities[]", "word");
-  const res = await openAiCall(() => fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, body: form, signal: AbortSignal.timeout(180_000) }), "transcribe");
+  const url = groq ? "https://api.groq.com/openai/v1/audio/transcriptions" : "https://api.openai.com/v1/audio/transcriptions";
+  const key = groq ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY;
+  const res = await openAiCall(() => fetch(url, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(180_000) }), groq ? "groq transcribe" : "transcribe");
   const body: any = await res.json();
   return {
     segments: (Array.isArray(body?.segments) ? body.segments : []).map((s: any) => ({ start: Number(s.start) || 0, end: Number(s.end) || 0, text: String(s.text || "") })),
