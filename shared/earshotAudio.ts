@@ -178,23 +178,47 @@ export class Mp3Scanner {
 /** A stretch that's the same in two copies: frames a.. in copy A match b.. in copy B, n frames long. */
 export type Run = { a: number; b: number; n: number };
 
+/** Where each k-frame piece of a copy is, when it's there exactly once: a compact open-addressing
+ *  table (a 3-hour copy needs ~16 MB, a Map of the same would need several times that). get() is
+ *  the position, -1 for a piece seen more than once, -2 for one not there. */
+function uniqueKeys(h: Uint32Array, n: number, k: number) {
+  const m = Math.max(0, n - k + 1);
+  let size = 16; while (size < m * 2) size *= 2;
+  const mask = size - 1;
+  const keys = new Uint32Array(size), pos = new Int32Array(size).fill(-2);
+  const slotOf = (x: number) => (Math.imul(x, 0x9e3779b1) >>> 0) & mask;
+  for (let i = 0; i < m; i++) {
+    const x = keyAt(h, i, k);
+    for (let slot = slotOf(x); ; slot = (slot + 1) & mask) {
+      if (pos[slot] === -2) { keys[slot] = x; pos[slot] = i; break; }
+      if (keys[slot] === x) { pos[slot] = -1; break; }
+    }
+  }
+  return {
+    get(x: number): number {
+      for (let slot = slotOf(x); ; slot = (slot + 1) & mask) {
+        const p = pos[slot];
+        if (p === -2) return -2;
+        if (keys[slot] === x) return p;
+      }
+    },
+  };
+}
+
 /** Lines copy A up against copy B: the stretches of identical frames, in order. Stretches are found
  *  from 8-frame pieces that occur once in each copy (silence repeats, speech doesn't), kept only if
  *  they run forward in both copies, then grown frame by frame in both directions, through any
  *  silence the copies share. minRun: shortest stretch kept (40 frames ≈ 1 second). */
 export function alignCopies(A: Uint32Array, nA: number, B: Uint32Array, nB: number, k = 8, minRun = 40): Run[] {
   if (nA < k || nB < k) return [];
-  // Pieces seen once in B (-1: more than once), then the ones also seen once in A.
-  const inB = new Map<number, number>();
-  for (let j = 0; j + k <= nB; j++) { const x = keyAt(B, j, k); inB.set(x, inB.has(x) ? -1 : j); }
-  const inA = new Map<number, number>();
-  for (let i = 0; i + k <= nA; i++) { const x = keyAt(A, i, k); inA.set(x, inA.has(x) ? -1 : i); }
+  // Pieces seen once in B, then the ones also seen once in A.
+  const inB = uniqueKeys(B, nB, k), inA = uniqueKeys(A, nA, k);
   const pa: number[] = [], pb: number[] = [];
   for (let i = 0; i + k <= nA; i++) {
     const x = keyAt(A, i, k);
     if (inA.get(x) !== i) continue;
     const j = inB.get(x);
-    if (j === undefined || j < 0) continue;
+    if (j < 0) continue;
     let same = true; for (let t = 0; t < k; t++) if (A[i + t] !== B[j + t]) { same = false; break; }
     if (same) { pa.push(i); pb.push(j); }
   }
