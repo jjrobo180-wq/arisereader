@@ -533,6 +533,17 @@ export function createDirectory(options: DirectoryOptions = {}) {
       return { ...none("The transcript couldn't be made right now. Try again in a minute."), chapters };
     });
   }
+  /** In a slot the host fills per listener, an ad usually runs from where the inserted material
+   *  begins: the AI often marks only a promo's sign-off, so its start moves back to the longest pause
+   *  (1.5 s or more, within 90 s) before it. */
+  function widenInserted(ads: AdRange[], segs: TxSegment[]): AdRange[] {
+    return ads.map((a) => {
+      const before = segs.filter((g) => g.e <= a.s + 0.3 && g.s >= a.s - 90);
+      let best = -1, gap = 1.5;
+      for (let i = 1; i < before.length; i++) { const p = before[i].s - before[i - 1].e; if (p >= gap) { gap = p; best = i; } }
+      return best < 0 || before[best].s >= a.s ? a : { ...a, s: before[best].s };
+    });
+  }
   /** One stretch of a listener's copy that no read-along piece covers, transcribed and read for ads.
    *  Kept by its fingerprint, so another listener whose copy has the same stretch gets it at once.
    *  Ads come back in seconds from the stretch's start. */
@@ -552,7 +563,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       if (redo && done!.value.segments.length) {
         const status: { aiFailed?: boolean } = {};
         const ads = await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: done!.value.segments, words: (done!.value as any).words ?? [], chapters: [], duration: secs, from: 0, to: secs, opening: false, status, inserted: true });
-        return { ...done!.value, ads, aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
+        return { ...done!.value, ads: widenInserted(ads, done!.value.segments), aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
       }
       if (budgetLeft() < secs / 60) throw new Error("budget");
       if (!audio.size || audio.size > 25_000_000) throw new Error("size");
@@ -562,7 +573,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const words: Word[] = (out.words ?? []).map((w) => ({ s: w.start, e: w.end, w: w.word.trim() })).filter((w) => w.w);
       const status: { aiFailed?: boolean } = {};
       const ads = segments.length ? await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false, status, inserted: true }) : [];
-      return { v: 3, source: "ai", segments, words, ads, chapters: [], chunk: -2, chunkSecs: secs, more: false, pieces: [], aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
+      return { v: 3, source: "ai", segments, words, ads: widenInserted(ads, segments), chapters: [], chunk: -2, chunkSecs: secs, more: false, pieces: [], aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
     });
     return c.ads;
   }
