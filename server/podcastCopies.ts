@@ -105,7 +105,13 @@ export function startCopyDiagnostics(kv: KV, everyMs = 30_000) {
       const uas = (req.uas?.length ? req.uas : ["real", "real", "bot", "bot"]).slice(0, 6);
       for (const ep of req.episodes.slice(0, 12)) {
         const copies: { info: CopyInfo; scanner: Mp3Scanner }[] = [];
-        for (const ua of uas) copies.push(await fetchCopy(ep.url, { ua, signal: AbortSignal.timeout(6 * 60_000), maxBytes: 300 * 1024 * 1024 }));
+        for (const spec of uas) {
+          const [ua, ...opts] = spec.split("|");
+          const xff = opts.find((o) => o.startsWith("xff="))?.slice(4);
+          const c = await fetchCopy(ep.url, { ua, forwardedFor: xff, signal: AbortSignal.timeout(6 * 60_000), maxBytes: 300 * 1024 * 1024 });
+          c.info.ua = spec;
+          copies.push(c);
+        }
         const pairs: any[] = [];
         for (let a = 0; a < copies.length; a++) for (let b = a + 1; b < copies.length; b++) {
           if (!copies[a].scanner.count || !copies[b].scanner.count) continue;
@@ -113,7 +119,11 @@ export function startCopyDiagnostics(kv: KV, everyMs = 30_000) {
         }
         await kv.set(`diag:copies:${ep.id}`, {
           request: req.id, at: new Date().toISOString(), url: shortUrl(ep.url),
-          copies: copies.map((c) => ({ ...c.info, finalUrl: shortUrl(c.info.finalUrl) })), pairs,
+          copies: copies.map((c) => ({
+            ...c.info, finalUrl: shortUrl(c.info.finalUrl),
+            joins: c.scanner.joins.slice(0, 250).map((j) => [round(j.t), j.kind, j.bytes ?? j.frames ?? (j.from !== undefined ? `${j.from}>${j.to}` : null), j.enc ?? null]),
+            joinCount: c.scanner.joins.length,
+          })), pairs,
         });
       }
       await kv.set("diag:copies:done", { id: req.id, finished: new Date().toISOString() });

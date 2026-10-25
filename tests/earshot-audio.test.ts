@@ -85,3 +85,14 @@ test("silence that repeats all through a show doesn't throw the line-up off", ()
   ok(adsA[1].e >= midEnd - 60 * FD - 1e-6 && adsA[1].e <= midEnd + 75 * FD + 1e-6, "mid-roll ends in the silence");
   ok(coverage(runs, "a", A.count, (i) => A.timeOf(i)) > 0.7, "most of copy A is shared");
 });
+
+test("the reader notes where a copy was stitched together", () => {
+  const info = (count: number) => { const f = frames(1, 31)[0]; f.fill(0, 4); f.set([0x49, 0x6e, 0x66, 0x6f, 0, 0, 0, 1, (count >>> 24) & 255, (count >>> 16) & 255, (count >>> 8) & 255, count & 255], 36); f.set([0x4c, 0x41, 0x4d, 0x45, 0x33, 0x2e, 0x31, 0x30, 0x30], 156); return f; };
+  const mono = (n: number, seed: number) => frames(n, seed).map((f) => { f[3] = 0xc0; return f; });
+  const bytes = join([id3(5000), ...frames(500, 32), id3(1200), info(300), ...mono(300, 33), ...frames(400, 34)]);
+  const sc = scan(bytes, 35);
+  const kinds = sc.joins.map((j) => `${j.i}:${j.kind}`);
+  assert.deepEqual(kinds, ["0:id3", "500:id3", "500:info", "501:shape", "801:shape"], kinds.join(","));
+  assert.equal(sc.joins[2].frames, 300, "the info frame says how long its piece is");
+  assert.equal(sc.joins[2].enc, "LAME3.100");
+});

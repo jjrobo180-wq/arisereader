@@ -12,8 +12,9 @@
 const BITRATES = { 1: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], 2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160] } as const;
 const RATES = { 1: [44100, 48000, 32000], 2: [22050, 24000, 16000], 25: [11025, 12000, 8000] } as const;
 
-type Header = { len: number; dur: number; kbps: number; rate: number };
-/** An MP3 (Layer III) frame header at b[i], or null. */
+type Header = { len: number; dur: number; kbps: number; rate: number; v: 1 | 2 | 25; mono: boolean; crc: boolean; shape: number };
+/** An MP3 (Layer III) frame header at b[i], or null. shape: the header fields that stay the same
+ *  through one encoding (version, sample rate, channel mode, copyright/original, emphasis, CRC). */
 export function frameHeader(b: Uint8Array, i: number): Header | null {
   if (i + 4 > b.length || b[i] !== 0xff || (b[i + 1] & 0xe0) !== 0xe0) return null;
   const vb = (b[i + 1] >> 3) & 3, lb = (b[i + 1] >> 1) & 3, bi = b[i + 2] >> 4, si = (b[i + 2] >> 2) & 3;
@@ -22,7 +23,27 @@ export function frameHeader(b: Uint8Array, i: number): Header | null {
   const kbps = BITRATES[v === 1 ? 1 : 2][bi], rate = RATES[v][si], pad = (b[i + 2] >> 1) & 1;
   const spf = v === 1 ? 1152 : 576;
   const len = Math.floor(((v === 1 ? 144 : 72) * kbps * 1000) / rate) + pad;
-  return len > 4 ? { len, dur: spf / rate, kbps, rate } : null;
+  const mode = b[i + 3] >> 6;
+  const shape = (vb << 12) | (si << 10) | (mode << 8) | ((b[i + 1] & 1) << 4) | (b[i + 3] & 0x0f);
+  return len > 4 ? { len, dur: spf / rate, kbps, rate, v, mono: mode === 3, crc: (b[i + 1] & 1) === 0, shape } : null;
+}
+
+/** Signs that a copy was stitched together at a frame: a tag or stray bytes between frames, an
+ *  encoder's info frame, a change of sample rate / channel mode / header flags, or of a steady bitrate. */
+export type Join = { i: number; t: number; kind: "id3" | "junk" | "info" | "shape" | "kbps"; bytes?: number; frames?: number; enc?: string; from?: number; to?: number };
+const ascii = (b: Uint8Array, at: number, n: number) => { let s = ""; for (let k = 0; k < n && at + k < b.length; k++) s += String.fromCharCode(b[at + k]); return s; };
+/** An encoder info frame (Xing/Info/VBRI): its own frame count and encoder name, or null. */
+function infoFrame(b: Uint8Array, i: number, h: Header, end: number): { frames?: number; enc?: string } | null {
+  const side = h.v === 1 ? (h.mono ? 17 : 32) : (h.mono ? 9 : 17);
+  const at = i + 4 + (h.crc ? 2 : 0) + side;
+  const tag = ascii(b, at, 4);
+  let frames: number | undefined;
+  if (tag === "Xing" || tag === "Info") { if (b[at + 7] & 1) frames = ((b[at + 8] << 24) | (b[at + 9] << 16) | (b[at + 10] << 8) | b[at + 11]) >>> 0; }
+  else if (ascii(b, i + 36, 4) === "VBRI") frames = ((b[i + 50] << 24) | (b[i + 51] << 16) | (b[i + 52] << 8) | b[i + 53]) >>> 0;
+  else return null;
+  let enc: string | undefined;
+  for (let k = at; k + 4 <= end; k++) { const w = ascii(b, k, 4); if (w === "LAME" || w === "Lavc" || w === "Lavf" || w === "GOGO") { enc = ascii(b, k, 9).replace(/[^\x20-\x7e]/g, ""); break; } }
+  return { frames, enc };
 }
 const isTag = (b: Uint8Array, i: number) => i + 3 <= b.length && ((b[i] === 0x54 && b[i + 1] === 0x41 && b[i + 2] === 0x47) || (b[i] === 0x49 && b[i + 1] === 0x44 && b[i + 2] === 0x33) || (b[i] === 0x41 && b[i + 1] === 0x50 && b[i + 2] === 0x45));
 
@@ -44,7 +65,14 @@ export class Mp3Scanner {
   /** Bytes that weren't part of a frame (tags, junk). */
   junk = 0;
   kbps = 0; rate = 0;
+  /** Where the copy looks stitched together (first 3000). */
+  joins: Join[] = [];
   private buf = new Uint8Array(0);
+  private lastShape = -1;
+  private runKbps = 0;
+  private runLen = 0;
+  private pendingJunk = 0;
+  private pendingTag = 0;
   private bufStart = 0;
   private skipUntil = 0;
   private id3Checked = false;
@@ -59,6 +87,8 @@ export class Mp3Scanner {
   end() { this.parse(true); }
   /** Total bytes handed in so far. */
   get bytes() { return this.bufStart + this.buf.length; }
+
+  private join(j: Omit<Join, "i" | "t">) { if (this.joins.length < 3000) this.joins.push({ i: this.count, t: Math.round(this.time * 1000) / 1000, ...j }); }
 
   private add(hash: number, off: number, dur: number) {
     if (this.count === this.hashes.length) {
@@ -85,7 +115,7 @@ export class Mp3Scanner {
       const abs = this.bufStart + i;
       if (abs < this.skipUntil) {
         const n = Math.min(b.length - i, this.skipUntil - abs);
-        i += n; this.junk += n;
+        i += n; this.junk += n; this.pendingTag += n;
         if (this.bufStart + i < this.skipUntil) break;
         continue;
       }
@@ -97,14 +127,22 @@ export class Mp3Scanner {
           this.skipUntil = this.bufStart + i + 10 + ((b[i + 6] & 0x7f) << 21 | (b[i + 7] & 0x7f) << 14 | (b[i + 8] & 0x7f) << 7 | (b[i + 9] & 0x7f));
           continue;
         }
-        i++; this.junk++; continue;
+        i++; this.junk++; this.pendingJunk++; continue;
       }
       if (i + h.len > b.length) { if (final) { this.junk += b.length - i; i = b.length; } break; }
       // Check that another frame (or a tag, or the end) follows, so stray 0xFF bytes aren't taken for frames.
       const next = i + h.len;
       if (next + 4 > b.length) { if (!final) break; }
-      else if (!frameHeader(b, next) && !isTag(b, next)) { i++; this.junk++; continue; }
+      else if (!frameHeader(b, next) && !isTag(b, next)) { i++; this.junk++; this.pendingJunk++; continue; }
       if (!this.kbps) { this.kbps = h.kbps; this.rate = h.rate; }
+      // Signs of a join, noted at this frame.
+      if (this.pendingTag) { this.join({ kind: "id3", bytes: this.pendingTag }); this.pendingTag = 0; }
+      if (this.pendingJunk) { this.join({ kind: "junk", bytes: this.pendingJunk }); this.pendingJunk = 0; }
+      const info = infoFrame(b, i, h, next);
+      if (info) this.join({ kind: "info", ...info });
+      if (this.lastShape >= 0 && h.shape !== this.lastShape) this.join({ kind: "shape", from: this.lastShape, to: h.shape });
+      this.lastShape = h.shape;
+      if (h.kbps !== this.runKbps) { if (this.runLen >= 40) this.join({ kind: "kbps", from: this.runKbps, to: h.kbps }); this.runKbps = h.kbps; this.runLen = 1; } else this.runLen++;
       this.add(hashBytes(b, i + 4, next), this.bufStart + i, h.dur);
       i = next;
     }
