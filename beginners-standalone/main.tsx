@@ -287,6 +287,8 @@ function App() {
         </form>
         {entryError&&<p role="alert" className="form-error">{entryError}</p>}
         <p className="device-note"><LockKeyhole size={15}/> Separate from A.R.I.S.E. Reader. This starter version stores your nickname and progress only on this browser, not in an online account.</p>
+        {/* Beginners now also lives inside A.R.I.S.E. Reader, with the same account, leaderboard, points and prizes. */}
+        <a className="reader-move" href="https://www.arisereader.com/#/beginners"><Sparkles size={18}/><span><strong>New: Beginners is part of A.R.I.S.E. Reader.</strong> Sign in with your Reader account to read to Ari, earn points on the same leaderboard and win the same prizes.</span><ArrowRight size={18}/></a>
       </div>
     </section>
   </div>;
