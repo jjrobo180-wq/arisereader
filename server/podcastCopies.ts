@@ -13,6 +13,9 @@ import type { KV } from "./podcastDirectory";
  *  that follow podcast measurement rules don't count them as listens or charge advertisers. */
 export const COPY_AGENTS: Record<string, string> = {
   bot: "Mozilla/5.0 (compatible; AriseEarshotBot/1.0; +https://arisetodo.com)",
+  bot2: "AriseEarshotBot/1.1 (podcast ad finder; +https://arisetodo.com)",
+  bot3: "Mozilla/5.0 (Linux; compatible; AriseEarshotBot/1.2; +https://arisetodo.com)",
+  bot4: "AriseEarshotBot/1.3 (+https://arisetodo.com/bot)",
   real: "AppleCoreMedia/1.0.0.22A3354 (iPhone; U; CPU OS 18_0 like Mac OS X; en_us)",
   browser: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
   app: "Arise-Earshot/1.0 (arisetodo.com)",
@@ -88,6 +91,28 @@ export function compareCopies(x: Mp3Scanner, y: Mp3Scanner) {
   };
 }
 
+/** Diagnostics: where the padding rhythm of a steady-bitrate stretch breaks (an encoder restarting).
+ *  Within one encoding, the gaps between unpadded frames take two neighbouring values; a gap outside
+ *  them is noted with its time, plus how many frames start with an empty bit reservoir. */
+function padBreaks(sc: Mp3Scanner) {
+  const gaps = new Map<number, number>();
+  let last = -1, lastRate = -1;
+  const unpadded: number[] = [];
+  for (let i = 0; i < sc.count; i++) {
+    const f = sc.flags[i];
+    if ((f & 0xf0) !== lastRate) { lastRate = f & 0xf0; last = -1; }
+    if (!(f & 1)) { if (last >= 0) gaps.set(i - last, (gaps.get(i - last) || 0) + 1); unpadded.push(i); last = i; }
+  }
+  const common = [...gaps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map((x) => x[0]);
+  const breaks: [number, number][] = [];
+  for (let k = 1; k < unpadded.length && breaks.length < 300; k++) {
+    const g = unpadded[k] - unpadded[k - 1];
+    if (!common.includes(g)) breaks.push([round(sc.timeOf(unpadded[k])), g]);
+  }
+  let mdb0 = 0; for (let i = 0; i < sc.count; i++) if (sc.flags[i] & 2) mdb0++;
+  return { common, unpadded: unpadded.length, mdb0, breaks };
+}
+
 type DiagRequest = { id: string; uas?: string[]; episodes: { id: string; url: string }[] };
 
 /** Checks for a diagnostics request now and then; runs each request once. */
@@ -122,6 +147,7 @@ export function startCopyDiagnostics(kv: KV, everyMs = 30_000) {
           copies: copies.map((c) => ({
             ...c.info, finalUrl: shortUrl(c.info.finalUrl),
             joins: c.scanner.joins.slice(0, 250).map((j) => [round(j.t), j.kind, j.bytes ?? j.frames ?? (j.from !== undefined ? `${j.from}>${j.to}` : null), j.enc ?? null]),
+            pads: padBreaks(c.scanner),
             joinCount: c.scanner.joins.length,
           })), pairs,
         });

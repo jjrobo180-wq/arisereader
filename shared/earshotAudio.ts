@@ -59,6 +59,8 @@ export class Mp3Scanner {
   hashes = new Uint32Array(8192);
   offsets = new Float64Array(8192);
   starts = new Float64Array(8192);
+  /** Per frame: bit 0 padded, bit 1 its bit reservoir starts empty (main_data_begin 0), bits 4-7 bitrate index. */
+  flags = new Uint8Array(8192);
   count = 0;
   /** Seconds of audio scanned so far. */
   time = 0;
@@ -90,15 +92,22 @@ export class Mp3Scanner {
 
   private join(j: Omit<Join, "i" | "t">) { if (this.joins.length < 3000) this.joins.push({ i: this.count, t: Math.round(this.time * 1000) / 1000, ...j }); }
 
-  private add(hash: number, off: number, dur: number) {
+  private add(hash: number, off: number, dur: number, flag: number) {
     if (this.count === this.hashes.length) {
       const n = this.hashes.length * 2;
       const h = new Uint32Array(n); h.set(this.hashes); this.hashes = h;
       const o = new Float64Array(n); o.set(this.offsets); this.offsets = o;
       const s = new Float64Array(n); s.set(this.starts); this.starts = s;
+      const f = new Uint8Array(n); f.set(this.flags); this.flags = f;
     }
-    this.hashes[this.count] = hash; this.offsets[this.count] = off; this.starts[this.count] = this.time;
+    this.hashes[this.count] = hash; this.offsets[this.count] = off; this.starts[this.count] = this.time; this.flags[this.count] = flag;
     this.count++; this.time += dur;
+  }
+  /** Trims the arrays to what's used (once a copy is complete). */
+  compact() {
+    const n = this.count;
+    this.hashes = this.hashes.slice(0, n); this.offsets = this.offsets.slice(0, n); this.starts = this.starts.slice(0, n); this.flags = this.flags.slice(0, n);
+    this.buf = new Uint8Array(0);
   }
 
   private parse(final: boolean) {
@@ -143,7 +152,9 @@ export class Mp3Scanner {
       if (this.lastShape >= 0 && h.shape !== this.lastShape) this.join({ kind: "shape", from: this.lastShape, to: h.shape });
       this.lastShape = h.shape;
       if (h.kbps !== this.runKbps) { if (this.runLen >= 40) this.join({ kind: "kbps", from: this.runKbps, to: h.kbps }); this.runKbps = h.kbps; this.runLen = 1; } else this.runLen++;
-      this.add(hashBytes(b, i + 4, next), this.bufStart + i, h.dur);
+      const si = i + 4 + (h.crc ? 2 : 0);
+      const mdb = h.v === 1 ? ((b[si] << 1) | (b[si + 1] >> 7)) : b[si];
+      this.add(hashBytes(b, i + 4, next), this.bufStart + i, h.dur, ((b[i + 2] >> 1) & 1) | (mdb === 0 ? 2 : 0) | (b[i + 2] & 0xf0));
       i = next;
     }
     this.buf = b.slice(i);
