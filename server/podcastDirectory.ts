@@ -190,7 +190,7 @@ async function openAiCall(send: () => Promise<Response>, what: string): Promise<
     const body: any = await res.json().catch(() => null);
     const code = String(body?.error?.code || body?.error?.type || "");
     if (res.status === 429 && Date.now() - lastSaid > 5 * 60_000) { lastSaid = Date.now(); console.warn(`[earshot] OpenAI ${what} 429: ${code} ${String(body?.error?.message || "").slice(0, 300)} | limit-requests=${res.headers.get("x-ratelimit-limit-requests")} remaining-requests=${res.headers.get("x-ratelimit-remaining-requests")} reset=${res.headers.get("x-ratelimit-reset-requests")}`); }
-    if (res.status === 429 && /quota|billing/i.test(code)) throw new Error("quota");
+    if (res.status === 429 && /quota|billing|credit/i.test(code)) throw new Error("quota");
     if ((res.status === 429 || res.status >= 500) && tryNo < 2) {
       const wait = Math.min(8, Number(res.headers.get("retry-after")) || 1.5 * (tryNo + 1));
       await new Promise((r) => setTimeout(r, wait * 1000));

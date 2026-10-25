@@ -124,7 +124,7 @@ type Session = {
   opening?: "running" | "done";
   /** Stretches of this copy's show audio no read-along piece covers (an ad the host gave this copy and
    *  the comparison copies alike, where the piece's copy had another), read on their own for ads. */
-  gaps?: { running: boolean; done: Set<string>; secs: number; ads: PlayAd[]; errors: string[] };
+  gaps?: { running: boolean; done: Set<string>; secs: number; ads: PlayAd[]; errors: string[]; retryAt?: number };
 };
 /** Reads one stretch of a copy (transcribed and checked for ads, kept for everyone by its fingerprint);
  *  its ads in seconds from the stretch's start. */
@@ -438,14 +438,20 @@ export function createPlayer(o: PlayOptions = {}) {
   async function readGaps(s: Session, chunks: { pieces: AnchorPiece[]; more?: boolean }[], read: GapReader) {
     if (!s.copy.done || !s.ads.final || !s.copy.scanner.count) return;
     const g = (s.gaps ??= { running: false, done: new Set(), secs: 0, ads: [], errors: [] });
-    if (g.running) return;
-    g.running = true;
+    if (g.running || (g.retryAt && now() < g.retryAt)) return;
+    g.running = true; g.retryAt = undefined;
     try {
       for (const sp of uncovered(s, chunks)) {
         const id = `${Math.round(sp.s)}-${Math.round(sp.e)}`, len = sp.e - sp.s;
         if (g.done.has(id) || g.secs + len > 1200 || !sessions.has(s.id)) continue;
         g.done.add(id); g.secs += len;
-        const ads = await read(sp.fp, await extractCopy(s, sp.s, sp.e), len).catch((x: any) => { g.errors = [...g.errors, String(x?.message || x).slice(0, 200)].slice(-3); return null; });
+        const ads = await read(sp.fp, await extractCopy(s, sp.s, sp.e), len).catch((x: any) => {
+          g.errors = [...g.errors, String(x?.message || x).slice(0, 200)].slice(-3);
+          // The AI couldn't be reached (busy, out of credit): tried again on a later look.
+          g.done.delete(id); g.secs -= len; g.retryAt = now() + 2 * 60_000;
+          return null;
+        });
+        if (!ads && g.errors.length) break;
         for (const r of ads ?? []) {
           // Edges near the stretch's own edges are its edges (the show, or a known ad, is right there).
           let a = sp.s + r.s, b = sp.s + r.e;
