@@ -7,7 +7,10 @@
 // kind holds and who may change it; the server (server/paraTeam.ts) uses it on every write and
 // the screens (client/src/pages/ParaTeam.tsx) use it to show only the buttons that will work.
 
-export const PARA_KINDS = ["message", "event", "task", "schedule", "student", "log", "lesson", "link", "file", "note", "bulletin"] as const;
+import { cleanFamily, type Family } from "./familyHub";
+import { DEFAULT_PERMS, permForKind, type ParaPerms, type ParaSettings } from "./paraApps";
+
+export const PARA_KINDS = ["message", "event", "task", "schedule", "student", "log", "lesson", "link", "file", "note", "bulletin", "hub"] as const;
 export type ParaKind = (typeof PARA_KINDS)[number];
 export type ParaRole = "lead" | "para";
 export const isParaKind = (k: unknown): k is ParaKind => typeof k === "string" && (PARA_KINDS as readonly string[]).includes(k);
@@ -17,14 +20,17 @@ export const isParaKind = (k: unknown): k is ParaKind => typeof k === "string" &
 export const LEAD_ONLY: readonly ParaKind[] = ["student", "schedule", "note"];
 /** Made only by uploading (the server fills them in), never typed. */
 export const UPLOAD_ONLY: readonly ParaKind[] = ["file"];
+/** The team apps' shared data (shared/paraApps.ts): one per team, saved only through its own
+ *  route (PATCH …/apps/data), never added, changed or deleted as an ordinary item. */
+export const SYSTEM_KINDS: readonly ParaKind[] = ["hub"];
 
 /** The most of each kind one team keeps. Plenty for a school year; stops a runaway script. */
 export const KIND_LIMIT: Record<ParaKind, number> = {
-  message: 20000, event: 3000, task: 3000, schedule: 400, student: 120, log: 50000, lesson: 3000, link: 1000, file: 2000, note: 300, bulletin: 3000,
+  message: 20000, event: 3000, task: 3000, schedule: 400, student: 120, log: 50000, lesson: 3000, link: 1000, file: 2000, note: 300, bulletin: 3000, hub: 1,
 };
 /** How many of the newest of each kind the app loads at once (older messages and data stay saved). */
 export const KIND_LOAD: Record<ParaKind, number> = {
-  message: 400, event: 3000, task: 3000, schedule: 400, student: 120, log: 4000, lesson: 3000, link: 1000, file: 2000, note: 300, bulletin: 500,
+  message: 400, event: 3000, task: 3000, schedule: 400, student: 120, log: 4000, lesson: 3000, link: 1000, file: 2000, note: 300, bulletin: 500, hub: 1,
 };
 
 export const DOC_FOLDERS = ["IEPs & plans", "Schedules", "Behavior", "Curriculum", "Forms", "Bulletin board", "Other"] as const;
@@ -65,7 +71,7 @@ export const isImageType = (contentType: string) => /^image\//i.test(contentType
 
 export type ParaData = {
   message: MessageData; event: EventData; task: TaskData; schedule: ScheduleData; student: StudentData;
-  log: LogData; lesson: LessonData; link: LinkData; file: FileData; note: NoteData; bulletin: BulletinData;
+  log: LogData; lesson: LessonData; link: LinkData; file: FileData; note: NoteData; bulletin: BulletinData; hub: Family;
 };
 
 export type ParaItem<K extends ParaKind = ParaKind> = { id: string; kind: K; data: ParaData[K]; createdBy: number | null; createdAt: string; updatedAt: string };
@@ -77,6 +83,9 @@ export type ParaTeamView = {
   invite: { code: string; on: boolean } | null;
   members: ParaMember[];
   items: ParaItem[];
+  /** What paras may change and which apps the team has (shared/paraApps.ts). Everyone gets these;
+   *  only the owner changes the permissions. */
+  settings: ParaSettings;
 };
 
 // ─── cleaning ─────────────────────────────────────────────────────────────────────────────────
@@ -215,6 +224,8 @@ export function cleanItemData<K extends ParaKind>(kind: K, raw: unknown): CleanR
       if (until && until < from) return no("The last day can't be before the first day.");
       return ok({ title, body, from, until, color: oneOf(r.color, BULLETIN_COLORS, "yellow"), important: r.important === true, links, files });
     }
+    case "hub":
+      return ok(cleanFamily(r));
   }
   return no("That isn't something a Para Team keeps.");
 }
@@ -222,12 +233,14 @@ export function cleanItemData<K extends ParaKind>(kind: K, raw: unknown): CleanR
 // ─── who may do what ──────────────────────────────────────────────────────────────────────────
 
 /** May this person add an item of this kind? Leads add anything; paras everything but the lead's plan. */
-export const canAdd = (role: ParaRole, kind: ParaKind): boolean => !UPLOAD_ONLY.includes(kind) && (role === "lead" || !LEAD_ONLY.includes(kind));
+export const canAdd = (role: ParaRole, kind: ParaKind): boolean => !UPLOAD_ONLY.includes(kind) && !SYSTEM_KINDS.includes(kind) && (role === "lead" || !LEAD_ONLY.includes(kind));
 
-/** May this person change or delete this item? Leads: anything. Paras: what they made themselves
- *  (never the lead's plan). */
-export const canEdit = (role: ParaRole, me: number, item: { kind: ParaKind; createdBy: number | null }): boolean =>
-  role === "lead" || (!LEAD_ONLY.includes(item.kind) && item.createdBy === me);
+/** May this person change or delete this item? Leads: anything. Paras: what they made themselves,
+ *  and other people's too where the team's owner has switched that on in Team › Permissions
+ *  (bulletins are on out of the box). Never the lead's plan, and never the apps' shared data,
+ *  which has its own route. */
+export const canEdit = (role: ParaRole, me: number, item: { kind: ParaKind; createdBy: number | null }, perms: ParaPerms = DEFAULT_PERMS): boolean =>
+  !SYSTEM_KINDS.includes(item.kind) && (role === "lead" || (!LEAD_ONLY.includes(item.kind) && (item.createdBy === me || permForKind(perms, item.kind))));
 
 /** A para may tick off a to-do that is theirs or everyone's, even one the teacher made. */
 export const canCheckOff = (me: number, task: TaskData): boolean => task.assignee === 0 || task.assignee === me;

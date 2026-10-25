@@ -25,7 +25,7 @@ create index if not exists para_team_members_user_idx on public.para_team_member
 create table if not exists public.para_team_items (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references public.para_teams(id) on delete cascade,
-  kind text not null check (kind in ('message', 'event', 'task', 'schedule', 'student', 'log', 'lesson', 'link', 'file', 'note', 'bulletin')),
+  kind text not null check (kind in ('message', 'event', 'task', 'schedule', 'student', 'log', 'lesson', 'link', 'file', 'note', 'bulletin', 'hub')),
   data jsonb not null default '{}'::jsonb,
   created_by integer references public.users(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -45,3 +45,10 @@ grant select, insert, update, delete on table public.para_teams, public.para_tea
 alter table public.para_team_items drop constraint if exists para_team_items_kind_check;
 alter table public.para_team_items add constraint para_team_items_kind_check
   check (kind in ('message', 'event', 'task', 'schedule', 'student', 'log', 'lesson', 'link', 'file', 'note', 'bulletin'));
+
+-- Team permissions and team apps (added Oct 24, 2026): the owner's switches and the team's App Store
+-- apps live on the team; the apps' shared data is one 'hub' item (shared/paraApps.ts).
+alter table public.para_teams add column if not exists settings jsonb not null default '{}'::jsonb;
+alter table public.para_team_items drop constraint if exists para_team_items_kind_check;
+alter table public.para_team_items add constraint para_team_items_kind_check
+  check (kind in ('message', 'event', 'task', 'schedule', 'student', 'log', 'lesson', 'link', 'file', 'note', 'bulletin', 'hub'));

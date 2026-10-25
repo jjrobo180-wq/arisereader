@@ -8,6 +8,8 @@ import {
   bulletinUp, bulletinsOn, canAdd, canCheckOff, canEdit, cleanItemData, cleanUrl, eventsOn, goalSummary, isInviteCode, logsCsv, makeInviteCode, scheduleOn, sortTasks, weekEnd,
   type ParaItem,
 } from "../shared/paraTeam";
+import { DEFAULT_PERMS, PERM_KEYS, applyFamilyPatch, cleanSettings, diffFamily, paraApp, paraApps } from "../shared/paraApps";
+import { emptyFamily } from "../shared/familyHub";
 import { registerParaTeamRoutes, uploadExtension, type ItemRow, type MemberRow, type ParaDb, type TeamRow } from "../server/paraTeam";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -329,4 +331,111 @@ test("the bulletin board is a tab and shows on Today", () => {
   assert.match(page, /section === "bulletin" && <BulletinSection/);
   assert.match(read("client/src/components/para-team/DaySections.tsx"), /bulletinsOn\(team\.items, today\)/);
   assert.match(read("migrations/para_teams.sql"), /'note', 'bulletin'\)/);
+});
+
+// ─── permissions and team apps ───
+
+test("permissions: paras edit anyone's bulletins out of the box; the owner opens up more", () => {
+  const theirs = { kind: "bulletin" as const, createdBy: 6 };
+  assert.equal(canEdit("para", 5, theirs), true, "bulletins are everyone's by default");
+  assert.equal(canEdit("para", 5, theirs, { ...DEFAULT_PERMS, bulletins: false }), false);
+  assert.equal(canEdit("para", 5, { kind: "event", createdBy: 6 }), false);
+  assert.equal(canEdit("para", 5, { kind: "event", createdBy: 6 }, { ...DEFAULT_PERMS, calendar: true }), true);
+  assert.equal(canEdit("para", 5, { kind: "file", createdBy: 6 }, { ...DEFAULT_PERMS, docs: true }), true);
+  assert.equal(canEdit("para", 5, { kind: "student", createdBy: 6 }, Object.fromEntries(PERM_KEYS.map((k) => [k, true])) as any), false, "never the lead's plan");
+  assert.equal(canEdit("lead", 1, { kind: "hub", createdBy: 1 }), false, "the apps' data has its own route");
+  assert.equal(canAdd("lead", "hub"), false);
+  const s = cleanSettings({ perms: { calendar: true, nonsense: true, bulletins: "yes" }, apps: ["polls", "polls", "not-an-app", 7] });
+  assert.equal(s.perms.calendar, true);
+  assert.equal(s.perms.bulletins, true, "a bad value keeps the default");
+  assert.ok(!("nonsense" in s.perms));
+  assert.deepEqual(s.apps, ["polls"]);
+});
+
+test("the Para App Store has the whole Arise App Store: LifeHub apps, every kit app and Office", () => {
+  const all = paraApps();
+  const kinds = all.reduce<Record<string, number>>((m, a) => ({ ...m, [a.kind]: (m[a.kind] || 0) + 1 }), {});
+  assert.ok(all.length > 500, `only ${all.length} apps`);
+  assert.ok(kinds.section > 50 && kinds.kit > 300 && kinds.office > 50, JSON.stringify(kinds));
+  assert.equal(new Set(all.map((a) => a.key)).size, all.length, "each app once");
+  assert.ok(paraApp("polls"), "Polls is there");
+  for (const personal of ["home", "tasks", "reader", "notifications", "linked", "lifeplan"]) assert.equal(paraApp(personal), undefined, personal);
+  // Every LifeHub screen it offers can open in a team (LIFE_VIEWS, or the two handled by name).
+  const views = read("client/src/components/family-hub/lifeApps.tsx");
+  for (const a of all.filter((x) => x.kind === "section")) {
+    assert.ok(a.target === "calendar" || a.target === "browser" || new RegExp(`\\n  ${a.target}: `).test(views), `${a.key} has no screen`);
+  }
+});
+
+test("team apps save only what changed, and two people's additions both survive", () => {
+  const base = emptyFamily();
+  const poll = (id: string, q: string) => ({ id, question: q, options: [], votes: [], closed: false, createdAt: "2026-10-20" });
+  const a = { ...base, polls: [poll("p1", "Lunch?")] as any, weather: { place: "Austin", unit: "F" as const } };
+  const patch = diffFamily(base, a)!;
+  assert.deepEqual(Object.keys(patch.lists || {}), ["polls"]);
+  assert.deepEqual(Object.keys(patch.set || {}), ["weather"]);
+  assert.equal(diffFamily(a, { ...a, members: [{ id: "x", name: "x", emoji: "", color: "#000", kind: "adult" }] }), null, "the team list isn't saved");
+  // Stored already has someone else's poll the saver never saw.
+  const stored = applyFamilyPatch(applyFamilyPatch({}, diffFamily(base, { ...base, polls: [poll("p0", "Field trip?")] as any })), patch);
+  assert.deepEqual((stored.polls as any[]).map((p) => p.id), ["p1", "p0"]);
+  const removed = applyFamilyPatch(stored, diffFamily(a, { ...a, polls: [] })!);
+  assert.deepEqual((removed.polls as any[]).map((p) => p.id), ["p0"], "only what they deleted goes");
+  assert.equal("lock" in applyFamilyPatch({}, { set: { lock: { code: "1" } } }), false);
+});
+
+test("routes: owner-only permissions, the team's apps list, and shared app data", async () => {
+  const { call, mem } = server();
+  const team = (await call("POST", "/api/para-teams", 1, { name: "Room 7" })).body;
+  await call("POST", "/api/para-teams/join/:code", 2, {}, { code: team.invite.code });
+  await call("POST", "/api/para-teams/join/:code", 3, {}, { code: team.invite.code });
+  const id = { teamId: team.id };
+  assert.deepEqual(team.settings, cleanSettings(null));
+
+  // A para's bulletin, taken down by another para (allowed by default).
+  const b = (await call("POST", "/api/para-teams/:teamId/items", 2, { kind: "bulletin", data: { title: "Picture day", from: "2026-10-20" } }, id)).body;
+  assert.equal((await call("PATCH", "/api/para-teams/:teamId/items/:itemId", 3, { data: { title: "Picture day moved" } }, { ...id, itemId: b.id })).status, 200);
+  const ev = (await call("POST", "/api/para-teams/:teamId/items", 2, { kind: "event", data: { title: "IEP", date: "2026-10-21" } }, id)).body;
+  assert.equal((await call("DELETE", "/api/para-teams/:teamId/items/:itemId", 3, {}, { ...id, itemId: ev.id })).status, 403);
+
+  // Only the owner sets permissions, even a lead can't.
+  await call("PATCH", "/api/para-teams/:teamId/members/:userId", 1, { role: "lead" }, { ...id, userId: 3 });
+  assert.equal((await call("PATCH", "/api/para-teams/:teamId/settings", 3, { perms: { calendar: true } }, id)).status, 403);
+  await call("PATCH", "/api/para-teams/:teamId/members/:userId", 1, { role: "para" }, { ...id, userId: 3 });
+  const opened = await call("PATCH", "/api/para-teams/:teamId/settings", 1, { perms: { calendar: true, bulletins: false } }, id);
+  assert.equal(opened.body.settings.perms.calendar, true);
+  assert.equal((await call("DELETE", "/api/para-teams/:teamId/items/:itemId", 3, {}, { ...id, itemId: ev.id })).status, 200);
+  assert.equal((await call("DELETE", "/api/para-teams/:teamId/items/:itemId", 3, {}, { ...id, itemId: b.id })).status, 403, "bulletins switched off");
+
+  // Apps: leads add them; paras only when the owner allows.
+  assert.equal((await call("PATCH", "/api/para-teams/:teamId/settings", 2, { apps: ["polls"] }, id)).status, 403);
+  assert.deepEqual((await call("PATCH", "/api/para-teams/:teamId/settings", 1, { apps: ["polls", "kit:field-trips", "bogus"] }, id)).body.settings.apps, ["polls", "kit:field-trips"]);
+  await call("PATCH", "/api/para-teams/:teamId/settings", 1, { perms: { appsAdd: true } }, id);
+  assert.equal((await call("PATCH", "/api/para-teams/:teamId/settings", 2, { apps: ["polls"] }, id)).status, 200);
+
+  // Shared data: two paras' changes merge; look-only blocks changes.
+  const poll = (pid: string) => ({ id: pid, question: `Q ${pid}`, options: [{ id: "o1", label: "Yes" }], votes: {}, closed: false, createdAt: "2026-10-20" });
+  const saved = await call("PATCH", "/api/para-teams/:teamId/apps/data", 2, { patch: { lists: { polls: { order: ["a"], upsert: [poll("a")], remove: [] } } } }, id);
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.kind, "hub");
+  await call("PATCH", "/api/para-teams/:teamId/apps/data", 3, { patch: { lists: { polls: { order: ["b"], upsert: [poll("b")], remove: [] } } } }, id);
+  const hub = mem.all().filter((i) => i.kind === "hub");
+  assert.equal(hub.length, 1, "one shared store per team");
+  assert.deepEqual(hub[0].data.polls.map((p: any) => p.id).sort(), ["a", "b"]);
+  assert.equal((await call("PATCH", "/api/para-teams/:teamId/items/:itemId", 1, { data: {} }, { ...id, itemId: hub[0].id })).status, 400, "not through the item routes");
+  await call("PATCH", "/api/para-teams/:teamId/settings", 1, { perms: { appsEdit: false } }, id);
+  assert.equal((await call("PATCH", "/api/para-teams/:teamId/apps/data", 2, { patch: { set: { clocks: ["UTC"] } } }, id)).status, 403);
+  assert.equal((await call("PATCH", "/api/para-teams/:teamId/apps/data", 1, { patch: { set: { clocks: ["UTC"] } } }, id)).status, 200, "leads always can");
+  const view = (await call("GET", "/api/para-teams/:teamId", 2, {}, id)).body;
+  assert.equal(view.settings.perms.appsEdit, false);
+  assert.ok(view.items.some((i: any) => i.kind === "hub"));
+});
+
+test("Para Team has the App Store, team apps in its menu, and the owner's Permissions panel", () => {
+  const page = read("client/src/pages/ParaTeam.tsx");
+  assert.match(page, /<TeamAppsNav /);
+  assert.match(page, /section === "store" && <TeamStore \/>/);
+  assert.match(read("client/src/components/para-team/WorkSections.tsx"), /<Permissions \/>/);
+  assert.match(read("client/src/components/para-team/kit.tsx"), /canEdit\(team\.role, team\.me, item, team\.settings\?\.perms\)/);
+  assert.match(read("migrations/para_teams.sql"), /add column if not exists settings jsonb/);
+  assert.match(read("server/index.ts"), /apps\\\/data\$\/, express\.json/);
 });

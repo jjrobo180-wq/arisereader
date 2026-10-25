@@ -12,7 +12,7 @@ export const SMALL = "inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5
 export const CARD = "rounded-2xl border border-slate-200 bg-white p-4 sm:p-5";
 export const CHIP = "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold";
 
-export type Section = "today" | "bulletin" | "messages" | "calendar" | "tasks" | "schedule" | "students" | "data" | "lessons" | "docs" | "team";
+export type Section = "today" | "bulletin" | "messages" | "calendar" | "tasks" | "schedule" | "students" | "data" | "lessons" | "docs" | "team" | "store" | "app";
 
 export type Para = {
   team: ParaTeamView;
@@ -44,7 +44,7 @@ export function makePara(team: ParaTeamView, api: ParaTeamApi, today: string, sa
   return {
     team, api, me: team.me, lead: team.role === "lead", today, say, go, act,
     nameOf: (id) => (id ? names.get(id) || "Former member" : "Everyone"),
-    mayEdit: (item) => canEdit(team.role, team.me, item),
+    mayEdit: (item) => canEdit(team.role, team.me, item, team.settings?.perms),
   };
 }
 

@@ -388,9 +388,12 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 const SLEEP_DIR = "client/src/components/family-hub/sleep";
 
 test("LifeHub's Sleep section opens the Sleep app, and the store lists it", () => {
+  // LifeHub opens its plain apps from one shared map (also used by Para Team's team apps).
   const page = read("client/src/pages/AriseTodo.tsx");
-  assert.match(page, /import SleepApp from "@\/components\/family-hub\/sleep\/SleepApp";/);
-  assert.match(page, /shown === "sleep" \? <SleepApp \{\.\.\.common\} \/>/);
+  const views = read("client/src/components/family-hub/lifeApps.tsx");
+  assert.match(page, /LIFE_VIEWS\[shown\] \? LIFE_VIEWS\[shown\]!\(common\)/);
+  assert.match(views, /import SleepApp from "@\/components\/family-hub\/sleep\/SleepApp";/);
+  assert.match(views, /sleep: \(p\) => <SleepApp \{\.\.\.p\} \/>/);
   assert.doesNotMatch(page, /SleepLog/);
   assert.equal(existsSync(new URL("../client/src/components/family-hub/SleepLog.tsx", import.meta.url)), false);
   assert.match(read("client/src/components/family-hub/Members.tsx"), /sleep: \{ label: "Sleep", detail: "Fall asleep tonight, plus a sleep log"/);

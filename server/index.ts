@@ -149,6 +149,8 @@ app.use("/api/lifehub/drop/upload", express.raw({ type: "*/*", limit: "205mb" })
 // Para Team uploads (server/paraTeam.ts): any file type arrives raw, same reason as Drive above.
 // The route checks the person is on the team and which types are allowed.
 app.use(/^\/api\/para-teams\/[^/]+\/files$/, express.raw({ type: "*/*", limit: "26mb" }));
+// A Para Team's apps save their changes here; a first save of a big list can pass the usual 100 KB.
+app.use(/^\/api\/para-teams\/[^/]+\/apps\/data$/, express.json({ limit: "3mb" }));
 
 // Arise WorkHub: a workspace with a full caseload and connected calendars is bigger than the usual
 // request, and an upload to be read (photos, a spreadsheet, a PDF) is bigger still.

@@ -9,12 +9,16 @@ import type { Express, RequestHandler } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
-  KIND_LIMIT, KIND_LOAD, PARA_KINDS, canAdd, canCheckOff, canEdit, checkOff, cleanItemData, cleanMemberTitle, cleanTeamName,
+  KIND_LIMIT, KIND_LOAD, PARA_KINDS, SYSTEM_KINDS, canAdd, canCheckOff, canEdit, checkOff, cleanItemData, cleanMemberTitle, cleanTeamName,
   finalData, isInviteCode, isParaKind, makeInviteCode,
   type FileData, type ParaItem, type ParaKind, type ParaMember, type ParaRole, type ParaTeamSummary, type ParaTeamView, type TaskData,
 } from "@shared/paraTeam";
+import { cleanFamily } from "@shared/familyHub";
+import {
+  PERM_KEYS, TEAM_APPS_MAX_BYTES, applyFamilyPatch, canManageApps, canUseApps, cleanSettings, defaultSettings, type ParaSettings,
+} from "@shared/paraApps";
 
-export type TeamRow = { id: string; ownerId: number; name: string; inviteCode: string; inviteOn: boolean; createdAt: string };
+export type TeamRow = { id: string; ownerId: number; name: string; inviteCode: string; inviteOn: boolean; createdAt: string; settings: ParaSettings };
 export type MemberRow = { teamId: string; userId: number; role: ParaRole; title: string; joinedAt: string };
 export type ItemRow = { id: string; teamId: string; kind: ParaKind; data: any; createdBy: number | null; createdAt: string; updatedAt: string };
 
@@ -23,7 +27,7 @@ export type ParaDb = {
   getTeam(id: string): Promise<TeamRow | null>;
   teamByCode(code: string): Promise<TeamRow | null>;
   createTeam(team: TeamRow): Promise<void>;
-  updateTeam(id: string, patch: Partial<Pick<TeamRow, "name" | "inviteCode" | "inviteOn">>): Promise<void>;
+  updateTeam(id: string, patch: Partial<Pick<TeamRow, "name" | "inviteCode" | "inviteOn" | "settings">>): Promise<void>;
   deleteTeam(id: string): Promise<void>;
   members(teamId: string): Promise<MemberRow[]>;
   member(teamId: string, userId: number): Promise<MemberRow | null>;
@@ -147,6 +151,7 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
       invite: member.role === "lead" ? { code: team.inviteCode, on: team.inviteOn } : null,
       members: [...members, ...former],
       items: items.map(toItem),
+      settings: team.settings,
     };
   }
 
@@ -167,7 +172,7 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
       const owned = (await db.teamsOf(me(req))).filter((t) => t.team.ownerId === me(req)).length;
       if (owned >= MAX_TEAMS_OWNED) return fail(res, 400, `You can make up to ${MAX_TEAMS_OWNED} teams.`);
       const at = now().toISOString();
-      const team: TeamRow = { id: randomUUID(), ownerId: me(req), name, inviteCode: makeInviteCode(random), inviteOn: true, createdAt: at };
+      const team: TeamRow = { id: randomUUID(), ownerId: me(req), name, inviteCode: makeInviteCode(random), inviteOn: true, createdAt: at, settings: defaultSettings() };
       await db.createTeam(team);
       const member: MemberRow = { teamId: team.id, userId: me(req), role: "lead", title: cleanMemberTitle(req.body?.title) || "Teacher", joinedAt: at };
       await db.addMember(member);
@@ -189,7 +194,7 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
       if (!t) return;
       const [latest, people] = await Promise.all([db.latest(t.team.id), db.members(t.team.id)]);
       const who = people.map((m) => `${m.userId}:${m.role}:${m.title}`).sort().join(",");
-      res.json({ stamp: [latest.at, latest.count, t.team.name, t.team.inviteOn, t.team.inviteCode, who].join("|") });
+      res.json({ stamp: [latest.at, latest.count, t.team.name, t.team.inviteOn, t.team.inviteCode, who, JSON.stringify(t.team.settings)].join("|") });
     } catch (e) { oops(res, "stamp", e); }
   });
 
@@ -218,6 +223,48 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
       await db.updateTeam(t.team.id, { inviteCode, inviteOn: true });
       res.json(await view({ ...t.team, inviteCode, inviteOn: true }, t.member));
     } catch (e) { oops(res, "new invite", e); }
+  });
+
+  // Team › Permissions and the team's apps. The permissions are the owner's (the teacher who made the
+  // team); the apps list may be changed by any lead, or by paras when the owner allows it.
+  app.patch("/api/para-teams/:teamId/settings", auth, async (req: any, res) => {
+    try {
+      const t = await onTeam(req, res);
+      if (!t) return;
+      const next: ParaSettings = { perms: { ...t.team.settings.perms }, apps: [...t.team.settings.apps] };
+      const perms = req.body?.perms;
+      if (perms && typeof perms === "object") {
+        if (t.team.ownerId !== me(req)) return fail(res, 403, "Only the teacher who made the team can change what paras are allowed to do.");
+        for (const k of PERM_KEYS) if (typeof perms[k] === "boolean") next.perms[k] = perms[k];
+      }
+      if (req.body?.apps !== undefined) {
+        if (!canManageApps(t.member.role, t.team.settings.perms)) return fail(res, 403, "Only the team's teacher can add or remove team apps.");
+        next.apps = cleanSettings({ apps: req.body.apps }).apps;
+      }
+      const settings = cleanSettings(next);
+      await db.updateTeam(t.team.id, { settings });
+      res.json(await view({ ...t.team, settings }, t.member));
+    } catch (e) { oops(res, "settings", e); }
+  });
+
+  // What's in the team's apps (polls, kit lists…): one shared store, saved as changes (shared/paraApps.ts).
+  app.patch("/api/para-teams/:teamId/apps/data", auth, async (req: any, res) => {
+    try {
+      const t = await onTeam(req, res);
+      if (!t || slowDown(req, res)) return;
+      if (!canUseApps(t.member.role, t.team.settings.perms)) return fail(res, 403, "The team's teacher has made the team apps look-only for paras.");
+      const [current] = await db.items(t.team.id, "hub", 1);
+      const data = cleanFamily(applyFamilyPatch(current?.data || {}, req.body?.patch));
+      if (JSON.stringify(data).length > TEAM_APPS_MAX_BYTES) return fail(res, 413, "The team's apps are full. Delete some old entries first.");
+      const at = now().toISOString();
+      if (current) {
+        await db.updateItem(t.team.id, current.id, data, at);
+        return res.json(toItem({ ...current, data, updatedAt: at }));
+      }
+      const row: ItemRow = { id: randomUUID(), teamId: t.team.id, kind: "hub", data, createdBy: me(req), createdAt: at, updatedAt: at };
+      await db.insertItem(row);
+      res.json(toItem(row));
+    } catch (e) { oops(res, "apps", e); }
   });
 
   app.delete("/api/para-teams/:teamId", auth, async (req: any, res) => {
@@ -311,7 +358,7 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
       if (!t || slowDown(req, res)) return;
       const kind = req.body?.kind;
       if (!isParaKind(kind)) return fail(res, 400, "That isn't something a Para Team keeps.");
-      if (!canAdd(t.member.role, kind)) return fail(res, 403, kind === "file" ? "Upload files with the Upload button." : "Only the team's teacher can add that.");
+      if (!canAdd(t.member.role, kind)) return fail(res, SYSTEM_KINDS.includes(kind) ? 400 : 403, kind === "file" ? "Upload files with the Upload button." : SYSTEM_KINDS.includes(kind) ? "Change the team's apps from their own pages." : "Only the team's teacher can add that.");
       const clean = cleanItemData(kind, req.body?.data);
       if (!clean.ok) return fail(res, 400, clean.message);
       if ((await db.countItems(t.team.id, kind)) >= KIND_LIMIT[kind]) return fail(res, 400, "This team has reached its limit for that. Delete some old ones first.");
@@ -331,9 +378,10 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
       const id = String(req.params.itemId || "");
       const item = UUID.test(id) ? await db.getItem(t.team.id, id) : null;
       if (!item) return fail(res, 404, "That's been deleted.");
+      if (SYSTEM_KINDS.includes(item.kind)) return fail(res, 400, "Change the team's apps from their own pages.");
       const at = now().toISOString();
       let data: any;
-      if (canEdit(t.member.role, me(req), item)) {
+      if (canEdit(t.member.role, me(req), item, t.team.settings.perms)) {
         const clean = cleanItemData(item.kind, { ...item.data, ...(req.body?.data || {}) });
         if (!clean.ok) return fail(res, 400, clean.message);
         data = finalData(item.kind, t.member.role, clean.data, item.data);
@@ -344,7 +392,7 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
       } else if (item.kind === "task" && typeof req.body?.data?.done === "boolean" && canCheckOff(me(req), item.data as TaskData)) {
         data = checkOff(item.data as TaskData, req.body.data.done, me(req), at);
       } else {
-        return fail(res, 403, "Only the person who added this, or the team's teacher, can change it.");
+        return fail(res, 403, "Only the person who added this, or the team's teacher, can change it. The teacher can let paras change other people's in Team › Permissions.");
       }
       await db.updateItem(t.team.id, id, data, at);
       res.json(toItem({ ...item, data, updatedAt: at }));
@@ -358,7 +406,8 @@ export function registerParaTeamRoutes(app: Express, deps: ParaDeps) {
       const id = String(req.params.itemId || "");
       const item = UUID.test(id) ? await db.getItem(t.team.id, id) : null;
       if (!item) return res.json({ ok: true });
-      if (!canEdit(t.member.role, me(req), item)) return fail(res, 403, "Only the person who added this, or the team's teacher, can delete it.");
+      if (SYSTEM_KINDS.includes(item.kind)) return fail(res, 400, "Change the team's apps from their own pages.");
+      if (!canEdit(t.member.role, me(req), item, t.team.settings.perms)) return fail(res, 403, "Only the person who added this, or the team's teacher, can delete it. The teacher can let paras delete other people's in Team › Permissions.");
       await db.deleteItem(t.team.id, id);
       if (item.kind === "file" && item.data?.path) await db.removeFiles([String(item.data.path)]).catch((e) => console.error("[para-team] file remove:", e?.message || e));
       res.json({ ok: true });
@@ -421,7 +470,7 @@ const BUCKET = "para-team-files";
 export function supabaseParaDb(getAdminSupabase: () => any): ParaDb {
   const sb = () => getAdminSupabase();
   const check = <T>({ data, error }: { data: T; error: any }): T => { if (error) throw new Error(error.message || String(error)); return data; };
-  const team = (r: any): TeamRow => ({ id: r.id, ownerId: r.owner_id, name: r.name, inviteCode: r.invite_code, inviteOn: r.invite_on, createdAt: r.created_at });
+  const team = (r: any): TeamRow => ({ id: r.id, ownerId: r.owner_id, name: r.name, inviteCode: r.invite_code, inviteOn: r.invite_on, createdAt: r.created_at, settings: cleanSettings(r.settings) });
   const member = (r: any): MemberRow => ({ teamId: r.team_id, userId: r.user_id, role: r.role, title: r.title || "", joinedAt: r.joined_at });
   const item = (r: any): ItemRow => ({ id: r.id, teamId: r.team_id, kind: r.kind, data: r.data || {}, createdBy: r.created_by, createdAt: r.created_at, updatedAt: r.updated_at });
   let bucketReady: Promise<void> | null = null;
@@ -448,6 +497,7 @@ export function supabaseParaDb(getAdminSupabase: () => any): ParaDb {
       if (p.name !== undefined) row.name = p.name;
       if (p.inviteCode !== undefined) row.invite_code = p.inviteCode;
       if (p.inviteOn !== undefined) row.invite_on = p.inviteOn;
+      if (p.settings !== undefined) row.settings = p.settings;
       if (Object.keys(row).length) check(await sb().from("para_teams").update(row).eq("id", id));
     },
     async deleteTeam(id) { check(await sb().from("para_teams").delete().eq("id", id)); },
