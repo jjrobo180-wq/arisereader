@@ -429,7 +429,20 @@ export function createPlayer(o: PlayOptions = {}) {
   }
 
   const close = (sid: string) => { const s = sessions.get(sid); if (s) dropSession(s); };
-  return { sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, copyToCt: (s: Session, x: number) => copyToCt(contentOf(s).pieces, x), checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
+  /** A time in a session's copy as content time; inside a stitched-in ad, the show's edge next to it. */
+  function toContent(sid: string, episodeId: string, x: number, side: "start" | "end"): number | null {
+    const s = sessions.get(sid);
+    if (!s || s.episodeId !== episodeId || !s.copy.done || !s.ads.final) return null;
+    const { pieces } = contentOf(s);
+    const ct = copyToCt(pieces, x);
+    if (ct !== null) return ct;
+    if (side === "start") { const p = pieces.find((q) => q.x >= x); return p ? p.ct : null; }
+    const before = pieces.filter((q) => q.x + q.len <= x + 1e-6).pop();
+    return before ? before.ct + before.len : null;
+  }
+  /** Content time placed in a session's copy. */
+  const fromContent = (s: Session, ct: number) => ctToCopy(contentOf(s).pieces, ct);
+  return { sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, toContent, fromContent, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
 }
 export type Player = ReturnType<typeof createPlayer>;
 
@@ -488,6 +501,8 @@ export type PlayRouteDeps = {
   player: Player;
   /** Read-along pieces already made (their ads are placed in each copy). */
   dir?: Pick<Directory, "contentChunks">;
+  /** Listeners' marks and skips in content time, and everyone's votes (server/podcastAds.ts crowdFor). */
+  crowd?: (episodeId: string) => Promise<{ marks: { key: string; s: number; e: number; label: string; support: number; voters: string[] }[]; skips: { key: string; s: number; e: number; support: number }[]; votes: { key: string; voter: string; vote: number }[] }>;
   /** The episode's audio address (from the directory). */
   audioFor: (showId: string, episodeId: string) => Promise<string | null>;
   voterOf: (req: any) => string;
@@ -566,10 +581,25 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
     s.touched = Date.now();
     let extra: PlayAd[] = [];
     if (d.dir) { try { extra = await player.transcriptAds(s, d.dir); } catch { extra = []; } }
-    // Read-along ads that a stitched-in ad already covers are left out.
-    const own = s.ads.ads;
-    const covered = (a: PlayAd) => own.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
-    res.json({ ...s.ads, ads: [...own, ...extra.filter((a) => !covered(a))].sort((x, y) => x.s - y.s) });
+    // Listeners' marks and skip spots (content time) placed in this copy, and votes applied.
+    if (d.crowd && s.copy.done && s.ads.final) {
+      try {
+        const c = await d.crowd(s.episodeId);
+        const voter = d.voterOf(req);
+        const tally = new Map<string, { score: number; mine?: number }>();
+        for (const v of c.votes) { const t = tally.get(v.key) ?? { score: 0 }; t.score += v.vote > 0 ? 1 : -1; if (v.voter === voter) t.mine = v.vote; tally.set(v.key, t); }
+        const keep = (key: string, base: number) => { const t = tally.get(key); return !(t?.mine === -1 || base + (t?.score ?? 0) < 1); };
+        const place = (a: { s: number; e: number }) => { const x = player.fromContent(s, a.s), y = player.fromContent(s, a.e); return x === null || y === null || y <= x ? null : { s: Math.round(x * 100) / 100, e: Math.round(y * 100) / 100 }; };
+        extra = extra.filter((a) => keep(a.key, 1));
+        for (const m of c.marks) { const p = place(m); if (p && keep(m.key, m.support)) extra.push({ key: m.key, ...p, label: m.label || "Ad break", kind: "user", sure: true }); }
+        for (const k of c.skips) { const p = place(k); if (p && keep(k.key, 1)) extra.push({ key: k.key, ...p, label: "Listeners skip this", kind: "crowd", sure: false }); }
+      } catch { /* the shared marks can't be read right now */ }
+    }
+    // Ads another finder already covers are left out (stitched-in ones first).
+    const out: PlayAd[] = [];
+    const covered = (a: PlayAd) => out.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
+    for (const a of [...s.ads.ads, ...extra.filter((x) => x.kind === "user"), ...extra.filter((x) => x.kind !== "user")]) if (!covered(a)) out.push(a);
+    res.json({ ...s.ads, ads: out.sort((x, y) => x.s - y.s) });
   });
 }
 

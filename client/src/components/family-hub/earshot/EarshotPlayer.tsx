@@ -458,7 +458,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const flushSkip = () => {
     const r = skipRun.current; skipRun.current = null;
     const D = cur.current?.duration;
-    if (r && D && Number.isFinite(D) && r.to - r.from >= 10 && r.to - r.from <= 300) api(`/api/earshot/ads/${r.epId}/skip`, { method: "POST", body: { from: r.from, to: r.to, dur: D } }).catch(() => {});
+    const play = cur.current?.dataset.ep === r?.epId ? cur.current?.dataset.sid : undefined;
+    if (r && D && Number.isFinite(D) && r.to - r.from >= 10 && r.to - r.from <= 300) api(`/api/earshot/ads/${r.epId}/skip`, { method: "POST", body: { from: r.from, to: r.to, dur: D, play } }).catch(() => {});
   };
   const noteSkip = (epId: string, from: number, to: number) => {
     const r = skipRun.current, now = Date.now();
@@ -501,7 +502,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }).catch(() => {});
   }, [api]);
   const voteAd = (epId: string, key: string, vote: 1 | -1) => {
-    if (!/^[auc]:/.test(key)) return;
+    if (!/^[auct]:/.test(key)) return;
     api(`/api/earshot/ads/${epId}/vote`, { method: "POST", body: { key, vote } }).catch(() => {});
   };
   /** Transcripts are fetched once someone is really listening (or opens Read), never just for swiping past. */
@@ -559,9 +560,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const mine = localAds.current.get(activeEp.id) ?? [];
     // Ads the server found in this very copy (exact), then the rest, leaving out ones they already cover.
     const p = plays.current.get(activeEp.id);
-    const own = p && cur.current?.dataset.sid === p.sid ? p.ads?.ads ?? [] : [];
+    const mineCopy = !!p && cur.current?.dataset.sid === p.sid;
+    const own = mineCopy ? p!.ads?.ads ?? [] : [];
+    // Once this copy has been compared, guesses from other copies (unsure, found in a copy of another
+    // length) are left out; listeners' marks and exact matches stay.
+    const compared = mineCopy && !!p!.ads?.final && (p!.ads.how === "diff" || p!.ads.how === "same");
     const covered = (a: PlayAd) => own.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
-    return [...own, ...[...alignAds(serverAds.current.get(activeEp.id) ?? [], dur), ...mine].filter((a) => !covered(a))].filter((a) => !undone.current.has(a.key)).sort((x, y) => x.s - y.s);
+    const others = alignAds(serverAds.current.get(activeEp.id) ?? [], dur).filter((a) => !compared || a.sure || a.kind === "user" || a.kind === "crowd");
+    return [...own, ...[...others, ...mine].filter((a) => !covered(a))].filter((a) => !undone.current.has(a.key)).sort((x, y) => x.s - y.s);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeEp?.id, Math.round(dur * 10), adsTick]);
   const adsRef = useRef(activeAds); adsRef.current = activeAds;
@@ -599,10 +605,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const local: PlayAd = { key: `l:${d.ep.id}:${d.s}:${d.e}`, s: d.s, e: d.e, label: d.label || "Ad break", kind: "user", sure: true };
     setDraft(null);
     try {
-      const b = await api(`/api/earshot/ads/${d.ep.id}/mark`, { method: "POST", body: { showId: d.showId, s: d.s, e: d.e, dur, label: d.label } });
+      // Playing through the server: the mark is kept in show time, so it fits everyone's copy.
+      const play = cur.current?.dataset.ep === d.ep.id ? cur.current?.dataset.sid : undefined;
+      const b = await api(`/api/earshot/ads/${d.ep.id}/mark`, { method: "POST", body: { showId: d.showId, s: d.s, e: d.e, dur, label: d.label, play } });
       if (Array.isArray(b?.ads)) serverAds.current.set(d.ep.id, b.ads);
+      if (play) { localAds.current.set(d.ep.id, [...(localAds.current.get(d.ep.id) ?? []), local]); pollPlay(d.ep.id, true); }
       setAdsTick((x) => x + 1);
-      say("Thanks! This ad will be skipped for everyone with this version of the episode.");
+      say(play ? "Thanks! This ad will be skipped for everyone who plays this episode." : "Thanks! This ad will be skipped for everyone with this version of the episode.");
     } catch (e: any) {
       localAds.current.set(d.ep.id, [...(localAds.current.get(d.ep.id) ?? []), local]);
       setAdsTick((x) => x + 1);

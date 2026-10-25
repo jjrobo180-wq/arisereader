@@ -75,6 +75,8 @@ export function supabaseKV(getDb: () => any): KV {
 
 export type Fetcher = (url: string) => Promise<any>;
 const USER_AGENT = "Arise-Earshot/1.0 (arisetodo.com)";
+/** Audio the server fetches for itself (transcripts) says it's a bot, so it isn't counted as a listen. */
+const AUDIO_AGENT = "Mozilla/5.0 (compatible; AriseEarshotBot/1.0; +https://arisetodo.com)";
 export const appleFetcher: Fetcher = async (url) => {
   const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
   if (res.status === 403 || res.status === 429) throw new Error("busy");
@@ -317,9 +319,9 @@ export function createDirectory(options: DirectoryOptions = {}) {
     }).catch(() => ({ transcript: null, chapters: "" }));
   }
   /** Ads in a stretch of transcript: phrases, the show's memory, AI cut at the exact word, chapters. */
-  async function analyzeAds(o: { showId: string; showName: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean }): Promise<AdRange[]> {
+  async function analyzeAds(o: { showId: string; showName: string; title?: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean }): Promise<AdRange[]> {
     const prof = (await profiles.peek(o.showId))?.value ?? null;
-    const hints = profileHints(prof, o.showName);
+    const hints = { ...profileHints(prof, o.showName), title: o.title };
     const { scores } = phraseBlocks(o.segs, hints);
     const phrase = phraseAds(o.segs, hints);
     let ai: AdRange[] | null = null;
@@ -341,11 +343,24 @@ export function createDirectory(options: DirectoryOptions = {}) {
 
   /** The audio's size, type and exact length (from its first 16 KB). */
   async function probe(url: string) {
-    const head = await web(url, { headers: { Range: "bytes=0-16383", "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(15_000) });
+    const head = await web(url, { headers: { Range: "bytes=0-16383", "User-Agent": AUDIO_AGENT }, signal: AbortSignal.timeout(15_000) });
     const total = Number((head.headers.get("content-range") || "").split("/")[1]) || Number(head.headers.get("content-length") || 0);
     const type = String(head.headers.get("content-type") || "");
     const bytes = new Uint8Array(await head.arrayBuffer().catch(() => new ArrayBuffer(0)));
-    const info = total ? mp3Info(bytes, total) : null;
+    let info = total ? mp3Info(bytes, total) : null;
+    // Cover art longer than the first piece: read the start of the audio after it (same copy only).
+    if (!info && total && bytes.length >= 10 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
+      const tagEnd = 10 + ((bytes[6] & 0x7f) << 21 | (bytes[7] & 0x7f) << 14 | (bytes[8] & 0x7f) << 7 | (bytes[9] & 0x7f)) + ((bytes[5] & 0x10) ? 10 : 0);
+      if (tagEnd > bytes.length - 8 && tagEnd < total) {
+        const more = await web(url, { headers: { Range: `bytes=${tagEnd}-${tagEnd + 16383}`, "User-Agent": AUDIO_AGENT }, signal: AbortSignal.timeout(15_000) }).catch(() => null);
+        const sameCopy = more && Number((more.headers.get("content-range") || "").split("/")[1]) === total;
+        if (more && sameCopy) {
+          const b2 = new Uint8Array(await more.arrayBuffer().catch(() => new ArrayBuffer(0)));
+          const i2 = mp3Info(b2, total - tagEnd);
+          if (i2) info = { ...i2, audioStart: i2.audioStart + tagEnd };
+        }
+      }
+    }
     return { total, type, info };
   }
 
@@ -367,7 +382,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
         let dur = old.dur, durMode = old.durMode;
         if (old.source === "ai" && !dur) { try { const p = await probe(ep.audio); if (p.info) { dur = p.info.duration; durMode = "exact"; } } catch { /* unknown */ } }
         if (old.source === "publisher" && !dur) { dur = old.segments[old.segments.length - 1].e; durMode = "approx"; }
-        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, pieceId: `${ep.id}#${old.chunk}`, segs: old.segments, words: old.words ?? [], chapters: old.chapters?.length ? old.chapters : chapters, duration: dur || ep.secs, from: old.chunk * old.chunkSecs, to: (old.chunk + 1) * old.chunkSecs, opening: old.chunk === 0 });
+        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, pieceId: `${ep.id}#${old.chunk}`, segs: old.segments, words: old.words ?? [], chapters: old.chapters?.length ? old.chapters : chapters, duration: dur || ep.secs, from: old.chunk * old.chunkSecs, to: (old.chunk + 1) * old.chunkSecs, opening: old.chunk === 0 });
         return { ...old, ads, dur, durMode, v: 2 } as TranscriptChunk;
       }).catch(() => done.value);
     }
@@ -377,7 +392,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
         const segments = /json/.test(ex.transcript!.type) ? parseTranscriptJson(JSON.parse(raw)) : parseCues(raw);
         if (!segments.length) throw new Error("empty");
         const last = segments[segments.length - 1].e;
-        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(ep.secs, last), from: 0, to: Math.max(ep.secs, last), opening: true });
+        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(ep.secs, last), from: 0, to: Math.max(ep.secs, last), opening: true });
         return { source: "publisher", segments, ads, chapters, chunk: 0, chunkSecs: Math.max(ep.secs, last), more: false, dur: last, durMode: "approx", v: 2 } as TranscriptChunk;
       }).catch(() => null);
       if (pub) { void tx.refresh(key, async () => pub).catch(() => {}); return pub; }
@@ -395,7 +410,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const bps = p.info?.bytesPerSec ?? plan.bps;
       const from = chunk === 0 ? 0 : Math.floor(audioStart + chunk * plan.chunkSecs * bps);
       const to = Math.min(p.total - 1, Math.floor(audioStart + (chunk + 1) * plan.chunkSecs * bps) - 1);
-      const res = await web(ep.audio, { headers: { Range: `bytes=${from}-${to}`, "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(60_000) });
+      const res = await web(ep.audio, { headers: { Range: `bytes=${from}-${to}`, "User-Agent": AUDIO_AGENT }, signal: AbortSignal.timeout(60_000) });
       if (!res.ok && res.status !== 206) throw new Error(`audio ${res.status}`);
       const blob = await res.blob();
       if (blob.size > 25_000_000) throw Object.assign(new Error("size"), { soft: true });
@@ -404,7 +419,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const start = chunk * plan.chunkSecs;
       const segments = out.segments.map((s) => ({ s: start + s.start, e: start + s.end, t: s.text.trim() })).filter((s) => s.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: start + w.start, e: start + w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, pieceId: `${ep.id}#${chunk}`, segs: segments, words, chapters, duration: exact || ep.secs, from: start, to: start + plan.chunkSecs, opening: chunk === 0 });
+      const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, pieceId: `${ep.id}#${chunk}`, segs: segments, words, chapters, duration: exact || ep.secs, from: start, to: start + plan.chunkSecs, opening: chunk === 0 });
       return { source: "ai", segments, words, ads, chapters, chunk, chunkSecs: plan.chunkSecs, more: chunk + 1 < plan.chunks, dur: exact || undefined, durMode: "exact", v: 2 } as TranscriptChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
@@ -442,7 +457,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
         const segments = /json/.test(ex.transcript!.type) ? parseTranscriptJson(JSON.parse(raw)) : parseCues(raw);
         if (!segments.length) throw new Error("empty");
         const last = segments[segments.length - 1].e;
-        const ads = await analyzeAds({ showId, showName, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(src.secs, last), from: 0, to: Math.max(src.secs, last), opening: true });
+        const ads = await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(src.secs, last), from: 0, to: Math.max(src.secs, last), opening: true });
         return { v: 3, source: "publisher", segments, ads, chapters, chunk: 0, chunkSecs: Math.max(src.secs, last), more: false, pieces: [] } as ContentChunk;
       }).catch(() => null);
       if (pub) return pub;
@@ -460,7 +475,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const out = await transcribe(part.audio, `piece-${chunk}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: from + x.start, e: from + x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: from + w.start, e: from + w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = await analyzeAds({ showId, showName, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk === 0 });
+      const ads = await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk === 0 });
       return { v: 3, source: "ai", segments, words, ads, chapters, chunk, chunkSecs: TX_CHUNK_SECS, more: chunk + 1 < chunks, pieces: part.pieces } as ContentChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };

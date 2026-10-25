@@ -13,7 +13,7 @@ import {
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
-import { memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
+import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, type Player } from "./podcastPlay";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
@@ -241,10 +241,12 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
 
   // ---------------- smart ad skip: marks, votes, skips (server/podcastAds.ts) ----------------
   // Voters are "u<id>" on Arise (LifeHub) and "d<device>" on Podscroll, so both apps share one pool.
-  registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: options.adStore ?? (sharedAdStore ??= memoryAdStore()), voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}` });
-  if (options.player) {
+  const adStore = options.adStore ?? (sharedAdStore ??= memoryAdStore());
+  const player = options.player;
+  registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
+  if (player) {
     registerPlayRoutes(app, authMiddleware, {
-      prefix: P, player: options.player, dir, cleanId: cleanPodId, clientIp,
+      prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
       audioFor: async (showId, episodeId) => (await dir.loadShow(showId)).episodes.find((e) => e.id === episodeId)?.audio ?? null,
     });

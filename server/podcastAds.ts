@@ -100,7 +100,24 @@ export async function adsFor(dir: Directory, store: AdStore, episodeId: string, 
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() && Number.isFinite(Number(v)) ? Number(v) : NaN);
 
-export function registerAdRoutes(app: Express, authMiddleware: RequestHandler, o: { prefix: string; dir: Directory; store: AdStore; voterOf: (req: any) => string }) {
+/** Listeners' marks and skips made while playing through the server are kept in content time (the
+ *  show's own audio, stitched-in ads left out; stored with dur 0), so they fit every copy. These are
+ *  grouped here, with the votes, for placing in a session's copy (server/podcastPlay.ts). */
+export async function crowdFor(store: AdStore, episodeId: string) {
+  try {
+    const [marks, skips, votes] = await Promise.all([store.marks(episodeId), store.skips(episodeId), store.votes(episodeId)]);
+    return { marks: clusterMarks(marks.filter((m) => m.dur === 0)), skips: clusterSkips(skips.filter((k) => k.dur === 0)), votes };
+  } catch (e) {
+    if (e instanceof AdStoreUnavailable) return { marks: [], skips: [], votes: [] as Vote[] };
+    throw e;
+  }
+}
+
+export function registerAdRoutes(app: Express, authMiddleware: RequestHandler, o: {
+  prefix: string; dir: Directory; store: AdStore; voterOf: (req: any) => string;
+  /** A time in a session's copy as content time (playback through the server), or null. */
+  toContent?: (sid: string, episodeId: string, x: number, side: "start" | "end") => number | null;
+}) {
   const P = o.prefix;
   const marking = createAttemptLimiter({ max: 30, windowMs: 60 * 60_000 });
   const voting = createAttemptLimiter({ max: 150, windowMs: 60 * 60_000 });
@@ -138,8 +155,14 @@ export function registerAdRoutes(app: Express, authMiddleware: RequestHandler, o
     if (e - s > 900) return res.status(400).json({ message: "That's longer than 15 minutes. Mark one ad break at a time." });
     const voter = o.voterOf(req);
     if (limited(marking, voter, res, "ad marks")) return;
+    // Played through the server: kept in content time, so it fits everyone's copy.
+    const play = typeof req.body?.play === "string" ? req.body.play : "";
+    const cs = play && o.toContent ? o.toContent(play, id, s, "start") : null, ce = play && o.toContent ? o.toContent(play, id, e, "end") : null;
+    const content = cs !== null && ce !== null && ce - cs >= 3 && ce - cs <= 900;
     try {
-      const markId = await o.store.addMark({ episodeId: id, showId: show, s: Math.round(s * 10) / 10, e: Math.round(e * 10) / 10, dur: Math.round(dur * 10) / 10, label, voter });
+      const markId = await o.store.addMark(content
+        ? { episodeId: id, showId: show, s: Math.round(cs! * 10) / 10, e: Math.round(ce! * 10) / 10, dur: 0, label, voter }
+        : { episodeId: id, showId: show, s: Math.round(s * 10) / 10, e: Math.round(e * 10) / 10, dur: Math.round(dur * 10) / 10, label, voter });
       if (show) void o.dir.learnMark(show, id, { s, e, label, dur }).catch(() => {});
       res.json({ id: markId, ...(await adsFor(o.dir, o.store, id, voter)) });
     } catch (err) { down(res, err); }
@@ -158,7 +181,7 @@ export function registerAdRoutes(app: Express, authMiddleware: RequestHandler, o
     const id = cleanPodId(req.params.episodeId);
     const key = typeof req.body?.key === "string" ? req.body.key.trim() : "";
     const vote = req.body?.vote === -1 || req.body?.vote === "-1" ? -1 : req.body?.vote === 1 || req.body?.vote === "1" ? 1 : 0;
-    if (!id || !/^[auc]:[0-9a-z:.-]{1,100}$/i.test(key) || !vote) return res.status(400).json({ message: "That vote doesn't look right." });
+    if (!id || !/^[auct]:[0-9a-z:.-]{1,100}$/i.test(key) || !vote) return res.status(400).json({ message: "That vote doesn't look right." });
     const voter = o.voterOf(req);
     if (limited(voting, voter, res, "votes")) return;
     try { await o.store.vote({ episodeId: id, key, voter, vote: vote as 1 | -1 }); res.json({ ok: true }); }
@@ -172,7 +195,13 @@ export function registerAdRoutes(app: Express, authMiddleware: RequestHandler, o
     if (!id || ![from, to, dur].every(Number.isFinite) || from < 0 || to - from < 10 || to - from > 300 || dur <= 0 || to > dur + 2) return res.json({ ok: true }); // quietly ignored
     const voter = o.voterOf(req);
     if (limited(skipping, voter, res, "skips")) return;
-    try { await o.store.addSkip({ episodeId: id, from: Math.round(from), to: Math.round(to), dur: Math.round(dur * 10) / 10, voter }); res.json({ ok: true }); }
+    const play = typeof req.body?.play === "string" ? req.body.play : "";
+    const cf = play && o.toContent ? o.toContent(play, id, from, "start") : null, ct = play && o.toContent ? o.toContent(play, id, to, "end") : null;
+    const content = cf !== null && ct !== null && ct - cf >= 10 && ct - cf <= 300;
+    try {
+      await o.store.addSkip(content ? { episodeId: id, from: Math.round(cf!), to: Math.round(ct!), dur: 0, voter } : { episodeId: id, from: Math.round(from), to: Math.round(to), dur: Math.round(dur * 10) / 10, voter });
+      res.json({ ok: true });
+    }
     catch (e) { if (e instanceof AdStoreUnavailable) return res.json({ ok: true }); down(res, e); }
   });
 }

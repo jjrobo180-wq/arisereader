@@ -40,9 +40,9 @@ function fakeApp() {
   const routes = new Map<string, Function[]>();
   const app: any = {};
   for (const m of ["get", "head", "post", "delete"]) app[m] = (p: string, ...h: Function[]) => routes.set(`${m} ${p}`, h);
-  const call = async (method: string, path: string, params: Record<string, string>, opts: { query?: any; headers?: any; user?: any } = {}) => {
+  const call = async (method: string, path: string, params: Record<string, string>, opts: { query?: any; headers?: any; user?: any; body?: any } = {}) => {
     const h = routes.get(`${method} ${path}`)!;
-    const req: any = Object.assign(new EventEmitter(), { method: method.toUpperCase(), params, query: opts.query ?? {}, headers: opts.headers ?? {}, user: opts.user ?? { id: "7" }, socket: {} });
+    const req: any = Object.assign(new EventEmitter(), { method: method.toUpperCase(), params, query: opts.query ?? {}, headers: opts.headers ?? {}, user: opts.user ?? { id: "7" }, body: opts.body ?? {}, socket: {} });
     const chunks: Buffer[] = [];
     const res: any = Object.assign(new EventEmitter(), {
       statusCode: 200, headers: {} as Record<string, string>, body: undefined as any, ended: false,
@@ -163,3 +163,45 @@ test("read along is made from the listener's copy in show time, and placed back 
     ok(ads.ads.length === 3 && kinds.includes("dai") && kinds.includes("ai"), `stitched-in and read ads together: ${JSON.stringify(ads.ads)}`);
   } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
 });
+
+test("a listener's mark is kept in show time and lands right in someone else's copy", async () => {
+  const { memoryAdStore, registerAdRoutes, crowdFor } = await import("../server/podcastAds");
+  const show = frames(5000, 51);
+  const phone = join2([...frames(500, 52), ...show.slice(0, 2500), ...frames(300, 53), ...show.slice(2500)]);
+  const tablet = join2([...frames(900, 54), ...show.slice(0, 2500), ...frames(700, 55), ...show.slice(2500)]);
+  const bot = join2(show);
+  const host = async (url: string, o: any, scanner = new Mp3Scanner()) => fakeHost(o.ua === "Tablet" ? tablet : phone, bot)(url, o, scanner);
+  const dir0 = mkdtempSync(join(tmpdir(), "earshot-play-test-"));
+  const player = createPlayer({ dir: dir0, download: host as any, key: Buffer.alloc(32, 5) });
+  const store = memoryAdStore();
+  const { app, call } = fakeApp();
+  const auth = (_q: any, _s: any, n: any) => n();
+  const fakeDir: any = { learnMark: async () => {}, foundAds: async () => [] };
+  registerAdRoutes(app, auth, { prefix: "/api/x", dir: fakeDir, store, voterOf: (req: any) => `u${req.user.id}`, toContent: (sid, ep, x, side) => player.toContent(sid, ep, x, side) });
+  registerPlayRoutes(app, auth, { prefix: "/api/x", player, crowd: (ep) => crowdFor(store, ep), audioFor: async () => "https://host.example/ep.mp3", voterOf: (req: any) => `u${req.user.id}`, clientIp: () => "", cleanId: (v) => String(v ?? "").replace(/\D/g, "") });
+  const until = async (sid: string) => { for (let t = 0; t < 100; t++) { const b = (await call("get", "/api/x/play/:sid/ads", { sid })).res.body; if (b.final) return b; await new Promise((r) => setTimeout(r, 30)); } throw new Error("not final"); };
+  try {
+    const token = (await call("get", "/api/x/play-token", {})).res.body.token;
+    const q = { e: "22", s: "11", k: token };
+    await call("get", "/api/x/audio/:sid", { sid: "phonesession00000001" }, { query: q, headers: { range: "bytes=0-1", "user-agent": "Phone" } });
+    await call("get", "/api/x/audio/:sid", { sid: "tabletsession0000001" }, { query: q, headers: { range: "bytes=0-1", "user-agent": "Tablet" } });
+    await until("phonesession00000001"); await until("tabletsession0000001");
+    // The phone listener marks a host-read ad 10-40 s into the show (their copy has a 500-frame pre-roll).
+    const pre = 500 * FD;
+    const req = { params: { episodeId: "22" }, body: { showId: "11", s: pre + 10, e: pre + 40, dur: phone.length / 417 * FD, label: "Acme", play: "phonesession00000001" }, user: { id: "1" } };
+    const posted = await callWith(app, call, "post", "/api/x/ads/:episodeId/mark", req);
+    ok(posted.id, `saved: ${JSON.stringify(posted).slice(0, 120)}`);
+    const saved = await store.marks("22");
+    ok(saved.length === 1 && saved[0].dur === 0 && Math.abs(saved[0].s - 10) < 0.2 && Math.abs(saved[0].e - 40) < 0.2, `kept in show time: ${JSON.stringify(saved)}`);
+    // In the tablet's copy (a 900-frame pre-roll), the same moment is 900 frames in.
+    const tab = (await call("get", "/api/x/play/:sid/ads", { sid: "tabletsession0000001" })).res.body;
+    const mark = tab.ads.find((a: any) => a.kind === "user");
+    ok(mark && Math.abs(mark.s - (900 * FD + 10)) < 0.2 && Math.abs(mark.e - (900 * FD + 40)) < 0.2, `placed in the tablet's copy: ${JSON.stringify(tab.ads)}`);
+  } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
+});
+
+/** Calls a route with a full request (params, body, user). */
+async function callWith(app: any, _call: any, method: string, path: string, req: any) {
+  void app;
+  return (await _call(method, path, req.params, { user: req.user, body: req.body })).res.body;
+}

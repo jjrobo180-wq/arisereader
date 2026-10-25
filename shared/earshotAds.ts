@@ -48,6 +48,14 @@ const STRONG: RegExp[] = [
   /\b(go to|go over to|head to|head over to|visit|sign up at|get started at|check out|learn more at|text) [a-z0-9]+ ?(dot|\.) ?(com|org|io|co|net)\b/,
   /\bdownload the [a-z0-9 ]{2,20} app (today|now)\b/, /\bexclusive (offer|deal) for (our )?listeners\b/, /\bfor (our|my) listeners\b.*\b(offer|deal|off|free)\b/,
   /\blimited time (offer|only)\b/, /\bmember fdic\b/, /\bnot available in all states\b/,
+  // Public radio underwriting (NPR and member stations)
+  /\bthis message comes from\b/, /\bsupport for (npr|this (npr )?(podcast|program|show)|the following message) (and the following message )?comes? from\b/,
+  /\bsupport (for npr )?(and the following message )?come from\b/, /\b(funding|support) for (this|the) (program|podcast|show) is provided by\b/,
+  /\bthis (program|podcast|show) is (made possible|supported) (in part )?by\b/, /\bnpr ?(plus|\+)\b/, /\bsponsor[- ]free\b/,
+  // Political ads and the fine print read at the end of ads
+  /\bpaid for by\b/, /\bi approve this message\b/, /\bnot authorized by any candidate\b/,
+  /\b(see|visit) [a-z0-9. ]{2,30} for (details|full terms|terms)\b/, /\brestrictions apply\b/, /\bvoid where prohibited\b/, /\bsubject to credit approval\b/,
+  /\bequal housing (lender|opportunity)\b/, /\b(investing|investment) involves risk\b/, /\bpast performance (is not|does not)\b/, /\bmessage and data rates may apply\b/,
 ];
 /** Wording that's common in ads and around ad breaks, but also in shows. */
 const MEDIUM: RegExp[] = [
@@ -55,6 +63,9 @@ const MEDIUM: RegExp[] = [
   /\bstick around\b/, /\bwhen we come back\b/, /\bad[- ]free\b/, /\bsubscribe (to|on) [a-z ]+\+/, /\blisten (now|ad free|early)\b/,
   /\bwherever you (get|listen to) (your )?podcasts\b/, /\bdownload (the|our) app\b/, /\bvisit\b.*\b(dot|\.) ?com\b/, /\bsign up\b/, /\bcode [a-z0-9]{3,}\b/,
   /\bsave (up to )?\d+\b/, /\bget \d+ ?(%|percent)\b/, /\boffer ends\b/, /\bright now\b.*\b(get|save)\b/,
+  // Donation asks and network promos
+  /\b(make a|your) (donation|gift)\b/, /\b(donate|give) (at|today|now)\b/, /\bbecome a (member|sustainer|supporter)\b/, /\bpledge\b/,
+  /\b(new|next) episodes? (every|drop|out)\b.*\b(listen|subscribe|follow)\b/, /\b(listen|binge) (to )?(the )?(whole|full|entire) (series|season)\b/,
 ];
 /** Brands that sponsor podcasts all the time (only counted with ad wording nearby, so talking about them isn't an ad). */
 export const SPONSOR_BRANDS = [
@@ -77,7 +88,7 @@ export const SPONSOR_BRANDS = [
 ];
 const brandPattern = new RegExp(`\\b(${SPONSOR_BRANDS.map((b) => b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
 
-export type AdHints = { sponsors?: string[]; leadins?: string[]; intro?: string | null; preroll?: number | null; show?: string };
+export type AdHints = { sponsors?: string[]; leadins?: string[]; intro?: string | null; preroll?: number | null; show?: string; title?: string };
 
 /** How ad-like one line is: 3+ is a strong sign on its own. */
 export function lineAdScore(text: string, hints: AdHints = {}): number {
@@ -192,13 +203,14 @@ export function learnedPreroll(segs: TxSegment[], ads: AdRange[], hints: AdHints
 export const AD_PROMPT_V2 = `You find the ads in podcast transcripts so a listener can skip them. Accuracy matters both ways: skipping real show content is worse than missing an ad.
 You get numbered transcript lines. Lines marked ★ contain wording that often appears in ads (a hint, not proof).
 Mark every advertisement: sponsor reads (including the host reading them), "brought to you by"/"support comes from" messages, promos for other podcasts, shows, apps or subscriptions, and network ad breaks. Include the "we'll be right back"/"and we're back" lines that wrap a break.
-Do not mark: the show's real content, the host introducing the show or guest, the host's own requests to rate, review, follow or share, or a guest talking about their own book or work as part of the conversation.
+Do not mark: the show's real content, the host introducing the show or guest, the host's own requests to rate, review, follow or share, or a guest talking about their own book or work as part of the conversation. When the episode itself is a trailer, preview or bonus promo (its title says "Introducing", "Trailer", "Preview" or "Sneak peek"), the trailer is the episode: only mark sponsor reads inside it.
 For each ad give the first and last line numbers, and quote its first 4-6 words and last 4-6 words exactly as written in the transcript (so the cut lands on the exact word; an ad can start or end in the middle of a line).
 Answer with JSON only: {"ads":[{"from":<line>,"to":<line>,"start":"<first words>","end":"<last words>","label":"<sponsor or product name, or 'Ad break'>","confidence":<0 to 1>}]}. Answer {"ads":[]} when there are none.`;
 
 export function adPromptMessage(segs: TxSegment[], scores: number[], hints: AdHints, offset = 0): string {
   const head: string[] = [];
   if (hints.show) head.push(`Show: ${hints.show}`);
+  if (hints.title) head.push(`Episode: ${hints.title}`);
   if (hints.sponsors?.length) head.push(`This show's sponsors in past episodes: ${hints.sponsors.slice(0, 15).join(", ")}`);
   if (hints.leadins?.length) head.push(`This show's ad breaks often start with: ${hints.leadins.slice(0, 6).map((x) => `"${x}"`).join(", ")}`);
   if (hints.intro) head.push(`After any opening ads, this show's episodes usually begin: "${hints.intro}"`);

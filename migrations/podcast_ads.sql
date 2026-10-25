@@ -1,6 +1,8 @@
 -- Smart ad skip for Earshot (LifeHub) and Podscroll: what listeners share with each other.
 --  podcast_ad_marks: "Mark ad" ranges, in the marker's copy of the episode (dur = that copy's length,
---                    since podcasts often stitch different ads into each download).
+--                    since podcasts often stitch different ads into each download), or with dur 0 in
+--                    content time (the show's own audio with stitched-in ads left out), which fits
+--                    every copy: marks made while playing through the server are kept that way.
 --  podcast_ad_votes: one vote per listener per ad (-1 "not an ad", +1 "yes, an ad"); ad_key names
 --                    an automatic find (a:), a listener mark group (u:) or a skip spot (c:).
 --  podcast_ad_skips: forward jumps; spots several listeners skip become "Listeners skip this".
@@ -11,7 +13,7 @@ create table if not exists public.podcast_ad_marks (
   show_id text not null default '' check (show_id ~ '^[0-9]{0,20}$'),
   s real not null check (s >= 0),
   e real not null,
-  dur real not null check (dur > 0 and dur < 86400),
+  dur real not null check (dur >= 0 and dur < 86400),
   label text check (label is null or char_length(label) <= 60),
   voter text not null check (char_length(voter) between 2 and 60),
   created_at timestamptz not null default now(),
@@ -34,7 +36,7 @@ create table if not exists public.podcast_ad_skips (
   episode_id text not null check (episode_id ~ '^[0-9]{1,20}$'),
   from_s real not null check (from_s >= 0),
   to_s real not null,
-  dur real not null check (dur > 0 and dur < 86400),
+  dur real not null check (dur >= 0 and dur < 86400),
   voter text not null check (char_length(voter) between 2 and 60),
   created_at timestamptz not null default now(),
   constraint podcast_ad_skips_range check (to_s - from_s between 10 and 300)
