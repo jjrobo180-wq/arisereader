@@ -7,6 +7,8 @@ import { registerHomeWorldRoutes } from "./homeWorld";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
 import path from "node:path";
+import { readFile } from "node:fs/promises";
+import { postJson, sitemapPages, submitChanged } from "./indexNow";
 
 const app = express();
 const httpServer = createServer(app);
@@ -256,4 +258,22 @@ app.use((req, res, next) => {
     { port, host: "0.0.0.0", reusePort: true },
     () => { log(`serving on port ${port}`); },
   );
+
+  // IndexNow (server/indexNow.ts): a minute after starting, tell Bing and friends about any public
+  // page that is new or changed since last time. Production only; never holds up the start.
+  if (process.env.NODE_ENV === "production") {
+    setTimeout(() => {
+      void (async () => {
+        const { storage } = await import("./storage");
+        const readerXml = await readFile(path.resolve(__dirname, "public", "sitemap.xml"), "utf8").catch(() => "");
+        await submitChanged(
+          { getSetting: (k) => storage.getSetting(k), upsertSetting: (k, v) => storage.upsertSetting(k, v), post: postJson, log },
+          [
+            { host: "www.arisereader.com", pages: sitemapPages(readerXml) },
+            { host: "arisetodo.com", pages: TODO_SITEMAP.map((p) => ({ loc: `https://arisetodo.com${p.path}`, lastmod: p.lastmod })) },
+          ],
+        );
+      })().catch((err) => log(`[indexnow] skipped: ${err?.message || err}`));
+    }, 60_000);
+  }
 })();
