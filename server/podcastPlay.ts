@@ -120,6 +120,8 @@ type Session = {
   content?: { tag: string; pieces: ContentPiece[]; total: number };
   /** Ads from read-along pieces, placed in this copy (redone when new pieces arrive). */
   mapped?: { tag: string; ads: PlayAd[] };
+  /** The opening's read along (and its ads) being made right after comparing. */
+  opening?: "running" | "done";
 };
 type Ref = { agent: string; copy: LiveCopy; abort: AbortController };
 type EpisodeRefs = { episodeId: string; url: string; refs: Ref[]; used: number; extra: boolean };
@@ -149,7 +151,7 @@ export function createPlayer(o: PlayOptions = {}) {
   mkdirSync(dir, { recursive: true });
   const maxDisk = o.maxDiskBytes ?? 1.2 * 1024 ** 3;
   const maxSessions = o.maxSessions ?? 24;
-  const maxPerVoter = o.maxPerVoter ?? 6;
+  const maxPerVoter = o.maxPerVoter ?? 12;
   const maxCopy = o.maxCopyBytes ?? 400 * 1024 * 1024;
   const firstAgents = o.firstAgents ?? ["bot"];
   const extraAgents = o.extraAgents ?? ["bot2", "bot3"];
@@ -158,6 +160,7 @@ export function createPlayer(o: PlayOptions = {}) {
   const now = o.now ?? Date.now;
 
   const sessions = new Map<string, Session>();
+  let onFinal: ((s: Session) => void) | null = null;
   const episodes = new Map<string, EpisodeRefs>();
 
   // ---- disk and memory ----
@@ -213,6 +216,7 @@ export function createPlayer(o: PlayOptions = {}) {
           const next = pending.values().next().value as Session;
           pending.delete(next);
           if (sessions.has(next.id)) await analyze(next);
+          if (next.ads.final && next.copy.scanner.count && !next.opening && onFinal) { next.opening = "running"; onFinal(next); }
         }
       } finally { running = false; }
     });
@@ -398,9 +402,11 @@ export function createPlayer(o: PlayOptions = {}) {
   function open(o: { sid: string; voter: string; episodeId: string; showId: string; url: string; ua: string; ip: string }) {
     let s = sessions.get(o.sid);
     if (s) { s.touched = now(); return s; }
-    // A listener's oldest copies make room for new ones.
-    const mine = Array.from(sessions.values()).filter((x) => x.voter === o.voter && !x.streams).sort((a, b) => a.touched - b.touched);
-    for (const x of mine.slice(0, Math.max(0, mine.length - maxPerVoter + 1))) dropSession(x);
+    // A listener's oldest copies make room for new ones (never one used in the last few minutes: it may be
+    // the episode they paused, and its player still holds that copy).
+    const mine = Array.from(sessions.values()).filter((x) => x.voter === o.voter && !x.streams && now() - x.touched > 3 * 60_000).sort((a, b) => a.touched - b.touched);
+    const count = Array.from(sessions.values()).filter((x) => x.voter === o.voter).length;
+    for (const x of mine.slice(0, Math.max(0, count - maxPerVoter + 1))) dropSession(x);
     s = {
       id: o.sid, voter: o.voter, episodeId: o.episodeId, showId: o.showId, url: o.url,
       created: now(), touched: now(), streams: 0, file: join(dir, `${o.sid}.mp3`), copy: new LiveCopy(), abort: new AbortController(),
@@ -454,7 +460,7 @@ export function createPlayer(o: PlayOptions = {}) {
   }
   /** Content time placed in a session's copy. */
   const fromContent = (s: Session, ct: number) => ctToCopy(contentOf(s).pieces, ct);
-  return { sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, toContent, fromContent, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
+  return { setOnFinal: (f: (s: Session) => void) => { onFinal = f; }, sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, toContent, fromContent, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
 }
 export type Player = ReturnType<typeof createPlayer>;
 
@@ -496,6 +502,26 @@ export function parseRange(header: string | undefined, total: number): { start: 
 
 /** Read along for a session's copy: made from (and placed in) this listener's copy, in content time
  *  shared by every copy. null when the session can't be used (the caller uses the old way). */
+/** Right after a copy is compared, its opening (first 2.5 minutes) is transcribed and read for ads
+ *  (host-read sponsors, the show's own pitches) so they're skipped before they play. Two at a time;
+ *  made once per episode for everyone. */
+export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript">) {
+  const queue: any[] = [];
+  let running = 0;
+  const pump = () => {
+    while (running < 2 && queue.length) {
+      const s = queue.shift();
+      if (!player.sessions.has(s.id)) { s.opening = "done"; continue; }
+      running++;
+      const { total } = player.contentOf(s);
+      dir.contentTranscript(s.showId, s.episodeId, -1, { secs: total, extract: (from, to) => player.extract(s, from, to) })
+        .catch((e: any) => console.warn("[earshot] opening:", e?.message || e))
+        .finally(() => { s.opening = "done"; running--; pump(); });
+    }
+  };
+  player.setOnFinal((s) => { queue.push(s); pump(); });
+}
+
 export async function copyTranscript(player: Player, dir: Pick<Directory, "contentTranscript">, sid: string, showId: string, episodeId: string, chunk: number): Promise<TranscriptChunk | null> {
   const s = player.sessions.get(sid);
   if (!s || s.episodeId !== episodeId || s.copy.err) return null;
@@ -549,10 +575,8 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
       const voter = player.checkToken(String(req.query?.k || ""));
       const episodeId = d.cleanId(req.query?.e), showId = d.cleanId(req.query?.s);
       if (!voter || !episodeId || !showId) return res.status(403).end();
-      // An expired session asked for the middle of its file: the bytes would come from a new copy, so
-      // the player starts again (from where it was) instead.
-      const r = String(req.headers.range || "");
-      if (/^bytes=([1-9]\d*)-/.test(r)) return res.status(410).end();
+      // A session the server let go (or lost in a restart) is made again with the same id; the player
+      // keeps going (its copy may differ a little if the host stitched in different ads).
       if (tooMany(voter)) return res.status(429).end();
       let url: string | null = null;
       try { url = await d.audioFor(showId, episodeId); } catch { url = null; }
@@ -611,7 +635,7 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
     const out: PlayAd[] = [];
     const covered = (a: PlayAd) => out.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
     for (const a of [...s.ads.ads, ...extra.filter((x) => x.kind === "user"), ...extra.filter((x) => x.kind !== "user")]) if (!covered(a)) out.push(a);
-    res.json({ ...s.ads, ads: out.sort((x, y) => x.s - y.s) });
+    res.json({ ...s.ads, pending: s.opening === "running", ads: out.sort((x, y) => x.s - y.s) });
   });
 }
 

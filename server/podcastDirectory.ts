@@ -217,7 +217,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   const ask = options.ask ?? openAiJson;
   const transcribe = options.transcribe ?? openAiTranscribe;
   const aiOn = options.aiOn ?? (() => !!process.env.OPENAI_API_KEY);
-  const perDay = options.minutesPerDay ?? (Number(process.env.EARSHOT_AI_MINUTES_PER_DAY) || 300);
+  const perDay = options.minutesPerDay ?? (Number(process.env.EARSHOT_AI_MINUTES_PER_DAY) || 900);
 
   const genreShows = layeredCache<PodShow[]>(kv, "g2:", 12 * 3600_000, 100);
   const genreEpisodes = layeredCache<PoolShow[]>(kv, "ge:", 12 * 3600_000, 100);
@@ -444,9 +444,12 @@ export function createDirectory(options: DirectoryOptions = {}) {
     const none = (reason: string): ContentChunk => ({ v: 3, source: "none", segments: [], ads: [], chapters: [], chunk, chunkSecs: TX_CHUNK_SECS, more: false, reason, pieces: [] });
     const { show, ep } = await findEpisode(showId, episodeId);
     if (!ep) return none("This episode isn't available anymore.");
-    const key = `${ep.id}:${chunk}`;
+    // chunk -1: the opening (first 2.5 minutes), made right away so ads at the start are known before they play.
+    const opening = chunk === -1;
+    const key = opening ? `${ep.id}:o` : `${ep.id}:${chunk}`;
     const done = await ctx.peek(key);
     if (done) return done.value;
+    if (opening) { const c0 = await ctx.peek(`${ep.id}:0`); if (c0) return c0.value; }
     const showName = show?.name ?? ep.show;
     const ex = await publisherExtras(show, ep);
     let chapters: Chapter[] = [];
@@ -468,9 +471,10 @@ export function createDirectory(options: DirectoryOptions = {}) {
     if (!aiOn()) return { ...none("This show doesn't publish a transcript."), chapters };
     const chunks = Math.max(1, Math.ceil(src.secs / TX_CHUNK_SECS - 0.01));
     if (chunk >= chunks) return { ...none(""), source: "ai", chapters };
+    const OPENING = 150;
     return ctx.refresh(key, async () => {
-      if (budgetLeft() < TX_CHUNK_SECS / 60) throw Object.assign(new Error("budget"), { soft: true });
-      const from = chunk * TX_CHUNK_SECS, to = Math.min(src.secs, from + TX_CHUNK_SECS);
+      if (budgetLeft() < (opening ? OPENING : TX_CHUNK_SECS) / 60) throw Object.assign(new Error("budget"), { soft: true });
+      const from = opening ? 0 : chunk * TX_CHUNK_SECS, to = Math.min(src.secs, from + (opening ? OPENING : TX_CHUNK_SECS));
       const part = await src.extract(from, to);
       if (part.audio.size > 25_000_000) throw Object.assign(new Error("size"), { soft: true });
       if (!part.audio.size) throw new Error("no audio");
@@ -479,7 +483,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const segments = out.segments.map((x) => ({ s: from + x.start, e: from + x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: from + w.start, e: from + w.end, w: w.word.trim() })).filter((w) => w.w);
       const ads = await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk === 0 });
-      return { v: 3, source: "ai", segments, words, ads, chapters, chunk, chunkSecs: TX_CHUNK_SECS, more: chunk + 1 < chunks, pieces: part.pieces } as ContentChunk;
+      return { v: 3, source: "ai", segments, words, ads, chapters, chunk, chunkSecs: opening ? OPENING : TX_CHUNK_SECS, more: !opening && chunk + 1 < chunks, pieces: part.pieces } as ContentChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
       if (e?.message === "size") return { ...none("This episode's audio is too large to read along."), chapters };
@@ -489,7 +493,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   }
   /** Content-time pieces already made for an episode (nothing new is made). */
   async function contentChunks(episodeId: string): Promise<ContentChunk[]> {
-    const keys = [`${episodeId}:pub`, ...Array.from({ length: 24 }, (_, i) => `${episodeId}:${i}`)];
+    const keys = [`${episodeId}:pub`, `${episodeId}:o`, ...Array.from({ length: 24 }, (_, i) => `${episodeId}:${i}`)];
     await ctx.preload(keys);
     return keys.map((k) => ctx.peekMemory(k)).filter((c): c is ContentChunk => !!c && c.source !== "none");
   }

@@ -83,7 +83,7 @@ export type PlayerProps = {
 };
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
-type SessionAds = { ready: boolean; final: boolean; startAt?: number; ads: PlayAd[]; how: string; compared: number; dur?: number; gone?: boolean };
+type SessionAds = { ready: boolean; final: boolean; pending?: boolean; startAt?: number; ads: PlayAd[]; how: string; compared: number; dur?: number; gone?: boolean };
 type PlaySession = { sid: string; showId: string; ads: SessionAds | null; polls: number; timer: ReturnType<typeof setTimeout> | null; used: number; retried?: boolean };
 const newSid = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, (b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b & 63]).join(""); };
 /** Audio formats the server can look inside (MP3); others play straight from the host. */
@@ -313,7 +313,15 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     let stop = false; let t: ReturnType<typeof setTimeout> | null = null;
     const get = () => api("/api/earshot/play-token").then((b) => {
       if (stop || !b?.token) return;
+      const first = !playTok.current;
       playTok.current = { token: String(b.token), exp: Number(b.exp) * 1000, audio: String(b.audio || "/api/earshot/audio/") };
+      // Players loaded before the token came back play straight from the host: switch the ones that haven't started.
+      if (first) for (const a of players.current) {
+        const ep = itemsRef.current.find((x) => x.ep?.id === a.dataset.ep)?.ep;
+        if (!ep || a.dataset.sid || !a.paused || a.currentTime > 0.5) continue;
+        const via = viaServer(ep); if (!via) continue;
+        a.dataset.sid = via; a.src = sessionSrc(ep, via); a.load();
+      }
       t = setTimeout(get, Math.max(60_000, playTok.current.exp - Date.now() - 30 * 60_000));
     }).catch(() => { if (!stop) t = setTimeout(get, 60_000); });
     void get();
@@ -331,6 +339,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return p.sid;
   };
   const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}`);
+  /** Jumps past a sure ad the player is in right now (and says so). */
+  const skipIfInAd = (a: HTMLAudioElement, ads: PlayAd[]) => {
+    const t = a.currentTime || 0;
+    const ad = ads.find((x) => x.sure && t >= x.s - 0.5 && t < x.e - 1 && !undone.current.has(x.key));
+    if (!ad) return;
+    try { a.currentTime = ad.e; } catch { return; }
+    const epId = a.dataset.ep; if (epId) setSkipped({ ad, epId });
+  };
   /** Asks what the server found in this session's copy: soon after it starts, then less often, until it's final. */
   const pollPlay = (epId: string, again = false) => {
     const p = plays.current.get(epId); if (!p) return;
@@ -344,10 +360,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       api(`/api/earshot/play/${p.sid}/ads`).then((b: SessionAds) => {
         if (plays.current.get(epId) !== p) return;
         p.ads = b; setAdsTick((x) => x + 1);
-        // The copy starts with an ad and nothing has played yet: start after it.
+        // Playing inside an ad this copy turns out to have (the pre-roll, usually): jump past it now.
         const a = cur.current;
-        if (b?.startAt && a && a.dataset.sid === p.sid && a.currentTime < 1 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(p.showId)) { try { a.currentTime = b.startAt; } catch { /* not seekable yet */ } }
-        if (!b?.final && p.polls < 40) pollPlay(epId);
+        if (a && a.dataset.sid === p.sid && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(p.showId)) skipIfInAd(a, b?.ads ?? []);
+        if ((!b?.final || b?.pending) && p.polls < 60) pollPlay(epId);
       }).catch(() => { if (plays.current.get(epId) === p && p.polls < 40) pollPlay(epId); });
     }, wait);
   };
@@ -372,6 +388,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       const to = Math.max(at || 0, pre);
       try { if (to && a!.dataset.ep === ep.id && a!.currentTime < 1) a!.currentTime = to; } catch { /* the host doesn't allow seeking */ }
     }, { once: true });
+    // iPhones ignore a jump made before the audio is ready; check again once it plays.
+    a.addEventListener("playing", () => { const p = plays.current.get(ep.id); if (a!.dataset.sid && p && a!.dataset.sid === p.sid && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId)) skipIfInAd(a!, p.ads?.ads ?? []); }, { once: true });
     a.load();
     return a;
   };

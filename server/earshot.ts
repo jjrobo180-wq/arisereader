@@ -14,7 +14,7 @@ import {
 } from "../shared/earshot";
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
-import { copyTranscript, registerPlayRoutes, type Player } from "./podcastPlay";
+import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -127,6 +127,7 @@ export interface EarshotOptions {
   player?: Player;
 }
 let sharedAdStore: AdStore | null = null;
+const openingsStarted = new WeakSet<object>();
 
 export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandler, options: EarshotOptions) {
   const store = options.store;
@@ -245,6 +246,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   const player = options.player;
   registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
   if (player) {
+    if (!openingsStarted.has(player)) { openingsStarted.add(player); startOpenings(player, dir); }
     registerPlayRoutes(app, authMiddleware, {
       prefix: P, player, dir, crowd: (ep) => crowdFor(adStore, ep), cleanId: cleanPodId, clientIp,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,

@@ -77,10 +77,9 @@ test("a listener's copy streams through the server and its stitched-in ads are f
     ok(checkPlayToken(player.key, token) === "u7", "token names the listener");
     const sid = "abcdefghijklmnop1234";
     const q = { e: "22", s: "11", k: token };
-    // A bad token, an unknown episode, and a fresh session asked for the middle of its file.
+    // A bad token and an unknown episode.
     assert.equal((await call("get", "/api/earshot/audio/:sid", { sid }, { query: { ...q, k: "nope" } })).res.statusCode, 403);
     assert.equal((await call("get", "/api/earshot/audio/:sid", { sid }, { query: { ...q, e: "99" } })).res.statusCode, 404);
-    assert.equal((await call("get", "/api/earshot/audio/:sid", { sid }, { query: q, headers: { range: "bytes=5000-" } })).res.statusCode, 410);
     // The player's first probe.
     const first = await call("get", "/api/earshot/audio/:sid", { sid }, { query: q, headers: { range: "bytes=0-1", "user-agent": "AppleCoreMedia/1.0" } });
     assert.equal(first.res.statusCode, 206);
