@@ -460,7 +460,10 @@ export function createDirectory(options: DirectoryOptions = {}) {
         const ads = await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(src.secs, last), from: 0, to: Math.max(src.secs, last), opening: true });
         return { v: 3, source: "publisher", segments, ads, chapters, chunk: 0, chunkSecs: Math.max(src.secs, last), more: false, pieces: [] } as ContentChunk;
       }).catch(() => null);
-      if (pub) return pub;
+      // Only when it's timed to the show alone: some publishers time theirs to a copy with ad
+      // breaks in it, and then every line after the first break would land in the wrong place.
+      const end = pub?.segments.length ? pub.segments[pub.segments.length - 1].e : 0;
+      if (pub && Math.abs(end - src.secs) <= Math.max(25, src.secs * 0.03)) return pub;
     }
     if (!aiOn()) return { ...none("This show doesn't publish a transcript."), chapters };
     const chunks = Math.max(1, Math.ceil(src.secs / TX_CHUNK_SECS - 0.01));

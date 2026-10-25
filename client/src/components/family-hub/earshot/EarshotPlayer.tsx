@@ -84,7 +84,7 @@ export type PlayerProps = {
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
 type SessionAds = { ready: boolean; final: boolean; startAt?: number; ads: PlayAd[]; how: string; compared: number; dur?: number; gone?: boolean };
-type PlaySession = { sid: string; showId: string; ads: SessionAds | null; polls: number; timer: ReturnType<typeof setTimeout> | null };
+type PlaySession = { sid: string; showId: string; ads: SessionAds | null; polls: number; timer: ReturnType<typeof setTimeout> | null; used: number; retried?: boolean };
 const newSid = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, (b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b & 63]).join(""); };
 /** Audio formats the server can look inside (MP3); others play straight from the host. */
 const throughServer = (url: string) => !/\.(m4a|mp4|aac|m4b|ogg|opus|wav|flac)(\?|$)/i.test(url);
@@ -325,7 +325,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const tok = playTok.current;
     if (!mediaUrl || !tok || tok.exp - Date.now() < 5 * 60_000 || direct.current.has(ep.id) || !throughServer(ep.audio)) return null;
     let p = plays.current.get(ep.id);
-    if (!p || p.ads?.gone) { if (p?.timer) clearTimeout(p.timer); p = { sid: newSid(), showId: ep.showId, ads: null, polls: 0, timer: null }; plays.current.set(ep.id, p); pollPlay(ep.id); }
+    // The server lets a session go after half an hour unused: start a new one before that.
+    if (!p || p.ads?.gone || Date.now() - p.used > 20 * 60_000) { if (p?.timer) clearTimeout(p.timer); p = { sid: newSid(), showId: ep.showId, ads: null, polls: 0, timer: null, used: Date.now(), retried: p?.retried }; plays.current.set(ep.id, p); pollPlay(ep.id); }
+    p.used = Date.now();
     return p.sid;
   };
   const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}`);
@@ -390,6 +392,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const a = playerFor(ep, []);
     if (cur.current && cur.current !== a) cur.current.pause();
     cur.current = a;
+    // It failed while loading ahead (through the server): load it again now that it's playing.
+    if (a.error && a.dataset.sid) handlers.current.error(a);
     listened.current = 0; lastTime.current = a.currentTime; lastSpot.current = 0; setSkipped(null);
     if (markingRef.current && markingRef.current.epId !== ep.id) setMarking(null);
     loadAds(ep);
@@ -539,13 +543,16 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (!sheetRef.current) goTo(activeRef.current + 1);
   };
   handlers.current.error = (a) => {
-    // Through the server didn't work: play straight from the host, from the same spot.
+    // Through the server didn't work: a new session once, then straight from the host, from the same spot.
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && a.dataset.sid && a.dataset.ep === ep.id) {
       const t = a.currentTime || 0, wasPlaying = !a.paused || playing;
-      direct.current.add(ep.id);
       const p = plays.current.get(ep.id); if (p?.timer) clearTimeout(p.timer); plays.current.delete(ep.id);
-      delete a.dataset.sid; a.src = ep.audio; a.load();
+      if (!p?.retried) plays.current.set(ep.id, { sid: "", showId: ep.showId, ads: { ready: true, final: true, ads: [], how: "failed", compared: 0, gone: true }, polls: 0, timer: null, used: 0, retried: true });
+      else direct.current.add(ep.id);
+      const via = viaServer(ep);
+      if (via) a.dataset.sid = via; else delete a.dataset.sid;
+      a.src = via ? sessionSrc(ep, via) : ep.audio; a.load();
       if (t > 1) a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* not seekable */ } }, { once: true });
       if (wasPlaying) a.play().catch(() => setPlaying(false));
       return;
