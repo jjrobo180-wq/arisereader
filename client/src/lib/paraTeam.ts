@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/queryClient";
 import { TODO_APP } from "@/lib/hubs";
 import type { ParaData, ParaItem, ParaKind, ParaTeamSummary, ParaTeamView, DocFolder } from "@shared/paraTeam";
+import type { FamilyPatch, ParaPerms } from "@shared/paraApps";
 
 /** The code from an invite link, kept while someone signs in or makes an account. */
 export const PENDING_JOIN_KEY = "para_team_join_code";
@@ -147,7 +148,17 @@ export function useParaTeam(token: string | null | undefined, teamId: string | n
     return t;
   }), [token, teamId, run]);
 
-  return { team, error, reload: load, add, update, remove, upload, openFile, fileUrl, teamCall };
+  /** Team › Permissions (owner) and the team's apps list. */
+  const saveSettings = useCallback((patch: { perms?: Partial<ParaPerms>; apps?: string[] }) => teamCall("/settings", { method: "PATCH", body: JSON.stringify(patch) }), [teamCall]);
+
+  /** Saves changes made in the team's apps; answers with the merged shared data. */
+  const saveApps = useCallback((patch: FamilyPatch) => run(async () => {
+    const item = await paraApi<ParaItem<"hub">>(token, `/api/para-teams/${teamId}/apps/data`, { method: "PATCH", body: JSON.stringify({ patch }) });
+    put(item);
+    return item;
+  }), [token, teamId, run]);
+
+  return { team, error, reload: load, add, update, remove, upload, openFile, fileUrl, teamCall, saveSettings, saveApps };
 }
 
 export type ParaTeamApi = ReturnType<typeof useParaTeam>;

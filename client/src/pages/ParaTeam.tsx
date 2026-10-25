@@ -17,6 +17,7 @@ import { CARD, PRIMARY, SECOND, ParaProvider, makePara, type Section } from "@/c
 import { BulletinSection } from "@/components/para-team/Bulletins";
 import { CalendarSection, MessagesSection, ScheduleSection, TasksSection, TodaySection } from "@/components/para-team/DaySections";
 import { DataSection, DocsSection, LessonsSection, StudentsSection, TeamSection } from "@/components/para-team/WorkSections";
+import { TeamAppPage, TeamAppsNav, TeamStore } from "@/components/para-team/TeamApps";
 
 const SECTIONS: Array<{ id: Section; label: string; icon: LucideIcon }> = [
   { id: "today", label: "Today", icon: Home },
@@ -31,7 +32,7 @@ const SECTIONS: Array<{ id: Section; label: string; icon: LucideIcon }> = [
   { id: "docs", label: "Docs & files", icon: FolderOpen },
   { id: "team", label: "Team", icon: Users },
 ];
-const isSection = (s: unknown): s is Section => SECTIONS.some((x) => x.id === s);
+const isSection = (s: unknown): s is Section => SECTIONS.some((x) => x.id === s) || s === "store" || s === "app";
 const hashParams = () => new URLSearchParams(window.location.hash.split("?")[1] || "");
 const store = {
   get: (k: string) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
@@ -171,13 +172,13 @@ function TeamScreen({ teamId, teams, onPick, onNew, onGone, say, back }: {
   const { token } = useAuth();
   const api = useParaTeam(token, teamId);
   const [section, setSection] = useState<Section>(() => { const s = hashParams().get("s"); return isSection(s) ? s : "today"; });
-  const [focus, setFocus] = useState<string | undefined>(undefined);
+  const [focus, setFocus] = useState<string | undefined>(() => hashParams().get("app") || undefined);
   const [today, setToday] = useState(() => dayKey(new Date()));
   // A page left open overnight moves on to the new day.
   useEffect(() => { const t = window.setInterval(() => setToday(dayKey(new Date())), 60_000); return () => window.clearInterval(t); }, []);
   useEffect(() => {
-    try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#/para-team?team=${teamId}&s=${section}`); } catch { /* the address just doesn't update */ }
-  }, [teamId, section]);
+    try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}#/para-team?team=${teamId}&s=${section}${section === "app" && focus ? `&app=${encodeURIComponent(focus)}` : ""}`); } catch { /* the address just doesn't update */ }
+  }, [teamId, section, focus]);
 
   const go = (s: Section, f?: string) => { setSection(s); setFocus(f); window.scrollTo({ top: 0 }); };
   const team = api.team;
@@ -204,6 +205,9 @@ function TeamScreen({ teamId, teams, onPick, onNew, onGone, say, back }: {
   const unread = ofKind(team.items, "message").filter((m) => m.createdBy !== team.me && (!seen || m.createdAt > seen)).length;
   const myOpen = ofKind(team.items, "task").filter((t) => !t.data.done && canCheckOff(team.me, t.data) && t.data.due && t.data.due <= today).length;
   const boardUp = bulletinsOn(team.items, today).length;
+  // The App Store is "", a team app its key; null when neither is open.
+  const appNav = section === "store" ? "" : section === "app" ? focus || null : null;
+  const openApp = (key: string | null) => (key ? go("app", key) : go("store"));
   const badge = (s: Section) => (s === "messages" ? unread : s === "tasks" ? myOpen : s === "bulletin" ? boardUp : 0);
 
   return (
@@ -234,6 +238,7 @@ function TeamScreen({ teamId, teams, onPick, onNew, onGone, say, back }: {
               <Icon className="h-4 w-4" />{s.label}{n > 0 && <span className={`ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold ${on ? "bg-white text-teal-800" : "bg-teal-700 text-white"}`}>{n}</span>}
             </button>;
           })}
+          <TeamAppsNav compact current={appNav} onOpen={openApp} />
         </nav>
       </header>
       <div className="mx-auto flex max-w-7xl gap-6 px-3 py-5 sm:px-6">
@@ -246,6 +251,7 @@ function TeamScreen({ teamId, teams, onPick, onNew, onGone, say, back }: {
               {n > 0 && <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold ${on ? "bg-white text-teal-800" : "bg-teal-700 text-white"}`}>{n}</span>}
             </button>;
           })}
+          <TeamAppsNav current={appNav} onOpen={openApp} />
           <p className="mt-4 px-3 text-xs leading-relaxed text-slate-500">{team.members.filter((m) => !m.left).length} on the team · {para.lead ? "you're a lead" : "you're a para"}</p>
         </nav>
         <main className="min-w-0 flex-1" key={`${section}:${focus || ""}`}>
@@ -261,6 +267,8 @@ function TeamScreen({ teamId, teams, onPick, onNew, onGone, say, back }: {
             {section === "lessons" && <LessonsSection />}
             {section === "docs" && <DocsSection focus={focus} />}
             {section === "team" && <TeamSection onLeft={onGone} />}
+            {section === "store" && <TeamStore />}
+            {section === "app" && <TeamAppPage appKey={focus || ""} />}
           </Suspense>
         </main>
       </div>

@@ -9,6 +9,7 @@ import {
   DOC_FOLDERS, GOAL_RESULTS, GOAL_RESULT_LABEL, LESSON_STATUS, LESSON_STATUS_LABEL, LOG_LABEL, LOG_TYPES, clock, goalSummary, logsCsv, ofKind,
   type DocFolder, type LessonData, type LinkData, type LogData, type NoteData, type ParaItem, type StudentData,
 } from "@shared/paraTeam";
+import { PERM_INFO, PERM_KEYS, cleanSettings, type PermKey } from "@shared/paraApps";
 import { Area, CARD, Choice, CHIP, DANGER, DeleteButton, EmptyNote, PRIMARY, SECOND, SMALL, SectionHead, Who, dayWords, nowTime, usePara, when } from "./kit";
 
 function Saver({ saving, onCancel, onSave, label = "Save" }: { saving: boolean; onCancel: () => void; onSave: () => void; label?: string }) {
@@ -617,8 +618,10 @@ export function TeamSection({ onLeft }: { onLeft: () => void }) {
           )}
         </li>
       ))}</ul>
-      {lead && <p className="mt-2 text-xs text-slate-500">Leads can add and change students, the schedule and team notes, and pin messages. Paras can add messages, to-dos, calendar events, data, lessons, links and files, and change their own.</p>}
+      {lead && <p className="mt-2 text-xs text-slate-500">Leads can add and change students, the schedule and team notes, and pin messages. Paras can add messages, to-dos, calendar events, data, lessons, links and files, and change their own, plus whatever Permissions below allows.</p>}
     </section>
+
+    <Permissions />
 
     <section className={`${CARD} mb-4`} aria-labelledby="me-head">
       <h2 id="me-head" className="mb-2 text-lg font-extrabold text-slate-950">Your job on this team</h2>
@@ -666,4 +669,41 @@ function LeaveButton({ onLeave }: { onLeave: () => void }) {
   return sure
     ? <span className="flex flex-wrap gap-2"><button type="button" className={DANGER} onClick={onLeave}>Yes, leave</button><button type="button" className={SECOND} onClick={() => setSure(false)}>Stay</button></span>
     : <button type="button" className={DANGER} onClick={() => setSure(true)}>Leave the team…</button>;
+}
+
+/** Team › Permissions: what paras may do with things other people made. Only the teacher who made
+ *  the team switches these; everyone else sees what's allowed. */
+function Permissions() {
+  const p = usePara();
+  const { perms } = p.team.settings ?? cleanSettings(null);
+  const owner = p.team.owner;
+  const [busy, setBusy] = useState<PermKey | null>(null);
+  const flip = async (k: PermKey) => {
+    setBusy(k);
+    await p.act(() => p.api.saveSettings({ perms: { [k]: !perms[k] } }), !perms[k] ? "Turned on for paras." : "Turned off for paras.");
+    setBusy(null);
+  };
+  return <section className={`${CARD} mb-4`} aria-labelledby="perms-head" data-testid="para-permissions">
+    <h2 id="perms-head" className="text-lg font-extrabold text-slate-950">Permissions</h2>
+    <p className="mt-1 text-sm text-slate-600">{owner
+      ? "Choose what paras may do with things other people added. You and any leads can always change everything."
+      : "What paras on this team may do with things other people added. Only the teacher who made the team can change these."}</p>
+    <ul className="mt-3 divide-y divide-slate-100">
+      {PERM_KEYS.map((k) => {
+        const on = perms[k];
+        return <li key={k} className="flex items-start gap-3 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-slate-900">{PERM_INFO[k].label}</p>
+            <p className="text-sm text-slate-600">{PERM_INFO[k].line}</p>
+          </div>
+          {owner ? (
+            <button type="button" role="switch" aria-checked={on} aria-label={PERM_INFO[k].label} disabled={busy !== null} onClick={() => void flip(k)} data-testid={`para-perm-${k}`}
+              className={`relative mt-1 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition disabled:opacity-60 ${on ? "bg-teal-700" : "bg-slate-300"}`}>
+              <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${on ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          ) : <span className={`${CHIP} mt-1 shrink-0 ${on ? "bg-teal-50 text-teal-800" : "bg-slate-100 text-slate-600"}`}>{on ? "Allowed" : "Not allowed"}</span>}
+        </li>;
+      })}
+    </ul>
+  </section>;
 }

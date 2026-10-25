@@ -30,6 +30,7 @@ import LinkedProfiles from "@/components/family-hub/LinkedProfiles";
 import { linksApi } from "@/lib/profileLinks";
 import StickyBoard from "@/components/family-hub/StickyBoard";
 import KitPlugin from "@/components/plugin-kit/KitPlugin";
+import { LIFE_VIEWS } from "@/components/family-hub/lifeApps";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
 import { KIT_DEFS, isKitLifeId, kitDef, type KitLifeId } from "@shared/pluginKit";
 import Allowance from "@/components/family-hub/Allowance";
@@ -845,77 +846,11 @@ export default function AriseTodo() {
   const familyContent: ReactNode = shown === "home" ? <FamilyHome {...common} tasks={calendarTasks} go={setSection} name={(user?.displayName || "").split(" ")[0]} onToggleTask={id => { const task = data.tasks.find(row => row.id === id); if (task) toggleDone(task); }} openNotesApp={setNotesAppOpen} appTiles={phoneItems.filter((i) => i.id !== "home").map((i) => ({ id: `app-${i.id}`, label: i.label, icon: i.icon, color: i.color, badge: i.badge, onClick: i.onClick }))} />
     : shown === "start" ? <GettingStarted hub="life" startRole={startingRole(user, "life")} canOpen={guideCanOpen} onOpen={guideOpen}
         onRemove={() => { setFamily((f) => ({ ...f, sections: { ...f.sections, start: false } })); setSection("home"); setMessage("Getting started removed. Add it back any time from the App Store."); }} />
-    : shown === "chores" ? <Chores {...common} />
     : shown === "calendar" ? <FamilyCalendar {...common} tasks={calendarTasks} onOpenTasks={() => { setSection("tasks"); setView("today"); }} />
-    : shown === "behavior" ? <Behavior {...common} />
-    : shown === "health" ? <Health {...common} />
-    : shown === "goals" ? <Goals {...common} />
-    : shown === "cycle" ? <Cycle {...common} />
-    : shown === "pills" ? <Pills {...common} />
-    : shown === "mood" ? <Mood {...common} />
-    : shown === "news" ? <News {...common} />
-    : shown === "notifications" ? <NotificationSettings {...common} />
     : shown === "reader" ? <Suspense fallback={<div className="grid grid-cols-1 min-h-[40vh] place-items-center"><RefreshCw className="animate-spin text-violet-600" size={30} /></div>}><Reader say={setMessage} night={night} /></Suspense>
-    : shown === "polls" ? <Polls {...common} />
-    : shown === "trips" ? <Trips {...common} />
-    : shown === "money" ? <Money {...common} />
-    : shown === "notes" ? <Notes {...common} />
-    : shown === "journal" ? <Journal {...common} />
-    : shown === "countdowns" ? <Countdowns {...common} />
-    : shown === "grocery" ? <Grocery {...common} />
-    : shown === "meditate" ? <Meditate {...common} />
-    : shown === "bible" ? <Bible {...common} />
-    : shown === "quotes" ? <Quotes {...common} />
-    : shown === "history" ? <TodayInHistory {...common} />
-    : shown === "trending" ? <Trending {...common} />
-    : shown === "randomizer" ? <Randomizer {...common} />
-    : shown === "relationships" ? <Relationships {...common} />
-    : shown === "dictionary" ? <Dictionary {...common} />
-    : shown === "links" ? <LinkPage {...common} />
     : shown === "lifeplan" ? <LifePlanApp {...common} go={setSection} openStore={() => setStore(true)} />
-    : shown === "linked" ? <LinkedProfiles {...common} />
-    : shown === "habits" ? <Habits {...common} />
-    : shown === "gratitude" ? <Gratitude {...common} />
-    : shown === "focus" ? <Focus {...common} />
-    : shown === "bucket" ? <Collection kind="bucket" {...common} />
-    : shown === "recipes" ? <Recipes {...common} />
-    : shown === "meals" ? <MealPlanner {...common} />
-    : shown === "upkeep" ? <CareTracker kind="upkeep" {...common} />
-    : shown === "plants" ? <CareTracker kind="plants" {...common} />
-    : shown === "birthdays" ? <Birthdays {...common} />
-    : shown === "gifts" ? <Collection kind="gifts" {...common} />
-    : shown === "pets" ? <CareTracker kind="pets" {...common} />
-    : shown === "contacts" ? <Contacts {...common} />
-    : shown === "subscriptions" ? <Subscriptions {...common} />
-    : shown === "jars" ? <SavingsJars {...common} />
-    : shown === "tips" ? <TipCalculator {...common} />
-    : shown === "reading" ? <Collection kind="reading" {...common} />
-    : shown === "watchlist" ? <Collection kind="watchlist" {...common} />
-    : shown === "weather" ? <Weather {...common} />
-    : shown === "convert" ? <Converter {...common} />
-    : shown === "car" ? <CareTracker kind="car" {...common} />
-    : shown === "wishlist" ? <Collection kind="wishlist" {...common} />
-    : shown === "restaurants" ? <Collection kind="restaurants" {...common} />
-    : shown === "learning" ? <Collection kind="learning" {...common} />
-    : shown === "projects" ? <Collection kind="projects" {...common} />
-    : shown === "loans" ? <Collection kind="loans" {...common} />
-    : shown === "cleaning" ? <CareTracker kind="cleaning" {...common} />
-    : shown === "checkups" ? <CareTracker kind="checkups" {...common} />
-    : shown === "sleep" ? <SleepApp {...common} />
-    : shown === "workouts" ? <WorkoutLog {...common} />
-    : shown === "routines" ? <Routines {...common} />
-    : shown === "milestones" ? <Milestones {...common} />
-    : shown === "ious" ? <Ious {...common} />
-    : shown === "allowance" ? <Allowance {...common} />
-    : shown === "giftcards" ? <GiftCards {...common} />
-    : shown === "warranties" ? <Warranties {...common} />
-    : shown === "mileage" ? <Mileage {...common} />
-    : shown === "mortgage" ? <LoanCalculator {...common} />
-    : shown === "clocks" ? <WorldClock {...common} />
-    : shown === "timers" ? <KitchenTimers {...common} />
-    : shown === "medical" ? <MedicalInfo {...common} />
     : shown === "browser" ? <Browser {...common} onAddTask={(title, url) => setEditing({ ...emptyTask(data.lists[0].id), title: title.slice(0, 200), notes: url })} />
-    : shown === "family" ? <Members {...common} />
+    : LIFE_VIEWS[shown] ? LIFE_VIEWS[shown]!(common)
     : isKitLifeId(shown) && kitDef(shown) ? <KitPlugin key={shown} def={kitDef(shown)!} records={family.kit} setRecords={(update) => setFamily((f) => ({ ...f, kit: update(f.kit) }))} today={currentDay} makeId={makeId} say={setMessage} />
     : null;
 
