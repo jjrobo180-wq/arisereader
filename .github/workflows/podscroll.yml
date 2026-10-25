@@ -1,0 +1,35 @@
+name: Podscroll site
+# The separate Podscroll website (podscroll/): its tests, type check and build.
+on:
+  pull_request:
+    paths:
+      - 'podscroll/**'
+      - 'shared/earshot.ts'
+      - 'server/earshot.ts'
+      - 'client/src/components/family-hub/earshot/**'
+      - '.github/workflows/podscroll.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'podscroll/**'
+      - 'shared/earshot.ts'
+      - 'server/earshot.ts'
+      - 'client/src/components/family-hub/earshot/**'
+      - '.github/workflows/podscroll.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tests
+        run: npx tsx --test tests/earshot.test.ts
+      - name: Type check
+        run: npx tsc --project podscroll/tsconfig.json --noEmit
+      - name: Build
+        run: npx vite build --config podscroll/vite.config.ts

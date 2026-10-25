@@ -10,7 +10,7 @@ import {
   GENRES, applySignal, appleSearchUrl, chooseEpisode, cleanComment, cleanEarshot, commentAuthor, emptyEarshot, introSkip, mergeGenreShows,
   parseEpisode, parseShow, pickNext, plainText, tasteOf, type Candidate, type PodShow,
 } from "../shared/earshot";
-import { memoryEarshotStore, pacedFetcher, registerEarshotRoutes } from "../server/earshot";
+import { memoryEarshotStore, pacedFetcher, podscrollAllowed, registerEarshotRoutes } from "../server/earshot";
 
 const appleShow = (id: number, name: string, genres = ["Comedy", "Podcasts"], extra: Record<string, unknown> = {}) => ({
   wrapperType: "track", kind: "podcast", collectionId: id, trackId: id, collectionName: name, artistName: "Host", primaryGenreName: genres[0], genres,
@@ -81,7 +81,7 @@ test("saved data is cleaned", () => {
 });
 
 test("comments: names and text", () => {
-  assert.equal(commentAuthor("Lucy Ann Chase"), "Lucy C."); assert.equal(commentAuthor(""), "Arise listener"); assert.equal(commentAuthor("Prince"), "Prince");
+  assert.equal(commentAuthor("Lucy Ann Chase"), "Lucy C."); assert.equal(commentAuthor(""), "Listener"); assert.equal(commentAuthor("Prince"), "Prince");
   assert.equal(cleanComment("  hi\u0000  there  "), "hi there"); assert.equal(cleanComment("x".repeat(500)).length, 280);
 });
 
@@ -155,4 +155,16 @@ test("Earshot is wired into LifeHub and the App Store", () => {
   assert.match(read("client/src/pages/AriseTodo.tsx"), /earshot: PodcastNav3/);
   assert.match(read("client/src/components/plugin-store/PluginStore.tsx"), /Podcast: PodcastTile3/);
   assert.match(read("server/routes.ts"), /registerEarshotRoutes\(app, authMiddleware/);
+});
+
+test("Podscroll: its own site, calling the public routes", () => {
+  const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  assert.ok(podscrollAllowed("https://podscroll.onrender.com") && podscrollAllowed("http://localhost:5173"));
+  assert.ok(!podscrollAllowed("https://evil.example") && !podscrollAllowed(""), "other sites can't call it");
+  assert.match(read("server/routes.ts"), /registerPodscrollRoutes\(app, supabaseEarshotStore\(getAdminSupabase, "podscroll"\)\)/);
+  assert.match(read("podscroll/main.tsx"), /\/api\/podscroll/);
+  assert.match(read("podscroll/main.tsx"), /from "\.\.\/client\/src\/components\/family-hub\/earshot\/EarshotPlayer"/);
+  assert.doesNotMatch(read("client/src/components/family-hub/earshot/EarshotPlayer.tsx"), /from "@\//, "the shared player imports nothing from the Arise app");
+  const manifest = JSON.parse(read("podscroll/public/manifest.webmanifest"));
+  assert.equal(manifest.name, "Podscroll"); assert.equal(manifest.display, "standalone");
 });

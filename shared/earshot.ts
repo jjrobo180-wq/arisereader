@@ -306,7 +306,7 @@ export function shareText(ep: Pick<PodEpisode, "title" | "show" | "link">): stri
 /** How a commenter is shown: first name and last initial, never a full name or username. */
 export function commentAuthor(displayName: unknown): string {
   const parts = str(displayName, 80).replace(/[^\p{L}\p{N}' .-]/gu, "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "Arise listener";
+  if (!parts.length) return "Listener";
   const first = parts[0].slice(0, 20);
   return parts.length > 1 ? `${first} ${parts[parts.length - 1][0].toUpperCase()}.` : first;
 }
