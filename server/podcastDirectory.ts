@@ -199,7 +199,28 @@ async function openAiCall(send: () => Promise<Response>, what: string): Promise<
     throw new Error(res.status === 429 ? "busy" : `${what} ${res.status}${code ? ` ${code}` : ""}`);
   }
 }
+/** Groq's hosted model (OpenAI-compatible), used when OpenAI is out of credit. */
+const groqJson: AskJson = async (system, user) => {
+  const res = await openAiCall(() => fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: process.env.EARSHOT_GROQ_AD_MODEL || "openai/gpt-oss-120b", temperature: 0, max_tokens: 4000, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+    signal: AbortSignal.timeout(60_000),
+  }), "groq ai");
+  const body: any = await res.json().catch(() => null);
+  return String(body?.choices?.[0]?.message?.content || "");
+};
+let openAiDryUntil = 0;
 export const openAiJson: AskJson = async (system, user) => {
+  // Out of OpenAI credit: Groq answers instead (checking OpenAI again every 10 minutes).
+  if (process.env.GROQ_API_KEY && (!process.env.OPENAI_API_KEY || Date.now() < openAiDryUntil)) return groqJson(system, user);
+  try { return await openAiJsonOnly(system, user); }
+  catch (e: any) {
+    if (process.env.GROQ_API_KEY && (e?.message === "quota" || e?.message === "busy")) { if (e?.message === "quota") openAiDryUntil = Date.now() + 10 * 60_000; return groqJson(system, user); }
+    throw e;
+  }
+};
+const openAiJsonOnly: AskJson = async (system, user) => {
   const res = await openAiCall(() => fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
@@ -236,7 +257,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   const web = options.web ?? fetch;
   const ask = options.ask ?? openAiJson;
   const transcribe = options.transcribe ?? openAiTranscribe;
-  const aiOn = options.aiOn ?? (() => !!process.env.OPENAI_API_KEY);
+  const aiOn = options.aiOn ?? (() => !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY));
   const perDay = options.minutesPerDay ?? (Number(process.env.EARSHOT_AI_MINUTES_PER_DAY) || 900);
 
   const genreShows = layeredCache<PodShow[]>(kv, "g2:", 12 * 3600_000, 100);
@@ -339,7 +360,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
     }).catch(() => ({ transcript: null, chapters: "" }));
   }
   /** Ads in a stretch of transcript: phrases, the show's memory, AI cut at the exact word, chapters. */
-  async function analyzeAds(o: { showId: string; showName: string; title?: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean }): Promise<AdRange[]> {
+  async function analyzeAds(o: { showId: string; showName: string; title?: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean; status?: { aiFailed?: boolean } }): Promise<AdRange[]> {
     const prof = (await profiles.peek(o.showId))?.value ?? null;
     const hints = { ...profileHints(prof, o.showName), title: o.title };
     const { scores } = phraseBlocks(o.segs, hints);
@@ -353,6 +374,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
         catch { failed = true; }
       }
       ai = failed && !found.length ? null : found;
+      if (failed && o.status) o.status.aiFailed = true;
     }
     const learned = o.opening ? learnedPreroll(o.segs, [...(ai ?? []), ...phrase], hints) : null;
     const chapterAds = adsFromChapters(o.chapters, o.duration).filter((a) => a.e > o.from && a.s < o.to);
@@ -519,20 +541,28 @@ export function createDirectory(options: DirectoryOptions = {}) {
     if (!aiOn()) throw new Error("ai off");
     const key = `${episodeId}:g:${fp}`;
     const done = await ctx.peek(key);
-    if (done) return done.value.ads;
+    const redo = done && (done.value as any).aiFailed && Date.now() - ((done.value as any).at ?? 0) > 5 * 60_000;
+    if (done && !redo) return done.value.ads;
     // The show's name and the episode's title only help (spelling, the AI's hint): Apple being busy mustn't stop this.
     const found = await findEpisode(showId, episodeId).catch(() => null);
     const ep = found?.ep ?? null;
     const showName = found?.show?.name ?? ep?.show ?? "";
     const c = await ctx.refresh(key, async () => {
+      // Transcribed already, but the AI couldn't read it then: read it again (text only).
+      if (redo && done!.value.segments.length) {
+        const status: { aiFailed?: boolean } = {};
+        const ads = await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: done!.value.segments, words: (done!.value as any).words ?? [], chapters: [], duration: secs, from: 0, to: secs, opening: false, status });
+        return { ...done!.value, ads, aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
+      }
       if (budgetLeft() < secs / 60) throw new Error("budget");
       if (!audio.size || audio.size > 25_000_000) throw new Error("size");
       minutesToday += secs / 60;
       const out = await transcribe(audio, `gap-${fp}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: x.start, e: x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: w.start, e: w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false }) : [];
-      return { v: 3, source: "ai", segments, words, ads, chapters: [], chunk: -2, chunkSecs: secs, more: false, pieces: [] } as ContentChunk;
+      const status: { aiFailed?: boolean } = {};
+      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false, status }) : [];
+      return { v: 3, source: "ai", segments, words, ads, chapters: [], chunk: -2, chunkSecs: secs, more: false, pieces: [], aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
     });
     return c.ads;
   }
