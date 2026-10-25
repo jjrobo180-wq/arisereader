@@ -9,7 +9,8 @@ import {
 } from "@shared/earshot";
 import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
 import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
-import { ShareSheet, SocialTab, postEpisodeOf } from "./EarshotSocial";
+import { ClipMaker, ShareSheet, SocialTab, postEpisodeOf } from "./EarshotSocial";
+import { PreviewCard, Previews, previewPicks, type PreviewPick } from "./EarshotPreviews";
 import { hiRes, type PodMode } from "@shared/earshot";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -140,7 +141,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [dur, setDur] = useState(0);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [commentsOn, setCommentsOn] = useState(!student);
-  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "sleep" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow }>(null);
+  const [previews, setPreviews] = useState<PreviewPick[] | null>(null);
+  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "sleep" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow } | { kind: "clip"; ep: PodEpisode; time: number }>(null);
   const sheetRef = useRef(sheet); sheetRef.current = sheet;
   const [poolTick, setPoolTick] = useState(0);
   const [loadError, setLoadError] = useState("");
@@ -477,6 +479,16 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a.currentTime = Math.max(0, Math.min((a.duration || dur) - 1, a.currentTime + d));
     if (d > 0 && !markingRef.current) noteSkip(a.dataset.ep, from, a.currentTime);
   };
+  /** Plays s..e of the episode playing (the clip maker's "Hear it"), then pauses there. */
+  const previewT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewClip = (s: number, e: number) => {
+    const a = cur.current; if (!a) return;
+    if (previewT.current) clearTimeout(previewT.current);
+    a.currentTime = s; setTime(s); void a.play().catch(() => {});
+    const stop = () => { if (a.currentTime >= e - 0.1) { a.pause(); a.removeEventListener("timeupdate", stop); } };
+    a.addEventListener("timeupdate", stop);
+    previewT.current = setTimeout(() => a.removeEventListener("timeupdate", stop), ((e - s) / (a.playbackRate || 1)) * 1000 + 4000);
+  };
   /** user: the listener dragged the bar (a big jump forward counts as skipping past something). */
   const seekTo = (t: number, user = false) => {
     const a = cur.current; if (!a || !a.dataset.ep) return;
@@ -694,8 +706,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       api("/api/earshot/share", { method: "POST", body: { episodeId: ep.id } }).catch(() => {});
     }
   };
-  const playNow = (show: PodShow, ep: PodEpisode) => {
+  /** from: start at that moment (a clip's place in its episode). */
+  const playNow = (show: PodShow, ep: PodEpisode, from?: number) => {
     unlock();
+    if (typeof from === "number" && from > 0) saveSpot(ep, Math.max(15, from));
     setSheet(null); setGenreMode(null);
     const item: Item = { key: `${show.id}-${Math.random().toString(36).slice(2, 7)}`, show, why: "You picked this", ep, state: "ready" };
     const at = itemsRef.current.length ? activeRef.current + 1 : 0;
@@ -845,15 +859,19 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       <div className="flex gap-2"><button type="button" onClick={() => seekBy(15)} className="flex-1 rounded-full bg-black/10 py-2 text-xs font-semibold">Jump 15s</button><button type="button" onClick={endMark} className="flex-1 rounded-full bg-[#120e14] py-2 text-xs font-semibold text-white">Ad's over</button><button type="button" onClick={() => setMarking(null)} className="rounded-full bg-black/10 px-3 py-2 text-xs font-semibold">Cancel</button></div>
     </div>}
 
-    {tab === "explore" && pad(<Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow}
+    {tab === "explore" && pad(<Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow} onPreviews={setPreviews}
       onGenre={(g) => { setGenreMode(g); setTab("foryou"); }} onShow={(show) => setSheet({ kind: "show", show })} onEpisode={playNow}
       onResume={(id, s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
-    {tab === "social" && !student && pad(<SocialTab api={api} say={say} onPlay={playNow} />)}
+    {tab === "explore" && previews && <Previews api={api} picks={previews} onClose={() => setPreviews(null)} onPlay={(s, e, at) => { setPreviews(null); playNow(s, e, at); }} onShow={(show) => setSheet({ kind: "show", show })} onHush={() => players.current.forEach((a) => a.pause())} />}
+    {tab === "social" && !student && pad(<SocialTab api={api} say={say} onPlay={playNow} onHush={() => players.current.forEach((a) => a.pause())} />)}
     {tab === "library" && pad(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
 
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
     {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
-    {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)} />}
+    {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)}
+      onClip={cur.current?.dataset.ep === sheet.ep.id ? () => setSheet({ kind: "clip", ep: sheet.ep, time: cur.current?.currentTime ?? 0 }) : undefined} />}
+    {sheet?.kind === "clip" && <ClipMaker api={api} say={say} ep={sheet.ep} time={sheet.time} lines={txFor(sheet.ep)?.segments ?? []} sid={cur.current?.dataset.ep === sheet.ep.id ? cur.current?.dataset.sid : undefined}
+      onPreview={(s, e) => previewClip(s, e)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
     {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, `${m.icon} ${m.name}`)} onClose={() => setSheet(null)} /> : null; })()}
     {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={chooseSleep} apple={!!standalone} />}
@@ -1413,7 +1431,7 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple 
 // ===========================================================================
 // Explore
 // ===========================================================================
-function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, onEpisode, onResume, onPlayEpisode }: { api: PlayerProps["api"]; ex: string; student: boolean; pools: Map<string, PoolShow[]>; poolTick: number; spots: Record<string, Spot>; onGenre: (g: string) => void; onShow: (s: PodShow) => void; onEpisode: (s: PodShow, e: PodEpisode) => void; onResume: (id: string, s: Spot) => void; onPlayEpisode: (s: PodShow, e: PodEpisode) => void }) {
+function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, onEpisode, onResume, onPlayEpisode, onPreviews }: { onPreviews: (p: PreviewPick[]) => void; api: PlayerProps["api"]; ex: string; student: boolean; pools: Map<string, PoolShow[]>; poolTick: number; spots: Record<string, Spot>; onGenre: (g: string) => void; onShow: (s: PodShow) => void; onEpisode: (s: PodShow, e: PodEpisode) => void; onResume: (id: string, s: Spot) => void; onPlayEpisode: (s: PodShow, e: PodEpisode) => void }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<{ shows: PodShow[]; episodes: PodEpisode[] } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1428,6 +1446,7 @@ function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, on
   const resume = Object.entries(spots).sort((a, b) => b[1].at - a[1].at).slice(0, 12);
   const genres = GENRES.filter((g) => !student || g.kidSafe);
   const spooky = useMemo(() => [...(pools.get("horror") ?? []), ...(pools.get("truecrime") ?? [])].map((p) => p.show).slice(0, 12), [pools, poolTick]);
+  const picks = useMemo(() => previewPicks(pools), [pools, poolTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const asShow = (e: PodEpisode): PodShow => ({ id: e.showId, name: e.show, author: e.author, art: e.art, genre: "culture", appleGenre: "", link: e.link, episodes: 0, explicit: e.explicit, latest: e.date });
   return <div className="h-full overflow-y-auto px-4 pb-8 pt-16">
     <div className="relative"><Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" size={18} /><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any podcast, host or topic" aria-label="Search podcasts" className="min-h-12 w-full rounded-2xl border border-white/10 bg-white/5 pl-10 pr-3 text-base text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" /></div>
@@ -1441,6 +1460,7 @@ function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, on
       {!!res?.episodes.length && <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-white/40">Episodes</p>}
       {res?.episodes.map((e) => <Row key={e.id} art={e.art} title={e.title} sub={`${e.show}${e.secs ? ` · ${durationWords(e.secs)}` : ""}`} onClick={() => onEpisode(asShow(e), e)} />)}
     </div> : <>
+      {picks.length >= 3 && <PreviewCard picks={picks} onOpen={() => onPreviews(picks)} />}
       {!!resume.length && <Shelf title="Continue listening">{resume.map(([id, s]) => <Tile key={id} art={s.art} title={s.title} sub={`${s.show} · ${clock(s.t)} in`} onClick={() => onResume(id, s)} />)}</Shelf>}
       {!!popular.length && <Shelf title="Popular in your genres">{popular.map((s) => <Tile key={s.id} art={s.art} title={s.name} sub={s.author} onClick={() => onShow(s)} />)}</Shelf>}
       {!student && !!spooky.length && <Shelf title="Spooky season">{spooky.map((s) => <Tile key={s.id} art={s.art} title={s.name} sub={s.author} onClick={() => onShow(s)} />)}</Shelf>}
