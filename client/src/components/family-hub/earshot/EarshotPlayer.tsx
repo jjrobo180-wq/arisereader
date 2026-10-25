@@ -804,18 +804,26 @@ type CardProps = {
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
   onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onNext: () => void;
 };
-/** Slow drift for the cover while it plays (the artwork "breathes"); still for reduced motion. */
-const COVER_MOTION = `@keyframes esDrift{0%{transform:scale(1.04) translate(0,0)}50%{transform:scale(1.12) translate(-2.5%,-2%)}100%{transform:scale(1.06) translate(2%,1.5%)}}
-@keyframes esGlow{0%,100%{opacity:.45;transform:scale(.96)}50%{opacity:.7;transform:scale(1.04)}}
-@media (prefers-reduced-motion:reduce){.es-drift,.es-glow{animation:none!important}}`;
-/** The cover: big and plain, lit softly by its own colors; it drifts slowly while playing. */
+/** The cover's motion while playing: a slow pan and zoom across the art, a gentle breath, a light
+ *  sweep now and then, and a glow that swells. All still for reduced motion and when paused. */
+const COVER_MOTION = `@keyframes esDrift{0%{transform:scale(1.06) translate(0,0)}33%{transform:scale(1.2) translate(-4%,-3%)}66%{transform:scale(1.14) translate(3.5%,-1.5%)}100%{transform:scale(1.22) translate(-1.5%,3.5%)}}
+@keyframes esBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
+@keyframes esSheen{0%,72%{transform:translateX(-130%) skewX(-18deg);opacity:0}78%{opacity:1}92%,100%{transform:translateX(230%) skewX(-18deg);opacity:0}}
+@keyframes esGlow{0%,100%{opacity:.5;transform:scale(.94)}50%{opacity:.85;transform:scale(1.08)}}
+@keyframes esSpin{to{transform:rotate(360deg) scale(1.4)}}
+@media (prefers-reduced-motion:reduce){.es-m{animation:none!important}}`;
+/** The cover: almost the whole width, plain, lit by its own colors, alive while it plays. */
 function Cover({ art, alt, eager, playing, children }: { art: string; alt: string; eager: boolean; playing: boolean; children?: ReactNode }) {
-  const big = hiRes(art, 1000);
-  return <div className="relative aspect-square w-[min(calc(100vw-6rem),50vh,540px)] max-w-full">
+  const big = hiRes(art, 1200);
+  const run = (a: string) => (playing ? a : "none");
+  return <div className="relative aspect-square w-[min(calc(100vw-1.5rem),60svh,680px)] max-w-full">
     <style>{COVER_MOTION}</style>
-    <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="es-glow absolute inset-[8%] h-[84%] w-[84%] rounded-[24px] object-cover blur-3xl" style={{ animation: playing ? "esGlow 9s ease-in-out infinite" : "none", opacity: playing ? undefined : 0.35 }} />
-    <div className={`relative h-full w-full overflow-hidden rounded-[18px] shadow-[0_30px_60px_-24px_rgba(0,0,0,.9)] transition-transform duration-700 ease-out ${playing ? "scale-100" : "scale-[.94]"}`}>
-      <img src={big} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="es-drift h-full w-full bg-white/5 object-cover" style={{ animation: playing ? "esDrift 28s ease-in-out infinite alternate" : "none", transform: playing ? undefined : "scale(1.04)", transition: "transform 1.2s ease-out" }} />
+    <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="es-m pointer-events-none absolute inset-[4%] h-[92%] w-[92%] rounded-[28px] object-cover blur-[60px]" style={{ animation: run("esGlow 7s ease-in-out infinite"), opacity: playing ? undefined : 0.3, transition: "opacity 1s" }} />
+    <div className="es-m relative h-full w-full" style={{ animation: run("esBreathe 6s ease-in-out infinite") }}>
+      <div className={`relative h-full w-full overflow-hidden rounded-[22px] shadow-[0_40px_80px_-30px_rgba(0,0,0,.95)] transition-transform duration-700 ease-out ${playing ? "scale-100" : "scale-[.92]"}`}>
+        <img src={big} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: run("esDrift 36s ease-in-out infinite alternate"), transform: playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent" style={{ animation: run("esSheen 9s ease-in-out infinite"), opacity: 0 }} />
+      </div>
     </div>
     {children}
   </div>;
@@ -836,13 +844,13 @@ function Card(p: CardProps) {
   };
   const pct = p.dur ? Math.min(100, (p.time / p.dur) * 100) : 0;
   return <article data-i={p.i} className="relative h-full snap-start overflow-hidden [scroll-snap-stop:always]" aria-label={ep ? `${ep.title}, ${item.show.name}` : item.show.name}>
-    <div className="absolute -inset-[15%] bg-cover bg-center opacity-40 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")` }} />
+    <div className="es-m absolute -inset-[35%] bg-cover bg-center opacity-50 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")`, animation: p.playing ? "esSpin 80s linear infinite" : "none" }} />
     <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-[#0e0d10]/70 to-[#0e0d10]" />
     <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
     {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
 
-    <div className="pointer-events-none relative z-[2] flex h-full flex-col pt-[4.5rem]">
-      <div className="flex flex-none justify-center pl-4 pr-[4.25rem]">
+    <div className="pointer-events-none relative z-[2] flex h-full flex-col pt-16">
+      <div className="flex flex-none justify-center px-3">
         <Cover art={art} alt={`${item.show.name} cover art`} eager={p.i < 3} playing={p.playing}>
           {!p.playing && ep && (p.unlocked && p.active
             ? null
