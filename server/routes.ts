@@ -88,6 +88,7 @@ import { registerClassGoalRoutes } from "./classGoals";
 import { registerAriseHistoryRoutes } from "./ariseHistory";
 import { registerAriseEnglishRoutes, type EnglishPerson } from "./ariseEnglish";
 import { createEnglishSpeech } from "./ariseEnglishVoice";
+import { beginnersPassTimes, registerBeginnersRoutes, type BeginnersPerson } from "./ariseBeginners";
 import { registerStudentShowVoice } from "./studentShowVoice";
 import { registerAppleReminderRoutes } from "./appleReminders";
 import { registerHubSetupRoutes } from "./hubSetup";
@@ -1735,9 +1736,13 @@ export async function registerRoutes(
         .sort((a: any, b: any) => a.name.localeCompare(b.name));
     },
     schoolName: async (schoolId) => String((await storage.getAllSchools()).find((s: any) => Number(s.id) === schoolId)?.name || ""),
-    passedQuizTimes: async (studentId) => (await storage.getUserAttempts(studentId))
-      .filter((a: any) => a && a.score >= quizPassingScore(a.totalQuestions || 10))
-      .map((a: any) => Date.parse(a.completedAt)),
+    // Library quizzes passed, plus Beginners lessons passed (each first pass counts as a quiz toward a prize goal).
+    passedQuizTimes: async (studentId) => [
+      ...(await storage.getUserAttempts(studentId))
+        .filter((a: any) => a && a.score >= quizPassingScore(a.totalQuestions || 10))
+        .map((a: any) => Date.parse(a.completedAt)),
+      ...(await beginnersPassTimes(studentId)),
+    ],
     notify: async (studentId, text) => { await storage.createMessage(studentId, "system", text); },
   });
 
@@ -1863,6 +1868,23 @@ export async function registerRoutes(
       students: async () => (await storage.getAllUsers()).filter((u: any) => !u.isAdmin && (!u.role || u.role === "student")).map(toEnglishPerson).filter((u): u is EnglishPerson => !!u),
       gradeOf: async (id) => (await studentGrades())[String(id)] || null,
       notify: (id, message) => notifyUser(id, message),
+      pointsChanged: () => { clearCache("leaderboard"); clearCache("monthlyLeaderboard_"); clearCache("allUsers"); clearCache("advisoryLeaderboard"); clearCache("pointsBetween_"); },
+    },
+  });
+  // A.R.I.S.E. Beginners (#/beginners): Reader for younger readers (K–3) with the same accounts, leaderboards, points
+  // and prizes. Phonics and decodable stories, a read-aloud coach and speech practice. See server/ariseBeginners.ts.
+  const toBeginnersPerson = (u: any): BeginnersPerson | null => u ? ({
+    id: Number(u.id), role: u.isAdmin ? "admin" : u.role === "teacher" ? "teacher" : u.role === "parent" ? "parent" : "student",
+    displayName: String(u.displayName || u.username || ""), teacherId: u.teacherId ? Number(u.teacherId) : null, schoolId: u.school_id ? Number(u.school_id) : null,
+  }) : null;
+  registerBeginnersRoutes(app, authMiddleware, {
+    speech: createEnglishSpeech(),
+    audioBody: raw({ type: ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/x-m4a", "audio/aac"], limit: "6mb" }),
+    directory: {
+      user: async (id) => toBeginnersPerson(await storage.getUser(id)),
+      studentsOf: async (teacherId) => (await storage.getTeacherStudents(teacherId)).filter((u: any) => !u.isAdmin && (u.role || "student") === "student" && !u.archivedAt).map(toBeginnersPerson).filter((u): u is BeginnersPerson => !!u),
+      childrenOf: (parentId) => getParentStudentIds(parentId),
+      gradeOf: async (id) => (await studentGrades())[String(id)] || null,
       pointsChanged: () => { clearCache("leaderboard"); clearCache("monthlyLeaderboard_"); clearCache("allUsers"); clearCache("advisoryLeaderboard"); clearCache("pointsBetween_"); },
     },
   });

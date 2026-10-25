@@ -78,7 +78,7 @@ export const UNITS_A: UnitDef[] = [
     hearts: "t|o!1 g|o!1 n|o!1",
     lessons: [
       {
-        id: "u2l1", title: "Tim and Nan", pic: "🍳", focus: ["i", "n"], heart: ["to"],
+        id: "u2l1", title: "Tim and Nan", pic: "🍳", focus: ["i", "n", "d"], heart: ["to"],
         chain: "p|i|n t|i|n t|i|p", spell: "p|i|n s|i|t n|a|p", sort: ["a", "i", "nap pan tan", "pin sit tip"],
         text: "Tim and Nan sit. It is a tin pan. Nan tips the pan to Tim. Tip, tip! Tim sips. Sip, sip, sip! Nan sips. Tim and Nan nap. Nap, Tim! Nap, Nan!",
         q: [["Who tips the pan?", "Nan", "Tim", "Dad"], ["What does Tim do with the pan?", "sips", "naps in it", "taps a map"], ["What do Tim and Nan do at the end?", "nap", "sip", "tip"]],
@@ -106,7 +106,7 @@ export const UNITS_A: UnitDef[] = [
       {
         id: "u3l1", title: "A Hot Pot", pic: "🍲", focus: ["o", "h"], heart: ["was", "has", "his"],
         chain: "h|o|t p|o|t d|o|t", spell: "h|o|t p|o|t t|o|p", sort: ["o", "i", "hot pot top", "hit tip pit"],
-        text: "Mom has a pot. The pot is hot! Tom sits at a mat. The pot tips! Hot, hot, hot! Tom got a mop. Mop, mop, mop! It was a hot pot. Mom and Tom mop it. Mom pats Tom.",
+        text: "Mom has a pot. The pot is hot! Tom sits at a mat. The pot tips! Hot, hot, hot! Tom has a mop. Mop, mop, mop! It was a hot pot. Mom and Tom mop it. Mom pats Tom.",
         q: [["What does Mom have?", "a hot pot", "a hat", "a dog"], ["What happens to the pot?", "it tips", "it pops", "it naps"], ["How does Tom help?", "Tom mops", "Tom naps", "Tom digs"]],
       },
       {
@@ -131,9 +131,9 @@ export const UNITS_A: UnitDef[] = [
     lessons: [
       {
         id: "u4l1", title: "Ten Red Hens", pic: "🐔", focus: ["e", "r"], heart: ["he"],
-        chain: "h|e|n t|e|n p|e|n", spell: "h|e|n r|e|d t|e|n", sort: ["e", "i", "hen ten pen", "pin tin bin"],
-        text: "Ben has ten red hens. The hens sit in a pen. Ben fed the hens. He fed ten hens! A rat ran in the pen. The hens ran and ran! Ben got the rat. He let it go. The ten red hens sat in the pen.",
-        q: [["What does Ben have?", "ten red hens", "ten red bats", "a big rat"], ["What ran in the pen?", "a rat", "a dog", "a pig"], ["What did Ben do with the rat?", "let it go", "fed it", "got in the pen"]],
+        chain: "h|e|n t|e|n p|e|n", spell: "h|e|n r|e|d t|e|n", sort: ["e", "i", "hen ten pen", "pin tin fin"],
+        text: "Ted has ten red hens. The hens sit in a pen. Ted fed the hens. He fed ten hens! A rat ran in the pen. The hens ran and ran! Ted got the rat. The rat ran to its den. The ten red hens sat in the pen.",
+        q: [["What does Ted have?", "ten red hens", "ten red bats", "a big rat"], ["What ran in the pen?", "a rat", "a dog", "a pig"], ["Where did the rat run at the end?", "to its den", "to the pen", "to a pot"]],
       },
       {
         id: "u4l2", title: "A Big Bed", pic: "🛏️", focus: ["b", "l"], heart: ["we", "me"],
@@ -158,8 +158,8 @@ export const UNITS_A: UnitDef[] = [
       {
         id: "u5l1", title: "Gus the Bug", pic: "🐛", focus: ["u"], heart: ["she"],
         chain: "b|u|g h|u|g h|u|t", spell: "b|u|g s|u|n c|u|p", sort: ["u", "o", "bug hut sun", "dog hot pot"],
-        text: "Gus is a bug. Gus is in a cup. \"Up, up, up!\" said Gus. Gus got up on the rim. Gus sat in the sun. Jen ran up. \"Gus, you are a fun bug!\" she said. She let Gus sit on a bun. Gus and Jen had fun in the sun.",
-        q: [["Where is Gus at the start?", "in a cup", "on a bun", "in a tub"], ["Where does Gus sit after he gets up?", "in the sun", "in the mud", "in the tub"], ["What does Jen let Gus sit on?", "a bun", "a rug", "a mug"]],
+        text: "Gus is a bug. Gus is in a cup. \"Up, up, up!\" said Gus. Gus got up on the rim. Gus sat in the sun. Meg ran up. \"Gus, you are a fun bug!\" she said. She let Gus sit on a bun. Gus and Meg had fun in the sun.",
+        q: [["Where is Gus at the start?", "in a cup", "on a bun", "in a tub"], ["Where does Gus sit after he gets up?", "in the sun", "in the mud", "in the tub"], ["What does Meg let Gus sit on?", "a bun", "a rug", "a mug"]],
       },
       {
         id: "u5l2", title: "A Jet in a Web", pic: "✈️", focus: ["j", "k", "w"], heart: ["be", "my"],
@@ -184,7 +184,7 @@ export const UNITS_A: UnitDef[] = [
       {
         id: "u6l1", title: "Max the Fox", pic: "🦊", focus: ["x", "v"], heart: ["do"],
         chain: "f|o|x b|o|x b|o|g", spell: "f|o|x b|o|x s|i|x", sort: ["ends with x", "ends with t", "fox box six", "fit hot get"],
-        text: "Max is a fox. Max has a big box. In the box are six red figs. \"Yum, yum!\" said Max. A van gets to the den. A vet is in the van. \"Max, do you fix vans? Can you fix my van?\" said the vet. \"Yes!\" said Max. Max did fix the van. Max and the vet get the figs. Yum!",
+        text: "Max is a fox. Max has a big box. In the box are six red figs. \"Figs! Figs!\" said Max. A van gets to the den. A vet is in the van. \"Max, do you fix vans? Can you fix my van?\" said the vet. \"I can!\" said Max. Max did fix the van. Max and the vet sit in the van. The vet gets a fig, and Max gets a fig!",
         q: [["What is in the box?", "six red figs", "six red hats", "a van"], ["Who is in the van?", "a vet", "a fox", "a pig"], ["What does Max do for the vet?", "fix the van", "get in the box", "nap"]],
       },
       {
@@ -210,7 +210,7 @@ export const UNITS_A: UnitDef[] = [
       {
         id: "u7l1", title: "The Duck and the Bell", pic: "🦆", focus: ["ck", "ll"], heart: ["what"],
         chain: "d|u|ck l|u|ck l|o|ck", spell: "d|u|ck b|e|ll s|o|ck", sort: ["ck", "ll", "duck sock back", "bell hill doll"],
-        text: "Jack has a pet duck. The duck has a bell on its neck. Quack, quack! The duck runs up a hill. \"What is the duck up to?\" said Jack. Jack can tell. The bell is on the hill! Jack runs up the hill. The duck is in the moss. Jack picks up the duck. \"Back to the pen, duck!\"",
+        text: "Jack has a pet duck. The duck has a bell on its neck. Quack, quack! The duck runs up a hill. \"What is the duck up to?\" said Jack. Jack can tell. The bell is on the hill! Jack runs up the hill. The duck is at the top! Jack picks up the duck. \"Back to the pen, duck!\"",
         q: [["What is on the duck's neck?", "a bell", "a sock", "a lock"], ["Where did the duck run?", "up a hill", "to a dock", "in a sack"], ["What helps Jack find the duck?", "the bell", "a sock", "a rock"]],
       },
       {
@@ -273,7 +273,7 @@ export const UNITS_A: UnitDef[] = [
       },
       {
         id: "u9l3", title: "The Flag Run", pic: "🚩", focus: ["fl", "cl", "bl", "pl", "gl"], heart: ["there", "here"],
-        chain: "f|l|a|g f|l|a|t f|l|i|p", spell: "f|l|a|g c|l|a|p p|l|u|g", sort: ["l blend", "s blend", "flag clap plum", "spot swim sled"],
+        chain: "f|l|a|g f|l|a|t f|l|a|sh", spell: "f|l|a|g c|l|a|p p|l|u|g", sort: ["l blend", "s blend", "flag clap plum", "spot swim sled"],
         text: "Fred and his class plan a flag run. \"Here is the flag!\" said Fred. Fred runs with the flag to the black block. \"There it is, Fran!\" Fran grabs the flag and runs to the big rock. Clap! Clap! The class claps and claps. \"We did it!\" said Fran. Fred and Fran are glad.",
         q: [["What does the class plan?", "a flag run", "a trip", "a nap"], ["Who gets the flag from Fred?", "Fran", "Stan", "Brad"], ["What does the class do at the end?", "claps", "naps", "swims"]],
       },

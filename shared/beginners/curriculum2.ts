@@ -90,14 +90,14 @@ export const UNITS_B: UnitDef[] = [
   {
     n: 13, title: "ai, ay, ee, ea", kid: "Vowel teams! Two vowels team up: ai and ay say A, ee and ea say E!", skill: "Vowel teams for long a (ai, ay) and long e (ee, ea)", grade: "1–2", color: "#10b981", icon: "🌧️",
     graphemes: ["ai", "ay", "ee", "ea"],
-    words: "r|ai|n:🌧️ t|r|ai|n:🚆 s|n|ai|l:🐌 t|ai|l m|ai|l:📬 p|ai|l p|ai|n p|ai|n|t:🎨 w|ai|t m|ai|n b|r|ai|n:🧠 ch|ai|n:⛓️ p|l|ai|n s|ai|l r|ai|l d|ay p|l|ay s|ay w|ay m|ay s|t|ay g|r|ay t|r|ay h|ay:🌾 p|ay c|l|ay b|ee:🐝 s|ee t|r|ee:🌳 f|r|ee th|r|ee f|ee|t:🦶 m|ee|t g|r|ee|n k|ee|p s|l|ee|p:😴 sh|ee|p:🐑 s|ee|d:🌱 n|ee|d w|ee|k ch|ee|k qu|ee|n:👸 s|w|ee|t b|ee|p f|ee|l ea|t s|ea:🌊 t|ea:🍵 r|ea|d t|ea|m m|ea|t b|ea|ch:🏖️ p|ea|ch:🍑 l|ea|f:🍃 d|r|ea|m c|l|ea|n ea|ch t|ea|ch s|ea|t s|ea|l:🦭 b|ea|t b|ea|n m|ea|n n|ea|t h|ea|t s|n|ea|k J|ea|n D|ea|n M|ay J|ay",
+    words: "r|ai|n:🌧️ t|r|ai|n:🚆 s|n|ai|l:🐌 t|ai|l m|ai|l:📬 p|ai|l p|ai|n p|ai|n|t:🎨 w|ai|t m|ai|n b|r|ai|n:🧠 ch|ai|n:⛓️ p|l|ai|n s|ai|l r|ai|l d|ay p|l|ay s|ay w|ay m|ay s|t|ay g|r|ay t|r|ay h|ay:🌾 p|ay c|l|ay b|ee:🐝 s|ee t|r|ee:🌳 f|r|ee th|r|ee f|ee|t:🦶 f|ee|d G|ai|l m|ee|t g|r|ee|n k|ee|p s|l|ee|p:😴 sh|ee|p:🐑 s|ee|d:🌱 n|ee|d w|ee|k ch|ee|k qu|ee|n:👸 s|w|ee|t b|ee|p f|ee|l ea|t s|ea:🌊 t|ea:🍵 r|ea|d t|ea|m m|ea|t b|ea|ch:🏖️ p|ea|ch:🍑 l|ea|f:🍃 d|r|ea|m c|l|ea|n ea|ch t|ea|ch s|ea|t s|ea|l:🦭 b|ea|t b|ea|n m|ea|n n|ea|t h|ea|t s|n|ea|k J|ea|n D|ea|n M|ay J|ay",
     hearts: "w|ere!1 th|eir!1 f|r|ie|n|d!2",
     lessons: [
       {
         id: "u13l1", title: "Rain at the Train", pic: "🌧️", focus: ["ai"], heart: ["were"],
         chain: "r|ai|n p|ai|n p|ai|l", spell: "r|ai|n t|r|ai|n s|n|ai|l", sort: ["short a", "ai", "pan ran mad", "pail rain wait"],
-        text: "Rain drips and drips. Jean and Jake wait at the train stop. They were wet from the rain. A snail is on the rail. \"Will the snail get on the train?\" said Jake. The train came. Jean and Jake get on. The snail did not get on. It just sits in the rain. Snails like rain!",
-        q: [["Where do Jean and Jake wait?", "at the train stop", "at the beach", "in a tent"], ["What is on the rail?", "a snail", "a bee", "a leaf"], ["Why does the snail stay?", "snails like rain", "it is sad", "it is mad"]],
+        text: "Rain drips and drips. Gail and Jake wait at the train stop. They were wet from the rain. A snail is on the rail. \"Will the snail get on the train?\" said Jake. The train came. Gail and Jake get on. The snail did not get on. It just sits in the rain. Snails like rain!",
+        q: [["Where do Gail and Jake wait?", "at the train stop", "at the beach", "in a tent"], ["What is on the rail?", "a snail", "a bee", "a leaf"], ["Why does the snail stay?", "snails like rain", "it is sad", "it is mad"]],
       },
       {
         id: "u13l2", title: "A Gray Play Day", pic: "🎨", focus: ["ay"], heart: ["their"],
@@ -154,7 +154,7 @@ export const UNITS_B: UnitDef[] = [
   {
     n: 15, title: "Bossy r", kid: "Bossy r! When r comes after a vowel, it changes the sound: car, corn, her, bird, fur!", skill: "R-controlled vowels: ar, or, er, ir, ur", grade: "2", color: "#dc2626", icon: "🚗",
     graphemes: ["ar", "or", "er", "ir", "ur"],
-    words: "c|ar:🚗 s|t|ar:⭐ f|ar j|ar p|ar|k d|ar|k b|ar|k sh|ar|k:🦈 f|ar|m ar|m:💪 ar|t c|ar|t:🛒 s|t|ar|t y|ar|d h|ar|d b|ar|n c|ar|d M|ar|k c|or|n:🌽 f|or|k:🍴 h|or|n:📯 b|or|n s|t|or|m:⛈️ s|p|or|t sh|or|t n|or|th f|or or f|or|t N|or|m h|er f|er|n:🌿 h|er|d F|er|n b|ir|d:🐦 g|ir|l:👧 sh|ir|t:👕 f|ir|s|t d|ir|t s|k|ir|t s|t|ir ch|ir|p t|ur|n b|ur|n h|ur|t f|ur c|ur|l c|ur|b s|ur|f:🏄 ch|ur|ch:⛪",
+    words: "c|ar:🚗 s|t|ar:⭐ f|ar j|ar p|ar|k d|ar|k b|ar|k sh|ar|k:🦈 f|ar|m ar|m:💪 ar|t c|ar|t:🛒 s|t|ar|t y|ar|d h|ar|d b|ar|n c|ar|d M|ar|k c|or|n:🌽 f|or|k:🍴 p|or|k h|or|n:📯 b|or|n s|t|or|m:⛈️ s|p|or|t sh|or|t n|or|th f|or or f|or|t N|or|m h|er f|er|n:🌿 h|er|d F|er|n b|ir|d:🐦 g|ir|l:👧 sh|ir|t:👕 f|ir|s|t d|ir|t s|k|ir|t s|t|ir ch|ir|p t|ur|n b|ur|n ch|ur|n h|ur|t f|ur c|ur|l c|ur|b s|ur|f:🏄 ch|ur|ch:⛪",
     hearts: "f|our!1 o|n|ce!0,2 o|n|l|y!0",
     lessons: [
       {

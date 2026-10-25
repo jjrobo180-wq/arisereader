@@ -49,37 +49,41 @@ function soundOfTeam(part: string, unit: number): Sound {
  */
 export function soundsOf(entry: Pick<Entry, "parts" | "unit" | "syll" | "snd">): Sound[] {
   if (entry.snd) return entry.snd;
-  if (entry.syll) return [];
+  return soundsByPart(entry).flat();
+}
+
+/**
+ * The sounds each spelling part makes, part by part (the dots under the sound boxes): [] for a silent e,
+ * two sounds for x and qu. Words with hand-written sounds or syllable parts get one empty list per part.
+ */
+export function soundsByPart(entry: Pick<Entry, "parts" | "unit" | "syll" | "snd">): Sound[][] {
+  if (entry.syll || entry.snd) return entry.parts.map(() => []);
   const parts = entry.parts.map((p) => p.toLowerCase());
-  const out: Sound[] = [];
   const vowelAt = parts.map((p, i) => isVowelPart(p) && !(p === "y" && i === 0));
-  parts.forEach((p, i) => {
+  return parts.map((p, i) => {
     const last = i === parts.length - 1;
-    if (p in TEAMS) { out.push(soundOfTeam(p, entry.unit)); return; }
-    if (p === "x") { out.push("k", "s"); return; }
-    if (p === "qu") { out.push("k", "w"); return; }
+    if (p in TEAMS) return [soundOfTeam(p, entry.unit)];
+    if (p === "x") return ["k", "s"];
+    if (p === "qu") return ["k", "w"];
     if (p === "y") {
       // y at the start is a consonant; at the end of a one-vowel word it says /ī/ (my, fly), else /ē/.
-      if (i === 0) { out.push("y"); return; }
+      if (i === 0) return ["y"];
       const otherVowel = parts.some((q, j) => j !== i && vowelAt[j] && q !== "y");
-      out.push(otherVowel ? "ē" : "ī");
-      return;
+      return [otherVowel ? "ē" : "ī"];
     }
     if (VOWEL_LETTERS.has(p)) {
-      const otherVowelBefore = parts.slice(0, i).some((q, j) => vowelAt[j]);
+      const otherVowelBefore = parts.slice(0, i).some((_q, j) => vowelAt[j]);
       // A final e after a consonant is silent when the word has another vowel (cake, house, purse).
-      if (p === "e" && last && i > 0 && otherVowelBefore && !VOWEL_LETTERS.has(parts[i - 1])) return;
+      if (p === "e" && last && i > 0 && otherVowelBefore && !VOWEL_LETTERS.has(parts[i - 1])) return [];
       // Vowel, one consonant spelling, then a final e: the vowel says its name (cake, these, cube).
       const vce = i + 2 === parts.length - 1 && parts[parts.length - 1] === "e" && !isVowelPart(parts[i + 1]);
-      if (vce) { out.push(LONG[p]); return; }
+      if (vce) return [LONG[p]];
       // A vowel at the very end of the word (he, go, hi, she): open syllable, long.
-      if (last) { out.push(p === "a" ? "ə" : LONG[p]); return; }
-      out.push(SHORT[p]);
-      return;
+      if (last) return [p === "a" ? "ə" : LONG[p]];
+      return [SHORT[p]];
     }
-    out.push(CONS[p] ?? p);
+    return [CONS[p] ?? p];
   });
-  return out;
 }
 
 /* ------------------------------------------------------------------ mouth shapes */
