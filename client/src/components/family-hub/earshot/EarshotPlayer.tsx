@@ -138,7 +138,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [dur, setDur] = useState(0);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [commentsOn, setCommentsOn] = useState(!student);
-  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow }>(null);
+  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "sleep" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow }>(null);
   const sheetRef = useRef(sheet); sheetRef.current = sheet;
   const [poolTick, setPoolTick] = useState(0);
   const [loadError, setLoadError] = useState("");
@@ -723,6 +723,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }).catch(() => {});
   }, [start, loadEpisodes]);
 
+  const chooseSleep = (v: number | "end" | null) => { setSleepAt(v); say(v === null ? "Sleep timer off." : v === "end" ? "Stopping at the end of this episode." : `Stopping in ${Math.round((v - Date.now()) / 60000)} minutes.`); };
+  // The 1× button on the Podscroll player steps through the speeds, as in Apple Podcasts.
+  const cycleSpeed = () => {
+    const at = (SPEEDS as readonly number[]).indexOf(es.settings.speed);
+    const next = SPEEDS[(at + 1) % SPEEDS.length];
+    update((e) => ({ ...e, settings: { ...e.settings, speed: next } }));
+  };
+
   // ---------------- layout ----------------
   const shell = standalone ? "fixed inset-x-0 top-[env(safe-area-inset-top,0px)] bottom-[env(safe-area-inset-bottom,0px)]" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
   const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
@@ -748,6 +756,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
+        apple={!!standalone} speed={es.settings.speed} onSpeed={cycleSpeed} sleepOn={sleepAt !== null} onSleep={() => setSheet({ kind: "sleep" })}
         ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
         adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
@@ -779,7 +788,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
     {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, `${m.icon} ${m.name}`)} onClose={() => setSheet(null)} /> : null; })()}
-    {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={(v) => { setSleepAt(v); say(v === null ? "Sleep timer off." : v === "end" ? "Stopping at the end of this episode." : `Stopping in ${Math.round(((v as number) - Date.now()) / 60000)} minutes.`); }} />}
+    {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={chooseSleep} apple={!!standalone} />}
+    {sheet?.kind === "sleep" && <SleepSheet sleepAt={sleepAt} onPick={(v) => { chooseSleep(v); setSheet(null); }} onClose={() => setSheet(null)} />}
     {draft && <MarkSheet draft={draft} shared={adsShared} onChange={setDraft} onPreview={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onSave={saveDraft} onClose={() => setDraft(null)} />}
     {sheet?.kind === "read" && activeEp && <ReadSheet ep={activeEp} tx={txFor(activeEp)} time={time} playing={playing} onMarkRange={markFromLines} onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onClose={() => setSheet(null)} onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
   </div>;
@@ -803,6 +813,8 @@ type CardProps = {
   i: number; item: Item; active: boolean; playing: boolean; time: number; dur: number; counts?: Counts; commentsOn: boolean; following: boolean; saved: boolean; notes: boolean; full: boolean; unlocked: boolean;
   ad: PlayAd | null; onSkipAd: () => void; onNotAd: () => void; onTapStart: () => void; onRead: () => void;
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
+  /** Podscroll's Apple Podcasts-style card: edge-to-edge art, speed and sleep in the controls row. */
+  apple: boolean; speed: number; onSpeed: () => void; sleepOn: boolean; onSleep: () => void;
   onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onNext: () => void;
 };
 /** The cover's motion while playing: a slow pan and zoom across the art, a gentle breath, a light
@@ -813,6 +825,10 @@ const COVER_MOTION = `@keyframes esDrift{0%{transform:scale(1.06) translate(0,0)
 @keyframes esGlow{0%,100%{opacity:.5;transform:scale(.94)}50%{opacity:.85;transform:scale(1.08)}}
 @keyframes esSpin{to{transform:rotate(360deg) scale(1.4)}}
 @media (prefers-reduced-motion:reduce){.es-m{animation:none!important}}`;
+/** Podscroll's cover fades out at the bottom; where it doesn't reach the screen's edges (tablets,
+ *  computers) it fades at the sides too, so it always melts into the art-colored backdrop. */
+const APPLE_ART = `.ps-art{-webkit-mask-image:linear-gradient(180deg,#000 66%,transparent);mask-image:linear-gradient(180deg,#000 66%,transparent)}
+@media (min-aspect-ratio:5/8){.ps-art{-webkit-mask-image:linear-gradient(180deg,#000 66%,transparent),linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(180deg,#000 66%,transparent),linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);-webkit-mask-composite:source-in;mask-composite:intersect}}`;
 /** The cover: almost the whole width, plain, lit by its own colors, alive while it plays. */
 function Cover({ art, alt, eager, playing, children }: { art: string; alt: string; eager: boolean; playing: boolean; children?: ReactNode }) {
   const big = hiRes(art, 1200);
@@ -844,6 +860,88 @@ function Card(p: CardProps) {
     lastTap.current = now; tapT.current = setTimeout(p.onToggle, 260);
   };
   const pct = p.dur ? Math.min(100, (p.time / p.dur) * 100) : 0;
+  const overArt = <>
+    {!p.playing && ep && (p.unlocked && p.active
+      ? null
+      : <span className="absolute bottom-[18%] left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/50 px-4 py-2 text-sm font-medium backdrop-blur-md"><Play size={14} fill="currentColor" />Tap to listen</span>)}
+    {item.state === "loading" && <span className="absolute inset-0 grid place-items-center bg-black/30"><Loader2 className="animate-spin" /></span>}
+    {item.state === "none" && <span className="pointer-events-auto absolute inset-x-4 top-1/2 -translate-y-1/2 rounded-2xl bg-black/80 p-3 text-center text-sm">No playable episodes right now.<button type="button" onClick={p.onNext} className="mt-2 block w-full rounded-full bg-white/15 py-1.5 font-bold">Next podcast</button></span>}
+  </>;
+  const rail = (tight: boolean) => <>
+    <button type="button" onClick={p.onFollow} aria-label={p.following ? `Unfollow ${item.show.name}` : `Follow ${item.show.name}`} className={`relative ${tight ? "mb-2.5" : "mb-1.5"}`}>
+      <img src={item.show.art} alt="" referrerPolicy="no-referrer" className="h-10 w-10 rounded-full object-cover ring-1 ring-white/30" />
+      {!p.following && <span className="absolute -bottom-1.5 left-1/2 grid h-[18px] w-[18px] -translate-x-1/2 place-items-center rounded-full bg-white text-[#0e0d10]"><Plus size={12} strokeWidth={2.5} /></span>}
+    </button>
+    <Act label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={26} strokeWidth={1.5} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Act>
+    {p.commentsOn && <Act label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={25} strokeWidth={1.5} /></Act>}
+    <Act label="Episodes" onClick={p.onShow}><ListVideo size={25} strokeWidth={1.5} /></Act>
+    <Act label="Read" onClick={p.onRead} disabled={!ep || !p.active}><FileText size={24} strokeWidth={1.5} /></Act>
+    <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={25} strokeWidth={1.5} className={p.saved ? "fill-current" : ""} /></Act>
+    <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={24} strokeWidth={1.5} /></Act>
+  </>;
+  const seekBar = <div className="relative h-5 w-full">
+    <div className="absolute inset-x-0 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-white/20" />
+    {p.dur > 0 && p.adMarks.filter((a) => a.e - a.s < p.dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-[5px] -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.6, ((a.e - a.s) / p.dur) * 100)}%`, background: a.kind === "intro" ? "rgba(255,255,255,.3)" : a.sure ? "rgba(255,214,102,.55)" : "rgba(255,214,102,.25)" }} />)}
+    <div className="absolute left-0 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-white/75" style={{ width: `${pct}%` }} />
+    <input type="range" min={0} max={Math.max(1, Math.floor(p.dur))} value={Math.floor(p.time)} onChange={(e) => p.onSeek(Number(e.target.value))} aria-label="Seek" disabled={!p.active}
+      className="absolute inset-0 h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-0 [&::-moz-range-thumb]:w-0 [&::-moz-range-thumb]:border-0 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-1 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-transparent" />
+  </div>;
+
+  if (p.apple) {
+    const when = ep?.date && Number.isFinite(Date.parse(ep.date)) ? new Date(ep.date).toLocaleDateString(undefined, { month: "short", day: "numeric", ...(new Date(ep.date).getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) }) : "";
+    const meta = [when, ep ? durationWords(ep.secs) : ""].filter(Boolean).join(" · ");
+    return <article data-i={p.i} className="relative h-full snap-start overflow-hidden [scroll-snap-stop:always]" aria-label={ep ? `${ep.title}, ${item.show.name}` : item.show.name}>
+      <style>{APPLE_ART}</style>
+      {/* Behind everything, the art blurred and darkened, so the whole page takes on its colors. */}
+      <div aria-hidden className="absolute inset-0 overflow-hidden bg-[#0e0d10]">
+        <img src={hiRes(art, 300)} alt="" referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} className="absolute inset-0 h-full w-full scale-125 object-cover opacity-70 blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/50 to-black/80" />
+      </div>
+      {/* The art itself, edge to edge at the top and whole (never cropped), fading into that backdrop. */}
+      <div className="ps-art absolute inset-x-0 top-0 mx-auto aspect-square w-full max-w-[62svh]">
+        <img src={hiRes(art, 1200)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="h-full w-full bg-white/5 object-cover" />
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/45 to-transparent" />
+      </div>
+      <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
+      {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] mx-auto aspect-square w-full max-w-[62svh]">{overArt}</div>
+
+      <div className="pointer-events-none relative z-[2] mx-auto flex h-full w-full max-w-[560px] flex-col justify-end px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {/* Title on the left, the side buttons on the right, both just above the scrubber. */}
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1 pb-1">
+            {meta && <p className="truncate text-[13px] text-white/55">{meta}</p>}
+            <h2 className="mt-0.5 line-clamp-2 text-[21px] font-bold leading-tight tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
+            <button type="button" onClick={p.onShow} className="pointer-events-auto mt-0.5 block max-w-full truncate text-left text-[17px] text-white/60 hover:text-white/85">{item.show.name}</button>
+            {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">
+              <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#0e0d10]">
+                <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "intro" ? "Skip intro" : p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
+                <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={12} /></button>
+              </span>
+            </div>}
+          </div>
+          <div className="pointer-events-auto -mr-4 flex w-14 flex-none flex-col items-center">{rail(true)}</div>
+        </div>
+
+        {ep && <div className="pointer-events-auto mt-4 flex flex-col">
+          {seekBar}
+          <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center text-[12px] tabular-nums text-white/45">
+            <span>{clock(p.time)}</span>
+            {p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="Mark an ad" title="Mark an ad" className="grid h-8 w-8 place-items-center rounded-full text-white/40 hover:text-white/80"><Megaphone size={15} strokeWidth={1.7} /></button> : <span className="h-8" />}
+            <span className="text-right">-{clock(Math.max(0, p.dur - p.time))}</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <button type="button" onClick={p.onSpeed} aria-label={`Playback speed ${p.speed}×. Tap to change.`} className="grid h-12 w-12 place-items-center rounded-full text-[17px] font-semibold text-white/80">{p.speed}×</button>
+            <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="relative grid h-14 w-14 place-items-center rounded-full text-white"><RotateCcw size={36} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[11px] font-bold">15</span></button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-20 w-20 place-items-center rounded-full text-white transition active:scale-90">{p.playing ? <Pause size={50} fill="currentColor" strokeWidth={0} /> : <Play size={50} fill="currentColor" strokeWidth={0} className="ml-1.5" />}</button>
+            <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="relative grid h-14 w-14 place-items-center rounded-full text-white"><RotateCw size={36} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[11px] font-bold">30</span></button>
+            <button type="button" onClick={p.onSleep} aria-label={p.sleepOn ? "Sleep timer on. Change it." : "Sleep timer"} aria-pressed={p.sleepOn} className={`grid h-12 w-12 place-items-center rounded-full ${p.sleepOn ? "text-white" : "text-white/80"}`}><Moon size={24} strokeWidth={1.7} className={p.sleepOn ? "fill-current" : ""} /></button>
+          </div>
+        </div>}
+      </div>
+    </article>;
+  }
+
   return <article data-i={p.i} className="relative h-full snap-start overflow-hidden [scroll-snap-stop:always]" aria-label={ep ? `${ep.title}, ${item.show.name}` : item.show.name}>
     {p.full ? <>
       {/* Full screen: the art itself fills the page, drifting while it plays. */}
@@ -1076,7 +1174,20 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
   </Sheet>;
 }
 
-function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep }: { es: EarshotData; student: boolean; update: PlayerProps["update"]; onClose: () => void; sleepAt: number | "end" | null; setSleep: (v: number | "end" | null) => void }) {
+/** The sleep timer, opened from the moon on Podscroll's controls row. */
+function SleepSheet({ sleepAt, onPick, onClose }: { sleepAt: number | "end" | null; onPick: (v: number | "end" | null) => void; onClose: () => void }) {
+  const options: [number | "end" | null, string][] = [[5, "5 minutes"], [15, "15 minutes"], [30, "30 minutes"], [45, "45 minutes"], [60, "1 hour"], ["end", "End of episode"], [null, "Off"]];
+  const now = sleepAt === null ? "Off" : sleepAt === "end" ? "Stops at the end of this episode" : `Stops in ${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`;
+  return <Sheet title="Sleep timer" onClose={onClose}>
+    <p className="px-4 pt-3 text-xs text-white/55">{now}</p>
+    <div className="flex flex-col overflow-y-auto px-2 pb-4 pt-1">{options.map(([v, l]) => {
+      const on = v === null ? sleepAt === null : v === "end" && sleepAt === "end";
+      return <button key={l} type="button" onClick={() => onPick(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={on} className="flex min-h-12 items-center justify-between rounded-xl px-3 text-left text-[15px] hover:bg-white/5">{l}{on && <Check size={18} />}</button>;
+    })}</div>
+  </Sheet>;
+}
+
+function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple }: { es: EarshotData; student: boolean; update: PlayerProps["update"]; onClose: () => void; sleepAt: number | "end" | null; setSleep: (v: number | "end" | null) => void; apple?: boolean }) {
   const set = (patch: Partial<EarshotData["settings"]>) => update((e) => ({ ...e, settings: { ...e.settings, ...patch } }));
   const Row = ({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) => <div className="flex items-center justify-between gap-3 border-b border-white/10 py-3.5 last:border-0"><div><b className="block text-sm">{title}</b>{sub && <span className="block text-xs text-white/55">{sub}</span>}</div>{children}</div>;
   const Switch = ({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) => <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick} className={`relative h-7 w-12 flex-none rounded-full transition ${on ? "" : "bg-white/15"}`} style={on ? { background: ACCENT } : undefined}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${on ? "left-6" : "left-1"}`} /></button>;
@@ -1094,8 +1205,9 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep }: { es
       <Row title="Skip the intro" sub="Jump past theme music, recaps, teasers and the standard welcome to where the episode starts"><Switch on={es.settings.skipIntro} label="Skip the intro" onClick={() => set({ skipIntro: !es.settings.skipIntro })} /></Row>
       <Row title="Swipe for me after" sub="Move to the next podcast by itself"><Seg value={es.settings.advance} options={[[60, "1 min"], [180, "3 min"], [0, "The end"]]} onPick={(v) => set({ advance: v as 0 | 60 | 180 })} /></Row>
       <Row title="Hide trailers and previews" sub="Leave out trailers, sneak peeks, other shows' promos and anything under 3 minutes"><Switch on={es.settings.hideTeasers} label="Hide trailers and previews" onClick={() => set({ hideTeasers: !es.settings.hideTeasers })} /></Row>
-      <Row title="Full-screen cover" sub="The artwork fills the whole screen while you listen"><Switch on={es.settings.fullCover} label="Full-screen cover" onClick={() => set({ fullCover: !es.settings.fullCover })} /></Row>
-      <Row title="Episode notes" sub="Show each episode's description under the cover"><Switch on={es.settings.notes} label="Episode notes" onClick={() => set({ notes: !es.settings.notes })} /></Row>
+      {/* Podscroll's cover is always edge to edge with no notes under it, so these two don't apply there. */}
+      {!apple && <Row title="Full-screen cover" sub="The artwork fills the whole screen while you listen"><Switch on={es.settings.fullCover} label="Full-screen cover" onClick={() => set({ fullCover: !es.settings.fullCover })} /></Row>}
+      {!apple && <Row title="Episode notes" sub="Show each episode's description under the cover"><Switch on={es.settings.notes} label="Episode notes" onClick={() => set({ notes: !es.settings.notes })} /></Row>}
       {!student && <Row title="Explicit podcasts" sub="Off by default. Turn on to include shows marked explicit"><Switch on={es.settings.explicit} label="Explicit podcasts" onClick={() => set({ explicit: !es.settings.explicit })} /></Row>}
     </div>
   </Sheet>;
