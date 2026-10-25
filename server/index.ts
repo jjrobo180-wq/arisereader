@@ -38,6 +38,10 @@ const TODO_SITEMAP: { path: string; lastmod: string; priority: string }[] = [
   { path: "/iphone-duo-to-do-app/", lastmod: "2026-10-24", priority: "0.9" },
   { path: "/split-screen-to-do-app/", lastmod: "2026-10-24", priority: "0.9" },
   { path: "/iphone-duo-split-screen-guide/", lastmod: "2026-10-24", priority: "0.8" },
+  { path: "/foldable-phone-to-do-app/", lastmod: "2026-10-24", priority: "0.9" },
+  { path: "/to-do-list-with-notes/", lastmod: "2026-10-24", priority: "0.8" },
+  { path: "/family-to-do-app/", lastmod: "2026-10-24", priority: "0.8" },
+  { path: "/teacher-to-do-app/", lastmod: "2026-10-24", priority: "0.8" },
 ];
 /** Arise To Duo's own pages: on arisereader.com they redirect to arisetodo.com, so search engines see one copy. */
 const TODO_ONLY_PAGES = new Set(TODO_SITEMAP.filter((p) => p.path !== "/").flatMap((p) => [p.path, p.path.replace(/\/$/, "")]));
@@ -70,6 +74,23 @@ app.get("/", (req, res, next) => {
   const page = process.env.NODE_ENV === "production"
     ? path.resolve(__dirname, "public", "educator.html")
     : path.resolve(process.cwd(), "client", "public", "educator.html");
+  res.type("html").sendFile(page);
+});
+
+// The A.R.I.S.E. Reader homepage. Visitors who aren't signed in (and search engines) get the real
+// landing page as the page itself — before, "/" was the app shell with the landing page inside a
+// frame, so search engines saw an almost empty homepage. Anyone with a sign-in cookie still gets
+// the app at "/" exactly as before; the landing page itself sends app links (/#/signin and the
+// like) and a sign-in kept only in storage on to the app at /app.
+app.get("/", (req, res, next) => {
+  const host = (req.headers.host || "").split(":")[0].toLowerCase();
+  if (host !== "arisereader.com" && host !== "www.arisereader.com") return next();
+  res.setHeader("Vary", "Cookie");
+  if (/(?:^|;\s*)arise_session=/.test(String(req.headers.cookie || ""))) return next();
+  const page = process.env.NODE_ENV === "production"
+    ? path.resolve(__dirname, "public", "reader-landing.html")
+    : path.resolve(process.cwd(), "client", "public", "reader-landing.html");
+  res.setHeader("Cache-Control", "no-store");
   res.type("html").sendFile(page);
 });
 
