@@ -31,15 +31,34 @@ app.get("/robots.txt", (req, res, next) => {
   ].join("\n"));
 });
 
+// The Arise To Duo pages search engines should know about (all static pages in client/public).
+// Update `lastmod` when a page's content changes.
+const TODO_SITEMAP: { path: string; lastmod: string; priority: string }[] = [
+  { path: "/", lastmod: "2026-10-24", priority: "1.0" },
+  { path: "/iphone-duo-to-do-app/", lastmod: "2026-10-24", priority: "0.9" },
+  { path: "/split-screen-to-do-app/", lastmod: "2026-10-24", priority: "0.9" },
+  { path: "/iphone-duo-split-screen-guide/", lastmod: "2026-10-24", priority: "0.8" },
+];
+/** Arise To Duo's own pages: on arisereader.com they redirect to arisetodo.com, so search engines see one copy. */
+const TODO_ONLY_PAGES = new Set(TODO_SITEMAP.filter((p) => p.path !== "/").flatMap((p) => [p.path, p.path.replace(/\/$/, "")]));
+
 app.get("/sitemap.xml", (req, res, next) => {
   if (!isAriseTodoHostname(req)) return next();
   res.type("application/xml; charset=utf-8").send([
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    '  <url><loc>https://arisetodo.com/</loc></url>',
+    ...TODO_SITEMAP.map((p) => `  <url><loc>https://arisetodo.com${p.path}</loc><lastmod>${p.lastmod}</lastmod><priority>${p.priority}</priority></url>`),
     '</urlset>',
     '',
   ].join("\n"));
+});
+
+app.use((req, res, next) => {
+  if ((req.method !== "GET" && req.method !== "HEAD") || isAriseTodoHostname(req) || !TODO_ONLY_PAGES.has(req.path)) return next();
+  const host = (req.headers.host || "").split(":")[0].toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1") return next(); // working on it locally
+  const path = req.path.endsWith("/") ? req.path : req.path + "/";
+  res.redirect(301, "https://arisetodo.com" + path);
 });
 
 // The Arise To Duo custom domain gets the educator marketing page at its root.
