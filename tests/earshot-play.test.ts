@@ -237,3 +237,39 @@ test("an ad found in one copy is placed without eating the show in a copy that l
     ok(ai && Math.abs(ai.s - 700 * FD) < 0.3 && ai.e <= (700 + 600) * FD + 0.3 && ai.e > (700 + 600) * FD - 1, `placed on the tablet's copy without cutting the show: ${JSON.stringify(ads.ads)}`);
   } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
 });
+
+test("an ad the host gave this copy and the comparison copy alike is read and skipped, even where the read-along came from another copy", async () => {
+  const { createDirectory, memoryKV } = await import("../server/podcastDirectory");
+  const { copyTranscript, startOpenings } = await import("../server/podcastPlay");
+  const show = frames(6000, 71), adA = frames(1500, 72), adB = frames(2300, 73);
+  const podShow = { kind: "podcast", collectionId: 11, collectionName: "Show 11", artistName: "H", primaryGenreName: "History", genres: ["History"], artworkUrl600: "https://a/600x600bb.jpg", feedUrl: "https://feed/11", releaseDate: new Date().toISOString() };
+  const podEp = { wrapperType: "podcastEpisode", kind: "podcast-episode", trackId: 22, collectionId: 11, collectionName: "Show 11", trackName: "E22", episodeUrl: "https://host.example/ep.mp3", releaseDate: "2026-10-01T00:00:00Z", trackTimeMillis: 240_000 };
+  const fetcher: any = async () => ({ results: [podShow, podEp] }); fetcher.idle = () => true;
+  const heard: number[] = [];
+  const dir = createDirectory({ fetcher, kv: memoryKV(), web: (async () => new Response("<rss></rss>")) as any, aiOn: () => true,
+    transcribe: async (a: Blob) => { heard.push(a.size); return { segments: [{ start: 0, end: 15, text: "This episode is brought to you by Acme." }, { start: 15.7, end: 38, text: "Acme dot com slash show, terms apply." }, { start: 40, end: 60, text: "Welcome to the show." }] }; },
+    ask: async () => JSON.stringify({ ads: [{ from: 0, to: 1, start: "This episode is brought", end: "terms apply.", label: "Acme", confidence: 0.95 }] }) });
+  const dirs: string[] = [];
+  const route = (player: any) => { const { app, call } = fakeApp(); registerPlayRoutes(app, (_q: any, _s: any, n: any) => n(), { prefix: "/api/x", player, dir, audioFor: async () => "https://host.example/ep.mp3", voterOf: () => "u1", clientIp: () => "", cleanId: (v) => String(v ?? "").replace(/\D/g, "") }); return call; };
+  // Earlier, someone's copy and the bot's both had ad A: the read along (made from theirs) has A.
+  dirs.push(mkdtempSync(join(tmpdir(), "earshot-play-test-")));
+  const p1 = createPlayer({ dir: dirs[0], download: fakeHost(join2([...adA, ...show]), join2([...adA, ...show])) as any, key: Buffer.alloc(32, 2) });
+  dirs.push(mkdtempSync(join(tmpdir(), "earshot-play-test-")));
+  const p2 = createPlayer({ dir: dirs[1], download: fakeHost(join2([...adB, ...show]), join2([...adB, ...show])) as any, key: Buffer.alloc(32, 2) });
+  try {
+    const call1 = route(p1);
+    const token = (await call1("get", "/api/x/play-token", {})).res.body.token;
+    await call1("get", "/api/x/audio/:sid", { sid: "firstlistener0000001" }, { query: { e: "22", s: "11", k: token }, headers: { range: "bytes=0-1", "user-agent": "Phone" } });
+    const tx = await copyTranscript(p1, dir, "firstlistener0000001", "11", "22", 0);
+    ok(tx && tx.ads.length === 1, "ad A found in the first copy");
+    // Now this listener's copy and the bot's both have ad B: comparing finds nothing.
+    startOpenings(p2, dir);
+    const call2 = route(p2);
+    await call2("get", "/api/x/audio/:sid", { sid: "secondlistener000001" }, { query: { e: "22", s: "11", k: token }, headers: { range: "bytes=0-1", "user-agent": "Phone" } });
+    let ads: any = null;
+    for (let t = 0; t < 200; t++) { ads = (await call2("get", "/api/x/play/:sid/ads", { sid: "secondlistener000001" })).res.body; if (ads.final && !ads.pending && ads.ads.length) break; await new Promise((r) => setTimeout(r, 30)); }
+    const ad = ads.ads.find((a: any) => a.key.startsWith("g:"));
+    ok(ad && Math.abs(ad.s) < 0.05 && Math.abs(ad.e - 38) < 0.3 && ad.sure, `ad B read on its own and skipped: ${JSON.stringify(ads)}`);
+    ok(heard[heard.length - 1] <= 2400 * 417, `only the uncovered stretch was transcribed: ${heard}`);
+  } finally { p1.stop(); p2.stop(); for (const d of dirs) rmSync(d, { recursive: true, force: true }); }
+});

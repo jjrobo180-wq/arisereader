@@ -181,7 +181,7 @@ export function registerAdRoutes(app: Express, authMiddleware: RequestHandler, o
     const id = cleanPodId(req.params.episodeId);
     const key = typeof req.body?.key === "string" ? req.body.key.trim() : "";
     const vote = req.body?.vote === -1 || req.body?.vote === "-1" ? -1 : req.body?.vote === 1 || req.body?.vote === "1" ? 1 : 0;
-    if (!id || !/^[auct]:[0-9a-z:.-]{1,100}$/i.test(key) || !vote) return res.status(400).json({ message: "That vote doesn't look right." });
+    if (!id || !/^[auctg]:[0-9a-z:.-]{1,100}$/i.test(key) || !vote) return res.status(400).json({ message: "That vote doesn't look right." });
     const voter = o.voterOf(req);
     if (limited(voting, voter, res, "votes")) return;
     try { await o.store.vote({ episodeId: id, key, voter, vote: vote as 1 | -1 }); res.json({ ok: true }); }

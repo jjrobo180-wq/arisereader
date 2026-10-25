@@ -41,20 +41,20 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
   const list = GENRES.filter((g) => !student || g.kidSafe);
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   return <div className="mx-auto max-w-3xl rounded-3xl bg-[#15121b] p-5 text-white shadow-xl sm:p-8">
-    <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.2em]" style={{ color: ACCENT }}><span className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />{brand} · real podcasts</p>
-    <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">What do you want in your ears?</h1>
+    <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.2em]" style={{ color: ACCENT }}><span className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />{brand} · real podcasts</p>
+    <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">What do you want in your ears?</h1>
     <p className="mt-2 max-w-xl text-sm leading-6 text-white/65">Pick at least three genres. Every show is a real podcast from Apple Podcasts, and the feed learns from every like, skip, save and share.{student ? " Student accounts only get clean podcasts." : ""}</p>
     <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
       {list.map((g) => {
         const on = picked.includes(g.id);
         return <button key={g.id} type="button" onClick={() => toggle(g.id)} aria-pressed={on}
           className={`flex min-h-14 items-center gap-3 rounded-2xl px-3 text-left text-sm font-bold ring-2 transition ${on ? "bg-white/10 ring-[#ff8a3d]" : "bg-white/5 ring-transparent hover:bg-white/10"}`}>
-          <span className="grid h-9 w-9 flex-none place-items-center rounded-xl text-xs font-black" style={{ background: g.color }}>{on ? <Check size={18} /> : g.name.slice(0, 1)}</span>
+          <span className="grid h-9 w-9 flex-none place-items-center rounded-xl text-xs font-semibold" style={{ background: g.color }}>{on ? <Check size={18} /> : g.name.slice(0, 1)}</span>
           <span className="leading-tight">{g.name}</span>
         </button>;
       })}
     </div>
-    <p className="mt-6 text-xs font-extrabold uppercase tracking-[.16em] text-white/45">How long do you like to listen?</p>
+    <p className="mt-6 text-xs font-semibold uppercase tracking-[.16em] text-white/45">How long do you like to listen?</p>
     <div className="mt-2 grid grid-cols-3 gap-2">
       {([["short", "Quick hits", "under 25 min"], ["mix", "Mix it up", "any length"], ["deep", "Deep dives", "45 min +"]] as const).map(([v, label, sub]) =>
         <button key={v} type="button" onClick={() => setPace(v)} aria-pressed={pace === v} className={`rounded-2xl px-2 py-3 text-sm font-bold ring-2 ${pace === v ? "bg-white/10 ring-[#ff8a3d]" : "bg-white/5 ring-transparent"}`}>{label}<span className="block text-xs font-medium text-white/55">{sub}</span></button>)}
@@ -63,7 +63,7 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
       <span className="text-sm text-white/60">{picked.length < 3 ? `Pick ${3 - picked.length} more` : `${picked.length} genres picked`}</span>
       <div className="flex gap-2">
         {onCancel && <button type="button" onClick={onCancel} className="min-h-11 rounded-full bg-white/10 px-5 font-bold">Cancel</button>}
-        <button type="button" disabled={picked.length < 3} onClick={() => onDone(picked, pace)} className="min-h-11 rounded-full px-6 font-black text-[#24160a] disabled:opacity-40" style={{ background: ACCENT }}>Start listening</button>
+        <button type="button" disabled={picked.length < 3} onClick={() => onDone(picked, pace)} className="min-h-11 rounded-full px-6 font-semibold bg-white text-[#111013] disabled:opacity-40">Start listening</button>
       </div>
     </div>
   </div>;
@@ -530,7 +530,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }).catch(() => {});
   }, [api]);
   const voteAd = (epId: string, key: string, vote: 1 | -1) => {
-    if (!/^[auct]:/.test(key)) return;
+    if (!/^[auctg]:/.test(key)) return;
     api(`/api/earshot/ads/${epId}/vote`, { method: "POST", body: { key, vote } }).catch(() => {});
   };
   /** Transcripts are fetched once someone is really listening (or opens Read), never just for swiping past. */
@@ -732,7 +732,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       {genreMode && tab === "foryou"
         ? <span className="flex items-center gap-2 rounded-full bg-black/55 py-1.5 pl-3 pr-1.5 text-sm font-bold backdrop-blur">{GENRE[genreMode]?.name}<button type="button" aria-label="Back to For You" onClick={() => setGenreMode(null)} className="grid h-7 w-7 place-items-center rounded-full bg-white/15"><X size={14} /></button></span>
         : <nav className="flex min-w-0 gap-1 overflow-x-auto rounded-full bg-black/45 p-1 backdrop-blur [scrollbar-width:none]" aria-label="Sections">
-          {tabs.map(([t, label]) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`flex-none rounded-full px-3 py-1.5 text-xs font-extrabold sm:text-sm ${tab === t ? "bg-white text-[#120e14]" : "text-white/75"}`}>{label}</button>)}
+          {tabs.map(([t, label]) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`flex-none rounded-full px-3 py-1.5 text-xs font-semibold sm:text-sm ${tab === t ? "bg-white text-[#120e14]" : "text-white/75"}`}>{label}</button>)}
         </nav>}
       <div className="flex flex-none gap-1.5">
         {sleepAt !== null && <span className="flex items-center gap-1 rounded-full bg-black/45 px-2.5 text-xs font-bold backdrop-blur"><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
@@ -757,14 +757,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
     {skipped && <div role="status" className="absolute inset-x-3 top-16 z-[25] mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#120e14] shadow-xl">
       <span className="min-w-0 truncate">Skipped {skipped.ad.kind === "user" ? "a listener-marked ad" : "an ad"}{skipped.ad.label && !/^(ad break|pre-roll)$/i.test(skipped.ad.label) ? ` · ${skipped.ad.label}` : ""} ({clock(skipped.ad.e - skipped.ad.s)})</span>
-      <button type="button" onClick={undoSkip} className="flex-none rounded-full bg-[#120e14] px-3 py-1 text-xs font-black text-white">Undo</button>
+      <button type="button" onClick={undoSkip} className="flex-none rounded-full bg-[#120e14] px-3 py-1 text-xs font-semibold text-white">Undo</button>
     </div>}
 
     {marking && activeEp && marking.epId === activeEp.id && <div role="status" className="absolute inset-x-3 top-16 z-[26] mx-auto flex max-w-md flex-col gap-2 rounded-2xl bg-[#ffd23f] p-3 text-[#120e14] shadow-xl">
-      <div className="flex items-center justify-between gap-2 text-sm font-black"><span className="flex items-center gap-1.5"><Megaphone size={16} />Marking an ad · from {clock(marking.s)}</span>
-        <span className="flex gap-1"><button type="button" aria-label="Ad started 5 seconds earlier" onClick={() => setMarking((m) => (m ? { ...m, s: Math.max(0, m.s - 5) } : m))} className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-black">−5s</button><button type="button" aria-label="Ad started 5 seconds later" onClick={() => setMarking((m) => (m ? { ...m, s: m.s + 5 } : m))} className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-black">+5s</button></span></div>
+      <div className="flex items-center justify-between gap-2 text-sm font-semibold"><span className="flex items-center gap-1.5"><Megaphone size={16} />Marking an ad · from {clock(marking.s)}</span>
+        <span className="flex gap-1"><button type="button" aria-label="Ad started 5 seconds earlier" onClick={() => setMarking((m) => (m ? { ...m, s: Math.max(0, m.s - 5) } : m))} className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-semibold">−5s</button><button type="button" aria-label="Ad started 5 seconds later" onClick={() => setMarking((m) => (m ? { ...m, s: m.s + 5 } : m))} className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-semibold">+5s</button></span></div>
       <p className="text-xs font-semibold">Listen (or jump ahead) until the show comes back, then tap “Ad's over”.</p>
-      <div className="flex gap-2"><button type="button" onClick={() => seekBy(15)} className="flex-1 rounded-full bg-black/10 py-2 text-xs font-black">Jump 15s</button><button type="button" onClick={endMark} className="flex-1 rounded-full bg-[#120e14] py-2 text-xs font-black text-white">Ad's over</button><button type="button" onClick={() => setMarking(null)} className="rounded-full bg-black/10 px-3 py-2 text-xs font-black">Cancel</button></div>
+      <div className="flex gap-2"><button type="button" onClick={() => seekBy(15)} className="flex-1 rounded-full bg-black/10 py-2 text-xs font-semibold">Jump 15s</button><button type="button" onClick={endMark} className="flex-1 rounded-full bg-[#120e14] py-2 text-xs font-semibold text-white">Ad's over</button><button type="button" onClick={() => setMarking(null)} className="rounded-full bg-black/10 px-3 py-2 text-xs font-semibold">Cancel</button></div>
     </div>}
 
     {tab === "explore" && <Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow}
@@ -785,11 +785,11 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 }
 
 function FeedEmpty({ tab, error, state, hasFollows, onExplore, onRetry }: { tab: Tab; error: string; state: "loading" | "ready" | "slow"; hasFollows: boolean; onExplore: () => void; onRetry: () => void }) {
-  const retryBtn = <button type="button" onClick={onRetry} className="mt-2 min-h-11 rounded-full px-5 font-black text-[#24160a]" style={{ background: ACCENT }}>Try again</button>;
-  if (tab === "foryou" && state === "ready" && !error) return <Centered><p className="text-lg font-black">Nothing to play yet</p><p className="max-w-xs text-sm text-white/60">Podcasts for your genres are still being gathered. Try again in a moment, or browse genres in Explore.</p>{retryBtn}<button type="button" onClick={onExplore} className="min-h-11 rounded-full bg-white/10 px-5 font-bold">Explore</button></Centered>;
+  const retryBtn = <button type="button" onClick={onRetry} className="mt-2 min-h-11 rounded-full px-5 font-semibold bg-white text-[#111013]">Try again</button>;
+  if (tab === "foryou" && state === "ready" && !error) return <Centered><p className="text-lg font-semibold">Nothing to play yet</p><p className="max-w-xs text-sm text-white/60">Podcasts for your genres are still being gathered. Try again in a moment, or browse genres in Explore.</p>{retryBtn}<button type="button" onClick={onExplore} className="min-h-11 rounded-full bg-white/10 px-5 font-bold">Explore</button></Centered>;
   if (state === "slow" && !error) return <Centered><Loader2 className="animate-spin" size={36} style={{ color: ACCENT }} /><p className="text-sm font-bold text-white/70">Still tuning in… this is taking longer than usual.</p>{retryBtn}</Centered>;
-  if (tab === "following" && !hasFollows) return <Centered><p className="text-xl font-black">Nothing here yet</p><p className="max-w-xs text-sm text-white/60">Tap the + on any podcast to follow it. New episodes from shows you follow show up here.</p><button type="button" onClick={onExplore} className="mt-2 min-h-11 rounded-full px-5 font-black text-[#24160a]" style={{ background: ACCENT }}>Find shows</button></Centered>;
-  if (error) return <Centered><p className="text-lg font-black">Couldn't load podcasts</p><p className="max-w-xs text-sm text-white/60">{error}</p>{retryBtn}</Centered>;
+  if (tab === "following" && !hasFollows) return <Centered><p className="text-xl font-semibold">Nothing here yet</p><p className="max-w-xs text-sm text-white/60">Tap the + on any podcast to follow it. New episodes from shows you follow show up here.</p><button type="button" onClick={onExplore} className="mt-2 min-h-11 rounded-full px-5 font-semibold bg-white text-[#111013]">Find shows</button></Centered>;
+  if (error) return <Centered><p className="text-lg font-semibold">Couldn't load podcasts</p><p className="max-w-xs text-sm text-white/60">{error}</p>{retryBtn}</Centered>;
   return <Centered><Loader2 className="animate-spin" size={36} style={{ color: ACCENT }} /><p className="text-sm font-bold text-white/70">Tuning in to real podcasts…</p></Centered>;
 }
 const Centered = ({ children }: { children: ReactNode }) => <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">{children}</div>;
@@ -842,7 +842,7 @@ function Card(p: CardProps) {
         <Cover art={art} alt={`${item.show.name} cover art`} eager={p.i < 3} playing={p.playing}>
           {!p.playing && ep && (p.unlocked && p.active
             ? <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/45 ring-1 ring-white/25 backdrop-blur-md" aria-hidden><Play size={28} fill="currentColor" className="ml-1" /></span>
-            : <span className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/55 px-4 py-2 text-sm font-extrabold ring-1 ring-white/20 backdrop-blur-md"><Play size={16} fill="currentColor" style={{ color: ACCENT }} />Tap to listen</span>)}
+            : <span className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/55 px-4 py-2 text-sm font-semibold ring-1 ring-white/20 backdrop-blur-md"><Play size={16} fill="currentColor" style={{ color: ACCENT }} />Tap to listen</span>)}
           {item.state === "loading" && <span className="absolute inset-0 grid place-items-center rounded-[26px] bg-black/40"><Loader2 className="animate-spin" /></span>}
           {item.state === "none" && <span className="pointer-events-auto absolute inset-x-4 top-1/2 -translate-y-1/2 rounded-2xl bg-black/80 p-3 text-center text-sm">No playable episodes right now.<button type="button" onClick={p.onNext} className="mt-2 block w-full rounded-full bg-white/15 py-1.5 font-bold">Next podcast</button></span>}
         </Cover>
@@ -853,12 +853,12 @@ function Card(p: CardProps) {
       </div>
 
       <div className="flex flex-none flex-col gap-1.5 px-4 pb-4 pr-20">
-        <div className="flex flex-wrap gap-1.5"><span className="rounded-md bg-white/12 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">{GENRE[item.show.genre]?.name ?? "Podcast"}</span><span className="rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider" style={{ background: "rgba(255,138,61,.18)", color: ACCENT }}>{item.why}</span></div>
-        <button type="button" onClick={p.onShow} className="pointer-events-auto w-fit max-w-full truncate text-left text-[15px] font-black hover:underline">{item.show.name}</button>
-        <h2 className="line-clamp-2 text-xl font-black leading-tight sm:text-2xl">{ep?.title ?? "Loading the newest episode…"}</h2>
+        <p className="truncate text-[11px] font-medium uppercase tracking-[.14em] text-white/45">{GENRE[item.show.genre]?.name ?? "Podcast"}{item.why ? <span className="text-white/30"> · {item.why}</span> : null}</p>
+        <button type="button" onClick={p.onShow} className="pointer-events-auto w-fit max-w-full truncate text-left text-[15px] font-semibold hover:underline">{item.show.name}</button>
+        <h2 className="line-clamp-2 text-xl font-bold leading-tight tracking-tight sm:text-2xl">{ep?.title ?? "Loading the newest episode…"}</h2>
         <p className="truncate text-xs text-white/65">{[item.show.author, ep?.secs ? durationWords(ep.secs) : "", ep?.date ? agoWords(ep.date) : ""].filter(Boolean).join(" · ")}</p>
         {ep && p.active && <div className="pointer-events-auto flex flex-wrap items-center gap-2">
-          {p.ad && <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-black text-[#120e14]">
+          {p.ad && <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#120e14]">
             <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={14} />{p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
             <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={13} /></button>
           </span>}
@@ -875,7 +875,7 @@ function Card(p: CardProps) {
           <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums text-white/60"><span>{clock(p.time)}</span><span>-{clock(Math.max(0, p.dur - p.time))}</span></div>
           <div className="flex items-center gap-3">
             <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10"><RotateCcw size={18} /></button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-12 w-12 flex-none place-items-center rounded-full text-[#24160a] shadow-lg" style={{ background: ACCENT }}>{p.playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-12 w-12 flex-none place-items-center rounded-full bg-white text-[#111013] shadow-lg">{p.playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}</button>
             <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10"><RotateCw size={18} /></button>
           </div>
         </div>}
@@ -932,7 +932,7 @@ function ReadSheet({ ep, tx, time, playing, onSeek, onClose, onMore, onMarkRange
   return <Sheet title="Read along" onClose={onClose} tall>
     <div className="border-b border-white/10 px-4 py-2.5">
       <div className="flex items-center justify-between gap-2"><p className="line-clamp-1 min-w-0 text-xs text-white/55">{ep.show} · {ep.title}</p>
-        {!!segs.length && <button type="button" onClick={() => { setMarking((m) => !m); setFirst(null); }} aria-pressed={marking} className={`flex flex-none items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${marking ? "bg-[#ffd23f] text-[#120e14]" : "bg-white/10"}`}><Megaphone size={13} />{marking ? "Cancel" : "Mark an ad"}</button>}</div>
+        {!!segs.length && <button type="button" onClick={() => { setMarking((m) => !m); setFirst(null); }} aria-pressed={marking} className={`flex flex-none items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${marking ? "bg-[#ffd23f] text-[#120e14]" : "bg-white/10"}`}><Megaphone size={13} />{marking ? "Cancel" : "Mark an ad"}</button>}</div>
       {marking && <p className="mt-2 rounded-xl bg-[#ffd23f]/15 px-3 py-2 text-xs font-semibold text-[#ffd23f]">{first === null ? "Tap the first line of the ad." : "Now tap the last line of the ad."}</p>}
       <div className="relative mt-2"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search this episode" aria-label="Search this episode" className="min-h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" /></div>
       {!!tx?.chapters.length && <div className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{tx.chapters.map((c) => <button key={c.s} type="button" onClick={() => onSeek(c.s)} className="flex-none rounded-full bg-white/10 px-3 py-1 text-xs font-bold"><span className="tabular-nums text-white/50">{clock(c.s)}</span> {c.title}</button>)}</div>}
@@ -954,7 +954,7 @@ function ReadSheet({ ep, tx, time, playing, onSeek, onClose, onMore, onMarkRange
             };
             return <li key={s.s} data-seg={i}><button type="button" onClick={pick} className={`grid w-full grid-cols-[44px_1fr] gap-2 rounded-xl px-2 py-1.5 text-left transition ${picked ? "bg-[#ffd23f]/25 ring-1 ring-[#ffd23f]" : i === nowIdx ? "bg-white/10" : "hover:bg-white/5"}`}>
               <span className="pt-0.5 text-[11px] tabular-nums text-white/40">{clock(s.s)}</span>
-              <span className={`text-[15px] leading-relaxed ${i === nowIdx ? "font-semibold text-white" : i < nowIdx ? "text-white/55" : "text-white/80"} ${inAd ? "italic text-white/40" : ""}`}>{inAd && <span className="mr-1.5 rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-black uppercase not-italic tracking-wider text-white/70">Ad</span>}{mark(s.t)}</span>
+              <span className={`text-[15px] leading-relaxed ${i === nowIdx ? "font-semibold text-white" : i < nowIdx ? "text-white/55" : "text-white/80"} ${inAd ? "italic text-white/40" : ""}`}>{inAd && <span className="mr-1.5 rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase not-italic tracking-wider text-white/70">Ad</span>}{mark(s.t)}</span>
             </button></li>;
           })}</ol>
           {tx.more && !term && <div className="py-4 text-center">{loading ? <span className="inline-flex items-center gap-2 text-xs text-white/50"><Loader2 size={14} className="animate-spin" />Writing the next part…</span> : <button type="button" onClick={onMore} className="rounded-full bg-white/10 px-4 py-2 text-xs font-bold">Load more (from {clock(lastEnd)})</button>}</div>}
@@ -972,20 +972,20 @@ function MarkSheet({ draft, shared, onChange, onPreview, onSave, onClose }: { dr
   const set = (patch: Partial<Draft>) => onChange({ ...draft, ...patch });
   const len = draft.e - draft.s;
   const Nudge = ({ edge }: { edge: "s" | "e" }) => <div className="flex items-center gap-1">
-    {[-5, -1, 1, 5].map((d) => <button key={d} type="button" onClick={() => { const v = Math.max(0, draft[edge] + d); if (edge === "s" ? v < draft.e - 3 : v > draft.s + 3) set({ [edge]: v } as Partial<Draft>); }} aria-label={`${edge === "s" ? "Start" : "End"} ${d > 0 ? "later" : "earlier"} by ${Math.abs(d)} seconds`} className="grid h-8 min-w-9 place-items-center rounded-full bg-white/10 px-2 text-xs font-black">{d > 0 ? <span className="flex items-center"><Plus size={11} />{d}s</span> : <span className="flex items-center"><Minus size={11} />{-d}s</span>}</button>)}
+    {[-5, -1, 1, 5].map((d) => <button key={d} type="button" onClick={() => { const v = Math.max(0, draft[edge] + d); if (edge === "s" ? v < draft.e - 3 : v > draft.s + 3) set({ [edge]: v } as Partial<Draft>); }} aria-label={`${edge === "s" ? "Start" : "End"} ${d > 0 ? "later" : "earlier"} by ${Math.abs(d)} seconds`} className="grid h-8 min-w-9 place-items-center rounded-full bg-white/10 px-2 text-xs font-semibold">{d > 0 ? <span className="flex items-center"><Plus size={11} />{d}s</span> : <span className="flex items-center"><Minus size={11} />{-d}s</span>}</button>)}
     <button type="button" onClick={() => onPreview(edge === "s" ? Math.max(0, draft.s - 3) : Math.max(0, draft.e - 2))} className="ml-1 grid h-8 place-items-center rounded-full bg-white/10 px-2.5 text-xs font-bold"><Play size={12} fill="currentColor" /></button>
   </div>;
   return <Sheet title="Mark this ad" onClose={onClose}>
     <div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">
       <p className="text-sm text-white/70">From <b className="tabular-nums text-white">{clock(draft.s)}</b> to <b className="tabular-nums text-white">{clock(draft.e)}</b> ({clock(len)}). Tap ▶ to hear an edge, and nudge it until it's right.</p>
-      <div className="flex flex-col gap-2"><span className="text-xs font-extrabold uppercase tracking-widest text-white/45">Ad starts</span><Nudge edge="s" /></div>
-      <div className="flex flex-col gap-2"><span className="text-xs font-extrabold uppercase tracking-widest text-white/45">Show comes back</span><Nudge edge="e" /></div>
-      <label className="flex flex-col gap-1.5 text-xs font-extrabold uppercase tracking-widest text-white/45">Sponsor (optional)
+      <div className="flex flex-col gap-2"><span className="text-xs font-semibold uppercase tracking-widest text-white/45">Ad starts</span><Nudge edge="s" /></div>
+      <div className="flex flex-col gap-2"><span className="text-xs font-semibold uppercase tracking-widest text-white/45">Show comes back</span><Nudge edge="e" /></div>
+      <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-widest text-white/45">Sponsor (optional)
         <input value={draft.label} onChange={(e) => set({ label: e.target.value.slice(0, 60) })} placeholder="e.g. Squarespace" className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-medium normal-case tracking-normal text-white outline-none placeholder:text-white/30 focus:border-[#ffd23f]" />
       </label>
       {len > 300 && <p className="text-xs text-[#ffd23f]">That's over 5 minutes. Make sure it's one ad break, not part of the show.</p>}
       <p className="text-xs text-white/45">{shared ? "It'll be skipped for everyone listening to this same version of the episode, and the show learns its sponsors and how its ads start." : "Sharing marks with everyone isn't switched on yet, so this is saved for you."}</p>
-      <div className="flex gap-2"><button type="button" onClick={onClose} className="min-h-11 flex-1 rounded-full bg-white/10 font-bold">Cancel</button><button type="button" onClick={onSave} className="min-h-11 flex-[2] rounded-full bg-[#ffd23f] font-black text-[#120e14]">{shared ? "Save & share" : "Save"}</button></div>
+      <div className="flex gap-2"><button type="button" onClick={onClose} className="min-h-11 flex-1 rounded-full bg-white/10 font-bold">Cancel</button><button type="button" onClick={onSave} className="min-h-11 flex-[2] rounded-full bg-[#ffd23f] font-semibold text-[#120e14]">{shared ? "Save & share" : "Save"}</button></div>
     </div>
   </Sheet>;
 }
@@ -998,7 +998,7 @@ function Sheet({ title, onClose, children, tall }: { title: string; onClose: () 
   return <div className="absolute inset-0 z-30 flex flex-col justify-end">
     <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/55" />
     <div role="dialog" aria-modal="true" aria-label={title} className={`relative flex flex-col rounded-t-3xl bg-[#1d1720] shadow-2xl ${tall ? "h-[85%]" : "max-h-[80%]"}`}>
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3"><h3 className="text-base font-black">{title}</h3><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full bg-white/10"><X size={18} /></button></div>
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3"><h3 className="text-base font-semibold">{title}</h3><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full bg-white/10"><X size={18} /></button></div>
       {children}
     </div>
   </div>;
@@ -1028,7 +1028,7 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
       {err && <p className="py-6 text-center text-sm text-white/65">{err}</p>}
       {list && !err && !list.length && <p className="py-10 text-center text-sm text-white/60"><b className="text-white">No comments yet.</b><br />Say what you thought of this one.</p>}
       <ul className="flex flex-col gap-4">{(list || []).map((c) => <li key={c.id} className="grid grid-cols-[36px_1fr_auto] items-start gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-sm font-black text-white/70">{(c.mine ? "Y" : c.author[0] || "A").toUpperCase()}</span>
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-sm font-semibold text-white/70">{(c.mine ? "Y" : c.author[0] || "A").toUpperCase()}</span>
         <div className="min-w-0"><p className="text-xs font-bold text-white/60">{c.mine ? "You" : c.author} <span className="font-medium text-white/40">· {agoWords(c.at)}</span></p><p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed">{c.body}</p></div>
         {c.mine || admin
           ? <button type="button" onClick={() => remove(c.id)} aria-label="Delete comment" className={`flex items-center gap-1 p-1 text-xs font-bold ${confirm === c.id ? "text-rose-400" : "text-white/40"}`}><Trash2 size={14} />{confirm === c.id ? "Delete?" : ""}</button>
@@ -1038,7 +1038,7 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
     {setNickname && <label className="flex items-center gap-2 border-t border-white/10 px-4 pt-2.5 text-xs text-white/55">Posting as<input value={nickname || ""} onChange={(e) => setNickname(e.target.value.slice(0, 24))} maxLength={24} placeholder="Your first name" aria-label="Your name for comments" className="min-w-0 flex-1 border-b border-dashed border-white/20 bg-transparent py-1 text-sm text-white outline-none placeholder:text-white/30" /></label>}
     <form onSubmit={post} className="flex items-center gap-2 border-t border-white/10 p-3">
       <input value={text} onChange={(e) => setText(e.target.value)} maxLength={280} placeholder="Add a comment" aria-label="Write a comment" className="min-h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" />
-      <button type="submit" disabled={!text.trim() || busy} className="min-h-11 rounded-full px-4 text-sm font-black text-[#24160a] disabled:opacity-40" style={{ background: ACCENT }}>{busy ? <Loader2 size={16} className="animate-spin" /> : "Post"}</button>
+      <button type="submit" disabled={!text.trim() || busy} className="min-h-11 rounded-full px-4 text-sm font-semibold bg-white text-[#111013] disabled:opacity-40">{busy ? <Loader2 size={16} className="animate-spin" /> : "Post"}</button>
     </form>
   </Sheet>;
 }
@@ -1047,15 +1047,15 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep }: { es
   const set = (patch: Partial<EarshotData["settings"]>) => update((e) => ({ ...e, settings: { ...e.settings, ...patch } }));
   const Row = ({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) => <div className="flex items-center justify-between gap-3 border-b border-white/10 py-3.5 last:border-0"><div><b className="block text-sm">{title}</b>{sub && <span className="block text-xs text-white/55">{sub}</span>}</div>{children}</div>;
   const Switch = ({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) => <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick} className={`relative h-7 w-12 flex-none rounded-full transition ${on ? "" : "bg-white/15"}`} style={on ? { background: ACCENT } : undefined}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${on ? "left-6" : "left-1"}`} /></button>;
-  const Seg = <T extends number>({ value, options, onPick }: { value: T; options: [T, string][]; onPick: (v: T) => void }) => <div className="flex flex-none rounded-full bg-white/10 p-0.5">{options.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => onPick(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-extrabold ${value === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>;
+  const Seg = <T extends number>({ value, options, onPick }: { value: T; options: [T, string][]; onPick: (v: T) => void }) => <div className="flex flex-none rounded-full bg-white/10 p-0.5">{options.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => onPick(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${value === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>;
   return <Sheet title="Playback" onClose={onClose}>
     <div className="overflow-y-auto px-4 pb-4">
       <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? "Skips ads it's sure about, and asks about the rest. Undo any skip" : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
-        <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["auto", "Auto"], ["ask", "Ask"], ["off", "Off"]] as [AdMode, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={es.settings.adMode === v} onClick={() => set({ adMode: v })} className={`rounded-full px-2.5 py-1.5 text-xs font-extrabold ${es.settings.adMode === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
+        <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["auto", "Auto"], ["ask", "Ask"], ["off", "Off"]] as [AdMode, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={es.settings.adMode === v} onClick={() => set({ adMode: v })} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${es.settings.adMode === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>
       <Row title="Sleep timer" sub={sleepAt === null ? "Off" : sleepAt === "end" ? "Stops at the end of this episode" : `Stops in ${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`}>
         <div className="flex flex-none flex-wrap justify-end gap-1">{([[15, "15m"], [30, "30m"], [60, "1h"], ["end", "End"], [null, "Off"]] as [number | "end" | null, string][]).map(([v, l]) =>
-          <button key={l} type="button" onClick={() => setSleep(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={v === null ? sleepAt === null : v === "end" ? sleepAt === "end" : false} className={`rounded-full px-2.5 py-1.5 text-xs font-extrabold ${(v === null && sleepAt === null) || (v === "end" && sleepAt === "end") ? "bg-white text-[#120e14]" : "bg-white/10 text-white/75"}`}>{l}</button>)}</div>
+          <button key={l} type="button" onClick={() => setSleep(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={v === null ? sleepAt === null : v === "end" ? sleepAt === "end" : false} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${(v === null && sleepAt === null) || (v === "end" && sleepAt === "end") ? "bg-white text-[#120e14]" : "bg-white/10 text-white/75"}`}>{l}</button>)}</div>
       </Row>
       <Row title="Speed"><Seg value={es.settings.speed} options={SPEEDS.map((s) => [s, `${s}×`] as [number, string])} onPick={(v) => set({ speed: v })} /></Row>
       <Row title="Skip the intro" sub="Start long episodes 90 seconds in, past most ads and theme music"><Switch on={es.settings.skipIntro} label="Skip the intro" onClick={() => set({ skipIntro: !es.settings.skipIntro })} /></Row>
@@ -1092,21 +1092,21 @@ function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, on
       {busy && !res && <div className="grid place-items-center py-8"><Loader2 className="animate-spin" /></div>}
       {err && <p className="py-6 text-center text-sm text-white/60">{err}</p>}
       {res && !res.shows.length && !res.episodes.length && <p className="py-6 text-center text-sm text-white/60">Nothing found for “{q.trim()}”. Try a show's name, a host, or a topic like history or cooking.</p>}
-      {!!res?.shows.length && <p className="mt-2 text-xs font-extrabold uppercase tracking-widest text-white/40">Shows</p>}
+      {!!res?.shows.length && <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-white/40">Shows</p>}
       {res?.shows.map((s) => <Row key={s.id} art={s.art} title={s.name} sub={`${s.author}${GENRE[s.genre] ? ` · ${GENRE[s.genre].name}` : ""}`} onClick={() => onShow(s)} />)}
-      {!!res?.episodes.length && <p className="mt-4 text-xs font-extrabold uppercase tracking-widest text-white/40">Episodes</p>}
+      {!!res?.episodes.length && <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-white/40">Episodes</p>}
       {res?.episodes.map((e) => <Row key={e.id} art={e.art} title={e.title} sub={`${e.show}${e.secs ? ` · ${durationWords(e.secs)}` : ""}`} onClick={() => onEpisode(asShow(e), e)} />)}
     </div> : <>
       {!!resume.length && <Shelf title="Continue listening">{resume.map(([id, s]) => <Tile key={id} art={s.art} title={s.title} sub={`${s.show} · ${clock(s.t)} in`} onClick={() => onResume(id, s)} />)}</Shelf>}
       {!!popular.length && <Shelf title="Popular in your genres">{popular.map((s) => <Tile key={s.id} art={s.art} title={s.name} sub={s.author} onClick={() => onShow(s)} />)}</Shelf>}
       {!student && !!spooky.length && <Shelf title="Spooky season">{spooky.map((s) => <Tile key={s.id} art={s.art} title={s.name} sub={s.author} onClick={() => onShow(s)} />)}</Shelf>}
-      <h3 className="mt-6 text-lg font-black">Browse all genres</h3>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">{genres.map((g) => <button key={g.id} type="button" onClick={() => onGenre(g.id)} className="flex h-20 items-end rounded-2xl p-3 text-left text-sm font-black leading-tight shadow" style={{ background: g.color }}>{g.name}</button>)}</div>
+      <h3 className="mt-6 text-lg font-semibold">Browse all genres</h3>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">{genres.map((g) => <button key={g.id} type="button" onClick={() => onGenre(g.id)} className="flex h-14 items-center gap-2.5 rounded-xl bg-white/[.03] px-3.5 text-left text-sm font-medium leading-tight text-white/85 ring-1 ring-white/[.06]"><span className="h-2 w-2 flex-none rounded-full" style={{ background: g.color }} />{g.name}</button>)}</div>
     </>}
   </div>;
 }
 const Row = ({ art, title, sub, onClick }: { art: string; title: string; sub: string; onClick: () => void }) => <button type="button" onClick={onClick} className="grid grid-cols-[52px_1fr] items-center gap-3 rounded-xl p-2 text-left hover:bg-white/5"><img src={art} alt="" referrerPolicy="no-referrer" loading="lazy" className="h-[52px] w-[52px] rounded-lg object-cover" /><span className="min-w-0"><b className="block truncate text-sm">{title}</b><span className="block truncate text-xs text-white/55">{sub}</span></span></button>;
-const Shelf = ({ title, children }: { title: string; children: ReactNode }) => <section className="mt-6"><h3 className="text-lg font-black">{title}</h3><div className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{children}</div></section>;
+const Shelf = ({ title, children }: { title: string; children: ReactNode }) => <section className="mt-6"><h3 className="text-lg font-semibold">{title}</h3><div className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{children}</div></section>;
 const Tile = ({ art, title, sub, onClick }: { art: string; title: string; sub: string; onClick: () => void }) => <button type="button" onClick={onClick} className="w-32 flex-none text-left"><img src={art} alt="" referrerPolicy="no-referrer" loading="lazy" className="aspect-square w-32 rounded-xl object-cover" /><b className="mt-1.5 line-clamp-2 block text-sm leading-tight">{title}</b><span className="line-clamp-1 block text-xs text-white/55">{sub}</span></button>;
 
 // ===========================================================================
@@ -1119,20 +1119,20 @@ function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotD
   const max = Math.max(1, ranked[0]?.[1] ?? 1);
   const eps = which === "liked" ? es.liked : es.saved;
   return <div className="h-full overflow-y-auto px-4 pb-8 pt-16">
-    <div className="flex items-center justify-between gap-3"><h3 className="text-2xl font-black">Library</h3><button type="button" onClick={onEditInterests} className="min-h-9 rounded-full bg-white/10 px-4 text-sm font-bold">Edit interests</button></div>
+    <div className="flex items-center justify-between gap-3"><h3 className="text-2xl font-semibold">Library</h3><button type="button" onClick={onEditInterests} className="min-h-9 rounded-full bg-white/10 px-4 text-sm font-bold">Edit interests</button></div>
     <ModesHub es={es} onOpen={onMode} />
-    <div className="mt-6 grid grid-cols-3 gap-2">{([["Heard", es.heard.length], ["Liked", es.liked.length], ["Following", es.follows.length]] as const).map(([l, n]) => <div key={l} className="rounded-2xl bg-white/5 p-3"><b className="block text-2xl font-black tabular-nums">{n}</b><span className="text-xs text-white/55">{l}</span></div>)}</div>
-    <h4 className="mt-6 text-sm font-black">What your feed has learned</h4>
+    <div className="mt-6 grid grid-cols-3 gap-2">{([["Heard", es.heard.length], ["Liked", es.liked.length], ["Following", es.follows.length]] as const).map(([l, n]) => <div key={l} className="rounded-xl bg-white/[.03] p-3 ring-1 ring-white/[.06]"><b className="block text-xl font-semibold tabular-nums">{n}</b><span className="text-[11px] text-white/40">{l}</span></div>)}</div>
+    <h4 className="mt-6 text-sm font-semibold">What your feed has learned</h4>
     <div className="mt-2 flex flex-col gap-2">{ranked.map(([g, v]) => <div key={g.id} className="grid grid-cols-[120px_1fr_32px] items-center gap-2 text-xs"><span className="truncate">{g.name}</span><span className="h-2 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full" style={{ width: `${Math.max(3, (Math.max(0, v) / max) * 100)}%`, background: g.color }} /></span><span className="text-right tabular-nums text-white/45">{Math.round((Math.max(0, v) / max) * 100)}</span></div>)}</div>
     <p className="mt-2 text-xs leading-relaxed text-white/45">Likes, follows, shares and listening raise a genre; quick skips lower it. About one in seven picks is something new on purpose.</p>
-    <div className="mt-6 flex gap-1.5">{(["liked", "saved", "following"] as const).map((w) => <button key={w} type="button" aria-pressed={which === w} onClick={() => setWhich(w)} className={`rounded-full px-3.5 py-1.5 text-xs font-extrabold capitalize ${which === w ? "bg-white text-[#120e14]" : "bg-white/10 text-white/70"}`}>{w}</button>)}</div>
+    <div className="mt-6 flex gap-1.5">{(["liked", "saved", "following"] as const).map((w) => <button key={w} type="button" aria-pressed={which === w} onClick={() => setWhich(w)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize ${which === w ? "bg-white text-[#120e14]" : "bg-white/10 text-white/70"}`}>{w}</button>)}</div>
     <div className="mt-3 grid grid-cols-3 gap-3">
       {which === "following" ? es.follows.map((s) => <div key={s.id} className="text-left"><img src={s.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 block text-xs">{s.name}</b></div>)
         : eps.map((e) => <button key={e.id} type="button" onClick={() => onOpen(e)} className="text-left"><img src={e.art} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 block text-xs leading-tight">{e.title}</b><span className="line-clamp-1 block text-[11px] text-white/50">{e.show}</span></button>)}
     </div>
     {((which === "following" && !es.follows.length) || (which !== "following" && !eps.length)) && <p className="py-6 text-center text-sm text-white/55">{which === "liked" ? "Double-tap an episode to like it." : which === "saved" ? "Tap the bookmark to save an episode for later." : "Tap + on a podcast to follow it."}</p>}
     <div className="mt-8">{asking
-      ? <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/5 p-3 text-sm"><span className="flex-1">Clear what the feed has learned? Likes, saves and follows stay.</span><button type="button" onClick={() => { update((e) => ({ ...e, taste: Object.fromEntries(e.genres.map((g) => [g, 3])), skipped: [] })); setAsking(false); }} className="rounded-full px-4 py-1.5 font-black text-[#24160a]" style={{ background: ACCENT }}>Reset</button><button type="button" onClick={() => setAsking(false)} className="rounded-full bg-white/10 px-4 py-1.5 font-bold">Cancel</button></div>
+      ? <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/5 p-3 text-sm"><span className="flex-1">Clear what the feed has learned? Likes, saves and follows stay.</span><button type="button" onClick={() => { update((e) => ({ ...e, taste: Object.fromEntries(e.genres.map((g) => [g, 3])), skipped: [] })); setAsking(false); }} className="rounded-full px-4 py-1.5 font-semibold bg-white text-[#111013]">Reset</button><button type="button" onClick={() => setAsking(false)} className="rounded-full bg-white/10 px-4 py-1.5 font-bold">Cancel</button></div>
       : <button type="button" onClick={() => setAsking(true)} className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold">Reset recommendations</button>}</div>
   </div>;
 }

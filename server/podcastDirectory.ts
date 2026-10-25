@@ -491,6 +491,29 @@ export function createDirectory(options: DirectoryOptions = {}) {
       return { ...none("The transcript couldn't be made right now. Try again in a minute."), chapters };
     });
   }
+  /** One stretch of a listener's copy that no read-along piece covers, transcribed and read for ads.
+   *  Kept by its fingerprint, so another listener whose copy has the same stretch gets it at once.
+   *  Ads come back in seconds from the stretch's start. */
+  async function copyPieceAds(showId: string, episodeId: string, fp: string, audio: Blob, secs: number): Promise<AdRange[] | null> {
+    if (!/^[0-9a-z]{1,24}$/.test(fp) || !aiOn()) return null;
+    const { show, ep } = await findEpisode(showId, episodeId);
+    if (!ep) return null;
+    const key = `${ep.id}:g:${fp}`;
+    const done = await ctx.peek(key);
+    if (done) return done.value.ads;
+    const showName = show?.name ?? ep.show;
+    const c = await ctx.refresh(key, async () => {
+      if (budgetLeft() < secs / 60) throw new Error("budget");
+      if (!audio.size || audio.size > 25_000_000) throw new Error("size");
+      minutesToday += secs / 60;
+      const out = await transcribe(audio, `gap-${fp}.mp3`, await transcribePrompt(showId, showName));
+      const segments = out.segments.map((x) => ({ s: x.start, e: x.end, t: x.text.trim() })).filter((x) => x.t);
+      const words: Word[] = (out.words ?? []).map((w) => ({ s: w.start, e: w.end, w: w.word.trim() })).filter((w) => w.w);
+      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false }) : [];
+      return { v: 3, source: "ai", segments, words, ads, chapters: [], chunk: -2, chunkSecs: secs, more: false, pieces: [] } as ContentChunk;
+    });
+    return c.ads;
+  }
   /** Content-time pieces already made for an episode (nothing new is made). */
   async function contentChunks(episodeId: string): Promise<ContentChunk[]> {
     const keys = [`${episodeId}:pub`, `${episodeId}:o`, ...Array.from({ length: 24 }, (_, i) => `${episodeId}:${i}`)];
@@ -558,6 +581,6 @@ export function createDirectory(options: DirectoryOptions = {}) {
     return { summary: String(v?.summary || "").slice(0, 200), picks: out.filter((p) => !seen.has(p.show.id) && (seen.add(p.show.id), true)) };
   }
 
-  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, foundAds, learnMark, profiles, idle, budgetLeft };
+  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, copyPieceAds, foundAds, learnMark, profiles, idle, budgetLeft };
 }
 export type Directory = ReturnType<typeof createDirectory>;

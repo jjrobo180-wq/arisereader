@@ -122,7 +122,13 @@ type Session = {
   mapped?: { tag: string; ads: PlayAd[] };
   /** The opening's read along (and its ads) being made right after comparing. */
   opening?: "running" | "done";
+  /** Stretches of this copy's show audio no read-along piece covers (an ad the host gave this copy and
+   *  the comparison copies alike, where the piece's copy had another), read on their own for ads. */
+  gaps?: { running: boolean; done: Set<string>; secs: number; ads: PlayAd[] };
 };
+/** Reads one stretch of a copy (transcribed and checked for ads, kept for everyone by its fingerprint);
+ *  its ads in seconds from the stretch's start. */
+export type GapReader = (fp: string, audio: Blob, secs: number) => Promise<AdRange[] | null>;
 type Ref = { agent: string; copy: LiveCopy; abort: AbortController };
 type EpisodeRefs = { episodeId: string; url: string; refs: Ref[]; used: number; extra: boolean };
 
@@ -366,6 +372,91 @@ export function createPlayer(o: PlayOptions = {}) {
     const adEnd = (ct: number) => { const { fwd, bwd } = edges(ct); const v = fwd !== null && bwd !== null ? Math.min(fwd, bwd) : fwd ?? bwd ?? at(ct); return v === null ? null : Math.max(0, v); };
     return Object.assign(at, { adStart, adEnd });
   }
+  /** Show audio in this copy (stitched-in ads aside) inside the span the read-along pieces cover, that
+   *  none of them has: another listener's copy had a different ad there (or none). Each stretch comes
+   *  with a fingerprint, so a stretch already read for someone else is used again. */
+  function uncovered(s: Session, chunks: { pieces: AnchorPiece[]; more?: boolean }[]): (Span & { fp: string })[] {
+    const X = s.copy.scanner;
+    const all = chunks.flatMap((c) => c.pieces ?? []);
+    if (!all.length || !X.count) return [];
+    const found = findKeys(X.hashes, X.count, new Set(all.flatMap((p) => p.keys.map((k) => k[1]))));
+    type Iv = { x0: number; x1: number; c0: number; c1: number };
+    const ivs: Iv[] = [];
+    for (const p of all) {
+      const hits = p.keys.map((k) => (found.has(k[1]) ? { ct: k[0], x: X.timeOf(found.get(k[1])!) } : null));
+      for (let i = 0; i < hits.length; i++) {
+        const h = hits[i]; if (!h) continue;
+        const n = hits[i + 1];
+        // Two neighbouring keys the same distance apart here as in the piece: everything between is the piece's audio.
+        if (n && n.x > h.x && Math.abs((n.x - h.x) - (n.ct - h.ct)) < 0.5) ivs.push({ x0: h.x, x1: n.x + 0.2, c0: h.ct, c1: n.ct + 0.2 });
+        else ivs.push({ x0: h.x, x1: h.x + 0.2, c0: h.ct, c1: h.ct + 0.2 });
+      }
+    }
+    if (!ivs.length) return [];
+    ivs.sort((a, b) => a.x0 - b.x0);
+    const cov: Iv[] = [];
+    for (const v of ivs) { const l = cov[cov.length - 1]; if (l && v.x0 <= l.x1 + 0.5) { l.x1 = Math.max(l.x1, v.x1); l.c0 = Math.min(l.c0, v.c0); l.c1 = Math.max(l.c1, v.c1); } else cov.push({ ...v }); }
+    // The content time the pieces span.
+    const spans = mergeSpans(all.map((p) => ({ s: p.ct, e: p.ct + p.len })));
+    const inPieces = (a: number, b: number) => spans.some((r) => r.s - 1 <= a && b <= r.e + 1);
+    const { total } = contentOf(s);
+    const raw: Span[] = [];
+    // Before the first covered moment, when the pieces start at the show's start.
+    if (spans[0].s < 1 && cov[0].c0 < 600) raw.push({ s: 0, e: cov[0].x0 });
+    for (let i = 0; i + 1 < cov.length; i++) {
+      const a = cov[i], b = cov[i + 1];
+      if (b.x0 - a.x1 < 6) continue;
+      if (inPieces(Math.min(a.c1, b.c0), Math.max(a.c1, b.c0))) raw.push({ s: a.x1, e: b.x0 });
+    }
+    const last = cov[cov.length - 1];
+    if (spans[spans.length - 1].e >= total - 1 && chunks.some((c) => c.more === false)) raw.push({ s: last.x1, e: X.time });
+    // Stitched-in ads are known already.
+    const cuts = mergeSpans(s.ads.ads.filter((a) => a.kind === "dai").map((a) => ({ s: a.s, e: a.e })));
+    const out: (Span & { fp: string })[] = [];
+    for (const r of raw) {
+      let pieces: Span[] = [{ ...r }];
+      for (const c of cuts) pieces = pieces.flatMap((p) => (c.e <= p.s || c.s >= p.e ? [p] : [{ s: p.s, e: c.s }, { s: c.e, e: p.e }]));
+      for (const p of pieces) {
+        if (p.e - p.s < 6 || p.e - p.s > 600) continue;
+        const f = Math.min(X.frameAt(p.s), Math.max(0, X.count - 8));
+        out.push({ s: round2(p.s), e: round2(p.e), fp: `${keyAt(X.hashes, f).toString(36)}${Math.round(p.e - p.s)}` });
+      }
+    }
+    return out;
+  }
+  /** Copy time [a, b) as one MP3. */
+  async function extractCopy(s: Session, a: number, b: number): Promise<Blob> {
+    const X = s.copy.scanner;
+    const f0 = X.frameAt(a), f1 = Math.min(X.count, X.frameAt(b) + 1);
+    const lo = X.offsets[f0], hi = f1 < X.count ? X.offsets[f1] : s.copy.written;
+    const buf = Buffer.allocUnsafe(Math.max(0, hi - lo));
+    const fh = await fsp.open(s.file, "r");
+    try { await fh.read(buf, 0, buf.length, lo); } finally { await fh.close().catch(() => {}); }
+    return new Blob([buf], { type: "audio/mpeg" });
+  }
+  /** Reads the stretches no piece covers (at most 20 minutes a copy) and keeps the ads found in them. */
+  async function readGaps(s: Session, chunks: { pieces: AnchorPiece[]; more?: boolean }[], read: GapReader) {
+    if (!s.copy.done || !s.ads.final || !s.copy.scanner.count) return;
+    const g = (s.gaps ??= { running: false, done: new Set(), secs: 0, ads: [] });
+    if (g.running) return;
+    g.running = true;
+    try {
+      for (const sp of uncovered(s, chunks)) {
+        const id = `${Math.round(sp.s)}-${Math.round(sp.e)}`, len = sp.e - sp.s;
+        if (g.done.has(id) || g.secs + len > 1200 || !sessions.has(s.id)) continue;
+        g.done.add(id); g.secs += len;
+        const ads = await read(sp.fp, await extractCopy(s, sp.s, sp.e), len).catch(() => null);
+        for (const r of ads ?? []) {
+          // Edges near the stretch's own edges are its edges (the show, or a known ad, is right there).
+          let a = sp.s + r.s, b = sp.s + r.e;
+          if (a - sp.s < 4) a = sp.s;
+          if (sp.e - b < 4) b = sp.e;
+          if (b - a < 3) continue;
+          g.ads.push({ key: `g:${s.episodeId}:${Math.round(a)}:${Math.round(b)}`, s: round2(a), e: round2(b), label: r.label || "Ad break", kind: (r.kind as PlayAd["kind"]) || "ai", sure: (r.conf ?? 0.8) >= 0.75 });
+        }
+      }
+    } finally { g.running = false; }
+  }
   /** A read-along piece in this copy's time. */
   function inCopy(s: Session, c: ContentChunk): TranscriptChunk {
     const at = placer(s, [c]);
@@ -373,7 +464,7 @@ export function createPlayer(o: PlayOptions = {}) {
     const ads = c.ads.map((r) => placeAd(at, r)).filter((r): r is AdRange => !!r);
     const chapters = c.chapters.map((h) => { const a = at(h.s); return a === null ? null : { s: Math.round(a), title: h.title }; }).filter((h): h is NonNullable<typeof h> => !!h);
     const { pieces: _p, words: _w, v: _v, ...rest } = c as any;
-    return { ...rest, segments, ads, chapters, dur: Math.round(s.copy.scanner.time * 100) / 100, durMode: "exact" };
+    return { ...rest, segments, ads: [...ads, ...(s.gaps?.ads ?? [])].sort((x, y) => x.s - y.s), chapters, dur: Math.round(s.copy.scanner.time * 100) / 100, durMode: "exact" };
   }
   const placeAd = (at: ReturnType<typeof placer>, r: AdRange): AdRange | null => {
     const a = at.adStart(r.s), b = at.adEnd(r.e);
@@ -381,11 +472,18 @@ export function createPlayer(o: PlayOptions = {}) {
     return { ...r, s: Math.round(a * 100) / 100, e: Math.round(b * 100) / 100 };
   };
   /** Ads found in the episode's read-along pieces, placed in this copy (sure ones skip by themselves). */
-  async function transcriptAds(s: Session, dir: Pick<Directory, "contentChunks">): Promise<PlayAd[]> {
+  async function transcriptAds(s: Session, dir: Pick<Directory, "contentChunks"> & Partial<Pick<Directory, "copyPieceAds">>): Promise<PlayAd[]> {
     if (!s.copy.done || !s.ads.final) return [];
-    const chunks = (await dir.contentChunks(s.episodeId)).filter((c) => c.ads.length);
+    const every = await dir.contentChunks(s.episodeId);
+    // Pieces made since (read along): what they don't cover in this copy is read too.
+    if (dir.copyPieceAds && s.opening === "done" && !s.gaps?.running) {
+      const reader = dir.copyPieceAds;
+      void readGaps(s, every, (fp, audio, secs) => reader(s.showId, s.episodeId, fp, audio, secs)).catch(() => {});
+    }
+    const gapAds = s.gaps?.ads ?? [];
+    const chunks = every.filter((c) => c.ads.length);
     const tag = `${contentOf(s).tag}#${chunks.map((c) => `${c.chunk}:${c.source}:${c.ads.length}`).join(",")}`;
-    if (s.mapped?.tag === tag) return s.mapped.ads;
+    if (s.mapped?.tag === tag) return [...s.mapped.ads, ...gapAds];
     const ads: PlayAd[] = [];
     for (const c of chunks) {
       const at = placer(s, [c]);
@@ -395,7 +493,7 @@ export function createPlayer(o: PlayOptions = {}) {
       }
     }
     s.mapped = { tag, ads };
-    return ads;
+    return [...ads, ...gapAds];
   }
 
   // ---- sessions ----
@@ -460,7 +558,7 @@ export function createPlayer(o: PlayOptions = {}) {
   }
   /** Content time placed in a session's copy. */
   const fromContent = (s: Session, ct: number) => ctToCopy(contentOf(s).pieces, ct);
-  return { setOnFinal: (f: (s: Session) => void) => { onFinal = f; }, sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, toContent, fromContent, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
+  return { setOnFinal: (f: (s: Session) => void) => { onFinal = f; }, sessions, episodes, open, close, pipe, schedule, tidy, key, contentOf, extract, inCopy, transcriptAds, readGaps, uncovered, toContent, fromContent, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
 }
 export type Player = ReturnType<typeof createPlayer>;
 
@@ -505,7 +603,7 @@ export function parseRange(header: string | undefined, total: number): { start: 
 /** Right after a copy is compared, its opening (first 2.5 minutes) is transcribed and read for ads
  *  (host-read sponsors, the show's own pitches) so they're skipped before they play. Two at a time;
  *  made once per episode for everyone. */
-export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript">) {
+export function startOpenings(player: Player, dir: Pick<Directory, "contentTranscript"> & Partial<Pick<Directory, "contentChunks" | "copyPieceAds">>) {
   const queue: any[] = [];
   let running = 0;
   const pump = () => {
@@ -515,6 +613,12 @@ export function startOpenings(player: Player, dir: Pick<Directory, "contentTrans
       running++;
       const { total } = player.contentOf(s);
       dir.contentTranscript(s.showId, s.episodeId, -1, { secs: total, extract: (from, to) => player.extract(s, from, to) })
+        .then(async () => {
+          // Then whatever in this copy the pieces don't have (its own ads at the start, mostly).
+          if (!dir.contentChunks || !dir.copyPieceAds || !player.sessions.has(s.id)) return;
+          const reader = dir.copyPieceAds;
+          await player.readGaps(s, await dir.contentChunks(s.episodeId), (fp, audio, secs) => reader(s.showId, s.episodeId, fp, audio, secs));
+        })
         .catch((e: any) => console.warn("[earshot] opening:", e?.message || e))
         .finally(() => { s.opening = "done"; running--; pump(); });
     }
@@ -538,7 +642,7 @@ export type PlayRouteDeps = {
   prefix: string;
   player: Player;
   /** Read-along pieces already made (their ads are placed in each copy). */
-  dir?: Pick<Directory, "contentChunks">;
+  dir?: Pick<Directory, "contentChunks"> & Partial<Pick<Directory, "copyPieceAds">>;
   /** Listeners' marks and skips in content time, and everyone's votes (server/podcastAds.ts crowdFor). */
   crowd?: (episodeId: string) => Promise<{ marks: { key: string; s: number; e: number; label: string; support: number; voters: string[] }[]; skips: { key: string; s: number; e: number; support: number }[]; votes: { key: string; voter: string; vote: number }[] }>;
   /** The episode's audio address (from the directory). */
@@ -635,7 +739,7 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
     const out: PlayAd[] = [];
     const covered = (a: PlayAd) => out.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
     for (const a of [...s.ads.ads, ...extra.filter((x) => x.kind === "user"), ...extra.filter((x) => x.kind !== "user")]) if (!covered(a)) out.push(a);
-    res.json({ ...s.ads, pending: s.opening === "running", ads: out.sort((x, y) => x.s - y.s) });
+    res.json({ ...s.ads, pending: s.opening === "running" || !!s.gaps?.running, ads: out.sort((x, y) => x.s - y.s) });
   });
 }
 
