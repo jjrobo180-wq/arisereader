@@ -76,7 +76,10 @@ export type SavedShow = { id: string; name: string; author: string; art: string;
 /** What's kept about an episode someone liked or saved, so the Library shows it without a lookup. */
 export type SavedEpisode = { id: string; showId: string; title: string; show: string; art: string; secs: number; at: string };
 
-export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adSkip: boolean };
+/** Smart ad skip: auto skips ads it's sure about (and asks about the rest), ask always shows a Skip button, off does nothing. */
+export type AdMode = "auto" | "ask" | "off";
+export const AD_MODES: readonly AdMode[] = ["auto", "ask", "off"];
+export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode };
 export type Earshot = {
   setupDone: boolean;
   genres: string[];
@@ -90,13 +93,15 @@ export type Earshot = {
   heard: string[];
   /** Shows passed over quickly, newest first (shown less for a while). */
   skipped: string[];
+  /** Shows they support: ads on these are never skipped. */
+  adFree: string[];
   settings: EarshotSettings;
 };
 
 export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80 } as const;
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
-export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adSkip: true });
-export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], settings: defaultSettings() });
+export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto" });
+export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], settings: defaultSettings() });
 
 // ---------------------------------------------------------------------------
 // Reading Apple's answers
@@ -361,13 +366,14 @@ export function cleanEarshot(v: unknown): Earshot {
     saved: list(r.saved, EARSHOT_LIMITS.saved, cleanSavedEpisode),
     heard: idList(r.heard, EARSHOT_LIMITS.heard),
     skipped: idList(r.skipped, EARSHOT_LIMITS.skipped, false),
+    adFree: idList(r.adFree, 300),
     settings: {
       speed: (SPEEDS as readonly number[]).includes(s.speed) ? s.speed : d.speed,
       skipIntro: typeof s.skipIntro === "boolean" ? s.skipIntro : d.skipIntro,
       advance: s.advance === 60 || s.advance === 180 ? s.advance : 0,
       notes: typeof s.notes === "boolean" ? s.notes : d.notes,
       explicit: s.explicit === true,
-      adSkip: typeof s.adSkip === "boolean" ? s.adSkip : d.adSkip,
+      adMode: AD_MODES.includes(s.adMode) ? s.adMode : s.adSkip === false ? "off" : d.adMode,
     },
   };
 }
@@ -398,7 +404,8 @@ export function poolFromEpisodeSearch(genreId: string, results: unknown[], expli
 // ---------------------------------------------------------------------------
 
 export type TxSegment = { s: number; e: number; t: string };
-export type AdRange = { s: number; e: number; label: string };
+/** An ad's place in the audio. conf is how sure the finder is (0-1); kind is which finder found it. */
+export type AdRange = { s: number; e: number; label: string; conf?: number; kind?: string };
 export type Chapter = { s: number; title: string };
 export type TranscriptChunk = {
   /** publisher: the show's own transcript. ai: written by AI from the audio. none: neither is available. */
@@ -407,6 +414,12 @@ export type TranscriptChunk = {
   chunk: number; chunkSecs: number; more: boolean;
   /** Why there's no transcript, in words someone can read. */
   reason?: string;
+  /** How long the audio these times belong to is. exact: the server's MP3, measured. approx: a
+   *  publisher transcript's last line (the audio may run a little longer). Ads only line up with
+   *  a listener's audio when it's the same length (podcasts often stitch in different ads). */
+  dur?: number; durMode?: "exact" | "approx";
+  /** Word timings (server only; used to cut ads at the exact word). */
+  words?: { s: number; e: number; w: string }[];
 };
 export const TX_CHUNK_SECS = 600;
 
@@ -528,7 +541,11 @@ export function mergeAds(list: AdRange[]): AdRange[] {
   const out: AdRange[] = [];
   for (const a of list.slice().sort((x, y) => x.s - y.s)) {
     const last = out[out.length - 1];
-    if (last && a.s <= last.e + 3) { last.e = Math.max(last.e, a.e); } else out.push({ ...a });
+    if (last && a.s <= last.e + 3) {
+      last.e = Math.max(last.e, a.e);
+      if ((a.conf ?? 0) > (last.conf ?? 0)) { last.conf = a.conf; last.kind = a.kind ?? last.kind; }
+      if ((!last.label || last.label === "Ad break") && a.label && a.label !== "Ad break") last.label = a.label;
+    } else out.push({ ...a });
   }
   return out;
 }

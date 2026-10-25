@@ -2,11 +2,12 @@
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
-import { Bookmark, Check, ExternalLink, FileText, Flag, Heart, Loader2, Maximize2, MessageCircle, Minimize2, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, Trash2, X } from "lucide-react";
+import { Bookmark, Check, ExternalLink, FileText, Flag, Heart, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
-  GENRES, GENRE, SPEEDS, adAt, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf,
+  GENRES, GENRE, SPEEDS, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
+import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
 type Comment = { id: string; author: string; body: string; at: string; mine: boolean };
@@ -129,7 +130,17 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [loadState, setLoadState] = useState<"loading" | "ready" | "slow">("loading");
   const [retry, setRetry] = useState(0);
   const [txTick, setTxTick] = useState(0);
-  const [skipped, setSkipped] = useState<{ ad: AdRange; key: string } | null>(null);
+  const [skipped, setSkipped] = useState<{ ad: PlayAd; epId: string } | null>(null);
+  // Smart ad skip: what the server knows per episode, this listener's marks in progress, and quick forward jumps.
+  const serverAds = useRef<Map<string, ServerAd[]>>(new Map());
+  const localAds = useRef<Map<string, PlayAd[]>>(new Map());
+  const [adsTick, setAdsTick] = useState(0);
+  const [adsShared, setAdsShared] = useState(true);
+  const [marking, setMarking] = useState<{ epId: string; s: number } | null>(null);
+  const markingRef = useRef(marking); markingRef.current = marking;
+  const [draft, setDraft] = useState<{ ep: PodEpisode; showId: string; s: number; e: number; label: string } | null>(null);
+  const skipRun = useRef<{ epId: string; from: number; to: number; at: number } | null>(null);
+  const skipT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
   const sleepRef = useRef(sleepAt); sleepRef.current = sleepAt;
   const pools = useRef<Map<string, PoolShow[]>>(new Map());
@@ -316,6 +327,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (cur.current && cur.current !== a) cur.current.pause();
     cur.current = a;
     listened.current = 0; lastTime.current = a.currentTime; lastSpot.current = 0; setSkipped(null);
+    if (markingRef.current && markingRef.current.epId !== ep.id) setMarking(null);
+    loadAds(ep);
     setTime(a.currentTime || 0); setDur(Number.isFinite(a.duration) ? a.duration : ep.secs || 0);
     a.playbackRate = esRef.current.settings.speed;
     if (play) a.play().catch(() => setPlaying(false));
@@ -363,8 +376,33 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (!a || a.dataset.ep !== it.ep.id) { activate(active, true); return; }
     if (a.paused) { a.playbackRate = esRef.current.settings.speed; a.play().catch(() => setPlaying(false)); } else a.pause();
   };
-  const seekBy = (d: number) => { const a = cur.current; if (a && a.dataset.ep) a.currentTime = Math.max(0, Math.min((a.duration || dur) - 1, a.currentTime + d)); };
-  const seekTo = (t: number) => { const a = cur.current; if (a && a.dataset.ep) { a.currentTime = Math.max(0, t); setTime(a.currentTime); } };
+  const seekBy = (d: number) => {
+    const a = cur.current; if (!a || !a.dataset.ep) return;
+    const from = a.currentTime;
+    a.currentTime = Math.max(0, Math.min((a.duration || dur) - 1, a.currentTime + d));
+    if (d > 0 && !markingRef.current) noteSkip(a.dataset.ep, from, a.currentTime);
+  };
+  /** user: the listener dragged the bar (a big jump forward counts as skipping past something). */
+  const seekTo = (t: number, user = false) => {
+    const a = cur.current; if (!a || !a.dataset.ep) return;
+    const from = a.currentTime;
+    a.currentTime = Math.max(0, t); setTime(a.currentTime);
+    if (user && a.currentTime - from >= 10 && !markingRef.current) noteSkip(a.dataset.ep, from, a.currentTime);
+  };
+  // Forward jumps in a row (+30, +30…) are one skip; sent when they stop. Several listeners skipping the
+  // same spot is how "Listeners skip this" is found.
+  const flushSkip = () => {
+    const r = skipRun.current; skipRun.current = null;
+    const D = cur.current?.duration;
+    if (r && D && Number.isFinite(D) && r.to - r.from >= 10 && r.to - r.from <= 300) api(`/api/earshot/ads/${r.epId}/skip`, { method: "POST", body: { from: r.from, to: r.to, dur: D } }).catch(() => {});
+  };
+  const noteSkip = (epId: string, from: number, to: number) => {
+    const r = skipRun.current, now = Date.now();
+    if (r && r.epId === epId && now - r.at < 5000 && Math.abs(r.to - from) < 3) { r.to = to; r.at = now; }
+    else { flushSkip(); skipRun.current = { epId, from, to, at: now }; }
+    if (skipT.current) clearTimeout(skipT.current);
+    skipT.current = setTimeout(flushSkip, 5000);
+  };
 
   // ---------------- read along and ad skip ----------------
   const activeEp = items[active]?.ep ?? null;
@@ -384,8 +422,21 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       x.ads = mergeAds([...x.ads, ...r.ads]);
       if (r.chapters?.length) x.chapters = r.chapters;
       setTxTick((v) => v + 1);
+      if (r.ads?.length) loadAds(ep);
     }).catch(() => { const x = txs.current.get(ep.id); if (x) x.loading.delete(chunk); setTxTick((v) => v + 1); });
   }, [api]);
+  /** Everything known about an episode's ads: found automatically, marked by listeners, often skipped. */
+  const loadAds = useCallback((ep: PodEpisode) => {
+    api(`/api/earshot/ads/${ep.id}`).then((b) => {
+      serverAds.current.set(ep.id, Array.isArray(b?.ads) ? b.ads : []);
+      if (typeof b?.shared === "boolean") setAdsShared(b.shared);
+      setAdsTick((x) => x + 1);
+    }).catch(() => {});
+  }, [api]);
+  const voteAd = (epId: string, key: string, vote: 1 | -1) => {
+    if (!/^[auc]:/.test(key)) return;
+    api(`/api/earshot/ads/${epId}/vote`, { method: "POST", body: { key, vote } }).catch(() => {});
+  };
   /** Transcripts are fetched once someone is really listening (or opens Read), never just for swiping past. */
   const wantTx = (ep: PodEpisode, t: number) => {
     const x = txs.current.get(ep.id);
@@ -401,11 +452,11 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
-    if (ep && (listened.current > 15 || sheetRef.current?.kind === "read") && (esRef.current.settings.adSkip || sheetRef.current?.kind === "read")) wantTx(ep, t);
-    if (ep && esRef.current.settings.adSkip) {
-      const ad = adAt(txs.current.get(ep.id)?.ads ?? [], t);
-      const key = ad ? `${ep.id}:${ad.s}` : "";
-      if (ad && !undone.current.has(key)) { a.currentTime = ad.e; setSkipped({ ad, key }); }
+    const mode = esRef.current.settings.adMode;
+    if (ep && (listened.current > 5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
+    if (ep && it && mode === "auto" && !esRef.current.adFree.includes(it.show.id) && !markingRef.current) {
+      const ad = playAdAt(adsRef.current, t);
+      if (ad && ad.sure && !undone.current.has(ad.key)) { a.currentTime = ad.e; setSkipped({ ad, epId: ep.id }); }
     }
     const sl = sleepRef.current;
     if (typeof sl === "number" && Date.now() >= sl) { a.pause(); setSleepAt(null); say("Sleep timer: paused. Sleep well."); }
@@ -421,10 +472,59 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   handlers.current.error = () => { if (unlockedRef.current) say("This episode won't play here. Swipe for the next one, or open it in Apple Podcasts."); };
 
-  const undoSkip = () => { if (!skipped) return; undone.current.add(skipped.key); seekTo(skipped.ad.s); setSkipped(null); };
+  // The ads that fit this listener's copy of the episode (see alignAds), plus their own marks.
+  const activeShowId = items[active]?.show.id ?? "";
+  const activeAds: PlayAd[] = useMemo(() => {
+    if (!activeEp || !(dur > 0)) return [];
+    const mine = localAds.current.get(activeEp.id) ?? [];
+    return [...alignAds(serverAds.current.get(activeEp.id) ?? [], dur), ...mine].filter((a) => !undone.current.has(a.key)).sort((x, y) => x.s - y.s);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEp?.id, Math.round(dur * 10), adsTick]);
+  const adsRef = useRef(activeAds); adsRef.current = activeAds;
+  const adMode: AdMode = es.settings.adMode;
+  const adsOn = adMode !== "off" && !es.adFree.includes(activeShowId);
+  const adNow = adsOn ? playAdAt(activeAds, time) : null;
+  // Shown as a button when it wasn't skipped by itself (Ask mode, or not sure enough to skip).
+  const adOffer = adNow && !(adNow.sure && adMode === "auto") ? adNow : null;
+  const undoSkip = () => {
+    if (!skipped) return;
+    undone.current.add(skipped.ad.key); seekTo(skipped.ad.s); voteAd(skipped.epId, skipped.ad.key, -1); setSkipped(null); setAdsTick((x) => x + 1);
+    say("Got it, that wasn't an ad. It won't be skipped for you, and your vote counts for everyone.");
+  };
+  const takeOffer = () => { if (!adOffer || !activeEp) return; seekTo(adOffer.e); if (!adOffer.sure) voteAd(activeEp.id, adOffer.key, 1); };
+  const refuseOffer = () => { if (!adOffer || !activeEp) return; undone.current.add(adOffer.key); voteAd(activeEp.id, adOffer.key, -1); setAdsTick((x) => x + 1); say("Thanks. Marked as not an ad."); };
   useEffect(() => { if (!skipped) return; const t = setTimeout(() => setSkipped(null), 6000); return () => clearTimeout(t); }, [skipped]);
-  const adNow = activeEp ? adAt(txFor(activeEp)?.ads ?? [], time) : null;
   void txTick;
+
+  // ---------------- "Mark ad": a listener marks an ad, and it's skipped for everyone with the same copy ----------------
+  const startMark = () => {
+    const a = cur.current, ep = activeEp; if (!a || !ep || a.dataset.ep !== ep.id) { say("Play the episode first, then tap Mark ad when an ad starts."); return; }
+    setMarking({ epId: ep.id, s: Math.max(0, Math.floor(a.currentTime) - 3) });
+    if (a.paused) toggle();
+  };
+  const endMark = () => {
+    const m = markingRef.current, a = cur.current, it = items[active]; if (!m || !a || !it?.ep) return;
+    const e = Math.max(m.s + 3, Math.floor(a.currentTime));
+    setMarking(null);
+    setDraft({ ep: it.ep, showId: it.show.id, s: m.s, e, label: "" });
+  };
+  const markFromLines = (s: number, e: number) => { const it = items[active]; if (!it?.ep) return; setSheet(null); setDraft({ ep: it.ep, showId: it.show.id, s: Math.floor(s), e: Math.ceil(e), label: "" }); };
+  const saveDraft = async () => {
+    const d = draft; const D = cur.current?.duration; if (!d) return;
+    const dur = D && Number.isFinite(D) ? D : d.ep.secs;
+    const local: PlayAd = { key: `l:${d.ep.id}:${d.s}:${d.e}`, s: d.s, e: d.e, label: d.label || "Ad break", kind: "user", sure: true };
+    setDraft(null);
+    try {
+      const b = await api(`/api/earshot/ads/${d.ep.id}/mark`, { method: "POST", body: { showId: d.showId, s: d.s, e: d.e, dur, label: d.label } });
+      if (Array.isArray(b?.ads)) serverAds.current.set(d.ep.id, b.ads);
+      setAdsTick((x) => x + 1);
+      say("Thanks! This ad will be skipped for everyone with this version of the episode.");
+    } catch (e: any) {
+      localAds.current.set(d.ep.id, [...(localAds.current.get(d.ep.id) ?? []), local]);
+      setAdsTick((x) => x + 1);
+      say(e?.status === 503 ? "Saved for you. Sharing marks with everyone isn't switched on yet." : e?.message || "That didn't save. Try again.");
+    }
+  };
 
   // ---------------- actions ----------------
   const isFollowing = (id: string) => es.follows.some((f) => f.id === id);
@@ -505,16 +605,24 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && es.saved.some((x) => x.id === it.ep!.id)} notes={es.settings.notes} unlocked={unlocked}
-        ad={i === active ? adNow : null} onSkipAd={() => adNow && seekTo(adNow.e)} onTapStart={unlock}
-        onToggle={toggle} onSeek={seekTo} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
+        ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
+        adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
+        onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
         onLike={() => it.ep && toggleLike(it.ep, it.show.genre)} onDoubleLike={() => it.ep && !counts[it.ep.id]?.liked && toggleLike(it.ep, it.show.genre)}
         onSave={() => it.ep && toggleSave(it.ep, it.show.genre)} onShare={() => it.ep && share(it.ep, it.show.genre, it.show)} onFollow={() => toggleFollow(it.show)}
         onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
     {skipped && <div role="status" className="absolute inset-x-3 top-16 z-[25] mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#120e14] shadow-xl">
-      <span className="min-w-0 truncate">Skipped an ad{skipped.ad.label && skipped.ad.label !== "Ad break" ? ` · ${skipped.ad.label}` : ""} ({clock(skipped.ad.e - skipped.ad.s)})</span>
+      <span className="min-w-0 truncate">Skipped {skipped.ad.kind === "user" ? "a listener-marked ad" : "an ad"}{skipped.ad.label && !/^(ad break|pre-roll)$/i.test(skipped.ad.label) ? ` · ${skipped.ad.label}` : ""} ({clock(skipped.ad.e - skipped.ad.s)})</span>
       <button type="button" onClick={undoSkip} className="flex-none rounded-full bg-[#120e14] px-3 py-1 text-xs font-black text-white">Undo</button>
+    </div>}
+
+    {marking && activeEp && marking.epId === activeEp.id && <div role="status" className="absolute inset-x-3 top-16 z-[26] mx-auto flex max-w-md flex-col gap-2 rounded-2xl bg-[#ffd23f] p-3 text-[#120e14] shadow-xl">
+      <div className="flex items-center justify-between gap-2 text-sm font-black"><span className="flex items-center gap-1.5"><Megaphone size={16} />Marking an ad · from {clock(marking.s)}</span>
+        <span className="flex gap-1"><button type="button" aria-label="Ad started 5 seconds earlier" onClick={() => setMarking((m) => (m ? { ...m, s: Math.max(0, m.s - 5) } : m))} className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-black">−5s</button><button type="button" aria-label="Ad started 5 seconds later" onClick={() => setMarking((m) => (m ? { ...m, s: m.s + 5 } : m))} className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-black">+5s</button></span></div>
+      <p className="text-xs font-semibold">Listen (or jump ahead) until the show comes back, then tap “Ad's over”.</p>
+      <div className="flex gap-2"><button type="button" onClick={() => seekBy(15)} className="flex-1 rounded-full bg-black/10 py-2 text-xs font-black">Jump 15s</button><button type="button" onClick={endMark} className="flex-1 rounded-full bg-[#120e14] py-2 text-xs font-black text-white">Ad's over</button><button type="button" onClick={() => setMarking(null)} className="rounded-full bg-black/10 px-3 py-2 text-xs font-black">Cancel</button></div>
     </div>}
 
     {tab === "explore" && <Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots}
@@ -523,9 +631,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {tab === "library" && <Library es={es} update={update} onEditInterests={onEditInterests} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />}
 
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
-    {sheet?.kind === "show" && <ShowSheet show={sheet.show} load={loadEpisodes} following={isFollowing(sheet.show.id)} onFollow={toggleFollow} onPlay={playNow} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} />}
+    {sheet?.kind === "show" && <ShowSheet show={sheet.show} load={loadEpisodes} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlay={playNow} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} />}
     {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={(v) => { setSleepAt(v); say(v === null ? "Sleep timer off." : v === "end" ? "Stopping at the end of this episode." : `Stopping in ${Math.round(((v as number) - Date.now()) / 60000)} minutes.`); }} />}
-    {sheet?.kind === "read" && activeEp && <ReadSheet ep={activeEp} tx={txFor(activeEp)} time={time} playing={playing} onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onClose={() => setSheet(null)} onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
+    {draft && <MarkSheet draft={draft} shared={adsShared} onChange={setDraft} onPreview={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onSave={saveDraft} onClose={() => setDraft(null)} />}
+    {sheet?.kind === "read" && activeEp && <ReadSheet ep={activeEp} tx={txFor(activeEp)} time={time} playing={playing} onMarkRange={markFromLines} onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onClose={() => setSheet(null)} onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
   </div>;
 }
 
@@ -545,7 +654,8 @@ const Centered = ({ children }: { children: ReactNode }) => <div className="flex
 // ===========================================================================
 type CardProps = {
   i: number; item: Item; active: boolean; playing: boolean; time: number; dur: number; counts?: Counts; commentsOn: boolean; following: boolean; saved: boolean; notes: boolean; unlocked: boolean;
-  ad: AdRange | null; onSkipAd: () => void; onTapStart: () => void; onRead: () => void;
+  ad: PlayAd | null; onSkipAd: () => void; onNotAd: () => void; onTapStart: () => void; onRead: () => void;
+  adMarks: PlayAd[]; marking: boolean; onMark: () => void;
   onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onNext: () => void;
 };
 function Card(p: CardProps) {
@@ -588,13 +698,24 @@ function Card(p: CardProps) {
         <button type="button" onClick={p.onShow} className="pointer-events-auto w-fit max-w-full truncate text-left text-[15px] font-black hover:underline">{item.show.name}</button>
         <h2 className="line-clamp-2 text-xl font-black leading-tight sm:text-2xl">{ep?.title ?? "Loading the newest episode…"}</h2>
         <p className="truncate text-xs text-white/65">{[item.show.author, ep?.secs ? durationWords(ep.secs) : "", ep?.date ? agoWords(ep.date) : ""].filter(Boolean).join(" · ")}</p>
-        {p.ad && <button type="button" onClick={p.onSkipAd} className="pointer-events-auto flex w-fit items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-[#120e14]"><SkipForward size={14} />Skip ad{p.ad.label && p.ad.label !== "Ad break" ? ` · ${p.ad.label}` : ""}</button>}
+        {ep && p.active && <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+          {p.ad && <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-black text-[#120e14]">
+            <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={14} />{p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
+            <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={13} /></button>
+          </span>}
+          {!p.marking && p.unlocked && <button type="button" onClick={p.onMark} className="flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold"><Megaphone size={14} />Mark ad</button>}
+        </div>}
         {ep && <div className="pointer-events-auto mt-1 flex items-center gap-2">
           <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-white/12"><RotateCcw size={17} /></button>
           <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-11 w-11 flex-none place-items-center rounded-full text-[#24160a]" style={{ background: ACCENT }}>{p.playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}</button>
           <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-white/12"><RotateCw size={17} /></button>
-          <input type="range" min={0} max={Math.max(1, Math.floor(p.dur))} value={Math.floor(p.time)} onChange={(e) => p.onSeek(Number(e.target.value))} aria-label="Seek" disabled={!p.active}
-            className="h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full" style={{ background: `linear-gradient(90deg, ${ACCENT} ${pct}%, rgba(255,255,255,.2) ${pct}%)`, accentColor: ACCENT }} />
+          <div className="relative h-6 min-w-0 flex-1">
+            <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/20" />
+            <div className="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full" style={{ width: `${pct}%`, background: ACCENT }} />
+            {p.dur > 0 && p.adMarks.map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-2 -translate-y-1/2 rounded-sm" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.8, ((a.e - a.s) / p.dur) * 100)}%`, background: a.sure ? "#ffd23f" : "rgba(255,210,63,.45)" }} />)}
+            <input type="range" min={0} max={Math.max(1, Math.floor(p.dur))} value={Math.floor(p.time)} onChange={(e) => p.onSeek(Number(e.target.value))} aria-label="Seek" disabled={!p.active}
+              className="absolute inset-0 h-6 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white" />
+          </div>
           <span className="w-[86px] flex-none text-right text-[11px] tabular-nums text-white/65">{clock(p.time)} / {clock(p.dur)}</span>
         </div>}
       </div>
@@ -622,8 +743,11 @@ function Rail({ children, label, n, on, onClick, disabled }: { children: ReactNo
 // ===========================================================================
 // Read along
 // ===========================================================================
-function ReadSheet({ ep, tx, time, playing, onSeek, onClose, onMore }: { ep: PodEpisode; tx?: Tx; time: number; playing: boolean; onSeek: (t: number) => void; onClose: () => void; onMore: () => void }) {
+function ReadSheet({ ep, tx, time, playing, onSeek, onClose, onMore, onMarkRange }: { ep: PodEpisode; tx?: Tx; time: number; playing: boolean; onSeek: (t: number) => void; onClose: () => void; onMore: () => void; onMarkRange: (s: number, e: number) => void }) {
   const [q, setQ] = useState("");
+  // Mark ads by lines: tap the ad's first line, then its last.
+  const [marking, setMarking] = useState(false);
+  const [first, setFirst] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const touched = useRef(0);
   const segs = tx?.segments ?? [];
@@ -645,7 +769,9 @@ function ReadSheet({ ep, tx, time, playing, onSeek, onClose, onMore }: { ep: Pod
   };
   return <Sheet title="Read along" onClose={onClose} tall>
     <div className="border-b border-white/10 px-4 py-2.5">
-      <p className="line-clamp-1 text-xs text-white/55">{ep.show} · {ep.title}</p>
+      <div className="flex items-center justify-between gap-2"><p className="line-clamp-1 min-w-0 text-xs text-white/55">{ep.show} · {ep.title}</p>
+        {!!segs.length && <button type="button" onClick={() => { setMarking((m) => !m); setFirst(null); }} aria-pressed={marking} className={`flex flex-none items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${marking ? "bg-[#ffd23f] text-[#120e14]" : "bg-white/10"}`}><Megaphone size={13} />{marking ? "Cancel" : "Mark an ad"}</button>}</div>
+      {marking && <p className="mt-2 rounded-xl bg-[#ffd23f]/15 px-3 py-2 text-xs font-semibold text-[#ffd23f]">{first === null ? "Tap the first line of the ad." : "Now tap the last line of the ad."}</p>}
       <div className="relative mt-2"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search this episode" aria-label="Search this episode" className="min-h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" /></div>
       {!!tx?.chapters.length && <div className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{tx.chapters.map((c) => <button key={c.s} type="button" onClick={() => onSeek(c.s)} className="flex-none rounded-full bg-white/10 px-3 py-1 text-xs font-bold"><span className="tabular-nums text-white/50">{clock(c.s)}</span> {c.title}</button>)}</div>}
     </div>
@@ -656,7 +782,15 @@ function ReadSheet({ ep, tx, time, playing, onSeek, onClose, onMore }: { ep: Pod
           {shown.length === 0 && <p className="py-8 text-center text-sm text-white/55">No lines mention “{q.trim()}” yet.</p>}
           <ol className="flex flex-col gap-1">{shown.map(({ s, i }) => {
             const inAd = ads.some((a) => s.s >= a.s - 0.5 && s.s < a.e);
-            return <li key={s.s} data-seg={i}><button type="button" onClick={() => onSeek(s.s)} className={`grid w-full grid-cols-[44px_1fr] gap-2 rounded-xl px-2 py-1.5 text-left transition ${i === nowIdx ? "bg-white/10" : "hover:bg-white/5"}`}>
+            const picked = marking && first !== null && i === first;
+            const pick = () => {
+              if (!marking) return onSeek(s.s);
+              if (first === null) return setFirst(i);
+              const a = Math.min(first, i), b = Math.max(first, i);
+              setMarking(false); setFirst(null);
+              onMarkRange(segs[a].s, segs[b].e);
+            };
+            return <li key={s.s} data-seg={i}><button type="button" onClick={pick} className={`grid w-full grid-cols-[44px_1fr] gap-2 rounded-xl px-2 py-1.5 text-left transition ${picked ? "bg-[#ffd23f]/25 ring-1 ring-[#ffd23f]" : i === nowIdx ? "bg-white/10" : "hover:bg-white/5"}`}>
               <span className="pt-0.5 text-[11px] tabular-nums text-white/40">{clock(s.s)}</span>
               <span className={`text-[15px] leading-relaxed ${i === nowIdx ? "font-semibold text-white" : i < nowIdx ? "text-white/55" : "text-white/80"} ${inAd ? "italic text-white/40" : ""}`}>{inAd && <span className="mr-1.5 rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-black uppercase not-italic tracking-wider text-white/70">Ad</span>}{mark(s.t)}</span>
             </button></li>;
@@ -665,6 +799,32 @@ function ReadSheet({ ep, tx, time, playing, onSeek, onClose, onMore }: { ep: Pod
         </>}
     </div>
     {!!segs.length && <p className="border-t border-white/10 px-4 py-2 text-[11px] text-white/45">{tx?.source === "publisher" ? "Transcript from the podcast's publisher." : "Transcript written by AI, so it may have mistakes."} Tap a line to jump there.</p>}
+  </Sheet>;
+}
+
+// ===========================================================================
+// Confirming a marked ad (fine-tune the edges, name the sponsor, share)
+// ===========================================================================
+type Draft = { ep: PodEpisode; showId: string; s: number; e: number; label: string };
+function MarkSheet({ draft, shared, onChange, onPreview, onSave, onClose }: { draft: Draft; shared: boolean; onChange: (d: Draft) => void; onPreview: (t: number) => void; onSave: () => void; onClose: () => void }) {
+  const set = (patch: Partial<Draft>) => onChange({ ...draft, ...patch });
+  const len = draft.e - draft.s;
+  const Nudge = ({ edge }: { edge: "s" | "e" }) => <div className="flex items-center gap-1">
+    {[-5, -1, 1, 5].map((d) => <button key={d} type="button" onClick={() => { const v = Math.max(0, draft[edge] + d); if (edge === "s" ? v < draft.e - 3 : v > draft.s + 3) set({ [edge]: v } as Partial<Draft>); }} aria-label={`${edge === "s" ? "Start" : "End"} ${d > 0 ? "later" : "earlier"} by ${Math.abs(d)} seconds`} className="grid h-8 min-w-9 place-items-center rounded-full bg-white/10 px-2 text-xs font-black">{d > 0 ? <span className="flex items-center"><Plus size={11} />{d}s</span> : <span className="flex items-center"><Minus size={11} />{-d}s</span>}</button>)}
+    <button type="button" onClick={() => onPreview(edge === "s" ? Math.max(0, draft.s - 3) : Math.max(0, draft.e - 2))} className="ml-1 grid h-8 place-items-center rounded-full bg-white/10 px-2.5 text-xs font-bold"><Play size={12} fill="currentColor" /></button>
+  </div>;
+  return <Sheet title="Mark this ad" onClose={onClose}>
+    <div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">
+      <p className="text-sm text-white/70">From <b className="tabular-nums text-white">{clock(draft.s)}</b> to <b className="tabular-nums text-white">{clock(draft.e)}</b> ({clock(len)}). Tap ▶ to hear an edge, and nudge it until it's right.</p>
+      <div className="flex flex-col gap-2"><span className="text-xs font-extrabold uppercase tracking-widest text-white/45">Ad starts</span><Nudge edge="s" /></div>
+      <div className="flex flex-col gap-2"><span className="text-xs font-extrabold uppercase tracking-widest text-white/45">Show comes back</span><Nudge edge="e" /></div>
+      <label className="flex flex-col gap-1.5 text-xs font-extrabold uppercase tracking-widest text-white/45">Sponsor (optional)
+        <input value={draft.label} onChange={(e) => set({ label: e.target.value.slice(0, 60) })} placeholder="e.g. Squarespace" className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-medium normal-case tracking-normal text-white outline-none placeholder:text-white/30 focus:border-[#ffd23f]" />
+      </label>
+      {len > 300 && <p className="text-xs text-[#ffd23f]">That's over 5 minutes. Make sure it's one ad break, not part of the show.</p>}
+      <p className="text-xs text-white/45">{shared ? "It'll be skipped for everyone listening to this same version of the episode, and the show learns its sponsors and how its ads start." : "Sharing marks with everyone isn't switched on yet, so this is saved for you."}</p>
+      <div className="flex gap-2"><button type="button" onClick={onClose} className="min-h-11 flex-1 rounded-full bg-white/10 font-bold">Cancel</button><button type="button" onClick={onSave} className="min-h-11 flex-[2] rounded-full bg-[#ffd23f] font-black text-[#120e14]">{shared ? "Save & share" : "Save"}</button></div>
+    </div>
   </Sheet>;
 }
 
@@ -721,7 +881,7 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
   </Sheet>;
 }
 
-function ShowSheet({ show, load, following, onFollow, onPlay, onClose, onGenre }: { show: PodShow; load: (id: string) => Promise<{ show: PodShow | null; episodes: PodEpisode[] }>; following: boolean; onFollow: (s: PodShow) => void; onPlay: (s: PodShow, e: PodEpisode) => void; onClose: () => void; onGenre: (g: string) => void }) {
+function ShowSheet({ show, load, following, onFollow, onPlay, onClose, onGenre, adFree, onAdFree }: { show: PodShow; load: (id: string) => Promise<{ show: PodShow | null; episodes: PodEpisode[] }>; following: boolean; onFollow: (s: PodShow) => void; onPlay: (s: PodShow, e: PodEpisode) => void; onClose: () => void; onGenre: (g: string) => void; adFree: boolean; onAdFree: (on: boolean) => void }) {
   const [eps, setEps] = useState<PodEpisode[] | null>(null);
   const [full, setFull] = useState<PodShow>(show);
   const [err, setErr] = useState("");
@@ -734,6 +894,10 @@ function ShowSheet({ show, load, following, onFollow, onPlay, onClose, onGenre }
         {GENRE[full.genre] && <button type="button" onClick={() => onGenre(full.genre)} className="min-h-10 rounded-full bg-white/10 px-4 text-sm font-bold">More {GENRE[full.genre].name}</button>}
         {full.link && <a href={full.link} target="_blank" rel="noopener noreferrer" className="flex min-h-10 items-center gap-1 rounded-full bg-white/10 px-4 text-sm font-bold">Apple Podcasts <ExternalLink size={13} /></a>}
       </div>
+      <button type="button" role="switch" aria-checked={adFree} onClick={() => onAdFree(!adFree)} className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-left">
+        <span><b className="block text-sm">Support this show</b><span className="block text-xs text-white/55">{adFree ? "Its ads play in full, so the show gets paid." : "Turn on to never skip this show's ads."}</span></span>
+        <span className={`relative h-7 w-12 flex-none rounded-full transition ${adFree ? "" : "bg-white/15"}`} style={adFree ? { background: ACCENT } : undefined}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${adFree ? "left-6" : "left-1"}`} /></span>
+      </button>
       <div className="mt-5 flex flex-col">
         {!eps && !err && <div className="grid place-items-center py-8"><Loader2 className="animate-spin" /></div>}
         {err && <p className="py-6 text-center text-sm text-white/60">{err}</p>}
@@ -754,7 +918,9 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep }: { es
   const Seg = <T extends number>({ value, options, onPick }: { value: T; options: [T, string][]; onPick: (v: T) => void }) => <div className="flex flex-none rounded-full bg-white/10 p-0.5">{options.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => onPick(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-extrabold ${value === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>;
   return <Sheet title="Playback" onClose={onClose}>
     <div className="overflow-y-auto px-4 pb-4">
-      <Row title="Smart ad skip" sub="AI reads along and jumps over sponsor reads. You can undo any skip"><Switch on={es.settings.adSkip} label="Smart ad skip" onClick={() => set({ adSkip: !es.settings.adSkip })} /></Row>
+      <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? "Skips ads it's sure about, and asks about the rest. Undo any skip" : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
+        <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["auto", "Auto"], ["ask", "Ask"], ["off", "Off"]] as [AdMode, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={es.settings.adMode === v} onClick={() => set({ adMode: v })} className={`rounded-full px-2.5 py-1.5 text-xs font-extrabold ${es.settings.adMode === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
+      </Row>
       <Row title="Sleep timer" sub={sleepAt === null ? "Off" : sleepAt === "end" ? "Stops at the end of this episode" : `Stops in ${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`}>
         <div className="flex flex-none flex-wrap justify-end gap-1">{([[15, "15m"], [30, "30m"], [60, "1h"], ["end", "End"], [null, "Off"]] as [number | "end" | null, string][]).map(([v, l]) =>
           <button key={l} type="button" onClick={() => setSleep(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={v === null ? sleepAt === null : v === "end" ? sleepAt === "end" : false} className={`rounded-full px-2.5 py-1.5 text-xs font-extrabold ${(v === null && sleepAt === null) || (v === "end" && sleepAt === "end") ? "bg-white text-[#120e14]" : "bg-white/10 text-white/75"}`}>{l}</button>)}</div>

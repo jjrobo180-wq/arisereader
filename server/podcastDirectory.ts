@@ -12,10 +12,14 @@
 // AI then marks the sponsor reads so the player can skip them. Each piece is made once and kept
 // for everyone; AI minutes are capped per day (EARSHOT_AI_MINUTES_PER_DAY, default 300).
 import {
-  AD_PROMPT, GENRES, GENRE, TX_CHUNK_SECS, adUserMessage, adsFromAi, adsFromChapters, appleLookupUrl, appleSearchUrl, bestTranscript, chunkPlan,
-  lightEpisode, mergeAds, mergeGenreShows, parseChaptersJson, parseCues, parseEpisode, parseShow, parseTranscriptJson, poolFromEpisodeSearch, rssExtrasFor,
+  GENRES, GENRE, TX_CHUNK_SECS, adsFromChapters, appleLookupUrl, appleSearchUrl, bestTranscript, chunkPlan,
+  lightEpisode, mergeGenreShows, parseChaptersJson, parseCues, parseEpisode, parseShow, parseTranscriptJson, poolFromEpisodeSearch, rssExtrasFor,
   type AdRange, type Chapter, type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk, type TxSegment,
 } from "../shared/earshot";
+import {
+  AD_PROMPT_V2, adPromptMessage, adsFromAiV2, combineAds, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints,
+  type ServerAd, type ShowProfile, type Word,
+} from "../shared/earshotAds";
 
 // ---------------------------------------------------------------------------
 // Storage that survives restarts
@@ -150,7 +154,7 @@ export function layeredCache<T>(kv: KV, prefix: string, ttlMs: number, max = 200
 
 type ShowLookup = { show: PodShow | null; episodes: PodEpisode[] };
 export type AskJson = (system: string, user: string) => Promise<string>;
-export type Transcriber = (audio: Blob, name: string) => Promise<{ segments: { start: number; end: number; text: string }[] }>;
+export type Transcriber = (audio: Blob, name: string) => Promise<{ segments: { start: number; end: number; text: string }[]; words?: { start: number; end: number; word: string }[] }>;
 
 export interface DirectoryOptions {
   fetcher?: Fetcher & { idle?: () => boolean };
@@ -167,7 +171,7 @@ export const openAiJson: AskJson = async (system, user) => {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1-mini", temperature: 0, max_tokens: 1500, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+    body: JSON.stringify({ model: process.env.EARSHOT_AD_MODEL || "gpt-4.1", temperature: 0, max_tokens: 2000, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
     signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) throw new Error(res.status === 429 ? "busy" : `ai ${res.status}`);
@@ -180,10 +184,14 @@ export const openAiTranscribe: Transcriber = async (audio, name) => {
   form.append("model", "whisper-1");
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "segment");
+  form.append("timestamp_granularities[]", "word");
   const res = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, body: form, signal: AbortSignal.timeout(180_000) });
   if (!res.ok) throw new Error(res.status === 429 ? "busy" : `transcribe ${res.status}`);
   const body: any = await res.json();
-  return { segments: (Array.isArray(body?.segments) ? body.segments : []).map((s: any) => ({ start: Number(s.start) || 0, end: Number(s.end) || 0, text: String(s.text || "") })) };
+  return {
+    segments: (Array.isArray(body?.segments) ? body.segments : []).map((s: any) => ({ start: Number(s.start) || 0, end: Number(s.end) || 0, text: String(s.text || "") })),
+    words: (Array.isArray(body?.words) ? body.words : []).map((w: any) => ({ start: Number(w.start) || 0, end: Number(w.end) || 0, word: String(w.word || "") })),
+  };
 };
 
 export function createDirectory(options: DirectoryOptions = {}) {
@@ -202,6 +210,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   const searches = layeredCache<{ shows: PodShow[]; episodes: PodEpisode[] }>(kv, "q:", 3600_000, 500);
   const extras = layeredCache<{ transcript: { url: string; type: string } | null; chapters: string }>(kv, "x:", 24 * 3600_000, 2000);
   const tx = layeredCache<TranscriptChunk>(kv, "t:", 365 * 24 * 3600_000, 1500);
+  const profiles = layeredCache<ShowProfile>(kv, "sp:", 365 * 24 * 3600_000, 2000);
 
   // ---- Apple ----
   const loadGenreShows = (gid: string) => genreShows.get(gid, async () => {
@@ -293,14 +302,37 @@ export function createDirectory(options: DirectoryOptions = {}) {
       return { transcript: bestTranscript(found.transcripts), chapters: found.chapters };
     }).catch(() => ({ transcript: null, chapters: "" }));
   }
-  async function findAds(segs: TxSegment[]): Promise<AdRange[]> {
-    if (!aiOn() || !segs.length) return [];
-    const out: AdRange[] = [];
-    for (let i = 0; i < segs.length; i += 400) {
-      const part = segs.slice(i, i + 400);
-      try { out.push(...adsFromAi(await ask(AD_PROMPT, adUserMessage(part, i)), segs, 0)); } catch { /* no ads marked beats no transcript */ }
+  /** Ads in a stretch of transcript: phrases, the show's memory, AI cut at the exact word, chapters. */
+  async function analyzeAds(o: { showId: string; showName: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean }): Promise<AdRange[]> {
+    const prof = (await profiles.peek(o.showId))?.value ?? null;
+    const hints = profileHints(prof, o.showName);
+    const { scores } = phraseBlocks(o.segs, hints);
+    const phrase = phraseAds(o.segs, hints);
+    let ai: AdRange[] | null = null;
+    if (aiOn() && o.segs.length) {
+      const found: AdRange[] = [];
+      let failed = false;
+      for (let i = 0; i < o.segs.length; i += 350) {
+        try { found.push(...adsFromAiV2(await ask(AD_PROMPT_V2, adPromptMessage(o.segs.slice(i, i + 350), scores.slice(i, i + 350), hints, i)), o.segs, o.words)); }
+        catch { failed = true; }
+      }
+      ai = failed && !found.length ? null : found;
     }
-    return mergeAds(out);
+    const learned = o.opening ? learnedPreroll(o.segs, [...(ai ?? []), ...phrase], hints) : null;
+    const chapterAds = adsFromChapters(o.chapters, o.duration).filter((a) => a.e > o.from && a.s < o.to);
+    const ads = combineAds(ai, phrase, learned, chapterAds);
+    void profiles.refresh(o.showId, async () => learnProfile((await profiles.peek(o.showId))?.value ?? emptyProfile(), o.pieceId, o.segs, ads, o.opening)).catch(() => {});
+    return ads;
+  }
+
+  /** The audio's size, type and exact length (from its first 16 KB). */
+  async function probe(url: string) {
+    const head = await web(url, { headers: { Range: "bytes=0-16383", "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(15_000) });
+    const total = Number((head.headers.get("content-range") || "").split("/")[1]) || Number(head.headers.get("content-length") || 0);
+    const type = String(head.headers.get("content-type") || "");
+    const bytes = new Uint8Array(await head.arrayBuffer().catch(() => new ArrayBuffer(0)));
+    const info = total ? mp3Info(bytes, total) : null;
+    return { total, type, info };
   }
 
   /** One piece of an episode's transcript (publisher transcripts arrive whole, as chunk 0). */
@@ -310,33 +342,45 @@ export function createDirectory(options: DirectoryOptions = {}) {
     if (!ep) return none("This episode isn't available anymore.");
     const key = `${ep.id}:${chunk}`;
     const done = await tx.peek(key);
-    if (done) return done.value;
+    if (done && (done.value as any).v === 2) return done.value;
     const ex = await publisherExtras(show, ep);
     let chapters: Chapter[] = [];
     if (ex.chapters && chunk === 0) { try { chapters = parseChaptersJson(JSON.parse(await getText(ex.chapters, 2_000_000))); } catch { /* none */ } }
+    // A piece made before the smarter ad finder: find its ads again (text only, no new transcription).
+    if (done && done.value.segments.length) {
+      return tx.refresh(key, async () => {
+        const old = done.value;
+        let dur = old.dur, durMode = old.durMode;
+        if (old.source === "ai" && !dur) { try { const p = await probe(ep.audio); if (p.info) { dur = p.info.duration; durMode = "exact"; } } catch { /* unknown */ } }
+        if (old.source === "publisher" && !dur) { dur = old.segments[old.segments.length - 1].e; durMode = "approx"; }
+        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, pieceId: `${ep.id}#${old.chunk}`, segs: old.segments, words: old.words ?? [], chapters: old.chapters?.length ? old.chapters : chapters, duration: dur || ep.secs, from: old.chunk * old.chunkSecs, to: (old.chunk + 1) * old.chunkSecs, opening: old.chunk === 0 });
+        return { ...old, ads, dur, durMode, v: 2 } as TranscriptChunk;
+      }).catch(() => done.value);
+    }
     if (ex.transcript) {
       const pub = await tx.refresh(`${ep.id}:pub`, async () => {
         const raw = await getText(ex.transcript!.url, 6_000_000);
         const segments = /json/.test(ex.transcript!.type) ? parseTranscriptJson(JSON.parse(raw)) : parseCues(raw);
         if (!segments.length) throw new Error("empty");
-        const ads = mergeAds([...adsFromChapters(chapters, ep.secs), ...(await findAds(segments))]);
-        return { source: "publisher", segments, ads, chapters, chunk: 0, chunkSecs: Math.max(ep.secs, segments[segments.length - 1].e), more: false };
+        const last = segments[segments.length - 1].e;
+        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(ep.secs, last), from: 0, to: Math.max(ep.secs, last), opening: true });
+        return { source: "publisher", segments, ads, chapters, chunk: 0, chunkSecs: Math.max(ep.secs, last), more: false, dur: last, durMode: "approx", v: 2 } as TranscriptChunk;
       }).catch(() => null);
       if (pub) { void tx.refresh(key, async () => pub).catch(() => {}); return pub; }
     }
     if (!aiOn()) return { ...none("This show doesn't publish a transcript."), chapters };
     return tx.refresh(key, async () => {
-      // How big the file is, so a piece can be cut by bytes.
-      const head = await web(ep.audio, { headers: { Range: "bytes=0-1", "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(15_000) });
-      const total = Number((head.headers.get("content-range") || "").split("/")[1]) || Number(head.headers.get("content-length") || 0);
-      const type = String(head.headers.get("content-type") || "");
-      try { await head.body?.cancel(); } catch { /* fine */ }
-      const isMp3 = /mpeg|mp3/i.test(type) || /\.mp3(\?|$)/i.test(ep.audio);
-      if (!isMp3 || !total) throw Object.assign(new Error("format"), { soft: true });
-      const plan = chunkPlan(total, ep.secs);
-      if (chunk >= plan.chunks) return { ...none(""), source: "ai", more: false, chunkSecs: plan.chunkSecs };
+      const p = await probe(ep.audio);
+      const isMp3 = !!p.info || /mpeg|mp3/i.test(p.type) || /\.mp3(\?|$)/i.test(ep.audio);
+      if (!isMp3 || !p.total) throw Object.assign(new Error("format"), { soft: true });
+      const exact = p.info?.duration ?? 0;
+      const plan = chunkPlan(p.total - (p.info?.audioStart ?? 0), exact || ep.secs);
+      if (chunk >= plan.chunks) return { ...none(""), source: "ai", more: false, chunkSecs: plan.chunkSecs, dur: exact || undefined, durMode: "exact", v: 2 } as TranscriptChunk;
       if (budgetLeft() < plan.chunkSecs / 60) throw Object.assign(new Error("budget"), { soft: true });
-      const from = Math.floor(chunk * plan.chunkSecs * plan.bps), to = Math.min(total - 1, Math.floor((chunk + 1) * plan.chunkSecs * plan.bps) - 1);
+      const audioStart = p.info?.audioStart ?? 0;
+      const bps = p.info?.bytesPerSec ?? plan.bps;
+      const from = chunk === 0 ? 0 : Math.floor(audioStart + chunk * plan.chunkSecs * bps);
+      const to = Math.min(p.total - 1, Math.floor(audioStart + (chunk + 1) * plan.chunkSecs * bps) - 1);
       const res = await web(ep.audio, { headers: { Range: `bytes=${from}-${to}`, "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(60_000) });
       if (!res.ok && res.status !== 206) throw new Error(`audio ${res.status}`);
       const blob = await res.blob();
@@ -345,8 +389,9 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const out = await transcribe(blob, `piece-${chunk}.mp3`);
       const start = chunk * plan.chunkSecs;
       const segments = out.segments.map((s) => ({ s: start + s.start, e: start + s.end, t: s.text.trim() })).filter((s) => s.t);
-      const ads = mergeAds([...adsFromChapters(chapters, ep.secs).filter((a) => a.e > start && a.s < start + plan.chunkSecs), ...(await findAds(segments))]);
-      return { source: "ai", segments, ads, chapters, chunk, chunkSecs: plan.chunkSecs, more: chunk + 1 < plan.chunks };
+      const words: Word[] = (out.words ?? []).map((w) => ({ s: start + w.start, e: start + w.end, w: w.word.trim() })).filter((w) => w.w);
+      const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, pieceId: `${ep.id}#${chunk}`, segs: segments, words, chapters, duration: exact || ep.secs, from: start, to: start + plan.chunkSecs, opening: chunk === 0 });
+      return { source: "ai", segments, words, ads, chapters, chunk, chunkSecs: plan.chunkSecs, more: chunk + 1 < plan.chunks, dur: exact || undefined, durMode: "exact", v: 2 } as TranscriptChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
       if (e?.message === "format") return { ...none("Read along works on MP3 podcasts, and this one isn't."), chapters };
@@ -356,6 +401,33 @@ export function createDirectory(options: DirectoryOptions = {}) {
     });
   }
 
-  return { pool, loadShow, loadGenreShows, searches, apple, warm, transcript, idle, budgetLeft };
+  /** The ads already found for an episode (from saved transcript pieces), without making anything new. */
+  async function foundAds(episodeId: string): Promise<ServerAd[]> {
+    const keys = [`${episodeId}:pub`, ...Array.from({ length: 24 }, (_, i) => `${episodeId}:${i}`)];
+    await tx.preload(keys);
+    const out: ServerAd[] = [];
+    const seen = new Set<string>();
+    for (const k of keys) {
+      const c = tx.peekMemory(k);
+      if (!c || !c.ads?.length) continue;
+      const dur = c.dur ?? 0;
+      for (const a of c.ads) {
+        const key = `a:${episodeId}:${Math.round(dur)}:${Math.round(a.s)}:${Math.round(a.e)}`;
+        if (seen.has(key)) continue; seen.add(key);
+        out.push({ key, s: a.s, e: a.e, label: a.label || "Ad break", kind: (a.kind as ServerAd["kind"]) || "ai", conf: a.conf ?? 0.8, dur, durMode: c.durMode ?? "exact" });
+      }
+    }
+    return out;
+  }
+
+  /** A listener marked an ad: the show remembers its sponsor and how it started. */
+  async function learnMark(showId: string, episodeId: string, mark: { s: number; e: number; label?: string; dur: number }) {
+    const keys = [`${episodeId}:pub`, ...Array.from({ length: 24 }, (_, i) => `${episodeId}:${i}`)];
+    await tx.preload(keys);
+    const piece = keys.map((k) => tx.peekMemory(k)).find((c) => c && c.segments.length && (!c.dur || Math.abs(c.dur - mark.dur) <= 1.5 || c.durMode === "approx") && c.segments[0].s <= mark.s && c.segments[c.segments.length - 1].e >= mark.s);
+    await profiles.refresh(showId, async () => learnFromMark((await profiles.peek(showId))?.value ?? emptyProfile(), piece?.segments ?? [], mark)).catch(() => {});
+  }
+
+  return { pool, loadShow, loadGenreShows, searches, apple, warm, transcript, foundAds, learnMark, profiles, idle, budgetLeft };
 }
 export type Directory = ReturnType<typeof createDirectory>;

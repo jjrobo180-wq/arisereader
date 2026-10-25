@@ -10,9 +10,10 @@ import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
   GENRE, EARSHOT_LIMITS, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow,
-  type PodEpisode, type PodShow, type PoolShow,
+  type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
+import { memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -119,7 +120,10 @@ export interface EarshotOptions {
   fetcher?: Fetcher;
   /** Where the routes live. LifeHub uses /api/earshot; the Podscroll website uses /api/podscroll. */
   prefix?: string;
+  /** Listeners' ad marks, votes and skips (shared by both apps). Kept in memory when not given. */
+  adStore?: AdStore;
 }
+let sharedAdStore: AdStore | null = null;
 
 export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandler, options: EarshotOptions) {
   const store = options.store;
@@ -218,9 +222,17 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     const chunk = Math.max(0, Math.min(40, Math.floor(Number(req.query?.chunk) || 0)));
     if (!id || !show) return res.status(400).json({ message: "That isn't an episode." });
     if (limited(reading, req, res, "transcript requests")) return;
-    try { res.set("Cache-Control", "private, max-age=3600"); res.json(await dir.transcript(show, id, chunk)); }
+    try {
+      const { words: _words, v: _v, ...piece } = (await dir.transcript(show, id, chunk)) as TranscriptChunk & { v?: number };
+      res.set("Cache-Control", "private, max-age=3600");
+      res.json(piece);
+    }
     catch (e) { appleDown(res, e); }
   });
+
+  // ---------------- smart ad skip: marks, votes, skips (server/podcastAds.ts) ----------------
+  // Voters are "u<id>" on Arise (LifeHub) and "d<device>" on Podscroll, so both apps share one pool.
+  registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: options.adStore ?? (sharedAdStore ??= memoryAdStore()), voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}` });
 
   // ---------------- likes, shares, comments ----------------
 
@@ -303,7 +315,7 @@ export function podscrollAllowed(origin: string, extra: string[] = []): boolean 
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */
 const clientIp = (req: any) => { const f = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean); return f[f.length - 1] || String(req.socket?.remoteAddress || ""); };
 
-export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory) {
+export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore) {
   const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
   const perIp = createAttemptLimiter({ max: 900, windowMs: 10 * 60_000 });
   app.use("/api/podscroll", (req: any, res: any, next: any) => {
@@ -328,5 +340,5 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     req.user = { id: device, role: "public", displayName: typeof req.body?.name === "string" ? req.body.name : "" };
     next();
   };
-  registerEarshotRoutes(app, gate, { store, fetcher, directory, prefix: "/api/podscroll" });
+  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, prefix: "/api/podscroll" });
 }

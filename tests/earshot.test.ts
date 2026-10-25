@@ -161,8 +161,9 @@ test("Podscroll: its own site, calling the public routes", () => {
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   assert.ok(podscrollAllowed("https://podscroll.onrender.com") && podscrollAllowed("http://localhost:5173"));
   assert.ok(!podscrollAllowed("https://evil.example") && !podscrollAllowed(""), "other sites can't call it");
-  assert.match(read("server/routes.ts"), /registerPodscrollRoutes\(app, supabaseEarshotStore\(getAdminSupabase, "podscroll"\), undefined, podcasts\)/);
+  assert.match(read("server/routes.ts"), /registerPodscrollRoutes\(app, supabaseEarshotStore\(getAdminSupabase, "podscroll"\), undefined, podcasts, podcastAds\)/);
   assert.match(read("server/routes.ts"), /podcasts\.warm\(\)/, "the directory warms up in the background");
+  assert.match(read("server/routes.ts"), /const podcastAds = supabaseAdStore\(getAdminSupabase\)/, "listeners' ad marks are kept in the database");
   assert.match(read("podscroll/main.tsx"), /\/api\/podscroll/);
   assert.match(read("podscroll/main.tsx"), /from "\.\.\/client\/src\/components\/family-hub\/earshot\/EarshotPlayer"/);
   assert.doesNotMatch(read("client/src/components/family-hub/earshot/EarshotPlayer.tsx"), /from "@\//, "the shared player imports nothing from the Arise app");
