@@ -14,6 +14,7 @@ import {
 } from "../shared/earshot";
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
 import { memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
+import { registerPlayRoutes, type Player } from "./podcastPlay";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -122,6 +123,8 @@ export interface EarshotOptions {
   prefix?: string;
   /** Listeners' ad marks, votes and skips (shared by both apps). Kept in memory when not given. */
   adStore?: AdStore;
+  /** Playback through this server, so stitched-in ads are found in each listener's own copy (server/podcastPlay.ts). */
+  player?: Player;
 }
 let sharedAdStore: AdStore | null = null;
 
@@ -233,6 +236,13 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   // ---------------- smart ad skip: marks, votes, skips (server/podcastAds.ts) ----------------
   // Voters are "u<id>" on Arise (LifeHub) and "d<device>" on Podscroll, so both apps share one pool.
   registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: options.adStore ?? (sharedAdStore ??= memoryAdStore()), voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}` });
+  if (options.player) {
+    registerPlayRoutes(app, authMiddleware, {
+      prefix: P, player: options.player, cleanId: cleanPodId, clientIp,
+      voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
+      audioFor: async (showId, episodeId) => (await dir.loadShow(showId)).episodes.find((e) => e.id === episodeId)?.audio ?? null,
+    });
+  }
 
   // ---------------- likes, shares, comments ----------------
 
@@ -315,7 +325,7 @@ export function podscrollAllowed(origin: string, extra: string[] = []): boolean 
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */
 const clientIp = (req: any) => { const f = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean); return f[f.length - 1] || String(req.socket?.remoteAddress || ""); };
 
-export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore) {
+export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player) {
   const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
   const perIp = createAttemptLimiter({ max: 900, windowMs: 10 * 60_000 });
   app.use("/api/podscroll", (req: any, res: any, next: any) => {
@@ -340,5 +350,5 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     req.user = { id: device, role: "public", displayName: typeof req.body?.name === "string" ? req.body.name : "" };
     next();
   };
-  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, prefix: "/api/podscroll" });
+  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, prefix: "/api/podscroll" });
 }

@@ -68,6 +68,7 @@ import { registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } 
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
 import { supabaseAdStore } from "./podcastAds";
 import { startCopyDiagnostics } from "./podcastCopies";
+import { createPlayer as createPodcastPlayer, startPlayDiagnostics } from "./podcastPlay";
 import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
 import { registerHubChatRoutes } from "./hubChat";
@@ -1513,8 +1514,11 @@ export async function registerRoutes(
   setTimeout(() => { void podcasts.warm().catch((e) => console.error("[earshot] warm-up:", e?.message)); }, 15_000);
   const podcastAds = supabaseAdStore(getAdminSupabase);
   startCopyDiagnostics(supabaseKV(getAdminSupabase));
-  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds });
-  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds);
+  // Playback through the server (one for both apps): stitched-in ads found in each listener's own copy.
+  const podcastPlayer = createPodcastPlayer();
+  startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer);
+  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer });
+  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer);
   registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
   registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
     getSetting: (key) => storage.getSetting(key),

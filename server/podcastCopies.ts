@@ -38,12 +38,15 @@ export type FetchCopyOptions = {
   onProgress?: (bytes: number, scanner: Mp3Scanner) => void;
   /** Called once the response headers are in. */
   onHeaders?: (status: number, length: number, type: string) => void;
+  /** Called as bytes reach the file (so they can be read back). */
+  onWritten?: (bytes: number) => void;
 };
 
 export async function fetchCopy(url: string, o: FetchCopyOptions, scanner = new Mp3Scanner()): Promise<{ info: CopyInfo; scanner: Mp3Scanner }> {
   const t0 = Date.now();
   const info: CopyInfo = { ua: o.ua, status: 0, finalUrl: "", type: "", length: 0, bytes: 0, frames: 0, duration: 0, kbps: 0, rate: 0, junk: 0, ms: 0 };
   let out: WriteStream | null = null;
+  let written = 0;
   try {
     const headers: Record<string, string> = { "User-Agent": COPY_AGENTS[o.ua] || o.ua, Accept: "*/*" };
     if (o.forwardedFor) headers["X-Forwarded-For"] = o.forwardedFor;
@@ -60,7 +63,11 @@ export async function fetchCopy(url: string, o: FetchCopyOptions, scanner = new 
       if (done) break;
       info.bytes += value.length;
       if (info.bytes > max) { await reader.cancel().catch(() => {}); throw new Error("too big"); }
-      if (out && !out.write(value)) await new Promise<void>((r) => out!.once("drain", () => r()));
+      if (out) {
+        const n = value.length;
+        const ok = out.write(value, (e?: Error | null) => { if (!e) { written += n; o.onWritten?.(written); } });
+        if (!ok) await new Promise<void>((r) => out!.once("drain", () => r()));
+      }
       scanner.push(value);
       o.onProgress?.(info.bytes, scanner);
     }

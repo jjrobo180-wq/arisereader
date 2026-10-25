@@ -1,0 +1,510 @@
+// Playback through this server (Earshot + Podscroll), so ads can be found in each listener's own copy.
+//
+// Podcast hosts stitch different ads into every download. So the listener's audio comes through
+// here: the server downloads their copy (with their user agent and address, so the host picks ads
+// as it normally would), keeps it in a temp file and streams it to their player, reading its MP3
+// frames as it goes. It also downloads comparison copies as a bot (bots aren't counted as listens,
+// and many hosts leave the ads out for them) and uses other listeners' copies of the same episode.
+// The show is the same bytes in every copy, so lining the copies up frame by frame shows exactly
+// which parts of this listener's copy were stitched in (to ~26 ms), and the player skips them.
+//
+// Audio URLs carry a signed play token instead of a login (an audio element can't send headers):
+// GET <prefix>/audio/<session>?e=<episode>&s=<show>&k=<token>. The ads for a session come from
+// GET <prefix>/play/<session>/ads.
+import { mkdirSync, promises as fsp, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
+import { Mp3Scanner, alignCopies, coverage, unmatched, type Span } from "../shared/earshotAudio";
+import type { PlayAd } from "../shared/earshotAds";
+import { fetchCopy } from "./podcastCopies";
+
+// ---------------------------------------------------------------------------
+// Copies being downloaded
+// ---------------------------------------------------------------------------
+
+/** A copy arriving from the host, with its frames read as it comes in. */
+export class LiveCopy {
+  scanner = new Mp3Scanner();
+  bytes = 0; written = 0; total = 0; type = ""; status = 0;
+  headers = false; done = false; err = "";
+  finalHost = "";
+  private waiters = new Set<() => void>();
+  wake() { if (!this.waiters.size) return; const w = Array.from(this.waiters); this.waiters.clear(); for (const f of w) f(); }
+  /** Resolves on the next change (more bytes, headers, done) or after ms. */
+  wait(ms: number) {
+    return new Promise<void>((resolve) => {
+      const f = () => { clearTimeout(t); resolve(); };
+      const t = setTimeout(() => { this.waiters.delete(f); resolve(); }, ms);
+      this.waiters.add(f);
+    });
+  }
+  async until(test: () => boolean, ms: number) {
+    const end = Date.now() + ms;
+    while (!test() && Date.now() < end) await this.wait(Math.min(1000, end - Date.now()));
+    return test();
+  }
+}
+
+export type Downloader = typeof fetchCopy;
+
+function startCopy(download: Downloader, url: string, o: { ua: string; forwardedFor?: string; file?: string; signal: AbortSignal; maxBytes: number }, copy: LiveCopy, onChange: () => void) {
+  void download(url, {
+    ua: o.ua, forwardedFor: o.forwardedFor, file: o.file, signal: o.signal, maxBytes: o.maxBytes,
+    onHeaders: (status, length, type) => { copy.status = status; copy.total = status >= 200 && status < 300 ? length : 0; copy.type = type; copy.headers = true; copy.wake(); },
+    onProgress: (bytes) => { copy.bytes = bytes; if (!o.file) copy.written = bytes; copy.wake(); onChange(); },
+    onWritten: (bytes) => { copy.written = bytes; copy.wake(); },
+  }, copy.scanner).then(({ info }) => {
+    copy.err = info.err || (info.status && (info.status < 200 || info.status >= 300) ? `status ${info.status}` : "");
+    copy.status = info.status; copy.bytes = info.bytes; if (!o.file) copy.written = info.bytes;
+    try { copy.finalHost = new URL(info.finalUrl).host; } catch { /* none */ }
+    if (!copy.total && !copy.err) copy.total = info.bytes;
+    copy.done = true; copy.headers = true;
+    copy.scanner.compact();
+    copy.wake(); onChange();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tokens
+// ---------------------------------------------------------------------------
+
+const PLAY_TOKEN_HOURS = 12;
+function playKey(): Buffer {
+  const source = process.env.EARSHOT_PLAY_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.MAILBOX_ENCRYPTION_KEY || "";
+  // Without a configured secret, tokens last until the server restarts (players then fall back to direct play).
+  return Buffer.from(hkdfSync("sha256", source || `${process.pid}:${Date.now()}:${Math.random()}`, "arise-earshot", "earshot-play-v1", 32));
+}
+const VOTER = /^[A-Za-z0-9_-]{1,48}$/;
+export function makePlayToken(key: Buffer, voter: string, now = Date.now()) {
+  const exp = Math.floor(now / 1000) + PLAY_TOKEN_HOURS * 3600;
+  const sig = createHmac("sha256", key).update(`play:${exp}:${voter}`).digest("base64url").slice(0, 27);
+  return { token: `${exp}.${voter}.${sig}`, exp };
+}
+export function checkPlayToken(key: Buffer, token: string, now = Date.now()): string | null {
+  const m = /^(\d{9,11})\.([A-Za-z0-9_-]{1,48})\.([A-Za-z0-9_-]{27})$/.exec(token || "");
+  if (!m || Number(m[1]) * 1000 < now) return null;
+  const want = Buffer.from(createHmac("sha256", key).update(`play:${m[1]}:${m[2]}`).digest("base64url").slice(0, 27));
+  const got = Buffer.from(m[3]);
+  return want.length === got.length && timingSafeEqual(want, got) ? m[2] : null;
+}
+
+// ---------------------------------------------------------------------------
+// Sessions and comparison copies
+// ---------------------------------------------------------------------------
+
+export type SessionAds = {
+  /** Ads are known for the start of the copy at least. */
+  ready: boolean;
+  /** The whole copy has been compared; nothing more will be found by comparing. */
+  final: boolean;
+  /** Where the show starts (after a pre-roll), when the copy starts with an ad. */
+  startAt?: number;
+  ads: PlayAd[];
+  how: "pending" | "diff" | "same" | "noref" | "mismatch" | "notmp3" | "failed";
+  /** Copies this one was compared with. */
+  compared: number;
+  dur?: number;
+};
+
+type Session = {
+  id: string; voter: string; episodeId: string; showId: string; url: string;
+  created: number; touched: number; streams: number;
+  file: string; copy: LiveCopy; abort: AbortController;
+  ads: SessionAds;
+  headTried: number;
+  analyzedWith: string;
+};
+type Ref = { agent: string; copy: LiveCopy; abort: AbortController };
+type EpisodeRefs = { episodeId: string; url: string; refs: Ref[]; used: number; extra: boolean };
+
+export interface PlayOptions {
+  dir?: string;
+  maxDiskBytes?: number;
+  maxSessions?: number;
+  maxPerVoter?: number;
+  maxCopyBytes?: number;
+  /** Bot agents for the first comparison copy, and the extras fetched when the first wasn't enough. */
+  firstAgents?: string[];
+  extraAgents?: string[];
+  download?: Downloader;
+  key?: Buffer;
+  now?: () => number;
+}
+
+const SID = /^[A-Za-z0-9_-]{16,48}$/;
+const round2 = (x: number) => Math.round(x * 100) / 100;
+/** Ad breaks found by comparing longer than this are offered, not skipped by themselves. */
+const MAX_SURE_AD = 8 * 60;
+
+export function createPlayer(o: PlayOptions = {}) {
+  const dir = o.dir ?? join(tmpdir(), "earshot-play");
+  try { rmSync(dir, { recursive: true, force: true }); } catch { /* fresh start */ }
+  mkdirSync(dir, { recursive: true });
+  const maxDisk = o.maxDiskBytes ?? 1.2 * 1024 ** 3;
+  const maxSessions = o.maxSessions ?? 24;
+  const maxPerVoter = o.maxPerVoter ?? 6;
+  const maxCopy = o.maxCopyBytes ?? 400 * 1024 * 1024;
+  const firstAgents = o.firstAgents ?? ["bot"];
+  const extraAgents = o.extraAgents ?? ["bot2", "bot3"];
+  const download = o.download ?? fetchCopy;
+  const key = o.key ?? playKey();
+  const now = o.now ?? Date.now;
+
+  const sessions = new Map<string, Session>();
+  const episodes = new Map<string, EpisodeRefs>();
+
+  // ---- disk and memory ----
+  function dropSession(s: Session) {
+    sessions.delete(s.id);
+    s.abort.abort();
+    void fsp.rm(s.file, { force: true }).catch(() => {});
+  }
+  function dropEpisode(e: EpisodeRefs) { episodes.delete(e.episodeId); for (const r of e.refs) r.abort.abort(); }
+  function diskUsed() { let n = 0; sessions.forEach((s) => { n += s.copy.bytes; }); return n; }
+  function tidy() {
+    const t = now();
+    sessions.forEach((s) => { if (!s.streams && t - s.touched > 30 * 60_000) dropSession(s); });
+    episodes.forEach((e) => { if (t - e.used > 40 * 60_000 && !Array.from(sessions.values()).some((s) => s.episodeId === e.episodeId)) dropEpisode(e); });
+    // Over the disk budget or the session cap: the least recently used idle sessions go first.
+    const idle = () => Array.from(sessions.values()).filter((s) => !s.streams).sort((a, b) => a.touched - b.touched);
+    for (const s of idle()) { if (diskUsed() <= maxDisk && sessions.size <= maxSessions) break; dropSession(s); }
+    if (episodes.size > 10) Array.from(episodes.values()).sort((a, b) => a.used - b.used).slice(0, episodes.size - 10).forEach((e) => { if (!Array.from(sessions.values()).some((s) => s.episodeId === e.episodeId)) dropEpisode(e); });
+  }
+  const timer = setInterval(tidy, 60_000); (timer as any).unref?.();
+
+  // ---- comparison copies ----
+  function refsFor(episodeId: string, url: string) {
+    let e = episodes.get(episodeId);
+    if (!e || e.url !== url) {
+      if (e) dropEpisode(e);
+      e = { episodeId, url, refs: [], used: now(), extra: false };
+      episodes.set(episodeId, e);
+      for (const agent of firstAgents) addRef(e, agent);
+    }
+    e.used = now();
+    return e;
+  }
+  function addRef(e: EpisodeRefs, agent: string) {
+    const ref: Ref = { agent, copy: new LiveCopy(), abort: new AbortController() };
+    e.refs.push(ref);
+    startCopy(download, e.url, { ua: agent, signal: ref.abort.signal, maxBytes: maxCopy }, ref.copy, () => {
+      if (ref.copy.done) sessions.forEach((s) => { if (s.episodeId === e.episodeId) schedule(s); });
+      else sessions.forEach((s) => { if (s.episodeId === e.episodeId && !s.ads.ready) schedule(s); });
+    });
+  }
+
+  // ---- finding the ads ----
+  const pending = new Set<Session>();
+  let running = false;
+  function schedule(s: Session) {
+    pending.add(s);
+    if (running) return;
+    running = true;
+    setImmediate(async () => {
+      try {
+        while (pending.size) {
+          const next = pending.values().next().value as Session;
+          pending.delete(next);
+          if (sessions.has(next.id)) await analyze(next);
+        }
+      } finally { running = false; }
+    });
+  }
+  const yieldNow = () => new Promise<void>((r) => setImmediate(r));
+
+  /** Other copies of this episode that are complete and good for comparing with. */
+  function comparisons(s: Session) {
+    const e = episodes.get(s.episodeId);
+    const out: { id: string; sc: Mp3Scanner; done: boolean }[] = [];
+    for (const r of e?.refs ?? []) if (!r.copy.err && r.copy.scanner.count) out.push({ id: `r:${r.agent}`, sc: r.copy.scanner, done: r.copy.done });
+    sessions.forEach((o) => { if (o !== s && o.episodeId === s.episodeId && o.copy.done && !o.copy.err && o.copy.scanner.count) out.push({ id: `s:${o.id}`, sc: o.copy.scanner, done: true }); });
+    return out.slice(0, 5);
+  }
+
+  async function analyze(s: Session) {
+    const X = s.copy.scanner;
+    const e = episodes.get(s.episodeId);
+    if (s.copy.err && !X.count) { s.ads = { ...s.ads, ready: true, final: true, how: "failed" }; return; }
+    if (s.copy.headers && s.copy.bytes > 64 * 1024 && !X.count) { s.ads = { ...s.ads, ready: true, final: true, how: "notmp3" }; return; }
+    const comps = comparisons(s);
+    const refsDone = (e?.refs ?? []).every((r) => r.copy.done);
+
+    // The start first: a pre-roll found here is skipped before it plays.
+    if (!s.ads.ready && comps.length && X.count) {
+      const xEnough = s.copy.done || X.time >= 240;
+      const ready = comps.filter((c) => c.done || c.sc.time >= 150);
+      // Tried again once a minute more of either copy is in (each try lines up both starts).
+      const grown = X.time + ready.reduce((a, c) => a + c.sc.time, 0);
+      if (xEnough && ready.length && (s.copy.done || grown - s.headTried >= 60)) {
+        s.headTried = grown;
+        let start = 0, found = false;
+        for (const c of ready) {
+          const runs = alignCopies(X.hashes, X.count, c.sc.hashes, c.sc.count);
+          if (!runs.length) continue;
+          found = true;
+          const first = X.timeOf(runs[0].a);
+          if (first >= 4) start = Math.max(start, first);
+          await yieldNow();
+        }
+        if (found || s.copy.done || X.time > 600) {
+          s.ads = { ...s.ads, ready: true, startAt: start >= 4 && start <= 600 ? round2(start) : undefined, ads: start >= 4 && start <= 600 ? [daiAd(s, { s: 0, e: start })] : [], compared: ready.length, dur: s.copy.done ? round2(X.time) : undefined };
+        }
+      }
+    }
+
+    // The whole copy, once it and the comparison copies are in.
+    if (!s.copy.done || !comps.length) {
+      if (s.copy.done && refsDone && !comps.length) s.ads = { ...s.ads, ready: true, final: true, how: "noref", dur: round2(X.time) };
+      return;
+    }
+    const doneComps = comps.filter((c) => c.done);
+    const tag = doneComps.map((c) => c.id).join(",");
+    if (!doneComps.length || tag === s.analyzedWith) return;
+    s.analyzedWith = tag;
+    const regions: Span[] = [];
+    let usable = 0, identical = 0, refHasOwn = false;
+    for (const c of doneComps) {
+      const runs = alignCopies(X.hashes, X.count, c.sc.hashes, c.sc.count);
+      const tx = (i: number) => X.timeOf(i), tc = (i: number) => c.sc.timeOf(i);
+      const covC = coverage(runs, "b", c.sc.count, tc), covX = coverage(runs, "a", X.count, tx);
+      await yieldNow();
+      if (covC < 0.6 || covX < 0.35) continue; // a different version of the episode, or a broken copy
+      usable++;
+      const mine = unmatched(runs, "a", X.count, tx);
+      if (!mine.length) identical++;
+      if (c.id.startsWith("r:") && unmatched(runs, "b", c.sc.count, tc).length) refHasOwn = true;
+      regions.push(...mine);
+    }
+    const merged = mergeSpans(regions);
+    const ads = merged.map((r) => daiAd(s, r));
+    s.ads = {
+      ready: true,
+      final: refsDone && (!!e?.extra || !needExtra(identical, usable, refHasOwn)),
+      startAt: merged.length && merged[0].s < 0.5 && merged[0].e - merged[0].s <= MAX_SURE_AD ? round2(merged[0].e) : undefined,
+      ads, how: !usable ? "mismatch" : merged.length ? "diff" : "same", compared: usable, dur: round2(X.time),
+    };
+    // Bots got ads too, or every copy was the same: a few more comparison copies (other bot agents).
+    if (e && refsDone && !e.extra && needExtra(identical, usable, refHasOwn)) { e.extra = true; for (const a of extraAgents) addRef(e, a); }
+  }
+  const needExtra = (identical: number, usable: number, refHasOwn: boolean) => usable > 0 && (refHasOwn || identical === usable);
+  function daiAd(s: Session, r: Span): PlayAd {
+    const long = r.e - r.s > MAX_SURE_AD;
+    return { key: `d:${s.episodeId}:${Math.round(r.s)}:${Math.round(r.e)}`, s: round2(r.s), e: round2(r.e), label: r.s < 0.5 ? "Pre-roll ad" : "Ad break", kind: "dai" as PlayAd["kind"], sure: !long };
+  }
+
+  // ---- sessions ----
+  function open(o: { sid: string; voter: string; episodeId: string; showId: string; url: string; ua: string; ip: string }) {
+    let s = sessions.get(o.sid);
+    if (s) { s.touched = now(); return s; }
+    // A listener's oldest copies make room for new ones.
+    const mine = Array.from(sessions.values()).filter((x) => x.voter === o.voter && !x.streams).sort((a, b) => a.touched - b.touched);
+    for (const x of mine.slice(0, Math.max(0, mine.length - maxPerVoter + 1))) dropSession(x);
+    s = {
+      id: o.sid, voter: o.voter, episodeId: o.episodeId, showId: o.showId, url: o.url,
+      created: now(), touched: now(), streams: 0, file: join(dir, `${o.sid}.mp3`), copy: new LiveCopy(), abort: new AbortController(),
+      ads: { ready: false, final: false, ads: [], how: "pending", compared: 0 }, headTried: -1e9, analyzedWith: "",
+    };
+    sessions.set(o.sid, s);
+    const sess = s;
+    refsFor(o.episodeId, o.url);
+    startCopy(download, o.url, { ua: o.ua || "Mozilla/5.0", forwardedFor: o.ip || undefined, file: s.file, signal: s.abort.signal, maxBytes: maxCopy }, s.copy, () => schedule(sess));
+    tidy();
+    return s;
+  }
+
+  /** Streams bytes [start, end] of the session's file to res as they arrive. */
+  async function pipe(s: Session, start: number, end: number, res: any, closed: () => boolean) {
+    // The file exists once its first bytes are written.
+    await s.copy.until(() => s.copy.written > start || s.copy.done || closed(), 30_000);
+    if (s.copy.written <= start) return;
+    const fh = await fsp.open(s.file, "r");
+    const buf = Buffer.allocUnsafe(256 * 1024);
+    try {
+      let pos = start;
+      while (pos <= end && !closed()) {
+        if (pos >= s.copy.written) {
+          if (s.copy.done) break;
+          await s.copy.wait(30_000);
+          if (pos >= s.copy.written && (s.copy.done || !sessions.has(s.id))) break;
+          continue;
+        }
+        const n = Math.min(buf.length, s.copy.written - pos, end - pos + 1);
+        const { bytesRead } = await fh.read(buf, 0, n, pos);
+        if (!bytesRead) break;
+        pos += bytesRead;
+        s.touched = now();
+        if (!res.write(Buffer.from(buf.subarray(0, bytesRead)))) await drained(res);
+      }
+    } finally { await fh.close().catch(() => {}); }
+  }
+
+  const close = (sid: string) => { const s = sessions.get(sid); if (s) dropSession(s); };
+  return { sessions, episodes, open, close, pipe, schedule, tidy, key, checkToken: (t: string) => checkPlayToken(key, t, now()), token: (voter: string) => makePlayToken(key, voter, now()), stop: () => { clearInterval(timer); sessions.forEach(dropSession); episodes.forEach(dropEpisode); } };
+}
+export type Player = ReturnType<typeof createPlayer>;
+
+/** Waits until a response can take more (or the listener left). */
+function drained(res: any) {
+  return new Promise<void>((resolve) => {
+    const done = () => { res.off("drain", done); res.off("close", done); resolve(); };
+    res.on("drain", done); res.on("close", done);
+  });
+}
+
+/** Overlapping or touching ranges joined (gaps under half a second closed). */
+export function mergeSpans(list: Span[]): Span[] {
+  const sorted = list.slice().sort((a, b) => a.s - b.s);
+  const out: Span[] = [];
+  for (const r of sorted) {
+    const last = out[out.length - 1];
+    if (last && r.s <= last.e + 0.5) last.e = Math.max(last.e, r.e);
+    else out.push({ s: r.s, e: r.e });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Routes
+// ---------------------------------------------------------------------------
+
+/** bytes=a-b / bytes=a- / bytes=-n, for a file of `total` bytes. */
+export function parseRange(header: string | undefined, total: number): { start: number; end: number } | null | "bad" {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)/.exec(header.trim());
+  if (!m || (!m[1] && !m[2])) return "bad";
+  let start: number, end: number;
+  if (!m[1]) { const n = Number(m[2]); start = Math.max(0, total - n); end = total - 1; }
+  else { start = Number(m[1]); end = m[2] ? Math.min(Number(m[2]), total - 1) : total - 1; }
+  if (start >= total || end < start) return "bad";
+  return { start, end };
+}
+
+export type PlayRouteDeps = {
+  prefix: string;
+  player: Player;
+  /** The episode's audio address (from the directory). */
+  audioFor: (showId: string, episodeId: string) => Promise<string | null>;
+  voterOf: (req: any) => string;
+  clientIp: (req: any) => string;
+  cleanId: (v: unknown) => string;
+};
+
+export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
+  const P = d.prefix, player = d.player;
+  const opened = new Map<string, number[]>();
+  const tooMany = (voter: string) => {
+    const t = Date.now(), list = (opened.get(voter) || []).filter((x) => t - x < 3600_000);
+    opened.set(voter, list);
+    if (opened.size > 5000) opened.clear();
+    if (list.length >= 300) return true;
+    list.push(t); return false;
+  };
+
+  /** A play token for this listener's audio addresses (an audio element can't send a login). */
+  app.get(`${P}/play-token`, auth, (req: any, res: any) => {
+    const voter = d.voterOf(req);
+    if (!VOTER.test(voter)) return res.status(400).json({ message: "Reload and try again." });
+    res.set("Cache-Control", "no-store");
+    res.json({ ...player.token(voter), audio: `${P}/audio/` });
+  });
+
+  const audio = async (req: any, res: any) => {
+    const sid = String(req.params.sid || "");
+    if (!SID.test(sid)) return res.status(404).end();
+    let s = player.sessions.get(sid);
+    if (!s) {
+      const voter = player.checkToken(String(req.query?.k || ""));
+      const episodeId = d.cleanId(req.query?.e), showId = d.cleanId(req.query?.s);
+      if (!voter || !episodeId || !showId) return res.status(403).end();
+      // An expired session asked for the middle of its file: the bytes would come from a new copy, so
+      // the player starts again (from where it was) instead.
+      const r = String(req.headers.range || "");
+      if (/^bytes=([1-9]\d*)-/.test(r)) return res.status(410).end();
+      if (tooMany(voter)) return res.status(429).end();
+      let url: string | null = null;
+      try { url = await d.audioFor(showId, episodeId); } catch { url = null; }
+      if (!url) return res.status(404).end();
+      s = player.open({ sid, voter, episodeId, showId, url, ua: String(req.headers["user-agent"] || "").slice(0, 300), ip: d.clientIp(req) });
+    }
+    s.touched = Date.now();
+    const copy = s.copy;
+    await copy.until(() => copy.headers || copy.done, 20_000);
+    if (!copy.headers || (copy.err && !copy.written) || (copy.status && (copy.status < 200 || copy.status >= 300))) return res.status(502).end();
+    // Without a length from the host, wait for the whole copy (players need the size to seek).
+    if (!copy.total) await copy.until(() => copy.done, 60_000);
+    const total = copy.total || copy.written;
+    if (!total) return res.status(502).end();
+    const range = parseRange(req.headers.range, total);
+    const type = copy.scanner.count || !/^(audio|video)\//i.test(copy.type) ? "audio/mpeg" : copy.type;
+    res.set({ "Accept-Ranges": "bytes", "Content-Type": type, "Cache-Control": "no-store" });
+    if (range === "bad") { res.set("Content-Range", `bytes */${total}`); return res.status(416).end(); }
+    const start = range ? range.start : 0, end = range ? range.end : total - 1;
+    if (range) { res.status(206); res.set("Content-Range", `bytes ${start}-${end}/${total}`); }
+    res.set("Content-Length", String(end - start + 1));
+    if (req.method === "HEAD") return res.end();
+    let closed = false;
+    req.on("close", () => { closed = true; });
+    s.streams++;
+    try { await player.pipe(s, start, end, res, () => closed); }
+    catch { /* client went away */ }
+    finally { s.streams--; s.touched = Date.now(); res.end(); }
+  };
+  app.get(`${P}/audio/:sid`, audio);
+  app.head(`${P}/audio/:sid`, audio);
+
+  /** What's known about the ads in this session's copy (polled while it's compared). */
+  app.get(`${P}/play/:sid/ads`, auth, (req: any, res: any) => {
+    const s = player.sessions.get(String(req.params.sid || ""));
+    res.set("Cache-Control", "no-store");
+    if (!s) return res.json({ ready: true, final: true, gone: true, ads: [], how: "failed", compared: 0 });
+    s.touched = Date.now();
+    res.json(s.ads);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics: plays chosen episodes through the server as a listener would and stores what was
+// found, so the whole path can be checked against real hosts. An operator puts
+// {"id", "episodes": [{"id", "show", "url"}]} in podcast_cache under "diag:play:request"; results
+// appear under "diag:play:<episode id>".
+// ---------------------------------------------------------------------------
+
+type KVLike = { get(key: string): Promise<{ value: any; at: number } | null>; set(key: string, value: any): Promise<void> };
+export function startPlayDiagnostics(kv: KVLike, player: Player, listenerUa = "AppleCoreMedia/1.0.0.22A3354 (iPhone; U; CPU OS 18_0 like Mac OS X; en_us)", everyMs = 30_000) {
+  let busy = false;
+  const tick = async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const req = (await kv.get("diag:play:request"))?.value as { id?: string; episodes?: { id: string; show: string; url: string }[] } | undefined;
+      if (!req?.id || !Array.isArray(req.episodes)) return;
+      if (((await kv.get("diag:play:done"))?.value as any)?.id === req.id) return;
+      await kv.set("diag:play:done", { id: req.id, started: new Date().toISOString() });
+      for (const ep of req.episodes.slice(0, 10)) {
+        const t0 = Date.now();
+        const sid = `diag${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+        const s = player.open({ sid, voter: "diag", episodeId: String(ep.id), showId: String(ep.show), url: String(ep.url), ua: listenerUa, ip: "" });
+        const marks: Record<string, number> = {};
+        while (Date.now() - t0 < 240_000 && !s.ads.final) {
+          await s.copy.wait(1000);
+          if (s.copy.headers && !marks.headers) marks.headers = Date.now() - t0;
+          if (s.ads.ready && !marks.ready) marks.ready = Date.now() - t0;
+          if (s.copy.done && !marks.done) marks.done = Date.now() - t0;
+        }
+        marks.final = Date.now() - t0;
+        const e = player.episodes.get(String(ep.id));
+        await kv.set(`diag:play:${ep.id}`, {
+          request: req.id, at: new Date().toISOString(), ms: marks, ads: s.ads,
+          copy: { bytes: s.copy.bytes, total: s.copy.total, frames: s.copy.scanner.count, secs: Math.round(s.copy.scanner.time * 100) / 100, err: s.copy.err, host: s.copy.finalHost },
+          refs: (e?.refs ?? []).map((r) => ({ agent: r.agent, secs: Math.round(r.copy.scanner.time * 100) / 100, err: r.copy.err, done: r.copy.done })),
+        });
+        player.close(sid);
+      }
+      await kv.set("diag:play:done", { id: req.id, finished: new Date().toISOString() });
+    } catch (e: any) { console.warn("[earshot] play diagnostics:", e?.message || e); }
+    finally { busy = false; }
+  };
+  const timer = setInterval(() => { void tick(); }, everyMs); (timer as any).unref?.();
+  return { tick, stop: () => clearInterval(timer) };
+}

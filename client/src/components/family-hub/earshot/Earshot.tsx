@@ -1,6 +1,6 @@
 // Earshot (a LifeHub App Store app): real podcasts in a feed you swipe like short videos.
 // Shows, episodes and artwork come from Apple Podcasts through the server (server/earshot.ts); audio
-// plays straight from each podcast's host. The ranking, parsing and saved-data rules live in
+// comes from each podcast's host through the server, so stitched-in ads can be found and skipped. The ranking, parsing and saved-data rules live in
 // shared/earshot.ts. What someone picked, follows, likes and saves is kept in family.earshot.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -27,6 +27,8 @@ export default function Earshot({ family, setFamily, say }: SectionProps) {
     if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status });
     return body;
   }, [token]);
+  // Audio comes through the server so smart ad skip can find the ads in this copy (server/podcastPlay.ts).
+  const mediaUrl = useCallback((path: string) => `${API_BASE}${path}`, []);
 
   // ---------------- taste signals, saved in small batches ----------------
   const pending = useRef<{ genre: string; signal: Signal }[]>([]);
@@ -56,6 +58,6 @@ export default function Earshot({ family, setFamily, say }: SectionProps) {
       say("Your feed is ready. Tap a cover to listen, swipe up for the next one.");
     }} onCancel={es.setupDone ? () => setEditing(false) : undefined} />;
   }
-  return <Player es={es} esRef={esRef} update={update} api={api} signal={signal} say={say} student={student} explicit={explicit} onEditInterests={() => setEditing(true)} />;
+  return <Player es={es} esRef={esRef} update={update} api={api} signal={signal} say={say} student={student} explicit={explicit} onEditInterests={() => setEditing(true)} mediaUrl={mediaUrl} />;
 }
 

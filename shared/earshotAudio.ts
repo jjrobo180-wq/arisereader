@@ -56,9 +56,10 @@ function hashBytes(b: Uint8Array, from: number, to: number): number {
 
 /** Reads an MP3 as it arrives, keeping each frame's fingerprint, byte offset and start time. */
 export class Mp3Scanner {
+  // 13 bytes a frame (about 1.8 MB for an hour of audio).
   hashes = new Uint32Array(8192);
-  offsets = new Float64Array(8192);
-  starts = new Float64Array(8192);
+  offsets = new Uint32Array(8192);
+  starts = new Float32Array(8192);
   /** Per frame: bit 0 padded, bit 1 its bit reservoir starts empty (main_data_begin 0), bits 4-7 bitrate index. */
   flags = new Uint8Array(8192);
   count = 0;
@@ -96,8 +97,8 @@ export class Mp3Scanner {
     if (this.count === this.hashes.length) {
       const n = this.hashes.length * 2;
       const h = new Uint32Array(n); h.set(this.hashes); this.hashes = h;
-      const o = new Float64Array(n); o.set(this.offsets); this.offsets = o;
-      const s = new Float64Array(n); s.set(this.starts); this.starts = s;
+      const o = new Uint32Array(n); o.set(this.offsets); this.offsets = o;
+      const s = new Float32Array(n); s.set(this.starts); this.starts = s;
       const f = new Uint8Array(n); f.set(this.flags); this.flags = f;
     }
     this.hashes[this.count] = hash; this.offsets[this.count] = off; this.starts[this.count] = this.time; this.flags[this.count] = flag;

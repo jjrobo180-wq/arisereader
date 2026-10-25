@@ -78,7 +78,16 @@ export type PlayerProps = {
   nickname?: string; setNickname?: (name: string) => void;
   /** An episode to open first, from a shared link. */
   start?: { showId: string; episodeId: string } | null;
+  /** The full address of a server path, for audio played through the server (smart ad skip). */
+  mediaUrl?: (path: string) => string;
 };
+
+/** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
+type SessionAds = { ready: boolean; final: boolean; startAt?: number; ads: PlayAd[]; how: string; compared: number; dur?: number; gone?: boolean };
+type PlaySession = { sid: string; showId: string; ads: SessionAds | null; polls: number; timer: ReturnType<typeof setTimeout> | null };
+const newSid = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, (b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b & 63]).join(""); };
+/** Audio formats the server can look inside (MP3); others play straight from the host. */
+const throughServer = (url: string) => !/\.(m4a|mp4|aac|m4b|ogg|opus|wav|flac)(\?|$)/i.test(url);
 
 // ---- where each episode was left off, kept on this device ----
 type Spot = { t: number; secs: number; title: string; show: string; showId: string; art: string; at: number };
@@ -108,7 +117,7 @@ function silence(): string {
 type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegment[]; ads: AdRange[]; chapters: Chapter[]; chunks: Set<number>; loading: Set<number>; more: boolean; chunkSecs: number };
 const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600 });
 
-export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start }: PlayerProps) {
+export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl }: PlayerProps) {
   const [tab, setTab] = useState<Tab>("foryou");
   const [genreMode, setGenreMode] = useState<string | null>(null);
   const [full, setFull] = useState(false);
@@ -133,6 +142,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [skipped, setSkipped] = useState<{ ad: PlayAd; epId: string } | null>(null);
   // Smart ad skip: what the server knows per episode, this listener's marks in progress, and quick forward jumps.
   const serverAds = useRef<Map<string, ServerAd[]>>(new Map());
+  // Playback through the server: a play token for audio addresses, and each episode's session.
+  const playTok = useRef<{ token: string; exp: number; audio: string } | null>(null);
+  const plays = useRef<Map<string, PlaySession>>(new Map());
+  const direct = useRef<Set<string>>(new Set());
   const localAds = useRef<Map<string, PlayAd[]>>(new Map());
   const [adsTick, setAdsTick] = useState(0);
   const [adsShared, setAdsShared] = useState(true);
@@ -294,6 +307,47 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
   };
 
+  // ---------------- playback through the server: ads found in this listener's own copy ----------------
+  useEffect(() => {
+    if (!mediaUrl) return;
+    let stop = false; let t: ReturnType<typeof setTimeout> | null = null;
+    const get = () => api("/api/earshot/play-token").then((b) => {
+      if (stop || !b?.token) return;
+      playTok.current = { token: String(b.token), exp: Number(b.exp) * 1000, audio: String(b.audio || "/api/earshot/audio/") };
+      t = setTimeout(get, Math.max(60_000, playTok.current.exp - Date.now() - 30 * 60_000));
+    }).catch(() => { if (!stop) t = setTimeout(get, 60_000); });
+    void get();
+    return () => { stop = true; if (t) clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, mediaUrl ? 1 : 0]);
+  /** A session for this episode (its id), when its audio can come through the server. */
+  const viaServer = (ep: PodEpisode): string | null => {
+    const tok = playTok.current;
+    if (!mediaUrl || !tok || tok.exp - Date.now() < 5 * 60_000 || direct.current.has(ep.id) || !throughServer(ep.audio)) return null;
+    let p = plays.current.get(ep.id);
+    if (!p || p.ads?.gone) { if (p?.timer) clearTimeout(p.timer); p = { sid: newSid(), showId: ep.showId, ads: null, polls: 0, timer: null }; plays.current.set(ep.id, p); pollPlay(ep.id); }
+    return p.sid;
+  };
+  const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}`);
+  /** Asks what the server found in this session's copy: soon after it starts, then less often, until it's final. */
+  const pollPlay = (epId: string) => {
+    const p = plays.current.get(epId); if (!p) return;
+    const wait = [700, 1200, 1800, 2500, 4000, 6000][p.polls] ?? 9000;
+    p.timer = setTimeout(() => {
+      const q = plays.current.get(epId); if (q !== p) return;
+      p.polls++;
+      api(`/api/earshot/play/${p.sid}/ads`).then((b: SessionAds) => {
+        if (plays.current.get(epId) !== p) return;
+        p.ads = b; setAdsTick((x) => x + 1);
+        // The copy starts with an ad and nothing has played yet: start after it.
+        const a = cur.current;
+        if (b?.startAt && a && a.dataset.sid === p.sid && a.currentTime < 1 && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(p.showId)) { try { a.currentTime = b.startAt; } catch { /* not seekable yet */ } }
+        if (!b?.final && p.polls < 40) pollPlay(epId);
+      }).catch(() => { if (plays.current.get(epId) === p && p.polls < 40) pollPlay(epId); });
+    }, wait);
+  };
+  useEffect(() => () => { plays.current.forEach((p) => { if (p.timer) clearTimeout(p.timer); }); }, []);
+
   /** The player holding this episode, loading it into a free one if needed (and starting where it should). */
   const playerFor = (ep: PodEpisode, keep: (HTMLAudioElement | null)[]) => {
     const list = pool();
@@ -302,10 +356,17 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     a = list.find((x) => !keep.includes(x) && x !== cur.current) ?? list.find((x) => !keep.includes(x))!;
     a.pause();
     a.dataset.ep = ep.id;
-    a.src = ep.audio;
+    const via = viaServer(ep);
+    if (via) a.dataset.sid = via; else delete a.dataset.sid;
+    a.src = via ? sessionSrc(ep, via) : ep.audio;
     a.preload = "auto";
     const at = startAt(ep.secs, readSpots()[ep.id]?.t, esRef.current.settings.skipIntro);
-    if (at) a.addEventListener("loadedmetadata", () => { try { if (a!.dataset.ep === ep.id && a!.currentTime < 1) a!.currentTime = at; } catch { /* the host doesn't allow seeking */ } }, { once: true });
+    a.addEventListener("loadedmetadata", () => {
+      // Where to start: a saved spot or intro skip, or after the pre-roll the server found in this copy.
+      const pre = via && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId) ? plays.current.get(ep.id)?.ads?.startAt ?? 0 : 0;
+      const to = Math.max(at || 0, pre);
+      try { if (to && a!.dataset.ep === ep.id && a!.currentTime < 1) a!.currentTime = to; } catch { /* the host doesn't allow seeking */ }
+    }, { once: true });
     a.load();
     return a;
   };
@@ -470,14 +531,31 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (sleepRef.current === "end") { setSleepAt(null); say("Sleep timer: stopped at the end of the episode."); return; }
     if (!sheetRef.current) goTo(activeRef.current + 1);
   };
-  handlers.current.error = () => { if (unlockedRef.current) say("This episode won't play here. Swipe for the next one, or open it in Apple Podcasts."); };
+  handlers.current.error = (a) => {
+    // Through the server didn't work: play straight from the host, from the same spot.
+    const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
+    if (ep && a.dataset.sid && a.dataset.ep === ep.id) {
+      const t = a.currentTime || 0, wasPlaying = !a.paused || playing;
+      direct.current.add(ep.id);
+      const p = plays.current.get(ep.id); if (p?.timer) clearTimeout(p.timer); plays.current.delete(ep.id);
+      delete a.dataset.sid; a.src = ep.audio; a.load();
+      if (t > 1) a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* not seekable */ } }, { once: true });
+      if (wasPlaying) a.play().catch(() => setPlaying(false));
+      return;
+    }
+    if (unlockedRef.current) say("This episode won't play here. Swipe for the next one, or open it in Apple Podcasts.");
+  };
 
   // The ads that fit this listener's copy of the episode (see alignAds), plus their own marks.
   const activeShowId = items[active]?.show.id ?? "";
   const activeAds: PlayAd[] = useMemo(() => {
     if (!activeEp || !(dur > 0)) return [];
     const mine = localAds.current.get(activeEp.id) ?? [];
-    return [...alignAds(serverAds.current.get(activeEp.id) ?? [], dur), ...mine].filter((a) => !undone.current.has(a.key)).sort((x, y) => x.s - y.s);
+    // Ads the server found in this very copy (exact), then the rest, leaving out ones they already cover.
+    const p = plays.current.get(activeEp.id);
+    const own = p && cur.current?.dataset.sid === p.sid ? p.ads?.ads ?? [] : [];
+    const covered = (a: PlayAd) => own.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
+    return [...own, ...[...alignAds(serverAds.current.get(activeEp.id) ?? [], dur), ...mine].filter((a) => !covered(a))].filter((a) => !undone.current.has(a.key)).sort((x, y) => x.s - y.s);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeEp?.id, Math.round(dur * 10), adsTick]);
   const adsRef = useRef(activeAds); adsRef.current = activeAds;

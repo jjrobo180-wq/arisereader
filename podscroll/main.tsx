@@ -59,6 +59,8 @@ function App() {
     if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status });
     return body;
   }, [device]);
+  // Audio comes through the server so smart ad skip can find the ads in this copy.
+  const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
 
   const pending = useRef<{ genre: string; signal: Signal }[]>([]);
   const signal = useCallback((genre: string, s: Signal) => {
@@ -83,7 +85,7 @@ function App() {
       }} />
     </div>
     : <Player es={es} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
-      onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={start} />;
+      onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={start} mediaUrl={mediaUrl} />;
 
   return <>
     {body}
