@@ -16,7 +16,7 @@ export default defineConfig({
   css: {
     postcss: {
       plugins: [
-        tailwindcss({ content: [resolve(repo, "podscroll/**/*.{html,tsx,ts}"), resolve(repo, "client/src/components/family-hub/earshot/EarshotPlayer.tsx")], theme: { extend: {} }, plugins: [] }),
+        tailwindcss({ content: [resolve(repo, "podscroll/**/*.{html,tsx,ts}"), resolve(repo, "client/src/components/family-hub/earshot/*.tsx")], theme: { extend: {} }, plugins: [] }),
         autoprefixer(),
       ],
     },

@@ -141,10 +141,12 @@ export function ModesHub({ es, onOpen }: { es: EarshotData; onOpen: (m: PodMode)
     <div className="mt-3 grid grid-cols-2 gap-2.5">
       {es.modes.map((m) => {
         const arts = m.episodes.slice(0, 3).map((e) => e.art);
-        return <button key={m.id} type="button" onClick={() => onOpen(m)} className="relative h-28 overflow-hidden rounded-2xl p-3 text-left shadow-lg" style={{ background: colorFor(m) }}>
-          <span className="relative z-[1] block text-2xl">{m.icon}</span>
-          <b className="relative z-[1] mt-1 block text-base font-black leading-tight">{m.name}</b>
-          <span className="relative z-[1] block text-[11px] font-bold text-white/70">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : DEFAULT_MODES.find((d) => d.id === m.id)?.blurb ?? "Empty"}</span>
+        return <button key={m.id} type="button" onClick={() => onOpen(m)} className="relative h-32 overflow-hidden rounded-3xl p-3.5 text-left shadow-[0_12px_30px_-12px_rgba(0,0,0,.7)] ring-1 ring-white/10 transition active:scale-[.98]" style={{ background: colorFor(m) }}>
+          <span className="pointer-events-none absolute -right-6 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+          <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
+          <span className="relative z-[1] grid h-10 w-10 place-items-center rounded-2xl bg-white/15 text-xl ring-1 ring-white/20 backdrop-blur">{m.icon}</span>
+          <b className="relative z-[1] mt-2 block text-[17px] font-black leading-tight tracking-tight">{m.name}</b>
+          <span className="relative z-[1] mt-0.5 block truncate text-[11px] font-semibold text-white/75">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : DEFAULT_MODES.find((d) => d.id === m.id)?.blurb ?? "Empty"}</span>
           {arts.map((a, i) => <img key={i} src={hiRes(a, 200)} alt="" referrerPolicy="no-referrer" className="absolute h-14 w-14 rounded-lg object-cover shadow-xl ring-1 ring-black/20" style={{ right: 8 + i * 14, bottom: 8 + i * 6, transform: `rotate(${(i - 1) * 6}deg)`, zIndex: 0, opacity: 0.95 }} />)}
         </button>;
       })}
@@ -199,15 +201,19 @@ export function AiFinder({ api, ex, onShow, onPlay }: { api: (path: string, init
     setQ(t); setBusy(true); setErr(""); setRes(null);
     api(`/api/earshot/ai-find?x=1${ex}`, { method: "POST", body: { q: t } }).then((b) => setRes({ summary: b.summary || "", picks: Array.isArray(b.picks) ? b.picks : [] })).catch((e) => setErr(e?.message || "That didn't work. Try again.")).finally(() => setBusy(false));
   };
-  return <section className="mt-4 overflow-hidden rounded-3xl p-[1px]" style={{ background: "linear-gradient(135deg,#ff8a3d,#d946ef,#6366f1)" }}>
-    <div className="rounded-[23px] bg-[#17121c] p-4">
-      <h3 className="flex items-center gap-2 text-lg font-black"><Sparkles size={18} style={{ color: ACCENT }} />Find my perfect podcast</h3>
-      <p className="mt-0.5 text-xs text-white/55">Say what you're in the mood for. AI picks real shows for you.</p>
-      <form onSubmit={(e) => { e.preventDefault(); go(); }} className="mt-3 flex gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={400} placeholder="e.g. a cozy mystery for my commute" aria-label="Describe the podcast you want" className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 text-base outline-none focus:border-[#ff8a3d]" />
-        <button type="submit" disabled={busy || q.trim().length < 3} className="min-h-11 rounded-xl px-4 font-black text-[#24160a] disabled:opacity-40" style={{ background: ACCENT }}>{busy ? <Loader2 className="animate-spin" size={18} /> : "Find"}</button>
+  return <section className="relative mt-4 overflow-hidden rounded-[28px] p-px shadow-[0_20px_50px_-20px_rgba(217,70,239,.45)]" style={{ background: "linear-gradient(135deg,rgba(255,138,61,.9),rgba(217,70,239,.7),rgba(99,102,241,.8))" }}>
+    <div className="relative overflow-hidden rounded-[27px] bg-[#141018] p-4">
+      <span className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-fuchsia-500/20 blur-3xl" />
+      <span className="pointer-events-none absolute -bottom-24 -left-10 h-48 w-48 rounded-full bg-orange-500/15 blur-3xl" />
+      <div className="relative flex items-center gap-3">
+        <span className="grid h-11 w-11 flex-none place-items-center rounded-2xl" style={{ background: "linear-gradient(135deg,#ff8a3d,#d946ef)" }}><Sparkles size={20} /></span>
+        <div><h3 className="text-[17px] font-black tracking-tight">Find my perfect podcast</h3><p className="text-xs text-white/55">Describe the mood. AI picks real shows.</p></div>
+      </div>
+      <form onSubmit={(e) => { e.preventDefault(); go(); }} className="relative mt-4 flex items-center gap-1 rounded-2xl bg-black/40 p-1 ring-1 ring-white/10 focus-within:ring-white/30">
+        <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={400} placeholder="A cozy mystery for my commute…" aria-label="Describe the podcast you want" className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-base text-white outline-none placeholder:text-white/35" />
+        <button type="submit" disabled={busy || q.trim().length < 3} className="grid min-h-11 min-w-11 place-items-center rounded-xl px-4 text-sm font-black text-white disabled:opacity-40" style={{ background: "linear-gradient(135deg,#ff8a3d,#d946ef)" }}>{busy ? <Loader2 className="animate-spin" size={18} /> : "Find"}</button>
       </form>
-      {!res && !busy && <div className="mt-3 flex flex-wrap gap-1.5">{IDEAS.map((i) => <button key={i} type="button" onClick={() => go(i)} className="rounded-full bg-white/8 px-3 py-1.5 text-xs font-bold text-white/75 ring-1 ring-white/10">{i}</button>)}</div>}
+      {!res && !busy && <div className="relative -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{IDEAS.map((i) => <button key={i} type="button" onClick={() => go(i)} className="flex-none rounded-full bg-white/[.06] px-3.5 py-2 text-xs font-semibold text-white/80 ring-1 ring-white/10">{i}</button>)}</div>}
       {busy && <p className="mt-4 flex items-center gap-2 text-sm text-white/60"><Loader2 className="animate-spin" size={16} />Listening to thousands of shows for you…</p>}
       {err && <p className="mt-3 text-sm text-rose-300">{err}</p>}
       {res && <div className="mt-4">

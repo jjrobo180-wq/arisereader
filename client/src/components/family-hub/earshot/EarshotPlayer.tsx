@@ -807,7 +807,7 @@ type CardProps = {
 /** The cover: big, sharp (Apple's art at 1200px), lit by its own colors. */
 function Cover({ art, alt, eager, playing, children }: { art: string; alt: string; eager: boolean; playing: boolean; children?: ReactNode }) {
   const big = hiRes(art, 1000);
-  return <div className="relative aspect-square w-[min(86vw,47vh,560px)] max-w-full">
+  return <div className="relative aspect-square w-[min(78vw,44vh,520px)] max-w-full">
     <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="absolute inset-[6%] top-[10%] h-[90%] w-[88%] rounded-[30px] object-cover opacity-80 blur-2xl saturate-150" />
     <div className={`relative h-full w-full overflow-hidden rounded-[26px] shadow-[0_28px_60px_-12px_rgba(0,0,0,.85)] ring-1 ring-white/15 transition-transform duration-700 ${playing ? "scale-[1.02]" : "scale-100"}`}>
       <img src={big} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="h-full w-full bg-white/5 object-cover" />
@@ -864,18 +864,20 @@ function Card(p: CardProps) {
           </span>}
           {!p.marking && p.unlocked && <button type="button" onClick={p.onMark} className="flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold"><Megaphone size={14} />Mark ad</button>}
         </div>}
-        {ep && <div className="pointer-events-auto mt-1 flex items-center gap-2">
-          <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-white/12"><RotateCcw size={17} /></button>
-          <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-11 w-11 flex-none place-items-center rounded-full text-[#24160a]" style={{ background: ACCENT }}>{p.playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}</button>
-          <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-white/12"><RotateCw size={17} /></button>
-          <div className="relative h-6 min-w-0 flex-1">
+        {ep && <div className="pointer-events-auto mt-1 flex flex-col gap-1">
+          <div className="relative h-6 w-full">
             <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/20" />
+            {p.dur > 0 && p.adMarks.filter((a) => a.e - a.s < p.dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.8, ((a.e - a.s) / p.dur) * 100)}%`, background: a.sure ? "rgba(255,210,63,.85)" : "rgba(255,210,63,.4)" }} />)}
             <div className="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full" style={{ width: `${pct}%`, background: ACCENT }} />
-            {p.dur > 0 && p.adMarks.map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-2 -translate-y-1/2 rounded-sm" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.8, ((a.e - a.s) / p.dur) * 100)}%`, background: a.sure ? "#ffd23f" : "rgba(255,210,63,.45)" }} />)}
             <input type="range" min={0} max={Math.max(1, Math.floor(p.dur))} value={Math.floor(p.time)} onChange={(e) => p.onSeek(Number(e.target.value))} aria-label="Seek" disabled={!p.active}
               className="absolute inset-0 h-6 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white" />
           </div>
-          <span className="w-[86px] flex-none text-right text-[11px] tabular-nums text-white/65">{clock(p.time)} / {clock(p.dur)}</span>
+          <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums text-white/60"><span>{clock(p.time)}</span><span>-{clock(Math.max(0, p.dur - p.time))}</span></div>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10"><RotateCcw size={18} /></button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-12 w-12 flex-none place-items-center rounded-full text-[#24160a] shadow-lg" style={{ background: ACCENT }}>{p.playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}</button>
+            <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10"><RotateCw size={18} /></button>
+          </div>
         </div>}
       </div>
     </div>

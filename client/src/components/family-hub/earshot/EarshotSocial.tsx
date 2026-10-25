@@ -49,7 +49,7 @@ export function SocialTab({ api, say, onPlay }: { api: Api; say: (m: string) => 
       <button type="button" onClick={() => setPerson(me.profile!.handle)} className="grid h-14 w-14 flex-none place-items-center rounded-full bg-white/10 text-3xl">{me.profile.avatar}</button>
       <button type="button" onClick={() => setPerson(me.profile!.handle)} className="min-w-0 flex-1 text-left"><b className="block truncate">{me.profile.name}</b><span className="block truncate text-xs text-white/55">@{me.profile.handle} · {me.followers ?? 0} followers · {me.following ?? 0} following</span></button>
       <button type="button" onClick={() => setEditing(true)} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold">Edit</button>
-    </div> : <div className="rounded-3xl p-[1px]" style={{ background: "linear-gradient(135deg,#ff8a3d,#d946ef)" }}><div className="rounded-[23px] bg-[#17121c] p-4">
+    </div> : <div className="rounded-[28px] p-px" style={{ background: "linear-gradient(135deg,rgba(255,138,61,.9),rgba(217,70,239,.7))" }}><div className="rounded-[27px] bg-[#141018] p-4">
       <b className="block text-lg font-black">Join the listening crowd</b>
       <p className="mt-1 text-sm text-white/60">Make a profile to share episodes, show your bookmarks, follow people, and post your own podcast.</p>
       <button type="button" onClick={() => setEditing(true)} className="mt-3 min-h-11 rounded-full px-5 font-black text-[#24160a]" style={{ background: ACCENT }}>Make my profile</button>
