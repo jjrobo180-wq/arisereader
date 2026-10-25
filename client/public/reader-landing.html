@@ -4,10 +4,44 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f9faff">
-  <meta name="description" content="A.R.I.S.E. Reader brings together books, comprehension quizzes, reading rewards, and learning tools for students, families, and educators.">
-  <title>A.R.I.S.E. Reader — Every story starts something</title>
-  <!-- Shown inside the homepage (arisereader.com/), so search engines credit the homepage, not this file. -->
+  <meta name="description" content="Free book quizzes, reading rewards and games for kids, plus classroom tools for teachers and Eye Gazer for non-verbal readers. Free for students and families.">
+  <title>Free Reading Quizzes &amp; Rewards for Kids | A.R.I.S.E. Reader</title>
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <!-- This page is the homepage (arisereader.com/) for visitors who aren't signed in; inside the app it's shown in a frame. -->
   <link rel="canonical" href="https://www.arisereader.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="A.R.I.S.E. Reader">
+  <meta property="og:url" content="https://www.arisereader.com/">
+  <meta property="og:title" content="Free Reading Quizzes &amp; Rewards for Kids | A.R.I.S.E. Reader">
+  <meta property="og:description" content="Free book quizzes, reading rewards and games for kids, plus classroom tools for teachers and Eye Gazer for non-verbal readers. Free for students and families.">
+  <meta property="og:image" content="https://www.arisereader.com/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Free Reading Quizzes &amp; Rewards for Kids | A.R.I.S.E. Reader">
+  <meta name="twitter:description" content="Free book quizzes, reading rewards and games for kids, plus classroom tools for teachers and Eye Gazer for non-verbal readers. Free for students and families.">
+  <meta name="twitter:image" content="https://www.arisereader.com/og-image.png">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="manifest" href="/site.webmanifest">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Organization", "@id": "https://www.arisereader.com/#org", "name": "A.R.I.S.E. Reader", "url": "https://www.arisereader.com/", "logo": "https://www.arisereader.com/favicon.svg", "sameAs": ["https://arisetodo.com/"]}, {"@type": "WebSite", "@id": "https://www.arisereader.com/#site", "name": "A.R.I.S.E. Reader", "url": "https://www.arisereader.com/", "publisher": {"@id": "https://www.arisereader.com/#org"}}, {"@type": "WebPage", "@id": "https://www.arisereader.com/", "url": "https://www.arisereader.com/", "name": "Free Reading Quizzes & Rewards for Kids | A.R.I.S.E. Reader", "description": "Free book quizzes, reading rewards and games for kids, plus classroom tools for teachers and Eye Gazer for non-verbal readers. Free for students and families.", "isPartOf": {"@id": "https://www.arisereader.com/#site"}, "about": {"@id": "https://www.arisereader.com/#app"}}, {"@type": "WebApplication", "@id": "https://www.arisereader.com/#app", "name": "A.R.I.S.E. Reader", "applicationCategory": "EducationalApplication", "operatingSystem": "Web", "url": "https://www.arisereader.com/", "description": "Book quizzes, reading rewards, games and progress tracking for students, families and teachers, with an Eye Gazer mode for non-verbal and eye-gaze learners.", "audience": {"@type": "EducationalAudience", "educationalRole": ["student", "parent", "teacher"]}, "offers": [{"@type": "Offer", "name": "Students and families", "price": "0", "priceCurrency": "USD", "description": "Free for every student and for parents with up to 3 linked children."}, {"@type": "Offer", "name": "Teachers (30 students)", "price": "10", "priceCurrency": "USD", "description": "Reader, Math, History and Connect for 30 students; +$10/month per additional 30."}]}]}</script>
+  <script>
+  /* Served as the homepage to anyone without a sign-in cookie. App links (/#/signin, /#/library…)
+     and a sign-in kept only in storage (a Home Screen app that lost its cookie) belong to the app,
+     which lives at /app for them. Inside the app's own frame this does nothing. */
+  (function () {
+    try {
+      if (window.self !== window.top) return;
+      var toApp = function () { if (/^#\//.test(location.hash)) { location.replace("/app" + location.hash); return true; } return false; };
+      if (toApp()) return;
+      if (window.localStorage.getItem("arise_session_backup")) { location.replace("/app#/"); return; }
+      // On this page a link to /#/signin only changes the hash (no reload), so send those on too,
+      // and point the page's app links straight at /app.
+      window.addEventListener("hashchange", toApp);
+      document.addEventListener("DOMContentLoaded", function () {
+        var links = document.querySelectorAll('a[href^="/#/"]');
+        for (var i = 0; i < links.length; i++) links[i].setAttribute("href", "/app" + links[i].getAttribute("href").slice(1));
+      });
+    } catch (e) {}
+  })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -192,7 +226,7 @@
 </div></header>
 <main id="top"><div class="arise-announcement" id="ariseAnnouncement" hidden></div>
 <section class="hero"><div class="container hero-grid">
-  <div class="hero-copy"><span class="eyebrow"><span class="dot"></span> READING CAN TAKE YOU ANYWHERE</span>
+  <div class="hero-copy"><span class="eyebrow"><span class="dot"></span> FREE READING QUIZZES &amp; REWARDS FOR KIDS</span>
     <h1>Every story starts <span class="accent">something amazing.</span></h1>
     <p class="hero-lead">Discover books, take fun comprehension quizzes, and celebrate every milestone. A reading experience built for curious kids, supportive families, and inspiring educators.</p>
     <div class="hero-buttons"><button class="btn btn-primary" data-start>Start your reading journey <svg class="ico"><use href="#i-arrow"/></svg></button><button class="btn btn-outline" data-quiz><svg class="ico"><use href="#i-play"/></svg> Try a sample quiz</button></div>
@@ -268,7 +302,7 @@
 <div class="wu-grid" id="arise-updates-feed" aria-live="polite"><div class="wu-empty">Loading announcements…</div></div></div>
 </section>
 </main>
-<footer><div class="container"><div class="footer-content"><div><a href="#top" class="logo"><span class="logo-mark"><svg class="ico"><use href="#i-book"/></svg></span><span><span class="logo-name">A.R.I.S.E. <strong style="color:#b5aeff">Reader</strong></span><span class="logo-sub" style="color:#9ca4c0">Read · Imagine · Grow</span></span></a><p class="footer-desc">A brighter reading journey for students, families, and educators. Explore books, learning tools and opportunities for every reader.</p></div><div class="footer-links"><div class="footer-col"><strong>Explore</strong><a href="#how">Parent &amp; teacher tools</a><a href="#books">Sample books</a><a href="#features">Features</a></div><div class="footer-col"><strong>Community</strong><a href="#who">For students</a><a href="#who" data-footer-role="parent">For families</a><a href="#who" data-footer-role="teacher">For educators</a></div><div class="footer-col"><strong>Connect</strong><a href="/#/signin" target="_top">Sign in ↗</a><a href="#faq">FAQ</a><button type="button" data-quiz>Sample quiz</button></div></div></div><div class="footer-bottom"><span>© <span id="year"></span> A.R.I.S.E. Reader — Reading adventures for everyone</span><span>Made to inspire the next chapter ✦</span></div></div></footer>
+<footer><div class="container"><div class="footer-content"><div><a href="#top" class="logo"><span class="logo-mark"><svg class="ico"><use href="#i-book"/></svg></span><span><span class="logo-name">A.R.I.S.E. <strong style="color:#b5aeff">Reader</strong></span><span class="logo-sub" style="color:#9ca4c0">Read · Imagine · Grow</span></span></a><p class="footer-desc">A brighter reading journey for students, families, and educators. Explore books, learning tools and opportunities for every reader.</p></div><div class="footer-links"><div class="footer-col"><strong>Explore</strong><a href="#how">Parent &amp; teacher tools</a><a href="#books">Sample books</a><a href="#features">Features</a></div><div class="footer-col"><strong>Community</strong><a href="#who">For students</a><a href="#who" data-footer-role="parent">For families</a><a href="#who" data-footer-role="teacher">For educators</a></div><div class="footer-col"><strong>Connect</strong><a href="/#/signin" target="_top">Sign in ↗</a><a href="https://arisetodo.com/" target="_top">Arise To Duo ↗</a><a href="#faq">FAQ</a><button type="button" data-quiz>Sample quiz</button></div></div></div><div class="footer-bottom"><span>© <span id="year"></span> A.R.I.S.E. Reader — Reading adventures for everyone</span><span>Made to inspire the next chapter ✦</span></div></div></footer>
 
 <div class="overlay" id="startOverlay" role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="startHeading"><button class="modal-close" data-close aria-label="Close dialog"><svg class="ico"><use href="#i-close"/></svg></button><h2 class="modal-heading" id="startHeading">Where will your story begin?</h2><p class="modal-sub">Choose the account you want to create. You will continue to its official signup page.</p><div class="choice-grid" id="roleChoices"><button class="role-option selected" data-choice="School student" aria-pressed="true"><svg class="ico"><use href="#i-book"/></svg><strong>School student</strong><small>Read and play with your school community</small></button><button class="role-option" data-choice="Independent student" aria-pressed="false"><svg class="ico"><use href="#i-star"/></svg><strong>Independent student</strong><small>Your own adventures outside of school</small></button><button class="role-option" data-choice="Parent or guardian" aria-pressed="false"><svg class="ico"><use href="#i-heart"/></svg><strong>Parent or guardian</strong><small>Support your reader at home</small></button><button class="role-option" data-choice="Teacher" aria-pressed="false"><svg class="ico"><use href="#i-users"/></svg><strong>Teacher</strong><small>Make reading a classroom celebration</small></button></div><a class="btn btn-primary role-next" href="/#/signin" target="_top" id="roleContinue">Continue to A.R.I.S.E. Reader <svg class="ico small"><use href="#i-arrow"/></svg></a><p class="modal-hint" id="roleHint">Selected: School student. Continue to the real signup page.</p></section></div>
 <div class="overlay" id="supportOverlay" role="presentation"><section class="modal support-modal" role="dialog" aria-modal="true" aria-labelledby="supportModalHeading"><button class="modal-close" data-close aria-label="Close"><svg class="ico"><use href="#i-close"/></svg></button><div class="support-modal-top"><img src="/about/mr-j-portrait.webp?v=20261001" alt="" class="support-modal-photo"><div><div class="overline">SUPPORT A.R.I.S.E.</div><h2 class="modal-heading" id="supportModalHeading">Built by one teacher. Free for every family.</h2></div></div><p class="modal-sub">I'm Mr. J, a teacher and a dad. I built A.R.I.S.E. after a summer of reading practice, prizes and celebration helped my daughter Ariana, who has autism, take off. The A.R.I. is for Ariana.</p><p class="modal-sub">No ads, and your information is never sold. I'm not making money from it; the servers, books and AI come out of my pocket. Any amount keeps it free for the next family.</p><a class="btn btn-donate wide" data-donate-link href="https://buy.stripe.com/7sY6oHbUD7qrfwf3UFcIE04" target="_blank" rel="noopener noreferrer">♥ Donate</a><p class="support-soon" data-donate-soon hidden>Donations are opening soon. Thank you for being here.</p><p class="support-note" data-donate-note>Secure checkout with Stripe. You choose the amount.</p><a class="btn btn-outline wide" href="/#/about" target="_top">Read my full story</a></section></div>
