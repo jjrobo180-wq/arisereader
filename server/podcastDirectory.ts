@@ -24,10 +24,15 @@ import {
 export interface KV {
   get(key: string): Promise<{ value: any; at: number } | null>;
   set(key: string, value: any): Promise<void>;
+  /** Many keys in one round trip (the feed needs dozens at once). */
+  getMany?(keys: string[]): Promise<Map<string, { value: any; at: number }>>;
 }
 export function memoryKV(): KV {
   const m = new Map<string, { value: any; at: number }>();
-  return { async get(k) { return m.get(k) ?? null; }, async set(k, value) { m.set(k, { value, at: Date.now() }); } };
+  return {
+    async get(k) { return m.get(k) ?? null; }, async set(k, value) { m.set(k, { value, at: Date.now() }); },
+    async getMany(keys) { const out = new Map<string, { value: any; at: number }>(); for (const k of keys) { const v = m.get(k); if (v) out.set(k, v); } return out; },
+  };
 }
 /** podcast_cache (migrations/podcast_cache.sql). Failures are quiet: the memory cache still works. */
 export function supabaseKV(getDb: () => any): KV {
@@ -40,6 +45,18 @@ export function supabaseKV(getDb: () => any): KV {
         if (error) { if (/podcast_cache/.test(String(error.message))) off = true; return null; }
         return data ? { value: data.value, at: Date.parse(data.updated_at) || 0 } : null;
       } catch { return null; }
+    },
+    async getMany(keys) {
+      const out = new Map<string, { value: any; at: number }>();
+      if (off || !keys.length) return out;
+      try {
+        for (let i = 0; i < keys.length; i += 100) {
+          const { data, error } = await getDb().from("podcast_cache").select("key,value,updated_at").in("key", keys.slice(i, i + 100));
+          if (error) { if (/podcast_cache/.test(String(error.message))) off = true; return out; }
+          for (const r of data || []) out.set(String(r.key), { value: r.value, at: Date.parse(r.updated_at) || 0 });
+        }
+      } catch { /* memory still works */ }
+      return out;
     },
     async set(key, value) {
       if (off) return;
@@ -84,6 +101,7 @@ export function pacedFetcher(inner: Fetcher, pace = APPLE_PACE, maxWait = 12_000
 
 export function layeredCache<T>(kv: KV, prefix: string, ttlMs: number, max = 2000) {
   const mem = new Map<string, { at: number; value: T }>();
+  const missing = new Map<string, number>();
   const inflight = new Map<string, Promise<T>>();
   const remember = (key: string, value: T, at = Date.now()) => { mem.delete(key); mem.set(key, { at, value }); if (mem.size > max) mem.delete(mem.keys().next().value as string); };
   const refresh = (key: string, load: () => Promise<T>, fallback?: T): Promise<T> => {
@@ -105,6 +123,15 @@ export function layeredCache<T>(kv: KV, prefix: string, ttlMs: number, max = 200
       return null;
     },
     peekMemory(key: string) { const m = mem.get(key); return m ? m.value : undefined; },
+    /** Brings many keys into memory with one database read; keys known to be missing aren't asked again for a minute. */
+    async preload(keys: string[]) {
+      const now = Date.now();
+      const need = keys.filter((k) => !mem.has(k) && (missing.get(k) ?? 0) < now);
+      if (!need.length) return;
+      const got = kv.getMany ? await kv.getMany(need.map((k) => prefix + k)) : new Map();
+      for (const k of need) { const d = got.get(prefix + k); if (d) remember(k, d.value as T, d.at); else missing.set(k, now + 60_000); }
+      if (missing.size > 5000) missing.clear();
+    },
     /** Fresh: returned. Stale: returned at once, refreshed in the background. Missing: loaded. */
     async get(key: string, load: () => Promise<T>): Promise<T> {
       const known = await this.peek(key);
@@ -194,23 +221,32 @@ export function createDirectory(options: DirectoryOptions = {}) {
     return { show, episodes };
   });
 
-  /** A genre's pool: its top shows with episodes already known, topped up by episode search while warming. */
+  /** A genre's pool: its top shows with episodes already known, topped up by episode search while warming.
+   *  Built from memory and one database read, and kept for 3 minutes, so the feed answers at once. */
+  const pools = new Map<string, { at: number; value: PoolShow[] }>();
+  const within = <T,>(p: Promise<T>, ms: number, fallback: T) => Promise.race([p.catch(() => fallback), new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
   async function pool(gid: string, explicit: boolean): Promise<PoolShow[]> {
-    const list = await loadGenreShows(gid).catch(async () => (await genreShows.peek(gid))?.value ?? []);
+    const key = `${gid}:${explicit}`;
+    const memo = pools.get(key);
+    if (memo && Date.now() - memo.at < 3 * 60_000 && memo.value.length >= 8) return memo.value;
+    const known = await genreShows.peek(gid);
+    const list = known ? (known.fresh ? known.value : (void loadGenreShows(gid).catch(() => {}), known.value)) : await within(loadGenreShows(gid), 9000, [] as PodShow[]);
+    await shows.preload(list.map((x) => x.id));
     const out: PoolShow[] = [];
-    for (let rank = 0; rank < list.length; rank++) {
-      const s = list[rank];
-      if (!explicit && s.explicit) continue;
-      const known = shows.peekMemory(s.id) ?? (await shows.peek(s.id))?.value;
-      const eps = (known?.episodes ?? []).filter((e) => explicit || !e.explicit).slice(0, 3).map(lightEpisode);
+    list.forEach((s, rank) => {
+      if (!explicit && s.explicit) return;
+      const eps = (shows.peekMemory(s.id)?.episodes ?? []).filter((e) => explicit || !e.explicit).slice(0, 3).map(lightEpisode);
       if (eps.length) out.push({ show: { ...s, genre: gid }, rank, episodes: eps });
-    }
+    });
     if (out.length < 12) {
-      const extra = await loadGenreEpisodes(gid).catch(() => [] as PoolShow[]);
+      // Still warming up: episode search fills in (waiting a few seconds at most; it keeps loading for next time).
+      const extra = await within(loadGenreEpisodes(gid), out.length ? 2500 : 8000, [] as PoolShow[]);
       const have = new Set(out.map((p) => p.show.id));
       for (const p of extra) if (!have.has(p.show.id) && (explicit || !p.show.explicit)) { out.push({ ...p, rank: 30 + p.rank, episodes: p.episodes.filter((e) => explicit || !e.explicit) }); have.add(p.show.id); }
     }
-    return out.filter((p) => p.episodes.length).slice(0, 40);
+    const value = out.filter((p) => p.episodes.length).slice(0, 40);
+    if (value.length) pools.set(key, { at: Date.now(), value });
+    return value;
   }
 
   // ---- background warm-up: genres, then each genre's top shows, whenever Apple is free ----

@@ -126,6 +126,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const sheetRef = useRef(sheet); sheetRef.current = sheet;
   const [poolTick, setPoolTick] = useState(0);
   const [loadError, setLoadError] = useState("");
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "slow">("loading");
+  const [retry, setRetry] = useState(0);
   const [txTick, setTxTick] = useState(0);
   const [skipped, setSkipped] = useState<{ ad: AdRange; key: string } | null>(null);
   const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
@@ -166,13 +168,19 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // Picked genres first (one request), then the genres they've warmed to.
   useEffect(() => {
     pools.current.clear();
+    setLoadState("loading"); setLoadError("");
+    const slow = setTimeout(() => setLoadState((s) => (s === "loading" ? "slow" : s)), 12_000);
     const ok = (g: string) => !student || !!GENRE[g]?.kidSafe;
     const picked = es.genres.filter(ok).slice(0, 10);
     const warmed = GENRES.map((g) => g.id).filter((g) => ok(g) && !picked.includes(g) && tasteOf(es, g) >= 4).slice(0, 6);
-    loadPools(picked).then(() => { setLoadError(""); if (warmed.length) void loadPools(warmed).catch(() => {}); })
-      .catch((e: any) => setLoadError(e?.message || "Apple Podcasts can't be reached right now."));
+    // The first three genres come back first, so the feed can start while the rest load.
+    const first = picked.slice(0, 3), rest = [...picked.slice(3), ...warmed];
+    loadPools(first).then(() => { setLoadError(""); setLoadState("ready"); if (rest.length) void loadPools(rest).catch(() => {}); })
+      .catch((e: any) => { setLoadError(e?.message || "Apple Podcasts can't be reached right now."); setLoadState("ready"); })
+      .finally(() => clearTimeout(slow));
+    return () => clearTimeout(slow);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [es.genres.join(","), student, explicit]);
+  }, [es.genres.join(","), student, explicit, retry]);
 
   const candidates = useCallback((): (Candidate & { episodes?: PodEpisode[] })[] => {
     if (mode === "following") return esRef.current.follows.map((f, i) => ({ rank: i, show: { id: f.id, name: f.name, author: f.author, art: f.art, genre: f.genre, appleGenre: "", link: "", episodes: 0, explicit: false, latest: "" } }));
@@ -494,7 +502,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {(tab === "foryou" || tab === "following") && <div ref={feedRef} tabIndex={-1}
       onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); goTo(active + 1); } else if (e.key === "ArrowUp") { e.preventDefault(); goTo(active - 1); } else if (e.key === " ") { e.preventDefault(); toggle(); } }}
       className="h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none">
-      {!items.length && <FeedEmpty tab={tab} error={loadError} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} />}
+      {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && es.saved.some((x) => x.id === it.ep!.id)} notes={es.settings.notes} unlocked={unlocked}
         ad={i === active ? adNow : null} onSkipAd={() => adNow && seekTo(adNow.e)} onTapStart={unlock}
@@ -521,9 +529,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   </div>;
 }
 
-function FeedEmpty({ tab, error, hasFollows, onExplore }: { tab: Tab; error: string; hasFollows: boolean; onExplore: () => void }) {
+function FeedEmpty({ tab, error, state, hasFollows, onExplore, onRetry }: { tab: Tab; error: string; state: "loading" | "ready" | "slow"; hasFollows: boolean; onExplore: () => void; onRetry: () => void }) {
+  const retryBtn = <button type="button" onClick={onRetry} className="mt-2 min-h-11 rounded-full px-5 font-black text-[#24160a]" style={{ background: ACCENT }}>Try again</button>;
+  if (tab === "foryou" && state === "ready" && !error) return <Centered><p className="text-lg font-black">Nothing to play yet</p><p className="max-w-xs text-sm text-white/60">Podcasts for your genres are still being gathered. Try again in a moment, or browse genres in Explore.</p>{retryBtn}<button type="button" onClick={onExplore} className="min-h-11 rounded-full bg-white/10 px-5 font-bold">Explore</button></Centered>;
+  if (state === "slow" && !error) return <Centered><Loader2 className="animate-spin" size={36} style={{ color: ACCENT }} /><p className="text-sm font-bold text-white/70">Still tuning in… this is taking longer than usual.</p>{retryBtn}</Centered>;
   if (tab === "following" && !hasFollows) return <Centered><p className="text-xl font-black">Nothing here yet</p><p className="max-w-xs text-sm text-white/60">Tap the + on any podcast to follow it. New episodes from shows you follow show up here.</p><button type="button" onClick={onExplore} className="mt-2 min-h-11 rounded-full px-5 font-black text-[#24160a]" style={{ background: ACCENT }}>Find shows</button></Centered>;
-  if (error) return <Centered><p className="text-lg font-black">Couldn't load podcasts</p><p className="max-w-xs text-sm text-white/60">{error}</p></Centered>;
+  if (error) return <Centered><p className="text-lg font-black">Couldn't load podcasts</p><p className="max-w-xs text-sm text-white/60">{error}</p>{retryBtn}</Centered>;
   return <Centered><Loader2 className="animate-spin" size={36} style={{ color: ACCENT }} /><p className="text-sm font-bold text-white/70">Tuning in to real podcasts…</p></Centered>;
 }
 const Centered = ({ children }: { children: ReactNode }) => <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">{children}</div>;
