@@ -64,6 +64,8 @@ export const PACES: readonly Pace[] = ["short", "mix", "deep"];
 export type PodShow = {
   id: string; name: string; author: string; art: string; genre: string; appleGenre: string;
   link: string; episodes: number; explicit: boolean; latest: string;
+  /** The show's RSS feed, where transcripts and chapters are listed (Podcasting 2.0). */
+  feed?: string;
 };
 export type PodEpisode = {
   id: string; showId: string; show: string; author: string; title: string; about: string;
@@ -74,7 +76,7 @@ export type SavedShow = { id: string; name: string; author: string; art: string;
 /** What's kept about an episode someone liked or saved, so the Library shows it without a lookup. */
 export type SavedEpisode = { id: string; showId: string; title: string; show: string; art: string; secs: number; at: string };
 
-export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean };
+export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adSkip: boolean };
 export type Earshot = {
   setupDone: boolean;
   genres: string[];
@@ -93,7 +95,7 @@ export type Earshot = {
 
 export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80 } as const;
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
-export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false });
+export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adSkip: true });
 export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], settings: defaultSettings() });
 
 // ---------------------------------------------------------------------------
@@ -142,6 +144,7 @@ export function parseShow(raw: unknown, genre = ""): PodShow | null {
     episodes: Math.max(0, Math.floor(num(r.trackCount))),
     explicit: r.collectionExplicitness === "explicit" || r.trackExplicitness === "explicit",
     latest: str(r.releaseDate, 40),
+    feed: cleanUrl(r.feedUrl) || undefined,
   };
 }
 
@@ -364,6 +367,176 @@ export function cleanEarshot(v: unknown): Earshot {
       advance: s.advance === 60 || s.advance === 180 ? s.advance : 0,
       notes: typeof s.notes === "boolean" ? s.notes : d.notes,
       explicit: s.explicit === true,
+      adSkip: typeof s.adSkip === "boolean" ? s.adSkip : d.adSkip,
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// The feed endpoint: genres arrive with episodes attached, so swiping never waits
+// ---------------------------------------------------------------------------
+
+/** A show in a genre pool with its newest playable episodes. */
+export type PoolShow = { show: PodShow; rank: number; episodes: PodEpisode[] };
+/** Episodes made light for the feed: short notes (the show sheet has the full ones). */
+export const lightEpisode = (e: PodEpisode): PodEpisode => ({ ...e, about: e.about.length > 260 ? e.about.slice(0, 259).replace(/\s+\S*$/, "") + "…" : e.about });
+
+/** Episode search results grouped by show: the fallback pool while a genre's shows are still warming up. */
+export function poolFromEpisodeSearch(genreId: string, results: unknown[], explicit: boolean): PoolShow[] {
+  const by = new Map<string, PoolShow>();
+  for (const raw of results) {
+    const e = parseEpisode(raw); if (!e || !e.showId || (!explicit && e.explicit)) continue;
+    let p = by.get(e.showId);
+    if (!p) { p = { show: { id: e.showId, name: e.show, author: e.author, art: e.art, genre: genreId, appleGenre: "", link: "", episodes: 0, explicit: e.explicit, latest: e.date }, rank: by.size, episodes: [] }; by.set(e.showId, p); }
+    if (p.episodes.length < 3) p.episodes.push(lightEpisode(e));
+  }
+  return Array.from(by.values());
+}
+
+// ---------------------------------------------------------------------------
+// Read along: transcripts, chapters and ads
+// ---------------------------------------------------------------------------
+
+export type TxSegment = { s: number; e: number; t: string };
+export type AdRange = { s: number; e: number; label: string };
+export type Chapter = { s: number; title: string };
+export type TranscriptChunk = {
+  /** publisher: the show's own transcript. ai: written by AI from the audio. none: neither is available. */
+  source: "publisher" | "ai" | "none";
+  segments: TxSegment[]; ads: AdRange[]; chapters: Chapter[];
+  chunk: number; chunkSecs: number; more: boolean;
+  /** Why there's no transcript, in words someone can read. */
+  reason?: string;
+};
+export const TX_CHUNK_SECS = 600;
+
+/** "01:02:03.500", "02:03,5" or "63.5" in seconds; NaN when it isn't a time. */
+export function parseClock(v: string): number {
+  const m = String(v).trim().replace(",", ".").match(/^(?:(\d+):)?(?:(\d+):)?(\d+(?:\.\d+)?)$/);
+  if (!m) return NaN;
+  const parts = [m[1], m[2], m[3]].filter((x) => x !== undefined).map(Number);
+  return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
+
+const unTag = (t: string) => plainText(t.replace(/<v\s+([^>]+)>/gi, "$1: "), 2000);
+
+/** WebVTT or SRT cues as segments. */
+export function parseCues(text: string): TxSegment[] {
+  const out: TxSegment[] = [];
+  for (const block of String(text).replace(/\r/g, "").split(/\n{2,}/)) {
+    const lines = block.split("\n");
+    const i = lines.findIndex((l) => l.includes("-->"));
+    if (i < 0) continue;
+    const [a, b] = lines[i].split("-->");
+    const s = parseClock(a), e = parseClock(String(b).trim().split(/\s+/)[0]);
+    const t = unTag(lines.slice(i + 1).join(" "));
+    if (Number.isFinite(s) && Number.isFinite(e) && t) out.push({ s, e: Math.max(e, s), t });
+  }
+  return mergeShortSegments(out);
+}
+
+/** Podcasting 2.0 JSON transcripts ({ segments: [{ startTime, endTime, body, speaker }] }). */
+export function parseTranscriptJson(v: unknown): TxSegment[] {
+  const segs = Array.isArray((v as any)?.segments) ? (v as any).segments : [];
+  const out: TxSegment[] = [];
+  for (const x of segs) {
+    const s = Number(x?.startTime), e = Number(x?.endTime), t = plainText(x?.body, 2000);
+    if (Number.isFinite(s) && t) out.push({ s, e: Number.isFinite(e) ? Math.max(e, s) : s, t });
+  }
+  return mergeShortSegments(out);
+}
+
+/** Word-level transcripts become readable lines: joined until a sentence ends or ~12 seconds pass. */
+export function mergeShortSegments(list: TxSegment[]): TxSegment[] {
+  const out: TxSegment[] = [];
+  let cur: TxSegment | null = null;
+  for (const x of list.slice().sort((a, b) => a.s - b.s)) {
+    if (!cur) { cur = { ...x }; continue; }
+    const ended = /[.!?…]["')\]]?$/.test(cur.t);
+    if (!ended && x.s - cur.s < 12 && cur.t.length < 220) { cur.t = `${cur.t} ${x.t}`; cur.e = Math.max(cur.e, x.e); }
+    else { out.push(cur); cur = { ...x }; }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+/** Podcasting 2.0 JSON chapters. */
+export function parseChaptersJson(v: unknown): Chapter[] {
+  const list = Array.isArray((v as any)?.chapters) ? (v as any).chapters : [];
+  return list.filter((c: any) => c && c.toc !== false && Number.isFinite(Number(c.startTime)) && typeof c.title === "string")
+    .map((c: any) => ({ s: Number(c.startTime), title: plainText(c.title, 120) })).filter((c: Chapter) => c.title).sort((a: Chapter, b: Chapter) => a.s - b.s).slice(0, 200);
+}
+
+/** Chapters the publisher titled as ads or sponsors become ad ranges. */
+export function adsFromChapters(chapters: Chapter[], duration: number): AdRange[] {
+  const out: AdRange[] = [];
+  chapters.forEach((c, i) => {
+    if (!/\b(ads?|sponsors?|sponsored|advert(isement)?s?|promos?|commercials?|ad break)\b/i.test(c.title)) return;
+    const e = chapters[i + 1]?.s ?? duration;
+    if (e - c.s >= 5 && e - c.s <= 420) out.push({ s: c.s, e, label: c.title });
+  });
+  return out;
+}
+
+const attr = (tag: string, name: string) => { const m = tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, "i")); return m ? m[1].replace(/&amp;/g, "&") : ""; };
+const audioKey = (u: string) => { try { const x = new URL(u); return (x.pathname.split("/").pop() || "").toLowerCase(); } catch { return ""; } };
+
+/** The transcript and chapters files an RSS feed lists for one episode (matched by audio file name or title). */
+export function rssExtrasFor(xml: string, ep: { audio: string; title: string }): { transcripts: { url: string; type: string }[]; chapters: string } {
+  const items = String(xml).split(/<item[\s>]/i).slice(1);
+  const key = audioKey(ep.audio); const title = ep.title.trim().toLowerCase();
+  const item = items.find((it) => { const enc = it.match(/<enclosure\b[^>]*>/i); return !!enc && !!key && audioKey(attr(enc[0], "url")) === key; })
+    ?? items.find((it) => { const t = it.match(/<title>([\s\S]*?)<\/title>/i); return !!t && plainText(t[1].replace(/<!\[CDATA\[|\]\]>/g, ""), 400).toLowerCase() === title; });
+  if (!item) return { transcripts: [], chapters: "" };
+  const transcripts = (item.match(/<podcast:transcript\b[^>]*>/gi) || []).map((t) => ({ url: cleanUrl(attr(t, "url")), type: attr(t, "type").toLowerCase() })).filter((t) => t.url);
+  const ch = item.match(/<podcast:chapters\b[^>]*>/i);
+  return { transcripts, chapters: ch ? cleanUrl(attr(ch[0], "url")) : "" };
+}
+/** Timed formats first: JSON, then VTT, then SRT. Plain text and HTML have no times, so they aren't used. */
+export function bestTranscript(list: { url: string; type: string }[]) {
+  const rank = (t: string) => (/json/.test(t) ? 0 : /vtt/.test(t) ? 1 : /srt|subrip/.test(t) ? 2 : 9);
+  return list.slice().sort((a, b) => rank(a.type) - rank(b.type)).find((t) => rank(t.type) < 9) ?? null;
+}
+
+/** How an episode's audio is cut into pieces small enough to transcribe (under 24 MB each). */
+export function chunkPlan(totalBytes: number, secs: number) {
+  const bps = secs > 0 && totalBytes > 0 ? totalBytes / secs : 16_000;
+  const chunkSecs = Math.max(60, Math.min(TX_CHUNK_SECS, Math.floor(23_000_000 / bps)));
+  const duration = secs > 0 ? secs : totalBytes / bps;
+  return { bps, chunkSecs, chunks: Math.max(1, Math.ceil(duration / chunkSecs)), duration };
+}
+
+export const AD_PROMPT = `You find the ads in podcast transcripts so a listener can skip them.
+You get numbered transcript lines. Mark every stretch that is an advertisement, sponsor read, promo for another show or product, or "this episode is brought to you by" message, including the host's own read ads and the "we'll be right back"/"and we're back" lines around a break.
+Do not mark the show's real content, the host introducing the show, or asking listeners to rate, follow or subscribe.
+Answer with JSON only: {"ads":[{"from":<first line number>,"to":<last line number>,"label":"<sponsor name or 'Ad break'>"}]}. Answer {"ads":[]} when there are none.`;
+export const adUserMessage = (segs: TxSegment[], offset = 0) => segs.map((s, i) => `${i + offset}: ${s.t}`).join("\n").slice(0, 60_000);
+
+/** The AI's ad answer as time ranges, checked: real line numbers, between 8 seconds and 6 minutes long. */
+export function adsFromAi(raw: string, segs: TxSegment[], offset = 0): AdRange[] {
+  let v: any; try { v = JSON.parse(raw); } catch { return []; }
+  const out: AdRange[] = [];
+  for (const a of Array.isArray(v?.ads) ? v.ads : []) {
+    const from = Math.floor(Number(a?.from)) - offset, to = Math.floor(Number(a?.to)) - offset;
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || to < from || to >= segs.length) continue;
+    const s = segs[from].s, e = segs[to].e;
+    if (e - s >= 8 && e - s <= 360) out.push({ s, e, label: plainText(a?.label, 60) || "Ad break" });
+  }
+  return mergeAds(out);
+}
+export function mergeAds(list: AdRange[]): AdRange[] {
+  const out: AdRange[] = [];
+  for (const a of list.slice().sort((x, y) => x.s - y.s)) {
+    const last = out[out.length - 1];
+    if (last && a.s <= last.e + 3) { last.e = Math.max(last.e, a.e); } else out.push({ ...a });
+  }
+  return out;
+}
+
+/** Where to start an episode: where they left off (unless that's the very start or end), else past the intro. */
+export function startAt(secs: number, resumeAt: number | undefined, skipIntro: boolean): number {
+  if (resumeAt && resumeAt > 20 && (!secs || resumeAt < secs - 30)) return Math.floor(resumeAt);
+  return introSkip(secs, skipIntro);
+}
+/** The ad playing at a moment, if any (ignoring the last second, so a skip never lands inside the same ad). */
+export const adAt = (ads: AdRange[], t: number) => ads.find((a) => t >= a.s && t < a.e - 1) ?? null;

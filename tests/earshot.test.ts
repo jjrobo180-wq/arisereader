@@ -161,10 +161,64 @@ test("Podscroll: its own site, calling the public routes", () => {
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   assert.ok(podscrollAllowed("https://podscroll.onrender.com") && podscrollAllowed("http://localhost:5173"));
   assert.ok(!podscrollAllowed("https://evil.example") && !podscrollAllowed(""), "other sites can't call it");
-  assert.match(read("server/routes.ts"), /registerPodscrollRoutes\(app, supabaseEarshotStore\(getAdminSupabase, "podscroll"\)\)/);
+  assert.match(read("server/routes.ts"), /registerPodscrollRoutes\(app, supabaseEarshotStore\(getAdminSupabase, "podscroll"\), undefined, podcasts\)/);
+  assert.match(read("server/routes.ts"), /podcasts\.warm\(\)/, "the directory warms up in the background");
   assert.match(read("podscroll/main.tsx"), /\/api\/podscroll/);
   assert.match(read("podscroll/main.tsx"), /from "\.\.\/client\/src\/components\/family-hub\/earshot\/EarshotPlayer"/);
   assert.doesNotMatch(read("client/src/components/family-hub/earshot/EarshotPlayer.tsx"), /from "@\//, "the shared player imports nothing from the Arise app");
   const manifest = JSON.parse(read("podscroll/public/manifest.webmanifest"));
   assert.equal(manifest.name, "Podscroll"); assert.equal(manifest.display, "standalone");
+});
+
+// ---------------------------------------------------------------------------
+// Instant feed, read along and ad skip
+// ---------------------------------------------------------------------------
+import { adAt, adsFromAi, adsFromChapters, bestTranscript, chunkPlan, parseClock, parseCues, parseTranscriptJson, rssExtrasFor, startAt } from "../shared/earshot";
+import { createDirectory, memoryKV } from "../server/podcastDirectory";
+
+test("transcripts, chapters and ads are read safely", () => {
+  assert.equal(parseClock("01:02:03.5"), 3723.5); assert.equal(parseClock("02:03,5"), 123.5); assert.ok(Number.isNaN(parseClock("x")));
+  const cues = parseCues("WEBVTT\n\n00:00:01.000 --> 00:00:03.000\n<v Ann>Hello there.\n\n00:00:03.000 --> 00:00:05.000\nThis is a\n\n00:00:05.000 --> 00:00:07.000\ntest.");
+  assert.deepEqual(cues, [{ s: 1, e: 3, t: "Ann: Hello there." }, { s: 3, e: 7, t: "This is a test." }]);
+  assert.equal(parseTranscriptJson({ segments: [{ startTime: 0, endTime: 1, body: "One" }, { startTime: 1, endTime: 2, body: "two." }] })[0].t, "One two.");
+  const xml = `<rss><item><title>Ep 1</title><enclosure url="https://cdn.x/ep1.mp3?a=1"/><podcast:transcript url="https://t/1.vtt" type="text/vtt"/><podcast:transcript url="https://t/1.json" type="application/json"/></item></rss>`;
+  assert.equal(bestTranscript(rssExtrasFor(xml, { audio: "https://track.y/r/cdn.x/ep1.mp3", title: "x" }).transcripts)?.url, "https://t/1.json", "matched by file name, JSON preferred");
+  const segs = [{ s: 0, e: 10, t: "a" }, { s: 10, e: 30, t: "b" }, { s: 30, e: 60, t: "c" }];
+  assert.deepEqual(adsFromAi('{"ads":[{"from":1,"to":2,"label":"Acme"},{"from":5,"to":9}]}', segs), [{ s: 10, e: 60, label: "Acme" }], "bad line numbers are dropped");
+  assert.deepEqual(adsFromAi("not json", segs), []);
+  assert.deepEqual(adsFromChapters([{ s: 0, title: "Intro" }, { s: 60, title: "Sponsor: Acme" }, { s: 120, title: "Main" }], 600), [{ s: 60, e: 120, label: "Sponsor: Acme" }]);
+  assert.equal(chunkPlan(57_600_000, 3600).chunks, 6); assert.ok(chunkPlan(144_000_000, 3600).chunkSecs < 600, "high-bitrate pieces stay under the upload limit");
+  assert.equal(adAt([{ s: 10, e: 40, label: "x" }], 20)?.e, 40); assert.equal(adAt([{ s: 10, e: 40, label: "x" }], 39.5), null);
+  assert.equal(startAt(3600, 600, true), 600); assert.equal(startAt(3600, 3590, true), 90); assert.equal(startAt(300, undefined, true), 0);
+});
+
+test("the directory: warm pools, transcripts, and the daily AI cap", async () => {
+  const show = (id: number, extra: any = {}) => ({ kind: "podcast", collectionId: id, collectionName: "Show " + id, artistName: "H", primaryGenreName: "History", genres: ["History"], artworkUrl600: "https://a/600x600bb.jpg", feedUrl: "https://feed/" + id, releaseDate: new Date().toISOString(), ...extra });
+  const ep = (id: number, sid: number) => ({ wrapperType: "podcastEpisode", kind: "podcast-episode", trackId: id, collectionId: sid, collectionName: "Show " + sid, trackName: "E" + id, episodeUrl: "https://cdn/e" + id + ".mp3", releaseDate: "2026-10-01T00:00:00Z", trackTimeMillis: 1_200_000, artworkUrl600: "https://a/e.jpg" });
+  let calls = 0;
+  const fetcher: any = async (url: string) => { calls++;
+    if (url.includes("lookup")) { const id = Number(new URL(url).searchParams.get("id")); return { results: [show(id), ep(id * 10 + 1, id), ep(id * 10 + 2, id)] }; }
+    if (url.includes("podcastEpisode")) return { results: [ep(901, 90), ep(902, 90), ep(903, 91)] };
+    return { results: [show(1), show(2), show(3, { collectionExplicitness: "explicit" })] }; };
+  fetcher.idle = () => true;
+  const web: any = async (url: string, init: any) => {
+    if (url.startsWith("https://feed/1")) return new Response(`<rss><item><title>E11</title><enclosure url="https://cdn/e11.mp3"/><podcast:transcript url="https://t/11.vtt" type="text/vtt"/></item></rss>`);
+    if (url === "https://t/11.vtt") return new Response("WEBVTT\n\n00:00:00.000 --> 00:00:05.000\nWelcome to the show.\n\n00:00:05.000 --> 00:00:40.000\nThis episode is brought to you by Acme.\n\n00:00:40.000 --> 00:01:00.000\nNow, the story.");
+    if (url.startsWith("https://feed/")) return new Response("<rss></rss>");
+    if (url.startsWith("https://cdn/")) return new Response(new Uint8Array(String(init?.headers?.Range) === "bytes=0-1" ? 2 : 1000), { status: 206, headers: { "content-range": "bytes 0-1/19200000", "content-type": "audio/mpeg" } });
+    return new Response("nope", { status: 404 }); };
+  const dir = createDirectory({ fetcher, kv: memoryKV(), web, ask: async () => '{"ads":[{"from":1,"to":1,"label":"Acme"}]}', transcribe: async () => ({ segments: [{ start: 0, end: 12, text: "Hello and welcome." }, { start: 12, end: 50, text: "Sponsored by Zed." }] }), aiOn: () => true, minutesPerDay: 15 });
+  let p = await dir.pool("history", false);
+  assert.deepEqual(p.map((x) => x.show.id).sort(), ["90", "91"], "cold: episode search fills in");
+  await dir.warm(1, async () => {});
+  p = await dir.pool("history", false);
+  assert.deepEqual(p.slice(0, 2).map((x) => x.show.id), ["1", "2"]); assert.equal(p[0].episodes.length, 2);
+  assert.ok(!p.some((x) => x.show.id === "3"), "explicit left out");
+  const before = calls; await dir.pool("history", false); assert.equal(calls, before, "no Apple calls once warm");
+  const pub = await dir.transcript("1", "11", 0);
+  assert.equal(pub.source, "publisher"); assert.equal(pub.segments.length, 3); assert.deepEqual(pub.ads.map((a) => [a.s, a.e]), [[5, 40]]);
+  const ai = await dir.transcript("2", "21", 0);
+  assert.equal(ai.source, "ai"); assert.equal(ai.more, true); assert.equal(ai.ads.length, 1);
+  const capped = await dir.transcript("2", "21", 1);
+  assert.equal(capped.source, "none"); assert.match(capped.reason || "", /limit/);
 });

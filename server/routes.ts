@@ -65,6 +65,7 @@ import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerSleepFinderRoutes } from "./sleepFinder";
 import { registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
+import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
 import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
 import { registerHubChatRoutes } from "./hubChat";
@@ -1505,8 +1506,11 @@ export async function registerRoutes(
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
   registerSleepFinderRoutes(app, authMiddleware);
-  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase) });
-  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"));
+  // One podcast directory for Earshot and Podscroll: shared caches (kept in the database) and one pace for Apple.
+  const podcasts = createPodcastDirectory({ kv: supabaseKV(getAdminSupabase) });
+  setTimeout(() => { void podcasts.warm().catch((e) => console.error("[earshot] warm-up:", e?.message)); }, 15_000);
+  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts });
+  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts);
   registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
   registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
     getSetting: (key) => storage.getSetting(key),

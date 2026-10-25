@@ -9,9 +9,10 @@
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
-  GENRE, EARSHOT_LIMITS, appleLookupUrl, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, mergeGenreShows, parseEpisode, parseShow,
-  type PodEpisode, type PodShow,
+  GENRE, EARSHOT_LIMITS, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow,
+  type PodEpisode, type PodShow, type PoolShow,
 } from "../shared/earshot";
+import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -104,59 +105,18 @@ export function supabaseEarshotStore(getDb: () => any, kind: "earshot" | "podscr
 }
 
 // ---------------------------------------------------------------------------
-// Apple's directory: paced, cached
+// Routes (the podcast directory itself is server/podcastDirectory.ts)
 // ---------------------------------------------------------------------------
 
-export type Fetcher = (url: string) => Promise<any>;
-const USER_AGENT = "Arise-Earshot/1.0 (arisetodo.com)";
-const defaultFetcher: Fetcher = async (url) => {
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
-  if (res.status === 403 || res.status === 429) throw new Error("busy");
-  if (!res.ok) throw new Error(`status ${res.status}`);
-  return res.json();
-};
+export { pacedFetcher, APPLE_PACE, type Fetcher } from "./podcastDirectory";
 
-/** One request to Apple every APPLE_PACE ms at most; a request that would wait too long is refused. */
-export const APPLE_PACE = 3_200;
-export function pacedFetcher(inner: Fetcher, pace = APPLE_PACE, maxWait = 12_000, now = () => Date.now(), sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))): Fetcher {
-  let nextAt = 0;
-  return async (url) => {
-    const t = now();
-    const at = Math.max(t, nextAt);
-    if (at - t > maxWait) throw new Error("busy");
-    nextAt = at + pace;
-    if (at > t) await sleep(at - t);
-    return inner(url);
-  };
-}
-
-/** One pacer for every caller: Apple's limit is per server address, whichever site asks. */
-const sharedApple = pacedFetcher(defaultFetcher);
-
-type Cached<T> = { at: number; value: T };
-export function ttlCache<T>(ms: number, max = 500) {
-  const map = new Map<string, Cached<T>>();
-  const inflight = new Map<string, Promise<T>>();
-  return {
-    peek(key: string) { const c = map.get(key); return c ? { value: c.value, fresh: Date.now() - c.at < ms } : null; },
-    async get(key: string, load: () => Promise<T>): Promise<T> {
-      const c = map.get(key);
-      if (c && Date.now() - c.at < ms) return c.value;
-      const running = inflight.get(key);
-      if (running) return running;
-      const p = load().then((value) => {
-        map.set(key, { at: Date.now(), value });
-        if (map.size > max) map.delete(map.keys().next().value as string);
-        return value;
-      }).catch((e) => { if (c) return c.value; throw e; }).finally(() => inflight.delete(key)); // stale beats nothing
-      inflight.set(key, p);
-      return p;
-    },
-  };
-}
-
+let sharedDirectory: Directory | null = null;
 export interface EarshotOptions {
-  store: EarshotStore; fetcher?: Fetcher;
+  store: EarshotStore;
+  /** The shared podcast directory (one for both apps, so Apple's limit and the caches are shared). */
+  directory?: Directory;
+  /** Tests: a fake Apple. */
+  fetcher?: Fetcher;
   /** Where the routes live. LifeHub uses /api/earshot; the Podscroll website uses /api/podscroll. */
   prefix?: string;
 }
@@ -164,13 +124,11 @@ export interface EarshotOptions {
 export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandler, options: EarshotOptions) {
   const store = options.store;
   const P = options.prefix ?? "/api/earshot";
-  const apple = options.fetcher ?? sharedApple;
-  const genreCache = ttlCache<PodShow[]>(12 * 60 * 60_000, 200);
-  const showCache = ttlCache<{ show: PodShow | null; episodes: PodEpisode[] }>(90 * 60_000, 800);
-  const searchCache = ttlCache<{ shows: PodShow[]; episodes: PodEpisode[] }>(60 * 60_000, 400);
-  const reads = createAttemptLimiter({ max: 240, windowMs: 10 * 60_000 });
+  const dir = options.directory ?? (options.fetcher ? createDirectory({ fetcher: options.fetcher }) : (sharedDirectory ??= createDirectory()));
+  const reads = createAttemptLimiter({ max: 300, windowMs: 10 * 60_000 });
   const writes = createAttemptLimiter({ max: 120, windowMs: 10 * 60_000 });
   const posts = createAttemptLimiter({ max: 15, windowMs: 10 * 60_000 });
+  const reading = createAttemptLimiter({ max: 60, windowMs: 10 * 60_000 });
 
   const uid = (req: any) => String(req.user?.id ?? "");
   const isStudent = (req: any) => req.user?.role === "student";
@@ -191,27 +149,31 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     console.error("[earshot] store:", e?.message || e);
     res.status(500).json({ message: "That didn't save. Try again." });
   };
-  const clean = (list: PodShow[] | PodEpisode[], explicit: boolean) => (explicit ? list : list.filter((x) => !x.explicit));
+  const clean = <T extends { explicit: boolean }>(list: T[], explicit: boolean) => (explicit ? list : list.filter((x) => !x.explicit));
+  const genreOk = (req: any, gid: string) => !!GENRE[gid] && (!isStudent(req) || !!GENRE[gid].kidSafe);
+
+  /** Several genres at once, each with episodes attached: the feed starts and swipes without waiting. */
+  app.get(`${P}/feed`, authMiddleware, async (req: any, res) => {
+    const ids = Array.from(new Set(String(req.query?.genres || "").split(",").map((x) => x.trim()))).filter((g) => genreOk(req, g)).slice(0, 12);
+    if (!ids.length) return res.json({ pools: {} });
+    if (limited(reads, req, res)) return;
+    const explicit = explicitFor(req);
+    const pools: Record<string, PoolShow[]> = {};
+    let failed: any = null;
+    await Promise.all(ids.map(async (g) => { try { pools[g] = await dir.pool(g, explicit); } catch (e) { failed = e; pools[g] = []; } }));
+    if (failed && Object.values(pools).every((p) => !p.length)) return appleDown(res, failed);
+    res.set("Cache-Control", "private, max-age=600");
+    res.json({ pools });
+  });
 
   /** Shows for one genre, Apple's most relevant first. */
   app.get(`${P}/genre/:id`, authMiddleware, async (req: any, res) => {
-    const g = GENRE[String(req.params.id)];
-    if (!g) return res.status(404).json({ message: "That genre doesn't exist." });
-    if (isStudent(req) && !g.kidSafe) return res.json({ shows: [] });
+    const gid = String(req.params.id);
+    if (!GENRE[gid]) return res.status(404).json({ message: "That genre doesn't exist." });
+    if (!genreOk(req, gid)) return res.json({ shows: [] });
     if (limited(reads, req, res)) return;
-    const explicit = explicitFor(req);
-    try {
-      const shows = await genreCache.get(`${g.id}:${explicit}`, async () => {
-        const batches: unknown[][] = [];
-        for (const term of g.terms.slice(0, 2)) {
-          try { const body = await apple(appleSearchUrl(term, "podcast", 50, explicit)); batches.push(Array.isArray(body?.results) ? body.results : []); }
-          catch (e) { if (!batches.length) throw e; }
-        }
-        return mergeGenreShows(g.id, batches);
-      });
-      res.set("Cache-Control", "private, max-age=1800");
-      res.json({ shows: clean(shows, explicit) });
-    } catch (e) { appleDown(res, e); }
+    try { res.set("Cache-Control", "private, max-age=1800"); res.json({ shows: clean(await dir.loadGenreShows(gid), explicitFor(req)) }); }
+    catch (e) { appleDown(res, e); }
   });
 
   /** A show and its newest episodes. */
@@ -220,14 +182,8 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!id) return res.status(400).json({ message: "That isn't a podcast." });
     if (limited(reads, req, res)) return;
     try {
-      const out = await showCache.get(id, async () => {
-        const body = await apple(appleLookupUrl(id, 25));
-        const results: unknown[] = Array.isArray(body?.results) ? body.results : [];
-        const show = results.map((r) => parseShow(r)).find((s) => s && s.id === id) ?? null;
-        const episodes = results.map((r) => parseEpisode(r, show)).filter((e): e is PodEpisode => !!e).sort((a, b) => Date.parse(b.date || "0") - Date.parse(a.date || "0"));
-        return { show, episodes };
-      });
-      const explicit = !isStudent(req) && req.query?.explicit === "1";
+      const out = await dir.loadShow(id);
+      const explicit = explicitFor(req);
       if (out.show?.explicit && !explicit) return res.json({ show: out.show, episodes: [], blocked: true });
       res.set("Cache-Control", "private, max-age=900");
       res.json({ show: out.show, episodes: clean(out.episodes, explicit) });
@@ -241,10 +197,10 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (limited(reads, req, res, "searches")) return;
     const explicit = explicitFor(req);
     try {
-      const out = await searchCache.get(`${q.toLowerCase()}:${explicit}`, async () => {
-        const shows = await apple(appleSearchUrl(q, "podcast", 25, explicit));
+      const out = await dir.searches.get(q.toLowerCase(), async () => {
+        const shows = await dir.apple(appleSearchUrl(q, "podcast", 25, true));
         let episodes: any = { results: [] };
-        try { episodes = await apple(appleSearchUrl(q, "podcastEpisode", 20, explicit)); } catch { /* shows alone are fine */ }
+        try { episodes = await dir.apple(appleSearchUrl(q, "podcastEpisode", 20, true)); } catch { /* shows alone are fine */ }
         return {
           shows: (Array.isArray(shows?.results) ? shows.results : []).map((r: unknown) => parseShow(r)).filter(Boolean) as PodShow[],
           episodes: (Array.isArray(episodes?.results) ? episodes.results : []).map((r: unknown) => parseEpisode(r)).filter(Boolean) as PodEpisode[],
@@ -252,8 +208,18 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
       });
       const kidOk = (genre: string) => !isStudent(req) || !!GENRE[genre]?.kidSafe;
       res.set("Cache-Control", "private, max-age=900");
-      res.json({ shows: clean(out.shows, explicit).filter((s) => kidOk((s as PodShow).genre)), episodes: clean(out.episodes, explicit) });
+      res.json({ shows: clean(out.shows, explicit).filter((s) => kidOk(s.genre)), episodes: clean(out.episodes, explicit) });
     } catch (e) { appleDown(res, e); }
+  });
+
+  /** Read along: one piece of an episode's transcript, with its ads and chapters. */
+  app.get(`${P}/transcript/:episodeId`, authMiddleware, async (req: any, res) => {
+    const id = cleanPodId(req.params.episodeId), show = cleanPodId(req.query?.show);
+    const chunk = Math.max(0, Math.min(40, Math.floor(Number(req.query?.chunk) || 0)));
+    if (!id || !show) return res.status(400).json({ message: "That isn't an episode." });
+    if (limited(reading, req, res, "transcript requests")) return;
+    try { res.set("Cache-Control", "private, max-age=3600"); res.json(await dir.transcript(show, id, chunk)); }
+    catch (e) { appleDown(res, e); }
   });
 
   // ---------------- likes, shares, comments ----------------
@@ -337,7 +303,7 @@ export function podscrollAllowed(origin: string, extra: string[] = []): boolean 
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */
 const clientIp = (req: any) => { const f = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean); return f[f.length - 1] || String(req.socket?.remoteAddress || ""); };
 
-export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher) {
+export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory) {
   const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
   const perIp = createAttemptLimiter({ max: 900, windowMs: 10 * 60_000 });
   app.use("/api/podscroll", (req: any, res: any, next: any) => {
@@ -362,5 +328,5 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     req.user = { id: device, role: "public", displayName: typeof req.body?.name === "string" ? req.body.name : "" };
     next();
   };
-  registerEarshotRoutes(app, gate, { store, fetcher, prefix: "/api/podscroll" });
+  registerEarshotRoutes(app, gate, { store, fetcher, directory, prefix: "/api/podscroll" });
 }
