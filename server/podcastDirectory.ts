@@ -181,14 +181,29 @@ export interface DirectoryOptions {
   minutesPerDay?: number;
 }
 
+/** OpenAI said no: out of credit ("quota"), or too many at once ("busy", tried again after a moment). */
+async function openAiCall(send: () => Promise<Response>, what: string): Promise<Response> {
+  for (let tryNo = 0; ; tryNo++) {
+    const res = await send();
+    if (res.ok) return res;
+    const body: any = await res.json().catch(() => null);
+    const code = String(body?.error?.code || body?.error?.type || "");
+    if (res.status === 429 && /quota|billing/i.test(code)) throw new Error("quota");
+    if ((res.status === 429 || res.status >= 500) && tryNo < 2) {
+      const wait = Math.min(8, Number(res.headers.get("retry-after")) || 1.5 * (tryNo + 1));
+      await new Promise((r) => setTimeout(r, wait * 1000));
+      continue;
+    }
+    throw new Error(res.status === 429 ? "busy" : `${what} ${res.status}${code ? ` ${code}` : ""}`);
+  }
+}
 export const openAiJson: AskJson = async (system, user) => {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await openAiCall(() => fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: process.env.EARSHOT_AD_MODEL || "gpt-4.1", temperature: 0, max_tokens: 2000, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
     signal: AbortSignal.timeout(60_000),
-  });
-  if (!res.ok) throw new Error(res.status === 429 ? "busy" : `ai ${res.status}`);
+  }), "ai");
   const body: any = await res.json().catch(() => null);
   return String(body?.choices?.[0]?.message?.content || "");
 };
@@ -200,8 +215,7 @@ export const openAiTranscribe: Transcriber = async (audio, name, prompt) => {
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "segment");
   form.append("timestamp_granularities[]", "word");
-  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, body: form, signal: AbortSignal.timeout(180_000) });
-  if (!res.ok) throw new Error(res.status === 429 ? "busy" : `transcribe ${res.status}`);
+  const res = await openAiCall(() => fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, body: form, signal: AbortSignal.timeout(180_000) }), "transcribe");
   const body: any = await res.json();
   return {
     segments: (Array.isArray(body?.segments) ? body.segments : []).map((s: any) => ({ start: Number(s.start) || 0, end: Number(s.end) || 0, text: String(s.text || "") })),
@@ -497,12 +511,13 @@ export function createDirectory(options: DirectoryOptions = {}) {
   async function copyPieceAds(showId: string, episodeId: string, fp: string, audio: Blob, secs: number): Promise<AdRange[] | null> {
     if (!/^[0-9a-z]{1,24}$/.test(fp)) throw new Error("bad fingerprint");
     if (!aiOn()) throw new Error("ai off");
-    const { show, ep } = await findEpisode(showId, episodeId);
-    if (!ep) throw new Error("no episode");
-    const key = `${ep.id}:g:${fp}`;
+    const key = `${episodeId}:g:${fp}`;
     const done = await ctx.peek(key);
     if (done) return done.value.ads;
-    const showName = show?.name ?? ep.show;
+    // The show's name and the episode's title only help (spelling, the AI's hint): Apple being busy mustn't stop this.
+    const found = await findEpisode(showId, episodeId).catch(() => null);
+    const ep = found?.ep ?? null;
+    const showName = found?.show?.name ?? ep?.show ?? "";
     const c = await ctx.refresh(key, async () => {
       if (budgetLeft() < secs / 60) throw new Error("budget");
       if (!audio.size || audio.size > 25_000_000) throw new Error("size");
@@ -510,7 +525,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const out = await transcribe(audio, `gap-${fp}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: x.start, e: x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: w.start, e: w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false }) : [];
+      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false }) : [];
       return { v: 3, source: "ai", segments, words, ads, chapters: [], chunk: -2, chunkSecs: secs, more: false, pieces: [] } as ContentChunk;
     });
     return c.ads;
