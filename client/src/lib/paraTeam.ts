@@ -134,6 +134,12 @@ export function useParaTeam(token: string | null | undefined, teamId: string | n
     }
   }, [token, teamId]);
 
+  /** A short-lived link to a team file, for showing a photo on the page (bulletin thumbnails). */
+  const fileUrl = useCallback(async (id: string) => {
+    const { url } = await paraApi<{ url: string }>(token, `/api/para-teams/${teamId}/files/${id}/url`, { method: "POST", body: JSON.stringify({ download: false }) });
+    return url;
+  }, [token, teamId]);
+
   /** Team-level changes (name, invites, people) answer with the whole team. */
   const teamCall = useCallback((path: string, init: RequestInit) => run(async () => {
     const t = await paraApi<ParaTeamView & { left?: boolean }>(token, `/api/para-teams/${teamId}${path}`, init);
@@ -141,7 +147,7 @@ export function useParaTeam(token: string | null | undefined, teamId: string | n
     return t;
   }), [token, teamId, run]);
 
-  return { team, error, reload: load, add, update, remove, upload, openFile, teamCall };
+  return { team, error, reload: load, add, update, remove, upload, openFile, fileUrl, teamCall };
 }
 
 export type ParaTeamApi = ReturnType<typeof useParaTeam>;
