@@ -10,6 +10,7 @@ import {
 import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
 import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
 import { ClipMaker, ShareSheet, SocialTab, postEpisodeOf } from "./EarshotSocial";
+import { XSocial } from "./EarshotSocialX";
 import { PreviewCard, Previews, previewPicks, type PreviewPick } from "./EarshotPreviews";
 import { hiRes, type PodMode } from "@shared/earshot";
 
@@ -142,6 +143,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [commentsOn, setCommentsOn] = useState(!student);
   const [previews, setPreviews] = useState<PreviewPick[] | null>(null);
+  // Two Social styles to choose between (kept on this device): X-like timeline, or Clips + Feed.
+  const [socialStyle, setSocialStyle] = useState<"x" | "clips">(() => { try { return localStorage.getItem("earshot.socialStyle") === "clips" ? "clips" : "x"; } catch { return "x"; } });
+  const pickStyle = (v: "x" | "clips") => { setSocialStyle(v); try { localStorage.setItem("earshot.socialStyle", v); } catch { /* not kept */ } say(v === "x" ? "Social: X style. Tap the switch to go back." : "Social: Clips + Feed style."); };
   const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "sleep" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow } | { kind: "clip"; ep: PodEpisode; time: number }>(null);
   const sheetRef = useRef(sheet); sheetRef.current = sheet;
   const [poolTick, setPoolTick] = useState(0);
@@ -863,7 +867,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       onGenre={(g) => { setGenreMode(g); setTab("foryou"); }} onShow={(show) => setSheet({ kind: "show", show })} onEpisode={playNow}
       onResume={(id, s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
     {tab === "explore" && previews && <Previews api={api} picks={previews} onClose={() => setPreviews(null)} onPlay={(s, e, at) => { setPreviews(null); playNow(s, e, at); }} onShow={(show) => setSheet({ kind: "show", show })} onHush={() => players.current.forEach((a) => a.pause())} />}
-    {tab === "social" && !student && pad(<SocialTab api={api} say={say} onPlay={playNow} onHush={() => players.current.forEach((a) => a.pause())} />)}
+    {tab === "social" && !student && pad(socialStyle === "x"
+      ? <XSocial api={api} say={say} onPlay={playNow} onHush={() => players.current.forEach((a) => a.pause())} styleSwitch={<StyleSwitch to="clips" onPick={pickStyle} />} />
+      : <SocialTab api={api} say={say} onPlay={playNow} onHush={() => players.current.forEach((a) => a.pause())} styleSwitch={<StyleSwitch to="x" onPick={pickStyle} />} />)}
     {tab === "library" && pad(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
 
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
@@ -1469,6 +1475,9 @@ function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, on
     </>}
   </div>;
 }
+/** Flips Social between its two styles. */
+const StyleSwitch = ({ to, onPick }: { to: "x" | "clips"; onPick: (v: "x" | "clips") => void }) =>
+  <button type="button" onClick={() => onPick(to)} aria-label={to === "x" ? "Switch Social to X style" : "Switch Social to Clips and Feed style"} className="min-h-8 flex-none rounded-full px-3 text-xs font-bold text-white/85 ring-1 ring-white/25 hover:bg-white/10">{to === "x" ? "X style" : "Clips style"}</button>;
 const Row = ({ art, title, sub, onClick }: { art: string; title: string; sub: string; onClick: () => void }) => <button type="button" onClick={onClick} className="grid grid-cols-[52px_1fr] items-center gap-3 rounded-xl p-2 text-left hover:bg-white/5"><img src={art} alt="" referrerPolicy="no-referrer" loading="lazy" className="h-[52px] w-[52px] rounded-lg object-cover" /><span className="min-w-0"><b className="block truncate text-sm">{title}</b><span className="block truncate text-xs text-white/55">{sub}</span></span></button>;
 const Shelf = ({ title, children }: { title: string; children: ReactNode }) => <section className="mt-6"><h3 className="text-lg font-semibold">{title}</h3><div className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{children}</div></section>;
 const Tile = ({ art, title, sub, onClick }: { art: string; title: string; sub: string; onClick: () => void }) => <button type="button" onClick={onClick} className="w-32 flex-none text-left"><img src={art} alt="" referrerPolicy="no-referrer" loading="lazy" className="aspect-square w-32 rounded-xl object-cover" /><b className="mt-1.5 line-clamp-2 text-sm leading-tight">{title}</b><span className="line-clamp-1 text-xs text-white/55">{sub}</span></button>;

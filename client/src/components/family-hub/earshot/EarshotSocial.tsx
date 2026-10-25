@@ -7,23 +7,23 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Bell, ChevronLeft, ChevronRight, Flag, Headphones, Heart, Loader2, MessageCircle, Mic, MoreHorizontal, Pause, PenLine, Play, Plus, Quote, Repeat2, Scissors, Search, Send, Share2, Square, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { clock, durationWords, hiRes, type PodEpisode, type PodShow } from "@shared/earshot";
 
-const ACCENT = "#ff8a3d";
-type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
+export const ACCENT = "#ff8a3d";
+export type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 export type Profile = { handle: string; name: string; bio: string; avatar: string };
-type PostEpisode = { id: string; showId: string; show: string; title: string; art: string; audio: string; secs: number; date: string; about?: string };
+export type PostEpisode = { id: string; showId: string; show: string; title: string; art: string; audio: string; secs: number; date: string; about?: string };
 type Clip = { s: number; e: number; quote: string; audio?: string };
-type Post = {
+export type Post = {
   id: string; kind: "share" | "bookmark" | "own" | "text" | "clip" | "repost"; caption: string; at: string; episode: PostEpisode | null; clip: Clip | null; repost: Post | null;
   author: Profile; likes: number; liked: boolean; comments: number; reposts: number; reposted: boolean; mine: boolean;
 };
-type Comment = { id: string; postId: string; parentId: string | null; body: string; at: string; author: Profile; likes: number; liked: boolean; mine: boolean };
-type Note = { id: string; kind: "like" | "comment" | "reply" | "follow" | "repost" | "comment_like"; at: string; read: boolean; actor: Profile; post: { id: string; kind: Post["kind"]; text: string; art: string } | null; comment: string };
-type Person = Profile & { followed: boolean };
+export type Comment = { id: string; postId: string; parentId: string | null; body: string; at: string; author: Profile; likes: number; liked: boolean; mine: boolean };
+export type Note = { id: string; kind: "like" | "comment" | "reply" | "follow" | "repost" | "comment_like"; at: string; read: boolean; actor: Profile; post: { id: string; kind: Post["kind"]; text: string; art: string } | null; comment: string };
+export type Person = Profile & { followed: boolean };
 /** Plays an episode in the main feed; with at, from that moment. */
 export type PlayFn = (show: PodShow, ep: PodEpisode, at?: number) => void;
 
-const ago = (iso: string) => { const d = (Date.now() - Date.parse(iso)) / 1000; if (!Number.isFinite(d)) return ""; if (d < 60) return "now"; if (d < 3600) return `${Math.floor(d / 60)}m`; if (d < 86400) return `${Math.floor(d / 3600)}h`; if (d < 86400 * 7) return `${Math.floor(d / 86400)}d`; return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
-const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K` : n >= 1e3 ? `${(n / 1e3).toFixed(1).replace(/\.0$/, "")}K` : String(n));
+export const ago = (iso: string) => { const d = (Date.now() - Date.parse(iso)) / 1000; if (!Number.isFinite(d)) return ""; if (d < 60) return "now"; if (d < 3600) return `${Math.floor(d / 60)}m`; if (d < 86400) return `${Math.floor(d / 3600)}h`; if (d < 86400 * 7) return `${Math.floor(d / 86400)}d`; return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
+export const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K` : n >= 1e3 ? `${(n / 1e3).toFixed(1).replace(/\.0$/, "")}K` : String(n));
 /** Cover art for an episode someone made without one: their title on a gradient. */
 export function madeArt(title: string, seed = title): string {
   const h = [...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
@@ -37,15 +37,15 @@ export function madeArt(title: string, seed = title): string {
 export const toEpisode = (e: PostEpisode, author = ""): PodEpisode => ({ id: e.id, showId: e.showId, show: e.show, author, title: e.title, about: e.about || "", audio: e.audio, date: e.date, secs: e.secs, art: e.art || madeArt(e.title, e.id), link: "", explicit: false });
 export const toShow = (e: PostEpisode, author = ""): PodShow => ({ id: e.showId, name: e.show, author, art: e.art || madeArt(e.title, e.id), genre: "culture", appleGenre: "", link: "", episodes: 0, explicit: false, latest: e.date });
 export const postEpisodeOf = (ep: PodEpisode): PostEpisode => ({ id: ep.id, showId: ep.showId, show: ep.show, title: ep.title, art: ep.art.startsWith("data:") ? "" : ep.art, audio: ep.audio, secs: ep.secs, date: ep.date, about: ep.about?.slice(0, 600) });
-const artOf = (e: PostEpisode | null) => (e ? e.art || madeArt(e.title, e.id) : "");
+export const artOf = (e: PostEpisode | null) => (e ? e.art || madeArt(e.title, e.id) : "");
 /** What a plain repost passes on; quotes and everything else are their own post. */
-const shown = (p: Post) => (p.kind === "repost" && !p.caption && p.repost ? p.repost : p);
+export const shown = (p: Post) => (p.kind === "repost" && !p.caption && p.repost ? p.repost : p);
 
 // ===========================================================================
 // One player for every clip on the page
 // ===========================================================================
-type ClipAudio = { id: string | null; playing: boolean; t: number; toggle: (p: Post, loop?: boolean) => void; play: (p: Post, loop?: boolean) => void; stop: () => void };
-function useClipAudio(onHush?: () => void): ClipAudio {
+export type ClipAudio = { id: string | null; playing: boolean; t: number; toggle: (p: Post, loop?: boolean) => void; play: (p: Post, loop?: boolean) => void; stop: () => void };
+export function useClipAudio(onHush?: () => void): ClipAudio {
   const hush = useRef(onHush); hush.current = onHush;
   const a = useRef<HTMLAudioElement | null>(null);
   const cur = useRef<{ id: string; s: number; e: number; loop: boolean; own: boolean } | null>(null);
@@ -87,13 +87,13 @@ function useClipAudio(onHush?: () => void): ClipAudio {
 // ===========================================================================
 // The Social tab
 // ===========================================================================
-type Ctx = {
+export type Ctx = {
   api: Api; say: (m: string) => void; onPlay: PlayFn; audio: ClipAudio; me: Profile | null;
   person: (handle: string) => void; comments: (p: Post) => void; repost: (p: Post) => void; needProfile: () => void;
 };
 type Open = null | { kind: "compose" } | { kind: "comments"; post: Post } | { kind: "repost"; post: Post } | { kind: "notes" } | { kind: "search" } | { kind: "edit" } | { kind: "upload" } | { kind: "post"; id: string };
 
-export function SocialTab({ api, say, onPlay, onHush }: { api: Api; say: (m: string) => void; onPlay: PlayFn; onHush?: () => void }) {
+export function SocialTab({ api, say, onPlay, onHush, styleSwitch }: { api: Api; say: (m: string) => void; onPlay: PlayFn; onHush?: () => void; styleSwitch?: ReactNode }) {
   const [me, setMe] = useState<{ profile: Profile | null; followers?: number; following?: number; unread?: number; avatars: string[]; v2?: boolean } | null>(null);
   const [setupMsg, setSetupMsg] = useState("");
   const [view, setView] = useState<"clips" | "feed">("clips");
@@ -137,6 +137,7 @@ export function SocialTab({ api, say, onPlay, onHush }: { api: Api; say: (m: str
         {(["clips", "feed"] as const).map((v) => <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`min-h-9 rounded-full px-4 text-sm font-semibold transition ${view === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{v === "clips" ? "Clips" : "Feed"}</button>)}
       </div>
       <div className="ml-auto flex items-center gap-1.5">
+        {styleSwitch}
         <IconBtn label="Find people" onClick={() => setOpen({ kind: "search" })}><Search size={19} /></IconBtn>
         <IconBtn label={unread ? `Notifications, ${unread} new` : "Notifications"} onClick={() => setOpen({ kind: "notes" })}>
           <Bell size={19} />{unread > 0 && <span className="absolute -right-0.5 -top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: ACCENT }}>{unread > 99 ? "99+" : unread}</span>}
@@ -191,7 +192,7 @@ export function SocialTab({ api, say, onPlay, onHush }: { api: Api; say: (m: str
 }
 
 const IconBtn = ({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) => <button type="button" aria-label={label} onClick={onClick} className="relative grid h-9 w-9 place-items-center rounded-full bg-white/[.07] text-white/85 hover:bg-white/[.12]">{children}</button>;
-function Avatar({ p, size = 36, onClick }: { p: Profile; size?: number; onClick?: () => void }) {
+export function Avatar({ p, size = 36, onClick }: { p: Profile; size?: number; onClick?: () => void }) {
   const inner = <span className="grid place-items-center rounded-full bg-gradient-to-br from-white/[.14] to-white/[.04] ring-1 ring-white/10" style={{ width: size, height: size, fontSize: size * 0.52 }}>{p.avatar}</span>;
   return onClick ? <button type="button" onClick={onClick} aria-label={`@${p.handle}`} className="flex-none">{inner}</button> : <span className="flex-none">{inner}</span>;
 }
@@ -281,7 +282,7 @@ function Rail({ label, n, on, onClick, children }: { label: string; n?: number; 
     {children}<span className="text-[10px] font-semibold tabular-nums text-white/70">{typeof n === "number" ? (n > 0 ? compact(n) : "") : label}</span>
   </button>;
 }
-function shareLink(ctx: Ctx, post: Post) {
+export function shareLink(ctx: Ctx, post: Post) {
   const ep = shown(post).episode;
   const url = `${location.origin}${ep ? `/?s=${ep.showId}&e=${ep.id}` : ""}`;
   const text = shown(post).clip?.quote ? `“${shown(post).clip!.quote}” — ${ep?.show ?? ""}` : shown(post).caption || ep?.title || "Pod+";
@@ -328,7 +329,7 @@ function Action({ label, n, on, tint, onClick, children }: { label: string; n?: 
   return <button type="button" onClick={onClick} aria-label={label} aria-pressed={on} className={`flex min-h-10 items-center gap-1.5 rounded-full px-2 text-[13px] tabular-nums hover:bg-white/5 ${on && tint ? tint : ""}`}>{children}{n ? compact(n) : ""}</button>;
 }
 /** What a post says and shows, by kind. Quotes embed the post they quote. */
-function PostBody({ post: p, ctx, nested }: { post: Post; ctx: Ctx; nested?: boolean }) {
+export function PostBody({ post: p, ctx, nested }: { post: Post; ctx: Ctx; nested?: boolean }) {
   const ep = p.episode;
   return <div className="mt-0.5">
     {p.caption && <p className={`whitespace-pre-wrap break-words leading-relaxed ${p.kind === "text" && !nested ? "text-[16px]" : "text-[15px]"} ${nested ? "line-clamp-4" : ""}`}>{p.caption}</p>}
@@ -344,7 +345,7 @@ function PostBody({ post: p, ctx, nested }: { post: Post; ctx: Ctx; nested?: boo
     </div>}
   </div>;
 }
-function ClipInline({ post: p, ctx }: { post: Post; ctx: Ctx }) {
+export function ClipInline({ post: p, ctx }: { post: Post; ctx: Ctx }) {
   const ep = p.episode!, clip = p.clip!, mine = ctx.audio.id === p.id, playing = mine && ctx.audio.playing;
   return <div className="relative mt-2.5 overflow-hidden rounded-2xl ring-1 ring-white/[.08]">
     <div aria-hidden className="absolute -inset-8 bg-cover bg-center opacity-50 blur-2xl" style={{ backgroundImage: `url("${hiRes(artOf(ep), 200)}")` }} />
@@ -422,7 +423,7 @@ function Comments({ post, ctx, onCount }: { post: Post; ctx: Ctx; onCount: (n: n
 // ===========================================================================
 // Reposting, writing, notifications, one post, finding people
 // ===========================================================================
-function RepostSheet({ post, ctx, onClose, onDone }: { post: Post; ctx: Ctx; onClose: () => void; onDone: (on: boolean, quote?: Post) => void }) {
+export function RepostSheet({ post, ctx, onClose, onDone }: { post: Post; ctx: Ctx; onClose: () => void; onDone: (on: boolean, quote?: Post) => void }) {
   const [quoting, setQuoting] = useState(false);
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
@@ -459,7 +460,7 @@ function ComposeSheet({ api, say, me, onClose, onPosted }: { api: Api; say: (m: 
   </Sheet>;
 }
 const NOTE_WORDS: Record<Note["kind"], string> = { like: "liked your post", comment: "commented", reply: "replied to you", follow: "started following you", repost: "reposted your post", comment_like: "liked your comment" };
-function NotesSheet({ api, onClose, onPost, onPerson }: { api: Api; onClose: () => void; onPost: (id: string) => void; onPerson: (h: string) => void }) {
+export function NotesSheet({ api, onClose, onPost, onPerson }: { api: Api; onClose: () => void; onPost: (id: string) => void; onPerson: (h: string) => void }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [setup, setSetup] = useState(false);
   useEffect(() => { api("/api/earshot/social/notifications").then((b) => { setNotes(b.notes || []); setSetup(!!b.setup); void api("/api/earshot/social/notifications/read", { method: "POST" }).catch(() => {}); }).catch(() => setNotes([])); }, [api]);
@@ -493,7 +494,7 @@ function OnePost({ id, ctx, patch, onClose }: { id: string; ctx: Ctx; patch: (id
     </div>
   </Sheet>;
 }
-function SearchSheet({ api, say, onClose, onPerson, needProfile }: { api: Api; say: (m: string) => void; onClose: () => void; onPerson: (h: string) => void; needProfile: boolean }) {
+export function SearchSheet({ api, say, onClose, onPerson, needProfile }: { api: Api; say: (m: string) => void; onClose: () => void; onPerson: (h: string) => void; needProfile: boolean }) {
   const [q, setQ] = useState("");
   const [people, setPeople] = useState<Person[] | null>(null);
   useEffect(() => { const t = setTimeout(() => { api(`/api/earshot/social/people?q=${encodeURIComponent(q.trim())}`).then((b) => setPeople(b.people || [])).catch(() => setPeople([])); }, q.trim() ? 300 : 0); return () => clearTimeout(t); }, [api, q]);
@@ -516,7 +517,7 @@ function SearchSheet({ api, say, onClose, onPerson, needProfile }: { api: Api; s
 // ===========================================================================
 // Someone's page
 // ===========================================================================
-function PersonPage({ handle, ctx, patch, onEdit, onClose }: { handle: string; ctx: Ctx; patch: (id: string, f: (p: Post) => Post) => void; onEdit: () => void; onClose: () => void }) {
+export function PersonPage({ handle, ctx, patch, onEdit, onClose }: { handle: string; ctx: Ctx; patch: (id: string, f: (p: Post) => Post) => void; onEdit: () => void; onClose: () => void }) {
   const [data, setData] = useState<{ profile: Profile; me: boolean; followers: number; following: number; followed: boolean; posts: Post[] } | null>(null);
   const [err, setErr] = useState("");
   const [which, setWhich] = useState<"posts" | "clips" | "own" | "bookmark">("posts");
@@ -559,7 +560,7 @@ function PersonPage({ handle, ctx, patch, onEdit, onClose }: { handle: string; c
 // ===========================================================================
 // Profile, sharing, clipping, uploading
 // ===========================================================================
-function ProfileEditor({ api, say, initial, avatars, onClose, onSaved }: { api: Api; say: (m: string) => void; initial: Profile | null; avatars: string[]; onClose: () => void; onSaved: () => void }) {
+export function ProfileEditor({ api, say, initial, avatars, onClose, onSaved }: { api: Api; say: (m: string) => void; initial: Profile | null; avatars: string[]; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [handle, setHandle] = useState(initial?.handle ?? "");
   const [bio, setBio] = useState(initial?.bio ?? "");
@@ -643,7 +644,7 @@ export function ClipMaker({ api, say, ep, time, lines, sid, onPreview, onClose }
   </Sheet>;
 }
 
-function UploadSheet({ api, say, onClose, onDone }: { api: Api; say: (m: string) => void; onClose: () => void; onDone: () => void }) {
+export function UploadSheet({ api, say, onClose, onDone }: { api: Api; say: (m: string) => void; onClose: () => void; onDone: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [art, setArt] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -708,9 +709,9 @@ function UploadSheet({ api, say, onClose, onDone }: { api: Api; say: (m: string)
   </Sheet>;
 }
 
-const inputCls = "min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base outline-none focus:border-[#ff8a3d]";
+export const inputCls = "min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-base outline-none focus:border-[#ff8a3d]";
 const Field = ({ label, children }: { label: string; children: ReactNode }) => <label className="mt-3 block"><span className="mb-1 block text-xs font-bold text-white/60">{label}</span>{children}</label>;
-function Sheet({ title, onClose, children, tall }: { title: string; onClose: () => void; children: ReactNode; tall?: boolean }) {
+export function Sheet({ title, onClose, children, tall }: { title: string; onClose: () => void; children: ReactNode; tall?: boolean }) {
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
   return <div className="absolute inset-0 z-50 flex items-end bg-black/55" onClick={onClose}>
     <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} className={`flex w-full flex-col rounded-t-3xl bg-[#1c1620] pt-2 shadow-2xl ${tall ? "h-[88%]" : "max-h-[90%]"}`}>
