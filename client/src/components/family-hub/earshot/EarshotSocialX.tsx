@@ -65,7 +65,7 @@ export function XSocial({ api, say, onPlay, onHush }: { api: Api; say: (m: strin
         </div>
       </div>
     {tab === "clips" ? <div className="flex min-h-0 flex-1 flex-col pb-14"><ClipsFeed posts={posts} ctx={ctx} setup={me.v2 === false} onRefresh={load} /></div>
-    : <div ref={list} className="min-h-0 flex-1 overflow-y-auto pb-24 [scrollbar-width:none]">
+    : <div ref={list} className="min-h-0 flex-1 overflow-y-auto pb-24 [scrollbar-width:none] mx-auto w-full max-w-2xl">
 
       {!me.profile && <div className={`border-b ${LINE} px-4 py-5`}>
         <p className="text-[22px] font-extrabold leading-tight">See what listeners are saying.</p>
