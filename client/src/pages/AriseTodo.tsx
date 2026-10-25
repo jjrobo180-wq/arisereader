@@ -409,13 +409,10 @@ export default function AriseTodo() {
       return { ...previous, lists, tasks: [...previous.tasks, ...fresh] };
     });
   });
-  // Night mode: remembered on this device; until chosen, it follows the device's dark-mode setting.
+  // Night mode: remembered on this device. Everyone starts in day mode (a new account too), even
+  // when the phone itself is set to dark mode; night mode is only on once someone switches it on.
   const [night, setNight] = useState(() => {
-    try {
-      const saved = localStorage.getItem(NIGHT_KEY);
-      if (saved) return saved === "1";
-      return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-    } catch { return false; }
+    try { return localStorage.getItem(NIGHT_KEY) === "1"; } catch { return false; }
   });
   const toggleNight = () => setNight(on => {
     try { localStorage.setItem(NIGHT_KEY, on ? "0" : "1"); } catch { /* the choice just isn't remembered */ }
