@@ -3,10 +3,10 @@
 // comments and server (server/podcastSocial.ts) as the Clips + Feed style in EarshotSocial.tsx; the
 // listener picks the style they like.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, Bell, Feather, Flag, Headphones, Heart, Home, Loader2, MessageCircle, Mic, MoreHorizontal, Play, Repeat2, Search, Share2, Trash2, User } from "lucide-react";
+import { ArrowLeft, Bell, Feather, Flag, Heart, Home, Loader2, MessageCircle, Mic, MoreHorizontal, Play, Repeat2, Search, Share2, Trash2, User } from "lucide-react";
 import { durationWords, hiRes } from "@shared/earshot";
 import {
-  ACCENT, Avatar, ClipInline, NotesSheet, PersonPage, ProfileEditor, RepostSheet, SearchSheet, UploadSheet, ago, artOf, compact, shareLink, shown, toEpisode, toShow, useClipAudio,
+  ACCENT, Avatar, ClipInline, ClipsFeed, NotesSheet, PersonPage, ProfileEditor, RepostSheet, SearchSheet, UploadSheet, ago, artOf, compact, shareLink, shown, toEpisode, toShow, useClipAudio,
   type Api, type Comment, type Ctx, type PlayFn, type Post, type Profile,
 } from "./EarshotSocial";
 
@@ -22,10 +22,10 @@ type Patch = (id: string, f: (p: Post) => Post) => void;
 type Open = null | { kind: "compose"; quote?: Post } | { kind: "thread"; post: Post } | { kind: "repost"; post: Post } | { kind: "notes" } | { kind: "search" } | { kind: "edit" } | { kind: "upload" };
 const longTime = (iso: string) => { const d = new Date(iso); return Number.isNaN(+d) ? "" : `${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · ${d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`; };
 
-export function XSocial({ api, say, onPlay, onHush, styleSwitch }: { api: Api; say: (m: string) => void; onPlay: PlayFn; onHush?: () => void; styleSwitch?: ReactNode }) {
-  const [me, setMe] = useState<{ profile: Profile | null; unread?: number; avatars: string[] } | null>(null);
+export function XSocial({ api, say, onPlay, onHush }: { api: Api; say: (m: string) => void; onPlay: PlayFn; onHush?: () => void }) {
+  const [me, setMe] = useState<{ profile: Profile | null; unread?: number; avatars: string[]; v2?: boolean } | null>(null);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState<"all" | "following">("all");
+  const [tab, setTab] = useState<"all" | "following" | "clips">("all");
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [open, setOpen] = useState<Open>(null);
   const [people, setPeople] = useState<string[]>([]);
@@ -51,20 +51,21 @@ export function XSocial({ api, say, onPlay, onHush, styleSwitch }: { api: Api; s
   const unread = me.unread ?? 0;
 
   return <div className="relative flex h-full flex-col bg-black pt-16">
-    <div ref={list} className="min-h-0 flex-1 overflow-y-auto pb-24 [scrollbar-width:none]">
-      {/* The tabs stick to the top while you scroll, like X. */}
-      <div className={`sticky top-0 z-10 border-b ${LINE} bg-black/80 backdrop-blur-xl`}>
+      {/* The header and tabs stay put while the timeline scrolls under them. */}
+      <div className={`z-10 flex-none border-b ${LINE} bg-black`}>
         <div className="flex items-center gap-2 px-4 pb-1 pt-1">
           <button type="button" onClick={() => (me.profile ? ctx.person(me.profile.handle) : setOpen({ kind: "edit" }))} aria-label="Your profile">{me.profile ? <Avatar p={me.profile} size={32} /> : <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10"><User size={16} /></span>}</button>
           <span className="mx-auto text-[19px] font-black tracking-tight">Pod<span style={{ color: ACCENT }}>+</span></span>
-          {styleSwitch ?? <span className="w-8" />}
+          <button type="button" onClick={() => setOpen({ kind: "search" })} aria-label="Find people" className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/10"><Search size={19} /></button>
         </div>
         <div className="flex" role="tablist">
-          {([["all", "For you"], ["following", "Following"]] as const).map(([v, l]) => <button key={v} type="button" role="tab" aria-selected={tab === v} onClick={() => (tab === v ? home() : setTab(v))} className={`relative flex-1 py-3.5 text-[15px] ${tab === v ? "font-bold text-white" : `font-medium ${GREY}`} hover:bg-white/[.03]`}>
+          {([["all", "For you"], ["following", "Following"], ["clips", "Clips"]] as const).map(([v, l]) => <button key={v} type="button" role="tab" aria-selected={tab === v} onClick={() => (tab === v ? home() : setTab(v))} className={`relative flex-1 py-3.5 text-[15px] ${tab === v ? "font-bold text-white" : `font-medium ${GREY}`} hover:bg-white/[.03]`}>
             {l}{tab === v && <span className="absolute bottom-0 left-1/2 h-1 w-14 -translate-x-1/2 rounded-full" style={{ background: ACCENT }} />}
           </button>)}
         </div>
       </div>
+    {tab === "clips" ? <div className="flex min-h-0 flex-1 flex-col pb-14"><ClipsFeed posts={posts} ctx={ctx} setup={me.v2 === false} onRefresh={load} /></div>
+    : <div ref={list} className="min-h-0 flex-1 overflow-y-auto pb-24 [scrollbar-width:none]">
 
       {!me.profile && <div className={`border-b ${LINE} px-4 py-5`}>
         <p className="text-[22px] font-extrabold leading-tight">See what listeners are saying.</p>
@@ -78,10 +79,10 @@ export function XSocial({ api, say, onPlay, onHush, styleSwitch }: { api: Api; s
       {!posts && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" style={{ color: ACCENT }} /></div>}
       {posts && !posts.length && <div className="px-8 py-14 text-center"><p className="text-[28px] font-extrabold leading-tight">{tab === "following" ? "Nobody here yet" : "Be the first to post"}</p><p className={`mt-2 text-[15px] ${GREY}`}>{tab === "following" ? "Follow people and their posts show up here." : "Say what you're listening to, or clip a moment: play an episode, tap Share, then Clip a moment."}</p></div>}
       {posts?.map((p) => <XPost key={p.id} post={p} ctx={ctx} patch={patch} onOpen={(x) => setOpen({ kind: "thread", post: x })} onGone={() => setPosts((l) => (l || []).filter((x) => x.id !== p.id && x.repost?.id !== p.id))} />)}
-    </div>
+    </div>}
 
     {/* Post */}
-    {!open && !people.length && <button type="button" onClick={() => (me.profile ? setOpen({ kind: "compose" }) : setOpen({ kind: "edit" }))} aria-label="Post"
+    {!open && !people.length && tab !== "clips" && <button type="button" onClick={() => (me.profile ? setOpen({ kind: "compose" }) : setOpen({ kind: "edit" }))} aria-label="Post"
       className="absolute bottom-[4.5rem] right-4 z-20 grid h-14 w-14 place-items-center rounded-full text-black shadow-[0_6px_24px_rgba(0,0,0,.6)] active:scale-95" style={{ background: ACCENT }}><Feather size={23} strokeWidth={2.2} /></button>}
 
     {/* Bottom bar */}
@@ -95,7 +96,8 @@ export function XSocial({ api, say, onPlay, onHush, styleSwitch }: { api: Api; s
       <NavBtn label="You" on={!!me.profile && people[people.length - 1] === me.profile.handle} onClick={() => { setOpen(null); me.profile ? setPeople([me.profile.handle]) : setOpen({ kind: "edit" }); }}><User size={24} strokeWidth={1.8} /></NavBtn>
     </nav>
 
-    {people.length > 0 && <PersonPage key={people[people.length - 1]} handle={people[people.length - 1]} ctx={ctx} patch={patch} onEdit={() => setOpen({ kind: "edit" })} onClose={() => setPeople((s) => s.slice(0, -1))} />}
+    {people.length > 0 && <PersonPage key={people[people.length - 1]} handle={people[people.length - 1]} ctx={ctx} patch={patch} onEdit={() => setOpen({ kind: "edit" })} onClose={() => setPeople((s) => s.slice(0, -1))}
+      row={(p, pt, gone) => <XPost post={p} ctx={ctx} patch={pt} onOpen={(x) => setOpen({ kind: "thread", post: x })} onGone={gone} />} />}
     {open?.kind === "thread" && <Thread post={open.post} ctx={ctx} patch={patch} onClose={() => setOpen(null)} onOpen={(x) => setOpen({ kind: "thread", post: x })} />}
     {open?.kind === "compose" && <Compose api={api} say={say} me={me.profile} quote={open.quote} onClose={() => setOpen(null)} onPosted={(p) => { setOpen(null); if (p) setPosts((l) => [p, ...(l || [])]); if (open.quote) patch(open.quote.id, (x) => ({ ...x, reposts: x.reposts + 1 })); }} />}
     {open?.kind === "repost" && <RepostSheet post={open.post} ctx={ctx} onClose={() => setOpen(null)} onDone={(on, quote) => { patch(open.post.id, (p) => ({ ...p, reposted: on, reposts: Math.max(0, p.reposts + (on ? 1 : -1)) })); setOpen(null); if (quote) setPosts((l) => [quote, ...(l || [])]); }} />}
@@ -174,7 +176,6 @@ function XActions({ post: p, ctx, patch, onReply, wide }: { post: Post; ctx: Ctx
     {btn("Reply", p.comments, false, "sky", onReply, <MessageCircle size={wide ? 21 : 18} />)}
     {btn("Repost", p.reposts, p.reposted, "green", () => ctx.repost(p), <Repeat2 size={wide ? 22 : 19} />)}
     {btn("Like", p.likes, p.liked, "pink", like, <Heart size={wide ? 21 : 18} className={p.liked ? "fill-pink-500" : ""} />)}
-    {p.clip && p.episode ? btn("Full episode", undefined, false, "orange", () => { ctx.audio.stop(); ctx.onPlay(toShow(p.episode!), toEpisode(p.episode!), p.clip!.s); }, <Headphones size={wide ? 20 : 17} />) : null}
     {btn("Share", undefined, false, "sky", () => shareLink(ctx, p), <Share2 size={wide ? 20 : 17} />)}
   </div>;
 }

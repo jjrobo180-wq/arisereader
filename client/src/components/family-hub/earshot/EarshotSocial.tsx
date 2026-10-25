@@ -4,7 +4,7 @@
 // record one right here). Shared by both apps (server/podcastSocial.ts), so it imports nothing from
 // the Arise app itself.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Bell, ChevronLeft, ChevronRight, Flag, Headphones, Heart, Loader2, MessageCircle, Mic, MoreHorizontal, Pause, PenLine, Play, Plus, Quote, Repeat2, Scissors, Search, Send, Share2, Square, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { ChevronLeft, Headphones, Heart, Loader2, MessageCircle, Mic, Pause, Play, Plus, Quote, Repeat2, Scissors, Search, Send, Share2, Square, Upload, UserPlus, X } from "lucide-react";
 import { clock, durationWords, hiRes, type PodEpisode, type PodShow } from "@shared/earshot";
 
 export const ACCENT = "#ff8a3d";
@@ -85,130 +85,24 @@ export function useClipAudio(onHush?: () => void): ClipAudio {
 }
 
 // ===========================================================================
-// The Social tab
+// What every part of Social is handed
 // ===========================================================================
 export type Ctx = {
   api: Api; say: (m: string) => void; onPlay: PlayFn; audio: ClipAudio; me: Profile | null;
   person: (handle: string) => void; comments: (p: Post) => void; repost: (p: Post) => void; needProfile: () => void;
 };
-type Open = null | { kind: "compose" } | { kind: "comments"; post: Post } | { kind: "repost"; post: Post } | { kind: "notes" } | { kind: "search" } | { kind: "edit" } | { kind: "upload" } | { kind: "post"; id: string };
-
-export function SocialTab({ api, say, onPlay, onHush, styleSwitch }: { api: Api; say: (m: string) => void; onPlay: PlayFn; onHush?: () => void; styleSwitch?: ReactNode }) {
-  const [me, setMe] = useState<{ profile: Profile | null; followers?: number; following?: number; unread?: number; avatars: string[]; v2?: boolean } | null>(null);
-  const [setupMsg, setSetupMsg] = useState("");
-  const [view, setView] = useState<"clips" | "feed">("clips");
-  const [feedTab, setFeedTab] = useState<"all" | "following">("all");
-  const [posts, setPosts] = useState<Post[] | null>(null);
-  const [clips, setClips] = useState<Post[] | null>(null);
-  const [people, setPeople] = useState<Person[]>([]);
-  const [open, setOpen] = useState<Open>(null);
-  const [personStack, setPersonStack] = useState<string[]>([]);
-  const audio = useClipAudio(onHush);
-  const loadMe = useCallback(() => api("/api/earshot/social/me").then((b) => { setMe(b); setSetupMsg(""); }).catch((e) => setSetupMsg(e?.message || "Social didn't load.")), [api]);
-  const loadFeed = useCallback(() => { setPosts(null); api(`/api/earshot/social/feed?tab=${feedTab}`).then((b) => setPosts(b.posts || [])).catch((e) => { setPosts([]); say(e?.message || "The feed didn't load."); }); }, [api, feedTab, say]);
-  const loadClips = useCallback(() => { setClips(null); api("/api/earshot/social/feed?tab=clips").then((b) => setClips(b.posts || [])).catch(() => setClips([])); }, [api]);
-  useEffect(() => { void loadMe(); }, [loadMe]);
-  useEffect(() => { if (view === "feed") loadFeed(); }, [view, loadFeed]);
-  useEffect(() => { if (view === "clips" && !clips) loadClips(); }, [view, clips, loadClips]);
-  useEffect(() => { api("/api/earshot/social/people").then((b) => setPeople(b.people || [])).catch(() => {}); }, [api]);
-  useEffect(() => { audio.stop(); }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /** A post changed (liked, commented on, reposted): every list showing it follows along. */
-  const patch = useCallback((id: string, f: (p: Post) => Post) => {
-    const fix = (list: Post[] | null) => list?.map((p) => (p.id === id ? f(p) : p.repost?.id === id ? { ...p, repost: f(p.repost) } : p)) ?? null;
-    setPosts(fix); setClips(fix);
-  }, []);
-  const ctx: Ctx = {
-    api, say, onPlay, audio, me: me?.profile ?? null,
-    person: (h) => setPersonStack((s) => [...s, h]),
-    comments: (post) => setOpen({ kind: "comments", post }),
-    repost: (post) => (me?.profile ? setOpen({ kind: "repost", post }) : setOpen({ kind: "edit" })),
-    needProfile: () => { say("Make your profile first. It takes a few seconds."); setOpen({ kind: "edit" }); },
-  };
-
-  if (setupMsg && !me) return <div className="grid h-full place-items-center p-6 pt-16 text-center"><div><p className="text-lg font-semibold">Social</p><p className="mt-1 max-w-xs text-sm text-white/60">{setupMsg}</p><button type="button" onClick={() => { void loadMe(); }} className="mt-4 min-h-11 rounded-full bg-white px-5 font-semibold text-[#111013]">Try again</button></div></div>;
-  if (!me) return <div className="grid h-full place-items-center"><Loader2 className="animate-spin" /></div>;
-  const unread = me.unread ?? 0;
-
-  return <div className="relative flex h-full flex-col pt-16">
-    {/* Clips | Feed, then search, notifications and you. */}
-    <div className="flex flex-none items-center gap-2 px-3 pb-2">
-      <div className="flex rounded-full bg-white/[.07] p-1" role="tablist" aria-label="Social">
-        {(["clips", "feed"] as const).map((v) => <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`min-h-9 rounded-full px-4 text-sm font-semibold transition ${view === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{v === "clips" ? "Clips" : "Feed"}</button>)}
-      </div>
-      <div className="ml-auto flex items-center gap-1.5">
-        {styleSwitch}
-        <IconBtn label="Find people" onClick={() => setOpen({ kind: "search" })}><Search size={19} /></IconBtn>
-        <IconBtn label={unread ? `Notifications, ${unread} new` : "Notifications"} onClick={() => setOpen({ kind: "notes" })}>
-          <Bell size={19} />{unread > 0 && <span className="absolute -right-0.5 -top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: ACCENT }}>{unread > 99 ? "99+" : unread}</span>}
-        </IconBtn>
-        <button type="button" onClick={() => (me.profile ? ctx.person(me.profile.handle) : setOpen({ kind: "edit" }))} aria-label={me.profile ? "Your profile" : "Make your profile"} className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#ff8a3d] to-[#e83e8c] p-[2px]"><span className="grid h-full w-full place-items-center rounded-full bg-[#1a141d] text-lg">{me.profile?.avatar ?? <Plus size={16} />}</span></button>
-      </div>
-    </div>
-
-    {view === "clips"
-      ? <ClipsFeed posts={clips} ctx={ctx} setup={me.v2 === false} onRefresh={loadClips} />
-      : <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-10 [scrollbar-width:none]">
-        {!me.profile && <div className="mb-4 rounded-3xl bg-gradient-to-br from-[#ff8a3d]/25 via-[#e83e8c]/15 to-transparent p-5 ring-1 ring-white/10">
-          <h2 className="text-[24px] font-bold leading-tight tracking-tight">Listen together.</h2>
-          <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-white/65">Post the moments that got you, talk about episodes, follow people with great taste, and make a podcast of your own.</p>
-          <button type="button" onClick={() => setOpen({ kind: "edit" })} className="mt-4 min-h-11 rounded-full bg-white px-5 text-sm font-semibold text-[#111013]">Make your profile</button>
-        </div>}
-        {me.profile && <button type="button" onClick={() => setOpen({ kind: "compose" })} className="flex w-full items-center gap-3 rounded-2xl bg-white/[.04] p-3 text-left ring-1 ring-white/[.07]">
-          <Avatar p={me.profile} size={40} />
-          <span className="flex-1 text-[15px] text-white/45">What are you listening to?</span>
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-white/10"><PenLine size={16} /></span>
-        </button>}
-        {me.profile && <button type="button" onClick={() => setOpen({ kind: "upload" })} className="mt-2 flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm text-white/70 hover:bg-white/[.03]"><Mic size={16} />Make your own podcast<ChevronRight size={15} className="ml-auto text-white/30" /></button>}
-
-        {people.some((p) => !p.followed) && <section className="mt-4">
-          <p className="px-1 text-xs font-semibold uppercase tracking-[.14em] text-white/40">People to follow</p>
-          <div className="-mx-3 mt-2 flex gap-2.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
-            {people.filter((p) => !p.followed).slice(0, 12).map((p) => <PersonChip key={p.handle} p={p} ctx={ctx} onFollowed={() => setPeople((l) => l.map((x) => (x.handle === p.handle ? { ...x, followed: true } : x)))} />)}
-          </div>
-        </section>}
-
-        <div className="mt-4 flex items-center gap-5 border-b border-white/[.07] px-1">
-          {([["all", "For you"], ["following", "Following"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={feedTab === v} onClick={() => setFeedTab(v)} className={`-mb-px border-b-2 pb-2.5 text-sm transition ${feedTab === v ? "border-white font-semibold text-white" : "border-transparent text-white/45"}`}>{l}</button>)}
-          <button type="button" onClick={loadFeed} className="ml-auto pb-2.5 text-xs text-white/40">Refresh</button>
-        </div>
-        <div className="mt-3 flex flex-col gap-3">
-          {!posts && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div>}
-          {posts && !posts.length && <p className="px-6 py-12 text-center text-sm text-white/55">{feedTab === "following" ? "Follow people to see their posts here." : "Nothing here yet. Write the first post, or clip a moment from any episode: tap Share, then Clip a moment."}</p>}
-          {posts?.map((p) => <PostCard key={p.id} post={p} ctx={ctx} patch={patch} onGone={() => setPosts((l) => (l || []).filter((x) => x.id !== p.id && x.repost?.id !== p.id))} />)}
-        </div>
-      </div>}
-
-    {open?.kind === "compose" && <ComposeSheet api={api} say={say} me={me.profile} onClose={() => setOpen(null)} onPosted={(p) => { setOpen(null); setView("feed"); setPosts((l) => (p ? [p, ...(l || [])] : l)); }} />}
-    {open?.kind === "comments" && <CommentsSheet post={open.post} ctx={ctx} onClose={() => setOpen(null)} onCount={(n) => patch(open.post.id, (p) => ({ ...p, comments: n }))} />}
-    {open?.kind === "repost" && <RepostSheet post={open.post} ctx={ctx} onClose={() => setOpen(null)} onDone={(on, quote) => { const id = open.post.id; patch(id, (p) => ({ ...p, reposted: on, reposts: Math.max(0, p.reposts + (on ? 1 : -1)) })); setOpen(null); if (quote) setPosts((l) => [quote, ...(l || [])]); }} />}
-    {open?.kind === "notes" && <NotesSheet api={api} onClose={() => { setOpen(null); setMe((m) => (m ? { ...m, unread: 0 } : m)); }} onPost={(id) => setOpen({ kind: "post", id })} onPerson={ctx.person} />}
-    {open?.kind === "post" && <OnePost id={open.id} ctx={ctx} patch={patch} onClose={() => setOpen(null)} />}
-    {open?.kind === "search" && <SearchSheet api={api} say={say} onClose={() => setOpen(null)} onPerson={(h) => { setOpen(null); ctx.person(h); }} needProfile={!me.profile} />}
-    {open?.kind === "edit" && <ProfileEditor api={api} say={say} initial={me.profile} avatars={me.avatars} onClose={() => setOpen(null)} onSaved={() => { setOpen(null); void loadMe(); }} />}
-    {open?.kind === "upload" && <UploadSheet api={api} say={say} onClose={() => setOpen(null)} onDone={() => { setOpen(null); loadFeed(); }} />}
-    {personStack.length > 0 && <PersonPage key={personStack[personStack.length - 1]} handle={personStack[personStack.length - 1]} ctx={ctx} patch={patch} onEdit={() => setOpen({ kind: "edit" })} onClose={() => setPersonStack((s) => s.slice(0, -1))} />}
-  </div>;
-}
-
-const IconBtn = ({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) => <button type="button" aria-label={label} onClick={onClick} className="relative grid h-9 w-9 place-items-center rounded-full bg-white/[.07] text-white/85 hover:bg-white/[.12]">{children}</button>;
-export function Avatar({ p, size = 36, onClick }: { p: Profile; size?: number; onClick?: () => void }) {
-  const inner = <span className="grid place-items-center rounded-full bg-gradient-to-br from-white/[.14] to-white/[.04] ring-1 ring-white/10" style={{ width: size, height: size, fontSize: size * 0.52 }}>{p.avatar}</span>;
-  return onClick ? <button type="button" onClick={onClick} aria-label={`@${p.handle}`} className="flex-none">{inner}</button> : <span className="flex-none">{inner}</span>;
-}
-function PersonChip({ p, ctx, onFollowed }: { p: Person; ctx: Ctx; onFollowed: () => void }) {
-  const follow = () => { if (!ctx.me) return ctx.needProfile(); onFollowed(); ctx.api("/api/earshot/social/follow", { method: "POST", body: { handle: p.handle } }).catch((e) => ctx.say(e.message)); };
-  return <div className="flex w-32 flex-none flex-col items-center rounded-2xl bg-white/[.04] p-3 text-center ring-1 ring-white/[.06]">
-    <Avatar p={p} size={52} onClick={() => ctx.person(p.handle)} />
-    <button type="button" onClick={() => ctx.person(p.handle)} className="mt-2 w-full"><b className="block truncate text-sm">{p.name}</b><span className="block truncate text-[11px] text-white/45">@{p.handle}</span></button>
-    <button type="button" onClick={follow} className="mt-2.5 min-h-8 w-full rounded-full bg-white text-xs font-semibold text-[#111013]">Follow</button>
-  </div>;
+/** Someone's picture: their initials on a muted color that's always theirs. */
+export function Avatar({ p, size = 36, onClick, ring }: { p: Profile; size?: number; onClick?: () => void; ring?: string }) {
+  const h = [...(p.handle || p.name)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 11);
+  const letters = (p.name || p.handle).trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]).join("").toUpperCase() || "?";
+  const inner = <span className={`grid select-none place-items-center rounded-full font-semibold text-white/95 ${ring ?? ""}`} style={{ width: size, height: size, fontSize: Math.round(size * (letters.length > 1 ? 0.36 : 0.42)), background: `hsl(${h} 28% 34%)` }}>{letters}</span>;
+  return onClick ? <button type="button" onClick={onClick} aria-label={`@${p.handle}`} className="flex-none self-start">{inner}</button> : <span className="flex-none self-start">{inner}</span>;
 }
 
 // ===========================================================================
 // Clips: swipe through moments
 // ===========================================================================
-function ClipsFeed({ posts, ctx, setup, onRefresh }: { posts: Post[] | null; ctx: Ctx; setup: boolean; onRefresh: () => void }) {
+export function ClipsFeed({ posts, ctx, setup, onRefresh }: { posts: Post[] | null; ctx: Ctx; setup: boolean; onRefresh: () => void }) {
   const box = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(0);
   const [started, setStarted] = useState(false);
@@ -252,7 +146,7 @@ function ClipCard({ post, ctx, active, onStart }: { post: Post; ctx: Ctx; active
       {/* What's said, big: the moment itself. */}
       <div className="flex min-h-0 flex-1 flex-col justify-center pr-12">
         <Quote size={30} className="text-white/30" />
-        <p className={`mt-2 font-serif text-[clamp(1.5rem,6.5vw,2.25rem)] font-semibold leading-[1.18] tracking-tight transition-opacity ${playing || !mine ? "opacity-100" : "opacity-80"}`}>{clip.quote || ep.title}</p>
+        <p className={`mt-2 text-[clamp(1.4rem,6vw,2rem)] font-bold leading-[1.22] tracking-tight transition-opacity ${playing || !mine ? "opacity-100" : "opacity-80"}`}>{clip.quote || ep.title}</p>
         {!playing && active && <span className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur"><Play size={14} fill="currentColor" />{mine ? "Paused" : "Tap to listen"}</span>}
       </div>
       <div className="pr-14">
@@ -293,42 +187,6 @@ export function shareLink(ctx: Ctx, post: Post) {
 // ===========================================================================
 // Feed posts
 // ===========================================================================
-function PostCard({ post, ctx, patch, onGone }: { post: Post; ctx: Ctx; patch: (id: string, f: (p: Post) => Post) => void; onGone: () => void }) {
-  const [menu, setMenu] = useState(false);
-  const p = shown(post);
-  const plainRepost = p !== post;
-  const like = () => { if (!ctx.me) return ctx.needProfile(); const on = !p.liked; patch(p.id, (x) => ({ ...x, liked: on, likes: Math.max(0, x.likes + (on ? 1 : -1)) })); ctx.api(`/api/earshot/social/posts/${p.id}/like`, { method: "POST", body: { on } }).catch(() => {}); };
-  return <article className="rounded-2xl bg-white/[.035] ring-1 ring-white/[.06]">
-    {plainRepost && <p className="flex items-center gap-1.5 px-4 pt-3 text-xs font-semibold text-white/45"><Repeat2 size={14} />{post.mine ? "You" : post.author.name} reposted</p>}
-    <div className="flex gap-3 px-3.5 pb-1 pt-3">
-      <Avatar p={p.author} size={40} onClick={() => ctx.person(p.author.handle)} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => ctx.person(p.author.handle)} className="min-w-0 truncate text-left text-[15px] font-semibold">{p.author.name}</button>
-          <span className="truncate text-xs text-white/40">@{p.author.handle} · {ago(p.at)}</span>
-          <div className="relative ml-auto"><button type="button" onClick={() => setMenu((m) => !m)} aria-label="More" className="-mr-1 grid h-8 w-8 place-items-center rounded-full text-white/50 hover:bg-white/10"><MoreHorizontal size={17} /></button>
-            {menu && <div className="absolute right-0 top-9 z-10 w-44 overflow-hidden rounded-2xl bg-[#262030] text-sm shadow-xl ring-1 ring-white/10" onMouseLeave={() => setMenu(false)}>
-              {(plainRepost ? post.mine : p.mine)
-                ? <button type="button" onClick={() => { setMenu(false); ctx.api(`/api/earshot/social/posts/${plainRepost ? p.id : post.id}${plainRepost ? "/repost" : ""}`, plainRepost ? { method: "POST", body: { on: false } } : { method: "DELETE" }).then(() => { ctx.say(plainRepost ? "Repost undone." : "Deleted."); onGone(); }).catch((e) => ctx.say(e.message)); }} className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-rose-300 hover:bg-white/5"><Trash2 size={15} />{plainRepost ? "Undo repost" : "Delete"}</button>
-                : <button type="button" onClick={() => { setMenu(false); ctx.api(`/api/earshot/social/posts/${p.id}/report`, { method: "POST" }).then(() => { ctx.say("Reported. Thanks for keeping it friendly."); onGone(); }).catch((e) => ctx.say(e.message)); }} className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-white/5"><Flag size={15} />Report</button>}
-            </div>}
-          </div>
-        </div>
-        <PostBody post={p} ctx={ctx} />
-        <div className="-ml-2 mt-1.5 flex items-center justify-between pr-6 text-white/55">
-          <Action label="Comments" n={p.comments} onClick={() => ctx.comments(p)}><MessageCircle size={18} /></Action>
-          <Action label="Repost" n={p.reposts} on={p.reposted} tint="text-emerald-400" onClick={() => ctx.repost(p)}><Repeat2 size={19} /></Action>
-          <Action label="Like" n={p.likes} on={p.liked} tint="text-rose-400" onClick={like}><Heart size={18} className={p.liked ? "fill-rose-500 text-rose-500" : ""} /></Action>
-          <Action label="Share" onClick={() => shareLink(ctx, p)}><Share2 size={17} /></Action>
-        </div>
-      </div>
-    </div>
-  </article>;
-}
-function Action({ label, n, on, tint, onClick, children }: { label: string; n?: number; on?: boolean; tint?: string; onClick: () => void; children: ReactNode }) {
-  return <button type="button" onClick={onClick} aria-label={label} aria-pressed={on} className={`flex min-h-10 items-center gap-1.5 rounded-full px-2 text-[13px] tabular-nums hover:bg-white/5 ${on && tint ? tint : ""}`}>{children}{n ? compact(n) : ""}</button>;
-}
-/** What a post says and shows, by kind. Quotes embed the post they quote. */
 export function PostBody({ post: p, ctx, nested }: { post: Post; ctx: Ctx; nested?: boolean }) {
   const ep = p.episode;
   return <div className="mt-0.5">
@@ -346,78 +204,21 @@ export function PostBody({ post: p, ctx, nested }: { post: Post; ctx: Ctx; neste
   </div>;
 }
 export function ClipInline({ post: p, ctx }: { post: Post; ctx: Ctx }) {
-  const ep = p.episode!, clip = p.clip!, mine = ctx.audio.id === p.id, playing = mine && ctx.audio.playing;
-  return <div className="relative mt-2.5 overflow-hidden rounded-2xl ring-1 ring-white/[.08]">
-    <div aria-hidden className="absolute -inset-8 bg-cover bg-center opacity-50 blur-2xl" style={{ backgroundImage: `url("${hiRes(artOf(ep), 200)}")` }} />
-    <div aria-hidden className="absolute inset-0 bg-black/50" />
-    <div className="relative p-3.5">
-      <p className="font-serif text-[18px] font-semibold leading-snug">“{clip.quote || ep.title}”</p>
-      <div className="mt-3 flex items-center gap-3">
-        <button type="button" onClick={() => ctx.audio.toggle(p)} aria-label={playing ? "Pause clip" : "Play clip"} className="grid h-11 w-11 flex-none place-items-center rounded-full bg-white text-[#111013] active:scale-95">{playing ? <Pause size={18} fill="currentColor" strokeWidth={0} /> : <Play size={18} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
-        <div className="min-w-0 flex-1">
-          <span className="block h-1 overflow-hidden rounded-full bg-white/20"><span className="block h-full rounded-full bg-white" style={{ width: `${mine ? ctx.audio.t * 100 : 0}%` }} /></span>
-          <button type="button" onClick={() => { ctx.audio.stop(); ctx.onPlay(toShow(ep), toEpisode(ep), clip.s); }} className="mt-1.5 flex w-full items-center gap-2 text-left"><img src={hiRes(artOf(ep), 100)} alt="" referrerPolicy="no-referrer" className="h-6 w-6 rounded object-cover" /><span className="min-w-0 truncate text-xs text-white/70">{ep.show} · from {clock(clip.s)}</span><Headphones size={13} className="ml-auto flex-none text-white/50" /></button>
-        </div>
-      </div>
+  const ep = p.episode!, clip = p.clip!, mine = ctx.audio.id === p.id, playing = mine && ctx.audio.playing, len = Math.max(1, clip.e - clip.s);
+  return <div className="mt-3 rounded-2xl border border-white/[.12] p-3.5">
+    {clip.quote && <p className="border-l-2 pl-3 text-[15px] leading-6 text-white/90" style={{ borderColor: ACCENT }}>{clip.quote}</p>}
+    <div className={`${clip.quote ? "mt-3" : ""} flex items-center gap-3`}>
+      <img src={hiRes(artOf(ep), 120)} alt="" referrerPolicy="no-referrer" className="h-11 w-11 flex-none rounded-md object-cover" />
+      <div className="min-w-0 flex-1 leading-[18px]"><p className="truncate text-[14px] font-semibold">{ep.show}</p><p className="truncate text-[13px] text-[#8b8f95]">{ep.title}</p></div>
+      <button type="button" onClick={() => ctx.audio.toggle(p)} aria-label={playing ? "Pause clip" : "Play clip"} className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white text-black active:scale-95">{playing ? <Pause size={16} fill="currentColor" strokeWidth={0} /> : <Play size={16} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
     </div>
+    <div className="mt-3 flex items-center gap-2.5 text-[12px] tabular-nums text-[#8b8f95]">
+      <span className="w-9">{clock(mine ? ctx.audio.t * len : 0)}</span>
+      <span className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/[.15]"><span className="block h-full rounded-full bg-white" style={{ width: `${mine ? ctx.audio.t * 100 : 0}%` }} /></span>
+      <span className="w-9 text-right">{clock(len)}</span>
+    </div>
+    <button type="button" onClick={() => { ctx.audio.stop(); ctx.onPlay(toShow(ep), toEpisode(ep), clip.s); }} className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-white/80 hover:underline"><Headphones size={14} />Listen to the full episode from {clock(clip.s)}</button>
   </div>;
-}
-
-// ===========================================================================
-// Comments and replies
-// ===========================================================================
-function CommentsSheet({ post, ctx, onClose, onCount }: { post: Post; ctx: Ctx; onClose: () => void; onCount: (n: number) => void }) {
-  return <Sheet title={`${post.comments ? `${post.comments} ` : ""}Comments`} onClose={onClose} tall><Comments post={post} ctx={ctx} onCount={onCount} /></Sheet>;
-}
-function Comments({ post, ctx, onCount }: { post: Post; ctx: Ctx; onCount: (n: number) => void }) {
-  const [list, setList] = useState<Comment[] | null>(null);
-  const [setup, setSetup] = useState(false);
-  const [body, setBody] = useState("");
-  const [replyTo, setReplyTo] = useState<Comment | null>(null);
-  const [busy, setBusy] = useState(false);
-  const input = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => { ctx.api(`/api/earshot/social/posts/${post.id}/comments`).then((b) => { setList(b.comments || []); setSetup(!!b.setup); }).catch(() => setList([])); }, [ctx.api, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const top = useMemo(() => (list || []).filter((c) => !c.parentId), [list]);
-  const replies = (id: string) => (list || []).filter((c) => c.parentId === id);
-  const send = () => {
-    if (!ctx.me) return ctx.needProfile();
-    const text = body.trim(); if (!text) return;
-    setBusy(true);
-    ctx.api(`/api/earshot/social/posts/${post.id}/comments`, { method: "POST", body: { body: text, parent: replyTo?.id } })
-      .then((b) => { setList((l) => { const next = [...(l || []), b.comment]; onCount(next.length); return next; }); setBody(""); setReplyTo(null); })
-      .catch((e) => ctx.say(e.message)).finally(() => setBusy(false));
-  };
-  const remove = (c: Comment) => ctx.api(`/api/earshot/social/comments/${c.id}`, { method: "DELETE" }).then(() => setList((l) => { const next = (l || []).filter((x) => x.id !== c.id && x.parentId !== c.id); onCount(next.length); return next; })).catch((e) => ctx.say(e.message));
-  const like = (c: Comment) => { if (!ctx.me) return ctx.needProfile(); const on = !c.liked; setList((l) => (l || []).map((x) => (x.id === c.id ? { ...x, liked: on, likes: Math.max(0, x.likes + (on ? 1 : -1)) } : x))); ctx.api(`/api/earshot/social/comments/${c.id}/like`, { method: "POST", body: { on } }).catch(() => {}); };
-  const report = (c: Comment) => ctx.api(`/api/earshot/social/comments/${c.id}/report`, { method: "POST" }).then(() => { setList((l) => (l || []).filter((x) => x.id !== c.id)); ctx.say("Reported. Thanks."); }).catch((e) => ctx.say(e.message));
-  const row = (c: Comment, reply = false) => <li key={c.id} className={`flex gap-2.5 ${reply ? "ml-11 mt-3" : "mt-4"}`}>
-    <Avatar p={c.author} size={reply ? 28 : 34} onClick={() => ctx.person(c.author.handle)} />
-    <div className="min-w-0 flex-1">
-      <p className="text-xs text-white/45"><button type="button" onClick={() => ctx.person(c.author.handle)} className="font-semibold text-white/85">{c.author.name}</button> · {ago(c.at)}</p>
-      <p className="mt-0.5 whitespace-pre-wrap break-words text-[14px] leading-relaxed">{c.body}</p>
-      <div className="mt-1 flex items-center gap-4 text-xs font-semibold text-white/45">
-        <button type="button" onClick={() => { setReplyTo(c); input.current?.focus(); }}>Reply</button>
-        {(c.mine || post.mine) ? <button type="button" onClick={() => void remove(c)}>Delete</button> : <button type="button" onClick={() => void report(c)}>Report</button>}
-      </div>
-    </div>
-    <button type="button" onClick={() => like(c)} aria-label="Like comment" aria-pressed={c.liked} className="flex w-8 flex-none flex-col items-center pt-1 text-[11px] text-white/50"><Heart size={15} className={c.liked ? "fill-rose-500 text-rose-500" : ""} />{c.likes || ""}</button>
-  </li>;
-  return <>
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
-      {!list && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div>}
-      {list && !list.length && <p className="py-12 text-center text-sm text-white/50">{setup ? "Comments are being set up. Check back soon." : "No comments yet. Start the conversation."}</p>}
-      <ul>{top.map((c) => <div key={c.id}>{row(c)}<ul>{replies(c.id).map((r) => row(r, true))}</ul></div>)}</ul>
-    </div>
-    {!setup && <div className="flex-none border-t border-white/10 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
-      {replyTo && <p className="mb-1.5 flex items-center gap-2 text-xs text-white/55">Replying to <b className="text-white/80">@{replyTo.author.handle}</b><button type="button" onClick={() => setReplyTo(null)} aria-label="Cancel reply" className="ml-auto"><X size={14} /></button></p>}
-      <div className="flex items-end gap-2">
-        {ctx.me && <Avatar p={ctx.me} size={34} />}
-        <textarea ref={input} value={body} onChange={(e) => setBody(e.target.value.slice(0, 500))} rows={1} placeholder={ctx.me ? "Add a comment…" : "Make a profile to comment"} onFocus={() => { if (!ctx.me) ctx.needProfile(); }}
-          className="max-h-28 min-h-10 flex-1 resize-none rounded-2xl bg-white/[.07] px-3.5 py-2.5 text-[15px] outline-none placeholder:text-white/35 focus:ring-1 focus:ring-white/25" />
-        <button type="button" onClick={send} disabled={busy || !body.trim()} aria-label="Post comment" className="grid h-10 w-10 flex-none place-items-center rounded-full text-[#111013] disabled:opacity-30" style={{ background: ACCENT }}>{busy ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}</button>
-      </div>
-    </div>}
-  </>;
 }
 
 // ===========================================================================
@@ -443,22 +244,6 @@ export function RepostSheet({ post, ctx, onClose, onDone }: { post: Post; ctx: C
     </div>
   </Sheet>;
 }
-function ComposeSheet({ api, say, me, onClose, onPosted }: { api: Api; say: (m: string) => void; me: Profile | null; onClose: () => void; onPosted: (p: Post | null) => void }) {
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const post = () => { setBusy(true); api("/api/earshot/social/posts", { method: "POST", body: { kind: "text", caption: text } }).then((b) => { say("Posted."); onPosted(b.post ?? null); }).catch((e) => say(e.message)).finally(() => setBusy(false)); };
-  const left = 280 - text.length;
-  return <Sheet title="New post" onClose={onClose}>
-    <div className="px-4 pb-6">
-      <div className="flex gap-3">{me && <Avatar p={me} size={40} />}<textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 280))} rows={5} autoFocus placeholder="What are you listening to? What did you think?" className="min-h-32 flex-1 resize-none bg-transparent pt-2 text-[17px] leading-relaxed outline-none placeholder:text-white/35" /></div>
-      <p className="mt-2 text-xs text-white/40">To post a moment from an episode, play it, tap Share, then Clip a moment.</p>
-      <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
-        <span className={`text-xs tabular-nums ${left < 20 ? "text-amber-300" : "text-white/40"}`}>{left}</span>
-        <button type="button" onClick={post} disabled={busy || !text.trim()} className="flex min-h-11 items-center gap-2 rounded-full px-5 font-semibold text-[#111013] disabled:opacity-40" style={{ background: ACCENT }}>{busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}Post</button>
-      </div>
-    </div>
-  </Sheet>;
-}
 const NOTE_WORDS: Record<Note["kind"], string> = { like: "liked your post", comment: "commented", reply: "replied to you", follow: "started following you", repost: "reposted your post", comment_like: "liked your comment" };
 export function NotesSheet({ api, onClose, onPost, onPerson }: { api: Api; onClose: () => void; onPost: (id: string) => void; onPerson: (h: string) => void }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
@@ -470,7 +255,7 @@ export function NotesSheet({ api, onClose, onPost, onPerson }: { api: Api; onClo
       {!notes && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div>}
       {notes && !notes.length && <p className="py-14 text-center text-sm text-white/50">{setup ? "Notifications are being set up. Check back soon." : "Nothing yet. When people like, comment on, repost or follow you, it shows up here."}</p>}
       {notes?.map((n) => <button key={n.id} type="button" onClick={() => (n.kind === "follow" || !n.post ? onPerson(n.actor.handle) : onPost(n.post.id))} className={`flex w-full items-start gap-3 rounded-2xl p-2.5 text-left hover:bg-white/[.04] ${n.read ? "" : "bg-white/[.04]"}`}>
-        <span className="relative"><Avatar p={n.actor} size={40} /><span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full bg-[#1c1620] ring-2 ring-[#1c1620]">{icon(n.kind)}</span></span>
+        <span className="relative"><Avatar p={n.actor} size={40} /><span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full bg-black ring-2 ring-black">{icon(n.kind)}</span></span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm leading-snug"><b>{n.actor.name}</b> <span className="text-white/70">{NOTE_WORDS[n.kind]}</span> <span className="text-white/35">· {ago(n.at)}</span></span>
           {n.comment && <span className="mt-0.5 line-clamp-2 block text-sm text-white/80">“{n.comment}”</span>}
@@ -479,18 +264,6 @@ export function NotesSheet({ api, onClose, onPost, onPerson }: { api: Api; onClo
         {n.post?.art && <img src={hiRes(n.post.art, 100)} alt="" referrerPolicy="no-referrer" className="h-11 w-11 flex-none rounded-lg object-cover" />}
         {!n.read && <span className="mt-2 h-2 w-2 flex-none rounded-full" style={{ background: ACCENT }} />}
       </button>)}
-    </div>
-  </Sheet>;
-}
-function OnePost({ id, ctx, patch, onClose }: { id: string; ctx: Ctx; patch: (id: string, f: (p: Post) => Post) => void; onClose: () => void }) {
-  const [post, setPost] = useState<Post | null>(null);
-  const [err, setErr] = useState("");
-  useEffect(() => { ctx.api(`/api/earshot/social/posts/${id}`).then((b) => setPost(b.post)).catch((e) => setErr(e?.message || "That post is gone.")); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const local = (pid: string, f: (p: Post) => Post) => { setPost((p) => (p && p.id === pid ? f(p) : p)); patch(pid, f); };
-  return <Sheet title="Post" onClose={onClose} tall>
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="px-3">{err ? <p className="py-10 text-center text-sm text-white/55">{err}</p> : !post ? <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div> : <PostCard post={post} ctx={{ ...ctx, comments: () => {} }} patch={local} onGone={onClose} />}</div>
-      {post && <div className="flex min-h-[50%] flex-col"><Comments post={post} ctx={ctx} onCount={(n) => local(post.id, (p) => ({ ...p, comments: n }))} /></div>}
     </div>
   </Sheet>;
 }
@@ -517,7 +290,7 @@ export function SearchSheet({ api, say, onClose, onPerson, needProfile }: { api:
 // ===========================================================================
 // Someone's page
 // ===========================================================================
-export function PersonPage({ handle, ctx, patch, onEdit, onClose }: { handle: string; ctx: Ctx; patch: (id: string, f: (p: Post) => Post) => void; onEdit: () => void; onClose: () => void }) {
+export function PersonPage({ handle, ctx, patch, onEdit, onClose, row }: { handle: string; ctx: Ctx; patch: (id: string, f: (p: Post) => Post) => void; onEdit: () => void; onClose: () => void; row: (p: Post, patch: (id: string, f: (p: Post) => Post) => void, gone: () => void) => ReactNode }) {
   const [data, setData] = useState<{ profile: Profile; me: boolean; followers: number; following: number; followed: boolean; posts: Post[] } | null>(null);
   const [err, setErr] = useState("");
   const [which, setWhich] = useState<"posts" | "clips" | "own" | "bookmark">("posts");
@@ -527,31 +300,31 @@ export function PersonPage({ handle, ctx, patch, onEdit, onClose }: { handle: st
   const posts = data?.posts ?? [];
   const tabs = ([["posts", "Posts"], ["clips", "Clips"], ["own", data?.me ? "My podcast" : "Podcast"], ["bookmark", "Saved"]] as const).filter(([v]) => v === "posts" || posts.some((p) => (v === "clips" ? p.kind === "clip" : p.kind === v)));
   const list = which === "posts" ? posts.filter((p) => p.kind !== "bookmark") : posts.filter((p) => (which === "clips" ? p.kind === "clip" : p.kind === which));
-  return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#120e14] [scrollbar-width:none]" role="dialog" aria-label={`@${handle}`}>
-    <div className="relative h-36 bg-gradient-to-br from-[#ff8a3d]/50 via-[#e83e8c]/30 to-[#5b3cc4]/30">
+  return <div className="absolute inset-0 z-40 overflow-y-auto bg-black pb-14 [scrollbar-width:none]" role="dialog" aria-label={`@${handle}`}>
+    <div className="relative h-32 bg-[#2a2d32]">
       <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-10 w-10 place-items-center rounded-full bg-black/40 backdrop-blur"><ChevronLeft size={22} /></button>
     </div>
     <div className="px-5 pb-4">
       {!data && !err && <Loader2 className="mx-auto mt-6 animate-spin" />}
       {err && <p className="mt-6 text-center text-sm text-white/60">{err}</p>}
       {data && <>
-        <div className="-mt-11 flex items-end justify-between">
-          <span className="grid h-[88px] w-[88px] place-items-center rounded-full bg-[#1d1720] text-5xl ring-4 ring-[#120e14]">{data.profile.avatar}</span>
-          {data.me ? <button type="button" onClick={onEdit} className="min-h-10 rounded-full px-5 text-sm font-semibold ring-1 ring-white/25">Edit profile</button>
-            : <button type="button" onClick={follow} className={`inline-flex min-h-10 items-center gap-2 rounded-full px-5 text-sm font-semibold ${data.followed ? "ring-1 ring-white/25" : "bg-white text-[#111013]"}`}>{data.followed ? "Following" : <><UserPlus size={16} />Follow</>}</button>}
+        <div className="relative z-[1] -mt-11 flex items-end justify-between">
+          <Avatar p={data.profile} size={84} ring="ring-4 ring-black" />
+          {data.me ? <button type="button" onClick={onEdit} className="min-h-9 rounded-full px-4 text-[15px] font-bold ring-1 ring-white/30">Edit profile</button>
+            : <button type="button" onClick={follow} className={`inline-flex min-h-9 items-center gap-2 rounded-full px-4 text-[15px] font-bold ${data.followed ? "ring-1 ring-white/30" : "bg-white text-black"}`}>{data.followed ? "Following" : "Follow"}</button>}
         </div>
-        <h2 className="mt-3 text-[24px] font-bold leading-tight tracking-tight">{data.profile.name}</h2>
-        <p className="text-sm text-white/50">@{data.profile.handle}</p>
+        <h2 className="mt-3 text-[21px] font-extrabold leading-tight">{data.profile.name}</h2>
+        <p className="text-[15px] text-[#8b8f95]">@{data.profile.handle}</p>
         {data.profile.bio && <p className="mt-2 text-[15px] leading-relaxed text-white/85">{data.profile.bio}</p>}
-        <p className="mt-3 flex gap-4 text-sm text-white/55"><span><b className="text-white">{compact(data.following)}</b> following</span><span><b className="text-white">{compact(data.followers)}</b> followers</span><span><b className="text-white">{compact(posts.filter((p) => p.kind !== "bookmark").length)}</b> posts</span></p>
+        <p className="mt-3 flex gap-4 text-[14px] text-[#8b8f95]"><span><b className="text-white">{compact(data.following)}</b> following</span><span><b className="text-white">{compact(data.followers)}</b> followers</span><span><b className="text-white">{compact(posts.filter((p) => p.kind !== "bookmark").length)}</b> posts</span></p>
       </>}
     </div>
     {data && <>
-      <div className="sticky top-0 z-10 flex gap-6 border-b border-white/[.07] bg-[#120e14]/95 px-5 backdrop-blur">{tabs.map(([v, l]) => <button key={v} type="button" aria-pressed={which === v} onClick={() => setWhich(v)} className={`-mb-px border-b-2 py-3 text-sm ${which === v ? "border-white font-semibold" : "border-transparent text-white/45"}`}>{l}</button>)}</div>
-      <div className="flex flex-col gap-3 px-3 pb-12 pt-3">
+      <div className="sticky top-0 z-10 flex border-b border-white/[.09] bg-black/85 backdrop-blur-xl">{tabs.map(([v, l]) => <button key={v} type="button" aria-pressed={which === v} onClick={() => setWhich(v)} className={`relative flex-1 py-3.5 text-[15px] ${which === v ? "font-bold" : "font-medium text-[#8b8f95]"}`}>{l}{which === v && <span className="absolute bottom-0 left-1/2 h-1 w-12 -translate-x-1/2 rounded-full" style={{ background: ACCENT }} />}</button>)}</div>
+      <div className="pb-12">
         {!list.length && <p className="py-10 text-center text-sm text-white/50">{which === "clips" ? "No clips yet." : which === "own" ? "No episodes yet." : which === "bookmark" ? "Nothing saved yet." : "No posts yet."}</p>}
-        {which === "bookmark" ? <div className="grid grid-cols-3 gap-2.5">{list.map((p) => p.episode && <button key={p.id} type="button" onClick={() => ctx.onPlay(toShow(p.episode!), toEpisode(p.episode!))} className="text-left"><img src={hiRes(artOf(p.episode), 300)} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs leading-tight">{p.episode.title}</b></button>)}</div>
-          : list.map((p) => <PostCard key={p.id} post={p} ctx={ctx} patch={local} onGone={() => setData((d) => (d ? { ...d, posts: d.posts.filter((x) => x.id !== p.id) } : d))} />)}
+        {which === "bookmark" ? <div className="grid grid-cols-3 gap-2.5 p-3">{list.map((p) => p.episode && <button key={p.id} type="button" onClick={() => ctx.onPlay(toShow(p.episode!), toEpisode(p.episode!))} className="text-left"><img src={hiRes(artOf(p.episode), 300)} alt="" referrerPolicy="no-referrer" className="aspect-square w-full rounded-xl object-cover" /><b className="mt-1 line-clamp-2 text-xs leading-tight">{p.episode.title}</b></button>)}</div>
+          : list.map((p) => <div key={p.id}>{row(p, local, () => setData((d) => (d ? { ...d, posts: d.posts.filter((x) => x.id !== p.id) } : d)))}</div>)}
       </div>
     </>}
   </div>;
@@ -564,12 +337,12 @@ export function ProfileEditor({ api, say, initial, avatars, onClose, onSaved }: 
   const [name, setName] = useState(initial?.name ?? "");
   const [handle, setHandle] = useState(initial?.handle ?? "");
   const [bio, setBio] = useState(initial?.bio ?? "");
-  const [avatar, setAvatar] = useState(initial?.avatar ?? avatars[0] ?? "🎧");
+  const [avatar] = useState(initial?.avatar ?? avatars[0] ?? "🎧");
   const [busy, setBusy] = useState(false);
   const save = () => { setBusy(true); api("/api/earshot/social/me", { method: "POST", body: { name, handle, bio, avatar } }).then(() => { say(initial ? "Profile saved." : "Welcome! Your profile is live."); onSaved(); }).catch((e) => say(e.message)).finally(() => setBusy(false)); };
   return <Sheet title={initial ? "Edit profile" : "Make your profile"} onClose={onClose}>
     <div className="overflow-y-auto px-4 pb-5">
-      <div className="flex flex-wrap gap-1.5">{avatars.map((a) => <button key={a} type="button" aria-pressed={avatar === a} onClick={() => setAvatar(a)} className={`grid h-11 w-11 place-items-center rounded-full text-2xl ${avatar === a ? "bg-white/25 ring-2 ring-[#ff8a3d]" : "bg-white/5"}`}>{a}</button>)}</div>
+      <div className="flex items-center gap-3"><Avatar p={{ handle: handle || "you", name: name || "You", bio: "", avatar }} size={56} /><p className="text-sm text-white/55">Your initials are your picture.</p></div>
       <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Your name or a nickname" className={inputCls} /></Field>
       <Field label="Username"><div className="flex items-center rounded-xl border border-white/10 bg-black/30 pl-3"><span className="text-white/45">@</span><input value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20))} placeholder="podfan_22" className="min-h-11 w-full bg-transparent px-1 text-base outline-none" /></div></Field>
       <Field label="Bio"><textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={160} rows={2} placeholder="What do you love listening to?" className={`${inputCls} py-2`} /></Field>
@@ -714,7 +487,7 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => <
 export function Sheet({ title, onClose, children, tall }: { title: string; onClose: () => void; children: ReactNode; tall?: boolean }) {
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
   return <div className="absolute inset-0 z-50 flex items-end bg-black/55" onClick={onClose}>
-    <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} className={`flex w-full flex-col rounded-t-3xl bg-[#1c1620] pt-2 shadow-2xl ${tall ? "h-[88%]" : "max-h-[90%]"}`}>
+    <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} className={`flex w-full flex-col rounded-t-2xl border-t border-white/[.12] bg-black pt-2 shadow-2xl ${tall ? "h-[88%]" : "max-h-[90%]"}`}>
       <div className="mx-auto mb-1 h-1.5 w-10 flex-none rounded-full bg-white/20" />
       <div className="flex flex-none items-center justify-between px-4 pb-2"><h3 className="text-lg font-semibold">{title}</h3><button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full bg-white/10"><X size={18} /></button></div>
       {children}
