@@ -495,9 +495,10 @@ export function createDirectory(options: DirectoryOptions = {}) {
    *  Kept by its fingerprint, so another listener whose copy has the same stretch gets it at once.
    *  Ads come back in seconds from the stretch's start. */
   async function copyPieceAds(showId: string, episodeId: string, fp: string, audio: Blob, secs: number): Promise<AdRange[] | null> {
-    if (!/^[0-9a-z]{1,24}$/.test(fp) || !aiOn()) return null;
+    if (!/^[0-9a-z]{1,24}$/.test(fp)) throw new Error("bad fingerprint");
+    if (!aiOn()) throw new Error("ai off");
     const { show, ep } = await findEpisode(showId, episodeId);
-    if (!ep) return null;
+    if (!ep) throw new Error("no episode");
     const key = `${ep.id}:g:${fp}`;
     const done = await ctx.peek(key);
     if (done) return done.value.ads;

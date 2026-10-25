@@ -124,7 +124,7 @@ type Session = {
   opening?: "running" | "done";
   /** Stretches of this copy's show audio no read-along piece covers (an ad the host gave this copy and
    *  the comparison copies alike, where the piece's copy had another), read on their own for ads. */
-  gaps?: { running: boolean; done: Set<string>; secs: number; ads: PlayAd[] };
+  gaps?: { running: boolean; done: Set<string>; secs: number; ads: PlayAd[]; errors: string[] };
 };
 /** Reads one stretch of a copy (transcribed and checked for ads, kept for everyone by its fingerprint);
  *  its ads in seconds from the stretch's start. */
@@ -437,7 +437,7 @@ export function createPlayer(o: PlayOptions = {}) {
   /** Reads the stretches no piece covers (at most 20 minutes a copy) and keeps the ads found in them. */
   async function readGaps(s: Session, chunks: { pieces: AnchorPiece[]; more?: boolean }[], read: GapReader) {
     if (!s.copy.done || !s.ads.final || !s.copy.scanner.count) return;
-    const g = (s.gaps ??= { running: false, done: new Set(), secs: 0, ads: [] });
+    const g = (s.gaps ??= { running: false, done: new Set(), secs: 0, ads: [], errors: [] });
     if (g.running) return;
     g.running = true;
     try {
@@ -445,7 +445,7 @@ export function createPlayer(o: PlayOptions = {}) {
         const id = `${Math.round(sp.s)}-${Math.round(sp.e)}`, len = sp.e - sp.s;
         if (g.done.has(id) || g.secs + len > 1200 || !sessions.has(s.id)) continue;
         g.done.add(id); g.secs += len;
-        const ads = await read(sp.fp, await extractCopy(s, sp.s, sp.e), len).catch(() => null);
+        const ads = await read(sp.fp, await extractCopy(s, sp.s, sp.e), len).catch((x: any) => { g.errors = [...g.errors, String(x?.message || x).slice(0, 200)].slice(-3); return null; });
         for (const r of ads ?? []) {
           // Edges near the stretch's own edges are its edges (the show, or a known ad, is right there).
           let a = sp.s + r.s, b = sp.s + r.e;
@@ -787,7 +787,7 @@ export function startPlayDiagnostics(kv: KVLike, player: Player, dir?: Pick<Dire
         if (dir && s.copy.done) { try { uncoveredNow = player.uncovered(s, await dir.contentChunks(String(ep.id))); } catch (x: any) { uncoveredNow = String(x?.message || x); } }
         const e = player.episodes.get(String(ep.id));
         await kv.set(`diag:play:${ep.id}`, {
-          request: req.id, at: new Date().toISOString(), ms: marks, ads: s.ads, tx, opening: s.opening, gaps: s.gaps ? { secs: s.gaps.secs, done: Array.from(s.gaps.done), ads: s.gaps.ads } : null, uncovered: uncoveredNow,
+          request: req.id, at: new Date().toISOString(), ms: marks, ads: s.ads, tx, opening: s.opening, gaps: s.gaps ? { secs: s.gaps.secs, done: Array.from(s.gaps.done), ads: s.gaps.ads, errors: s.gaps.errors } : null, uncovered: uncoveredNow,
           copy: { bytes: s.copy.bytes, total: s.copy.total, frames: s.copy.scanner.count, secs: Math.round(s.copy.scanner.time * 100) / 100, err: s.copy.err, host: s.copy.finalHost },
           refs: (e?.refs ?? []).map((r) => ({ agent: r.agent, secs: Math.round(r.copy.scanner.time * 100) / 100, err: r.copy.err, done: r.copy.done })),
         });
