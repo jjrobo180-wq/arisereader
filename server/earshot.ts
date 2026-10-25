@@ -263,7 +263,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (limited(previewing, req, res, "previews")) return;
     try {
       let m = await dir.moment(show, id);
-      if (!m.audio && options.socialDb) {
+      if (!m.audio && !m.temp && options.socialDb) {
         const blob = await dir.cutRange(show, id, m.s, m.e);
         const bucket = options.socialDb().storage.from("podcast-uploads"), path = `moments/${id}.mp3`;
         const { error } = await bucket.upload(path, blob, { contentType: "audio/mpeg", upsert: true });

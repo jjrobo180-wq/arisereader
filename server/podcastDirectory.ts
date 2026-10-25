@@ -106,7 +106,7 @@ export function pacedFetcher(inner: Fetcher, pace = APPLE_PACE, maxWait = 12_000
 // ---------------------------------------------------------------------------
 
 /** An episode's best ~45 seconds for Explore's previews (seconds in the host's copy). best: the AI picked it. */
-export type Moment = { s: number; e: number; quote: string; hook: string; best: boolean; audio?: string };
+export type Moment = { s: number; e: number; quote: string; hook: string; best: boolean; audio?: string; /** A stand-in while the AI is busy: not kept, picked properly later. */ temp?: boolean };
 export const MOMENT_SYSTEM = `You pick the single best moment of a podcast for a 45-second preview that makes someone want the whole episode. It has to stand on its own: a complete thought, a story beat, a surprising fact, a strong opinion or a funny exchange, starting at the start of a sentence. Never an ad, sponsor read, promo, intro, outro, or a request to subscribe or rate. Lines are "#number [seconds] text". Reply with JSON only: {"start": first line number, "end": last line number, "hook": a 3-8 word teaser in plain words, "quote": the most striking sentence in it, word for word}. The stretch should run 30 to 60 seconds.`;
 /** The AI's pick checked against the transcript: real lines, in order, 20-70 s long (trimmed to 60). */
 export function pickMoment(segs: { s: number; e: number; t: string }[], v: any): Moment | null {
@@ -208,6 +208,9 @@ async function openAiCall(send: () => Promise<Response>, what: string): Promise<
     const code = String(body?.error?.code || body?.error?.type || "");
     if (res.status === 429 && Date.now() - lastSaid > 5 * 60_000) { lastSaid = Date.now(); console.warn(`[earshot] OpenAI ${what} 429: ${code} ${String(body?.error?.message || "").slice(0, 300)} | limit-requests=${res.headers.get("x-ratelimit-limit-requests")} remaining-requests=${res.headers.get("x-ratelimit-remaining-requests")} reset=${res.headers.get("x-ratelimit-reset-requests")}`); }
     if (res.status === 429 && /quota|billing|credit/i.test(code)) throw new Error("quota");
+    // A daily or hourly allowance used up: no point waiting seconds. Says when it frees up.
+    const said = String(body?.error?.message || "");
+    if (res.status === 429 && /per (day|hour)|\((TPD|RPD|ASPH|ASPD)\)/i.test(said)) throw Object.assign(new Error("dry"), { retryMs: retryAfter(said) });
     if ((res.status === 429 || res.status >= 500) && tryNo < 2) {
       const wait = Math.min(8, Number(res.headers.get("retry-after")) || 1.5 * (tryNo + 1));
       await new Promise((r) => setTimeout(r, wait * 1000));
@@ -216,17 +219,45 @@ async function openAiCall(send: () => Promise<Response>, what: string): Promise<
     throw new Error(res.status === 429 ? "busy" : `${what} ${res.status}${code ? ` ${code}` : ""}`);
   }
 }
-/** Groq's hosted model (OpenAI-compatible), used when OpenAI is out of credit. */
-const groqJson: AskJson = async (system, user) => {
+/** "Please try again in 7m46.5s" → milliseconds (10 minutes when it doesn't say). */
+export function retryAfter(message: string): number {
+  const m = /try again in\s+(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:([\d.]+)s)?/i.exec(message);
+  const ms = m ? ((Number(m[1]) || 0) * 3600 + (Number(m[2]) || 0) * 60 + (Number(m[3]) || 0)) * 1000 : 0;
+  return Math.min(6 * 3600_000, Math.max(60_000, ms || 10 * 60_000));
+}
+// Groq gives each model its own free allowance, so when one is used up for the hour or day the next
+// one answers: ad-finding keeps going instead of stopping until tomorrow.
+const groqDry = new Map<string, number>();
+let lastStrain = 0;
+/** Whether the AI was turned away lately (extras like previews then step aside for ad-skipping). */
+export const aiStrained = () => Date.now() - lastStrain < 30 * 60_000;
+const uniq = (list: (string | undefined)[]) => [...new Set(list.filter((x): x is string => !!x))];
+export async function onGroq<T>(models: string[], run: (model: string) => Promise<T>): Promise<T> {
+  for (const m of models) {
+    if ((groqDry.get(m) ?? 0) > Date.now()) continue;
+    try { return await run(m); }
+    catch (e: any) {
+      if (e?.message !== "dry" && e?.message !== "busy") throw e;
+      lastStrain = Date.now();
+      groqDry.set(m, Date.now() + (e?.message === "dry" ? e.retryMs ?? 10 * 60_000 : 60_000));
+    }
+  }
+  lastStrain = Date.now();
+  throw new Error("busy");
+}
+const GROQ_AI = () => uniq([process.env.EARSHOT_GROQ_AD_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]);
+const GROQ_STT = () => uniq([process.env.EARSHOT_GROQ_MODEL, "whisper-large-v3-turbo", "whisper-large-v3"]);
+/** Groq's hosted models (OpenAI-compatible), used when OpenAI is out of credit. */
+const groqJson: AskJson = (system, user) => onGroq(GROQ_AI(), async (model) => {
   const res = await openAiCall(() => fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: process.env.EARSHOT_GROQ_AD_MODEL || "openai/gpt-oss-120b", temperature: 0, max_tokens: 4000, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+    body: JSON.stringify({ model, temperature: 0, max_tokens: 4000, response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
     signal: AbortSignal.timeout(60_000),
   }), "groq ai");
   const body: any = await res.json().catch(() => null);
   return String(body?.choices?.[0]?.message?.content || "");
-};
+});
 let openAiDryUntil = 0;
 export const openAiJson: AskJson = async (system, user) => {
   // Out of OpenAI credit: Groq answers instead (checking OpenAI again every 10 minutes).
@@ -248,11 +279,12 @@ const openAiJsonOnly: AskJson = async (system, user) => {
   return String(body?.choices?.[0]?.message?.content || "");
 };
 /** Speech to text: Groq's Whisper when GROQ_API_KEY is set (about 9x cheaper and faster), else OpenAI's. */
-export const openAiTranscribe: Transcriber = async (audio, name, prompt) => {
-  const groq = !!process.env.GROQ_API_KEY;
+export const openAiTranscribe: Transcriber = (audio, name, prompt) => (process.env.GROQ_API_KEY ? onGroq(GROQ_STT(), (model) => transcribeWith(audio, name, prompt, model)) : transcribeWith(audio, name, prompt, ""));
+async function transcribeWith(audio: Blob, name: string, prompt: string | undefined, groqModel: string) {
+  const groq = !!groqModel;
   const form = new FormData();
   form.append("file", audio, name);
-  form.append("model", groq ? (process.env.EARSHOT_GROQ_MODEL || "whisper-large-v3-turbo") : "whisper-1");
+  form.append("model", groq ? groqModel : "whisper-1");
   if (prompt) form.append("prompt", prompt.slice(0, groq ? 400 : 800));
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "segment");
@@ -265,7 +297,7 @@ export const openAiTranscribe: Transcriber = async (audio, name, prompt) => {
     segments: (Array.isArray(body?.segments) ? body.segments : []).map((s: any) => ({ start: Number(s.start) || 0, end: Number(s.end) || 0, text: String(s.text || "") })),
     words: (Array.isArray(body?.words) ? body.words : []).map((w: any) => ({ start: Number(w.start) || 0, end: Number(w.end) || 0, word: String(w.word || "") })),
   };
-};
+}
 
 export function createDirectory(options: DirectoryOptions = {}) {
   const kv = options.kv ?? memoryKV();
@@ -705,6 +737,11 @@ export function createDirectory(options: DirectoryOptions = {}) {
   async function moment(showId: string, episodeId: string): Promise<Moment> {
     const known = await moments.peek(episodeId);
     if (known) return known.value;
+    if (aiStrained() && !options.transcribe) {
+      const m = await audioMap(showId, episodeId);
+      const w0 = Math.max(0, Math.min(Math.round(m.dur * 0.33), Math.round(m.dur - MOMENT_WINDOW - 5)));
+      return { s: w0 + 15, e: Math.min(m.dur, w0 + 60), quote: "", hook: "", best: false, temp: true };
+    }
     return moments.refresh(episodeId, async () => {
       const m = await audioMap(showId, episodeId);
       const w0 = Math.max(0, Math.min(Math.round(m.dur * 0.33), Math.round(m.dur - MOMENT_WINDOW - 5)));

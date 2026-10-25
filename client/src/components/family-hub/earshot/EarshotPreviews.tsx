@@ -39,7 +39,7 @@ export function Previews({ api, picks, onClose, onPlay, onShow, onHush }: { api:
   const audio = useMemo(() => { const a = new Audio(); a.preload = "auto"; return a; }, []);
   // Ask for this one and the next two; failures just get skipped past.
   useEffect(() => {
-    for (const p of picks.slice(active, active + 3)) {
+    for (const p of picks.slice(active, active + 2)) {
       if (asked.current.has(p.ep.id)) continue;
       asked.current.add(p.ep.id);
       api(`/api/earshot/moment/${encodeURIComponent(p.ep.id)}?show=${encodeURIComponent(p.ep.showId || p.show.id)}`)
