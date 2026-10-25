@@ -284,8 +284,8 @@ function Rail({ label, n, on, onClick, children }: { label: string; n?: number; 
 function shareLink(ctx: Ctx, post: Post) {
   const ep = shown(post).episode;
   const url = `${location.origin}${ep ? `/?s=${ep.showId}&e=${ep.id}` : ""}`;
-  const text = shown(post).clip?.quote ? `“${shown(post).clip!.quote}” — ${ep?.show ?? ""}` : shown(post).caption || ep?.title || "Podscroll";
-  if (navigator.share) void navigator.share({ title: ep?.title || "Podscroll", text, url }).catch(() => {});
+  const text = shown(post).clip?.quote ? `“${shown(post).clip!.quote}” — ${ep?.show ?? ""}` : shown(post).caption || ep?.title || "Pod+";
+  if (navigator.share) void navigator.share({ title: ep?.title || "Pod+", text, url }).catch(() => {});
   else void navigator.clipboard?.writeText(`${text} ${url}`).then(() => ctx.say("Link copied."), () => ctx.say(url));
 }
 
