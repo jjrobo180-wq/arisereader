@@ -892,14 +892,18 @@ function Card(p: CardProps) {
     const meta = [when, ep ? durationWords(ep.secs) : ""].filter(Boolean).join(" · ");
     return <article data-i={p.i} className="relative h-full snap-start overflow-hidden [scroll-snap-stop:always]" aria-label={ep ? `${ep.title}, ${item.show.name}` : item.show.name}>
       <style>{APPLE_ART}</style>
-      {/* Behind everything, the art blurred and darkened, so the whole page takes on its colors. */}
+      <style>{COVER_MOTION}</style>
+      {/* Behind everything, the art blurred and darkened, so the whole page takes on its colors. It
+          turns slowly while playing. */}
       <div aria-hidden className="absolute inset-0 overflow-hidden bg-[#0e0d10]">
-        <img src={hiRes(art, 300)} alt="" referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} className="absolute inset-0 h-full w-full scale-125 object-cover opacity-70 blur-3xl" />
+        <div className="es-m absolute -inset-[35%] bg-cover bg-center opacity-70 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")`, animation: p.playing ? "esSpin 80s linear infinite" : "none" }} />
         <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/50 to-black/80" />
       </div>
-      {/* The art itself, edge to edge at the top and whole (never cropped), fading into that backdrop. */}
-      <div className="ps-art absolute inset-x-0 top-0 mx-auto aspect-square w-full max-w-[62svh]">
-        <img src={hiRes(art, 1200)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="h-full w-full bg-white/5 object-cover" />
+      {/* The art itself, edge to edge at the top, fading into that backdrop. While it plays it drifts
+          (a slow pan and zoom) with a light sweep now and then; paused, it settles. */}
+      <div className="ps-art absolute inset-x-0 top-0 mx-auto aspect-square w-full max-w-[62svh] overflow-hidden">
+        <img src={hiRes(art, 1200)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
         <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/45 to-transparent" />
       </div>
       <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
