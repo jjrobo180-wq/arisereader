@@ -1,7 +1,7 @@
 // The Earshot/Podscroll podcast player: genre setup, the swipe feed, Explore, Library and the sheets.
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Bookmark, Check, ExternalLink, FileText, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
   GENRES, GENRE, SPEEDS, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
@@ -758,7 +758,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
-        apple={!!standalone} speed={es.settings.speed} onSpeed={cycleSpeed} sleepOn={sleepAt !== null} onSleep={() => setSheet({ kind: "sleep" })}
+        apple={!!standalone} chapters={(i === active && txFor(it.ep)?.chapters) || NONE_CHAPTERS} lines={(i === active && txFor(it.ep)?.segments) || NONE_LINES} speed={es.settings.speed} onSpeed={cycleSpeed} sleepOn={sleepAt !== null} onSleep={() => setSheet({ kind: "sleep" })}
         ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
         adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
@@ -817,6 +817,8 @@ type CardProps = {
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
   /** Podscroll's Apple Podcasts-style card: edge-to-edge art, speed and sleep in the controls row. */
   apple: boolean; speed: number; onSpeed: () => void; sleepOn: boolean; onSleep: () => void;
+  /** What the scrubber can show about a moment: chapter names and the transcript lines loaded so far. */
+  chapters: Chapter[]; lines: TxSegment[];
   onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onNext: () => void;
 };
 /** The cover's motion while playing: a slow pan and zoom across the art, a gentle breath, a light
@@ -850,6 +852,7 @@ function Cover({ art, alt, eager, playing, children }: { art: string; alt: strin
 function Card(p: CardProps) {
   const { item, counts: c } = p; const ep = item.ep; const art = ep?.art || item.show.art;
   const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [scrubbing, setScrubbing] = useState(false);
   const lastTap = useRef(0); const tapT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onTap = (e: ReactMouseEvent<HTMLButtonElement>) => {
     p.onTapStart();
@@ -881,13 +884,6 @@ function Card(p: CardProps) {
     <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={25} strokeWidth={1.5} className={p.saved ? "fill-current" : ""} /></Act>
     <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={24} strokeWidth={1.5} /></Act>
   </>;
-  const seekBar = <div className="relative h-5 w-full">
-    <div className="absolute inset-x-0 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-white/20" />
-    {p.dur > 0 && p.adMarks.filter((a) => a.e - a.s < p.dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-[5px] -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.6, ((a.e - a.s) / p.dur) * 100)}%`, background: a.kind === "intro" ? "rgba(255,255,255,.3)" : a.sure ? "rgba(255,214,102,.55)" : "rgba(255,214,102,.25)" }} />)}
-    <div className="absolute left-0 top-1/2 h-[5px] -translate-y-1/2 rounded-full bg-white/75" style={{ width: `${pct}%` }} />
-    <input type="range" min={0} max={Math.max(1, Math.floor(p.dur))} value={Math.floor(p.time)} onChange={(e) => p.onSeek(Number(e.target.value))} aria-label="Seek" disabled={!p.active}
-      className="absolute inset-0 h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-0 [&::-moz-range-thumb]:w-0 [&::-moz-range-thumb]:border-0 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-1 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-transparent" />
-  </div>;
 
   if (p.apple) {
     const when = ep?.date && Number.isFinite(Date.parse(ep.date)) ? new Date(ep.date).toLocaleDateString(undefined, { month: "short", day: "numeric", ...(new Date(ep.date).getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) }) : "";
@@ -915,7 +911,7 @@ function Card(p: CardProps) {
       <div className="pointer-events-none relative z-[2] mx-auto flex h-full w-full max-w-[560px] flex-col justify-end px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {/* Title on the left, the side buttons on the right, both just above the scrubber. */}
         <div className="flex items-end gap-2">
-          <div className="min-w-0 flex-1 pb-1">
+          <div className={`min-w-0 flex-1 pb-1 transition-opacity duration-200 ${scrubbing ? "opacity-30" : ""}`}>
             {meta && <p className="truncate text-[13px] text-white/55">{meta}</p>}
             <h2 className="mt-0.5 line-clamp-2 text-[21px] font-bold leading-tight tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
             <button type="button" onClick={p.onShow} className="pointer-events-auto mt-0.5 block max-w-full truncate text-left text-[17px] text-white/60 hover:text-white/85">{item.show.name}</button>
@@ -926,16 +922,12 @@ function Card(p: CardProps) {
               </span>
             </div>}
           </div>
-          <div className="pointer-events-auto -mr-4 flex w-14 flex-none flex-col items-center">{rail(true)}</div>
+          <div className={`pointer-events-auto -mr-4 flex w-14 flex-none flex-col items-center transition-opacity duration-200 ${scrubbing ? "opacity-20" : ""}`}>{rail(true)}</div>
         </div>
 
         {ep && <div className="pointer-events-auto mt-4 flex flex-col">
-          {seekBar}
-          <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center text-[12px] tabular-nums text-white/45">
-            <span>{clock(p.time)}</span>
-            {p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="Mark an ad" title="Mark an ad" className="grid h-8 w-8 place-items-center rounded-full text-white/40 hover:text-white/80"><Megaphone size={15} strokeWidth={1.7} /></button> : <span className="h-8" />}
-            <span className="text-right">-{clock(Math.max(0, p.dur - p.time))}</span>
-          </div>
+          <Scrubber time={p.time} dur={p.dur} active={p.active} ads={p.adMarks} chapters={p.chapters} lines={p.lines} onSeek={p.onSeek} onScrubbing={setScrubbing}
+            middle={p.unlocked && p.active && !p.marking ? <button type="button" onClick={p.onMark} aria-label="Mark an ad" title="Mark an ad" className="grid h-8 w-8 place-items-center rounded-full text-white/40 hover:text-white/80"><Megaphone size={15} strokeWidth={1.7} /></button> : null} />
           <div className="mt-3 flex items-center justify-between">
             <button type="button" onClick={p.onSpeed} aria-label={`Playback speed ${p.speed}×. Tap to change.`} className="grid h-12 w-12 place-items-center rounded-full text-[17px] font-semibold text-white/80">{p.speed}×</button>
             <button type="button" onClick={p.onBack} aria-label="Back 15 seconds" className="relative grid h-14 w-14 place-items-center rounded-full text-white"><RotateCcw size={36} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[11px] font-bold">15</span></button>
@@ -1030,6 +1022,112 @@ function Card(p: CardProps) {
     </div>
   </article>;
 }
+const NONE_CHAPTERS: Chapter[] = [];
+const NONE_LINES: TxSegment[] = [];
+/** How much slower the scrub goes as the finger slides up away from the bar, and what it's called. */
+const SCRUB_RATES: [number, number, string][] = [[140, 0.1, "Fine scrubbing"], [90, 0.25, "Quarter-speed scrubbing"], [40, 0.5, "Half-speed scrubbing"], [0, 1, ""]];
+const rateAt = (lift: number) => SCRUB_RATES.find(([d]) => lift >= d)!;
+const signedClock = (secs: number) => `${secs < 0 ? "−" : "+"}${clock(Math.abs(secs))}`;
+
+/**
+ * Podscroll's scrubber. Like Apple Podcasts: grab anywhere on the bar, it swells under the finger,
+ * the times follow along, and the audio only jumps when the finger lifts. Sliding the finger up off
+ * the bar scrubs slower (half, quarter, then fine). Podscroll's own part is the card that rides above
+ * the finger: where you'll land, how far that is from where you were, and what's happening there:
+ * the words being said (from the transcript), the chapter, or an ad. A tick stays on the bar where
+ * you started, and the phone gives a small tap as the finger crosses into an ad or a new chapter.
+ */
+function Scrubber({ time, dur, active, ads, chapters, lines, onSeek, onScrubbing, middle }: {
+  time: number; dur: number; active: boolean; ads: PlayAd[]; chapters: Chapter[]; lines: TxSegment[];
+  onSeek: (t: number) => void; onScrubbing: (on: boolean) => void; middle: ReactNode;
+}) {
+  const track = useRef<HTMLDivElement | null>(null);
+  // The drag: where it began, the point the current speed is measured from, and the landing spot.
+  const drag = useRef<{ id: number; from: number; y0: number; x0: number; base: number; rate: number; zone: string } | null>(null);
+  const [at, setAt] = useState<number | null>(null);
+  const [rate, setRate] = useState(1);
+  const live = at !== null;
+  const shown = live ? at : time;
+  const pct = (t: number) => (dur ? Math.min(100, Math.max(0, (t / dur) * 100)) : 0);
+  const clamp = (t: number) => Math.min(Math.max(0, dur - 1), Math.max(0, t));
+  const timeAtX = (x: number) => { const r = track.current!.getBoundingClientRect(); return clamp(((x - r.left) / r.width) * dur); };
+  const adAt = (t: number) => ads.find((a) => t >= a.s && t < a.e && a.e - a.s < dur * 0.6);
+  const chapterAt = (t: number) => { let c: Chapter | undefined; for (const ch of chapters) { if (ch.s <= t) c = ch; else break; } return c; };
+  const lineAt = (t: number) => lines.find((l) => t >= l.s && t < l.e) ?? lines.find((l) => Math.abs(l.s - t) < 8);
+  const zoneOf = (t: number) => { const a = adAt(t); return a ? `ad:${a.key}` : `ch:${chapterAt(t)?.s ?? -1}`; };
+
+  const end = (seek: boolean) => {
+    const d = drag.current; drag.current = null;
+    if (d && seek && at !== null) onSeek(at);
+    setAt(null); setRate(1); onScrubbing(false);
+  };
+  const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!active || !dur || drag.current) return;
+    e.preventDefault(); e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const t = timeAtX(e.clientX);
+    drag.current = { id: e.pointerId, from: time, y0: e.clientY, x0: e.clientX, base: t, rate: 1, zone: zoneOf(t) };
+    setAt(t); onScrubbing(true);
+  };
+  const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current; if (!d || e.pointerId !== d.id) return;
+    const r = track.current!.getBoundingClientRect();
+    const [, nextRate] = rateAt(d.y0 - e.clientY);
+    // Changing speed starts measuring again from here, so the landing spot never jumps.
+    if (nextRate !== d.rate) { d.base = clamp(d.base + ((e.clientX - d.x0) / r.width) * dur * d.rate); d.x0 = e.clientX; d.rate = nextRate; setRate(nextRate); }
+    const t = clamp(d.base + ((e.clientX - d.x0) / r.width) * dur * d.rate);
+    const zone = zoneOf(t);
+    if (zone !== d.zone) { d.zone = zone; try { navigator.vibrate?.(8); } catch { /* no haptics here */ } }
+    setAt(t);
+  };
+  const onKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowRight" ? 10 : e.key === "ArrowLeft" ? -10 : e.key === "Home" ? -time : e.key === "End" ? dur - time - 1 : 0;
+    if (!step || !active || !dur) return;
+    e.preventDefault(); onSeek(clamp(time + step));
+  };
+
+  const ad = live ? adAt(at) : undefined;
+  const chapter = live ? chapterAt(at) : undefined;
+  const line = live ? lineAt(at) : undefined;
+  const label = rate < 1 ? SCRUB_RATES.find(([, r]) => r === rate)?.[2] ?? "" : "";
+  const delta = live ? at - (drag.current?.from ?? time) : 0;
+  const from = drag.current?.from ?? time;
+
+  return <div className="flex flex-col">
+    <div ref={track} role="slider" tabIndex={active ? 0 : -1} aria-label="Seek" aria-valuemin={0} aria-valuemax={Math.floor(dur)} aria-valuenow={Math.floor(shown)} aria-valuetext={`${clock(shown)} of ${clock(dur)}`} aria-disabled={!active}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => end(true)} onPointerCancel={() => end(false)} onLostPointerCapture={() => drag.current && end(true)} onKeyDown={onKey}
+      className="relative h-9 w-full cursor-pointer touch-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full">
+      {/* The bar: thin at rest, swelling while you scrub. */}
+      <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-white/20 transition-[height,background-color] duration-200 ease-out ${live ? "h-[14px] bg-white/25" : "h-[5px]"}`}>
+        <div className={`absolute inset-y-0 left-0 ${live ? "bg-white" : "bg-white/75"}`} style={{ width: `${pct(shown)}%` }} />
+        {dur > 0 && ads.filter((a) => a.e - a.s < dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute inset-y-0" style={{ left: `${pct(a.s)}%`, width: `${Math.max(0.6, pct(a.e) - pct(a.s))}%`, background: a.kind === "intro" ? "rgba(255,255,255,.3)" : a.sure ? "rgba(255,200,60,.9)" : "rgba(255,200,60,.45)" }} />)}
+        {dur > 0 && chapters.length > 1 && chapters.slice(1).map((c) => <div key={c.s} className="absolute inset-y-0 w-[2px] bg-black/50" style={{ left: `${pct(c.s)}%` }} />)}
+      </div>
+      {/* Where you were when you grabbed it. */}
+      {live && <div aria-hidden className="pointer-events-none absolute top-1/2 h-[22px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/60 shadow-[0_0_0_2px_rgba(0,0,0,.35)]" style={{ left: `${pct(from)}%` }} />}
+
+      {/* The card above the finger. */}
+      {live && <div aria-hidden className="pointer-events-none absolute bottom-[calc(100%+14px)] z-10 w-[min(17rem,calc(100vw-3rem))] -translate-x-1/2 animate-[psRise_.18s_ease-out] rounded-2xl bg-black/80 p-3 shadow-[0_12px_40px_-12px_rgba(0,0,0,.9)] ring-1 ring-white/10 backdrop-blur-xl"
+        style={{ left: `clamp(8.5rem, ${pct(at)}%, calc(100% - 8.5rem))` }}>
+        <style>{"@keyframes psRise{from{opacity:0;transform:translate(-50%,6px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}"}</style>
+        <div className="flex items-baseline justify-between gap-3">
+          <b className="text-[26px] font-bold leading-none tabular-nums tracking-tight">{clock(at)}</b>
+          {Math.abs(delta) >= 1 && <span className={`rounded-full px-2 py-0.5 text-xs font-bold tabular-nums ${delta < 0 ? "bg-white/15 text-white/85" : "bg-white text-[#0e0d10]"}`}>{signedClock(delta)}</span>}
+        </div>
+        {ad ? <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#ffd666]"><Megaphone size={12} />{ad.kind === "intro" ? "Intro" : ad.label && !/^(ad break|pre-roll)$/i.test(ad.label) ? `Ad · ${ad.label}` : "Ad"}</p>
+          : chapter ? <p className="mt-2 truncate text-xs font-semibold text-white/70">{chapter.title}</p> : null}
+        {line && !ad && <p className="mt-1.5 line-clamp-2 text-[13px] italic leading-snug text-white/80">“{line.t.trim()}”</p>}
+        <p className="mt-2 text-[10px] font-medium uppercase tracking-[.12em] text-white/40">{label || "Slide up to scrub slower"}</p>
+      </div>}
+    </div>
+    <div className="mt-0.5 grid grid-cols-[1fr_auto_1fr] items-center text-[12px] tabular-nums text-white/45">
+      <span className={live ? "text-white" : ""}>{clock(shown)}</span>
+      {middle ?? <span className="h-8" />}
+      <span className={`text-right ${live ? "text-white" : ""}`}>-{clock(Math.max(0, dur - shown))}</span>
+    </div>
+  </div>;
+}
+
 /** One side action: a thin icon over a small quiet label (or its count). */
 function Act({ children, label, n, on, onClick, disabled }: { children: ReactNode; label: string; n?: number; on?: boolean; onClick: () => void; disabled?: boolean }) {
   const shown = typeof n === "number" && n > 0 ? compact(n) : ["Like", "Comments", "Share"].includes(label) ? "" : label;
