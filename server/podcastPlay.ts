@@ -779,9 +779,15 @@ export function startPlayDiagnostics(kv: KVLike, player: Player, dir?: Pick<Dire
           marks.transcript = Date.now() - t0;
           tx = c && !c.error ? { source: c.source, reason: c.reason, segments: c.segments.length, first: c.segments.slice(0, 4), ads: c.ads, more: c.more } : c;
         }
+        // The opening and the stretches no read-along covers, as a listener would get them.
+        const tg = Date.now();
+        while (Date.now() - tg < 150_000 && s.ads.final && (s.opening === "running" || s.gaps?.running)) await new Promise((r) => setTimeout(r, 1000));
+        marks.gaps = Date.now() - t0;
+        let uncoveredNow: any = null;
+        if (dir && s.copy.done) { try { uncoveredNow = player.uncovered(s, await dir.contentChunks(String(ep.id))); } catch (x: any) { uncoveredNow = String(x?.message || x); } }
         const e = player.episodes.get(String(ep.id));
         await kv.set(`diag:play:${ep.id}`, {
-          request: req.id, at: new Date().toISOString(), ms: marks, ads: s.ads, tx,
+          request: req.id, at: new Date().toISOString(), ms: marks, ads: s.ads, tx, opening: s.opening, gaps: s.gaps ? { secs: s.gaps.secs, done: Array.from(s.gaps.done), ads: s.gaps.ads } : null, uncovered: uncoveredNow,
           copy: { bytes: s.copy.bytes, total: s.copy.total, frames: s.copy.scanner.count, secs: Math.round(s.copy.scanner.time * 100) / 100, err: s.copy.err, host: s.copy.finalHost },
           refs: (e?.refs ?? []).map((r) => ({ agent: r.agent, secs: Math.round(r.copy.scanner.time * 100) / 100, err: r.copy.err, done: r.copy.done })),
         });
