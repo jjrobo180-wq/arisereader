@@ -482,7 +482,8 @@ export function createDirectory(options: DirectoryOptions = {}) {
   async function transcribePrompt(showId: string, showName: string) {
     const prof = (await profiles.peek(showId))?.value;
     const sponsors = prof ? Object.entries(prof.sponsors || {}).sort((a, b) => b[1] - a[1]).slice(0, 12).map((x) => x[0]) : [];
-    return `${showName}.${sponsors.length ? ` Sponsors: ${sponsors.join(", ")}.` : ""}`;
+    // Names only (a label like "Sponsors:" gets written into the transcript by some models).
+    return [showName, ...sponsors].filter(Boolean).join(", ") + ".";
   }
 
   /** One 10-minute piece of an episode's show audio (stitched-in ads left out), transcribed from a
