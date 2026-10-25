@@ -15,6 +15,7 @@ import {
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
+import { registerSocialRoutes } from "./podcastSocial";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -125,6 +126,8 @@ export interface EarshotOptions {
   adStore?: AdStore;
   /** Playback through this server, so stitched-in ads are found in each listener's own copy (server/podcastPlay.ts). */
   player?: Player;
+  /** The database for social (profiles, posts, uploads; server/podcastSocial.ts). */
+  socialDb?: () => any;
 }
 let sharedAdStore: AdStore | null = null;
 const openingsStarted = new WeakSet<object>();
@@ -256,6 +259,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   const adStore = options.adStore ?? (sharedAdStore ??= memoryAdStore());
   const player = options.player;
   registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
+  if (options.socialDb) registerSocialRoutes(app, authMiddleware, { prefix: P, getDb: options.socialDb, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, allowed: (req: any) => !isStudent(req) });
   if (player) {
     if (!openingsStarted.has(player)) { openingsStarted.add(player); startOpenings(player, dir); }
     registerPlayRoutes(app, authMiddleware, {
@@ -346,7 +350,7 @@ export function podscrollAllowed(origin: string, extra: string[] = []): boolean 
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */
 const clientIp = (req: any) => { const f = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean); return f[f.length - 1] || String(req.socket?.remoteAddress || ""); };
 
-export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player) {
+export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player, socialDb?: () => any) {
   const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
   const perIp = createAttemptLimiter({ max: 900, windowMs: 10 * 60_000 });
   app.use("/api/podscroll", (req: any, res: any, next: any) => {
@@ -371,5 +375,5 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     req.user = { id: device, role: "public", displayName: typeof req.body?.name === "string" ? req.body.name : "" };
     next();
   };
-  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, prefix: "/api/podscroll" });
+  registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
 }

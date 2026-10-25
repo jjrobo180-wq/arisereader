@@ -161,7 +161,7 @@ test("Podscroll: its own site, calling the public routes", () => {
   const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   assert.ok(podscrollAllowed("https://podscroll.onrender.com") && podscrollAllowed("http://localhost:5173"));
   assert.ok(!podscrollAllowed("https://evil.example") && !podscrollAllowed(""), "other sites can't call it");
-  assert.match(read("server/routes.ts"), /registerPodscrollRoutes\(app, supabaseEarshotStore\(getAdminSupabase, "podscroll"\), undefined, podcasts, podcastAds, podcastPlayer\)/);
+  assert.match(read("server/routes.ts"), /registerPodscrollRoutes\(app, supabaseEarshotStore\(getAdminSupabase, "podscroll"\), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase\)/);
   assert.match(read("server/routes.ts"), /const podcastPlayer = createPodcastPlayer\(\)/, "one player (playback through the server) for both apps");
   assert.match(read("server/routes.ts"), /podcasts\.warm\(\)/, "the directory warms up in the background");
   assert.match(read("server/routes.ts"), /const podcastAds = supabaseAdStore\(getAdminSupabase\)/, "listeners' ad marks are kept in the database");

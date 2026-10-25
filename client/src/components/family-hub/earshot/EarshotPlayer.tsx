@@ -9,13 +9,14 @@ import {
 } from "@shared/earshot";
 import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
 import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
+import { ShareSheet, SocialTab, postEpisodeOf } from "./EarshotSocial";
 import { hiRes, type PodMode } from "@shared/earshot";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
 type Comment = { id: string; author: string; body: string; at: string; mine: boolean };
 /** want: a particular episode to load (from a Pod Mode or a saved one without its audio). */
 type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string };
-type Tab = "foryou" | "following" | "explore" | "library";
+type Tab = "foryou" | "following" | "social" | "explore" | "library";
 
 export const ACCENT = "#ff8a3d";
 const nowIso = () => new Date().toISOString();
@@ -92,7 +93,7 @@ type SessionAds = { ready: boolean; final: boolean; pending?: boolean; startAt?:
 type PlaySession = { sid: string; showId: string; ads: SessionAds | null; polls: number; timer: ReturnType<typeof setTimeout> | null; used: number; retried?: boolean };
 const newSid = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, (b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b & 63]).join(""); };
 /** Audio formats the server can look inside (MP3); others play straight from the host. */
-const throughServer = (url: string) => !/\.(m4a|mp4|aac|m4b|ogg|opus|wav|flac)(\?|$)/i.test(url);
+const throughServer = (url: string) => !/\.(m4a|mp4|aac|m4b|ogg|opus|wav|flac|webm)(\?|$)/i.test(url) && !/\/storage\/v1\/object\/public\//.test(url);
 
 // ---- where each episode was left off, kept on this device ----
 type Spot = { t: number; secs: number; title: string; show: string; showId: string; art: string; at: number };
@@ -137,7 +138,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [dur, setDur] = useState(0);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [commentsOn, setCommentsOn] = useState(!student);
-  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string }>(null);
+  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string } | { kind: "share"; ep: PodEpisode; genre: string; show: PodShow }>(null);
   const sheetRef = useRef(sheet); sheetRef.current = sheet;
   const [poolTick, setPoolTick] = useState(0);
   const [loadError, setLoadError] = useState("");
@@ -452,7 +453,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   useEffect(() => { if (activeEpId && cur.current?.dataset.ep !== activeEpId) activate(active, unlockedRef.current); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeEpId]);
   useEffect(() => { const n = items[active + 1]?.ep; if (n && cur.current) playerFor(n, [cur.current]); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nextEpId]);
   useEffect(() => { if (cur.current) cur.current.playbackRate = es.settings.speed; }, [es.settings.speed]);
-  useEffect(() => { if (tab === "explore" || tab === "library") pausePlayer(); }, [tab]);
+  useEffect(() => { if (tab === "explore" || tab === "library" || tab === "social") pausePlayer(); }, [tab]);
   useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime); }; window.addEventListener("pagehide", save); return () => window.removeEventListener("pagehide", save); }, []);
 
   const goTo = (i: number) => {
@@ -666,6 +667,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const on = !es.saved.some((x) => x.id === ep.id);
     update((e) => ({ ...e, saved: on ? [savedOf(ep), ...e.saved].slice(0, 300) : e.saved.filter((x) => x.id !== ep.id) }));
     if (on) { signal(genre, "save"); say("Saved to your Library."); }
+    // Bookmarks show on your social profile (when you have one).
+    if (!student) api("/api/earshot/social/bookmark", { method: "POST", body: { episode: postEpisodeOf(ep), on } }).catch(() => {});
   };
   const share = async (ep: PodEpisode, genre: string, show?: PodShow) => {
     const link = show && shareLink ? shareLink(show, ep) : ep.link;
@@ -721,7 +724,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- layout ----------------
   const shell = standalone ? "fixed inset-x-0 top-[env(safe-area-inset-top,0px)] bottom-[env(safe-area-inset-bottom,0px)]" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
-  const tabs: [Tab, string][] = [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]];
+  const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
   const spots = tab === "library" || tab === "explore" ? readSpots() : {};
 
   return <div className={`${shell} flex flex-col overflow-hidden bg-[#120e14] text-white shadow-2xl`}>
@@ -748,7 +751,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
         onLike={() => it.ep && toggleLike(it.ep, it.show.genre)} onDoubleLike={() => it.ep && !counts[it.ep.id]?.liked && toggleLike(it.ep, it.show.genre)}
-        onSave={() => it.ep && setSheet({ kind: "addto", ep: it.ep, genre: it.show.genre })} onShare={() => it.ep && share(it.ep, it.show.genre, it.show)} onFollow={() => toggleFollow(it.show)}
+        onSave={() => it.ep && setSheet({ kind: "addto", ep: it.ep, genre: it.show.genre })} onShare={() => it.ep && setSheet({ kind: "share", ep: it.ep, genre: it.show.genre, show: it.show })} onFollow={() => toggleFollow(it.show)}
         onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
@@ -767,10 +770,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {tab === "explore" && <Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow}
       onGenre={(g) => { setGenreMode(g); setTab("foryou"); }} onShow={(show) => setSheet({ kind: "show", show })} onEpisode={playNow}
       onResume={(id, s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />}
+    {tab === "social" && !student && <SocialTab api={api} say={say} onPlay={playNow} />}
     {tab === "library" && <Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />}
 
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
     {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
+    {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
     {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, `${m.icon} ${m.name}`)} onClose={() => setSheet(null)} /> : null; })()}
     {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={(v) => { setSleepAt(v); say(v === null ? "Sleep timer off." : v === "end" ? "Stopping at the end of this episode." : `Stopping in ${Math.round(((v as number) - Date.now()) / 60000)} minutes.`); }} />}
