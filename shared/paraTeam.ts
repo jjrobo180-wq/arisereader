@@ -27,7 +27,7 @@ export const KIND_LOAD: Record<ParaKind, number> = {
   message: 400, event: 3000, task: 3000, schedule: 400, student: 120, log: 4000, lesson: 3000, link: 1000, file: 2000, note: 300, bulletin: 500,
 };
 
-export const DOC_FOLDERS = ["IEPs & plans", "Schedules", "Behavior", "Curriculum", "Forms", "Other"] as const;
+export const DOC_FOLDERS = ["IEPs & plans", "Schedules", "Behavior", "Curriculum", "Forms", "Bulletin board", "Other"] as const;
 export type DocFolder = (typeof DOC_FOLDERS)[number];
 export const EVENT_TYPES = ["event", "meeting", "absence", "duty"] as const;
 export const BULLETIN_COLORS = ["yellow", "blue", "green", "pink", "orange"] as const;
@@ -54,7 +54,14 @@ export type FileData = { name: string; path: string; size: number; contentType: 
 export type NoteData = { title: string; body: string; pinned: boolean };
 /** A bulletin on the team's board: anyone posts one for a day, a week or any dates. It shows on the
  *  board and on everyone's Today page from `from` through `until` ("" = until it's taken down). */
-export type BulletinData = { title: string; body: string; from: string; until: string; color: (typeof BULLETIN_COLORS)[number]; important: boolean };
+export type BulletinData = { title: string; body: string; from: string; until: string; color: (typeof BULLETIN_COLORS)[number]; important: boolean; links?: BulletinLink[]; files?: BulletinFile[] };
+/** A clickable link on a bulletin. */
+export type BulletinLink = { title: string; url: string };
+/** A photo or document on a bulletin: the team's uploaded file (a "file" item, kept in Documents ›
+ *  Bulletin board), opened through the same short-lived signed link as any team file. */
+export type BulletinFile = { id: string; name: string; contentType: string; size: number };
+export const BULLETIN_MAX = { links: 10, files: 12 } as const;
+export const isImageType = (contentType: string) => /^image\//i.test(contentType);
 
 export type ParaData = {
   message: MessageData; event: EventData; task: TaskData; schedule: ScheduleData; student: StudentData;
@@ -193,12 +200,20 @@ export function cleanItemData<K extends ParaKind>(kind: K, raw: unknown): CleanR
     }
     case "bulletin": {
       const title = line(r.title, 120), body = str(r.body, 1500);
-      if (!title && !body) return no("Write the bulletin first.");
+      const links: BulletinLink[] = (Array.isArray(r.links) ? r.links : []).slice(0, BULLETIN_MAX.links).flatMap((l: any) => {
+        const url = cleanUrl(l?.url);
+        return url ? [{ url, title: line(l?.title, 120) || new URL(url).hostname.replace(/^www\./, "") }] : [];
+      });
+      const files: BulletinFile[] = (Array.isArray(r.files) ? r.files : []).slice(0, BULLETIN_MAX.files).flatMap((f: any) => {
+        const id = line(f?.id, 60), name = line(f?.name, 160);
+        return /^[0-9a-f-]{36}$/i.test(id) && name ? [{ id, name, contentType: line(f?.contentType, 100) || "application/octet-stream", size: int(f?.size) }] : [];
+      });
+      if (!title && !body && !links.length && !files.length) return no("Write the bulletin first.");
       const from = day(r.from);
       if (!from) return no("Pick the day it starts.");
       let until = day(r.until);
       if (until && until < from) return no("The last day can't be before the first day.");
-      return ok({ title, body, from, until, color: oneOf(r.color, BULLETIN_COLORS, "yellow"), important: r.important === true });
+      return ok({ title, body, from, until, color: oneOf(r.color, BULLETIN_COLORS, "yellow"), important: r.important === true, links, files });
     }
   }
   return no("That isn't something a Para Team keeps.");

@@ -302,6 +302,27 @@ test("bulletins: a day, a week, set dates or until taken down, important ones fi
   assert.deepEqual(on.map((i) => i.id), ["b", "c", "a"]);
 });
 
+test("bulletins: clickable links and several photos and documents", () => {
+  const id1 = "11111111-2222-4333-8444-555555555555", id2 = "66666666-7777-4888-8999-aaaaaaaaaaaa";
+  const r = cleanItemData("bulletin", {
+    title: "Field trip", from: "2026-10-21",
+    links: [{ title: "", url: "docs.google.com/forms/x" }, { title: "Bad", url: "javascript:alert(1)" }, { title: "Menu", url: "https://school.org/menu" }],
+    files: [{ id: id1, name: "permission slip.pdf", contentType: "application/pdf", size: 12345 }, { id: id2, name: "bus.jpg", contentType: "image/jpeg", size: 99 }, { id: "../etc/passwd", name: "x" }],
+  });
+  assert.ok(r.ok);
+  if (r.ok) {
+    assert.deepEqual(r.data.links, [{ url: "https://docs.google.com/forms/x", title: "docs.google.com" }, { url: "https://school.org/menu", title: "Menu" }], "only real web links, named by their site when unnamed");
+    assert.deepEqual(r.data.files?.map((f) => f.id), [id1, id2], "only real team file ids");
+  }
+  // A bulletin can be just a photo or just a link.
+  assert.equal(cleanItemData("bulletin", { from: "2026-10-21", files: [{ id: id1, name: "a.png", contentType: "image/png" }] }).ok, true);
+  assert.equal(cleanItemData("bulletin", { from: "2026-10-21", links: [{ url: "https://a.org" }] }).ok, true);
+  // At most 10 links and 12 files.
+  const many = cleanItemData("bulletin", { title: "x", from: "2026-10-21", links: Array.from({ length: 15 }, (_, i) => ({ url: `https://a${i}.org` })), files: Array.from({ length: 20 }, () => ({ id: id1, name: "a.png" })) });
+  assert.ok(many.ok);
+  if (many.ok) { assert.equal(many.data.links?.length, 10); assert.equal(many.data.files?.length, 12); }
+});
+
 test("the bulletin board is a tab and shows on Today", () => {
   const page = read("client/src/pages/ParaTeam.tsx");
   assert.match(page, /id: "bulletin", label: "Bulletin board"/);
