@@ -4,7 +4,8 @@
 --                    content time (the show's own audio with stitched-in ads left out), which fits
 --                    every copy: marks made while playing through the server are kept that way.
 --  podcast_ad_votes: one vote per listener per ad (-1 "not an ad", +1 "yes, an ad"); ad_key names
---                    an automatic find (a:), a listener mark group (u:) or a skip spot (c:).
+--                    an automatic find (a:, or t: when found in read along made from a listener's
+--                    copy), a listener mark group (u:) or a skip spot (c:).
 --  podcast_ad_skips: forward jumps; spots several listeners skip become "Listeners skip this".
 -- Voters are "u<Arise user id>" or "d<Podscroll device id>". Only the server's service role may use these.
 create table if not exists public.podcast_ad_marks (
