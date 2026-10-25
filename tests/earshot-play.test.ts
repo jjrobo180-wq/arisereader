@@ -205,3 +205,36 @@ async function callWith(app: any, _call: any, method: string, path: string, req:
   void app;
   return (await _call(method, path, req.params, { user: req.user, body: req.body })).res.body;
 }
+
+test("an ad found in one copy is placed without eating the show in a copy that lacks part of it", async () => {
+  const { createDirectory, memoryKV } = await import("../server/podcastDirectory");
+  const { copyTranscript } = await import("../server/podcastPlay");
+  const S = frames(600, 61), P = frames(900, 62), show = frames(6000, 63);
+  const bot = join2([...S, ...P, ...show]);
+  const phone = join2([...frames(400, 64), ...S, ...frames(300, 65), ...P, ...show]); // P is "show" to the phone
+  const tablet = join2([...frames(700, 66), ...S, ...show]); // the tablet never got P
+  const host = async (url: string, o: any, sc = new Mp3Scanner()) => fakeHost(o.ua === "Tablet" ? tablet : phone, bot)(url, o, sc);
+  const dir0 = mkdtempSync(join(tmpdir(), "earshot-play-test-"));
+  const player = createPlayer({ dir: dir0, download: host as any, key: Buffer.alloc(32, 4) });
+  const podShow = { kind: "podcast", collectionId: 11, collectionName: "Show 11", artistName: "H", primaryGenreName: "History", genres: ["History"], artworkUrl600: "https://a/600x600bb.jpg", feedUrl: "https://feed/11", releaseDate: new Date().toISOString() };
+  const podEp = { wrapperType: "podcastEpisode", kind: "podcast-episode", trackId: 22, collectionId: 11, collectionName: "Show 11", trackName: "E22", episodeUrl: "https://host.example/ep.mp3", releaseDate: "2026-10-01T00:00:00Z", trackTimeMillis: 240_000 };
+  const fetcher: any = async () => ({ results: [podShow, podEp] }); fetcher.idle = () => true;
+  const dir = createDirectory({ fetcher, kv: memoryKV(), web: (async () => new Response("<rss></rss>")) as any, aiOn: () => true,
+    transcribe: async () => ({ segments: [{ start: 0, end: 15, text: "This episode is brought to you by Acme." }, { start: 15.7, end: 39, text: "Coming soon to theaters, rated R." }, { start: 40, end: 60, text: "Welcome to the show." }] }),
+    ask: async () => JSON.stringify({ ads: [{ from: 0, to: 1, start: "This episode is brought", end: "theaters, rated R.", label: "Acme", confidence: 0.95 }] }) });
+  const { app, call } = fakeApp();
+  registerPlayRoutes(app, (_q: any, _s: any, n: any) => n(), { prefix: "/api/x", player, dir, audioFor: async () => "https://host.example/ep.mp3", voterOf: () => "u1", clientIp: () => "", cleanId: (v) => String(v ?? "").replace(/\D/g, "") });
+  try {
+    const token = (await call("get", "/api/x/play-token", {})).res.body.token;
+    const q = { e: "22", s: "11", k: token };
+    // The phone listens first (before the tablet's copy exists, so to the phone P is part of the show).
+    await call("get", "/api/x/audio/:sid", { sid: "phoneplace0000000001" }, { query: q, headers: { range: "bytes=0-1", "user-agent": "Phone" } });
+    const tx = await copyTranscript(player, dir, "phoneplace0000000001", "11", "22", 0);
+    ok(tx && tx.ads.length === 1, "found in the phone's copy");
+    await call("get", "/api/x/audio/:sid", { sid: "tabletplace000000001" }, { query: q, headers: { range: "bytes=0-1", "user-agent": "Tablet" } });
+    let ads: any = null;
+    for (let t = 0; t < 100; t++) { ads = (await call("get", "/api/x/play/:sid/ads", { sid: "tabletplace000000001" })).res.body; if (ads.final && ads.ads.some((a: any) => a.kind === "ai")) break; await new Promise((r) => setTimeout(r, 30)); }
+    const ai = ads.ads.find((a: any) => a.kind === "ai");
+    ok(ai && Math.abs(ai.s - 700 * FD) < 0.3 && ai.e <= (700 + 600) * FD + 0.3 && ai.e > (700 + 600) * FD - 1, `placed on the tablet's copy without cutting the show: ${JSON.stringify(ads.ads)}`);
+  } finally { player.stop(); rmSync(dir0, { recursive: true, force: true }); }
+});

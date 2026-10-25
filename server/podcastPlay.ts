@@ -340,7 +340,7 @@ export function createPlayer(o: PlayOptions = {}) {
     const all = chunks.flatMap((c) => c.pieces);
     const found = findKeys(X.hashes, X.count, new Set(all.flatMap((p) => p.keys.map((k) => k[1]))));
     const placed = all.map((p) => ({ p, at: p.keys.filter((k) => found.has(k[1])).map((k) => ({ ct: k[0], x: X.timeOf(found.get(k[1])!) })) }));
-    return (ct: number): number | null => {
+    const at = (ct: number): number | null => {
       const hit = placed.find((q) => ct >= q.p.ct - 0.05 && ct <= q.p.ct + q.p.len + 0.05);
       if (hit && hit.at.length) {
         let best = hit.at[0];
@@ -349,6 +349,18 @@ export function createPlayer(o: PlayOptions = {}) {
       }
       return ctToCopy(mine, ct);
     };
+    // For ad edges: counted forward from the nearest moment found before, and back from the nearest
+    // found after. Where they disagree, this copy lacks some of what's in between (another copy's
+    // stitched-in promo, say), and the edge that keeps more of the show wins.
+    const sorted = placed.flatMap((q) => q.at).sort((a, b) => a.ct - b.ct);
+    const edges = (ct: number) => {
+      let prev: { ct: number; x: number } | null = null, next: { ct: number; x: number } | null = null;
+      for (const a of sorted) { if (a.ct <= ct) prev = a; else { next = a; break; } }
+      return { fwd: prev ? prev.x + (ct - prev.ct) : null, bwd: next ? next.x - (next.ct - ct) : null };
+    };
+    const adStart = (ct: number) => { const { fwd, bwd } = edges(ct); const v = fwd !== null && bwd !== null ? Math.max(fwd, bwd) : fwd ?? bwd ?? at(ct); return v === null ? null : Math.max(0, v); };
+    const adEnd = (ct: number) => { const { fwd, bwd } = edges(ct); const v = fwd !== null && bwd !== null ? Math.min(fwd, bwd) : fwd ?? bwd ?? at(ct); return v === null ? null : Math.max(0, v); };
+    return Object.assign(at, { adStart, adEnd });
   }
   /** A read-along piece in this copy's time. */
   function inCopy(s: Session, c: ContentChunk): TranscriptChunk {
@@ -359,9 +371,9 @@ export function createPlayer(o: PlayOptions = {}) {
     const { pieces: _p, words: _w, v: _v, ...rest } = c as any;
     return { ...rest, segments, ads, chapters, dur: Math.round(s.copy.scanner.time * 100) / 100, durMode: "exact" };
   }
-  const placeAd = (at: (ct: number) => number | null, r: AdRange): AdRange | null => {
-    const a = at(r.s), b = at(r.e);
-    if (a === null || b === null || b <= a || b - a > (r.e - r.s) + 600) return null;
+  const placeAd = (at: ReturnType<typeof placer>, r: AdRange): AdRange | null => {
+    const a = at.adStart(r.s), b = at.adEnd(r.e);
+    if (a === null || b === null || b - a < 1 || b - a > (r.e - r.s) + 600) return null;
     return { ...r, s: Math.round(a * 100) / 100, e: Math.round(b * 100) / 100 };
   };
   /** Ads found in the episode's read-along pieces, placed in this copy (sure ones skip by themselves). */
