@@ -18,7 +18,9 @@ import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
 import { Mp3Scanner, alignCopies, contentPieces, copyToCt, coverage, ctToCopy, findKeys, keyAt, unmatched, type ContentPiece, type Span } from "../shared/earshotAudio";
 import type { PlayAd } from "../shared/earshotAds";
 import type { AdRange, TranscriptChunk } from "../shared/earshot";
+import { chapterAdsIn, id3Chapters, seamTimes, spliceAds } from "../shared/earshotSplice";
 import { fetchCopy } from "./podcastCopies";
+import type { AdLibrary } from "./podcastAdLibrary";
 import type { AnchorPiece, ContentChunk, Directory } from "./podcastDirectory";
 
 // ---------------------------------------------------------------------------
@@ -125,6 +127,13 @@ type Session = {
   /** Stretches of this copy's show audio no read-along piece covers (an ad the host gave this copy and
    *  the comparison copies alike, where the piece's copy had another), read on their own for ads. */
   gaps?: { running: boolean; done: Set<string>; secs: number; ads: PlayAd[]; errors: string[]; retryAt?: number };
+  /** The start has been compared with another copy (for a pre-roll). */
+  headDone?: boolean;
+  /** Ads found in this copy alone: its seams, chapters in its tag, ads known from other episodes. */
+  quick?: { at: number; done: boolean; ads: PlayAd[] };
+  fileChapters?: { s: number; e: number; label: string }[];
+  /** Its exact ads have been added to the library; known ads it had were counted. */
+  learned?: boolean; taught?: boolean; counted?: boolean;
 };
 /** Reads one stretch of a copy (transcribed and checked for ads, kept for everyone by its fingerprint);
  *  its ads in seconds from the stretch's start. */
@@ -138,6 +147,8 @@ export interface PlayOptions {
   maxSessions?: number;
   maxPerVoter?: number;
   maxCopyBytes?: number;
+  /** Ads seen before (in other episodes), recognised by their frames. */
+  library?: AdLibrary;
   /** Bot agents for the first comparison copy, and the extras fetched when the first wasn't enough. */
   firstAgents?: string[];
   extraAgents?: string[];
@@ -205,7 +216,7 @@ export function createPlayer(o: PlayOptions = {}) {
     e.refs.push(ref);
     startCopy(download, e.url, { ua: agent, signal: ref.abort.signal, maxBytes: maxCopy }, ref.copy, () => {
       if (ref.copy.done) sessions.forEach((s) => { if (s.episodeId === e.episodeId) schedule(s); });
-      else sessions.forEach((s) => { if (s.episodeId === e.episodeId && !s.ads.ready) schedule(s); });
+      else sessions.forEach((s) => { if (s.episodeId === e.episodeId && !s.headDone) schedule(s); });
     });
   }
 
@@ -221,7 +232,7 @@ export function createPlayer(o: PlayOptions = {}) {
         while (pending.size) {
           const next = pending.values().next().value as Session;
           pending.delete(next);
-          if (sessions.has(next.id)) await analyze(next);
+          if (sessions.has(next.id)) { await analyze(next); if (sessions.has(next.id)) blend(next); }
           if (next.ads.final && next.copy.scanner.count && !next.opening && onFinal) { next.opening = "running"; onFinal(next); }
         }
       } finally { running = false; }
@@ -250,7 +261,7 @@ export function createPlayer(o: PlayOptions = {}) {
     const refsDone = (e?.refs ?? []).every((r) => r.copy.done);
 
     // The start first: a pre-roll found here is skipped before it plays.
-    if (!s.ads.ready && comps.length && X.count) {
+    if (!s.headDone && comps.length && X.count) {
       const xEnough = s.copy.done || X.time >= 240;
       const ready = comps.filter((c) => c.done || c.sc.time >= 150);
       // Tried again once a minute more of either copy is in (each try lines up both starts).
@@ -267,6 +278,7 @@ export function createPlayer(o: PlayOptions = {}) {
           await yieldNow();
         }
         if (found || s.copy.done || X.time > 600) {
+          s.headDone = true;
           s.ads = { ...s.ads, ready: true, startAt: start >= 4 && start <= 600 ? round2(start) : undefined, ads: start >= 4 && start <= 600 ? [daiAd(s, { s: 0, e: start })] : [], compared: ready.length, dur: s.copy.done ? round2(X.time) : undefined };
         }
       }
@@ -305,6 +317,66 @@ export function createPlayer(o: PlayOptions = {}) {
     };
     // Bots got ads too, or every copy was the same: a few more comparison copies (other bot agents).
     if (e && refsDone && !e.extra && needExtra(identical, usable, refHasOwn)) { e.extra = true; for (const a of extraAgents) addRef(e, a); }
+  }
+  // ---- ads found in this copy alone (no other copy, transcript or AI) ----
+  /** Seams, the file's own ad chapters and known ads: looked at again every 45 s of new audio. */
+  function quickAds(s: Session): PlayAd[] {
+    const X = s.copy.scanner;
+    const q = s.quick;
+    if (q && (q.done || (!s.copy.done && X.time - q.at < 45))) return q.ads;
+    const ads: PlayAd[] = [];
+    // Chapters in the file's tag (read once the audio after the tag has started).
+    if (!s.fileChapters && X.count) { try { s.fileChapters = X.tagHead ? chapterAdsIn(id3Chapters(X.tagHead)) : []; } catch { s.fileChapters = []; } X.tagHead = null; }
+    for (const c of s.fileChapters ?? []) ads.push({ key: `h:${s.episodeId}:${Math.round(c.s)}`, s: round2(c.s), e: round2(c.e), label: c.label, kind: "chapter", sure: true });
+    for (const a of spliceAds(X, s.copy.done)) ads.push({ key: `p:${s.episodeId}:${Math.round(a.s)}:${Math.round(a.e)}`, s: a.s, e: a.e, label: a.s < 0.5 ? "Pre-roll" : "Ad break", kind: "splice", sure: a.sure });
+    const known = o.library?.match(X) ?? [];
+    for (const k of known) ads.push({ key: `k:${k.id}:${Math.round(k.s)}`, s: k.s, e: k.e, label: k.s < 0.5 ? "Pre-roll" : "Ad", kind: "known", sure: true });
+    if (known.length && s.copy.done && !s.counted) { s.counted = true; o.library?.sawAgain(known.map((k) => k.id)); }
+    // One range where they overlap: sure if any of them is.
+    ads.sort((a, b) => a.s - b.s);
+    const merged: PlayAd[] = [];
+    for (const a of ads) {
+      const l = merged[merged.length - 1];
+      if (l && a.s <= l.e + 1 && Math.min(l.e, a.e) - Math.max(l.s, a.s) > -1) { l.e = Math.max(l.e, a.e); l.sure = l.sure || a.sure; if (a.kind === "known") l.kind = "known"; }
+      else merged.push({ ...a });
+    }
+    s.quick = { at: X.time, done: s.copy.done, ads: merged };
+    return merged;
+  }
+  /** Adds what this copy shows by itself to what comparing found, and teaches the library its exact ads. */
+  function blend(s: Session) {
+    const X = s.copy.scanner;
+    if (!X.count) return;
+    const quick = quickAds(s);
+    const dai = s.ads.ads.filter((a) => a.kind === "dai");
+    const add = quick.filter((q) => !dai.some((d) => Math.min(d.e, q.e) - Math.max(d.s, q.s) > 0.5 * (q.e - q.s)));
+    const ads = [...dai, ...add].sort((a, b) => a.s - b.s);
+    // A sure ad at the very start (and any sure ads right after it): the show starts after them.
+    let at = 0;
+    for (const a of ads) { if (a.sure && a.s <= at + 1 && a.e - a.s <= MAX_SURE_AD) at = Math.max(at, a.e); else if (a.s > at + 1) break; }
+    const startAt = at >= 4 && at <= 600 ? round2(at) : undefined;
+    // Known once the start is in (4 minutes, or the whole copy), even before another copy arrives.
+    const ready = s.ads.ready || (add.length > 0 && (s.copy.done || X.time >= 240));
+    s.ads = { ...s.ads, ads, startAt, ready };
+    // The library learns ads found exactly: by comparing, by header shape, or ads it already knew.
+    if (s.copy.done && !s.learned && (s.ads.final || s.ads.how === "noref")) {
+      s.learned = true;
+      const n = (k: string) => add.filter((a) => a.kind === k).length;
+      console.log(`[earshot] one-copy ads ${s.episodeId}: ${n("splice")} seam, ${n("known")} known, ${n("chapter")} chapter (beyond ${dai.length} by comparing, ${s.ads.how})`);
+    }
+    if (o.library && s.learned && !s.taught) {
+      s.taught = true;
+      const exact = [...dai.filter((a) => a.sure), ...add.filter((a) => a.sure && a.kind === "splice")];
+      const seams = seamTimes(X);
+      const pieces: { s: number; e: number; label?: string }[] = [];
+      for (const a of exact) {
+        // A break holds several ads: cut it at its seams, so each ad is kept on its own.
+        const cuts = [a.s, ...seams.filter((t) => t > a.s + 3 && t < a.e - 3), a.e];
+        for (let k = 0; k + 1 < cuts.length; k++) pieces.push({ s: cuts[k], e: cuts[k + 1], label: a.label });
+      }
+      const n = o.library.learn(X, pieces);
+      if (n) console.log(`[earshot] ad library: +${n} from ${s.episodeId} (${o.library.size()} known)`);
+    }
   }
   const needExtra = (identical: number, usable: number, refHasOwn: boolean) => usable > 0 && (refHasOwn || identical === usable);
   function daiAd(s: Session, r: Span): PlayAd {

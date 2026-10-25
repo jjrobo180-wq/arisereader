@@ -17,7 +17,7 @@ import {
   type AdRange, type Chapter, type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk, type TxSegment,
 } from "../shared/earshot";
 import {
-  AD_PROMPT_V2, INTRO_PROMPT, adPromptMessage, adsFromAiV2, combineAds, introFromAi, introPromptMessage, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints,
+  AD_PROMPT_V2, INTRO_PROMPT, adPromptMessage, adsFromAiV2, combineAds, introFromAi, introPromptMessage, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints, sponsorsFromNotes,
   type ServerAd, type ShowProfile, type Word,
 } from "../shared/earshotAds";
 
@@ -415,9 +415,11 @@ export function createDirectory(options: DirectoryOptions = {}) {
     }).catch(() => ({ transcript: null, chapters: "" }));
   }
   /** Ads in a stretch of transcript: phrases, the show's memory, AI cut at the exact word, chapters. */
-  async function analyzeAds(o: { showId: string; showName: string; title?: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean; status?: { aiFailed?: boolean }; inserted?: boolean }): Promise<AdRange[]> {
+  async function analyzeAds(o: { showId: string; showName: string; title?: string; about?: string; pieceId: string; segs: TxSegment[]; words: Word[]; chapters: Chapter[]; duration: number; from: number; to: number; opening: boolean; status?: { aiFailed?: boolean }; inserted?: boolean }): Promise<AdRange[]> {
     const prof = (await profiles.peek(o.showId))?.value ?? null;
-    const hints = { ...profileHints(prof, o.showName), title: o.title, inserted: o.inserted };
+    const known = profileHints(prof, o.showName);
+    // Sponsors named in the episode's notes count like the ones the show is known for.
+    const hints = { ...known, sponsors: [...new Set([...(known.sponsors ?? []), ...sponsorsFromNotes(o.about)])], title: o.title, inserted: o.inserted };
     const { scores } = phraseBlocks(o.segs, hints);
     const phrase = phraseAds(o.segs, hints);
     let ai: AdRange[] | null = null;
@@ -485,7 +487,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
         let dur = old.dur, durMode = old.durMode;
         if (old.source === "ai" && !dur) { try { const p = await probe(ep.audio); if (p.info) { dur = p.info.duration; durMode = "exact"; } } catch { /* unknown */ } }
         if (old.source === "publisher" && !dur) { dur = old.segments[old.segments.length - 1].e; durMode = "approx"; }
-        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, pieceId: `${ep.id}#${old.chunk}`, segs: old.segments, words: old.words ?? [], chapters: old.chapters?.length ? old.chapters : chapters, duration: dur || ep.secs, from: old.chunk * old.chunkSecs, to: (old.chunk + 1) * old.chunkSecs, opening: old.chunk === 0 });
+        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, about: ep.about, pieceId: `${ep.id}#${old.chunk}`, segs: old.segments, words: old.words ?? [], chapters: old.chapters?.length ? old.chapters : chapters, duration: dur || ep.secs, from: old.chunk * old.chunkSecs, to: (old.chunk + 1) * old.chunkSecs, opening: old.chunk === 0 });
         return { ...old, ads, dur, durMode, v: 2 } as TranscriptChunk;
       }).catch(() => done.value);
     }
@@ -495,7 +497,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
         const segments = /json/.test(ex.transcript!.type) ? parseTranscriptJson(JSON.parse(raw)) : parseCues(raw);
         if (!segments.length) throw new Error("empty");
         const last = segments[segments.length - 1].e;
-        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(ep.secs, last), from: 0, to: Math.max(ep.secs, last), opening: true });
+        const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, about: ep.about, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(ep.secs, last), from: 0, to: Math.max(ep.secs, last), opening: true });
         return { source: "publisher", segments, ads, chapters, chunk: 0, chunkSecs: Math.max(ep.secs, last), more: false, dur: last, durMode: "approx", v: 2 } as TranscriptChunk;
       }).catch(() => null);
       if (pub) { void tx.refresh(key, async () => pub).catch(() => {}); return pub; }
@@ -522,7 +524,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const start = chunk * plan.chunkSecs;
       const segments = out.segments.map((s) => ({ s: start + s.start, e: start + s.end, t: s.text.trim() })).filter((s) => s.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: start + w.start, e: start + w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, pieceId: `${ep.id}#${chunk}`, segs: segments, words, chapters, duration: exact || ep.secs, from: start, to: start + plan.chunkSecs, opening: chunk <= 0 });
+      const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, about: ep.about, pieceId: `${ep.id}#${chunk}`, segs: segments, words, chapters, duration: exact || ep.secs, from: start, to: start + plan.chunkSecs, opening: chunk <= 0 });
       return { source: "ai", segments, words, ads, chapters, chunk, chunkSecs: plan.chunkSecs, more: chunk + 1 < plan.chunks, dur: exact || undefined, durMode: "exact", v: 2 } as TranscriptChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
@@ -564,7 +566,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
         const segments = /json/.test(ex.transcript!.type) ? parseTranscriptJson(JSON.parse(raw)) : parseCues(raw);
         if (!segments.length) throw new Error("empty");
         const last = segments[segments.length - 1].e;
-        const ads = await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(src.secs, last), from: 0, to: Math.max(src.secs, last), opening: true });
+        const ads = await analyzeAds({ showId, showName, title: ep.title, about: ep.about, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(src.secs, last), from: 0, to: Math.max(src.secs, last), opening: true });
         return { v: 3, source: "publisher", segments, ads, chapters, chunk: 0, chunkSecs: Math.max(src.secs, last), more: false, pieces: [] } as ContentChunk;
       }).catch(() => null);
       // Only when it's timed to the show alone: some publishers time theirs to a copy with ad
@@ -586,7 +588,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const out = await transcribe(part.audio, `piece-${chunk}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: from + x.start, e: from + x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: from + w.start, e: from + w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk <= 0 });
+      const ads = await analyzeAds({ showId, showName, title: ep.title, about: ep.about, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk <= 0 });
       return { v: 3, source: "ai", segments, words, ads, chapters, chunk, chunkSecs: opening ? OPENING : TX_CHUNK_SECS, more: !opening && chunk + 1 < chunks, pieces: part.pieces } as ContentChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
@@ -624,7 +626,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       // Transcribed already, but the AI couldn't read it then: read it again (text only).
       if (redo && done!.value.segments.length) {
         const status: { aiFailed?: boolean } = {};
-        const ads = await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: done!.value.segments, words: (done!.value as any).words ?? [], chapters: [], duration: secs, from: 0, to: secs, opening: false, status, inserted: true });
+        const ads = await analyzeAds({ showId, showName, title: ep?.title, about: ep?.about, pieceId: `${episodeId}#g${fp}`, segs: done!.value.segments, words: (done!.value as any).words ?? [], chapters: [], duration: secs, from: 0, to: secs, opening: false, status, inserted: true });
         return { ...done!.value, ads: widenInserted(ads, done!.value.segments), aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
       }
       if (budgetLeft() < secs / 60) throw new Error("budget");
@@ -634,7 +636,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const segments = out.segments.map((x) => ({ s: x.start, e: x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: w.start, e: w.end, w: w.word.trim() })).filter((w) => w.w);
       const status: { aiFailed?: boolean } = {};
-      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep?.title, pieceId: `${episodeId}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false, status, inserted: true }) : [];
+      const ads = segments.length ? await analyzeAds({ showId, showName, title: ep?.title, about: ep?.about, pieceId: `${episodeId}#g${fp}`, segs: segments, words, chapters: [], duration: secs, from: 0, to: secs, opening: false, status, inserted: true }) : [];
       return { v: 3, source: "ai", segments, words, ads: widenInserted(ads, segments), chapters: [], chunk: -2, chunkSecs: secs, more: false, pieces: [], aiFailed: status.aiFailed || undefined, at: Date.now() } as ContentChunk;
     });
     return c.ads;

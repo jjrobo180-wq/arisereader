@@ -14,6 +14,8 @@ on:
       - 'server/podcastCopies.ts'
       - 'server/podcastPlay.ts'
       - 'server/podcastSocial.ts'
+      - 'server/podcastAdLibrary.ts'
+      - 'shared/earshotSplice.ts'
       - 'client/src/components/family-hub/earshot/**'
       - '.github/workflows/podscroll.yml'
       - 'tests/earshot*.test.ts'
@@ -30,6 +32,8 @@ on:
       - 'server/podcastCopies.ts'
       - 'server/podcastPlay.ts'
       - 'server/podcastSocial.ts'
+      - 'server/podcastAdLibrary.ts'
+      - 'shared/earshotSplice.ts'
       - 'client/src/components/family-hub/earshot/**'
       - '.github/workflows/podscroll.yml'
       - 'tests/earshot*.test.ts'
@@ -45,7 +49,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Tests
-        run: npx tsx --test tests/earshot.test.ts tests/earshot-ads.test.ts tests/earshot-audio.test.ts tests/earshot-play.test.ts tests/earshot-social.test.ts tests/earshot-social-v2.test.ts tests/earshot-moments.test.ts tests/earshot-groq.test.ts
+        run: npx tsx --test tests/earshot.test.ts tests/earshot-ads.test.ts tests/earshot-audio.test.ts tests/earshot-play.test.ts tests/earshot-social.test.ts tests/earshot-social-v2.test.ts tests/earshot-moments.test.ts tests/earshot-groq.test.ts tests/earshot-splice.test.ts
       - name: Type check
         run: npx tsc --project podscroll/tsconfig.json --noEmit
       - name: Build

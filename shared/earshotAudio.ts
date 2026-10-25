@@ -79,9 +79,16 @@ export class Mp3Scanner {
   private bufStart = 0;
   private skipUntil = 0;
   private id3Checked = false;
+  /** The ID3 tag at the very start, kept (up to 4 MB) so its chapters can be read. */
+  tagHead: Uint8Array | null = null;
+  private tagWant = 0;
 
   push(chunk: Uint8Array) {
     if (!chunk.length) return;
+    if (this.tagHead && this.tagHead.length < this.tagWant) {
+      const add = chunk.subarray(0, this.tagWant - this.tagHead.length);
+      const t = new Uint8Array(this.tagHead.length + add.length); t.set(this.tagHead); t.set(add, this.tagHead.length); this.tagHead = t;
+    }
     const merged = new Uint8Array(this.buf.length + chunk.length);
     merged.set(this.buf); merged.set(chunk, this.buf.length);
     this.buf = merged;
@@ -121,6 +128,8 @@ export class Mp3Scanner {
       this.id3Checked = true;
       if (b.length >= 10 && b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33) {
         this.skipUntil = 10 + ((b[6] & 0x7f) << 21 | (b[7] & 0x7f) << 14 | (b[8] & 0x7f) << 7 | (b[9] & 0x7f)) + ((b[5] & 0x10) ? 10 : 0);
+        this.tagWant = Math.min(this.skipUntil, 4 * 1024 * 1024);
+        this.tagHead = b.slice(0, Math.min(this.tagWant, b.length));
       }
     }
     for (;;) {

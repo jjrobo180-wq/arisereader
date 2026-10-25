@@ -15,7 +15,8 @@ import type { AdRange, TxSegment } from "./earshot";
 
 export type Word = { s: number; e: number; w: string };
 /** dai: found by comparing copies (an ad the host stitched into this copy). */
-export type AdKind = "ai" | "phrase" | "learned" | "chapter" | "user" | "crowd" | "dai" | "intro";
+/** splice: found from the seams in one copy; known: an ad seen before in another episode (by its frames). */
+export type AdKind = "ai" | "phrase" | "learned" | "chapter" | "user" | "crowd" | "dai" | "intro" | "splice" | "known";
 /** An ad as the server sends it. dur: the length of the audio its times belong to. */
 export type ServerAd = {
   key: string; s: number; e: number; label: string; kind: AdKind; conf: number;
@@ -89,6 +90,28 @@ export const SPONSOR_BRANDS = [
 const brandPattern = new RegExp(`\\b(${SPONSOR_BRANDS.map((b) => b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
 
 export type AdHints = { sponsors?: string[]; leadins?: string[]; intro?: string | null; preroll?: number | null; show?: string; title?: string; inserted?: boolean };
+
+/** Sites that are never a sponsor (where shows are listened to, followed or hosted). */
+const NOT_SPONSORS = /^(apple|podcasts|spotify|youtube|youtu|twitter|instagram|facebook|tiktok|threads|patreon|megaphone|simplecast|art19|omny|omnystudio|acast|podtrac|libsyn|anchor|substack|www|bit|linktr|linktree|google|amazon|iheart|iheartradio|pod|chartable|pdst|feeds|soundcloud|stitcher|pocketcasts|overcast|castbox|discord|reddit|twitch|wikipedia|gmail|mailto|wondery|npr|nytimes|cnn|foxnews)$/i;
+/** Sponsor names from an episode's notes: "Sponsors: A, B and C", "brought to you by X", and the
+ *  promo addresses ads always give ("betterhelp.com/show"). They make the keyword rules sharper. */
+export function sponsorsFromNotes(about = ""): string[] {
+  const t = String(about).replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&[a-z#0-9]+;/gi, " ");
+  const out = new Set<string>();
+  for (const sentence of t.split(/(?<=[.!?])\s+|\n+/)) {
+    for (const m of sentence.matchAll(/\b(?:https?:\/\/)?(?:www\.)?([a-z0-9][a-z0-9-]{2,30})\.(?:com|co|io|net|app|ai|us|tv|health|fit)(\/[a-z0-9_-]{2,30})?\b/gi)) {
+      // A plain home page is often the show's own; with a promo path, or offered in the same sentence, it's an ad's.
+      if (!NOT_SPONSORS.test(m[1]) && (m[2] || /\b(code|promo|offer|discount|sponsor|% off|percent off|free trial)\b/i.test(sentence))) out.add(m[1].toLowerCase());
+    }
+  }
+  for (const m of t.matchAll(/\b(?:sponsors?|sponsored by|brought to you by|thanks to our sponsors?|support (?:for )?(?:this|the) (?:show|podcast|episode) (?:comes )?from)\s*[:\-–]?\s*([^\n.!?]{2,200})/gi)) {
+    for (const part of m[1].split(/,|\band\b|;|\||•|\//)) {
+      const name = part.trim().replace(/^(our|the|by)\s+/i, "").split(/\s+/).slice(0, 3).join(" ").replace(/[^\w&' +.-]/g, "").trim();
+      if (name.length >= 3 && name.length <= 30 && /^[A-Z0-9]/.test(name) && !NOT_SPONSORS.test(name)) out.add(name.toLowerCase());
+    }
+  }
+  return [...out].slice(0, 15);
+}
 
 /** How ad-like one line is: 3+ is a strong sign on its own. */
 export function lineAdScore(text: string, hints: AdHints = {}): number {
