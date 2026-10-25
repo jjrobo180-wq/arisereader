@@ -340,7 +340,7 @@ export function voiceTexts(): Set<string> {
       sentencesOf(l.text).forEach(add);
       storyTokens(l.text).forEach((t) => { const b = bareWord(t); add(b); b.split("-").forEach(add); });
       [...l.chain, ...l.spell].forEach((e) => add(e.show));
-      [...l.sort.leftWords, ...l.sort.rightWords].forEach(add);
+      [...l.sort.leftWords, ...l.sort.rightWords, l.sort.left, l.sort.right].forEach(add);
       for (const q of l.questions) { add(q.q); add(q.right); q.wrong.forEach(add); }
     }
   }

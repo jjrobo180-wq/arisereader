@@ -120,6 +120,10 @@ test("one question right doesn't pass; too fast earns nothing", async () => {
   assert.equal(fast.tooFast, true);
   assert.equal(fast.points, 0);
   assert.equal(t.store.awards.length, 0);
+  assert.equal(fast.next, "u1l1", "a too-fast lesson doesn't count as passed");
+  const real = await play(t, 11, "u1l1");
+  assert.equal(real.firstPass, true, "so its points can still be earned");
+  assert.equal(real.points, 5);
 });
 
 test("units open in order; a teacher or parent can set where a child starts", async () => {

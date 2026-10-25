@@ -279,6 +279,7 @@ export function registerBeginnersRoutes(app: Express, auth: RequestHandler, deps
       lessons: p.lessons,
       open: UNITS.filter((u) => v.preview || unitOpen(u.n, done, p.startUnit)).map((u) => u.n),
       next: nextLesson(done, p.startUnit)?.id || null,
+      nextTitle: nextLesson(done, p.startUnit)?.title || null,
       today: { points: p.days[today] || 0, cap: POINTS.dailyCap },
       total: p.total,
       streak: streakOf(p, nowMs),
@@ -435,11 +436,13 @@ export function registerBeginnersRoutes(app: Express, auth: RequestHandler, deps
     const before = passedIds(p);
     const prev = p.lessons[lesson.id];
     const iso = new Date(nowMs).toISOString();
+    // Too fast to be real: nothing counts as passed, so the lesson's points are still there to earn properly.
+    const tooFast = nowMs - s.startedAt < MIN_LESSON_MS;
     const rec: LessonRecord = {
       stars: Math.max(prev?.stars || 0, stars), best: Math.max(prev?.best || 0, Math.round((right / total) * 100)),
       read: readAccuracy === null ? prev?.read ?? null : Math.max(prev?.read ?? 0, readAccuracy),
       wcpm: readAccuracy === null ? prev?.wcpm ?? null : Math.max(prev?.wcpm ?? 0, s.reading!.wcpm),
-      plays: (prev?.plays || 0) + 1, first: prev?.first || (stars > 0 ? iso : null), last: iso,
+      plays: (prev?.plays || 0) + 1, first: prev?.first || (stars > 0 && !tooFast ? iso : null), last: iso,
     };
     p.lessons[lesson.id] = rec;
     if (s.reading && s.reading.attempted > 0) {
@@ -448,7 +451,6 @@ export function registerBeginnersRoutes(app: Express, auth: RequestHandler, deps
       const missed = s.reading.practice.map((w) => w.toLowerCase());
       p.practice = [...new Set([...missed, ...p.practice])].slice(0, 30);
     }
-    const tooFast = nowMs - s.startedAt < MIN_LESSON_MS;
     out.tooFast = tooFast;
     const today = denverDay(nowMs);
     if (stars > 0 && !tooFast) {

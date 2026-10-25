@@ -148,6 +148,7 @@ const Competition = lazyPage(() => import("./pages/Competition"));
 const TimedCompetition = lazyPage(() => import("./pages/TimedCompetition"));
 const Polls = lazyPage(() => import("./pages/Polls"));
 const EnglishExplorer = lazyPage(() => import("./pages/EnglishExplorer"));
+const Beginners = lazyPage(() => import("./pages/Beginners"));
 const CoursePage = lazyPage(() => import("./pages/CoursePage"));
 const ReadingAssessment = lazyPage(() => import("./pages/ReadingAssessment"));
 const GrowthCheck = lazyPage(() => import("./pages/GrowthCheck"));
@@ -676,6 +677,10 @@ function AppRoutes() {
       </Route>
       <Route path="/reading-club">
         {isEyeGazeStudent ? <Redirect to="/library" replace /> : <ReadingClub />}
+      </Route>
+      {/* A.R.I.S.E. Beginners: Reader for younger readers (K–3), same points, leaderboard and prizes. Staff and parents preview. */}
+      <Route path="/beginners">
+        <ProtectedRoute><Beginners /></ProtectedRoute>
       </Route>
       {/* English Explorer: the English-language-learner program (students a teacher turned it on for; staff can preview). */}
       <Route path="/english">
