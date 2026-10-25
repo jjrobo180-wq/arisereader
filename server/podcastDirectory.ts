@@ -525,6 +525,39 @@ export function createDirectory(options: DirectoryOptions = {}) {
     await profiles.refresh(showId, async () => learnFromMark((await profiles.peek(showId))?.value ?? emptyProfile(), piece?.segments ?? [], mark)).catch(() => {});
   }
 
-  return { pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, foundAds, learnMark, profiles, idle, budgetLeft };
+  /** "Find me a podcast": AI reads what someone wants and picks real shows, mostly from the shows the
+   *  server already knows (so they play at once), searching Apple for up to two it names besides. */
+  async function aiFind(q: string, o: { explicit: boolean; kidOnly: boolean }): Promise<{ picks: { show: PodShow; why: string; episode: PodEpisode | null }[]; summary: string }> {
+    const genres = GENRES.filter((g) => !o.kidOnly || g.kidSafe);
+    const pools = await Promise.all(genres.map((g) => within(pool(g.id, o.explicit), 4000, [] as PoolShow[])));
+    const known = new Map<string, PoolShow>();
+    pools.forEach((list, gi) => list.forEach((p) => { if (!known.has(p.show.id)) known.set(p.show.id, { ...p, show: { ...p.show, genre: p.show.genre || genres[gi].id } }); }));
+    const catalog = Array.from(known.values()).map((p) => `${p.show.id}|${p.show.name}|${GENRE[p.show.genre]?.name ?? ""}|${p.show.author}`).join("\n").slice(0, 60_000);
+    const system = `You help people find podcasts they'll love. Pick 6 to 10 real podcasts that fit the request best. Prefer shows from the catalog (id|name|genre|host) and give their id; you may also name up to 2 real, well-known podcasts not in the catalog (no id). For each, write one short sentence on why it fits, in second person. ${o.kidOnly ? "The listener is a student: only pick shows suitable for kids and teens. " : ""}Answer with JSON only: {"summary":"<one short sentence>","picks":[{"id":"<catalog id or empty>","name":"<podcast name>","why":"<reason>"}]}`;
+    const raw = await ask(system, `Request: ${q}\n\nCatalog:\n${catalog}`);
+    let v: any; try { v = JSON.parse(raw); } catch { v = null; }
+    const out: { show: PodShow; why: string; episode: PodEpisode | null }[] = [];
+    let searched = 0;
+    for (const pk of Array.isArray(v?.picks) ? v.picks.slice(0, 10) : []) {
+      const why = String(pk?.why || "").slice(0, 200);
+      const hit = known.get(String(pk?.id || "")) ?? Array.from(known.values()).find((p) => p.show.name.toLowerCase() === String(pk?.name || "").toLowerCase());
+      if (hit) { out.push({ show: hit.show, why, episode: hit.episodes[0] ?? null }); continue; }
+      const name = String(pk?.name || "").trim();
+      if (!name || searched >= 2) continue;
+      searched++;
+      try {
+        const res = await searches.get(name.toLowerCase(), async () => {
+          const shows = await apple(appleSearchUrl(name, "podcast", 5, true));
+          return { shows: (Array.isArray(shows?.results) ? shows.results : []).map((r: unknown) => parseShow(r)).filter(Boolean) as PodShow[], episodes: [] };
+        });
+        const show = res.shows.find((x) => (o.explicit || !x.explicit) && (!o.kidOnly || GENRE[x.genre]?.kidSafe));
+        if (show) out.push({ show, why, episode: null });
+      } catch { /* Apple busy: skip it */ }
+    }
+    const seen = new Set<string>();
+    return { summary: String(v?.summary || "").slice(0, 200), picks: out.filter((p) => !seen.has(p.show.id) && (seen.add(p.show.id), true)) };
+  }
+
+  return { aiFind, pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, foundAds, learnMark, profiles, idle, budgetLeft };
 }
 export type Directory = ReturnType<typeof createDirectory>;

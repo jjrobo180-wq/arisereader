@@ -2,21 +2,26 @@
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
-import { Bookmark, Check, ExternalLink, FileText, Flag, Heart, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { Bookmark, Check, ExternalLink, FileText, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
   GENRES, GENRE, SPEEDS, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
 import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
+import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
+import { hiRes, type PodMode } from "@shared/earshot";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
 type Comment = { id: string; author: string; body: string; at: string; mine: boolean };
-type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none" };
+/** want: a particular episode to load (from a Pod Mode or a saved one without its audio). */
+type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string };
 type Tab = "foryou" | "following" | "explore" | "library";
 
 export const ACCENT = "#ff8a3d";
 const nowIso = () => new Date().toISOString();
-const savedOf = (ep: PodEpisode): SavedEpisode => ({ id: ep.id, showId: ep.showId, title: ep.title, show: ep.show, art: ep.art, secs: ep.secs, at: nowIso() });
+const savedOf = (ep: PodEpisode): SavedEpisode => ({ id: ep.id, showId: ep.showId, title: ep.title, show: ep.show, art: ep.art, secs: ep.secs, at: nowIso(), audio: ep.audio, date: ep.date });
+/** A saved episode back as one the player can play (no lookup needed when its audio was kept). */
+const episodeOf = (s: SavedEpisode): PodEpisode => ({ id: s.id, showId: s.showId, show: s.show, author: "", title: s.title, about: "", audio: s.audio || "", date: s.date || "", secs: s.secs, art: s.art, link: "", explicit: false });
 const agoWords = (iso: string) => {
   const d = (Date.now() - Date.parse(iso)) / 1000;
   if (!Number.isFinite(d)) return "";
@@ -132,7 +137,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [dur, setDur] = useState(0);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [commentsOn, setCommentsOn] = useState(!student);
-  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "read" }>(null);
+  const [sheet, setSheet] = useState<null | { kind: "comments"; ep: PodEpisode } | { kind: "show"; show: PodShow } | { kind: "settings" } | { kind: "read" } | { kind: "addto"; ep: PodEpisode; genre: string } | { kind: "mode"; id: string }>(null);
   const sheetRef = useRef(sheet); sheetRef.current = sheet;
   const [poolTick, setPoolTick] = useState(0);
   const [loadError, setLoadError] = useState("");
@@ -217,7 +222,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   const fill = useCallback((item: Item) => {
     loadEpisodes(item.show.id).then(({ episodes }) => {
-      const ep = chooseEpisode(esRef.current, episodes);
+      const ep = item.want ? episodes.find((e) => e.id === item.want) ?? null : chooseEpisode(esRef.current, episodes);
       setItems((list) => list.map((x) => (x.key === item.key ? { ...x, ep, state: ep ? "ready" : "none" } : x)));
     }).catch(() => setItems((list) => list.map((x) => (x.key === item.key ? { ...x, state: "none" } : x))));
   }, [loadEpisodes, esRef]);
@@ -683,6 +688,22 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setItems((list) => { const next = [...list]; next.splice(at, 0, item); return next; });
     setTimeout(() => goTo(at), 120);
   };
+  /** Plays a list back to back: the chosen episode now, the rest right after it in the feed. */
+  const playList = (list: Item[]) => {
+    if (!list.length) return;
+    unlock();
+    setSheet(null); setGenreMode(null);
+    const at = itemsRef.current.length ? activeRef.current + 1 : 0;
+    if (tab !== "foryou") setTab("foryou");
+    setItems((cur) => { const next = [...cur]; next.splice(at, 0, ...list); return next; });
+    list.filter((x) => x.state === "loading").forEach(fill);
+    setTimeout(() => goTo(at), 120);
+  };
+  const playFrom = (show: PodShow, list: PodEpisode[], i: number) => playList(list.slice(i, i + 30).map((ep, k) => ({ key: `${show.id}-${ep.id}-${Math.random().toString(36).slice(2, 6)}`, show, why: k === 0 ? "You picked this" : `Up next · ${show.name}`, ep, state: "ready" as const })));
+  const playSaved = (list: SavedEpisode[], i: number, why: string) => playList(list.slice(i, i + 60).map((s) => {
+    const show: PodShow = { id: s.showId, name: s.show, author: "", art: s.art, genre: "culture", appleGenre: "", link: "", episodes: 0, explicit: false, latest: "" };
+    return s.audio ? { key: `m-${s.id}-${Math.random().toString(36).slice(2, 6)}`, show, why, ep: episodeOf(s), state: "ready" as const } : { key: `m-${s.id}-${Math.random().toString(36).slice(2, 6)}`, show, why, ep: null, state: "loading" as const, want: s.id };
+  }));
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
   // A shared link opens its episode first (it plays on the first tap, as browsers require).
@@ -722,12 +743,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       className="h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none">
       {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
-        counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && es.saved.some((x) => x.id === it.ep!.id)} notes={es.settings.notes} unlocked={unlocked}
+        counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} unlocked={unlocked}
         ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
         adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
         onLike={() => it.ep && toggleLike(it.ep, it.show.genre)} onDoubleLike={() => it.ep && !counts[it.ep.id]?.liked && toggleLike(it.ep, it.show.genre)}
-        onSave={() => it.ep && toggleSave(it.ep, it.show.genre)} onShare={() => it.ep && share(it.ep, it.show.genre, it.show)} onFollow={() => toggleFollow(it.show)}
+        onSave={() => it.ep && setSheet({ kind: "addto", ep: it.ep, genre: it.show.genre })} onShare={() => it.ep && share(it.ep, it.show.genre, it.show)} onFollow={() => toggleFollow(it.show)}
         onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
@@ -743,13 +764,15 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       <div className="flex gap-2"><button type="button" onClick={() => seekBy(15)} className="flex-1 rounded-full bg-black/10 py-2 text-xs font-black">Jump 15s</button><button type="button" onClick={endMark} className="flex-1 rounded-full bg-[#120e14] py-2 text-xs font-black text-white">Ad's over</button><button type="button" onClick={() => setMarking(null)} className="rounded-full bg-black/10 px-3 py-2 text-xs font-black">Cancel</button></div>
     </div>}
 
-    {tab === "explore" && <Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots}
+    {tab === "explore" && <Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow}
       onGenre={(g) => { setGenreMode(g); setTab("foryou"); }} onShow={(show) => setSheet({ kind: "show", show })} onEpisode={playNow}
       onResume={(id, s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />}
-    {tab === "library" && <Library es={es} update={update} onEditInterests={onEditInterests} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />}
+    {tab === "library" && <Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />}
 
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
-    {sheet?.kind === "show" && <ShowSheet show={sheet.show} load={loadEpisodes} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlay={playNow} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} />}
+    {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
+    {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
+    {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, `${m.icon} ${m.name}`)} onClose={() => setSheet(null)} /> : null; })()}
     {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={(v) => { setSleepAt(v); say(v === null ? "Sleep timer off." : v === "end" ? "Stopping at the end of this episode." : `Stopping in ${Math.round(((v as number) - Date.now()) / 60000)} minutes.`); }} />}
     {draft && <MarkSheet draft={draft} shared={adsShared} onChange={setDraft} onPreview={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onSave={saveDraft} onClose={() => setDraft(null)} />}
     {sheet?.kind === "read" && activeEp && <ReadSheet ep={activeEp} tx={txFor(activeEp)} time={time} playing={playing} onMarkRange={markFromLines} onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onClose={() => setSheet(null)} onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
@@ -776,6 +799,18 @@ type CardProps = {
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
   onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onNext: () => void;
 };
+/** The cover: big, sharp (Apple's art at 1200px), lit by its own colors. */
+function Cover({ art, alt, eager, playing, children }: { art: string; alt: string; eager: boolean; playing: boolean; children?: ReactNode }) {
+  const big = hiRes(art, 1000);
+  return <div className="relative aspect-square w-[min(86vw,47vh,560px)] max-w-full">
+    <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="absolute inset-[6%] top-[10%] h-[90%] w-[88%] rounded-[30px] object-cover opacity-80 blur-2xl saturate-150" />
+    <div className={`relative h-full w-full overflow-hidden rounded-[26px] shadow-[0_28px_60px_-12px_rgba(0,0,0,.85)] ring-1 ring-white/15 transition-transform duration-700 ${playing ? "scale-[1.02]" : "scale-100"}`}>
+      <img src={big} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="h-full w-full bg-white/5 object-cover" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/25" />
+    </div>
+    {children}
+  </div>;
+}
 function Card(p: CardProps) {
   const { item, counts: c } = p; const ep = item.ep; const art = ep?.art || item.show.art;
   const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
@@ -792,22 +827,23 @@ function Card(p: CardProps) {
   };
   const pct = p.dur ? Math.min(100, (p.time / p.dur) * 100) : 0;
   return <article data-i={p.i} className="relative h-full snap-start overflow-hidden [scroll-snap-stop:always]" aria-label={ep ? `${ep.title}, ${item.show.name}` : item.show.name}>
-    <div className="absolute -inset-[15%] bg-cover bg-center opacity-70 blur-3xl saturate-150" style={{ backgroundImage: `url("${art}")` }} />
+    <div className="absolute -inset-[15%] bg-cover bg-center opacity-75 blur-3xl saturate-150" style={{ backgroundImage: `url("${hiRes(art, 300)}")` }} />
     <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-[#120e14]" />
     <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
     {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
 
     <div className="pointer-events-none relative z-[2] flex h-full flex-col pt-14">
-      <div className="flex flex-none justify-center px-6">
-        <div className="relative aspect-square w-[min(70vw,36vh,400px)] max-w-full">
-          <img src={art} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className={`h-full w-full rounded-2xl bg-white/5 object-cover shadow-2xl ring-1 ring-white/10 transition-transform duration-500 ${p.playing ? "scale-[1.03]" : ""}`} />
-          {!p.playing && ep && <span className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/65 px-4 py-2.5 text-sm font-extrabold backdrop-blur"><Play size={18} fill="currentColor" style={{ color: ACCENT }} />{p.unlocked && p.active ? "Paused" : "Tap to listen"}</span>}
-          {item.state === "loading" && <span className="absolute inset-0 grid place-items-center rounded-2xl bg-black/40"><Loader2 className="animate-spin" /></span>}
+      <div className="flex flex-none justify-center px-4">
+        <Cover art={art} alt={`${item.show.name} cover art`} eager={p.i < 3} playing={p.playing}>
+          {!p.playing && ep && (p.unlocked && p.active
+            ? <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/45 ring-1 ring-white/25 backdrop-blur-md" aria-hidden><Play size={28} fill="currentColor" className="ml-1" /></span>
+            : <span className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/55 px-4 py-2 text-sm font-extrabold ring-1 ring-white/20 backdrop-blur-md"><Play size={16} fill="currentColor" style={{ color: ACCENT }} />Tap to listen</span>)}
+          {item.state === "loading" && <span className="absolute inset-0 grid place-items-center rounded-[26px] bg-black/40"><Loader2 className="animate-spin" /></span>}
           {item.state === "none" && <span className="pointer-events-auto absolute inset-x-4 top-1/2 -translate-y-1/2 rounded-2xl bg-black/80 p-3 text-center text-sm">No playable episodes right now.<button type="button" onClick={p.onNext} className="mt-2 block w-full rounded-full bg-white/15 py-1.5 font-bold">Next podcast</button></span>}
-        </div>
+        </Cover>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden px-5 pr-20 pt-3 [mask-image:linear-gradient(180deg,#000_70%,transparent)]">
+      <div className="min-h-0 flex-1 overflow-hidden px-5 pr-20 pt-4 [mask-image:linear-gradient(180deg,#000_60%,transparent)]">
         {p.notes && ep?.about && <p className="text-sm leading-relaxed text-white/70">{ep.about}</p>}
       </div>
 
@@ -839,13 +875,14 @@ function Card(p: CardProps) {
       </div>
     </div>
 
-    <div className="absolute bottom-5 right-2 z-[3] flex flex-col items-center gap-3.5">
+    <div className="absolute bottom-5 right-2 z-[3] flex flex-col items-center gap-3">
       <button type="button" onClick={p.onFollow} aria-label={p.following ? `Unfollow ${item.show.name}` : `Follow ${item.show.name}`} className="relative mb-2">
         <img src={item.show.art} alt="" referrerPolicy="no-referrer" className="h-12 w-12 rounded-full object-cover ring-2 ring-white" />
         <span className={`absolute -bottom-2 left-1/2 grid h-5 w-5 -translate-x-1/2 place-items-center rounded-full ${p.following ? "bg-white text-[#120e14]" : "bg-rose-500 text-white"}`}>{p.following ? <Check size={13} /> : <Plus size={13} />}</span>
       </button>
       <Rail label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={30} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Rail>
       {p.commentsOn && <Rail label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={30} /></Rail>}
+      <Rail label="Episodes" onClick={p.onShow}><ListVideo size={28} /></Rail>
       <Rail label="Read" onClick={p.onRead} disabled={!ep || !p.active}><FileText size={28} /></Rail>
       <Rail label={p.saved ? "Saved" : "Save"} onClick={p.onSave} disabled={!ep}><Bookmark size={30} className={p.saved ? "fill-current" : ""} style={p.saved ? { color: ACCENT } : undefined} /></Rail>
       <Rail label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={28} /></Rail>
@@ -999,36 +1036,6 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
   </Sheet>;
 }
 
-function ShowSheet({ show, load, following, onFollow, onPlay, onClose, onGenre, adFree, onAdFree }: { show: PodShow; load: (id: string) => Promise<{ show: PodShow | null; episodes: PodEpisode[] }>; following: boolean; onFollow: (s: PodShow) => void; onPlay: (s: PodShow, e: PodEpisode) => void; onClose: () => void; onGenre: (g: string) => void; adFree: boolean; onAdFree: (on: boolean) => void }) {
-  const [eps, setEps] = useState<PodEpisode[] | null>(null);
-  const [full, setFull] = useState<PodShow>(show);
-  const [err, setErr] = useState("");
-  useEffect(() => { let on = true; load(show.id).then((b) => { if (!on) return; setEps(b.episodes); if (b.show) setFull({ ...b.show, genre: show.genre || b.show.genre }); }).catch((e) => on && setErr(e.message)); return () => { on = false; }; }, [show.id, show.genre, load]);
-  return <Sheet title={GENRE[full.genre]?.name ?? "Podcast"} onClose={onClose} tall>
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-      <div className="flex items-end gap-4"><img src={full.art} alt="" referrerPolicy="no-referrer" className="h-28 w-28 flex-none rounded-2xl object-cover shadow-xl" /><div className="min-w-0"><h2 className="text-xl font-black leading-tight">{full.name}</h2><p className="mt-1 text-sm text-white/60">{full.author}</p>{full.episodes > 0 && <p className="text-xs text-white/45">{full.episodes} episodes</p>}</div></div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" onClick={() => onFollow(full)} className={`min-h-10 rounded-full px-5 text-sm font-black ${following ? "bg-white/10 text-white" : "text-[#24160a]"}`} style={following ? undefined : { background: ACCENT }}>{following ? "Following" : "Follow"}</button>
-        {GENRE[full.genre] && <button type="button" onClick={() => onGenre(full.genre)} className="min-h-10 rounded-full bg-white/10 px-4 text-sm font-bold">More {GENRE[full.genre].name}</button>}
-        {full.link && <a href={full.link} target="_blank" rel="noopener noreferrer" className="flex min-h-10 items-center gap-1 rounded-full bg-white/10 px-4 text-sm font-bold">Apple Podcasts <ExternalLink size={13} /></a>}
-      </div>
-      <button type="button" role="switch" aria-checked={adFree} onClick={() => onAdFree(!adFree)} className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl bg-white/5 px-4 py-3 text-left">
-        <span><b className="block text-sm">Support this show</b><span className="block text-xs text-white/55">{adFree ? "Its ads play in full, so the show gets paid." : "Turn on to never skip this show's ads."}</span></span>
-        <span className={`relative h-7 w-12 flex-none rounded-full transition ${adFree ? "" : "bg-white/15"}`} style={adFree ? { background: ACCENT } : undefined}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${adFree ? "left-6" : "left-1"}`} /></span>
-      </button>
-      <div className="mt-5 flex flex-col">
-        {!eps && !err && <div className="grid place-items-center py-8"><Loader2 className="animate-spin" /></div>}
-        {err && <p className="py-6 text-center text-sm text-white/60">{err}</p>}
-        {eps && !eps.length && <p className="py-6 text-center text-sm text-white/60">No playable episodes right now.</p>}
-        {(eps || []).map((e) => <button key={e.id} type="button" onClick={() => onPlay(full, e)} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl p-3 text-left hover:bg-white/5">
-          <span className="min-w-0"><b className="line-clamp-2 block text-sm leading-snug">{e.title}</b><span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-white/55">{e.about}</span><span className="mt-1 block text-[11px] font-bold uppercase tracking-wider text-white/40">{[e.date ? agoWords(e.date) : "", durationWords(e.secs)].filter(Boolean).join(" · ")}</span></span>
-          <span className="grid h-9 w-9 place-items-center rounded-full text-[#24160a]" style={{ background: ACCENT }}><Play size={16} fill="currentColor" /></span>
-        </button>)}
-      </div>
-    </div>
-  </Sheet>;
-}
-
 function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep }: { es: EarshotData; student: boolean; update: PlayerProps["update"]; onClose: () => void; sleepAt: number | "end" | null; setSleep: (v: number | "end" | null) => void }) {
   const set = (patch: Partial<EarshotData["settings"]>) => update((e) => ({ ...e, settings: { ...e.settings, ...patch } }));
   const Row = ({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) => <div className="flex items-center justify-between gap-3 border-b border-white/10 py-3.5 last:border-0"><div><b className="block text-sm">{title}</b>{sub && <span className="block text-xs text-white/55">{sub}</span>}</div>{children}</div>;
@@ -1055,7 +1062,7 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep }: { es
 // ===========================================================================
 // Explore
 // ===========================================================================
-function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, onEpisode, onResume }: { api: PlayerProps["api"]; ex: string; student: boolean; pools: Map<string, PoolShow[]>; poolTick: number; spots: Record<string, Spot>; onGenre: (g: string) => void; onShow: (s: PodShow) => void; onEpisode: (s: PodShow, e: PodEpisode) => void; onResume: (id: string, s: Spot) => void }) {
+function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, onEpisode, onResume, onPlayEpisode }: { api: PlayerProps["api"]; ex: string; student: boolean; pools: Map<string, PoolShow[]>; poolTick: number; spots: Record<string, Spot>; onGenre: (g: string) => void; onShow: (s: PodShow) => void; onEpisode: (s: PodShow, e: PodEpisode) => void; onResume: (id: string, s: Spot) => void; onPlayEpisode: (s: PodShow, e: PodEpisode) => void }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<{ shows: PodShow[]; episodes: PodEpisode[] } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1073,6 +1080,7 @@ function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, on
   const asShow = (e: PodEpisode): PodShow => ({ id: e.showId, name: e.show, author: e.author, art: e.art, genre: "culture", appleGenre: "", link: e.link, episodes: 0, explicit: e.explicit, latest: e.date });
   return <div className="h-full overflow-y-auto px-4 pb-8 pt-16">
     <div className="relative"><Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" size={18} /><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any podcast, host or topic" aria-label="Search podcasts" className="min-h-12 w-full rounded-2xl border border-white/10 bg-white/5 pl-10 pr-3 text-base text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" /></div>
+    {q.trim().length < 2 && <AiFinder api={api} ex={ex} onShow={onShow} onPlay={onPlayEpisode} />}
     {q.trim().length >= 2 ? <div className="mt-4 flex flex-col gap-1">
       {busy && !res && <div className="grid place-items-center py-8"><Loader2 className="animate-spin" /></div>}
       {err && <p className="py-6 text-center text-sm text-white/60">{err}</p>}
@@ -1097,7 +1105,7 @@ const Tile = ({ art, title, sub, onClick }: { art: string; title: string; sub: s
 // ===========================================================================
 // Library
 // ===========================================================================
-function Library({ es, update, onEditInterests, onOpen }: { es: EarshotData; update: PlayerProps["update"]; onEditInterests: () => void; onOpen: (s: SavedEpisode) => void }) {
+function Library({ es, update, onEditInterests, onOpen, onMode }: { es: EarshotData; update: PlayerProps["update"]; onEditInterests: () => void; onOpen: (s: SavedEpisode) => void; onMode: (m: PodMode) => void }) {
   const [which, setWhich] = useState<"liked" | "saved" | "following">("liked");
   const [asking, setAsking] = useState(false);
   const ranked = GENRES.map((g) => [g, tasteOf(es, g.id)] as const).sort((a, b) => b[1] - a[1]).slice(0, 6);
@@ -1105,7 +1113,8 @@ function Library({ es, update, onEditInterests, onOpen }: { es: EarshotData; upd
   const eps = which === "liked" ? es.liked : es.saved;
   return <div className="h-full overflow-y-auto px-4 pb-8 pt-16">
     <div className="flex items-center justify-between gap-3"><h3 className="text-2xl font-black">Library</h3><button type="button" onClick={onEditInterests} className="min-h-9 rounded-full bg-white/10 px-4 text-sm font-bold">Edit interests</button></div>
-    <div className="mt-4 grid grid-cols-3 gap-2">{([["Heard", es.heard.length], ["Liked", es.liked.length], ["Following", es.follows.length]] as const).map(([l, n]) => <div key={l} className="rounded-2xl bg-white/5 p-3"><b className="block text-2xl font-black tabular-nums">{n}</b><span className="text-xs text-white/55">{l}</span></div>)}</div>
+    <ModesHub es={es} onOpen={onMode} />
+    <div className="mt-6 grid grid-cols-3 gap-2">{([["Heard", es.heard.length], ["Liked", es.liked.length], ["Following", es.follows.length]] as const).map(([l, n]) => <div key={l} className="rounded-2xl bg-white/5 p-3"><b className="block text-2xl font-black tabular-nums">{n}</b><span className="text-xs text-white/55">{l}</span></div>)}</div>
     <h4 className="mt-6 text-sm font-black">What your feed has learned</h4>
     <div className="mt-2 flex flex-col gap-2">{ranked.map(([g, v]) => <div key={g.id} className="grid grid-cols-[120px_1fr_32px] items-center gap-2 text-xs"><span className="truncate">{g.name}</span><span className="h-2 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full" style={{ width: `${Math.max(3, (Math.max(0, v) / max) * 100)}%`, background: g.color }} /></span><span className="text-right tabular-nums text-white/45">{Math.round((Math.max(0, v) / max) * 100)}</span></div>)}</div>
     <p className="mt-2 text-xs leading-relaxed text-white/45">Likes, follows, shares and listening raise a genre; quick skips lower it. About one in seven picks is something new on purpose.</p>

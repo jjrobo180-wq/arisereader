@@ -74,7 +74,22 @@ export type PodEpisode = {
 /** What's kept about a show someone follows, so the Following feed needs no lookup to start. */
 export type SavedShow = { id: string; name: string; author: string; art: string; genre: string; at: string };
 /** What's kept about an episode someone liked or saved, so the Library shows it without a lookup. */
-export type SavedEpisode = { id: string; showId: string; title: string; show: string; art: string; secs: number; at: string };
+export type SavedEpisode = { id: string; showId: string; title: string; show: string; art: string; secs: number; at: string; audio?: string; date?: string };
+
+/** Pod Modes: listening hubs for a time of day or activity (Sleep, Commute...), each a playlist that
+ *  plays back to back. The built-in ones always exist; people add their own. */
+export type PodMode = { id: string; name: string; icon: string; episodes: SavedEpisode[] };
+export const DEFAULT_MODES: readonly { id: string; name: string; icon: string; blurb: string }[] = [
+  { id: "sleep", name: "Sleep", icon: "🌙", blurb: "Calm voices to drift off to" },
+  { id: "commute", name: "Commute", icon: "🚗", blurb: "Right-sized for the drive" },
+  { id: "workout", name: "Workout", icon: "💪", blurb: "Energy for the gym or a run" },
+  { id: "focus", name: "Focus", icon: "🎧", blurb: "Background for deep work" },
+  { id: "learn", name: "Learn", icon: "📚", blurb: "Get smarter on the go" },
+  { id: "chores", name: "Chores", icon: "🧺", blurb: "Keeps the dishes interesting" },
+];
+export const MODE_ICONS = ["🌙", "🚗", "💪", "🎧", "📚", "🧺", "☕", "🍳", "🏖️", "✈️", "🧘", "🎮", "🐶", "🚶", "🛁", "🔥", "😂", "🕵️", "🎙️", "❤️"];
+/** Apple's cover art at a bigger size (the same image is served at any size). */
+export const hiRes = (url: string, size = 1200) => String(url || "").replace(/\/\d{2,4}x\d{2,4}(bb|cc|sr)?\.(jpg|jpeg|png|webp)$/i, `/${size}x${size}bb.$2`);
 
 /** Smart ad skip: auto skips ads it's sure about (and asks about the rest), ask always shows a Skip button, off does nothing. */
 export type AdMode = "auto" | "ask" | "off";
@@ -95,13 +110,16 @@ export type Earshot = {
   skipped: string[];
   /** Shows they support: ads on these are never skipped. */
   adFree: string[];
+  /** Pod Modes (the built-in ones first). */
+  modes: PodMode[];
   settings: EarshotSettings;
 };
 
-export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80 } as const;
+export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
+export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [] }));
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
 export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto" });
-export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], settings: defaultSettings() });
+export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], modes: defaultModes(), settings: defaultSettings() });
 
 // ---------------------------------------------------------------------------
 // Reading Apple's answers
@@ -336,7 +354,11 @@ function cleanSavedShow(v: unknown): SavedShow | null {
 }
 function cleanSavedEpisode(v: unknown): SavedEpisode | null {
   const r = obj(v); const id = cleanPodId(r?.id); const title = str(r?.title, 300).trim();
-  return r && id && title ? { id, showId: cleanPodId(r.showId), title, show: str(r.show, 200), art: cleanUrl(r.art), secs: Math.max(0, Math.min(86_400, Math.floor(num(r.secs)))), at: str(r.at, 40) } : null;
+  if (!(r && id && title)) return null;
+  const out: SavedEpisode = { id, showId: cleanPodId(r.showId), title, show: str(r.show, 200), art: cleanUrl(r.art), secs: Math.max(0, Math.min(86_400, Math.floor(num(r.secs)))), at: str(r.at, 40) };
+  const audio = cleanUrl(r.audio); if (audio) out.audio = audio;
+  const date = str(r.date, 40); if (date) out.date = date;
+  return out;
 }
 function list<T extends { id: string }>(v: unknown, max: number, clean: (x: unknown) => T | null): T[] {
   const out: T[] = [];
@@ -347,6 +369,22 @@ const idList = (v: unknown, max: number, unique = true) => {
   const all = (Array.isArray(v) ? v : []).map(cleanPodId).filter(Boolean);
   return (unique ? Array.from(new Set(all)) : all).slice(0, max);
 };
+
+function cleanModes(v: unknown): PodMode[] {
+  const out = defaultModes();
+  for (const x of Array.isArray(v) ? v : []) {
+    const r = obj(x); if (!r) continue;
+    const id = str(r.id, 24).replace(/[^a-z0-9-]/gi, "").toLowerCase();
+    if (!id) continue;
+    const episodes = list(r.episodes, EARSHOT_LIMITS.modeEpisodes, cleanSavedEpisode);
+    const known = out.find((m) => m.id === id);
+    if (known) { known.episodes = episodes; continue; }
+    const name = str(r.name, 30).replace(/\s+/g, " ").trim();
+    if (!name || out.length >= EARSHOT_LIMITS.modes) continue;
+    out.push({ id, name, icon: MODE_ICONS.includes(r.icon) ? r.icon : "🎙️", episodes });
+  }
+  return out;
+}
 
 export function cleanEarshot(v: unknown): Earshot {
   const r = obj(v);
@@ -367,6 +405,7 @@ export function cleanEarshot(v: unknown): Earshot {
     heard: idList(r.heard, EARSHOT_LIMITS.heard),
     skipped: idList(r.skipped, EARSHOT_LIMITS.skipped, false),
     adFree: idList(r.adFree, 300),
+    modes: cleanModes(r.modes),
     settings: {
       speed: (SPEEDS as readonly number[]).includes(s.speed) ? s.speed : d.speed,
       skipIntro: typeof s.skipIntro === "boolean" ? s.skipIntro : d.skipIntro,

@@ -220,6 +220,17 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     } catch (e) { appleDown(res, e); }
   });
 
+  /** "Find me a podcast": describe what you want, AI picks real shows. */
+  const finding = createAttemptLimiter({ max: 20, windowMs: 10 * 60_000 });
+  app.post(`${P}/ai-find`, authMiddleware, async (req: any, res) => {
+    const q = typeof req.body?.q === "string" ? req.body.q.replace(/\s+/g, " ").trim().slice(0, 400) : "";
+    if (q.length < 3) return res.status(400).json({ message: "Tell me a bit more about what you'd like to hear." });
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ message: "The AI finder isn't switched on." });
+    if (limited(finding, req, res, "AI searches")) return;
+    try { res.set("Cache-Control", "no-store"); res.json(await dir.aiFind(q, { explicit: explicitFor(req), kidOnly: isStudent(req) })); }
+    catch (e: any) { console.error("[earshot] ai-find:", e?.message); res.status(502).json({ message: "The AI finder is busy. Try again in a moment." }); }
+  });
+
   /** Read along: one piece of an episode's transcript, with its ads and chapters. */
   app.get(`${P}/transcript/:episodeId`, authMiddleware, async (req: any, res) => {
     const id = cleanPodId(req.params.episodeId), show = cleanPodId(req.query?.show);
