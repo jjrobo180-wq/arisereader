@@ -7,7 +7,7 @@ import { Avatar, Label, Modal, PageHead, Panel, Toggle, confirmed, danger, input
 import { SharedLinks } from "./ShareLink";
 import { KIT_DEFS, type KitLifeId } from "@shared/pluginKit";
 import { kitIcon } from "@/components/plugin-kit/kitIcons";
-import { ListMusic as ListMusicIcon3 } from "lucide-react";
+import { ListMusic as ListMusicIcon3, Podcast as PodcastIcon3 } from "lucide-react";
 import { Coins as CoinsIcon2, CreditCard as CreditCardIcon2, Dumbbell as DumbbellIcon2, Gauge as GaugeIcon2, Globe as GlobeIcon2, GraduationCap as GraduationCapIcon2, Hammer as HammerIcon2, HandCoins as HandCoinsIcon2, Handshake as HandshakeIcon2, Heart as HeartIcon2, HeartPulse as HeartPulseIcon2, Landmark as LandmarkIcon2, ListChecks as ListChecksIcon2, Moon as MoonIcon2, ShieldCheck as ShieldCheckIcon2, Sparkles as SparklesIcon2, Star as StarIcon2, Stethoscope as StethoscopeIcon2, Timer as TimerIcon2, Utensils as UtensilsIcon2 } from "lucide-react";
 import { ArrowLeftRight as ArrowLeftRightIcon, BookOpen as BookOpenIcon, Cake as CakeIcon, Calculator as CalculatorIcon, Car as CarIcon, ChefHat as ChefHatIcon, CloudSun as CloudSunIcon, CreditCard as CreditCardIcon, Flower2 as Flower2Icon, Gift as GiftIcon, Heart as HeartIcon, Mountain as MountainIcon, PawPrint as PawPrintIcon, Phone as PhoneIcon, PiggyBank as PiggyBankIcon, Repeat as RepeatIcon, Timer as TimerIcon, Tv as TvIcon, UtensilsCrossed as UtensilsCrossedIcon, Wrench as WrenchIcon } from "lucide-react";
 
@@ -75,6 +75,7 @@ export const SECTION_INFO: Record<FamilySection, { label: string; detail: string
   checkups: { label: "Health checkups", detail: "Physicals, dentist, eye exams", icon: <StethoscopeIcon2 size={17} /> },
   sleep: { label: "Sleep", detail: "Fall asleep tonight, plus a sleep log", icon: <MoonIcon2 size={17} /> },
   sleepfinder: { label: "Sleep Finder", detail: "Find something to fall asleep to, and build playlists", icon: <ListMusicIcon3 size={17} /> },
+  earshot: { label: "Earshot", detail: "Swipe through real podcasts picked for you", icon: <PodcastIcon3 size={17} /> },
   workouts: { label: "Workout log", detail: "Sets, reps, weight and bests", icon: <DumbbellIcon2 size={17} /> },
   routines: { label: "Routines", detail: "Daily checklists that start fresh", icon: <ListChecksIcon2 size={17} /> },
   milestones: { label: "Milestones", detail: "First words, steps and more", icon: <StarIcon2 size={17} /> },

@@ -7,7 +7,7 @@
 // buttons keep their width when Add turns into Added, so tapping one never moves anything else.
 // Its colours come from one palette, in day or night, so the hub's night mode can't half-darken it.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Rocket } from "lucide-react";
+import { Rocket, Podcast as PodcastTile3 } from "lucide-react";
 import {
   Apple, ArrowUpRight, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, Check, CheckSquare,
   ClipboardCheck, Clock, Droplets, Forward, GraduationCap, Handshake, HeartPulse, History, Hourglass, Landmark, Mail, MessageCircle, Newspaper, NotebookPen, Pill, Plane,
@@ -30,7 +30,7 @@ import {
 } from "@shared/pluginStore";
 
 export const ICONS: Record<string, LucideIcon> = {
-  Rocket, Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
+  Podcast: PodcastTile3, Rocket, Apple, BellRing, BookOpenCheck, Briefcase, Calculator, CalendarDays, CalendarPlus, CalendarRange, CheckSquare, ClipboardCheck, Clock, Droplets, Forward,
   GraduationCap, Handshake, HeartPulse, Landmark, Mail, MessageCircle, Newspaper, Pill, Plane, Smile, SmilePlus, Sparkles, StickyNote, Target, Timer,
   Users, Vote, Wallet, NotebookPen, Hourglass, ShoppingCart, Wind, Quote, History, TrendingUp, Shuffle, HeartHandshake, BookOpenText, Link2, Sun, Trophy,
   ArrowLeftRight: ArrowLeftRightTile, BookOpen: BookOpenTile, Cake: CakeTile, Car: CarTile, ChefHat: ChefHatTile, CloudSun: CloudSunTile, CreditCard: CreditCardTile, Flower2: Flower2Tile, Gift: GiftTile, Heart: HeartTile, Mountain: MountainTile, PawPrint: PawPrintTile, Phone: PhoneTile, PiggyBank: PiggyBankTile, Repeat: RepeatTile, Tv: TvTile, UtensilsCrossed: UtensilsCrossedTile, Wrench: WrenchTile,

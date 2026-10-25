@@ -64,6 +64,7 @@ import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerSleepFinderRoutes } from "./sleepFinder";
+import { registerEarshotRoutes, supabaseEarshotStore } from "./earshot";
 import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
 import { registerHubChatRoutes } from "./hubChat";
@@ -1504,6 +1505,7 @@ export async function registerRoutes(
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
   registerSleepFinderRoutes(app, authMiddleware);
+  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase) });
   registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
   registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
     getSetting: (key) => storage.getSetting(key),

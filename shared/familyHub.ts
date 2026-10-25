@@ -14,11 +14,12 @@ import { cleanNoteHtml } from "./richNote";
 import { cleanLock, type PrivacyLock } from "./privacyLock";
 import { cleanSleepApp, emptySleepApp, type SleepApp } from "./sleepApp";
 import { cleanSleepFinder, emptySleepFinder, type SleepFinder } from "./sleepFinder";
+import { cleanEarshot, emptyEarshot, type Earshot } from "./earshot";
 
-export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
+export const FAMILY_SECTIONS = ["home", "tasks", "start", "goals", "chores", "calendar", "behavior", "health", "cycle", "mood", "polls", "trips", "money", "notes", "news", "pills", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS, "linked", "notifications", "reader", "family"] as const;
 export type FamilySection = typeof FAMILY_SECTIONS[number];
 /** Sections that can be switched off. Home, Tasks, Notifications and Family members always show. */
-export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS];
+export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores", "calendar", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "notes", "news", "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS];
 /** Sections added from the Plugin Store: off until the family adds them (the others start on).
  *  LifeHub comes with Tasks, Notes, Calendar, Home, Notifications and Settings; everything else,
  *  Goals, Chores and the rest included, is added from the App Store and counts towards the free
@@ -26,7 +27,7 @@ export const TOGGLEABLE: readonly FamilySection[] = ["start", "goals", "chores",
  *  everything in it back. */
 export const ADD_ON_SECTIONS: readonly FamilySection[] = [
   "goals", "chores", "behavior", "health", "cycle", "pills", "mood", "polls", "trips", "money", "news",
-  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS];
+  "journal", "countdowns", "grocery", "meditate", "bible", "quotes", "history", "trending", "randomizer", "relationships", "dictionary", "links", "lifeplan", "habits", "gratitude", "focus", "bucket", "recipes", "meals", "upkeep", "plants", "birthdays", "gifts", "pets", "contacts", "subscriptions", "jars", "tips", "reading", "watchlist", "weather", "convert", "car", "wishlist", "restaurants", "learning", "projects", "loans", "cleaning", "checkups", "sleep", "sleepfinder", "earshot", "workouts", "routines", "milestones", "ious", "allowance", "giftcards", "warranties", "mileage", "mortgage", "clocks", "timers", "medical", "browser", ...KIT_LIFE_IDS];
 
 /** LifeHub screens that were standard before Oct 12, 2026, and how to tell one is in use. */
 const some = (v: unknown) => Array.isArray(v) && v.length > 0;
@@ -251,6 +252,8 @@ export type Family = {
   sleepApp: SleepApp;
   /** Sleep Finder: what they like to fall asleep to, and the sleep playlists they build (shared/sleepFinder.ts). */
   sleepFinder: SleepFinder;
+  /** Earshot, the podcast app: genres picked, shows followed, episodes liked and saved, and the feed's learned taste (shared/earshot.ts). */
+  earshot: Earshot;
   workouts: Workout[];
   routines: Routine[];
   milestones: Milestone[];
@@ -326,7 +329,7 @@ export const emptyFamily = (): Family => ({
   journal: [], countdowns: [], groceries: [], savedVerses: [], meditations: [], savedQuotes: [],
   widgets: { stickies: false }, stickies: [], randomLists: [], savedWords: [], browserMarks: [], linkPage: { title: "", bio: "", links: [] },
   habits: [], gratitude: [], focusLog: [], recipes: [], meals: [], care: [], birthdays: [], contacts: [], subscriptions: [], jars: [], collections: [], weather: { place: "", unit: "F" },
-  sleep: [], sleepApp: emptySleepApp(), sleepFinder: emptySleepFinder(), workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
+  sleep: [], sleepApp: emptySleepApp(), sleepFinder: emptySleepFinder(), earshot: emptyEarshot(), workouts: [], routines: [], milestones: [], ious: [], allowance: [], giftCards: [], warranties: [], mileage: [], mileageRate: 0.7, clocks: [], medical: [], kit: [], kitInstalled: [],
   notesInstalled: [], notesApps: {}, lock: null,
   sheetsInstalled: [], sheets: {}, driveInstalled: false, drive: [], dropInstalled: false, briefOff: false,
 });
@@ -641,6 +644,7 @@ export function cleanFamily(input: unknown): Family {
     sleep: rows(raw.sleep, LIMITS.sleep, (r) => { const date = day(r.date), bed = clock(r.bed), wake = clock(r.wake); return date && bed && wake ? { id: id(r.id), date, bed, wake, quality: int(r.quality, 0, 5) } : null; }, true),
     sleepApp: cleanSleepApp(raw.sleepApp),
     sleepFinder: cleanSleepFinder(raw.sleepFinder),
+    earshot: cleanEarshot(raw.earshot),
     workouts: rows(raw.workouts, LIMITS.workouts, (r) => {
       const date = day(r.date), exercise = str(r.exercise, 60).trim();
       return date && exercise ? { id: id(r.id), date, exercise, sets: int(r.sets, 0, 100), reps: int(r.reps, 0, 1000), weight: num(r.weight, 0, 5000), unit: oneOf(r.unit, ["lb", "kg"] as const, "lb") } : null;
