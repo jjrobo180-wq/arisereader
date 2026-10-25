@@ -94,7 +94,7 @@ export const hiRes = (url: string, size = 1200) => String(url || "").replace(/\/
 /** Smart ad skip: auto skips ads it's sure about (and asks about the rest), ask always shows a Skip button, off does nothing. */
 export type AdMode = "auto" | "ask" | "off";
 export const AD_MODES: readonly AdMode[] = ["auto", "ask", "off"];
-export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode; fullCover: boolean };
+export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode; fullCover: boolean; hideTeasers: boolean };
 export type Earshot = {
   setupDone: boolean;
   genres: string[];
@@ -118,7 +118,7 @@ export type Earshot = {
 export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
 export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [] }));
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
-export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false });
+export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false, hideTeasers: true });
 export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], modes: defaultModes(), settings: defaultSettings() });
 
 // ---------------------------------------------------------------------------
@@ -297,7 +297,19 @@ export function whyShown(e: Earshot, c: Candidate, follows: Set<string>, explore
 }
 
 /** Which episode of a show to play: the newest one they haven't heard that suits their pace. */
-export function chooseEpisode(e: Earshot, episodes: PodEpisode[]): PodEpisode | null {
+/** A trailer or short preview rather than an episode: under about 3 minutes, or titled as a trailer,
+ *  sneak peek, "coming soon" or "Introducing…" (usually another show's promo dropped in the feed). */
+const TEASER = /\b(trailer|sneak peek|coming soon|first look|teaser)\b|^\s*(introducing|announcing)\b|^\s*(bonus|new show|preview)\s*[:|-]\s*(introducing|meet|announcing)\b/i;
+export const isTeaser = (ep: Pick<PodEpisode, "title" | "secs">) => (ep.secs > 0 && ep.secs < 190) || TEASER.test(ep.title);
+/** Episodes worth showing: trailers and short previews left out when the listener hides them (unless that's all there is). */
+export function realEpisodes<T extends Pick<PodEpisode, "title" | "secs">>(list: T[], hide: boolean): T[] {
+  if (!hide) return list;
+  const kept = list.filter((x) => !isTeaser(x));
+  return kept.length ? kept : list;
+}
+
+export function chooseEpisode(e: Earshot, all: PodEpisode[]): PodEpisode | null {
+  const episodes = realEpisodes(all, e.settings?.hideTeasers ?? true);
   const fresh = episodes.filter((ep) => !e.heard.includes(ep.id));
   const list = fresh.length ? fresh : episodes;
   if (!list.length) return null;
@@ -413,6 +425,7 @@ export function cleanEarshot(v: unknown): Earshot {
       notes: typeof s.notes === "boolean" ? s.notes : d.notes,
       explicit: s.explicit === true,
       fullCover: s.fullCover === true,
+      hideTeasers: typeof s.hideTeasers === "boolean" ? s.hideTeasers : d.hideTeasers,
       adMode: AD_MODES.includes(s.adMode) ? s.adMode : s.adSkip === false ? "off" : d.adMode,
     },
   };

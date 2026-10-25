@@ -15,7 +15,7 @@ import type { AdRange, TxSegment } from "./earshot";
 
 export type Word = { s: number; e: number; w: string };
 /** dai: found by comparing copies (an ad the host stitched into this copy). */
-export type AdKind = "ai" | "phrase" | "learned" | "chapter" | "user" | "crowd" | "dai";
+export type AdKind = "ai" | "phrase" | "learned" | "chapter" | "user" | "crowd" | "dai" | "intro";
 /** An ad as the server sends it. dur: the length of the audio its times belong to. */
 export type ServerAd = {
   key: string; s: number; e: number; label: string; kind: AdKind; conf: number;
@@ -252,6 +252,40 @@ export function adsFromAiV2(raw: string, segs: TxSegment[], words: Word[] = [], 
     if (e - s >= 6 && e - s <= 420) out.push({ s, e, label: String(a?.label || "Ad break").replace(/\s+/g, " ").trim().slice(0, 60) || "Ad break", conf: Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : 0.85, kind: "ai" });
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// The show's intro: skipped only for listeners who turn on "Skip the intro"
+// ---------------------------------------------------------------------------
+export const INTRO_PROMPT = `You read the opening of a podcast episode's transcript (numbered lines, ads already found are marked [AD]) and find where the episode's real content begins, so a listener can skip the intro.
+The intro is what comes before that: theme-song lyrics, a "previously on" recap, a cold-open teaser (a short clip from later in the episode played first, often followed by music), the show's standard welcome ("Welcome to <show>, the podcast where…", "I'm <host>…"), housekeeping (rate and review, follow us, our socials, live tour dates) and banter before the hosts turn to the topic.
+Content begins at the first line where the hosts start on this episode's actual subject or story, or greet a guest to start the interview.
+Be careful: when the episode dives straight into the subject, or you can't tell, answer null. Never put real discussion of the topic in the intro.
+Answer with JSON only: {"content":{"line":<first content line number>,"start":"<first few words of that line>"}} or {"content":null}.`;
+
+export function introPromptMessage(segs: TxSegment[], ads: AdRange[], hints: AdHints): string {
+  const head: string[] = [];
+  if (hints.show) head.push(`Show: ${hints.show}`);
+  if (hints.title) head.push(`Episode: ${hints.title}`);
+  const inAd = (g: TxSegment) => ads.some((a) => g.s >= a.s - 0.5 && g.e <= a.e + 0.5);
+  const lines = segs.map((g, i) => `${i}: ${inAd(g) ? "[AD] " : ""}${g.t}`);
+  return `${head.join("\n")}\n\n${lines.join("\n")}`.slice(0, 30_000);
+}
+
+/** The AI's answer as the intro's range: from where the show starts (after any ads at the start)
+ *  to the first content line (cut at its first words). At least 8 seconds and at most 4 minutes. */
+export function introFromAi(raw: string, segs: TxSegment[], ads: AdRange[], words: Word[] = []): AdRange | null {
+  let v: any; try { v = JSON.parse(raw); } catch { return null; }
+  const line = Math.floor(Number(v?.content?.line));
+  if (!Number.isFinite(line) || line <= 0 || line >= segs.length) return null;
+  let e = segs[line].s;
+  const q = typeof v.content.start === "string" ? quoteTime(words, v.content.start, segs[line], "start") : null;
+  if (q !== null && Math.abs(q - e) < 8) e = q;
+  // Starts where the opening ads end (they're skipped as ads either way).
+  let s = 0;
+  for (const a of ads.slice().sort((x, y) => x.s - y.s)) if (a.s <= s + 2 && a.e > s && a.e < e) s = a.e;
+  if (e - s < 8 || e - s > 240) return null;
+  return { s, e, label: "Intro", conf: 0.85, kind: "intro" };
 }
 
 /** Everything found, combined: AI first; phrase blocks the AI didn't cover only when they're very

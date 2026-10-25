@@ -17,7 +17,7 @@ import {
   type AdRange, type Chapter, type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk, type TxSegment,
 } from "../shared/earshot";
 import {
-  AD_PROMPT_V2, adPromptMessage, adsFromAiV2, combineAds, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints,
+  AD_PROMPT_V2, INTRO_PROMPT, adPromptMessage, adsFromAiV2, combineAds, introFromAi, introPromptMessage, emptyProfile, learnFromMark, learnProfile, learnedPreroll, mp3Info, phraseAds, phraseBlocks, profileHints,
   type ServerAd, type ShowProfile, type Word,
 } from "../shared/earshotAds";
 
@@ -379,7 +379,13 @@ export function createDirectory(options: DirectoryOptions = {}) {
     const learned = o.opening ? learnedPreroll(o.segs, [...(ai ?? []), ...phrase], hints) : null;
     const chapterAds = adsFromChapters(o.chapters, o.duration).filter((a) => a.e > o.from && a.s < o.to);
     const ads = combineAds(ai, phrase, learned, chapterAds);
-    void profiles.refresh(o.showId, async () => learnProfile((await profiles.peek(o.showId))?.value ?? emptyProfile(), o.pieceId, o.segs, ads, o.opening)).catch(() => {});
+    // The opening: where the episode really begins (the intro is skipped only when the listener asks).
+    if (o.opening && o.from === 0 && aiOn() && o.segs.length > 3) {
+      const head = o.segs.filter((g) => g.s < 360);
+      try { const intro = introFromAi(await ask(INTRO_PROMPT, introPromptMessage(head, ads, hints)), head, ads, o.words); if (intro) ads.push(intro); }
+      catch { /* no intro this time */ }
+    }
+    void profiles.refresh(o.showId, async () => learnProfile((await profiles.peek(o.showId))?.value ?? emptyProfile(), o.pieceId, o.segs, ads.filter((x) => x.kind !== "intro"), o.opening)).catch(() => {});
     return ads;
   }
 
@@ -461,7 +467,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const start = chunk * plan.chunkSecs;
       const segments = out.segments.map((s) => ({ s: start + s.start, e: start + s.end, t: s.text.trim() })).filter((s) => s.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: start + w.start, e: start + w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, pieceId: `${ep.id}#${chunk}`, segs: segments, words, chapters, duration: exact || ep.secs, from: start, to: start + plan.chunkSecs, opening: chunk === 0 });
+      const ads = await analyzeAds({ showId, showName: show?.name ?? ep.show, title: ep.title, pieceId: `${ep.id}#${chunk}`, segs: segments, words, chapters, duration: exact || ep.secs, from: start, to: start + plan.chunkSecs, opening: chunk <= 0 });
       return { source: "ai", segments, words, ads, chapters, chunk, chunkSecs: plan.chunkSecs, more: chunk + 1 < plan.chunks, dur: exact || undefined, durMode: "exact", v: 2 } as TranscriptChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
@@ -524,7 +530,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       const out = await transcribe(part.audio, `piece-${chunk}.mp3`, await transcribePrompt(showId, showName));
       const segments = out.segments.map((x) => ({ s: from + x.start, e: from + x.end, t: x.text.trim() })).filter((x) => x.t);
       const words: Word[] = (out.words ?? []).map((w) => ({ s: from + w.start, e: from + w.end, w: w.word.trim() })).filter((w) => w.w);
-      const ads = await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk === 0 });
+      const ads = await analyzeAds({ showId, showName, title: ep.title, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk <= 0 });
       return { v: 3, source: "ai", segments, words, ads, chapters, chunk, chunkSecs: opening ? OPENING : TX_CHUNK_SECS, more: !opening && chunk + 1 < chunks, pieces: part.pieces } as ContentChunk;
     }).catch((e: any) => {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };

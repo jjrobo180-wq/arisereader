@@ -348,7 +348,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   /** Jumps past a sure ad the player is in right now (and says so). */
   const skipIfInAd = (a: HTMLAudioElement, ads: PlayAd[]) => {
     const t = a.currentTime || 0;
-    const ad = ads.find((x) => x.sure && t >= x.s - 0.5 && t < x.e - 1 && !undone.current.has(x.key));
+    const ad = ads.find((x) => x.sure && (x.kind !== "intro" || esRef.current.settings.skipIntro) && t >= x.s - 0.5 && t < x.e - 1 && !undone.current.has(x.key));
     if (!ad) return;
     try { a.currentTime = ad.e; } catch { return; }
     const epId = a.dataset.ep; if (epId) setSkipped({ ad, epId });
@@ -387,7 +387,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (via) a.dataset.sid = via; else delete a.dataset.sid;
     a.src = via ? sessionSrc(ep, via) : ep.audio;
     a.preload = "auto";
-    const at = startAt(ep.secs, readSpots()[ep.id]?.t, esRef.current.settings.skipIntro);
+    // Through the server the intro is found and skipped exactly; otherwise long episodes start 90 s in.
+    const at = startAt(ep.secs, readSpots()[ep.id]?.t, via ? false : esRef.current.settings.skipIntro);
     a.addEventListener("loadedmetadata", () => {
       // Where to start: a saved spot or intro skip, or after the pre-roll the server found in this copy.
       const pre = via && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId) ? plays.current.get(ep.id)?.ads?.startAt ?? 0 : 0;
@@ -598,7 +599,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const compared = mineCopy && !!p!.ads?.final && (p!.ads.how === "diff" || p!.ads.how === "same");
     const covered = (a: PlayAd) => own.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
     const others = alignAds(serverAds.current.get(activeEp.id) ?? [], dur).filter((a) => !compared || a.sure || a.kind === "user" || a.kind === "crowd");
-    return [...own, ...[...others, ...mine].filter((a) => !covered(a))].filter((a) => !undone.current.has(a.key)).sort((x, y) => x.s - y.s);
+    return [...own, ...[...others, ...mine].filter((a) => !covered(a))].filter((a) => !undone.current.has(a.key) && (a.kind !== "intro" || esRef.current.settings.skipIntro)).sort((x, y) => x.s - y.s);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeEp?.id, Math.round(dur * 10), adsTick]);
   const adsRef = useRef(activeAds); adsRef.current = activeAds;
@@ -774,7 +775,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {tab === "library" && <Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />}
 
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
-    {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
+    {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
     {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, `${m.icon} ${m.name}`)} onClose={() => setSheet(null)} /> : null; })()}
@@ -885,14 +886,14 @@ function Card(p: CardProps) {
         <h2 className="mt-1 line-clamp-2 text-[19px] font-semibold leading-snug tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
         {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">
           <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#0e0d10]">
-            <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
+            <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "intro" ? "Skip intro" : p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
             <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={12} /></button>
           </span>
         </div>}
         {ep && <div className="pointer-events-auto mt-4 flex flex-col">
           <div className="relative h-5 w-full">
             <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white/15" />
-            {p.dur > 0 && p.adMarks.filter((a) => a.e - a.s < p.dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.6, ((a.e - a.s) / p.dur) * 100)}%`, background: a.sure ? "rgba(255,214,102,.55)" : "rgba(255,214,102,.25)" }} />)}
+            {p.dur > 0 && p.adMarks.filter((a) => a.e - a.s < p.dur * 0.6).map((a) => <div key={a.key} title={a.label} className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full" style={{ left: `${Math.min(100, (a.s / p.dur) * 100)}%`, width: `${Math.max(0.6, ((a.e - a.s) / p.dur) * 100)}%`, background: a.kind === "intro" ? "rgba(255,255,255,.3)" : a.sure ? "rgba(255,214,102,.55)" : "rgba(255,214,102,.25)" }} />)}
             <div className="absolute left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white" style={{ width: `${pct}%` }} />
             <input type="range" min={0} max={Math.max(1, Math.floor(p.dur))} value={Math.floor(p.time)} onChange={(e) => p.onSeek(Number(e.target.value))} aria-label="Seek" disabled={!p.active}
               className="absolute inset-0 h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white" />
@@ -1090,8 +1091,9 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep }: { es
           <button key={l} type="button" onClick={() => setSleep(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={v === null ? sleepAt === null : v === "end" ? sleepAt === "end" : false} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${(v === null && sleepAt === null) || (v === "end" && sleepAt === "end") ? "bg-white text-[#120e14]" : "bg-white/10 text-white/75"}`}>{l}</button>)}</div>
       </Row>
       <Row title="Speed"><Seg value={es.settings.speed} options={SPEEDS.map((s) => [s, `${s}×`] as [number, string])} onPick={(v) => set({ speed: v })} /></Row>
-      <Row title="Skip the intro" sub="Start long episodes 90 seconds in, past most ads and theme music"><Switch on={es.settings.skipIntro} label="Skip the intro" onClick={() => set({ skipIntro: !es.settings.skipIntro })} /></Row>
+      <Row title="Skip the intro" sub="Jump past theme music, recaps, teasers and the standard welcome to where the episode starts"><Switch on={es.settings.skipIntro} label="Skip the intro" onClick={() => set({ skipIntro: !es.settings.skipIntro })} /></Row>
       <Row title="Swipe for me after" sub="Move to the next podcast by itself"><Seg value={es.settings.advance} options={[[60, "1 min"], [180, "3 min"], [0, "The end"]]} onPick={(v) => set({ advance: v as 0 | 60 | 180 })} /></Row>
+      <Row title="Hide trailers and previews" sub="Leave out trailers, sneak peeks, other shows' promos and anything under 3 minutes"><Switch on={es.settings.hideTeasers} label="Hide trailers and previews" onClick={() => set({ hideTeasers: !es.settings.hideTeasers })} /></Row>
       <Row title="Full-screen cover" sub="The artwork fills the whole screen while you listen"><Switch on={es.settings.fullCover} label="Full-screen cover" onClick={() => set({ fullCover: !es.settings.fullCover })} /></Row>
       <Row title="Episode notes" sub="Show each episode's description under the cover"><Switch on={es.settings.notes} label="Episode notes" onClick={() => set({ notes: !es.settings.notes })} /></Row>
       {!student && <Row title="Explicit podcasts" sub="Off by default. Turn on to include shows marked explicit"><Switch on={es.settings.explicit} label="Explicit podcasts" onClick={() => set({ explicit: !es.settings.explicit })} /></Row>}

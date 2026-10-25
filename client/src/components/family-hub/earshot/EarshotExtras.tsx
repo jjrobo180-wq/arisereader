@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowUp, BookOpen, Car, Check, ChevronLeft, ChevronRight, Dumbbell, Headphones, ListPlus, Loader2, Moon, Play, Plus, Shirt, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
 import {
-  DEFAULT_MODES, GENRE, MODE_ICONS, clock, durationWords, hiRes,
+  DEFAULT_MODES, GENRE, MODE_ICONS, clock, durationWords, hiRes, realEpisodes,
   type Earshot as EarshotData, type PodEpisode, type PodMode, type PodShow, type SavedEpisode,
 } from "@shared/earshot";
 
@@ -20,17 +20,17 @@ type Spot = { t: number; secs: number };
 // ===========================================================================
 // The show page: big art, then every episode in a list; play any one and the rest follow
 // ===========================================================================
-export function ShowPage({ show, load, following, onFollow, onPlayFrom, onClose, adFree, onAdFree, spots, onAddTo, onGenre }: {
+export function ShowPage({ show, load, hideTeasers = true, following, onFollow, onPlayFrom, onClose, adFree, onAdFree, spots, onAddTo, onGenre }: {
   show: PodShow; load: (id: string) => Promise<{ show: PodShow | null; episodes: PodEpisode[] }>; following: boolean; onFollow: (s: PodShow) => void;
   onPlayFrom: (show: PodShow, list: PodEpisode[], index: number) => void; onClose: () => void; adFree: boolean; onAdFree: (on: boolean) => void;
-  spots: Record<string, Spot>; onAddTo: (ep: PodEpisode) => void; onGenre: (g: string) => void;
+  spots: Record<string, Spot>; onAddTo: (ep: PodEpisode) => void; onGenre: (g: string) => void; hideTeasers?: boolean;
 }) {
   const [eps, setEps] = useState<PodEpisode[] | null>(null);
   const [full, setFull] = useState<PodShow>(show);
   const [err, setErr] = useState("");
   const [oldest, setOldest] = useState(false);
   useEffect(() => { load(show.id).then((r) => { setEps(r.episodes); if (r.show) setFull({ ...r.show, genre: r.show.genre || show.genre }); }).catch((e) => setErr(e?.message || "This show didn't load.")); }, [show.id, load, show.genre]);
-  const list = useMemo(() => (eps ? (oldest ? eps.slice().reverse() : eps) : []), [eps, oldest]);
+  const list = useMemo(() => { const real = eps ? realEpisodes(eps, hideTeasers) : []; return oldest ? real.slice().reverse() : real; }, [eps, oldest, hideTeasers]);
   const resumeAt = list.findIndex((e) => spots[e.id]);
   const art = hiRes(full.art);
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#0e0d10] text-white [scrollbar-width:none]" role="dialog" aria-label={full.name}>

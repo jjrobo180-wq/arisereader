@@ -743,7 +743,7 @@ export function registerPlayRoutes(app: any, auth: any, d: PlayRouteDeps) {
     }
     // Ads another finder already covers are left out (stitched-in ones first).
     const out: PlayAd[] = [];
-    const covered = (a: PlayAd) => out.some((o) => Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
+    const covered = (a: PlayAd) => out.some((o) => (o.kind === "intro") === (a.kind === "intro") && Math.min(o.e, a.e) - Math.max(o.s, a.s) > 0.5 * (a.e - a.s));
     for (const a of [...s.ads.ads, ...extra.filter((x) => x.kind === "user"), ...extra.filter((x) => x.kind !== "user")]) if (!covered(a)) out.push(a);
     res.json({ ...s.ads, pending: s.opening === "running" || !!s.gaps?.running, ads: out.sort((x, y) => x.s - y.s) });
   });

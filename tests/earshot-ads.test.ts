@@ -119,3 +119,33 @@ test("old settings carry over to the new ad modes", () => {
   assert.equal(cleanEarshot({ settings: { adMode: "nope" } }).settings.adMode, "auto");
   assert.deepEqual(cleanEarshot({ adFree: ["123", "abc", "123"] }).adFree, ["123"]);
 });
+
+test("the intro runs from after the opening ads to where the episode's content begins", async () => {
+  const { introFromAi } = await import("../shared/earshotAds");
+  const segs = [
+    { s: 0, e: 20, t: "This episode is brought to you by Acme." },
+    { s: 20, e: 30, t: "Acme dot com." },
+    { s: 34, e: 40, t: "Welcome to The Show, I'm Sam." },
+    { s: 41, e: 50, t: "Before we start, rate and review us." },
+    { s: 58, e: 70, t: "So in 1938, the storm clouds were gathering." },
+  ];
+  const ads = [{ s: 0, e: 30.5, label: "Acme", kind: "ai", conf: 0.95 }];
+  const intro = introFromAi(JSON.stringify({ content: { line: 4, start: "So in 1938" } }), segs, ads);
+  assert.ok(intro && Math.abs(intro.s - 30.5) < 0.01 && intro.e === 58 && intro.kind === "intro", JSON.stringify(intro));
+  assert.equal(introFromAi(JSON.stringify({ content: null }), segs, ads), null, "none when the AI isn't sure");
+  assert.equal(introFromAi(JSON.stringify({ content: { line: 2 } }), segs, ads), null, "too short to be an intro");
+});
+
+test("trailers and short previews are left out of the feed and show pages", async () => {
+  const { isTeaser, realEpisodes } = await import("../shared/earshot");
+  assert.ok(isTeaser({ title: "Season 4 Trailer", secs: 120 }));
+  assert.ok(isTeaser({ title: "Introducing: Freaky Folklore", secs: 2400 }), "another show's promo");
+  assert.ok(isTeaser({ title: "Coming soon: the new season", secs: 300 }));
+  assert.ok(isTeaser({ title: "A quick update", secs: 95 }), "under 3 minutes");
+  assert.ok(!isTeaser({ title: "King Arthur: The Truth Behind the Legend (Part 4)", secs: 3974 }));
+  assert.ok(!isTeaser({ title: "The trail of the lonesome pine", secs: 2000 }), "a word that only starts like 'trailer'");
+  const list = [{ title: "Trailer", secs: 100 }, { title: "Episode 1", secs: 1800 }];
+  assert.deepEqual(realEpisodes(list, true).map((x) => x.title), ["Episode 1"]);
+  assert.equal(realEpisodes(list, false).length, 2);
+  assert.equal(realEpisodes([{ title: "Trailer", secs: 100 }], true).length, 1, "kept when it's all there is");
+});
