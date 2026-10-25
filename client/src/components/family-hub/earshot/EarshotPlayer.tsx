@@ -811,7 +811,7 @@ const COVER_MOTION = `@keyframes esDrift{0%{transform:scale(1.04) translate(0,0)
 /** The cover: big and plain, lit softly by its own colors; it drifts slowly while playing. */
 function Cover({ art, alt, eager, playing, children }: { art: string; alt: string; eager: boolean; playing: boolean; children?: ReactNode }) {
   const big = hiRes(art, 1000);
-  return <div className="relative aspect-square w-[min(88vw,52vh,560px)] max-w-full">
+  return <div className="relative aspect-square w-[min(calc(100vw-6rem),50vh,540px)] max-w-full">
     <style>{COVER_MOTION}</style>
     <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="es-glow absolute inset-[8%] h-[84%] w-[84%] rounded-[24px] object-cover blur-3xl" style={{ animation: playing ? "esGlow 9s ease-in-out infinite" : "none", opacity: playing ? undefined : 0.35 }} />
     <div className={`relative h-full w-full overflow-hidden rounded-[18px] shadow-[0_30px_60px_-24px_rgba(0,0,0,.9)] transition-transform duration-700 ease-out ${playing ? "scale-100" : "scale-[.94]"}`}>
@@ -842,7 +842,7 @@ function Card(p: CardProps) {
     {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
 
     <div className="pointer-events-none relative z-[2] flex h-full flex-col pt-[4.5rem]">
-      <div className="flex flex-none justify-center px-4">
+      <div className="flex flex-none justify-center pl-4 pr-[4.25rem]">
         <Cover art={art} alt={`${item.show.name} cover art`} eager={p.i < 3} playing={p.playing}>
           {!p.playing && ep && (p.unlocked && p.active
             ? null
@@ -852,24 +852,13 @@ function Card(p: CardProps) {
         </Cover>
       </div>
 
-      <div className="mx-auto min-h-0 w-full max-w-[560px] flex-1 overflow-hidden px-6 pt-4 [mask-image:linear-gradient(180deg,#000_60%,transparent)]">
+      <div className="min-h-0 w-full flex-1 overflow-hidden pl-6 pr-[4.75rem] pt-4 [mask-image:linear-gradient(180deg,#000_60%,transparent)]">
         {p.notes && ep?.about && <p className="line-clamp-3 text-[13px] leading-relaxed text-white/40">{ep.about}</p>}
       </div>
 
-      <div className="mx-auto flex w-full max-w-[560px] flex-none flex-col px-6 pb-6">
-        <div className="pointer-events-auto flex items-center gap-2">
-          <button type="button" onClick={p.onShow} className="min-w-0 truncate text-left text-[13px] text-white/50 hover:text-white/80">{item.show.name}</button>
-          <button type="button" onClick={p.onFollow} aria-label={p.following ? `Unfollow ${item.show.name}` : `Follow ${item.show.name}`} className={`flex-none rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${p.following ? "text-white/40 ring-white/10" : "text-white/80 ring-white/25"}`}>{p.following ? "Following" : "Follow"}</button>
-        </div>
+      <div className="flex w-full flex-none flex-col pb-6 pl-6 pr-[4.75rem]">
+        <button type="button" onClick={p.onShow} className="pointer-events-auto w-fit max-w-full truncate text-left text-[13px] text-white/50 hover:text-white/80">{item.show.name}</button>
         <h2 className="mt-1 line-clamp-2 text-[19px] font-semibold leading-snug tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
-        <div className="pointer-events-auto mt-3 flex items-center justify-between text-white/70">
-          <Act label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={21} strokeWidth={1.6} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Act>
-          {p.commentsOn && <Act label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={21} strokeWidth={1.6} /></Act>}
-          <Act label="Episodes" onClick={p.onShow}><ListVideo size={21} strokeWidth={1.6} /></Act>
-          <Act label="Read along" onClick={p.onRead} disabled={!ep || !p.active}><FileText size={20} strokeWidth={1.6} /></Act>
-          <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={21} strokeWidth={1.6} className={p.saved ? "fill-current text-white" : ""} /></Act>
-          <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={20} strokeWidth={1.6} /></Act>
-        </div>
         {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">
           <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#0e0d10]">
             <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
@@ -898,12 +887,26 @@ function Card(p: CardProps) {
       </div>
     </div>
 
+    <div className="absolute bottom-6 right-1.5 z-[3] flex w-16 flex-col items-center gap-3.5">
+      <button type="button" onClick={p.onFollow} aria-label={p.following ? `Unfollow ${item.show.name}` : `Follow ${item.show.name}`} className="relative mb-1.5">
+        <img src={item.show.art} alt="" referrerPolicy="no-referrer" className="h-10 w-10 rounded-full object-cover ring-1 ring-white/30" />
+        {!p.following && <span className="absolute -bottom-1.5 left-1/2 grid h-[18px] w-[18px] -translate-x-1/2 place-items-center rounded-full bg-white text-[#0e0d10]"><Plus size={12} strokeWidth={2.5} /></span>}
+      </button>
+      <Act label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={26} strokeWidth={1.5} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Act>
+      {p.commentsOn && <Act label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={25} strokeWidth={1.5} /></Act>}
+      <Act label="Episodes" onClick={p.onShow}><ListVideo size={25} strokeWidth={1.5} /></Act>
+      <Act label="Read" onClick={p.onRead} disabled={!ep || !p.active}><FileText size={24} strokeWidth={1.5} /></Act>
+      <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={25} strokeWidth={1.5} className={p.saved ? "fill-current" : ""} /></Act>
+      <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={24} strokeWidth={1.5} /></Act>
+    </div>
   </article>;
 }
-/** One quiet action under the title: an icon, and its count when there is one. */
+/** One side action: a thin icon over a small quiet label (or its count). */
 function Act({ children, label, n, on, onClick, disabled }: { children: ReactNode; label: string; n?: number; on?: boolean; onClick: () => void; disabled?: boolean }) {
-  return <button type="button" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={on} title={label} className="flex h-10 min-w-10 items-center justify-center gap-1.5 text-[12px] tabular-nums transition hover:text-white disabled:opacity-30">
-    {children}{typeof n === "number" && n > 0 ? <span>{compact(n)}</span> : null}
+  const shown = typeof n === "number" && n > 0 ? compact(n) : ["Like", "Comments", "Share"].includes(label) ? "" : label;
+  return <button type="button" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={on} className="flex min-h-11 w-14 flex-col items-center justify-center gap-1 text-white/85 transition hover:text-white active:scale-95 disabled:opacity-30">
+    <span className="drop-shadow-[0_1px_6px_rgba(0,0,0,.45)]">{children}</span>
+    {shown && <span className="text-[10px] font-medium tabular-nums text-white/55">{shown}</span>}
   </button>;
 }
 
