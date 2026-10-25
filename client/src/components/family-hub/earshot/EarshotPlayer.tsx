@@ -750,15 +750,21 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     addEventListener("resize", fit); addEventListener("orientationchange", fit);
     return () => { removeEventListener("resize", fit); removeEventListener("orientationchange", fit); };
   }, [standalone]);
-  // Under the frame, the page itself shows the current cover (darkened), so if iOS leaves any part of
-  // the screen uncovered it's the art there, never a dark strip.
-  const activeArt = items[active]?.ep?.art || items[active]?.show.art || "";
+  // iPhone home screen: iOS only paints the page in the top part of the screen and fills the strip
+  // below it (about the clock bar's height) with the page's color. So that color follows the cover:
+  // its average, darkened like the bottom of the card, from a tiny copy the server hands over.
+  const toneArt = [items[active]?.ep?.art, items[active]?.show.art].find((a) => a && /mzstatic\.com/.test(a)) || "";
   useEffect(() => {
-    if (!standalone) return;
+    if (!standalone || !mediaUrl) return;
     const root = document.documentElement.style;
-    if ((tab === "foryou" || tab === "following") && activeArt) root.background = `linear-gradient(rgba(0,0,0,.6), rgba(0,0,0,.6)), url("${hiRes(activeArt, 60)}") center / cover no-repeat #0e0d10`;
-    else root.removeProperty("background");
-  }, [standalone, activeArt, tab]);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const paint = (c: string) => { root.background = c; meta?.setAttribute("content", c); };
+    if (!(tab === "foryou" || tab === "following") || !toneArt) { paint("#120e14"); return; }
+    let live = true;
+    void artTone(mediaUrl(`/api/earshot/art?u=${encodeURIComponent(toneArt)}`)).then((c) => { if (live && c) paint(c); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [standalone, toneArt, tab]);
   // Once per visit from the home screen: the screen's real measurements, to the server log.
   const shellRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -902,7 +908,7 @@ function Cover({ art, alt, eager, playing, children }: { art: string; alt: strin
     <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="es-m pointer-events-none absolute inset-[4%] h-[92%] w-[92%] rounded-[28px] object-cover blur-[60px]" style={{ animation: run("esGlow 7s ease-in-out infinite"), opacity: playing ? undefined : 0.3, transition: "opacity 1s" }} />
     <div className="es-m relative h-full w-full" style={{ animation: run("esBreathe 6s ease-in-out infinite") }}>
       <div className={`relative h-full w-full overflow-hidden rounded-[22px] shadow-[0_40px_80px_-30px_rgba(0,0,0,.95)] transition-transform duration-700 ease-out ${playing ? "scale-100" : "scale-[.92]"}`}>
-        <img src={big} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: run("esDrift 36s ease-in-out infinite alternate"), transform: playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <img src={big} onError={artFallback(art)} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: run("esDrift 36s ease-in-out infinite alternate"), transform: playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent" style={{ animation: run("esSheen 9s ease-in-out infinite"), opacity: 0 }} />
       </div>
     </div>
@@ -960,7 +966,7 @@ function Card(p: CardProps) {
       {/* The art itself, edge to edge at the top, fading into that backdrop. While it plays it drifts
           (a slow pan and zoom) with a light sweep now and then; paused, it settles. */}
       <div className="ps-art absolute inset-x-0 top-0 mx-auto aspect-square w-full max-w-[62svh] overflow-hidden">
-        <img src={hiRes(art, 1200)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <img src={hiRes(art, 1200)} onError={artFallback(art)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
         <div className="absolute inset-x-0 top-0 h-[calc(7rem+env(safe-area-inset-top,0px))] bg-gradient-to-b from-black/45 to-transparent" />
       </div>
@@ -1004,7 +1010,7 @@ function Card(p: CardProps) {
     {p.full ? <>
       {/* Full screen: the art itself fills the page, drifting while it plays. */}
       <div className="absolute inset-0 overflow-hidden">
-        <img src={hiRes(art, 1200)} alt="" aria-hidden referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} className="es-m h-full w-full object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <img src={hiRes(art, 1200)} onError={artFallback(art)} alt="" aria-hidden referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} className="es-m h-full w-full object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent via-40% to-[#0e0d10]" />
@@ -1082,6 +1088,33 @@ function Card(p: CardProps) {
     </div>
   </article>;
 }
+/** A cover's average color, darkened to match the bottom of the card (see the theme color above). */
+const tones = new Map<string, Promise<string | null>>();
+function artTone(src: string): Promise<string | null> {
+  let p = tones.get(src);
+  if (!p) {
+    p = new Promise((resolve) => {
+      const img = new Image(); img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const c = document.createElement("canvas"); c.width = c.height = 16;
+          const g = c.getContext("2d", { willReadFrequently: true })!; g.drawImage(img, 0, 0, 16, 16);
+          const d = g.getImageData(0, 0, 16, 16).data; let r = 0, gr = 0, b = 0;
+          for (let k = 0; k < d.length; k += 4) { r += d[k]; gr += d[k + 1]; b += d[k + 2]; }
+          const n = d.length / 4, f = (v: number) => Math.round((v / n) * 0.42 + 5);
+          resolve(`rgb(${f(r)}, ${f(gr)}, ${f(b)})`);
+        } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+    tones.set(src, p);
+  }
+  return p;
+}
+/** When the big copy of a cover won't load (some shows' art is smaller than asked for), use the art as given. */
+const artFallback = (art: string) => (e: { currentTarget: HTMLImageElement }) => { if (art && e.currentTarget.src !== art) e.currentTarget.src = art; };
+
 const NONE_CHAPTERS: Chapter[] = [];
 const NONE_LINES: TxSegment[] = [];
 /** How much slower the scrub goes as the finger slides up away from the bar, and what it's called. */

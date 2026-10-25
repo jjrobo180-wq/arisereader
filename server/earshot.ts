@@ -375,6 +375,26 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     req.user = { id: device, role: "public", displayName: typeof req.body?.name === "string" ? req.body.name : "" };
     next();
   };
+  // A tiny copy of an Apple cover, readable by the page (Apple's image server doesn't allow that
+  // directly). Podscroll reads its colors to tint the strip iOS paints below a home-screen app, which
+  // takes the page's color and can't show the art itself. Apple artwork only, 32 px, cached a day.
+  const artIp = createAttemptLimiter({ max: 600, windowMs: 10 * 60_000 });
+  app.get("/api/podscroll/art", async (req: any, res) => {
+    const ip = clientIp(req);
+    if (artIp.retryAfter(ip) > 0) { res.status(429).end(); return; }
+    artIp.fail(ip);
+    let u: URL;
+    try { u = new URL(String(req.query.u || "")); } catch { res.status(400).end(); return; }
+    if (u.protocol !== "https:" || !/(^|\.)mzstatic\.com$/i.test(u.hostname) || !/\/\d{2,4}x\d{2,4}(bb|cc|sr)?\.(jpe?g|png|webp)$/i.test(u.pathname)) { res.status(400).end(); return; }
+    u.pathname = u.pathname.replace(/\/\d{2,4}x\d{2,4}(bb|cc|sr)?\.(jpe?g|png|webp)$/i, "/32x32bb.$2");
+    try {
+      const r = await fetch(u, { signal: AbortSignal.timeout(8_000) });
+      const type = r.headers.get("content-type") || "";
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (!r.ok || !/^image\//.test(type) || buf.length > 200_000) { res.status(502).end(); return; }
+      res.set({ "Content-Type": type, "Cache-Control": "public, max-age=86400" }).send(buf);
+    } catch { res.status(502).end(); }
+  });
   // Screen measurements Podscroll sends once when opened from a phone's home screen (sizes and the
   // element at the bottom edge; nothing about the person), so layout on devices that can't be tested
   // here can be checked in the server log.
