@@ -63,6 +63,7 @@ import { registerTodoShareRoutes } from "./todoShare";
 import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
+import { registerSleepFinderRoutes } from "./sleepFinder";
 import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
 import { registerHubChatRoutes } from "./hubChat";
@@ -1432,7 +1433,7 @@ export async function registerRoutes(
     if (error) throw error;
     return data ? data.workspace : null;
   };
-  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build"], authMiddleware, plans.aiMeter);
+  app.post(["/api/teacher-hub/import", "/api/teacher-hub/import/minutes", "/api/hub-chat", "/api/arise-todo/food/estimate", "/api/life-plan/build", "/api/sleep-finder/ask"], authMiddleware, plans.aiMeter);
   app.put(["/api/teacher-hub/workspace", "/api/arise-todo/workspace"], authMiddleware, async (req: any, res, next) => {
     try {
       const user = req.adminPreview && req.realUser ? req.realUser : req.user;
@@ -1502,6 +1503,7 @@ export async function registerRoutes(
   registerFoodLookupRoutes(app, authMiddleware);
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
+  registerSleepFinderRoutes(app, authMiddleware);
   registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
   registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
     getSetting: (key) => storage.getSetting(key),
