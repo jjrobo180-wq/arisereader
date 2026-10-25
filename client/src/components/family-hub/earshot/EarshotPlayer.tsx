@@ -736,7 +736,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
   const spots = tab === "library" || tab === "explore" ? readSpots() : {};
 
-  return <div className={`${shell} flex flex-col overflow-hidden bg-[#120e14] text-white shadow-2xl`}>
+  // On Podscroll the frame stops short of the status bar and home indicator, but the swipe feed
+  // reaches past it into both, so the cover art fills the whole screen (overflow stays visible).
+  return <div className={`${shell} flex flex-col ${standalone ? "overflow-visible" : "overflow-hidden"} bg-[#120e14] text-white shadow-2xl`}>
     <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 pt-3">
       {genreMode && tab === "foryou"
         ? <span className="flex items-center gap-2 rounded-full bg-black/55 py-1.5 pl-3 pr-1.5 text-sm font-bold backdrop-blur">{GENRE[genreMode]?.name}<button type="button" aria-label="Back to For You" onClick={() => setGenreMode(null)} className="grid h-7 w-7 place-items-center rounded-full bg-white/15"><X size={14} /></button></span>
@@ -752,7 +754,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
     {(tab === "foryou" || tab === "following") && <div ref={feedRef} tabIndex={-1}
       onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); goTo(active + 1); } else if (e.key === "ArrowUp") { e.preventDefault(); goTo(active - 1); } else if (e.key === " ") { e.preventDefault(); toggle(); } }}
-      className="h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none">
+      className={`${standalone ? "-mt-[env(safe-area-inset-top,0px)] h-[calc(100%+env(safe-area-inset-top,0px)+env(safe-area-inset-bottom,0px))] flex-none" : "h-full"} snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none`}>
       {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
@@ -896,15 +898,15 @@ function Card(p: CardProps) {
       {/* Behind everything, the art blurred and darkened, so the whole page takes on its colors. It
           turns slowly while playing. */}
       <div aria-hidden className="absolute inset-0 overflow-hidden bg-[#0e0d10]">
-        <div className="es-m absolute -inset-[35%] bg-cover bg-center opacity-70 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")`, animation: p.playing ? "esSpin 80s linear infinite" : "none" }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/50 to-black/80" />
+        <div className="es-m absolute -inset-[35%] bg-cover bg-center opacity-90 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")`, animation: p.playing ? "esSpin 80s linear infinite" : "none" }} />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/30 to-black/55" />
       </div>
       {/* The art itself, edge to edge at the top, fading into that backdrop. While it plays it drifts
           (a slow pan and zoom) with a light sweep now and then; paused, it settles. */}
       <div className="ps-art absolute inset-x-0 top-0 mx-auto aspect-square w-full max-w-[62svh] overflow-hidden">
         <img src={hiRes(art, 1200)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
-        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/45 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-[calc(7rem+env(safe-area-inset-top,0px))] bg-gradient-to-b from-black/45 to-transparent" />
       </div>
       <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
       {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
