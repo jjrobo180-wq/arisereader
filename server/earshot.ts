@@ -14,7 +14,7 @@ import {
 } from "../shared/earshot";
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
 import { memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
-import { registerPlayRoutes, type Player } from "./podcastPlay";
+import { copyTranscript, registerPlayRoutes, type Player } from "./podcastPlay";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -226,6 +226,12 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (!id || !show) return res.status(400).json({ message: "That isn't an episode." });
     if (limited(reading, req, res, "transcript requests")) return;
     try {
+      // Playing through the server: made from (and placed in) this listener's own copy.
+      const play = typeof req.query?.play === "string" ? req.query.play : "";
+      if (play && options.player) {
+        const mine = await copyTranscript(options.player, dir, play, show, id, chunk).catch(() => null);
+        if (mine) { res.set("Cache-Control", "no-store"); return res.json(mine); }
+      }
       const { words: _words, v: _v, ...piece } = (await dir.transcript(show, id, chunk)) as TranscriptChunk & { v?: number };
       res.set("Cache-Control", "private, max-age=3600");
       res.json(piece);
@@ -238,7 +244,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: options.adStore ?? (sharedAdStore ??= memoryAdStore()), voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}` });
   if (options.player) {
     registerPlayRoutes(app, authMiddleware, {
-      prefix: P, player: options.player, cleanId: cleanPodId, clientIp,
+      prefix: P, player: options.player, dir, cleanId: cleanPodId, clientIp,
       voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`,
       audioFor: async (showId, episodeId) => (await dir.loadShow(showId)).episodes.find((e) => e.id === episodeId)?.audio ?? null,
     });

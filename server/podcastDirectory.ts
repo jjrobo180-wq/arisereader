@@ -154,7 +154,19 @@ export function layeredCache<T>(kv: KV, prefix: string, ttlMs: number, max = 200
 
 type ShowLookup = { show: PodShow | null; episodes: PodEpisode[] };
 export type AskJson = (system: string, user: string) => Promise<string>;
-export type Transcriber = (audio: Blob, name: string) => Promise<{ segments: { start: number; end: number; text: string }[]; words?: { start: number; end: number; word: string }[] }>;
+export type Transcriber = (audio: Blob, name: string, prompt?: string) => Promise<{ segments: { start: number; end: number; text: string }[]; words?: { start: number; end: number; word: string }[] }>;
+
+/** Read along from a listener's copy (playback through the server): times are "content time", the
+ *  show's own audio with stitched-in ads left out, so they're the same for every copy. pieces: where
+ *  the audio came from, with frame keys that find the same moments in any other copy. */
+export type AnchorPiece = { ct: number; len: number; keys: [number, number][] };
+export type ContentChunk = TranscriptChunk & { v: 3; pieces: AnchorPiece[] };
+export type ContentSource = {
+  /** Length of the show's audio (content time). */
+  secs: number;
+  /** The audio for content time [from, to) as one MP3, and where its pieces are. */
+  extract: (from: number, to: number) => Promise<{ audio: Blob; pieces: AnchorPiece[] }>;
+};
 
 export interface DirectoryOptions {
   fetcher?: Fetcher & { idle?: () => boolean };
@@ -178,10 +190,11 @@ export const openAiJson: AskJson = async (system, user) => {
   const body: any = await res.json().catch(() => null);
   return String(body?.choices?.[0]?.message?.content || "");
 };
-export const openAiTranscribe: Transcriber = async (audio, name) => {
+export const openAiTranscribe: Transcriber = async (audio, name, prompt) => {
   const form = new FormData();
   form.append("file", audio, name);
   form.append("model", "whisper-1");
+  if (prompt) form.append("prompt", prompt.slice(0, 800));
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "segment");
   form.append("timestamp_granularities[]", "word");
@@ -211,6 +224,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   const extras = layeredCache<{ transcript: { url: string; type: string } | null; chapters: string }>(kv, "x:", 24 * 3600_000, 2000);
   const tx = layeredCache<TranscriptChunk>(kv, "t:", 365 * 24 * 3600_000, 1500);
   const profiles = layeredCache<ShowProfile>(kv, "sp:", 365 * 24 * 3600_000, 2000);
+  const ctx = layeredCache<ContentChunk>(kv, "t3:", 365 * 24 * 3600_000, 1500);
 
   // ---- Apple ----
   const loadGenreShows = (gid: string) => genreShows.get(gid, async () => {
@@ -401,6 +415,67 @@ export function createDirectory(options: DirectoryOptions = {}) {
     });
   }
 
+  /** Words that help the transcriber spell the show and its sponsors. */
+  async function transcribePrompt(showId: string, showName: string) {
+    const prof = (await profiles.peek(showId))?.value;
+    const sponsors = prof ? Object.entries(prof.sponsors || {}).sort((a, b) => b[1] - a[1]).slice(0, 12).map((x) => x[0]) : [];
+    return `${showName}.${sponsors.length ? ` Sponsors: ${sponsors.join(", ")}.` : ""}`;
+  }
+
+  /** One 10-minute piece of an episode's show audio (stitched-in ads left out), transcribed from a
+   *  listener's copy, with its ads. Made once and kept for everyone; the frame keys in its pieces
+   *  line it up with any other copy. Publisher transcripts are already in content time. */
+  async function contentTranscript(showId: string, episodeId: string, chunk: number, src: ContentSource): Promise<ContentChunk> {
+    const none = (reason: string): ContentChunk => ({ v: 3, source: "none", segments: [], ads: [], chapters: [], chunk, chunkSecs: TX_CHUNK_SECS, more: false, reason, pieces: [] });
+    const { show, ep } = await findEpisode(showId, episodeId);
+    if (!ep) return none("This episode isn't available anymore.");
+    const key = `${ep.id}:${chunk}`;
+    const done = await ctx.peek(key);
+    if (done) return done.value;
+    const showName = show?.name ?? ep.show;
+    const ex = await publisherExtras(show, ep);
+    let chapters: Chapter[] = [];
+    if (ex.chapters && chunk === 0) { try { chapters = parseChaptersJson(JSON.parse(await getText(ex.chapters, 2_000_000))); } catch { /* none */ } }
+    if (ex.transcript) {
+      const pub = await ctx.refresh(`${ep.id}:pub`, async () => {
+        const raw = await getText(ex.transcript!.url, 6_000_000);
+        const segments = /json/.test(ex.transcript!.type) ? parseTranscriptJson(JSON.parse(raw)) : parseCues(raw);
+        if (!segments.length) throw new Error("empty");
+        const last = segments[segments.length - 1].e;
+        const ads = await analyzeAds({ showId, showName, pieceId: `${ep.id}#pub`, segs: segments, words: [], chapters, duration: Math.max(src.secs, last), from: 0, to: Math.max(src.secs, last), opening: true });
+        return { v: 3, source: "publisher", segments, ads, chapters, chunk: 0, chunkSecs: Math.max(src.secs, last), more: false, pieces: [] } as ContentChunk;
+      }).catch(() => null);
+      if (pub) return pub;
+    }
+    if (!aiOn()) return { ...none("This show doesn't publish a transcript."), chapters };
+    const chunks = Math.max(1, Math.ceil(src.secs / TX_CHUNK_SECS - 0.01));
+    if (chunk >= chunks) return { ...none(""), source: "ai", chapters };
+    return ctx.refresh(key, async () => {
+      if (budgetLeft() < TX_CHUNK_SECS / 60) throw Object.assign(new Error("budget"), { soft: true });
+      const from = chunk * TX_CHUNK_SECS, to = Math.min(src.secs, from + TX_CHUNK_SECS);
+      const part = await src.extract(from, to);
+      if (part.audio.size > 25_000_000) throw Object.assign(new Error("size"), { soft: true });
+      if (!part.audio.size) throw new Error("no audio");
+      minutesToday += (to - from) / 60;
+      const out = await transcribe(part.audio, `piece-${chunk}.mp3`, await transcribePrompt(showId, showName));
+      const segments = out.segments.map((x) => ({ s: from + x.start, e: from + x.end, t: x.text.trim() })).filter((x) => x.t);
+      const words: Word[] = (out.words ?? []).map((w) => ({ s: from + w.start, e: from + w.end, w: w.word.trim() })).filter((w) => w.w);
+      const ads = await analyzeAds({ showId, showName, pieceId: `${ep.id}#c${chunk}`, segs: segments, words, chapters, duration: src.secs, from, to, opening: chunk === 0 });
+      return { v: 3, source: "ai", segments, words, ads, chapters, chunk, chunkSecs: TX_CHUNK_SECS, more: chunk + 1 < chunks, pieces: part.pieces } as ContentChunk;
+    }).catch((e: any) => {
+      if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
+      if (e?.message === "size") return { ...none("This episode's audio is too large to read along."), chapters };
+      console.error("[earshot] transcript (copy):", e?.message);
+      return { ...none("The transcript couldn't be made right now. Try again in a minute."), chapters };
+    });
+  }
+  /** Content-time pieces already made for an episode (nothing new is made). */
+  async function contentChunks(episodeId: string): Promise<ContentChunk[]> {
+    const keys = [`${episodeId}:pub`, ...Array.from({ length: 24 }, (_, i) => `${episodeId}:${i}`)];
+    await ctx.preload(keys);
+    return keys.map((k) => ctx.peekMemory(k)).filter((c): c is ContentChunk => !!c && c.source !== "none");
+  }
+
   /** The ads already found for an episode (from saved transcript pieces), without making anything new. */
   async function foundAds(episodeId: string): Promise<ServerAd[]> {
     const keys = [`${episodeId}:pub`, ...Array.from({ length: 24 }, (_, i) => `${episodeId}:${i}`)];
@@ -428,6 +503,6 @@ export function createDirectory(options: DirectoryOptions = {}) {
     await profiles.refresh(showId, async () => learnFromMark((await profiles.peek(showId))?.value ?? emptyProfile(), piece?.segments ?? [], mark)).catch(() => {});
   }
 
-  return { pool, loadShow, loadGenreShows, searches, apple, warm, transcript, foundAds, learnMark, profiles, idle, budgetLeft };
+  return { pool, loadShow, loadGenreShows, searches, apple, warm, transcript, contentTranscript, contentChunks, foundAds, learnMark, profiles, idle, budgetLeft };
 }
 export type Directory = ReturnType<typeof createDirectory>;

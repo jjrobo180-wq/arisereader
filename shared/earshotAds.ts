@@ -14,7 +14,8 @@
 import type { AdRange, TxSegment } from "./earshot";
 
 export type Word = { s: number; e: number; w: string };
-export type AdKind = "ai" | "phrase" | "learned" | "chapter" | "user" | "crowd";
+/** dai: found by comparing copies (an ad the host stitched into this copy). */
+export type AdKind = "ai" | "phrase" | "learned" | "chapter" | "user" | "crowd" | "dai";
 /** An ad as the server sends it. dur: the length of the audio its times belong to. */
 export type ServerAd = {
   key: string; s: number; e: number; label: string; kind: AdKind; conf: number;

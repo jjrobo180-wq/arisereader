@@ -330,10 +330,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}`);
   /** Asks what the server found in this session's copy: soon after it starts, then less often, until it's final. */
-  const pollPlay = (epId: string) => {
+  const pollPlay = (epId: string, again = false) => {
     const p = plays.current.get(epId); if (!p) return;
+    if (again) { if (p.timer) return; p.polls = 3; }
+    if (p.timer) clearTimeout(p.timer);
     const wait = [700, 1200, 1800, 2500, 4000, 6000][p.polls] ?? 9000;
     p.timer = setTimeout(() => {
+      p.timer = null;
       const q = plays.current.get(epId); if (q !== p) return;
       p.polls++;
       api(`/api/earshot/play/${p.sid}/ads`).then((b: SessionAds) => {
@@ -473,7 +476,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (!t) { t = emptyTx(); txs.current.set(ep.id, t); }
     if (t.chunks.has(chunk) || t.loading.has(chunk) || (chunk > 0 && !t.more)) return;
     t.loading.add(chunk); setTxTick((x) => x + 1);
-    api(`/api/earshot/transcript/${ep.id}?show=${ep.showId}&chunk=${chunk}`).then((r: TranscriptChunk) => {
+    // Playing through the server: the transcript is made from (and timed to) this very copy.
+    const p = plays.current.get(ep.id);
+    const play = p && players.current.some((a) => a.dataset.ep === ep.id && a.dataset.sid === p.sid) ? `&play=${p.sid}` : "";
+    api(`/api/earshot/transcript/${ep.id}?show=${ep.showId}&chunk=${chunk}${play}`).then((r: TranscriptChunk) => {
       const x = txs.current.get(ep.id)!;
       x.loading.delete(chunk); x.chunks.add(chunk);
       if (r.source !== "none" || chunk === 0) { x.source = r.source === "none" && x.segments.length ? x.source : r.source; x.reason = r.reason || ""; }
@@ -483,7 +489,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       x.ads = mergeAds([...x.ads, ...r.ads]);
       if (r.chapters?.length) x.chapters = r.chapters;
       setTxTick((v) => v + 1);
-      if (r.ads?.length) loadAds(ep);
+      if (r.ads?.length) { loadAds(ep); if (play) pollPlay(ep.id, true); }
     }).catch(() => { const x = txs.current.get(ep.id); if (x) x.loading.delete(chunk); setTxTick((v) => v + 1); });
   }, [api]);
   /** Everything known about an episode's ads: found automatically, marked by listeners, often skipped. */

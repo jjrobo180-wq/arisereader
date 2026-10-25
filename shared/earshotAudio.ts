@@ -90,6 +90,8 @@ export class Mp3Scanner {
   end() { this.parse(true); }
   /** Total bytes handed in so far. */
   get bytes() { return this.bufStart + this.buf.length; }
+  /** Where the last tag seen ends (the cover art at the start can be a megabyte). */
+  get tagEnd() { return this.skipUntil; }
 
   private join(j: Omit<Join, "i" | "t">) { if (this.joins.length < 3000) this.joins.push({ i: this.count, t: Math.round(this.time * 1000) / 1000, ...j }); }
 
@@ -182,15 +184,14 @@ export type Run = { a: number; b: number; n: number };
  *  silence the copies share. minRun: shortest stretch kept (40 frames ≈ 1 second). */
 export function alignCopies(A: Uint32Array, nA: number, B: Uint32Array, nB: number, k = 8, minRun = 40): Run[] {
   if (nA < k || nB < k) return [];
-  const keyAt = (h: Uint32Array, i: number) => { let x = 0; for (let t = 0; t < k; t++) x = (Math.imul(x, 31) + h[i + t]) >>> 0; return x; };
   // Pieces seen once in B (-1: more than once), then the ones also seen once in A.
   const inB = new Map<number, number>();
-  for (let j = 0; j + k <= nB; j++) { const x = keyAt(B, j); inB.set(x, inB.has(x) ? -1 : j); }
+  for (let j = 0; j + k <= nB; j++) { const x = keyAt(B, j, k); inB.set(x, inB.has(x) ? -1 : j); }
   const inA = new Map<number, number>();
-  for (let i = 0; i + k <= nA; i++) { const x = keyAt(A, i); inA.set(x, inA.has(x) ? -1 : i); }
+  for (let i = 0; i + k <= nA; i++) { const x = keyAt(A, i, k); inA.set(x, inA.has(x) ? -1 : i); }
   const pa: number[] = [], pb: number[] = [];
   for (let i = 0; i + k <= nA; i++) {
-    const x = keyAt(A, i);
+    const x = keyAt(A, i, k);
     if (inA.get(x) !== i) continue;
     const j = inB.get(x);
     if (j === undefined || j < 0) continue;
@@ -273,4 +274,47 @@ export function rangeToCopy(anchors: Anchor[], s: number, e: number): Span | nul
   }
   if (!parts.length) return null;
   return { s: Math.min(...parts.map((p) => p.s)), e: Math.max(...parts.map((p) => p.e)) };
+}
+
+/** The lookup key of the k frames starting at frame i (the same key the aligner uses). */
+export function keyAt(h: Uint32Array, i: number, k = 8): number {
+  let x = 0;
+  for (let t = 0; t < k; t++) x = (Math.imul(x, 31) + h[i + t]) >>> 0;
+  return x;
+}
+/** Where each wanted key starts in a copy (frame index), when it's there exactly once. */
+export function findKeys(h: Uint32Array, count: number, wanted: Set<number>, k = 8): Map<number, number> {
+  const out = new Map<number, number>();
+  if (!wanted.size || count < k) return out;
+  const dupes = new Set<number>();
+  for (let i = 0; i + k <= count; i++) {
+    const x = keyAt(h, i, k);
+    if (!wanted.has(x)) continue;
+    if (out.has(x)) dupes.add(x); else out.set(x, i);
+  }
+  for (const d of Array.from(dupes)) out.delete(d);
+  return out;
+}
+
+/** A copy's show audio, with its stitched-in ads left out: "content time" runs through the pieces
+ *  in order. f0/f1: the piece's frames in the copy; ct: where it starts in content time. */
+export type ContentPiece = { f0: number; f1: number; ct: number; x: number; len: number };
+export function contentPieces(frames: number, timeOf: (i: number) => number, frameAt: (t: number) => number, ads: Span[]): { pieces: ContentPiece[]; total: number } {
+  const cuts = ads.slice().sort((a, b) => a.s - b.s).map((a) => ({ f0: Math.max(0, frameAt(a.s) + (timeOf(frameAt(a.s)) < a.s - 0.013 ? 1 : 0)), f1: Math.min(frames, frameAt(a.e) + (timeOf(frameAt(a.e)) < a.e - 0.013 ? 1 : 0)) }));
+  const pieces: ContentPiece[] = [];
+  let at = 0, ct = 0;
+  const add = (f0: number, f1: number) => { if (f1 <= f0) return; const x = timeOf(f0), len = timeOf(f1) - x; pieces.push({ f0, f1, ct, x, len }); ct += len; };
+  for (const c of cuts) { add(at, Math.max(at, c.f0)); at = Math.max(at, c.f1); }
+  add(at, frames);
+  return { pieces, total: ct };
+}
+/** A content time in the copy (null when it's past the end). */
+export function ctToCopy(pieces: ContentPiece[], ct: number): number | null {
+  for (const p of pieces) if (ct >= p.ct && ct < p.ct + p.len + 1e-6) return p.x + (ct - p.ct);
+  return null;
+}
+/** A copy time as content time (null inside a stitched-in ad). */
+export function copyToCt(pieces: ContentPiece[], x: number): number | null {
+  for (const p of pieces) if (x >= p.x - 1e-6 && x < p.x + p.len + 1e-6) return p.ct + (x - p.x);
+  return null;
 }
