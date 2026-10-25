@@ -1,6 +1,7 @@
 name: Podscroll site
 # The separate Podscroll website (podscroll/): its tests, type check and build.
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'podscroll/**'
@@ -15,6 +16,7 @@ on:
       - 'server/podcastSocial.ts'
       - 'client/src/components/family-hub/earshot/**'
       - '.github/workflows/podscroll.yml'
+      - 'tests/earshot*.test.ts'
   push:
     branches: [master]
     paths:
@@ -30,6 +32,7 @@ on:
       - 'server/podcastSocial.ts'
       - 'client/src/components/family-hub/earshot/**'
       - '.github/workflows/podscroll.yml'
+      - 'tests/earshot*.test.ts'
 jobs:
   build:
     runs-on: ubuntu-latest
