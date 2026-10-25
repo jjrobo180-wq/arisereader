@@ -256,7 +256,13 @@ export function createDirectory(options: DirectoryOptions = {}) {
   const idle = () => (typeof (apple as any).idle === "function" ? (apple as any).idle() : true);
   const web = options.web ?? fetch;
   const ask = options.ask ?? openAiJson;
-  const transcribe = options.transcribe ?? openAiTranscribe;
+  const transcribeNow = options.transcribe ?? openAiTranscribe;
+  // The transcriber turns some requests away when several arrive at once ("busy"): wait a moment and
+  // try once more before giving up, so a piece (and the ads in it) isn't lost to a brief rush.
+  const transcribe: Transcriber = async (...args) => {
+    try { return await transcribeNow(...args); }
+    catch (e: any) { if (e?.message !== "busy") throw e; await new Promise((r) => setTimeout(r, 4_000)); return transcribeNow(...args); }
+  };
   const aiOn = options.aiOn ?? (() => !!(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY));
   const perDay = options.minutesPerDay ?? (Number(process.env.EARSHOT_AI_MINUTES_PER_DAY) || 900);
 
@@ -474,7 +480,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       if (e?.message === "format") return { ...none("Read along works on MP3 podcasts, and this one isn't."), chapters };
       if (e?.message === "size") return { ...none("This episode's audio is too large to read along."), chapters };
       console.error("[earshot] transcript:", e?.message);
-      return { ...none("The transcript couldn't be made right now. Try again in a minute."), chapters };
+      return { ...none("The transcript couldn't be made right now. Try again in a minute."), chapters, retry: true };
     });
   }
 
@@ -537,7 +543,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
       if (e?.message === "budget") return { ...none("Read along has hit today's limit. Try again tomorrow."), chapters };
       if (e?.message === "size") return { ...none("This episode's audio is too large to read along."), chapters };
       console.error("[earshot] transcript (copy):", e?.message);
-      return { ...none("The transcript couldn't be made right now. Try again in a minute."), chapters };
+      return { ...none("The transcript couldn't be made right now. Try again in a minute."), chapters, retry: true };
     });
   }
   /** In a slot the host fills per listener, an ad usually runs from where the inserted material

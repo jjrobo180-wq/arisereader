@@ -467,6 +467,9 @@ export type TranscriptChunk = {
   chunk: number; chunkSecs: number; more: boolean;
   /** Why there's no transcript, in words someone can read. */
   reason?: string;
+  /** Nothing this time, but only for now (the transcriber was busy or a download failed): ask for
+   *  this piece again shortly. The rest of the episode is unaffected. */
+  retry?: boolean;
   /** How long the audio these times belong to is. exact: the server's MP3, measured. approx: a
    *  publisher transcript's last line (the audio may run a little longer). Ads only line up with
    *  a listener's audio when it's the same length (podcasts often stitch in different ads). */

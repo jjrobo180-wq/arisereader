@@ -120,8 +120,10 @@ function silence(): string {
   return silentUrl;
 }
 
-type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegment[]; ads: AdRange[]; chapters: Chapter[]; chunks: Set<number>; loading: Set<number>; more: boolean; chunkSecs: number };
-const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600 });
+type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegment[]; ads: AdRange[]; chapters: Chapter[]; chunks: Set<number>; loading: Set<number>; more: boolean; chunkSecs: number;
+  /** Pieces that came back "not right now": when each may be asked for again, and how many tries so far. */
+  wait: Map<number, { at: number; tries: number }> };
+const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600, wait: new Map() });
 
 export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl }: PlayerProps) {
   const [tab, setTab] = useState<Tab>("foryou");
@@ -505,15 +507,24 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     let t = txs.current.get(ep.id);
     if (!t) { t = emptyTx(); txs.current.set(ep.id, t); }
     if (t.chunks.has(chunk) || t.loading.has(chunk) || (chunk > 0 && !t.more)) return;
+    const w = t.wait.get(chunk);
+    if (w && Date.now() < w.at) return;
     t.loading.add(chunk); setTxTick((x) => x + 1);
     // Playing through the server: the transcript is made from (and timed to) this very copy.
     const p = plays.current.get(ep.id);
     const play = p && players.current.some((a) => a.dataset.ep === ep.id && a.dataset.sid === p.sid) ? `&play=${p.sid}` : "";
     api(`/api/earshot/transcript/${ep.id}?show=${ep.showId}&chunk=${chunk}${play}`).then((r: TranscriptChunk) => {
       const x = txs.current.get(ep.id)!;
-      x.loading.delete(chunk); x.chunks.add(chunk);
+      x.loading.delete(chunk);
+      // "Not right now" (the transcriber was busy): leave this piece open and ask again in 20 s, up to 6
+      // times. It mustn't count as done, nor end the episode's transcript, or every later ad goes unfound.
+      if (r.source === "none" && r.retry) {
+        const tries = (x.wait.get(chunk)?.tries ?? 0) + 1;
+        if (tries < 6) { x.wait.set(chunk, { at: Date.now() + 20_000, tries }); setTxTick((v) => v + 1); return; }
+      }
+      x.wait.delete(chunk); x.chunks.add(chunk);
       if (r.source !== "none" || chunk === 0) { x.source = r.source === "none" && x.segments.length ? x.source : r.source; x.reason = r.reason || ""; }
-      x.chunkSecs = r.chunkSecs || x.chunkSecs; x.more = !!r.more;
+      x.chunkSecs = r.chunkSecs || x.chunkSecs; if (!r.retry) x.more = !!r.more;
       const seen = new Set(x.segments.map((s) => s.s));
       x.segments = [...x.segments, ...r.segments.filter((s) => !seen.has(s.s))].sort((a, b) => a.s - b.s);
       x.ads = mergeAds([...x.ads, ...r.ads]);
@@ -723,6 +734,22 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }).catch(() => {});
   }, [start, loadEpisodes]);
 
+  // Podscroll from the iPhone home screen: iOS tells the page the screen is shorter than it is (by
+  // about the status bar), so anything sized to the window stops short and leaves a dark strip at the
+  // bottom. The app owns the whole screen there, so the frame is sized to the screen itself.
+  useEffect(() => {
+    if (!standalone) return;
+    const fit = () => {
+      const root = document.documentElement.style;
+      const homeScreen = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+      const landscape = matchMedia("(orientation: landscape)").matches;
+      const tall = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+      if (homeScreen && tall > innerHeight) root.setProperty("--ps-h", `${tall}px`); else root.removeProperty("--ps-h");
+    };
+    fit();
+    addEventListener("resize", fit); addEventListener("orientationchange", fit);
+    return () => { removeEventListener("resize", fit); removeEventListener("orientationchange", fit); };
+  }, [standalone]);
   const chooseSleep = (v: number | "end" | null) => { setSleepAt(v); say(v === null ? "Sleep timer off." : v === "end" ? "Stopping at the end of this episode." : `Stopping in ${Math.round((v - Date.now()) / 60000)} minutes.`); };
   // The 1× button on the Podscroll player steps through the speeds, as in Apple Podcasts.
   const cycleSpeed = () => {
@@ -732,7 +759,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   // ---------------- layout ----------------
-  const shell = standalone ? "fixed inset-0" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
+  const shell = standalone ? "fixed inset-x-0 top-0 h-[var(--ps-h,100%)]" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
   const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
   const spots = tab === "library" || tab === "explore" ? readSpots() : {};
 
