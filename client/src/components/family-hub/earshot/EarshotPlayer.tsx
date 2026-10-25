@@ -746,7 +746,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       className="h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none">
       {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
-        counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} unlocked={unlocked}
+        counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
         ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
         adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
@@ -799,7 +799,7 @@ const Centered = ({ children }: { children: ReactNode }) => <div className="flex
 // so nothing can overlap however short the screen is.
 // ===========================================================================
 type CardProps = {
-  i: number; item: Item; active: boolean; playing: boolean; time: number; dur: number; counts?: Counts; commentsOn: boolean; following: boolean; saved: boolean; notes: boolean; unlocked: boolean;
+  i: number; item: Item; active: boolean; playing: boolean; time: number; dur: number; counts?: Counts; commentsOn: boolean; following: boolean; saved: boolean; notes: boolean; full: boolean; unlocked: boolean;
   ad: PlayAd | null; onSkipAd: () => void; onNotAd: () => void; onTapStart: () => void; onRead: () => void;
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
   onToggle: () => void; onSeek: (t: number) => void; onBack: () => void; onFwd: () => void; onLike: () => void; onDoubleLike: () => void; onSave: () => void; onShare: () => void; onFollow: () => void; onComments: () => void; onShow: () => void; onNext: () => void;
@@ -844,20 +844,36 @@ function Card(p: CardProps) {
   };
   const pct = p.dur ? Math.min(100, (p.time / p.dur) * 100) : 0;
   return <article data-i={p.i} className="relative h-full snap-start overflow-hidden [scroll-snap-stop:always]" aria-label={ep ? `${ep.title}, ${item.show.name}` : item.show.name}>
-    <div className="es-m absolute -inset-[35%] bg-cover bg-center opacity-50 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")`, animation: p.playing ? "esSpin 80s linear infinite" : "none" }} />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-[#0e0d10]/70 to-[#0e0d10]" />
+    {p.full ? <>
+      {/* Full screen: the art itself fills the page, drifting while it plays. */}
+      <div className="absolute inset-0 overflow-hidden">
+        <img src={hiRes(art, 1200)} alt="" aria-hidden referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} className="es-m h-full w-full object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent via-40% to-[#0e0d10]" />
+      <style>{COVER_MOTION}</style>
+    </> : <>
+      <div className="es-m absolute -inset-[35%] bg-cover bg-center opacity-50 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")`, animation: p.playing ? "esSpin 80s linear infinite" : "none" }} />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-[#0e0d10]/70 to-[#0e0d10]" />
+    </>}
     <button type="button" onClick={onTap} aria-label={p.playing ? "Pause. Double tap to like." : "Play. Double tap to like."} className="absolute inset-0 z-[1] cursor-pointer" />
     {hearts.map((h) => <Heart key={h.id} className="pointer-events-none absolute z-[5] -ml-12 -mt-12 h-24 w-24 animate-ping fill-rose-500 text-rose-500" style={{ left: h.x, top: h.y, animationIterationCount: 1 }} />)}
 
     <div className="pointer-events-none relative z-[2] flex h-full flex-col pt-16">
       <div className="flex flex-none justify-center px-3">
-        <Cover art={art} alt={`${item.show.name} cover art`} eager={p.i < 3} playing={p.playing}>
+        {p.full ? <div className="relative aspect-square w-[min(calc(100vw-1.5rem),60svh,680px)]">
           {!p.playing && ep && (p.unlocked && p.active
             ? null
             : <span className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/50 px-4 py-2 text-sm font-medium backdrop-blur-md"><Play size={14} fill="currentColor" />Tap to listen</span>)}
           {item.state === "loading" && <span className="absolute inset-0 grid place-items-center rounded-[26px] bg-black/40"><Loader2 className="animate-spin" /></span>}
           {item.state === "none" && <span className="pointer-events-auto absolute inset-x-4 top-1/2 -translate-y-1/2 rounded-2xl bg-black/80 p-3 text-center text-sm">No playable episodes right now.<button type="button" onClick={p.onNext} className="mt-2 block w-full rounded-full bg-white/15 py-1.5 font-bold">Next podcast</button></span>}
-        </Cover>
+        </div> : <Cover art={art} alt={`${item.show.name} cover art`} eager={p.i < 3} playing={p.playing}>
+          {!p.playing && ep && (p.unlocked && p.active
+            ? null
+            : <span className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-black/50 px-4 py-2 text-sm font-medium backdrop-blur-md"><Play size={14} fill="currentColor" />Tap to listen</span>)}
+          {item.state === "loading" && <span className="absolute inset-0 grid place-items-center rounded-[26px] bg-black/40"><Loader2 className="animate-spin" /></span>}
+          {item.state === "none" && <span className="pointer-events-auto absolute inset-x-4 top-1/2 -translate-y-1/2 rounded-2xl bg-black/80 p-3 text-center text-sm">No playable episodes right now.<button type="button" onClick={p.onNext} className="mt-2 block w-full rounded-full bg-white/15 py-1.5 font-bold">Next podcast</button></span>}
+        </Cover>}
       </div>
 
       <div className="min-h-0 w-full flex-1 overflow-hidden pl-6 pr-[4.75rem] pt-4 [mask-image:linear-gradient(180deg,#000_60%,transparent)]">
@@ -1076,6 +1092,7 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep }: { es
       <Row title="Speed"><Seg value={es.settings.speed} options={SPEEDS.map((s) => [s, `${s}×`] as [number, string])} onPick={(v) => set({ speed: v })} /></Row>
       <Row title="Skip the intro" sub="Start long episodes 90 seconds in, past most ads and theme music"><Switch on={es.settings.skipIntro} label="Skip the intro" onClick={() => set({ skipIntro: !es.settings.skipIntro })} /></Row>
       <Row title="Swipe for me after" sub="Move to the next podcast by itself"><Seg value={es.settings.advance} options={[[60, "1 min"], [180, "3 min"], [0, "The end"]]} onPick={(v) => set({ advance: v as 0 | 60 | 180 })} /></Row>
+      <Row title="Full-screen cover" sub="The artwork fills the whole screen while you listen"><Switch on={es.settings.fullCover} label="Full-screen cover" onClick={() => set({ fullCover: !es.settings.fullCover })} /></Row>
       <Row title="Episode notes" sub="Show each episode's description under the cover"><Switch on={es.settings.notes} label="Episode notes" onClick={() => set({ notes: !es.settings.notes })} /></Row>
       {!student && <Row title="Explicit podcasts" sub="Off by default. Turn on to include shows marked explicit"><Switch on={es.settings.explicit} label="Explicit podcasts" onClick={() => set({ explicit: !es.settings.explicit })} /></Row>}
     </div>

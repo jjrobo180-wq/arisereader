@@ -94,7 +94,7 @@ export const hiRes = (url: string, size = 1200) => String(url || "").replace(/\/
 /** Smart ad skip: auto skips ads it's sure about (and asks about the rest), ask always shows a Skip button, off does nothing. */
 export type AdMode = "auto" | "ask" | "off";
 export const AD_MODES: readonly AdMode[] = ["auto", "ask", "off"];
-export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode };
+export type EarshotSettings = { speed: number; skipIntro: boolean; advance: Advance; notes: boolean; explicit: boolean; adMode: AdMode; fullCover: boolean };
 export type Earshot = {
   setupDone: boolean;
   genres: string[];
@@ -118,7 +118,7 @@ export type Earshot = {
 export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
 export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [] }));
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
-export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto" });
+export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false });
 export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], modes: defaultModes(), settings: defaultSettings() });
 
 // ---------------------------------------------------------------------------
@@ -412,6 +412,7 @@ export function cleanEarshot(v: unknown): Earshot {
       advance: s.advance === 60 || s.advance === 180 ? s.advance : 0,
       notes: typeof s.notes === "boolean" ? s.notes : d.notes,
       explicit: s.explicit === true,
+      fullCover: s.fullCover === true,
       adMode: AD_MODES.includes(s.adMode) ? s.adMode : s.adSkip === false ? "off" : d.adMode,
     },
   };
