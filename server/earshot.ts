@@ -13,6 +13,7 @@ import {
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
+import { TOPICS, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
 import { registerSocialRoutes } from "./podcastSocial";
@@ -222,6 +223,37 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
       const kidOk = (genre: string) => !isStudent(req) || !!GENRE[genre]?.kidSafe;
       res.set("Cache-Control", "private, max-age=900");
       res.json({ shows: clean(out.shows, explicit).filter((s) => kidOk(s.genre)), episodes: clean(out.episodes, explicit) });
+    } catch (e) { appleDown(res, e); }
+  });
+
+  /** Browse by subject: one topic (History → World War II) as a ready-made playlist of real episodes,
+   *  plus the shows that cover it most. Kept for an hour, so Apple is asked at most once an hour per topic. */
+  app.get(`${P}/topic/:id`, authMiddleware, async (req: any, res) => {
+    const topic = TOPICS[String(req.params.id || "")];
+    if (!topic) return res.status(404).json({ message: "That topic doesn't exist." });
+    if (isStudent(req) && !topic.subject.kidSafe) return res.json({ topic: { id: topic.id, name: topic.name, subject: topic.subject.name }, episodes: [], shows: [] });
+    if (limited(reads, req, res)) return;
+    const explicit = explicitFor(req);
+    try {
+      const out = await dir.searches.get(`topic:${topic.id}:v1`, async () => {
+        const toEpisodes = (b: any) => (Array.isArray(b?.results) ? b.results : []).map((r: unknown) => parseEpisode(r)).filter(Boolean) as PodEpisode[];
+        const batches: PodEpisode[][] = [toEpisodes(await dir.apple(appleSearchUrl(topic.terms[0], "podcastEpisode", 100, true)))];
+        let shows: PodShow[] = [];
+        try { const b = await dir.apple(appleSearchUrl(topic.terms[0], "podcast", 20, true)); shows = (Array.isArray(b?.results) ? b.results : []).map((r: unknown) => parseShow(r)).filter(Boolean) as PodShow[]; } catch { /* episodes alone are fine */ }
+        // a thin playlist is topped up from the next search term
+        for (const term of topic.terms.slice(1, 3)) {
+          if (topicPlaylist(batches, 40).length >= 25) break;
+          try { batches.push(toEpisodes(await dir.apple(appleSearchUrl(term, "podcastEpisode", 60, true)))); } catch { break; }
+        }
+        return { shows, episodes: topicPlaylist(batches, 60) };
+      });
+      const kidOk = (genre: string) => !isStudent(req) || !!GENRE[genre]?.kidSafe;
+      res.set("Cache-Control", "private, max-age=1800");
+      res.json({
+        topic: { id: topic.id, name: topic.name, subject: topic.subject.name },
+        episodes: clean(out.episodes, explicit).slice(0, 40),
+        shows: clean(out.shows, explicit).filter((s) => kidOk(s.genre)).slice(0, 12),
+      });
     } catch (e) { appleDown(res, e); }
   });
 

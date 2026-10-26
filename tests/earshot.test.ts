@@ -224,3 +224,36 @@ test("the directory: warm pools, transcripts, and the daily AI cap", async () =>
   const capped = await dir.transcript("2", "21", 1);
   assert.equal(capped.source, "none"); assert.match(capped.reason || "", /limit/);
 });
+
+test("server: a subject topic becomes a clean playlist, and students can't open adult subjects", async () => {
+  const app = express(); app.use(express.json());
+  let role = "todo";
+  const auth = (req: any, _res: any, next: any) => { req.user = { id: 1, role, displayName: "Jane Doe" }; next(); };
+  const urls: string[] = [];
+  const fetcher = async (url: string) => {
+    urls.push(url);
+    if (url.includes("podcastEpisode")) return { results: [
+      appleEpisode(1, 21), appleEpisode(2, 21), appleEpisode(3, 21), appleEpisode(4, 21),
+      appleEpisode(5, 22, { trackExplicitness: "explicit" }), appleEpisode(6, 23, { trackTimeMillis: 60_000 }), appleEpisode(7, 24),
+    ] };
+    return { results: [appleShow(21, "WW2 Stories", ["History"])] };
+  };
+  registerEarshotRoutes(app, auth, { store: memoryEarshotStore(), fetcher });
+  const server = app.listen(0);
+  const base = `http://127.0.0.1:${(server.address() as any).port}`;
+  try {
+    const b = await (await fetch(`${base}/api/earshot/topic/ww2`)).json();
+    assert.equal(b.topic.name, "World War II");
+    assert.equal(b.topic.subject, "History");
+    assert.deepEqual(b.episodes.map((e: any) => e.id), ["1", "2", "3", "7"], "3 per show at most, no explicit, no trailers");
+    assert.equal(b.shows[0].name, "WW2 Stories");
+    assert.ok(urls.some((u) => u.includes("world+war+II") || u.includes("world%20war%20II")));
+    const seen = urls.length;
+    await fetch(`${base}/api/earshot/topic/ww2`);
+    assert.equal(urls.length, seen, "a topic is kept, not searched again");
+    assert.equal((await fetch(`${base}/api/earshot/topic/nope`)).status, 404);
+    role = "student";
+    const kid = await (await fetch(`${base}/api/earshot/topic/unsolved`)).json();
+    assert.deepEqual(kid.episodes, []);
+  } finally { server.close(); }
+});

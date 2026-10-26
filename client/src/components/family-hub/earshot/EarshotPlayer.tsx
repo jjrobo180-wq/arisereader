@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Bookmark, Check, ChevronDown, ExternalLink, Mic, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
-  GENRES, GENRE, SPEEDS, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
+  EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
 import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
@@ -14,6 +14,8 @@ import { CreateSheet, GoLiveSheet, LiveChip, LiveRoom, OpenMic, SignInSheet, Stu
 import { OWN_EPISODE, isMicSlot, type ListenSource } from "@shared/earshotCreators";
 import { XSocial } from "./EarshotSocialX";
 import { PreviewCard, Previews, previewPicks, type PreviewPick } from "./EarshotPreviews";
+import { SubjectGrid, SubjectView } from "./EarshotTopics";
+import type { Topic } from "@shared/earshotTopics";
 import { hiRes, type PodMode } from "@shared/earshot";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -853,6 +855,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setTimeout(() => goTo(at), 120);
   };
   const playFrom = (show: PodShow, list: PodEpisode[], i: number) => playList(list.slice(i, i + 30).map((ep, k) => ({ key: `${show.id}-${ep.id}-${Math.random().toString(36).slice(2, 6)}`, show, why: k === 0 ? "You picked this" : `Up next · ${show.name}`, ep, state: "ready" as const })));
+  /** A subject playlist (Explore → Browse by subject): episodes from many shows, back to back. */
+  const playEpisodes = (list: PodEpisode[], i: number, title: string) => playList(list.slice(i, i + 40).map((ep, k) => {
+    const show: PodShow = { id: ep.showId, name: ep.show, author: ep.author, art: ep.art, genre: "culture", appleGenre: "", link: ep.link, episodes: 0, explicit: ep.explicit, latest: ep.date };
+    return { key: `t-${ep.id}-${Math.random().toString(36).slice(2, 6)}`, show, why: k === 0 ? `From ${title}` : `Up next · ${title}`, ep, state: "ready" as const };
+  }));
+  /** Saves a subject playlist to the listener's own playlists (replacing it if they saved it before). */
+  const saveTopic = (topic: Topic, list: PodEpisode[]) => {
+    const id = `t-${topic.id}`.slice(0, 24);
+    const cur = esRef.current.modes;
+    if (!cur.some((m) => m.id === id) && cur.length >= EARSHOT_LIMITS.modes) { say(`You have ${EARSHOT_LIMITS.modes} playlists, the most there can be. Delete one in Library first.`); return; }
+    const episodes = list.slice(0, EARSHOT_LIMITS.modeEpisodes).map(savedOf);
+    update((e) => ({ ...e, modes: e.modes.some((m) => m.id === id) ? e.modes.map((m) => (m.id === id ? { ...m, episodes } : m)) : [...e.modes, { id, name: topic.name.slice(0, 30), icon: "📚", episodes }] }));
+    say(`Saved "${topic.name}" to your playlists in Library.`);
+  };
   const playSaved = (list: SavedEpisode[], i: number, why: string) => playList(list.slice(i, i + 60).map((s) => {
     const show: PodShow = { id: s.showId, name: s.show, author: "", art: s.art, genre: "culture", appleGenre: "", link: "", episodes: 0, explicit: false, latest: "" };
     return s.audio ? { key: `m-${s.id}-${Math.random().toString(36).slice(2, 6)}`, show, why, ep: episodeOf(s), state: "ready" as const } : { key: `m-${s.id}-${Math.random().toString(36).slice(2, 6)}`, show, why, ep: null, state: "loading" as const, want: s.id };
@@ -1004,7 +1020,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       <div className="flex gap-2"><button type="button" onClick={() => seekBy(15)} className="flex-1 rounded-full bg-black/10 py-2 text-xs font-semibold">Jump 15s</button><button type="button" onClick={endMark} className="flex-1 rounded-full bg-[#120e14] py-2 text-xs font-semibold text-white">Ad's over</button><button type="button" onClick={() => setMarking(null)} className="rounded-full bg-black/10 px-3 py-2 text-xs font-semibold">Cancel</button></div>
     </div>}
 
-    {tab === "explore" && lit(<Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow} onPreviews={setPreviews}
+    {tab === "explore" && lit(<Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow} onPreviews={setPreviews} onPlayEpisodes={playEpisodes} onSaveTopic={saveTopic}
       onGenre={(g) => { setGenreMode(g); setTab("foryou"); }} onShow={(show) => setSheet({ kind: "show", show })} onEpisode={playNow}
       onResume={(id, s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
     {tab === "explore" && previews && <Previews picks={previews} source={previewSource} episodes={(id) => loadEpisodes(id).then((b) => b.episodes)} onClose={() => setPreviews(null)} onPlay={(s, e, at) => { setPreviews(null); playNow(s, e, at); }} onShow={(show) => setSheet({ kind: "show", show })} onHush={() => players.current.forEach((a) => a.pause())} />}
@@ -1697,7 +1713,7 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple,
 // ===========================================================================
 // Explore
 // ===========================================================================
-function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, onEpisode, onResume, onPlayEpisode, onPreviews }: { onPreviews: (p: PreviewPick[]) => void; api: PlayerProps["api"]; ex: string; student: boolean; pools: Map<string, PoolShow[]>; poolTick: number; spots: Record<string, Spot>; onGenre: (g: string) => void; onShow: (s: PodShow) => void; onEpisode: (s: PodShow, e: PodEpisode) => void; onResume: (id: string, s: Spot) => void; onPlayEpisode: (s: PodShow, e: PodEpisode) => void }) {
+function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, onEpisode, onResume, onPlayEpisode, onPreviews, onPlayEpisodes, onSaveTopic }: { onPlayEpisodes: (list: PodEpisode[], i: number, title: string) => void; onSaveTopic: (topic: Topic, list: PodEpisode[]) => void; onPreviews: (p: PreviewPick[]) => void; api: PlayerProps["api"]; ex: string; student: boolean; pools: Map<string, PoolShow[]>; poolTick: number; spots: Record<string, Spot>; onGenre: (g: string) => void; onShow: (s: PodShow) => void; onEpisode: (s: PodShow, e: PodEpisode) => void; onResume: (id: string, s: Spot) => void; onPlayEpisode: (s: PodShow, e: PodEpisode) => void }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<{ shows: PodShow[]; episodes: PodEpisode[] } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1714,6 +1730,10 @@ function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, on
   const spooky = useMemo(() => [...(pools.get("horror") ?? []), ...(pools.get("truecrime") ?? [])].map((p) => p.show).slice(0, 12), [pools, poolTick]);
   const picks = useMemo(() => previewPicks(pools), [pools, poolTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const asShow = (e: PodEpisode): PodShow => ({ id: e.showId, name: e.show, author: e.author, art: e.art, genre: "culture", appleGenre: "", link: e.link, episodes: 0, explicit: e.explicit, latest: e.date });
+  const [subject, setSubject] = useState<string | null>(null);
+  if (subject) return <div className="h-full overflow-y-auto px-4 pb-8 pt-16">
+    <SubjectView subjectId={subject} api={api} ex={ex} onBack={() => setSubject(null)} onShow={onShow} onPlay={onPlayEpisodes} onSave={onSaveTopic} />
+  </div>;
   return <div className="h-full overflow-y-auto px-4 pb-8 pt-16">
     <div className="relative"><Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" size={18} /><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search any podcast, host or topic" aria-label="Search podcasts" className="min-h-12 w-full rounded-2xl border border-white/10 bg-white/5 pl-10 pr-3 text-base text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" /></div>
     {q.trim().length < 2 && <AiFinder api={api} ex={ex} onShow={onShow} onPlay={onPlayEpisode} />}
@@ -1727,6 +1747,7 @@ function Explore({ api, ex, student, pools, poolTick, spots, onGenre, onShow, on
       {res?.episodes.map((e) => <Row key={e.id} art={e.art} title={e.title} sub={`${e.show}${e.secs ? ` · ${durationWords(e.secs)}` : ""}`} onClick={() => onEpisode(asShow(e), e)} />)}
     </div> : <>
       {picks.length >= 3 && <PreviewCard picks={picks} onOpen={() => onPreviews(picks)} />}
+      <SubjectGrid student={student} onOpen={(s) => setSubject(s.id)} />
       {!!resume.length && <Shelf title="Continue listening">{resume.map(([id, s]) => <Tile key={id} art={s.art} title={s.title} sub={`${s.show} · ${clock(s.t)} in`} onClick={() => onResume(id, s)} />)}</Shelf>}
       {!!popular.length && <Shelf title="Popular in your genres">{popular.map((s) => <Tile key={s.id} art={s.art} title={s.name} sub={s.author} onClick={() => onShow(s)} />)}</Shelf>}
       {!student && !!spooky.length && <Shelf title="Spooky season">{spooky.map((s) => <Tile key={s.id} art={s.art} title={s.name} sub={s.author} onClick={() => onShow(s)} />)}</Shelf>}
