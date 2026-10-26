@@ -73,7 +73,8 @@ function end(r: Room, why: string) {
   everyone(r, { t: "ended", why, summary: s });
   setTimeout(() => r.conns.forEach((c) => { try { c.ws.close(4000, "ended"); } catch { /* gone */ } }), 400);
   if (save) save(r).catch((e) => console.error("[livepod] save:", e?.message || e));
-  setTimeout(() => rooms.delete(r.id), 10 * 60_000);
+  // unref: a pending cleanup never keeps the process alive on its own (tests, shutdown)
+  setTimeout(() => rooms.delete(r.id), 10 * 60_000).unref?.();
 }
 
 /** Puts LivePod on the server's websocket at /api/live/ws, and saves ended LivePods to the database. */
@@ -102,7 +103,9 @@ export function attachLivePods(httpServer: Server, getDb?: () => any) {
   });
 
   // Keep connections honest, close LivePods whose host left, and send the room's numbers.
-  setInterval(() => {
+  // (unref: these never keep the process alive on their own; the web server does that. Without it
+  // the test run never finishes.)
+  const keepHonest = setInterval(() => {
     const now = Date.now();
     for (const t of Array.from(tickets.entries())) if (t[1].exp < now) tickets.delete(t[0]);
     rooms.forEach((r) => {
@@ -112,11 +115,13 @@ export function attachLivePods(httpServer: Server, getDb?: () => any) {
       r.conns.forEach((c) => { if (!c.alive) { try { c.ws.terminate(); } catch { /* gone */ } return; } c.alive = false; try { c.ws.ping(); } catch { /* gone */ } });
     });
   }, 25_000);
-  setInterval(() => rooms.forEach((r) => {
+  keepHonest.unref?.();
+  const numbers = setInterval(() => rooms.forEach((r) => {
     if (r.ended || (!r.dirty && !r.likeBurst)) return;
     everyone(r, { t: "room", listeners: listenerCount(r), peak: r.stats.peak, likes: r.stats.likes, burst: r.likeBurst, cheerPoints: r.stats.cheerPoints });
     r.likeBurst = 0; r.dirty = false;
   }), 1000);
+  numbers.unref?.();
 }
 
 function join(r: Room, ws: WebSocket, person: Person, role: "host" | "listener") {
