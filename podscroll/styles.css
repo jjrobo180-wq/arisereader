@@ -16,7 +16,15 @@ main[class*="bg-black"], main[class*="bg-\[#120e14\]"] {
 }
 
 /* Override specific dark elements */
-.bg-black { background-color: #ffffff !important; }
+.bg-black { background-color: #ffffff !important; color: #111013 !important; }
 .text-white { color: #111013 !important; }
+.bg-white { background-color: #ffffff !important; }
+.text-black { color: #111013 !important; }
+
+/* Force light theme globally */
+body, html, #root, div, header, main, section, nav, article {
+  background-color: #ffffff !important;
+  color: #111013 !important;
+}
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
