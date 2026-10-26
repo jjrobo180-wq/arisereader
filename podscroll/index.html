@@ -277,6 +277,17 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
 .earned b{display:block;font-family:Manrope,sans-serif;font-size:24px;letter-spacing:-.02em}
 .earned span{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.2)}
 
+/* Top band (For podcasters) */
+.topband{position:relative;overflow:hidden;background:#0f0d14;color:#fff}
+.topband::before{content:"";position:absolute;width:520px;height:520px;left:-160px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(255,138,61,.30),transparent 65%)}
+.topband::after{content:"";position:absolute;width:520px;height:520px;right:-180px;bottom:-320px;border-radius:50%;background:radial-gradient(circle,rgba(147,99,231,.34),transparent 65%)}
+.topband-in{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:28px;padding:34px 0}
+.topband .eyebrow{color:#ffb27a}
+.topband h2{margin-top:10px;font-size:clamp(24px,3vw,34px);line-height:1.1}
+.topband p{margin-top:10px;max-width:640px;font-size:15px;line-height:1.6;color:rgba(255,255,255,.72)}
+.cbtn{background:#fff;color:#1c2238;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+@media (max-width:760px){.topband-in{flex-direction:column;align-items:flex-start;gap:18px;padding:28px 0}}
+
 /* Small screens */
 @media (max-width:960px){
   .nav-links a:not(.button){display:none}
@@ -338,7 +349,7 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
       <a href="#feed">The feed</a>
       <a href="#features">Features</a>
       <a href="#social">Social</a>
-      <a href="#creators">For creators</a>
+      <a href="/creators/">For creators</a>
       <a href="#earn">Make money</a>
       <a href="#faq">FAQ</a>
       <a class="button button-primary" href="/app/">Open Pod+ <svg><use href="#i-arrow"/></svg></a>
@@ -348,44 +359,16 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
 <div class="announce">New: a social feed for listeners, LivePods, and creator earnings at your own prices (opening soon). Free. Try it right away, then sign up free with your email.</div>
 
 <main id="top">
-  <!-- For creators -->
-  <section class="block creators" id="creators">
-    <div class="container center">
-      <span class="eyebrow">For podcasters</span>
-      <h2 class="h2">Where new podcasters<br><span class="gradient-text">get discovered.</span></h2>
-      <p class="lead">Just starting out? Pod+ puts new and independent shows in front of listeners first, gives you the numbers that matter, and lets you go live with your audience.</p>
+  <!-- For podcasters banner -->
+  <section class="topband" aria-label="For podcasters">
+    <div class="container topband-in">
+      <div>
+        <span class="eyebrow"><span class="dot" style="background:var(--orange);box-shadow:0 0 0 4px rgba(255,138,61,.2)"></span>For podcasters</span>
+        <h2>Where new podcasters <span class="gradient-text">get discovered.</span></h2>
+        <p>Just starting out? Pod+ puts new and independent shows in front of listeners first, gives you the numbers that matter, and lets you go live with your audience.</p>
+      </div>
+      <a class="button cbtn" href="/creators/">Learn more <svg><use href="#i-arrow"/></svg></a>
     </div>
-    <div class="container c-grid">
-      <div class="c-card">
-        <span class="ic o"><svg><use href="#i-mic"/></svg></span>
-        <h3>Open Mic</h3>
-        <p>A home for new voices. Fresh episodes from first-time and small creators get lifted up, and the best of them show up right inside For You.</p>
-        <div class="live-mock" style="margin-top:16px"><span style="width:46px;height:46px;flex:none;border-radius:12px;background:linear-gradient(135deg,#ff9f5a,#e8467c)"></span><span><b>Ep. 1: Why I started this</b><small>@dana.talks · 2h · 41 plays</small></span><span class="pill" style="background:#e3f6f3;color:#0f8f87">NEW VOICE</span></div>
-        <div class="live-mock" style="margin-top:8px"><span style="width:46px;height:46px;flex:none;border-radius:12px;background:linear-gradient(135deg,#5fd3c6,#4f6be8)"></span><span><b>Small Town Mysteries #3</b><small>@cole.records · 5h · 128 plays</small></span><span class="pill" style="background:rgba(255,255,255,.12);color:#ffd6b8">#1 RISING</span></div>
-        <span class="tag">New voices first</span>
-      </div>
-      <div class="c-card">
-        <span class="ic k"><svg><use href="#i-users"/></svg></span>
-        <h3>LivePod</h3>
-        <p>Go live with your podcast. Listeners join in, comment as you talk, and send Cheers. You can pin, remove or mute comments.</p>
-        <div class="live-mock"><span class="ring"><span>JR</span></span><span><b>Late night talk: your questions</b><small>128 listening · Q&amp;A</small></span><span class="pill">LIVE</span></div>
-        <div class="cheers"><span>👏</span><span>☕</span><span>🔥</span><span>🎙️</span><span>💿</span><span>👑</span></div>
-      </div>
-      <div class="c-card">
-        <span class="ic b"><svg><use href="#i-spark"/></svg></span>
-        <h3>Studio</h3>
-        <p>See your plays, listeners, minutes listened and new followers day by day, where people found you, and how much of each episode they finish.</p>
-        <div class="bars" aria-hidden="true"><span style="height:20%"></span><span style="height:28%"></span><span style="height:24%"></span><span style="height:40%"></span><span style="height:36%"></span><span style="height:55%"></span><span style="height:48%"></span><span style="height:70%"></span><span style="height:64%"></span><span style="height:88%"></span><span style="height:80%"></span><span style="height:100%"></span></div>
-      </div>
-      <div class="c-card">
-        <span class="ic p"><svg><use href="#i-arrow"/></svg></span>
-        <h3>Pod+ Rise</h3>
-        <p>The Pod+ creator program. Hit a few milestones and you're first in line for supporter memberships, premium episodes and Cheer payouts.</p>
-        <div class="rise"><div><i>✓</i>Publish 3 episodes</div><div><i>✓</i>Reach 100 followers</div><div><i class="no">·</i>1,000 plays in 30 days</div><div><i class="no">·</i>30 days on Pod+</div></div>
-        <span class="tag">Memberships and payouts opening soon</span>
-      </div>
-    </div>
-    <div class="container center" style="margin-top:40px"><a class="button button-primary" href="/app/">Start your show <svg><use href="#i-arrow"/></svg></a></div>
   </section>
 
   <!-- Hero -->
@@ -571,6 +554,46 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
   </section>
 
 
+  <!-- For creators -->
+  <section class="block creators" id="creators">
+    <div class="container center">
+      <span class="eyebrow">For podcasters</span>
+      <h2 class="h2">Where new podcasters<br><span class="gradient-text">get discovered.</span></h2>
+      <p class="lead">Just starting out? Pod+ puts new and independent shows in front of listeners first, gives you the numbers that matter, and lets you go live with your audience.</p>
+    </div>
+    <div class="container c-grid">
+      <div class="c-card">
+        <span class="ic o"><svg><use href="#i-mic"/></svg></span>
+        <h3>Open Mic</h3>
+        <p>A home for new voices. Fresh episodes from first-time and small creators get lifted up, and the best of them show up right inside For You.</p>
+        <div class="live-mock" style="margin-top:16px"><span style="width:46px;height:46px;flex:none;border-radius:12px;background:linear-gradient(135deg,#ff9f5a,#e8467c)"></span><span><b>Ep. 1: Why I started this</b><small>@dana.talks · 2h · 41 plays</small></span><span class="pill" style="background:#e3f6f3;color:#0f8f87">NEW VOICE</span></div>
+        <div class="live-mock" style="margin-top:8px"><span style="width:46px;height:46px;flex:none;border-radius:12px;background:linear-gradient(135deg,#5fd3c6,#4f6be8)"></span><span><b>Small Town Mysteries #3</b><small>@cole.records · 5h · 128 plays</small></span><span class="pill" style="background:rgba(255,255,255,.12);color:#ffd6b8">#1 RISING</span></div>
+        <span class="tag">New voices first</span>
+      </div>
+      <div class="c-card">
+        <span class="ic k"><svg><use href="#i-users"/></svg></span>
+        <h3>LivePod</h3>
+        <p>Go live with your podcast. Listeners join in, comment as you talk, and send Cheers. You can pin, remove or mute comments.</p>
+        <div class="live-mock"><span class="ring"><span>JR</span></span><span><b>Late night talk: your questions</b><small>128 listening · Q&amp;A</small></span><span class="pill">LIVE</span></div>
+        <div class="cheers"><span>👏</span><span>☕</span><span>🔥</span><span>🎙️</span><span>💿</span><span>👑</span></div>
+      </div>
+      <div class="c-card">
+        <span class="ic b"><svg><use href="#i-spark"/></svg></span>
+        <h3>Studio</h3>
+        <p>See your plays, listeners, minutes listened and new followers day by day, where people found you, and how much of each episode they finish.</p>
+        <div class="bars" aria-hidden="true"><span style="height:20%"></span><span style="height:28%"></span><span style="height:24%"></span><span style="height:40%"></span><span style="height:36%"></span><span style="height:55%"></span><span style="height:48%"></span><span style="height:70%"></span><span style="height:64%"></span><span style="height:88%"></span><span style="height:80%"></span><span style="height:100%"></span></div>
+      </div>
+      <div class="c-card">
+        <span class="ic p"><svg><use href="#i-arrow"/></svg></span>
+        <h3>Pod+ Rise</h3>
+        <p>The Pod+ creator program. Hit a few milestones and you're first in line for supporter memberships, premium episodes and Cheer payouts.</p>
+        <div class="rise"><div><i>✓</i>Publish 3 episodes</div><div><i>✓</i>Reach 100 followers</div><div><i class="no">·</i>1,000 plays in 30 days</div><div><i class="no">·</i>30 days on Pod+</div></div>
+        <span class="tag">Memberships and payouts opening soon</span>
+      </div>
+    </div>
+    <div class="container center" style="margin-top:40px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center"><a class="button button-primary" href="/app/">Start your show <svg><use href="#i-arrow"/></svg></a><a class="button cbtn" href="/creators/">Learn more about Pod+ for Creators <svg><use href="#i-arrow"/></svg></a></div>
+  </section>
+
   <!-- Make money -->
   <section class="block earn" id="earn">
     <div class="container split">
@@ -649,7 +672,7 @@ footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
     <div class="foot">
       <a class="logo" href="#top" style="font-size:17px"><svg viewBox="0 0 64 64" aria-hidden="true" style="width:32px;height:32px"><rect x="1" y="1" width="62" height="62" rx="18" fill="url(#lg)"/><path d="M21 17.5v29a2 2 0 0 0 3.05 1.7l23.2-14.5a2 2 0 0 0 0-3.4L24.05 15.8A2 2 0 0 0 21 17.5z" fill="#fff"/><path d="M48 9v10M43 14h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg><span>A.R.I.S.E <span class="soft">Pod</span><span class="plus">+</span></span></a>
       <span class="tag">Connect. Explore. Create. · 2026</span>
-      <nav aria-label="Footer"><a href="#feed">The feed</a><a href="#features">Features</a><a href="#social">Social</a><a href="#creators">For creators</a><a href="#earn">Make money</a><a href="#faq">FAQ</a><a href="/app/">Open Pod+</a></nav>
+      <nav aria-label="Footer"><a href="#feed">The feed</a><a href="#features">Features</a><a href="#social">Social</a><a href="/creators/">For creators</a><a href="#earn">Make money</a><a href="#faq">FAQ</a><a href="/app/">Open Pod+</a></nav>
     </div>
     <p class="fine">Apple Podcasts is a trademark of Apple Inc. Pod+ is an independent app, not made or endorsed by Apple. The previews on this page are samples.</p>
   </div>
