@@ -45,6 +45,7 @@ import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
 import TeacherSignup from "./pages/TeacherSignup";
 import ParentSignup from "./pages/ParentSignup";
+import ResetPassword from "./pages/ResetPassword";
 import EyeGazeAccessGate from "./components/EyeGazeAccessGate";
 import ParentConnectionBanner from "./components/ParentConnectionBanner";
 import AssessmentPopup from "./components/AssessmentPopup";
@@ -549,6 +550,9 @@ function AppRoutes() {
       </Route>
       <Route path="/teacher-signup">
         <TeacherSignup />
+      </Route>
+      <Route path="/reset-password">
+        <ResetPassword />
       </Route>
       <Route path="/parent-signup">
         <ParentSignup />
