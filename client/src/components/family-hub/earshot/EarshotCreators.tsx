@@ -73,7 +73,7 @@ export function CreateSheet({ onEpisode, onLive, onStudio, onClose, live }: { on
     <div className="flex flex-col gap-2 px-4 pb-6">
       {row(<Radio size={19} />, live ? "Back to your LivePod" : "Go live", live ? "You're live right now" : "A LivePod: talk live, take comments and Cheers", onLive, true)}
       {row(<Upload size={18} />, "New episode", "Record here or upload a file. It shows up in Open Mic.", onEpisode)}
-      {row(<TrendingUp size={18} />, "Studio", "Your plays, listeners, followers and Pod+ Rise", onStudio)}
+      {row(<TrendingUp size={18} />, "Studio", "Your plays, listeners, followers and earnings", onStudio)}
     </div>
   </Sheet>;
 }
@@ -293,25 +293,21 @@ export function Studio({ api, say, onClose, onCreate, email, onSignOut }: { api:
           </section>
         </div>
 
-        {/* Pod+ Rise */}
+        {/* Pod+ Membership: what a creator needs to earn (no follower, play or time minimums) */}
         <section className="relative mt-3 overflow-hidden rounded-3xl p-5 text-[#fff]" style={{ background: "linear-gradient(120deg,#13b2ac,#5576e5 55%,#835adf)" }}>
           <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full border border-[#fff]/25" />
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em] opacity-85"><Crown size={14} />Pod+ Rise</p>
-              <h3 className="mt-1 text-[24px] font-extrabold leading-tight tracking-tight">{d.rise.eligible ? "You qualify for Pod+ Rise." : "Your path to getting paid"}</h3>
-              <p className="mt-1 max-w-md text-[14px] leading-relaxed opacity-90">The Pod+ creator program. Hit these marks and you'll be first in line when memberships, premium episodes and Cheer payouts open.</p></div>
-            <div className="grid h-20 w-20 flex-none place-items-center rounded-full" style={{ background: `conic-gradient(#fff ${d.rise.percent * 3.6}deg, rgba(255,255,255,.22) 0)` }}><span className="grid h-[66px] w-[66px] place-items-center rounded-full text-[19px] font-extrabold" style={{ background: "#5a6ee6" }}>{d.rise.percent}%</span></div>
+            <div><p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em] opacity-85"><Crown size={14} />Pod+ Membership</p>
+              <h3 className="mt-1 text-[24px] font-extrabold leading-tight tracking-tight">Earn from your first episode</h3>
+              <p className="mt-1 max-w-md text-[14px] leading-relaxed opacity-90">Creators earn with a Pod+ Membership, the same $5 a month plan listeners get. No follower, play or time minimums.</p></div>
+            <div className="grid h-20 w-20 flex-none place-items-center rounded-full" style={{ background: "rgba(255,255,255,.18)" }}><span className="text-center leading-none"><b className="block text-[22px] font-extrabold">$5</b><span className="text-[11px] font-bold opacity-85">a month</span></span></div>
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">{d.rise.steps.map((s) => <div key={s.id} className="flex items-center gap-3 rounded-2xl bg-[#fff]/12 p-3 backdrop-blur" style={{ background: "rgba(255,255,255,.12)" }}>
-            <span className="grid h-7 w-7 flex-none place-items-center rounded-full" style={{ background: s.done ? "#fff" : "rgba(255,255,255,.2)", color: s.done ? "#4c63d9" : "#fff" }}>{s.done ? <Check size={15} strokeWidth={3} /> : <span className="text-[11px] font-bold">{Math.min(99, Math.floor((s.have / s.need) * 100))}</span>}</span>
-            <span className="min-w-0"><span className="block text-[13.5px] font-bold">{s.label}</span><span className="block text-[12px] opacity-80 tabular-nums">{compact(Math.min(s.have, s.need))} of {compact(s.need)}</span></span>
-          </div>)}</div>
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">{RISE_PERKS.map((p) => <div key={p.id} className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,.12)" }}>
             <p className="flex items-center justify-between gap-2 text-[13.5px] font-bold">{p.title}<span className="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider" style={{ background: "rgba(255,255,255,.2)" }}>Opening soon</span></p>
             <p className="mt-0.5 text-[12.5px] leading-snug opacity-85">{p.blurb}</p></div>)}</div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button type="button" onClick={join} disabled={d.rise.joined || joining} className="flex min-h-11 items-center gap-2 rounded-full bg-[#fff] px-5 text-[14.5px] font-extrabold disabled:opacity-90" style={{ color: "#3d4fb8" }}>{d.rise.joined ? <><Check size={16} />You're on the list</> : joining ? <Loader2 size={16} className="animate-spin" /> : <><Sparkles size={16} />Join the waitlist</>}</button>
-            <p className="text-[12px] opacity-85">Pod+ doesn't take or pay money yet. No card needed.</p>
+            <button type="button" onClick={join} disabled={d.rise.joined || joining} className="flex min-h-11 items-center gap-2 rounded-full bg-[#fff] px-5 text-[14.5px] font-extrabold disabled:opacity-90" style={{ color: "#3d4fb8" }}>{d.rise.joined ? <><Check size={16} />We'll tell you when it opens</> : joining ? <Loader2 size={16} className="animate-spin" /> : <><Sparkles size={16} />Tell me when it opens</>}</button>
+            <p className="text-[12px] opacity-85">Memberships and payouts are opening soon. No card needed today.</p>
           </div>
         </section>
 

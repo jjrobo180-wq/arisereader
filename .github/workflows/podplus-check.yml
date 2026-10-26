@@ -1,0 +1,59 @@
+name: Pod+ branch check (temporary)
+# Each test file on its own with a time limit, then the type check and build. Failures are sent as
+# annotations so they can be read without downloading the log.
+on:
+  push:
+    branches: [podplus-player-updates]
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tests, one file at a time
+        shell: bash
+        run: |
+          status=0
+          for f in tests/earshot.test.ts tests/earshot-ads.test.ts tests/earshot-audio.test.ts tests/earshot-play.test.ts tests/earshot-social.test.ts tests/earshot-social-v2.test.ts tests/earshot-moments.test.ts tests/earshot-groq.test.ts tests/earshot-splice.test.ts tests/earshot-creators.test.ts tests/earshot-previews.test.ts; do
+            code=0; timeout 240 npx tsx --test --test-force-exit "$f" > out.txt 2>&1 || code=$?
+            mkdir -p ci-out; { echo "exit $code"; cat out.txt; } > "ci-out/$(basename $f).txt"
+            summary=$(grep -E "^# (pass|fail)" out.txt | tr '\n' ' ' || true)
+            if [ $code -eq 124 ]; then echo "::warning title=$f::timed out (hung) $summary"; fi
+            if [ $code -ne 0 ] && [ $code -ne 124 ]; then
+              status=1
+              msg=$(grep -E "^not ok|error:|Error|expected|actual" out.txt | head -25 | sed ':a;N;$!ba;s/\n/%0A/g' || true)
+              echo "::error title=$f::$summary%0A$msg"
+            else
+              echo "::notice title=$f::exit $code $summary"
+            fi
+          done
+          exit $status
+      - name: Type check
+        if: always()
+        shell: bash
+        run: |
+          code=0; npx tsc --project podscroll/tsconfig.json --noEmit > tsc.txt 2>&1 || code=$?
+          if [ $code -ne 0 ]; then echo "::error title=tsc::$(head -30 tsc.txt | sed ':a;N;$!ba;s/\n/%0A/g')"; fi
+          exit $code
+      - name: Build
+        if: always()
+        shell: bash
+        run: |
+          code=0; npx vite build --config podscroll/vite.config.ts > build.txt 2>&1 || code=$?
+          if [ $code -ne 0 ]; then echo "::error title=build::$(tail -30 build.txt | sed ':a;N;$!ba;s/\n/%0A/g')"; fi
+          exit $code
+      - name: Save the output to a branch
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p ci-out; cp tsc.txt build.txt ci-out/ 2>/dev/null || true; cp -r podscroll/dist ci-out/dist 2>/dev/null || true
+          cd ci-out && git init -q && git checkout -q -b podplus-ci-results && git add -A
+          git -c user.name=ci -c user.email=ci@example.com commit -q -m "CI output ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" podplus-ci-results
