@@ -84,7 +84,7 @@ export const RISE_PERKS = [
   { id: "supporters", title: "Supporter memberships", blurb: "Listeners back your show every month and get supporter-only episodes." },
   { id: "paid", title: "Premium episodes", blurb: "Put a price on a special episode or a whole series." },
   { id: "cheers", title: "Cash out Cheers", blurb: "Cheers from your LivePods turn into earnings." },
-  { id: "badge", title: "Rise badge and boost", blurb: "A badge on your profile and a lift in Open Mic." },
+  { id: "badge", title: "Member badge", blurb: "A badge on your profile, so listeners know they can support you." },
 ] as const;
 
 // ---------------------------------------------------------------------------
