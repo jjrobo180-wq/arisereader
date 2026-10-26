@@ -408,18 +408,20 @@ function DoneStep({ lesson, started, api, ari, say, onFinished, onExit, onNext }
       try {
         const res: FinishResult = await api(`/api/beginners/sessions/${started.id}/finish`, { method: "POST", body: "{}" });
         setR(res); onFinished(res);
-        if (res.stars > 0) { sounds.win(); setParty(1); say(ARI.done, "good"); void ari.talk(ARI.done); }
+        // A lesson rushed through too fast doesn't count as passed on the server, so it isn't celebrated here either.
+        if (res.stars > 0 && !res.tooFast) { sounds.win(); setParty(1); say(ARI.done, "good"); void ari.talk(ARI.done); }
         else { say("Let's read it once more. You'll get it!", "try"); void ari.talk(ARI.keepGoing); }
       } catch (e: any) { setError(e?.message || "Your lesson couldn't be saved. Please try again."); }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (error) return <StepShell title="Hmm…" foot={<button type="button" className="bg-btn bg-btn-go" onClick={onExit}>Back to the map</button>}><p className="bg-note" role="alert">{error}</p></StepShell>;
   if (!r) return <StepShell title="Adding up your stars…"><div className="bg-loading" aria-hidden="true" /></StepShell>;
+  const passedNow = r.stars > 0 && !r.tooFast;
   return (
-    <StepShell title={r.stars > 0 ? "Lesson complete!" : "Almost there"} foot={
+    <StepShell title={passedNow ? "Lesson complete!" : r.tooFast ? "Let's go a little slower" : "Almost there"} foot={
       <div className="bg-row">
         <button type="button" className="bg-btn bg-btn-quiet" onClick={onExit}>Back to the map</button>
-        {r.stars > 0 && r.next ? <button type="button" className="bg-btn bg-btn-go bg-btn-big" autoFocus onClick={() => onNext(r.next!)}>Next lesson</button>
+        {passedNow && r.next ? <button type="button" className="bg-btn bg-btn-go bg-btn-big" autoFocus onClick={() => onNext(r.next!)}>Next lesson</button>
           : <button type="button" className="bg-btn bg-btn-go bg-btn-big" autoFocus onClick={() => onNext(lesson.id)}>Try again</button>}
       </div>}>
       <Confetti go={party} />
@@ -429,8 +431,8 @@ function DoneStep({ lesson, started, api, ari, say, onFinished, onExit, onNext }
         {r.points > 0 && <p className="bg-points-won">+{r.points} Reader points</p>}
         {r.preview && <p className="bg-note">Preview: nothing was saved or scored.</p>}
         {!r.preview && r.stars > 0 && r.points === 0 && !r.tooFast && <p className="bg-note">{r.capped ? "You reached today's Beginners points. Come back tomorrow for more!" : r.firstPass ? "" : "You already earned this lesson's points. Practice makes you stronger!"}</p>}
-        {r.tooFast && <p className="bg-note">That was very fast! Points come from reading every part of the lesson.</p>}
-        {r.stars > 0 && r.stars < 3 && <p className="bg-step-hint">{r.readAccuracy === null ? "Read the story out loud to Ari to earn the third star." : r.right < r.total ? "Get every question right for another star." : "Read the story out loud with 90% right for the third star."}</p>}
+        {r.tooFast && <p className="bg-note">That was very fast! A lesson counts when you take time to read every part. Try it again.</p>}
+        {passedNow && r.stars < 3 && <p className="bg-step-hint">{r.readAccuracy === null ? "Read the story out loud to Ari to earn the third star." : r.right < r.total ? "Get every question right for another star." : "Read the story out loud with 90% right for the third star."}</p>}
         {r.unitDone && <p className="bg-unit-done">You finished Unit {lesson.unit}!{r.nextUnitOpen ? ` Unit ${r.nextUnitOpen} is open.` : ""}</p>}
         {r.streak > 1 && <p className="bg-streak">🔥 {r.streak} days in a row</p>}
       </div>
