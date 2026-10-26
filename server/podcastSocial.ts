@@ -23,7 +23,7 @@ export type Post = {
   author: Profile; likes: number; liked: boolean; comments: number; reposts: number; reposted: boolean; mine: boolean;
 };
 export type Comment = { id: string; postId: string; parentId: string | null; body: string; at: string; author: Profile; likes: number; liked: boolean; mine: boolean };
-export type NoteKind = "like" | "comment" | "reply" | "follow" | "repost" | "comment_like";
+export type NoteKind = "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode";
 export type Note = { id: string; kind: NoteKind; at: string; read: boolean; actor: Profile; post: { id: string; kind: PostKind; text: string; art: string } | null; comment: string };
 
 const BUCKET = "podcast-uploads";
@@ -65,6 +65,8 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
   allowed?: (req: any) => boolean;
   /** Cuts a clip's audio (server/earshot.ts: from the listener's own copy when it can). */
   cutClip?: CutClip;
+  /** Publishing an episode needs a creator (on Pod+, someone signed in with their email). */
+  isCreator?: (req: any) => boolean;
 }) {
   const P = `${o.prefix}/social`;
   const db = () => o.getDb();
@@ -585,8 +587,15 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     } catch (e) { fail(res, e); }
   });
 
+  const notCreator = (req: any, res: any) => {
+    if (!o.isCreator || o.isCreator(req)) return false;
+    res.status(401).json({ message: "Sign in with your email to publish episodes.", needSignIn: true });
+    return true;
+  };
+
   /** A link to upload your episode's audio (or cover) straight to storage. */
   app.post(`${P}/upload-url`, auth, gate, async (req: any, res) => {
+    if (notCreator(req, res)) return;
     const kind = req.body?.kind === "art" ? "art" : "audio";
     const type = text(req.body?.type, 60).toLowerCase(), size = Number(req.body?.size) || 0;
     const okType = kind === "art" ? /^image\/(jpeg|png|webp)$/.test(type) : /^audio\/(mpeg|mp3|mp4|x-m4a|m4a|aac|webm|ogg|wav|x-wav)$/.test(type);
@@ -610,6 +619,7 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
     const secs = Math.max(0, Math.min(86_400, Math.floor(Number(req.body?.secs) || 0)));
     const voter = o.voterOf(req);
     const mineOnly = (p: string) => !p || p.startsWith(`${voter.replace(/[^A-Za-z0-9_-]/g, "")}/`);
+    if (notCreator(req, res)) return;
     if (!title) return res.status(400).json({ message: "Give your episode a title." });
     if (!path || !mineOnly(path) || !mineOnly(artPath)) return res.status(400).json({ message: "Upload the audio first." });
     if (limited(writes, req, res)) return;
@@ -624,6 +634,14 @@ export function registerSocialRoutes(app: Express, auth: RequestHandler, o: {
       const episode: PostEpisode = { id, showId: id, show: `${me.name}'s podcast`, title, art, audio, secs, date: new Date().toISOString(), about };
       const { error: e2 } = await db().from("podcast_posts").update({ episode_id: id, episode }).eq("id", data.id);
       check(e2);
+      // Followers hear about it (notifications; Open Mic and For You pick it up on their own).
+      if (await hasV2()) {
+        try {
+          const { data: fans } = await db().from("podcast_people_follows").select("follower").eq("followee", voter).limit(5000);
+          const rows = (fans || []).filter((f: any) => f.follower !== voter).map((f: any) => ({ voter: f.follower, actor: voter, kind: "episode", post_id: data.id }));
+          for (let i = 0; i < rows.length; i += 500) await db().from("podcast_notifications").insert(rows.slice(i, i + 500));
+        } catch { /* a missed notification isn't worth failing the publish for */ }
+      }
       res.json({ id: String(data.id), episode });
     } catch (e) { fail(res, e); }
   });

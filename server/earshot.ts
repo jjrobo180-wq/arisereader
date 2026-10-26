@@ -16,6 +16,8 @@ import { createDirectory, type Directory, type Fetcher } from "./podcastDirector
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
 import { registerSocialRoutes } from "./podcastSocial";
+import { registerCreatorRoutes } from "./podcastCreators";
+import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
 export type EpisodeCounts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -284,8 +286,15 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   const adStore = options.adStore ?? (sharedAdStore ??= memoryAdStore());
   const player = options.player;
   registerAdRoutes(app, authMiddleware, { prefix: P, dir, store: adStore, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, toContent: player ? (sid, ep, x, side) => player.toContent(sid, ep, x, side) : undefined });
+  // Publishing, Studio and LivePod need a creator: anyone signed in to Arise, or on Pod+ someone
+  // signed in with their email (server/podcastAccounts.ts; the gate below marks req.creator).
+  const isCreator = (req: any) => (P === "/api/podscroll" ? !!req.creator : !isStudent(req));
+  if (options.socialDb) registerCreatorRoutes(app, authMiddleware, {
+    prefix: P, getDb: options.socialDb, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, allowed: (req: any) => !isStudent(req), isCreator,
+    signIn: P === "/api/podscroll",
+  });
   if (options.socialDb) registerSocialRoutes(app, authMiddleware, {
-    prefix: P, getDb: options.socialDb, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, allowed: (req: any) => !isStudent(req),
+    prefix: P, getDb: options.socialDb, voterOf: (req: any) => `${P === "/api/podscroll" ? "d" : "u"}${uid(req)}`, allowed: (req: any) => !isStudent(req), isCreator,
     // A clip's audio: cut from the listener's own copy when they're playing through the server (exactly
     // what they heard), otherwise from the host's copy at the same times.
     cutClip: async (voter, c) => (c.sid && player ? await player.clipOf(c.sid, voter, c.episodeId, c.s, c.e).catch(() => null) : null)
@@ -381,14 +390,14 @@ export function podscrollAllowed(origin: string, extra: string[] = []): boolean 
 /** The visitor's address as Render's proxy saw it (the last X-Forwarded-For entry is the one it added). */
 const clientIp = (req: any) => { const f = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean); return f[f.length - 1] || String(req.socket?.remoteAddress || ""); };
 
-export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player, socialDb?: () => any) {
+export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetcher?: Fetcher, directory?: Directory, adStore?: AdStore, player?: Player, socialDb?: () => any, more: { sendEmail?: (to: string, subject: string, html: string) => Promise<{ sent: boolean; error?: string }> } = {}) {
   const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
   const perIp = createAttemptLimiter({ max: 900, windowMs: 10 * 60_000 });
   app.use("/api/podscroll", (req: any, res: any, next: any) => {
     const origin = String(req.headers.origin || "");
     if (podscrollAllowed(origin, extra)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Podscroll-Device");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Podscroll-Device, X-Podscroll-Session");
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
       res.setHeader("Access-Control-Max-Age", "86400");
     }
@@ -396,7 +405,10 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     if (req.method === "OPTIONS") return res.status(204).end();
     next();
   });
-  /** No accounts: each browser keeps a random device id, sent with every request. */
+  /** Listening needs no account: each browser keeps a random device id, sent with every request.
+   *  Creators who signed in with their email also send a session; their requests then act as the
+   *  device their profile was made on, so it's the same profile on every phone. */
+  const sessions = socialDb ? accountSessions(socialDb) : null;
   const gate: RequestHandler = (req: any, res, next) => {
     const device = String(req.headers["x-podscroll-device"] || "");
     if (!DEVICE.test(device)) { res.status(400).json({ message: "Reload Podscroll and try again." }); return; }
@@ -404,8 +416,14 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     if (wait > 0) { res.set("Retry-After", String(Math.ceil(wait / 1000))); res.status(429).json({ message: `Too many requests. Try again in ${waitWords(wait)}.` }); return; }
     perIp.fail(ip);
     req.user = { id: device, role: "public", displayName: typeof req.body?.name === "string" ? req.body.name : "" };
-    next();
+    const token = String(req.headers["x-podscroll-session"] || "");
+    if (!sessions || !SESSION.test(token)) return next();
+    sessions.lookup(token).then((account) => {
+      if (account) { req.user.id = account.device; req.creator = { email: account.email, id: account.id }; }
+      next();
+    }, () => next());
   };
+  if (socialDb && sessions) registerPodscrollAccountRoutes(app, gate, { getDb: socialDb, sendEmail: more.sendEmail, sessions });
   // A tiny copy of an Apple cover, readable by the page (Apple's image server doesn't allow that
   // directly). Podscroll reads its colors to tint the strip iOS paints below a home-screen app, which
   // takes the page's color and can't show the art itself. Apple artwork only, 32 px, cached a day.

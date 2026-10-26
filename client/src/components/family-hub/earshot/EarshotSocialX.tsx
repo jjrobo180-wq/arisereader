@@ -22,7 +22,13 @@ type Patch = (id: string, f: (p: Post) => Post) => void;
 type Open = null | { kind: "compose"; quote?: Post } | { kind: "thread"; post: Post } | { kind: "repost"; post: Post } | { kind: "notes" } | { kind: "search" } | { kind: "edit" } | { kind: "upload" };
 const longTime = (iso: string) => { const d = new Date(iso); return Number.isNaN(+d) ? "" : `${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · ${d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`; };
 
-export function XSocial({ api, say, onPlay, onHush }: { api: Api; say: (m: string) => void; onPlay: PlayFn; onHush?: () => void }) {
+export function XSocial({ api, say, onPlay, onHush, onCreate, openPerson, onPersonOpened }: {
+  api: Api; say: (m: string) => void; onPlay: PlayFn; onHush?: () => void;
+  /** The mic button: Create (a new episode, a LivePod, Studio). Without it, it opens the episode maker. */
+  onCreate?: () => void;
+  /** Open someone's page (from Open Mic or a For You card). */
+  openPerson?: string | null; onPersonOpened?: () => void;
+}) {
   const [me, setMe] = useState<{ profile: Profile | null; unread?: number; avatars: string[]; v2?: boolean } | null>(null);
   const [err, setErr] = useState("");
   const [tab, setTab] = useState<"all" | "following" | "clips">("all");
@@ -34,6 +40,7 @@ export function XSocial({ api, say, onPlay, onHush }: { api: Api; say: (m: strin
   const loadMe = useCallback(() => api("/api/earshot/social/me").then((b) => { setMe(b); setErr(""); }).catch((e) => setErr(e?.message || "Social didn't load.")), [api]);
   const load = useCallback(() => { setPosts(null); api(`/api/earshot/social/feed?tab=${tab}`).then((b) => setPosts(b.posts || [])).catch((e) => { setPosts([]); say(e?.message || "The timeline didn't load."); }); }, [api, tab, say]);
   useEffect(() => { void loadMe(); }, [loadMe]);
+  useEffect(() => { if (openPerson) { setOpen(null); setPeople([openPerson]); onPersonOpened?.(); } }, [openPerson]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
   const patch: Patch = useCallback((id, f) => setPosts((l) => l?.map((p) => (p.id === id ? f(p) : p.repost?.id === id ? { ...p, repost: f(p.repost) } : p)) ?? null), []);
   const needProfile = () => { say("Make your profile first. It takes a few seconds."); setOpen({ kind: "edit" }); };
@@ -89,7 +96,7 @@ export function XSocial({ api, say, onPlay, onHush }: { api: Api; say: (m: strin
     <nav className={`absolute inset-x-0 bottom-0 z-[45] flex h-14 border-t ${LINE} bg-black/90 backdrop-blur-xl`} aria-label="Social">
       <NavBtn label="Home" on={!open && !people.length} onClick={home}><Home size={25} strokeWidth={!open && !people.length ? 2.6 : 1.8} /></NavBtn>
       <NavBtn label="Find people" on={open?.kind === "search"} onClick={() => { setPeople([]); setOpen({ kind: "search" }); }}><Search size={24} strokeWidth={open?.kind === "search" ? 2.8 : 1.8} /></NavBtn>
-      <NavBtn label="Make a podcast" on={open?.kind === "upload"} onClick={() => (me.profile ? setOpen({ kind: "upload" }) : setOpen({ kind: "edit" }))}><Mic size={24} strokeWidth={1.8} /></NavBtn>
+      <NavBtn label="Create" on={open?.kind === "upload"} onClick={() => (!me.profile ? setOpen({ kind: "edit" }) : onCreate ? onCreate() : setOpen({ kind: "upload" }))}><Mic size={24} strokeWidth={1.8} /></NavBtn>
       <NavBtn label={unread ? `Notifications, ${unread} new` : "Notifications"} on={open?.kind === "notes"} onClick={() => { setPeople([]); setOpen({ kind: "notes" }); }}>
         <Bell size={24} strokeWidth={open?.kind === "notes" ? 2.6 : 1.8} />{unread > 0 && open?.kind !== "notes" && <span className="absolute left-1/2 top-1.5 ml-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-black" style={{ background: ACCENT }}>{unread > 99 ? "99+" : unread}</span>}
       </NavBtn>

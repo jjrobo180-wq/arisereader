@@ -2,14 +2,16 @@
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Bookmark, Check, ExternalLink, FileText, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { Bookmark, Check, ExternalLink, Mic, FileText, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
   GENRES, GENRE, SPEEDS, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
 import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
 import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
-import { ClipMaker, LIGHT_CSS, ShareSheet, postEpisodeOf } from "./EarshotSocial";
+import { ClipMaker, LIGHT_CSS, ProfileEditor, ShareSheet, UploadSheet, postEpisodeOf, toEpisode as micEpisode, toShow as micShow } from "./EarshotSocial";
+import { CreateSheet, GoLiveSheet, LiveChip, LiveRoom, OpenMic, SignInSheet, Studio, useCreator, type LiveSummary, type MicEpisode } from "./EarshotCreators";
+import { OWN_EPISODE, isMicSlot, type ListenSource } from "@shared/earshotCreators";
 import { XSocial } from "./EarshotSocialX";
 import { PreviewCard, Previews, previewPicks, type PreviewPick } from "./EarshotPreviews";
 import { hiRes, type PodMode } from "@shared/earshot";
@@ -17,8 +19,10 @@ import { hiRes, type PodMode } from "@shared/earshot";
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
 type Comment = { id: string; author: string; body: string; at: string; mine: boolean };
 /** want: a particular episode to load (from a Pod Mode or a saved one without its audio). */
-type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string };
-type Tab = "foryou" | "following" | "social" | "explore" | "library";
+type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string;
+  /** An Open Mic episode (made by someone on Pod+), woven into For You. */
+  mic?: { post: string; handle: string; name: string; newVoice: boolean; followed: boolean } };
+type Tab = "foryou" | "following" | "openmic" | "social" | "explore" | "library";
 
 export const ACCENT = "#ff8a3d";
 const nowIso = () => new Date().toISOString();
@@ -88,6 +92,10 @@ export type PlayerProps = {
   start?: { showId: string; episodeId: string } | null;
   /** The full address of a server path, for audio played through the server (smart ad skip). */
   mediaUrl?: (path: string) => string;
+  /** Where LivePod connects (wss://…), when the server is on another address (Podscroll). */
+  liveBase?: string;
+  /** Pod+ creators sign in with an email code; the app keeps the session and sends it with requests. */
+  onSession?: (token: string | null, email?: string) => void;
 };
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
@@ -127,7 +135,7 @@ type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegme
   wait: Map<number, { at: number; tries: number }> };
 const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600, wait: new Map() });
 
-export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl }: PlayerProps) {
+export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession }: PlayerProps) {
   const [tab, setTab] = useState<Tab>("foryou");
   const [genreMode, setGenreMode] = useState<string | null>(null);
   const [full, setFull] = useState(false);
@@ -180,6 +188,36 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const counted = useRef<Set<string>>(new Set());
   const mode = tab === "following" ? "following" : genreMode ? `genre:${genreMode}` : "foryou";
   const ex = explicit ? "&explicit=1" : "";
+
+  // ---------------- creators: Open Mic, Studio, LivePod ----------------
+  const { info: creator, reload: reloadCreator } = useCreator(api, student);
+  const [live, setLive] = useState<LiveSummary[]>([]);
+  const [maker, setMaker] = useState<null | "create" | "signin" | "golive" | "upload" | "profile" | "studio">(null);
+  const afterSignIn = useRef<null | "create" | "golive" | "upload" | "studio">(null);
+  const [liveRoom, setLiveRoom] = useState<{ id: string; ticket?: string } | null>(null);
+  const [socialPerson, setSocialPerson] = useState<string | null>(null);
+  const micPool = useRef<MicEpisode[]>([]);
+  const micUsed = useRef<Set<string>>(new Set());
+  const micHeard = useRef<{ ep: string; secs: number }>({ ep: "", secs: 0 });
+  const sourceOf = useRef<Map<string, ListenSource>>(new Map());
+  // Who's live (the top bar shows them), and Open Mic episodes to weave into For You.
+  useEffect(() => {
+    if (student) return;
+    const pull = () => { if (document.visibilityState === "visible") api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); };
+    const pullMic = () => api("/api/earshot/creators/openmic?tab=fresh").then((b) => { micPool.current = (b.episodes || []).filter((m: MicEpisode) => !m.mine); }).catch(() => {});
+    pull(); void pullMic();
+    const a = setInterval(pull, 30_000), b = setInterval(pullMic, 5 * 60_000);
+    return () => { clearInterval(a); clearInterval(b); };
+  }, [api, student]);
+  /** Creating needs a profile, and on Pod+ an email sign-in first. */
+  const create = (what: "create" | "golive" | "upload" | "studio") => {
+    if (creator && !creator.creator && creator.signIn) { afterSignIn.current = what; setMaker("signin"); return; }
+    if (what !== "create" && !creator?.profile) { afterSignIn.current = what; setMaker("profile"); return; }
+    if (what === "golive" && creator?.live) { setMaker(null); setLiveRoom({ id: creator.live.id }); return; }
+    setMaker(what);
+  };
+  const joinLive = (id: string) => { pausePlayer(); setLiveRoom({ id }); };
+  const openCreator = (handle: string) => { setSocialPerson(handle); setTab("social"); };
 
   const loadEpisodes = useCallback((showId: string) => {
     let p = episodesCache.current.get(showId);
@@ -244,9 +282,25 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       const ep = eps?.length ? chooseEpisode(esRef.current, eps) : null;
       return { key: `${p.show.id}-${Math.random().toString(36).slice(2, 7)}`, show: p.show, why: mode === "following" ? "A show you follow" : p.why, ep, state: ep ? "ready" : "loading" };
     });
-    setItems((c) => [...c, ...added]);
+    // For You: every few cards, an episode from Open Mic (new and independent creators).
+    const woven: Item[] = [];
+    let at = list.length;
+    for (const a of added) {
+      if (mode === "foryou" && !student && isMicSlot(at)) {
+        const m = micPool.current.find((x) => !micUsed.current.has(x.post) && !esRef.current.heard.includes(x.episode.id));
+        if (m) {
+          micUsed.current.add(m.post);
+          const ep = micEpisode(m.episode, m.creator.name);
+          sourceOf.current.set(ep.id, "foryou");
+          woven.push({ key: `mic-${m.post}`, show: micShow(m.episode, m.creator.name), why: "Open Mic", ep, state: "ready", mic: { post: m.post, handle: m.creator.handle, name: m.creator.name, newVoice: m.newVoice, followed: m.followed } });
+          at++;
+        }
+      }
+      woven.push(a); at++;
+    }
+    setItems((c) => [...c, ...woven]);
     added.filter((x) => x.state === "loading").forEach(fill);
-  }, [candidates, fill, mode, esRef]);
+  }, [candidates, fill, mode, esRef, student]);
 
   // Reset the feed when the mode changes; start it once there's something to pick from.
   useEffect(() => {
@@ -573,6 +627,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     setTime(t); if (a.duration && Number.isFinite(a.duration)) setDur(a.duration);
     const it = itemsRef.current[activeRef.current]; const ep = it?.ep;
     if (ep && Math.abs(t - lastSpot.current) > 5) { lastSpot.current = t; saveSpot(ep, t); }
+    // Plays and listening time for episodes people made, for their Studio.
+    if (ep && OWN_EPISODE.test(ep.id) && delta > 0 && delta < 2) {
+      const h = micHeard.current;
+      if (h.ep !== ep.id) { h.ep = ep.id; h.secs = 0; }
+      h.secs += delta;
+      if (h.secs >= 15) { const secs = Math.round(h.secs); h.secs = 0; void api("/api/earshot/creators/listen", { method: "POST", body: { episode: ep.id, secs, source: sourceOf.current.get(ep.id) ?? "other" } }).catch(() => {}); }
+    }
     const mode = esRef.current.settings.adMode;
     if (ep && (listened.current > 5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
     if (ep && it && mode === "auto" && !esRef.current.adFree.includes(it.show.id) && !markingRef.current) {
@@ -677,6 +738,15 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- actions ----------------
   const isFollowing = (id: string) => es.follows.some((f) => f.id === id);
+  /** Follows the person who made an Open Mic episode (a person on Social, not an Apple show). */
+  const followCreator = (it: Item) => {
+    const m = it.mic; if (!m) return;
+    const on = !m.followed;
+    const set = (v: boolean) => setItems((list) => list.map((x) => (x.mic?.handle === m.handle ? { ...x, mic: { ...x.mic!, followed: v } } : x)));
+    set(on);
+    api("/api/earshot/social/follow", { method: "POST", body: { handle: m.handle, on } }).then(() => say(on ? `Following @${m.handle}.` : `Unfollowed @${m.handle}.`))
+      .catch((e) => { set(!on); say(/profile/i.test(e?.message || "") ? "Make your profile in Social first, then follow creators." : e.message); });
+  };
   const toggleFollow = (show: PodShow) => {
     if (isFollowing(show.id)) { update((e) => ({ ...e, follows: e.follows.filter((f) => f.id !== show.id) })); signal(show.genre, "unfollow"); say(`Unfollowed ${show.name}.`); }
     else { update((e) => ({ ...e, follows: [{ id: show.id, name: show.name, author: show.author, art: show.art, genre: show.genre, at: nowIso() }, ...e.follows].slice(0, 200) })); signal(show.genre, "follow"); say(`Following ${show.name}.`); }
@@ -811,7 +881,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- layout ----------------
   const shell = standalone ? "fixed inset-x-0 top-0 h-[var(--ps-h,100%)]" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
-  const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
+  const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
   const spots = tab === "library" || tab === "explore" ? readSpots() : {};
 
   // On Podscroll the frame covers the whole screen, under the status bar and home indicator, so the
@@ -819,7 +889,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // other tabs (pad), the notices and the sheets.
   const pad = (n: ReactNode) => standalone ? <div className="box-border h-full pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)]">{n}</div> : n;
   // Social, Explore and Library are white pages; the player and its sheets stay dark.
-  const light = tab === "social" || tab === "explore" || tab === "library";
+  const light = tab === "openmic" || tab === "social" || tab === "explore" || tab === "library";
   const lit = (n: ReactNode) => <div className="ps-light h-full"><style>{LIGHT_CSS}</style>{pad(n)}</div>;
   const chip = light ? "bg-black/[.05] text-[#0f1419]" : "bg-black/45";
   const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
@@ -831,6 +901,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
           {tabs.map(([t, label]) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`flex-none rounded-full px-3 py-1.5 text-xs font-semibold sm:text-sm ${tab === t ? (light ? "bg-[#0f1419] text-white" : "bg-white text-[#120e14]") : light ? "text-[#536471]" : "text-white/75"}`}>{label}</button>)}
         </nav>}
       <div className="flex flex-none gap-1.5">
+        {!student && <LiveChip live={live} light={light} onClick={() => setTab("openmic")} />}
         {sleepAt !== null && <span className={`flex items-center gap-1 rounded-full ${chip} px-2.5 text-xs font-bold backdrop-blur`}><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
         <button type="button" aria-label="Playback settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
         {!standalone && <button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}>{full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}
@@ -842,14 +913,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       className={`h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none`}>
       {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
-        counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
+        counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={it.mic ? it.mic.followed : isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
         apple={!!standalone} chapters={(i === active && txFor(it.ep)?.chapters) || NONE_CHAPTERS} lines={(i === active && txFor(it.ep)?.segments) || NONE_LINES} speed={es.settings.speed} onSpeed={cycleSpeed} sleepOn={sleepAt !== null} onSleep={() => setSheet({ kind: "sleep" })}
         ad={i === active ? adOffer : null} onSkipAd={takeOffer} onNotAd={refuseOffer} onTapStart={unlock}
         adMarks={i === active && adsOn ? activeAds : []} marking={i === active && !!marking} onMark={startMark}
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
         onLike={() => it.ep && toggleLike(it.ep, it.show.genre)} onDoubleLike={() => it.ep && !counts[it.ep.id]?.liked && toggleLike(it.ep, it.show.genre)}
-        onSave={() => it.ep && setSheet({ kind: "addto", ep: it.ep, genre: it.show.genre })} onShare={() => it.ep && setSheet({ kind: "share", ep: it.ep, genre: it.show.genre, show: it.show })} onFollow={() => toggleFollow(it.show)}
-        onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
+        onSave={() => it.ep && setSheet({ kind: "addto", ep: it.ep, genre: it.show.genre })} onShare={() => it.ep && setSheet({ kind: "share", ep: it.ep, genre: it.show.genre, show: it.show })} onFollow={() => (it.mic ? followCreator(it) : toggleFollow(it.show))}
+        onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { if (it.mic) return openCreator(it.mic.handle); setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
     {skipped && <div role="status" className={`absolute inset-x-3 ${below} z-[25] mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#120e14] shadow-xl`}>
@@ -868,7 +939,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       onGenre={(g) => { setGenreMode(g); setTab("foryou"); }} onShow={(show) => setSheet({ kind: "show", show })} onEpisode={playNow}
       onResume={(id, s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
     {tab === "explore" && previews && <Previews api={api} picks={previews} onClose={() => setPreviews(null)} onPlay={(s, e, at) => { setPreviews(null); playNow(s, e, at); }} onShow={(show) => setSheet({ kind: "show", show })} onHush={() => players.current.forEach((a) => a.pause())} />}
-    {tab === "social" && !student && lit(<XSocial api={api} say={say} onPlay={playNow} onHush={() => players.current.forEach((a) => a.pause())} />)}
+    {tab === "openmic" && !student && lit(<OpenMic api={api} say={say} creator={creator} live={live} onCreate={() => create("create")} onStudio={() => create("studio")} onJoinLive={joinLive} onPerson={openCreator}
+      onPlay={(show, ep, at) => { sourceOf.current.set(ep.id, "openmic"); playNow(show, ep, at); }} />)}
+    {tab === "social" && !student && lit(<XSocial api={api} say={say} onHush={() => players.current.forEach((a) => a.pause())} onCreate={() => create("create")} openPerson={socialPerson} onPersonOpened={() => setSocialPerson(null)}
+      onPlay={(show, ep, at) => { if (OWN_EPISODE.test(ep.id) && !sourceOf.current.has(ep.id)) sourceOf.current.set(ep.id, "social"); playNow(show, ep, at); }} />)}
     {tab === "library" && lit(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
 
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
@@ -883,6 +957,19 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {sheet?.kind === "sleep" && <SleepSheet sleepAt={sleepAt} onPick={(v) => { chooseSleep(v); setSheet(null); }} onClose={() => setSheet(null)} />}
     {draft && <MarkSheet draft={draft} shared={adsShared} onChange={setDraft} onPreview={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onSave={saveDraft} onClose={() => setDraft(null)} />}
     {sheet?.kind === "read" && activeEp && <ReadSheet ep={activeEp} tx={txFor(activeEp)} time={time} playing={playing} onMarkRange={markFromLines} onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onClose={() => setSheet(null)} onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
+
+    {/* Creating: sign in (Pod+), a profile, the Create menu, a new episode, going live, Studio, a LivePod */}
+    {maker === "signin" && <SignInSheet api={api} say={say} why="Sign in with your email to publish episodes, go live and see your Studio." onClose={() => { afterSignIn.current = null; setMaker(null); }}
+      onDone={(token, email) => { onSession?.(token, email); say(`Signed in as ${email}.`); const next = afterSignIn.current; afterSignIn.current = null; setMaker(null); setTimeout(() => { reloadCreator(); if (next) setMaker(next === "golive" || next === "upload" ? "create" : next); }, 350); }} />}
+    {maker === "profile" && <ProfileEditor api={api} say={say} initial={creator?.profile ?? null} avatars={[]} onClose={() => setMaker(null)} onSaved={() => { reloadCreator(); const next = afterSignIn.current; afterSignIn.current = null; setMaker(next ?? null); }} />}
+    {maker === "create" && <CreateSheet live={!!creator?.live} onClose={() => setMaker(null)} onEpisode={() => create("upload")} onLive={() => create("golive")} onStudio={() => create("studio")} />}
+    {maker === "upload" && <UploadSheet api={api} say={say} onClose={() => setMaker(null)} onDone={() => { setMaker(null); micPool.current = []; setTab("openmic"); }} />}
+    {maker === "golive" && <GoLiveSheet api={api} say={say} onClose={() => setMaker(null)} onStarted={(id, ticket) => { setMaker(null); pausePlayer(); setLiveRoom({ id, ticket }); reloadCreator(); }} />}
+    {maker === "studio" && <Studio api={api} say={say} email={creator?.email ?? null} onClose={() => setMaker(null)} onCreate={() => setMaker("create")}
+      onSignOut={creator?.signIn ? () => { void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {}); onSession?.(null); setMaker(null); setTimeout(reloadCreator, 300); say("Signed out."); } : undefined} />}
+    {liveRoom && <LiveRoom key={liveRoom.id} api={api} say={say} roomId={liveRoom.id} ticket={liveRoom.ticket} wsBase={liveBase || location.origin.replace(/^http/, "ws")}
+      onClose={() => { setLiveRoom(null); reloadCreator(); api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); }}
+      onPerson={(h) => { setLiveRoom(null); openCreator(h); }} />}
   </div>;
 }
 
@@ -938,6 +1025,11 @@ function Cover({ art, alt, eager, playing, children }: { art: string; alt: strin
     {children}
   </div>;
 }
+/** On a For You card: this episode comes from Open Mic (made by someone on Pod+). */
+const MicTag = ({ newVoice }: { newVoice: boolean }) => <p className="mb-1.5 flex items-center gap-1.5">
+  <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider text-[#111013]" style={{ background: "#ff8a3d" }}><Mic size={11} strokeWidth={2.5} />Open Mic</span>
+  {newVoice && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider">New voice</span>}
+</p>;
 function Card(p: CardProps) {
   const { item, counts: c } = p; const ep = item.ep; const art = ep?.art || item.show.art;
   const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
@@ -1001,6 +1093,7 @@ function Card(p: CardProps) {
         {/* Title on the left, the side buttons on the right, both just above the scrubber. */}
         <div className="flex items-end gap-2">
           <div className={`min-w-0 flex-1 pb-1 transition-opacity duration-200 ${scrubbing ? "opacity-30" : ""}`}>
+            {item.mic && <MicTag newVoice={item.mic.newVoice} />}
             {meta && <p className="truncate text-[13px] text-white/55">{meta}</p>}
             <h2 className="mt-0.5 line-clamp-2 text-[21px] font-bold leading-tight tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
             <button type="button" onClick={p.onShow} className="pointer-events-auto mt-0.5 block max-w-full truncate text-left text-[17px] text-white/60 hover:text-white/85">{item.show.name}</button>
@@ -1067,6 +1160,7 @@ function Card(p: CardProps) {
       </div>
 
       <div className="flex w-full flex-none flex-col pb-6 pl-6 pr-[4.75rem]">
+        {item.mic && <MicTag newVoice={item.mic.newVoice} />}
         <button type="button" onClick={p.onShow} className="pointer-events-auto w-fit max-w-full truncate text-left text-[13px] text-white/50 hover:text-white/80">{item.show.name}</button>
         <h2 className="mt-1 line-clamp-2 text-[19px] font-semibold leading-snug tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
         {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">

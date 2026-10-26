@@ -29,6 +29,9 @@ function App() {
   const [es, setEs] = useState<Earshot>(() => { try { return cleanEarshot(JSON.parse(read(KEY) || "null")); } catch { return emptyEarshot(); } });
   const esRef = useRef(es); esRef.current = es;
   const [nickname, setNicknameState] = useState(() => read("podscroll.name") || "");
+  // Creators sign in with an email code (listening never needs it); the session is kept here.
+  const [session, setSessionState] = useState(() => read("podscroll.session") || "");
+  const setSession = useCallback((token: string | null) => { setSessionState(token || ""); if (token) write("podscroll.session", token); else { try { localStorage.removeItem("podscroll.session"); } catch { /* private window */ } } }, []);
   const [editing, setEditing] = useState(false);
   const [toast, setToast] = useState("");
   const toastT = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,14 +54,14 @@ function App() {
     try {
       res = await fetch(url, {
         method: init?.method ?? "GET",
-        headers: { "X-Podscroll-Device": device, ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
+        headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
         body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
       });
-    } catch { throw new Error("Can't reach Podscroll right now. Check your connection and try again."); }
+    } catch { throw new Error("Can't reach Pod+ right now. Check your connection and try again."); }
     const body: any = await res.json().catch(() => ({}));
-    if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status });
+    if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status, needSignIn: !!body?.needSignIn, needProfile: !!body?.needProfile });
     return body;
-  }, [device]);
+  }, [device, session]);
   // Audio comes through the server so smart ad skip can find the ads in this copy.
   const mediaUrl = useCallback((path: string) => API + path.replace(/^\/api\/earshot/, "/api/podscroll"), []);
 
@@ -73,7 +76,7 @@ function App() {
 
   const body = !es.setupDone || editing
     ? <div className="min-h-full overflow-y-auto px-3 py-6 sm:py-10">
-      <Setup brand="Podscroll" initial={es} student={false} onCancel={es.setupDone ? () => setEditing(false) : undefined} onDone={(genres, pace) => {
+      <Setup brand="Pod+" initial={es} student={false} onCancel={es.setupDone ? () => setEditing(false) : undefined} onDone={(genres, pace) => {
         setEs((e) => {
           const taste = { ...e.taste };
           for (const g of genres) taste[g] = Math.max(taste[g] ?? 0, 3);
@@ -85,7 +88,8 @@ function App() {
       }} />
     </div>
     : <Player es={es} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
-      onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={start} mediaUrl={mediaUrl} />;
+      onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={start} mediaUrl={mediaUrl}
+      liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} />;
 
   return <>
     {body}

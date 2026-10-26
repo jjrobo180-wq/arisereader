@@ -42,7 +42,7 @@ export type Post = {
   author: Profile; likes: number; liked: boolean; comments: number; reposts: number; reposted: boolean; mine: boolean;
 };
 export type Comment = { id: string; postId: string; parentId: string | null; body: string; at: string; author: Profile; likes: number; liked: boolean; mine: boolean };
-export type Note = { id: string; kind: "like" | "comment" | "reply" | "follow" | "repost" | "comment_like"; at: string; read: boolean; actor: Profile; post: { id: string; kind: Post["kind"]; text: string; art: string } | null; comment: string };
+export type Note = { id: string; kind: "like" | "comment" | "reply" | "follow" | "repost" | "comment_like" | "episode"; at: string; read: boolean; actor: Profile; post: { id: string; kind: Post["kind"]; text: string; art: string } | null; comment: string };
 export type Person = Profile & { followed: boolean };
 /** Plays an episode in the main feed; with at, from that moment. */
 export type PlayFn = (show: PodShow, ep: PodEpisode, at?: number) => void;
@@ -269,12 +269,12 @@ export function RepostSheet({ post, ctx, onClose, onDone }: { post: Post; ctx: C
     </div>
   </Sheet>;
 }
-const NOTE_WORDS: Record<Note["kind"], string> = { like: "liked your post", comment: "commented", reply: "replied to you", follow: "started following you", repost: "reposted your post", comment_like: "liked your comment" };
+const NOTE_WORDS: Record<Note["kind"], string> = { like: "liked your post", comment: "commented", reply: "replied to you", follow: "started following you", repost: "reposted your post", comment_like: "liked your comment", episode: "posted a new episode" };
 export function NotesSheet({ api, onClose, onPost, onPerson }: { api: Api; onClose: () => void; onPost: (id: string) => void; onPerson: (h: string) => void }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [setup, setSetup] = useState(false);
   useEffect(() => { api("/api/earshot/social/notifications").then((b) => { setNotes(b.notes || []); setSetup(!!b.setup); void api("/api/earshot/social/notifications/read", { method: "POST" }).catch(() => {}); }).catch(() => setNotes([])); }, [api]);
-  const icon = (k: Note["kind"]) => (k === "like" || k === "comment_like" ? <Heart size={13} className="fill-rose-500 text-rose-500" /> : k === "repost" ? <Repeat2 size={13} className="text-emerald-400" /> : k === "follow" ? <UserPlus size={13} style={{ color: ACCENT }} /> : <MessageCircle size={13} className="text-sky-400" />);
+  const icon = (k: Note["kind"]) => (k === "like" || k === "comment_like" ? <Heart size={13} className="fill-rose-500 text-rose-500" /> : k === "repost" ? <Repeat2 size={13} className="text-emerald-400" /> : k === "follow" ? <UserPlus size={13} style={{ color: ACCENT }} /> : k === "episode" ? <Mic size={13} style={{ color: ACCENT }} /> : <MessageCircle size={13} className="text-sky-400" />);
   return <Sheet title="Notifications" onClose={onClose} tall>
     <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
       {!notes && <div className="grid place-items-center py-10"><Loader2 className="animate-spin" /></div>}
