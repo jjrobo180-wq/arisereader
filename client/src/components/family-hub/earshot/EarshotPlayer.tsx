@@ -9,7 +9,7 @@ import {
 } from "@shared/earshot";
 import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
 import { AddToSheet, AiFinder, ModeView, ModesHub, ShowPage } from "./EarshotExtras";
-import { ClipMaker, ShareSheet, postEpisodeOf } from "./EarshotSocial";
+import { ClipMaker, LIGHT_CSS, ShareSheet, postEpisodeOf } from "./EarshotSocial";
 import { XSocial } from "./EarshotSocialX";
 import { PreviewCard, Previews, previewPicks, type PreviewPick } from "./EarshotPreviews";
 import { hiRes, type PodMode } from "@shared/earshot";
@@ -818,18 +818,22 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // cover art fills it edge to edge. What sits on top steps clear of those itself: the tab bar, the
   // other tabs (pad), the notices and the sheets.
   const pad = (n: ReactNode) => standalone ? <div className="box-border h-full pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)]">{n}</div> : n;
+  // Social, Explore and Library are white pages; the player and its sheets stay dark.
+  const light = tab === "social" || tab === "explore" || tab === "library";
+  const lit = (n: ReactNode) => <div className="ps-light h-full"><style>{LIGHT_CSS}</style>{pad(n)}</div>;
+  const chip = light ? "bg-black/[.05] text-[#0f1419]" : "bg-black/45";
   const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
-  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${standalone ? "bg-transparent" : "bg-[#120e14]"} text-white shadow-2xl`}>
+  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone ? "bg-transparent" : "bg-[#120e14]"} text-white shadow-2xl`}>
     <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
       {genreMode && tab === "foryou"
         ? <span className="flex items-center gap-2 rounded-full bg-black/55 py-1.5 pl-3 pr-1.5 text-sm font-bold backdrop-blur">{GENRE[genreMode]?.name}<button type="button" aria-label="Back to For You" onClick={() => setGenreMode(null)} className="grid h-7 w-7 place-items-center rounded-full bg-white/15"><X size={14} /></button></span>
-        : <nav className="flex min-w-0 gap-1 overflow-x-auto rounded-full bg-black/45 p-1 backdrop-blur [scrollbar-width:none]" aria-label="Sections">
-          {tabs.map(([t, label]) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`flex-none rounded-full px-3 py-1.5 text-xs font-semibold sm:text-sm ${tab === t ? "bg-white text-[#120e14]" : "text-white/75"}`}>{label}</button>)}
+        : <nav className={`flex min-w-0 gap-1 overflow-x-auto rounded-full ${chip} p-1 backdrop-blur [scrollbar-width:none]`} aria-label="Sections">
+          {tabs.map(([t, label]) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`flex-none rounded-full px-3 py-1.5 text-xs font-semibold sm:text-sm ${tab === t ? (light ? "bg-[#0f1419] text-white" : "bg-white text-[#120e14]") : light ? "text-[#536471]" : "text-white/75"}`}>{label}</button>)}
         </nav>}
       <div className="flex flex-none gap-1.5">
-        {sleepAt !== null && <span className="flex items-center gap-1 rounded-full bg-black/45 px-2.5 text-xs font-bold backdrop-blur"><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
-        <button type="button" aria-label="Playback settings" onClick={() => setSheet({ kind: "settings" })} className="grid h-9 w-9 place-items-center rounded-full bg-black/45 backdrop-blur"><Settings2 size={18} /></button>
-        {!standalone && <button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className="grid h-9 w-9 place-items-center rounded-full bg-black/45 backdrop-blur">{full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}
+        {sleepAt !== null && <span className={`flex items-center gap-1 rounded-full ${chip} px-2.5 text-xs font-bold backdrop-blur`}><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
+        <button type="button" aria-label="Playback settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
+        {!standalone && <button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}>{full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}
       </div>
     </header>
 
@@ -860,12 +864,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       <div className="flex gap-2"><button type="button" onClick={() => seekBy(15)} className="flex-1 rounded-full bg-black/10 py-2 text-xs font-semibold">Jump 15s</button><button type="button" onClick={endMark} className="flex-1 rounded-full bg-[#120e14] py-2 text-xs font-semibold text-white">Ad's over</button><button type="button" onClick={() => setMarking(null)} className="rounded-full bg-black/10 px-3 py-2 text-xs font-semibold">Cancel</button></div>
     </div>}
 
-    {tab === "explore" && pad(<Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow} onPreviews={setPreviews}
+    {tab === "explore" && lit(<Exploreapi={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow} onPreviews={setPreviews}
       onGenre={(g) => { setGenreMode(g); setTab("foryou"); }} onShow={(show) => setSheet({ kind: "show", show })} onEpisode={playNow}
       onResume={(id, s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
     {tab === "explore" && previews && <Previews api={api} picks={previews} onClose={() => setPreviews(null)} onPlay={(s, e, at) => { setPreviews(null); playNow(s, e, at); }} onShow={(show) => setSheet({ kind: "show", show })} onHush={() => players.current.forEach((a) => a.pause())} />}
-    {tab === "social" && !student && pad(<XSocial api={api} say={say} onPlay={playNow} onHush={() => players.current.forEach((a) => a.pause())} />)}
-    {tab === "library" && pad(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
+    {tab === "social" && !student && lit(<XSocial api={api} say={say} onPlay={playNow} onHush={() => players.current.forEach((a) => a.pause())} />)}
+    {tab === "library" && lit(<Libraryes={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
 
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
     {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}

@@ -8,6 +8,31 @@ import { ChevronLeft, Headphones, Heart, Loader2, MessageCircle, Mic, Pause, Pla
 import { clock, durationWords, hiRes, type PodEpisode, type PodShow } from "@shared/earshot";
 
 export const ACCENT = "#ff8a3d";
+
+/**
+ * Social, Explore and Library sit on a white page. Their parts are styled for the dark player (white
+ * text, see-through white fills, black surfaces), so inside `.ps-light` those are remapped to their
+ * light-page versions. Things on artwork (avatars, cover cards, Clips) opt out with `.ps-dark`.
+ */
+const N = ":not(.ps-dark,.ps-dark *)";
+export const LIGHT_CSS = `
+.ps-light{background:#fff;color:#0f1419}
+.ps-light .ps-dark{color:#fff}
+.ps-light .bg-black${N}{background-color:#fff}
+.ps-light :is([class*="bg-black/80"],[class*="bg-black/85"],[class*="bg-black/90"])${N}{background-color:rgba(255,255,255,.92)}
+.ps-light :is([class*="bg-black/25"],[class*="bg-black/30"],[class*="bg-black/45"])${N}{background-color:rgba(15,20,25,.05)}
+.ps-light :is([class^="bg-white/"],[class*=" bg-white/"])${N}{background-color:rgba(15,20,25,.06)}
+.ps-light [class*="hover:bg-white/"]${N}:hover{background-color:rgba(15,20,25,.05)}
+.ps-light .bg-white${N}{background-color:#0f1419;color:#fff}
+.ps-light .bg-white${N}:disabled{opacity:.35}
+.ps-light [class*="text-white/"]${N}{color:#536471}
+.ps-light :is(.text-white,[class*="text-white/8"],[class*="text-white/9"])${N}:not(.bg-white){color:#0f1419}
+.ps-light [class*="hover:text-white"]${N}:hover{color:#0f1419}
+.ps-light [class*="placeholder:text-white/"]::placeholder{color:#8b98a5}
+.ps-light [class*="border-white/"]${N}{border-color:rgba(15,20,25,.12)}
+.ps-light [class*="ring-white/"]${N}{--tw-ring-color:rgba(15,20,25,.14)}
+.ps-light .ring-black{--tw-ring-color:#fff}
+`;
 export type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 export type Profile = { handle: string; name: string; bio: string; avatar: string };
 export type PostEpisode = { id: string; showId: string; show: string; title: string; art: string; audio: string; secs: number; date: string; about?: string };
@@ -95,7 +120,7 @@ export type Ctx = {
 export function Avatar({ p, size = 36, onClick, ring }: { p: Profile; size?: number; onClick?: () => void; ring?: string }) {
   const h = [...(p.handle || p.name)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 11);
   const letters = (p.name || p.handle).trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]).join("").toUpperCase() || "?";
-  const inner = <span className={`grid select-none place-items-center rounded-full font-semibold text-white/95 ${ring ?? ""}`} style={{ width: size, height: size, fontSize: Math.round(size * (letters.length > 1 ? 0.36 : 0.42)), background: `hsl(${h} 28% 34%)` }}>{letters}</span>;
+  const inner = <span className={`ps-dark grid select-none place-items-center rounded-full font-semibold text-white/95 ${ring ?? ""}`} style={{ width: size, height: size, fontSize: Math.round(size * (letters.length > 1 ? 0.36 : 0.42)), background: `hsl(${h} 28% 34%)` }}>{letters}</span>;
   return onClick ? <button type="button" onClick={onClick} aria-label={`@${p.handle}`} className="flex-none self-start">{inner}</button> : <span className="flex-none self-start">{inner}</span>;
 }
 
@@ -301,7 +326,7 @@ export function PersonPage({ handle, ctx, patch, onEdit, onClose, row }: { handl
   const tabs = ([["posts", "Posts"], ["clips", "Clips"], ["own", data?.me ? "My podcast" : "Podcast"], ["bookmark", "Saved"]] as const).filter(([v]) => v === "posts" || posts.some((p) => (v === "clips" ? p.kind === "clip" : p.kind === v)));
   const list = which === "posts" ? posts.filter((p) => p.kind !== "bookmark") : posts.filter((p) => (which === "clips" ? p.kind === "clip" : p.kind === which));
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-black pb-14 [scrollbar-width:none]" role="dialog" aria-label={`@${handle}`}>
-    <div className="relative h-32 bg-[#2a2d32]">
+    <div className="ps-dark relative h-32 bg-[#2a2d32]">
       <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[max(.75rem,env(safe-area-inset-top))] grid h-10 w-10 place-items-center rounded-full bg-black/40 backdrop-blur"><ChevronLeft size={22} /></button>
     </div>
     <div className="px-5 pb-4">

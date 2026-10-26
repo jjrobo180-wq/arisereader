@@ -64,7 +64,7 @@ export function XSocial({ api, say, onPlay, onHush }: { api: Api; say: (m: strin
           </button>)}
         </div>
       </div>
-    {tab === "clips" ? <div className="flex min-h-0 flex-1 flex-col pb-14"><ClipsFeed posts={posts} ctx={ctx} setup={me.v2 === false} onRefresh={load} /></div>
+    {tab === "clips" ? <div className="ps-dark flex min-h-0 flex-1 flex-col bg-[#000] pb-14"><ClipsFeed posts={posts} ctx={ctx} setup={me.v2 === false} onRefresh={load} /></div>
     : <div ref={list} className="min-h-0 flex-1 overflow-y-auto pb-24 [scrollbar-width:none] mx-auto w-full max-w-2xl">
 
       {!me.profile && <div className={`border-b ${LINE} px-4 py-5`}>
@@ -130,7 +130,7 @@ function XPost({ post, ctx, patch, onOpen, onGone }: { post: Post; ctx: Ctx; pat
           <span className={`min-w-0 truncate ${GREY}`}>@{p.author.handle}</span><span className={`flex-none ${GREY}`}>· {ago(p.at)}</span>
           <div className="relative ml-auto flex-none">
             <button type="button" onClick={stop(() => setMenu((m) => !m))} aria-label="More" className={`-my-1 -mr-2 grid h-8 w-8 place-items-center rounded-full ${GREY} hover:bg-white/10`}><MoreHorizontal size={18} /></button>
-            {menu && <div onClick={(e) => e.stopPropagation()} onMouseLeave={() => setMenu(false)} className="absolute right-0 top-8 z-20 w-52 overflow-hidden rounded-xl bg-black text-[15px] font-bold shadow-[0_0_18px_rgba(255,255,255,.18)]">
+            {menu && <div onClick={(e) => e.stopPropagation()} onMouseLeave={() => setMenu(false)} className="absolute right-0 top-8 z-20 w-52 overflow-hidden rounded-xl bg-black text-[15px] font-bold shadow-[0_0_18px_rgba(127,127,127,.35)]">
               {(plain ? post.mine : p.mine) ? <button type="button" onClick={remove} className="flex w-full items-center gap-3 px-4 py-3 text-left text-rose-500 hover:bg-white/5"><Trash2 size={18} />{plain ? "Undo repost" : "Delete"}</button>
                 : <button type="button" onClick={report} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-white/5"><Flag size={18} />Report post</button>}
             </div>}
@@ -151,7 +151,7 @@ function XBody({ post: p, ctx, big, nested }: { post: Post; ctx: Ctx; big?: bool
     {p.caption && <p className={`whitespace-pre-wrap break-words ${big ? "mt-3 text-[17px] leading-6" : "mt-0.5 text-[15px] leading-5"} ${nested ? "line-clamp-4" : ""}`}>{p.caption}</p>}
     {p.kind === "clip" && p.clip && ep && <div onClick={stop}><ClipInline post={p} ctx={ctx} /></div>}
     {(p.kind === "share" || p.kind === "own" || p.kind === "bookmark") && ep && <button type="button" onClick={(e) => { stop(e); ctx.onPlay(toShow(ep, p.author.name), toEpisode(ep, p.author.name)); }} className={`mt-3 block w-full overflow-hidden rounded-2xl border ${LINE} text-left`}>
-      <span className="relative block aspect-[2/1] overflow-hidden">
+      <span className="ps-dark relative block aspect-[2/1] overflow-hidden">
         <span aria-hidden className="absolute -inset-6 bg-cover bg-center blur-2xl" style={{ backgroundImage: `url("${hiRes(artOf(ep), 200)}")` }} />
         <span className="absolute inset-0 bg-black/30" />
         <img src={hiRes(artOf(ep), 400)} alt="" referrerPolicy="no-referrer" className="absolute left-1/2 top-1/2 h-[78%] -translate-x-1/2 -translate-y-1/2 rounded-xl object-cover shadow-2xl" />
@@ -294,7 +294,7 @@ function Compose({ api, say, me, quote, onClose, onPosted }: { api: Api; say: (m
     </div>
     <div className={`flex flex-none items-center justify-end gap-3 border-t ${LINE} px-4 py-2.5`}>
       {text && <span className={`text-[13px] tabular-nums ${left < 0 ? "text-rose-500" : left <= 20 ? "text-amber-400" : GREY}`}>{left <= 20 ? left : ""}</span>}
-      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden><circle cx="13" cy="13" r={R} fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="2.5" /><circle cx="13" cy="13" r={R} fill="none" stroke={left < 0 ? "#f43f5e" : left <= 20 ? "#fbbf24" : ACCENT} strokeWidth="2.5" strokeDasharray={C} strokeDashoffset={C * (1 - used)} strokeLinecap="round" transform="rotate(-90 13 13)" /></svg>
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden><circle cx="13" cy="13" r={R} fill="none" stroke="rgba(127,127,127,.3)" strokeWidth="2.5" /><circle cx="13" cy="13" r={R} fill="none" stroke={left < 0 ? "#f43f5e" : left <= 20 ? "#fbbf24" : ACCENT} strokeWidth="2.5" strokeDasharray={C} strokeDashoffset={C * (1 - used)} strokeLinecap="round" transform="rotate(-90 13 13)" /></svg>
     </div>
   </div>;
 }
