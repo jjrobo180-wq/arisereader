@@ -69,7 +69,7 @@ function App() {
     setEs((e) => list.reduce((acc, x) => applySignal(acc, x.genre, x.signal), e));
   }, []);
 
-  const shareLink = useCallback((show: { id: string }, ep: { id: string }) => `${location.origin}/?s=${show.id}&e=${ep.id}`, []);
+  const shareLink = useCallback((show: { id: string }, ep: { id: string }) => `${location.origin}/app/?s=${show.id}&e=${ep.id}`, []);
 
   const body = !es.setupDone || editing
     ? <div className="min-h-full overflow-y-auto px-3 py-6 sm:py-10">

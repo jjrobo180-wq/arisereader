@@ -21,5 +21,6 @@ export default defineConfig({
       ],
     },
   },
-  build: { outDir: "dist", emptyOutDir: true, assetsDir: "assets" },
+  // Two pages: the A.R.I.S.E Pod+ homepage at / and the player itself at /app/.
+  build: { outDir: "dist", emptyOutDir: true, assetsDir: "assets", rollupOptions: { input: { home: resolve(repo, "podscroll/index.html"), app: resolve(repo, "podscroll/app/index.html") } } },
 });

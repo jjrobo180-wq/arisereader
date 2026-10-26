@@ -2,7 +2,7 @@
   "name": "Pod+",
   "short_name": "Pod+",
   "description": "Connect. Explore. Create.",
-  "start_url": "/",
+  "start_url": "/app/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
