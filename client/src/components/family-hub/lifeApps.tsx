@@ -51,6 +51,7 @@ import Routines from "@/components/family-hub/Routines";
 import SavingsJars from "@/components/family-hub/SavingsJars";
 import SleepApp from "@/components/family-hub/sleep/SleepApp";
 import SleepFinder from "@/components/family-hub/SleepFinder";
+import Earshot from "@/components/family-hub/earshot/Earshot";
 import Subscriptions from "@/components/family-hub/Subscriptions";
 import TipCalculator from "@/components/family-hub/TipCalculator";
 import TodayInHistory from "@/components/family-hub/TodayInHistory";
@@ -117,6 +118,7 @@ export const LIFE_VIEWS: Partial<Record<FamilySection, (props: SectionProps) => 
   checkups: (p) => <CareTracker kind="checkups" {...p} />,
   sleep: (p) => <SleepApp {...p} />,
   sleepfinder: (p) => <SleepFinder {...p} />,
+  earshot: (p) => <Earshot {...p} />,
   workouts: (p) => <WorkoutLog {...p} />,
   routines: (p) => <Routines {...p} />,
   milestones: (p) => <Milestones {...p} />,

@@ -64,6 +64,13 @@ import { registerFoodLookupRoutes } from "./foodLookup";
 import { registerBrowserRoutes } from "./browserCheck";
 import { registerLifePlanRoutes } from "./lifePlan";
 import { registerSleepFinderRoutes } from "./sleepFinder";
+import { registerEarshotRoutes, registerPodscrollRoutes, supabaseEarshotStore } from "./earshot";
+import { attachLivePods } from "./podcastLive";
+import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
+import { supabaseAdStore } from "./podcastAds";
+import { startCopyDiagnostics } from "./podcastCopies";
+import { createPlayer as createPodcastPlayer, startPlayDiagnostics } from "./podcastPlay";
+import { createAdLibrary } from "./podcastAdLibrary";
 import { registerPassLockRoutes } from "./passLock";
 import { registerProfileLinkRoutes } from "./profileLinks";
 import { registerHubChatRoutes } from "./hubChat";
@@ -108,6 +115,7 @@ import { createPresenceTracker, registerAdminStatsRoutes } from "./adminStats";
 import { registerTodoAdminRoutes } from "./todoAdmin";
 import { shuffleChoices, storedLetter } from "./quizShuffle";
 import { clientAddress, createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { accountForEmailSignIn, looksLikeEmail, registerAccountRecoveryRoutes, type RecoveryAccount, type RecoveryDeps } from "./accountRecovery";
 import { DEFAULT_SITE_URL, PARENT_INVITES_PER_DAY, emailDocument, parentInviteEmail } from "./emailFormat";
 import { registerParentInviteEmailRoutes } from "./parentInviteEmails";
 import bcrypt from "bcryptjs";
@@ -913,6 +921,48 @@ async function sendEmail(to: string | string[], subject: string, html: string, o
   return { sent: false, error: lastError };
 }
 
+// "Forgot your username or password?" and signing in with an email (server/accountRecovery.ts).
+const toRecoveryAccount = (u: any): RecoveryAccount => ({ id: Number(u.id), username: String(u.username), displayName: String(u.display_name || u.username), email: u.email || null, role: u.role || null, password: String(u.password || "") });
+const recoveryDeps: RecoveryDeps = {
+  async accountsByEmail(email) {
+    const clean = String(email || "").trim();
+    if (!looksLikeEmail(clean)) return [];
+    // ilike with every wildcard escaped = an exact match that ignores case
+    const pattern = clean.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const { data, error } = await getAdminSupabase().from("users").select("id, username, display_name, email, role, password, is_admin")
+      .ilike("email", pattern).is("archived_at", null).limit(20);
+    if (error) throw new Error(error.message);
+    return (data || []).filter((u: any) => !u.is_admin).map(toRecoveryAccount);
+  },
+  async saveToken({ tokenHash, userId, expiresAt }) {
+    const { error } = await getAdminSupabase().from("password_reset_tokens").insert({ token_hash: tokenHash, user_id: userId, expires_at: expiresAt.toISOString() });
+    if (error) throw new Error(error.message);
+  },
+  async loadToken(tokenHash) {
+    const { data } = await getAdminSupabase().from("password_reset_tokens").select("user_id, expires_at, used_at").eq("token_hash", tokenHash).maybeSingle();
+    return data ? { userId: Number(data.user_id), expiresAt: new Date(data.expires_at), usedAt: data.used_at ? new Date(data.used_at) : null } : null;
+  },
+  async useToken(tokenHash) {
+    const { data, error } = await getAdminSupabase().from("password_reset_tokens").update({ used_at: new Date().toISOString() })
+      .eq("token_hash", tokenHash).is("used_at", null).select("token_hash");
+    return !error && (data || []).length === 1;
+  },
+  async getAccount(id) {
+    const { data } = await getAdminSupabase().from("users").select("id, username, display_name, email, role, password, is_admin, archived_at").eq("id", id).maybeSingle();
+    return data && !data.archived_at && !data.is_admin ? toRecoveryAccount(data) : null;
+  },
+  async setPassword(userId, password) {
+    const { error } = await getAdminSupabase().from("users").update({ password, must_change_password: false }).eq("id", userId);
+    if (error) throw new Error(error.message);
+  },
+  async signOutEverywhere(userId) {
+    await getAdminSupabase().from("sessions").delete().eq("user_id", userId);
+    clearCache("session_"); clearCache("allUsers");
+  },
+  sendEmail: (to, subject, html) => sendEmail(to, subject, html),
+  siteUrl: APP_URL,
+};
+
 function parentApprovedEmail(displayName: string, username: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a1a; color: #fff; padding: 40px; border-radius: 12px;">
@@ -1505,6 +1555,17 @@ export async function registerRoutes(
   registerBrowserRoutes(app, authMiddleware);
   registerLifePlanRoutes(app, authMiddleware);
   registerSleepFinderRoutes(app, authMiddleware);
+  // One podcast directory for Earshot and Podscroll: shared caches (kept in the database) and one pace for Apple.
+  const podcasts = createPodcastDirectory({ kv: supabaseKV(getAdminSupabase) });
+  setTimeout(() => { void podcasts.warm().catch((e) => console.error("[earshot] warm-up:", e?.message)); }, 15_000);
+  const podcastAds = supabaseAdStore(getAdminSupabase);
+  startCopyDiagnostics(supabaseKV(getAdminSupabase));
+  // Playback through the server (one for both apps): stitched-in ads found in each listener's own copy.
+  const podcastPlayer = createPodcastPlayer({ library: createAdLibrary(supabaseKV(getAdminSupabase)) });
+  startPlayDiagnostics(supabaseKV(getAdminSupabase), podcastPlayer, podcasts);
+  registerEarshotRoutes(app, authMiddleware, { store: supabaseEarshotStore(getAdminSupabase), directory: podcasts, adStore: podcastAds, player: podcastPlayer, socialDb: getAdminSupabase });
+  registerPodscrollRoutes(app, supabaseEarshotStore(getAdminSupabase, "podscroll"), undefined, podcasts, podcastAds, podcastPlayer, getAdminSupabase, { sendEmail: (to, subject, html) => sendEmail(to, subject, html) });
+  attachLivePods(httpServer, getAdminSupabase);
   registerPassLockRoutes(app, authMiddleware, { passwordHash: async (id) => (await storage.getUser(id))?.password });
   registerHubChatRoutes(app, authMiddleware, undefined, undefined, {
     getSetting: (key) => storage.getSetting(key),
@@ -2589,6 +2650,8 @@ export async function registerRoutes(
     }
   });
 
+  registerAccountRecoveryRoutes(app, { ...recoveryDeps, hashPassword: (p: string) => bcrypt.hashSync(p, 10) });
+
   // Families may create a parent account before their children have an A.R.I.S.E.
   // account. A valid invitation is required only when linking an existing child.
   app.post("/api/auth/register-parent", async (req, res) => {
@@ -2616,6 +2679,12 @@ export async function registerRoutes(
         }
       }
       const cleanUsername = username.trim().toLowerCase();
+      // One email, one parent account: someone who already has one is sent to sign in, not to make a second.
+      // (The username isn't shown here, so typing an email can't reveal whose it is; the recovery email tells them.)
+      const cleanEmail = typeof email === "string" ? email.trim() : "";
+      if (looksLikeEmail(cleanEmail) && (await recoveryDeps.accountsByEmail(cleanEmail).catch(() => [])).length) {
+        return res.status(409).json({ code: "EMAIL_HAS_ACCOUNT", message: "You already have an account with this email. Sign in with your username or this email. If you can't remember them, use \"Forgot your username or password?\" on the sign-in page and we'll email them to you." });
+      }
       if (await storage.getUserByUsername(cleanUsername)) return res.status(409).json({ message: "Username already taken" });
       const user = await storage.createUser({
         username: cleanUsername,
@@ -2715,11 +2784,19 @@ export async function registerRoutes(
         return res.status(429).json({ message: `Too many wrong passwords. Try again in ${waitWords(wait)}, or ask your teacher to reset your password.` });
       }
 
-      const user = await storage.getUserByUsername(nameKey);
+      let user = await storage.getUserByUsername(nameKey);
+      // Signing in with the email on the account works too, when the password fits exactly one account on it.
+      if (!user && looksLikeEmail(nameKey)) {
+        const found = await accountForEmailSignIn(recoveryDeps, nameKey, password, (p, h) => bcrypt.compare(p, h)).catch(() => null);
+        if (found?.account) user = await storage.getUserByUsername(found.account.username);
+        else if (found && found.reason === "ambiguous") {
+          return res.status(401).json({ message: "More than one account uses this email and password. Sign in with your username instead, or use \"Forgot your username or password?\" to see them." });
+        }
+      }
       if (!user || !(await bcrypt.compare(password, user.password))) {
         loginFailsByName.fail(nameKey);
         loginFailsByAddress.fail(addressKey);
-        return res.status(401).json({ message: "Invalid username or password" });
+        return res.status(401).json({ message: looksLikeEmail(nameKey) ? "That email and password don't match an account. Try your username, or use \"Forgot your username or password?\"." : "Invalid username or password" });
       }
       loginFailsByName.reset(nameKey);
 

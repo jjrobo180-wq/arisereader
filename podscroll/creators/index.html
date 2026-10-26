@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pod+ for Creators · Where new podcasters get discovered</title>
+<meta name="description" content="Pod+ for Creators: record or upload your podcast, get discovered on Open Mic, go live with LivePod, see your numbers in Studio, and earn at your own prices with a Pod+ Membership." />
+<meta name="theme-color" content="#f9fafc" />
+<meta property="og:title" content="Pod+ for Creators" />
+<meta property="og:description" content="Connect. Explore. Create. The social podcast app you scroll like short videos." />
+<meta property="og:image" content="/icon-512.png" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{--ink:#1c2238;--muted:#69738c;--line:#e9edf5;--blue:#5169ed;--teal:#11b9af;--purple:#8b64e9;--orange:#ff8a3d;--background:#f9fafc;--surface:#fff;--shade:#f2f5fc;--grad:linear-gradient(115deg,#10b9af 0%,#5279ed 53%,#9363e7 100%);--shadow:0 24px 65px rgba(33,53,97,.10),0 2px 10px rgba(33,53,97,.035)}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--background);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+a{text-decoration:none;color:inherit}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid #749af1;outline-offset:3px}
+svg{display:block}
+::selection{background:#c8f4ef;color:#0d3d4b}
+h1,h2,h3{font-family:Manrope,system-ui,sans-serif;letter-spacing:-.04em;margin:0}
+p{margin:0}
+.container{width:min(1160px,calc(100% - 48px));margin:0 auto}
+.gradient-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#4c63c9}
+.eyebrow .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(17,185,175,.16)}
+.lead{font-size:17px;line-height:1.7;color:var(--muted)}
+
+/* Header */
+.site-header{position:sticky;top:0;z-index:30;background:rgba(249,250,252,.83);border-bottom:1px solid rgba(229,234,242,.8);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.nav-inner{height:78px;display:flex;align-items:center;gap:26px}
+.logo{display:inline-flex;align-items:center;gap:12px;font-weight:800;letter-spacing:-.9px;white-space:nowrap;font-family:Manrope,system-ui,sans-serif;font-size:20px}
+.logo svg{width:39px;height:39px;flex:none}
+.logo .soft{color:#7c87a0;font-weight:700}
+.logo .plus{color:var(--orange)}
+.nav-links{display:flex;align-items:center;gap:32px;margin-left:auto}
+.nav-links a{font-size:14px;font-weight:700;color:#5b657b;transition:color .2s}
+.nav-links a:hover{color:var(--blue)}
+.nav-links a.button,.nav-links a.button:hover{color:#fff}
+.button{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 21px;border-radius:14px;border:1px solid transparent;font-size:14px;font-weight:800;white-space:nowrap;transition:transform .2s,box-shadow .2s}
+.button:hover{transform:translateY(-2px)}
+.button svg{width:18px;height:18px}
+.button-primary{color:#fff;background:linear-gradient(110deg,#16b4bb,#5478e9 61%,#8665e8);box-shadow:0 10px 23px rgba(76,106,223,.2)}
+.button-primary:hover{box-shadow:0 15px 28px rgba(76,106,223,.27)}
+.button-secondary{background:#fff;color:#35415e;border-color:#e4e9f3;box-shadow:0 4px 14px rgba(35,62,101,.03)}
+.announce{background:#eefaf7;border-bottom:1px solid #d9f1ec;color:#0f7f78;font-size:13px;font-weight:700;text-align:center;padding:10px 16px}
+
+/* Hero */
+.hero{position:relative;overflow:hidden;padding:84px 0 96px;background:radial-gradient(900px 500px at 85% 20%,rgba(147,99,231,.09),transparent 60%),radial-gradient(700px 420px at 10% 90%,rgba(17,185,175,.08),transparent 60%)}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+.hero h1{font-size:clamp(44px,6.2vw,76px);line-height:1;margin-top:22px}
+.hero .lead{margin-top:26px;max-width:520px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.checks{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:24px;font-size:13px;font-weight:600;color:#5b657b}
+.checks span{display:inline-flex;align-items:center;gap:7px}
+.checks svg{width:15px;height:15px;color:var(--teal)}
+
+/* Phone mock of the player */
+.stage{position:relative;display:flex;justify-content:center}
+.phone{position:relative;width:300px;height:610px;border-radius:46px;background:#0e0d10;padding:12px;box-shadow:0 40px 90px rgba(28,34,56,.28),0 0 0 1px rgba(28,34,56,.08)}
+.screen{position:relative;height:100%;border-radius:36px;overflow:hidden;background:#141018;color:#fff}
+.screen .bg{position:absolute;inset:-30%;filter:blur(40px);opacity:.75;transition:background 1s}
+.screen .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(14,13,16,.55) 55%,#0e0d10)}
+.tabs{position:absolute;top:16px;left:12px;display:flex;gap:2px;padding:3px;border-radius:999px;background:rgba(0,0,0,.4);font-size:9.5px;font-weight:700;z-index:2}
+.tabs span{padding:4px 8px;border-radius:999px;color:rgba(255,255,255,.75)}
+.tabs span.on{background:#fff;color:#120e14}
+.art{position:absolute;top:58px;left:50%;width:212px;height:212px;margin-left:-106px;border-radius:20px;overflow:hidden;box-shadow:0 30px 50px -20px rgba(0,0,0,.9);transition:transform .6s,opacity .6s}
+.art .face{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;font-family:Manrope,system-ui,sans-serif;font-weight:800;font-size:25px;line-height:1.05;letter-spacing:-.03em}
+.art .face small{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:6px}
+.art .ring{position:absolute;right:-30px;top:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.16)}
+.rail{position:absolute;right:10px;top:250px;display:flex;flex-direction:column;align-items:center;gap:13px;z-index:2}
+.rail svg{width:20px;height:20px;color:rgba(255,255,255,.92)}
+.rail .who{width:30px;height:30px;border-radius:50%;border:2px solid #fff}
+.info{position:absolute;left:18px;right:56px;top:300px;z-index:2}
+.info .meta{font-size:10px;color:rgba(255,255,255,.6)}
+.info .title{margin-top:5px;font-size:15px;font-weight:700;line-height:1.25}
+.info .show{margin-top:4px;font-size:11px;color:rgba(255,255,255,.6)}
+.bar{position:absolute;left:18px;right:18px;top:430px;z-index:2}
+.track{height:4px;border-radius:4px;background:rgba(255,255,255,.2);position:relative}
+.fill{position:absolute;left:0;top:0;bottom:0;width:34%;border-radius:4px;background:#fff}
+.admark{position:absolute;top:0;bottom:0;left:52%;width:9%;border-radius:4px;background:#ffd23f}
+.times{display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:rgba(255,255,255,.55)}
+.controls{position:absolute;left:0;right:0;top:478px;display:flex;align-items:center;justify-content:center;gap:34px;z-index:2}
+.controls svg{width:22px;height:22px}
+.controls .play{width:56px;height:56px;border-radius:50%;background:#fff;color:#0e0d10;display:grid;place-items:center}
+.controls .play svg{width:22px;height:22px;margin-left:3px}
+.float{position:absolute;display:flex;align-items:center;gap:10px;padding:11px 15px;border-radius:16px;background:#fff;box-shadow:var(--shadow);font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;z-index:3}
+.float small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+.float .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none}
+.float .ic svg{width:17px;height:17px}
+.f1{top:120px;left:-24px;animation:bob 6s ease-in-out infinite}
+.f2{bottom:96px;right:-30px;animation:bob 6s ease-in-out 1.5s infinite}
+.sample{position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0f7f78;background:#e6f7f4;padding:6px 12px;border-radius:999px;white-space:nowrap}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* Strip */
+.strip{border-block:1px solid var(--line);background:#fff}
+.strip .container{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px 34px;padding:22px 0;font-size:14px;font-weight:700;color:#35415e}
+.strip .label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8a93a8;font-weight:800}
+.strip span{display:inline-flex;align-items:center;gap:8px}
+.strip svg{width:16px;height:16px;color:var(--teal)}
+
+/* Sections */
+section.block{padding:104px 0}
+.block.tint{background:linear-gradient(180deg,#f4f6ff,#f9fafc)}
+.block.white{background:#fff}
+.center{text-align:center}
+.center .lead{margin:18px auto 0;max-width:580px}
+.h2{font-size:clamp(34px,4.6vw,54px);line-height:1.05;margin-top:16px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.split .lead{margin-top:20px}
+
+.steps{display:flex;flex-direction:column;gap:14px;margin-top:32px}
+.step{display:flex;gap:16px;padding:18px 20px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:0 4px 18px rgba(33,53,97,.04)}
+.step .n{width:34px;height:34px;flex:none;border-radius:11px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px;background:var(--grad)}
+.step h3{font-size:16px;letter-spacing:-.02em}
+.step p{margin-top:4px;font-size:14px;line-height:1.55;color:var(--muted)}
+
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:52px}
+.card{padding:26px;border-radius:22px;background:#fff;border:1px solid var(--line);box-shadow:0 6px 24px rgba(33,53,97,.04);transition:transform .2s,box-shadow .2s}
+.card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.card .ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center}
+.card .ic svg{width:21px;height:21px}
+.card h3{margin-top:18px;font-size:17px;letter-spacing:-.02em}
+.card p{margin-top:8px;font-size:14px;line-height:1.6;color:var(--muted)}
+.t{background:#e3f6f3;color:#0f9d95}.b{background:#e7ebfd;color:#4c63d9}.p{background:#efe8fd;color:#7a52d9}.o{background:#fff0e5;color:#e06d1f}.k{background:#fde8f1;color:#d0457f}.g{background:#e8f6e9;color:#2f9a4a}
+
+/* Social mock */
+.panel{border-radius:26px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);font-family:Manrope,system-ui,sans-serif;font-weight:800}
+.panel-head .pill{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#0f7f78;background:#e6f7f4;padding:4px 10px;border-radius:999px}
+.ptabs{display:flex;border-bottom:1px solid var(--line);font-size:13px;font-weight:700;color:var(--muted)}
+.ptabs span{flex:1;text-align:center;padding:11px 0;position:relative}
+.ptabs span.on{color:var(--ink)}
+.ptabs span.on::after{content:"";position:absolute;left:50%;bottom:0;width:38px;height:3px;margin-left:-19px;border-radius:3px;background:var(--orange)}
+.post{display:flex;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.post:last-child{border-bottom:0}
+.av{width:38px;height:38px;flex:none;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px}
+.post .who{font-size:14px}
+.post .who b{font-weight:700}
+.post .who span{color:#8a93a8}
+.post .txt{margin-top:3px;font-size:14px;line-height:1.5;color:#35415e}
+.clip{margin-top:10px;padding:12px;border-radius:14px;border:1px solid var(--line)}
+.clip q{display:block;padding-left:11px;border-left:2px solid var(--orange);font-size:14px;line-height:1.5;quotes:"\201C" "\201D"}
+.clip .row{display:flex;align-items:center;gap:10px;margin-top:10px}
+.clip .cv{width:34px;height:34px;border-radius:8px;flex:none}
+.clip .row b{display:block;font-size:12.5px}
+.clip .row small{display:block;font-size:11.5px;color:#8a93a8}
+.clip .pb{margin-left:auto;width:32px;height:32px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center}
+.clip .pb svg{width:13px;height:13px;margin-left:2px}
+.acts{display:flex;gap:28px;margin-top:10px;font-size:12px;color:#8a93a8}
+.acts span{display:inline-flex;align-items:center;gap:5px}
+.acts svg{width:15px;height:15px}
+
+.bul{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:30px}
+.bul div{display:flex;gap:11px;font-size:14px;line-height:1.5;color:var(--muted)}
+.bul b{display:block;color:var(--ink);font-size:15px}
+.bul .ic{width:34px;height:34px;flex:none;border-radius:11px;display:grid;place-items:center}
+.bul .ic svg{width:17px;height:17px}
+
+/* Create mock */
+.maker{padding:22px}
+.rec{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rec div{height:92px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:700}
+.rec .r1{background:var(--ink);color:#fff}
+.rec .r2{background:var(--shade);color:#35415e}
+.rec svg{width:22px;height:22px}
+.field{margin-top:14px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.field .in{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#fbfcfe;font-size:14px}
+.made{display:flex;gap:14px;align-items:center;margin-top:16px}
+.made .cover{width:84px;height:84px;border-radius:16px;flex:none;background:linear-gradient(135deg,#ff9f5a,#e8467c);color:#fff;font-family:Manrope,sans-serif;font-weight:800;font-size:15px;line-height:1.05;padding:11px;display:flex;align-items:flex-end}
+.made p{font-size:13px;line-height:1.5;color:var(--muted)}
+.made b{color:var(--ink)}
+.publish{margin-top:16px;width:100%;padding:14px;border:0;border-radius:14px;color:#fff;font-weight:800;background:linear-gradient(110deg,#16b4bb,#5478e9 61%,#8665e8)}
+
+/* Three steps */
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;margin-top:56px}
+.three .num{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:15px}
+.three h3{margin-top:18px;font-size:18px;letter-spacing:-.02em}
+.three p{margin-top:8px;font-size:14px;line-height:1.6;color:var(--muted)}
+
+/* FAQ */
+.faq{max-width:760px;margin:44px auto 0;display:flex;flex-direction:column;gap:12px}
+details{border-radius:16px;background:#fff;border:1px solid var(--line)}
+summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 20px;font-weight:700;font-size:15px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:20px;color:var(--blue);transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{padding:0 20px 18px;font-size:14.5px;line-height:1.65;color:var(--muted)}
+
+/* CTA */
+.cta{position:relative;overflow:hidden;border-radius:32px;padding:72px 32px;text-align:center;color:#fff;background:linear-gradient(114deg,#13b2ac,#5576e5 57%,#835adf)}
+.cta::before,.cta::after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.25)}
+.cta::before{width:340px;height:340px;left:-120px;top:-170px}
+.cta::after{width:300px;height:300px;right:-90px;bottom:-190px}
+.cta .eyebrow{color:rgba(255,255,255,.85)}
+.cta h2{font-size:clamp(34px,4.6vw,52px);line-height:1.08;margin-top:14px}
+.cta p{margin:16px auto 0;max-width:520px;font-size:16px;line-height:1.6;color:rgba(255,255,255,.88)}
+.cta .button{margin-top:28px;background:#fff;color:#3d4fb8;box-shadow:0 12px 26px rgba(20,30,90,.2)}
+
+/* Footer */
+footer{border-top:1px solid var(--line);padding:34px 0 40px;background:#fff}
+.foot{display:flex;flex-wrap:wrap;align-items:center;gap:18px 30px}
+.foot .tag{font-size:13px;color:var(--muted)}
+.foot nav{display:flex;flex-wrap:wrap;gap:20px;margin-left:auto;font-size:13px;font-weight:700;color:#5b657b}
+.fine{margin-top:22px;font-size:12px;color:#8a93a8}
+
+
+/* Creators */
+.creators{background:#0f0d14;color:#fff;position:relative;overflow:hidden}
+.creators::before{content:"";position:absolute;width:700px;height:700px;left:-200px;top:-260px;border-radius:50%;background:radial-gradient(circle,rgba(255,138,61,.28),transparent 65%)}
+.creators::after{content:"";position:absolute;width:700px;height:700px;right:-240px;bottom:-300px;border-radius:50%;background:radial-gradient(circle,rgba(147,99,231,.32),transparent 65%)}
+.creators .container{position:relative;z-index:1}
+.creators .eyebrow{color:#ffb27a}
+.creators .lead{color:rgba(255,255,255,.72)}
+.c-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:48px}
+.c-card{padding:26px;border-radius:24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(10px)}
+.c-card h3{margin-top:16px;font-size:20px;letter-spacing:-.02em}
+.c-card p{margin-top:8px;font-size:14.5px;line-height:1.6;color:rgba(255,255,255,.7)}
+.c-card .ic{width:46px;height:46px;border-radius:15px;display:grid;place-items:center}
+.c-card .ic svg{width:22px;height:22px}
+.c-card .tag{display:inline-block;margin-top:14px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.1);color:#ffd6b8}
+.live-mock{margin-top:16px;display:flex;align-items:center;gap:14px;padding:14px;border-radius:18px;background:rgba(0,0,0,.25)}
+.live-mock .ring{position:relative;width:54px;height:54px;flex:none;border-radius:50%;padding:3px;background:conic-gradient(#ff8a3d,#e8467c,#ff8a3d)}
+.live-mock .ring span{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:hsl(250 30% 35%);font-weight:800;font-size:15px;border:3px solid #0f0d14}
+.live-mock b{display:block;font-size:14px}
+.live-mock small{display:block;font-size:12px;color:rgba(255,255,255,.6)}
+.live-mock .pill{margin-left:auto;font-size:11px;font-weight:800;letter-spacing:.1em;padding:5px 10px;border-radius:999px;background:#ff8a3d;color:#111}
+.cheers{display:flex;gap:8px;margin-top:12px;font-size:22px}
+.cheers span{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.08)}
+.rise{margin-top:16px}
+.rise div{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:13.5px;color:rgba(255,255,255,.85)}
+.rise i{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;background:#fff;color:#4c63d9}
+.rise i.no{background:rgba(255,255,255,.15);color:#fff}
+.bars{display:flex;align-items:flex-end;gap:4px;height:70px;margin-top:16px}
+.bars span{flex:1;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#ff9f5a,#e8467c)}
+@media (max-width:820px){.c-grid{grid-template-columns:1fr}}
+
+/* Earn */
+.earn{background:radial-gradient(800px 460px at 90% 10%,rgba(255,138,61,.10),transparent 60%),radial-gradient(700px 420px at 0% 100%,rgba(17,185,175,.09),transparent 60%),#fff}
+.soon{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:8px 14px;border-radius:999px;background:#fff4ea;color:#c25a12;font-size:12.5px;font-weight:800}
+.soon i{width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(255,138,61,.18)}
+.ways{display:flex;flex-direction:column;gap:12px;margin-top:28px}
+.way{display:flex;gap:14px;padding:16px 18px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:0 4px 18px rgba(33,53,97,.04)}
+.way .ic{width:40px;height:40px;flex:none;border-radius:13px;display:grid;place-items:center}
+.way .ic svg{width:19px;height:19px}
+.way h3{font-size:16px;letter-spacing:-.02em}
+.way p{margin-top:3px;font-size:14px;line-height:1.55;color:var(--muted)}
+.pricer{padding:22px}
+.pricer .hd{display:flex;align-items:center;gap:12px}
+.pricer .hd .cv{width:52px;height:52px;border-radius:14px;flex:none;background:linear-gradient(135deg,#ff9f5a,#e8467c)}
+.pricer .hd b{display:block;font-family:Manrope,sans-serif;font-size:16px}
+.pricer .hd small{display:block;font-size:12.5px;color:var(--muted)}
+.tier{display:flex;align-items:center;gap:12px;margin-top:12px;padding:14px;border-radius:16px;border:1px solid var(--line);background:#fbfcfe}
+.tier .ic{width:36px;height:36px;flex:none;border-radius:11px;display:grid;place-items:center}
+.tier .ic svg{width:17px;height:17px}
+.tier div{min-width:0;flex:1}
+.tier b{display:block;font-size:14px}
+.tier small{display:block;font-size:12px;color:var(--muted)}
+.tier .price{flex:none;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:12px;background:#fff;border:1px solid #dfe5f1;font-family:Manrope,sans-serif;font-weight:800;font-size:15px}
+.tier .price em{font-style:normal;font-size:11px;font-weight:700;color:var(--muted)}
+.tier.free .price{color:#0f8f87;background:#e6f7f4;border-color:#cdeee8}
+.earned{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:14px 16px;border-radius:16px;color:#fff;background:linear-gradient(110deg,#16b4bb,#5478e9 61%,#8665e8)}
+.earned small{display:block;font-size:11.5px;font-weight:700;opacity:.85;letter-spacing:.06em;text-transform:uppercase}
+.earned b{display:block;font-family:Manrope,sans-serif;font-size:24px;letter-spacing:-.02em}
+.earned span{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.2)}
+
+/* Top band (For podcasters) */
+.topband{position:relative;overflow:hidden;background:#0f0d14;color:#fff}
+.topband::before{content:"";position:absolute;width:520px;height:520px;left:-160px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(255,138,61,.30),transparent 65%)}
+.topband::after{content:"";position:absolute;width:520px;height:520px;right:-180px;bottom:-320px;border-radius:50%;background:radial-gradient(circle,rgba(147,99,231,.34),transparent 65%)}
+.topband-in{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:28px;padding:34px 0}
+.topband .eyebrow{color:#ffb27a}
+.topband h2{margin-top:10px;font-size:clamp(24px,3vw,34px);line-height:1.1}
+.topband p{margin-top:10px;max-width:640px;font-size:15px;line-height:1.6;color:rgba(255,255,255,.72)}
+.cbtn{background:#fff;color:#1c2238;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+@media (max-width:760px){.topband-in{flex-direction:column;align-items:flex-start;gap:18px;padding:28px 0}}
+
+/* Small screens */
+@media (max-width:960px){
+  .nav-links a:not(.button){display:none}
+  .hero-grid,.split{grid-template-columns:1fr;gap:56px}
+  .split .stage-r{order:2}
+  .grid3{grid-template-columns:1fr 1fr}
+  .three{grid-template-columns:1fr;gap:28px}
+}
+@media (max-width:620px){
+  .container{width:calc(100% - 32px)}
+  .nav-inner{height:66px}
+  .logo{font-size:17px}.logo svg{width:34px;height:34px}
+  .nav-links .button{padding:11px 15px}
+  .hero{padding:56px 0 80px}
+  section.block{padding:76px 0}
+  .grid3,.bul{grid-template-columns:1fr}
+  .f1{left:-6px}.f2{right:-6px;bottom:-4px}
+  .sample{bottom:-64px}
+  .phone{transform:scale(.92);transform-origin:top center}
+  .cta{padding:56px 22px;border-radius:24px}
+  .foot nav{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+<style>
+.chero{position:relative;overflow:hidden;background:#0f0d14;color:#fff;padding:96px 0 104px}
+.chero::before{content:"";position:absolute;width:760px;height:760px;left:-240px;top:-320px;border-radius:50%;background:radial-gradient(circle,rgba(255,138,61,.30),transparent 65%)}
+.chero::after{content:"";position:absolute;width:760px;height:760px;right:-260px;bottom:-360px;border-radius:50%;background:radial-gradient(circle,rgba(147,99,231,.34),transparent 65%)}
+.chero .container{position:relative;z-index:1}
+.chero .eyebrow{color:#ffb27a}
+.chero h1{font-size:clamp(42px,6vw,72px);line-height:1.02;margin-top:20px;max-width:900px}
+.chero .lead{color:rgba(255,255,255,.75);margin-top:22px;max-width:620px}
+.chero .button-secondary{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}
+.cstats{display:flex;flex-wrap:wrap;gap:12px 28px;margin-top:30px;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.8)}
+.cstats span{display:inline-flex;align-items:center;gap:8px}
+.cstats svg{width:15px;height:15px;color:#ffb27a}
+.cbtn{background:#fff;color:#1c2238;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10C8B3"/><stop offset=".5" stop-color="#527BED"/><stop offset="1" stop-color="#955FE5"/></linearGradient>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.4-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" fill="currentColor"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.4-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.6-7.5 10-7.5 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-4.2A8 8 0 1 1 20 11.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-repost" viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3M18 7v5M6 17v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="18.5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5.5v13l9-6.5-9-6.5zM16 5v14M20 5v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="2.8" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="17.5" r="2.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.3 8.2L20 18M8.3 15.8L20 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M4.5 15v3.5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4L12 3zM18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-swipe" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 15.5v-7M9.5 11L12 8.5l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5M9 13h6M9 17h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 5v4.5M16 5v4.5" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14.3a6.5 6.5 0 0 1 3.5 5.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<header class="site-header">
+  <div class="container nav-inner">
+    <a class="logo" href="/" aria-label="A.R.I.S.E Pod+ home">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="1" y="1" width="62" height="62" rx="18" fill="url(#lg)"/><path d="M21 17.5v29a2 2 0 0 0 3.05 1.7l23.2-14.5a2 2 0 0 0 0-3.4L24.05 15.8A2 2 0 0 0 21 17.5z" fill="#fff"/><path d="M48 9v10M43 14h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>
+      <span>Pod<span class="plus">+</span> <span class="soft">for Creators</span></span>
+    </a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#tools">Tools</a>
+      <a href="#earn">Make money</a>
+      <a href="#faq">FAQ</a>
+      <a href="/">Pod+ home</a>
+      <a class="button button-primary" href="/app/">Start your show <svg><use href="#i-arrow"/></svg></a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="chero">
+    <div class="container">
+      <span class="eyebrow"><span class="dot" style="background:var(--orange);box-shadow:0 0 0 4px rgba(255,138,61,.2)"></span>Pod+ for Creators</span>
+      <h1>Where new podcasters <span class="gradient-text">get discovered.</span></h1>
+      <p class="lead">Just starting out? Pod+ puts new and independent shows in front of listeners first, gives you the numbers that matter, and lets you go live with your audience.</p>
+      <div class="actions"><a class="button cbtn" href="/app/">Start your show <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="#how">See how it works</a></div>
+      <div class="cstats"><span><svg><use href="#i-check"/></svg>Free to start</span><span><svg><use href="#i-check"/></svg>Record right in your browser</span><span><svg><use href="#i-check"/></svg>New voices put first</span></div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="block white" id="how">
+    <div class="container center">
+      <span class="eyebrow">How it works</span>
+      <h2 class="h2">From first episode <span class="gradient-text">to real listeners.</span></h2>
+    </div>
+    <div class="container three">
+      <div><span class="num t">01</span><h3>Make your episode</h3><p>Record right in Pod+ or upload a file you made. Add a title and Pod+ makes a cover if you don't have one. No hosting plan, no setup.</p></div>
+      <div><span class="num b">02</span><h3>Get put in front of listeners</h3><p>New episodes go into Open Mic, where first-time and small creators come first. The strongest ones show up right inside For You.</p></div>
+      <div><span class="num p">03</span><h3>Grow and earn</h3><p>Go live with a LivePod, watch your numbers in Studio, and add a Pod+ Membership to start earning at your own prices from day one.</p></div>
+    </div>
+  </section>
+
+  <!-- Tools -->
+  <section class="block creators" id="tools">
+    <div class="container center">
+      <span class="eyebrow">Creator tools</span>
+      <h2 class="h2">Everything you need<br><span class="gradient-text">to grow your show.</span></h2>
+      <p class="lead">Get heard by new listeners, talk with them live, and see what's working, all in one place.</p>
+    </div>
+    <div class="container c-grid">
+      <div class="c-card">
+        <span class="ic o"><svg><use href="#i-mic"/></svg></span>
+        <h3>Open Mic</h3>
+        <p>A home for new voices. Fresh episodes from first-time and small creators get lifted up, and the best of them show up right inside For You.</p>
+        <div class="live-mock" style="margin-top:16px"><span style="width:46px;height:46px;flex:none;border-radius:12px;background:linear-gradient(135deg,#ff9f5a,#e8467c)"></span><span><b>Ep. 1: Why I started this</b><small>@dana.talks · 2h · 41 plays</small></span><span class="pill" style="background:#e3f6f3;color:#0f8f87">NEW VOICE</span></div>
+        <div class="live-mock" style="margin-top:8px"><span style="width:46px;height:46px;flex:none;border-radius:12px;background:linear-gradient(135deg,#5fd3c6,#4f6be8)"></span><span><b>Small Town Mysteries #3</b><small>@cole.records · 5h · 128 plays</small></span><span class="pill" style="background:rgba(255,255,255,.12);color:#ffd6b8">#1 RISING</span></div>
+        <span class="tag">New voices first</span>
+      </div>
+      <div class="c-card">
+        <span class="ic k"><svg><use href="#i-users"/></svg></span>
+        <h3>LivePod</h3>
+        <p>Go live with your podcast. Listeners join in, comment as you talk, and send Cheers. You can pin, remove or mute comments.</p>
+        <div class="live-mock"><span class="ring"><span>JR</span></span><span><b>Late night talk: your questions</b><small>128 listening · Q&amp;A</small></span><span class="pill">LIVE</span></div>
+        <div class="cheers"><span>👏</span><span>☕</span><span>🔥</span><span>🎙️</span><span>💿</span><span>👑</span></div>
+      </div>
+      <div class="c-card">
+        <span class="ic b"><svg><use href="#i-spark"/></svg></span>
+        <h3>Studio</h3>
+        <p>See your plays, listeners, minutes listened and new followers day by day, where people found you, and how much of each episode they finish.</p>
+        <div class="bars" aria-hidden="true"><span style="height:20%"></span><span style="height:28%"></span><span style="height:24%"></span><span style="height:40%"></span><span style="height:36%"></span><span style="height:55%"></span><span style="height:48%"></span><span style="height:70%"></span><span style="height:64%"></span><span style="height:88%"></span><span style="height:80%"></span><span style="height:100%"></span></div>
+      </div>
+      <div class="c-card">
+        <span class="ic p"><svg><use href="#i-arrow"/></svg></span>
+        <h3>Pod+ Membership</h3>
+        <p>Earn from your very first episode. Creators earn with a Pod+ Membership, the same $5 a month plan listeners get. No follower, play or time minimums.</p>
+        <div class="rise"><div><i>✓</i>Supporter memberships at your price</div><div><i>✓</i>Premium episodes and series</div><div><i>✓</i>Cash out Cheers from LivePods</div><div><i>✓</i>No minimums to start earning</div></div>
+        <span class="tag">$5 a month · opening soon</span>
+      </div>
+    </div>
+      </section>
+
+  <!-- Make money -->
+  <section class="block earn" id="earn">
+    <div class="container split">
+      <div>
+        <span class="eyebrow">Make money</span>
+        <h2 class="h2">Your show.<br><span class="gradient-text">Your price.</span></h2>
+        <p class="lead">Turn your podcast into income. Choose what's free and what's paid, set your own prices, and get paid by the listeners who love your show most.</p>
+        <div class="ways">
+          <div class="way"><span class="ic o"><svg><use href="#i-users"/></svg></span><div><h3>Supporter memberships</h3><p>Fans back your show every month at the price you choose, and get supporter-only episodes.</p></div></div>
+          <div class="way"><span class="ic b"><svg><use href="#i-play"/></svg></span><div><h3>Premium episodes and series</h3><p>Put your own price on a special episode or a whole series. Keep the rest free so new listeners can find you.</p></div></div>
+          <div class="way"><span class="ic k"><svg><use href="#i-heart"/></svg></span><div><h3>Cash out Cheers</h3><p>Cheers fans send during your LivePods turn into earnings.</p></div></div>
+        </div>
+        <span class="soon"><i></i>Earn with a Pod+ Membership: $5 a month, no minimums. Opening soon.</span>
+        <div class="actions"><a class="button button-primary" href="/app/">Start your show <svg><use href="#i-arrow"/></svg></a><a class="button button-secondary" href="#tools">How Pod+ Membership works</a></div>
+      </div>
+      <div class="stage">
+        <div class="panel pricer" style="width:min(430px,100%)">
+          <div class="hd"><span class="cv"></span><span><b>Small Town Mysteries</b><small>Set your prices · Studio</small></span><span class="pill" style="margin-left:auto;font-size:11px;font-weight:700;color:#0f7f78;background:#e6f7f4;padding:4px 10px;border-radius:999px">Sample</span></div>
+          <div class="tier free"><span class="ic t"><svg><use href="#i-play"/></svg></span><div><b>Weekly episodes</b><small>Anyone can listen</small></div><span class="price">Free</span></div>
+          <div class="tier"><span class="ic o"><svg><use href="#i-users"/></svg></span><div><b>Supporters</b><small>Bonus episodes every week</small></div><span class="price">$4<em>/month</em></span></div>
+          <div class="tier"><span class="ic b"><svg><use href="#i-doc"/></svg></span><div><b>The Lake House Case</b><small>Premium series · 6 episodes</small></div><span class="price">$7.99</span></div>
+          <div class="tier"><span class="ic p"><svg><use href="#i-spark"/></svg></span><div><b>Ep. 20: The full interview</b><small>Premium episode</small></div><span class="price">$1.99</span></div>
+          <div class="earned"><div><small>This month</small><b>$312.40</b></div><span>+48 supporters</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="block tint" id="faq">
+    <div class="container center">
+      <span class="eyebrow">Questions</span>
+      <h2 class="h2">Creator FAQ</h2>
+    </div>
+    <div class="container faq">
+      <details><summary>Does it cost anything to start a show?</summary><p>No. Making an account, publishing episodes, going live and using Studio are all free.</p></details>
+      <details><summary>Do I need special equipment?</summary><p>No. You can record right in Pod+ with your phone or computer's microphone. If you already make episodes elsewhere, upload the audio file instead.</p></details>
+      <details><summary>How do people find me?</summary><p>Your episodes go into Open Mic, where new and small creators are put first, and strong new episodes also show up inside For You. Followers get a notification every time you post, and you can go live with a LivePod any time.</p></details>
+      <details><summary>What can I see in Studio?</summary><p>Plays, listeners, minutes listened and new followers day by day, where people found you, how much of each episode they finish, and how your LivePods went.</p></details>
+      <details><summary>Can I make money?</summary><p>Yes, starting soon. Any creator with a Pod+ Membership ($5 a month, the same plan listeners get) can earn from their first episode: supporter memberships, premium episodes and series, and Cheer payouts from LivePods. There are no follower, play or time minimums.</p></details>
+      <details><summary>Why is there no minimum to start earning?</summary><p>Many apps make you reach a follower or play count first. They do it to keep out spam and fake accounts, to avoid paying out lots of tiny amounts that cost more to send than they're worth, and to check who's getting paid for tax and fraud reasons. On Pod+, the membership does that job instead: it's a real account that's been verified and paid for, so every creator can earn from day one.</p></details>
+      <details><summary>Do I set my own prices?</summary><p>Yes. When creator earnings open, you choose your monthly supporter price and the price of any premium episode or series, and you decide which episodes stay free.</p></details>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="block white" style="padding-top:20px">
+    <div class="container">
+      <div class="cta">
+        <span class="eyebrow">Pod+ for Creators</span>
+        <h2>Your voice.<br>Your listeners. Your price.</h2>
+        <p>Start your show in minutes and get it in front of people who want to hear something new.</p>
+        <a class="button" href="/app/">Start your show <svg><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="foot">
+      <a class="logo" href="/" style="font-size:17px"><svg viewBox="0 0 64 64" aria-hidden="true" style="width:32px;height:32px"><rect x="1" y="1" width="62" height="62" rx="18" fill="url(#lg)"/><path d="M21 17.5v29a2 2 0 0 0 3.05 1.7l23.2-14.5a2 2 0 0 0 0-3.4L24.05 15.8A2 2 0 0 0 21 17.5z" fill="#fff"/><path d="M48 9v10M43 14h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg><span>A.R.I.S.E <span class="soft">Pod</span><span class="plus">+</span></span></a>
+      <span class="tag">Connect. Explore. Create. · 2026</span>
+      <nav aria-label="Footer"><a href="/#feed">The feed</a><a href="/#features">Features</a><a href="/#social">Social</a><a href="/creators/">For creators</a><a href="/#earn">Make money</a><a href="/#faq">FAQ</a><a href="/app/">Open Pod+</a></nav>
+    </div>
+    <p class="fine">Apple Podcasts is a trademark of Apple Inc. Pod+ is an independent app, not made or endorsed by Apple. The previews on this page are samples.</p>
+  </div>
+</footer>
+</body>
+</html>

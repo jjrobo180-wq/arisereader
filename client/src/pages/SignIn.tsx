@@ -3,6 +3,7 @@
 // arisetodo.com (WorkHub for teachers, LifeHub for parents). The "Student" tab is the same form
 // with student wording; students go to their A.R.I.S.E. Reader library. (AppRoutes and
 // AfterSignIn do the sending; this page only signs in.)
+import ForgotSignIn from "@/components/auth/ForgotSignIn";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
@@ -310,8 +311,8 @@ export default function SignIn() {
             </div>
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
-                <label htmlFor="reader-username" className="mb-2 block text-sm font-bold text-[#2e3653]">Username</label>
-                <input id="reader-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={e => setUsername(e.target.value)} required placeholder="Your username" className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none transition focus:border-[#665ae6] focus:ring-2 focus:ring-[#dfdcff]"/>
+                <label htmlFor="reader-username" className="mb-2 block text-sm font-bold text-[#2e3653]">{adult || onTodo ? "Username or email" : "Username"}</label>
+                <input id="reader-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={e => setUsername(e.target.value)} required placeholder={adult || onTodo ? "Your username or email" : "Your username"} className="h-12 w-full rounded-xl border border-[#dfe3f1] bg-[#fbfbff] px-4 text-base text-[#17213b] outline-none transition focus:border-[#665ae6] focus:ring-2 focus:ring-[#dfdcff]"/>
               </div>
               <div>
                 <label htmlFor="reader-password" className="mb-2 block text-sm font-bold text-[#2e3653]">Password</label>
@@ -327,6 +328,7 @@ export default function SignIn() {
                 {submitting ? "Signing you in…" : onTodo ? "Sign in and open my hubs" : adult ? "Sign in and open my hub" : "Sign in to A.R.I.S.E. Reader"} <ArrowRight size={18}/>
               </button>
             </form>
+            <ForgotSignIn />
             <div className="my-6 flex items-center gap-3 text-xs text-[#8b91a5]"><span className="h-px flex-1 bg-[#e5e7f4]"/><span>New to A.R.I.S.E.?</span><span className="h-px flex-1 bg-[#e5e7f4]"/></div>
             {onTodo ? <>
               {/* arisetodo.com is for anyone: the main sign-up is a free personal account with no school email.

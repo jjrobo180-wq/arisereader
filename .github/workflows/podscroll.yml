@@ -1,0 +1,64 @@
+name: Podscroll site
+# The separate Podscroll website (podscroll/): its tests, type check and build.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'podscroll/**'
+      - 'shared/earshot.ts'
+      - 'server/earshot.ts'
+      - 'server/podcastDirectory.ts'
+      - 'server/podcastAds.ts'
+      - 'shared/earshotAds.ts'
+      - 'shared/earshotAudio.ts'
+      - 'server/podcastCopies.ts'
+      - 'server/podcastPlay.ts'
+      - 'server/podcastSocial.ts'
+      - 'server/podcastAdLibrary.ts'
+      - 'shared/earshotSplice.ts'
+      - 'shared/earshotCreators.ts'
+      - 'server/podcastCreators.ts'
+      - 'server/podcastLive.ts'
+      - 'server/podcastAccounts.ts'
+      - 'client/src/components/family-hub/earshot/**'
+      - '.github/workflows/podscroll.yml'
+      - 'tests/earshot*.test.ts'
+  push:
+    branches: [master]
+    paths:
+      - 'podscroll/**'
+      - 'shared/earshot.ts'
+      - 'server/earshot.ts'
+      - 'server/podcastDirectory.ts'
+      - 'server/podcastAds.ts'
+      - 'shared/earshotAds.ts'
+      - 'shared/earshotAudio.ts'
+      - 'server/podcastCopies.ts'
+      - 'server/podcastPlay.ts'
+      - 'server/podcastSocial.ts'
+      - 'server/podcastAdLibrary.ts'
+      - 'shared/earshotSplice.ts'
+      - 'shared/earshotCreators.ts'
+      - 'server/podcastCreators.ts'
+      - 'server/podcastLive.ts'
+      - 'server/podcastAccounts.ts'
+      - 'client/src/components/family-hub/earshot/**'
+      - '.github/workflows/podscroll.yml'
+      - 'tests/earshot*.test.ts'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tests
+        run: npx tsx --test --test-force-exit tests/earshot.test.ts tests/earshot-ads.test.ts tests/earshot-audio.test.ts tests/earshot-play.test.ts tests/earshot-social.test.ts tests/earshot-social-v2.test.ts tests/earshot-moments.test.ts tests/earshot-groq.test.ts tests/earshot-splice.test.ts tests/earshot-creators.test.ts tests/earshot-previews.test.ts
+      - name: Type check
+        run: npx tsc --project podscroll/tsconfig.json --noEmit
+      - name: Build
+        run: npx vite build --config podscroll/vite.config.ts
