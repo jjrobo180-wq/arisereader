@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Bookmark, Check, ChevronDown, ExternalLink, Mic, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
-  EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
+  EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
 } from "@shared/earshot";
 import { alignAds, playAdAt, type PlayAd, type ServerAd } from "@shared/earshotAds";
@@ -22,6 +22,8 @@ type Counts = { likes: number; comments: number; shares: number; liked: boolean 
 type Comment = { id: string; author: string; body: string; at: string; mine: boolean };
 /** want: a particular episode to load (from a Pod Mode or a saved one without its audio). */
 type Item = { key: string; show: PodShow; why: string; ep: PodEpisode | null; state: "loading" | "ready" | "none"; want?: string;
+  /** A show coming back around once the feed has been through every show it has: play an episode this feed hasn't. */
+  again?: boolean;
   /** An Open Mic episode (made by someone on Pod+), woven into For You. */
   mic?: { post: string; handle: string; name: string; newVoice: boolean; followed: boolean } };
 type Tab = "foryou" | "following" | "openmic" | "social" | "explore" | "library";
@@ -211,6 +213,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
   const sleepRef = useRef(sleepAt); sleepRef.current = sleepAt;
   const pools = useRef<Map<string, PoolShow[]>>(new Map());
+  /** The next "more shows" page for each genre (null: none left), and whether one is loading. */
+  const morePage = useRef<Map<string, number | null>>(new Map());
+  /** The feed that's open right now (For You, Following or a genre), for answers that arrive late. */
+  const modeRef = useRef("foryou");
+  const growing = useRef(false);
+  /** Shows coming back around that turned out to have no new episode, in a row (stops a hopeless loop). */
+  const againMisses = useRef(0);
   const episodesCache = useRef<Map<string, Promise<{ show: PodShow | null; episodes: PodEpisode[] }>>>(new Map());
   const txs = useRef<Map<string, Tx>>(new Map());
   const undone = useRef<Set<string>>(new Set());
@@ -226,6 +235,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const feedTab = tab === "foryou" || tab === "following" ? tab : lastFeed.current;
   const picked = useRef(false);
   const mode = feedTab === "following" ? "following" : genreMode ? `genre:${genreMode}` : "foryou";
+  modeRef.current = mode;
   const ex = explicit ? "&explicit=1" : "";
 
   // ---------------- creators: Open Mic, Studio, LivePod ----------------
@@ -279,7 +289,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // Picked genres first (one request), then the genres they've warmed to.
   useEffect(() => {
-    pools.current.clear();
+    pools.current.clear(); morePage.current.clear();
     setLoadState("loading"); setLoadError("");
     const slow = setTimeout(() => setLoadState((s) => (s === "loading" ? "slow" : s)), 12_000);
     const ok = (g: string) => !student || !!GENRE[g]?.kidSafe;
@@ -305,21 +315,77 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   const fill = useCallback((item: Item) => {
     loadEpisodes(item.show.id).then(({ episodes }) => {
-      const ep = item.want ? episodes.find((e) => e.id === item.want) ?? null : chooseEpisode(esRef.current, episodes);
+      const playedHere = new Set<string>(itemsRef.current.map((x: Item) => x.ep?.id).filter((x: string | undefined): x is string => !!x));
+      const ep = item.want ? episodes.find((e) => e.id === item.want) ?? null
+        : item.again ? chooseFreshEpisode(esRef.current, episodes, playedHere)
+        : chooseEpisode(esRef.current, episodes);
+      if (item.again) againMisses.current = ep ? 0 : againMisses.current + 1;
       setItems((list) => list.map((x) => (x.key === item.key ? { ...x, ep, state: ep ? "ready" : "none" } : x)));
     }).catch(() => setItems((list) => list.map((x) => (x.key === item.key ? { ...x, state: "none" } : x))));
   }, [loadEpisodes, esRef]);
 
+  /** Finds more shows for these genres (the next page of each genre's searches). Returns how many were new. */
+  const loadMore = useCallback(async (ids: string[]): Promise<{ added: number; failed: boolean }> => {
+    let added = 0, failed = false;
+    for (const g of ids) {
+      const page = morePage.current.has(g) ? morePage.current.get(g)! : 0;
+      if (page === null) continue;
+      try {
+        const b = await api(`/api/earshot/more?genre=${encodeURIComponent(g)}&page=${page}${ex}`);
+        morePage.current.set(g, typeof b?.next === "number" ? b.next : null);
+        const cur = pools.current.get(g) ?? [];
+        const have = new Set(cur.map((p) => p.show.id));
+        const fresh = (Array.isArray(b?.pool) ? b.pool as PoolShow[] : []).filter((p) => !have.has(p.show.id)).map((p, i) => ({ ...p, show: { ...p.show, genre: g }, rank: 40 + page * 5 + i }));
+        if (fresh.length) { pools.current.set(g, [...cur, ...fresh]); added += fresh.length; }
+      } catch { failed = true; break; /* Apple is busy: the next swipe tries again */ }
+    }
+    if (added) setPoolTick((t) => t + 1);
+    return { added, failed };
+  }, [api, ex]);
+  /** Which genres to find more shows for: the open genre, or (For You) their favourite genres that still have more. */
+  const growTargets = useCallback(() => {
+    if (mode === "following") return [];
+    if (mode.startsWith("genre:")) return [mode.slice(6)];
+    const ok = (g: string) => (!student || !!GENRE[g]?.kidSafe) && morePage.current.get(g) !== null;
+    const mine = (Array.from(pools.current.keys()) as string[]).filter(ok).sort((a, b) => tasteOf(esRef.current, b) - tasteOf(esRef.current, a));
+    // the favourite first, plus one other so For You keeps its variety
+    return mine.length > 2 ? [mine[0], mine[1 + Math.floor(Math.random() * (mine.length - 1))]] : mine;
+  }, [mode, student, esRef]);
+
   const extend = useCallback((n: number) => {
     const list = itemsRef.current;
     const pool = candidates();
-    const picks = pickNext(esRef.current, pool, { recentShows: list.slice(-5).map((x) => x.show.id), shownShows: list.map((x) => x.show.id), follows: esRef.current.follows.map((f) => f.id) }, n);
+    const ctxOf = (shown: string[]) => ({ recentShows: list.slice(-5).map((x) => x.show.id), shownShows: shown, follows: esRef.current.follows.map((f) => f.id) });
+    let picks = pickNext(esRef.current, pool, ctxOf(list.map((x) => x.show.id)), n);
+    /** Picks from here on are shows coming back around. */
+    const newShows = picks.length;
+    if (picks.length < n) {
+      // Running low: find more shows first; only if there are none left do shows come back around.
+      const targets = growTargets();
+      if (targets.length && !growing.current) {
+        growing.current = true;
+        const short = n - picks.length;
+        const feed = mode;
+        void loadMore(targets).then(({ failed }) => {
+          growing.current = false;
+          // a different feed is open now, or Apple is busy (the next swipe tries again)
+          if (feed !== modeRef.current || failed) return;
+          extend(short);
+        });
+      } else if (!targets.length && againMisses.current < 8) {
+        // Every show has had its turn: bring shows back (not the last 15), each with an episode this feed hasn't played.
+        const recent = list.slice(-15).map((x) => x.show.id);
+        const back = pickNext(esRef.current, pool, ctxOf([...recent, ...picks.map((p) => p.show.id)]), n - picks.length);
+        picks = [...picks, ...back.map((p) => ({ ...p, why: `More from ${p.show.name}` }))];
+      }
+    }
     if (!picks.length) return;
     const byId = new Map<string, (typeof pool)[number]>(pool.map((c) => [c.show.id, c] as [string, (typeof pool)[number]]));
-    const added: Item[] = picks.map((p) => {
+    const added: Item[] = picks.map((p, k) => {
+      const isAgain = k >= newShows;
       const eps = byId.get(p.show.id)?.episodes;
-      const ep = eps?.length ? chooseEpisode(esRef.current, eps) : null;
-      return { key: `${p.show.id}-${Math.random().toString(36).slice(2, 7)}`, show: p.show, why: mode === "following" ? "A show you follow" : p.why, ep, state: ep ? "ready" : "loading" };
+      const ep = isAgain ? null : eps?.length ? chooseEpisode(esRef.current, eps) : null;
+      return { key: `${p.show.id}-${Math.random().toString(36).slice(2, 7)}`, show: p.show, why: mode === "following" ? "A show you follow" : p.why, ep, state: ep ? "ready" : "loading", again: isAgain || undefined };
     });
     // For You: every few cards, an episode from Open Mic (new and independent creators).
     const woven: Item[] = [];
@@ -339,7 +405,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     setItems((c) => [...c, ...woven]);
     added.filter((x) => x.state === "loading").forEach(fill);
-  }, [candidates, fill, mode, esRef, student]);
+  }, [candidates, fill, mode, esRef, student, growTargets, loadMore]);
 
   // Reset the feed when the mode changes; start it once there's something to pick from.
   useEffect(() => {
@@ -348,6 +414,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (picked.current) { picked.current = false; return; }
     // For You, Following and each genre are separate feeds: switching starts the new one fresh.
     pausePlayer();
+    againMisses.current = 0;
     setItems([]); itemsRef.current = []; setActive(0); activeRef.current = 0; prevActive.current = -1;
     if (feedRef.current) feedRef.current.scrollTop = 0;
     if (genreMode) loadPools([genreMode]).then(() => extend(6)).catch((e) => say(e?.message || "That genre didn't load."));

@@ -154,3 +154,28 @@ export function topicPlaylist<E extends { id: string; showId: string; secs: numb
   }
   return out;
 }
+
+/** Which subject's topics also widen a genre's feed. */
+const GENRE_SUBJECTS: Record<string, string[]> = {
+  history: ["history"], science: ["science"], nature: ["science"], tech: ["tech"], business: ["money"], money: ["money"],
+  sports: ["sports"], arts: ["arts"], music: ["arts"], film: ["arts"], books: ["arts"], food: ["arts"],
+  education: ["learning"], kids: ["learning"], health: ["wellbeing"], mental: ["wellbeing"], growth: ["wellbeing"], parenting: ["wellbeing"],
+  truecrime: ["mystery"], horror: ["mystery"],
+};
+
+/**
+ * Every search that can find more shows for a genre, in order: its own terms, Apple's sub-genres
+ * (Sports → basketball, soccer, golf…), the matching subject's topics, then a few broad variations.
+ * The feed asks for one more of these each time it runs low, so a genre doesn't run dry after its
+ * first few dozen shows.
+ */
+export function genreSearchTerms(genre: { id: string; name: string; terms: readonly string[]; apple: readonly string[] }): string[] {
+  const out: string[] = [];
+  const add = (t: string) => { const k = t.trim().toLowerCase(); if (k.length >= 2 && !out.includes(k)) out.push(k); };
+  genre.terms.forEach(add);
+  genre.apple.filter((a) => !/^podcasts?$/i.test(a)).forEach(add);
+  for (const sid of GENRE_SUBJECTS[genre.id] ?? []) for (const t of SUBJECTS.find((s) => s.id === sid)?.topics ?? []) add(t.terms[0]);
+  const name = genre.name.toLowerCase().replace(/&/g, "and");
+  [`${name} podcast`, `${name} stories`, `${name} interviews`, `${name} explained`, `best ${name} shows`, `${name} for beginners`].forEach(add);
+  return out;
+}

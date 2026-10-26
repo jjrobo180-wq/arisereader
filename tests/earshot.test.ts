@@ -257,3 +257,25 @@ test("server: a subject topic becomes a clean playlist, and students can't open 
     assert.deepEqual(kid.episodes, []);
   } finally { server.close(); }
 });
+
+test("server: a genre keeps finding more shows page by page, then says there are none left", async () => {
+  const app = express(); app.use(express.json());
+  const auth = (req: any, _res: any, next: any) => { req.user = { id: 1, role: "todo", displayName: "Jane Doe" }; next(); };
+  const urls: string[] = [];
+  let n = 100;
+  const fetcher = async (url: string) => { urls.push(url); n += 10; return { results: [appleEpisode(n, n), appleEpisode(n + 1, n), appleEpisode(n + 2, n + 1, { trackExplicitness: "explicit" })] }; };
+  registerEarshotRoutes(app, auth, { store: memoryEarshotStore(), fetcher });
+  const server = app.listen(0);
+  const base = `http://127.0.0.1:${(server.address() as any).port}`;
+  try {
+    const p0 = await (await fetch(`${base}/api/earshot/more?genre=sports&page=0`)).json();
+    assert.equal(p0.next, 1);
+    assert.equal(p0.pool.length, 1, "explicit shows are left out by default");
+    assert.equal(p0.pool[0].episodes.length, 2);
+    const p1 = await (await fetch(`${base}/api/earshot/more?genre=sports&page=1`)).json();
+    assert.notEqual(p1.term, p0.term, "each page searches something different");
+    const last = await (await fetch(`${base}/api/earshot/more?genre=sports&page=999`)).json();
+    assert.deepEqual(last, { pool: [], next: null });
+    assert.equal((await fetch(`${base}/api/earshot/more?genre=nope&page=0`)).status, 404);
+  } finally { server.close(); }
+});

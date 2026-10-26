@@ -48,3 +48,26 @@ test("the topic route is wired in and Explore shows subjects", () => {
   assert.match(player, /<SubjectGrid /);
   assert.match(player, /onSaveTopic=\{saveTopic\}/);
 });
+
+test("every genre has plenty of searches to keep finding new shows", async () => {
+  const { GENRES, GENRE } = await import("../shared/earshot");
+  const { genreSearchTerms } = await import("../shared/earshotTopics");
+  for (const g of GENRES) {
+    const terms = genreSearchTerms(g);
+    assert.ok(terms.length >= 8, `${g.id} only has ${terms.length} searches`);
+    assert.equal(new Set(terms).size, terms.length, `${g.id} repeats a search`);
+    assert.equal(terms[0], g.terms[0].toLowerCase(), "the genre's own term comes first");
+  }
+  const sports = genreSearchTerms(GENRE.sports);
+  assert.ok(sports.includes("golf") && sports.includes("nba"));
+  assert.ok(genreSearchTerms(GENRE.history).includes("world war ii"));
+});
+
+test("a show coming back around plays an episode this feed hasn't played", async () => {
+  const { chooseFreshEpisode, emptyEarshot } = await import("../shared/earshot");
+  const e = emptyEarshot();
+  const mk = (id: string) => ({ id, showId: "s", title: `Ep ${id}`, show: "S", author: "", art: "", audio: "https://x/a.mp3", secs: 1800, date: "2026-10-01", about: "", link: "", explicit: false } as any);
+  const eps = [mk("1"), mk("2"), mk("3")];
+  assert.equal(chooseFreshEpisode(e, eps, new Set(["1"]))?.id, "2");
+  assert.equal(chooseFreshEpisode(e, eps, new Set(["1", "2", "3"])), null);
+});

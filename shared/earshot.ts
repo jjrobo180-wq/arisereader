@@ -327,6 +327,12 @@ export function chooseEpisode(e: Earshot, all: PodEpisode[]): PodEpisode | null 
   return list.slice(0, 6).find(fits) ?? list[0];
 }
 
+/** The episode to play for a show coming back around in a long feed: one this feed hasn't played yet. */
+export function chooseFreshEpisode(e: Earshot, all: PodEpisode[], playedHere: ReadonlySet<string>): PodEpisode | null {
+  const unplayed = all.filter((ep) => !playedHere.has(ep.id));
+  return unplayed.length ? chooseEpisode(e, unplayed) : null;
+}
+
 /** Where a long episode starts when "Skip the intro" is on. */
 export const introSkip = (secs: number, on: boolean) => (on && secs >= 15 * 60 ? 90 : 0);
 

@@ -9,11 +9,11 @@
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
-  GENRE, EARSHOT_LIMITS, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow,
+  GENRE, EARSHOT_LIMITS, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
-import { TOPICS, topicPlaylist } from "../shared/earshotTopics";
+import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
 import { registerSocialRoutes } from "./podcastSocial";
@@ -178,6 +178,31 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (failed && Object.values(pools).every((p) => !p.length)) return appleDown(res, failed);
     res.set("Cache-Control", "private, max-age=600");
     res.json({ pools });
+  });
+
+  /** More shows for a genre once the feed has used up its first pool: page n searches the genre's
+   *  nth term (its sub-genres and topics), so the feed keeps finding new shows. Each page is kept an hour. */
+  app.get(`${P}/more`, authMiddleware, async (req: any, res) => {
+    const gid = String(req.query?.genre || "");
+    if (!GENRE[gid]) return res.status(404).json({ message: "That genre doesn't exist." });
+    if (!genreOk(req, gid)) return res.json({ pool: [], next: null });
+    const terms = genreSearchTerms(GENRE[gid]);
+    const page = Math.max(0, Math.floor(Number(req.query?.page) || 0));
+    if (page >= terms.length) return res.json({ pool: [], next: null });
+    if (limited(reads, req, res)) return;
+    const explicit = explicitFor(req);
+    try {
+      const out = await dir.searches.get(`more:${gid}:${terms[page]}`, async () => {
+        const b = await dir.apple(appleSearchUrl(terms[page], "podcastEpisode", 120, true));
+        return { shows: [], episodes: [], pool: poolFromEpisodeSearch(gid, Array.isArray(b?.results) ? b.results : [], true) } as any;
+      });
+      const pool = ((out as any).pool as PoolShow[] ?? [])
+        .filter((p) => explicit || !p.show.explicit)
+        .map((p) => ({ ...p, episodes: p.episodes.filter((e) => explicit || !e.explicit) }))
+        .filter((p) => p.episodes.length);
+      res.set("Cache-Control", "private, max-age=1800");
+      res.json({ pool, next: page + 1 < terms.length ? page + 1 : null, term: terms[page] });
+    } catch (e) { appleDown(res, e); }
   });
 
   /** Shows for one genre, Apple's most relevant first. */
