@@ -219,7 +219,11 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const lastTime = useRef(0);
   const lastSpot = useRef(0);
   const counted = useRef<Set<string>>(new Set());
-  const mode = tab === "following" ? "following" : genreMode ? `genre:${genreMode}` : "foryou";
+  // Which feed the cards come from: the feed tab open, or the last one open while on another tab
+  // (Open Mic, Social, Explore, Library), so visiting those never swaps the feed underneath.
+  const feedTab = tab === "foryou" || tab === "following" ? tab : lastFeed.current;
+  const picked = useRef(false);
+  const mode = feedTab === "following" ? "following" : genreMode ? `genre:${genreMode}` : "foryou";
   const ex = explicit ? "&explicit=1" : "";
 
   // ---------------- creators: Open Mic, Studio, LivePod ----------------
@@ -337,14 +341,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // Reset the feed when the mode changes; start it once there's something to pick from.
   useEffect(() => {
-    if (tab === "explore" || tab === "library") return;
-    // Switching between For You, Following and a genre: whatever is playing keeps playing, as the
-    // first card of the new feed; anything not playing is let go.
-    const now = itemsRef.current[activeRef.current];
-    const keep = now?.ep && cur.current && !cur.current.paused && cur.current.dataset.ep === now.ep.id ? { ...now, key: `${now.key}-k`, why: "Now playing" } : null;
-    if (!keep) pausePlayer();
-    const first = keep ? [keep] : [];
-    setItems(first); itemsRef.current = first; setActive(0); activeRef.current = 0; prevActive.current = keep ? 0 : -1;
+    // Something was just picked to play (Explore, a show, Social...): it already started the For You
+    // feed with that pick, so there's nothing to clear.
+    if (picked.current) { picked.current = false; return; }
+    // For You, Following and each genre are separate feeds: switching starts the new one fresh.
+    pausePlayer();
+    setItems([]); itemsRef.current = []; setActive(0); activeRef.current = 0; prevActive.current = -1;
     if (feedRef.current) feedRef.current.scrollTop = 0;
     if (genreMode) loadPools([genreMode]).then(() => extend(6)).catch((e) => say(e?.message || "That genre didn't load."));
     else extend(6);
@@ -829,9 +831,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (typeof from === "number" && from > 0) saveSpot(ep, Math.max(15, from));
     setSheet(null); setGenreMode(null);
     const item: Item = { key: `${show.id}-${Math.random().toString(36).slice(2, 7)}`, show, why: "You picked this", ep, state: "ready" };
-    const at = itemsRef.current.length ? activeRef.current + 1 : 0;
+    // From another feed (Following, a genre), the pick starts For You fresh; in For You it slots in next.
+    const switching = mode !== "foryou";
+    const at = !switching && itemsRef.current.length ? activeRef.current + 1 : 0;
+    if (switching) { picked.current = true; pausePlayer(); itemsRef.current = []; setActive(0); activeRef.current = 0; prevActive.current = -1; }
     if (tab !== "foryou") setTab("foryou");
-    setItems((list) => { const next = [...list]; next.splice(at, 0, item); return next; });
+    setItems((list) => { const next = switching ? [] : [...list]; next.splice(at, 0, item); return next; });
     setTimeout(() => goTo(at), 120);
   };
   /** Plays a list back to back: the chosen episode now, the rest right after it in the feed. */
@@ -839,9 +844,11 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (!list.length) return;
     unlock();
     setSheet(null); setGenreMode(null);
-    const at = itemsRef.current.length ? activeRef.current + 1 : 0;
+    const switching = mode !== "foryou";
+    const at = !switching && itemsRef.current.length ? activeRef.current + 1 : 0;
+    if (switching) { picked.current = true; pausePlayer(); itemsRef.current = []; setActive(0); activeRef.current = 0; prevActive.current = -1; }
     if (tab !== "foryou") setTab("foryou");
-    setItems((cur) => { const next = [...cur]; next.splice(at, 0, ...list); return next; });
+    setItems((cur) => { const next = switching ? [] : [...cur]; next.splice(at, 0, ...list); return next; });
     list.filter((x) => x.state === "loading").forEach(fill);
     setTimeout(() => goTo(at), 120);
   };
