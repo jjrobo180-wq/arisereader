@@ -230,10 +230,10 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   app.post(`${P}/ai-find`, authMiddleware, async (req: any, res) => {
     const q = typeof req.body?.q === "string" ? req.body.q.replace(/\s+/g, " ").trim().slice(0, 400) : "";
     if (q.length < 3) return res.status(400).json({ message: "Tell me a bit more about what you'd like to hear." });
-    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ message: "The AI finder isn't switched on." });
     if (limited(finding, req, res, "AI searches")) return;
+    // aiFind answers with a plain search when no AI can, so this only fails if Apple is down too.
     try { res.set("Cache-Control", "no-store"); res.json(await dir.aiFind(q, { explicit: explicitFor(req), kidOnly: isStudent(req) })); }
-    catch (e: any) { console.error("[earshot] ai-find:", e?.message); res.status(502).json({ message: "The AI finder is busy. Try again in a moment." }); }
+    catch (e: any) { console.error("[earshot] ai-find:", e?.message); res.status(502).json({ message: "Couldn't search podcasts right now. Try again in a moment." }); }
   });
 
   /** Read along: one piece of an episode's transcript, with its ads and chapters. */

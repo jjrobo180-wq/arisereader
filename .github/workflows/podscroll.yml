@@ -57,7 +57,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Tests
-        run: npx tsx --test tests/earshot.test.ts tests/earshot-ads.test.ts tests/earshot-audio.test.ts tests/earshot-play.test.ts tests/earshot-social.test.ts tests/earshot-social-v2.test.ts tests/earshot-moments.test.ts tests/earshot-groq.test.ts tests/earshot-splice.test.ts tests/earshot-creators.test.ts
+        run: npx tsx --test --test-force-exit tests/earshot.test.ts tests/earshot-ads.test.ts tests/earshot-audio.test.ts tests/earshot-play.test.ts tests/earshot-social.test.ts tests/earshot-social-v2.test.ts tests/earshot-moments.test.ts tests/earshot-groq.test.ts tests/earshot-splice.test.ts tests/earshot-creators.test.ts tests/earshot-previews.test.ts
       - name: Type check
         run: npx tsc --project podscroll/tsconfig.json --noEmit
       - name: Build

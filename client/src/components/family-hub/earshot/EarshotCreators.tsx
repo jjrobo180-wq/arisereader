@@ -11,6 +11,7 @@ import {
 import { ACCENT, Avatar, Sheet, ago, artOf, compact, inputCls, toEpisode, toShow, type Api, type PlayFn, type PostEpisode, type Profile } from "./EarshotSocial";
 
 const INK = "#0f1419", GREY = "#536471", LINE = "#eff3f4";
+const INK0 = INK, GREY0 = GREY, LINE0 = LINE;
 
 // ===========================================================================
 // Who you are as a creator
@@ -45,7 +46,7 @@ export function SignInSheet({ api, say, why, onDone, onClose }: { api: Api; say:
   return <Sheet title="Sign in to create" onClose={onClose}>
     <div className="px-4 pb-6">
       <div className="flex items-start gap-3 rounded-2xl bg-white/[.05] p-3"><span className="grid h-10 w-10 flex-none place-items-center rounded-full" style={{ background: ACCENT, color: "#111013" }}><Mic size={19} /></span>
-        <p className="text-sm leading-relaxed text-white/75">{why} Listening never needs an account. Your profile, posts and followers come with you on any device.</p></div>
+        <p className="text-sm leading-relaxed text-white/75">{why} Your profile, posts and followers come with you on any device.</p></div>
       {!sent ? <>
         <label className="mt-4 block"><span className="mb-1 block text-xs font-bold text-white/60">Email</span>
           <input type="email" inputMode="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && email.includes("@")) ask(); }} placeholder="you@example.com" className={inputCls} /></label>
@@ -101,10 +102,14 @@ export function GoLiveSheet({ api, say, onStarted, onClose }: { api: Api; say: (
 // ===========================================================================
 // Open Mic: new and independent podcasters (a white page, like Social)
 // ===========================================================================
-export function OpenMic({ api, say, onPlay, onPerson, onCreate, onStudio, onJoinLive, creator, live }: {
+export function OpenMic({ api, say, onPlay, onPerson, onCreate, onStudio, onJoinLive, creator, live, night = false }: {
   api: Api; say: (m: string) => void; onPlay: PlayFn; onPerson: (handle: string) => void; onCreate: () => void; onStudio: () => void; onJoinLive: (id: string) => void;
-  creator: CreatorInfo | null; live: LiveSummary[];
+  creator: CreatorInfo | null; live: LiveSummary[]; night?: boolean;
 }) {
+  // Built as a white page; at night the same layout takes a dark palette.
+  const INK = night ? "#f7f1ec" : INK0, GREY = night ? "#a99fab" : GREY0, LINE = night ? "rgba(255,255,255,.09)" : LINE0;
+  const CARD = night ? "#1d1720" : "#fff", CHIP = night ? "rgba(255,255,255,.08)" : "#f2f4f6", SOFT = night ? "#3a2a24" : "#fff0e5";
+  const BTN = night ? { background: "#fff", color: "#120e14" } : { background: INK0, color: "#fff" };
   const [tab, setTab] = useState<MicTab>("fresh");
   const [list, setList] = useState<MicEpisode[] | null>(null);
   const [err, setErr] = useState("");
@@ -123,14 +128,14 @@ export function OpenMic({ api, say, onPlay, onPerson, onCreate, onStudio, onJoin
   return <div className="h-full overflow-y-auto pb-16 pt-16 [scrollbar-width:none]" style={{ color: INK }}>
     <div className="mx-auto w-full max-w-[760px] px-4">
       {/* Header */}
-      <div className="relative mt-2 overflow-hidden rounded-[28px] p-5 sm:p-7" style={{ background: "linear-gradient(135deg,#fff3ea,#fde8f1 55%,#efe8fd)" }}>
+      <div className="relative mt-2 overflow-hidden rounded-[28px] p-5 sm:p-7" style={{ background: night ? "linear-gradient(135deg,#3b2420,#33203a 55%,#231f3d)" : "linear-gradient(135deg,#fff3ea,#fde8f1 55%,#efe8fd)" }}>
         <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full opacity-60" style={{ background: "radial-gradient(circle,#ffb27a,transparent 70%)" }} />
-        <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em]" style={{ color: "#c2551a" }}><Mic size={14} />Open Mic</p>
+        <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.16em]" style={{ color: night ? "#ffb27a" : "#c2551a" }}><Mic size={14} />Open Mic</p>
         <h2 className="mt-2 text-[30px] font-extrabold leading-[1.05] tracking-tight sm:text-[38px]">New voices,<br />fresh every day.</h2>
         <p className="mt-2 max-w-md text-[15px] leading-relaxed" style={{ color: GREY }}>Independent and brand-new podcasters, put first. Find your next favorite show before everyone else does.</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={onCreate} className="flex min-h-11 items-center gap-2 rounded-full px-5 text-[15px] font-bold text-[#fff]" style={{ background: INK }}><Plus size={17} />{creator?.creator ? "Create" : "Start your show"}</button>
-          {creator?.creator && <button type="button" onClick={onStudio} className="flex min-h-11 items-center gap-2 rounded-full border bg-[#fff] px-5 text-[15px] font-bold" style={{ borderColor: "#e3e6ea" }}><TrendingUp size={17} />Studio</button>}
+          <button type="button" onClick={onCreate} className="flex min-h-11 items-center gap-2 rounded-full px-5 text-[15px] font-bold" style={BTN}><Plus size={17} />{creator?.creator ? "Create" : "Start your show"}</button>
+          {creator?.creator && <button type="button" onClick={onStudio} className="flex min-h-11 items-center gap-2 rounded-full border px-5 text-[15px] font-bold" style={{ borderColor: LINE, background: CARD }}><TrendingUp size={17} />Studio</button>}
         </div>
       </div>
 
@@ -138,9 +143,9 @@ export function OpenMic({ api, say, onPlay, onPerson, onCreate, onStudio, onJoin
       {live.length > 0 && <section className="mt-6">
         <h3 className="flex items-center gap-2 text-[17px] font-extrabold"><LiveDot />LivePods on now</h3>
         <div className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-          {live.map((r) => <button key={r.id} type="button" onClick={() => onJoinLive(r.id)} className="w-[220px] flex-none rounded-2xl border bg-[#fff] p-3 text-left shadow-[0_6px_20px_rgba(15,20,25,.06)] transition hover:-translate-y-0.5" style={{ borderColor: LINE }}>
+          {live.map((r) => <button key={r.id} type="button" onClick={() => onJoinLive(r.id)} className="w-[220px] flex-none rounded-2xl border p-3 text-left shadow-[0_6px_20px_rgba(15,20,25,.06)] transition hover:-translate-y-0.5" style={{ borderColor: LINE, background: CARD }}>
             <div className="flex items-center gap-2.5">
-              <span className="rounded-full p-[2px]" style={{ background: `conic-gradient(${ACCENT},#e8467c,${ACCENT})` }}><span className="block rounded-full bg-[#fff] p-[2px]"><Avatar p={r.host} size={40} /></span></span>
+              <span className="rounded-full p-[2px]" style={{ background: `conic-gradient(${ACCENT},#e8467c,${ACCENT})` }}><span className="block rounded-full p-[2px]" style={{ background: CARD }}><Avatar p={r.host} size={40} /></span></span>
               <span className="min-w-0"><b className="block truncate text-[14px]">{r.host.name}</b><span className="flex items-center gap-1 text-[12px]" style={{ color: GREY }}><Headphones size={12} />{compact(r.listeners)} listening</span></span>
             </div>
             <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug">{r.title}</p>
@@ -150,23 +155,23 @@ export function OpenMic({ api, say, onPlay, onPerson, onCreate, onStudio, onJoin
       </section>}
 
       {/* Tabs */}
-      <div className="sticky top-0 z-10 -mx-4 mt-6 flex gap-1.5 bg-[#fff]/95 px-4 py-2 backdrop-blur" role="tablist">
+      <div className="sticky top-0 z-10 -mx-4 mt-6 flex gap-1.5 px-4 py-2 backdrop-blur" style={{ background: night ? "rgba(18,14,20,.94)" : "rgba(255,255,255,.95)" }} role="tablist">
         {([["fresh", "Fresh"], ["rising", "Rising"], ["following", "Following"]] as const).map(([v, l]) => <button key={v} type="button" role="tab" aria-selected={tab === v} onClick={() => setTab(v)}
-          className="min-h-9 rounded-full px-4 text-[14px] font-bold transition" style={tab === v ? { background: INK, color: "#fff" } : { background: "#f2f4f6", color: GREY }}>{l}</button>)}
+          className="min-h-9 rounded-full px-4 text-[14px] font-bold transition" style={tab === v ? BTN : { background: CHIP, color: GREY }}>{l}</button>)}
       </div>
       <p className="mt-1 text-[13px]" style={{ color: GREY }}>{tab === "fresh" ? "The newest episodes, with first-time and small creators lifted up." : tab === "rising" ? "What listeners are taking to right now." : "New episodes from creators you follow."}</p>
 
       {/* Episodes */}
       {!list && <div className="grid place-items-center py-14"><Loader2 className="animate-spin" style={{ color: ACCENT }} /></div>}
-      {list && !list.length && <div className="mt-6 rounded-3xl border border-dashed p-8 text-center" style={{ borderColor: "#d9dee3" }}>
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full" style={{ background: "#fff0e5", color: "#c2551a" }}><Mic size={24} /></span>
+      {list && !list.length && <div className="mt-6 rounded-3xl border border-dashed p-8 text-center" style={{ borderColor: night ? "rgba(255,255,255,.18)" : "#d9dee3" }}>
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full" style={{ background: SOFT, color: night ? "#ffb27a" : "#c2551a" }}><Mic size={24} /></span>
         <p className="mt-3 text-[19px] font-extrabold">{err ? "Open Mic didn't load" : tab === "following" ? "Nothing new from people you follow" : "The stage is open"}</p>
         <p className="mx-auto mt-1 max-w-sm text-[14px]" style={{ color: GREY }}>{err || (tab === "following" ? "Follow creators on Open Mic and their new episodes land here." : "Be one of the first voices on Open Mic. Record an episode right here or upload one.")}</p>
-        {err ? <button type="button" onClick={load} className="mt-4 min-h-10 rounded-full px-5 text-sm font-bold text-[#fff]" style={{ background: INK }}>Try again</button>
-          : tab !== "following" && <button type="button" onClick={onCreate} className="mt-4 min-h-10 rounded-full px-5 text-sm font-bold text-[#fff]" style={{ background: INK }}>Start your show</button>}
+        {err ? <button type="button" onClick={load} className="mt-4 min-h-10 rounded-full px-5 text-sm font-bold" style={BTN}>Try again</button>
+          : tab !== "following" && <button type="button" onClick={onCreate} className="mt-4 min-h-10 rounded-full px-5 text-sm font-bold" style={BTN}>Start your show</button>}
       </div>}
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {list?.map((m, i) => <article key={m.post} className="group flex flex-col rounded-3xl border bg-[#fff] p-3 shadow-[0_4px_16px_rgba(15,20,25,.04)] transition hover:shadow-[0_10px_30px_rgba(15,20,25,.08)]" style={{ borderColor: LINE }}>
+        {list?.map((m, i) => <article key={m.post} className="group flex flex-col rounded-3xl border p-3 shadow-[0_4px_16px_rgba(15,20,25,.04)] transition hover:shadow-[0_10px_30px_rgba(15,20,25,.08)]" style={{ borderColor: LINE, background: CARD }}>
           <div className="flex gap-3">
             <button type="button" onClick={() => play(m)} aria-label={`Play ${m.episode.title}`} className="relative h-[92px] w-[92px] flex-none overflow-hidden rounded-2xl">
               <img src={hiRes(artOf(m.episode), 300)} alt="" referrerPolicy="no-referrer" loading={i < 6 ? "eager" : "lazy"} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
@@ -175,7 +180,7 @@ export function OpenMic({ api, say, onPlay, onPerson, onCreate, onStudio, onJoin
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
                 {m.newVoice && <span className="rounded-full px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider" style={{ background: "#e3f6f3", color: "#0f8f87" }}>New voice</span>}
-                {tab === "rising" && i < 3 && <span className="rounded-full px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider" style={{ background: "#fff0e5", color: "#c2551a" }}>#{i + 1} rising</span>}
+                {tab === "rising" && i < 3 && <span className="rounded-full px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider" style={{ background: SOFT, color: night ? "#ffb27a" : "#c2551a" }}>#{i + 1} rising</span>}
                 <span className="text-[12px]" style={{ color: GREY }}>{ago(m.at)}</span>
               </div>
               <button type="button" onClick={() => play(m)} className="mt-1 line-clamp-2 text-left text-[15.5px] font-bold leading-snug">{m.episode.title}</button>
@@ -186,13 +191,13 @@ export function OpenMic({ api, say, onPlay, onPerson, onCreate, onStudio, onJoin
               </p>
             </div>
           </div>
-          {m.caption && <p className="mt-2.5 line-clamp-2 text-[14px] leading-snug" style={{ color: "#3b4651" }}>{m.caption}</p>}
+          {m.caption && <p className="mt-2.5 line-clamp-2 text-[14px] leading-snug" style={{ color: night ? "#d6ced8" : "#3b4651" }}>{m.caption}</p>}
           <div className="mt-3 flex items-center gap-2 border-t pt-3" style={{ borderColor: LINE }}>
             <button type="button" onClick={() => onPerson(m.creator.handle)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
               <Avatar p={m.creator} size={30} />
               <span className="min-w-0 leading-tight"><b className="block truncate text-[13.5px]">{m.creator.name}</b><span className="block truncate text-[12px]" style={{ color: GREY }}>@{m.creator.handle} · {compact(m.followers)} follower{m.followers === 1 ? "" : "s"}</span></span>
             </button>
-            {!m.mine && <button type="button" onClick={() => follow(m)} className="min-h-8 flex-none rounded-full px-3.5 text-[13px] font-bold" style={m.followed ? { border: "1px solid #cfd9de", color: INK } : { background: INK, color: "#fff" }}>{m.followed ? "Following" : "Follow"}</button>}
+            {!m.mine && <button type="button" onClick={() => follow(m)} className="min-h-8 flex-none rounded-full px-3.5 text-[13px] font-bold" style={m.followed ? { border: `1px solid ${night ? "rgba(255,255,255,.25)" : "#cfd9de"}`, color: INK } : BTN}>{m.followed ? "Following" : "Follow"}</button>}
           </div>
         </article>)}
       </div>

@@ -211,6 +211,9 @@ async function openAiCall(send: () => Promise<Response>, what: string): Promise<
     // A daily or hourly allowance used up: no point waiting seconds. Says when it frees up.
     const said = String(body?.error?.message || "");
     if (res.status === 429 && /per (day|hour)|\((TPD|RPD|ASPH|ASPD)\)/i.test(said)) throw Object.assign(new Error("dry"), { retryMs: retryAfter(said) });
+    // Groq answers 413 when one request is bigger than the model's per-minute allowance: the next
+    // model (with its own allowance) may take it, so it counts as "busy", not as a hard failure.
+    if (res.status === 413) throw new Error("busy");
     if ((res.status === 429 || res.status >= 500) && tryNo < 2) {
       const wait = Math.min(8, Number(res.headers.get("retry-after")) || 1.5 * (tryNo + 1));
       await new Promise((r) => setTimeout(r, wait * 1000));
@@ -219,6 +222,9 @@ async function openAiCall(send: () => Promise<Response>, what: string): Promise<
     throw new Error(res.status === 429 ? "busy" : `${what} ${res.status}${code ? ` ${code}` : ""}`);
   }
 }
+const FIND_STOP = new Set("a an and any about for from get give i im i'm in is it like me my of on or podcast podcasts show shows some something that the this to want with would you".split(" "));
+/** The words in "find me…" worth matching against show names (no filler, nothing under 3 letters). */
+export const findWords = (q: string) => [...new Set(q.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !FIND_STOP.has(w)))].slice(0, 12);
 /** "Please try again in 7m46.5s" → milliseconds (10 minutes when it doesn't say). */
 export function retryAfter(message: string): number {
   const m = /try again in\s+(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:([\d.]+)s)?/i.exec(message);
@@ -676,15 +682,48 @@ export function createDirectory(options: DirectoryOptions = {}) {
   }
 
   /** "Find me a podcast": AI reads what someone wants and picks real shows, mostly from the shows the
-   *  server already knows (so they play at once), searching Apple for up to two it names besides. */
-  async function aiFind(q: string, o: { explicit: boolean; kidOnly: boolean }): Promise<{ picks: { show: PodShow; why: string; episode: PodEpisode | null }[]; summary: string }> {
+   *  server already knows (so they play at once), searching Apple for up to two it names besides.
+   *  The AI only sees the few hundred known shows that best match the words asked for, so the request
+   *  stays small enough for the free backup models. If no AI can answer, a plain search does: it
+   *  never comes back empty-handed just because the AI is busy or out of credit. */
+  async function aiFind(q: string, o: { explicit: boolean; kidOnly: boolean }): Promise<{ picks: { show: PodShow; why: string; episode: PodEpisode | null }[]; summary: string; ai: boolean }> {
     const genres = GENRES.filter((g) => !o.kidOnly || g.kidSafe);
     const pools = await Promise.all(genres.map((g) => within(pool(g.id, o.explicit), 4000, [] as PoolShow[])));
     const known = new Map<string, PoolShow>();
     pools.forEach((list, gi) => list.forEach((p) => { if (!known.has(p.show.id)) known.set(p.show.id, { ...p, show: { ...p.show, genre: p.show.genre || genres[gi].id } }); }));
-    const catalog = Array.from(known.values()).map((p) => `${p.show.id}|${p.show.name}|${GENRE[p.show.genre]?.name ?? ""}|${p.show.author}`).join("\n").slice(0, 60_000);
-    const system = `You help people find podcasts they'll love. Pick 6 to 10 real podcasts that fit the request best. Prefer shows from the catalog (id|name|genre|host) and give their id; you may also name up to 2 real, well-known podcasts not in the catalog (no id). For each, write one short sentence on why it fits, in second person. ${o.kidOnly ? "The listener is a student: only pick shows suitable for kids and teens. " : ""}Answer with JSON only: {"summary":"<one short sentence>","picks":[{"id":"<catalog id or empty>","name":"<podcast name>","why":"<reason>"}]}`;
-    const raw = await ask(system, `Request: ${q}\n\nCatalog:\n${catalog}`);
+    const words = findWords(q);
+    // Score each known show by the asked-for words in its name, host, genre and newest episodes.
+    const scored = Array.from(known.values()).map((p) => {
+      const g = GENRE[p.show.genre];
+      const hay = `${p.show.name} ${p.show.author} ${g?.name ?? ""} ${p.episodes.slice(0, 3).map((e) => `${e.title} ${e.about.slice(0, 160)}`).join(" ")}`.toLowerCase();
+      const score = words.reduce((n, w) => n + (hay.includes(w) ? (p.show.name.toLowerCase().includes(w) ? 3 : 1) : 0) + (g && g.name.toLowerCase().includes(w) ? 2 : 0), 0);
+      return { p, score };
+    });
+    const best = scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score || a.p.rank - b.p.rank).slice(0, 160).map((x) => x.p);
+    // Plus the most popular few of every genre, so a mood ("something cozy") still has choices.
+    const popular = pools.flatMap((list) => list.slice(0, 4)).filter((p) => !best.includes(p));
+    const shortlist = [...best, ...popular].slice(0, 260);
+    const catalog = shortlist.map((p) => `${p.show.id}|${p.show.name}|${GENRE[p.show.genre]?.name ?? ""}`).join("\n").slice(0, 14_000);
+    const fallback = async () => {
+      // No AI: Apple's own search for the words, then the best matches among the known shows.
+      const out: { show: PodShow; why: string; episode: PodEpisode | null }[] = [];
+      try {
+        const res = await searches.get(q.toLowerCase(), async () => {
+          const shows = await apple(appleSearchUrl(q, "podcast", 25, true));
+          return { shows: (Array.isArray(shows?.results) ? shows.results : []).map((r: unknown) => parseShow(r)).filter(Boolean) as PodShow[], episodes: [] };
+        });
+        for (const show of res.shows) if ((o.explicit || !show.explicit) && (!o.kidOnly || GENRE[show.genre]?.kidSafe)) out.push({ show, why: `Matches "${q.slice(0, 60)}".`, episode: known.get(show.id)?.episodes[0] ?? null });
+      } catch { /* Apple busy: the known shows below still answer */ }
+      for (const p of best.slice(0, 10)) out.push({ show: p.show, why: `A popular ${GENRE[p.show.genre]?.name ?? ""} show that fits what you asked for.`.replace("  ", " "), episode: p.episodes[0] ?? null });
+      const seen = new Set<string>();
+      const picks = out.filter((p) => !seen.has(p.show.id) && (seen.add(p.show.id), true)).slice(0, 10);
+      return { summary: picks.length ? "Here are shows that match what you asked for." : "", picks, ai: false };
+    };
+    if (!aiOn()) return fallback();
+    const system = `You help people find podcasts they'll love. Pick 6 to 10 real podcasts that fit the request best. Prefer shows from the catalog (id|name|genre) and give their id; you may also name up to 2 real, well-known podcasts not in the catalog (no id). For each, write one short sentence on why it fits, in second person. ${o.kidOnly ? "The listener is a student: only pick shows suitable for kids and teens. " : ""}Answer with JSON only: {"summary":"<one short sentence>","picks":[{"id":"<catalog id or empty>","name":"<podcast name>","why":"<reason>"}]}`;
+    let raw = "";
+    try { raw = await ask(system, `Request: ${q}\n\nCatalog:\n${catalog}`); }
+    catch (e: any) { console.warn("[earshot] ai-find falling back to search:", e?.message); return fallback(); }
     let v: any; try { v = JSON.parse(raw); } catch { v = null; }
     const out: { show: PodShow; why: string; episode: PodEpisode | null }[] = [];
     let searched = 0;
@@ -704,8 +743,9 @@ export function createDirectory(options: DirectoryOptions = {}) {
         if (show) out.push({ show, why, episode: null });
       } catch { /* Apple busy: skip it */ }
     }
+    if (!out.length) return fallback();
     const seen = new Set<string>();
-    return { summary: String(v?.summary || "").slice(0, 200), picks: out.filter((p) => !seen.has(p.show.id) && (seen.add(p.show.id), true)) };
+    return { summary: String(v?.summary || "").slice(0, 200), picks: out.filter((p) => !seen.has(p.show.id) && (seen.add(p.show.id), true)), ai: true };
   }
 
   // ---- Explore previews: each episode's best ~45 seconds ----

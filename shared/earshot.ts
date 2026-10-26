@@ -301,6 +301,16 @@ export function whyShown(e: Earshot, c: Candidate, follows: Set<string>, explore
  *  sneak peek, "coming soon" or "Introducing…" (usually another show's promo dropped in the feed). */
 const TEASER = /\b(trailer|sneak peek|coming soon|first look|teaser)\b|^\s*(introducing|announcing)\b|^\s*(bonus|new show|preview)\s*[:|-]\s*(introducing|meet|announcing)\b/i;
 export const isTeaser = (ep: Pick<PodEpisode, "title" | "secs">) => (ep.secs > 0 && ep.secs < 190) || TEASER.test(ep.title);
+/** What a swipe preview plays from a show: its own trailer, a season opener (or first episode), or
+ *  the top of an episode (after the pre-roll ads). No AI picks a moment. */
+export type PreviewKind = "trailer" | "opener" | "top";
+const OPENER = /\b(premiere|pilot|season\s*\d+\s*(opener|kick-?off|begins|starts))\b|^\s*(ep(isode)?\.?\s*0*1|#\s*0*1|0*1\s*[:.|-])(?!\d)|\bs\d+\s*e0*1(?!\d)|\bepisode\s+(one|1)(?!\d)/i;
+export const previewKind = (ep: Pick<PodEpisode, "title" | "secs">): PreviewKind => (isTeaser(ep) ? "trailer" : OPENER.test(ep.title) ? "opener" : "top");
+/** The episode of a show to preview: its trailer, then an opener, then its newest full episode. */
+export function previewEpisode<T extends Pick<PodEpisode, "title" | "secs" | "audio">>(list: T[]): T | null {
+  const ok = list.filter((e) => e.audio);
+  return ok.find((e) => previewKind(e) === "trailer" && e.secs >= 20) ?? ok.find((e) => previewKind(e) === "opener") ?? ok.find((e) => e.secs >= 300) ?? ok[0] ?? null;
+}
 /** Episodes worth showing: trailers and short previews left out when the listener hides them (unless that's all there is). */
 export function realEpisodes<T extends Pick<PodEpisode, "title" | "secs">>(list: T[], hide: boolean): T[] {
   if (!hide) return list;

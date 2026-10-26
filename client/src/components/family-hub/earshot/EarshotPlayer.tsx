@@ -1,8 +1,8 @@
 // The Earshot/Podscroll podcast player: genre setup, the swipe feed, Explore, Library and the sheets.
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Bookmark, Check, ExternalLink, Mic, FileText, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Bookmark, Check, ChevronDown, ExternalLink, Mic, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
   GENRES, GENRE, SPEEDS, chooseEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
@@ -39,6 +39,33 @@ const agoWords = (iso: string) => {
 };
 
 // ===========================================================================
+// Day, night, or follow the device. Kept on this device; every part of the app that asks hears changes.
+// ===========================================================================
+export type Theme = "system" | "light" | "dark";
+const THEME_KEY = "earshot.theme";
+const readTheme = (): Theme => { try { const v = localStorage.getItem(THEME_KEY); return v === "light" || v === "dark" ? v : "system"; } catch { return "system"; } };
+export function setTheme(t: Theme) { try { localStorage.setItem(THEME_KEY, t); } catch { /* not kept */ } window.dispatchEvent(new Event("earshot-theme")); }
+/** The chosen theme, and whether the app should be light right now. */
+export function useTheme(): { theme: Theme; day: boolean } {
+  const [theme, set] = useState<Theme>(readTheme);
+  const [sysDark, setSysDark] = useState(() => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
+  useEffect(() => {
+    const mq = matchMedia("(prefers-color-scheme: dark)");
+    const sys = () => setSysDark(mq.matches), mine = () => set(readTheme());
+    mq.addEventListener("change", sys); window.addEventListener("earshot-theme", mine); window.addEventListener("storage", mine);
+    return () => { mq.removeEventListener("change", sys); window.removeEventListener("earshot-theme", mine); window.removeEventListener("storage", mine); };
+  }, []);
+  return { theme, day: theme === "light" || (theme === "system" && !sysDark) };
+}
+/** Light versions of the dark sheets (with LIGHT_CSS): their panels and the setup card. */
+export const LIGHT_SHEETS_CSS = `.ps-light :is([class*="bg-[#1d1720]"],[class*="bg-[#1c1620]"],[class*="bg-[#15121b]"],[class*="bg-[#17151b]"]){background-color:#fff}
+.ps-light [class*="bg-white/[.03]"]{background-color:rgba(15,20,25,.04)}
+.ps-light [class*="border-white/10"]{border-color:rgba(15,20,25,.1)}
+.ps-light [class*="bg-[#0e0d10]"]{background-color:#fff}
+.ps-light [class*="to-[#0e0d10]"]{--tw-gradient-to:#fff var(--tw-gradient-to-position)}
+.ps-light [role="switch"][aria-checked="true"].h-7>span.bg-white{background-color:#fff}`;
+
+// ===========================================================================
 // Setup: pick genres and pace
 // ===========================================================================
 export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }: { brand?: string; initial: EarshotData; student: boolean; onDone: (genres: string[], pace: EarshotData["pace"]) => void; onCancel?: () => void }) {
@@ -55,7 +82,7 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
         const on = picked.includes(g.id);
         return <button key={g.id} type="button" onClick={() => toggle(g.id)} aria-pressed={on}
           className={`flex min-h-14 items-center gap-3 rounded-2xl px-3 text-left text-sm font-bold ring-2 transition ${on ? "bg-white/10 ring-[#ff8a3d]" : "bg-white/5 ring-transparent hover:bg-white/10"}`}>
-          <span className="grid h-9 w-9 flex-none place-items-center rounded-xl text-xs font-semibold" style={{ background: g.color }}>{on ? <Check size={18} /> : g.name.slice(0, 1)}</span>
+          <span className="grid h-9 w-9 flex-none place-items-center rounded-xl text-xs font-semibold" style={{ background: g.color, color: "#fff" }}>{on ? <Check size={18} /> : g.name.slice(0, 1)}</span>
           <span className="leading-tight">{g.name}</span>
         </button>;
       })}
@@ -96,6 +123,8 @@ export type PlayerProps = {
   liveBase?: string;
   /** Pod+ creators sign in with an email code; the app keeps the session and sends it with requests. */
   onSession?: (token: string | null, email?: string) => void;
+  /** Nothing plays while this is on (Pod+: the free minute is up and there's no account yet). */
+  locked?: boolean;
 };
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
@@ -135,8 +164,12 @@ type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegme
   wait: Map<number, { at: number; tries: number }> };
 const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600, wait: new Map() });
 
-export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession }: PlayerProps) {
+export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked }: PlayerProps) {
+  const { theme, day } = useTheme();
   const [tab, setTab] = useState<Tab>("foryou");
+  // The feed tab last open (For You or Following), where the mini player goes back to.
+  const lastFeed = useRef<Tab>("foryou");
+  if (tab === "foryou" || tab === "following") lastFeed.current = tab;
   const [genreMode, setGenreMode] = useState<string | null>(null);
   const [full, setFull] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
@@ -305,8 +338,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // Reset the feed when the mode changes; start it once there's something to pick from.
   useEffect(() => {
     if (tab === "explore" || tab === "library") return;
-    pausePlayer();
-    setItems([]); itemsRef.current = []; setActive(0); activeRef.current = 0; prevActive.current = -1;
+    // Switching between For You, Following and a genre: whatever is playing keeps playing, as the
+    // first card of the new feed; anything not playing is let go.
+    const now = itemsRef.current[activeRef.current];
+    const keep = now?.ep && cur.current && !cur.current.paused && cur.current.dataset.ep === now.ep.id ? { ...now, key: `${now.key}-k`, why: "Now playing" } : null;
+    if (!keep) pausePlayer();
+    const first = keep ? [keep] : [];
+    setItems(first); itemsRef.current = first; setActive(0); activeRef.current = 0; prevActive.current = keep ? 0 : -1;
     if (feedRef.current) feedRef.current.scrollTop = 0;
     if (genreMode) loadPools([genreMode]).then(() => extend(6)).catch((e) => say(e?.message || "That genre didn't load."));
     else extend(6);
@@ -330,6 +368,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     api(`/api/earshot/counts?ids=${ids.join(",")}`).then((b) => { setCounts((c) => ({ ...c, ...(b.counts || {}) })); if (typeof b.comments === "boolean") setCommentsOn(b.comments); }).catch(() => ids.forEach((id) => counted.current.delete(id)));
   }, [items, api]);
 
+  // Coming back to the feed from another tab: land on the card that's playing, not the top (which the
+  // "which card is on screen" watcher below would otherwise take as a swipe and play instead).
+  useLayoutEffect(() => {
+    if ((tab !== "foryou" && tab !== "following") || !feedRef.current) return;
+    const el = feedRef.current.querySelector(`[data-i="${activeRef.current}"]`) as HTMLElement | null;
+    if (el) feedRef.current.scrollTop = el.offsetTop;
+  }, [tab]);
   // Which card is on screen.
   useEffect(() => {
     const root = feedRef.current; if (!root) return;
@@ -461,6 +506,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   function pausePlayer() { cur.current?.pause(); setPlaying(false); }
+  useEffect(() => { if (locked) { players.current.forEach((a) => a.pause()); setPlaying(false); } }, [locked]);
   const leave = useCallback((i: number) => {
     const it = itemsRef.current[i]; if (!it?.ep || !unlockedRef.current) return;
     if (cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime);
@@ -489,7 +535,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     itemsRef.current.slice(i + 1, i + 4).forEach((x) => { const img = new Image(); img.src = x.ep?.art || x.show.art; });
     if ("mediaSession" in navigator) {
       try {
-        navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Podscroll" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
+        navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.show, album: standalone ? "Pod+" : "Earshot", artwork: ep.art ? [{ src: ep.art, sizes: "600x600" }] : [] });
         navigator.mediaSession.setActionHandler("nexttrack", () => goTo(activeRef.current + 1));
         navigator.mediaSession.setActionHandler("previoustrack", () => goTo(activeRef.current - 1));
         navigator.mediaSession.setActionHandler("seekbackward", () => seekBy(-15));
@@ -513,7 +559,6 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   useEffect(() => { if (activeEpId && cur.current?.dataset.ep !== activeEpId) activate(active, unlockedRef.current); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeEpId]);
   useEffect(() => { const n = items[active + 1]?.ep; if (n && cur.current) playerFor(n, [cur.current]); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [nextEpId]);
   useEffect(() => { if (cur.current) cur.current.playbackRate = es.settings.speed; }, [es.settings.speed]);
-  useEffect(() => { if (tab === "explore" || tab === "library" || tab === "social") pausePlayer(); }, [tab]);
   useEffect(() => { const save = () => { const it = itemsRef.current[activeRef.current]; if (it?.ep && cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime); }; window.addEventListener("pagehide", save); return () => window.removeEventListener("pagehide", save); }, []);
 
   const goTo = (i: number) => {
@@ -522,6 +567,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     el?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   };
   const toggle = () => {
+    if (locked) return;
     unlock();
     const it = items[active]; if (!it?.ep) return;
     const a = cur.current;
@@ -804,6 +850,28 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const show: PodShow = { id: s.showId, name: s.show, author: "", art: s.art, genre: "culture", appleGenre: "", link: "", episodes: 0, explicit: false, latest: "" };
     return s.audio ? { key: `m-${s.id}-${Math.random().toString(36).slice(2, 6)}`, show, why, ep: episodeOf(s), state: "ready" as const } : { key: `m-${s.id}-${Math.random().toString(36).slice(2, 6)}`, show, why, ep: null, state: "loading" as const, want: s.id };
   }));
+  /** A preview's audio: through the server when it can, and when the show itself starts in this copy
+   *  (after the pre-roll ads stitched in ahead of it), or 0 when there are none or it can't tell. */
+  const previewSource = (ep: PodEpisode) => {
+    const via = viaServer(ep);
+    const src = via ? sessionSrc(ep, via) : ep.audio;
+    const showStart = () => new Promise<number>((resolve) => {
+      const known = () => api(`/api/earshot/ads/${ep.id}`).then((b) => {
+        const pre = alignAds(Array.isArray(b?.ads) ? b.ads : [], ep.secs || 0).find((a) => a.s < 2 && a.kind !== "intro" && a.e - a.s <= 300);
+        resolve(pre ? pre.e : 0);
+      }).catch(() => resolve(0));
+      if (!via) { void known(); return; }
+      const until = Date.now() + 6000;
+      const look = () => {
+        const p = plays.current.get(ep.id), a = p && p.sid === via ? p.ads : null;
+        if (a?.ready) return resolve(a.startAt ?? 0);
+        if (Date.now() > until) return void known();
+        setTimeout(look, 400);
+      };
+      look();
+    });
+    return { src, showStart };
+  };
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
   // A shared link opens its episode first (it plays on the first tap, as browsers require).
@@ -819,22 +887,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }).catch(() => {});
   }, [start, loadEpisodes]);
 
-  // Podscroll from the iPhone home screen: iOS tells the page the screen is shorter than it is (by
-  // about the status bar), so anything sized to the window stops short and leaves a dark strip at the
-  // bottom. The app owns the whole screen there, so the frame is sized to the screen itself.
-  useEffect(() => {
-    if (!standalone) return;
-    const fit = () => {
-      const root = document.documentElement.style;
-      const homeScreen = (navigator as Navigator & { standalone?: boolean }).standalone === true;
-      const landscape = matchMedia("(orientation: landscape)").matches;
-      const tall = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
-      if (homeScreen && tall > innerHeight) root.setProperty("--ps-h", `${tall}px`); else root.removeProperty("--ps-h");
-    };
-    fit();
-    addEventListener("resize", fit); addEventListener("orientationchange", fit);
-    return () => { removeEventListener("resize", fit); removeEventListener("orientationchange", fit); };
-  }, [standalone]);
+  // Podscroll fills exactly the visible screen (100dvh). It used to size itself to the whole screen on
+  // the iPhone home screen, which ran past what iOS shows and hid the bottom of every tab there.
   // iPhone home screen: iOS only paints the page in the top part of the screen and fills the strip
   // below it (about the clock bar's height) with the page's color. So that color follows the cover:
   // its average, darkened like the bottom of the card, from a tiny copy the server hands over.
@@ -844,12 +898,12 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const root = document.documentElement.style;
     const meta = document.querySelector('meta[name="theme-color"]');
     const paint = (c: string) => { root.background = c; meta?.setAttribute("content", c); };
-    if (!(tab === "foryou" || tab === "following") || !toneArt) { paint("#120e14"); return; }
+    if (!(tab === "foryou" || tab === "following") || !toneArt) { paint(!(tab === "foryou" || tab === "following") && day ? "#ffffff" : "#120e14"); return; }
     let live = true;
     void artTone(mediaUrl(`/api/earshot/art?u=${encodeURIComponent(toneArt)}`)).then((c) => { if (live && c) paint(c); });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [standalone, toneArt, tab]);
+  }, [standalone, toneArt, tab, day]);
   // Once per visit from the home screen: the screen's real measurements, to the server log.
   const shellRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -864,7 +918,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       api("/api/earshot/screen", { method: "POST", body: {
         v: 1, ua: navigator.userAgent.slice(0, 160), inner: [innerWidth, innerHeight], outer: [outerWidth, outerHeight], screen: [screen.width, screen.height],
         vv: visualViewport ? [Math.round(visualViewport.height), Math.round(visualViewport.offsetTop)] : null, doc: document.documentElement.clientHeight, body: document.body.clientHeight,
-        safe, psH: getComputedStyle(document.documentElement).getPropertyValue("--ps-h"), shell: rect(shellRef.current), feed: rect(feedRef.current),
+        safe, shell: rect(shellRef.current), feed: rect(feedRef.current),
         card: rect(document.querySelector(`article[data-i="${activeRef.current}"]`)), bottom: at(innerHeight - 3), dpr: devicePixelRatio,
       } }).catch(() => {});
     }, 4000);
@@ -880,7 +934,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
 
   // ---------------- layout ----------------
-  const shell = standalone ? "fixed inset-x-0 top-0 h-[var(--ps-h,100%)]" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
+  const shell = standalone ? "fixed inset-x-0 top-0 h-[100dvh] supports-[not(height:100dvh)]:h-full" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
   const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
   const spots = tab === "library" || tab === "explore" ? readSpots() : {};
 
@@ -889,11 +943,18 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // other tabs (pad), the notices and the sheets.
   const pad = (n: ReactNode) => standalone ? <div className="box-border h-full pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)]">{n}</div> : n;
   // Social, Explore and Library are white pages; the player and its sheets stay dark.
-  const light = tab === "openmic" || tab === "social" || tab === "explore" || tab === "library";
-  const lit = (n: ReactNode) => <div className="ps-light h-full"><style>{LIGHT_CSS}</style>{pad(n)}</div>;
+  const page = tab === "openmic" || tab === "social" || tab === "explore" || tab === "library";
+  const light = page && day;
+  // What's playing stays reachable from the other tabs: a mini player along the bottom.
+  const nowItem = items[active];
+  const mini = page && !previews && !!nowItem?.ep && cur.current?.dataset.ep === nowItem.ep.id && (playing || time > 0);
+  const miniPad = mini ? "pb-[4.75rem]" : "";
+  const lit = (n: ReactNode) => day
+    ? <div className={`ps-light h-full ${miniPad}`}><style>{LIGHT_CSS}</style>{pad(n)}</div>
+    : <div className={`h-full bg-[#120e14] ${miniPad}`}>{pad(n)}</div>;
   const chip = light ? "bg-black/[.05] text-[#0f1419]" : "bg-black/45";
   const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
-  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone ? "bg-transparent" : "bg-[#120e14]"} text-white shadow-2xl`}>
+  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone && !page ? "bg-transparent" : "bg-[#120e14]"} text-white shadow-2xl`}>
     <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
       {genreMode && tab === "foryou"
         ? <span className="flex items-center gap-2 rounded-full bg-black/55 py-1.5 pl-3 pr-1.5 text-sm font-bold backdrop-blur">{GENRE[genreMode]?.name}<button type="button" aria-label="Back to For You" onClick={() => setGenreMode(null)} className="grid h-7 w-7 place-items-center rounded-full bg-white/15"><X size={14} /></button></span>
@@ -903,7 +964,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       <div className="flex flex-none gap-1.5">
         {!student && <LiveChip live={live} light={light} onClick={() => setTab("openmic")} />}
         {sleepAt !== null && <span className={`flex items-center gap-1 rounded-full ${chip} px-2.5 text-xs font-bold backdrop-blur`}><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
-        <button type="button" aria-label="Playback settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
+        <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
         {!standalone && <button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}>{full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}
       </div>
     </header>
@@ -920,7 +981,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         onToggle={toggle} onSeek={(t) => seekTo(t, true)} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onRead={openRead}
         onLike={() => it.ep && toggleLike(it.ep, it.show.genre)} onDoubleLike={() => it.ep && !counts[it.ep.id]?.liked && toggleLike(it.ep, it.show.genre)}
         onSave={() => it.ep && setSheet({ kind: "addto", ep: it.ep, genre: it.show.genre })} onShare={() => it.ep && setSheet({ kind: "share", ep: it.ep, genre: it.show.genre, show: it.show })} onFollow={() => (it.mic ? followCreator(it) : toggleFollow(it.show))}
-        onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { if (it.mic) return openCreator(it.mic.handle); setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
+        onComments={() => it.ep && setSheet({ kind: "comments", ep: it.ep })} onShow={() => { if (it.mic) return openCreator(it.mic.handle); setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }}
+        onProfile={() => { if (it.mic) return openCreator(it.mic.handle); setSheet({ kind: "show", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
     {skipped && <div role="status" className={`absolute inset-x-3 ${below} z-[25] mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#120e14] shadow-xl`}>
@@ -938,13 +1000,17 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {tab === "explore" && lit(<Explore api={api} ex={ex} student={student} pools={pools.current} poolTick={poolTick} spots={spots} onPlayEpisode={playNow} onPreviews={setPreviews}
       onGenre={(g) => { setGenreMode(g); setTab("foryou"); }} onShow={(show) => setSheet({ kind: "show", show })} onEpisode={playNow}
       onResume={(id, s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
-    {tab === "explore" && previews && <Previews api={api} picks={previews} onClose={() => setPreviews(null)} onPlay={(s, e, at) => { setPreviews(null); playNow(s, e, at); }} onShow={(show) => setSheet({ kind: "show", show })} onHush={() => players.current.forEach((a) => a.pause())} />}
+    {tab === "explore" && previews && <Previews picks={previews} source={previewSource} episodes={(id) => loadEpisodes(id).then((b) => b.episodes)} onClose={() => setPreviews(null)} onPlay={(s, e, at) => { setPreviews(null); playNow(s, e, at); }} onShow={(show) => setSheet({ kind: "show", show })} onHush={() => players.current.forEach((a) => a.pause())} />}
     {tab === "openmic" && !student && lit(<OpenMic api={api} say={say} creator={creator} live={live} onCreate={() => create("create")} onStudio={() => create("studio")} onJoinLive={joinLive} onPerson={openCreator}
-      onPlay={(show, ep, at) => { sourceOf.current.set(ep.id, "openmic"); playNow(show, ep, at); }} />)}
+      night={!day} onPlay={(show, ep, at) => { sourceOf.current.set(ep.id, "openmic"); playNow(show, ep, at); }} />)}
     {tab === "social" && !student && lit(<XSocial api={api} say={say} onHush={() => players.current.forEach((a) => a.pause())} onCreate={() => create("create")} openPerson={socialPerson} onPersonOpened={() => setSocialPerson(null)}
       onPlay={(show, ep, at) => { if (OWN_EPISODE.test(ep.id) && !sourceOf.current.has(ep.id)) sourceOf.current.set(ep.id, "social"); playNow(show, ep, at); }} />)}
     {tab === "library" && lit(<Library es={es} update={update} onEditInterests={onEditInterests} onMode={(m) => setSheet({ kind: "mode", id: m.id })} onOpen={(s) => loadEpisodes(s.showId).then(({ show, episodes }) => { const ep = episodes.find((e) => e.id === s.id); if (show && ep) playNow(show, ep); else say("That episode isn't available anymore."); }).catch((e) => say(e.message))} />)}
 
+    {mini && nowItem?.ep && <MiniPlayer ep={nowItem.ep} art={nowItem.ep.art || nowItem.show.art} playing={playing} pct={dur ? (time / dur) * 100 : 0} light={day} standalone={!!standalone}
+      onOpen={() => setTab(lastFeed.current)} onToggle={toggle} />}
+
+    <div className={day ? "ps-light contents" : "contents"}>{day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
     {sheet?.kind === "comments" && <Comments ep={sheet.ep} api={api} say={say} nickname={nickname} setNickname={setNickname} onClose={() => setSheet(null)} onPosted={() => { setCounts((c) => ({ ...c, [sheet.ep.id]: { ...(c[sheet.ep.id] ?? { likes: 0, comments: 0, shares: 0, liked: false }), comments: (c[sheet.ep.id]?.comments ?? 0) + 1 } })); const it = items.find((x) => x.ep?.id === sheet.ep.id); if (it) signal(it.show.genre, "comment"); }} />}
     {sheet?.kind === "show" && <ShowPage show={sheet.show} load={loadEpisodes} hideTeasers={es.settings.hideTeasers} following={isFollowing(sheet.show.id)} adFree={es.adFree.includes(sheet.show.id)} onAdFree={(on) => update((e) => ({ ...e, adFree: on ? [sheet.show.id, ...e.adFree.filter((x) => x !== sheet.show.id)].slice(0, 300) : e.adFree.filter((x) => x !== sheet.show.id) }))} onFollow={toggleFollow} onPlayFrom={playFrom} onClose={() => setSheet(null)} onGenre={(g) => { setSheet(null); setGenreMode(g); setTab("foryou"); }} spots={readSpots()} onAddTo={(ep) => setSheet({ kind: "addto", ep, genre: sheet.show.genre })} />}
     {sheet?.kind === "share" && <ShareSheet api={api} say={say} ep={sheet.ep} social={!student} onLink={() => share(sheet.ep, sheet.genre, sheet.show)} onClose={() => setSheet(null)}
@@ -953,10 +1019,13 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       onPreview={(s, e) => previewClip(s, e)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
     {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, `${m.icon} ${m.name}`)} onClose={() => setSheet(null)} /> : null; })()}
-    {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={chooseSleep} apple={!!standalone} />}
+    {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={chooseSleep} apple={!!standalone} theme={theme} />}
     {sheet?.kind === "sleep" && <SleepSheet sleepAt={sleepAt} onPick={(v) => { chooseSleep(v); setSheet(null); }} onClose={() => setSheet(null)} />}
     {draft && <MarkSheet draft={draft} shared={adsShared} onChange={setDraft} onPreview={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onSave={saveDraft} onClose={() => setDraft(null)} />}
-    {sheet?.kind === "read" && activeEp && <ReadSheet ep={activeEp} tx={txFor(activeEp)} time={time} playing={playing} onMarkRange={markFromLines} onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onClose={() => setSheet(null)} onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
+    </div>
+    {sheet?.kind === "read" && activeEp && <ReadAlong ep={activeEp} art={activeEp.art || items[active]?.show.art || ""} tx={txFor(activeEp)} time={time} dur={dur} playing={playing} onMarkRange={markFromLines}
+      onSeek={(t) => { unlock(); seekTo(t); if (cur.current?.paused) toggle(); }} onToggle={toggle} onBack={() => seekBy(-15)} onFwd={() => seekBy(30)} onClose={() => setSheet(null)}
+      onMore={() => { const x = txFor(activeEp); if (x) loadTx(activeEp, Math.max(-1, ...Array.from(x.chunks as Set<number>)) + 1); }} />}
 
     {/* Creating: sign in (Pod+), a profile, the Create menu, a new episode, going live, Studio, a LivePod */}
     {maker === "signin" && <SignInSheet api={api} say={say} why="Sign in with your email to publish episodes, go live and see your Studio." onClose={() => { afterSignIn.current = null; setMaker(null); }}
@@ -988,6 +1057,8 @@ const Centered = ({ children }: { children: ReactNode }) => <div className="flex
 // so nothing can overlap however short the screen is.
 // ===========================================================================
 type CardProps = {
+  /** The avatar: tapping it opens the show (or, for an Open Mic episode, its creator's profile). */
+  onProfile: () => void;
   i: number; item: Item; active: boolean; playing: boolean; time: number; dur: number; counts?: Counts; commentsOn: boolean; following: boolean; saved: boolean; notes: boolean; full: boolean; unlocked: boolean;
   ad: PlayAd | null; onSkipAd: () => void; onNotAd: () => void; onTapStart: () => void; onRead: () => void;
   adMarks: PlayAd[]; marking: boolean; onMark: () => void;
@@ -1054,14 +1125,10 @@ function Card(p: CardProps) {
     {item.state === "none" && <span className="pointer-events-auto absolute inset-x-4 top-1/2 -translate-y-1/2 rounded-2xl bg-black/80 p-3 text-center text-sm">No playable episodes right now.<button type="button" onClick={p.onNext} className="mt-2 block w-full rounded-full bg-white/15 py-1.5 font-bold">Next podcast</button></span>}
   </>;
   const rail = (tight: boolean) => <>
-    <button type="button" onClick={p.onFollow} aria-label={p.following ? `Unfollow ${item.show.name}` : `Follow ${item.show.name}`} className={`relative ${tight ? "mb-2.5" : "mb-1.5"}`}>
-      <img src={item.show.art} alt="" referrerPolicy="no-referrer" className="h-10 w-10 rounded-full object-cover ring-1 ring-white/30" />
-      {!p.following && <span className="absolute -bottom-1.5 left-1/2 grid h-[18px] w-[18px] -translate-x-1/2 place-items-center rounded-full bg-white text-[#0e0d10]"><Plus size={12} strokeWidth={2.5} /></span>}
-    </button>
+    <Avatar item={item} following={p.following} onProfile={p.onProfile} onFollow={p.onFollow} className={tight ? "mb-2.5" : "mb-1.5"} />
     <Act label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={26} strokeWidth={1.5} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Act>
     {p.commentsOn && <Act label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={25} strokeWidth={1.5} /></Act>}
     <Act label="Episodes" onClick={p.onShow}><ListVideo size={25} strokeWidth={1.5} /></Act>
-    <Act label="Read" onClick={p.onRead} disabled={!ep || !p.active}><FileText size={24} strokeWidth={1.5} /></Act>
     <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={25} strokeWidth={1.5} className={p.saved ? "fill-current" : ""} /></Act>
     <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={24} strokeWidth={1.5} /></Act>
   </>;
@@ -1116,6 +1183,9 @@ function Card(p: CardProps) {
             <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-20 w-20 place-items-center rounded-full text-white transition active:scale-90">{p.playing ? <Pause size={50} fill="currentColor" strokeWidth={0} /> : <Play size={50} fill="currentColor" strokeWidth={0} className="ml-1.5" />}</button>
             <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="relative grid h-14 w-14 place-items-center rounded-full text-white"><RotateCw size={36} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[11px] font-bold">30</span></button>
             <button type="button" onClick={p.onSleep} aria-label={p.sleepOn ? "Sleep timer on. Change it." : "Sleep timer"} aria-pressed={p.sleepOn} className={`grid h-12 w-12 place-items-center rounded-full ${p.sleepOn ? "text-white" : "text-white/80"}`}><Moon size={24} strokeWidth={1.7} className={p.sleepOn ? "fill-current" : ""} /></button>
+          </div>
+          <div className="mt-1 flex justify-center">
+            <button type="button" onClick={p.onRead} disabled={!p.active} aria-label="Read along" className="flex min-h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-30"><ReadIcon size={17} />Read along</button>
           </div>
         </div>}
       </div>
@@ -1185,21 +1255,17 @@ function Card(p: CardProps) {
               <button type="button" onClick={(e) => { e.stopPropagation(); p.onTapStart(); p.onToggle(); }} aria-label={p.playing ? "Pause" : "Play"} className="grid h-16 w-16 place-items-center rounded-full bg-white text-[#0e0d10] transition active:scale-95">{p.playing ? <Pause size={26} fill="currentColor" strokeWidth={0} /> : <Play size={26} fill="currentColor" strokeWidth={0} className="ml-1" />}</button>
               <button type="button" onClick={p.onFwd} aria-label="Forward 30 seconds" className="grid h-11 w-11 place-items-center rounded-full text-white/85"><RotateCw size={24} strokeWidth={1.6} /></button>
             </div>
-            <span className="w-10" />
+            <button type="button" onClick={p.onRead} disabled={!p.active} aria-label="Read along" title="Read along" className="grid h-10 w-10 place-items-center rounded-full text-white/70 hover:text-white disabled:opacity-30"><ReadIcon size={20} /></button>
           </div>
         </div>}
       </div>
     </div>
 
     <div className="absolute bottom-6 right-1.5 z-[3] flex w-16 flex-col items-center gap-3.5">
-      <button type="button" onClick={p.onFollow} aria-label={p.following ? `Unfollow ${item.show.name}` : `Follow ${item.show.name}`} className="relative mb-1.5">
-        <img src={item.show.art} alt="" referrerPolicy="no-referrer" className="h-10 w-10 rounded-full object-cover ring-1 ring-white/30" />
-        {!p.following && <span className="absolute -bottom-1.5 left-1/2 grid h-[18px] w-[18px] -translate-x-1/2 place-items-center rounded-full bg-white text-[#0e0d10]"><Plus size={12} strokeWidth={2.5} /></span>}
-      </button>
+      <Avatar item={item} following={p.following} onProfile={p.onProfile} onFollow={p.onFollow} className="mb-1.5" />
       <Act label="Like" n={c?.likes} on={!!c?.liked} onClick={p.onLike} disabled={!ep}><Heart size={26} strokeWidth={1.5} className={c?.liked ? "fill-rose-500 text-rose-500" : ""} /></Act>
       {p.commentsOn && <Act label="Comments" n={c?.comments} onClick={p.onComments} disabled={!ep}><MessageCircle size={25} strokeWidth={1.5} /></Act>}
       <Act label="Episodes" onClick={p.onShow}><ListVideo size={25} strokeWidth={1.5} /></Act>
-      <Act label="Read" onClick={p.onRead} disabled={!ep || !p.active}><FileText size={24} strokeWidth={1.5} /></Act>
       <Act label={p.saved ? "Saved" : "Save"} on={p.saved} onClick={p.onSave} disabled={!ep}><Bookmark size={25} strokeWidth={1.5} className={p.saved ? "fill-current" : ""} /></Act>
       <Act label="Share" n={c?.shares} onClick={p.onShare} disabled={!ep}><Share2 size={24} strokeWidth={1.5} /></Act>
     </div>
@@ -1339,6 +1405,36 @@ function Scrubber({ time, dur, active, ads, chapters, lines, onSeek, onScrubbing
 }
 
 /** One side action: a thin icon over a small quiet label (or its count). */
+/** What's playing, along the bottom of Explore, Library, Social and Open Mic. Tap it to go back to the player. */
+function MiniPlayer({ ep, art, playing, pct, light, standalone, onOpen, onToggle }: { ep: PodEpisode; art: string; playing: boolean; pct: number; light: boolean; standalone: boolean; onOpen: () => void; onToggle: () => void }) {
+  return <div className={`absolute inset-x-0 bottom-0 z-[24] px-2 ${standalone ? "pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]" : "pb-2"}`}>
+    <div className={`relative mx-auto flex max-w-xl items-center gap-3 overflow-hidden rounded-2xl p-2 pr-1.5 shadow-[0_10px_30px_rgba(0,0,0,.25)] ring-1 backdrop-blur-xl ${light ? "bg-white/90 text-[#0f1419] ring-black/[.06]" : "bg-[#241d29]/90 text-white ring-white/10"}`}>
+      <button type="button" onClick={onOpen} aria-label={`Now playing: ${ep.title}. Open the player.`} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <img src={hiRes(art, 120)} alt="" referrerPolicy="no-referrer" className="h-11 w-11 flex-none rounded-lg object-cover" />
+        <span className="min-w-0"><b className="block truncate text-[14px] font-semibold leading-tight">{ep.title}</b><span className={`block truncate text-[12px] ${light ? "text-[#536471]" : "text-white/60"}`}>{ep.show}</span></span>
+      </button>
+      <button type="button" onClick={onToggle} aria-label={playing ? "Pause" : "Play"} className="grid h-11 w-11 flex-none place-items-center rounded-full">{playing ? <Pause size={24} fill="currentColor" strokeWidth={0} /> : <Play size={24} fill="currentColor" strokeWidth={0} className="ml-0.5" />}</button>
+      <span aria-hidden className={`absolute inset-x-3 bottom-0 h-[2px] rounded-full ${light ? "bg-black/[.06]" : "bg-white/10"}`}><span className="block h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: ACCENT }} /></span>
+    </div>
+  </div>;
+}
+
+/** The show's (or creator's) avatar on a card. The picture opens the show's page, or for an Open Mic
+ *  episode the creator's profile; the + under it follows (it disappears once you follow). */
+function Avatar({ item, following, onProfile, onFollow, className = "" }: { item: Item; following: boolean; onProfile: () => void; onFollow: () => void; className?: string }) {
+  const who = item.mic ? `@${item.mic.handle}` : item.show.name;
+  return <div className={`relative ${className}`}>
+    <button type="button" onClick={onProfile} aria-label={item.mic ? `Open ${who}'s profile` : `Open ${who}`} className="block rounded-full transition active:scale-95">
+      <img src={item.show.art} alt="" referrerPolicy="no-referrer" className="h-10 w-10 rounded-full object-cover ring-1 ring-white/30" />
+    </button>
+    {!following && <button type="button" onClick={onFollow} aria-label={`Follow ${who}`} className="absolute -bottom-2.5 left-1/2 grid h-6 w-6 -translate-x-1/2 place-items-center rounded-full">
+      <span className="grid h-[18px] w-[18px] place-items-center rounded-full bg-white text-[#0e0d10] shadow"><Plus size={12} strokeWidth={2.5} /></span>
+    </button>}
+  </div>;
+}
+/** Read along's button: a speech bubble with lines, like a lyrics button. */
+const ReadIcon = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1.4-4.2A8 8 0 1 1 20 12z" /><path d="M8.5 10h7M8.5 13.5h4.5" /></svg>;
+
 function Act({ children, label, n, on, onClick, disabled }: { children: ReactNode; label: string; n?: number; on?: boolean; onClick: () => void; disabled?: boolean }) {
   const shown = typeof n === "number" && n > 0 ? compact(n) : ["Like", "Comments", "Share"].includes(label) ? "" : label;
   return <button type="button" onClick={onClick} disabled={disabled} aria-label={label} aria-pressed={on} className="flex min-h-11 w-14 flex-col items-center justify-center gap-1 text-white/85 transition hover:text-white active:scale-95 disabled:opacity-30">
@@ -1348,65 +1444,117 @@ function Act({ children, label, n, on, onClick, disabled }: { children: ReactNod
 }
 
 // ===========================================================================
-// Read along
+// Read along: the words fill the screen like song lyrics. The line being said is bright and fills in
+// word by word as it's spoken; lines already said fade back, lines to come wait dimmer. It follows
+// along by itself until you scroll; tap any line to jump there. Search, chapters and marking an ad
+// by its lines are a tap away at the top.
 // ===========================================================================
-function ReadSheet({ ep, tx, time, playing, onSeek, onClose, onMore, onMarkRange }: { ep: PodEpisode; tx?: Tx; time: number; playing: boolean; onSeek: (t: number) => void; onClose: () => void; onMore: () => void; onMarkRange: (s: number, e: number) => void }) {
+function ReadAlong({ ep, art, tx, time, dur, playing, onSeek, onToggle, onBack, onFwd, onClose, onMore, onMarkRange }: {
+  ep: PodEpisode; art: string; tx?: Tx; time: number; dur: number; playing: boolean;
+  onSeek: (t: number) => void; onToggle: () => void; onBack: () => void; onFwd: () => void; onClose: () => void; onMore: () => void; onMarkRange: (s: number, e: number) => void;
+}) {
   const [q, setQ] = useState("");
-  // Mark ads by lines: tap the ad's first line, then its last.
+  const [searching, setSearching] = useState(false);
   const [marking, setMarking] = useState(false);
   const [first, setFirst] = useState<number | null>(null);
+  const [following, setFollowing] = useState(true);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const touched = useRef(0);
+  const programmatic = useRef(0);
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
   const segs = tx?.segments ?? [];
   const ads = tx?.ads ?? [];
   const nowIdx = segs.findIndex((s, i) => time >= s.s && (i === segs.length - 1 || time < segs[i + 1].s));
   const term = q.trim().toLowerCase();
   const shown = term ? segs.map((s, i) => ({ s, i })).filter((x) => x.s.t.toLowerCase().includes(term)) : segs.map((s, i) => ({ s, i }));
+  // Keep the line being said about a third of the way down, until the listener scrolls themselves.
   useEffect(() => {
-    if (term || !playing || Date.now() - touched.current < 4000) return;
-    const el = listRef.current?.querySelector(`[data-seg="${nowIdx}"]`) as HTMLElement | null;
-    el?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [nowIdx, term, playing]);
+    if (term || !following || nowIdx < 0) return;
+    const box = listRef.current, el = box?.querySelector(`[data-seg="${nowIdx}"]`) as HTMLElement | null;
+    if (!box || !el) return;
+    programmatic.current = Date.now();
+    box.scrollTo({ top: Math.max(0, el.offsetTop - box.clientHeight * 0.32), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }, [nowIdx, term, following]);
   const loading = !!tx && tx.loading.size > 0;
   const lastEnd = segs.length ? segs[segs.length - 1].e : 0;
-  const mark = (t: string) => {
+  const hl = (t: string) => {
     if (!term) return t;
     const parts = t.split(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "ig"));
     return parts.map((x, k) => (x.toLowerCase() === term ? <mark key={k} className="rounded bg-[#ff8a3d] px-0.5 text-[#120e14]">{x}</mark> : x));
   };
-  return <Sheet title="Read along" onClose={onClose} tall>
-    <div className="border-b border-white/10 px-4 py-2.5">
-      <div className="flex items-center justify-between gap-2"><p className="line-clamp-1 min-w-0 text-xs text-white/55">{ep.show} · {ep.title}</p>
-        {!!segs.length && <button type="button" onClick={() => { setMarking((m) => !m); setFirst(null); }} aria-pressed={marking} className={`flex flex-none items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${marking ? "bg-[#ffd23f] text-[#120e14]" : "bg-white/10"}`}><Megaphone size={13} />{marking ? "Cancel" : "Mark an ad"}</button>}</div>
-      {marking && <p className="mt-2 rounded-xl bg-[#ffd23f]/15 px-3 py-2 text-xs font-semibold text-[#ffd23f]">{first === null ? "Tap the first line of the ad." : "Now tap the last line of the ad."}</p>}
-      <div className="relative mt-2"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search this episode" aria-label="Search this episode" className="min-h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]" /></div>
-      {!!tx?.chapters.length && <div className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{tx.chapters.map((c) => <button key={c.s} type="button" onClick={() => onSeek(c.s)} className="flex-none rounded-full bg-white/10 px-3 py-1 text-xs font-bold"><span className="tabular-nums text-white/50">{clock(c.s)}</span> {c.title}</button>)}</div>}
-    </div>
-    <div ref={listRef} onScroll={() => { touched.current = Date.now(); }} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      {!tx || (loading && !segs.length) ? <div className="grid place-items-center gap-2 py-12 text-center text-sm text-white/60"><Loader2 className="animate-spin" />Getting the transcript… (AI can take up to a minute the first time)</div>
-        : !segs.length ? <p className="py-12 text-center text-sm text-white/60">{tx.reason || "There's no transcript for this episode yet."}</p>
+  /** The line being said, its words lit as far as the voice has got (by their share of the line). */
+  const liveWords = (s: TxSegment) => {
+    const words = s.t.split(/(\s+)/);
+    const total = s.t.length || 1, f = Math.max(0, Math.min(1, (time - s.s) / Math.max(0.5, s.e - s.s)));
+    let at = 0;
+    return words.map((w, k) => { at += w.length; return <span key={k} className="transition-colors duration-200" style={{ color: at / total <= f + 0.02 ? "#fff" : "rgba(255,255,255,.38)" }}>{w}</span>; });
+  };
+  const pct = dur ? Math.min(100, (time / dur) * 100) : 0;
+  const pick = (i: number, s: TxSegment) => {
+    if (!marking) { setFollowing(true); return onSeek(s.s); }
+    if (first === null) return setFirst(i);
+    const a = Math.min(first, i), b = Math.max(first, i);
+    setMarking(false); setFirst(null);
+    onMarkRange(segs[a].s, segs[b].e);
+  };
+
+  return <div role="dialog" aria-modal="true" aria-label={`Read along: ${ep.title}`} className="absolute inset-0 z-30 flex flex-col overflow-hidden bg-[#0e0d10] text-white">
+    <div aria-hidden className="absolute -inset-[30%] bg-cover bg-center opacity-80 blur-3xl" style={{ backgroundImage: `url("${hiRes(art, 300)}")` }} />
+    <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/45 to-black/70" />
+
+    <header className="relative z-[1] flex items-center gap-3 px-4 pb-2 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
+      <button type="button" onClick={onClose} aria-label="Close read along" className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/10 backdrop-blur"><ChevronDown size={22} /></button>
+      <img src={hiRes(art, 120)} alt="" referrerPolicy="no-referrer" className="h-10 w-10 flex-none rounded-lg object-cover" />
+      <div className="min-w-0 flex-1"><p className="truncate text-[14px] font-semibold leading-tight">{ep.title}</p><p className="truncate text-[12px] text-white/60">{ep.show}</p></div>
+      {!!segs.length && <button type="button" onClick={() => { setSearching((v) => !v); setQ(""); }} aria-label="Search this episode" aria-pressed={searching} className={`grid h-10 w-10 flex-none place-items-center rounded-full backdrop-blur ${searching ? "bg-white text-[#120e14]" : "bg-white/10"}`}><Search size={18} /></button>}
+      {!!segs.length && <button type="button" onClick={() => { setMarking((m) => !m); setFirst(null); }} aria-label="Mark an ad by its lines" aria-pressed={marking} className={`grid h-10 w-10 flex-none place-items-center rounded-full backdrop-blur ${marking ? "bg-[#ffd23f] text-[#120e14]" : "bg-white/10"}`}><Megaphone size={17} /></button>}
+    </header>
+    {(searching || marking || !!tx?.chapters.length) && <div className="relative z-[1] px-4">
+      {searching && <div className="relative mt-1"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/45" /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search this episode" aria-label="Search words in this episode" className="min-h-10 w-full rounded-xl border border-white/15 bg-black/30 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-white/40" /></div>}
+      {marking && <p className="mt-2 rounded-xl bg-[#ffd23f]/20 px-3 py-2 text-xs font-semibold text-[#ffd23f]">{first === null ? "Tap the first line of the ad." : "Now tap the last line of the ad."}</p>}
+      {!!tx?.chapters.length && !searching && <div className="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">{tx.chapters.map((c) => <button key={c.s} type="button" onClick={() => { setFollowing(true); onSeek(c.s); }} className="flex-none rounded-full bg-white/10 px-3 py-1 text-xs font-bold backdrop-blur"><span className="tabular-nums text-white/55">{clock(c.s)}</span> {c.title}</button>)}</div>}
+    </div>}
+
+    <div ref={listRef} onScroll={() => { if (Date.now() - programmatic.current > 900) setFollowing(false); }}
+      className="relative z-[1] min-h-0 flex-1 overflow-y-auto px-6 [mask-image:linear-gradient(180deg,transparent,#000_8%,#000_86%,transparent)] [scrollbar-width:none]">
+      {!tx || (loading && !segs.length) ? <div className="grid h-full place-items-center gap-2 text-center text-sm text-white/65"><span className="flex flex-col items-center gap-3"><Loader2 className="animate-spin" />Getting the words… this can take up to a minute the first time.</span></div>
+        : !segs.length ? <div className="grid h-full place-items-center text-center text-[15px] text-white/70"><p className="max-w-xs">{tx.reason || "There's no transcript for this episode yet."}</p></div>
         : <>
-          {shown.length === 0 && <p className="py-8 text-center text-sm text-white/55">No lines mention “{q.trim()}” yet.</p>}
+          <div className="h-[22vh]" aria-hidden />
+          {shown.length === 0 && <p className="py-8 text-center text-sm text-white/60">No lines mention “{q.trim()}” yet.</p>}
           <ol className="flex flex-col gap-1">{shown.map(({ s, i }) => {
             const inAd = ads.some((a) => s.s >= a.s - 0.5 && s.s < a.e);
-            const picked = marking && first !== null && i === first;
-            const pick = () => {
-              if (!marking) return onSeek(s.s);
-              if (first === null) return setFirst(i);
-              const a = Math.min(first, i), b = Math.max(first, i);
-              setMarking(false); setFirst(null);
-              onMarkRange(segs[a].s, segs[b].e);
-            };
-            return <li key={s.s} data-seg={i}><button type="button" onClick={pick} className={`grid w-full grid-cols-[44px_1fr] gap-2 rounded-xl px-2 py-1.5 text-left transition ${picked ? "bg-[#ffd23f]/25 ring-1 ring-[#ffd23f]" : i === nowIdx ? "bg-white/10" : "hover:bg-white/5"}`}>
-              <span className="pt-0.5 text-[11px] tabular-nums text-white/40">{clock(s.s)}</span>
-              <span className={`text-[15px] leading-relaxed ${i === nowIdx ? "font-semibold text-white" : i < nowIdx ? "text-white/55" : "text-white/80"} ${inAd ? "italic text-white/40" : ""}`}>{inAd && <span className="mr-1.5 rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase not-italic tracking-wider text-white/70">Ad</span>}{mark(s.t)}</span>
-            </button></li>;
+            const now = i === nowIdx && !term, past = i < nowIdx;
+            const picked = marking && first === i;
+            return <li key={s.s} data-seg={i}>
+              <button type="button" onClick={() => pick(i, s)} className={`w-full rounded-2xl px-2 py-2 text-left transition-all duration-500 ${picked ? "bg-[#ffd23f]/25 ring-1 ring-[#ffd23f]" : "hover:bg-white/[.06]"}`}>
+                {inAd && <span className="mb-1 inline-block rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/75">Ad</span>}
+                <span className={`block font-bold leading-[1.22] tracking-tight ${term ? "text-[19px] text-white/90" : inAd ? "text-[20px] italic text-white/30" : now ? "text-[27px]" : past ? "text-[24px] text-white/45" : "text-[24px] text-white/30"}`}
+                  style={!term && !now ? { filter: Math.abs(i - nowIdx) > 2 ? "blur(.6px)" : undefined } : undefined}>
+                  {term ? hl(s.t) : now && !inAd ? liveWords(s) : s.t}
+                </span>
+                {term && <span className="mt-0.5 block text-[11px] tabular-nums text-white/45">{clock(s.s)}</span>}
+              </button>
+            </li>;
           })}</ol>
-          {tx.more && !term && <div className="py-4 text-center">{loading ? <span className="inline-flex items-center gap-2 text-xs text-white/50"><Loader2 size={14} className="animate-spin" />Writing the next part…</span> : <button type="button" onClick={onMore} className="rounded-full bg-white/10 px-4 py-2 text-xs font-bold">Load more (from {clock(lastEnd)})</button>}</div>}
+          {tx.more && !term && <div className="py-6 text-center">{loading ? <span className="inline-flex items-center gap-2 text-xs text-white/60"><Loader2 size={14} className="animate-spin" />Writing the next part…</span> : <button type="button" onClick={onMore} className="rounded-full bg-white/15 px-4 py-2 text-xs font-bold backdrop-blur">Load more (from {clock(lastEnd)})</button>}</div>}
+          <div className="h-[30vh]" aria-hidden />
         </>}
+      {!following && !term && nowIdx >= 0 && <button type="button" onClick={() => setFollowing(true)} className="sticky bottom-3 mx-auto mb-3 flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-bold text-[#120e14] shadow-xl">Back to now</button>}
     </div>
-    {!!segs.length && <p className="border-t border-white/10 px-4 py-2 text-[11px] text-white/45">{tx?.source === "publisher" ? "Transcript from the podcast's publisher." : "Transcript written by AI, so it may have mistakes."} Tap a line to jump there.</p>}
-  </Sheet>;
+
+    <footer className="relative z-[1] px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+      <button type="button" aria-label="Seek" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onSeek(((e.clientX - r.left) / r.width) * dur); }} className="block h-4 w-full">
+        <span className="relative block h-1 w-full overflow-hidden rounded-full bg-white/20"><span className="absolute inset-y-0 left-0 rounded-full bg-white" style={{ width: `${pct}%` }} /></span>
+      </button>
+      <div className="flex justify-between text-[11px] tabular-nums text-white/55"><span>{clock(time)}</span><span>-{clock(Math.max(0, dur - time))}</span></div>
+      <div className="mt-1 flex items-center justify-center gap-8">
+        <button type="button" onClick={onBack} aria-label="Back 15 seconds" className="relative grid h-12 w-12 place-items-center"><RotateCcw size={28} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[9px] font-bold">15</span></button>
+        <button type="button" onClick={onToggle} aria-label={playing ? "Pause" : "Play"} className="grid h-16 w-16 place-items-center rounded-full bg-white text-[#0e0d10] transition active:scale-95">{playing ? <Pause size={28} fill="currentColor" strokeWidth={0} /> : <Play size={28} fill="currentColor" strokeWidth={0} className="ml-1" />}</button>
+        <button type="button" onClick={onFwd} aria-label="Forward 30 seconds" className="relative grid h-12 w-12 place-items-center"><RotateCw size={28} strokeWidth={1.7} /><span className="absolute pt-0.5 text-[9px] font-bold">30</span></button>
+      </div>
+      {!!segs.length && <p className="mt-1 text-center text-[10.5px] text-white/45">{tx?.source === "publisher" ? "Transcript from the podcast's publisher." : "Written by AI, so it may have mistakes."}</p>}
+    </footer>
+  </div>;
 }
 
 // ===========================================================================
@@ -1465,7 +1613,7 @@ function Comments({ ep, api, say, onClose, onPosted, nickname, setNickname }: { 
     catch (e: any) { say(e.message); } finally { setBusy(false); }
   };
   const remove = async (id: string) => { if (confirm !== id) { setConfirm(id); setTimeout(() => setConfirm((c) => (c === id ? null : c)), 3000); return; } try { await api(`/api/earshot/comments/${id}`, { method: "DELETE" }); setList((l) => (l || []).filter((c) => c.id !== id)); } catch (e: any) { say(e.message); } };
-  const report = async (id: string) => { try { await api(`/api/earshot/comments/${id}/report`, { method: "POST", body: {} }); setList((l) => (l || []).filter((c) => c.id !== id)); say("Reported. Thanks for keeping Earshot kind."); } catch (e: any) { say(e.message); } };
+  const report = async (id: string) => { try { await api(`/api/earshot/comments/${id}/report`, { method: "POST", body: {} }); setList((l) => (l || []).filter((c) => c.id !== id)); say("Reported. Thanks for keeping it kind."); } catch (e: any) { say(e.message); } };
   return <Sheet title={list ? `${list.length} comment${list.length === 1 ? "" : "s"}` : "Comments"} onClose={onClose} tall>
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <p className="mb-3 line-clamp-1 text-xs text-white/50">On “{ep.title}”</p>
@@ -1501,13 +1649,16 @@ function SleepSheet({ sleepAt, onPick, onClose }: { sleepAt: number | "end" | nu
   </Sheet>;
 }
 
-function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple }: { es: EarshotData; student: boolean; update: PlayerProps["update"]; onClose: () => void; sleepAt: number | "end" | null; setSleep: (v: number | "end" | null) => void; apple?: boolean }) {
+function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple, theme }: { es: EarshotData; student: boolean; update: PlayerProps["update"]; onClose: () => void; sleepAt: number | "end" | null; setSleep: (v: number | "end" | null) => void; apple?: boolean; theme: Theme }) {
   const set = (patch: Partial<EarshotData["settings"]>) => update((e) => ({ ...e, settings: { ...e.settings, ...patch } }));
   const Row = ({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) => <div className="flex items-center justify-between gap-3 border-b border-white/10 py-3.5 last:border-0"><div><b className="block text-sm">{title}</b>{sub && <span className="block text-xs text-white/55">{sub}</span>}</div>{children}</div>;
   const Switch = ({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) => <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick} className={`relative h-7 w-12 flex-none rounded-full transition ${on ? "" : "bg-white/15"}`} style={on ? { background: ACCENT } : undefined}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${on ? "left-6" : "left-1"}`} /></button>;
   const Seg = <T extends number>({ value, options, onPick }: { value: T; options: [T, string][]; onPick: (v: T) => void }) => <div className="flex flex-none rounded-full bg-white/10 p-0.5">{options.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => onPick(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${value === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>;
-  return <Sheet title="Playback" onClose={onClose}>
+  return <Sheet title="Settings" onClose={onClose}>
     <div className="overflow-y-auto px-4 pb-4">
+      <Row title="Appearance" sub={theme === "system" ? "Follows your phone or computer" : theme === "light" ? "Day: light pages" : "Night: dark pages"}>
+        <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["light", "Day"], ["dark", "Night"], ["system", "Auto"]] as [Theme, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={theme === v} onClick={() => setTheme(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${theme === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
+      </Row>
       <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? "Skips ads it's sure about, and asks about the rest. Undo any skip" : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["auto", "Auto"], ["ask", "Ask"], ["off", "Off"]] as [AdMode, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={es.settings.adMode === v} onClick={() => set({ adMode: v })} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${es.settings.adMode === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>

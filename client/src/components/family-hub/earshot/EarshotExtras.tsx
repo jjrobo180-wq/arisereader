@@ -36,8 +36,8 @@ export function ShowPage({ show, load, hideTeasers = true, following, onFollow, 
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#0e0d10] text-white [scrollbar-width:none]" role="dialog" aria-label={full.name}>
     <div className="relative">
       <div className="absolute inset-0 overflow-hidden"><div className="absolute -inset-[20%] bg-cover bg-center opacity-30 blur-3xl" style={{ backgroundImage: `url("${art}")` }} /><div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0e0d10]" /></div>
-      <div className="relative flex flex-col items-center px-5 pb-6 pt-16 text-center">
-        <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-3 grid h-10 w-10 place-items-center rounded-full text-white/80 hover:bg-white/10"><ChevronLeft size={22} /></button>
+      <div className="relative flex flex-col items-center px-5 pb-6 pt-[calc(env(safe-area-inset-top,0px)+4rem)] text-center">
+        <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] grid h-10 w-10 place-items-center rounded-full text-white/80 hover:bg-white/10"><ChevronLeft size={22} /></button>
         <img src={art} alt={`${full.name} cover art`} referrerPolicy="no-referrer" className="aspect-square w-[min(72vw,320px)] rounded-2xl object-cover shadow-[0_24px_50px_-20px_rgba(0,0,0,.9)]" />
         <h2 className="mt-6 text-[22px] font-semibold leading-tight tracking-tight">{full.name}</h2>
         <p className="mt-1 text-sm text-white/45">{[full.author, eps?.length ? `${eps.length} episodes` : ""].filter(Boolean).join(" · ")}</p>
@@ -47,7 +47,7 @@ export function ShowPage({ show, load, hideTeasers = true, following, onFollow, 
         </div>
       </div>
     </div>
-    <div className="px-5 pb-12">
+    <div className="px-5 pb-[calc(env(safe-area-inset-bottom,0px)+3rem)]">
       <div className="flex items-center justify-between border-b border-white/[.06] pb-3">
         <h3 className="text-[13px] font-semibold uppercase tracking-[.14em] text-white/45">Episodes</h3>
         <button type="button" onClick={() => setOldest((o) => !o)} className="text-xs text-white/45">{oldest ? "Oldest first" : "Newest first"}</button>
@@ -165,8 +165,8 @@ export function ModeView({ mode, update, onPlay, onClose }: { mode: PodMode; upd
   const move = (i: number, d: number) => update((e) => ({ ...e, modes: e.modes.map((m) => { if (m.id !== mode.id) return m; const list = m.episodes.slice(); const j = i + d; if (j < 0 || j >= list.length) return m; [list[i], list[j]] = [list[j], list[i]]; return { ...m, episodes: list }; }) }));
   const del = () => { update((e) => ({ ...e, modes: e.modes.filter((m) => m.id !== mode.id) })); onClose(); };
   return <div className="absolute inset-0 z-40 overflow-y-auto bg-[#0e0d10] [scrollbar-width:none]" role="dialog" aria-label={mode.name}>
-    <div className="relative border-b border-white/[.06] px-5 pb-6 pt-16">
-      <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-3 grid h-10 w-10 place-items-center rounded-full text-white/70 hover:bg-white/[.06]"><ChevronLeft size={22} /></button>
+    <div className="relative border-b border-white/[.06] px-5 pb-6 pt-[calc(env(safe-area-inset-top,0px)+4rem)]">
+      <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] grid h-10 w-10 place-items-center rounded-full text-white/70 hover:bg-white/[.06]"><ChevronLeft size={22} /></button>
       <span className="grid h-12 w-12 place-items-center rounded-full bg-white/[.06] text-white/85"><ModeIcon m={mode} size={22} /></span>
       <h2 className="mt-4 text-[28px] font-semibold tracking-tight">{mode.name}</h2>
       <p className="mt-1 text-sm text-white/45">{mode.episodes.length} episode{mode.episodes.length === 1 ? "" : "s"}{total ? ` · ${durationWords(total)}` : ""}</p>
@@ -175,7 +175,7 @@ export function ModeView({ mode, update, onPlay, onClose }: { mode: PodMode; upd
         <button type="button" disabled={mode.episodes.length < 2} onClick={() => { const i = Math.floor(Math.random() * mode.episodes.length); onPlay([...mode.episodes.slice(i), ...mode.episodes.slice(0, i)], 0); }} className="min-h-12 rounded-full px-5 text-sm font-semibold text-white/80 ring-1 ring-white/15 disabled:opacity-40">Shuffle</button>
       </div>
     </div>
-    <div className="px-4 pb-10 pt-3">
+    <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)] pt-3">
       {!mode.episodes.length && <p className="py-10 text-center text-sm text-white/55">Nothing here yet. Tap Save (or the + on a show's episodes) and pick “{mode.name}”.</p>}
       <ol className="flex flex-col gap-1">{mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[52px_1fr_auto] items-center gap-3 rounded-xl p-2 hover:bg-white/5">
         <button type="button" onClick={() => onPlay(mode.episodes, i)} aria-label={`Play ${e.title}`}><img src={hiRes(e.art, 200)} alt="" referrerPolicy="no-referrer" className="h-[52px] w-[52px] rounded-lg object-cover" /></button>
