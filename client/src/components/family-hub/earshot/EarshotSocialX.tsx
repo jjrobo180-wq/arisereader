@@ -17,7 +17,7 @@ const HUES = {
   pink: ["text-pink-500", "hover:text-pink-500", "group-hover:bg-pink-500/10"],
   orange: ["text-orange-400", "hover:text-orange-400", "group-hover:bg-orange-400/10"],
 } as const;
-const LINE = "border-black/[.09]", GREY = "text-[#666]";
+const LINE = "border-white/[.09]", GREY = "text-[#8b8f95]";
 type Patch = (id: string, f: (p: Post) => Post) => void;
 type Open = null | { kind: "compose"; quote?: Post } | { kind: "thread"; post: Post } | { kind: "repost"; post: Post } | { kind: "notes" } | { kind: "search" } | { kind: "edit" } | { kind: "upload" };
 const longTime = (iso: string) => { const d = new Date(iso); return Number.isNaN(+d) ? "" : `${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · ${d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`; };
@@ -46,13 +46,13 @@ export function XSocial({ api, say, onPlay, onHush }: { api: Api; say: (m: strin
   };
   const home = () => { setPeople([]); setOpen(null); if (list.current && list.current.scrollTop > 40) list.current.scrollTo({ top: 0, behavior: "smooth" }); else load(); };
 
-  if (err && !me) return <div className="grid h-full place-items-center bg-white p-6 pt-16 text-center"><div><p className="text-lg font-bold">Social</p><p className={`mt-1 max-w-xs text-sm ${GREY}`}>{err}</p><button type="button" onClick={() => { void loadMe(); }} className="mt-4 min-h-11 rounded-full bg-black px-5 font-bold text-white">Try again</button></div></div>;
-  if (!me) return <div className="grid h-full place-items-center bg-white"><Loader2 className="animate-spin" /></div>;
+  if (err && !me) return <div className="grid h-full place-items-center bg-black p-6 pt-16 text-center"><div><p className="text-lg font-bold">Social</p><p className={`mt-1 max-w-xs text-sm ${GREY}`}>{err}</p><button type="button" onClick={() => { void loadMe(); }} className="mt-4 min-h-11 rounded-full bg-white px-5 font-bold text-black">Try again</button></div></div>;
+  if (!me) return <div className="grid h-full place-items-center bg-black"><Loader2 className="animate-spin" /></div>;
   const unread = me.unread ?? 0;
 
-  return <div className="relative flex h-full flex-col bg-white pt-16">
+  return <div className="relative flex h-full flex-col bg-black pt-16">
       {/* The header and tabs stay put while the timeline scrolls under them. */}
-      <div className={`z-10 flex-none border-b ${LINE} bg-white`}>
+      <div className={`z-10 flex-none border-b ${LINE} bg-black`}>
         <div className="flex items-center gap-2 px-4 pb-1 pt-1">
           <button type="button" onClick={() => (me.profile ? ctx.person(me.profile.handle) : setOpen({ kind: "edit" }))} aria-label="Your profile">{me.profile ? <Avatar p={me.profile} size={32} /> : <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10"><User size={16} /></span>}</button>
           <span className="mx-auto text-[19px] font-black tracking-tight">Pod<span style={{ color: ACCENT }}>+</span></span>
@@ -86,7 +86,7 @@ export function XSocial({ api, say, onPlay, onHush }: { api: Api; say: (m: strin
       className="absolute bottom-[4.5rem] right-4 z-20 grid h-14 w-14 place-items-center rounded-full text-black shadow-[0_6px_24px_rgba(0,0,0,.6)] active:scale-95" style={{ background: ACCENT }}><Feather size={23} strokeWidth={2.2} /></button>}
 
     {/* Bottom bar */}
-    <nav className={`absolute inset-x-0 bottom-0 z-[45] flex h-14 border-t ${LINE} bg-white/90 backdrop-blur-xl`} aria-label="Social">
+    <nav className={`absolute inset-x-0 bottom-0 z-[45] flex h-14 border-t ${LINE} bg-black/90 backdrop-blur-xl`} aria-label="Social">
       <NavBtn label="Home" on={!open && !people.length} onClick={home}><Home size={25} strokeWidth={!open && !people.length ? 2.6 : 1.8} /></NavBtn>
       <NavBtn label="Find people" on={open?.kind === "search"} onClick={() => { setPeople([]); setOpen({ kind: "search" }); }}><Search size={24} strokeWidth={open?.kind === "search" ? 2.8 : 1.8} /></NavBtn>
       <NavBtn label="Make a podcast" on={open?.kind === "upload"} onClick={() => (me.profile ? setOpen({ kind: "upload" }) : setOpen({ kind: "edit" }))}><Mic size={24} strokeWidth={1.8} /></NavBtn>
@@ -130,7 +130,7 @@ function XPost({ post, ctx, patch, onOpen, onGone }: { post: Post; ctx: Ctx; pat
           <span className={`min-w-0 truncate ${GREY}`}>@{p.author.handle}</span><span className={`flex-none ${GREY}`}>· {ago(p.at)}</span>
           <div className="relative ml-auto flex-none">
             <button type="button" onClick={stop(() => setMenu((m) => !m))} aria-label="More" className={`-my-1 -mr-2 grid h-8 w-8 place-items-center rounded-full ${GREY} hover:bg-white/10`}><MoreHorizontal size={18} /></button>
-            {menu && <div onClick={(e) => e.stopPropagation()} onMouseLeave={() => setMenu(false)} className="absolute right-0 top-8 z-20 w-52 overflow-hidden rounded-xl bg-white text-[15px] font-bold shadow-[0_0_18px_rgba(0,0,0,.18)]">
+            {menu && <div onClick={(e) => e.stopPropagation()} onMouseLeave={() => setMenu(false)} className="absolute right-0 top-8 z-20 w-52 overflow-hidden rounded-xl bg-black text-[15px] font-bold shadow-[0_0_18px_rgba(255,255,255,.18)]">
               {(plain ? post.mine : p.mine) ? <button type="button" onClick={remove} className="flex w-full items-center gap-3 px-4 py-3 text-left text-rose-500 hover:bg-white/5"><Trash2 size={18} />{plain ? "Undo repost" : "Delete"}</button>
                 : <button type="button" onClick={report} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-white/5"><Flag size={18} />Report post</button>}
             </div>}
