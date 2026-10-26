@@ -1,0 +1,41 @@
+exit 0
+TAP version 13
+# Subtest: helpers: clips, ranking, threads, search terms and the AI's preview pick
+ok 1 - helpers: clips, ranking, threads, search terms and the AI's preview pick
+  ---
+  duration_ms: 2.215287
+  type: 'test'
+  ...
+# Subtest: before podcast_social_v2.sql: the old Social keeps working, the new parts say they're being set up
+ok 2 - before podcast_social_v2.sql: the old Social keeps working, the new parts say they're being set up
+  ---
+  duration_ms: 7.301354
+  type: 'test'
+  ...
+# Subtest: posts, comments, replies, reposts and notifications
+ok 3 - posts, comments, replies, reposts and notifications
+  ---
+  duration_ms: 7.305271
+  type: 'test'
+  ...
+# Subtest: clips: the audio is cut (from the clipper's copy) and kept, and the Clips feed ranks them
+ok 4 - clips: the audio is cut (from the clipper's copy) and kept, and the Clips feed ranks them
+  ---
+  duration_ms: 2.905385
+  type: 'test'
+  ...
+# Subtest: people: search, suggestions and follow notifications
+ok 5 - people: search, suggestions and follow notifications
+  ---
+  duration_ms: 2.629216
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 238.045891

@@ -1,0 +1,48 @@
+exit 0
+TAP version 13
+# [earshot] ai-find falling back to search: busy
+# Subtest: previews: what kind of preview each episode makes
+ok 1 - previews: what kind of preview each episode makes
+  ---
+  duration_ms: 1.7826
+  type: 'test'
+  ...
+# Subtest: previews: the show's trailer first, then an opener, then the newest full episode
+ok 2 - previews: the show's trailer first, then an opener, then the newest full episode
+  ---
+  duration_ms: 0.25498
+  type: 'test'
+  ...
+# Subtest: AI finder: the words worth matching
+ok 3 - AI finder: the words worth matching
+  ---
+  duration_ms: 0.845559
+  type: 'test'
+  ...
+# Subtest: AI finder: when every AI says no, a plain search still answers
+ok 4 - AI finder: when every AI says no, a plain search still answers
+  ---
+  duration_ms: 10.736487
+  type: 'test'
+  ...
+# Subtest: AI finder: with no AI switched on, it searches instead of failing
+ok 5 - AI finder: with no AI switched on, it searches instead of failing
+  ---
+  duration_ms: 9.326006
+  type: 'test'
+  ...
+# Subtest: AI finder: an AI answer that names nothing real falls back to the search
+ok 6 - AI finder: an AI answer that names nothing real falls back to the search
+  ---
+  duration_ms: 6.574502
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 227.827415

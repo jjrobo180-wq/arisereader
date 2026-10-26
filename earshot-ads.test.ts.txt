@@ -1,0 +1,41 @@
+exit 0
+TAP version 13
+# Subtest: the ad finder: phrases, AI cuts, show memory, copies, MP3 length
+ok 1 - the ad finder: phrases, AI cuts, show memory, copies, MP3 length
+  ---
+  duration_ms: 11.113735
+  type: 'test'
+  ...
+# Subtest: ads end to end: found by AI, voted down, marked by listeners, skipped by many
+ok 2 - ads end to end: found by AI, voted down, marked by listeners, skipped by many
+  ---
+  duration_ms: 28.514024
+  type: 'test'
+  ...
+# Subtest: old settings carry over to the new ad modes
+ok 3 - old settings carry over to the new ad modes
+  ---
+  duration_ms: 1.22815
+  type: 'test'
+  ...
+# Subtest: the intro runs from after the opening ads to where the episode's content begins
+ok 4 - the intro runs from after the opening ads to where the episode's content begins
+  ---
+  duration_ms: 0.51049
+  type: 'test'
+  ...
+# Subtest: trailers and short previews are left out of the feed and show pages
+ok 5 - trailers and short previews are left out of the feed and show pages
+  ---
+  duration_ms: 0.911685
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 279.249184

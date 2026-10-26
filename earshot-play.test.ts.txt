@@ -1,0 +1,55 @@
+exit 0
+TAP version 13
+# [earshot] one-copy ads 22: 0 seam, 0 known, 0 chapter (beyond 2 by comparing, diff)
+# Subtest: a listener's copy streams through the server and its stitched-in ads are found exactly
+ok 1 - a listener's copy streams through the server and its stitched-in ads are found exactly
+  ---
+  duration_ms: 145.029788
+  type: 'test'
+  ...
+# Subtest: play tokens, byte ranges and joining ranges
+ok 2 - play tokens, byte ranges and joining ranges
+  ---
+  duration_ms: 0.697572
+  type: 'test'
+  ...
+# [earshot] one-copy ads 22: 0 seam, 0 known, 0 chapter (beyond 2 by comparing, diff)
+# Subtest: read along is made from the listener's copy in show time, and placed back in any copy
+ok 3 - read along is made from the listener's copy in show time, and placed back in any copy
+  ---
+  duration_ms: 1155.618784
+  type: 'test'
+  ...
+# [earshot] one-copy ads 22: 0 seam, 0 known, 0 chapter (beyond 2 by comparing, diff)
+# [earshot] one-copy ads 22: 0 seam, 0 known, 0 chapter (beyond 2 by comparing, diff)
+# Subtest: a listener's mark is kept in show time and lands right in someone else's copy
+ok 4 - a listener's mark is kept in show time and lands right in someone else's copy
+  ---
+  duration_ms: 136.009127
+  type: 'test'
+  ...
+# [earshot] one-copy ads 22: 0 seam, 0 known, 0 chapter (beyond 2 by comparing, diff)
+# [earshot] one-copy ads 22: 0 seam, 0 known, 0 chapter (beyond 1 by comparing, diff)
+# Subtest: an ad found in one copy is placed without eating the show in a copy that lacks part of it
+ok 5 - an ad found in one copy is placed without eating the show in a copy that lacks part of it
+  ---
+  duration_ms: 1158.139368
+  type: 'test'
+  ...
+# [earshot] one-copy ads 22: 0 seam, 0 known, 0 chapter (beyond 0 by comparing, same)
+# [earshot] one-copy ads 22: 0 seam, 0 known, 0 chapter (beyond 0 by comparing, same)
+# Subtest: an ad the host gave this copy and the comparison copy alike is read and skipped, even where the read-along came from another copy
+ok 6 - an ad the host gave this copy and the comparison copy alike is read and skipped, even where the read-along came from another copy
+  ---
+  duration_ms: 1155.211569
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3992.461994

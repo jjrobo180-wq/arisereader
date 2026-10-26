@@ -1,0 +1,35 @@
+exit 0
+TAP version 13
+# Subtest: two copies with different stitched ads line up, and the ads fall out
+ok 1 - two copies with different stitched ads line up, and the ads fall out
+  ---
+  duration_ms: 99.997458
+  type: 'test'
+  ...
+# Subtest: identical copies have nothing unmatched; junk bytes and stray sync words don't break the reader
+ok 2 - identical copies have nothing unmatched; junk bytes and stray sync words don't break the reader
+  ---
+  duration_ms: 23.391399
+  type: 'test'
+  ...
+# Subtest: silence that repeats all through a show doesn't throw the line-up off
+ok 3 - silence that repeats all through a show doesn't throw the line-up off
+  ---
+  duration_ms: 60.213009
+  type: 'test'
+  ...
+# Subtest: the reader notes where a copy was stitched together
+ok 4 - the reader notes where a copy was stitched together
+  ---
+  duration_ms: 9.675049
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 390.959536
