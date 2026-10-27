@@ -2,15 +2,17 @@
 // episode opens the swipe feed on it, so listening always happens there. Everything shown is real:
 // shows and episodes come from the same /api/podscroll routes the swipe feed uses (Apple Podcasts
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GENRE, GENRES, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
-import { Bell, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { Bell, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
+import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode } from "./Hubs";
+import { hubTheme } from "@shared/earshot";
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -39,9 +41,10 @@ function parseHash(): View {
   if (a === "later") return { kind: "later" };
   if (a === "radio") return { kind: "radio" };
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
+  if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
   return { kind: "home" };
 }
-const hashOf = (v: View) => v.kind === "party" ? `#/party/${v.id}` : v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
+const hashOf = (v: View) => v.kind === "party" ? `#/party/${v.id}` : v.kind === "mode" ? `#/mode/${v.id}` : v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
 
 const fromSaved = (s: SavedEpisode): PodEpisode => ({ id: s.id, showId: s.showId, show: s.show, author: "", title: s.title, about: "", audio: s.audio || "", date: s.date || s.at, secs: s.secs, art: s.art, link: "", explicit: false });
 
@@ -86,7 +89,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
   say: (m: string) => void;
-  onOpenFeed: (start?: { showId: string; episodeId: string }, page?: "openmic" | "social" | "library") => void;
+  onOpenFeed: (start?: { showId: string; episodeId: string }, page?: "openmic" | "social" | "library", mode?: { id: string; index: number; shuffle?: boolean }) => void;
   onEditInterests: () => void;
   pro: boolean;
   onJoin: () => void;
@@ -139,6 +142,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     pull(); const t = setInterval(pull, 30_000); return () => clearInterval(t);
   }, [api]);
   const openLive = (id: string) => { setStation(null); setLiveRoom({ id }); };
+  // Pod Modes: "Add to" from any episode card, and making a new mode.
+  const [addTo, setAddTo] = useState<PodEpisode | null>(null);
+  const [newMode, setNewMode] = useState(false);
   // Any genre can be a chip, not just the ones picked: its shows load the first time it's tapped.
   const [extra, setExtra] = useState<Record<string, PodEpisode[] | "loading" | "error">>({});
   useEffect(() => {
@@ -222,6 +228,11 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Library", <Library size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "library"))}
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
       {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => go({ kind: "later" }))}
+      <div className="my-3 h-px bg-[#e5e5e5]" />
+      <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">Pod Modes</p>
+      {es.modes.map((m) => { const th = hubTheme(m); return navItem(m.name, <span className="h-[22px] w-[22px] shrink-0 rounded-full" style={{ background: th.bg, boxShadow: `inset 0 0 0 5px ${th.bg}, inset 0 0 0 11px ${th.accent}` }} />, view.kind === "mode" && view.id === m.id, () => go({ kind: "mode", id: m.id })); })}
+      {navItem("New mode", <span className="grid h-[22px] w-[22px] place-items-center rounded-full ring-1 ring-[#c4c4c4] text-[#606060]">+</span>, false, () => setNewMode(true))}
+      <div className="my-3 h-px bg-[#e5e5e5]" />
       {navItem("Your interests", <Heart size={22} strokeWidth={1.8} />, false, onEditInterests)}
       {es.follows.length > 0 && <>
         <div className="my-3 h-px bg-[#e5e5e5]" />
@@ -246,6 +257,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
   } else if (view.kind === "search") {
     content = <SearchResults key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} />;
+  } else if (view.kind === "mode") {
+    content = <ModePage es={es} id={view.id} update={update} say={say} onBack={() => go({ kind: "home" })} onPlay={(index, shuffle) => onOpenFeed(undefined, undefined, { id: view.id, index, shuffle })} />;
   } else if (view.kind === "party") {
     content = <PartyRoom key="party" room={view.id} api={api} wsBase={liveBase} device={device} nickname={nickname} setNickname={setNickname} say={say} pickFrom={all} ex={ex} onRoom={onPartyRoom} onLeave={() => go({ kind: "home" })} />;
   } else if (view.kind === "radio") {
@@ -305,6 +318,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           : <p className="mt-1 text-sm text-[#606060]">No one's live right now. Audio only, so you can go live from anywhere, camera off.</p>}
       </section>}
 
+      {chip === "all" && <ModesRow es={es} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
+
       {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="relative mb-6 mt-2 rounded-2xl bg-[#f7f7f5] px-5 pb-5 pt-4 sm:px-6">
         <div className="flex items-baseline justify-between gap-4">
           <p className="text-[13px] font-semibold text-[#0f0f0f]">Put the phone down. Keep the podcast on.</p>
@@ -327,14 +342,16 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     </div>;
   }
 
-  return <div className="min-h-full bg-white text-[#0f0f0f] [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]">
+  return <MoreCtx.Provider value={setAddTo}><div className="min-h-full bg-white text-[#0f0f0f] [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]">
     {header}
     <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
+    {addTo && <AddToMenu es={es} ep={addTo} update={update} say={say} onClose={() => setAddTo(null)} />}
+    {newMode && <NewModeDialog onClose={() => setNewMode(false)} onMake={(name) => { const id = makeMode(update, name); setNewMode(false); go({ kind: "mode", id }); }} />}
     {goLive && <GoLiveSheet api={api} say={(m) => { say(m); if (/sign in|profile|account/i.test(m)) { setGoLive(false); onJoin(); } }} onClose={() => setGoLive(false)} onStarted={(id, ticket) => { setGoLive(false); setStation(null); setLiveRoom({ id, ticket }); }} />}
     {liveRoom && <LiveRoom key={liveRoom.id} api={api} say={say} roomId={liveRoom.id} ticket={liveRoom.ticket} wsBase={liveBase}
       onClose={() => { setLiveRoom(null); api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); }} />}
-  </div>;
+  </div></MoreCtx.Provider>;
 }
 
 /** A 16:9 picture made from a square cover: the cover sits in the middle over a blurred copy of itself. */
@@ -348,21 +365,39 @@ function Thumb({ e, small }: { e: PodEpisode; small?: boolean }) {
   </div>;
 }
 
+/** Opens "Add to" for an episode (Listen later, Pod Modes); set once for the whole home page. */
+const MoreCtx = createContext<((e: PodEpisode) => void) | null>(null);
+
 function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) => void }) {
+  const onMore = useContext(MoreCtx);
   return <div className="grid gap-x-3.5 gap-y-7 pt-3 [grid-template-columns:repeat(auto-fill,minmax(min(180px,calc(50%_-_7px)),1fr))]">
-    {list.map((e) => (
-      <button key={e.id} onClick={() => onOpen(e)} className="group flex min-w-0 flex-col gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c62b9] focus-visible:ring-offset-4 rounded-[10px]">
-        <Thumb e={e} />
-        <div className="flex gap-2.5">
-          <img src={hiRes(e.art, 60)} alt="" className="h-7 w-7 shrink-0 rounded-full bg-[#e5e5e5] object-cover" />
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="line-clamp-2 text-sm font-semibold leading-snug">{e.title}</span>
-            <span className="truncate text-xs text-[#606060]">{e.show}</span>
-            <span className="text-xs text-[#606060]">{ago(e.date)}</span>
-          </div>
+    {list.map((e) => <Card key={e.id} e={e} onOpen={onOpen} onMore={onMore} />)}
+  </div>;
+}
+
+/** An episode card: tap to listen; tap ⋮, or press and hold, to add it to a Pod Mode. */
+function Card({ e, onOpen, onMore }: { e: PodEpisode; onOpen: (e: PodEpisode) => void; onMore: ((e: PodEpisode) => void) | null }) {
+  const hold = useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean }>({ t: null, x: 0, y: 0, fired: false });
+  const cancel = () => { if (hold.current.t) clearTimeout(hold.current.t); hold.current.t = null; };
+  return <div className="group relative min-w-0 select-none [-webkit-touch-callout:none]">
+    <button
+      onClick={() => { if (hold.current.fired) { hold.current.fired = false; return; } onOpen(e); }}
+      onPointerDown={(ev) => { if (!onMore || ev.button !== 0) return; hold.current.fired = false; hold.current.x = ev.clientX; hold.current.y = ev.clientY; cancel(); hold.current.t = setTimeout(() => { hold.current.fired = true; hold.current.t = null; try { navigator.vibrate?.(12); } catch { /* no vibration */ } onMore(e); }, 480); }}
+      onPointerMove={(ev) => { if (hold.current.t && Math.hypot(ev.clientX - hold.current.x, ev.clientY - hold.current.y) > 10) cancel(); }}
+      onPointerUp={cancel} onPointerLeave={cancel} onPointerCancel={cancel}
+      onContextMenu={(ev) => { if (onMore) { ev.preventDefault(); if (!hold.current.fired) { cancel(); hold.current.fired = true; onMore(e); } } }}
+      className="flex w-full min-w-0 flex-col gap-2 rounded-[10px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c62b9] focus-visible:ring-offset-4">
+      <Thumb e={e} />
+      <div className="flex gap-2.5 pr-7">
+        <img src={hiRes(e.art, 60)} alt="" draggable={false} className="h-7 w-7 shrink-0 rounded-full bg-[#e5e5e5] object-cover" />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="line-clamp-2 text-sm font-semibold leading-snug">{e.title}</span>
+          <span className="truncate text-xs text-[#606060]">{e.show}</span>
+          <span className="text-xs text-[#606060]">{ago(e.date)}</span>
         </div>
-      </button>
-    ))}
+      </div>
+    </button>
+    {onMore && <button onClick={() => onMore(e)} aria-label={`Add “${e.title}” to a Pod Mode`} className="absolute right-[-6px] top-[calc(56.25%+4px)] inline-flex h-9 w-9 items-center justify-center rounded-full text-[#0f0f0f] hover:bg-[#f2f2f2] sm:opacity-70 sm:group-hover:opacity-100"><MoreVertical size={18} /></button>}
   </div>;
 }
 

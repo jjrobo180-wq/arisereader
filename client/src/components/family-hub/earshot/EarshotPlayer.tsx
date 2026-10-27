@@ -134,6 +134,8 @@ export type PlayerProps = {
    *  button returns to it. */
   onHome?: () => void;
   initialTab?: Tab;
+  /** Pod+: play a Pod Mode back to back from this episode (opened from the home page). */
+  playMode?: { id: string; index: number; shuffle?: boolean } | null;
 };
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
@@ -173,7 +175,7 @@ type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegme
   wait: Map<number, { at: number; tries: number }> };
 const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600, wait: new Map() });
 
-export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked, onHome, initialTab }: PlayerProps) {
+export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked, onHome, initialTab, playMode }: PlayerProps) {
   const { theme, day } = useTheme();
   const [tab, setTab] = useState<Tab>(initialTab ?? "foryou");
   // The feed tab last open (For You or Following), where the mini player goes back to.
@@ -972,6 +974,18 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   };
   const openRead = () => { const ep = items[active]?.ep; if (!ep) return; setSheet({ kind: "read" }); wantTx(ep, cur.current?.dataset.ep === ep.id ? cur.current.currentTime : 0); };
 
+  // A Pod Mode opened from the Pod+ home page plays back to back.
+  const modeStarted = useRef(false);
+  useEffect(() => {
+    if (!playMode || modeStarted.current) return;
+    modeStarted.current = true;
+    const m = esRef.current.modes.find((x) => x.id === playMode.id);
+    if (!m?.episodes.length) return;
+    if (playMode.shuffle) { const l = m.episodes.slice(); for (let i = l.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [l[i], l[j]] = [l[j], l[i]]; } playSaved(l, 0, m.name); }
+    else playSaved(m.episodes, Math.min(playMode.index, m.episodes.length - 1), m.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playMode]);
+
   // A shared link opens its episode first (it plays on the first tap, as browsers require).
   const started = useRef(false);
   useEffect(() => {
@@ -1121,7 +1135,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {sheet?.kind === "clip" && <ClipMaker api={api} say={say} ep={sheet.ep} time={sheet.time} lines={txFor(sheet.ep)?.segments ?? []} sid={cur.current?.dataset.ep === sheet.ep.id ? cur.current?.dataset.sid : undefined}
       onPreview={(s, e) => previewClip(s, e)} onClose={() => setSheet(null)} />}
     {sheet?.kind === "addto" && <AddToSheet es={es} ep={sheet.ep} saved={es.saved.some((x) => x.id === sheet.ep.id)} onSave={() => toggleSave(sheet.ep, sheet.genre)} update={update} say={say} onClose={() => setSheet(null)} toSaved={savedOf} />}
-    {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, `${m.icon} ${m.name}`)} onClose={() => setSheet(null)} /> : null; })()}
+    {sheet?.kind === "mode" && (() => { const m = es.modes.find((x) => x.id === sheet.id); return m ? <ModeView mode={m} update={update} onPlay={(list, i) => playSaved(list, i, m.name)} onClose={() => setSheet(null)} /> : null; })()}
     {sheet?.kind === "settings" && <SettingsSheet es={es} student={student} update={update} onClose={() => setSheet(null)} sleepAt={sleepAt} setSleep={chooseSleep} apple={!!standalone} theme={theme}
       account={standalone && creator?.signIn ? { email: creator.email, onSignIn: () => { setSheet(null); setMaker("signin"); },
         onSignOut: () => { void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {}); onSession?.(null); setSheet(null); setTimeout(reloadCreator, 300); say("Signed out."); } } : undefined} />}
