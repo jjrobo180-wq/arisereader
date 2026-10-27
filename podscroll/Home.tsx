@@ -1,11 +1,10 @@
-// Pod+ home: a browse-and-watch layout (top search bar, side menu, topic chips, a grid of episodes,
-// and a watch page with the player and "Up next"). Everything shown is real: shows and episodes come
-// from the same /api/podscroll routes the swipe feed uses (Apple Podcasts through the Arise server),
-// and audio plays straight from each podcast's own host. Follows, likes and Listen later are kept in
-// the same saved state as the swipe feed, so both views agree.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EARSHOT_LIMITS, GENRE, GENRES, SPEEDS, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
-import { Bell, Clock, Download, Heart, Home as HomeIcon, ListPlus, Loader2, Menu, Pause, Play, RotateCcw, RotateCw, Search, Share2, Sparkles, ThumbsUp, X } from "lucide-react";
+// Pod+ home: a browse layout (top search bar, side menu, topic chips, a grid of episodes). Picking an
+// episode opens the swipe feed on it, so listening always happens there. Everything shown is real:
+// shows and episodes come from the same /api/podscroll routes the swipe feed uses (Apple Podcasts
+// through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { GENRE, GENRES, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
+import { Bell, Clock, Heart, Home as HomeIcon, Loader2, Menu, Search, Sparkles, ThumbsUp, X } from "lucide-react";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "watch"; showId: string; episodeId: string };
@@ -39,7 +38,6 @@ function parseHash(): View {
 }
 const hashOf = (v: View) => v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
 
-const toSaved = (e: PodEpisode): SavedEpisode => ({ id: e.id, showId: e.showId, title: e.title, show: e.show, art: e.art, secs: e.secs, at: new Date().toISOString(), audio: e.audio, date: e.date });
 const fromSaved = (s: SavedEpisode): PodEpisode => ({ id: s.id, showId: s.showId, show: s.show, author: "", title: s.title, about: "", audio: s.audio || "", date: s.date || s.at, secs: s.secs, art: s.art, link: "", explicit: false });
 
 const readLs = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -59,7 +57,7 @@ const WHY: { h: string; p: string }[] = [
   { h: "Nothing to stare at.", p: "Video wants your eyes. Audio leaves them for the drive, the gym, the work." },
   { h: "Get the hours back.", p: "The people getting things done aren't scrolling. They're listening while they do it." },
   { h: "No algorithm bait.", p: "We don't rank by views. Anyone can start a podcast, and the thing you need might come from a show with one follower." },
-  { h: "Shorts with substance.", p: "Real moments cut from real episodes. Nothing built to bait a click." },
+  { h: "Swipe through substance.", p: "Every swipe is a real podcast, not a clip built to bait a click." },
 ];
 
 export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin }: {
@@ -98,8 +96,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) { const e = l[i]; if (e && !seen.has(e.id)) { seen.add(e.id); out.push(e); } }
     return out;
   }, [pools, genres, seed, cardsOf]);
-  const known = useRef(new Map<string, PodEpisode>());
-  for (const e of all) known.current.set(e.id, e);
 
   const [chip, setChip] = useState("all");
   // Any genre can be a chip, not just the ones picked: its shows load the first time it's tapped.
@@ -126,7 +122,14 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const [whyHidden, setWhyHidden] = useState(() => readLs("podscroll.why") === "hidden");
   const [side, setSide] = useState(true);
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
-  const openEp = useCallback((e: PodEpisode) => { known.current.set(e.id, e); go({ kind: "watch", showId: e.showId, episodeId: e.id }); }, [go]);
+  // Browse here; listen in the swipe feed, starting on the episode you picked.
+  const openEp = useCallback((e: PodEpisode) => onOpenFeed({ showId: e.showId, episodeId: e.id }), [onOpenFeed]);
+  // An older #/watch/... link opens that episode in the swipe feed.
+  useEffect(() => {
+    if (view.kind !== "watch") return;
+    history.replaceState(null, "", location.pathname + location.search + "#/");
+    onOpenFeed({ showId: view.showId, episodeId: view.episodeId });
+  }, [view, onOpenFeed]);
 
   const header = (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 bg-white px-3 sm:px-4">
@@ -143,7 +146,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button type="submit" aria-label="Search" className="inline-flex h-10 w-14 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
       </form>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Shorts</button>
+        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
         {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] sm:inline-flex">Go ad-free</button>}
         <button aria-label="Notifications" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bell size={21} strokeWidth={1.8} /></button>
       </div>
@@ -156,7 +159,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const sidebar = side && view.kind !== "watch" && (
     <nav aria-label="Library" className="sticky top-14 hidden max-h-[calc(100vh-56px)] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
-      {navItem("Shorts", <Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
+      {navItem("Swipe feed",<Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
@@ -171,7 +174,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </>}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       {pro
-        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Ads get skipped in Shorts, and your show can earn.</p>
+        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Ads get skipped, and your show can earn.</p>
         : <div className="mx-1 rounded-xl border border-[#e5e5e5] p-3">
           <p className="text-sm font-semibold">Pod+ Membership</p>
           <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free. Members skip the ads and get paid for their own show.</p>
@@ -182,7 +185,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
   let content: React.ReactNode;
   if (view.kind === "watch") {
-    content = <Watch key={view.episodeId} showId={view.showId} episodeId={view.episodeId} initial={known.current.get(view.episodeId)} es={es} update={update} api={api} say={say} ex={ex} more={all} onOpen={openEp} onOpenFeed={onOpenFeed} />;
+    content = <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
   } else if (view.kind === "search") {
     content = <SearchResults key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} />;
   } else if (view.kind === "liked" || view.kind === "later") {
@@ -338,169 +341,5 @@ function TopicResults({ topic, api, ex, onOpen }: { topic: string; api: Api; ex:
       </div>}
       {list.length ? <div className="mt-4"><Grid list={list} onOpen={onOpen} /></div> : <p className="py-16 text-center text-[#606060]">Nothing mentions “{topic}” yet. Try a different spelling.</p>}
     </>}
-  </div>;
-}
-
-function Watch({ showId, episodeId, initial, es, update, api, say, ex, more, onOpen, onOpenFeed }: {
-  showId: string; episodeId: string; initial?: PodEpisode; es: Earshot; update: (fn: (e: Earshot) => Earshot) => void; api: Api; say: (m: string) => void; ex: string;
-  more: PodEpisode[]; onOpen: (e: PodEpisode) => void; onOpenFeed: (start?: { showId: string; episodeId: string }) => void;
-}) {
-  const [show, setShow] = useState<PodShow | null>(null);
-  const [eps, setEps] = useState<PodEpisode[]>([]);
-  const [ep, setEp] = useState<PodEpisode | null>(initial && initial.audio ? initial : null);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    api(`/api/earshot/show/${showId}?x=1${ex}`).then((b) => {
-      setShow(b.show || null);
-      const list: PodEpisode[] = b.episodes || [];
-      setEps(list);
-      const found = list.find((e) => e.id === episodeId);
-      setEp((cur) => found ? { ...found, art: found.art || b.show?.art || cur?.art || "" } : cur);
-      if (!found && !(initial && initial.audio)) setErr(b.blocked ? "This show is marked explicit. Turn on explicit shows in the swipe feed's settings to play it." : "That episode isn't available any more.");
-    }).catch((e) => { if (!(initial && initial.audio)) setErr(e.message); });
-  }, [api, showId, episodeId, ex, initial]);
-
-  const audio = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [t, setT] = useState(0);
-  const [dur, setDur] = useState(0);
-  const [speed, setSpeed] = useState(es.settings.speed || 1);
-  const [buffering, setBuffering] = useState(false);
-  useEffect(() => { if (audio.current) audio.current.playbackRate = speed; }, [speed, ep?.audio]);
-  const toggle = () => { const a = audio.current; if (!a) return; if (a.paused) a.play().catch(() => say("Tap play again to start.")); else a.pause(); };
-  const seek = (s: number) => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min(dur || a.duration || 0, s)); };
-
-  const counted = useRef(false);
-  const [likes, setLikes] = useState<number | null>(null);
-  useEffect(() => { api(`/api/earshot/counts?ids=${episodeId}`).then((b) => { const c = b.counts?.[episodeId]; if (c) setLikes(c.likes); }).catch(() => {}); }, [api, episodeId]);
-
-  const liked = es.liked.some((x) => x.id === episodeId);
-  const saved = es.saved.some((x) => x.id === episodeId);
-  const following = es.follows.some((f) => f.id === showId);
-  const like = () => {
-    if (!ep) return; const on = !liked;
-    update((e) => ({ ...e, liked: on ? [toSaved(ep), ...e.liked.filter((x) => x.id !== ep.id)].slice(0, EARSHOT_LIMITS.liked) : e.liked.filter((x) => x.id !== ep.id) }));
-    setLikes((n) => n == null ? n : Math.max(0, n + (on ? 1 : -1)));
-    api("/api/earshot/like", { method: "POST", body: { episodeId: ep.id, on } }).catch((e) => say(e.message));
-  };
-  const save = () => {
-    if (!ep) return; const on = !saved;
-    update((e) => ({ ...e, saved: on ? [toSaved(ep), ...e.saved.filter((x) => x.id !== ep.id)].slice(0, EARSHOT_LIMITS.saved) : e.saved.filter((x) => x.id !== ep.id) }));
-    say(on ? "Saved to Listen later." : "Removed from Listen later.");
-  };
-  const follow = () => {
-    const on = !following;
-    const s = show || (ep ? { id: showId, name: ep.show, author: ep.author, art: ep.art, genre: "culture" } as PodShow : null);
-    if (!s) return;
-    update((e) => ({ ...e, follows: on ? [{ id: s.id, name: s.name, author: s.author, art: s.art, genre: s.genre, at: new Date().toISOString() }, ...e.follows.filter((f) => f.id !== s.id)].slice(0, EARSHOT_LIMITS.follows) : e.follows.filter((f) => f.id !== s.id) }));
-    say(on ? `Following ${s.name}.` : `Unfollowed ${s.name}.`);
-  };
-  const share = async () => {
-    if (!ep) return;
-    const url = `${location.origin}/app/#/watch/${ep.showId}/${ep.id}`;
-    api("/api/earshot/share", { method: "POST", body: { episodeId: ep.id } }).catch(() => {});
-    try { if (navigator.share) { await navigator.share({ title: ep.title, text: `${ep.title} · ${ep.show}`, url }); return; } } catch { return; }
-    try { await navigator.clipboard.writeText(url); say("Link copied."); } catch { say(url); }
-  };
-
-  const upNext = useMemo(() => {
-    const seen = new Set([episodeId]);
-    const out: PodEpisode[] = [];
-    for (const e of [...eps.slice(0, 10).map((x) => ({ ...x, art: x.art || show?.art || "" })), ...more]) if (!seen.has(e.id)) { seen.add(e.id); out.push(e); }
-    return out.slice(0, 24);
-  }, [eps, more, episodeId, show]);
-  const [descOpen, setDescOpen] = useState(false);
-
-  // Lock-screen controls and artwork, so it plays on with the phone locked.
-  useEffect(() => {
-    if (!ep || !("mediaSession" in navigator)) return;
-    try {
-      const art = hiRes(ep.art || show?.art || "", 512);
-      navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: show?.name || ep.show, album: "Pod+", artwork: art ? [{ src: art, sizes: "512x512" }] : [] });
-      const a = () => audio.current;
-      navigator.mediaSession.setActionHandler("play", () => { a()?.play().catch(() => {}); });
-      navigator.mediaSession.setActionHandler("pause", () => a()?.pause());
-      navigator.mediaSession.setActionHandler("seekbackward", () => { const x = a(); if (x) x.currentTime = Math.max(0, x.currentTime - 15); });
-      navigator.mediaSession.setActionHandler("seekforward", () => { const x = a(); if (x) x.currentTime += 30; });
-      navigator.mediaSession.setActionHandler("nexttrack", upNext[0] ? () => onOpen(upNext[0]) : null);
-    } catch { /* older browsers */ }
-  }, [ep, show, upNext, onOpen]);
-
-  if (err && !ep) return <div className="px-6 py-24 text-center text-[#606060]">{err}</div>;
-  if (!ep) return <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
-  const art = hiRes(ep.art || show?.art || "", 1200);
-  const about = plain(ep.about);
-  const total = dur || ep.secs || 0;
-
-  return <div className="mx-auto flex max-w-[1720px] flex-wrap items-start gap-6 px-4 pb-16 pt-4 sm:px-6 lg:pt-6">
-    <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3">
-      <div role="region" aria-label="Player" className="relative aspect-video w-full overflow-hidden rounded-xl bg-[#0f0f0f]">
-        {art && <img src={art} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-70 blur-3xl" />}
-        <div className="absolute inset-0 bg-black/30" />
-        <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="absolute inset-0 flex items-center justify-center">
-          {art && <img src={art} alt={`${ep.show} cover`} className={`h-[70%] rounded-lg object-cover shadow-[0_20px_60px_rgba(0,0,0,.5)] transition-transform duration-500 ${playing ? "scale-100" : "scale-95"}`} style={{ aspectRatio: "1 / 1" }} />}
-          {!playing && <span className="absolute flex h-16 w-16 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur">{buffering ? <Loader2 className="animate-spin" size={30} /> : <Play size={30} fill="currentColor" className="ml-1" />}</span>}
-        </button>
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-1.5 pt-10 text-white">
-          <label className="sr-only" htmlFor="ps-seek">Position</label>
-          <input id="ps-seek" type="range" min={0} max={Math.max(1, Math.floor(total))} value={Math.floor(t)} onChange={(e) => seek(Number(e.target.value))}
-            className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/30 accent-[#ff6a1f]" style={{ background: `linear-gradient(to right, ${ACCENT} ${total ? (t / total) * 100 : 0}%, rgba(255,255,255,.3) 0)` }} />
-          <div className="flex items-center gap-1">
-            <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15">{playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}</button>
-            <button onClick={() => seek(t - 15)} aria-label="Back 15 seconds" className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15"><RotateCcw size={20} /></button>
-            <button onClick={() => seek(t + 30)} aria-label="Forward 30 seconds" className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15"><RotateCw size={20} /></button>
-            <span className="ml-2 text-[13px] tabular-nums">{fmtTime(t)} / {fmtTime(total)}</span>
-            <span className="flex-1" />
-            <button onClick={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s as any) + 1) % SPEEDS.length])} aria-label="Playback speed" className="inline-flex h-11 items-center rounded-full px-3 text-[13px] font-semibold hover:bg-white/15">{speed}×</button>
-          </div>
-        </div>
-        <audio ref={audio} src={ep.audio} autoPlay preload="metadata"
-          onPlay={() => { setPlaying(true); if (!counted.current) { counted.current = true; update((e) => ({ ...e, heard: [ep.id, ...e.heard.filter((x) => x !== ep.id)].slice(0, EARSHOT_LIMITS.heard) })); } }}
-          onPause={() => setPlaying(false)} onTimeUpdate={(e) => setT(e.currentTarget.currentTime)} onLoadedMetadata={(e) => { setDur(e.currentTarget.duration || 0); e.currentTarget.playbackRate = speed; }}
-          onWaiting={() => setBuffering(true)} onPlaying={() => setBuffering(false)} onCanPlay={() => setBuffering(false)}
-          onError={() => say("This episode's audio didn't load. Try another one.")}
-          onEnded={() => { const n = upNext[0]; if (n) onOpen(n); }} />
-      </div>
-
-      <h1 className="mt-1 text-xl font-bold leading-snug">{ep.title}</h1>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <img src={hiRes(show?.art || ep.art, 100)} alt="" className="h-10 w-10 shrink-0 rounded-full bg-[#f2f2f2] object-cover" />
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-base font-semibold">{show?.name || ep.show}</span>
-            <span className="truncate text-xs text-[#606060]">{show ? `${show.episodes.toLocaleString()} episodes` : ep.author}</span>
-          </div>
-          <button onClick={follow} aria-pressed={following} className={`ml-2 h-9 shrink-0 rounded-full px-4 text-sm font-semibold ${following ? "bg-[#f2f2f2] text-[#0f0f0f] hover:bg-[#e5e5e5]" : "bg-[#0f0f0f] text-white hover:bg-[#272727]"}`}>{following ? "Following" : "Follow"}</button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={like} aria-pressed={liked} className="inline-flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-medium hover:bg-[#e5e5e5]"><ThumbsUp size={18} strokeWidth={1.8} fill={liked ? "currentColor" : "none"} />{likes != null && likes > 0 ? likes.toLocaleString() : "Like"}</button>
-          <button onClick={share} className="inline-flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-medium hover:bg-[#e5e5e5]"><Share2 size={18} strokeWidth={1.8} />Share</button>
-          <a href={ep.audio} download target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-medium text-[#0f0f0f] hover:bg-[#e5e5e5]"><Download size={18} strokeWidth={1.8} />Download</a>
-          <button onClick={save} aria-pressed={saved} className="inline-flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-medium hover:bg-[#e5e5e5]">{saved ? <X size={18} strokeWidth={1.8} /> : <ListPlus size={18} strokeWidth={1.8} />}{saved ? "Saved" : "Save"}</button>
-        </div>
-      </div>
-
-      <div className="rounded-xl bg-[#f2f2f2] p-3 text-sm">
-        <p className="font-semibold">{ago(ep.date)}{ep.secs ? ` · ${Math.round(ep.secs / 60)} min` : ""}{show?.appleGenre ? ` · ${show.appleGenre}` : ""}</p>
-        {about && <p className={`mt-1 whitespace-pre-line leading-relaxed ${descOpen ? "" : "line-clamp-3"}`}>{about}</p>}
-        {about.length > 220 && <button onClick={() => setDescOpen((o) => !o)} className="mt-1 font-semibold">{descOpen ? "Show less" : "...more"}</button>}
-        <button onClick={() => { audio.current?.pause(); onOpenFeed({ showId: ep.showId, episodeId: ep.id }); }} className="mt-3 flex items-center gap-2 font-semibold text-[#065fd4]"><Sparkles size={16} />Open in Shorts for transcripts, comments and ad skip</button>
-      </div>
-    </div>
-
-    <aside aria-label="Up next" className="flex min-w-0 max-w-full flex-[1_1_360px] flex-col gap-3 lg:max-w-[420px]">
-      <p className="text-base font-semibold">Up next</p>
-      {upNext.map((e) => (
-        <button key={e.id} onClick={() => onOpen(e)} className="group flex w-full gap-2.5 text-left">
-          <div className="w-[168px] shrink-0"><Thumb e={e} small /></div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="line-clamp-2 text-sm font-semibold leading-snug">{e.title}</span>
-            <span className="truncate text-xs text-[#606060]">{e.show}</span>
-            <span className="text-xs text-[#606060]">{ago(e.date)}</span>
-          </div>
-        </button>
-      ))}
-    </aside>
   </div>;
 }

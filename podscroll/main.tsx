@@ -15,6 +15,7 @@ import "./styles.css";
 
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
 const KEY = "podscroll.v1";
+const STARTER_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private window: works, just isn't kept */ } };
 
@@ -97,12 +98,17 @@ function App() {
 
   const shareLink = useCallback((show: { id: string }, ep: { id: string }) => `${location.origin}/app/?s=${show.id}&e=${ep.id}`, []);
 
-  // The home page (browse and watch) comes first; the swipe feed is one tap away. A shared swipe
+  // The home page (browse) comes first and opens episodes in the swipe feed. A shared swipe
   // link (?s=&e=) still opens straight into the feed.
   const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
   const [feedStart, setFeedStart] = useState(start);
   const [feedKey, setFeedKey] = useState(0);
-  const openFeed = useCallback((at?: { showId: string; episodeId: string }) => { setFeedStart(at ?? null); setFeedKey((k) => k + 1); setMode("feed"); }, []);
+  // Picking an episode on the home page opens the swipe feed on it. Someone who never chose interests
+  // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
+  const openFeed = useCallback((at?: { showId: string; episodeId: string }) => {
+    if (at && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
+    setFeedStart(at ?? null); setFeedKey((k) => k + 1); setMode("feed");
+  }, []);
   const goHome = useCallback(() => { setEditing(false); setMode("home"); if (location.search) history.replaceState(null, "", location.pathname + location.hash); }, []);
 
   const body = editing || (mode === "feed" && !es.setupDone)
