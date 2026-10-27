@@ -11,6 +11,7 @@ import { Check, Loader2, Mail, X } from "lucide-react";
 import { LIGHT_SHEETS_CSS, Player, Setup, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
+import { AuthScreen } from "./Auth";
 import "./styles.css";
 
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
@@ -43,7 +44,10 @@ function App() {
   // Listening is free with no account. Signing in is the Pod+ Membership: smart ad skip, and earning
   // as a creator. Without it ads simply play, and turning ad skip on asks you to sign in.
   const pro = !!session;
-  const [joinOpen, setJoinOpen] = useState(false);
+  // The sign-in screen: "signin" from the Sign in button, "signup" from Become a member / ad skip.
+  const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
+  const setJoinOpen = useCallback((on: boolean) => setAuthMode(on ? "signup" : null), []);
+  const [email, setEmailState] = useState(() => read("podscroll.email") || "");
   const shown = useMemo(() => (pro ? es : { ...es, settings: { ...es.settings, adMode: "off" as const } }), [es, pro]);
   esRef.current = shown;
   const [toast, setToast] = useState("");
@@ -88,6 +92,11 @@ function App() {
     if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status, needSignIn: !!body?.needSignIn, needProfile: !!body?.needProfile });
     return body;
   }, [device, session]);
+  const signOut = useCallback(() => {
+    void api("/api/earshot/account/signout", { method: "POST" }).catch(() => {});
+    setSession(null); setEmailState(""); try { localStorage.removeItem("podscroll.email"); } catch { /* private window */ }
+    say("Signed out.");
+  }, [api, setSession, say]);
   // A saved session that's run out (or was signed out elsewhere) doesn't count as an account.
   const checked = useRef(false);
   useEffect(() => {
@@ -139,7 +148,7 @@ function App() {
       }} />
     </div>
     : mode === "home"
-    ? <Home es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setJoinOpen(true)} device={device} nickname={nickname} setNickname={setNickname} liveBase={API.replace(/^http/, "ws")} signal={signal} />
+    ? <Home es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setAuthMode("signup")} onSignIn={() => setAuthMode("signin")} email={email} onSignOut={signOut} device={device} nickname={nickname} setNickname={setNickname} liveBase={API.replace(/^http/, "ws")} signal={signal} />
     : <>
       <Player key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
         onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={feedStart} mediaUrl={mediaUrl}
@@ -150,7 +159,7 @@ function App() {
 
   return <>
     {body}
-    {joinOpen && !pro && <SignUpGate api={api} onClose={() => setJoinOpen(false)} onDone={(token) => { setSession(token); setJoinOpen(false); say("You're a member. Ads get skipped now."); }} />}
+    {authMode && !pro && <AuthScreen api={api} dark={!day} start={authMode} onClose={() => setAuthMode(null)} onDone={(token, mail) => { setSession(token); setEmailState(mail); write("podscroll.email", mail); setAuthMode(null); say("You're signed in. Ads get skipped now."); }} />}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(24px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full bg-white px-4 py-2.5 text-center text-sm font-bold text-[#120e14] shadow-xl transition ${toast ? "opacity-100" : "translate-y-3 opacity-0"}`}>{toast}</div>
   </>;
 }
