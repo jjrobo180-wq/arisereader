@@ -14,6 +14,12 @@ export const CHART_GENRE: Record<string, number> = {
   education: 1304, kids: 1305, fiction: 1483, horror: 1483, faith: 1314, gaming: 1502, hobbies: 1502, food: 1301,
   travel: 1324, relationships: 1324, parenting: 1305, nature: 1533, growth: 1304, teaching: 1304,
 };
+/** Apple's names for those charts, as the info sheet shows them. */
+export const CHART_NAME: Record<number, string> = {
+  1303: "Comedy", 1488: "True Crime", 1489: "News", 1533: "Science", 1318: "Technology", 1321: "Business", 1487: "History", 1545: "Sports",
+  1512: "Health & Fitness", 1324: "Society & Culture", 1301: "Arts", 1310: "Music", 1309: "TV & Film", 1304: "Education", 1305: "Kids & Family",
+  1483: "Fiction", 1314: "Religion & Spirituality", 1502: "Leisure",
+};
 export const chartUrl = (genreId?: number) => `https://itunes.apple.com/us/rss/toppodcasts/limit=200${genreId ? `/genre=${genreId}` : ""}/json`;
 
 export type ChartShow = PodShow & { chart: number; category: string };
@@ -127,6 +133,18 @@ export function topShowsService(apple: Apple, search: (term: string, entity: "po
         for (const g of new Set(Object.values(CHART_GENRE))) add(ready(g), 200);
         return rankTopic({ mentions, shows: Array.from(known.values()), charts: chartPos });
       });
+    },
+    /** Where a show sits in the charts already in memory: overall, then its genre's chart. null = none loaded yet. */
+    ranksOf(show: PodShow): { rank: number; chart: string }[] | null {
+      const all = ready();
+      const byName = Object.entries(CHART_NAME).find(([, n]) => n === show.appleGenre)?.[0];
+      const gid = CHART_GENRE[show.genre] ?? (byName ? Number(byName) : undefined);
+      const genre = gid ? ready(gid) : undefined;
+      if (!all && !genre) return null;
+      const out: { rank: number; chart: string }[] = [];
+      const a = all?.find((s) => s.id === show.id); if (a) out.push({ rank: a.chart, chart: "Top Podcasts" });
+      const g = genre?.find((s) => s.id === show.id); if (g && gid) out.push({ rank: g.chart, chart: CHART_NAME[gid] ?? "Genre" });
+      return out;
     },
     /** Loads one missing or stale chart when Apple's slot is free. Called on a timer. */
     async warmOne(): Promise<boolean> {
