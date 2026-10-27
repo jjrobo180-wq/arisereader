@@ -342,7 +342,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     </div>;
   }
 
-  return <MoreCtx.Provider value={setAddTo}><div className="min-h-full bg-white text-[#0f0f0f] [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]">
+  return <MoreCtx.Provider value={setAddTo}><div className="min-h-full bg-white text-[#0f0f0f] [color-scheme:light] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]">
     {header}
     <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
