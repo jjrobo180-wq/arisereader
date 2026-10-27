@@ -335,17 +335,18 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {chip === "all" && <ModesRow es={es} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
 
-      {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="relative mb-6 mt-2 rounded-2xl bg-[#f7f7f5] px-5 pb-5 pt-4 sm:px-6">
-        <div className="flex items-baseline justify-between gap-4">
-          <p className="text-[13px] font-semibold text-[#0f0f0f]">Put the phone down. Keep the podcast on.</p>
-          <button onClick={() => { setWhyHidden(true); writeLs("podscroll.why", "hidden"); }} aria-label="Hide this" className="-mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#606060] hover:bg-[#ebebe8]"><X size={16} /></button>
+      {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="relative mb-6 mt-1 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white">
+        <style>{"@keyframes ps-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}.ps-tick{animation:ps-tick 70s linear infinite}.ps-strip:hover .ps-tick,.ps-strip:active .ps-tick,.ps-strip:focus-within .ps-tick{animation-play-state:paused}@media (prefers-reduced-motion:reduce){.ps-tick{animation:none}}"}</style>
+        <span className="z-10 flex h-full shrink-0 items-center bg-[#0f0f0f] pl-4 pr-3 text-[13px] font-semibold text-[#ff8a3d]">Phone down. Podcast on.</span>
+        <div className="ps-strip relative h-full min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_24px,#000_calc(100%-24px),transparent)]">
+          <p className="sr-only">{WHY.map((w) => `${w.h} ${w.p}`).join(" ")}</p>
+          <div aria-hidden="true" className="ps-tick flex h-full w-max items-center whitespace-nowrap">
+            {[0, 1].map((k) => <span key={k} className="flex items-center">
+              {WHY.map((w) => <span key={w.h} className="flex items-center pr-8 text-[13px]"><b className="font-semibold">{w.h}</b><span className="ml-1.5 text-white/70">{w.p}</span><span className="ml-8 h-1 w-1 rounded-full bg-white/30" /></span>)}
+            </span>)}
+          </div>
         </div>
-        <div className="mt-3 grid gap-x-8 gap-y-4 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
-          {WHY.map((w) => <div key={w.h}>
-            <p className="text-[15px] font-semibold leading-snug tracking-[-0.01em]">{w.h}</p>
-            <p className="mt-1 text-[13px] leading-relaxed text-[#606060]">{w.p}</p>
-          </div>)}
-        </div>
+        <button onClick={() => { setWhyHidden(true); writeLs("podscroll.why", "hidden"); }} aria-label="Hide this" className="z-10 inline-flex h-11 w-11 shrink-0 items-center justify-center bg-[#0f0f0f] text-white/60 hover:text-white"><X size={16} /></button>
       </section>}
 
       {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} />
