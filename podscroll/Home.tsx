@@ -14,7 +14,7 @@ import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/component
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -42,6 +42,7 @@ function parseHash(): View {
   if (a === "liked") return { kind: "liked" };
   if (a === "later") return { kind: "later" };
   if (a === "radio") return { kind: "radio" };
+  if (a === "live") return { kind: "live" };
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
   return { kind: "home" };
@@ -435,6 +436,24 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <ModePage es={es} id={view.id} update={update} say={say} onBack={() => go({ kind: "home" })} api={api} ex={ex} onPlay={(index, order) => onOpenFeed(undefined, undefined, { id: view.id, index, order })} />;
   } else if (view.kind === "party") {
     content = <PartyRoom key="party" room={view.id} api={api} wsBase={liveBase} device={device} nickname={nickname} setNickname={setNickname} say={say} pickFrom={all} ex={ex} onRoom={onPartyRoom} onLeave={() => go({ kind: "home" })} />;
+  } else if (view.kind === "live") {
+    content = <section aria-label="Live now" className="mx-auto max-w-[1100px] px-4 pb-16 pt-4 sm:px-6">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><span className={`h-2 w-2 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-40"}`} />Live now</h1>
+          <button onClick={() => setGoLive(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e5] px-3 text-sm font-medium hover:bg-[#f2f2f2]"><Mic size={15} />Go live</button>
+        </div>
+        {live.length
+          ? <div className="mt-3 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">
+            {live.map((l) => <button key={l.id} onClick={() => openLive(l.id)} className="flex w-[220px] shrink-0 items-center gap-3 rounded-xl bg-[#fff4ee] p-3 text-left hover:bg-[#ffe9dc]">
+              <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-xl ring-2 ring-[#ff3b30]">{l.host.avatar || l.host.name.slice(0, 1)}<span className="absolute -bottom-1.5 rounded bg-[#ff3b30] px-1 text-[9px] font-bold text-white">LIVE</span></span>
+              <span className="flex min-w-0 flex-col">
+                <span className="line-clamp-2 text-sm font-semibold leading-snug">{l.title}</span>
+                <span className="truncate text-xs text-[#606060]">@{l.host.handle} · {l.listeners} listening</span>
+              </span>
+            </button>)}
+          </div>
+          : <p className="mt-1 text-sm text-[#606060]">No one's live right now. Audio only, so you can go live from anywhere, camera off.</p>}
+      </section>;
   } else if (view.kind === "radio") {
     content = <RadioView onPlay={setStation} current={station} />;
   } else if (view.kind === "liked" || view.kind === "later") {
@@ -469,6 +488,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button onClick={onEditInterests} className="h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">Your interests</button>
       </div>
       <nav aria-label="More on Pod+" className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+        <button onClick={() => go({ kind: "live" })} className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]"><span className={`h-2 w-2 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-40"}`} />Live{live.length ? ` · ${live.length}` : ""}</button>
         <button onClick={() => go({ kind: "radio" })} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><RadioIcon size={15} />Radio</button>
         <button onClick={() => go({ kind: "party", id: "new" })} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Users size={15} />Listen together</button>
         <button onClick={() => onOpenFeed(undefined, "openmic")} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Mic size={15} />Open Mic</button>
@@ -476,22 +496,23 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button onClick={() => onOpenFeed(undefined, "library")} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Library size={15} />Library</button>
       </nav>
 
-      {chip === "all" && <section aria-label="Live now" className="mb-5 mt-1">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-base font-semibold"><span className={`h-2 w-2 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-40"}`} />Live now</h2>
-          <button onClick={() => setGoLive(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e5] px-3 text-sm font-medium hover:bg-[#f2f2f2]"><Mic size={15} />Go live</button>
-        </div>
-        {live.length
-          ? <div className="mt-3 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">
-            {live.map((l) => <button key={l.id} onClick={() => openLive(l.id)} className="flex w-[220px] shrink-0 items-center gap-3 rounded-xl bg-[#fff4ee] p-3 text-left hover:bg-[#ffe9dc]">
-              <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-xl ring-2 ring-[#ff3b30]">{l.host.avatar || l.host.name.slice(0, 1)}<span className="absolute -bottom-1.5 rounded bg-[#ff3b30] px-1 text-[9px] font-bold text-white">LIVE</span></span>
-              <span className="flex min-w-0 flex-col">
-                <span className="line-clamp-2 text-sm font-semibold leading-snug">{l.title}</span>
-                <span className="truncate text-xs text-[#606060]">@{l.host.handle} · {l.listeners} listening</span>
-              </span>
-            </button>)}
+      {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white">
+        <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
+            <h2 className="mt-2 text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">Hear the show, not the ads.</h2>
+            <ul className="mt-3 grid gap-x-6 gap-y-1.5 text-[14px] text-white/80 sm:grid-cols-2">
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Ads skipped for you, automatically</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Get paid for your own show</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Your place saved on every device</li>
+              <li className="flex items-center gap-2"><Check size={15} className="shrink-0 text-[#ff8a3d]" />Listening stays free either way</li>
+            </ul>
           </div>
-          : <p className="mt-1 text-sm text-[#606060]">No one's live right now. Audio only, so you can go live from anywhere, camera off.</p>}
+          <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+            <button onClick={onJoin} className="h-12 rounded-full px-7 text-[15px] font-semibold hover:opacity-90" style={{ background: "#ffffff", color: "#0f0f0f" }}>Become a member</button>
+            <span className="text-xs text-white/55">Sign in with your email. No card needed today.</span>
+          </div>
+        </div>
       </section>}
 
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
