@@ -8,7 +8,7 @@ import {
 } from "@shared/earshot";
 import { ModeIcon } from "../client/src/components/family-hub/earshot/EarshotExtras";
 import { artIn } from "./art";
-import { ArrowUp, Bookmark, Check, ChevronLeft, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowUp, Bookmark, Check, ChevronLeft, Pencil, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 
 type Update = (fn: (e: Earshot) => Earshot) => void;
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -31,7 +31,7 @@ export function ModesRow({ es, update, onOpen, onNew }: { es: Earshot; update: U
       <h2 className="text-base font-semibold">Pod Modes</h2>
       <div className="flex items-center gap-3">
         {!arranging && <span className="hidden text-xs text-[#606060] sm:inline">Hold any episode, or tap its ⋮, to add it</span>}
-        <button onClick={() => setArranging((v) => !v)} aria-pressed={arranging} className={`h-8 rounded-full px-3.5 text-sm font-medium ${arranging ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{arranging ? "Done" : "Rearrange"}</button>
+        <button onClick={() => setArranging((v) => !v)} aria-pressed={arranging} aria-label={arranging ? "Done editing Pod Modes" : "Edit Pod Modes"} className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-sm font-medium ${arranging ? "text-[#065fd4]" : "text-[#606060] hover:text-[#0f0f0f]"}`}>{arranging ? "Done" : <><Pencil size={15} strokeWidth={1.8} />Edit</>}</button>
       </div>
     </div>
     <div className="-mx-1 mt-3 flex gap-5 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
