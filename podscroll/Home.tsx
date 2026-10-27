@@ -83,6 +83,9 @@ const HINTS = [
   "No clickbait. Ever.",
 ];
 
+/** The orange words at the start of the strip, one at a time in random order. */
+const TAGS = ["Phone down. Podcast on.", "Video killed the radio star.", "Screen off. Still playing.", "Eyes free. Ears on.", "Less scrolling. More signal.", "Your taste, not view counts.", "Listen while you live.", "No ads stacked on ads."];
+
 const WHY: { h: string; p: string }[] = [
   { h: "Video killed the radio star.", p: "Audio's back, and it doesn't need your screen." },
   { h: "Lock your phone. It keeps playing.", p: "On YouTube that takes Premium. Here it's free." },
@@ -335,7 +338,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     writeLs("podscroll.asked", "yes"); setAskTopics(false);
     if (picked && picked.length >= 2) update((e) => ({ ...e, setupDone: true, genres: picked, taste: { ...e.taste, ...Object.fromEntries(picked.map((g) => [g, Math.max(3, e.taste[g] ?? 0)])) } }));
   };
-  const [whyHidden, setWhyHidden] = useState(() => readLs("podscroll.why") === "hidden");
+  const [tag, setTag] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTag((n) => { let k = n; while (k === n) k = Math.floor(Math.random() * TAGS.length); return k; }), 4200); return () => clearInterval(t); }, []);
   const [side, setSide] = useState(true);
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
   // The search box's placeholder: "Search podcasts" first, then a short line every few seconds, in
@@ -519,9 +523,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
 
-      {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="ps-keep relative mb-6 mt-1 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white ring-1 ring-white/10">
-        <style>{"@keyframes ps-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}.ps-tick{animation:ps-tick 70s linear infinite}.ps-strip:hover .ps-tick,.ps-strip:active .ps-tick,.ps-strip:focus-within .ps-tick{animation-play-state:paused}@media (prefers-reduced-motion:reduce){.ps-tick{animation:none}}"}</style>
-        <span className="ps-keep z-10 flex h-full shrink-0 items-center bg-[#0f0f0f] pl-4 pr-3 text-[13px] font-semibold text-[#ff8a3d]">Phone down. Podcast on.</span>
+      {chip === "all" && <section aria-label="Why Pod+" className="ps-keep relative mb-6 mt-1 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white ring-1 ring-white/10">
+        <style>{"@keyframes ps-tag{0%{opacity:0;transform:translateY(70%);filter:blur(3px)}60%{filter:blur(0)}100%{opacity:1;transform:translateY(0)}}.ps-tag{animation:ps-tag .6s cubic-bezier(.2,.8,.2,1) both}@keyframes ps-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}.ps-tick{animation:ps-tick 70s linear infinite}.ps-strip:hover .ps-tick,.ps-strip:active .ps-tick,.ps-strip:focus-within .ps-tick{animation-play-state:paused}@media (prefers-reduced-motion:reduce){.ps-tick,.ps-tag{animation:none}}"}</style>
+        <span className="ps-keep relative z-10 flex h-full w-[11.5rem] shrink-0 items-center overflow-hidden bg-[#0f0f0f] pl-4 pr-2 text-[13px] font-semibold text-[#ff8a3d] sm:w-[13.5rem]" aria-live="off"><span key={tag} className="ps-tag block truncate">{TAGS[tag]}</span></span>
         <div className="ps-strip relative h-full min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_24px,#000_calc(100%-24px),transparent)]">
           <p className="sr-only">{WHY.map((w) => `${w.h} ${w.p}`).join(" ")}</p>
           <div aria-hidden="true" className="ps-tick flex h-full w-max items-center whitespace-nowrap">
@@ -530,7 +534,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
             </span>)}
           </div>
         </div>
-        <button onClick={() => { setWhyHidden(true); writeLs("podscroll.why", "hidden"); }} aria-label="Hide this" className="ps-keep z-10 inline-flex h-11 w-11 shrink-0 items-center justify-center bg-[#0f0f0f] text-white/60 hover:text-white"><X size={16} /></button>
       </section>}
 
       {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} top={tops[`t:${topic}`] || []} />
