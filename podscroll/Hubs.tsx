@@ -1,7 +1,7 @@
 // Pod Modes (hubs) on the Pod+ home page: a row of them, a page for each with its own look
 // (page color, accent and typeface, set by the listener), and the "Add to" menu that opens from an
 // episode card's ⋮ button or a press-and-hold. Modes are the same saved lists the swipe feed uses.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   EARSHOT_LIMITS, GENRE, GENRES, HUB_ACCENTS, HUB_BACKGROUNDS, HUB_FONTS, MODE_ICONS, hiRes, hubTheme, inkOn, isTeaser,
   type Earshot, type HubFont, type HubTheme, type PodEpisode, type PodMode, type PodShow, type SavedEpisode,
@@ -248,35 +248,60 @@ function AiFinderPanel({ mode, api, ex, update, say, onClose }: { mode: PodMode;
     return true;
   };
 
+  // Candidates beyond what's shown wait here; adding one slides the next one into its place.
+  const reserve = useRef<Found[]>([]);
+  const shownIds = useRef(new Set<string>());
+  const take = (n: number) => { const out: Found[] = []; while (out.length < n && reserve.current.length) { const f = reserve.current.shift()!; if (!shownIds.current.has(f.ep.id) && !inMode(f.ep.id)) { shownIds.current.add(f.ep.id); out.push(f); } } return out; };
+  const offer = (list: Found[]) => {
+    const perShow = new Map<string, number>();
+    for (const f of [...reserve.current]) perShow.set(f.show.id, (perShow.get(f.show.id) ?? 0) + 1);
+    for (const f of list) {
+      if (shownIds.current.has(f.ep.id) || reserve.current.some((x) => x.ep.id === f.ep.id)) continue;
+      const n = perShow.get(f.show.id) ?? 0; if (n >= 2) continue; // variety: at most two from one show
+      perShow.set(f.show.id, n + 1); reserve.current.push(f);
+    }
+  };
+  const fill = () => setFound((cur) => { const have = cur ?? []; const need = Math.max(0, p.count - have.length); return need ? [...have, ...take(need)] : have; });
+
   const run = async () => {
-    setBusy(true); setFound(null); setNote("");
+    setBusy(true); setNote("");
+    if (found) setFound((cur) => (cur ?? []).filter((f) => !inMode(f.ep.id)));
+    else { setFound([]); reserve.current = []; shownIds.current = new Set(); }
     const len = LENGTHS.find((l) => l.id === p.length)!;
+    const topicWords = p.genres.map((g) => GENRE[g]?.name).filter(Boolean).join(" ");
+    const searchQ = (p.prompt.trim() || mode.name).slice(0, 70);
     const q = [
       p.prompt.trim() || `Podcast episodes for ${mode.name}`,
-      p.genres.length ? `Topics: ${p.genres.map((g) => GENRE[g]?.name).filter(Boolean).join(", ")}.` : "",
+      topicWords ? `Topics: ${topicWords}.` : "",
       len.id !== "any" ? `Episodes ${len.name.toLowerCase()}.` : "",
       p.avoid.length ? `Do not include anything about: ${p.avoid.join(", ")}.` : "",
       p.smaller ? "Prefer smaller, independent shows over the biggest ones." : "",
     ].filter(Boolean).join(" ").slice(0, 390);
-    try {
-      const b = await api("/api/earshot/ai-find", { method: "POST", body: { q } });
+    const asShow = (e: PodEpisode): PodShow => ({ id: e.showId, name: e.show, author: e.author, art: e.art, genre: "", appleGenre: "", link: "", episodes: 0, explicit: e.explicit, latest: e.date });
+    const avoidShow = (sh: PodShow) => p.avoid.some((w) => w && `${sh.name} ${sh.author}`.toLowerCase().includes(w.toLowerCase()));
+    // Both at once: a plain episode search (fast, ready to play) and the AI's picks.
+    const searchJob = Promise.all([searchQ, topicWords ? `${searchQ} ${topicWords}` : ""].filter(Boolean).map((t) => api(`/api/earshot/search?q=${encodeURIComponent(t)}${ex}`).catch(() => null)))
+      .then((rs) => { const eps: PodEpisode[] = rs.flatMap((r) => (r?.episodes || []) as PodEpisode[]); offer(eps.filter((e) => !avoidShow(asShow(e)) && fits(e, asShow(e))).map((e) => ({ ep: e, show: asShow(e), why: "Matches what you asked for" }))); fill(); });
+    const aiJob = api("/api/earshot/ai-find", { method: "POST", body: { q } }).then(async (b) => {
       if (b && b.ai === false) setNote("AI isn't available right now, so these come from a search for your words.");
       let picks: { show: PodShow; why: string; episode: PodEpisode | null }[] = Array.isArray(b?.picks) ? b.picks : [];
       if (p.smaller) picks = picks.slice().sort((a, c) => (a.show.episodes || 0) - (c.show.episodes || 0));
-      const out: Found[] = [];
-      for (const pick of picks) {
-        if (out.length >= p.count) break;
-        if (p.avoid.some((w) => w && `${pick.show.name} ${pick.show.author}`.toLowerCase().includes(w.toLowerCase()))) continue;
-        let ep = pick.episode && fits(pick.episode, pick.show) ? pick.episode : null;
-        if (!ep) {
-          // The suggested episode didn't fit the filters: look for one of the show's episodes that does.
-          try { const r = await api(`/api/earshot/show/${pick.show.id}?x=1${ex}`); ep = (r.episodes || []).map((e: PodEpisode) => ({ ...e, art: e.art || pick.show.art })).find((e: PodEpisode) => fits(e, pick.show)) ?? null; } catch { /* skip this show */ }
-        }
-        if (ep) out.push({ ep: { ...ep, art: ep.art || pick.show.art }, show: pick.show, why: pick.why });
-      }
-      setFound(out);
-    } catch (e: any) { say(e?.message || "Couldn't search right now."); }
-    finally { setBusy(false); }
+      picks = picks.filter((x) => !avoidShow(x.show));
+      const ready = picks.filter((x) => x.episode && fits(x.episode, x.show));
+      // AI picks go to the front: they're the closest to what was asked.
+      const aiFound = ready.map((x) => ({ ep: { ...x.episode!, art: x.episode!.art || x.show.art }, show: x.show, why: x.why }));
+      reserve.current = [...aiFound.filter((f) => !shownIds.current.has(f.ep.id)), ...reserve.current.filter((f) => !aiFound.some((a) => a.ep.id === f.ep.id))];
+      fill();
+      // A few of the AI's shows whose suggested episode didn't fit: look for one that does, all at once.
+      const rest = picks.filter((x) => !(x.episode && fits(x.episode, x.show))).slice(0, 5);
+      const more = await Promise.all(rest.map((x) => api(`/api/earshot/show/${x.show.id}?x=1${ex}`).then((r) => {
+        const ep = ((r.episodes || []) as PodEpisode[]).map((e) => ({ ...e, art: e.art || x.show.art })).find((e) => fits(e, x.show));
+        return ep ? { ep, show: x.show, why: x.why } : null;
+      }).catch(() => null)));
+      offer(more.filter((x): x is Found => !!x)); fill();
+    }).catch(() => {});
+    await Promise.all([searchJob, aiJob]);
+    setBusy(false);
   };
 
   const add = (list: Found[]) => {
@@ -286,6 +311,9 @@ function AiFinderPanel({ mode, api, ex, update, say, onClose }: { mode: PodMode;
       return { ...m, episodes: [...m.episodes, ...list.filter((f) => !have.has(f.ep.id)).map((f) => toSaved(f.ep))].slice(0, EARSHOT_LIMITS.modeEpisodes) };
     }) }));
     say(list.length === 1 ? `Added to ${mode.name}.` : `Added ${list.length} episodes to ${mode.name}.`);
+    // Each added episode's spot gets the next suggestion.
+    const gone = new Set(list.map((f) => f.ep.id));
+    setFound((cur) => { const kept = (cur ?? []).filter((f) => !gone.has(f.ep.id)); const fresh = take(Math.max(0, p.count - kept.length)); return [...kept, ...fresh]; });
   };
   const addAvoid = () => { const w = avoidText.replace(/\s+/g, " ").trim().slice(0, 40); if (w && !p.avoid.includes(w)) set({ avoid: [...p.avoid, w].slice(0, 20) }); setAvoidText(""); };
   const chip = (on: boolean) => `h-9 rounded-full px-3.5 text-sm ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`;
@@ -327,11 +355,11 @@ function AiFinderPanel({ mode, api, ex, update, say, onClose }: { mode: PodMode;
     </div>}
 
     <div className="mt-5 flex flex-wrap gap-2">
-      <button onClick={run} disabled={busy} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#0f0f0f] px-6 text-[15px] font-semibold text-white disabled:opacity-60">{busy ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}{busy ? "Finding…" : found ? "Find more" : "Find episodes"}</button>
+      <button onClick={() => { if (found && reserve.current.length) setFound((cur) => [...(cur ?? []), ...take(p.count)]); else void run(); }} disabled={busy} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#0f0f0f] px-6 text-[15px] font-semibold text-white disabled:opacity-60">{busy ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}{busy ? "Finding…" : found ? "Find more" : "Find episodes"}</button>
       {found && found.length > 0 && <button onClick={() => add(found)} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#f2f2f2] px-5 text-[15px] font-medium hover:bg-[#e5e5e5]"><Plus size={17} />Add all {found.length}</button>}
     </div>
     {note && <p className="mt-3 text-xs text-[#767676]">{note}</p>}
-    {found && !found.length && <p className="mt-4 text-sm text-[#606060]">Nothing fit those filters. Loosen one (length or released) and try again.</p>}
+    {found && !found.length && !busy && <p className="mt-4 text-sm text-[#606060]">Nothing fit those filters. Loosen one (length or released) and try again.</p>}
     {found && found.length > 0 && <ul className="mt-4 divide-y divide-[#ececec]">
       {found.map((f) => { const added = inMode(f.ep.id); return <li key={f.ep.id} className="flex items-center gap-3 py-2.5">
         <img src={hiRes(f.ep.art, 120)} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
