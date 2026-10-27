@@ -450,11 +450,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6">
       <div role="group" aria-label="Topics" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 -mx-1 flex items-center gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
         <button onClick={() => setChip("all")} aria-pressed={chip === "all"} className={chipCls(chip === "all")}>All</button>
-        <button onClick={() => go({ kind: "radio" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><RadioIcon size={15} />Radio</button>
-        <button onClick={() => go({ kind: "party", id: "new" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><Users size={15} />Listen together</button>
-        <button onClick={() => onOpenFeed(undefined, "openmic")} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><Mic size={15} />Open Mic</button>
-        <button onClick={() => onOpenFeed(undefined, "social")} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><MessageCircle size={15} />Social</button>
-        <button onClick={() => onOpenFeed(undefined, "library")} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><Library size={15} />Library</button>
         {topics.map((t) => {
           const on = chip === `t:${t}`;
           return <span key={t} className="flex shrink-0 items-center">
@@ -472,6 +467,13 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         {chipGenres.map((g) => <button key={g} onClick={() => setChip(g)} aria-pressed={chip === g} className={chipCls(chip === g)}>{GENRE[g].name}</button>)}
         <button onClick={onEditInterests} className="h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">Your interests</button>
       </div>
+      <nav aria-label="More on Pod+" className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+        <button onClick={() => go({ kind: "radio" })} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><RadioIcon size={15} />Radio</button>
+        <button onClick={() => go({ kind: "party", id: "new" })} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Users size={15} />Listen together</button>
+        <button onClick={() => onOpenFeed(undefined, "openmic")} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Mic size={15} />Open Mic</button>
+        <button onClick={() => onOpenFeed(undefined, "social")} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><MessageCircle size={15} />Social</button>
+        <button onClick={() => onOpenFeed(undefined, "library")} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Library size={15} />Library</button>
+      </nav>
 
       {chip === "all" && <section aria-label="Live now" className="mb-5 mt-1">
         <div className="flex items-center justify-between gap-3">
