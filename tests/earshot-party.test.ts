@@ -43,9 +43,9 @@ test("mics: up to six at once", () => {
   assert.equal(setMic(p, "m6", true).ok, true, "a spot opens when someone hops off");
 });
 
-test("a group session over the websocket", async () => {
+test("a group session over the websocket", { timeout: 20_000 }, async () => {
   const server = createServer();
-  attachListenParties(server);
+  attachListenParties(server, (origin) => origin === "http://localhost:5173");
   await new Promise<void>((r) => server.listen(0, r));
   const port = (server.address() as any).port;
   type Client = { ws: WebSocket; next: (t: string) => Promise<any> };
@@ -98,6 +98,7 @@ test("a group session over the websocket", async () => {
 
     ana.ws.close(); ben.ws.close();
   } finally {
-    server.close();
+    server.closeAllConnections?.();
+    await new Promise<void>((r) => server.close(() => r()));
   }
 });

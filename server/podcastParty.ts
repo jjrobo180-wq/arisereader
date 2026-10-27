@@ -8,7 +8,6 @@ import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { randomBytes } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
-import { podscrollAllowed } from "./earshot";
 
 export const PARTY_LIMITS = { members: 30, speakers: 6, chat: 280, name: 24, history: 80, rooms: 2000, emptyMs: 10 * 60_000, maxHours: 12 } as const;
 
@@ -104,8 +103,8 @@ function mayCreate(ip: string, now: number) {
   list.push(now); made.set(ip, list); return true;
 }
 
-export function attachListenParties(httpServer: Server) {
-  const extra = String(process.env.PODSCROLL_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean);
+/** allowed: which sites may open groups (the Pod+ site and local development). */
+export function attachListenParties(httpServer: Server, allowed: (origin: string) => boolean) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 
   httpServer.on("upgrade", (req: IncomingMessage, socket: Duplex, head: Buffer) => {
@@ -114,7 +113,7 @@ export function attachListenParties(httpServer: Server) {
     if (url.pathname !== "/api/party/ws") return;
     const reject = (status: number, text: string) => { try { socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`); } catch { /* gone */ } socket.destroy(); };
     const origin = String(req.headers.origin || "");
-    if (!podscrollAllowed(origin, extra)) return reject(403, "Forbidden");
+    if (!allowed(origin)) return reject(403, "Forbidden");
     const device = String(url.searchParams.get("device") || "");
     if (!/^[A-Za-z0-9_-]{16,40}$/.test(device)) return reject(400, "Bad Request");
     const now = Date.now();
