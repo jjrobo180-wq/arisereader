@@ -272,15 +272,19 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       for (const e of recent.length >= 4 ? recent : eps) { const n = per.get(e.showId) ?? 0; if (n >= 2) continue; per.set(e.showId, n + 1); out.push(e); if (out.length >= 12) break; }
       return out;
     };
-    for (const m of es.modes) {
-      const key = `${m.id}:${today}:${m.freshDay ?? ""}`;
-      if (!m.fresh || m.freshDay === today || freshTried.current.has(key)) continue;
-      freshTried.current.add(key);
-      build(m).then((eps) => {
-        if (!eps.length) return;
-        update((e) => ({ ...e, modes: e.modes.map((x) => (x.id === m.id && x.fresh ? { ...x, episodes: eps.map(toSaved), freshDay: today } : x)) }));
-      }).catch(() => {});
-    }
+    const due = es.modes.filter((m) => m.fresh && m.freshDay !== today && !freshTried.current.has(`${m.id}:${today}:${m.freshDay ?? ""}`));
+    if (!due.length) return;
+    due.forEach((m) => freshTried.current.add(`${m.id}:${today}:${m.freshDay ?? ""}`));
+    // One at a time, after the page has loaded what's on screen.
+    const t = setTimeout(async () => {
+      for (const m of due) {
+        try {
+          const eps = await build(m);
+          if (eps.length) update((e) => ({ ...e, modes: e.modes.map((x) => (x.id === m.id && x.fresh ? { ...x, episodes: eps.map(toSaved), freshDay: today } : x)) }));
+        } catch { /* next visit */ }
+      }
+    }, 6000);
+    void t;
   }, [es.modes, api, ex, update]);
   const [newMode, setNewMode] = useState(false);
   // Any genre can be a chip, not just the ones picked: its shows load the first time it's tapped.
@@ -303,8 +307,13 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     if (topsRef.current[g]?.length || asked.current.has(g)) return Promise.resolve();
     asked.current.add(g);
     const path = g.startsWith("t:") ? `/api/earshot/top?q=${encodeURIComponent(g.slice(2))}` : `/api/earshot/top?genre=${encodeURIComponent(g)}`;
-    return api(path).then((b) => { if (b.shows?.length) setTops((t) => ({ ...t, [g]: b.shows })); else asked.current.delete(g); }).catch(() => { asked.current.delete(g); });
+    return api(path).then((b) => {
+      if (b.shows?.length) setTops((t) => ({ ...t, [g]: b.shows }));
+      else { asked.current.delete(g); if (b.pending) setTimeout(() => { if (chipRef.current === g) void fetchTopRef.current(g); }, 8000); }
+    }).catch(() => { asked.current.delete(g); });
   }, [api]);
+  const chipRef = useRef(chip); chipRef.current = chip;
+  const fetchTopRef = useRef(fetchTop); fetchTopRef.current = fetchTop;
   const topKey = chip;
   useEffect(() => { if (topKey && topKey !== "all") void fetchTop(topKey); }, [topKey, fetchTop]);
   const topShows = topKey ? tops[topKey] || [] : [];
@@ -317,12 +326,12 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   useEffect(() => {
     let stop = false;
     const t = setTimeout(async () => {
-      const queue = [...topics.map((x) => `t:${x}`), ...chipGenres];
-      const worker = async () => { while (!stop && queue.length) await fetchTop(queue.shift()!); };
-      await Promise.all([worker(), worker(), worker()]);
-    }, 1200);
+      // Gently: their own topics and genres, one at a time with a pause, so real searches come first.
+      const queue = [...topics.map((x) => `t:${x}`), ...genres];
+      while (!stop && queue.length) { await fetchTop(queue.shift()!); await new Promise((r) => setTimeout(r, 1500)); }
+    }, 4000);
     return () => { stop = true; clearTimeout(t); };
-  }, [chipGenres, fetchTop, topics]);
+  }, [genres, fetchTop, topics]);
   const setTopics = (t: string[]) => { setTopicsState(t); writeLs("podscroll.topics", JSON.stringify(t)); };
   const [adding, setAdding] = useState(false);
   const [newTopic, setNewTopic] = useState("");

@@ -78,51 +78,65 @@ const cached = async <T,>(c: Cache<T>, key: string, ttl: number, load: () => Pro
   return value;
 };
 
-export function topShowsService(apple: Apple, search: (term: string, entity: "podcast" | "podcastEpisode", limit: number) => string) {
+const peek = <T,>(c: Cache<T>, key: string, ttl: number): T | undefined => { const hit = c.get(key); return hit && Date.now() - hit.at < ttl ? hit.value : undefined; };
+const CHART_TTL = 6 * 3600_000, TOPIC_TTL = 2 * 3600_000;
+
+/** idle: whether Apple's slot is free for background work. These rows are extras: they never take
+ *  a slot someone's search or feed is waiting for. Not ready yet → null (the page asks again). */
+export function topShowsService(apple: Apple, search: (term: string, entity: "podcast" | "podcastEpisode", limit: number) => string, idle: () => boolean = () => true) {
   const charts: Cache<ChartShow[]> = new Map();
   const topics: Cache<PodShow[]> = new Map();
-  const chartOf = (genreId?: number) => cached(charts, String(genreId ?? "all"), 6 * 3600_000, async () => parseChart(await apple(chartUrl(genreId))));
+  const chartOf = (genreId?: number) => cached(charts, String(genreId ?? "all"), CHART_TTL, async () => parseChart(await apple(chartUrl(genreId))));
+  const ready = (genreId?: number) => peek(charts, String(genreId ?? "all"), CHART_TTL);
 
   return {
-    /** All, or one genre. */
-    async genre(gid?: string): Promise<PodShow[]> {
-      if (!gid) return (await chartOf()).slice(0, 16);
-      const id = CHART_GENRE[gid];
-      if (!id) return [];
-      return genreTop(await chartOf(id), gid);
+    /** All, or one genre. null: not loaded yet and Apple is busy with people's own requests. */
+    async genre(gid?: string): Promise<PodShow[] | null> {
+      const id = gid ? CHART_GENRE[gid] : undefined;
+      if (gid && !id) return [];
+      const have = ready(id);
+      if (!have && !idle()) return null;
+      const chart = have ?? await chartOf(id);
+      return gid ? genreTop(chart, gid) : chart.slice(0, 16);
     },
-    /** A topic: the biggest shows that cover it. */
-    async topic(q: string): Promise<PodShow[]> {
+    /** A topic: the biggest shows that cover it (two requests: its episodes, then those shows). */
+    async topic(q: string): Promise<PodShow[] | null> {
       const key = q.toLowerCase().replace(/\s+/g, " ").trim();
-      return cached(topics, key, 2 * 3600_000, async () => {
+      const have = peek(topics, key, TOPIC_TTL);
+      if (have) return have;
+      if (!idle()) return null;
+      return cached(topics, key, TOPIC_TTL, async () => {
         const eps = await apple(search(q, "podcastEpisode", 200));
         const mentions = new Map<string, number>();
         for (const r of Array.isArray(eps?.results) ? eps.results : []) {
           const id = cleanPodId(r?.collectionId);
           if (id) mentions.set(id, (mentions.get(id) ?? 0) + 1);
         }
-        let named: PodShow[] = [];
-        try { const b = await apple(search(q, "podcast", 50)); named = (Array.isArray(b?.results) ? b.results : []).map((r: unknown) => parseShow(r)).filter(Boolean) as PodShow[]; } catch { /* episode shows alone are fine */ }
-        // Full details (episode counts) for the shows that cover it.
         const ids = Array.from(mentions.keys()).sort((a, b) => (mentions.get(b) ?? 0) - (mentions.get(a) ?? 0)).slice(0, 150);
-        const known = new Map(named.map((s) => [s.id, s]));
-        const need = ids.filter((id) => !known.has(id));
-        if (need.length) {
+        const known = new Map<string, PodShow>();
+        if (ids.length) {
           try {
-            const b = await apple(`https://itunes.apple.com/lookup?${new URLSearchParams({ id: need.join(","), entity: "podcast", country: "US" })}`);
+            const b = await apple(`https://itunes.apple.com/lookup?${new URLSearchParams({ id: ids.join(","), entity: "podcast", country: "US" })}`);
             for (const r of Array.isArray(b?.results) ? b.results : []) { const s = parseShow(r); if (s) known.set(s.id, s); }
-          } catch { /* rank what we have */ }
+          } catch { /* nothing to rank */ }
         }
-        // Chart positions: the overall chart, and the charts of the genres these shows are in.
+        // Chart positions from the charts already loaded (the warm-up keeps them loaded).
         const chartPos = new Map<string, number>();
-        const add = (list: ChartShow[], offset: number) => list.forEach((s) => { const at = s.chart + offset; if (!chartPos.has(s.id) || chartPos.get(s.id)! > at) chartPos.set(s.id, at); });
-        try { add(await chartOf(), 0); } catch { /* no chart: size decides */ }
-        const genres = new Map<number, number>();
-        for (const s of known.values()) { const g = CHART_GENRE[s.genre]; if (g) genres.set(g, (genres.get(g) ?? 0) + (mentions.get(s.id) ?? 1)); }
-        const busiest = Array.from(genres.entries()).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([g]) => g);
-        for (const g of busiest) { try { add(await chartOf(g), 200); } catch { /* skip */ } }
+        const add = (list: ChartShow[] | undefined, offset: number) => (list ?? []).forEach((s) => { const at = s.chart + offset; if (!chartPos.has(s.id) || chartPos.get(s.id)! > at) chartPos.set(s.id, at); });
+        add(ready(), 0);
+        for (const g of new Set(Object.values(CHART_GENRE))) add(ready(g), 200);
         return rankTopic({ mentions, shows: Array.from(known.values()), charts: chartPos });
       });
+    },
+    /** Loads one missing or stale chart when Apple's slot is free. Called on a timer. */
+    async warmOne(): Promise<boolean> {
+      if (!idle()) return false;
+      for (const id of [undefined, ...Array.from(new Set(Object.values(CHART_GENRE)))]) {
+        if (ready(id)) continue;
+        try { await chartOf(id); } catch { /* next time */ }
+        return true;
+      }
+      return false;
     },
   };
 }
