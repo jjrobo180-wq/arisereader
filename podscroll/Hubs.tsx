@@ -123,60 +123,62 @@ export function ModePage({ es, id, update, say, onPlay, onBack }: { es: Earshot;
   const del = () => { update((e) => ({ ...e, modes: e.modes.filter((m) => m.id !== mode.id) })); say(`Deleted “${mode.name}”.`); onBack(); };
   const total = mode.episodes.reduce((a, e) => a + (e.secs || 0), 0);
 
-  return <div className="min-h-[calc(100vh-56px)]" style={{ background: th.bg, color: ink }}>
-    <div className="mx-auto max-w-[960px] px-4 pb-20 pt-4 sm:px-6">
-      <div className="flex items-center justify-between gap-3">
-        <button onClick={onBack} aria-label="Back" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-black/10"><ChevronLeft size={22} /></button>
-        <button onClick={() => setEditing((v) => !v)} aria-expanded={editing} className="inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium" style={{ boxShadow: `inset 0 0 0 1px ${ink}40` }}><Palette size={16} />Customize</button>
-      </div>
+  return <div className="mx-auto max-w-[1100px] px-4 pb-20 pt-3 sm:px-6">
+    <div className="flex items-center justify-between gap-3">
+      <button onClick={onBack} className="inline-flex h-10 items-center gap-1 rounded-full pl-2 pr-4 text-sm font-medium hover:bg-[#f2f2f2]"><ChevronLeft size={20} />Home</button>
+      <button onClick={() => setEditing((v) => !v)} aria-expanded={editing} className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium ${editing ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}><Palette size={16} />Customize</button>
+    </div>
 
-      <div className="mt-6 flex flex-wrap items-end gap-5">
-        <span className="grid h-16 w-16 place-items-center rounded-full" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={mode} size={28} /></span>
+    <section className="mt-3 overflow-hidden rounded-2xl p-5 sm:p-7" style={{ background: th.bg, color: ink }}>
+      <div className="flex flex-wrap items-end gap-5">
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={mode} size={24} /></span>
         <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[.16em] opacity-60">Pod Mode</p>
           {rename !== null
-            ? <form onSubmit={(e) => { e.preventDefault(); saveName(); }} className="flex gap-2"><label htmlFor="ps-mode-name" className="sr-only">Name</label><input id="ps-mode-name" autoFocus value={rename} onChange={(e) => setRename(e.target.value)} onBlur={saveName} maxLength={30} className="h-12 min-w-0 flex-1 rounded-lg bg-black/10 px-3 text-2xl outline-none" style={{ fontFamily: font.stack, fontWeight: font.weight, color: ink }} /></form>
-            : <h1 className="text-[40px] leading-[1.05] sm:text-[56px]" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>
+            ? <form onSubmit={(e) => { e.preventDefault(); saveName(); }}><label htmlFor="ps-mode-name" className="sr-only">Name</label><input id="ps-mode-name" autoFocus value={rename} onChange={(e) => setRename(e.target.value)} onBlur={saveName} maxLength={30} className="mt-1 h-12 w-full rounded-lg bg-black/10 px-3 text-2xl outline-none" style={{ fontFamily: font.stack, fontWeight: font.weight, color: ink }} /></form>
+            : <h1 className="mt-1 text-[34px] leading-[1.05] sm:text-[48px]" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>
               <button onClick={() => setRename(mode.name)} className="text-left" title="Rename">{mode.name}</button>
             </h1>}
-          <p className="mt-2 text-sm opacity-65">{mode.episodes.length} episode{mode.episodes.length === 1 ? "" : "s"}{total ? ` · ${mins(total)}` : ""}</p>
+          <p className="mt-1.5 text-sm opacity-65">{mode.episodes.length} episode{mode.episodes.length === 1 ? "" : "s"}{total ? ` · ${mins(total)}` : ""}</p>
         </div>
       </div>
-      <div className="mt-6 flex flex-wrap gap-2">
-        <button disabled={!mode.episodes.length} onClick={() => onPlay(0)} className="inline-flex h-12 items-center gap-2 rounded-full px-6 text-[15px] font-semibold disabled:opacity-40" style={{ background: th.accent, color: inkOn(th.accent) }}><Play size={18} fill="currentColor" />Play all</button>
-        <button disabled={mode.episodes.length < 2} onClick={() => onPlay(0, true)} className="inline-flex h-12 items-center gap-2 rounded-full px-5 text-[15px] font-medium disabled:opacity-40" style={{ boxShadow: `inset 0 0 0 1px ${ink}40` }}><Shuffle size={17} />Shuffle</button>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button disabled={!mode.episodes.length} onClick={() => onPlay(0)} className="inline-flex h-11 items-center gap-2 rounded-full px-6 text-[15px] font-semibold disabled:opacity-40" style={{ background: th.accent, color: inkOn(th.accent) }}><Play size={17} fill="currentColor" />Play all</button>
+        <button disabled={mode.episodes.length < 2} onClick={() => onPlay(0, true)} className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[15px] font-medium disabled:opacity-40" style={{ boxShadow: `inset 0 0 0 1px ${ink}40` }}><Shuffle size={16} />Shuffle</button>
       </div>
+    </section>
 
-      {editing && <section aria-label="Customize this mode" className="mt-6 rounded-2xl bg-white p-5 text-[#0f0f0f] shadow-[0_10px_40px_rgba(0,0,0,.18)]">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold">Customize</h2>
-          <button onClick={() => setTheme(null)} className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-[#606060] hover:bg-[#f2f2f2]"><RotateCcw size={14} />Reset</button>
-        </div>
-        <p className="mt-4 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Background</p>
-        <Swatches colors={HUB_BACKGROUNDS} value={th.bg} onPick={(bg) => setTheme({ bg })} label="Background" />
-        <p className="mt-4 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Accent</p>
-        <Swatches colors={HUB_ACCENTS} value={th.accent} onPick={(accent) => setTheme({ accent })} label="Accent" />
-        <p className="mt-4 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Typeface</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {(Object.keys(HUB_FONTS) as HubFont[]).map((f) => <button key={f} onClick={() => setTheme({ font: f })} aria-pressed={th.font === f} className={`h-11 rounded-lg px-4 text-[15px] ${th.font === f ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`} style={{ fontFamily: HUB_FONTS[f].stack, fontWeight: HUB_FONTS[f].weight }}>{HUB_FONTS[f].name}</button>)}
-        </div>
-      </section>}
+    {editing && <section aria-label="Customize this mode" className="mt-4 rounded-2xl border border-[#e5e5e5] p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold">Customize</h2>
+        <button onClick={() => setTheme(null)} className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-[#606060] hover:bg-[#f2f2f2]"><RotateCcw size={14} />Reset</button>
+      </div>
+      <p className="mt-4 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Background</p>
+      <Swatches colors={HUB_BACKGROUNDS} value={th.bg} onPick={(bg) => setTheme({ bg })} label="Background" />
+      <p className="mt-4 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Accent</p>
+      <Swatches colors={HUB_ACCENTS} value={th.accent} onPick={(accent) => setTheme({ accent })} label="Accent" />
+      <p className="mt-4 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Typeface</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {(Object.keys(HUB_FONTS) as HubFont[]).map((f) => <button key={f} onClick={() => setTheme({ font: f })} aria-pressed={th.font === f} className={`h-11 rounded-lg px-4 text-[15px] ${th.font === f ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`} style={{ fontFamily: HUB_FONTS[f].stack, fontWeight: HUB_FONTS[f].weight }}>{HUB_FONTS[f].name}</button>)}
+      </div>
+    </section>}
 
-      <ol className="mt-8 flex flex-col">
-        {!mode.episodes.length && <li className="rounded-xl px-4 py-10 text-center text-sm opacity-70">Nothing here yet. On the home page, hold any episode or tap its ⋮, then pick “{mode.name}”.</li>}
-        {mode.episodes.map((e, i) => <li key={e.id} className="group grid grid-cols-[56px_1fr_auto] items-center gap-3 rounded-xl p-2 hover:bg-black/[.06]" style={{ borderTop: i ? `1px solid ${ink}14` : undefined }}>
-          <button onClick={() => onPlay(i)} aria-label={`Play ${e.title}`}><img src={hiRes(e.art, 120)} alt="" className="h-14 w-14 rounded-md object-cover" /></button>
-          <button onClick={() => onPlay(i)} className="min-w-0 text-left">
-            <span className="line-clamp-1 text-[15px] font-semibold">{e.title}</span>
-            <span className="line-clamp-1 text-xs opacity-60">{e.show}{e.secs ? ` · ${mins(e.secs)}` : ""}</span>
-          </button>
-          <span className="flex gap-1">
-            <button onClick={() => moveUp(i)} disabled={i === 0} aria-label="Move up" className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-black/10 disabled:opacity-30"><ArrowUp size={16} /></button>
-            <button onClick={() => remove(e.id)} aria-label={`Remove ${e.title}`} className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-black/10"><X size={16} /></button>
-          </span>
-        </li>)}
-      </ol>
-      {!builtIn && <button onClick={del} className="mt-10 inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-medium opacity-80 hover:opacity-100" style={{ boxShadow: `inset 0 0 0 1px ${ink}33` }}><Trash2 size={15} />Delete this mode</button>}
-    </div>
+    <h2 className="mt-8 text-base font-semibold">Episodes</h2>
+    <ol className="mt-2 flex flex-col divide-y divide-[#ececec]">
+      {!mode.episodes.length && <li className="py-10 text-center text-sm text-[#606060]">Nothing here yet. Hold any episode on the home page, or tap its ⋮, then pick “{mode.name}”.</li>}
+      {mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5">
+        <button onClick={() => onPlay(i)} aria-label={`Play ${e.title}`} className="relative"><img src={hiRes(e.art, 160)} alt="" className="h-16 w-16 rounded-lg object-cover sm:h-[72px] sm:w-[128px]" /></button>
+        <button onClick={() => onPlay(i)} className="min-w-0 text-left">
+          <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{e.title}</span>
+          <span className="line-clamp-1 text-xs text-[#606060]">{e.show}{e.secs ? ` · ${mins(e.secs)}` : ""}</span>
+        </button>
+        <span className="flex gap-1">
+          <button onClick={() => moveUp(i)} disabled={i === 0} aria-label="Move up" className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ArrowUp size={16} /></button>
+          <button onClick={() => remove(e.id)} aria-label={`Remove ${e.title}`} className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={16} /></button>
+        </span>
+      </li>)}
+    </ol>
+    {!builtIn && <button onClick={del} className="mt-10 inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-medium text-[#b42318] hover:bg-[#fef3f2]"><Trash2 size={15} />Delete this mode</button>}
   </div>;
 }
 

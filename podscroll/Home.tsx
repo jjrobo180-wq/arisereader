@@ -99,7 +99,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   liveBase: string;
 }) {
   const [view, setViewState] = useState<View>(parseHash);
-  const go = useCallback((v: View) => { const h = hashOf(v); if (location.hash !== h) location.hash = h; else setViewState(v); window.scrollTo(0, 0); }, []);
+  // Switch views right away, and keep the address in step (so Back and links work).
+  const go = useCallback((v: View) => { const h = hashOf(v); setViewState(v); if (location.hash !== h) location.hash = h; window.scrollTo(0, 0); }, []);
   useEffect(() => { const on = () => { setViewState(parseHash()); window.scrollTo(0, 0); }; window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   useEffect(() => { document.documentElement.style.background = "#ffffff"; }, []);
 
@@ -153,17 +154,17 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     setExtra((x) => ({ ...x, [chip]: "loading" }));
     api(`/api/earshot/feed?genres=${chip}${ex}`).then((b) => { const list: PoolShow[] = b.pools?.[chip] || []; setExtraShows((x) => ({ ...x, [chip]: byRank(list) })); setExtra((x) => ({ ...x, [chip]: cardsOf(chip, list) })); }).catch(() => setExtra((x) => ({ ...x, [chip]: "error" })));
   }, [chip, genres, extra, api, ex, cardsOf]);
-  // The round "Top shows" row: how Apple Podcasts ranks shows for this genre (on All, the top two
-  // of each genre). Only this row is ranked by popularity; the grid below never is.
-  const topShows = useMemo(() => {
-    if (chip.startsWith("t:")) return [] as PodShow[];
-    if (chip !== "all") return pools?.[chip] ? byRank(pools[chip]) : extraShows[chip] || [];
-    if (!pools) return [] as PodShow[];
-    const out: PodShow[] = []; const seen = new Set<string>();
-    const lists = genres.map((g) => byRank(pools[g] || []));
-    for (let i = 0; i < 3; i++) for (const l of lists) { const x = l[i]; if (x && !seen.has(x.id)) { seen.add(x.id); out.push(x); } }
-    return out.slice(0, 16);
-  }, [chip, pools, extraShows, genres]);
+  // The round "Top shows" row: real popularity from the server (Apple's Top Podcasts charts for All
+  // and each genre). Only this row is ranked by popularity; the grid below never is.
+  const [tops, setTops] = useState<Record<string, PodShow[]>>({});
+  const topKey = chip.startsWith("t:") ? "" : chip;
+  useEffect(() => {
+    if (!topKey) return;
+    if (tops[topKey]) return;
+    const path = topKey === "all" ? "/api/earshot/top" : `/api/earshot/top?genre=${encodeURIComponent(topKey)}`;
+    api(path).then((b) => setTops((t) => ({ ...t, [topKey]: b.shows || [] }))).catch(() => setTops((t) => ({ ...t, [topKey]: [] })));
+  }, [topKey, tops, api]);
+  const topShows = topKey ? tops[topKey] || [] : [];
   const openShowLatest = (sh: PodShow) => api(`/api/earshot/show/${sh.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) openEp(e); else say("No episodes to play yet."); }).catch((e) => say(e.message));
   const chipGenres = useMemo(() => [...genres, ...GENRES.map((g) => g.id).filter((g) => !genres.includes(g) && g !== "kids")], [genres]);
 
@@ -331,7 +332,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           : <p className="mt-1 text-sm text-[#606060]">No one's live right now. Audio only, so you can go live from anywhere, camera off.</p>}
       </section>}
 
-      {!topic && <TopShows shows={topShows} onShow={openShowLatest} label={chip === "all" ? "Top shows" : `Top ${GENRE[chip]?.name ?? ""} shows`} />}
+      {!topic && <TopShows shows={topShows} onShow={openShowLatest} label={chip === "all" ? "Top podcasts" : `Top ${GENRE[chip]?.name ?? ""} podcasts`} note="Apple Podcasts top charts. Everything below stays unranked." />}
 
       {chip === "all" && <ModesRow es={es} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
 
@@ -420,12 +421,12 @@ function Card({ e, onOpen, onMore }: { e: PodEpisode; onOpen: (e: PodEpisode) =>
 const byRank = (list: PoolShow[]): PodShow[] => list.slice().sort((a, b) => a.rank - b.rank).map((p) => p.show).slice(0, 16);
 
 /** Big round show covers: the most popular shows for a genre or topic, as Apple Podcasts ranks them. */
-function TopShows({ shows, onShow, label }: { shows: PodShow[]; onShow: (s: PodShow) => void; label: string }) {
+function TopShows({ shows, onShow, label, note }: { shows: PodShow[]; onShow: (s: PodShow) => void; label: string; note: string }) {
   if (!shows.length) return null;
   return <section aria-label={label} className="mb-6 mt-4">
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <h2 className="text-base font-semibold">{label}</h2>
-      <span className="text-xs text-[#606060]">Most popular across podcast apps. Everything below stays unranked.</span>
+      <span className="text-xs text-[#606060]">{note}</span>
     </div>
     <div className="-mx-1 mt-3 flex gap-5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
       {shows.map((sh, i) => <button key={sh.id} onClick={() => onShow(sh)} className="flex w-[96px] shrink-0 flex-col items-center gap-2 text-center sm:w-[112px]">
@@ -474,6 +475,8 @@ function SearchResults({ q, api, ex, onOpen }: { q: string; api: Api; ex: string
 function TopicResults({ topic, api, ex, onOpen }: { topic: string; api: Api; ex: string; onOpen: (e: PodEpisode) => void }) {
   const [list, setList] = useState<PodEpisode[] | null>(null);
   const [shows, setShows] = useState<PodShow[]>([]);
+  const [top, setTop] = useState<PodShow[]>([]);
+  useEffect(() => { api(`/api/earshot/top?q=${encodeURIComponent(topic)}`).then((b) => setTop(b.shows || [])).catch(() => setTop([])); }, [api, topic]);
   const [err, setErr] = useState("");
   useEffect(() => {
     let live = true;
@@ -495,7 +498,7 @@ function TopicResults({ topic, api, ex, onOpen }: { topic: string; api: Api; ex:
     <h2 className="text-xl font-bold tracking-tight">{topic}</h2>
     <p className="mt-1 text-sm text-[#606060]">Every episode we can find that mentions it, newest first. Big show or brand new, same shelf.</p>
     {err ? <p className="py-16 text-center text-[#606060]">{err}</p> : !list ? <div className="mt-4"><Skeleton /></div> : <>
-      <TopShows shows={shows} onShow={openShow} label={`Top ${topic} shows`} />
+      <TopShows shows={top} onShow={openShow} label={`Biggest shows covering ${topic}`} note="Charting and established shows with episodes on it. Everything below stays unranked." />
       {list.length ? <div className="mt-2"><p className="mb-1 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Every episode, newest first</p><Grid list={list} onOpen={onOpen} /></div> : <p className="py-16 text-center text-[#606060]">Nothing mentions “{topic}” yet. Try a different spelling.</p>}
     </>}
   </div>;

@@ -18,6 +18,7 @@ import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podca
 import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "./podcastPlay";
 import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
+import { topShowsService } from "./podcastTop";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
@@ -226,6 +227,23 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
       if (out.show?.explicit && !explicit) return res.json({ show: out.show, episodes: [], blocked: true });
       res.set("Cache-Control", "private, max-age=900");
       res.json({ show: out.show, episodes: clean(out.episodes, explicit) });
+    } catch (e) { appleDown(res, e); }
+  });
+
+  /** Top shows (the round row on Pod+): Apple's charts for All and each genre; for a topic, the
+   *  biggest charting/established shows whose episodes cover it (server/podcastTop.ts). */
+  const top = topShowsService((url) => dir.apple(url), (term, entity, limit) => appleSearchUrl(term, entity, limit, false));
+  app.get(`${P}/top`, authMiddleware, async (req: any, res) => {
+    const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, EARSHOT_LIMITS.search) : "";
+    const gid = typeof req.query?.genre === "string" ? req.query.genre : "";
+    if (gid && !GENRE[gid]) return res.status(404).json({ message: "That genre doesn't exist." });
+    if (gid && !genreOk(req, gid)) return res.json({ shows: [] });
+    if (q && q.length < 2) return res.json({ shows: [] });
+    if (limited(reads, req, res)) return;
+    try {
+      const shows = q ? await top.topic(q) : await top.genre(gid || undefined);
+      res.set("Cache-Control", "private, max-age=1800");
+      res.json({ shows: isStudent(req) ? shows.filter((s) => GENRE[s.genre]?.kidSafe) : shows });
     } catch (e) { appleDown(res, e); }
   });
 
