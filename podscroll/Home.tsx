@@ -388,7 +388,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     <header className="sticky top-0 z-30 bg-white pt-[env(safe-area-inset-top,0px)]">
       <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-4">
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-        <button onClick={() => setSide((s) => !s)} aria-label="Menu" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] lg:inline-flex"><Menu size={22} strokeWidth={1.8} /></button>
+        <button onClick={toggleMenu} aria-label="Menu" aria-expanded={drawer} className="-ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><Menu size={22} strokeWidth={1.8} /></button>
         <button onClick={() => { setChip("all"); go({ kind: "home" }); }} aria-label="Pod+ home" className="inline-flex items-center gap-1.5 px-1 py-2">
           <svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill={ACCENT} /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg>
           <span className="text-[20px] font-bold tracking-[-0.04em]">Pod+</span>
