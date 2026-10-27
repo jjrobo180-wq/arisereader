@@ -89,7 +89,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
   say: (m: string) => void;
-  onOpenFeed: (start?: { showId: string; episodeId: string }, page?: "openmic" | "social" | "library", mode?: { id: string; index: number; shuffle?: boolean }) => void;
+  onOpenFeed: (start?: { showId: string; episodeId: string }, page?: "openmic" | "social" | "library", mode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => void;
   onEditInterests: () => void;
   pro: boolean;
   onJoin: () => void;
@@ -272,7 +272,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   } else if (view.kind === "search") {
     content = <SearchResults key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} />;
   } else if (view.kind === "mode") {
-    content = <ModePage es={es} id={view.id} update={update} say={say} onBack={() => go({ kind: "home" })} onPlay={(index, shuffle) => onOpenFeed(undefined, undefined, { id: view.id, index, shuffle })} />;
+    content = <ModePage es={es} id={view.id} update={update} say={say} onBack={() => go({ kind: "home" })} api={api} ex={ex} onPlay={(index, order) => onOpenFeed(undefined, undefined, { id: view.id, index, order })} />;
   } else if (view.kind === "party") {
     content = <PartyRoom key="party" room={view.id} api={api} wsBase={liveBase} device={device} nickname={nickname} setNickname={setNickname} say={say} pickFrom={all} ex={ex} onRoom={onPartyRoom} onLeave={() => go({ kind: "home" })} />;
   } else if (view.kind === "radio") {

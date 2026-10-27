@@ -135,7 +135,7 @@ export type PlayerProps = {
   onHome?: () => void;
   initialTab?: Tab;
   /** Pod+: play a Pod Mode back to back from this episode (opened from the home page). */
-  playMode?: { id: string; index: number; shuffle?: boolean } | null;
+  playMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null;
 };
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
@@ -359,6 +359,20 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return mine.length > 2 ? [mine[0], mine[1 + Math.floor(Math.random() * (mine.length - 1))]] : mine;
   }, [mode, student, esRef]);
 
+  /** For You never runs dry: when every loaded genre is used up, load one more genre (the one they
+   *  like most of those not loaded yet, with some chance of a fresh one) and carry on. */
+  const extendRef = useRef<(n: number) => void>(() => {});
+  const widen = useCallback((short: number) => {
+    const open = GENRES.map((g) => g.id).filter((g) => !pools.current.has(g) && (!student || !!GENRE[g]?.kidSafe));
+    if (!open.length) return false;
+    const byTaste = open.sort((a, b) => tasteOf(esRef.current, b) - tasteOf(esRef.current, a));
+    const g = Math.random() < 0.7 ? byTaste[0] : byTaste[Math.floor(Math.random() * byTaste.length)];
+    growing.current = true;
+    const feed = mode;
+    void loadPools([g]).then(() => { growing.current = false; if (feed === modeRef.current) extendRef.current(Math.max(1, short)); }).catch(() => { growing.current = false; });
+    return true;
+  }, [student, esRef, mode, loadPools]);
+
   const extend = useCallback((n: number) => {
     const list = itemsRef.current;
     const pool = candidates();
@@ -379,6 +393,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
           if (feed !== modeRef.current || failed) return;
           extend(short);
         });
+      } else if (!targets.length && mode === "foryou" && !growing.current && widen(n - picks.length)) {
+        // Every genre so far has run out: For You opens a new one (closest to their taste first), so it never ends.
       } else if (!targets.length && againMisses.current < 8) {
         // Every show has had its turn: bring shows back (not the last 15), each with an episode this feed hasn't played.
         const recent = list.slice(-15).map((x) => x.show.id);
@@ -412,7 +428,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     }
     setItems((c) => [...c, ...woven]);
     added.filter((x) => x.state === "loading").forEach(fill);
-  }, [candidates, fill, mode, esRef, student, growTargets, loadMore]);
+  }, [candidates, fill, mode, esRef, student, growTargets, loadMore, widen]);
+  extendRef.current = extend;
 
   // Reset the feed when the mode changes; start it once there's something to pick from.
   useEffect(() => {
@@ -593,7 +610,8 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (cur.current?.dataset.ep === it.ep.id) saveSpot(it.ep, cur.current.currentTime);
     const secs = listened.current;
     if (secs < 3) { signal(it.show.genre, "skip"); update((e) => ({ ...e, skipped: [it.show.id, ...e.skipped].slice(0, 80) })); }
-    else if (secs >= 30) { signal(it.show.genre, "listen"); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
+    else if (secs < 15) signal(it.show.genre, "pass");
+    else if (secs >= 30) { signal(it.show.genre, secs >= 300 ? "deep" : "listen"); const id = it.ep.id; update((e) => (e.heard.includes(id) ? e : { ...e, heard: [id, ...e.heard].slice(0, 200) })); }
   }, [signal, update]);
 
   const activate = useCallback((i: number, play: boolean) => {
@@ -981,8 +999,15 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     modeStarted.current = true;
     const m = esRef.current.modes.find((x) => x.id === playMode.id);
     if (!m?.episodes.length) return;
-    if (playMode.shuffle) { const l = m.episodes.slice(); for (let i = l.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [l[i], l[j]] = [l[j], l[i]]; } playSaved(l, 0, m.name); }
-    else playSaved(m.episodes, Math.min(playMode.index, m.episodes.length - 1), m.name);
+    const mix = <T,>(l: T[]) => { const x = l.slice(); for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
+    const order = playMode.order ?? (playMode.shuffle ? "shuffle" : "in");
+    if (order === "shuffle") playSaved(mix(m.episodes), 0, m.name);
+    else if (order === "shows") {
+      // Shuffle the shows, but each show's episodes play in the order they're listed.
+      const groups = new Map<string, SavedEpisode[]>();
+      for (const ep of m.episodes) groups.set(ep.showId, [...(groups.get(ep.showId) ?? []), ep]);
+      playSaved(mix(Array.from(groups.values())).flat(), 0, m.name);
+    } else playSaved(m.episodes, Math.min(playMode.index, m.episodes.length - 1), m.name);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playMode]);
 

@@ -3,13 +3,14 @@
 // episode card's ⋮ button or a press-and-hold. Modes are the same saved lists the swipe feed uses.
 import { useMemo, useState } from "react";
 import {
-  EARSHOT_LIMITS, HUB_ACCENTS, HUB_BACKGROUNDS, HUB_FONTS, MODE_ICONS, hiRes, hubTheme, inkOn,
-  type Earshot, type HubFont, type HubTheme, type PodEpisode, type PodMode, type SavedEpisode,
+  EARSHOT_LIMITS, GENRE, GENRES, HUB_ACCENTS, HUB_BACKGROUNDS, HUB_FONTS, MODE_ICONS, hiRes, hubTheme, inkOn, isTeaser,
+  type Earshot, type HubFont, type HubTheme, type PodEpisode, type PodMode, type PodShow, type SavedEpisode,
 } from "@shared/earshot";
 import { ModeIcon } from "../client/src/components/family-hub/earshot/EarshotExtras";
-import { ArrowUp, Bookmark, Check, ChevronLeft, Palette, Play, Plus, RotateCcw, Shuffle, Trash2, X } from "lucide-react";
+import { ArrowUp, Bookmark, Check, ChevronLeft, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 
 type Update = (fn: (e: Earshot) => Earshot) => void;
+type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 
 export const toSaved = (e: PodEpisode): SavedEpisode => ({ id: e.id, showId: e.showId, title: e.title, show: e.show, art: e.art, secs: e.secs, at: new Date().toISOString(), audio: e.audio, date: e.date });
 const mins = (s: number) => { const m = Math.round(s / 60); return m >= 60 ? `${Math.floor(m / 60)} hr ${m % 60} min` : `${m} min`; };
@@ -108,10 +109,20 @@ export function AddToMenu({ es, ep, update, say, onClose }: { es: Earshot; ep: P
 }
 
 /** A Pod Mode's own page, in its own look, with the editor for that look. */
-export function ModePage({ es, id, update, say, onPlay, onBack }: { es: Earshot; id: string; update: Update; say: (m: string) => void; onPlay: (index: number, shuffle?: boolean) => void; onBack: () => void }) {
+type Order = "in" | "shuffle" | "shows";
+const ORDERS: { id: Order; name: string; hint: string }[] = [
+  { id: "in", name: "In order", hint: "Top to bottom" },
+  { id: "shuffle", name: "Shuffle", hint: "Every episode mixed" },
+  { id: "shows", name: "Shuffle shows", hint: "Shows mixed, each show's episodes in order" },
+];
+
+export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es: Earshot; id: string; update: Update; say: (m: string) => void; onPlay: (index: number, order: Order) => void; onBack: () => void; api: Api; ex: string }) {
   const mode = es.modes.find((m) => m.id === id);
   const [editing, setEditing] = useState(false);
   const [rename, setRename] = useState<string | null>(null);
+  const [finding, setFinding] = useState(false);
+  const [order, setOrderState] = useState<Order>(() => { try { const v = localStorage.getItem(`podscroll.order.${id}`); return v === "shuffle" || v === "shows" ? v : "in"; } catch { return "in"; } });
+  const setOrder = (o: Order) => { setOrderState(o); try { localStorage.setItem(`podscroll.order.${id}`, o); } catch { /* private window */ } };
   const th = useMemo(() => (mode ? hubTheme(mode) : null), [mode]);
   if (!mode || !th) return <div className="px-6 py-24 text-center text-[#606060]">That Pod Mode is gone. <button onClick={onBack} className="font-semibold underline">Back home</button></div>;
   const ink = inkOn(th.bg); const font = HUB_FONTS[th.font];
@@ -143,10 +154,15 @@ export function ModePage({ es, id, update, say, onPlay, onBack }: { es: Earshot;
         </div>
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
-        <button disabled={!mode.episodes.length} onClick={() => onPlay(0)} className="inline-flex h-11 items-center gap-2 rounded-full px-6 text-[15px] font-semibold disabled:opacity-40" style={{ background: th.accent, color: inkOn(th.accent) }}><Play size={17} fill="currentColor" />Play all</button>
-        <button disabled={mode.episodes.length < 2} onClick={() => onPlay(0, true)} className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[15px] font-medium disabled:opacity-40" style={{ boxShadow: `inset 0 0 0 1px ${ink}40` }}><Shuffle size={16} />Shuffle</button>
+        <button disabled={!mode.episodes.length} onClick={() => onPlay(0, order)} className="inline-flex h-11 items-center gap-2 rounded-full px-6 text-[15px] font-semibold disabled:opacity-40" style={{ background: th.accent, color: inkOn(th.accent) }}>{order === "in" ? <Play size={17} fill="currentColor" /> : <Shuffle size={17} />}{order === "in" ? "Play" : order === "shuffle" ? "Shuffle play" : "Shuffle shows"}</button>
+        <div role="radiogroup" aria-label="Play order" className="inline-flex h-11 items-center rounded-full p-1" style={{ boxShadow: `inset 0 0 0 1px ${ink}33` }}>
+          {ORDERS.map((o) => <button key={o.id} role="radio" aria-checked={order === o.id} title={o.hint} onClick={() => setOrder(o.id)} className="h-9 rounded-full px-3.5 text-sm font-medium" style={order === o.id ? { background: ink, color: th.bg } : undefined}>{o.name}</button>)}
+        </div>
+        <button onClick={() => setFinding(true)} className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[15px] font-medium" style={{ boxShadow: `inset 0 0 0 1px ${ink}40` }}><Sparkles size={16} />Find with AI</button>
       </div>
     </section>
+
+    {finding && <AiFinderPanel mode={mode} api={api} ex={ex} update={update} say={say} onClose={() => setFinding(false)} />}
 
     {editing && <section aria-label="Customize this mode" className="mt-4 rounded-2xl border border-[#e5e5e5] p-5">
       <div className="flex items-center justify-between gap-3">
@@ -167,8 +183,8 @@ export function ModePage({ es, id, update, say, onPlay, onBack }: { es: Earshot;
     <ol className="mt-2 flex flex-col divide-y divide-[#ececec]">
       {!mode.episodes.length && <li className="py-10 text-center text-sm text-[#606060]">Nothing here yet. Hold any episode on the home page, or tap its ⋮, then pick “{mode.name}”.</li>}
       {mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5">
-        <button onClick={() => onPlay(i)} aria-label={`Play ${e.title}`} className="relative"><img src={hiRes(e.art, 160)} alt="" className="h-16 w-16 rounded-lg object-cover sm:h-[72px] sm:w-[128px]" /></button>
-        <button onClick={() => onPlay(i)} className="min-w-0 text-left">
+        <button onClick={() => onPlay(i, "in")} aria-label={`Play ${e.title}`} className="relative"><img src={hiRes(e.art, 160)} alt="" className="h-16 w-16 rounded-lg object-cover sm:h-[72px] sm:w-[128px]" /></button>
+        <button onClick={() => onPlay(i, "in")} className="min-w-0 text-left">
           <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{e.title}</span>
           <span className="line-clamp-1 text-xs text-[#606060]">{e.show}{e.secs ? ` · ${mins(e.secs)}` : ""}</span>
         </button>
@@ -190,4 +206,142 @@ function Swatches({ colors, value, onPick, label }: { colors: readonly string[];
       <input type="color" value={value} onChange={(e) => onPick(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label={`Custom ${label.toLowerCase()} color`} />
     </label>
   </div>;
+}
+
+// ---------------------------------------------------------------------------
+// Find with AI: describe what you want; filters (length, how new, genres) and a "don't include"
+// list shape what it adds. Settings are kept per mode, in this browser.
+// ---------------------------------------------------------------------------
+type AiPrefs = { prompt: string; length: "any" | "short" | "mid" | "long" | "xl"; since: "any" | "week" | "month" | "year"; genres: string[]; avoid: string[]; skipIn: boolean; noTeasers: boolean; smaller: boolean; count: number };
+const LENGTHS: { id: AiPrefs["length"]; name: string; min: number; max: number }[] = [
+  { id: "any", name: "Any length", min: 0, max: Infinity }, { id: "short", name: "Under 20 min", min: 0, max: 1200 },
+  { id: "mid", name: "20–45 min", min: 1200, max: 2700 }, { id: "long", name: "45–90 min", min: 2700, max: 5400 }, { id: "xl", name: "90 min +", min: 5400, max: Infinity },
+];
+const SINCE: { id: AiPrefs["since"]; name: string; days: number }[] = [{ id: "any", name: "Any time", days: Infinity }, { id: "week", name: "Past week", days: 7 }, { id: "month", name: "Past month", days: 31 }, { id: "year", name: "Past year", days: 366 }];
+const defaultPrefs = (m: PodMode): AiPrefs => ({ prompt: "", length: "any", since: "any", genres: [], avoid: [], skipIn: true, noTeasers: true, smaller: false, count: 10 });
+type Found = { ep: PodEpisode; show: PodShow; why: string };
+
+function AiFinderPanel({ mode, api, ex, update, say, onClose }: { mode: PodMode; api: Api; ex: string; update: Update; say: (m: string) => void; onClose: () => void }) {
+  const key = `podscroll.ai.${mode.id}`;
+  const [p, setP] = useState<AiPrefs>(() => { try { return { ...defaultPrefs(mode), ...JSON.parse(localStorage.getItem(key) || "{}") }; } catch { return defaultPrefs(mode); } });
+  const set = (x: Partial<AiPrefs>) => setP((o) => { const n = { ...o, ...x }; try { localStorage.setItem(key, JSON.stringify(n)); } catch { /* private window */ } return n; });
+  const [more, setMore] = useState(false);
+  const [avoidText, setAvoidText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [found, setFound] = useState<Found[] | null>(null);
+  const [note, setNote] = useState("");
+  const inMode = (id: string) => mode.episodes.some((e) => e.id === id);
+
+  const fits = (ep: PodEpisode, show: PodShow) => {
+    const len = LENGTHS.find((l) => l.id === p.length)!; const since = SINCE.find((x) => x.id === p.since)!;
+    if (!/^https:\/\//i.test(ep.audio || "")) return false;
+    if (ep.secs && (ep.secs < len.min || ep.secs > len.max)) return false;
+    if (since.days !== Infinity) { const d = (Date.now() - Date.parse(ep.date)) / 86_400_000; if (!Number.isFinite(d) || d > since.days) return false; }
+    if (p.noTeasers && isTeaser(ep)) return false;
+    if (p.skipIn && inMode(ep.id)) return false;
+    const hay = `${show.name} ${show.author} ${ep.title} ${ep.about}`.toLowerCase();
+    if (p.avoid.some((w) => w && hay.includes(w.toLowerCase()))) return false;
+    if (p.genres.length && show.genre && !p.genres.includes(show.genre) && show.appleGenre) {
+      const names = p.genres.flatMap((g) => GENRE[g]?.apple ?? []);
+      if (!names.includes(show.appleGenre)) return false;
+    }
+    return true;
+  };
+
+  const run = async () => {
+    setBusy(true); setFound(null); setNote("");
+    const len = LENGTHS.find((l) => l.id === p.length)!;
+    const q = [
+      p.prompt.trim() || `Podcast episodes for ${mode.name}`,
+      p.genres.length ? `Topics: ${p.genres.map((g) => GENRE[g]?.name).filter(Boolean).join(", ")}.` : "",
+      len.id !== "any" ? `Episodes ${len.name.toLowerCase()}.` : "",
+      p.avoid.length ? `Do not include anything about: ${p.avoid.join(", ")}.` : "",
+      p.smaller ? "Prefer smaller, independent shows over the biggest ones." : "",
+    ].filter(Boolean).join(" ").slice(0, 390);
+    try {
+      const b = await api("/api/earshot/ai-find", { method: "POST", body: { q } });
+      if (b && b.ai === false) setNote("AI isn't available right now, so these come from a search for your words.");
+      let picks: { show: PodShow; why: string; episode: PodEpisode | null }[] = Array.isArray(b?.picks) ? b.picks : [];
+      if (p.smaller) picks = picks.slice().sort((a, c) => (a.show.episodes || 0) - (c.show.episodes || 0));
+      const out: Found[] = [];
+      for (const pick of picks) {
+        if (out.length >= p.count) break;
+        if (p.avoid.some((w) => w && `${pick.show.name} ${pick.show.author}`.toLowerCase().includes(w.toLowerCase()))) continue;
+        let ep = pick.episode && fits(pick.episode, pick.show) ? pick.episode : null;
+        if (!ep) {
+          // The suggested episode didn't fit the filters: look for one of the show's episodes that does.
+          try { const r = await api(`/api/earshot/show/${pick.show.id}?x=1${ex}`); ep = (r.episodes || []).map((e: PodEpisode) => ({ ...e, art: e.art || pick.show.art })).find((e: PodEpisode) => fits(e, pick.show)) ?? null; } catch { /* skip this show */ }
+        }
+        if (ep) out.push({ ep: { ...ep, art: ep.art || pick.show.art }, show: pick.show, why: pick.why });
+      }
+      setFound(out);
+    } catch (e: any) { say(e?.message || "Couldn't search right now."); }
+    finally { setBusy(false); }
+  };
+
+  const add = (list: Found[]) => {
+    update((e) => ({ ...e, modes: e.modes.map((m) => {
+      if (m.id !== mode.id) return m;
+      const have = new Set(m.episodes.map((x) => x.id));
+      return { ...m, episodes: [...m.episodes, ...list.filter((f) => !have.has(f.ep.id)).map((f) => toSaved(f.ep))].slice(0, EARSHOT_LIMITS.modeEpisodes) };
+    }) }));
+    say(list.length === 1 ? `Added to ${mode.name}.` : `Added ${list.length} episodes to ${mode.name}.`);
+  };
+  const addAvoid = () => { const w = avoidText.replace(/\s+/g, " ").trim().slice(0, 40); if (w && !p.avoid.includes(w)) set({ avoid: [...p.avoid, w].slice(0, 20) }); setAvoidText(""); };
+  const chip = (on: boolean) => `h-9 rounded-full px-3.5 text-sm ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`;
+  const label = "mt-4 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]";
+
+  return <section aria-label="Find with AI" className="mt-4 rounded-2xl border border-[#e5e5e5] p-5">
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="flex items-center gap-2 text-base font-semibold"><Sparkles size={17} />Find with AI</h2>
+      <button onClick={onClose} aria-label="Close" className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={18} /></button>
+    </div>
+    <label htmlFor={`ps-ai-${mode.id}`} className="mt-3 block text-sm text-[#606060]">Describe what belongs in {mode.name}.</label>
+    <textarea id={`ps-ai-${mode.id}`} value={p.prompt} onChange={(e) => set({ prompt: e.target.value.slice(0, 300) })} rows={2} placeholder={`e.g. Calm, slow conversations about history, nothing too intense`} className="mt-2 w-full resize-none rounded-xl border border-[#d3d3d3] p-3 text-base outline-none focus:border-[#1c62b9]" />
+
+    <p className={label}>Length</p>
+    <div className="mt-2 flex flex-wrap gap-2">{LENGTHS.map((l) => <button key={l.id} onClick={() => set({ length: l.id })} aria-pressed={p.length === l.id} className={chip(p.length === l.id)}>{l.name}</button>)}</div>
+
+    <p className={label}>Don't include</p>
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      {p.avoid.map((w) => <span key={w} className="inline-flex h-9 items-center gap-1 rounded-full bg-[#fef3f2] pl-3.5 pr-1 text-sm text-[#b42318]">{w}<button onClick={() => set({ avoid: p.avoid.filter((x) => x !== w) })} aria-label={`Allow ${w} again`} className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-[#fee4e2]"><X size={14} /></button></span>)}
+      <form onSubmit={(e) => { e.preventDefault(); addAvoid(); }} className="flex items-center gap-1">
+        <label htmlFor={`ps-avoid-${mode.id}`} className="sr-only">Something to leave out</label>
+        <input id={`ps-avoid-${mode.id}`} value={avoidText} onChange={(e) => setAvoidText(e.target.value)} placeholder="A topic, word or show" className="h-9 w-44 rounded-full border border-[#d3d3d3] px-3.5 text-sm outline-none focus:border-[#1c62b9]" />
+        <button type="submit" disabled={!avoidText.trim()} className="h-9 rounded-full bg-[#f2f2f2] px-3 text-sm font-medium disabled:opacity-40">Add</button>
+      </form>
+    </div>
+
+    <button onClick={() => setMore((v) => !v)} aria-expanded={more} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[#065fd4]"><SlidersHorizontal size={15} />{more ? "Fewer filters" : "More filters"}</button>
+    {more && <div>
+      <p className={label}>Released</p>
+      <div className="mt-2 flex flex-wrap gap-2">{SINCE.map((x) => <button key={x.id} onClick={() => set({ since: x.id })} aria-pressed={p.since === x.id} className={chip(p.since === x.id)}>{x.name}</button>)}</div>
+      <p className={label}>Only these topics</p>
+      <div className="mt-2 flex flex-wrap gap-2">{GENRES.map((g) => { const on = p.genres.includes(g.id); return <button key={g.id} onClick={() => set({ genres: on ? p.genres.filter((x) => x !== g.id) : [...p.genres, g.id] })} aria-pressed={on} className={chip(on)}>{g.name}</button>; })}</div>
+      <p className={label}>How many</p>
+      <div className="mt-2 flex flex-wrap gap-2">{[5, 10, 20].map((n) => <button key={n} onClick={() => set({ count: n })} aria-pressed={p.count === n} className={chip(p.count === n)}>{n} episodes</button>)}</div>
+      <div className="mt-4 flex flex-col gap-2">
+        {([["skipIn", "Skip episodes already in this mode"], ["noTeasers", "No trailers or short previews"], ["smaller", "Prefer smaller, independent shows"]] as [keyof AiPrefs, string][]).map(([k, t]) =>
+          <label key={k} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm"><input type="checkbox" checked={!!p[k]} onChange={(e) => set({ [k]: e.target.checked } as Partial<AiPrefs>)} className="h-5 w-5 accent-[#0f0f0f]" />{t}</label>)}
+      </div>
+    </div>}
+
+    <div className="mt-5 flex flex-wrap gap-2">
+      <button onClick={run} disabled={busy} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#0f0f0f] px-6 text-[15px] font-semibold text-white disabled:opacity-60">{busy ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}{busy ? "Finding…" : found ? "Find more" : "Find episodes"}</button>
+      {found && found.length > 0 && <button onClick={() => add(found)} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#f2f2f2] px-5 text-[15px] font-medium hover:bg-[#e5e5e5]"><Plus size={17} />Add all {found.length}</button>}
+    </div>
+    {note && <p className="mt-3 text-xs text-[#767676]">{note}</p>}
+    {found && !found.length && <p className="mt-4 text-sm text-[#606060]">Nothing fit those filters. Loosen one (length or released) and try again.</p>}
+    {found && found.length > 0 && <ul className="mt-4 divide-y divide-[#ececec]">
+      {found.map((f) => { const added = inMode(f.ep.id); return <li key={f.ep.id} className="flex items-center gap-3 py-2.5">
+        <img src={hiRes(f.ep.art, 120)} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-1 text-sm font-semibold">{f.ep.title}</p>
+          <p className="truncate text-xs text-[#606060]">{f.show.name}{f.ep.secs ? ` · ${mins(f.ep.secs)}` : ""}</p>
+          {f.why && <p className="line-clamp-1 text-xs text-[#767676]">{f.why}</p>}
+        </div>
+        <button onClick={() => add([f])} disabled={added} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-[#f2f2f2] px-3.5 text-sm font-medium disabled:bg-transparent disabled:text-[#606060]">{added ? <><Check size={15} />Added</> : <><Plus size={15} />Add</>}</button>
+      </li>; })}
+    </ul>}
+  </section>;
 }
