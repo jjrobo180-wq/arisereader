@@ -73,8 +73,9 @@ export function didYouMean(q: string, texts: string[]): string | null {
   return changed && out.toLowerCase() !== q.toLowerCase() ? out : null;
 }
 
-export function SearchPage({ q, api, ex, onOpen, onMore, onSearch }: {
+export function SearchPage({ q, api, ex, onOpen, onMore, onSearch, hidden }: {
   q: string; api: Api; ex: string; onOpen: (e: PodEpisode) => void; onMore: ((e: PodEpisode) => void) | null; onSearch: (q: string) => void;
+  hidden?: { shows: Set<string>; eps: Set<string> };
 }) {
   const [res, setRes] = useState<{ shows: PodShow[]; episodes: PodEpisode[] } | null>(null);
   const [err, setErr] = useState("");
@@ -110,18 +111,18 @@ export function SearchPage({ q, api, ex, onOpen, onMore, onSearch }: {
     const lenOk = (e: PodEpisode) => !e.secs || len === "any" || (len === "short" ? e.secs < 1200 : len === "mid" ? e.secs >= 1200 && e.secs <= 3600 : e.secs > 3600);
     const whenOk = (e: PodEpisode) => { const d = days(e.date); if (when === "any") return true; if (!Number.isFinite(d)) return false; return when === "week" ? d <= 7 : when === "month" ? d <= 31 : when === "year" ? d <= 366 : d > 366; };
     const sizeOk = (e: PodEpisode) => { const n = showSize.get(e.showId); if (size === "any" || n === undefined) return true; return size === "big" ? n >= 150 : n <= 80; };
-    const list = scored.filter((x) => lenOk(x.e) && whenOk(x.e) && sizeOk(x.e));
+    const list = scored.filter((x) => lenOk(x.e) && whenOk(x.e) && sizeOk(x.e) && !hidden?.shows.has(x.e.showId) && !hidden?.eps.has(x.e.id));
     const t = (e: PodEpisode) => Date.parse(e.date) || 0;
     if (sort === "new") list.sort((a, b) => t(b.e) - t(a.e));
     else if (sort === "old") list.sort((a, b) => t(a.e) - t(b.e));
     else if (sort === "popular") list.sort((a, b) => (showSize.get(b.e.showId) ?? 0) - (showSize.get(a.e.showId) ?? 0) || b.s - a.s);
     else if (!inShow) list.sort((a, b) => b.s - a.s);
     return list.map((x) => x.e);
-  }, [res, archive, inShow, pq, sort, when, len, size, showSize]);
+  }, [res, archive, inShow, pq, sort, when, len, size, showSize, hidden]);
   const shows = useMemo(() => {
-    const list = (res?.shows ?? []).filter((s) => size === "any" || (size === "big" ? s.episodes >= 150 : s.episodes <= 80));
+    const list = (res?.shows ?? []).filter((s) => !hidden?.shows.has(s.id)).filter((s) => size === "any" || (size === "big" ? s.episodes >= 150 : s.episodes <= 80));
     return sort === "popular" ? list.slice().sort((a, b) => b.episodes - a.episodes) : list;
-  }, [res, size, sort]);
+  }, [res, size, sort, hidden]);
   const suggestion = useMemo(() => (res ? didYouMean(q, [...res.shows.map((s) => s.name), ...res.episodes.map((e) => `${e.title} ${e.show}`)]) : null), [res, q]);
   const filtered = sort !== "best" || when !== "any" || len !== "any" || size !== "any" || kind !== "all";
 

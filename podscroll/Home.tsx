@@ -251,6 +251,27 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const openLive = (id: string) => { setStation(null); setLiveRoom({ id }); };
   // Pod Modes: "Add to" from any episode card, and making a new mode.
   const [addTo, setAddTo] = useState<PodEpisode | null>(null);
+  // ⋮ → Not interested / Don't show this podcast: the card goes at once, the feed learns from it,
+  // and a message offers Undo for a few seconds.
+  const [hiddenEps, setHiddenEps] = useState<Set<string>>(() => new Set());
+  const [undo, setUndo] = useState<{ text: string; undo: () => void } | null>(null);
+  useEffect(() => { if (!undo) return; const t = setTimeout(() => setUndo(null), 6000); return () => clearTimeout(t); }, [undo]);
+  const genreOfEp = (e: PodEpisode) => (e as { genre?: string }).genre || showGenre.current.get(e.showId) || "";
+  const dislike = (e: PodEpisode) => {
+    const g = genreOfEp(e); if (GENRE[g]) signal(g, "dislike");
+    update((x) => ({ ...x, skipped: [e.showId, e.showId, ...x.skipped].slice(0, 80), liked: x.liked.filter((l) => l.id !== e.id) }));
+    setHiddenEps((h) => new Set(h).add(e.id));
+    setUndo({ text: "Got it. You'll see fewer like this.", undo: () => {
+      setHiddenEps((h) => { const n = new Set(h); n.delete(e.id); return n; });
+      update((x) => { const i = x.skipped.indexOf(e.showId); const sk = x.skipped.slice(); if (i >= 0) sk.splice(i, 2); return { ...x, skipped: sk }; });
+    } });
+  };
+  const block = (e: PodEpisode) => {
+    const g = genreOfEp(e); if (GENRE[g]) signal(g, "block");
+    update((x) => ({ ...x, blocked: [e.showId, ...x.blocked.filter((b) => b !== e.showId)].slice(0, 300), follows: x.follows.filter((f) => f.id !== e.showId) }));
+    setUndo({ text: `You won't see ${e.show} again.`, undo: () => update((x) => ({ ...x, blocked: x.blocked.filter((b) => b !== e.showId) })) });
+  };
+  const hidden = useMemo(() => ({ shows: new Set(es.blocked ?? []), eps: hiddenEps }), [es.blocked, hiddenEps]);
   const [acctOpen, setAcctOpen] = useState(false);
   // Fresh Pod Modes rebuild once a day with the newest episodes (Morning Briefing: today's top news).
   const freshTried = useRef(new Set<string>());
@@ -479,7 +500,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   if (view.kind === "watch") {
     content = <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
   } else if (view.kind === "search") {
-    content = <SearchPage key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} onMore={setAddTo} onSearch={(n) => { setQ(n); go({ kind: "search", q: n }); }} />;
+    content = <SearchPage key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} onMore={setAddTo} hidden={hidden} onSearch={(n) => { setQ(n); go({ kind: "search", q: n }); }} />;
   } else if (view.kind === "mode") {
     content = <ModePage es={es} id={view.id} update={update} say={say} onBack={() => go({ kind: "home" })} api={api} ex={ex} onPlay={(index, order) => onOpenFeed(undefined, undefined, { id: view.id, index, order })} />;
   } else if (view.kind === "party") {
@@ -569,7 +590,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     </div>;
   }
 
-  return <MoreCtx.Provider value={setAddTo}><div className={`min-h-full bg-white text-[#0f0f0f] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] ${dark ? "ps-dark [color-scheme:dark]" : "[color-scheme:light]"} [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]`}>
+  return <MoreCtx.Provider value={setAddTo}><HiddenCtx.Provider value={hidden}><div className={`min-h-full bg-white text-[#0f0f0f] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] ${dark ? "ps-dark [color-scheme:dark]" : "[color-scheme:light]"} [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]`}>
     <style>{MENU_CSS}</style>
     {dark && <style>{DARK_CSS}</style>}
     {header}
@@ -591,12 +612,16 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
     {askTopics && view.kind === "home" && <TopicsPrompt onDone={doneAsking} />}
-    {addTo && <AddToMenu es={es} ep={addTo} update={update} say={say} onClose={() => setAddTo(null)} />}
+    {addTo && <AddToMenu es={es} ep={addTo} update={update} say={say} onClose={() => setAddTo(null)} onDislike={dislike} onBlock={block} />}
+    {undo && <div role="status" className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] left-1/2 z-[85] flex w-[min(92vw,440px)] -translate-x-1/2 items-center justify-between gap-3 rounded-xl bg-[#0f0f0f] py-2.5 pl-4 pr-2 text-sm text-white shadow-2xl ps-keep" style={{ animation: "ps-fade .2s ease-out both" }}>
+      <span className="min-w-0">{undo.text}</span>
+      <button onClick={() => { undo.undo(); setUndo(null); }} className="h-9 shrink-0 rounded-lg px-3 font-semibold text-[#3ea6ff] hover:bg-white/10">Undo</button>
+    </div>}
     {newMode && <NewModeDialog onClose={() => setNewMode(false)} onMake={(name) => { const id = makeMode(update, name); setNewMode(false); go({ kind: "mode", id }); }} />}
     {goLive && <GoLiveSheet api={api} say={(m) => { say(m); if (/sign in|profile|account/i.test(m)) { setGoLive(false); onJoin(); } }} onClose={() => setGoLive(false)} onStarted={(id, ticket) => { setGoLive(false); setStation(null); setLiveRoom({ id, ticket }); }} />}
     {liveRoom && <LiveRoom key={liveRoom.id} api={api} say={say} roomId={liveRoom.id} ticket={liveRoom.ticket} wsBase={liveBase}
       onClose={() => { setLiveRoom(null); api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); }} />}
-  </div></MoreCtx.Provider>;
+  </div></HiddenCtx.Provider></MoreCtx.Provider>;
 }
 
 /** A 16:9 picture made from a square cover: the cover sits in the middle over a blurred copy of itself. */
@@ -620,11 +645,14 @@ function Thumb({ e, previewing = false }: { e: PodEpisode; previewing?: boolean 
 
 /** Opens "Add to" for an episode (Listen later, Pod Modes); set once for the whole home page. */
 const MoreCtx = createContext<((e: PodEpisode) => void) | null>(null);
+/** Shows they blocked and episodes they marked Not interested: never drawn. */
+const HiddenCtx = createContext<{ shows: Set<string>; eps: Set<string> }>({ shows: new Set(), eps: new Set() });
 
 function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) => void }) {
   const onMore = useContext(MoreCtx);
+  const hidden = useContext(HiddenCtx);
   return <div className="grid gap-x-3.5 gap-y-7 pt-3 [grid-template-columns:repeat(auto-fill,minmax(min(180px,calc(50%_-_7px)),1fr))]">
-    {list.map((e) => <Card key={e.id} e={e} onOpen={onOpen} onMore={onMore} />)}
+    {list.filter((e) => !hidden.shows.has(e.showId) && !hidden.eps.has(e.id)).map((e) => <Card key={e.id} e={e} onOpen={onOpen} onMore={onMore} />)}
   </div>;
 }
 

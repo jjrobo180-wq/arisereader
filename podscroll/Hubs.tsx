@@ -8,7 +8,7 @@ import {
 } from "@shared/earshot";
 import { ModeIcon } from "../client/src/components/family-hub/earshot/EarshotExtras";
 import { artIn } from "./art";
-import { ArrowUp, Bookmark, Check, ChevronLeft, Pencil, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowUp, Ban, Bookmark, Check, ThumbsDown, ChevronLeft, Pencil, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 
 type Update = (fn: (e: Earshot) => Earshot) => void;
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -96,7 +96,7 @@ export function NewModeDialog({ onMake, onClose }: { onMake: (name: string) => v
 }
 
 /** "Add to": Listen later and every Pod Mode, from an episode card. */
-export function AddToMenu({ es, ep, update, say, onClose }: { es: Earshot; ep: PodEpisode; update: Update; say: (m: string) => void; onClose: () => void }) {
+export function AddToMenu({ es, ep, update, say, onClose, onDislike, onBlock }: { es: Earshot; ep: PodEpisode; update: Update; say: (m: string) => void; onClose: () => void; onDislike?: (e: PodEpisode) => void; onBlock?: (e: PodEpisode) => void }) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
   const inMode = (m: PodMode) => m.episodes.some((x) => x.id === ep.id);
@@ -122,6 +122,15 @@ export function AddToMenu({ es, ep, update, say, onClose }: { es: Earshot; ep: P
         <button onClick={onClose} aria-label="Close" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={20} /></button>
       </div>
       <div className="overflow-y-auto p-2">
+        {onDislike && <button onClick={() => { onDislike(ep); onClose(); }} className="flex min-h-[52px] w-full items-center gap-3 rounded-lg px-2 text-left hover:bg-[#f7f7f5]">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#f2f2f2]"><ThumbsDown size={16} strokeWidth={1.8} /></span>
+          <span className="min-w-0"><span className="block text-[15px] font-medium">Not interested</span><span className="block text-xs text-[#606060]">Show fewer episodes like this</span></span>
+        </button>}
+        {onBlock && <button onClick={() => { onBlock(ep); onClose(); }} className="flex min-h-[52px] w-full items-center gap-3 rounded-lg px-2 text-left hover:bg-[#fef3f2]">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#fef3f2] text-[#b42318]"><Ban size={16} strokeWidth={1.8} /></span>
+          <span className="min-w-0"><span className="block truncate text-[15px] font-medium text-[#b42318]">Don't show this podcast</span><span className="block truncate text-xs text-[#606060]">Never see {ep.show} again</span></span>
+        </button>}
+        {(onDislike || onBlock) && <div className="mx-2 my-1.5 h-px bg-[#ececec]" />}
         {row("later", later, toggleLater, <Bookmark size={16} strokeWidth={1.8} />, "Listen later", "In your Library")}
         <p className="px-2 pb-1 pt-4 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Pod Modes</p>
         {es.modes.map((m) => { const th = hubTheme(m); return row(m.id, inMode(m), () => toggle(m.id), <span className="grid h-full w-full place-items-center" style={{ background: th.bg, color: inkOn(th.bg) }}><ModeIcon m={m} size={15} /></span>, m.name, `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}`); })}
