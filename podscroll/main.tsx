@@ -126,7 +126,7 @@ function App() {
       }} />
     </div>
     : mode === "home"
-    ? <Home es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setJoinOpen(true)} />
+    ? <Home es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setJoinOpen(true)} device={device} nickname={nickname} setNickname={setNickname} liveBase={API.replace(/^http/, "ws")} />
     : <>
       <Player key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
         onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={feedStart} mediaUrl={mediaUrl}

@@ -4,11 +4,13 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GENRE, GENRES, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
-import { Bell, Clock, Heart, Home as HomeIcon, Loader2, Menu, Radio as RadioIcon, Search, Sparkles, ThumbsUp, X } from "lucide-react";
+import { Bell, Clock, Heart, Home as HomeIcon, Loader2, Menu, Mic, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
+import { PartyRoom } from "./Party";
+import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -36,9 +38,10 @@ function parseHash(): View {
   if (a === "liked") return { kind: "liked" };
   if (a === "later") return { kind: "later" };
   if (a === "radio") return { kind: "radio" };
+  if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   return { kind: "home" };
 }
-const hashOf = (v: View) => v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
+const hashOf = (v: View) => v.kind === "party" ? `#/party/${v.id}` : v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
 
 const fromSaved = (s: SavedEpisode): PodEpisode => ({ id: s.id, showId: s.showId, show: s.show, author: "", title: s.title, about: "", audio: s.audio || "", date: s.date || s.at, secs: s.secs, art: s.art, link: "", explicit: false });
 
@@ -78,7 +81,7 @@ const WHY: { h: string; p: string }[] = [
   { h: "Swipe through substance.", p: "Every swipe is a real podcast, not a clip built to bait a click." },
 ];
 
-export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin }: {
+export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin, device, nickname, setNickname, liveBase }: {
   es: Earshot;
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
@@ -87,6 +90,10 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   onEditInterests: () => void;
   pro: boolean;
   onJoin: () => void;
+  device: string;
+  nickname: string;
+  setNickname: (n: string) => void;
+  liveBase: string;
 }) {
   const [view, setViewState] = useState<View>(parseHash);
   const go = useCallback((v: View) => { const h = hashOf(v); if (location.hash !== h) location.hash = h; else setViewState(v); window.scrollTo(0, 0); }, []);
@@ -119,6 +126,19 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   // Live radio keeps playing while you browse the rest of the home page.
   const [station, setStation] = useState<Station | null>(null);
   const stopRadio = useCallback(() => setStation(null), []);
+  // Listening together and the radio don't mix: the radio stops when a group opens.
+  useEffect(() => { if (view.kind === "party") setStation(null); }, [view.kind]);
+  const onPartyRoom = useCallback((id: string) => { if (location.hash !== `#/party/${id}`) history.replaceState(null, "", `${location.pathname}${location.search}#/party/${id}`); }, []);
+
+  // LivePod (audio-only live): who's live now, on the home page too.
+  const [live, setLive] = useState<LiveSummary[]>([]);
+  const [liveRoom, setLiveRoom] = useState<{ id: string; ticket?: string } | null>(null);
+  const [goLive, setGoLive] = useState(false);
+  useEffect(() => {
+    const pull = () => { if (document.visibilityState === "visible") api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); };
+    pull(); const t = setInterval(pull, 30_000); return () => clearInterval(t);
+  }, [api]);
+  const openLive = (id: string) => { setStation(null); setLiveRoom({ id }); };
   // Any genre can be a chip, not just the ones picked: its shows load the first time it's tapped.
   const [extra, setExtra] = useState<Record<string, PodEpisode[] | "loading" | "error">>({});
   useEffect(() => {
@@ -191,6 +211,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
       {navItem("Swipe feed",<Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
+      {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
+      {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => setGoLive(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
@@ -219,6 +241,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
   } else if (view.kind === "search") {
     content = <SearchResults key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} />;
+  } else if (view.kind === "party") {
+    content = <PartyRoom key="party" room={view.id} api={api} wsBase={liveBase} device={device} nickname={nickname} setNickname={setNickname} say={say} pickFrom={all} ex={ex} onRoom={onPartyRoom} onLeave={() => go({ kind: "home" })} />;
   } else if (view.kind === "radio") {
     content = <RadioView onPlay={setStation} current={station} />;
   } else if (view.kind === "liked" || view.kind === "later") {
@@ -236,6 +260,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       <div role="group" aria-label="Topics" className="sticky top-14 z-20 -mx-1 flex items-center gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
         <button onClick={() => setChip("all")} aria-pressed={chip === "all"} className={chipCls(chip === "all")}>All</button>
         <button onClick={() => go({ kind: "radio" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><RadioIcon size={15} />Radio</button>
+        <button onClick={() => go({ kind: "party", id: "new" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><Users size={15} />Listen together</button>
         {topics.map((t) => {
           const on = chip === `t:${t}`;
           return <span key={t} className="flex shrink-0 items-center">
@@ -253,6 +278,24 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         {chipGenres.map((g) => <button key={g} onClick={() => setChip(g)} aria-pressed={chip === g} className={chipCls(chip === g)}>{GENRE[g].name}</button>)}
         <button onClick={onEditInterests} className="h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">Your interests</button>
       </div>
+
+      {chip === "all" && <section aria-label="Live now" className="mb-5 mt-1">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold"><span className={`h-2 w-2 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-40"}`} />Live now</h2>
+          <button onClick={() => setGoLive(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e5] px-3 text-sm font-medium hover:bg-[#f2f2f2]"><Mic size={15} />Go live</button>
+        </div>
+        {live.length
+          ? <div className="mt-3 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">
+            {live.map((l) => <button key={l.id} onClick={() => openLive(l.id)} className="flex w-[220px] shrink-0 items-center gap-3 rounded-xl bg-[#fff4ee] p-3 text-left hover:bg-[#ffe9dc]">
+              <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-xl ring-2 ring-[#ff3b30]">{l.host.avatar || l.host.name.slice(0, 1)}<span className="absolute -bottom-1.5 rounded bg-[#ff3b30] px-1 text-[9px] font-bold text-white">LIVE</span></span>
+              <span className="flex min-w-0 flex-col">
+                <span className="line-clamp-2 text-sm font-semibold leading-snug">{l.title}</span>
+                <span className="truncate text-xs text-[#606060]">@{l.host.handle} · {l.listeners} listening</span>
+              </span>
+            </button>)}
+          </div>
+          : <p className="mt-1 text-sm text-[#606060]">No one's live right now. Audio only, so you can go live from anywhere, camera off.</p>}
+      </section>}
 
       {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="relative mb-6 mt-2 rounded-2xl bg-[#f7f7f5] px-5 pb-5 pt-4 sm:px-6">
         <div className="flex items-baseline justify-between gap-4">
@@ -280,6 +323,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     {header}
     <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
+    {goLive && <GoLiveSheet api={api} say={(m) => { say(m); if (/sign in|profile|account/i.test(m)) { setGoLive(false); onJoin(); } }} onClose={() => setGoLive(false)} onStarted={(id, ticket) => { setGoLive(false); setStation(null); setLiveRoom({ id, ticket }); }} />}
+    {liveRoom && <LiveRoom key={liveRoom.id} api={api} say={say} roomId={liveRoom.id} ticket={liveRoom.ticket} wsBase={liveBase}
+      onClose={() => { setLiveRoom(null); api("/api/earshot/creators/live").then((b) => setLive(b.live || [])).catch(() => {}); }} />}
   </div>;
 }
 
