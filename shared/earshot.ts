@@ -78,7 +78,8 @@ export type SavedEpisode = { id: string; showId: string; title: string; show: st
 
 /** Pod Modes: listening hubs for a time of day or activity (Sleep, Commute...), each a playlist that
  *  plays back to back. The built-in ones always exist; people add their own. */
-export type PodMode = { id: string; name: string; icon: string; episodes: SavedEpisode[]; theme?: HubTheme };
+/** fresh: rebuilt every day with the newest matching episodes (freshDay: the day it last was, YYYY-MM-DD). */
+export type PodMode = { id: string; name: string; icon: string; episodes: SavedEpisode[]; theme?: HubTheme; fresh?: boolean; freshDay?: string };
 
 /** A Pod Mode's own look, set by the listener: page color, accent (buttons), and typeface. */
 export type HubFont = "sans" | "serif" | "mono" | "rounded" | "condensed";
@@ -94,6 +95,7 @@ export const HUB_FONTS: Record<HubFont, { name: string; stack: string; weight: n
 export const HUB_BACKGROUNDS = ["#111013", "#1F2A44", "#0F3D3E", "#2B2118", "#3B1F2B", "#E8E1D3", "#F4F1EA", "#DCE6F0", "#E9F0E3", "#FFFFFF"] as const;
 export const HUB_ACCENTS = ["#FF6A1F", "#F2C94C", "#6EE7B7", "#93C5FD", "#C4B5FD", "#F9A8D4", "#FFFFFF", "#111013"] as const;
 const BUILT_IN_THEMES: Record<string, HubTheme> = {
+  briefing: { bg: "#FFFFFF", accent: "#111013", font: "serif" },
   sleep: { bg: "#1F2A44", accent: "#C4B5FD", font: "serif" },
   commute: { bg: "#111013", accent: "#F2C94C", font: "sans" },
   workout: { bg: "#2B2118", accent: "#FF6A1F", font: "condensed" },
@@ -125,6 +127,7 @@ export function lightness(hex: string): number {
 /** Text that reads on this color: near-black on light colors, white on dark ones. */
 export const inkOn = (hex: string) => (lightness(hex) > 0.35 ? "#111013" : "#FFFFFF");
 export const DEFAULT_MODES: readonly { id: string; name: string; icon: string; blurb: string }[] = [
+  { id: "briefing", name: "Morning Briefing", icon: "📰", blurb: "Today's newest top stories, new every day" },
   { id: "sleep", name: "Sleep", icon: "🌙", blurb: "Calm voices to drift off to" },
   { id: "commute", name: "Commute", icon: "🚗", blurb: "Right-sized for the drive" },
   { id: "workout", name: "Workout", icon: "💪", blurb: "Energy for the gym or a run" },
@@ -161,7 +164,9 @@ export type Earshot = {
 };
 
 export const EARSHOT_LIMITS = { follows: 200, liked: 300, saved: 300, heard: 200, skipped: 80, comment: 280, search: 80, modes: 24, modeEpisodes: 150 } as const;
-export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [] }));
+/** Modes that start out Fresh (rebuilt daily). */
+export const FRESH_BY_DEFAULT = ["briefing"];
+export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [], ...(FRESH_BY_DEFAULT.includes(m.id) ? { fresh: true } : {}) }));
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
 export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false, hideTeasers: true });
 export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], modes: defaultModes(), settings: defaultSettings() });
@@ -450,19 +455,31 @@ const idList = (v: unknown, max: number, unique = true) => {
 };
 
 function cleanModes(v: unknown): PodMode[] {
-  const out = defaultModes();
+  const defs = defaultModes();
+  const out: PodMode[] = [];
+  let custom = 0;
   for (const x of Array.isArray(v) ? v : []) {
     const r = obj(x); if (!r) continue;
     const id = str(r.id, 24).replace(/[^a-z0-9-]/gi, "").toLowerCase();
-    if (!id) continue;
+    if (!id || out.some((m) => m.id === id)) continue;
     const episodes = list(r.episodes, EARSHOT_LIMITS.modeEpisodes, cleanSavedEpisode);
-    const known = out.find((m) => m.id === id);
     const theme = cleanHubTheme(r.theme);
-    if (known) { known.episodes = episodes; if (theme) known.theme = theme; continue; }
+    const freshDay = /^\d{4}-\d{2}-\d{2}$/.test(String(r.freshDay ?? "")) ? String(r.freshDay) : "";
+    const extra = { ...(theme ? { theme } : {}), ...(freshDay ? { freshDay } : {}) };
+    const known = defs.find((m) => m.id === id);
+    if (known) {
+      const fresh = typeof r.fresh === "boolean" ? r.fresh : known.fresh;
+      const { fresh: _f, ...base } = known;
+      out.push({ ...base, episodes, ...extra, ...(fresh ? { fresh: true } : {}) });
+      continue;
+    }
     const name = str(r.name, 30).replace(/\s+/g, " ").trim();
-    if (!name || out.length >= EARSHOT_LIMITS.modes) continue;
-    out.push({ id, name, icon: MODE_ICONS.includes(r.icon) ? r.icon : "🎙️", episodes, ...(theme ? { theme } : {}) });
+    if (!name || custom >= EARSHOT_LIMITS.modes - defs.length) continue;
+    custom++;
+    out.push({ id, name, icon: MODE_ICONS.includes(r.icon) ? r.icon : "🎙️", episodes, ...extra, ...(r.fresh === true ? { fresh: true } : {}) });
   }
+  // Built-in modes are always there; one that's missing (a new one) goes in at its usual place.
+  defs.forEach((d, i) => { if (!out.some((m) => m.id === d.id)) out.splice(Math.min(i, out.length), 0, d); });
   return out;
 }
 

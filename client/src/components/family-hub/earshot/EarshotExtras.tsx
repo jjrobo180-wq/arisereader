@@ -2,7 +2,7 @@
 // (Sleep, Commute... playlists), "Add to", and the AI podcast finder. Shared by both apps, so it
 // imports nothing from the Arise app itself.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowUp, BookOpen, Bookmark, Car, Check, ChevronLeft, ChevronRight, Dumbbell, Headphones, ListPlus, Loader2, Moon, Play, Plus, Shirt, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
+import { ArrowUp, BookOpen, Bookmark, Car, Check, ChevronLeft, ChevronRight, Dumbbell, Headphones, ListPlus, Loader2, Moon, Newspaper, Play, Plus, Shirt, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
 import {
   DEFAULT_MODES, GENRE, HUB_FONTS, MODE_ICONS, clock, durationWords, hiRes, hubTheme, inkOn, realEpisodes,
   type Earshot as EarshotData, type PodEpisode, type PodMode, type PodShow, type SavedEpisode,
@@ -130,7 +130,7 @@ function Toggle({ on, onClick, icon, title, sub }: { on: boolean; onClick: () =>
 // Pod Modes in the Library: a card per mode; open one to play it back to back
 // ===========================================================================
 /** The built-in modes get fine line icons; ones people make get their first letter (no emoji). */
-const MODE_LINE: Record<string, LucideIcon> = { sleep: Moon, commute: Car, workout: Dumbbell, focus: Headphones, learn: BookOpen, chores: Shirt };
+const MODE_LINE: Record<string, LucideIcon> = { briefing: Newspaper, sleep: Moon, commute: Car, workout: Dumbbell, focus: Headphones, learn: BookOpen, chores: Shirt };
 export function ModeIcon({ m, size = 18 }: { m: { id: string; name: string }; size?: number }) {
   const I = MODE_LINE[m.id];
   return I ? <I size={size} strokeWidth={1.7} /> : <span style={{ fontSize: Math.round(size * 0.9) }} className="font-semibold leading-none">{(m.name.trim()[0] || "•").toUpperCase()}</span>;

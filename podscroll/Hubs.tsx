@@ -7,7 +7,7 @@ import {
   type Earshot, type HubFont, type HubTheme, type PodEpisode, type PodMode, type PodShow, type SavedEpisode,
 } from "@shared/earshot";
 import { ModeIcon } from "../client/src/components/family-hub/earshot/EarshotExtras";
-import { ArrowUp, Bookmark, Check, ChevronLeft, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowUp, Bookmark, Check, ChevronLeft, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 
 type Update = (fn: (e: Earshot) => Earshot) => void;
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -17,25 +17,45 @@ const mins = (s: number) => { const m = Math.round(s / 60); return m >= 60 ? `${
 const newModeId = (name: string) => `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 16) || "mode"}-${Math.random().toString(36).slice(2, 6)}`;
 
 /** The row of Pod Modes on the home page. */
-export function ModesRow({ es, onOpen, onNew }: { es: Earshot; onOpen: (m: PodMode) => void; onNew: () => void }) {
+export function ModesRow({ es, update, onOpen, onNew }: { es: Earshot; update: Update; onOpen: (m: PodMode) => void; onNew: () => void }) {
+  const [arranging, setArranging] = useState(false);
+  const move = (id: string, d: number) => update((e) => {
+    const list = e.modes.slice(); const i = list.findIndex((m) => m.id === id); const j = i + d;
+    if (i < 0 || j < 0 || j >= list.length) return e;
+    [list[i], list[j]] = [list[j], list[i]];
+    return { ...e, modes: list };
+  });
   return <section aria-label="Pod Modes" className="mb-6">
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex items-center justify-between gap-3">
       <h2 className="text-base font-semibold">Pod Modes</h2>
-      <span className="text-xs text-[#606060]">Hold any episode, or tap its ⋮, to add it</span>
+      <div className="flex items-center gap-3">
+        {!arranging && <span className="hidden text-xs text-[#606060] sm:inline">Hold any episode, or tap its ⋮, to add it</span>}
+        <button onClick={() => setArranging((v) => !v)} aria-pressed={arranging} className={`h-8 rounded-full px-3.5 text-sm font-medium ${arranging ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{arranging ? "Done" : "Rearrange"}</button>
+      </div>
     </div>
     <div className="-mx-1 mt-3 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-      {es.modes.map((m) => {
+      {es.modes.map((m, idx) => {
         const th = hubTheme(m); const ink = inkOn(th.bg); const font = HUB_FONTS[th.font];
-        return <button key={m.id} onClick={() => onOpen(m)} className="relative flex h-[132px] w-[168px] shrink-0 flex-col justify-between overflow-hidden rounded-xl p-3 text-left transition-transform hover:-translate-y-0.5" style={{ background: th.bg, color: ink, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)" }}>
+        const body = <>
           <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={m} size={15} /></span>
           <span className="relative">
             <span className="block truncate text-[19px] leading-tight" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>{m.name}</span>
-            <span className="block text-xs opacity-60">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : "Empty"}</span>
+            <span className="flex items-center gap-1.5 text-xs">{m.fresh && <span className="rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wider" style={{ background: th.accent, color: inkOn(th.accent) }}>Fresh</span>}<span className="opacity-60">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : m.fresh ? "Filling today" : "Empty"}</span></span>
           </span>
-          {m.episodes.length > 0 && <span className="absolute right-2 top-2 flex -space-x-2.5">{m.episodes.slice(0, 3).map((e, i) => <img key={i} src={hiRes(e.art, 80)} alt="" className="h-7 w-7 rounded-md object-cover" style={{ boxShadow: `0 0 0 2px ${th.bg}` }} />)}</span>}
-        </button>;
+          {m.episodes.length > 0 && !arranging && <span className="absolute right-2 top-2 flex -space-x-2.5">{m.episodes.slice(0, 3).map((e, i) => <img key={i} src={hiRes(e.art, 80)} alt="" className="h-7 w-7 rounded-md object-cover" style={{ boxShadow: `0 0 0 2px ${th.bg}` }} />)}</span>}
+        </>;
+        const cls = "relative flex h-[132px] w-[168px] shrink-0 flex-col justify-between overflow-hidden rounded-xl p-3 text-left";
+        const style = { background: th.bg, color: ink, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)" };
+        if (!arranging) return <button key={m.id} onClick={() => onOpen(m)} className={`${cls} transition-transform hover:-translate-y-0.5`} style={style}>{body}</button>;
+        return <div key={m.id} className={`${cls} ring-2 ring-[#1c62b9] ring-offset-2`} style={style}>
+          {body}
+          <span className="absolute right-1.5 top-1.5 flex gap-1">
+            <button onClick={() => move(m.id, -1)} disabled={idx === 0} aria-label={`Move ${m.name} left`} className="grid h-9 w-9 place-items-center rounded-full bg-black/25 text-white disabled:opacity-30"><ChevronLeft size={18} /></button>
+            <button onClick={() => move(m.id, 1)} disabled={idx === es.modes.length - 1} aria-label={`Move ${m.name} right`} className="grid h-9 w-9 place-items-center rounded-full bg-black/25 text-white disabled:opacity-30"><ChevronRight size={18} /></button>
+          </span>
+        </div>;
       })}
-      <button onClick={onNew} className="flex h-[132px] w-[120px] shrink-0 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#c4c4c4] text-sm font-medium text-[#606060] hover:bg-[#f7f7f5]"><Plus size={20} />New mode</button>
+      {!arranging && <button onClick={onNew} className="flex h-[132px] w-[120px] shrink-0 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#c4c4c4] text-sm font-medium text-[#606060] hover:bg-[#f7f7f5]"><Plus size={20} />New mode</button>}
     </div>
   </section>;
 }
@@ -126,7 +146,7 @@ export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es:
   const th = useMemo(() => (mode ? hubTheme(mode) : null), [mode]);
   if (!mode || !th) return <div className="px-6 py-24 text-center text-[#606060]">That Pod Mode is gone. <button onClick={onBack} className="font-semibold underline">Back home</button></div>;
   const ink = inkOn(th.bg); const font = HUB_FONTS[th.font];
-  const builtIn = ["sleep", "commute", "workout", "focus", "learn", "chores"].includes(mode.id);
+  const builtIn = ["briefing", "sleep", "commute", "workout", "focus", "learn", "chores"].includes(mode.id);
   const setTheme = (t: Partial<HubTheme> | null) => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id !== mode.id ? m : t === null ? { ...m, theme: undefined } : { ...m, theme: { ...hubTheme(m), ...t } })) }));
   const remove = (eid: string) => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id === mode.id ? { ...m, episodes: m.episodes.filter((x) => x.id !== eid) } : m)) }));
   const moveUp = (i: number) => update((e) => ({ ...e, modes: e.modes.map((m) => { if (m.id !== mode.id || i < 1) return m; const l = m.episodes.slice(); [l[i - 1], l[i]] = [l[i], l[i - 1]]; return { ...m, episodes: l }; }) }));
@@ -144,7 +164,7 @@ export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es:
       <div className="flex flex-wrap items-end gap-5">
         <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={mode} size={24} /></span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[.16em] opacity-60">Pod Mode</p>
+          <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.16em]"><span className="opacity-60">Pod Mode</span>{mode.fresh && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider" style={{ background: th.accent, color: inkOn(th.accent) }}>Fresh</span>}</p>
           {rename !== null
             ? <form onSubmit={(e) => { e.preventDefault(); saveName(); }}><label htmlFor="ps-mode-name" className="sr-only">Name</label><input id="ps-mode-name" autoFocus value={rename} onChange={(e) => setRename(e.target.value)} onBlur={saveName} maxLength={30} className="mt-1 h-12 w-full rounded-lg bg-black/10 px-3 text-2xl outline-none" style={{ fontFamily: font.stack, fontWeight: font.weight, color: ink }} /></form>
             : <h1 className="mt-1 text-[34px] leading-[1.05] sm:text-[48px]" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>
@@ -161,6 +181,17 @@ export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es:
         <button onClick={() => setFinding(true)} className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[15px] font-medium" style={{ boxShadow: `inset 0 0 0 1px ${ink}40` }}><Sparkles size={16} />Find with AI</button>
       </div>
     </section>
+
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e5e5e5] px-4 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">Fresh</p>
+        <p className="text-xs text-[#606060]">{mode.fresh ? `Rebuilt every day with the newest episodes${mode.freshDay ? `. Last: ${mode.freshDay === new Date().toLocaleDateString("en-CA") ? "today" : mode.freshDay}` : ""}.` : "Turn on to rebuild this mode every day with the newest episodes."}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {mode.fresh && <button onClick={() => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id === mode.id ? { ...m, freshDay: undefined } : m)) }))} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium hover:bg-[#f2f2f2]"><RefreshCw size={15} />Refresh now</button>}
+        <button role="switch" aria-checked={!!mode.fresh} aria-label="Fresh" onClick={() => update((e) => ({ ...e, modes: e.modes.map((m) => (m.id === mode.id ? { ...m, fresh: !m.fresh, freshDay: undefined } : m)) }))} className={`relative h-7 w-12 rounded-full transition ${mode.fresh ? "bg-[#0f0f0f]" : "bg-[#d3d3d3]"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${mode.fresh ? "left-6" : "left-1"}`} /></button>
+      </div>
+    </div>
 
     {finding && <AiFinderPanel mode={mode} api={api} ex={ex} update={update} say={say} onClose={() => setFinding(false)} />}
 
