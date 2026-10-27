@@ -34,29 +34,38 @@ export function ModesRow({ es, update, onOpen, onNew }: { es: Earshot; update: U
         <button onClick={() => setArranging((v) => !v)} aria-pressed={arranging} className={`h-8 rounded-full px-3.5 text-sm font-medium ${arranging ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{arranging ? "Done" : "Rearrange"}</button>
       </div>
     </div>
-    <div className="-mx-1 mt-3 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+    <div className="-mx-1 mt-3 flex gap-5 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
       {es.modes.map((m, idx) => {
-        const th = hubTheme(m); const ink = inkOn(th.bg); const font = HUB_FONTS[th.font];
-        const body = <>
-          <span className="grid h-8 w-8 place-items-center rounded-full" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={m} size={15} /></span>
-          <span className="relative">
-            <span className="block truncate text-[19px] leading-tight" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>{m.name}</span>
-            <span className="flex items-center gap-1.5 text-xs">{m.fresh && <span className="rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wider" style={{ background: th.accent, color: inkOn(th.accent) }}>Fresh</span>}<span className="opacity-60">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : m.fresh ? "Filling today" : "Empty"}</span></span>
+        const th = hubTheme(m); const font = HUB_FONTS[th.font];
+        const cover = m.episodes[0]?.art;
+        const circle = <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
+          <span className="block h-full w-full overflow-hidden rounded-full shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)]" style={{ background: th.bg }}>
+            {cover
+              ? <img src={hiRes(cover, 300)} alt="" {...artIn} className="ps-art h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]" />
+              : <span className="grid h-full w-full place-items-center" style={{ color: inkOn(th.bg) }}><ModeIcon m={m} size={34} /></span>}
           </span>
-          {m.episodes.length > 0 && !arranging && <span className="absolute right-2 top-2 flex -space-x-2.5">{m.episodes.slice(0, 3).map((e, i) => <img key={i} src={hiRes(e.art, 80)} alt="" {...artIn} className="ps-art h-7 w-7 rounded-md object-cover transition-transform duration-500 group-hover:scale-110" style={{ boxShadow: `0 0 0 2px ${th.bg}`, animationDelay: `${i * 90}ms` }} />)}</span>}
-        </>;
-        const cls = "relative flex h-[132px] w-[168px] shrink-0 flex-col justify-between overflow-hidden rounded-xl p-3 text-left";
-        const style = { background: th.bg, color: ink, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)" };
-        if (!arranging) return <button key={m.id} onClick={() => onOpen(m)} className={`${cls} group transition-transform duration-300 hover:-translate-y-0.5 active:scale-[.98]`} style={style}>{body}</button>;
-        return <div key={m.id} className={`${cls} ring-2 ring-[#1c62b9] ring-offset-2`} style={style}>
-          {body}
-          <span className="absolute right-1.5 top-1.5 flex gap-1">
-            <button onClick={() => move(m.id, -1)} disabled={idx === 0} aria-label={`Move ${m.name} left`} className="grid h-9 w-9 place-items-center rounded-full bg-black/25 text-white disabled:opacity-30"><ChevronLeft size={18} /></button>
-            <button onClick={() => move(m.id, 1)} disabled={idx === es.modes.length - 1} aria-label={`Move ${m.name} right`} className="grid h-9 w-9 place-items-center rounded-full bg-black/25 text-white disabled:opacity-30"><ChevronRight size={18} /></button>
+          <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
+          {cover && <span className="absolute -bottom-0.5 -right-0.5 grid h-9 w-9 place-items-center rounded-full ring-[3px] ring-white" style={{ background: th.accent, color: inkOn(th.accent) }}><ModeIcon m={m} size={16} /></span>}
+          {m.fresh && <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow" style={{ background: th.accent, color: inkOn(th.accent) }}>Fresh</span>}
+        </span>;
+        const label = <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
+          <span className="line-clamp-2 text-center text-[15px] leading-tight" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>{m.name}</span>
+          <span className="text-xs text-[#606060]">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : m.fresh ? "Filling today" : "Empty"}</span>
+        </span>;
+        if (!arranging) return <button key={m.id} onClick={() => onOpen(m)} className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform">{circle}{label}</button>;
+        return <div key={m.id} className="flex shrink-0 flex-col items-center gap-2.5">
+          <span className="relative rounded-full ring-2 ring-[#1c62b9] ring-offset-2">{circle}</span>
+          <span className="flex gap-1.5">
+            <button onClick={() => move(m.id, -1)} disabled={idx === 0} aria-label={`Move ${m.name} left`} className="grid h-9 w-9 place-items-center rounded-full bg-[#f2f2f2] disabled:opacity-30"><ChevronLeft size={18} /></button>
+            <button onClick={() => move(m.id, 1)} disabled={idx === es.modes.length - 1} aria-label={`Move ${m.name} right`} className="grid h-9 w-9 place-items-center rounded-full bg-[#f2f2f2] disabled:opacity-30"><ChevronRight size={18} /></button>
           </span>
+          {label}
         </div>;
       })}
-      {!arranging && <button onClick={onNew} className="flex h-[132px] w-[120px] shrink-0 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#c4c4c4] text-sm font-medium text-[#606060] hover:bg-[#f7f7f5]"><Plus size={20} />New mode</button>}
+      {!arranging && <button onClick={onNew} className="flex shrink-0 flex-col items-center gap-2.5">
+        <span className="grid h-[104px] w-[104px] place-items-center rounded-full border-2 border-dashed border-[#c4c4c4] text-[#606060] sm:h-[120px] sm:w-[120px]"><Plus size={28} /></span>
+        <span className="text-[15px] font-medium text-[#606060]">New mode</span>
+      </button>}
     </div>
   </section>;
 }
