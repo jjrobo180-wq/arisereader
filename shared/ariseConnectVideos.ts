@@ -100,6 +100,14 @@ export const STAR_VIDEOS: StarVideo[] = [
   // ── Protect, Serve & Heal ──
   V("pxBQLFLei70", "Admiral William McRaven", "Navy SEAL commander", "Admiral McRaven: if you want to change the world, make your bed", ["military"], "teen", "Make your bed every morning for a week."),
   V("LcmFlerUbMs", "Dr. Sanjay Gupta", "Brain surgeon & CNN medical reporter", "Dr. Sanjay Gupta on being a doctor", ["doctor"], "teen", "Learn how the heart pumps blood and explain it to your family."),
+  V("_nvTtRj0z6E", "Doctor Mike", "Family doctor with millions of YouTube viewers", "A day in the life of Doctor Mike", ["doctor"], "teen", "Write down three questions you'd ask a doctor about their job."),
+
+  // ── Law, Auto & Food (career paths: lawyer, mechanic, fast food) ──
+  V("EHICz5MYxNQ", "Sonia Sotomayor", "Supreme Court Justice", "Justice Sotomayor and Abby talk about careers on Sesame Street", ["lawyer"], "all", "Ask a grown-up what their career is and how they trained for it."),
+  V("b1719MlkeSE", "Ruth Bader Ginsburg", "Supreme Court Justice, 1993–2020", "Ruth Bader Ginsburg: journey to the Supreme Court", ["lawyer"], "teen", "Pick a rule you'd change and write three reasons, like a lawyer would."),
+  V("O1hF25Cowv8", "ChrisFix", "YouTuber who teaches car repair to millions", "ChrisFix: how to change your oil", ["autotech"], "teen", "With an adult, find the oil dipstick in a car and check the level."),
+  V("AMeX9jC4vCw", "Guy Fieri", "Chef & host of Diners, Drive-Ins and Dives", "Guy Fieri on restaurant industry careers", ["fastfood"], "all", "Plan a three-item menu for your own pretend restaurant."),
+  V("PfjYTJe0xrc", "Shaquille O'Neal", "NBA legend & restaurant owner", "Shaq on running Big Chicken", ["fastfood", "entrepreneur"], "teen", "Pick a restaurant you like and list every job you see when you visit."),
 ];
 
 export const starVideoById = (id: string) => STAR_VIDEOS.find((v) => v.id === id);

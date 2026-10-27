@@ -77,7 +77,29 @@ export type SocialDirectory = {
   parentsOf(studentId: number): Promise<number[]>;
   /** Sends a phone notification; optional. */
   notify?(userId: number, message: { title: string; body: string; url?: string }): Promise<unknown>;
+  /** Every active student account, for the admin's "Add students" list; optional. */
+  allStudents?(): Promise<(SocialUser & { username?: string; teacherName?: string | null })[]>;
+  /** Puts a notification in the person's A.R.I.S.E. Reader bell; optional. type "connect_invite" opens Connect. */
+  bell?(userId: number, n: { type: string; title: string; message: string }): Promise<unknown>;
 };
+
+/** An admin added this student to A.R.I.S.E. Connect, optionally with a career path picked for them. */
+export type ConnectInvite = { pathId: string | null; by: number; at: string };
+export type InviteStore = {
+  get(studentId: number): Promise<ConnectInvite | null>;
+  all(): Promise<Map<number, ConnectInvite>>;
+  save(studentId: number, invite: ConnectInvite | null): Promise<void>;
+};
+
+/** In-memory invites for tests. */
+export function createMemoryInviteStore(): InviteStore {
+  const m = new Map<number, ConnectInvite>();
+  return {
+    async get(id) { return m.has(id) ? { ...m.get(id)! } : null; },
+    async all() { return new Map([...m].map(([k, v]) => [k, { ...v }])); },
+    async save(id, invite) { if (invite) m.set(id, { ...invite }); else m.delete(id); },
+  };
+}
 
 export type SocialDeps = {
   store?: SocialStore; directory: SocialDirectory; now?: () => number; random?: () => number;
@@ -93,6 +115,12 @@ export type SocialDeps = {
     get(studentId: number): Promise<{ teacherId: number; status: "pending" | "approved" | "denied" } | null>;
     save(studentId: number, record: { teacherId: number; status: "pending" | "approved" | "denied" }): Promise<void>;
   };
+  /**
+   * Students an admin added to Connect. An added student gets in without a teacher's approval or a
+   * paid plan, and sees the career path the admin picked. Posting rules don't change: a post still
+   * needs the student's own teacher. Left out, nobody is added.
+   */
+  invites?: InviteStore;
 };
 
 /* ------------------------------------------------------------------ stores */
@@ -292,6 +320,8 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
     get: async (_id: number) => null,
     save: async () => { throw new Error("Connect access approval storage is not configured."); },
   };
+  const invites: InviteStore = deps.invites ?? { get: async () => null, all: async () => new Map(), save: async () => { throw new Error("Connect invites are not configured."); } };
+  const invitedOf = (v: SocialUser) => (v.role === "student" ? invites.get(v.id).catch(() => null) : Promise.resolve(null));
   const today = () => dayKey(now());
   const videoChecker = deps.videoChecker ?? createVideoChecker();
   const postsToday = createAttemptLimiter({ max: LIMITS.postsPerDay, windowMs: 24 * 3600_000, now });
@@ -309,10 +339,17 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       approvedByTeacher: raw.approvedByTeacher !== false, archived: !!raw.archivedAt, band: bandForGrade(grade), grade,
     };
   }
-  const hasAccess = (req: any) => (deps.access ? deps.access.self(req) : Promise.resolve(true));
+  const planAccess = (req: any) => (deps.access ? deps.access.self(req) : Promise.resolve(true));
+  /** A paid plan, or a student an admin added to Connect. */
+  const hasAccess = async (req: any) => {
+    if (!req.adminPreview && roleOf(req.user) === "student" && (await invites.get(Number(req.user?.id)).catch(() => null))) return true;
+    return planAccess(req);
+  };
   const userHasAccess = (id: number) => (deps.access ? deps.access.user(id).catch(() => false) : Promise.resolve(true));
   async function studentApproval(v: SocialUser): Promise<"approved" | "pending" | "denied" | "not_requested" | "needs_class"> {
     if (v.role !== "student") return "approved";
+    // An admin added this student: no teacher request needed (posting still needs their teacher).
+    if (await invitedOf(v)) return "approved";
     if (!v.teacherId || !v.approvedByTeacher) return "needs_class";
     const saved = await approvals.get(v.id);
     // A previous teacher's approval is not permission in the student's new class.
@@ -433,8 +470,71 @@ export function registerAriseSocialRoutes(app: Express, auth: RequestHandler, de
       },
       today: today(),
     };
-    if (v.role === "student") return res.json(approvalStatus === "approved" ? { ...base, profile: await profileOut(v.id) } : base);
+    if (v.role === "student") {
+      if (approvalStatus !== "approved") return res.json(base);
+      const invite = await invitedOf(v);
+      const path = invite?.pathId ? LEARNING_PATHS.find((p) => p.id === invite.pathId) : null;
+      return res.json({ ...base, profile: await profileOut(v.id), addedByAdmin: !!invite, assignedPath: path ? { id: path.id, title: path.title } : null });
+    }
     res.json(base);
+  }));
+
+  /* ---------- admin: add students to Connect, pick their career path, tell them in A.R.I.S.E. Reader */
+  const realAdmin = (req: any) => !req.adminPreview && roleOf(req.user) === "admin";
+  const pathOk = (id: unknown) => (id == null || id === "" ? null : LEARNING_PATHS.find((p) => p.id === String(id))?.id ?? undefined);
+
+  app.get("/api/social/admin/students", auth, handle(async (req, res) => {
+    if (!realAdmin(req)) return res.status(403).json({ message: "Admins only." });
+    noStore(res);
+    if (!dir.allStudents) return res.json({ students: [], paths: LEARNING_PATHS.map((p) => ({ id: p.id, title: p.title })) });
+    const [students, added] = await Promise.all([dir.allStudents(), invites.all()]);
+    const grades = await Promise.all(students.map((s) => dir.gradeOf(s.id).catch(() => null)));
+    const rows = students.filter((s) => s.role === "student" && !s.archived).map((s, i) => {
+      const inv = added.get(s.id);
+      return {
+        id: s.id, name: s.displayName || s.username || "Student", username: s.username || "", grade: grades[i], teacherName: s.teacherName || null,
+        added: !!inv, pathId: inv?.pathId ?? null, addedAt: inv?.at ?? null,
+      };
+    }).sort((a, b) => Number(b.added) - Number(a.added) || a.name.localeCompare(b.name));
+    res.json({ students: rows, paths: LEARNING_PATHS.map((p) => ({ id: p.id, title: p.title })) });
+  }));
+
+  /** body: { studentIds: number[], pathId?: string | null, notify?: boolean }. Adds (or updates) each student. */
+  app.post("/api/social/admin/invite", auth, handle(async (req, res) => {
+    if (!realAdmin(req)) return res.status(403).json({ message: "Admins only." });
+    const raw: unknown[] = Array.isArray(req.body?.studentIds) ? req.body.studentIds : [];
+    const ids: number[] = [...new Set(raw.map(Number))].filter((n) => Number.isSafeInteger(n) && n > 0).slice(0, 500);
+    if (!ids.length) return res.status(400).json({ message: "Pick at least one student." });
+    const pathId = pathOk(req.body?.pathId);
+    if (pathId === undefined) return res.status(400).json({ message: "Unknown career path." });
+    const path = pathId ? LEARNING_PATHS.find((p) => p.id === pathId)! : null;
+    const sendNote = req.body?.notify !== false;
+    let added = 0; const skipped: number[] = [];
+    for (const id of ids) {
+      const u = await dir.user(id);
+      if (!u || u.role !== "student" || u.archived) { skipped.push(id); continue; }
+      const before = await invites.get(id);
+      await invites.save(id, { pathId, by: Number(req.user.id), at: before?.at ?? new Date(now()).toISOString() });
+      added++;
+      if (!sendNote) continue;
+      const title = before ? "Your A.R.I.S.E. Connect career path changed" : "You’re in A.R.I.S.E. Connect!";
+      const message = path
+        ? `Your career path is ${path.title}. Tap to open A.R.I.S.E. Connect and start your first lesson.`
+        : "Tap to open A.R.I.S.E. Connect, pick a career and start earning certificates.";
+      dir.bell?.(id, { type: "connect_invite", title, message })?.catch?.(() => {});
+      dir.notify?.(id, { title, body: message, url: "/social/?welcome=1" })?.catch?.(() => {});
+    }
+    noStore(res);
+    res.json({ added, skipped });
+  }));
+
+  app.delete("/api/social/admin/invite/:id", auth, handle(async (req, res) => {
+    if (!realAdmin(req)) return res.status(403).json({ message: "Admins only." });
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ message: "Unknown student." });
+    await invites.save(id, null);
+    noStore(res);
+    res.json({ ok: true });
   }));
 
   /* ---------- Connect entry approval: separate from ordinary Reader class enrollment ---------- */

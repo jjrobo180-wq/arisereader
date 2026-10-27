@@ -15,6 +15,11 @@ export type FeedCategory =
   | "signup" | "quiz" | "assessment" | "quiz_ready"
   | "success" | "info";
 
+/** A stored notification of this type opens A.R.I.S.E. Connect (/social/). */
+export const CONNECT_INVITE_TYPE = "connect_invite";
+/** Where an opened "connect" item goes. Connect shares Reader's sign-in, so the student lands signed in. */
+export const CONNECT_INVITE_URL = "/social/?welcome=1";
+
 /** Where the bell sends someone who opens an item; the page decides what each type means. */
 export type FeedTarget = { type: string; id: number };
 
@@ -70,6 +75,8 @@ export function describeStoredType(type: unknown): { category: FeedCategory; tar
   // A quiz the student asked for was approved: the item opens it (see shared/readyQuizzes.ts).
   const ready = parseReadyQuizType(type);
   if (ready) return { category: "quiz_ready", target: { type: ready.kind === "custom" ? "custom_quiz" : "quiz", id: ready.id } };
+  // An admin added this student to A.R.I.S.E. Connect: the item opens Connect, already signed in.
+  if (String(type || "") === CONNECT_INVITE_TYPE) return { category: "success", target: { type: "connect", id: 1 } };
   const alert = parseAlertType(type);
   if (alert) {
     const category = ALERT_CATEGORY[alert.event] || "info";

@@ -8,7 +8,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/queryClient";
 import { onNotificationsRefresh, relativeTime, sessionToken } from "@/lib/notifications";
-import type { FeedCategory, FeedItem, FeedResponse } from "@shared/notifications";
+import { CONNECT_INVITE_URL, type FeedCategory, type FeedItem, type FeedResponse } from "@shared/notifications";
 import { addDismissals, cleanKeys, dismissedKeys, isLocalKey, parseDismissals, type Dismissal } from "@shared/notificationDismiss";
 
 /** The kind of thing an item links to; each page decides where that goes. */
@@ -268,6 +268,8 @@ export function NotificationBell({
       return;
     }
     void markSeen([item.key]);
+    // Connect is its own page outside this app, so it opens with a full page load (same sign-in).
+    if (item.target?.type === "connect") { setOpen(false); window.location.assign(CONNECT_INVITE_URL); return; }
     const quiz = quizLink(item.target);
     if (quiz) { setOpen(false); navigate(quiz); return; }
     if (item.target) { setOpen(false); onNavigate?.(item.target.type, item.target.id); }
@@ -298,6 +300,9 @@ export function NotificationBell({
             {item.body && <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-[#c4c0dc] [overflow-wrap:anywhere]">{item.body}</span>}
             {quizLink(item.target) && (
               <span className="mt-1.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-black text-emerald-300">Take the quiz <ChevronRight className="h-3 w-3" /></span>
+            )}
+            {item.target?.type === "connect" && (
+              <span className="mt-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] font-black text-sky-300">Open A.R.I.S.E. Connect <ChevronRight className="h-3 w-3" /></span>
             )}
             {item.kind === "action" && linked && (
               <span className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-bold text-[#fb923c]">Open <ChevronRight className="h-3 w-3" /></span>

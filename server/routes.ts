@@ -88,7 +88,7 @@ import { legacyApprovedTitle, readyQuizNotificationType } from "../shared/readyQ
 import { bookKey, sameBook } from "../shared/bookIdentity";
 import { POTTY_TIMERS_KEY, registerPottyTimerRoutes } from "./pottyTimers";
 import { registerMeetingPollRoutes } from "./meetingPoll";
-import { registerAriseSocialRoutes, type SocialUser } from "./ariseSocial";
+import { registerAriseSocialRoutes, type ConnectInvite, type SocialUser } from "./ariseSocial";
 import { registerAriseMathRoutes } from "./ariseMath";
 import { registerMathPhotoRoutes } from "./ariseMathPhoto";
 import { registerClassBehaviorRoutes } from "./classBehavior";
@@ -1842,6 +1842,28 @@ export async function registerRoutes(
       self: async (req: any) => !!(req.adminPreview || req.realUser?.isAdmin) || plans.socialAccess(req.user),
       user: async (id) => plans.socialAccess(await storage.getUser(id)),
     },
+    // Students an admin added to Connect (and the career path picked for them), in one setting.
+    // Read straight from the database: storage.getSetting is cached and turns an error into "",
+    // which would then be saved over the real list.
+    invites: (() => {
+      const KEY = "arise_connect_invites";
+      const read = async (): Promise<Record<string, ConnectInvite>> => {
+        const { data, error } = await supabase.from("settings").select("value").eq("key", KEY).maybeSingle();
+        if (error) throw new Error(error.message);
+        try { const v = data?.value ? JSON.parse(data.value) : {}; return v && typeof v === "object" ? v : {}; } catch { return {}; }
+      };
+      const clean = (v: any): ConnectInvite | null => v && typeof v === "object"
+        ? { pathId: typeof v.pathId === "string" ? v.pathId : null, by: Number(v.by) || 0, at: String(v.at || "") } : null;
+      return {
+        get: async (id: number) => clean((await read())[String(id)]),
+        all: async () => new Map(Object.entries(await read()).map(([k, v]) => [Number(k), clean(v)!] as [number, ConnectInvite]).filter(([k, v]) => k > 0 && v)),
+        save: async (id: number, invite: ConnectInvite | null) => {
+          const all = await read();
+          if (invite) all[String(id)] = invite; else delete all[String(id)];
+          await storage.upsertSetting(KEY, JSON.stringify(all));
+        },
+      };
+    })(),
     directory: {
       user: async (id) => toSocialUser(await storage.getUser(id)),
       gradeOf: async (id) => (await studentGrades())[String(id)] || null,
@@ -1849,6 +1871,17 @@ export async function registerRoutes(
       childrenOf: (parentId) => getParentStudentIds(parentId),
       parentsOf: (studentId) => getStudentParentIds(studentId),
       notify: (id, message) => notifyUser(id, message),
+      allStudents: async () => {
+        const users = await storage.getAllUsers();
+        const teacherNames = new Map(users.filter((u: any) => u.role === "teacher").map((u: any) => [Number(u.id), String(u.displayName || u.username || "")]));
+        return users
+          .filter((u: any) => (u.role || "student") === "student" && !u.isAdmin && !u.archivedAt && !isDemoStudent(u))
+          .map((u: any) => ({ ...toSocialUser(u)!, username: String(u.username || ""), teacherName: u.teacherId ? teacherNames.get(Number(u.teacherId)) || null : null }));
+      },
+      bell: async (id, n) => {
+        const { error } = await supabase.from("notifications").insert({ user_id: id, type: n.type, title: n.title, message: n.message });
+        if (error) throw new Error(error.message);
+      },
     },
   });
   // Arise Math (/math/): math practice with points, a class leaderboard, assignments and live review.
