@@ -68,15 +68,23 @@ function App() {
 
   const api = useCallback(async (path: string, init?: { method?: string; body?: unknown }) => {
     const url = API + path.replace(/^\/api\/earshot/, "/api/podscroll");
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        method: init?.method ?? "GET",
-        headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
-        body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-      });
-    } catch { throw new Error("Can't reach Pod+ right now. Check your connection and try again."); }
-    const body: any = await res.json().catch(() => ({}));
+    let res!: Response;
+    let body: any;
+    // A busy moment (the server is waiting its turn with the podcast directory): wait and ask again
+    // quietly a few times before saying anything. Only for reads; nothing is sent twice.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await fetch(url, {
+          method: init?.method ?? "GET",
+          headers: { "X-Podscroll-Device": device, ...(session ? { "X-Podscroll-Session": session } : {}), ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}) },
+          body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+        });
+      } catch { throw new Error("Can't reach Pod+ right now. Check your connection and try again."); }
+      body = await res.json().catch(() => ({}));
+      const busy = res.status === 429 || (res.status === 503 && body?.busy !== false);
+      if (!busy || attempt >= 3 || (init?.method && init.method !== "GET")) break;
+      await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+    }
     if (!res.ok) throw Object.assign(new Error(body?.message || "Something went wrong. Try again."), { status: res.status, needSignIn: !!body?.needSignIn, needProfile: !!body?.needProfile });
     return body;
   }, [device, session]);

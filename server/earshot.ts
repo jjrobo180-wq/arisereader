@@ -157,7 +157,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   };
   const appleDown = (res: any, e: any) => {
     if (e?.message !== "busy") console.error("[earshot] Apple directory:", e?.message);
-    res.status(503).json({ message: e?.message === "busy" ? "Lots of people are browsing right now. Try again in a few seconds." : "Podcasts can't be reached right now. Try again in a minute." });
+    res.status(503).json({ busy: e?.message === "busy", message: e?.message === "busy" ? "Still loading. Try again in a moment." : "Podcasts can't be reached right now. Try again in a minute." });
   };
   const storeDown = (res: any, e: any) => {
     if (e instanceof EarshotUnavailable) return res.status(503).json({ message: "Likes and comments aren't set up yet.", storage: "unavailable" });
@@ -232,7 +232,10 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
 
   /** Top shows (the round row on Pod+): Apple's charts for All and each genre; for a topic, the
    *  biggest charting/established shows whose episodes cover it (server/podcastTop.ts). */
-  const top = topShowsService((url) => dir.apple(url), (term, entity, limit) => appleSearchUrl(term, entity, limit, false));
+  const top = topShowsService((url) => dir.apple(url), (term, entity, limit) => appleSearchUrl(term, entity, limit, false), () => dir.idle());
+  // Charts load in the background, one at a time, only while nobody is waiting on Apple.
+  const warmTop = setInterval(() => { void top.warmOne().catch(() => {}); }, 15_000);
+  warmTop.unref?.();
   app.get(`${P}/top`, authMiddleware, async (req: any, res) => {
     const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, EARSHOT_LIMITS.search) : "";
     const gid = typeof req.query?.genre === "string" ? req.query.genre : "";
@@ -242,6 +245,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (limited(reads, req, res)) return;
     try {
       const shows = q ? await top.topic(q) : await top.genre(gid || undefined);
+      if (!shows) { res.set("Cache-Control", "no-store"); return res.json({ shows: [], pending: true }); }
       res.set("Cache-Control", "private, max-age=1800");
       res.json({ shows: isStudent(req) ? shows.filter((s) => GENRE[s.genre]?.kidSafe) : shows });
     } catch (e) { appleDown(res, e); }
