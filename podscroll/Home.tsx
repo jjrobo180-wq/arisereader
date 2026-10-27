@@ -182,7 +182,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   }, [view, onOpenFeed]);
 
   const header = (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 bg-white px-3 sm:px-4">
+    <header className="sticky top-0 z-30 bg-white pt-[env(safe-area-inset-top,0px)]">
+      <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-4">
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <button onClick={() => setSide((s) => !s)} aria-label="Menu" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] lg:inline-flex"><Menu size={22} strokeWidth={1.8} /></button>
         <button onClick={() => { setChip("all"); go({ kind: "home" }); }} aria-label="Pod+ home" className="inline-flex items-center gap-1.5 px-1 py-2">
@@ -200,6 +201,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] sm:inline-flex">Go ad-free</button>}
         <button aria-label="Notifications" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bell size={21} strokeWidth={1.8} /></button>
       </div>
+      </div>
     </header>
   );
 
@@ -207,7 +209,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     <button key={label} onClick={act} className={`flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2] ${on ? "bg-[#f2f2f2] font-semibold" : ""}`}>{icon}<span className="truncate">{label}</span></button>
   );
   const sidebar = side && view.kind !== "watch" && (
-    <nav aria-label="Library" className="sticky top-14 hidden max-h-[calc(100vh-56px)] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
+    <nav aria-label="Library" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] hidden max-h-[calc(100vh-56px-env(safe-area-inset-top,0px))] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
       {navItem("Swipe feed",<Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
       {navItem("Open Mic", <Mic size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "openmic"))}
@@ -260,7 +262,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     const more = !topic && chip !== "all" && !genres.includes(chip) ? extra[chip] : null;
     const shown = chip === "all" ? all : Array.isArray(more) ? more : all.filter((e) => e.genre === chip);
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6">
-      <div role="group" aria-label="Topics" className="sticky top-14 z-20 -mx-1 flex items-center gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
+      <div role="group" aria-label="Topics" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 -mx-1 flex items-center gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
         <button onClick={() => setChip("all")} aria-pressed={chip === "all"} className={chipCls(chip === "all")}>All</button>
         <button onClick={() => go({ kind: "radio" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><RadioIcon size={15} />Radio</button>
         <button onClick={() => go({ kind: "party", id: "new" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><Users size={15} />Listen together</button>
