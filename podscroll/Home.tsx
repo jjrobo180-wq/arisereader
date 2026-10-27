@@ -3,8 +3,8 @@
 // shows and episodes come from the same /api/podscroll routes the swipe feed uses (Apple Podcasts
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { GENRE, GENRES, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
-import { Bell, Moon, Sun, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { GENRE, GENRES, chooseEpisode, hiRes, pickNext, tasteOf, type Candidate, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
+import { Bell, Check, Moon, Sun, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
 import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode } from "./Hubs";
@@ -62,7 +62,7 @@ function shuffled<T>(list: T[], seed: number): T[] {
 }
 
 /** Dark mode for the home page and its pages: its light colors swapped for dark ones. */
-const DARK_CSS = ".ps-dark .bg-white{background-color:#0f0f0f}.ps-dark .bg-\\[\\#f2f2f2\\]{background-color:#272727}.ps-dark .bg-\\[\\#f7f7f5\\]{background-color:#1c1c1c}.ps-dark .bg-\\[\\#f8f8f8\\]{background-color:#222}.ps-dark .bg-\\[\\#e5e5e5\\]{background-color:#333}.ps-dark .bg-\\[\\#fff1e8\\]{background-color:#3a2416}.ps-dark .bg-\\[\\#fff4ee\\]{background-color:#2b1b11}.ps-dark .bg-\\[\\#fef3f2\\]{background-color:#3a1d1b}.ps-dark .bg-\\[\\#ececec\\]{background-color:#2a2a2a}.ps-dark .hover\\:bg-\\[\\#f2f2f2\\]:hover{background-color:#272727}.ps-dark .hover\\:bg-\\[\\#e5e5e5\\]:hover{background-color:#3a3a3a}.ps-dark .hover\\:bg-\\[\\#f7f7f5\\]:hover{background-color:#1f1f1f}.ps-dark .hover\\:bg-\\[\\#ffe9dc\\]:hover{background-color:#3a2416}.ps-dark .hover\\:bg-\\[\\#def1ff\\]:hover{background-color:#1d2b3a}.ps-dark .hover\\:bg-\\[\\#efefec\\]:hover{background-color:#262626}.ps-dark .hover\\:bg-\\[\\#fee4e2\\]:hover{background-color:#4a2420}.ps-dark .hover\\:bg-\\[\\#272727\\]:hover{background-color:#d9d9d9}.ps-dark .hover\\:bg-\\[\\#fef3f2\\]:hover{background-color:#3a1d1b}.ps-dark .text-\\[\\#0f0f0f\\]{color:#f1f1f1}.ps-dark .text-\\[\\#606060\\]{color:#aaaaaa}.ps-dark .text-\\[\\#767676\\]{color:#9a9a9a}.ps-dark .text-\\[\\#3a3a3a\\]{color:#d0d0d0}.ps-dark .text-\\[\\#065fd4\\]{color:#3ea6ff}.ps-dark .text-\\[\\#b42318\\]{color:#ff8a80}.ps-dark .text-\\[\\#9a3412\\]{color:#ffb38a}.ps-dark .text-\\[\\#c2410c\\]{color:#ff9a5a}.ps-dark .border-\\[\\#e5e5e5\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#ececec\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#d3d3d3\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#c4c4c4\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#1a1a1c\\]{border-color:#3a3a3a}.ps-dark .divide-\\[\\#ececec\\]>:not([hidden])~:not([hidden]){border-color:#2e2e2e}.ps-dark .divide-\\[\\#e5e5e5\\]>:not([hidden])~:not([hidden]){border-color:#2e2e2e}.ps-dark .ring-\\[\\#c4c4c4\\]{--tw-ring-color:#4a4a4a}.ps-dark .ring-\\[\\#d3d3d3\\]{--tw-ring-color:#4a4a4a}.ps-dark .bg-\\[\\#0f0f0f\\]:not(.ps-keep){background-color:#f1f1f1;color:#0f0f0f}.ps-dark .bg-\\[\\#0f0f0f\\]:not(.ps-keep).text-white{color:#0f0f0f}.ps-dark .bg-white\\/95{background-color:rgba(15,15,15,.95)}.ps-dark input:not([type=color]),.ps-dark textarea{color:#f1f1f1;background-color:#121212}.ps-dark input::placeholder,.ps-dark textarea::placeholder{color:#8a8a8a}.ps-dark .shadow-2xl{box-shadow:0 20px 60px rgba(0,0,0,.6)}";
+const DARK_CSS = ".ps-dark{background-color:#0f0f0f!important;color:#f1f1f1!important}.ps-dark .bg-white{background-color:#0f0f0f}.ps-dark .bg-\\[\\#f2f2f2\\]{background-color:#272727}.ps-dark .bg-\\[\\#f7f7f5\\]{background-color:#1c1c1c}.ps-dark .bg-\\[\\#f8f8f8\\]{background-color:#222}.ps-dark .bg-\\[\\#e5e5e5\\]{background-color:#333}.ps-dark .bg-\\[\\#fff1e8\\]{background-color:#3a2416}.ps-dark .bg-\\[\\#fff4ee\\]{background-color:#2b1b11}.ps-dark .bg-\\[\\#fef3f2\\]{background-color:#3a1d1b}.ps-dark .bg-\\[\\#ececec\\]{background-color:#2a2a2a}.ps-dark .hover\\:bg-\\[\\#f2f2f2\\]:hover{background-color:#272727}.ps-dark .hover\\:bg-\\[\\#e5e5e5\\]:hover{background-color:#3a3a3a}.ps-dark .hover\\:bg-\\[\\#f7f7f5\\]:hover{background-color:#1f1f1f}.ps-dark .hover\\:bg-\\[\\#ffe9dc\\]:hover{background-color:#3a2416}.ps-dark .hover\\:bg-\\[\\#def1ff\\]:hover{background-color:#1d2b3a}.ps-dark .hover\\:bg-\\[\\#efefec\\]:hover{background-color:#262626}.ps-dark .hover\\:bg-\\[\\#fee4e2\\]:hover{background-color:#4a2420}.ps-dark .hover\\:bg-\\[\\#272727\\]:hover{background-color:#d9d9d9}.ps-dark .hover\\:bg-\\[\\#fef3f2\\]:hover{background-color:#3a1d1b}.ps-dark .text-\\[\\#0f0f0f\\]{color:#f1f1f1}.ps-dark .text-\\[\\#606060\\]{color:#aaaaaa}.ps-dark .text-\\[\\#767676\\]{color:#9a9a9a}.ps-dark .text-\\[\\#3a3a3a\\]{color:#d0d0d0}.ps-dark .text-\\[\\#065fd4\\]{color:#3ea6ff}.ps-dark .text-\\[\\#b42318\\]{color:#ff8a80}.ps-dark .text-\\[\\#9a3412\\]{color:#ffb38a}.ps-dark .text-\\[\\#c2410c\\]{color:#ff9a5a}.ps-dark .border-\\[\\#e5e5e5\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#ececec\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#d3d3d3\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#c4c4c4\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#1a1a1c\\]{border-color:#3a3a3a}.ps-dark .divide-\\[\\#ececec\\]>:not([hidden])~:not([hidden]){border-color:#2e2e2e}.ps-dark .divide-\\[\\#e5e5e5\\]>:not([hidden])~:not([hidden]){border-color:#2e2e2e}.ps-dark .ring-\\[\\#c4c4c4\\]{--tw-ring-color:#4a4a4a}.ps-dark .ring-\\[\\#d3d3d3\\]{--tw-ring-color:#4a4a4a}.ps-dark .bg-\\[\\#0f0f0f\\]:not(.ps-keep){background-color:#f1f1f1;color:#0f0f0f}.ps-dark .bg-\\[\\#0f0f0f\\]:not(.ps-keep).text-white{color:#0f0f0f}.ps-dark .bg-white\\/95{background-color:rgba(15,15,15,.95)}.ps-dark input:not([type=color]),.ps-dark textarea{color:#f1f1f1;background-color:#121212}.ps-dark input::placeholder,.ps-dark textarea::placeholder{color:#8a8a8a}.ps-dark .shadow-2xl{box-shadow:0 20px 60px rgba(0,0,0,.6)}";
 
 const HINTS = [
   "Search podcasts",
@@ -91,7 +91,7 @@ const WHY: { h: string; p: string }[] = [
   { h: "Swipe through substance.", p: "Every swipe is a real podcast, not a clip built to bait a click." },
 ];
 
-export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin, device, nickname, setNickname, liveBase }: {
+export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin, device, nickname, setNickname, liveBase, signal }: {
   es: Earshot;
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
@@ -100,6 +100,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   onEditInterests: () => void;
   pro: boolean;
   onJoin: () => void;
+  signal: (genre: string, s: Signal) => void;
   device: string;
   nickname: string;
   setNickname: (n: string) => void;
@@ -129,13 +130,97 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   // One card per show (its newest episode), shuffled and taking turns between genres: a show with a
   // handful of listeners gets the same spot as the biggest one.
   const cardsOf = useCallback((g: string, list: PoolShow[]) => shuffled(list.map((p) => p.episodes[0] && { ...p.episodes[0], art: p.episodes[0].art || p.show.art, genre: g }).filter(Boolean) as (PodEpisode & { genre: string })[], seed), [seed]);
-  const all = useMemo(() => {
-    if (!pools) return [] as (PodEpisode & { genre: string })[];
-    const lists = shuffled(genres, seed).map((g) => cardsOf(g, pools[g] || []));
-    const out: (PodEpisode & { genre: string })[] = []; const seen = new Set<string>();
-    for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) { const e = l[i]; if (e && !seen.has(e.id)) { seen.add(e.id); out.push(e); } }
+  // "All" is your For You feed laid out as a grid: the same picks and the same learning as the swipe
+  // feed (shared/earshot pickNext). A brand-new listener starts from what's popular across podcast
+  // apps; that head start fades as they listen, tap and like, until the feed is theirs.
+  const esRef = useRef(es); esRef.current = es;
+  const poolsRef = useRef<Record<string, PoolShow[]>>({});
+  const [feed, setFeed] = useState<(PodEpisode & { genre: string })[]>([]);
+  const feedRef = useRef(feed); feedRef.current = feed;
+  const shownShows = useRef(new Set<string>());
+  const showGenre = useRef(new Map<string, string>());
+  const morePage = useRef(new Map<string, number | null>());
+  const growing = useRef(false);
+  const fails = useRef(0);
+  const [chart, setChart] = useState<Map<string, number> | null>(null);
+  useEffect(() => {
+    const t = setTimeout(() => setChart((c) => c ?? new Map()), 2500);
+    api("/api/earshot/top").then((b) => setChart(new Map((b.shows || []).map((sh: PodShow, i: number) => [sh.id, i + 1] as [string, number])))).catch(() => setChart((c) => c ?? new Map()));
+    return () => clearTimeout(t);
+  }, [api]);
+  const chartRef = useRef(chart); chartRef.current = chart;
+  const candidates = useCallback((): (Candidate & { episodes: PodEpisode[] })[] => {
+    const e = esRef.current;
+    const learned = Math.min(1, (e.heard.length + 2 * e.liked.length + 2 * e.follows.length + e.saved.length) / 40);
+    const out: (Candidate & { episodes: PodEpisode[] })[] = []; const seen = new Set<string>();
+    for (const [g, list] of Object.entries(poolsRef.current)) for (const p of list) {
+      if (seen.has(p.show.id)) continue; seen.add(p.show.id);
+      const show = { ...p.show, genre: p.show.genre || g };
+      showGenre.current.set(show.id, show.genre);
+      const c = chartRef.current?.get(show.id);
+      const rank = c !== undefined ? p.rank - Math.round((1 - learned) * (45 - Math.min(c, 40))) : p.rank;
+      out.push({ show, rank, episodes: p.episodes });
+    }
     return out;
-  }, [pools, genres, seed, cardsOf]);
+  }, []);
+  const buildRef = useRef<(n: number) => void>(() => {});
+  const grow = useCallback(() => {
+    if (growing.current || fails.current >= 3) return;
+    growing.current = true;
+    const e = esRef.current;
+    const loaded = Object.keys(poolsRef.current);
+    const open = GENRES.map((g) => g.id).filter((g) => !loaded.includes(g) && g !== "kids").sort((a, b) => tasteOf(e, b) - tasteOf(e, a));
+    let job: Promise<void> | null = null;
+    if (open.length) {
+      const g = Math.random() < 0.7 ? open[0] : open[Math.floor(Math.random() * open.length)];
+      job = api(`/api/earshot/feed?genres=${g}${ex}`).then((b) => { poolsRef.current[g] = b.pools?.[g] || []; });
+    } else {
+      const g = loaded.filter((x) => morePage.current.get(x) !== null).sort((a, b) => tasteOf(e, b) - tasteOf(e, a))[0];
+      if (g) {
+        const page = morePage.current.get(g) ?? 0;
+        job = api(`/api/earshot/more?genre=${g}&page=${page}${ex}`).then((b) => {
+          morePage.current.set(g, typeof b.next === "number" ? b.next : null);
+          const have = new Set((poolsRef.current[g] || []).map((x) => x.show.id));
+          poolsRef.current[g] = [...(poolsRef.current[g] || []), ...((b.pool || []) as PoolShow[]).filter((x) => !have.has(x.show.id))];
+        });
+      } else {
+        // Every show has had a turn: start the rotation again, newest unheard episodes first.
+        shownShows.current = new Set(feedRef.current.slice(-30).map((x) => x.showId));
+      }
+    }
+    const done = (ok: boolean) => { growing.current = false; fails.current = ok ? 0 : fails.current + 1; if (ok || fails.current < 3) buildRef.current(12); };
+    if (job) job.then(() => done(true), () => done(false)); else done(true);
+  }, [api, ex]);
+  const build = useCallback((n: number) => {
+    const e = esRef.current;
+    const cands = candidates();
+    const picks = pickNext(e, cands, { recentShows: feedRef.current.slice(-5).map((x) => x.showId), shownShows: shownShows.current, follows: e.follows.map((f) => f.id) }, n);
+    const byId = new Map(cands.map((c) => [c.show.id, c] as [string, (typeof cands)[number]]));
+    const add: (PodEpisode & { genre: string })[] = [];
+    for (const p of picks) {
+      shownShows.current.add(p.show.id);
+      const c = byId.get(p.show.id);
+      const ep = c?.episodes.length ? chooseEpisode(e, c.episodes) : null;
+      if (ep && !feedRef.current.some((x) => x.id === ep.id)) add.push({ ...ep, art: ep.art || p.show.art, genre: p.show.genre });
+    }
+    if (add.length) setFeed((f) => { const next = [...f, ...add]; feedRef.current = next; return next; });
+    if (picks.length < n) grow();
+  }, [candidates, grow]);
+  buildRef.current = build;
+  // Start (and restart when their topics change) once the shows and the popularity list are in.
+  useEffect(() => {
+    if (!pools || !chart) return;
+    poolsRef.current = { ...pools }; shownShows.current = new Set(); morePage.current = new Map(); fails.current = 0;
+    feedRef.current = []; setFeed([]);
+    buildRef.current(24);
+  }, [pools, chart]);
+  const all = feed;
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = moreRef.current; if (!el) return;
+    const io = new IntersectionObserver((ents) => { if (ents.some((x) => x.isIntersecting)) buildRef.current(12); }, { rootMargin: "800px 0px" });
+    io.observe(el); return () => io.disconnect();
+  });
 
   const [chip, setChip] = useState("all");
   // Live radio keeps playing while you browse the rest of the home page.
@@ -192,6 +277,12 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     if (!topics.some((x) => x.toLowerCase() === t.toLowerCase())) setTopics([...topics, t].slice(0, 20));
     setChip(`t:${t}`); setNewTopic(""); setAdding(false);
   };
+  // New here: ask for two or more topics (skippable). Skipped, the feed starts from what's popular.
+  const [askTopics, setAskTopics] = useState(() => !es.setupDone && readLs("podscroll.asked") !== "yes");
+  const doneAsking = (picked: string[] | null) => {
+    writeLs("podscroll.asked", "yes"); setAskTopics(false);
+    if (picked && picked.length >= 2) update((e) => ({ ...e, setupDone: true, genres: picked, taste: { ...e.taste, ...Object.fromEntries(picked.map((g) => [g, Math.max(3, e.taste[g] ?? 0)])) } }));
+  };
   const [whyHidden, setWhyHidden] = useState(() => readLs("podscroll.why") === "hidden");
   const [side, setSide] = useState(true);
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
@@ -205,7 +296,12 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     return () => clearInterval(t);
   }, [searching]);
   // Browse here; listen in the swipe feed, starting on the episode you picked.
-  const openEp = useCallback((e: PodEpisode) => onOpenFeed({ showId: e.showId, episodeId: e.id }), [onOpenFeed]);
+  const openEp = useCallback((e: PodEpisode) => {
+    // A tap teaches the feed too (a small nudge toward that show's genre).
+    const g = (e as { genre?: string }).genre || showGenre.current.get(e.showId);
+    if (g && GENRE[g]) signal(g, "open");
+    onOpenFeed({ showId: e.showId, episodeId: e.id });
+  }, [onOpenFeed, signal]);
   // An older #/watch/... link opens that episode in the swipe feed.
   useEffect(() => {
     if (view.kind !== "watch") return;
@@ -300,7 +396,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     const chipCls = (on: boolean) => `h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`;
     const topic = chip.startsWith("t:") ? chip.slice(2) : null;
     const more = !topic && chip !== "all" && !genres.includes(chip) ? extra[chip] : null;
-    const shown = chip === "all" ? all : Array.isArray(more) ? more : all.filter((e) => e.genre === chip);
+    const shown = chip === "all" ? feed : Array.isArray(more) ? more : cardsOf(chip, pools?.[chip] || []);
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6">
       <div role="group" aria-label="Topics" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 -mx-1 flex items-center gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
         <button onClick={() => setChip("all")} aria-pressed={chip === "all"} className={chipCls(chip === "all")}>All</button>
@@ -367,7 +463,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         : err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={load} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
         : !pools || more === "loading" ? <Skeleton />
         : more === "error" ? <p className="py-20 text-center text-[#606060]">Couldn't load {GENRE[chip]?.name}. Try again in a moment.</p>
-        : shown.length ? <Grid list={shown} onOpen={openEp} />
+        : shown.length ? <><Grid list={shown} onOpen={openEp} />{chip === "all" && <div ref={moreRef} className="flex justify-center py-10" aria-hidden="true"><Loader2 className="animate-spin text-[#606060]" size={22} /></div>}</>
         : <p className="py-20 text-center text-[#606060]">Nothing here yet. Try another topic.</p>}
     </div>;
   }
@@ -377,6 +473,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     {header}
     <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
+    {askTopics && view.kind === "home" && <TopicsPrompt onDone={doneAsking} />}
     {addTo && <AddToMenu es={es} ep={addTo} update={update} say={say} onClose={() => setAddTo(null)} />}
     {newMode && <NewModeDialog onClose={() => setNewMode(false)} onMake={(name) => { const id = makeMode(update, name); setNewMode(false); go({ kind: "mode", id }); }} />}
     {goLive && <GoLiveSheet api={api} say={(m) => { say(m); if (/sign in|profile|account/i.test(m)) { setGoLive(false); onJoin(); } }} onClose={() => setGoLive(false)} onStarted={(id, ticket) => { setGoLive(false); setStation(null); setLiveRoom({ id, ticket }); }} />}
@@ -429,6 +526,30 @@ function Card({ e, onOpen, onMore }: { e: PodEpisode; onOpen: (e: PodEpisode) =>
       </div>
     </button>
     {onMore && <button onClick={() => onMore(e)} aria-label={`Add “${e.title}” to a Pod Mode`} className="absolute right-[-6px] top-[calc(56.25%+4px)] inline-flex h-9 w-9 items-center justify-center rounded-full text-[#0f0f0f] hover:bg-[#f2f2f2] sm:opacity-70 sm:group-hover:opacity-100"><MoreVertical size={18} /></button>}
+  </div>;
+}
+
+/** First visit: pick two or more topics for the feed, or skip and start from what's popular. */
+function TopicsPrompt({ onDone }: { onDone: (picked: string[] | null) => void }) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const toggle = (g: string) => setPicked((p) => (p.includes(g) ? p.filter((x) => x !== g) : [...p, g]));
+  return <div role="dialog" aria-modal="true" aria-labelledby="ps-topics-title" className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 px-3 pb-3 sm:items-center">
+    <div className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white text-[#0f0f0f] shadow-2xl">
+      <div className="flex items-start justify-between gap-3 px-5 pt-5">
+        <div>
+          <h2 id="ps-topics-title" className="text-xl font-bold tracking-tight">What are you into?</h2>
+          <p className="mt-1 text-sm text-[#606060]">Pick two or more. Your feed starts there and keeps learning from what you play.</p>
+        </div>
+        <button onClick={() => onDone(null)} aria-label="Skip" className="-mr-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={20} /></button>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2 overflow-y-auto px-5 pb-4">
+        {GENRES.filter((g) => g.id !== "kids").map((g) => { const on = picked.includes(g.id); return <button key={g.id} onClick={() => toggle(g.id)} aria-pressed={on} className={`inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-medium ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{on && <Check size={15} />}{g.name}</button>; })}
+      </div>
+      <div className="flex items-center justify-between gap-3 border-t border-[#ececec] px-5 py-4">
+        <button onClick={() => onDone(null)} className="h-11 rounded-full px-4 text-sm font-medium text-[#606060] hover:bg-[#f2f2f2]">Skip for now</button>
+        <button onClick={() => onDone(picked)} disabled={picked.length < 2} className="h-11 rounded-full bg-[#0f0f0f] px-6 text-sm font-semibold text-white disabled:opacity-40">{picked.length < 2 ? `Pick ${2 - picked.length} more` : "Start my feed"}</button>
+      </div>
+    </div>
   </div>;
 }
 
