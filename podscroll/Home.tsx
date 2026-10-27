@@ -65,6 +65,7 @@ function shuffled<T>(list: T[], seed: number): T[] {
 }
 
 /** Dark mode for the home page and its pages: its light colors swapped for dark ones. */
+const MENU_CSS = "@keyframes ps-slide{from{transform:translateX(-100%)}to{transform:none}}.ps-slide{animation:ps-slide .28s cubic-bezier(.2,.8,.2,1) both}@keyframes ps-fade{from{opacity:0}to{opacity:1}}.ps-fade{animation:ps-fade .2s ease-out both}@media (prefers-reduced-motion:reduce){.ps-slide,.ps-fade{animation:none}}";
 const DARK_CSS = ".ps-dark{background-color:#0f0f0f!important;color:#f1f1f1!important}.ps-dark .bg-white{background-color:#0f0f0f}.ps-dark .bg-\\[\\#f2f2f2\\]{background-color:#272727}.ps-dark .bg-\\[\\#f7f7f5\\]{background-color:#1c1c1c}.ps-dark .bg-\\[\\#f8f8f8\\]{background-color:#222}.ps-dark .bg-\\[\\#e5e5e5\\]{background-color:#333}.ps-dark .bg-\\[\\#fff1e8\\]{background-color:#3a2416}.ps-dark .bg-\\[\\#fff4ee\\]{background-color:#2b1b11}.ps-dark .bg-\\[\\#fef3f2\\]{background-color:#3a1d1b}.ps-dark .bg-\\[\\#ececec\\]{background-color:#2a2a2a}.ps-dark .hover\\:bg-\\[\\#f2f2f2\\]:hover{background-color:#272727}.ps-dark .hover\\:bg-\\[\\#e5e5e5\\]:hover{background-color:#3a3a3a}.ps-dark .hover\\:bg-\\[\\#f7f7f5\\]:hover{background-color:#1f1f1f}.ps-dark .hover\\:bg-\\[\\#ffe9dc\\]:hover{background-color:#3a2416}.ps-dark .hover\\:bg-\\[\\#def1ff\\]:hover{background-color:#1d2b3a}.ps-dark .hover\\:bg-\\[\\#efefec\\]:hover{background-color:#262626}.ps-dark .hover\\:bg-\\[\\#fee4e2\\]:hover{background-color:#4a2420}.ps-dark .hover\\:bg-\\[\\#272727\\]:hover{background-color:#d9d9d9}.ps-dark .hover\\:bg-\\[\\#fef3f2\\]:hover{background-color:#3a1d1b}.ps-dark .text-\\[\\#0f0f0f\\]{color:#f1f1f1}.ps-dark .text-\\[\\#606060\\]{color:#aaaaaa}.ps-dark .text-\\[\\#767676\\]{color:#9a9a9a}.ps-dark .text-\\[\\#3a3a3a\\]{color:#d0d0d0}.ps-dark .text-\\[\\#065fd4\\]{color:#3ea6ff}.ps-dark .text-\\[\\#b42318\\]{color:#ff8a80}.ps-dark .text-\\[\\#9a3412\\]{color:#ffb38a}.ps-dark .text-\\[\\#c2410c\\]{color:#ff9a5a}.ps-dark .border-\\[\\#e5e5e5\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#ececec\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#d3d3d3\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#c4c4c4\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#1a1a1c\\]{border-color:#3a3a3a}.ps-dark .divide-\\[\\#ececec\\]>:not([hidden])~:not([hidden]){border-color:#2e2e2e}.ps-dark .divide-\\[\\#e5e5e5\\]>:not([hidden])~:not([hidden]){border-color:#2e2e2e}.ps-dark .ring-\\[\\#c4c4c4\\]{--tw-ring-color:#4a4a4a}.ps-dark .ring-\\[\\#d3d3d3\\]{--tw-ring-color:#4a4a4a}.ps-dark .bg-\\[\\#0f0f0f\\]:not(.ps-keep){background-color:#f1f1f1;color:#0f0f0f}.ps-dark .bg-\\[\\#0f0f0f\\]:not(.ps-keep).text-white{color:#0f0f0f}.ps-dark .bg-white\\/95{background-color:rgba(15,15,15,.95)}.ps-dark input:not([type=color]),.ps-dark textarea{color:#f1f1f1;background-color:#121212}.ps-dark input::placeholder,.ps-dark textarea::placeholder{color:#8a8a8a}.ps-dark .shadow-2xl{box-shadow:0 20px 60px rgba(0,0,0,.6)}";
 
 const HINTS = [
@@ -355,6 +356,10 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const [tag, setTag] = useState(0);
   useEffect(() => { const t = setInterval(() => setTag((n) => { let k = n; while (k === n) k = Math.floor(Math.random() * TAGS.length); return k; }), 4200); return () => clearInterval(t); }, []);
   const [side, setSide] = useState(true);
+  // The slide-out menu (phones and tablets; on wide screens the menu button shows/hides the side panel).
+  const [drawer, setDrawer] = useState(false);
+  useEffect(() => { if (!drawer) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [drawer]);
+  const toggleMenu = () => { if (typeof matchMedia === "function" && matchMedia("(min-width: 1024px)").matches) setSide((x) => !x); else setDrawer((d) => !d); };
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
   // The search box's placeholder: "Search podcasts" first, then a short line every few seconds, in
   // random order. Paused while the box is in use. Short enough to fit a phone's search box.
@@ -400,14 +405,13 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         {!pro
           ? <button onClick={onSignIn} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={19} strokeWidth={1.8} /><span>Sign in</span></button>
           : <span className="relative">
-            <button onClick={() => setAcctOpen((v) => !v)} aria-expanded={acctOpen} aria-label="Your account" className="grid h-9 w-9 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold text-white">{(email || "?").slice(0, 1).toUpperCase()}</button>
+            <button onClick={() => setAcctOpen((v) => !v)} aria-expanded={acctOpen} aria-label="Your account" className="grid h-9 w-9 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold text-white">{email ? email.slice(0, 1).toUpperCase() : <UserCircle size={20} />}</button>
             {acctOpen && <div className="absolute right-0 top-11 z-40 w-64 rounded-xl border border-[#e5e5e5] bg-white p-2 text-[#0f0f0f] shadow-2xl">
               <p className="truncate px-3 pb-2 pt-1 text-sm font-semibold">{email || "Signed in"}</p>
               <p className="px-3 pb-2 text-xs text-[#606060]">Pod+ Member</p>
               <button onClick={() => { setAcctOpen(false); onSignOut(); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={16} />Sign out</button>
             </div>}
           </span>}
-        <button onClick={cycleTheme} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]">{dark ? <Sun size={20} strokeWidth={1.8} /> : <Moon size={20} strokeWidth={1.8} />}</button>
         <button aria-label="Notifications" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bell size={21} strokeWidth={1.8} /></button>
       </div>
       </div>
@@ -415,16 +419,16 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   );
 
   const navItem = (label: string, icon: React.ReactNode, on: boolean, act: () => void) => (
-    <button key={label} onClick={act} className={`flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2] ${on ? "bg-[#f2f2f2] font-semibold" : ""}`}>{icon}<span className="truncate">{label}</span></button>
+    <button key={label} onClick={() => { setDrawer(false); act(); }} className={`flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2] ${on ? "bg-[#f2f2f2] font-semibold" : ""}`}>{icon}<span className="truncate">{label}</span></button>
   );
-  const sidebar = side && view.kind !== "watch" && (
-    <nav aria-label="Library" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] hidden max-h-[calc(100vh-56px-env(safe-area-inset-top,0px))] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
+  const menuBody = <>
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
       {navItem("Swipe feed",<Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
       {navItem("Open Mic", <Mic size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "openmic"))}
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
+      {navItem(live.length ? `Live · ${live.length}` : "Live", <span className="grid h-[22px] w-[22px] place-items-center"><span className={`h-2.5 w-2.5 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-50"}`} /></span>, view.kind === "live", () => go({ kind: "live" }))}
       {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => setGoLive(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
@@ -452,6 +456,10 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free. Members skip the ads and get paid for their own show.</p>
           <button onClick={onJoin} className="mt-3 h-9 w-full rounded-full bg-[#0f0f0f] text-sm font-semibold text-white hover:bg-[#272727]">Become a member</button>
         </div>}
+  </>;
+  const sidebar = side && view.kind !== "watch" && (
+    <nav aria-label="Library" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] hidden max-h-[calc(100vh-56px-env(safe-area-inset-top,0px))] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
+      {menuBody}
     </nav>
   );
 
@@ -515,14 +523,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         {chipGenres.map((g) => <button key={g} onClick={() => setChip(g)} aria-pressed={chip === g} className={chipCls(chip === g)}>{GENRE[g].name}</button>)}
         <button onClick={onEditInterests} className="h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">Your interests</button>
       </div>
-      <nav aria-label="More on Pod+" className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-        <button onClick={() => go({ kind: "live" })} className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]"><span className={`h-2 w-2 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-40"}`} />Live{live.length ? ` · ${live.length}` : ""}</button>
-        <button onClick={() => go({ kind: "radio" })} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><RadioIcon size={15} />Radio</button>
-        <button onClick={() => go({ kind: "party", id: "new" })} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Users size={15} />Listen together</button>
-        <button onClick={() => onOpenFeed(undefined, "openmic")} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Mic size={15} />Open Mic</button>
-        <button onClick={() => onOpenFeed(undefined, "social")} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><MessageCircle size={15} />Social</button>
-        <button onClick={() => onOpenFeed(undefined, "library")} className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2]`}><Library size={15} />Library</button>
-      </nav>
 
       {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
@@ -570,8 +570,24 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   }
 
   return <MoreCtx.Provider value={setAddTo}><div className={`min-h-full bg-white text-[#0f0f0f] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] ${dark ? "ps-dark [color-scheme:dark]" : "[color-scheme:light]"} [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]`}>
+    <style>{MENU_CSS}</style>
     {dark && <style>{DARK_CSS}</style>}
     {header}
+    {drawer && <div className="fixed inset-0 z-[65]" role="dialog" aria-modal="true" aria-label="Menu">
+      <div className="ps-fade absolute inset-0 bg-black/45" onClick={() => setDrawer(false)} />
+      <nav aria-label="Menu" className="ps-slide absolute inset-y-0 left-0 flex w-[290px] max-w-[85vw] flex-col gap-0.5 overflow-y-auto bg-white px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] shadow-2xl">
+        <div className="mb-2 flex h-12 items-center justify-between pl-2">
+          <span className="inline-flex items-center gap-1.5"><svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill="#ff6a1f" /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg><span className="text-[19px] font-bold tracking-[-0.04em]">Pod+</span></span>
+          <button onClick={() => setDrawer(false)} aria-label="Close menu" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={22} /></button>
+        </div>
+        {menuBody}
+        <div className="my-3 h-px bg-[#e5e5e5]" />
+        <button onClick={cycleTheme} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2]">{dark ? <Sun size={22} strokeWidth={1.8} /> : <Moon size={22} strokeWidth={1.8} />}{dark ? "Light mode" : "Dark mode"}</button>
+        {pro
+          ? <button onClick={() => { setDrawer(false); onSignOut(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={22} strokeWidth={1.8} />Sign out{email ? ` (${email})` : ""}</button>
+          : <button onClick={() => { setDrawer(false); onSignIn(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={22} strokeWidth={1.8} />Sign in</button>}
+      </nav>
+    </div>}
     <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
     {askTopics && view.kind === "home" && <TopicsPrompt onDone={doneAsking} />}
