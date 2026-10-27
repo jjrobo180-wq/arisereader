@@ -183,8 +183,8 @@ export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es:
     <ol className="mt-2 flex flex-col divide-y divide-[#ececec]">
       {!mode.episodes.length && <li className="py-10 text-center text-sm text-[#606060]">Nothing here yet. Hold any episode on the home page, or tap its ⋮, then pick “{mode.name}”.</li>}
       {mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5">
-        <button onClick={() => onPlay(i)} aria-label={`Play ${e.title}`} className="relative"><img src={hiRes(e.art, 160)} alt="" className="h-16 w-16 rounded-lg object-cover sm:h-[72px] sm:w-[128px]" /></button>
-        <button onClick={() => onPlay(i)} className="min-w-0 text-left">
+        <button onClick={() => onPlay(i, "in")} aria-label={`Play ${e.title}`} className="relative"><img src={hiRes(e.art, 160)} alt="" className="h-16 w-16 rounded-lg object-cover sm:h-[72px] sm:w-[128px]" /></button>
+        <button onClick={() => onPlay(i, "in")} className="min-w-0 text-left">
           <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{e.title}</span>
           <span className="line-clamp-1 text-xs text-[#606060]">{e.show}{e.secs ? ` · ${mins(e.secs)}` : ""}</span>
         </button>
