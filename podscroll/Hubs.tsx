@@ -30,7 +30,7 @@ export function ModesRow({ es, update, onOpen, onNew }: { es: Earshot; update: U
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-base font-semibold">Pod Modes</h2>
       <div className="flex items-center gap-3">
-        {!arranging && <span className="hidden text-xs text-[#606060] sm:inline">Hold any episode, or tap its ⋮, to add it</span>}
+        {!arranging && <span className="hidden text-xs text-[#606060] sm:inline">Tap ⋮ on any episode to add it</span>}
         <button onClick={() => setArranging((v) => !v)} aria-pressed={arranging} aria-label={arranging ? "Done editing Pod Modes" : "Edit Pod Modes"} className={`inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-sm font-medium ${arranging ? "text-[#065fd4]" : "text-[#606060] hover:text-[#0f0f0f]"}`}>{arranging ? "Done" : <><Pencil size={15} strokeWidth={1.8} />Edit</>}</button>
       </div>
     </div>
@@ -222,7 +222,7 @@ export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es:
 
     <h2 className="mt-8 text-base font-semibold">Episodes</h2>
     <ol className="mt-2 flex flex-col divide-y divide-[#ececec]">
-      {!mode.episodes.length && <li className="py-10 text-center text-sm text-[#606060]">Nothing here yet. Hold any episode on the home page, or tap its ⋮, then pick “{mode.name}”.</li>}
+      {!mode.episodes.length && <li className="py-10 text-center text-sm text-[#606060]">Nothing here yet. Tap ⋮ on any episode, then pick “{mode.name}”.</li>}
       {mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5">
         <button onClick={() => onPlay(i, "in")} aria-label={`Play ${e.title}`} className="relative block overflow-hidden rounded-lg"><img src={hiRes(e.art, 160)} alt="" {...artIn} className="pz-art h-16 w-16 object-cover transition-transform duration-500 hover:scale-110 sm:h-[72px] sm:w-[128px]" /></button>
         <button onClick={() => onPlay(i, "in")} className="min-w-0 text-left">

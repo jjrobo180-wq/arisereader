@@ -601,12 +601,20 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
 /** A 16:9 picture made from a square cover: the cover sits in the middle over a blurred copy of itself. */
 /** The cover art itself, edge to edge: rounded, a soft shadow, zooms a little on hover. */
-function Thumb({ e }: { e: PodEpisode }) {
+function Thumb({ e, previewing = false }: { e: PodEpisode; previewing?: boolean }) {
   const art = hiRes(e.art, 600);
-  return <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[#e5e5e5] shadow-[0_12px_30px_-16px_rgba(0,0,0,.55)]">
-    {art && <span className="absolute inset-0 transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:scale-[1.05] group-active:scale-[.98]"><img src={art} alt="" loading="lazy" {...artIn} className="pz-art h-full w-full object-cover" /></span>}
+  return <div className={`relative aspect-square w-full overflow-hidden rounded-2xl bg-[#e5e5e5] transition-shadow duration-300 ${previewing ? "shadow-[0_22px_50px_-18px_rgba(0,0,0,.7)]" : "shadow-[0_12px_30px_-16px_rgba(0,0,0,.55)]"}`}>
+    {art && <span className={`absolute inset-0 ${previewing ? "pz-live" : "pz-hover"}`}><img src={art} alt="" loading="lazy" draggable={false} {...artIn} className="pz-art h-full w-full object-cover" /></span>}
     <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/[.06]" />
-    {e.secs > 0 && <span className="absolute bottom-2 right-2 rounded-md bg-black/75 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white backdrop-blur-sm">{fmtTime(e.secs)}</span>}
+    {previewing && <>
+      <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+      <span className="absolute bottom-2.5 left-2.5 flex items-center gap-2 rounded-full bg-black/60 py-1 pl-2 pr-2.5 text-[11px] font-semibold text-white backdrop-blur-sm" aria-live="polite">
+        <span className="flex h-3.5 items-end gap-[2px]" aria-hidden="true">{[0, 1, 2, 3].map((k) => <span key={k} className="pz-eq w-[3px] rounded-full bg-[#ff8a3d]" style={{ animationDelay: `${k * 0.15}s` }} />)}</span>
+        Preview
+      </span>
+      <span className="absolute inset-x-0 bottom-0 h-[3px] bg-white/25"><span className="pz-fill block h-full bg-[#ff6a1f]" style={{ animationDuration: `${PREVIEW_SECS}s` }} /></span>
+    </>}
+    {!previewing && e.secs > 0 && <span className="absolute bottom-2 right-2 rounded-md bg-black/75 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white backdrop-blur-sm">{fmtTime(e.secs)}</span>}
   </div>;
 }
 
@@ -621,18 +629,58 @@ function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) =>
 }
 
 /** An episode card: tap to listen; tap ⋮, or press and hold, to add it to a Pod Mode. */
+// Press and hold an episode: a short preview plays while you hold (let go to stop). One shared
+// player for every card. It starts muted the moment a finger lands (phones only allow sound that a
+// touch started) and turns its sound on once the hold counts, so a quick tap never makes a noise.
+let previewAudio: HTMLAudioElement | null = null;
+const previewEl = () => { if (!previewAudio) { previewAudio = new Audio(); previewAudio.preload = "auto"; } return previewAudio; };
+const PREVIEW_SECS = 30;
+/** Where a preview starts: past the intro and opening ads (90 s in, or 15% into a short episode). */
+const previewAt = (secs: number) => (secs && secs < 600 ? Math.round(secs * 0.15) : 90);
+
+/** An episode card: tap to listen; press and hold to hear a preview; ⋮ adds it to a Pod Mode. */
 function Card({ e, onOpen, onMore }: { e: PodEpisode; onOpen: (e: PodEpisode) => void; onMore: ((e: PodEpisode) => void) | null }) {
-  const hold = useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean }>({ t: null, x: 0, y: 0, fired: false });
-  const cancel = () => { if (hold.current.t) clearTimeout(hold.current.t); hold.current.t = null; };
-  return <div className="group relative min-w-0 select-none [-webkit-touch-callout:none]">
+  const hold = useRef<{ t: ReturnType<typeof setTimeout> | null; stop: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean }>({ t: null, stop: null, x: 0, y: 0, fired: false });
+  const [previewing, setPreviewing] = useState(false);
+  const canPreview = /^https:\/\//i.test(e.audio || "");
+  const end = () => {
+    const h = hold.current;
+    if (h.t) clearTimeout(h.t); h.t = null;
+    if (h.stop) clearTimeout(h.stop); h.stop = null;
+    const a = previewAudio;
+    if (a && a.dataset.ep === e.id) { a.pause(); a.muted = true; delete a.dataset.ep; }
+    setPreviewing(false);
+  };
+  useEffect(() => () => end(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const start = (ev: React.PointerEvent) => {
+    if (ev.button !== 0 || !canPreview) return;
+    const h = hold.current;
+    h.fired = false; h.x = ev.clientX; h.y = ev.clientY;
+    const a = previewEl();
+    a.pause(); a.muted = true; a.volume = 1;
+    a.dataset.ep = e.id;
+    a.src = `${e.audio}#t=${previewAt(e.secs)}`;
+    a.play().catch(() => {});
+    if (h.t) clearTimeout(h.t);
+    h.t = setTimeout(() => {
+      h.t = null; h.fired = true;
+      if (a.dataset.ep !== e.id) return;
+      a.muted = false;
+      if (a.paused) a.play().catch(() => {});
+      setPreviewing(true);
+      try { navigator.vibrate?.(12); } catch { /* no vibration */ }
+      h.stop = setTimeout(end, PREVIEW_SECS * 1000);
+    }, 420);
+  };
+  return <div className={`group relative min-w-0 select-none transition-transform duration-300 [-webkit-touch-callout:none] ${previewing ? "z-10 scale-[1.03]" : ""}`}>
     <button
       onClick={() => { if (hold.current.fired) { hold.current.fired = false; return; } onOpen(e); }}
-      onPointerDown={(ev) => { if (!onMore || ev.button !== 0) return; hold.current.fired = false; hold.current.x = ev.clientX; hold.current.y = ev.clientY; cancel(); hold.current.t = setTimeout(() => { hold.current.fired = true; hold.current.t = null; try { navigator.vibrate?.(12); } catch { /* no vibration */ } onMore(e); }, 480); }}
-      onPointerMove={(ev) => { if (hold.current.t && Math.hypot(ev.clientX - hold.current.x, ev.clientY - hold.current.y) > 10) cancel(); }}
-      onPointerUp={cancel} onPointerLeave={cancel} onPointerCancel={cancel}
-      onContextMenu={(ev) => { if (onMore) { ev.preventDefault(); if (!hold.current.fired) { cancel(); hold.current.fired = true; onMore(e); } } }}
-      className="flex w-full min-w-0 flex-col gap-2 rounded-[10px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c62b9] focus-visible:ring-offset-4">
-      <Thumb e={e} />
+      onPointerDown={start}
+      onPointerMove={(ev) => { const h = hold.current; if (!h.fired && h.t && Math.hypot(ev.clientX - h.x, ev.clientY - h.y) > 10) end(); }}
+      onPointerUp={end} onPointerLeave={end} onPointerCancel={end}
+      onContextMenu={(ev) => ev.preventDefault()}
+      className="flex w-full min-w-0 flex-col gap-2 rounded-[10px] text-left [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c62b9] focus-visible:ring-offset-4">
+      <Thumb e={e} previewing={previewing} />
       <div className="flex gap-2.5 pr-7">
         <img src={hiRes(e.art, 60)} alt="" draggable={false} className="h-7 w-7 shrink-0 rounded-full bg-[#e5e5e5] object-cover" />
         <div className="flex min-w-0 flex-col gap-0.5">
