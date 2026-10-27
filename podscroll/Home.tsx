@@ -75,7 +75,7 @@ const HINTS = [
   "Get your hours back",
   "Listen while you do",
   "No algorithm bait",
-  "Not ranked by views",
+  "Your taste, not view counts",
   "Small shows count",
   "Real podcasts only",
   "No clickbait. Ever.",
@@ -87,7 +87,7 @@ const WHY: { h: string; p: string }[] = [
   { h: "No ads stacked on ads.", p: "No unskippable pre-rolls, no break every few minutes. We don't add a single ad of our own." },
   { h: "Nothing to stare at.", p: "Video wants your eyes. Audio leaves them for the drive, the gym, the work." },
   { h: "Get the hours back.", p: "The people getting things done aren't scrolling. They're listening while they do it." },
-  { h: "No algorithm bait.", p: "We don't rank by views. Anyone can start a podcast, and the thing you need might come from a show with one follower." },
+  { h: "No algorithm bait.", p: "Popular gets you started; after that your feed follows your taste, not view counts. The thing you need might come from a show with one follower." },
   { h: "Swipe through substance.", p: "Every swipe is a real podcast, not a clip built to bait a click." },
 ];
 
