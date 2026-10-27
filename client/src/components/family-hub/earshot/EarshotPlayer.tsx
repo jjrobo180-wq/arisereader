@@ -426,7 +426,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     else extend(6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
-  useEffect(() => { if (!itemsRef.current.length && (tab === "foryou" || tab === "following")) extend(6); }, [poolTick, extend, tab]);
+  // Fill the feed once there's something to pick from, and keep it filled: an episode opened first
+  // (a shared link, or a pick from the Pod+ home page) can land before For You has loaded, and the
+  // feed still has to carry on after it.
+  useEffect(() => { if (itemsRef.current.length - activeRef.current < 3 && (tab === "foryou" || tab === "following")) extend(6); }, [poolTick, extend, tab, items.length]);
 
   // Drop shows with nothing playable once they're ahead of the listener.
   useEffect(() => {
