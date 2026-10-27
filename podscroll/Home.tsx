@@ -7,6 +7,7 @@ import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type 
 import { Bell, Check, Moon, Sun, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
+import { artIn } from "./art";
 import { SearchPage } from "./Search";
 import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from "./Hubs";
 import { hubTheme } from "@shared/earshot";
@@ -572,9 +573,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 function Thumb({ e, small }: { e: PodEpisode; small?: boolean }) {
   const art = hiRes(e.art, small ? 300 : 400);
   return <div className={`relative aspect-video w-full overflow-hidden bg-[#e5e5e5] ${small ? "rounded-lg" : "rounded-[10px] transition-[border-radius] duration-200 group-hover:rounded-md"}`}>
-    {art && <img src={art} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl" />}
+    {art && <span className="absolute inset-0 scale-125 transition-transform duration-[1.2s] ease-out group-hover:scale-[1.4]"><img src={art} alt="" aria-hidden="true" loading="lazy" {...artIn} className="ps-art h-full w-full object-cover blur-2xl" /></span>}
     <div className="absolute inset-0 bg-black/15" />
-    {art && <img src={art} alt="" loading="lazy" className="absolute left-1/2 top-1/2 h-[82%] -translate-x-1/2 -translate-y-1/2 rounded-md object-cover shadow-[0_8px_30px_rgba(0,0,0,.35)]" style={{ aspectRatio: "1 / 1" }} />}
+    {art && <span className="absolute inset-0 flex items-center justify-center transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] group-hover:scale-[1.08] group-active:scale-[.97]"><img src={art} alt="" loading="lazy" {...artIn} className="ps-art h-[82%] rounded-md object-cover shadow-[0_8px_30px_rgba(0,0,0,.35)]" style={{ aspectRatio: "1 / 1" }} /></span>}
     {e.secs > 0 && <span className={`absolute rounded bg-black/80 px-1 py-px text-[11px] font-medium text-white ${small ? "bottom-1 right-1" : "bottom-1.5 right-1.5"}`}>{fmtTime(e.secs)}</span>}
   </div>;
 }
@@ -652,7 +653,7 @@ function TopShows({ shows, onShow, label, note }: { shows: PodShow[]; onShow: (s
     <div className="-mx-1 mt-3 flex gap-5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
       {shows.map((sh, i) => <button key={sh.id} onClick={() => onShow(sh)} className="flex w-[96px] shrink-0 flex-col items-center gap-2 text-center sm:w-[112px]">
         <span className="relative">
-          <img src={hiRes(sh.art, 240)} alt="" loading="lazy" className="h-[96px] w-[96px] rounded-full bg-[#f2f2f2] object-cover sm:h-[112px] sm:w-[112px]" />
+          <span className="block overflow-hidden rounded-full bg-[#f2f2f2]"><img src={hiRes(sh.art, 240)} alt="" loading="lazy" {...artIn} className="ps-art h-[96px] w-[96px] rounded-full object-cover transition-transform duration-500 hover:scale-110 sm:h-[112px] sm:w-[112px]" /></span>
           <span className="absolute -bottom-1 -left-1 grid h-7 min-w-7 place-items-center rounded-full bg-[#0f0f0f] px-1.5 text-xs font-bold text-white ring-2 ring-white">{i + 1}</span>
         </span>
         <span className="line-clamp-2 text-[13px] font-semibold leading-snug">{sh.name}</span>

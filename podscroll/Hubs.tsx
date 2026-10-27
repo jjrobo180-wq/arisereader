@@ -7,6 +7,7 @@ import {
   type Earshot, type HubFont, type HubTheme, type PodEpisode, type PodMode, type PodShow, type SavedEpisode,
 } from "@shared/earshot";
 import { ModeIcon } from "../client/src/components/family-hub/earshot/EarshotExtras";
+import { artIn } from "./art";
 import { ArrowUp, Bookmark, Check, ChevronLeft, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 
 type Update = (fn: (e: Earshot) => Earshot) => void;
@@ -42,11 +43,11 @@ export function ModesRow({ es, update, onOpen, onNew }: { es: Earshot; update: U
             <span className="block truncate text-[19px] leading-tight" style={{ fontFamily: font.stack, fontWeight: font.weight, letterSpacing: font.tracking }}>{m.name}</span>
             <span className="flex items-center gap-1.5 text-xs">{m.fresh && <span className="rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wider" style={{ background: th.accent, color: inkOn(th.accent) }}>Fresh</span>}<span className="opacity-60">{m.episodes.length ? `${m.episodes.length} episode${m.episodes.length === 1 ? "" : "s"}` : m.fresh ? "Filling today" : "Empty"}</span></span>
           </span>
-          {m.episodes.length > 0 && !arranging && <span className="absolute right-2 top-2 flex -space-x-2.5">{m.episodes.slice(0, 3).map((e, i) => <img key={i} src={hiRes(e.art, 80)} alt="" className="h-7 w-7 rounded-md object-cover" style={{ boxShadow: `0 0 0 2px ${th.bg}` }} />)}</span>}
+          {m.episodes.length > 0 && !arranging && <span className="absolute right-2 top-2 flex -space-x-2.5">{m.episodes.slice(0, 3).map((e, i) => <img key={i} src={hiRes(e.art, 80)} alt="" {...artIn} className="ps-art h-7 w-7 rounded-md object-cover transition-transform duration-500 group-hover:scale-110" style={{ boxShadow: `0 0 0 2px ${th.bg}`, animationDelay: `${i * 90}ms` }} />)}</span>}
         </>;
         const cls = "relative flex h-[132px] w-[168px] shrink-0 flex-col justify-between overflow-hidden rounded-xl p-3 text-left";
         const style = { background: th.bg, color: ink, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)" };
-        if (!arranging) return <button key={m.id} onClick={() => onOpen(m)} className={`${cls} transition-transform hover:-translate-y-0.5`} style={style}>{body}</button>;
+        if (!arranging) return <button key={m.id} onClick={() => onOpen(m)} className={`${cls} group transition-transform duration-300 hover:-translate-y-0.5 active:scale-[.98]`} style={style}>{body}</button>;
         return <div key={m.id} className={`${cls} ring-2 ring-[#1c62b9] ring-offset-2`} style={style}>
           {body}
           <span className="absolute right-1.5 top-1.5 flex gap-1">
@@ -214,7 +215,7 @@ export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es:
     <ol className="mt-2 flex flex-col divide-y divide-[#ececec]">
       {!mode.episodes.length && <li className="py-10 text-center text-sm text-[#606060]">Nothing here yet. Hold any episode on the home page, or tap its ⋮, then pick “{mode.name}”.</li>}
       {mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5">
-        <button onClick={() => onPlay(i, "in")} aria-label={`Play ${e.title}`} className="relative"><img src={hiRes(e.art, 160)} alt="" className="h-16 w-16 rounded-lg object-cover sm:h-[72px] sm:w-[128px]" /></button>
+        <button onClick={() => onPlay(i, "in")} aria-label={`Play ${e.title}`} className="relative block overflow-hidden rounded-lg"><img src={hiRes(e.art, 160)} alt="" {...artIn} className="ps-art h-16 w-16 object-cover transition-transform duration-500 hover:scale-110 sm:h-[72px] sm:w-[128px]" /></button>
         <button onClick={() => onPlay(i, "in")} className="min-w-0 text-left">
           <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{e.title}</span>
           <span className="line-clamp-1 text-xs text-[#606060]">{e.show}{e.secs ? ` · ${mins(e.secs)}` : ""}</span>
