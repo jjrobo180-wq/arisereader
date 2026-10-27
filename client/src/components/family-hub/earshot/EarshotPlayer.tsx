@@ -305,7 +305,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     // The first three genres come back first, so the feed can start while the rest load.
     const first = picked.slice(0, 3), rest = [...picked.slice(3), ...warmed];
     loadPools(first).then(() => { setLoadError(""); setLoadState("ready"); if (rest.length) void loadPools(rest).catch(() => {}); })
-      .catch((e: any) => { setLoadError(e?.message || "Apple Podcasts can't be reached right now."); setLoadState("ready"); })
+      .catch((e: any) => { setLoadError(e?.message || "Podcasts can't be reached right now."); setLoadState("ready"); })
       .finally(() => clearTimeout(slow));
     return () => clearTimeout(slow);
     // eslint-disable-next-line react-hooks/exhaustive-deps

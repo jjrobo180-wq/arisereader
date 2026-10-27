@@ -157,7 +157,7 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
   };
   const appleDown = (res: any, e: any) => {
     if (e?.message !== "busy") console.error("[earshot] Apple directory:", e?.message);
-    res.status(503).json({ message: e?.message === "busy" ? "Lots of people are browsing right now. Try again in a few seconds." : "Apple Podcasts can't be reached right now. Try again in a minute." });
+    res.status(503).json({ message: e?.message === "busy" ? "Lots of people are browsing right now. Try again in a few seconds." : "Podcasts can't be reached right now. Try again in a minute." });
   };
   const storeDown = (res: any, e: any) => {
     if (e instanceof EarshotUnavailable) return res.status(503).json({ message: "Likes and comments aren't set up yet.", storage: "unavailable" });

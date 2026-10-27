@@ -77,7 +77,8 @@ const HINTS = [
 ];
 
 const WHY: { h: string; p: string }[] = [
-  { h: "Lock your phone. It keeps playing.", p: "Free. No premium plan to keep listening with your screen off." },
+  { h: "Lock your phone. It keeps playing.", p: "On YouTube that takes Premium. Here it's free." },
+  { h: "No ads stacked on ads.", p: "No unskippable pre-rolls, no break every few minutes. We don't add a single ad of our own." },
   { h: "Nothing to stare at.", p: "Video wants your eyes. Audio leaves them for the drive, the gym, the work." },
   { h: "Get the hours back.", p: "The people getting things done aren't scrolling. They're listening while they do it." },
   { h: "No algorithm bait.", p: "We don't rank by views. Anyone can start a podcast, and the thing you need might come from a show with one follower." },
@@ -161,7 +162,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   useEffect(() => {
     if (!topKey) return;
     if (tops[topKey]) return;
-    const path = topKey === "all" ? "/api/earshot/top" : `/api/earshot/top?genre=${encodeURIComponent(topKey)}`;
+    if (topKey === "all") return;
+    const path = `/api/earshot/top?genre=${encodeURIComponent(topKey)}`;
     api(path).then((b) => setTops((t) => ({ ...t, [topKey]: b.shows || [] }))).catch(() => setTops((t) => ({ ...t, [topKey]: [] })));
   }, [topKey, tops, api]);
   const topShows = topKey ? tops[topKey] || [] : [];
@@ -332,7 +334,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           : <p className="mt-1 text-sm text-[#606060]">No one's live right now. Audio only, so you can go live from anywhere, camera off.</p>}
       </section>}
 
-      {!topic && <TopShows shows={topShows} onShow={openShowLatest} label={chip === "all" ? "Top podcasts" : `Top ${GENRE[chip]?.name ?? ""} podcasts`} note="Apple Podcasts top charts. Everything below stays unranked." />}
+      {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
       {chip === "all" && <ModesRow es={es} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
 
@@ -420,7 +422,7 @@ function Card({ e, onOpen, onMore }: { e: PodEpisode; onOpen: (e: PodEpisode) =>
 
 const byRank = (list: PoolShow[]): PodShow[] => list.slice().sort((a, b) => a.rank - b.rank).map((p) => p.show).slice(0, 16);
 
-/** Big round show covers: the most popular shows for a genre or topic, as Apple Podcasts ranks them. */
+/** Big round show covers: the most popular shows for a genre or topic. */
 function TopShows({ shows, onShow, label, note }: { shows: PodShow[]; onShow: (s: PodShow) => void; label: string; note: string }) {
   if (!shows.length) return null;
   return <section aria-label={label} className="mb-6 mt-4">
@@ -498,7 +500,7 @@ function TopicResults({ topic, api, ex, onOpen }: { topic: string; api: Api; ex:
     <h2 className="text-xl font-bold tracking-tight">{topic}</h2>
     <p className="mt-1 text-sm text-[#606060]">Every episode we can find that mentions it, newest first. Big show or brand new, same shelf.</p>
     {err ? <p className="py-16 text-center text-[#606060]">{err}</p> : !list ? <div className="mt-4"><Skeleton /></div> : <>
-      <TopShows shows={top} onShow={openShow} label={`Biggest shows covering ${topic}`} note="Charting and established shows with episodes on it. Everything below stays unranked." />
+      <TopShows shows={top} onShow={openShow} label={`Top shows covering ${topic}`} note="Everything below stays unranked." />
       {list.length ? <div className="mt-2"><p className="mb-1 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Every episode, newest first</p><Grid list={list} onOpen={onOpen} /></div> : <p className="py-16 text-center text-[#606060]">Nothing mentions “{topic}” yet. Try a different spelling.</p>}
     </>}
   </div>;
