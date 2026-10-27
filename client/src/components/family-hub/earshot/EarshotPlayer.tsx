@@ -1088,13 +1088,25 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const nowItem = items[active];
   const mini = page && !previews && !!nowItem?.ep && cur.current?.dataset.ep === nowItem.ep.id && (playing || time > 0);
   const miniPad = mini ? "pb-[4.75rem]" : "";
+  // Pod+: Open Mic, Social and Library opened from the site's home page wear the site's look
+  // (its top bar, type and white or near-black page) instead of the player's own.
+  const site = !!onHome && page;
+  const siteFont = site ? { fontFamily: "Roboto, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" } : undefined;
   const lit = (n: ReactNode) => day
-    ? <div className={`ps-light h-full ${miniPad}`}><style>{LIGHT_CSS}</style>{pad(n)}</div>
-    : <div className={`h-full bg-[#120e14] ${miniPad}`}>{pad(n)}</div>;
+    ? <div className={`ps-light h-full ${miniPad}`} style={siteFont}><style>{LIGHT_CSS}</style>{pad(n)}</div>
+    : <div className={`h-full ${site ? "bg-[#0f0f0f]" : "bg-[#120e14]"} ${miniPad}`} style={siteFont}>{pad(n)}</div>;
   const chip = light ? "bg-black/[.05] text-[#0f1419]" : "bg-black/45";
   const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
-  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone && !page ? "bg-transparent" : "bg-[#120e14]"} text-white shadow-2xl`}>
-    <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
+  return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone && !page ? "bg-transparent" : site ? "bg-[#0f0f0f]" : "bg-[#120e14]"} text-white shadow-2xl`}>
+    {site
+      ? <header className={`absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 ${standalone ? "pt-[env(safe-area-inset-top,0px)]" : ""} ${light ? "bg-white text-[#0f0f0f]" : "bg-[#0f0f0f] text-[#f1f1f1]"}`} style={siteFont}>
+        <div className="flex h-14 w-full items-center gap-2">
+          <button type="button" onClick={onHome} className={`inline-flex h-10 flex-none items-center gap-1 rounded-full pl-2 pr-4 text-sm font-medium ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><ChevronLeft size={20} />Home</button>
+          <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{TAB_NAMES[tab]}</h1>
+          <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-10 w-10 flex-none place-items-center rounded-full ${light ? "hover:bg-[#f2f2f2]" : "hover:bg-[#272727]"}`}><Settings2 size={19} /></button>
+        </div>
+      </header>
+      : <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
       <div className="flex min-w-0 items-center gap-2">
       {onHome && <button type="button" aria-label="Back to home" onClick={onHome} className={`grid h-9 w-9 flex-none place-items-center rounded-full ${chip} backdrop-blur ${light ? "" : "text-white"}`}><ChevronLeft size={20} /></button>}
       {genreMode && tab === "foryou"
@@ -1109,7 +1121,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         <button type="button" aria-label="Settings" onClick={() => setSheet({ kind: "settings" })} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}><Settings2 size={18} /></button>
         {!standalone && <button type="button" aria-label={full ? "Exit full screen" : "Full screen"} onClick={() => setFull((f) => !f)} className={`grid h-9 w-9 place-items-center rounded-full ${chip} backdrop-blur`}>{full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}
       </div>
-    </header>
+    </header>}
 
     {(tab === "foryou" || tab === "following") && <div ref={feedRef} tabIndex={-1}
       onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); goTo(active + 1); } else if (e.key === "ArrowUp") { e.preventDefault(); goTo(active - 1); } else if (e.key === " ") { e.preventDefault(); toggle(); } }}

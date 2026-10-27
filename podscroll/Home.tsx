@@ -252,15 +252,20 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   }, [chip, genres, extra, api, ex, cardsOf]);
   // The round "Top shows" row: real popularity from the server (Apple's Top Podcasts charts for All
   // and each genre). Only this row is ranked by popularity; the grid below never is.
-  const [tops, setTops] = useState<Record<string, PodShow[]>>({});
-  const topKey = chip.startsWith("t:") ? "" : chip;
-  useEffect(() => {
-    if (!topKey) return;
-    if (tops[topKey]) return;
-    if (topKey === "all") return;
-    const path = `/api/earshot/top?genre=${encodeURIComponent(topKey)}`;
-    api(path).then((b) => setTops((t) => ({ ...t, [topKey]: b.shows || [] }))).catch(() => setTops((t) => ({ ...t, [topKey]: [] })));
-  }, [topKey, tops, api]);
+  // Kept on this device for 6 hours and fetched for every topic in the background as soon as the
+  // page opens, so tapping a topic shows its row at once.
+  const [tops, setTops] = useState<Record<string, PodShow[]>>(() => { try { const v = JSON.parse(readLs("podscroll.tops") || "null"); return v && Date.now() - v.at < 6 * 3600_000 ? v.tops : {}; } catch { return {}; } });
+  useEffect(() => { if (Object.keys(tops).length) writeLs("podscroll.tops", JSON.stringify({ at: Date.now(), tops })); }, [tops]);
+  const topsRef = useRef(tops); topsRef.current = tops;
+  const asked = useRef(new Set<string>());
+  const fetchTop = useCallback((g: string) => {
+    if (topsRef.current[g]?.length || asked.current.has(g)) return Promise.resolve();
+    asked.current.add(g);
+    const path = g.startsWith("t:") ? `/api/earshot/top?q=${encodeURIComponent(g.slice(2))}` : `/api/earshot/top?genre=${encodeURIComponent(g)}`;
+    return api(path).then((b) => { if (b.shows?.length) setTops((t) => ({ ...t, [g]: b.shows })); else asked.current.delete(g); }).catch(() => { asked.current.delete(g); });
+  }, [api]);
+  const topKey = chip;
+  useEffect(() => { if (topKey && topKey !== "all") void fetchTop(topKey); }, [topKey, fetchTop]);
   const topShows = topKey ? tops[topKey] || [] : [];
   const openShowLatest = (sh: PodShow) => api(`/api/earshot/show/${sh.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) openEp(e); else say("No episodes to play yet."); }).catch((e) => say(e.message));
   const chipGenres = useMemo(() => [...genres, ...GENRES.map((g) => g.id).filter((g) => !genres.includes(g) && g !== "kids")], [genres]);
@@ -268,6 +273,15 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   // Your own topics: a tab for anything (a person, a place, an idea) that pulls every episode, new or
   // old, that mentions it.
   const [topics, setTopicsState] = useState<string[]>(loadTopics);
+  useEffect(() => {
+    let stop = false;
+    const t = setTimeout(async () => {
+      const queue = [...topics.map((x) => `t:${x}`), ...chipGenres];
+      const worker = async () => { while (!stop && queue.length) await fetchTop(queue.shift()!); };
+      await Promise.all([worker(), worker(), worker()]);
+    }, 1200);
+    return () => { stop = true; clearTimeout(t); };
+  }, [chipGenres, fetchTop, topics]);
   const setTopics = (t: string[]) => { setTopicsState(t); writeLs("podscroll.topics", JSON.stringify(t)); };
   const [adding, setAdding] = useState(false);
   const [newTopic, setNewTopic] = useState("");
@@ -459,7 +473,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button onClick={() => { setWhyHidden(true); writeLs("podscroll.why", "hidden"); }} aria-label="Hide this" className="ps-keep z-10 inline-flex h-11 w-11 shrink-0 items-center justify-center bg-[#0f0f0f] text-white/60 hover:text-white"><X size={16} /></button>
       </section>}
 
-      {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} />
+      {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} top={tops[`t:${topic}`] || []} />
         : err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={load} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
         : !pools || more === "loading" ? <Skeleton />
         : more === "error" ? <p className="py-20 text-center text-[#606060]">Couldn't load {GENRE[chip]?.name}. Try again in a moment.</p>
@@ -607,11 +621,10 @@ function SearchResults({ q, api, ex, onOpen }: { q: string; api: Api; ex: string
 }
 
 /** A topic tab: every episode that mentions it, newest first, from any show however small. */
-function TopicResults({ topic, api, ex, onOpen }: { topic: string; api: Api; ex: string; onOpen: (e: PodEpisode) => void }) {
+function TopicResults({ topic, api, ex, onOpen, top }: { topic: string; api: Api; ex: string; onOpen: (e: PodEpisode) => void; top: PodShow[] }) {
   const [list, setList] = useState<PodEpisode[] | null>(null);
   const [shows, setShows] = useState<PodShow[]>([]);
-  const [top, setTop] = useState<PodShow[]>([]);
-  useEffect(() => { api(`/api/earshot/top?q=${encodeURIComponent(topic)}`).then((b) => setTop(b.shows || [])).catch(() => setTop([])); }, [api, topic]);
+
   const [err, setErr] = useState("");
   useEffect(() => {
     let live = true;
