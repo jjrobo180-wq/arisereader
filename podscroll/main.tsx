@@ -10,6 +10,7 @@ import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type Signal } fr
 import { Check, Loader2, Mail } from "lucide-react";
 import { LIGHT_SHEETS_CSS, Player, Setup, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
+import { Home } from "./Home";
 import "./styles.css";
 
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
@@ -95,9 +96,17 @@ function App() {
 
   const shareLink = useCallback((show: { id: string }, ep: { id: string }) => `${location.origin}/app/?s=${show.id}&e=${ep.id}`, []);
 
-  const body = !es.setupDone || editing
+  // The home page (browse and watch) comes first; the swipe feed is one tap away. A shared swipe
+  // link (?s=&e=) still opens straight into the feed.
+  const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
+  const [feedStart, setFeedStart] = useState(start);
+  const [feedKey, setFeedKey] = useState(0);
+  const openFeed = useCallback((at?: { showId: string; episodeId: string }) => { setFeedStart(at ?? null); setFeedKey((k) => k + 1); setMode("feed"); }, []);
+  const goHome = useCallback(() => { setEditing(false); setMode("home"); if (location.search) history.replaceState(null, "", location.pathname + location.hash); }, []);
+
+  const body = editing || (mode === "feed" && !es.setupDone)
     ? <div className={`min-h-full overflow-y-auto px-3 py-6 sm:py-10 ${day ? "ps-light" : ""}`}>{day && <style>{LIGHT_CSS + LIGHT_SHEETS_CSS}</style>}
-      <Setup brand="Pod+" initial={es} student={false} onCancel={es.setupDone ? () => setEditing(false) : undefined} onDone={(genres, pace) => {
+      <Setup brand="Pod+" initial={es} student={false} onCancel={() => { setEditing(false); if (!es.setupDone) setMode("home"); }} onDone={(genres, pace) => {
         setEs((e) => {
           const taste = { ...e.taste };
           for (const g of genres) taste[g] = Math.max(taste[g] ?? 0, 3);
@@ -105,14 +114,22 @@ function App() {
           return { ...e, setupDone: true, genres, pace, taste };
         });
         setEditing(false);
-        say("Tap a cover to listen. Swipe up for the next one.");
+        if (mode === "feed") say("Tap a cover to listen. Swipe up for the next one.");
+        else say("Your home page now follows your interests.");
       }} />
     </div>
-    : <Player es={es} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
-      onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={start} mediaUrl={mediaUrl}
-      liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={locked} />;
+    : mode === "home"
+    ? <Home es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} />
+    : <>
+      <Player key={feedKey} es={es} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
+        onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={feedStart} mediaUrl={mediaUrl}
+        liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={locked} />
+      <button onClick={goHome} aria-label="Back to Pod+ home" className="fixed left-3 top-[calc(10px+env(safe-area-inset-top,0px))] z-[75] inline-flex h-10 items-center gap-1.5 rounded-full bg-black/45 pl-2.5 pr-3.5 text-sm font-semibold text-white backdrop-blur-md hover:bg-black/60">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>Home
+      </button>
+    </>;
 
-  useEffect(() => { if (!es.setupDone || editing) document.documentElement.style.background = day ? "#ffffff" : "#120e14"; }, [day, es.setupDone, editing]);
+  useEffect(() => { if (editing || (mode === "feed" && !es.setupDone)) document.documentElement.style.background = day ? "#ffffff" : "#120e14"; }, [day, es.setupDone, editing, mode]);
 
   return <>
     {body}
