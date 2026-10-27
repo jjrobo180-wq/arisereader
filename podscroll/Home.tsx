@@ -4,7 +4,7 @@
 // and audio plays straight from each podcast's own host. Follows, likes and Listen later are kept in
 // the same saved state as the swipe feed, so both views agree.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EARSHOT_LIMITS, GENRE, SPEEDS, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
+import { EARSHOT_LIMITS, GENRE, GENRES, SPEEDS, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
 import { Bell, Clock, Download, Heart, Home as HomeIcon, ListPlus, Loader2, Menu, Pause, Play, RotateCcw, RotateCw, Search, Share2, Sparkles, ThumbsUp, X } from "lucide-react";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -42,13 +42,35 @@ const hashOf = (v: View) => v.kind === "watch" ? `#/watch/${v.showId}/${v.episod
 const toSaved = (e: PodEpisode): SavedEpisode => ({ id: e.id, showId: e.showId, title: e.title, show: e.show, art: e.art, secs: e.secs, at: new Date().toISOString(), audio: e.audio, date: e.date });
 const fromSaved = (s: SavedEpisode): PodEpisode => ({ id: s.id, showId: s.showId, show: s.show, author: "", title: s.title, about: "", audio: s.audio || "", date: s.date || s.at, secs: s.secs, art: s.art, link: "", explicit: false });
 
-export function Home({ es, update, api, say, onOpenFeed, onEditInterests }: {
+const readLs = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const writeLs = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private window */ } };
+const loadTopics = (): string[] => { try { const v = JSON.parse(readLs("podscroll.topics") || "[]"); return Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()).slice(0, 20) : []; } catch { return []; } };
+
+/** Same order for the whole visit, different every visit: nothing is ranked by how popular it is. */
+function shuffled<T>(list: T[], seed: number): T[] {
+  const out = list.slice(); let s = seed || 1;
+  const rand = () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
+}
+
+const WHY: { h: string; p: string }[] = [
+  { h: "Lock your phone. It keeps playing.", p: "Free. No premium plan to keep listening with your screen off." },
+  { h: "Nothing to stare at.", p: "Video wants your eyes. Audio leaves them for the drive, the gym, the work." },
+  { h: "Get the hours back.", p: "The people getting things done aren't scrolling. They're listening while they do it." },
+  { h: "No algorithm bait.", p: "We don't rank by views. Anyone can start a podcast, and the thing you need might come from a show with one follower." },
+  { h: "Shorts with substance.", p: "Real moments cut from real episodes. Nothing built to bait a click." },
+];
+
+export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin }: {
   es: Earshot;
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
   say: (m: string) => void;
   onOpenFeed: (start?: { showId: string; episodeId: string }) => void;
   onEditInterests: () => void;
+  pro: boolean;
+  onJoin: () => void;
 }) {
   const [view, setViewState] = useState<View>(parseHash);
   const go = useCallback((v: View) => { const h = hashOf(v); if (location.hash !== h) location.hash = h; else setViewState(v); window.scrollTo(0, 0); }, []);
@@ -64,19 +86,44 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests }: {
     api(`/api/earshot/feed?genres=${genres.join(",")}${ex}`).then((b) => setPools(b.pools || {})).catch((e) => setErr(e.message));
   }, [api, genres, ex]);
   useEffect(() => { load(); }, [load]);
+  const [seed] = useState(() => Math.floor(Math.random() * 4294967296));
 
-  // One card per show (its newest episode), taking turns between genres so the grid is mixed.
+  // One card per show (its newest episode), shuffled and taking turns between genres: a show with a
+  // handful of listeners gets the same spot as the biggest one.
+  const cardsOf = useCallback((g: string, list: PoolShow[]) => shuffled(list.map((p) => p.episodes[0] && { ...p.episodes[0], art: p.episodes[0].art || p.show.art, genre: g }).filter(Boolean) as (PodEpisode & { genre: string })[], seed), [seed]);
   const all = useMemo(() => {
     if (!pools) return [] as (PodEpisode & { genre: string })[];
-    const lists = genres.map((g) => (pools[g] || []).map((p) => p.episodes[0] && { ...p.episodes[0], art: p.episodes[0].art || p.show.art, genre: g }).filter(Boolean) as (PodEpisode & { genre: string })[]);
+    const lists = shuffled(genres, seed).map((g) => cardsOf(g, pools[g] || []));
     const out: (PodEpisode & { genre: string })[] = []; const seen = new Set<string>();
     for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) { const e = l[i]; if (e && !seen.has(e.id)) { seen.add(e.id); out.push(e); } }
     return out;
-  }, [pools, genres]);
+  }, [pools, genres, seed, cardsOf]);
   const known = useRef(new Map<string, PodEpisode>());
   for (const e of all) known.current.set(e.id, e);
 
   const [chip, setChip] = useState("all");
+  // Any genre can be a chip, not just the ones picked: its shows load the first time it's tapped.
+  const [extra, setExtra] = useState<Record<string, PodEpisode[] | "loading" | "error">>({});
+  useEffect(() => {
+    if (chip === "all" || chip.startsWith("t:") || genres.includes(chip) || extra[chip]) return;
+    setExtra((x) => ({ ...x, [chip]: "loading" }));
+    api(`/api/earshot/feed?genres=${chip}${ex}`).then((b) => setExtra((x) => ({ ...x, [chip]: cardsOf(chip, b.pools?.[chip] || []) }))).catch(() => setExtra((x) => ({ ...x, [chip]: "error" })));
+  }, [chip, genres, extra, api, ex, cardsOf]);
+  const chipGenres = useMemo(() => [...genres, ...GENRES.map((g) => g.id).filter((g) => !genres.includes(g) && g !== "kids")], [genres]);
+
+  // Your own topics: a tab for anything (a person, a place, an idea) that pulls every episode, new or
+  // old, that mentions it.
+  const [topics, setTopicsState] = useState<string[]>(loadTopics);
+  const setTopics = (t: string[]) => { setTopicsState(t); writeLs("podscroll.topics", JSON.stringify(t)); };
+  const [adding, setAdding] = useState(false);
+  const [newTopic, setNewTopic] = useState("");
+  const addTopic = () => {
+    const t = newTopic.replace(/\s+/g, " ").trim().slice(0, 40);
+    if (t.length < 2) return;
+    if (!topics.some((x) => x.toLowerCase() === t.toLowerCase())) setTopics([...topics, t].slice(0, 20));
+    setChip(`t:${t}`); setNewTopic(""); setAdding(false);
+  };
+  const [whyHidden, setWhyHidden] = useState(() => readLs("podscroll.why") === "hidden");
   const [side, setSide] = useState(true);
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
   const openEp = useCallback((e: PodEpisode) => { known.current.set(e.id, e); go({ kind: "watch", showId: e.showId, episodeId: e.id }); }, [go]);
@@ -96,7 +143,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests }: {
         <button type="submit" aria-label="Search" className="inline-flex h-10 w-14 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
       </form>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
+        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Shorts</button>
+        {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] sm:inline-flex">Go ad-free</button>}
         <button aria-label="Notifications" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bell size={21} strokeWidth={1.8} /></button>
       </div>
     </header>
@@ -108,7 +156,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests }: {
   const sidebar = side && view.kind !== "watch" && (
     <nav aria-label="Library" className="sticky top-14 hidden max-h-[calc(100vh-56px)] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
-      {navItem("Swipe feed", <Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
+      {navItem("Shorts", <Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
@@ -121,6 +169,14 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests }: {
           api(`/api/earshot/show/${f.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) openEp(e); else say("No episodes to play yet."); }).catch((e) => say(e.message));
         }))}
       </>}
+      <div className="my-3 h-px bg-[#e5e5e5]" />
+      {pro
+        ? <p className="mx-3 text-sm text-[#606060]"><b className="text-[#0f0f0f]">Pod+ Member.</b> Ads get skipped in Shorts, and your show can earn.</p>
+        : <div className="mx-1 rounded-xl border border-[#e5e5e5] p-3">
+          <p className="text-sm font-semibold">Pod+ Membership</p>
+          <p className="mt-1 text-[13px] leading-snug text-[#606060]">Listening is free. Members skip the ads and get paid for their own show.</p>
+          <button onClick={onJoin} className="mt-3 h-9 w-full rounded-full bg-[#0f0f0f] text-sm font-semibold text-white hover:bg-[#272727]">Become a member</button>
+        </div>}
     </nav>
   );
 
@@ -136,16 +192,48 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests }: {
       {list.length ? <Grid list={list} onOpen={openEp} /> : <p className="text-[#606060]">{view.kind === "liked" ? "Episodes you like show up here." : "Tap Save on any episode to keep it here for later."}</p>}
     </div>;
   } else {
-    const shown = chip === "all" ? all : all.filter((e) => e.genre === chip);
+    const chipCls = (on: boolean) => `h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`;
+    const topic = chip.startsWith("t:") ? chip.slice(2) : null;
+    const more = !topic && chip !== "all" && !genres.includes(chip) ? extra[chip] : null;
+    const shown = chip === "all" ? all : Array.isArray(more) ? more : all.filter((e) => e.genre === chip);
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6">
-      <div role="group" aria-label="Topics" className="sticky top-14 z-20 -mx-1 flex gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
-        {[{ id: "all", name: "All" }, ...genres.map((g) => ({ id: g, name: GENRE[g].name }))].map((c) => (
-          <button key={c.id} onClick={() => setChip(c.id)} aria-pressed={chip === c.id} className={`h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium ${chip === c.id ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{c.name}</button>
-        ))}
-        <button onClick={onEditInterests} className="h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">+ More topics</button>
+      <div role="group" aria-label="Topics" className="sticky top-14 z-20 -mx-1 flex items-center gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
+        <button onClick={() => setChip("all")} aria-pressed={chip === "all"} className={chipCls(chip === "all")}>All</button>
+        {topics.map((t) => {
+          const on = chip === `t:${t}`;
+          return <span key={t} className="flex shrink-0 items-center">
+            <button onClick={() => setChip(`t:${t}`)} aria-pressed={on} className={`${chipCls(on)} ${on ? "rounded-r-none pr-2" : ""}`}>{t}</button>
+            {on && <button onClick={() => { setTopics(topics.filter((x) => x !== t)); setChip("all"); }} aria-label={`Remove ${t}`} className="inline-flex h-8 w-7 items-center justify-center rounded-r-lg bg-[#0f0f0f] text-white/70 hover:text-white"><X size={14} /></button>}
+          </span>;
+        })}
+        {adding
+          ? <form onSubmit={(e) => { e.preventDefault(); addTopic(); }} className="flex shrink-0 items-center gap-1">
+            <label htmlFor="ps-topic" className="sr-only">New topic</label>
+            <input id="ps-topic" autoFocus value={newTopic} onChange={(e) => setNewTopic(e.target.value)} onBlur={() => { if (!newTopic.trim()) setAdding(false); }} placeholder="Anyone or anything" maxLength={40} className="h-8 w-44 rounded-lg border border-[#d3d3d3] px-3 text-sm outline-none focus:border-[#1c62b9]" />
+            <button type="submit" className="h-8 rounded-lg bg-[#0f0f0f] px-3 text-sm font-semibold text-white">Add</button>
+          </form>
+          : <button onClick={() => setAdding(true)} className="h-8 shrink-0 whitespace-nowrap rounded-lg border border-dashed border-[#c4c4c4] px-3 text-sm font-medium hover:bg-[#f2f2f2]">+ Your topic</button>}
+        {chipGenres.map((g) => <button key={g} onClick={() => setChip(g)} aria-pressed={chip === g} className={chipCls(chip === g)}>{GENRE[g].name}</button>)}
+        <button onClick={onEditInterests} className="h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">Your interests</button>
       </div>
-      {err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={load} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
-        : !pools ? <Skeleton />
+
+      {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="relative mb-6 mt-2 rounded-2xl bg-[#f7f7f5] px-5 pb-5 pt-4 sm:px-6">
+        <div className="flex items-baseline justify-between gap-4">
+          <p className="text-[13px] font-semibold text-[#0f0f0f]">Put the phone down. Keep the podcast on.</p>
+          <button onClick={() => { setWhyHidden(true); writeLs("podscroll.why", "hidden"); }} aria-label="Hide this" className="-mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#606060] hover:bg-[#ebebe8]"><X size={16} /></button>
+        </div>
+        <div className="mt-3 grid gap-x-8 gap-y-4 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
+          {WHY.map((w) => <div key={w.h}>
+            <p className="text-[15px] font-semibold leading-snug tracking-[-0.01em]">{w.h}</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-[#606060]">{w.p}</p>
+          </div>)}
+        </div>
+      </section>}
+
+      {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} />
+        : err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={load} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
+        : !pools || more === "loading" ? <Skeleton />
+        : more === "error" ? <p className="py-20 text-center text-[#606060]">Couldn't load {GENRE[chip]?.name}. Try again in a moment.</p>
         : shown.length ? <Grid list={shown} onOpen={openEp} />
         : <p className="py-20 text-center text-[#606060]">Nothing here yet. Try another topic.</p>}
     </div>;
@@ -213,6 +301,42 @@ function SearchResults({ q, api, ex, onOpen }: { q: string; api: Api; ex: string
         </div>
       </section>}
       {res.episodes.length ? <Grid list={res.episodes} onOpen={onOpen} /> : !res.shows.length && <p className="text-[#606060]">No podcasts found. Try different words.</p>}
+    </>}
+  </div>;
+}
+
+/** A topic tab: every episode that mentions it, newest first, from any show however small. */
+function TopicResults({ topic, api, ex, onOpen }: { topic: string; api: Api; ex: string; onOpen: (e: PodEpisode) => void }) {
+  const [list, setList] = useState<PodEpisode[] | null>(null);
+  const [shows, setShows] = useState<PodShow[]>([]);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    let live = true;
+    api(`/api/earshot/search?q=${encodeURIComponent(topic)}${ex}`).then(async (b) => {
+      const eps: PodEpisode[] = b.episodes || [];
+      const found: PodShow[] = b.shows || [];
+      // Shows named for the topic: their latest episodes count too.
+      const named = found.filter((s) => s.name.toLowerCase().includes(topic.toLowerCase())).slice(0, 2);
+      const extra = await Promise.all(named.map((s) => api(`/api/earshot/show/${s.id}?x=1${ex}`).then((r) => (r.episodes || []).slice(0, 6).map((e: PodEpisode) => ({ ...e, art: e.art || s.art }))).catch(() => [])));
+      const seen = new Set<string>(); const out: PodEpisode[] = [];
+      for (const e of [...eps, ...extra.flat()]) if (!seen.has(e.id)) { seen.add(e.id); out.push(e); }
+      out.sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0));
+      if (live) { setList(out); setShows(found.slice(0, 12)); }
+    }).catch((e) => { if (live) setErr(e.message); });
+    return () => { live = false; };
+  }, [api, topic, ex]);
+  const openShow = (s: PodShow) => api(`/api/earshot/show/${s.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) onOpen(e); }).catch((e) => setErr(e.message));
+  return <div className="pt-2">
+    <h2 className="text-xl font-bold tracking-tight">{topic}</h2>
+    <p className="mt-1 text-sm text-[#606060]">Every episode we can find that mentions it, newest first. Big show or brand new, same shelf.</p>
+    {err ? <p className="py-16 text-center text-[#606060]">{err}</p> : !list ? <div className="mt-4"><Skeleton /></div> : <>
+      {shows.length > 0 && <div className="mt-5 flex gap-6 overflow-x-auto pb-2 [scrollbar-width:none]">
+        {shows.map((s) => <button key={s.id} onClick={() => openShow(s)} className="flex w-[104px] shrink-0 flex-col items-center gap-2 text-center">
+          <img src={hiRes(s.art, 220)} alt="" className="h-[104px] w-[104px] rounded-full bg-[#f2f2f2] object-cover" />
+          <span className="line-clamp-2 text-[13px] font-semibold">{s.name}</span>
+        </button>)}
+      </div>}
+      {list.length ? <div className="mt-4"><Grid list={list} onOpen={onOpen} /></div> : <p className="py-16 text-center text-[#606060]">Nothing mentions “{topic}” yet. Try a different spelling.</p>}
     </>}
   </div>;
 }
@@ -287,6 +411,21 @@ function Watch({ showId, episodeId, initial, es, update, api, say, ex, more, onO
   }, [eps, more, episodeId, show]);
   const [descOpen, setDescOpen] = useState(false);
 
+  // Lock-screen controls and artwork, so it plays on with the phone locked.
+  useEffect(() => {
+    if (!ep || !("mediaSession" in navigator)) return;
+    try {
+      const art = hiRes(ep.art || show?.art || "", 512);
+      navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: show?.name || ep.show, album: "Pod+", artwork: art ? [{ src: art, sizes: "512x512" }] : [] });
+      const a = () => audio.current;
+      navigator.mediaSession.setActionHandler("play", () => { a()?.play().catch(() => {}); });
+      navigator.mediaSession.setActionHandler("pause", () => a()?.pause());
+      navigator.mediaSession.setActionHandler("seekbackward", () => { const x = a(); if (x) x.currentTime = Math.max(0, x.currentTime - 15); });
+      navigator.mediaSession.setActionHandler("seekforward", () => { const x = a(); if (x) x.currentTime += 30; });
+      navigator.mediaSession.setActionHandler("nexttrack", upNext[0] ? () => onOpen(upNext[0]) : null);
+    } catch { /* older browsers */ }
+  }, [ep, show, upNext, onOpen]);
+
   if (err && !ep) return <div className="px-6 py-24 text-center text-[#606060]">{err}</div>;
   if (!ep) return <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
   const art = hiRes(ep.art || show?.art || "", 1200);
@@ -346,7 +485,7 @@ function Watch({ showId, episodeId, initial, es, update, api, say, ex, more, onO
         <p className="font-semibold">{ago(ep.date)}{ep.secs ? ` · ${Math.round(ep.secs / 60)} min` : ""}{show?.appleGenre ? ` · ${show.appleGenre}` : ""}</p>
         {about && <p className={`mt-1 whitespace-pre-line leading-relaxed ${descOpen ? "" : "line-clamp-3"}`}>{about}</p>}
         {about.length > 220 && <button onClick={() => setDescOpen((o) => !o)} className="mt-1 font-semibold">{descOpen ? "Show less" : "...more"}</button>}
-        <button onClick={() => { audio.current?.pause(); onOpenFeed({ showId: ep.showId, episodeId: ep.id }); }} className="mt-3 flex items-center gap-2 font-semibold text-[#065fd4]"><Sparkles size={16} />Open in the swipe feed for transcripts, ad skip and comments</button>
+        <button onClick={() => { audio.current?.pause(); onOpenFeed({ showId: ep.showId, episodeId: ep.id }); }} className="mt-3 flex items-center gap-2 font-semibold text-[#065fd4]"><Sparkles size={16} />Open in Shorts for transcripts, comments and ad skip</button>
       </div>
     </div>
 
