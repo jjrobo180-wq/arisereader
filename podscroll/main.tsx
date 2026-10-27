@@ -1,13 +1,13 @@
 // Podscroll (Pod+): real podcasts in a feed you swipe like short videos, as its own website.
-// Everyone gets about a minute to try it, then signs up with an email code to keep going (the
-// session is kept here). What someone picks, follows, likes and saves is kept in this browser. Podcast data,
+// Listening is free with no account. Signing in with an email code is the Pod+ Membership (smart
+// ad skip, earning as a creator); the session is kept here. What someone picks, follows, likes and saves is kept in this browser. Podcast data,
 // likes, comments and share counts come from the Arise server's public /api/podscroll routes
 // (server/earshot.ts registerPodscrollRoutes), which read Apple Podcasts. Audio plays straight
 // from each podcast's own host.
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type Signal } from "@shared/earshot";
-import { Check, Loader2, Mail } from "lucide-react";
+import { Check, Loader2, Mail, X } from "lucide-react";
 import { LIGHT_SHEETS_CSS, Player, Setup, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
@@ -15,8 +15,7 @@ import "./styles.css";
 
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
 const KEY = "podscroll.v1";
-/** Seconds of use (with the app on screen) before an account is needed. */
-const TRIAL_SECS = 60;
+const STARTER_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private window: works, just isn't kept */ } };
 
@@ -33,21 +32,19 @@ function deviceId(): string {
 function App() {
   const device = useMemo(deviceId, []);
   const [es, setEs] = useState<Earshot>(() => { try { return cleanEarshot(JSON.parse(read(KEY) || "null")); } catch { return emptyEarshot(); } });
-  const esRef = useRef(es); esRef.current = es;
+  const esRef = useRef(es);
   const [nickname, setNicknameState] = useState(() => read("podscroll.name") || "");
   // Creators sign in with an email code (listening never needs it); the session is kept here.
   const [session, setSessionState] = useState(() => read("podscroll.session") || "");
   const setSession = useCallback((token: string | null) => { setSessionState(token || ""); if (token) write("podscroll.session", token); else { try { localStorage.removeItem("podscroll.session"); } catch { /* private window */ } } }, []);
   const [editing, setEditing] = useState(false);
   const { day } = useTheme();
-  // The free minute: counted only while the app is on screen, kept so a reload doesn't reset it.
-  const [used, setUsed] = useState(() => Math.max(0, Number(read("podscroll.trial")) || 0));
-  useEffect(() => {
-    if (session) return;
-    const t = setInterval(() => { if (document.visibilityState === "visible") setUsed((u) => { const n = u + 1; if (n % 5 === 0 || n >= TRIAL_SECS) write("podscroll.trial", String(n)); return n; }); }, 1000);
-    return () => clearInterval(t);
-  }, [session]);
-  const locked = !session && used >= TRIAL_SECS;
+  // Listening is free with no account. Signing in is the Pod+ Membership: smart ad skip, and earning
+  // as a creator. Without it ads simply play, and turning ad skip on asks you to sign in.
+  const pro = !!session;
+  const [joinOpen, setJoinOpen] = useState(false);
+  const shown = useMemo(() => (pro ? es : { ...es, settings: { ...es.settings, adMode: "off" as const } }), [es, pro]);
+  esRef.current = shown;
   const [toast, setToast] = useState("");
   const toastT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const start = useMemo(() => {
@@ -59,7 +56,12 @@ function App() {
   useEffect(() => { const t = setTimeout(() => write(KEY, JSON.stringify(es)), 200); return () => clearTimeout(t); }, [es]);
   useEffect(() => { if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {}); }, []);
 
-  const update = useCallback((fn: (e: Earshot) => Earshot) => setEs((e) => fn(e)), []);
+  const update = useCallback((fn: (e: Earshot) => Earshot) => setEs((e) => {
+    if (pro) return fn(e);
+    const n = fn({ ...e, settings: { ...e.settings, adMode: "off" } });
+    if (n.settings.adMode !== "off") setTimeout(() => setJoinOpen(true), 0);
+    return { ...n, settings: { ...n.settings, adMode: e.settings.adMode } };
+  }), [pro]);
   const say = useCallback((m: string) => { setToast(m); if (toastT.current) clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(""), 2600); }, []);
   const setNickname = useCallback((n: string) => { setNicknameState(n); write("podscroll.name", n); }, []);
 
@@ -96,12 +98,17 @@ function App() {
 
   const shareLink = useCallback((show: { id: string }, ep: { id: string }) => `${location.origin}/app/?s=${show.id}&e=${ep.id}`, []);
 
-  // The home page (browse and watch) comes first; the swipe feed is one tap away. A shared swipe
+  // The home page (browse) comes first and opens episodes in the swipe feed. A shared swipe
   // link (?s=&e=) still opens straight into the feed.
   const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
   const [feedStart, setFeedStart] = useState(start);
   const [feedKey, setFeedKey] = useState(0);
-  const openFeed = useCallback((at?: { showId: string; episodeId: string }) => { setFeedStart(at ?? null); setFeedKey((k) => k + 1); setMode("feed"); }, []);
+  // Picking an episode on the home page opens the swipe feed on it. Someone who never chose interests
+  // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
+  const openFeed = useCallback((at?: { showId: string; episodeId: string }) => {
+    if (at && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
+    setFeedStart(at ?? null); setFeedKey((k) => k + 1); setMode("feed");
+  }, []);
   const goHome = useCallback(() => { setEditing(false); setMode("home"); if (location.search) history.replaceState(null, "", location.pathname + location.hash); }, []);
 
   const body = editing || (mode === "feed" && !es.setupDone)
@@ -119,11 +126,11 @@ function App() {
       }} />
     </div>
     : mode === "home"
-    ? <Home es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} />
+    ? <Home es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setJoinOpen(true)} />
     : <>
-      <Player key={feedKey} es={es} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
+      <Player key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
         onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={feedStart} mediaUrl={mediaUrl}
-        liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={locked} />
+        liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={false} />
       <button onClick={goHome} aria-label="Back to Pod+ home" className="fixed left-3 top-[calc(10px+env(safe-area-inset-top,0px))] z-[75] inline-flex h-10 items-center gap-1.5 rounded-full bg-black/45 pl-2.5 pr-3.5 text-sm font-semibold text-white backdrop-blur-md hover:bg-black/60">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>Home
       </button>
@@ -133,13 +140,13 @@ function App() {
 
   return <>
     {body}
-    {locked && <SignUpGate api={api} onDone={(token) => { setSession(token); say("You're in. Enjoy Pod+!"); }} />}
+    {joinOpen && !pro && <SignUpGate api={api} onClose={() => setJoinOpen(false)} onDone={(token) => { setSession(token); setJoinOpen(false); say("You're a member. Ads get skipped now."); }} />}
     <div role="status" aria-live="polite" className={`pointer-events-none fixed bottom-[calc(24px+env(safe-area-inset-bottom,0px))] left-1/2 z-[80] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full bg-white px-4 py-2.5 text-center text-sm font-bold text-[#120e14] shadow-xl transition ${toast ? "opacity-100" : "translate-y-3 opacity-0"}`}>{toast}</div>
   </>;
 }
 
-/** After the free minute: sign up (or back in) with an email code. It can't be closed; that's the point. */
-function SignUpGate({ api, onDone }: { api: (path: string, init?: { method?: string; body?: unknown }) => Promise<any>; onDone: (token: string) => void }) {
+/** Pod+ Membership: sign up (or back in) with an email code. Optional; listening never needs it. */
+function SignUpGate({ api, onDone, onClose }: { api: (path: string, init?: { method?: string; body?: unknown }) => Promise<any>; onDone: (token: string) => void; onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -148,11 +155,12 @@ function SignUpGate({ api, onDone }: { api: (path: string, init?: { method?: str
   const ask = () => { setBusy(true); setErr(""); api("/api/earshot/account/code", { method: "POST", body: { email: email.trim() } }).then(() => setSent(true)).catch((e) => setErr(e.message)).finally(() => setBusy(false)); };
   const check = () => { setBusy(true); setErr(""); api("/api/earshot/account/verify", { method: "POST", body: { email: email.trim(), code } }).then((b) => onDone(b.token)).catch((e) => setErr(e.message)).finally(() => setBusy(false)); };
   const input = "min-h-12 w-full rounded-2xl border border-white/15 bg-white/[.07] px-4 text-base text-white outline-none placeholder:text-white/35 focus:border-[#ff8a3d]";
-  return <div role="dialog" aria-modal="true" aria-labelledby="gate-title" className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] backdrop-blur-md sm:items-center">
-    <div className="w-full max-w-md rounded-[28px] bg-[#1d1720] p-6 text-white shadow-2xl ring-1 ring-white/10">
-      <p className="text-xs font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+</p>
-      <h2 id="gate-title" className="mt-2 text-[26px] font-bold leading-tight tracking-tight">Sign up to keep listening</h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-white/70">Pod+ is free. Make your account with your email to keep listening, follow shows, post and save your place on any device. Already have one? Same steps.</p>
+  return <div role="dialog" aria-modal="true" aria-labelledby="gate-title" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] backdrop-blur-md sm:items-center">
+    <div className="relative w-full max-w-md rounded-[28px] bg-[#1d1720] p-6 text-white shadow-2xl ring-1 ring-white/10">
+      <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"><X size={20} /></button>
+      <p className="text-xs font-bold uppercase tracking-[.18em] text-[#ff8a3d]">Pod+ Membership</p>
+      <h2 id="gate-title" className="mt-2 pr-8 text-[26px] font-bold leading-tight tracking-tight">Skip the ads. Get paid for your show.</h2>
+      <p className="mt-2 text-[15px] leading-relaxed text-white/70">Listening stays free, no account needed. Members get smart ad skip, can earn from their own podcast, and keep their place on every device. Sign in with your email to start.</p>
       {!sent ? <form onSubmit={(e) => { e.preventDefault(); if (email.includes("@") && !busy) ask(); }} className="mt-5">
         <label className="block"><span className="mb-1.5 block text-xs font-bold text-white/60">Email</span>
           <input type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={input} /></label>
