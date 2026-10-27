@@ -4,10 +4,11 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GENRE, GENRES, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
-import { Bell, Clock, Heart, Home as HomeIcon, Loader2, Menu, Search, Sparkles, ThumbsUp, X } from "lucide-react";
+import { Bell, Clock, Heart, Home as HomeIcon, Loader2, Menu, Radio as RadioIcon, Search, Sparkles, ThumbsUp, X } from "lucide-react";
+import { RadioBar, RadioView, type Station } from "./Radio";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -34,6 +35,7 @@ function parseHash(): View {
   if (a === "search" && b) return { kind: "search", q: decodeURIComponent(b) };
   if (a === "liked") return { kind: "liked" };
   if (a === "later") return { kind: "later" };
+  if (a === "radio") return { kind: "radio" };
   return { kind: "home" };
 }
 const hashOf = (v: View) => v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
@@ -114,6 +116,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   }, [pools, genres, seed, cardsOf]);
 
   const [chip, setChip] = useState("all");
+  // Live radio keeps playing while you browse the rest of the home page.
+  const [station, setStation] = useState<Station | null>(null);
+  const stopRadio = useCallback(() => setStation(null), []);
   // Any genre can be a chip, not just the ones picked: its shows load the first time it's tapped.
   const [extra, setExtra] = useState<Record<string, PodEpisode[] | "loading" | "error">>({});
   useEffect(() => {
@@ -185,6 +190,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     <nav aria-label="Library" className="sticky top-14 hidden max-h-[calc(100vh-56px)] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
       {navItem("Swipe feed",<Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
+      {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
@@ -213,6 +219,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
   } else if (view.kind === "search") {
     content = <SearchResults key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} />;
+  } else if (view.kind === "radio") {
+    content = <RadioView onPlay={setStation} current={station} />;
   } else if (view.kind === "liked" || view.kind === "later") {
     const list = (view.kind === "liked" ? es.liked : es.saved).map(fromSaved);
     content = <div className="px-4 pb-16 pt-4 sm:px-6">
@@ -227,6 +235,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6">
       <div role="group" aria-label="Topics" className="sticky top-14 z-20 -mx-1 flex items-center gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
         <button onClick={() => setChip("all")} aria-pressed={chip === "all"} className={chipCls(chip === "all")}>All</button>
+        <button onClick={() => go({ kind: "radio" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><RadioIcon size={15} />Radio</button>
         {topics.map((t) => {
           const on = chip === `t:${t}`;
           return <span key={t} className="flex shrink-0 items-center">
@@ -269,7 +278,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
   return <div className="min-h-full bg-white text-[#0f0f0f] [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]">
     {header}
-    <div className="flex items-start">{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+    <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+    {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
   </div>;
 }
 
