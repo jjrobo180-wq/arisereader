@@ -15,6 +15,7 @@ import "./styles.css";
 
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
 const KEY = "podscroll.v1";
+type PageTab = "openmic" | "social" | "library";
 const STARTER_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private window: works, just isn't kept */ } };
@@ -103,11 +104,14 @@ function App() {
   const [mode, setMode] = useState<"home" | "feed">(() => (start ? "feed" : "home"));
   const [feedStart, setFeedStart] = useState(start);
   const [feedKey, setFeedKey] = useState(0);
+  // The scroll is For You and Following; Open Mic, Social and Library open from the home page as
+  // their own pages (the same player, opened on that tab), each with a back button home.
+  const [feedTab, setFeedTab] = useState<PageTab | undefined>(undefined);
   // Picking an episode on the home page opens the swipe feed on it. Someone who never chose interests
   // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
-  const openFeed = useCallback((at?: { showId: string; episodeId: string }) => {
-    if (at && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
-    setFeedStart(at ?? null); setFeedKey((k) => k + 1); setMode("feed");
+  const openFeed = useCallback((at?: { showId: string; episodeId: string }, page?: PageTab) => {
+    if ((at || page) && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
+    setFeedStart(at ?? null); setFeedTab(page); setFeedKey((k) => k + 1); setMode("feed");
   }, []);
   const goHome = useCallback(() => { setEditing(false); setMode("home"); if (location.search) history.replaceState(null, "", location.pathname + location.hash); }, []);
 
@@ -130,10 +134,7 @@ function App() {
     : <>
       <Player key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
         onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={feedStart} mediaUrl={mediaUrl}
-        liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={false} />
-      <button onClick={goHome} aria-label="Back to Pod+ home" className="fixed left-3 top-[calc(10px+env(safe-area-inset-top,0px))] z-[75] inline-flex h-10 items-center gap-1.5 rounded-full bg-black/45 pl-2.5 pr-3.5 text-sm font-semibold text-white backdrop-blur-md hover:bg-black/60">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>Home
-      </button>
+        liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={false} onHome={goHome} initialTab={feedTab} />
     </>;
 
   useEffect(() => { if (editing || (mode === "feed" && !es.setupDone)) document.documentElement.style.background = day ? "#ffffff" : "#120e14"; }, [day, es.setupDone, editing, mode]);

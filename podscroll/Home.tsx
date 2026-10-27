@@ -4,7 +4,7 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GENRE, GENRES, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
-import { Bell, Clock, Heart, Home as HomeIcon, Loader2, Menu, Mic, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { Bell, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
@@ -86,7 +86,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
   say: (m: string) => void;
-  onOpenFeed: (start?: { showId: string; episodeId: string }) => void;
+  onOpenFeed: (start?: { showId: string; episodeId: string }, page?: "openmic" | "social" | "library") => void;
   onEditInterests: () => void;
   pro: boolean;
   onJoin: () => void;
@@ -210,11 +210,14 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     <nav aria-label="Library" className="sticky top-14 hidden max-h-[calc(100vh-56px)] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
       {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
       {navItem("Swipe feed",<Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
+      {navItem("Open Mic", <Mic size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "openmic"))}
+      {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
       {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => setGoLive(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
       <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
+      {navItem("Library", <Library size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "library"))}
       {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
       {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => go({ kind: "later" }))}
       {navItem("Your interests", <Heart size={22} strokeWidth={1.8} />, false, onEditInterests)}
@@ -261,6 +264,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
         <button onClick={() => setChip("all")} aria-pressed={chip === "all"} className={chipCls(chip === "all")}>All</button>
         <button onClick={() => go({ kind: "radio" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><RadioIcon size={15} />Radio</button>
         <button onClick={() => go({ kind: "party", id: "new" })} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><Users size={15} />Listen together</button>
+        <button onClick={() => onOpenFeed(undefined, "openmic")} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><Mic size={15} />Open Mic</button>
+        <button onClick={() => onOpenFeed(undefined, "social")} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><MessageCircle size={15} />Social</button>
+        <button onClick={() => onOpenFeed(undefined, "library")} className={`${chipCls(false)} inline-flex items-center gap-1.5`}><Library size={15} />Library</button>
         {topics.map((t) => {
           const on = chip === `t:${t}`;
           return <span key={t} className="flex shrink-0 items-center">

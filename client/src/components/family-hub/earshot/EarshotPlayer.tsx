@@ -2,7 +2,7 @@
 // Used by LifeHub's Earshot app (./Earshot.tsx) and by the separate Podscroll website (podscroll/),
 // so it imports nothing from the Arise app itself: the caller passes data, saving and the API.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Bookmark, Check, ChevronDown, ExternalLink, Mic, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
+import { Bookmark, Check, ChevronDown, ChevronLeft, ExternalLink, Mic, Flag, Heart, ListVideo, Loader2, Maximize2, Megaphone, MessageCircle, Minimize2, Minus, Moon, Pause, Play, Plus, RotateCcw, RotateCw, Search, Settings2, Share2, SkipForward, ThumbsDown, Trash2, X } from "lucide-react";
 import {
   EARSHOT_LIMITS, GENRES, GENRE, SPEEDS, chooseEpisode, chooseFreshEpisode, clock, compact, durationWords, mergeAds, pickNext, shareText, startAt, tasteOf, type AdMode,
   type AdRange, type Candidate, type Chapter, type Earshot as EarshotData, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal, type TranscriptChunk, type TxSegment,
@@ -129,6 +129,11 @@ export type PlayerProps = {
   onSession?: (token: string | null, email?: string) => void;
   /** Nothing plays while this is on (Pod+: the free minute is up and there's no account yet). */
   locked?: boolean;
+  /** Pod+: the site has its own home page. The scroll shows only For You and Following; Open Mic,
+   *  Social, Library and Explore open on their own from that home page (initialTab), and a back
+   *  button returns to it. */
+  onHome?: () => void;
+  initialTab?: Tab;
 };
 
 /** What the server found in this listener's own copy of an episode (server/podcastPlay.ts). */
@@ -168,9 +173,9 @@ type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegme
   wait: Map<number, { at: number; tries: number }> };
 const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600, wait: new Map() });
 
-export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked }: PlayerProps) {
+export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked, onHome, initialTab }: PlayerProps) {
   const { theme, day } = useTheme();
-  const [tab, setTab] = useState<Tab>("foryou");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "foryou");
   // The feed tab last open (For You or Following), where the mini player goes back to.
   const lastFeed = useRef<Tab>("foryou");
   if (tab === "foryou" || tab === "following") lastFeed.current = tab;
@@ -1025,7 +1030,9 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
 
   // ---------------- layout ----------------
   const shell = standalone ? "fixed inset-x-0 top-0 h-[100dvh] supports-[not(height:100dvh)]:h-full" : full ? "fixed inset-0 z-[60]" : "relative h-[min(84dvh,880px)] min-h-[560px] rounded-3xl";
-  const tabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
+  const TAB_NAMES: Record<Tab, string> = { foryou: "For You", following: "Following", openmic: "Open Mic", social: "Social", explore: "Explore", library: "Library" };
+  const allTabs: [Tab, string][] = student ? [["foryou", "For You"], ["following", "Following"], ["explore", "Explore"], ["library", "Library"]] : [["foryou", "For You"], ["following", "Following"], ["openmic", "Open Mic"], ["social", "Social"], ["explore", "Explore"], ["library", "Library"]];
+  const tabs: [Tab, string][] = !onHome ? allTabs : tab === "foryou" || tab === "following" ? [["foryou", "For You"], ["following", "Following"]] : [[tab, TAB_NAMES[tab]]];
   const spots = tab === "library" || tab === "explore" ? readSpots() : {};
 
   // On Podscroll the frame covers the whole screen, under the status bar and home indicator, so the
@@ -1046,11 +1053,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const below = standalone ? "top-[calc(4rem+env(safe-area-inset-top,0px))]" : "top-16";
   return <div ref={shellRef} className={`${shell} flex flex-col overflow-hidden ${light ? "bg-white" : standalone && !page ? "bg-transparent" : "bg-[#120e14]"} text-white shadow-2xl`}>
     <header className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-3 ${standalone ? "pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]" : "pt-3"}`}>
+      <div className="flex min-w-0 items-center gap-2">
+      {onHome && <button type="button" aria-label="Back to home" onClick={onHome} className={`grid h-9 w-9 flex-none place-items-center rounded-full ${chip} backdrop-blur ${light ? "" : "text-white"}`}><ChevronLeft size={20} /></button>}
       {genreMode && tab === "foryou"
         ? <span className="flex items-center gap-2 rounded-full bg-black/55 py-1.5 pl-3 pr-1.5 text-sm font-bold backdrop-blur">{GENRE[genreMode]?.name}<button type="button" aria-label="Back to For You" onClick={() => setGenreMode(null)} className="grid h-7 w-7 place-items-center rounded-full bg-white/15"><X size={14} /></button></span>
         : <nav className={`flex min-w-0 gap-1 overflow-x-auto rounded-full ${chip} p-1 backdrop-blur [scrollbar-width:none]`} aria-label="Sections">
           {tabs.map(([t, label]) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`flex-none rounded-full px-3 py-1.5 text-xs font-semibold sm:text-sm ${tab === t ? (light ? "bg-[#0f1419] text-white" : "bg-white text-[#120e14]") : light ? "text-[#536471]" : "text-white/75"}`}>{label}</button>)}
         </nav>}
+      </div>
       <div className="flex flex-none gap-1.5">
         {!student && <LiveChip live={live} light={light} onClick={() => setTab("openmic")} />}
         {sleepAt !== null && <span className={`flex items-center gap-1 rounded-full ${chip} px-2.5 text-xs font-bold backdrop-blur`}><Moon size={14} />{sleepAt === "end" ? "End" : `${Math.max(1, Math.ceil(((sleepAt as number) - Date.now()) / 60000))}m`}</span>}
@@ -1062,7 +1072,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     {(tab === "foryou" || tab === "following") && <div ref={feedRef} tabIndex={-1}
       onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); goTo(active + 1); } else if (e.key === "ArrowUp") { e.preventDefault(); goTo(active - 1); } else if (e.key === " ") { e.preventDefault(); toggle(); } }}
       className={`h-full snap-y snap-mandatory overflow-y-scroll overscroll-contain [scrollbar-width:none] focus:outline-none`}>
-      {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => setTab("explore")} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
+      {!items.length && <FeedEmpty tab={tab} error={loadError} state={loadState} hasFollows={es.follows.length > 0} onExplore={() => (onHome ? onHome() : setTab("explore"))} onRetry={() => { episodesCache.current.clear(); setRetry((r) => r + 1); }} />}
       {items.map((it, i) => <Card key={it.key} i={i} item={it} active={i === active} playing={playing && i === active} time={i === active ? time : 0} dur={i === active ? dur : it.ep?.secs ?? 0}
         counts={it.ep ? counts[it.ep.id] : undefined} commentsOn={commentsOn} following={it.mic ? it.mic.followed : isFollowing(it.show.id)} saved={!!it.ep && (es.saved.some((x) => x.id === it.ep!.id) || es.modes.some((m) => m.episodes.some((x) => x.id === it.ep!.id)))} notes={es.settings.notes} full={es.settings.fullCover} unlocked={unlocked}
         apple={!!standalone} chapters={(i === active && txFor(it.ep)?.chapters) || NONE_CHAPTERS} lines={(i === active && txFor(it.ep)?.segments) || NONE_LINES} speed={es.settings.speed} onSpeed={cycleSpeed} sleepOn={sleepAt !== null} onSleep={() => setSheet({ kind: "sleep" })}
