@@ -282,6 +282,7 @@ function AiFinderPanel({ mode, api, ex, update, say, onClose }: { mode: PodMode;
   // Candidates beyond what's shown wait here; adding one slides the next one into its place.
   const reserve = useRef<Found[]>([]);
   const shownIds = useRef(new Set<string>());
+  const rounds = useRef(0);
   const take = (n: number) => { const out: Found[] = []; while (out.length < n && reserve.current.length) { const f = reserve.current.shift()!; if (!shownIds.current.has(f.ep.id) && !inMode(f.ep.id)) { shownIds.current.add(f.ep.id); out.push(f); } } return out; };
   const offer = (list: Found[]) => {
     const perShow = new Map<string, number>();
@@ -300,7 +301,10 @@ function AiFinderPanel({ mode, api, ex, update, say, onClose }: { mode: PodMode;
     else { setFound([]); reserve.current = []; shownIds.current = new Set(); }
     const len = LENGTHS.find((l) => l.id === p.length)!;
     const topicWords = p.genres.map((g) => GENRE[g]?.name).filter(Boolean).join(" ");
-    const searchQ = (p.prompt.trim() || mode.name).slice(0, 70);
+    // Each new search words it a little differently, so "Find more" turns up new episodes.
+    const round = rounds.current++;
+    const twist = ["", " episode", " conversation", " explained", " interview", " stories", " deep dive", " news"][round % 8];
+    const searchQ = `${(p.prompt.trim() || mode.name).slice(0, 60)}${twist}`;
     const q = [
       p.prompt.trim() || `Podcast episodes for ${mode.name}`,
       topicWords ? `Topics: ${topicWords}.` : "",
@@ -390,7 +394,7 @@ function AiFinderPanel({ mode, api, ex, update, say, onClose }: { mode: PodMode;
       {found && found.length > 0 && <button onClick={() => add(found)} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#f2f2f2] px-5 text-[15px] font-medium hover:bg-[#e5e5e5]"><Plus size={17} />Add all {found.length}</button>}
     </div>
     {note && <p className="mt-3 text-xs text-[#767676]">{note}</p>}
-    {found && !found.length && !busy && <p className="mt-4 text-sm text-[#606060]">Nothing fit those filters. Loosen one (length or released) and try again.</p>}
+    {found && !found.length && !busy && <p className="mt-4 text-sm text-[#606060]">{shownIds.current.size ? "You added them all. Tap Find more for new ones." : "Nothing fit those filters. Loosen one (length or released) and try again."}</p>}
     {found && found.length > 0 && <ul className="mt-4 divide-y divide-[#ececec]">
       {found.map((f) => { const added = inMode(f.ep.id); return <li key={f.ep.id} className="flex items-center gap-3 py-2.5">
         <img src={hiRes(f.ep.art, 120)} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
