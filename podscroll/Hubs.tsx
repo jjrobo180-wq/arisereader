@@ -41,7 +41,7 @@ export function ModesRow({ es, update, onOpen, onNew }: { es: Earshot; update: U
         const circle = <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
           <span className="block h-full w-full overflow-hidden rounded-full shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)]" style={{ background: th.bg }}>
             {cover
-              ? <img src={hiRes(cover, 300)} alt="" {...artIn} className="ps-art h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]" />
+              ? <img src={hiRes(cover, 300)} alt="" {...artIn} className="pz-art h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]" />
               : <span className="grid h-full w-full place-items-center" style={{ color: inkOn(th.bg) }}><ModeIcon m={m} size={34} /></span>}
           </span>
           <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
@@ -224,7 +224,7 @@ export function ModePage({ es, id, update, say, onPlay, onBack, api, ex }: { es:
     <ol className="mt-2 flex flex-col divide-y divide-[#ececec]">
       {!mode.episodes.length && <li className="py-10 text-center text-sm text-[#606060]">Nothing here yet. Hold any episode on the home page, or tap its ⋮, then pick “{mode.name}”.</li>}
       {mode.episodes.map((e, i) => <li key={e.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5">
-        <button onClick={() => onPlay(i, "in")} aria-label={`Play ${e.title}`} className="relative block overflow-hidden rounded-lg"><img src={hiRes(e.art, 160)} alt="" {...artIn} className="ps-art h-16 w-16 object-cover transition-transform duration-500 hover:scale-110 sm:h-[72px] sm:w-[128px]" /></button>
+        <button onClick={() => onPlay(i, "in")} aria-label={`Play ${e.title}`} className="relative block overflow-hidden rounded-lg"><img src={hiRes(e.art, 160)} alt="" {...artIn} className="pz-art h-16 w-16 object-cover transition-transform duration-500 hover:scale-110 sm:h-[72px] sm:w-[128px]" /></button>
         <button onClick={() => onPlay(i, "in")} className="min-w-0 text-left">
           <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{e.title}</span>
           <span className="line-clamp-1 text-xs text-[#606060]">{e.show}{e.secs ? ` · ${mins(e.secs)}` : ""}</span>

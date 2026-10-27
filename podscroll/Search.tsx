@@ -196,7 +196,7 @@ export function SearchPage({ q, api, ex, onOpen, onMore, onSearch }: {
       <h2 className="text-base font-semibold">Shows</h2>
       <div className="mt-3 flex flex-col divide-y divide-[#ececec]">
         {shows.slice(0, kind === "shows" ? 50 : 4).map((s) => <div key={s.id} className="flex items-center gap-3 py-3">
-          <span className="block h-16 w-16 shrink-0 overflow-hidden rounded-xl"><img src={hiRes(s.art, 140)} alt="" {...artIn} className="ps-art h-full w-full object-cover transition-transform duration-500 hover:scale-110" /></span>
+          <span className="block h-16 w-16 shrink-0 overflow-hidden rounded-xl"><img src={hiRes(s.art, 140)} alt="" {...artIn} className="pz-art h-full w-full object-cover transition-transform duration-500 hover:scale-110" /></span>
           <div className="min-w-0 flex-1"><p className="truncate font-semibold">{s.name}</p><p className="truncate text-xs text-[#606060]">{[s.author, s.episodes ? `${s.episodes} episodes` : "", s.appleGenre].filter(Boolean).join(" · ")}</p></div>
           <button onClick={() => searchShow(s, pq.words.filter((w) => !s.name.toLowerCase().includes(w)).join(" "))} className="hidden h-9 shrink-0 rounded-full bg-[#f2f2f2] px-3.5 text-sm font-medium hover:bg-[#e5e5e5] sm:inline-flex sm:items-center">Search in show</button>
           <button onClick={() => searchShow(s, "")} className="h-9 shrink-0 rounded-full bg-[#0f0f0f] px-3.5 text-sm font-semibold text-white">Episodes</button>
@@ -211,7 +211,7 @@ export function SearchPage({ q, api, ex, onOpen, onMore, onSearch }: {
       <ol className="mt-2 flex flex-col">
         {episodes.slice(0, limit).map((e) => <li key={e.id} className="group relative flex gap-3 rounded-xl py-3 pr-9">
           <button onClick={() => onOpen(e)} className="flex min-w-0 flex-1 gap-3 text-left">
-            <span className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-[#f2f2f2] sm:h-[88px] sm:w-[156px]"><img src={hiRes(e.art, 160)} alt="" loading="lazy" {...artIn} className="ps-art h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:object-contain" /></span>
+            <span className="block h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-[#f2f2f2] sm:h-[88px] sm:w-[156px]"><img src={hiRes(e.art, 160)} alt="" loading="lazy" {...artIn} className="pz-art h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:object-contain" /></span>
             <span className="min-w-0">
               <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{e.title}</span>
               <span className="mt-0.5 block truncate text-xs text-[#606060]">{[e.show, agoText(e.date), e.secs ? mins(e.secs) : ""].filter(Boolean).join(" · ")}</span>
