@@ -158,6 +158,8 @@ export type Earshot = {
   skipped: string[];
   /** Shows they support: ads on these are never skipped. */
   adFree: string[];
+  /** Shows they never want to see again ("Don't show this podcast"). */
+  blocked: string[];
   /** Pod Modes (the built-in ones first). */
   modes: PodMode[];
   settings: EarshotSettings;
@@ -169,7 +171,7 @@ export const FRESH_BY_DEFAULT = ["briefing"];
 export const defaultModes = (): PodMode[] => DEFAULT_MODES.map((m) => ({ id: m.id, name: m.name, icon: m.icon, episodes: [], ...(FRESH_BY_DEFAULT.includes(m.id) ? { fresh: true } : {}) }));
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
 export const defaultSettings = (): EarshotSettings => ({ speed: 1, skipIntro: true, advance: 0, notes: true, explicit: false, adMode: "auto", fullCover: false, hideTeasers: true });
-export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], modes: defaultModes(), settings: defaultSettings() });
+export const emptyEarshot = (): Earshot => ({ setupDone: false, genres: [], pace: "mix", taste: {}, follows: [], liked: [], saved: [], heard: [], skipped: [], adFree: [], blocked: [], modes: defaultModes(), settings: defaultSettings() });
 
 // ---------------------------------------------------------------------------
 // Reading Apple's answers
@@ -271,7 +273,7 @@ export const appleLookupUrl = (showId: string, limit: number) => `https://itunes
 /** How each thing someone does moves their taste for that show's genre. */
 /** How much each thing someone does moves a genre. Listening time is graded, like a short-video feed:
  *  a skip in the first seconds counts against, a short pass slightly against, 30 s for, 5 min more so. */
-export const SIGNALS = { like: 3, unlike: -2.5, save: 2, share: 3, comment: 2, follow: 4, unfollow: -3, listen: 1, deep: 1.6, finish: 1.5, skip: -0.6, pass: -0.25, open: 0.5 } as const;
+export const SIGNALS = { like: 3, unlike: -2.5, save: 2, share: 3, comment: 2, follow: 4, unfollow: -3, listen: 1, deep: 1.6, finish: 1.5, skip: -0.6, pass: -0.25, open: 0.5, dislike: -2, block: -3 } as const;
 export type Signal = keyof typeof SIGNALS;
 export const tasteOf = (e: Earshot, genre: string) => e.taste[genre] ?? (e.genres.includes(genre) ? 3 : 0.3);
 
@@ -318,7 +320,8 @@ export function pickNext(e: Earshot, pool: Candidate[], ctx: FeedContext, n: num
   const shown = new Set(ctx.shownShows instanceof Set ? Array.from(ctx.shownShows) : ctx.shownShows);
   const follows = new Set(ctx.follows instanceof Set ? Array.from(ctx.follows) : ctx.follows);
   for (let k = 0; k < n; k++) {
-    const left = pool.filter((c) => !shown.has(c.show.id));
+    const blocked = new Set(e.blocked ?? []);
+    const left = pool.filter((c) => !shown.has(c.show.id) && !blocked.has(c.show.id));
     if (!left.length) break;
     let pick: Candidate | null = null; let explore = false;
     if (random() < 0.15) {
@@ -502,6 +505,7 @@ export function cleanEarshot(v: unknown): Earshot {
     heard: idList(r.heard, EARSHOT_LIMITS.heard),
     skipped: idList(r.skipped, EARSHOT_LIMITS.skipped, false),
     adFree: idList(r.adFree, 300),
+    blocked: idList(r.blocked, 300),
     modes: cleanModes(r.modes),
     settings: {
       speed: (SPEEDS as readonly number[]).includes(s.speed) ? s.speed : d.speed,
