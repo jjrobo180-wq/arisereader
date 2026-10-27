@@ -3,7 +3,7 @@
 // in on another phone brings the same profile, posts and followers (server/earshot.ts swaps the
 // device for the account's on every request that carries the session).
 import type { Express, RequestHandler } from "express";
-import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { CODE_MINUTES, CODE_TRIES, CODE_WAIT_SECS, CODES_PER_DAY, cleanEmail } from "../shared/earshotCreators";
 
@@ -14,6 +14,19 @@ const pepper = () => process.env.SESSION_SECRET || process.env.PODCAST_ACCOUNT_S
 const hash = (s: string) => createHash("sha256").update(`${pepper()}:${s}`).digest("hex");
 const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 export const SESSION = /^[A-Za-z0-9_-]{40,60}$/;
+
+/** Passwords: scrypt with a random salt per account, stored as "s1$salt$hash". */
+export const PASSWORD_MIN = 8;
+export function hashPassword(pw: string): string {
+  const salt = randomBytes(16).toString("base64url");
+  return `s1$${salt}$${scryptSync(pw, salt, 32).toString("base64url")}`;
+}
+export function checkPassword(pw: string, stored: string | null | undefined): boolean {
+  const [v, salt, h] = String(stored || "").split("$");
+  if (v !== "s1" || !salt || !h) return false;
+  return same(scryptSync(pw, salt, 32).toString("base64url"), h);
+}
+const cleanPassword = (v: unknown) => (typeof v === "string" && v.length >= PASSWORD_MIN && v.length <= 128 ? v : "");
 
 /** Who a session belongs to, remembered for a few minutes so every request isn't a database read. */
 export function accountSessions(getDb: () => any) {
@@ -89,10 +102,33 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
     }
   });
 
-  /** Checks a code. A first sign-in makes the account and keeps this device's profile as yours. */
+  /** Email and password. */
+  app.post(`${P}/login`, gate, async (req: any, res) => {
+    const email = cleanEmail(req.body?.email), pw = typeof req.body?.password === "string" ? req.body.password : "";
+    if (!email || !pw) return res.status(400).json({ message: "Enter your email and password." });
+    if (tooMany(guesses, device(req), res) || tooMany(guesses, `e:${email}`, res)) return;
+    try {
+      const { data: acct, error } = await db().from("podcast_accounts").select("id,email,device,password_hash").eq("email", email).maybeSingle();
+      if (error) throw error;
+      if (!acct || !acct.password_hash) return res.status(400).json({ noPassword: true, message: acct ? "This account doesn't have a password yet. Tap Forgot password to set one, or sign in with an email code." : "No account with that email yet. Create one, or sign in with an email code." });
+      if (!checkPassword(pw, acct.password_hash)) return res.status(400).json({ message: "That password isn't right. Try again, or tap Forgot password." });
+      const token = randomBytes(33).toString("base64url");
+      const { error: e3 } = await db().from("podcast_account_sessions").insert({ token_hash: hash(token), account_id: acct.id });
+      if (e3) throw e3;
+      res.json({ token, email: acct.email, sameDevice: acct.device === device(req) });
+    } catch (e: any) {
+      console.error("[podscroll] account login:", e?.message || e);
+      res.status(500).json({ message: "That didn't work. Try again." });
+    }
+  });
+
+  /** Checks a code. A first sign-in makes the account and keeps this device's profile as yours.
+   *  With a password, it's also how an account sets (sign up) or resets (forgot password) one. */
   app.post(`${P}/verify`, gate, async (req: any, res) => {
     const email = cleanEmail(req.body?.email), code = String(req.body?.code ?? "").replace(/\D/g, "");
     if (!email || code.length !== 6) return res.status(400).json({ message: "Enter the 6-digit code from the email." });
+    const newPassword = req.body?.password === undefined ? "" : cleanPassword(req.body.password);
+    if (req.body?.password !== undefined && !newPassword) return res.status(400).json({ message: `Use a password of at least ${PASSWORD_MIN} characters.` });
     if (tooMany(guesses, device(req), res)) return;
     try {
       const { data: row, error } = await db().from("podcast_account_codes").select("code_hash,expires_at,tries").eq("email", email).maybeSingle();
@@ -111,6 +147,10 @@ export function registerPodscrollAccountRoutes(app: Express, gate: RequestHandle
         const made = await db().from("podcast_accounts").insert({ email, device: device(req) }).select("id,email,device").single();
         if (made.error) throw made.error;
         acct = made.data;
+      }
+      if (newPassword) {
+        const { error: ep } = await db().from("podcast_accounts").update({ password_hash: hashPassword(newPassword) }).eq("id", acct.id);
+        if (ep) throw ep;
       }
       const token = randomBytes(33).toString("base64url");
       const { error: e3 } = await db().from("podcast_account_sessions").insert({ token_hash: hash(token), account_id: acct.id });

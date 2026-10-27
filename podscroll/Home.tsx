@@ -4,7 +4,7 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
-import { Bell, Check, Moon, Sun, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { Bell, Check, LogOut, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
 import { artIn } from "./art";
@@ -97,7 +97,7 @@ const WHY: { h: string; p: string }[] = [
   { h: "Swipe through substance.", p: "Every swipe is a real podcast, not a clip built to bait a click." },
 ];
 
-export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin, device, nickname, setNickname, liveBase, signal }: {
+export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin, onSignIn, email, onSignOut, device, nickname, setNickname, liveBase, signal }: {
   es: Earshot;
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
@@ -106,6 +106,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   onEditInterests: () => void;
   pro: boolean;
   onJoin: () => void;
+  onSignIn: () => void;
+  email: string;
+  onSignOut: () => void;
   signal: (genre: string, s: Signal) => void;
   device: string;
   nickname: string;
@@ -247,6 +250,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const openLive = (id: string) => { setStation(null); setLiveRoom({ id }); };
   // Pod Modes: "Add to" from any episode card, and making a new mode.
   const [addTo, setAddTo] = useState<PodEpisode | null>(null);
+  const [acctOpen, setAcctOpen] = useState(false);
   // Fresh Pod Modes rebuild once a day with the newest episodes (Morning Briefing: today's top news).
   const freshTried = useRef(new Set<string>());
   useEffect(() => {
@@ -392,7 +396,17 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </form>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
-        {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] sm:inline-flex">Go ad-free</button>}
+        {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] lg:inline-flex">Go ad-free</button>}
+        {!pro
+          ? <button onClick={onSignIn} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#d3d3d3] px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={19} strokeWidth={1.8} /><span>Sign in</span></button>
+          : <span className="relative">
+            <button onClick={() => setAcctOpen((v) => !v)} aria-expanded={acctOpen} aria-label="Your account" className="grid h-9 w-9 place-items-center rounded-full bg-[#ff6a1f] text-sm font-bold text-white">{(email || "?").slice(0, 1).toUpperCase()}</button>
+            {acctOpen && <div className="absolute right-0 top-11 z-40 w-64 rounded-xl border border-[#e5e5e5] bg-white p-2 text-[#0f0f0f] shadow-2xl">
+              <p className="truncate px-3 pb-2 pt-1 text-sm font-semibold">{email || "Signed in"}</p>
+              <p className="px-3 pb-2 text-xs text-[#606060]">Pod+ Member</p>
+              <button onClick={() => { setAcctOpen(false); onSignOut(); }} className="flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-[#f2f2f2]"><LogOut size={16} />Sign out</button>
+            </div>}
+          </span>}
         <button onClick={cycleTheme} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]">{dark ? <Sun size={20} strokeWidth={1.8} /> : <Moon size={20} strokeWidth={1.8} />}</button>
         <button aria-label="Notifications" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bell size={21} strokeWidth={1.8} /></button>
       </div>
