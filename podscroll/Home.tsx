@@ -3,11 +3,11 @@
 // shows and episodes come from the same /api/podscroll routes the swipe feed uses (Apple Podcasts
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { GENRE, GENRES, chooseEpisode, hiRes, pickNext, tasteOf, type Candidate, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
+import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
 import { Bell, Check, Moon, Sun, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
-import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode } from "./Hubs";
+import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from "./Hubs";
 import { hubTheme } from "@shared/earshot";
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
@@ -241,6 +241,42 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const openLive = (id: string) => { setStation(null); setLiveRoom({ id }); };
   // Pod Modes: "Add to" from any episode card, and making a new mode.
   const [addTo, setAddTo] = useState<PodEpisode | null>(null);
+  // Fresh Pod Modes rebuild once a day with the newest episodes (Morning Briefing: today's top news).
+  const freshTried = useRef(new Set<string>());
+  useEffect(() => {
+    const today = new Date().toLocaleDateString("en-CA");
+    const daysOld = (d: string) => (Date.now() - Date.parse(d)) / 86_400_000;
+    const playable = (e: PodEpisode) => /^https:\/\//i.test(e.audio || "") && !isTeaser(e);
+    const build = async (m: PodMode): Promise<PodEpisode[]> => {
+      if (m.id === "briefing") {
+        const b = await api(`/api/earshot/feed?genres=news${ex}`);
+        const list: PoolShow[] = ((b.pools?.news || []) as PoolShow[]).slice().sort((a, c) => a.rank - c.rank);
+        const newest = list.map((p) => { const e = p.episodes.filter(playable).sort((a, c) => Date.parse(c.date) - Date.parse(a.date))[0]; return e ? { ...e, art: e.art || p.show.art } : null; }).filter((e): e is PodEpisode => !!e);
+        const today1 = newest.filter((e) => daysOld(e.date) <= 1.5);
+        return (today1.length >= 5 ? today1 : newest.filter((e) => daysOld(e.date) <= 4)).slice(0, 12);
+      }
+      let prefs: { prompt?: string; avoid?: string[] } = {};
+      try { prefs = JSON.parse(readLs(`podscroll.ai.${m.id}`) || "{}") || {}; } catch { /* none */ }
+      const q = (prefs.prompt || "").trim() || m.name;
+      const b = await api(`/api/earshot/search?q=${encodeURIComponent(q.slice(0, 70))}${ex}`);
+      const avoid = (prefs.avoid || []).map((w) => w.toLowerCase());
+      const eps = ((b.episodes || []) as PodEpisode[]).filter((e) => playable(e) && !avoid.some((w) => `${e.show} ${e.title} ${e.about}`.toLowerCase().includes(w)))
+        .sort((a, c) => Date.parse(c.date) - Date.parse(a.date));
+      const recent = eps.filter((e) => daysOld(e.date) <= 7);
+      const per = new Map<string, number>(); const out: PodEpisode[] = [];
+      for (const e of recent.length >= 4 ? recent : eps) { const n = per.get(e.showId) ?? 0; if (n >= 2) continue; per.set(e.showId, n + 1); out.push(e); if (out.length >= 12) break; }
+      return out;
+    };
+    for (const m of es.modes) {
+      const key = `${m.id}:${today}:${m.freshDay ?? ""}`;
+      if (!m.fresh || m.freshDay === today || freshTried.current.has(key)) continue;
+      freshTried.current.add(key);
+      build(m).then((eps) => {
+        if (!eps.length) return;
+        update((e) => ({ ...e, modes: e.modes.map((x) => (x.id === m.id && x.fresh ? { ...x, episodes: eps.map(toSaved), freshDay: today } : x)) }));
+      }).catch(() => {});
+    }
+  }, [es.modes, api, ex, update]);
   const [newMode, setNewMode] = useState(false);
   // Any genre can be a chip, not just the ones picked: its shows load the first time it's tapped.
   const [extra, setExtra] = useState<Record<string, PodEpisode[] | "loading" | "error">>({});
@@ -457,7 +493,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
-      {chip === "all" && <ModesRow es={es} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
+      {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
 
       {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="ps-keep relative mb-6 mt-1 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <style>{"@keyframes ps-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}.ps-tick{animation:ps-tick 70s linear infinite}.ps-strip:hover .ps-tick,.ps-strip:active .ps-tick,.ps-strip:focus-within .ps-tick{animation-play-state:paused}@media (prefers-reduced-motion:reduce){.ps-tick{animation:none}}"}</style>
