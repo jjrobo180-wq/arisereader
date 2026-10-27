@@ -52,6 +52,22 @@ function shuffled<T>(list: T[], seed: number): T[] {
   return out;
 }
 
+const HINTS = [
+  "Search podcasts",
+  "Phone down, podcast on",
+  "Screen off. Still on.",
+  "Free with the screen off",
+  "Nothing to stare at",
+  "Keep your eyes free",
+  "Get your hours back",
+  "Listen while you do",
+  "No algorithm bait",
+  "Not ranked by views",
+  "Small shows count",
+  "Real podcasts only",
+  "No clickbait. Ever.",
+];
+
 const WHY: { h: string; p: string }[] = [
   { h: "Lock your phone. It keeps playing.", p: "Free. No premium plan to keep listening with your screen off." },
   { h: "Nothing to stare at.", p: "Video wants your eyes. Audio leaves them for the drive, the gym, the work." },
@@ -122,6 +138,15 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   const [whyHidden, setWhyHidden] = useState(() => readLs("podscroll.why") === "hidden");
   const [side, setSide] = useState(true);
   const [q, setQ] = useState(view.kind === "search" ? view.q : "");
+  // The search box's placeholder: "Search podcasts" first, then a short line every few seconds, in
+  // random order. Paused while the box is in use. Short enough to fit a phone's search box.
+  const [hint, setHint] = useState(0);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    if (searching) return;
+    const t = setInterval(() => setHint((h) => { let n = h; while (n === h) n = 1 + Math.floor(Math.random() * (HINTS.length - 1)); return n; }), 4000);
+    return () => clearInterval(t);
+  }, [searching]);
   // Browse here; listen in the swipe feed, starting on the episode you picked.
   const openEp = useCallback((e: PodEpisode) => onOpenFeed({ showId: e.showId, episodeId: e.id }), [onOpenFeed]);
   // An older #/watch/... link opens that episode in the swipe feed.
@@ -142,7 +167,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       </div>
       <form role="search" className="flex min-w-0 max-w-[640px] flex-1 items-center" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t.length >= 2) go({ kind: "search", q: t }); }}>
         <label htmlFor="ps-q" className="sr-only">Search podcasts</label>
-        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-base text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
+        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => { setSearching(true); setHint(0); }} onBlur={() => setSearching(false)} placeholder={HINTS[hint]} aria-label="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-base text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
         <button type="submit" aria-label="Search" className="inline-flex h-10 w-14 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
       </form>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
