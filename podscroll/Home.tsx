@@ -275,26 +275,26 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
 /** A 16:9 picture made from a square cover: the cover sits in the middle over a blurred copy of itself. */
 function Thumb({ e, small }: { e: PodEpisode; small?: boolean }) {
-  const art = hiRes(e.art, small ? 300 : 600);
-  return <div className={`relative aspect-video w-full overflow-hidden bg-[#e5e5e5] ${small ? "rounded-lg" : "rounded-xl transition-[border-radius] duration-200 group-hover:rounded-md"}`}>
+  const art = hiRes(e.art, small ? 300 : 400);
+  return <div className={`relative aspect-video w-full overflow-hidden bg-[#e5e5e5] ${small ? "rounded-lg" : "rounded-[10px] transition-[border-radius] duration-200 group-hover:rounded-md"}`}>
     {art && <img src={art} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl" />}
     <div className="absolute inset-0 bg-black/15" />
     {art && <img src={art} alt="" loading="lazy" className="absolute left-1/2 top-1/2 h-[82%] -translate-x-1/2 -translate-y-1/2 rounded-md object-cover shadow-[0_8px_30px_rgba(0,0,0,.35)]" style={{ aspectRatio: "1 / 1" }} />}
-    {e.secs > 0 && <span className={`absolute rounded bg-black/80 px-1 py-0.5 text-xs font-medium text-white ${small ? "bottom-1 right-1" : "bottom-2 right-2"}`}>{fmtTime(e.secs)}</span>}
+    {e.secs > 0 && <span className={`absolute rounded bg-black/80 px-1 py-px text-[11px] font-medium text-white ${small ? "bottom-1 right-1" : "bottom-1.5 right-1.5"}`}>{fmtTime(e.secs)}</span>}
   </div>;
 }
 
 function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) => void }) {
-  return <div className="grid gap-x-4 gap-y-10 pt-3 [grid-template-columns:repeat(auto-fill,minmax(290px,1fr))]">
+  return <div className="grid gap-x-3.5 gap-y-7 pt-3 [grid-template-columns:repeat(auto-fill,minmax(min(180px,calc(50%_-_7px)),1fr))]">
     {list.map((e) => (
-      <button key={e.id} onClick={() => onOpen(e)} className="group flex min-w-0 flex-col gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c62b9] focus-visible:ring-offset-4 rounded-xl">
+      <button key={e.id} onClick={() => onOpen(e)} className="group flex min-w-0 flex-col gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c62b9] focus-visible:ring-offset-4 rounded-[10px]">
         <Thumb e={e} />
-        <div className="flex gap-3">
-          <img src={hiRes(e.art, 80)} alt="" className="h-9 w-9 shrink-0 rounded-full bg-[#e5e5e5] object-cover" />
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="line-clamp-2 text-base font-semibold leading-snug">{e.title}</span>
-            <span className="truncate text-sm text-[#606060]">{e.show}</span>
-            <span className="text-sm text-[#606060]">{ago(e.date)}</span>
+        <div className="flex gap-2.5">
+          <img src={hiRes(e.art, 60)} alt="" className="h-7 w-7 shrink-0 rounded-full bg-[#e5e5e5] object-cover" />
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="line-clamp-2 text-sm font-semibold leading-snug">{e.title}</span>
+            <span className="truncate text-xs text-[#606060]">{e.show}</span>
+            <span className="text-xs text-[#606060]">{ago(e.date)}</span>
           </div>
         </div>
       </button>
@@ -303,10 +303,10 @@ function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) =>
 }
 
 function Skeleton() {
-  return <div className="grid gap-x-4 gap-y-10 pt-3 [grid-template-columns:repeat(auto-fill,minmax(290px,1fr))]" aria-label="Loading" role="status">
-    {Array.from({ length: 12 }, (_, i) => <div key={i} className="flex flex-col gap-3 motion-safe:animate-pulse">
-      <div className="aspect-video rounded-xl bg-[#f2f2f2]" />
-      <div className="flex gap-3"><div className="h-9 w-9 rounded-full bg-[#f2f2f2]" /><div className="flex flex-1 flex-col gap-2"><div className="h-4 w-11/12 rounded bg-[#f2f2f2]" /><div className="h-4 w-2/3 rounded bg-[#f2f2f2]" /></div></div>
+  return <div className="grid gap-x-3.5 gap-y-7 pt-3 [grid-template-columns:repeat(auto-fill,minmax(min(180px,calc(50%_-_7px)),1fr))]" aria-label="Loading" role="status">
+    {Array.from({ length: 18 }, (_, i) => <div key={i} className="flex flex-col gap-2 motion-safe:animate-pulse">
+      <div className="aspect-video rounded-[10px] bg-[#f2f2f2]" />
+      <div className="flex gap-2.5"><div className="h-7 w-7 rounded-full bg-[#f2f2f2]" /><div className="flex flex-1 flex-col gap-2"><div className="h-4 w-11/12 rounded bg-[#f2f2f2]" /><div className="h-4 w-2/3 rounded bg-[#f2f2f2]" /></div></div>
     </div>)}
   </div>;
 }
