@@ -1226,8 +1226,7 @@ type CardProps = {
 };
 /** The cover's motion while playing: a slow pan and zoom across the art, a gentle breath, a light
  *  sweep now and then, and a glow that swells. All still for reduced motion and when paused. */
-const COVER_MOTION = `@keyframes esArrive{0%{transform:scale(1.32);opacity:.55;filter:blur(6px)}60%{filter:blur(0)}100%{transform:scale(1.06);opacity:1}}
-@keyframes esDrift{0%{transform:scale(1.06) translate(0,0)}33%{transform:scale(1.2) translate(-4%,-3%)}66%{transform:scale(1.14) translate(3.5%,-1.5%)}100%{transform:scale(1.22) translate(-1.5%,3.5%)}}
+const COVER_MOTION = `@keyframes esDrift{0%{transform:scale(1.06) translate(0,0)}33%{transform:scale(1.2) translate(-4%,-3%)}66%{transform:scale(1.14) translate(3.5%,-1.5%)}100%{transform:scale(1.22) translate(-1.5%,3.5%)}}
 @keyframes esBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
 @keyframes esSheen{0%,72%{transform:translateX(-130%) skewX(-18deg);opacity:0}78%{opacity:1}92%,100%{transform:translateX(230%) skewX(-18deg);opacity:0}}
 @keyframes esGlow{0%,100%{opacity:.5;transform:scale(.94)}50%{opacity:.85;transform:scale(1.08)}}
@@ -1246,7 +1245,7 @@ function Cover({ art, alt, eager, playing, children }: { art: string; alt: strin
     <img src={big} alt="" aria-hidden referrerPolicy="no-referrer" className="es-m pointer-events-none absolute inset-[4%] h-[92%] w-[92%] rounded-[28px] object-cover blur-[60px]" style={{ animation: run("esGlow 7s ease-in-out infinite"), opacity: playing ? undefined : 0.3, transition: "opacity 1s" }} />
     <div className="es-m relative h-full w-full" style={{ animation: run("esBreathe 6s ease-in-out infinite") }}>
       <div className={`relative h-full w-full overflow-hidden rounded-[22px] shadow-[0_40px_80px_-30px_rgba(0,0,0,.95)] transition-transform duration-700 ease-out ${playing ? "scale-100" : "scale-[.92]"}`}>
-        <img src={big} onError={artFallback(art)} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: run("esArrive 1.3s cubic-bezier(.2,.8,.2,1) both, esDrift 36s ease-in-out 1.3s infinite alternate"), transform: playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <img src={big} onError={artFallback(art)} alt={alt} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: run("esDrift 36s ease-in-out infinite alternate"), transform: playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent" style={{ animation: run("esSheen 9s ease-in-out infinite"), opacity: 0 }} />
       </div>
     </div>
@@ -1305,7 +1304,7 @@ function Card(p: CardProps) {
       {/* The art itself, edge to edge at the top, fading into that backdrop. While it plays it drifts
           (a slow pan and zoom) with a light sweep now and then; paused, it settles. */}
       <div className="ps-art absolute inset-x-0 top-0 mx-auto aspect-square w-full max-w-[62svh] overflow-hidden">
-        <img src={hiRes(art, 1200)} onError={artFallback(art)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: p.playing ? "esArrive 1.3s cubic-bezier(.2,.8,.2,1) both, esDrift 40s ease-in-out 1.3s infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <img src={hiRes(art, 1200)} onError={artFallback(art)} alt={`${item.show.name} cover art`} referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} decoding="async" className="es-m h-full w-full bg-white/5 object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
         <div className="absolute inset-x-0 top-0 h-[calc(7rem+env(safe-area-inset-top,0px))] bg-gradient-to-b from-black/45 to-transparent" />
       </div>
@@ -1353,7 +1352,7 @@ function Card(p: CardProps) {
     {p.full ? <>
       {/* Full screen: the art itself fills the page, drifting while it plays. */}
       <div className="absolute inset-0 overflow-hidden">
-        <img src={hiRes(art, 1200)} onError={artFallback(art)} alt="" aria-hidden referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} className="es-m h-full w-full object-cover" style={{ animation: p.playing ? "esArrive 1.3s cubic-bezier(.2,.8,.2,1) both, esDrift 40s ease-in-out 1.3s infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
+        <img src={hiRes(art, 1200)} onError={artFallback(art)} alt="" aria-hidden referrerPolicy="no-referrer" loading={p.i < 3 ? "eager" : "lazy"} className="es-m h-full w-full object-cover" style={{ animation: p.playing ? "esDrift 40s ease-in-out infinite alternate" : "none", transform: p.playing ? undefined : "scale(1.06)", transition: "transform 1.4s ease-out" }} />
         <span aria-hidden className="es-m pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent" style={{ animation: p.playing ? "esSheen 11s ease-in-out infinite" : "none", opacity: 0 }} />
       </div>
       <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent via-40% to-[#0e0d10]" />
