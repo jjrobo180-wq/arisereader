@@ -440,6 +440,18 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {es.modes.map((m) => { const th = hubTheme(m); return navItem(m.name, <span className="h-[22px] w-[22px] shrink-0 rounded-full" style={{ background: th.bg, boxShadow: `inset 0 0 0 5px ${th.bg}, inset 0 0 0 11px ${th.accent}` }} />, view.kind === "mode" && view.id === m.id, () => go({ kind: "mode", id: m.id })); })}
       {navItem("New mode", <span className="grid h-[22px] w-[22px] place-items-center rounded-full ring-1 ring-[#c4c4c4] text-[#606060]">+</span>, false, () => setNewMode(true))}
       <div className="my-3 h-px bg-[#e5e5e5]" />
+      <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">Topics</p>
+      {navItem("All", <Sparkles size={22} strokeWidth={1.8} />, view.kind === "home" && chip === "all", () => { setChip("all"); go({ kind: "home" }); })}
+      {topics.map((t) => navItem(t, <span className="grid h-[22px] w-[22px] place-items-center text-base font-semibold text-[#606060]">#</span>, view.kind === "home" && chip === `t:${t}`, () => { setChip(`t:${t}`); go({ kind: "home" }); }))}
+      {adding
+        ? <form onSubmit={(e) => { e.preventDefault(); addTopic(); setDrawer(false); go({ kind: "home" }); }} className="flex items-center gap-1.5 px-2 py-1">
+          <label htmlFor="ps-topic-menu" className="sr-only">New topic</label>
+          <input id="ps-topic-menu" autoFocus value={newTopic} onChange={(e) => setNewTopic(e.target.value)} placeholder="Anyone or anything" maxLength={40} className="h-9 min-w-0 flex-1 rounded-lg border border-[#d3d3d3] px-3 text-sm outline-none focus:border-[#1c62b9]" />
+          <button type="submit" className="h-9 rounded-lg bg-[#0f0f0f] px-3 text-sm font-semibold text-white">Add</button>
+        </form>
+        : <button onClick={() => setAdding(true)} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm text-[#065fd4] hover:bg-[#def1ff]"><span className="grid h-[22px] w-[22px] place-items-center rounded-full ring-1 ring-[#c4c4c4] text-[#606060]">+</span>Your own topic</button>}
+      {chipGenres.map((g) => navItem(GENRE[g].name, <span className="grid h-[22px] w-[22px] place-items-center"><span className="h-2.5 w-2.5 rounded-full" style={{ background: GENRE[g].color }} /></span>, view.kind === "home" && chip === g, () => { setChip(g); go({ kind: "home" }); }))}
+      <div className="my-3 h-px bg-[#e5e5e5]" />
       {navItem("Your interests", <Heart size={22} strokeWidth={1.8} />, false, onEditInterests)}
       {es.follows.length > 0 && <>
         <div className="my-3 h-px bg-[#e5e5e5]" />
@@ -504,25 +516,25 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     const more = !topic && chip !== "all" && !genres.includes(chip) ? extra[chip] : null;
     const shown = chip === "all" ? feed : Array.isArray(more) ? more : cardsOf(chip, pools?.[chip] || []);
     content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6">
-      <div role="group" aria-label="Topics" className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 -mx-1 flex items-center gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
-        <button onClick={() => setChip("all")} aria-pressed={chip === "all"} className={chipCls(chip === "all")}>All</button>
-        {topics.map((t) => {
-          const on = chip === `t:${t}`;
-          return <span key={t} className="flex shrink-0 items-center">
-            <button onClick={() => setChip(`t:${t}`)} aria-pressed={on} className={`${chipCls(on)} ${on ? "rounded-r-none pr-2" : ""}`}>{t}</button>
-            {on && <button onClick={() => { setTopics(topics.filter((x) => x !== t)); setChip("all"); }} aria-label={`Remove ${t}`} className="inline-flex h-8 w-7 items-center justify-center rounded-r-lg bg-[#0f0f0f] text-white/70 hover:text-white"><X size={14} /></button>}
-          </span>;
-        })}
-        {adding
-          ? <form onSubmit={(e) => { e.preventDefault(); addTopic(); }} className="flex shrink-0 items-center gap-1">
-            <label htmlFor="ps-topic" className="sr-only">New topic</label>
-            <input id="ps-topic" autoFocus value={newTopic} onChange={(e) => setNewTopic(e.target.value)} onBlur={() => { if (!newTopic.trim()) setAdding(false); }} placeholder="Anyone or anything" maxLength={40} className="h-8 w-44 rounded-lg border border-[#d3d3d3] px-3 text-sm outline-none focus:border-[#1c62b9]" />
-            <button type="submit" className="h-8 rounded-lg bg-[#0f0f0f] px-3 text-sm font-semibold text-white">Add</button>
-          </form>
-          : <button onClick={() => setAdding(true)} className="h-8 shrink-0 whitespace-nowrap rounded-lg border border-dashed border-[#c4c4c4] px-3 text-sm font-medium hover:bg-[#f2f2f2]">+ Your topic</button>}
-        {chipGenres.map((g) => <button key={g} onClick={() => setChip(g)} aria-pressed={chip === g} className={chipCls(chip === g)}>{GENRE[g].name}</button>)}
-        <button onClick={onEditInterests} className="h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">Your interests</button>
-      </div>
+      <section aria-label="Why Pod+" className="ps-keep relative mb-5 mt-3 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white ring-1 ring-white/10">
+        <style>{"@keyframes ps-tag{0%{opacity:0;transform:translateY(70%);filter:blur(3px)}60%{filter:blur(0)}100%{opacity:1;transform:translateY(0)}}.ps-tag{animation:ps-tag .6s cubic-bezier(.2,.8,.2,1) both}@keyframes ps-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}.ps-tick{animation:ps-tick 70s linear infinite}.ps-strip:hover .ps-tick,.ps-strip:active .ps-tick,.ps-strip:focus-within .ps-tick{animation-play-state:paused}@media (prefers-reduced-motion:reduce){.ps-tick,.ps-tag{animation:none}}"}</style>
+        <span className="ps-keep relative z-10 flex h-full w-[11.5rem] shrink-0 items-center overflow-hidden bg-[#0f0f0f] pl-4 pr-2 text-[13px] font-semibold text-[#ff8a3d] sm:w-[13.5rem]" aria-live="off"><span key={tag} className="ps-tag block truncate">{TAGS[tag]}</span></span>
+        <div className="ps-strip relative h-full min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_24px,#000_calc(100%-24px),transparent)]">
+          <p className="sr-only">{WHY.map((w) => `${w.h} ${w.p}`).join(" ")}</p>
+          <div aria-hidden="true" className="ps-tick flex h-full w-max items-center whitespace-nowrap">
+            {[0, 1].map((k) => <span key={k} className="flex items-center">
+              {WHY.map((w) => <span key={w.h} className="flex items-center pr-8 text-[13px]"><b className="font-semibold">{w.h}</b><span className="ml-1.5 text-white/70">{w.p}</span><span className="ml-8 h-1 w-1 rounded-full bg-white/30" /></span>)}
+            </span>)}
+          </div>
+        </div>
+      </section>
+      {chip !== "all" && <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        {!topic && <h1 className="text-2xl font-bold tracking-tight">{GENRE[chip]?.name}</h1>}
+        <div className={`flex gap-2 ${topic ? "ml-auto" : ""}`}>
+          {topic && <button onClick={() => { setTopics(topics.filter((x) => x !== topic)); setChip("all"); }} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium text-[#606060] hover:bg-[#f2f2f2]">Remove topic</button>}
+          <button onClick={() => setChip("all")} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#f2f2f2] pl-4 pr-3 text-sm font-medium hover:bg-[#e5e5e5]">All<X size={15} /></button>
+        </div>
+      </div>}
 
       {chip === "all" && !pro && <section aria-label="Pod+ Membership" className="ps-keep relative mb-6 mt-1 overflow-hidden rounded-2xl bg-[#0f0f0f] text-white">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
@@ -547,18 +559,6 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
 
-      {chip === "all" && <section aria-label="Why Pod+" className="ps-keep relative mb-6 mt-1 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white ring-1 ring-white/10">
-        <style>{"@keyframes ps-tag{0%{opacity:0;transform:translateY(70%);filter:blur(3px)}60%{filter:blur(0)}100%{opacity:1;transform:translateY(0)}}.ps-tag{animation:ps-tag .6s cubic-bezier(.2,.8,.2,1) both}@keyframes ps-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}.ps-tick{animation:ps-tick 70s linear infinite}.ps-strip:hover .ps-tick,.ps-strip:active .ps-tick,.ps-strip:focus-within .ps-tick{animation-play-state:paused}@media (prefers-reduced-motion:reduce){.ps-tick,.ps-tag{animation:none}}"}</style>
-        <span className="ps-keep relative z-10 flex h-full w-[11.5rem] shrink-0 items-center overflow-hidden bg-[#0f0f0f] pl-4 pr-2 text-[13px] font-semibold text-[#ff8a3d] sm:w-[13.5rem]" aria-live="off"><span key={tag} className="ps-tag block truncate">{TAGS[tag]}</span></span>
-        <div className="ps-strip relative h-full min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_24px,#000_calc(100%-24px),transparent)]">
-          <p className="sr-only">{WHY.map((w) => `${w.h} ${w.p}`).join(" ")}</p>
-          <div aria-hidden="true" className="ps-tick flex h-full w-max items-center whitespace-nowrap">
-            {[0, 1].map((k) => <span key={k} className="flex items-center">
-              {WHY.map((w) => <span key={w.h} className="flex items-center pr-8 text-[13px]"><b className="font-semibold">{w.h}</b><span className="ml-1.5 text-white/70">{w.p}</span><span className="ml-8 h-1 w-1 rounded-full bg-white/30" /></span>)}
-            </span>)}
-          </div>
-        </div>
-      </section>}
 
       {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} top={tops[`t:${topic}`] || []} />
         : err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={load} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
