@@ -78,7 +78,52 @@ export type SavedEpisode = { id: string; showId: string; title: string; show: st
 
 /** Pod Modes: listening hubs for a time of day or activity (Sleep, Commute...), each a playlist that
  *  plays back to back. The built-in ones always exist; people add their own. */
-export type PodMode = { id: string; name: string; icon: string; episodes: SavedEpisode[] };
+export type PodMode = { id: string; name: string; icon: string; episodes: SavedEpisode[]; theme?: HubTheme };
+
+/** A Pod Mode's own look, set by the listener: page color, accent (buttons), and typeface. */
+export type HubFont = "sans" | "serif" | "mono" | "rounded" | "condensed";
+export type HubTheme = { bg: string; accent: string; font: HubFont };
+export const HUB_FONTS: Record<HubFont, { name: string; stack: string; weight: number; tracking: string }> = {
+  sans: { name: "Sans", stack: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif", weight: 650, tracking: "-0.02em" },
+  serif: { name: "Serif", stack: "ui-serif, 'Iowan Old Style', 'Palatino Linotype', Georgia, serif", weight: 600, tracking: "-0.01em" },
+  mono: { name: "Mono", stack: "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace", weight: 600, tracking: "-0.03em" },
+  rounded: { name: "Rounded", stack: "ui-rounded, 'SF Pro Rounded', 'Nunito', 'Varela Round', system-ui, sans-serif", weight: 700, tracking: "-0.01em" },
+  condensed: { name: "Condensed", stack: "'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif", weight: 700, tracking: "0" },
+};
+/** Ready-made colors for the theme editor (a custom color is allowed too). */
+export const HUB_BACKGROUNDS = ["#111013", "#1F2A44", "#0F3D3E", "#2B2118", "#3B1F2B", "#E8E1D3", "#F4F1EA", "#DCE6F0", "#E9F0E3", "#FFFFFF"] as const;
+export const HUB_ACCENTS = ["#FF6A1F", "#F2C94C", "#6EE7B7", "#93C5FD", "#C4B5FD", "#F9A8D4", "#FFFFFF", "#111013"] as const;
+const BUILT_IN_THEMES: Record<string, HubTheme> = {
+  sleep: { bg: "#1F2A44", accent: "#C4B5FD", font: "serif" },
+  commute: { bg: "#111013", accent: "#F2C94C", font: "sans" },
+  workout: { bg: "#2B2118", accent: "#FF6A1F", font: "condensed" },
+  focus: { bg: "#0F3D3E", accent: "#6EE7B7", font: "mono" },
+  learn: { bg: "#F4F1EA", accent: "#111013", font: "serif" },
+  chores: { bg: "#DCE6F0", accent: "#111013", font: "rounded" },
+};
+const HEX = /^#[0-9a-f]{6}$/i;
+/** A mode's theme: its own if set, else a built-in one, else a steady pick from the name. */
+export function hubTheme(m: Pick<PodMode, "id" | "theme">): HubTheme {
+  if (m.theme) return m.theme;
+  if (BUILT_IN_THEMES[m.id]) return BUILT_IN_THEMES[m.id];
+  let h = 0; for (const ch of m.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const bgs = ["#111013", "#1F2A44", "#0F3D3E", "#2B2118", "#3B1F2B"];
+  return { bg: bgs[h % bgs.length], accent: HUB_ACCENTS[h % 6], font: "sans" };
+}
+export function cleanHubTheme(v: unknown): HubTheme | undefined {
+  const r = v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+  if (!r || typeof r.bg !== "string" || typeof r.accent !== "string" || !HEX.test(r.bg) || !HEX.test(r.accent)) return undefined;
+  const font = typeof r.font === "string" && r.font in HUB_FONTS ? (r.font as HubFont) : "sans";
+  return { bg: r.bg.toUpperCase(), accent: r.accent.toUpperCase(), font };
+}
+/** Relative lightness (0 dark – 1 light), for picking readable text on a color. */
+export function lightness(hex: string): number {
+  const n = parseInt(hex.replace("#", ""), 16); if (!Number.isFinite(n)) return 0;
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x) => { const v = x / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+/** Text that reads on this color: near-black on light colors, white on dark ones. */
+export const inkOn = (hex: string) => (lightness(hex) > 0.35 ? "#111013" : "#FFFFFF");
 export const DEFAULT_MODES: readonly { id: string; name: string; icon: string; blurb: string }[] = [
   { id: "sleep", name: "Sleep", icon: "🌙", blurb: "Calm voices to drift off to" },
   { id: "commute", name: "Commute", icon: "🚗", blurb: "Right-sized for the drive" },
@@ -406,10 +451,11 @@ function cleanModes(v: unknown): PodMode[] {
     if (!id) continue;
     const episodes = list(r.episodes, EARSHOT_LIMITS.modeEpisodes, cleanSavedEpisode);
     const known = out.find((m) => m.id === id);
-    if (known) { known.episodes = episodes; continue; }
+    const theme = cleanHubTheme(r.theme);
+    if (known) { known.episodes = episodes; if (theme) known.theme = theme; continue; }
     const name = str(r.name, 30).replace(/\s+/g, " ").trim();
     if (!name || out.length >= EARSHOT_LIMITS.modes) continue;
-    out.push({ id, name, icon: MODE_ICONS.includes(r.icon) ? r.icon : "🎙️", episodes });
+    out.push({ id, name, icon: MODE_ICONS.includes(r.icon) ? r.icon : "🎙️", episodes, ...(theme ? { theme } : {}) });
   }
   return out;
 }
