@@ -19,6 +19,7 @@ import { copyTranscript, registerPlayRoutes, startOpenings, type Player } from "
 import { registerSocialRoutes } from "./podcastSocial";
 import { registerCreatorRoutes } from "./podcastCreators";
 import { topShowsService } from "./podcastTop";
+import { showInfoService } from "./podcastInfo";
 import { accountSessions, registerPodscrollAccountRoutes, SESSION } from "./podcastAccounts";
 
 export type EarshotComment = { id: string; episodeId: string; author: string; body: string; at: string; mine: boolean };
@@ -248,6 +249,22 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
       if (!shows) { res.set("Cache-Control", "no-store"); return res.json({ shows: [], pending: true }); }
       res.set("Cache-Control", "private, max-age=1800");
       res.json({ shows: isStudent(req) ? shows.filter((s) => GENRE[s.genre]?.kidSafe) : shows });
+    } catch (e) { appleDown(res, e); }
+  });
+
+  /** About a show (the info button on the swipe screen): description, hosts, their other shows,
+   *  and where it ranks on Apple Podcasts and Spotify. */
+  const infos = showInfoService({ apple: (url) => dir.apple(url), loadShow: (id) => dir.loadShow(id), appleRanks: (s) => top.ranksOf(s) });
+  app.get(`${P}/show/:id/info`, authMiddleware, async (req: any, res) => {
+    const id = cleanPodId(req.params.id);
+    if (!id) return res.status(400).json({ message: "That isn't a podcast." });
+    if (limited(reads, req, res)) return;
+    try {
+      const info = await infos.info(id);
+      if (!info) return res.status(404).json({ message: "That podcast isn't available." });
+      const explicit = explicitFor(req);
+      res.set("Cache-Control", "private, max-age=1800");
+      res.json({ ...info, others: clean(info.others, explicit).filter((s) => !isStudent(req) || GENRE[s.genre]?.kidSafe) });
     } catch (e) { appleDown(res, e); }
   });
 
