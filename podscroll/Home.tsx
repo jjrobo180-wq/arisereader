@@ -4,12 +4,13 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GENRE, GENRES, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
-import { Bell, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { Bell, Moon, Sun, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
 import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode } from "./Hubs";
 import { hubTheme } from "@shared/earshot";
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
+import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "watch"; showId: string; episodeId: string };
@@ -60,8 +61,12 @@ function shuffled<T>(list: T[], seed: number): T[] {
   return out;
 }
 
+/** Dark mode for the home page and its pages: its light colors swapped for dark ones. */
+const DARK_CSS = ".ps-dark .bg-white{background-color:#0f0f0f}.ps-dark .bg-\\[\\#f2f2f2\\]{background-color:#272727}.ps-dark .bg-\\[\\#f7f7f5\\]{background-color:#1c1c1c}.ps-dark .bg-\\[\\#f8f8f8\\]{background-color:#222}.ps-dark .bg-\\[\\#e5e5e5\\]{background-color:#333}.ps-dark .bg-\\[\\#fff1e8\\]{background-color:#3a2416}.ps-dark .bg-\\[\\#fff4ee\\]{background-color:#2b1b11}.ps-dark .bg-\\[\\#fef3f2\\]{background-color:#3a1d1b}.ps-dark .bg-\\[\\#ececec\\]{background-color:#2a2a2a}.ps-dark .hover\\:bg-\\[\\#f2f2f2\\]:hover{background-color:#272727}.ps-dark .hover\\:bg-\\[\\#e5e5e5\\]:hover{background-color:#3a3a3a}.ps-dark .hover\\:bg-\\[\\#f7f7f5\\]:hover{background-color:#1f1f1f}.ps-dark .hover\\:bg-\\[\\#ffe9dc\\]:hover{background-color:#3a2416}.ps-dark .hover\\:bg-\\[\\#def1ff\\]:hover{background-color:#1d2b3a}.ps-dark .hover\\:bg-\\[\\#efefec\\]:hover{background-color:#262626}.ps-dark .hover\\:bg-\\[\\#fee4e2\\]:hover{background-color:#4a2420}.ps-dark .hover\\:bg-\\[\\#272727\\]:hover{background-color:#d9d9d9}.ps-dark .hover\\:bg-\\[\\#fef3f2\\]:hover{background-color:#3a1d1b}.ps-dark .text-\\[\\#0f0f0f\\]{color:#f1f1f1}.ps-dark .text-\\[\\#606060\\]{color:#aaaaaa}.ps-dark .text-\\[\\#767676\\]{color:#9a9a9a}.ps-dark .text-\\[\\#3a3a3a\\]{color:#d0d0d0}.ps-dark .text-\\[\\#065fd4\\]{color:#3ea6ff}.ps-dark .text-\\[\\#b42318\\]{color:#ff8a80}.ps-dark .text-\\[\\#9a3412\\]{color:#ffb38a}.ps-dark .text-\\[\\#c2410c\\]{color:#ff9a5a}.ps-dark .border-\\[\\#e5e5e5\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#ececec\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#d3d3d3\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#c4c4c4\\]{border-color:#3a3a3a}.ps-dark .border-\\[\\#1a1a1c\\]{border-color:#3a3a3a}.ps-dark .divide-\\[\\#ececec\\]>:not([hidden])~:not([hidden]){border-color:#2e2e2e}.ps-dark .divide-\\[\\#e5e5e5\\]>:not([hidden])~:not([hidden]){border-color:#2e2e2e}.ps-dark .ring-\\[\\#c4c4c4\\]{--tw-ring-color:#4a4a4a}.ps-dark .ring-\\[\\#d3d3d3\\]{--tw-ring-color:#4a4a4a}.ps-dark .bg-\\[\\#0f0f0f\\]:not(.ps-keep){background-color:#f1f1f1;color:#0f0f0f}.ps-dark .bg-\\[\\#0f0f0f\\]:not(.ps-keep).text-white{color:#0f0f0f}.ps-dark .bg-white\\/95{background-color:rgba(15,15,15,.95)}.ps-dark input:not([type=color]),.ps-dark textarea{color:#f1f1f1;background-color:#121212}.ps-dark input::placeholder,.ps-dark textarea::placeholder{color:#8a8a8a}.ps-dark .shadow-2xl{box-shadow:0 20px 60px rgba(0,0,0,.6)}";
+
 const HINTS = [
   "Search podcasts",
+  "Video killed the radio star",
   "Phone down, podcast on",
   "Screen off. Still on.",
   "Free with the screen off",
@@ -77,6 +82,7 @@ const HINTS = [
 ];
 
 const WHY: { h: string; p: string }[] = [
+  { h: "Video killed the radio star.", p: "Audio's back, and it doesn't need your screen." },
   { h: "Lock your phone. It keeps playing.", p: "On YouTube that takes Premium. Here it's free." },
   { h: "No ads stacked on ads.", p: "No unskippable pre-rolls, no break every few minutes. We don't add a single ad of our own." },
   { h: "Nothing to stare at.", p: "Video wants your eyes. Audio leaves them for the drive, the gym, the work." },
@@ -103,7 +109,11 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   // Switch views right away, and keep the address in step (so Back and links work).
   const go = useCallback((v: View) => { const h = hashOf(v); setViewState(v); if (location.hash !== h) location.hash = h; window.scrollTo(0, 0); }, []);
   useEffect(() => { const on = () => { setViewState(parseHash()); window.scrollTo(0, 0); }; window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
-  useEffect(() => { document.documentElement.style.background = "#ffffff"; }, []);
+  // Light or dark: the same setting as the swipe feed (follows the phone unless changed).
+  const { theme, day } = useTheme();
+  const dark = !day;
+  useEffect(() => { document.documentElement.style.background = dark ? "#0f0f0f" : "#ffffff"; }, [dark]);
+  const cycleTheme = () => setTheme(theme === "system" ? (dark ? "light" : "dark") : theme === "dark" ? "light" : "dark");
 
   const ex = es.settings.explicit ? "&explicit=1" : "";
   const genres = useMemo(() => (es.setupDone && es.genres.length ? es.genres : DEFAULT_GENRES).filter((g) => GENRE[g]).slice(0, 12), [es.setupDone, es.genres]);
@@ -221,6 +231,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
         {!pro && <button onClick={onJoin} className="hidden h-9 items-center rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white hover:bg-[#272727] sm:inline-flex">Go ad-free</button>}
+        <button onClick={cycleTheme} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]">{dark ? <Sun size={20} strokeWidth={1.8} /> : <Moon size={20} strokeWidth={1.8} />}</button>
         <button aria-label="Notifications" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bell size={21} strokeWidth={1.8} /></button>
       </div>
       </div>
@@ -338,9 +349,9 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
 
       {chip === "all" && <ModesRow es={es} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
 
-      {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="relative mb-6 mt-1 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white">
+      {chip === "all" && !whyHidden && <section aria-label="Why Pod+" className="ps-keep relative mb-6 mt-1 flex h-11 items-center overflow-hidden rounded-full bg-[#0f0f0f] text-white ring-1 ring-white/10">
         <style>{"@keyframes ps-tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}.ps-tick{animation:ps-tick 70s linear infinite}.ps-strip:hover .ps-tick,.ps-strip:active .ps-tick,.ps-strip:focus-within .ps-tick{animation-play-state:paused}@media (prefers-reduced-motion:reduce){.ps-tick{animation:none}}"}</style>
-        <span className="z-10 flex h-full shrink-0 items-center bg-[#0f0f0f] pl-4 pr-3 text-[13px] font-semibold text-[#ff8a3d]">Phone down. Podcast on.</span>
+        <span className="ps-keep z-10 flex h-full shrink-0 items-center bg-[#0f0f0f] pl-4 pr-3 text-[13px] font-semibold text-[#ff8a3d]">Phone down. Podcast on.</span>
         <div className="ps-strip relative h-full min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_24px,#000_calc(100%-24px),transparent)]">
           <p className="sr-only">{WHY.map((w) => `${w.h} ${w.p}`).join(" ")}</p>
           <div aria-hidden="true" className="ps-tick flex h-full w-max items-center whitespace-nowrap">
@@ -349,7 +360,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
             </span>)}
           </div>
         </div>
-        <button onClick={() => { setWhyHidden(true); writeLs("podscroll.why", "hidden"); }} aria-label="Hide this" className="z-10 inline-flex h-11 w-11 shrink-0 items-center justify-center bg-[#0f0f0f] text-white/60 hover:text-white"><X size={16} /></button>
+        <button onClick={() => { setWhyHidden(true); writeLs("podscroll.why", "hidden"); }} aria-label="Hide this" className="ps-keep z-10 inline-flex h-11 w-11 shrink-0 items-center justify-center bg-[#0f0f0f] text-white/60 hover:text-white"><X size={16} /></button>
       </section>}
 
       {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} />
@@ -361,7 +372,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     </div>;
   }
 
-  return <MoreCtx.Provider value={setAddTo}><div className="min-h-full bg-white text-[#0f0f0f] [color-scheme:light] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]">
+  return <MoreCtx.Provider value={setAddTo}><div className={`min-h-full bg-white text-[#0f0f0f] [&_input]:text-[#0f0f0f] [&_input::placeholder]:text-[#767676] ${dark ? "ps-dark [color-scheme:dark]" : "[color-scheme:light]"} [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]`}>
+    {dark && <style>{DARK_CSS}</style>}
     {header}
     <div className={`flex items-start ${station ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}

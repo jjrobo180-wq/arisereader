@@ -247,7 +247,7 @@ export function PartyRoom({ room: wanted, api, wsBase, device, nickname, setNick
         {status === "connecting" ? <span className="flex items-center gap-2"><Loader2 size={16} className="animate-spin" />Connecting…</span> : <span className="flex flex-wrap items-center gap-3">{error}{status === "error" && <button onClick={() => { tries.current = 0; connect(roomId); }} className="font-semibold underline">Try again</button>}</span>}
       </div>}
 
-      <div className="relative overflow-hidden rounded-2xl bg-[#0f0f0f] text-white">
+      <div className="ps-keep relative overflow-hidden rounded-2xl bg-[#0f0f0f] text-white">
         {ep?.art && <img src={hiRes(ep.art, 600)} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-3xl" />}
         <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
           {ep ? <img src={hiRes(ep.art, 400)} alt="" className="h-36 w-36 shrink-0 rounded-xl object-cover shadow-[0_12px_40px_rgba(0,0,0,.45)] sm:h-44 sm:w-44" />
