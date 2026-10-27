@@ -7,6 +7,7 @@ import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type 
 import { Bell, Check, Moon, Sun, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
+import { SearchPage } from "./Search";
 import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from "./Hubs";
 import { hubTheme } from "@shared/earshot";
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
@@ -429,7 +430,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   if (view.kind === "watch") {
     content = <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
   } else if (view.kind === "search") {
-    content = <SearchResults key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} />;
+    content = <SearchPage key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} onMore={setAddTo} onSearch={(n) => { setQ(n); go({ kind: "search", q: n }); }} />;
   } else if (view.kind === "mode") {
     content = <ModePage es={es} id={view.id} update={update} say={say} onBack={() => go({ kind: "home" })} api={api} ex={ex} onPlay={(index, order) => onOpenFeed(undefined, undefined, { id: view.id, index, order })} />;
   } else if (view.kind === "party") {

@@ -9,7 +9,7 @@
 import type { Express, RequestHandler } from "express";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import {
-  GENRE, EARSHOT_LIMITS, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
+  GENRE, EARSHOT_LIMITS, appleLookupUrl, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
 import { createDirectory, type Directory, type Fetcher } from "./podcastDirectory";
@@ -253,11 +253,13 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
     if (q.length < 2) return res.json({ shows: [], episodes: [] });
     if (limited(reads, req, res, "searches")) return;
     const explicit = explicitFor(req);
+    // deep=1 (Pod+ search page): up to 200 episodes and 50 shows, so exact matches further down are found.
+    const deep = req.query?.deep === "1";
     try {
-      const out = await dir.searches.get(q.toLowerCase(), async () => {
-        const shows = await dir.apple(appleSearchUrl(q, "podcast", 25, true));
+      const out = await dir.searches.get(`${deep ? "deep:" : ""}${q.toLowerCase()}`, async () => {
+        const shows = await dir.apple(appleSearchUrl(q, "podcast", deep ? 50 : 25, true));
         let episodes: any = { results: [] };
-        try { episodes = await dir.apple(appleSearchUrl(q, "podcastEpisode", 20, true)); } catch { /* shows alone are fine */ }
+        try { episodes = await dir.apple(appleSearchUrl(q, "podcastEpisode", deep ? 200 : 20, true)); } catch { /* shows alone are fine */ }
         return {
           shows: (Array.isArray(shows?.results) ? shows.results : []).map((r: unknown) => parseShow(r)).filter(Boolean) as PodShow[],
           episodes: (Array.isArray(episodes?.results) ? episodes.results : []).map((r: unknown) => parseEpisode(r)).filter(Boolean) as PodEpisode[],
@@ -266,6 +268,30 @@ export function registerEarshotRoutes(app: Express, authMiddleware: RequestHandl
       const kidOk = (genre: string) => !isStudent(req) || !!GENRE[genre]?.kidSafe;
       res.set("Cache-Control", "private, max-age=900");
       res.json({ shows: clean(out.shows, explicit).filter((s) => kidOk(s.genre)), episodes: clean(out.episodes, explicit) });
+    } catch (e) { appleDown(res, e); }
+  });
+
+  /** Search inside one show: up to its 200 newest episodes as Apple lists them (most apps show 25).
+   *  Words match titles and descriptions; no words lists the archive newest first. */
+  app.get(`${P}/show/:id/search`, authMiddleware, async (req: any, res) => {
+    const id = cleanPodId(req.params.id);
+    if (!id) return res.status(400).json({ message: "That isn't a podcast." });
+    const q = typeof req.query?.q === "string" ? req.query.q.replace(/\s+/g, " ").trim().slice(0, EARSHOT_LIMITS.search).toLowerCase() : "";
+    if (limited(reads, req, res, "searches")) return;
+    try {
+      const out = await dir.searches.get(`archive:${id}`, async () => {
+        const body = await dir.apple(appleLookupUrl(id, 200));
+        const results: unknown[] = Array.isArray(body?.results) ? body.results : [];
+        const show = results.map((r) => parseShow(r)).find((s) => s && s.id === id) ?? null;
+        const episodes = results.map((r) => parseEpisode(r, show)).filter(Boolean) as PodEpisode[];
+        return { shows: show ? [show] : [], episodes };
+      });
+      const words = q.split(" ").filter((w) => w.length > 1);
+      const list = (clean(out.episodes, explicitFor(req)))
+        .filter((e) => !words.length || words.every((w) => `${e.title} ${e.about}`.toLowerCase().includes(w)))
+        .sort((a, b) => Date.parse(b.date || "0") - Date.parse(a.date || "0"));
+      res.set("Cache-Control", "private, max-age=900");
+      res.json({ show: out.shows[0] ?? null, episodes: list, total: out.episodes.length });
     } catch (e) { appleDown(res, e); }
   });
 
