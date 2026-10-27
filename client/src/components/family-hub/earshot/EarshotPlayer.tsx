@@ -148,6 +148,35 @@ const throughServer = (url: string) => !/\.(m4a|mp4|aac|m4b|ogg|opus|wav|flac|we
 
 // ---- where each episode was left off, kept on this device ----
 type Spot = { t: number; secs: number; title: string; show: string; showId: string; art: string; at: number };
+// Blended ad skips: the sound eases out just before an ad, the jump lands, and it eases back in once
+// the audio there is ready, so a skip never cuts mid-word or clicks. Phones that don't let a page set
+// volume (iPhones) just jump at the exact moment instead.
+let fadeOk: boolean | null = null;
+function canFade(): boolean {
+  if (fadeOk === null) { try { const t = new Audio(); t.volume = 0.5; fadeOk = Math.abs(t.volume - 0.5) < 0.01; } catch { fadeOk = false; } }
+  return fadeOk;
+}
+const fading = new WeakMap<HTMLAudioElement, ReturnType<typeof setInterval>>();
+/** Eases the volume to `to` over `ms`. Timer-based, so it still finishes with the screen off. */
+function fadeVolume(a: HTMLAudioElement, to: number, ms: number): Promise<void> {
+  if (!canFade()) return Promise.resolve();
+  const old = fading.get(a); if (old) clearInterval(old);
+  const from = a.volume, start = Date.now();
+  return new Promise((done) => {
+    const id = setInterval(() => {
+      const k = Math.min(1, (Date.now() - start) / ms), e = k * k * (3 - 2 * k);
+      try { a.volume = Math.max(0, Math.min(1, from + (to - from) * e)); } catch { /* ignore */ }
+      if (k >= 1) { clearInterval(id); fading.delete(a); done(); }
+    }, 16);
+    fading.set(a, id);
+  });
+}
+const SAVED_KEY = "earshot.adSaved";
+/** Seconds of ads skipped on this device, all time. */
+export function adSavedSecs(): number { try { return Math.max(0, Number(localStorage.getItem(SAVED_KEY)) || 0); } catch { return 0; } }
+function addSaved(secs: number) { if (!Number.isFinite(secs)) return; try { localStorage.setItem(SAVED_KEY, String(Math.max(0, Math.round(adSavedSecs() + secs)))); } catch { /* not kept */ } }
+const savedWords = (s: number) => { const m = Math.round(s / 60); return m < 1 ? "" : m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`; };
+
 const SPOTS_KEY = "earshot.spots";
 const readSpots = (): Record<string, Spot> => { try { const v = JSON.parse(localStorage.getItem(SPOTS_KEY) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; } };
 function saveSpot(ep: PodEpisode, t: number) {
@@ -548,13 +577,27 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     return p.sid;
   };
   const sessionSrc = (ep: PodEpisode, sid: string) => mediaUrl!(`${playTok.current!.audio}${sid}?e=${ep.id}&s=${ep.showId}&k=${encodeURIComponent(playTok.current!.token)}`);
+  const skipping = useRef(false);
+  const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Past an ad, blended: ease out (when fadeOut), jump, ease back in once the audio there is ready. */
+  const smoothSkip = (a: HTMLAudioElement, ad: PlayAd, epId: string, fadeOut = true) => {
+    if (skipping.current) return; skipping.current = true;
+    const land = () => {
+      try { a.currentTime = ad.e; } catch { skipping.current = false; void fadeVolume(a, 1, 150); return; }
+      let back = false;
+      const up = () => { if (back) return; back = true; a.removeEventListener("seeked", up); skipping.current = false; void fadeVolume(a, 1, 500); };
+      a.addEventListener("seeked", up); setTimeout(up, 1500);
+      setSkipped({ ad, epId }); addSaved(ad.e - ad.s);
+    };
+    if (fadeOut && canFade() && !a.paused) void fadeVolume(a, 0, 220).then(land);
+    else { if (canFade()) { const f = fading.get(a); if (f) clearInterval(f); a.volume = 0; } land(); }
+  };
   /** Jumps past a sure ad the player is in right now (and says so). */
   const skipIfInAd = (a: HTMLAudioElement, ads: PlayAd[]) => {
     const t = a.currentTime || 0;
     const ad = ads.find((x) => x.sure && (x.kind !== "intro" || esRef.current.settings.skipIntro) && t >= x.s - 0.5 && t < x.e - 1 && !undone.current.has(x.key));
     if (!ad) return;
-    try { a.currentTime = ad.e; } catch { return; }
-    const epId = a.dataset.ep; if (epId) setSkipped({ ad, epId });
+    const epId = a.dataset.ep; if (epId) smoothSkip(a, ad, epId, false);
   };
   /** Asks what the server found in this session's copy: soon after it starts, then less often, until it's final. */
   const pollPlay = (epId: string, again = false) => {
@@ -784,7 +827,21 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     if (ep && (listened.current > 5 || sheetRef.current?.kind === "read") && (mode !== "off" || sheetRef.current?.kind === "read")) wantTx(ep, t);
     if (ep && it && mode === "auto" && !esRef.current.adFree.includes(it.show.id) && !markingRef.current) {
       const ad = playAdAt(adsRef.current, t);
-      if (ad && ad.sure && !undone.current.has(ad.key)) { a.currentTime = ad.e; setSkipped({ ad, epId: ep.id }); }
+      if (ad && ad.sure && !undone.current.has(ad.key)) smoothSkip(a, ad, ep.id, false);
+      else if (!skipTimer.current && !a.paused && !skipping.current) {
+        // One coming up within 2 s: time the skip to the exact moment, easing out just before it,
+        // so the ad never gets a word in (timeupdate alone is a quarter second late).
+        const next = adsRef.current.find((x) => x.sure && !undone.current.has(x.key) && x.s > t && x.s - t < 2);
+        if (next) {
+          const epId = ep.id, wait = Math.max(0, ((next.s - t) / (a.playbackRate || 1)) * 1000 - 230);
+          skipTimer.current = setTimeout(() => {
+            skipTimer.current = null;
+            if (a.dataset.ep !== epId || a.paused || markingRef.current || undone.current.has(next.key) || esRef.current.settings.adMode !== "auto") return;
+            const now = a.currentTime;
+            if (now >= next.s - 1 && now < next.e - 1) smoothSkip(a, next, epId);
+          }, wait);
+        }
+      }
     }
     const sl = sleepRef.current;
     if (typeof sl === "number" && Date.now() >= sl) { a.pause(); setSleepAt(null); say("Sleep timer: paused. Sleep well."); }
@@ -841,10 +898,15 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   const adOffer = adNow && !(adNow.sure && adMode === "auto") ? adNow : null;
   const undoSkip = () => {
     if (!skipped) return;
-    undone.current.add(skipped.ad.key); seekTo(skipped.ad.s); voteAd(skipped.epId, skipped.ad.key, -1); setSkipped(null); setAdsTick((x) => x + 1);
+    undone.current.add(skipped.ad.key); addSaved(-(skipped.ad.e - skipped.ad.s)); seekTo(skipped.ad.s); voteAd(skipped.epId, skipped.ad.key, -1); setSkipped(null); setAdsTick((x) => x + 1);
     say("Got it, that wasn't an ad. It won't be skipped for you, and your vote counts for everyone.");
   };
-  const takeOffer = () => { if (!adOffer || !activeEp) return; seekTo(adOffer.e); if (!adOffer.sure) voteAd(activeEp.id, adOffer.key, 1); };
+  const takeOffer = () => {
+    if (!adOffer || !activeEp) return;
+    const a = cur.current;
+    if (a && a.dataset.ep === activeEp.id) smoothSkip(a, adOffer, activeEp.id); else seekTo(adOffer.e);
+    if (!adOffer.sure) voteAd(activeEp.id, adOffer.key, 1);
+  };
   const refuseOffer = () => { if (!adOffer || !activeEp) return; undone.current.add(adOffer.key); voteAd(activeEp.id, adOffer.key, -1); setAdsTick((x) => x + 1); say("Thanks. Marked as not an ad."); };
   useEffect(() => { if (!skipped) return; const t = setTimeout(() => setSkipped(null), 6000); return () => clearTimeout(t); }, [skipped]);
   void txTick;
@@ -1141,9 +1203,14 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
         onInfo={() => { setSheet({ kind: "info", show: it.show }); signal(it.show.genre, "open"); }} onNext={() => goTo(i + 1)} />)}
     </div>}
 
-    {skipped && <div role="status" className={`absolute inset-x-3 ${below} z-[25] mx-auto flex max-w-sm items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-[#120e14] shadow-xl`}>
-      <span className="min-w-0 truncate">Skipped {skipped.ad.kind === "user" ? "a listener-marked ad" : "an ad"}{skipped.ad.label && !/^(ad break|pre-roll)$/i.test(skipped.ad.label) ? ` · ${skipped.ad.label}` : ""} ({clock(skipped.ad.e - skipped.ad.s)})</span>
-      <button type="button" onClick={undoSkip} className="flex-none rounded-full bg-[#120e14] px-3 py-1 text-xs font-semibold text-white">Undo</button>
+    {skipped && <div className={`pointer-events-none absolute inset-x-3 ${below} z-[25] flex justify-center`}>
+      <style>{"@keyframes esPill{from{opacity:0;transform:translateY(-8px) scale(.96)}to{opacity:1;transform:none}}@keyframes esDrain{from{transform:scaleX(1)}to{transform:scaleX(0)}}"}</style>
+      <div key={skipped.ad.key} role="status" className="pointer-events-auto relative flex max-w-full items-center gap-2.5 overflow-hidden rounded-full bg-black/45 py-1.5 pl-3.5 pr-1.5 text-[13px] font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-xl" style={{ animation: "esPill .35s cubic-bezier(.2,.8,.2,1)" }}>
+        <SkipForward size={13} className="flex-none opacity-70" />
+        <span className="min-w-0 truncate">Ad skipped{skipped.ad.label && !/^(ad break|pre-roll)$/i.test(skipped.ad.label) ? ` · ${skipped.ad.label}` : ""}<span className="text-white/55"> · {clock(skipped.ad.e - skipped.ad.s)} back</span></span>
+        <button type="button" onClick={undoSkip} className="flex-none rounded-full bg-white/15 px-3 py-1 text-xs font-semibold hover:bg-white/25">Undo</button>
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-white/40" style={{ animation: "esDrain 6s linear forwards" }} />
+      </div>
     </div>}
 
     {marking && activeEp && marking.epId === activeEp.id && <div role="status" className={`absolute inset-x-3 ${below} z-[26] mx-auto flex max-w-md flex-col gap-2 rounded-2xl bg-[#ffd23f] p-3 text-[#120e14] shadow-xl`}>
@@ -1325,9 +1392,9 @@ function Card(p: CardProps) {
             <h2 className="mt-0.5 line-clamp-2 text-[21px] font-bold leading-tight tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
             <button type="button" onClick={p.onShow} className="pointer-events-auto mt-0.5 block max-w-full truncate text-left text-[17px] text-white/60 hover:text-white/85">{item.show.name}</button>
             {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">
-              <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#0e0d10]">
+              <span className="flex items-center overflow-hidden rounded-full bg-white/15 text-xs font-semibold text-white ring-1 ring-white/15 backdrop-blur-md">
                 <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "intro" ? "Skip intro" : p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
-                <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={12} /></button>
+                <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-white/15 px-2 py-1.5 text-white/70 hover:text-white"><ThumbsDown size={12} /></button>
               </span>
             </div>}
           </div>
@@ -1394,9 +1461,9 @@ function Card(p: CardProps) {
         <button type="button" onClick={p.onShow} className="pointer-events-auto w-fit max-w-full truncate text-left text-[13px] text-white/50 hover:text-white/80">{item.show.name}</button>
         <h2 className="mt-1 line-clamp-2 text-[19px] font-semibold leading-snug tracking-tight">{ep?.title ?? "Loading the newest episode…"}</h2>
         {ep && p.active && p.ad && <div className="pointer-events-auto mt-2.5 flex">
-          <span className="flex items-center overflow-hidden rounded-full bg-white text-xs font-semibold text-[#0e0d10]">
+          <span className="flex items-center overflow-hidden rounded-full bg-white/15 text-xs font-semibold text-white ring-1 ring-white/15 backdrop-blur-md">
             <button type="button" onClick={p.onSkipAd} className="flex items-center gap-1.5 py-1.5 pl-3 pr-2"><SkipForward size={13} />{p.ad.kind === "intro" ? "Skip intro" : p.ad.kind === "crowd" ? "Listeners skip this · Skip" : p.ad.sure ? `Skip ad${p.ad.label && !/^(ad break|pre-roll)$/i.test(p.ad.label) ? ` · ${p.ad.label}` : ""}` : "Possible ad · Skip"}</button>
-            <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-black/10 px-2 py-1.5"><ThumbsDown size={12} /></button>
+            <button type="button" onClick={p.onNotAd} aria-label="Not an ad" title="Not an ad" className="border-l border-white/15 px-2 py-1.5 text-white/70 hover:text-white"><ThumbsDown size={12} /></button>
           </span>
         </div>}
         {ep && <div className="pointer-events-auto mt-4 flex flex-col">
@@ -1827,7 +1894,7 @@ function SettingsSheet({ es, student, update, onClose, sleepAt, setSleep, apple,
       <Row title="Appearance" sub={theme === "system" ? "Follows your phone or computer" : theme === "light" ? "Day: light pages" : "Night: dark pages"}>
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["light", "Day"], ["dark", "Night"], ["system", "Auto"]] as [Theme, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={theme === v} onClick={() => setTheme(v)} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${theme === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>
-      <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? "Skips ads it's sure about, and asks about the rest. Undo any skip" : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
+      <Row title="Smart ad skip" sub={es.settings.adMode === "auto" ? `Skips ads it's sure about, and asks about the rest. Undo any skip${savedWords(adSavedSecs()) ? ` · ${savedWords(adSavedSecs())} of ads skipped so far` : ""}` : es.settings.adMode === "ask" ? "Shows a Skip button during ads; you decide" : "Ads play normally"}>
         <div className="flex flex-none rounded-full bg-white/10 p-0.5">{([["auto", "Auto"], ["ask", "Ask"], ["off", "Off"]] as [AdMode, string][]).map(([v, l]) => <button key={v} type="button" aria-pressed={es.settings.adMode === v} onClick={() => set({ adMode: v })} className={`rounded-full px-2.5 py-1.5 text-xs font-semibold ${es.settings.adMode === v ? "bg-white text-[#120e14]" : "text-white/70"}`}>{l}</button>)}</div>
       </Row>
       <Row title="Sleep timer" sub={sleepAt === null ? "Off" : sleepAt === "end" ? "Stops at the end of this episode" : `Stops in ${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`}>
