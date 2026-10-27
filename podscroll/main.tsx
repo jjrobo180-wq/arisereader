@@ -107,10 +107,10 @@ function App() {
   // The scroll is For You and Following; Open Mic, Social and Library open from the home page as
   // their own pages (the same player, opened on that tab), each with a back button home.
   const [feedTab, setFeedTab] = useState<PageTab | undefined>(undefined);
-  const [feedMode, setFeedMode] = useState<{ id: string; index: number; shuffle?: boolean } | null>(null);
+  const [feedMode, setFeedMode] = useState<{ id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" } | null>(null);
   // Picking an episode on the home page opens the swipe feed on it. Someone who never chose interests
   // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
-  const openFeed = useCallback((at?: { showId: string; episodeId: string }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean }) => {
+  const openFeed = useCallback((at?: { showId: string; episodeId: string }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
     if ((at || page || podMode) && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
     setFeedStart(at ?? null); setFeedTab(page); setFeedMode(podMode ?? null); setFeedKey((k) => k + 1); setMode("feed");
   }, []);

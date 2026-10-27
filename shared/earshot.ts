@@ -264,7 +264,9 @@ export const appleLookupUrl = (showId: string, limit: number) => `https://itunes
 // ---------------------------------------------------------------------------
 
 /** How each thing someone does moves their taste for that show's genre. */
-export const SIGNALS = { like: 3, unlike: -2.5, save: 2, share: 3, comment: 2, follow: 4, unfollow: -3, listen: 1, finish: 1.5, skip: -0.6, open: 0.5 } as const;
+/** How much each thing someone does moves a genre. Listening time is graded, like a short-video feed:
+ *  a skip in the first seconds counts against, a short pass slightly against, 30 s for, 5 min more so. */
+export const SIGNALS = { like: 3, unlike: -2.5, save: 2, share: 3, comment: 2, follow: 4, unfollow: -3, listen: 1, deep: 1.6, finish: 1.5, skip: -0.6, pass: -0.25, open: 0.5 } as const;
 export type Signal = keyof typeof SIGNALS;
 export const tasteOf = (e: Earshot, genre: string) => e.taste[genre] ?? (e.genres.includes(genre) ? 3 : 0.3);
 
@@ -292,6 +294,10 @@ export function scoreShow(e: Earshot, c: Candidate, ctx: FeedContext): number {
   if (ctx.recentShows.includes(c.show.id)) s -= 2;
   const skips = e.skipped.slice(0, 30).filter((x) => x === c.show.id).length;
   s -= 1.2 * skips;
+  // The show itself, not only its genre: shows they liked, saved or put in a Pod Mode come back more.
+  if (e.liked.some((x) => x.showId === c.show.id)) s += 1.2;
+  if (e.saved.some((x) => x.showId === c.show.id)) s += 0.6;
+  if (e.modes.some((m) => m.episodes.some((x) => x.showId === c.show.id))) s += 0.8;
   const days = c.show.latest ? (Date.now() - Date.parse(c.show.latest)) / 86_400_000 : 365;
   if (Number.isFinite(days) && days < 10) s += 0.5;                  // still making new episodes
   else if (!Number.isFinite(days) || days > 400) s -= 0.6;
