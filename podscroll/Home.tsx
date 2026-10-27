@@ -1,0 +1,367 @@
+// Pod+ home: a browse-and-watch layout (top search bar, side menu, topic chips, a grid of episodes,
+// and a watch page with the player and "Up next"). Everything shown is real: shows and episodes come
+// from the same /api/podscroll routes the swipe feed uses (Apple Podcasts through the Arise server),
+// and audio plays straight from each podcast's own host. Follows, likes and Listen later are kept in
+// the same saved state as the swipe feed, so both views agree.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EARSHOT_LIMITS, GENRE, SPEEDS, hiRes, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode } from "@shared/earshot";
+import { Bell, Clock, Download, Heart, Home as HomeIcon, ListPlus, Loader2, Menu, Pause, Play, RotateCcw, RotateCw, Search, Share2, Sparkles, ThumbsUp, X } from "lucide-react";
+
+type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "watch"; showId: string; episodeId: string };
+
+const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
+const ACCENT = "#ff6a1f";
+
+const fmtTime = (s: number) => {
+  if (!Number.isFinite(s) || s < 0) s = 0;
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`;
+};
+const ago = (iso: string) => {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const d = Math.max(0, (Date.now() - t) / 1000);
+  const units: [number, string][] = [[31536000, "year"], [2592000, "month"], [604800, "week"], [86400, "day"], [3600, "hour"], [60, "minute"]];
+  for (const [n, w] of units) if (d >= n) { const k = Math.floor(d / n); return `${k} ${w}${k > 1 ? "s" : ""} ago`; }
+  return "just now";
+};
+const plain = (s: string) => String(s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+
+function parseHash(): View {
+  const h = location.hash.replace(/^#\/?/, "");
+  const [a, b, c] = h.split("/");
+  if (a === "watch" && /^\d+$/.test(b || "") && /^\d+$/.test(c || "")) return { kind: "watch", showId: b, episodeId: c };
+  if (a === "search" && b) return { kind: "search", q: decodeURIComponent(b) };
+  if (a === "liked") return { kind: "liked" };
+  if (a === "later") return { kind: "later" };
+  return { kind: "home" };
+}
+const hashOf = (v: View) => v.kind === "watch" ? `#/watch/${v.showId}/${v.episodeId}` : v.kind === "search" ? `#/search/${encodeURIComponent(v.q)}` : v.kind === "home" ? "#/" : `#/${v.kind}`;
+
+const toSaved = (e: PodEpisode): SavedEpisode => ({ id: e.id, showId: e.showId, title: e.title, show: e.show, art: e.art, secs: e.secs, at: new Date().toISOString(), audio: e.audio, date: e.date });
+const fromSaved = (s: SavedEpisode): PodEpisode => ({ id: s.id, showId: s.showId, show: s.show, author: "", title: s.title, about: "", audio: s.audio || "", date: s.date || s.at, secs: s.secs, art: s.art, link: "", explicit: false });
+
+export function Home({ es, update, api, say, onOpenFeed, onEditInterests }: {
+  es: Earshot;
+  update: (fn: (e: Earshot) => Earshot) => void;
+  api: Api;
+  say: (m: string) => void;
+  onOpenFeed: (start?: { showId: string; episodeId: string }) => void;
+  onEditInterests: () => void;
+}) {
+  const [view, setViewState] = useState<View>(parseHash);
+  const go = useCallback((v: View) => { const h = hashOf(v); if (location.hash !== h) location.hash = h; else setViewState(v); window.scrollTo(0, 0); }, []);
+  useEffect(() => { const on = () => { setViewState(parseHash()); window.scrollTo(0, 0); }; window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
+  useEffect(() => { document.documentElement.style.background = "#ffffff"; }, []);
+
+  const ex = es.settings.explicit ? "&explicit=1" : "";
+  const genres = useMemo(() => (es.setupDone && es.genres.length ? es.genres : DEFAULT_GENRES).filter((g) => GENRE[g]).slice(0, 12), [es.setupDone, es.genres]);
+  const [pools, setPools] = useState<Record<string, PoolShow[]> | null>(null);
+  const [err, setErr] = useState("");
+  const load = useCallback(() => {
+    setErr(""); setPools(null);
+    api(`/api/earshot/feed?genres=${genres.join(",")}${ex}`).then((b) => setPools(b.pools || {})).catch((e) => setErr(e.message));
+  }, [api, genres, ex]);
+  useEffect(() => { load(); }, [load]);
+
+  // One card per show (its newest episode), taking turns between genres so the grid is mixed.
+  const all = useMemo(() => {
+    if (!pools) return [] as (PodEpisode & { genre: string })[];
+    const lists = genres.map((g) => (pools[g] || []).map((p) => p.episodes[0] && { ...p.episodes[0], art: p.episodes[0].art || p.show.art, genre: g }).filter(Boolean) as (PodEpisode & { genre: string })[]);
+    const out: (PodEpisode & { genre: string })[] = []; const seen = new Set<string>();
+    for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) { const e = l[i]; if (e && !seen.has(e.id)) { seen.add(e.id); out.push(e); } }
+    return out;
+  }, [pools, genres]);
+  const known = useRef(new Map<string, PodEpisode>());
+  for (const e of all) known.current.set(e.id, e);
+
+  const [chip, setChip] = useState("all");
+  const [side, setSide] = useState(true);
+  const [q, setQ] = useState(view.kind === "search" ? view.q : "");
+  const openEp = useCallback((e: PodEpisode) => { known.current.set(e.id, e); go({ kind: "watch", showId: e.showId, episodeId: e.id }); }, [go]);
+
+  const header = (
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 bg-white px-3 sm:px-4">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <button onClick={() => setSide((s) => !s)} aria-label="Menu" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] lg:inline-flex"><Menu size={22} strokeWidth={1.8} /></button>
+        <button onClick={() => { setChip("all"); go({ kind: "home" }); }} aria-label="Pod+ home" className="inline-flex items-center gap-1.5 px-1 py-2">
+          <svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true"><rect width="30" height="21" rx="6" fill={ACCENT} /><rect x="8" y="7.5" width="2.4" height="6" rx="1.2" fill="#fff" /><rect x="12.2" y="4.5" width="2.4" height="12" rx="1.2" fill="#fff" /><rect x="16.4" y="6.5" width="2.4" height="8" rx="1.2" fill="#fff" /><rect x="20.6" y="8.5" width="2.4" height="4" rx="1.2" fill="#fff" /></svg>
+          <span className="text-[20px] font-bold tracking-[-0.04em]">Pod+</span>
+        </button>
+      </div>
+      <form role="search" className="flex min-w-0 max-w-[640px] flex-1 items-center" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); if (t.length >= 2) go({ kind: "search", q: t }); }}>
+        <label htmlFor="ps-q" className="sr-only">Search podcasts</label>
+        <input id="ps-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search podcasts" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-base text-[#0f0f0f] outline-none placeholder:text-[#888] focus:border-[#1c62b9]" />
+        <button type="submit" aria-label="Search" className="inline-flex h-10 w-14 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0] sm:w-16"><Search size={20} strokeWidth={1.8} /></button>
+      </form>
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <button onClick={() => onOpenFeed()} className="hidden h-9 items-center gap-2 rounded-full border border-[#e5e5e5] px-4 text-sm font-medium hover:bg-[#f2f2f2] md:inline-flex"><Sparkles size={17} strokeWidth={1.8} />Swipe feed</button>
+        <button aria-label="Notifications" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><Bell size={21} strokeWidth={1.8} /></button>
+      </div>
+    </header>
+  );
+
+  const navItem = (label: string, icon: React.ReactNode, on: boolean, act: () => void) => (
+    <button key={label} onClick={act} className={`flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm hover:bg-[#f2f2f2] ${on ? "bg-[#f2f2f2] font-semibold" : ""}`}>{icon}<span className="truncate">{label}</span></button>
+  );
+  const sidebar = side && view.kind !== "watch" && (
+    <nav aria-label="Library" className="sticky top-14 hidden max-h-[calc(100vh-56px)] w-[240px] shrink-0 flex-col gap-0.5 overflow-y-auto p-3 lg:flex">
+      {navItem("Home", <HomeIcon size={22} strokeWidth={1.8} />, view.kind === "home", () => { setChip("all"); go({ kind: "home" }); })}
+      {navItem("Swipe feed", <Sparkles size={22} strokeWidth={1.8} />, false, () => onOpenFeed())}
+      <div className="my-3 h-px bg-[#e5e5e5]" />
+      <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">You</p>
+      {navItem("Liked episodes", <ThumbsUp size={22} strokeWidth={1.8} />, view.kind === "liked", () => go({ kind: "liked" }))}
+      {navItem("Listen later", <Clock size={22} strokeWidth={1.8} />, view.kind === "later", () => go({ kind: "later" }))}
+      {navItem("Your interests", <Heart size={22} strokeWidth={1.8} />, false, onEditInterests)}
+      {es.follows.length > 0 && <>
+        <div className="my-3 h-px bg-[#e5e5e5]" />
+        <p className="mx-3 mb-1.5 mt-1 text-base font-semibold">Following</p>
+        {es.follows.slice(0, 12).map((f) => navItem(f.name, <img src={hiRes(f.art, 60)} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />, false, () => {
+          api(`/api/earshot/show/${f.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) openEp(e); else say("No episodes to play yet."); }).catch((e) => say(e.message));
+        }))}
+      </>}
+    </nav>
+  );
+
+  let content: React.ReactNode;
+  if (view.kind === "watch") {
+    content = <Watch key={view.episodeId} showId={view.showId} episodeId={view.episodeId} initial={known.current.get(view.episodeId)} es={es} update={update} api={api} say={say} ex={ex} more={all} onOpen={openEp} onOpenFeed={onOpenFeed} />;
+  } else if (view.kind === "search") {
+    content = <SearchResults key={view.q} q={view.q} api={api} ex={ex} onOpen={openEp} />;
+  } else if (view.kind === "liked" || view.kind === "later") {
+    const list = (view.kind === "liked" ? es.liked : es.saved).map(fromSaved);
+    content = <div className="px-4 pb-16 pt-4 sm:px-6">
+      <h1 className="mb-6 text-2xl font-bold tracking-tight">{view.kind === "liked" ? "Liked episodes" : "Listen later"}</h1>
+      {list.length ? <Grid list={list} onOpen={openEp} /> : <p className="text-[#606060]">{view.kind === "liked" ? "Episodes you like show up here." : "Tap Save on any episode to keep it here for later."}</p>}
+    </div>;
+  } else {
+    const shown = chip === "all" ? all : all.filter((e) => e.genre === chip);
+    content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6">
+      <div role="group" aria-label="Topics" className="sticky top-14 z-20 -mx-1 flex gap-3 overflow-x-auto bg-white px-1 py-3 [scrollbar-width:none]">
+        {[{ id: "all", name: "All" }, ...genres.map((g) => ({ id: g, name: GENRE[g].name }))].map((c) => (
+          <button key={c.id} onClick={() => setChip(c.id)} aria-pressed={chip === c.id} className={`h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium ${chip === c.id ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{c.name}</button>
+        ))}
+        <button onClick={onEditInterests} className="h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">+ More topics</button>
+      </div>
+      {err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={load} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
+        : !pools ? <Skeleton />
+        : shown.length ? <Grid list={shown} onOpen={openEp} />
+        : <p className="py-20 text-center text-[#606060]">Nothing here yet. Try another topic.</p>}
+    </div>;
+  }
+
+  return <div className="min-h-full bg-white text-[#0f0f0f] [font-family:Roboto,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]">
+    {header}
+    <div className="flex items-start">{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+  </div>;
+}
+
+/** A 16:9 picture made from a square cover: the cover sits in the middle over a blurred copy of itself. */
+function Thumb({ e, small }: { e: PodEpisode; small?: boolean }) {
+  const art = hiRes(e.art, small ? 300 : 600);
+  return <div className={`relative aspect-video w-full overflow-hidden bg-[#e5e5e5] ${small ? "rounded-lg" : "rounded-xl transition-[border-radius] duration-200 group-hover:rounded-md"}`}>
+    {art && <img src={art} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl" />}
+    <div className="absolute inset-0 bg-black/15" />
+    {art && <img src={art} alt="" loading="lazy" className="absolute left-1/2 top-1/2 h-[82%] -translate-x-1/2 -translate-y-1/2 rounded-md object-cover shadow-[0_8px_30px_rgba(0,0,0,.35)]" style={{ aspectRatio: "1 / 1" }} />}
+    {e.secs > 0 && <span className={`absolute rounded bg-black/80 px-1 py-0.5 text-xs font-medium text-white ${small ? "bottom-1 right-1" : "bottom-2 right-2"}`}>{fmtTime(e.secs)}</span>}
+  </div>;
+}
+
+function Grid({ list, onOpen }: { list: PodEpisode[]; onOpen: (e: PodEpisode) => void }) {
+  return <div className="grid gap-x-4 gap-y-10 pt-3 [grid-template-columns:repeat(auto-fill,minmax(290px,1fr))]">
+    {list.map((e) => (
+      <button key={e.id} onClick={() => onOpen(e)} className="group flex min-w-0 flex-col gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c62b9] focus-visible:ring-offset-4 rounded-xl">
+        <Thumb e={e} />
+        <div className="flex gap-3">
+          <img src={hiRes(e.art, 80)} alt="" className="h-9 w-9 shrink-0 rounded-full bg-[#e5e5e5] object-cover" />
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="line-clamp-2 text-base font-semibold leading-snug">{e.title}</span>
+            <span className="truncate text-sm text-[#606060]">{e.show}</span>
+            <span className="text-sm text-[#606060]">{ago(e.date)}</span>
+          </div>
+        </div>
+      </button>
+    ))}
+  </div>;
+}
+
+function Skeleton() {
+  return <div className="grid gap-x-4 gap-y-10 pt-3 [grid-template-columns:repeat(auto-fill,minmax(290px,1fr))]" aria-label="Loading" role="status">
+    {Array.from({ length: 12 }, (_, i) => <div key={i} className="flex flex-col gap-3 motion-safe:animate-pulse">
+      <div className="aspect-video rounded-xl bg-[#f2f2f2]" />
+      <div className="flex gap-3"><div className="h-9 w-9 rounded-full bg-[#f2f2f2]" /><div className="flex flex-1 flex-col gap-2"><div className="h-4 w-11/12 rounded bg-[#f2f2f2]" /><div className="h-4 w-2/3 rounded bg-[#f2f2f2]" /></div></div>
+    </div>)}
+  </div>;
+}
+
+function SearchResults({ q, api, ex, onOpen }: { q: string; api: Api; ex: string; onOpen: (e: PodEpisode) => void }) {
+  const [res, setRes] = useState<{ shows: PodShow[]; episodes: PodEpisode[] } | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => { api(`/api/earshot/search?q=${encodeURIComponent(q)}${ex}`).then((b) => setRes({ shows: b.shows || [], episodes: b.episodes || [] })).catch((e) => setErr(e.message)); }, [api, q, ex]);
+  const openShow = (s: PodShow) => api(`/api/earshot/show/${s.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) onOpen(e); }).catch((e) => setErr(e.message));
+  return <div className="mx-auto max-w-[1280px] px-4 pb-16 pt-4 sm:px-6">
+    <h1 className="mb-4 text-xl font-semibold">Results for “{q}”</h1>
+    {err ? <p className="text-[#606060]">{err}</p> : !res ? <Skeleton /> : <>
+      {res.shows.length > 0 && <section aria-label="Shows" className="mb-8">
+        <div className="flex gap-6 overflow-x-auto pb-2 [scrollbar-width:none]">
+          {res.shows.slice(0, 12).map((s) => <button key={s.id} onClick={() => openShow(s)} className="flex w-[120px] shrink-0 flex-col items-center gap-2 text-center">
+            <img src={hiRes(s.art, 240)} alt="" className="h-[120px] w-[120px] rounded-full bg-[#f2f2f2] object-cover" />
+            <span className="line-clamp-2 text-sm font-semibold">{s.name}</span>
+            <span className="line-clamp-1 text-xs text-[#606060]">{s.author}</span>
+          </button>)}
+        </div>
+      </section>}
+      {res.episodes.length ? <Grid list={res.episodes} onOpen={onOpen} /> : !res.shows.length && <p className="text-[#606060]">No podcasts found. Try different words.</p>}
+    </>}
+  </div>;
+}
+
+function Watch({ showId, episodeId, initial, es, update, api, say, ex, more, onOpen, onOpenFeed }: {
+  showId: string; episodeId: string; initial?: PodEpisode; es: Earshot; update: (fn: (e: Earshot) => Earshot) => void; api: Api; say: (m: string) => void; ex: string;
+  more: PodEpisode[]; onOpen: (e: PodEpisode) => void; onOpenFeed: (start?: { showId: string; episodeId: string }) => void;
+}) {
+  const [show, setShow] = useState<PodShow | null>(null);
+  const [eps, setEps] = useState<PodEpisode[]>([]);
+  const [ep, setEp] = useState<PodEpisode | null>(initial && initial.audio ? initial : null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    api(`/api/earshot/show/${showId}?x=1${ex}`).then((b) => {
+      setShow(b.show || null);
+      const list: PodEpisode[] = b.episodes || [];
+      setEps(list);
+      const found = list.find((e) => e.id === episodeId);
+      setEp((cur) => found ? { ...found, art: found.art || b.show?.art || cur?.art || "" } : cur);
+      if (!found && !(initial && initial.audio)) setErr(b.blocked ? "This show is marked explicit. Turn on explicit shows in the swipe feed's settings to play it." : "That episode isn't available any more.");
+    }).catch((e) => { if (!(initial && initial.audio)) setErr(e.message); });
+  }, [api, showId, episodeId, ex, initial]);
+
+  const audio = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [t, setT] = useState(0);
+  const [dur, setDur] = useState(0);
+  const [speed, setSpeed] = useState(es.settings.speed || 1);
+  const [buffering, setBuffering] = useState(false);
+  useEffect(() => { if (audio.current) audio.current.playbackRate = speed; }, [speed, ep?.audio]);
+  const toggle = () => { const a = audio.current; if (!a) return; if (a.paused) a.play().catch(() => say("Tap play again to start.")); else a.pause(); };
+  const seek = (s: number) => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min(dur || a.duration || 0, s)); };
+
+  const counted = useRef(false);
+  const [likes, setLikes] = useState<number | null>(null);
+  useEffect(() => { api(`/api/earshot/counts?ids=${episodeId}`).then((b) => { const c = b.counts?.[episodeId]; if (c) setLikes(c.likes); }).catch(() => {}); }, [api, episodeId]);
+
+  const liked = es.liked.some((x) => x.id === episodeId);
+  const saved = es.saved.some((x) => x.id === episodeId);
+  const following = es.follows.some((f) => f.id === showId);
+  const like = () => {
+    if (!ep) return; const on = !liked;
+    update((e) => ({ ...e, liked: on ? [toSaved(ep), ...e.liked.filter((x) => x.id !== ep.id)].slice(0, EARSHOT_LIMITS.liked) : e.liked.filter((x) => x.id !== ep.id) }));
+    setLikes((n) => n == null ? n : Math.max(0, n + (on ? 1 : -1)));
+    api("/api/earshot/like", { method: "POST", body: { episodeId: ep.id, on } }).catch((e) => say(e.message));
+  };
+  const save = () => {
+    if (!ep) return; const on = !saved;
+    update((e) => ({ ...e, saved: on ? [toSaved(ep), ...e.saved.filter((x) => x.id !== ep.id)].slice(0, EARSHOT_LIMITS.saved) : e.saved.filter((x) => x.id !== ep.id) }));
+    say(on ? "Saved to Listen later." : "Removed from Listen later.");
+  };
+  const follow = () => {
+    const on = !following;
+    const s = show || (ep ? { id: showId, name: ep.show, author: ep.author, art: ep.art, genre: "culture" } as PodShow : null);
+    if (!s) return;
+    update((e) => ({ ...e, follows: on ? [{ id: s.id, name: s.name, author: s.author, art: s.art, genre: s.genre, at: new Date().toISOString() }, ...e.follows.filter((f) => f.id !== s.id)].slice(0, EARSHOT_LIMITS.follows) : e.follows.filter((f) => f.id !== s.id) }));
+    say(on ? `Following ${s.name}.` : `Unfollowed ${s.name}.`);
+  };
+  const share = async () => {
+    if (!ep) return;
+    const url = `${location.origin}/app/#/watch/${ep.showId}/${ep.id}`;
+    api("/api/earshot/share", { method: "POST", body: { episodeId: ep.id } }).catch(() => {});
+    try { if (navigator.share) { await navigator.share({ title: ep.title, text: `${ep.title} · ${ep.show}`, url }); return; } } catch { return; }
+    try { await navigator.clipboard.writeText(url); say("Link copied."); } catch { say(url); }
+  };
+
+  const upNext = useMemo(() => {
+    const seen = new Set([episodeId]);
+    const out: PodEpisode[] = [];
+    for (const e of [...eps.slice(0, 10).map((x) => ({ ...x, art: x.art || show?.art || "" })), ...more]) if (!seen.has(e.id)) { seen.add(e.id); out.push(e); }
+    return out.slice(0, 24);
+  }, [eps, more, episodeId, show]);
+  const [descOpen, setDescOpen] = useState(false);
+
+  if (err && !ep) return <div className="px-6 py-24 text-center text-[#606060]">{err}</div>;
+  if (!ep) return <div className="flex justify-center py-32"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
+  const art = hiRes(ep.art || show?.art || "", 1200);
+  const about = plain(ep.about);
+  const total = dur || ep.secs || 0;
+
+  return <div className="mx-auto flex max-w-[1720px] flex-wrap items-start gap-6 px-4 pb-16 pt-4 sm:px-6 lg:pt-6">
+    <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3">
+      <div role="region" aria-label="Player" className="relative aspect-video w-full overflow-hidden rounded-xl bg-[#0f0f0f]">
+        {art && <img src={art} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-70 blur-3xl" />}
+        <div className="absolute inset-0 bg-black/30" />
+        <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="absolute inset-0 flex items-center justify-center">
+          {art && <img src={art} alt={`${ep.show} cover`} className={`h-[70%] rounded-lg object-cover shadow-[0_20px_60px_rgba(0,0,0,.5)] transition-transform duration-500 ${playing ? "scale-100" : "scale-95"}`} style={{ aspectRatio: "1 / 1" }} />}
+          {!playing && <span className="absolute flex h-16 w-16 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur">{buffering ? <Loader2 className="animate-spin" size={30} /> : <Play size={30} fill="currentColor" className="ml-1" />}</span>}
+        </button>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-1.5 pt-10 text-white">
+          <label className="sr-only" htmlFor="ps-seek">Position</label>
+          <input id="ps-seek" type="range" min={0} max={Math.max(1, Math.floor(total))} value={Math.floor(t)} onChange={(e) => seek(Number(e.target.value))}
+            className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/30 accent-[#ff6a1f]" style={{ background: `linear-gradient(to right, ${ACCENT} ${total ? (t / total) * 100 : 0}%, rgba(255,255,255,.3) 0)` }} />
+          <div className="flex items-center gap-1">
+            <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15">{playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}</button>
+            <button onClick={() => seek(t - 15)} aria-label="Back 15 seconds" className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15"><RotateCcw size={20} /></button>
+            <button onClick={() => seek(t + 30)} aria-label="Forward 30 seconds" className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15"><RotateCw size={20} /></button>
+            <span className="ml-2 text-[13px] tabular-nums">{fmtTime(t)} / {fmtTime(total)}</span>
+            <span className="flex-1" />
+            <button onClick={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s as any) + 1) % SPEEDS.length])} aria-label="Playback speed" className="inline-flex h-11 items-center rounded-full px-3 text-[13px] font-semibold hover:bg-white/15">{speed}×</button>
+          </div>
+        </div>
+        <audio ref={audio} src={ep.audio} autoPlay preload="metadata"
+          onPlay={() => { setPlaying(true); if (!counted.current) { counted.current = true; update((e) => ({ ...e, heard: [ep.id, ...e.heard.filter((x) => x !== ep.id)].slice(0, EARSHOT_LIMITS.heard) })); } }}
+          onPause={() => setPlaying(false)} onTimeUpdate={(e) => setT(e.currentTarget.currentTime)} onLoadedMetadata={(e) => { setDur(e.currentTarget.duration || 0); e.currentTarget.playbackRate = speed; }}
+          onWaiting={() => setBuffering(true)} onPlaying={() => setBuffering(false)} onCanPlay={() => setBuffering(false)}
+          onError={() => say("This episode's audio didn't load. Try another one.")}
+          onEnded={() => { const n = upNext[0]; if (n) onOpen(n); }} />
+      </div>
+
+      <h1 className="mt-1 text-xl font-bold leading-snug">{ep.title}</h1>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <img src={hiRes(show?.art || ep.art, 100)} alt="" className="h-10 w-10 shrink-0 rounded-full bg-[#f2f2f2] object-cover" />
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-base font-semibold">{show?.name || ep.show}</span>
+            <span className="truncate text-xs text-[#606060]">{show ? `${show.episodes.toLocaleString()} episodes` : ep.author}</span>
+          </div>
+          <button onClick={follow} aria-pressed={following} className={`ml-2 h-9 shrink-0 rounded-full px-4 text-sm font-semibold ${following ? "bg-[#f2f2f2] text-[#0f0f0f] hover:bg-[#e5e5e5]" : "bg-[#0f0f0f] text-white hover:bg-[#272727]"}`}>{following ? "Following" : "Follow"}</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={like} aria-pressed={liked} className="inline-flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-medium hover:bg-[#e5e5e5]"><ThumbsUp size={18} strokeWidth={1.8} fill={liked ? "currentColor" : "none"} />{likes != null && likes > 0 ? likes.toLocaleString() : "Like"}</button>
+          <button onClick={share} className="inline-flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-medium hover:bg-[#e5e5e5]"><Share2 size={18} strokeWidth={1.8} />Share</button>
+          <a href={ep.audio} download target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-medium text-[#0f0f0f] hover:bg-[#e5e5e5]"><Download size={18} strokeWidth={1.8} />Download</a>
+          <button onClick={save} aria-pressed={saved} className="inline-flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] px-4 text-sm font-medium hover:bg-[#e5e5e5]">{saved ? <X size={18} strokeWidth={1.8} /> : <ListPlus size={18} strokeWidth={1.8} />}{saved ? "Saved" : "Save"}</button>
+        </div>
+      </div>
+
+      <div className="rounded-xl bg-[#f2f2f2] p-3 text-sm">
+        <p className="font-semibold">{ago(ep.date)}{ep.secs ? ` · ${Math.round(ep.secs / 60)} min` : ""}{show?.appleGenre ? ` · ${show.appleGenre}` : ""}</p>
+        {about && <p className={`mt-1 whitespace-pre-line leading-relaxed ${descOpen ? "" : "line-clamp-3"}`}>{about}</p>}
+        {about.length > 220 && <button onClick={() => setDescOpen((o) => !o)} className="mt-1 font-semibold">{descOpen ? "Show less" : "...more"}</button>}
+        <button onClick={() => { audio.current?.pause(); onOpenFeed({ showId: ep.showId, episodeId: ep.id }); }} className="mt-3 flex items-center gap-2 font-semibold text-[#065fd4]"><Sparkles size={16} />Open in the swipe feed for transcripts, ad skip and comments</button>
+      </div>
+    </div>
+
+    <aside aria-label="Up next" className="flex min-w-0 max-w-full flex-[1_1_360px] flex-col gap-3 lg:max-w-[420px]">
+      <p className="text-base font-semibold">Up next</p>
+      {upNext.map((e) => (
+        <button key={e.id} onClick={() => onOpen(e)} className="group flex w-full gap-2.5 text-left">
+          <div className="w-[168px] shrink-0"><Thumb e={e} small /></div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="line-clamp-2 text-sm font-semibold leading-snug">{e.title}</span>
+            <span className="truncate text-xs text-[#606060]">{e.show}</span>
+            <span className="text-xs text-[#606060]">{ago(e.date)}</span>
+          </div>
+        </button>
+      ))}
+    </aside>
+  </div>;
+}
