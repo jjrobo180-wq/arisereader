@@ -5,7 +5,7 @@
 // while you browse, and each book remembers its chapter and spot on this device.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BookOpen, BookOpenText, ChevronLeft, ChevronRight, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
-import { attachVoiceBoost, primeVoiceBoost, setVoiceBoost, voiceBoostSupported } from "../client/src/components/family-hub/earshot/listenExtras";
+import { bookAudioSupported, isRouted, levelOf, primeBookAudio, routeBook, setBookSound, setFade } from "./bookAudio";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
 export type BookKind = "solo" | "group" | "dramatic";
@@ -18,6 +18,15 @@ export type Reading = { book: BookDetail; ch: number; at: number };
 const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
 const ACCENT = "#ff6a1f";
 const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+/** Listening choices, kept on this device. boost, even and silence are for members (they need the
+ *  sound to come through the server); rewind is for everyone. */
+type Listen = { boost: boolean; even: boolean; silence: boolean; rewind: boolean };
+const readListen = (): Listen => {
+  try { const v = JSON.parse(ls.get("podscroll.bookListen") || "null"); if (v && typeof v === "object") return { boost: !!v.boost, even: !!v.even, silence: !!v.silence, rewind: v.rewind !== false }; } catch { /* default */ }
+  return { boost: ls.get("podscroll.bookBoost") === "1", even: false, silence: false, rewind: true };
+};
+/** Smart rewind: after a pause, back up a little, more the longer it was. */
+export const rewindFor = (pausedSecs: number) => (pausedSecs < 10 ? 0 : pausedSecs < 60 ? 3 : pausedSecs < 600 ? 8 : pausedSecs < 3600 ? 15 : 30);
 const KIND_LABEL: Record<BookKind, string> = { solo: "One reader", group: "Group of readers", dramatic: "Full cast" };
 
 // ---- small things ----
@@ -99,6 +108,14 @@ function PreviewButton({ playing, pct, onClick, label, small }: { playing: boole
     <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden><circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={ACCENT} strokeWidth="2.5" strokeDasharray={len} strokeDashoffset={len * (1 - pct)} opacity={playing ? 1 : 0} /></svg>
     {playing ? <Pause size={small ? 13 : 15} fill="currentColor" /> : <Headphones size={small ? 14 : 16} />}
   </button>;
+}
+
+/** One on/off setting with a line on what it does. */
+function Toggle({ on, onClick, title, line, members }: { on: boolean; onClick: () => void; title: string; line: string; members?: boolean }) {
+  return <div className="flex items-start justify-between gap-4">
+    <div><p className="flex items-center gap-2 text-sm font-semibold">{title}{members && <MembersTag />}</p><p className="text-xs text-[#606060]">{line}</p></div>
+    <button role="switch" aria-checked={on} aria-label={title} onClick={onClick} className={`relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${on ? "bg-[#ff6a1f]" : "bg-[#d3d3d3]"}`}><span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${on ? "translate-x-6" : "translate-x-1"}`} /></button>
+  </div>;
 }
 
 /** A small "Members" tag on what's part of Pod+ Membership. */
@@ -263,7 +280,7 @@ export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, 
   if (!book) return <div className="flex justify-center py-32" role="status" aria-label="Loading audiobook"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
 
   const startCh = here ? current!.ch : spot ? Math.min(spot.ch, book.chapters.length - 1) : 0;
-  const play = (r: Reading) => { primeVoiceBoost(); onPlay(r); };
+  const play = (r: Reading) => { primeBookAudio(); onPlay(r); };
   const main = () => (here ? onToggle() : play({ book, ch: startCh, at: spot && !here ? spot.t : 0 }));
   const label = here ? (playing ? "Pause" : "Play") : spot ? `Resume · Chapter ${startCh + 1}` : "Play";
   // Another reading: the same place in the book (chapter number), in the new voice.
@@ -473,9 +490,13 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(0);
   const [dur, setDur] = useState(0);
-  const [speed, setSpeed] = useState<number>(() => { const n = Number(ls.get("podscroll.bookSpeed")); return (SPEEDS as readonly number[]).includes(n) ? n : 1; });
-  const [boostPick, setBoost] = useState(() => ls.get("podscroll.bookBoost") === "1" && voiceBoostSupported());
-  const boost = boostPick && pro;
+  const [speed, setSpeed] = useState<number>(() => { const n = Number(ls.get("podscroll.bookSpeed")); return n >= 0.5 && n <= 3 ? n : 1; });
+  const [listen, setListen] = useState<Listen>(readListen);
+  // The sound features need membership (and a browser that can shape sound).
+  const can = pro && bookAudioSupported();
+  const boost = listen.boost && can, even = listen.even && can, silence = listen.silence && can;
+  const shaped = boost || even || silence;
+  const pausedAt = useRef(0);
   const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
   const [sheet, setSheet] = useState<"settings" | "read" | null>(null);
   const { book, ch } = reading;
@@ -509,11 +530,13 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
       a.addEventListener("loadedmetadata", seek, { once: true });
       a.play().catch(() => { setLoading(false); say("Tap play to start the book."); });
     };
-    if (boost || routed.current) {
+    pausedAt.current = 0;
+    setFade(a, 1);
+    if (shaped || routed.current) {
       a.crossOrigin = "anonymous";
       getPass().then((k) => start(relayUrl(chapter, k))).catch(() => {
         // Not a member any more: play it as it is (a player already routed through the boost can't).
-        if (routed.current) say("Sign in again to keep Voice boost on.");
+        if (routed.current) say("Sign in again to keep the sound settings on.");
         a.removeAttribute("crossorigin"); start(chapter.audio);
       });
     } else { a.removeAttribute("crossorigin"); start(chapter.audio); }
@@ -535,36 +558,60 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
   useEffect(() => () => { const a = audio.current; if (a) { a.pause(); a.removeAttribute("src"); a.load(); } }, []);
   useEffect(() => { onPlaying(playing); }, [playing, onPlaying]);
 
-  // Voice boost on: this chapter comes through the server from where it is, and its sound is shaped.
-  const applyBoost = async (on: boolean) => {
-    if (on && !pro) { setSheet(null); say("Voice boost is part of Pod+ Membership."); onJoin(); return; }
+  // Sound settings on: this chapter comes through the server from where it is, and is shaped.
+  const setSound = async (patch: Partial<Listen>) => {
+    const wantsShape = patch.boost || patch.even || patch.silence;
+    if (wantsShape && !pro) { setSheet(null); say("Sound settings are part of Pod+ Membership."); onJoin(); return; }
+    const next = { ...listen, ...patch };
+    setListen(next); ls.set("podscroll.bookListen", JSON.stringify(next));
     const a = audio.current;
-    setBoost(on); ls.set("podscroll.bookBoost", on ? "1" : "0");
-    if (!a) return;
-    if (on) primeVoiceBoost();
-    if (on && !routed.current) {
+    if (!a || !wantsShape) { if (a) setBookSound(a, { boost: next.boost && can, even: next.even && can }); return; }
+    primeBookAudio();
+    if (!routed.current && a.crossOrigin !== "anonymous") {
       let k = "";
-      try { k = await getPass(); } catch (e: any) { setBoost(false); say(e?.message || "Voice boost isn't available right now."); return; }
+      try { k = await getPass(); } catch (e: any) { setListen(listen); say(e?.message || "This isn't available right now."); return; }
       const t = a.currentTime, was = !a.paused;
       a.crossOrigin = "anonymous"; a.src = relayUrl(chapter, k);
       a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* ignore */ } }, { once: true });
       if (was) a.play().catch(() => {});
     }
-    setVoiceBoost(on, [a]);
+    setBookSound(a, { boost: next.boost && can, even: next.even && can });
   };
+  useEffect(() => { const a = audio.current; if (a && isRouted(a)) setBookSound(a, { boost, even }); }, [boost, even]);
+
+  // Skip silences: long pauses between sentences go by at a quicker pace.
+  useEffect(() => {
+    const a = audio.current;
+    if (!silence || !playing || !a) return;
+    let quiet = 0, fast = false;
+    const id = setInterval(() => {
+      const lvl = levelOf(a);
+      if (lvl < 0) return;
+      quiet = lvl < 0.012 ? quiet + 100 : 0;
+      const want = quiet >= 450;
+      if (want !== fast) { fast = want; a.playbackRate = want ? Math.min(4, speed * 2.5) : speed; }
+    }, 100);
+    return () => { clearInterval(id); a.playbackRate = speed; };
+  }, [silence, playing, speed]);
 
   // Sleep timer.
   useEffect(() => {
     if (typeof sleepAt !== "number") return;
-    const id = setInterval(() => { if (Date.now() >= sleepAt) { audio.current?.pause(); setSleepAt(null); say("Sleep timer: paused."); } }, 1000);
-    return () => clearInterval(id);
+    const id = setInterval(() => {
+      const a = audio.current; if (!a) return;
+      const left = sleepAt - Date.now();
+      // The last minute fades out, so it doesn't stop with a jolt.
+      if (left <= 60_000) setFade(a, left / 60_000);
+      if (left <= 0) { a.pause(); setSleepAt(null); setFade(a, 1); say("Sleep timer: paused."); }
+    }, 500);
+    return () => { clearInterval(id); if (audio.current) setFade(audio.current, 1); };
   }, [sleepAt, say]);
 
-  const toggle = () => { const a = audio.current; if (!a) return; if (a.paused) { if (boost) primeVoiceBoost(); a.play().catch(() => say("This chapter won't play right now. Try again.")); } else a.pause(); };
+  const toggle = () => { const a = audio.current; if (!a) return; if (a.paused) { if (shaped) primeBookAudio(); a.play().catch(() => say("This chapter won't play right now. Try again.")); } else a.pause(); };
   const firstTap = useRef(tap);
   useEffect(() => { if (tap !== firstTap.current) toggle(); }, [tap]); // eslint-disable-line react-hooks/exhaustive-deps
   const skip = (d: number) => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min((a.duration || dur || 0) - 1, a.currentTime + d)); };
-  const pickSpeed = (next: number) => { setSpeed(next); if (audio.current) audio.current.playbackRate = next; ls.set("podscroll.bookSpeed", String(next)); };
+  const pickSpeed = (next: number) => { next = Math.round(Math.min(3, Math.max(0.5, next)) * 20) / 20; setSpeed(next); if (audio.current) audio.current.playbackRate = next; ls.set("podscroll.bookSpeed", String(next)); };
   const pct = dur ? Math.min(100, (time / dur) * 100) : 0;
   const { main: chName } = chapterName(chapter || { n: ch + 1, title: "", sub: "", secs: 0, audio: "", bytes: 0 });
   const sleepWords = sleepAt === null ? "" : sleepAt === "end" ? "End of chapter" : `${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`;
@@ -589,15 +636,22 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
       <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0f0f0f] text-white">{loading && !playing ? <Loader2 className="animate-spin" size={20} /> : playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}</button>
       <button onClick={() => skip(30)} aria-label="Forward 30 seconds" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><RotateCw size={19} /></button>
       <button onClick={() => go(ch + 1)} disabled={ch >= book.chapters.length - 1} aria-label="Next chapter" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30 md:inline-flex"><SkipForward size={18} /></button>
-      <button onClick={() => setSheet("settings")} aria-label="Listening settings" title="Speed, sleep timer, voice boost" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><SlidersHorizontal size={18} /></button>
+      <button onClick={() => setSheet("settings")} aria-label="Listening settings" title="Speed, sleep timer, sound" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><SlidersHorizontal size={18} /></button>
       <button onClick={onStop} aria-label="Close audiobook" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><X size={18} /></button>
       <audio ref={audio} preload="auto"
-        onPlaying={() => { setPlaying(true); setLoading(false); const a = audio.current; if (a && boost && !routed.current && a.crossOrigin === "anonymous" && attachVoiceBoost(a)) { routed.current = true; setVoiceBoost(true, [a]); } }}
-        onPause={() => { setPlaying(false); const a = audio.current; if (a && a.currentTime > 0) saveSpot(book, ch, a.currentTime); }} onWaiting={() => setLoading(true)}
+        onPlaying={() => { setPlaying(true); setLoading(false); const a = audio.current; if (a && shaped && !routed.current && a.crossOrigin === "anonymous") { primeBookAudio(); if (routeBook(a)) { routed.current = true; setBookSound(a, { boost, even }); } } }}
+        onPlay={() => {
+          // Smart rewind: back up a little after a pause, more the longer it was.
+          const a = audio.current; if (!a || !pausedAt.current || !listen.rewind) return;
+          const back = rewindFor((Date.now() - pausedAt.current) / 1000);
+          pausedAt.current = 0;
+          if (back) a.currentTime = Math.max(0, a.currentTime - back);
+        }}
+        onPause={() => { setPlaying(false); const a = audio.current; if (a && !a.ended) pausedAt.current = Date.now(); if (a && a.currentTime > 0) saveSpot(book, ch, a.currentTime); }} onWaiting={() => setLoading(true)}
         onLoadedMetadata={() => { const a = audio.current; if (a && Number.isFinite(a.duration)) setDur(a.duration); if (a) a.playbackRate = speed; }}
-        onTimeUpdate={() => { const a = audio.current; if (!a) return; setTime(a.currentTime); if (Date.now() - lastSave.current > 5000) { lastSave.current = Date.now(); saveSpot(book, ch, a.currentTime); } }}
+        onTimeUpdate={() => { const a = audio.current; if (!a) return; setTime(a.currentTime); if (sleepAt === "end" && a.duration) { const left = a.duration - a.currentTime; if (left < 30) setFade(a, left / 30); } if (Date.now() - lastSave.current > 5000) { lastSave.current = Date.now(); saveSpot(book, ch, a.currentTime); } }}
         onEnded={() => {
-          if (sleepAt === "end") { setSleepAt(null); setPlaying(false); saveSpot(book, Math.min(ch + 1, book.chapters.length - 1), 0); say("Sleep timer: stopped at the end of the chapter."); return; }
+          if (sleepAt === "end") { setSleepAt(null); if (audio.current) setFade(audio.current, 1); setPlaying(false); saveSpot(book, Math.min(ch + 1, book.chapters.length - 1), 0); say("Sleep timer: stopped at the end of the chapter."); return; }
           if (ch < book.chapters.length - 1) go(ch + 1); else { saveSpot(book, ch, 0, true); setPlaying(false); say(`You finished ${book.title}.`); }
         }}
         onError={() => { setPlaying(false); setLoading(false); if (audio.current?.getAttribute("src")) say("This chapter won't play right now. Try the next one."); }} />
@@ -606,8 +660,13 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
     {sheet === "settings" && <Sheet title="Listening" onClose={() => setSheet(null)}>
       <div className="space-y-6 px-5 py-5">
         <div>
-          <p className="text-sm font-semibold">Speed</p>
-          <div className="mt-2 flex flex-wrap gap-2">{SPEEDS.map((s) => <button key={s} onClick={() => pickSpeed(s)} aria-pressed={speed === s} className={`h-9 min-w-[56px] rounded-full px-3 text-sm font-semibold tabular-nums ${speed === s ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{s}×</button>)}</div>
+          <p className="flex items-baseline justify-between text-sm font-semibold"><span>Speed</span><span className="tabular-nums">{speed.toFixed(2).replace(/0$/, "")}×</span></p>
+          <div className="mt-2 flex items-center gap-2">
+            <button onClick={() => pickSpeed(speed - 0.05)} aria-label="Slower" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-lg font-semibold">−</button>
+            <input type="range" min={0.5} max={3} step={0.05} value={speed} onChange={(e) => pickSpeed(Number(e.target.value))} aria-label="Speed" className="ps-book-range h-[14px] min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-[#e5e5e5]" />
+            <button onClick={() => pickSpeed(speed + 0.05)} aria-label="Faster" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] text-lg font-semibold">+</button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">{SPEEDS.map((s) => <button key={s} onClick={() => pickSpeed(s)} aria-pressed={speed === s} className={`h-8 min-w-[52px] rounded-full px-3 text-xs font-semibold tabular-nums ${speed === s ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{s}×</button>)}</div>
         </div>
         <div>
           <p className="text-sm font-semibold">Sleep timer</p>
@@ -617,10 +676,12 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
             return <button key={l} onClick={() => setSleepAt(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={on} className={`h-9 rounded-full px-3 text-sm font-semibold ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{l}</button>;
           })}</div>
         </div>
-        {voiceBoostSupported() && <div className="flex items-start justify-between gap-4">
-          <div><p className="flex items-center gap-2 text-sm font-semibold">Voice boost{!pro && <MembersTag />}</p><p className="text-xs text-[#606060]">Clearer voices and steadier volume. Great for quiet readers and the car.</p></div>
-          <button role="switch" aria-checked={boost} aria-label="Voice boost" onClick={() => void applyBoost(!boost)} className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${boost ? "bg-[#ff6a1f]" : "bg-[#d3d3d3]"}`}><span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${boost ? "translate-x-6" : "translate-x-1"}`} /></button>
-        </div>}
+        <Toggle on={listen.rewind} onClick={() => void setSound({ rewind: !listen.rewind })} title="Smart rewind" line="After a pause, it backs up a few seconds so you don't lose the thread. The longer the pause, the further back." />
+        {bookAudioSupported() && <>
+          <Toggle on={boost} members={!pro} onClick={() => void setSound({ boost: !boost })} title="Voice boost" line="Clearer voices and steadier volume. Great for quiet readers and the car." />
+          <Toggle on={even} members={!pro} onClick={() => void setSound({ even: !even })} title="Even volume" line="Quiet readers and loud ones come out at about the same level, chapter to chapter." />
+          <Toggle on={silence} members={!pro} onClick={() => void setSound({ silence: !silence })} title="Skip silences" line="Long pauses between sentences go by quickly. Slow readers get easier to follow, at the same voice speed." />
+        </>}
         <div className="flex gap-2 md:hidden">
           <button onClick={() => go(ch - 1)} disabled={ch === 0} className="h-10 flex-1 rounded-full bg-[#f2f2f2] text-sm font-semibold disabled:opacity-40">Previous chapter</button>
           <button onClick={() => go(ch + 1)} disabled={ch >= book.chapters.length - 1} className="h-10 flex-1 rounded-full bg-[#f2f2f2] text-sm font-semibold disabled:opacity-40">Next chapter</button>
