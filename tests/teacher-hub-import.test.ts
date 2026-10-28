@@ -559,5 +559,5 @@ test("the new ways to add things are wired into the server and the Hub page", ()
   assert.ok(page.includes('{ id: "calendar", label: "Calendar"'));
   // nothing a teacher sends is written to the logs
   for (const line of server.split("\n").filter((l) => l.includes("console."))) assert.ok(/response\.status|error\?\.name/.test(line), line.trim());
-  assert.ok(read("client/src/components/teacher-hub/HubImport.tsx").includes("sent to an AI service (OpenAI) to be read"), "the teacher is told where an upload goes");
+  assert.ok(read("client/src/components/teacher-hub/HubImport.tsx").includes("sent to an AI service to be read"), "the teacher is told where an upload goes");
 });
