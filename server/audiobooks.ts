@@ -145,6 +145,7 @@ const capWord = (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCas
 /** ALL-CAPS headings read as shouting: "THE PERIOD" → "The Period". */
 const unshout = (s: string) => (/[a-z]/.test(s) || !/[A-Z]{3}/.test(s) ? s : s.toLowerCase().replace(/(^|[\s"“(—-])([a-z])/g, (_, a, b) => a + b.toUpperCase())
   .replace(/\b(Chapter|Book|Part|Stave|Letter|Section|Canto|Act|Lecture|Volume) ([ivxlcdm]+)\b/gi, (_, w, n) => `${w} ${n.toUpperCase()}`));
+const norm = (s: string) => String(s).toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** One chapter's name, made uniform: { title: "Chapter 1", sub: "The Period" }. Names that aren't
@@ -155,7 +156,17 @@ export function tidyChapter(raw: string, bookTitle: string): { title: string; su
   if (bt.length > 3) s = s.replace(new RegExp(`^${escapeRe(bt)}\\b[\\s:.,\\-–—]*`, "i"), "");
   s = s.replace(/^(\d{1,3})\s*[-–—.:)]\s+(?=\S)/, "").replace(/\s*[-–—(]?\s*(read by|librivox).*$/i, "").trim();
   const sep = "[\\s:.,\\-–—]*";
-  const part = new RegExp(`^(chapter|chap|ch|c|book|part|section|volume|vol|letter|act|scene|canto|stave|lecture|essay|story|poem|episode)\\.?${sep}(\\d{1,3}|[IVXLCDMivxlcdm]{1,8})\\b${sep}(.*)$`, "i").exec(s);
+  // A shortened book name in front ("wonderland ch 01", "Pride Prejudice Chap 3"): words from the
+  // book's title, or just a word or two, before the chapter word are dropped.
+  const KINDS = "chapter|chap|ch|c|book|part|section|volume|vol|letter|act|scene|canto|stave|lecture|essay|story|poem|episode";
+  const lead = new RegExp(`^(.{1,60}?)\\s+((?:${KINDS})\\.?(?:[\\s:.,\\-–—]+|(?=\\d))(?:\\d{1,3}|[IVXLCDM]{1,8})\\b.*)$`, "i").exec(s);
+  if (lead) {
+    const titleWords = new Set(norm(bookTitle).split(" "));
+    const words = norm(lead[1]).split(" ").filter(Boolean);
+    const isPart = new RegExp(`\\b(${KINDS})\\.?\\s*(\\d|[ivxlcdm]+\\b)`, "i").test(lead[1]);
+    if (!isPart && words.length && (words.length <= 2 || words.every((w) => titleWords.has(w) || /^(the|a|an|of|and|by)$/.test(w)))) s = lead[2];
+  }
+  const part = new RegExp(`^(${KINDS})\\.?${sep}(\\d{1,3}|[IVXLCDMivxlcdm]{1,8})\\b${sep}(.*)$`, "i").exec(s);
   if (part) {
     const n = numberOf(part[2]);
     if (n) {
@@ -165,6 +176,15 @@ export function tidyChapter(raw: string, bookTitle: string): { title: string; su
     }
   }
   if (/^\d{1,3}$/.test(s)) return { title: `Chapter ${Number(s)}`, sub: "" };
+  // A file name: the book's name (maybe squashed together), a number, maybe the reader's name
+  // ("artofwar 03 sunzi", "art of war 01") is that chapter.
+  {
+    const titleWords = new Set(norm(bookTitle).split(" ")), squash = norm(bookTitle).replace(/ /g, "");
+    const words = norm(s).split(" ").filter(Boolean);
+    const nums = words.filter((w) => /^\d{1,3}$/.test(w));
+    const others = words.filter((w) => !/^\d+$/.test(w) && !titleWords.has(w) && !(w.length >= 4 && squash.includes(w)));
+    if (nums.length === 1 && words.length > 1 && others.length <= 1) return { title: `Chapter ${Number(nums[0])}`, sub: "" };
+  }
   return { title: unshout(s) || "", sub: "" };
 }
 
@@ -438,7 +458,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
   };
   const DAY = 24 * 3600_000;
   const relayKey = opts.relayKey ?? (process.env.SESSION_SECRET ? createHmac("sha256", process.env.SESSION_SECRET).update("pod+ book relay").digest() : randomBytes(32));
-  const bookOf = (id: string) => cached(`book:${id}`, 7 * DAY, async () => bookFromMetadata(id, await get(`${ARCHIVE}/metadata/${encodeURIComponent(id)}`)));
+  const bookOf = (id: string) => cached(`book2:${id}`, 7 * DAY, async () => bookFromMetadata(id, await get(`${ARCHIVE}/metadata/${encodeURIComponent(id)}`)));
   const down = (res: any, where: string, e: any, message: string) => { console.error(`[audiobooks] ${where}:`, e?.message || e); res.status(502).json({ message }); };
 
   // Voice boost: a chapter's audio relayed from the Archive, so the page may shape its sound.
@@ -453,7 +473,12 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     audioIp.fail(ip);
     try {
       const range = String(req.headers.range || "");
-      const r = await fetch(u, { headers: { "User-Agent": UA, ...(range ? { Range: range } : {}) }, redirect: "follow", signal: AbortSignal.timeout(30_000) });
+      // 20 seconds to start answering, then as long as the chapter takes: a whole-request timeout cut
+      // every chapter off 30 seconds in (it started and stopped).
+      const stop = new AbortController();
+      const slow = setTimeout(() => stop.abort(), 20_000);
+      const r = await fetch(u, { headers: { "User-Agent": UA, ...(range ? { Range: range } : {}) }, redirect: "follow", signal: stop.signal }).finally(() => clearTimeout(slow));
+      req.on("close", () => stop.abort());
       if (!r.ok || !r.body) return res.status(r.status === 416 ? 416 : 502).end();
       res.status(r.status);
       for (const h of ["content-type", "content-length", "content-range", "accept-ranges", "last-modified", "etag"]) { const v = r.headers.get(h); if (v) res.setHeader(h, v); }

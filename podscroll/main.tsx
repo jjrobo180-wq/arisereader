@@ -8,7 +8,7 @@ import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "r
 import { createRoot } from "react-dom/client";
 import { applySignal, cleanEarshot, emptyEarshot, type Earshot, type Signal } from "@shared/earshot";
 import { Check, Loader2, Mail, X } from "lucide-react";
-import { LIGHT_SHEETS_CSS, Player, Setup, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
+import { LIGHT_SHEETS_CSS, Player, Setup, useTheme, type NowPlaying, type PlayerControl } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { LIGHT_CSS } from "../client/src/components/family-hub/earshot/EarshotSocial";
 import { Home } from "./Home";
 import { AuthScreen } from "./Auth";
@@ -129,8 +129,14 @@ function App() {
   // gets a broad starting mix instead of the picker, so the episode they tapped plays right away.
   const openFeed = useCallback((at?: { showId: string; episodeId: string }, page?: PageTab, podMode?: { id: string; index: number; shuffle?: boolean; order?: "in" | "shuffle" | "shows" }) => {
     if ((at || page || podMode) && !esRef.current.setupDone) setEs((e) => e.setupDone ? e : ({ ...e, setupDone: true, genres: STARTER_GENRES, taste: Object.fromEntries(STARTER_GENRES.map((g) => [g, 3])) }));
-    setFeedStart(at ?? null); setFeedTab(page); setFeedMode(podMode ?? null); setFeedKey((k) => k + 1); setMode("feed");
+    setFeedStart(at ?? null); setFeedTab(page); setFeedMode(podMode ?? null); setFeedKey((k) => k + 1); setMode("feed"); setFeedSeen(true);
   }, []);
+  // The swipe player stays running (hidden) on the home page and the audiobook page stays running
+  // (hidden) in the player, so what's playing keeps playing when you move between them.
+  const [feedSeen, setFeedSeen] = useState(() => mode === "feed");
+  const [nowPod, setNowPod] = useState<NowPlaying | null>(null);
+  const podCtl = useRef<PlayerControl | null>(null);
+  const backToFeed = useCallback(() => { setFeedSeen(true); setMode("feed"); }, []);
   const goHome = useCallback(() => { setEditing(false); setMode("home"); if (location.search) history.replaceState(null, "", location.pathname + location.hash); }, []);
 
   const body = editing || (mode === "feed" && !es.setupDone)
@@ -147,12 +153,11 @@ function App() {
         else say("Your home page now follows your interests.");
       }} />
     </div>
-    : mode === "home"
-    ? <Home es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setAuthMode("signup")} onSignIn={() => setAuthMode("signin")} email={email} onSignOut={signOut} device={device} nickname={nickname} setNickname={setNickname} liveBase={API.replace(/^http/, "ws")} signal={signal} />
     : <>
-      <Player key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
+      <div style={{ display: mode === "home" ? "contents" : "none" }}>{<Home visible={mode === "home"} nowPod={nowPod} onPodToggle={() => podCtl.current?.toggle()} onPodOpen={backToFeed} es={es} update={update} api={api} say={say} onOpenFeed={openFeed} onEditInterests={() => setEditing(true)} pro={pro} onJoin={() => setAuthMode("signup")} onSignIn={() => setAuthMode("signin")} email={email} onSignOut={signOut} device={device} nickname={nickname} setNickname={setNickname} liveBase={API.replace(/^http/, "ws")} signal={signal} />}</div>
+      {feedSeen && <div style={{ display: mode === "feed" ? "contents" : "none" }}>{<Player visible={mode === "feed"} onNowPlaying={setNowPod} control={podCtl} key={feedKey} es={shown} esRef={esRef} update={update} api={api} signal={signal} say={say} student={false} explicit={es.settings.explicit}
         onEditInterests={() => setEditing(true)} standalone shareLink={shareLink} nickname={nickname} setNickname={setNickname} start={feedStart} mediaUrl={mediaUrl}
-        liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={false} onHome={goHome} initialTab={feedTab} playMode={feedMode} />
+        liveBase={API.replace(/^http/, "ws")} onSession={(token) => setSession(token)} locked={false} onHome={goHome} initialTab={feedTab} playMode={feedMode} />}</div>}
     </>;
 
   useEffect(() => { if (editing || (mode === "feed" && !es.setupDone)) document.documentElement.style.background = day ? "#ffffff" : "#120e14"; }, [day, es.setupDone, editing, mode]);

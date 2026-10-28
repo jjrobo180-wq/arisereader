@@ -149,3 +149,10 @@ test("voice features: words in transcript lines, the LibriVox notice, narrator p
   const sections = [{ heading: "Beginning", text: "" }, { heading: "Chapter I. · The Period", text: "" }, { heading: "Chapter II.", text: "" }];
   assert.equal(sectionIndex(sections, { chapters: [{ n: 1, title: "Chapter 2", sub: "", secs: 0, audio: "", bytes: 0 }] }, 0), 2);
 });
+
+test("chapter names from file names read the same as the rest", () => {
+  assert.deepEqual(tidyChapter("wonderland ch 01", "Alice's Adventures in Wonderland"), { title: "Chapter 1", sub: "" });
+  assert.deepEqual(tidyChapter("artofwar 03 sunzi", "The Art of War"), { title: "Chapter 3", sub: "" });
+  assert.deepEqual(tidyChapter("Pride Prejudice Chap 3", "Pride and Prejudice"), { title: "Chapter 3", sub: "" });
+  assert.deepEqual(tidyChapter("Book 2 Chapter 4", "War and Peace"), { title: "Book 2", sub: "Chapter 4" });
+});

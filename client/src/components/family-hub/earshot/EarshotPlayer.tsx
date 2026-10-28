@@ -20,6 +20,7 @@ import type { Topic } from "@shared/earshotTopics";
 import { hiRes, type PodMode } from "@shared/earshot";
 import { momentsBetween, hoursWords, sumKinds } from "@shared/earshotListen";
 import { AskSheet, CatchUpSheet, DriveSheet, HoursBackCard, MomentBubble, catchUpWorthIt, useTimedComments, type TimedComment } from "./EarshotListen";
+import { onOtherSound, soundStarted } from "./soundBus";
 import { attachVoiceBoost, countHoursBack, isBoosted, primeVoiceBoost, readHoursBack, resumeVoiceBoost, setVoiceBoost } from "./listenExtras";
 
 type Counts = { likes: number; comments: number; shares: number; liked: boolean };
@@ -113,7 +114,14 @@ export function Setup({ initial, student, onDone, onCancel, brand = "Earshot" }:
 // ===========================================================================
 // The player: feed, explore, library
 // ===========================================================================
+/** What's playing in the swipe player, for a mini bar on other pages (Pod+ keeps the player running). */
+export type NowPlaying = { title: string; show: string; art: string; playing: boolean };
+export type PlayerControl = { toggle: () => void; pause: () => void };
 export type PlayerProps = {
+  /** Shown on screen right now (Pod+ keeps it running, hidden, on other pages so the sound goes on). */
+  visible?: boolean;
+  onNowPlaying?: (n: NowPlaying | null) => void;
+  control?: { current: PlayerControl | null };
   es: EarshotData; esRef: { current: EarshotData }; update: (fn: (e: EarshotData) => EarshotData) => void;
   api: (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
   signal: (genre: string, s: Signal) => void; say: (m: string) => void; student: boolean; explicit: boolean; onEditInterests: () => void;
@@ -208,7 +216,7 @@ type Tx = { source: TranscriptChunk["source"]; reason: string; segments: TxSegme
   wait: Map<number, { at: number; tries: number }> };
 const emptyTx = (): Tx => ({ source: "none", reason: "", segments: [], ads: [], chapters: [], chunks: new Set(), loading: new Set(), more: true, chunkSecs: 600, wait: new Map() });
 
-export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked, onHome, initialTab, playMode }: PlayerProps) {
+export function Player({ es, esRef, update, api, signal, say, student, explicit, onEditInterests, standalone, shareLink, nickname, setNickname, start, mediaUrl, liveBase, onSession, locked, onHome, initialTab, playMode, visible = true, onNowPlaying, control }: PlayerProps) {
   const { theme, day } = useTheme();
   const [tab, setTab] = useState<Tab>(initialTab ?? "foryou");
   // The feed tab last open (For You or Following), where the mini player goes back to.
@@ -528,7 +536,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     const a = new Audio(); a.preload = "auto";
     a.addEventListener("timeupdate", () => { if (a === cur.current) handlers.current.time(a); });
     a.addEventListener("ended", () => { if (a === cur.current) handlers.current.ended(a); });
-    a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) setPlaying(true); });
+    a.addEventListener("play", () => { if (isBoosted(a)) resumeVoiceBoost(); if (a === cur.current) { setPlaying(true); soundStarted("pod"); } });
     a.addEventListener("pause", () => { if (a === cur.current) setPlaying(false); });
     a.addEventListener("error", () => { if (a === cur.current && a.dataset.ep) handlers.current.error(a); });
     return a;
@@ -672,7 +680,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
       try { if (to && a!.dataset.ep === ep.id && a!.currentTime < 1) a!.currentTime = to; } catch { /* the host doesn't allow seeking */ }
     }, { once: true });
     // iPhones ignore a jump made before the audio is ready; check again once it plays.
-    a.addEventListener("playing", () => { const p = plays.current.get(ep.id); if (a!.dataset.sid && p && a!.dataset.sid === p.sid && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId)) skipIfInAd(a!, p.ads?.ads ?? []); }, { once: true });
+    a.addEventListener("playing", () => { if (a === cur.current) setAdsTick((x) => x + 1); const p = plays.current.get(ep.id); if (a!.dataset.sid && p && a!.dataset.sid === p.sid && esRef.current.settings.adMode === "auto" && !esRef.current.adFree.includes(ep.showId)) skipIfInAd(a!, p.ads?.ads ?? []); }, { once: true });
     a.load();
     return a;
   };
@@ -700,6 +708,10 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     listened.current = 0; lastTime.current = a.currentTime; lastSpot.current = 0; setSkipped(null);
     if (!lastHeardAt.current.has(ep.id)) lastHeardAt.current.set(ep.id, readSpots()[ep.id]?.at ?? 0);
     if (markingRef.current && markingRef.current.epId !== ep.id) setMarking(null);
+    // The ads list depends on which player is current (this copy's own ads only count for its own
+    // player); it was worked out before this ran, so work it out again now. Without this, ads found
+    // while the episode loaded ahead didn't show until you left the episode and came back.
+    setAdsTick((x) => x + 1);
     loadAds(ep);
     setTime(a.currentTime || 0); setDur(Number.isFinite(a.duration) ? a.duration : ep.secs || 0);
     a.playbackRate = esRef.current.settings.speed;
@@ -1205,7 +1217,7 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
   // its average, darkened like the bottom of the card, from a tiny copy the server hands over.
   const toneArt = [items[active]?.ep?.art, items[active]?.show.art].find((a) => a && /mzstatic\.com/.test(a)) || "";
   useEffect(() => {
-    if (!standalone || !mediaUrl) return;
+    if (!standalone || !mediaUrl || !visible) return;
     const root = document.documentElement.style;
     const meta = document.querySelector('meta[name="theme-color"]');
     const paint = (c: string) => { root.background = c; meta?.setAttribute("content", c); };
@@ -1214,7 +1226,15 @@ export function Player({ es, esRef, update, api, signal, say, student, explicit,
     void artTone(mediaUrl(`/api/earshot/art?u=${encodeURIComponent(toneArt)}`)).then((c) => { if (live && c) paint(c); });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [standalone, toneArt, tab, day]);
+  }, [standalone, toneArt, tab, day, visible]);
+  // Another Pod+ player started (an audiobook, the radio): this one pauses.
+  useEffect(() => onOtherSound("pod", () => cur.current?.pause()), []);
+  // What's playing, for the mini bar on Pod+'s other pages, and a way to pause it from there.
+  const nowEp = items[active]?.ep, nowShow = items[active]?.show;
+  useEffect(() => {
+    onNowPlaying?.(nowEp && nowShow ? { title: nowEp.title, show: nowShow.name, art: nowEp.art || nowShow.art, playing } : null);
+  }, [nowEp?.id, playing]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (control) control.current = { toggle: () => toggle(), pause: () => cur.current?.pause() };
   // Once per visit from the home screen: the screen's real measurements, to the server log.
   const shellRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

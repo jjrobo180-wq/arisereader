@@ -5,6 +5,7 @@
 // secure page can't load, and no HLS playlists). Stations come in random order, not by popularity.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Pause, Play, Radio as RadioIcon, Search, Shuffle, Square, Volume2, VolumeX } from "lucide-react";
+import { onOtherSound, soundStarted } from "../client/src/components/family-hub/earshot/soundBus";
 
 export type Station = {
   stationuuid: string; name: string; url_resolved: string; favicon: string; tags: string;
@@ -141,6 +142,7 @@ function Logo({ s, size }: { s: Station; size: number }) {
 /** The bar at the bottom while a station plays. Stays while browsing the rest of the home page. */
 export function RadioBar({ station, onStop, say }: { station: Station; onStop: () => void; say: (m: string) => void }) {
   const audio = useRef<HTMLAudioElement>(null);
+  useEffect(() => onOtherSound("radio", () => audio.current?.pause()), []);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [muted, setMuted] = useState(false);
@@ -186,7 +188,7 @@ export function RadioBar({ station, onStop, say }: { station: Station; onStop: (
       <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#0f0f0f] text-white">{loading && !playing ? <Loader2 className="animate-spin" size={20} /> : playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}</button>
       <button onClick={onStop} aria-label="Stop radio" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><Square size={16} fill="currentColor" /></button>
       <audio ref={audio} preload="none"
-        onPlaying={() => { setPlaying(true); setLoading(false); }} onPause={() => setPlaying(false)} onWaiting={() => setLoading(true)}
+        onPlaying={() => { setPlaying(true); setLoading(false); soundStarted("radio"); }} onPause={() => setPlaying(false)} onWaiting={() => setLoading(true)}
         onError={() => { setPlaying(false); setLoading(false); if (audio.current?.getAttribute("src")) say("This station isn't playing right now. Try another one."); }}
         onLoadedMetadata={() => setTitle("")} />
     </div>

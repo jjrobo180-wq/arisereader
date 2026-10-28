@@ -4,9 +4,10 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
-import { Bell, BookOpen, Check, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { Bell, BookOpen, Check, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X, Pause, Play } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { AudiobookBar, AudiobooksView, BookPage, type Reading } from "./Audiobooks";
+import type { NowPlaying } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { PartyRoom } from "./Party";
 import { artIn } from "./art";
 import { SearchPage } from "./Search";
@@ -102,7 +103,11 @@ const WHY: { h: string; p: string }[] = [
   { h: "Swipe through substance.", p: "Every swipe is a real podcast, not a clip built to bait a click." },
 ];
 
-export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin, onSignIn, email, onSignOut, device, nickname, setNickname, liveBase, signal }: {
+export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, onJoin, onSignIn, email, onSignOut, device, nickname, setNickname, liveBase, signal, visible = true, nowPod = null, onPodToggle, onPodOpen }: {
+  /** On screen (it keeps running, hidden, while the swipe player is open). */
+  visible?: boolean;
+  /** The podcast playing in the swipe player, with its pause button and a way back to it. */
+  nowPod?: NowPlaying | null; onPodToggle?: () => void; onPodOpen?: () => void;
   es: Earshot;
   update: (fn: (e: Earshot) => Earshot) => void;
   api: Api;
@@ -127,7 +132,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   // Light or dark: the same setting as the swipe feed (follows the phone unless changed).
   const { theme, day } = useTheme();
   const dark = !day;
-  useEffect(() => { document.documentElement.style.background = dark ? "#0f0f0f" : "#ffffff"; }, [dark]);
+  useEffect(() => { if (visible) document.documentElement.style.background = dark ? "#0f0f0f" : "#ffffff"; }, [dark, visible]);
   const cycleTheme = () => setTheme(theme === "system" ? (dark ? "light" : "dark") : theme === "dark" ? "light" : "dark");
 
   const ex = es.settings.explicit ? "&explicit=1" : "";
@@ -636,7 +641,16 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           : <button onClick={() => { setDrawer(false); onSignIn(); }} className="flex h-10 w-full items-center gap-6 rounded-[10px] px-3 text-left text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]"><UserCircle size={22} strokeWidth={1.8} />Sign in</button>}
       </nav>
     </div>}
-    <div className={`flex items-start ${station || reading ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+    <div className={`flex items-start ${station || reading || nowPod ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
+    {nowPod && !station && !reading && <div role="region" aria-label="Now playing podcast" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
+      <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-3 py-2.5 sm:px-5">
+        <button onClick={onPodOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${nowPod.title}`}>
+          <img src={nowPod.art} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" referrerPolicy="no-referrer" />
+          <span className="flex min-w-0 flex-col"><span className="truncate text-sm font-semibold">{nowPod.title}</span><span className="truncate text-xs text-[#606060]">{nowPod.show}</span></span>
+        </button>
+        <button onClick={onPodToggle} aria-label={nowPod.playing ? "Pause" : "Play"} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0f0f0f] text-white">{nowPod.playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}</button>
+      </div>
+    </div>}
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
     {reading && <AudiobookBar api={api} pro={pro} onJoin={onJoin} reading={reading} tap={bookTap} onChange={setReading} onStop={stopBook} onPlaying={setBookPlaying} say={say} onOpen={() => go({ kind: "book", id: reading.book.id })} />}
     {askTopics && view.kind === "home" && <TopicsPrompt onDone={doneAsking} />}
