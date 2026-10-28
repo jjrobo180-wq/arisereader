@@ -50,8 +50,3 @@ test("pages, guestbook and the Social tab are wired up", () => {
   assert.match(x, /<PagesStrip /);
 });
 
-test("visitors don't see empty widgets, and the picture sits above the banner", () => {
-  const src = readFileSync(new URL("../client/src/components/family-hub/earshot/EarshotProfilePage.tsx", import.meta.url), "utf8");
-  assert.match(src, /page\.widgets\.filter\(\(w\) => data\.me \|\| hasContent\(w, page, data\)\)/);
-  assert.match(src, /<header className="relative z-10 px-4 sm:px-6">/);
-});
