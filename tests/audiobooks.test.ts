@@ -129,3 +129,23 @@ test("Audiobooks stays inside its own pages: no row on the home page", () => {
   const home = readFileSync(new URL("../podscroll/Home.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(home, /BooksRow/);
 });
+
+import { joinWavs, linesOf, narrationParts, noticeEnd, sectionIndex, speechChunks } from "../server/audiobooks";
+
+test("voice features: words in transcript lines, the LibriVox notice, narrator parts and sound", () => {
+  const lines = linesOf({ segments: [{ start: 0, end: 2, text: " Hello there." }, { start: 2, end: 4, text: "Next line." }], words: [{ start: 0, end: 1, word: "Hello" }, { start: 1, end: 2, word: "there." }, { start: 2.1, end: 3, word: "Next" }] }, 600);
+  assert.deepEqual(lines[0], { s: 600, e: 602, t: "Hello there.", w: [{ s: 600, t: "Hello" }, { s: 601, t: "there." }] });
+  assert.deepEqual(lines[1].w, [{ s: 602.1, t: "Next" }]);
+  assert.equal(noticeEnd([{ start: 0, end: 3, text: "Chapter one of Emma." }, { start: 3, end: 8, text: "This is a LibriVox recording." }, { start: 8, end: 14.2, text: "For more information, or to volunteer, please visit librivox.org." }, { start: 15, end: 20, text: "Emma Woodhouse, handsome, clever and rich" }]), 14.2);
+  assert.equal(noticeEnd([{ start: 0, end: 5, text: "It was a dark night." }]), 0);
+  const parts = narrationParts(["a".repeat(500), "b".repeat(500), "c".repeat(100)].join("\n\n"));
+  assert.deepEqual(parts.map((p) => [p.from, p.to]), [[0, 0], [1, 2]]);
+  const chunks = speechChunks(`${"Word ".repeat(30)}end. ${"More words here ".repeat(10)}`);
+  assert.ok(chunks.every((c) => c.length <= 190) && chunks.length >= 2);
+  const wav = (n: number) => { const b = Buffer.alloc(44 + n); b.write("RIFF", 0); b.write("WAVE", 8); b.write("fmt ", 12); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(24000, 24); b.write("data", 36); b.writeUInt32LE(n, 40); return b; };
+  const joined = joinWavs([wav(100), wav(50)]);
+  assert.equal(joined.readUInt32LE(40), 150);
+  assert.equal(joined.length, 44 + 150);
+  const sections = [{ heading: "Beginning", text: "" }, { heading: "Chapter I. · The Period", text: "" }, { heading: "Chapter II.", text: "" }];
+  assert.equal(sectionIndex(sections, { chapters: [{ n: 1, title: "Chapter 2", sub: "", secs: 0, audio: "", bytes: 0 }] }, 0), 2);
+});

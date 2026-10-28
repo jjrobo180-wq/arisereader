@@ -18,19 +18,27 @@ import type { Express, RequestHandler } from "express";
 import { Readable } from "node:stream";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
+import { parseDefinition } from "../shared/lifePlugins";
 
 export type BookKind = "solo" | "group" | "dramatic";
 export type Book = { id: string; title: string; author: string; cover: string; downloads: number; rating: number; reviews: number; about: string; reader: string; kind: BookKind; added: string };
 export type BookChapter = { n: number; title: string; sub: string; secs: number; audio: string; bytes: number };
 /** A line of an AI transcript: start and end (seconds into the chapter) and the words. */
-export type TxLine = { s: number; e: number; t: string };
+export type TxLine = { s: number; e: number; t: string; /** Each word and when it starts, for word-by-word highlighting. */ w?: { s: number; t: string }[] };
 export type BookDetail = Book & { chapters: BookChapter[]; secs: number; link: string; gutenberg: number };
 export type TextSection = { heading: string; text: string };
 
 export type JsonFetcher = (url: string) => Promise<any>;
 export type TextFetcher = (url: string) => Promise<string>;
 export type AskJson = (system: string, user: string) => Promise<any>;
-export type Transcriber = (audio: Blob, name: string, prompt?: string) => Promise<{ segments: { start: number; end: number; text: string }[] }>;
+export type Transcriber = (audio: Blob, name: string, prompt?: string) => Promise<{ segments: { start: number; end: number; text: string }[]; words?: { start: number; end: number; word: string }[] }>;
+/** Text to speech: one short stretch of text (under 200 characters) as a WAV file. */
+export type Speaker = (text: string, voice: string) => Promise<Buffer>;
+/** The AI narrator's voices (Groq's Orpheus). */
+export const NARRATOR_VOICES = [
+  { id: "autumn", label: "Autumn", about: "Warm, female" }, { id: "diana", label: "Diana", about: "Clear, female" }, { id: "hannah", label: "Hannah", about: "Bright, female" },
+  { id: "austin", label: "Austin", about: "Easygoing, male" }, { id: "daniel", label: "Daniel", about: "Calm, male" }, { id: "troy", label: "Troy", about: "Deep, male" },
+] as const;
 /** AI transcripts are made 10 minutes at a time, as the listener gets there. */
 export const TX_PIECE_SECS = 600;
 
@@ -247,6 +255,23 @@ export function sectionsOf(raw: string): TextSection[] {
   return out.slice(0, 600).map((s) => ({ heading: s.heading.slice(0, 120), text: s.text.replace(/[ \t]+\n/g, "\n").replace(/([^\n])\n(?=[^\n])/g, "$1 ").replace(/\n{3,}/g, "\n\n").trim() }));
 }
 
+/** "Chapter 3: The Mail" */
+const chapterLabel = (c: BookChapter) => (c.sub ? `${c.title}: ${c.sub}` : c.title);
+const numIn = (s: string): number => { const m = /^\S+\s+(\d{1,3}|[IVXLCDM]{1,8})\b/.exec(s.trim()); return m ? (/^\d+$/.test(m[1]) ? Number(m[1]) : roman(m[1])) : 0; };
+/** Which part of the book's text goes with a chapter: the same numbered part when the names say,
+ *  else the one with the chapter's name, else the same place along the book. */
+export function sectionIndex(sections: TextSection[], book: Pick<BookDetail, "chapters">, ch: number): number {
+  const c = book.chapters[ch];
+  const word = (c?.title.split(" ")[0] || "").toLowerCase(), n = numIn(c?.title || "");
+  if (n && /^(chapter|book|part|letter|stave|section|canto|act|lecture|volume)$/.test(word)) {
+    const hit = sections.findIndex((s) => s.heading.toLowerCase().startsWith(word) && numIn(s.heading) === n);
+    if (hit >= 0) return hit;
+  }
+  const byName = c?.sub ? sections.findIndex((s) => s.heading.toLowerCase().includes(c.sub.toLowerCase().slice(0, 24))) : -1;
+  if (byName >= 0) return byName;
+  return Math.max(0, Math.min(sections.length - 1, Math.round((ch / Math.max(1, book.chapters.length)) * sections.length)));
+}
+
 const UA = "PodPlus/1.0 (audiobooks; arisereader.onrender.com)";
 const defaultFetch: JsonFetcher = async (url) => {
   const r = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(15_000) });
@@ -276,6 +301,96 @@ export function pieceRange(c: Pick<BookChapter, "secs" | "bytes">, piece: number
   return { from, to: c.bytes ? Math.min(to, c.bytes - 1) : to, at };
 }
 
+const r1 = (n: number) => Math.round(n * 10) / 10;
+/** A transcriber's answer as lines, each with its own words (when the transcriber gave them). */
+export function linesOf(out: Awaited<ReturnType<Transcriber>>, at: number): TxLine[] {
+  const words = out.words || [];
+  let k = 0;
+  return out.segments.map((x) => {
+    const w: { s: number; t: string }[] = [];
+    while (k < words.length && words[k].start < x.end - 0.01) { if (words[k].start >= x.start - 0.3) w.push({ s: r1(at + words[k].start), t: words[k].word.trim() }); k++; }
+    return { s: r1(at + x.start), e: r1(at + x.end), t: x.text.trim(), ...(w.length ? { w } : {}) };
+  }).filter((x) => x.t);
+}
+
+/** Where the LibriVox notice at the start of a chapter ends ("This is a LibriVox recording. All
+ *  LibriVox recordings are in the public domain. For more information or to volunteer, please visit
+ *  librivox.org."), from a transcript of its first minute. 0 when there isn't one. */
+export function noticeEnd(segments: { start: number; end: number; text: string }[]): number {
+  let end = 0;
+  for (const x of segments) {
+    if (x.start > 75) break;
+    if (/libri\s?vox|public domain|to volunteer|for more information/i.test(x.text)) end = x.end;
+    else if (end && x.start - end > 1) break;
+  }
+  return end ? r1(end) : 0;
+}
+
+/** A stretch of the book's text cut for the narrator: about `size` characters, whole paragraphs
+ *  (a long paragraph on its own), and each part's paragraphs, so the page can follow along. */
+export function narrationParts(text: string, size = 900): { from: number; to: number; text: string }[] {
+  const paras = text.split(/\n{2,}/).map((p) => p.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const out: { from: number; to: number; text: string }[] = [];
+  let cur: { from: number; to: number; text: string } | null = null;
+  paras.forEach((p, i) => {
+    if (cur && cur.text.length + p.length > size) { out.push(cur); cur = null; }
+    cur = cur ? { ...cur, to: i, text: `${cur.text}\n\n${p}` } : { from: i, to: i, text: p };
+  });
+  if (cur) out.push(cur);
+  return out;
+}
+
+/** Text cut into pieces the voice takes in one go (under 190 characters), at sentence ends when it
+ *  can, then commas, then spaces. */
+export function speechChunks(text: string, max = 190): string[] {
+  const out: string[] = [];
+  for (const para of text.split(/\n{2,}/)) {
+    let rest = para.replace(/\s+/g, " ").trim();
+    while (rest.length > max) {
+      const head = rest.slice(0, max);
+      const cut = Math.max(head.lastIndexOf(". "), head.lastIndexOf("? "), head.lastIndexOf("! "), head.lastIndexOf("; "));
+      const at = cut > max * 0.4 ? cut + 1 : Math.max(head.lastIndexOf(", ") > max * 0.4 ? head.lastIndexOf(", ") + 1 : -1, head.lastIndexOf(" "));
+      const n = at > 0 ? at : max;
+      out.push(rest.slice(0, n).trim()); rest = rest.slice(n).trim();
+    }
+    if (rest) out.push(rest);
+  }
+  return out;
+}
+
+/** Joins WAV files with the same format into one (each one's sound, one header). */
+export function joinWavs(parts: Buffer[]): Buffer {
+  const pcm: Buffer[] = [];
+  let fmt: Buffer | null = null;
+  for (const b of parts) {
+    if (b.length < 12 || b.toString("ascii", 0, 4) !== "RIFF") continue;
+    let i = 12;
+    while (i + 8 <= b.length) {
+      const id = b.toString("ascii", i, i + 4); let size = b.readUInt32LE(i + 4);
+      if (id === "fmt ") fmt ??= b.subarray(i + 8, i + 8 + size);
+      if (id === "data") { if (size === 0xffffffff || i + 8 + size > b.length) size = b.length - i - 8; pcm.push(b.subarray(i + 8, i + 8 + size)); break; }
+      i += 8 + size + (size % 2);
+    }
+  }
+  if (!fmt) return Buffer.alloc(0);
+  const data = Buffer.concat(pcm);
+  const head = Buffer.alloc(20);
+  head.write("RIFF", 0); head.writeUInt32LE(4 + 8 + fmt.length + 8 + data.length, 4); head.write("WAVE", 8); head.write("fmt ", 12); head.writeUInt32LE(fmt.length, 16);
+  const dh = Buffer.alloc(8); dh.write("data", 0); dh.writeUInt32LE(data.length, 4);
+  return Buffer.concat([head, fmt, dh, data]);
+}
+
+/** Groq's Orpheus voice. */
+export const groqSpeak: Speaker = async (text, voice) => {
+  const r = await fetch("https://api.groq.com/openai/v1/audio/speech", {
+    method: "POST", headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: process.env.BOOK_TTS_MODEL || "canopylabs/orpheus-v1-english", input: text, voice, response_format: "wav" }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!r.ok) throw new Error(`speech ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
+  return Buffer.from(await r.arrayBuffer());
+};
+
 /** Pod+ Membership: AI transcripts, Ask AI and Voice boost are for members (signed in with their
  *  email; the gate marks req.creator). Everything else in Audiobooks is free. */
 const isMember = (req: any) => !!req.creator;
@@ -295,7 +410,7 @@ export function relayPassOk(key: Buffer, pass: string, at: number): boolean {
   return got.length === want.length && timingSafeEqual(got, want);
 }
 
-export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts: { fetchJson?: JsonFetcher; fetchText?: TextFetcher; ask?: AskJson; transcribe?: Transcriber; minutesPerDay?: number; prefix?: string; now?: () => number; relayKey?: Buffer } = {}) {
+export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts: { fetchJson?: JsonFetcher; fetchText?: TextFetcher; ask?: AskJson; transcribe?: Transcriber; speak?: Speaker; minutesPerDay?: number; charsPerDay?: number; prefix?: string; now?: () => number; relayKey?: Buffer } = {}) {
   const prefix = opts.prefix ?? "/api/podscroll";
   const get = opts.fetchJson ?? defaultFetch;
   const getText = opts.fetchText ?? defaultText;
@@ -341,6 +456,22 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
   app.get(`${prefix}/books/relay-pass`, gate, (req: any, res) => {
     if (!isMember(req)) return membersOnly(res, "Voice boost");
     res.set("Cache-Control", "no-store").json({ pass: relayPass(relayKey, now()) });
+  });
+
+  // Tap a word in the book's text: what it means (free; dictionaryapi.dev, kept a month).
+  app.get(`${prefix}/books/define`, gate, async (req: any, res) => {
+    const word = String(req.query.word || "").toLowerCase().replace(/[^a-z'-]/g, "").slice(0, 40);
+    if (!word) return res.status(400).json({ message: "Tap a word." });
+    try {
+      const def = await cached(`define:${word}`, 30 * DAY, async () => {
+        const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { headers: { "User-Agent": UA, Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+        if (r.status === 404) return null;
+        if (!r.ok) throw new Error(`dictionary ${r.status}`);
+        return parseDefinition(await r.json());
+      });
+      if (!def) return res.status(404).json({ message: `No meaning found for “${word}”.` });
+      res.set("Cache-Control", "public, max-age=86400").json(def);
+    } catch (e) { down(res, "define", e, "The dictionary can't be reached right now."); }
   });
 
   app.get(`${prefix}/books`, gate, async (req: any, res) => {
@@ -391,7 +522,14 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     try {
       const book = await bookOf(id);
       if (!book) return res.status(404).json({ message: "That audiobook isn't available." });
-      const out = await cached(`text:${id}`, 7 * DAY, async () => {
+      const out = await textOf(book);
+      if (!out) return res.status(404).json({ message: "The text of this book isn't available to read along." });
+      res.set("Cache-Control", "public, max-age=86400").json(out);
+    } catch (e) { down(res, "text", e, "The book's text isn't loading right now. Try again in a moment."); }
+  });
+  // (the book's text, kept a week)
+  function textOf(book: BookDetail): Promise<{ sections: TextSection[]; source: string } | null> {
+    return cached(`text:${book.id}`, 7 * DAY, async () => {
         let gid = book.gutenberg;
         if (!gid) {
           // Not linked from its page: look the book up by title and author.
@@ -403,10 +541,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
         const sections = sectionsOf(await getText(`https://www.gutenberg.org/cache/epub/${gid}/pg${gid}.txt`));
         return sections.length ? { sections, source: `https://www.gutenberg.org/ebooks/${gid}` } : null;
       });
-      if (!out) return res.status(404).json({ message: "The text of this book isn't available to read along." });
-      res.set("Cache-Control", "public, max-age=86400").json(out);
-    } catch (e) { down(res, "text", e, "The book's text isn't loading right now. Try again in a moment."); }
-  });
+  }
 
   // AI transcript of a chapter, 10 minutes at a time (for books whose text isn't available, or
   // when the reading wanders from the text). Kept once made; a daily cap keeps the cost in check.
@@ -443,7 +578,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
           if (!r.ok) throw new Error(`audio ${r.status}`);
           const blob = new Blob([await r.arrayBuffer()], { type: "audio/mpeg" });
           const out = await opts.transcribe!(blob, `${id}-${ch}-${piece}.mp3`, `${book!.title} by ${book!.author}. ${c.title}${c.sub ? `: ${c.sub}` : ""}.`);
-          return out.segments.map((x) => ({ s: Math.round((range.at + x.start) * 10) / 10, e: Math.round((range.at + x.end) * 10) / 10, t: x.text.trim() })).filter((x) => x.t);
+          return linesOf(out, range.at);
         })();
         making.set(key, job);
         job.finally(() => making.delete(key)).catch(() => {});
@@ -452,6 +587,130 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       cache.set(key, { at: now(), ttl: 30 * DAY, value: lines });
       res.json({ lines, more });
     } catch (e) { down(res, "transcript", e, "The transcript isn't ready right now. Try again in a moment."); }
+  });
+
+  // Skip the LibriVox notice: where it ends in a chapter, from a transcript of its first 75 seconds.
+  app.get(`${prefix}/books/:id/notice`, gate, async (req: any, res) => {
+    const id = String(req.params.id || ""), ch = Math.floor(Number(req.query.ch));
+    if (!BOOK_ID.test(id) || !(ch >= 0)) return res.status(404).json({ message: "That chapter doesn't exist." });
+    if (!isMember(req)) return membersOnly(res, "Skipping the LibriVox notice");
+    if (!opts.transcribe) return res.json({ end: 0 });
+    try {
+      const book = await bookOf(id);
+      const c = book?.chapters[ch];
+      if (!c) return res.status(404).json({ message: "That chapter doesn't exist." });
+      const end = await cached(`notice:${id}:${ch}`, 90 * DAY, async () => {
+        const piece = cache.get(`tx:${id}:${ch}:0`)?.value as TxLine[] | undefined;
+        if (piece?.length) return noticeEnd(piece.map((l) => ({ start: l.s, end: l.e, text: l.t })));
+        const range = pieceRange(c, 0)!;
+        const bytes = Math.floor((range.to - range.from) * (75 / TX_PIECE_SECS));
+        const r = await fetch(c.audio, { headers: { "User-Agent": UA, Range: `bytes=0-${bytes}` }, redirect: "follow", signal: AbortSignal.timeout(30_000) });
+        if (!r.ok) throw new Error(`audio ${r.status}`);
+        const out = await opts.transcribe!(new Blob([await r.arrayBuffer()], { type: "audio/mpeg" }), `${id}-${ch}-notice.mp3`, "This is a LibriVox recording. All LibriVox recordings are in the public domain.");
+        return noticeEnd(out.segments);
+      });
+      res.set("Cache-Control", "public, max-age=86400").json({ end: end && c.secs && end > c.secs - 5 ? 0 : end });
+    } catch (e) { down(res, "notice", e, "Couldn't find the notice in this chapter."); }
+  });
+
+  // Catch me up and Ask the book: the AI knows the book and what's just been read, and stays
+  // inside what the listener has heard (no spoilers).
+  const talkLimit = createAttemptLimiter({ max: 40, windowMs: 10 * 60_000 });
+  const talk = (kind: "recap" | "ask") => async (req: any, res: any) => {
+    const id = String(req.params.id || "");
+    const ch = Math.floor(Number(req.body?.ch)), t = Math.max(0, Number(req.body?.t) || 0);
+    const q = String(req.body?.q || "").replace(/\s+/g, " ").trim().slice(0, 300);
+    if (!BOOK_ID.test(id) || !(ch >= 0)) return res.status(404).json({ message: "That chapter doesn't exist." });
+    if (!isMember(req)) return membersOnly(res, kind === "recap" ? "Catch me up" : "Ask the book");
+    if (kind === "ask" && q.length < 3) return res.status(400).json({ message: "Type a question about the book." });
+    if (!opts.ask) return res.status(503).json({ message: "This isn't available right now." });
+    const who = String(req.user?.id || clientIp(req));
+    const wait = talkLimit.retryAfter(who);
+    if (wait) return res.status(429).json({ message: `That's a lot of questions. Try again in ${waitWords(wait)}.` });
+    talkLimit.fail(who);
+    try {
+      const book = await bookOf(id);
+      const c = book?.chapters[ch];
+      if (!book || !c) return res.status(404).json({ message: "That chapter doesn't exist." });
+      // What was just read: the book's text up to this spot, when it's known.
+      let recent = "";
+      const text = await textOf(book).catch(() => null);
+      if (text) {
+        const i = sectionIndex(text.sections, book, ch);
+        const sec = text.sections[i];
+        const upto = sec.text.slice(0, Math.max(400, Math.round(sec.text.length * Math.min(1, c.secs ? t / c.secs : 0.5))));
+        recent = `${text.sections[i - 1]?.text.slice(-2500) || ""}\n\n${sec.heading}\n${upto}`.slice(-9000);
+      }
+      const where = `${chapterLabel(c)} (part ${ch + 1} of ${book.chapters.length}), about ${Math.round(t / 60)} minutes in`;
+      const chapters = book.chapters.slice(0, ch + 1).map((x) => chapterLabel(x)).join("; ").slice(0, 2500);
+      const system = `You help someone listening to the audiobook "${book.title}" by ${book.author || "an unknown author"}. They have reached ${where}. NEVER reveal or hint at anything that happens after this point: no later events, twists, deaths or endings. If the answer depends on later parts, say it hasn't come up yet. Write plain, warm, easy English, the way a friend would explain it. Reply with JSON: {"answer": string}.`;
+      const user = kind === "recap"
+        ? `Catch me up: what has happened so far, up to where I am. 5 to 8 short sentences: the main people, where things stand, and what just happened in the latest part. Parts so far: ${chapters}.${recent ? `\n\nThe text just before where I am:\n${recent}` : ""}`
+        : `My question: ${q}\nParts so far: ${chapters}.${recent ? `\n\nThe text just before where I am:\n${recent}` : ""}`;
+      const out = await opts.ask(system, user);
+      const answer = plain(out?.answer, 2000);
+      if (!answer) throw new Error("empty answer");
+      res.json({ answer });
+    } catch (e) { down(res, kind, e, "The AI isn't answering right now. Try again in a moment."); }
+  };
+  app.post(`${prefix}/books/:id/recap`, gate, talk("recap"));
+  app.post(`${prefix}/books/:id/ask`, gate, talk("ask"));
+
+  // The AI narrator: the book's own text read by an AI voice, a part (a few paragraphs) at a time.
+  // First the parts (free, so the page can show them), then each part's sound (members, with the
+  // 12-hour pass, since an audio player sends no session). A daily cap keeps the cost in check.
+  app.get(`${prefix}/books/:id/narration`, gate, async (req: any, res) => {
+    const id = String(req.params.id || ""), sec = Math.floor(Number(req.query.sec));
+    if (!BOOK_ID.test(id) || !(sec >= 0)) return res.status(404).json({ message: "That part of the book doesn't exist." });
+    try {
+      const book = await bookOf(id);
+      const text = book && await textOf(book);
+      const s = text?.sections[sec];
+      if (!s) return res.status(404).json({ message: "The text of this book isn't available." });
+      res.set("Cache-Control", "public, max-age=86400").json({ heading: s.heading, parts: narrationParts(s.text).map((p) => ({ from: p.from, to: p.to })), voices: NARRATOR_VOICES, ai: !!(opts.speak ?? (process.env.GROQ_API_KEY ? groqSpeak : null)) });
+    } catch (e) { down(res, "narration", e, "The narrator isn't available right now."); }
+  });
+  let ttsDay = "", ttsChars = 0;
+  const speaking = new Map<string, Promise<Buffer>>();
+  const voices = new Map<string, Buffer>();
+  app.get(`${prefix}/books/:id/narrate`, async (req: any, res) => {
+    const id = String(req.params.id || ""), sec = Math.floor(Number(req.query.sec)), part = Math.floor(Number(req.query.part));
+    const voice = NARRATOR_VOICES.some((v) => v.id === req.query.voice) ? String(req.query.voice) : "autumn";
+    const speak = opts.speak ?? (process.env.GROQ_API_KEY ? groqSpeak : null);
+    if (!BOOK_ID.test(id) || !(sec >= 0) || !(part >= 0)) return res.status(404).end();
+    if (!relayPassOk(relayKey, String(req.query.k || ""), now())) return res.status(403).end();
+    if (!speak) return res.status(503).end();
+    try {
+      const book = await bookOf(id);
+      const text = book && await textOf(book);
+      const p = text?.sections[sec] && narrationParts(text.sections[sec].text)[part];
+      if (!p) return res.status(404).end();
+      const key = `voice:${id}:${sec}:${part}:${voice}`;
+      let wav = voices.get(key);
+      if (!wav) {
+        let job = speaking.get(key);
+        if (!job) {
+          const today = new Date(now()).toISOString().slice(0, 10);
+          if (today !== ttsDay) { ttsDay = today; ttsChars = 0; }
+          if (ttsChars >= (opts.charsPerDay ?? (Number(process.env.BOOK_TTS_CHARS_PER_DAY) || 400_000))) return res.status(503).end();
+          ttsChars += p.text.length;
+          job = (async () => {
+            const chunks = speechChunks(p.text);
+            const out: Buffer[] = new Array(chunks.length);
+            for (let i = 0; i < chunks.length; i += 3) await Promise.all(chunks.slice(i, i + 3).map(async (c, k) => { out[i + k] = await speak(c, voice); }));
+            return joinWavs(out);
+          })();
+          speaking.set(key, job);
+          job.finally(() => speaking.delete(key)).catch(() => {});
+        }
+        wav = await job;
+        if (!wav.length) throw new Error("no sound");
+        // Sound is big (about 3 MB a minute): only the last few parts are kept in memory.
+        voices.delete(key); voices.set(key, wav);
+        while (voices.size > 16) voices.delete(voices.keys().next().value!);
+      }
+      res.set({ "Content-Type": "audio/wav", "Content-Length": String(wav.length), "Cache-Control": "public, max-age=604800", "Accept-Ranges": "none" }).send(wav);
+    } catch (e: any) { console.error("[audiobooks] narrate:", e?.message || e); if (!res.headersSent) res.status(502).end(); }
   });
 
   // AI search: describe a book, get real LibriVox audiobooks back.
