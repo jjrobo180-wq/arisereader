@@ -12,7 +12,7 @@ import {
   GENRE, EARSHOT_LIMITS, appleLookupUrl, appleSearchUrl, canComment, cleanComment, cleanPodId, commentAuthor, parseEpisode, parseShow, poolFromEpisodeSearch,
   type PodEpisode, type PodShow, type PoolShow, type TranscriptChunk,
 } from "../shared/earshot";
-import { createDirectory, openAiJson, type Directory, type Fetcher } from "./podcastDirectory";
+import { createDirectory, openAiJson, openAiTranscribe, type Directory, type Fetcher } from "./podcastDirectory";
 import { registerAudiobookRoutes } from "./audiobooks";
 import { TOPICS, genreSearchTerms, topicPlaylist } from "../shared/earshotTopics";
 import { crowdFor, memoryAdStore, registerAdRoutes, type AdStore } from "./podcastAds";
@@ -619,6 +619,6 @@ export function registerPodscrollRoutes(app: Express, store: EarshotStore, fetch
     res.status(204).end();
   });
   // Audiobooks (server/audiobooks.ts): LibriVox's public domain audiobooks.
-  registerAudiobookRoutes(app, gate);
+  registerAudiobookRoutes(app, gate, { ask: openAiJson, transcribe: openAiTranscribe });
   registerEarshotRoutes(app, gate, { store, fetcher, directory, adStore, player, socialDb, prefix: "/api/podscroll" });
 }

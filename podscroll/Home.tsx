@@ -549,7 +549,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   } else if (view.kind === "books") {
     content = <AudiobooksView api={api} current={reading} onOpen={(id) => go({ kind: "book", id })} />;
   } else if (view.kind === "book") {
-    content = <BookPage key={view.id} api={api} id={view.id} current={reading} playing={bookPlaying} onPlay={playBook} onToggle={toggleBook} onBack={() => go({ kind: "books" })} />;
+    content = <BookPage key={view.id} api={api} id={view.id} current={reading} playing={bookPlaying} onPlay={playBook} onToggle={toggleBook} onBack={() => go({ kind: "books" })} onOpen={(id) => go({ kind: "book", id })} />;
   } else if (view.kind === "liked" || view.kind === "later") {
     const list = (view.kind === "liked" ? es.liked : es.saved).map(fromSaved);
     content = <div className="px-4 pb-16 pt-4 sm:px-6">
@@ -638,7 +638,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
     </div>}
     <div className={`flex items-start ${station || reading ? "pb-20" : ""}`}>{sidebar}<main className="min-w-0 flex-1">{content}</main></div>
     {station && <RadioBar station={station} onStop={stopRadio} say={say} />}
-    {reading && <AudiobookBar reading={reading} tap={bookTap} onChange={setReading} onStop={stopBook} onPlaying={setBookPlaying} say={say} onOpen={() => go({ kind: "book", id: reading.book.id })} />}
+    {reading && <AudiobookBar api={api} reading={reading} tap={bookTap} onChange={setReading} onStop={stopBook} onPlaying={setBookPlaying} say={say} onOpen={() => go({ kind: "book", id: reading.book.id })} />}
     {askTopics && view.kind === "home" && <TopicsPrompt onDone={doneAsking} />}
     {addTo && <AddToMenu es={es} ep={addTo} update={update} say={say} onClose={() => setAddTo(null)} onDislike={dislike} onBlock={block} />}
     {undo && <div role="status" className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] left-1/2 z-[85] flex w-[min(92vw,440px)] -translate-x-1/2 items-center justify-between gap-3 rounded-xl bg-[#0f0f0f] py-2.5 pl-4 pr-2 text-sm text-white shadow-2xl ps-keep" style={{ animation: "ps-fade .2s ease-out both" }}>

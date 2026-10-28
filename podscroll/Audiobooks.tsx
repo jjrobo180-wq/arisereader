@@ -1,35 +1,30 @@
 // Pod+ Audiobooks: free public domain audiobooks from LibriVox (read by volunteers, kept at the
-// Internet Archive). The server lists them and their chapters (server/audiobooks.ts); the audio
-// plays straight from the Archive. Like the radio, a book keeps playing in the bar at the bottom
+// Internet Archive). The server lists them, their chapters, other readings, the book's text and
+// AI transcripts (server/audiobooks.ts); the audio plays straight from the Archive (or through the
+// server when Voice boost shapes it). Like the radio, a book keeps playing in the bar at the bottom
 // while you browse, and each book remembers its chapter and spot on this device.
-import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, ChevronLeft, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, Star, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { BookOpen, BookOpenText, ChevronLeft, ChevronRight, Headphones, Loader2, Pause, Play, RotateCcw, RotateCw, Search, SkipBack, SkipForward, SlidersHorizontal, Sparkles, Star, X } from "lucide-react";
+import { attachVoiceBoost, primeVoiceBoost, setVoiceBoost, voiceBoostSupported } from "../client/src/components/family-hub/earshot/listenExtras";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-export type Book = { id: string; title: string; author: string; cover: string; downloads: number; rating: number; reviews: number; about: string };
-export type BookChapter = { n: number; title: string; secs: number; audio: string };
-export type BookDetail = Book & { chapters: BookChapter[]; secs: number; link: string };
+export type BookKind = "solo" | "group" | "dramatic";
+export type Book = { id: string; title: string; author: string; cover: string; downloads: number; rating: number; reviews: number; about: string; reader: string; kind: BookKind; added: string; why?: string };
+export type BookChapter = { n: number; title: string; sub: string; secs: number; audio: string; bytes: number };
+export type BookDetail = Book & { chapters: BookChapter[]; secs: number; link: string; gutenberg: number };
 /** What's playing: the book, the chapter (0-based) and where in it to start. */
 export type Reading = { book: BookDetail; ch: number; at: number };
 
+const API = String(import.meta.env.VITE_PODSCROLL_API || "https://arisereader.onrender.com").replace(/\/$/, "");
 const ACCENT = "#ff6a1f";
-const SPEEDS = [1, 1.25, 1.5, 1.75, 2, 0.75] as const;
+const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+const KIND_LABEL: Record<BookKind, string> = { solo: "One reader", group: "Group of readers", dramatic: "Full cast" };
 
-// ---- where each book was left, on this device ----
-type Spot = { ch: number; t: number; at: number; title: string; author: string; cover: string; chapters: number };
-const SPOTS = "podscroll.books";
-export function bookSpots(): Record<string, Spot> {
-  try { const v = JSON.parse(localStorage.getItem(SPOTS) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
-}
-function saveSpot(b: BookDetail, ch: number, t: number, finished = false) {
-  const all = bookSpots();
-  const last = finished || (ch >= b.chapters.length - 1 && !!b.chapters[ch]?.secs && t > b.chapters[ch].secs - 20);
-  if (last) delete all[b.id];
-  else all[b.id] = { ch, t: Math.floor(t), at: Date.now(), title: b.title, author: b.author, cover: b.cover, chapters: b.chapters.length };
-  const keep = Object.entries(all).sort((a, z) => z[1].at - a[1].at).slice(0, 50);
-  try { localStorage.setItem(SPOTS, JSON.stringify(Object.fromEntries(keep))); } catch { /* private window */ }
-}
-
+// ---- small things ----
+const ls = {
+  get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private window */ } },
+};
 const hours = (s: number) => {
   if (!s) return "";
   const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
@@ -41,6 +36,70 @@ const clock = (s: number) => {
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`;
 };
 const listens = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n));
+/** A chapter as people read it: its name, and what kind of part it is underneath. */
+export const chapterName = (c: BookChapter) => ({ main: c.sub || c.title || `Part ${c.n}`, under: c.sub ? c.title : "" });
+
+// ---- where each book was left, on this device ----
+type Spot = { ch: number; t: number; at: number; title: string; author: string; cover: string; chapters: number };
+const SPOTS = "podscroll.books";
+export function bookSpots(): Record<string, Spot> {
+  try { const v = JSON.parse(ls.get(SPOTS) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
+}
+function saveSpot(b: BookDetail, ch: number, t: number, finished = false) {
+  const all = bookSpots();
+  const last = finished || (ch >= b.chapters.length - 1 && !!b.chapters[ch]?.secs && t > b.chapters[ch].secs - 20);
+  if (last) delete all[b.id];
+  else all[b.id] = { ch, t: Math.floor(t), at: Date.now(), title: b.title, author: b.author, cover: b.cover, chapters: b.chapters.length };
+  const keep = Object.entries(all).sort((a, z) => z[1].at - a[1].at).slice(0, 50);
+  ls.set(SPOTS, JSON.stringify(Object.fromEntries(keep)));
+}
+
+// ---- books, fetched once per visit ----
+const details = new Map<string, Promise<BookDetail>>();
+function loadBook(api: Api, id: string): Promise<BookDetail> {
+  let p = details.get(id);
+  if (!p) { p = api(`/api/earshot/books/${encodeURIComponent(id)}`).then((b) => b.book as BookDetail); p.catch(() => details.delete(id)); details.set(id, p); }
+  return p;
+}
+
+// ---- previews: a short taste of a reading, one at a time ----
+let previewEl: HTMLAudioElement | null = null;
+let previewStop: (() => void) | null = null;
+function usePreview(api: Api) {
+  const [on, setOn] = useState<string | null>(null);
+  const [pct, setPct] = useState(0);
+  const stop = useCallback(() => { previewEl?.pause(); setOn(null); setPct(0); }, []);
+  useEffect(() => () => { if (previewStop === stop) { previewEl?.pause(); previewStop = null; } }, [stop]);
+  const play = useCallback(async (id: string, secs = 30) => {
+    if (on === id) { stop(); return; }
+    previewStop?.(); previewStop = stop;
+    setOn(id); setPct(0);
+    try {
+      const b = await loadBook(api, id);
+      const c = b.chapters[0];
+      if (!c) { stop(); return; }
+      previewEl ??= new Audio();
+      const a = previewEl;
+      // Past the LibriVox notice at the start of every chapter, into the reading itself.
+      const from = c.secs > 120 ? 60 : 20;
+      a.src = c.audio; a.currentTime = 0;
+      a.onloadedmetadata = () => { try { a.currentTime = from; } catch { /* not seekable */ } };
+      a.ontimeupdate = () => { const k = (a.currentTime - from) / secs; setPct(Math.max(0, Math.min(1, k))); if (k >= 1) stop(); };
+      a.onerror = () => stop();
+      await a.play();
+    } catch { stop(); }
+  }, [api, on, stop]);
+  return { on, pct, play, stop };
+}
+
+function PreviewButton({ playing, pct, onClick, label, small }: { playing: boolean; pct: number; onClick: () => void; label: string; small?: boolean }) {
+  const size = small ? 34 : 40, r = size / 2 - 2.5, len = 2 * Math.PI * r;
+  return <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }} aria-label={playing ? "Stop preview" : label} title={playing ? "Stop preview" : label}
+    className="ps-keep relative inline-flex shrink-0 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur" style={{ width: size, height: size }}>
+    <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden><circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={ACCENT} strokeWidth="2.5" strokeDasharray={len} strokeDashoffset={len * (1 - pct)} opacity={playing ? 1 : 0} /></svg>
+    {playing ? <Pause size={small ? 13 : 15} fill="currentColor" /> : <Headphones size={small ? 14 : 16} />}
+  </button>;
+}
 
 function Cover({ src, title, className = "" }: { src: string; title: string; className?: string }) {
   const [bad, setBad] = useState(false);
@@ -50,41 +109,71 @@ function Cover({ src, title, className = "" }: { src: string; title: string; cla
   </span>;
 }
 
+function Sheet({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
+  return <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="absolute inset-0 bg-black/45" onClick={onClose} />
+    <div className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-2xl sm:rounded-2xl ${wide ? "sm:max-w-[720px]" : "sm:max-w-[460px]"}`}>
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#ececec] pl-5 pr-2">
+        <h2 className="truncate text-base font-semibold">{title}</h2>
+        <button onClick={onClose} aria-label="Close" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><X size={20} /></button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+    </div>
+  </div>;
+}
+
 // ---------------- the shelf ----------------
 
 export function AudiobooksView({ api, current, onOpen }: { api: Api; current: Reading | null; onOpen: (id: string) => void }) {
-  const [shelf, setShelf] = useState("top");
-  const [shelves, setShelves] = useState<{ id: string; label: string }[]>([{ id: "top", label: "Top rated" }]);
+  const [shelf, setShelf] = useState(() => ls.get("podscroll.bookShelf") || "all");
+  const [sort, setSort] = useState(() => ls.get("podscroll.bookSort") || "popular");
+  const [shelves, setShelves] = useState<{ id: string; label: string }[]>([{ id: "all", label: "All" }]);
+  const [sorts, setSorts] = useState<{ id: string; label: string }[]>([{ id: "popular", label: "Most popular" }]);
+  const [mode, setMode] = useState<"search" | "ai">("search");
   const [q, setQ] = useState("");
-  const [term, setTerm] = useState("");
+  const [term, setTerm] = useState<{ kind: "search" | "ai"; q: string } | null>(null);
   const [list, setList] = useState<Book[] | null>(null);
   const [err, setErr] = useState("");
   const [retry, setRetry] = useState(0);
   const [spots] = useState(bookSpots);
   const going = Object.entries(spots).sort((a, z) => z[1].at - a[1].at).slice(0, 12);
+  const preview = usePreview(api);
 
+  useEffect(() => { ls.set("podscroll.bookShelf", shelf); ls.set("podscroll.bookSort", sort); }, [shelf, sort]);
   useEffect(() => {
     let live = true;
     setList(null); setErr("");
-    const p = new URLSearchParams(term ? { q: term } : { shelf });
-    api(`/api/earshot/books?${p}`).then((b) => {
+    const req = term?.kind === "ai"
+      ? api("/api/earshot/books/ai", { method: "POST", body: { q: term.q } })
+      : api(`/api/earshot/books?${new URLSearchParams(term ? { q: term.q, sort } : { shelf, sort })}`);
+    req.then((b) => {
       if (!live) return;
       setList(Array.isArray(b?.books) ? b.books : []);
       if (Array.isArray(b?.shelves) && b.shelves.length) setShelves(b.shelves);
+      if (Array.isArray(b?.sorts) && b.sorts.length) setSorts(b.sorts);
     }).catch((e) => { if (live) setErr(e.message); });
     return () => { live = false; };
-  }, [api, shelf, term, retry]);
+  }, [api, shelf, sort, term, retry]);
 
+  const ai = mode === "ai";
   return <div className="px-4 pb-28 pt-3 sm:px-6">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><BookOpen size={24} strokeWidth={2} />Audiobooks</h1>
         <p className="mt-1 text-sm text-[#606060]">Thousands of classic books, read aloud. Free, with no ads.</p>
       </div>
-      <form role="search" onSubmit={(e) => { e.preventDefault(); setTerm(q.trim()); }} className="flex w-full max-w-[360px] items-center">
-        <label htmlFor="ps-book-q" className="sr-only">Find a book</label>
-        <input id="ps-book-q" type="search" value={q} onChange={(e) => { setQ(e.target.value); if (!e.target.value) setTerm(""); }} placeholder="Find a book or author" className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-sm outline-none focus:border-[#1c62b9]" />
-        <button type="submit" aria-label="Find book" className="inline-flex h-10 w-12 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8]"><Search size={18} /></button>
+      <form role="search" onSubmit={(e) => { e.preventDefault(); const t = q.trim(); setTerm(t ? { kind: mode, q: t } : null); }} className="flex w-full max-w-[440px] flex-col gap-2">
+        <div role="group" aria-label="How to search" className="flex gap-1 self-start rounded-full bg-[#f2f2f2] p-0.5 text-xs font-semibold">
+          <button type="button" aria-pressed={!ai} onClick={() => setMode("search")} className={`h-7 rounded-full px-3 ${!ai ? "bg-white shadow-sm" : "text-[#606060]"}`}>Search</button>
+          <button type="button" aria-pressed={ai} onClick={() => setMode("ai")} className={`inline-flex h-7 items-center gap-1 rounded-full px-3 ${ai ? "bg-white shadow-sm" : "text-[#606060]"}`}><Sparkles size={13} />Ask AI</button>
+        </div>
+        <div className="flex items-center">
+          <label htmlFor="ps-book-q" className="sr-only">{ai ? "Describe a book you'd like" : "Find a book or author"}</label>
+          <input id="ps-book-q" type="search" value={q} onChange={(e) => { setQ(e.target.value); if (!e.target.value) setTerm(null); }} maxLength={ai ? 300 : 80}
+            placeholder={ai ? "Like Sherlock Holmes, but spookier…" : "Find a book or author"} className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-[#d3d3d3] px-4 text-sm outline-none focus:border-[#1c62b9]" />
+          <button type="submit" aria-label={ai ? "Ask AI" : "Find book"} className="inline-flex h-10 w-12 shrink-0 items-center justify-center rounded-r-full border border-[#d3d3d3] bg-[#f8f8f8]">{ai ? <Sparkles size={18} /> : <Search size={18} />}</button>
+        </div>
       </form>
     </div>
 
@@ -99,79 +188,69 @@ export function AudiobooksView({ api, current, onOpen }: { api: Api; current: Re
       </div>
     </section>}
 
-    <div role="group" aria-label="Shelves" className="-mx-1 mt-5 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-      {shelves.map((s) => {
-        const on = !term && shelf === s.id;
-        return <button key={s.id} onClick={() => { setTerm(""); setQ(""); setShelf(s.id); }} aria-pressed={on} className={`h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{s.label}</button>;
-      })}
+    {term ? <div className="mt-5 flex items-center gap-2 text-sm">
+      <span className="min-w-0 truncate text-[#606060]">{term.kind === "ai" ? <>AI picks for “{term.q}”</> : <>Results for “{term.q}”</>}</span>
+      <button onClick={() => { setTerm(null); setQ(""); }} className="h-8 shrink-0 rounded-full px-3 font-medium text-[#065fd4] hover:bg-[#def1ff]">Clear</button>
     </div>
+      : <div className="mt-5 flex items-center gap-3">
+        <div role="group" aria-label="Shelves" className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+          {shelves.map((s) => {
+            const on = shelf === s.id;
+            return <button key={s.id} onClick={() => setShelf(s.id)} aria-pressed={on} className={`h-8 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{s.label}</button>;
+          })}
+        </div>
+        <label className="relative shrink-0">
+          <span className="sr-only">Sort by</span>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} className="h-8 appearance-none rounded-lg border border-[#d3d3d3] bg-white pl-3 pr-8 text-sm font-medium outline-none">
+            {sorts.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+          <ChevronRight size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rotate-90 text-[#606060]" />
+        </label>
+      </div>}
 
     {err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={() => setRetry((n) => n + 1)} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
-      : !list ? <div className="flex justify-center py-24" role="status" aria-label="Loading audiobooks"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>
-      : !list.length ? <p className="py-20 text-center text-[#606060]">{term ? `No audiobooks match “${term}”.` : "Nothing on this shelf right now."} Try another one.</p>
+      : !list ? <div className="flex flex-col items-center gap-3 py-24" role="status" aria-label="Loading audiobooks"><Loader2 className="animate-spin text-[#606060]" size={28} />{term?.kind === "ai" && <span className="text-sm text-[#606060]">Finding books you'll like…</span>}</div>
+      : !list.length ? <p className="py-20 text-center text-[#606060]">{term ? `Nothing found for “${term.q}”. Try other words.` : "Nothing on this shelf right now. Try another one."}</p>
       : <div className="mt-4 grid gap-x-4 gap-y-6 [grid-template-columns:repeat(auto-fill,minmax(min(150px,45%),1fr))]">
         {list.map((b, i) => {
           const on = current?.book.id === b.id;
-          return <button key={b.id} onClick={() => onOpen(b.id)} className="group min-w-0 text-left" data-testid={`ps-book-${b.id}`}>
+          return <div key={b.id} className="group min-w-0" data-testid={`ps-book-${b.id}`}>
             <span className="relative block">
-              <Cover src={b.cover} title={b.title} className={`aspect-square w-full rounded-xl transition group-hover:scale-[1.02] ${on ? "ring-2 ring-[#ff6a1f]" : ""}`} />
-              {shelf === "top" && !term && i < 10 && <span className="ps-keep absolute left-2 top-2 rounded-md bg-[#0f0f0f]/80 px-1.5 text-xs font-bold text-white">#{i + 1}</span>}
+              <button onClick={() => onOpen(b.id)} className="block w-full" aria-label={`Open ${b.title}`}>
+                <Cover src={b.cover} title={b.title} className={`aspect-square w-full rounded-xl transition group-hover:scale-[1.02] ${on ? "ring-2 ring-[#ff6a1f]" : ""}`} />
+              </button>
+              {!term && sort === "popular" && shelf === "all" && i < 10 && <span className="ps-keep pointer-events-none absolute left-2 top-2 rounded-md bg-[#0f0f0f]/80 px-1.5 text-xs font-bold text-white">#{i + 1}</span>}
+              <span className="absolute bottom-2 right-2"><PreviewButton small playing={preview.on === b.id} pct={preview.on === b.id ? preview.pct : 0} onClick={() => void preview.play(b.id)} label={`Preview ${b.title}`} /></span>
             </span>
-            <span className="mt-2 line-clamp-2 block text-sm font-semibold leading-snug">{b.title}</span>
-            <span className="block truncate text-xs text-[#606060]">{b.author}</span>
-            <span className="mt-0.5 flex items-center gap-1 text-xs text-[#606060]">
-              {b.rating > 0 && <><Star size={12} fill="currentColor" className="text-[#f5a623]" />{b.rating.toFixed(1)}<span aria-hidden>·</span></>}
-              <Headphones size={12} />{listens(b.downloads)}
-            </span>
-          </button>;
+            <button onClick={() => onOpen(b.id)} className="block w-full text-left">
+              <span className="mt-2 line-clamp-2 block text-sm font-semibold leading-snug">{b.title}</span>
+              <span className="block truncate text-xs text-[#606060]">{b.author}</span>
+              {b.why ? <span className="mt-1 block text-xs leading-snug text-[#3a3a3a]">{b.why}</span>
+                : <span className="mt-0.5 flex items-center gap-1 text-xs text-[#606060]">
+                  {b.rating > 0 && <><Star size={12} fill="currentColor" className="text-[#f5a623]" />{b.rating.toFixed(1)}<span aria-hidden>·</span></>}
+                  <Headphones size={12} />{listens(b.downloads)}
+                </span>}
+            </button>
+          </div>;
         })}
       </div>}
     <p className="mt-8 text-xs text-[#767676]">Audiobooks from <a href="https://librivox.org" target="_blank" rel="noreferrer" className="underline">LibriVox</a>, read by volunteers, kept at the <a href="https://archive.org/details/librivoxaudio" target="_blank" rel="noreferrer" className="underline">Internet Archive</a>. All public domain.</p>
   </div>;
 }
 
-/** A row of the top audiobooks for the home page. Says nothing if they can't load. */
-export function BooksRow({ api, onOpen, onAll }: { api: Api; onOpen: (id: string) => void; onAll: () => void }) {
-  const [list, setList] = useState<Book[]>([]);
-  useEffect(() => {
-    let live = true;
-    api("/api/earshot/books?shelf=top").then((b) => { if (live && Array.isArray(b?.books)) setList(b.books.slice(0, 14)); }).catch(() => {});
-    return () => { live = false; };
-  }, [api]);
-  if (!list.length) return null;
-  return <section aria-label="Top audiobooks" className="mb-6">
-    <div className="mb-2 flex items-center justify-between">
-      <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight"><BookOpen size={19} />Top audiobooks</h2>
-      <button onClick={onAll} className="h-8 rounded-full px-3 text-sm font-medium text-[#065fd4] hover:bg-[#def1ff]">See all</button>
-    </div>
-    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-      {list.map((b) => <button key={b.id} onClick={() => onOpen(b.id)} className="w-[132px] shrink-0 text-left">
-        <Cover src={b.cover} title={b.title} className="aspect-square w-full rounded-xl" />
-        <span className="mt-1.5 line-clamp-2 block text-[13px] font-semibold leading-snug">{b.title}</span>
-        <span className="block truncate text-xs text-[#606060]">{b.author}</span>
-      </button>)}
-    </div>
-  </section>;
-}
-
 // ---------------- one book ----------------
 
-export function useBook(api: Api, id: string | null) {
+export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack, onOpen }: { api: Api; id: string; current: Reading | null; playing: boolean; onPlay: (r: Reading) => void; onToggle: () => void; onBack: () => void; onOpen: (id: string) => void }) {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [err, setErr] = useState("");
+  const [more, setMore] = useState(false);
+  const [readers, setReaders] = useState(false);
   useEffect(() => {
-    if (!id) return;
     let live = true;
     setBook(null); setErr("");
-    api(`/api/earshot/books/${encodeURIComponent(id)}`).then((b) => { if (live) setBook(b.book); }).catch((e) => { if (live) setErr(e.message); });
+    loadBook(api, id).then((b) => { if (live) setBook(b); }).catch((e) => { if (live) setErr(e.message); });
     return () => { live = false; };
   }, [api, id]);
-  return { book, err };
-}
-
-export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack }: { api: Api; id: string; current: Reading | null; playing: boolean; onPlay: (r: Reading) => void; onToggle: () => void; onBack: () => void }) {
-  const { book, err } = useBook(api, id);
-  const [more, setMore] = useState(false);
   const spot = bookSpots()[id];
   const here = current?.book.id === id;
 
@@ -179,20 +258,33 @@ export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack }
   if (!book) return <div className="flex justify-center py-32" role="status" aria-label="Loading audiobook"><Loader2 className="animate-spin text-[#606060]" size={28} /></div>;
 
   const startCh = here ? current!.ch : spot ? Math.min(spot.ch, book.chapters.length - 1) : 0;
-  const main = () => (here ? onToggle() : onPlay({ book, ch: startCh, at: spot && !here ? spot.t : 0 }));
+  const play = (r: Reading) => { primeVoiceBoost(); onPlay(r); };
+  const main = () => (here ? onToggle() : play({ book, ch: startCh, at: spot && !here ? spot.t : 0 }));
   const label = here ? (playing ? "Pause" : "Play") : spot ? `Resume · Chapter ${startCh + 1}` : "Play";
+  // Another reading: the same place in the book (chapter number), in the new voice.
+  const switchTo = async (otherId: string) => {
+    setReaders(false);
+    try {
+      const other = await loadBook(api, otherId);
+      const ch = Math.min(here ? current!.ch : startCh, other.chapters.length - 1);
+      if (here) play({ book: other, ch, at: 0 });
+      onOpen(otherId);
+    } catch (e: any) { setErr(e.message); }
+  };
 
   return <div className="mx-auto max-w-[760px] px-4 pb-28 pt-2 sm:px-6">
     <button onClick={onBack} className="-ml-2 mb-2 inline-flex h-9 items-center gap-1 rounded-full pl-1 pr-3 text-sm font-medium hover:bg-[#f2f2f2]"><ChevronLeft size={20} />Audiobooks</button>
     <div className="flex flex-col items-center text-center">
       <div className="relative w-[min(72vw,300px)]">
-        {/* A soft glow of the cover behind it. */}
         <img src={book.cover} alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full scale-110 rounded-3xl object-cover opacity-40 blur-2xl" />
         <Cover src={book.cover} title={book.title} className="relative aspect-square w-full rounded-2xl shadow-2xl" />
       </div>
       <h1 className="mt-6 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{book.title}</h1>
       {book.author && <p className="mt-1 text-[15px] text-[#606060]">{book.author}</p>}
-      <p className="mt-1 text-xs text-[#767676]">{[`${book.chapters.length} chapters`, hours(book.secs)].filter(Boolean).join(" · ")}</p>
+      <button onClick={() => setReaders(true)} className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-full bg-[#f2f2f2] px-3 text-xs font-semibold hover:bg-[#e5e5e5]" data-testid="ps-book-readers">
+        {book.kind === "solo" ? `Read by ${book.reader}` : KIND_LABEL[book.kind]}<span className="text-[#065fd4]">· Change reader</span>
+      </button>
+      <p className="mt-2 text-xs text-[#767676]">{[`${book.chapters.length} chapters`, hours(book.secs)].filter(Boolean).join(" · ")}</p>
       <button onClick={main} className="mt-5 inline-flex h-12 min-w-[180px] items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold text-white" style={{ background: ACCENT }} data-testid="ps-book-play">
         {here && playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}{label}
       </button>
@@ -207,49 +299,198 @@ export function BookPage({ api, id, current, playing, onPlay, onToggle, onBack }
     <ol className="mt-2 divide-y divide-[#ececec]">
       {book.chapters.map((c, i) => {
         const now = here && current!.ch === i;
+        const { main: name, under } = chapterName(c);
         return <li key={c.n}>
-          <button onClick={() => (now ? onToggle() : onPlay({ book, ch: i, at: 0 }))} className={`flex min-h-12 w-full items-center gap-3 py-2 text-left ${now ? "font-semibold" : ""}`}>
-            <span className={`w-7 shrink-0 text-right text-xs tabular-nums ${now ? "" : "text-[#767676]"}`} style={now ? { color: ACCENT } : undefined}>{now && playing ? <span className="inline-flex gap-[2px]" aria-label="Playing">{[0, 1, 2].map((k) => <span key={k} className="inline-block w-[3px] rounded-sm motion-safe:animate-pulse" style={{ height: 10, background: ACCENT, animationDelay: `${k * 0.15}s` }} />)}</span> : c.n}</span>
-            <span className="min-w-0 flex-1 truncate text-sm">{c.title}</span>
+          <button onClick={() => (now ? onToggle() : play({ book, ch: i, at: 0 }))} className="flex min-h-[3.25rem] w-full items-center gap-4 py-2 text-left">
+            <span className="w-6 shrink-0 text-right text-sm tabular-nums" style={{ color: now ? ACCENT : "#9a9a9a" }}>
+              {now && playing ? <span className="inline-flex items-end gap-[2px]" aria-label="Playing">{[0, 1, 2].map((k) => <span key={k} className="inline-block w-[3px] rounded-sm motion-safe:animate-pulse" style={{ height: 6 + k * 3, background: ACCENT, animationDelay: `${k * 0.15}s` }} />)}</span> : c.n}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className={`truncate text-[15px] ${now ? "font-semibold" : ""}`}>{name}</span>
+              {under && <span className="truncate text-xs text-[#767676]">{under}</span>}
+            </span>
             <span className="shrink-0 text-xs tabular-nums text-[#767676]">{c.secs ? clock(c.secs) : ""}</span>
           </button>
         </li>;
       })}
     </ol>
     <p className="mt-8 text-xs text-[#767676]">A <a href="https://librivox.org" target="_blank" rel="noreferrer" className="underline">LibriVox</a> recording, public domain. <a href={book.link} target="_blank" rel="noreferrer" className="underline">See it at the Internet Archive</a>.</p>
+    {readers && <ReadersSheet api={api} book={book} onClose={() => setReaders(false)} onPick={(otherId) => void switchTo(otherId)} />}
   </div>;
+}
+
+/** Every reading of this book, to hear a little of each and pick the voice you like. */
+function ReadersSheet({ api, book, onClose, onPick }: { api: Api; book: BookDetail; onClose: () => void; onPick: (id: string) => void }) {
+  const [list, setList] = useState<Book[] | null>(null);
+  const [err, setErr] = useState("");
+  const preview = usePreview(api);
+  useEffect(() => {
+    let live = true;
+    api(`/api/earshot/books/${encodeURIComponent(book.id)}/versions`).then((b) => { if (live) setList(Array.isArray(b?.versions) ? b.versions : []); }).catch((e) => { if (live) setErr(e.message); });
+    return () => { live = false; preview.stop(); };
+  }, [api, book.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <Sheet title="Choose a reader" onClose={onClose}>
+    <p className="px-5 pt-3 text-sm text-[#606060]">Tap the headphones to hear a little of each reading. Switching keeps your place in the book.</p>
+    {err ? <p className="px-5 py-10 text-center text-[#606060]">{err}</p>
+      : !list ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[#606060]" size={24} /></div>
+      : <ul className="px-3 py-2">
+        {list.map((v) => {
+          const on = v.id === book.id;
+          return <li key={v.id} className={`flex items-center gap-3 rounded-xl px-2 py-2.5 ${on ? "bg-[#fff1e8]" : ""}`}>
+            <PreviewButton playing={preview.on === v.id} pct={preview.on === v.id ? preview.pct : 0} onClick={() => void preview.play(v.id, 20)} label={`Hear ${v.reader}`} />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-sm font-semibold">{v.kind === "solo" ? v.reader : KIND_LABEL[v.kind]}</span>
+              <span className="truncate text-xs text-[#606060]">{[KIND_LABEL[v.kind], v.rating > 0 ? `★ ${v.rating.toFixed(1)}` : "", `${listens(v.downloads)} listens`].filter(Boolean).join(" · ")}</span>
+            </span>
+            {on ? <span className="shrink-0 text-xs font-semibold" style={{ color: ACCENT }}>Listening</span>
+              : <button onClick={() => { preview.stop(); onPick(v.id); }} className="h-8 shrink-0 rounded-full bg-[#0f0f0f] px-3 text-xs font-semibold text-white">Use this one</button>}
+          </li>;
+        })}
+      </ul>}
+  </Sheet>;
+}
+
+// ---------------- read along ----------------
+
+type TextSection = { heading: string; text: string };
+type TxLine = { s: number; e: number; t: string };
+/** The number in "Chapter 12" or "CHAPTER XII." (12). */
+const numIn = (s: string): number => {
+  const m = /^\S+\s+(\d{1,3}|[IVXLCDM]{1,8})\b/.exec(s.trim());
+  if (!m) return 0;
+  if (/^\d+$/.test(m[1])) return Number(m[1]);
+  const R: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+  let t = 0; for (let i = 0; i < m[1].length; i++) { const v = R[m[1][i]], n = R[m[1][i + 1]] || 0; t += v < n ? -v : v; }
+  return t;
+};
+/** Which part of the book's text goes with this chapter: the same numbered part when the names
+ *  say, else the same place along the book. */
+function sectionFor(sections: TextSection[], book: BookDetail, ch: number): number {
+  const c = book.chapters[ch];
+  const word = (c?.title.split(" ")[0] || "").toLowerCase(), n = numIn(c?.title || "");
+  if (n && /^(chapter|book|part|letter|stave|section|canto|act|lecture|volume)$/.test(word)) {
+    const hit = sections.findIndex((s) => s.heading.toLowerCase().startsWith(word) && numIn(s.heading) === n);
+    if (hit >= 0) return hit;
+  }
+  const byName = c?.sub ? sections.findIndex((s) => s.heading.toLowerCase().includes(c.sub.toLowerCase().slice(0, 24))) : -1;
+  if (byName >= 0) return byName;
+  return Math.min(sections.length - 1, Math.round((ch / Math.max(1, book.chapters.length)) * sections.length));
+}
+
+function ReadAlong({ api, reading, time, onSeek, onClose }: { api: Api; reading: Reading; time: number; onSeek: (t: number) => void; onClose: () => void }) {
+  const { book, ch } = reading;
+  const [tab, setTab] = useState<"text" | "transcript">("text");
+  const [text, setText] = useState<{ sections: TextSection[]; source: string } | null | "none">(null);
+  const [at, setAt] = useState(0);
+  const [lines, setLines] = useState<TxLine[]>([]);
+  const [txErr, setTxErr] = useState("");
+  const [txMore, setTxMore] = useState(true);
+  const asked = useRef(new Set<number>());
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let live = true;
+    api(`/api/earshot/books/${encodeURIComponent(book.id)}/text`).then((b) => { if (live) setText(Array.isArray(b?.sections) && b.sections.length ? b : "none"); })
+      .catch(() => { if (live) { setText("none"); setTab("transcript"); } });
+    return () => { live = false; };
+  }, [api, book.id]);
+  useEffect(() => { if (text && text !== "none") setAt(sectionFor(text.sections, book, ch)); }, [text, book, ch]);
+  useEffect(() => { setLines([]); setTxErr(""); setTxMore(true); asked.current.clear(); }, [book.id, ch]);
+
+  // The transcript, 10 minutes at a time, a little before the listener gets there.
+  const piece = Math.floor(time / 600);
+  useEffect(() => {
+    if (tab !== "transcript") return;
+    for (const k of [piece, piece + (time % 600 > 480 ? 1 : 0)]) {
+      if (asked.current.has(k) || (k > piece && !txMore)) continue;
+      asked.current.add(k);
+      api(`/api/earshot/books/${encodeURIComponent(book.id)}/transcript?ch=${ch}&piece=${k}`).then((b) => {
+        setLines((cur) => [...cur, ...(Array.isArray(b?.lines) ? b.lines : [])].sort((x, y) => x.s - y.s));
+        if (k === piece && b?.more === false) setTxMore(false);
+      }).catch((e) => setTxErr(e.message));
+    }
+  }, [tab, piece, time, api, book.id, ch, txMore]);
+  const activeLine = useMemo(() => { let i = -1; for (let k = 0; k < lines.length; k++) if (lines[k].s <= time) i = k; return i; }, [lines, time]);
+  useEffect(() => {
+    if (tab !== "transcript" || activeLine < 0) return;
+    box.current?.querySelector(`[data-line="${activeLine}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [activeLine, tab]);
+
+  const sec = text && text !== "none" ? text.sections[at] : null;
+  const { main: name } = chapterName(book.chapters[ch]);
+  return <Sheet title={`${book.title} · ${name}`} onClose={onClose} wide>
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[#ececec] bg-white px-4 py-2">
+      <div role="group" aria-label="Read along" className="flex gap-1 rounded-full bg-[#f2f2f2] p-0.5 text-xs font-semibold">
+        <button aria-pressed={tab === "text"} onClick={() => setTab("text")} className={`h-7 rounded-full px-3 ${tab === "text" ? "bg-white shadow-sm" : "text-[#606060]"}`}>Book text</button>
+        <button aria-pressed={tab === "transcript"} onClick={() => setTab("transcript")} className={`inline-flex h-7 items-center gap-1 rounded-full px-3 ${tab === "transcript" ? "bg-white shadow-sm" : "text-[#606060]"}`}><Sparkles size={12} />Transcript</button>
+      </div>
+      {tab === "text" && sec && <span className="ml-auto flex items-center gap-1">
+        <button onClick={() => setAt((n) => Math.max(0, n - 1))} disabled={at === 0} aria-label="Previous part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronLeft size={18} /></button>
+        <button onClick={() => setAt((n) => Math.min((text as any).sections.length - 1, n + 1))} disabled={at >= (text as any).sections.length - 1} aria-label="Next part" className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30"><ChevronRight size={18} /></button>
+      </span>}
+    </div>
+    <div ref={box} className="px-5 pb-10 pt-4 sm:px-8">
+      {tab === "text" ? (
+        text === null ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[#606060]" size={24} /></div>
+          : text === "none" ? <div className="py-10 text-center text-sm text-[#606060]"><p>This book's text isn't available.</p><button onClick={() => setTab("transcript")} className="mt-3 h-9 rounded-full bg-[#0f0f0f] px-4 font-semibold text-white">Use the transcript</button></div>
+          : <article className="mx-auto max-w-[620px]">
+            <h3 className="mb-4 font-serif text-xl font-semibold">{sec!.heading}</h3>
+            {sec!.text.split(/\n{2,}/).map((p, i) => <p key={i} className="mb-4 whitespace-pre-line font-serif text-[17px] leading-[1.75] text-[#0f0f0f]">{p}</p>)}
+            <p className="mt-8 text-xs text-[#767676]">The book's original text, from <a href={text.source} target="_blank" rel="noreferrer" className="underline">Project Gutenberg</a> (public domain). The reading may differ a little.</p>
+          </article>
+      ) : (
+        <div className="mx-auto max-w-[620px]">
+          {!lines.length && !txErr && <div className="flex flex-col items-center gap-2 py-12 text-sm text-[#606060]"><Loader2 className="animate-spin" size={24} />Writing out this part with AI…</div>}
+          {txErr && <div className="py-6 text-center text-sm text-[#606060]"><p>{txErr}</p><button onClick={() => { asked.current.clear(); setTxErr(""); setLines([]); }} className="mt-3 h-9 rounded-full bg-[#0f0f0f] px-4 font-semibold text-white">Try again</button></div>}
+          {lines.map((l, i) => <button key={`${l.s}-${i}`} data-line={i} onClick={() => onSeek(l.s)}
+            className={`block w-full rounded-lg px-2 py-1.5 text-left text-[17px] leading-relaxed transition-colors ${i === activeLine ? "bg-[#fff1e8] font-medium text-[#0f0f0f]" : "text-[#606060] hover:bg-[#f7f7f5]"}`}>{l.t}</button>)}
+          {lines.length > 0 && <p className="mt-6 text-xs text-[#767676]">Written out by AI from the recording, so a few words may be off. Tap a line to jump there.</p>}
+        </div>
+      )}
+    </div>
+  </Sheet>;
 }
 
 // ---------------- the bar ----------------
 
+const SLEEPS: [string, number | "end" | null][] = [["Off", null], ["15 min", 15], ["30 min", 30], ["45 min", 45], ["1 hour", 60], ["End of chapter", "end"]];
+
 /** The bar at the bottom while a book plays: plays chapter after chapter, and remembers the spot. */
-export function AudiobookBar({ reading, tap, onChange, onStop, onOpen, onPlaying, say }: { reading: Reading; /** Goes up each time the book page's Play/Pause is tapped. */ tap: number; onChange: (r: Reading) => void; onStop: () => void; onOpen: () => void; onPlaying: (on: boolean) => void; say: (m: string) => void }) {
+export function AudiobookBar({ api, reading, tap, onChange, onStop, onOpen, onPlaying, say }: { api: Api; reading: Reading; /** Goes up each time the book page's Play/Pause is tapped. */ tap: number; onChange: (r: Reading) => void; onStop: () => void; onOpen: () => void; onPlaying: (on: boolean) => void; say: (m: string) => void }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(0);
   const [dur, setDur] = useState(0);
-  const [speed, setSpeed] = useState<number>(() => { try { const n = Number(localStorage.getItem("podscroll.bookSpeed")); return (SPEEDS as readonly number[]).includes(n) ? n : 1; } catch { return 1; } });
+  const [speed, setSpeed] = useState<number>(() => { const n = Number(ls.get("podscroll.bookSpeed")); return (SPEEDS as readonly number[]).includes(n) ? n : 1; });
+  const [boost, setBoost] = useState(() => ls.get("podscroll.bookBoost") === "1" && voiceBoostSupported());
+  const [sleepAt, setSleepAt] = useState<number | "end" | null>(null);
+  const [sheet, setSheet] = useState<"settings" | "read" | null>(null);
   const { book, ch } = reading;
   const chapter = book.chapters[ch];
   const lastSave = useRef(0);
+  // Once a player's sound is routed through the boost, it must keep coming through the server.
+  const routed = useRef(false);
 
   const go = useCallback((n: number) => {
     if (n < 0 || n >= book.chapters.length) return;
     onChange({ book, ch: n, at: 0 });
   }, [book, onChange]);
+  const srcOf = (c: BookChapter) => (boost || routed.current ? `${API}/api/podscroll/books/audio?u=${encodeURIComponent(c.audio)}` : c.audio);
 
   useEffect(() => {
     const a = audio.current; if (!a || !chapter) return;
     setLoading(true); setTime(reading.at); setDur(chapter.secs);
-    a.src = chapter.audio;
+    if (boost || routed.current) a.crossOrigin = "anonymous"; else a.removeAttribute("crossorigin");
+    a.src = srcOf(chapter);
     a.playbackRate = speed;
     const seek = () => { if (reading.at > 0) { try { a.currentTime = reading.at; } catch { /* not seekable yet */ } } };
     a.addEventListener("loadedmetadata", seek, { once: true });
     a.play().catch(() => { setLoading(false); say("Tap play to start the book."); });
     try {
       if ("mediaSession" in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({ title: chapter.title, artist: book.author || "LibriVox", album: book.title, artwork: [{ src: book.cover, sizes: "300x300" }] });
+        const { main } = chapterName(chapter);
+        navigator.mediaSession.metadata = new MediaMetadata({ title: main, artist: book.author || "LibriVox", album: book.title, artwork: [{ src: book.cover, sizes: "300x300" }] });
         const ms = navigator.mediaSession;
         ms.setActionHandler("play", () => { audio.current?.play().catch(() => {}); });
         ms.setActionHandler("pause", () => audio.current?.pause());
@@ -264,16 +505,36 @@ export function AudiobookBar({ reading, tap, onChange, onStop, onOpen, onPlaying
   useEffect(() => () => { const a = audio.current; if (a) { a.pause(); a.removeAttribute("src"); a.load(); } }, []);
   useEffect(() => { onPlaying(playing); }, [playing, onPlaying]);
 
-  const toggle = () => { const a = audio.current; if (!a) return; if (a.paused) a.play().catch(() => say("This chapter won't play right now. Try again.")); else a.pause(); };
+  // Voice boost on: this chapter comes through the server from where it is, and its sound is shaped.
+  const applyBoost = (on: boolean) => {
+    const a = audio.current;
+    setBoost(on); ls.set("podscroll.bookBoost", on ? "1" : "0");
+    if (!a) return;
+    if (on) primeVoiceBoost();
+    if (on && !routed.current) {
+      const t = a.currentTime, was = !a.paused;
+      a.crossOrigin = "anonymous"; a.src = `${API}/api/podscroll/books/audio?u=${encodeURIComponent(chapter.audio)}`;
+      a.addEventListener("loadedmetadata", () => { try { a.currentTime = t; } catch { /* ignore */ } }, { once: true });
+      if (was) a.play().catch(() => {});
+    }
+    setVoiceBoost(on, [a]);
+  };
+
+  // Sleep timer.
+  useEffect(() => {
+    if (typeof sleepAt !== "number") return;
+    const id = setInterval(() => { if (Date.now() >= sleepAt) { audio.current?.pause(); setSleepAt(null); say("Sleep timer: paused."); } }, 1000);
+    return () => clearInterval(id);
+  }, [sleepAt, say]);
+
+  const toggle = () => { const a = audio.current; if (!a) return; if (a.paused) { if (boost) primeVoiceBoost(); a.play().catch(() => say("This chapter won't play right now. Try again.")); } else a.pause(); };
   const firstTap = useRef(tap);
   useEffect(() => { if (tap !== firstTap.current) toggle(); }, [tap]); // eslint-disable-line react-hooks/exhaustive-deps
   const skip = (d: number) => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min((a.duration || dur || 0) - 1, a.currentTime + d)); };
-  const cycleSpeed = () => {
-    const next = SPEEDS[((SPEEDS as readonly number[]).indexOf(speed) + 1) % SPEEDS.length];
-    setSpeed(next); if (audio.current) audio.current.playbackRate = next;
-    try { localStorage.setItem("podscroll.bookSpeed", String(next)); } catch { /* private window */ }
-  };
+  const pickSpeed = (next: number) => { setSpeed(next); if (audio.current) audio.current.playbackRate = next; ls.set("podscroll.bookSpeed", String(next)); };
   const pct = dur ? Math.min(100, (time / dur) * 100) : 0;
+  const { main: chName } = chapterName(chapter || { n: ch + 1, title: "", sub: "", secs: 0, audio: "", bytes: 0 });
+  const sleepWords = sleepAt === null ? "" : sleepAt === "end" ? "End of chapter" : `${Math.max(1, Math.ceil((sleepAt - Date.now()) / 60000))} min`;
 
   return <div role="region" aria-label="Now playing audiobook" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e5] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur">
     <input type="range" min={0} max={dur || 1} step={1} value={Math.min(time, dur || 1)} aria-label="Position in chapter"
@@ -281,27 +542,59 @@ export function AudiobookBar({ reading, tap, onChange, onStop, onOpen, onPlaying
       className="ps-book-range absolute -top-[7px] left-0 h-[14px] w-full cursor-pointer appearance-none bg-transparent"
       style={{ background: `linear-gradient(to right, ${ACCENT} ${pct}%, transparent ${pct}%) center / 100% 3px no-repeat` }} />
     <style>{".ps-book-range::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#ff6a1f}.ps-book-range::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:#ff6a1f}"}</style>
-    <div className="mx-auto flex max-w-[1600px] items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-5">
+    <div className="mx-auto flex max-w-[1600px] items-center gap-1.5 px-3 py-2.5 sm:gap-2.5 sm:px-5">
       <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Open ${book.title}`}>
         <Cover src={book.cover} title={book.title} className="h-11 w-11 shrink-0 rounded-lg" />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold">{book.title}</span>
-          <span className="truncate text-xs text-[#606060]">{chapter?.title || `Chapter ${ch + 1}`} · {clock(time)}{dur ? ` / ${clock(dur)}` : ""}</span>
+          <span className="truncate text-xs text-[#606060]">{chName} · {clock(time)}{dur ? ` / ${clock(dur)}` : ""}{sleepWords ? ` · Sleep ${sleepWords}` : ""}</span>
         </span>
       </button>
-      <button onClick={cycleSpeed} aria-label={`Speed ${speed}x`} className="hidden h-9 min-w-[44px] items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums hover:bg-[#f2f2f2] sm:inline-flex">{speed}×</button>
+      <button onClick={() => setSheet("read")} aria-label="Read along" title="Read along" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><BookOpenText size={19} /></button>
       <button onClick={() => go(ch - 1)} disabled={ch === 0} aria-label="Previous chapter" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30 md:inline-flex"><SkipBack size={18} /></button>
-      <button onClick={() => skip(-15)} aria-label="Back 15 seconds" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><RotateCcw size={19} /></button>
+      <button onClick={() => skip(-15)} aria-label="Back 15 seconds" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><RotateCcw size={19} /></button>
       <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0f0f0f] text-white">{loading && !playing ? <Loader2 className="animate-spin" size={20} /> : playing ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}</button>
       <button onClick={() => skip(30)} aria-label="Forward 30 seconds" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><RotateCw size={19} /></button>
       <button onClick={() => go(ch + 1)} disabled={ch >= book.chapters.length - 1} aria-label="Next chapter" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] disabled:opacity-30 md:inline-flex"><SkipForward size={18} /></button>
+      <button onClick={() => setSheet("settings")} aria-label="Listening settings" title="Speed, sleep timer, voice boost" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2]"><SlidersHorizontal size={18} /></button>
       <button onClick={onStop} aria-label="Close audiobook" className="hidden h-10 w-10 items-center justify-center rounded-full hover:bg-[#f2f2f2] sm:inline-flex"><X size={18} /></button>
       <audio ref={audio} preload="auto"
-        onPlaying={() => { setPlaying(true); setLoading(false); }} onPause={() => { setPlaying(false); const a = audio.current; if (a && a.currentTime > 0) saveSpot(book, ch, a.currentTime); }} onWaiting={() => setLoading(true)}
+        onPlaying={() => { setPlaying(true); setLoading(false); const a = audio.current; if (a && boost && !routed.current && a.crossOrigin === "anonymous" && attachVoiceBoost(a)) { routed.current = true; setVoiceBoost(true, [a]); } }}
+        onPause={() => { setPlaying(false); const a = audio.current; if (a && a.currentTime > 0) saveSpot(book, ch, a.currentTime); }} onWaiting={() => setLoading(true)}
         onLoadedMetadata={() => { const a = audio.current; if (a && Number.isFinite(a.duration)) setDur(a.duration); if (a) a.playbackRate = speed; }}
         onTimeUpdate={() => { const a = audio.current; if (!a) return; setTime(a.currentTime); if (Date.now() - lastSave.current > 5000) { lastSave.current = Date.now(); saveSpot(book, ch, a.currentTime); } }}
-        onEnded={() => { if (ch < book.chapters.length - 1) go(ch + 1); else { saveSpot(book, ch, 0, true); setPlaying(false); say(`You finished ${book.title}.`); } }}
+        onEnded={() => {
+          if (sleepAt === "end") { setSleepAt(null); setPlaying(false); saveSpot(book, Math.min(ch + 1, book.chapters.length - 1), 0); say("Sleep timer: stopped at the end of the chapter."); return; }
+          if (ch < book.chapters.length - 1) go(ch + 1); else { saveSpot(book, ch, 0, true); setPlaying(false); say(`You finished ${book.title}.`); }
+        }}
         onError={() => { setPlaying(false); setLoading(false); if (audio.current?.getAttribute("src")) say("This chapter won't play right now. Try the next one."); }} />
     </div>
+
+    {sheet === "settings" && <Sheet title="Listening" onClose={() => setSheet(null)}>
+      <div className="space-y-6 px-5 py-5">
+        <div>
+          <p className="text-sm font-semibold">Speed</p>
+          <div className="mt-2 flex flex-wrap gap-2">{SPEEDS.map((s) => <button key={s} onClick={() => pickSpeed(s)} aria-pressed={speed === s} className={`h-9 min-w-[56px] rounded-full px-3 text-sm font-semibold tabular-nums ${speed === s ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{s}×</button>)}</div>
+        </div>
+        <div>
+          <p className="text-sm font-semibold">Sleep timer</p>
+          <p className="text-xs text-[#606060]">{sleepAt === null ? "Off" : sleepAt === "end" ? "Stops at the end of this chapter" : `Stops in ${sleepWords}`}</p>
+          <div className="mt-2 flex flex-wrap gap-2">{SLEEPS.map(([l, v]) => {
+            const on = v === null ? sleepAt === null : v === "end" ? sleepAt === "end" : false;
+            return <button key={l} onClick={() => setSleepAt(typeof v === "number" ? Date.now() + v * 60000 : v)} aria-pressed={on} className={`h-9 rounded-full px-3 text-sm font-semibold ${on ? "bg-[#0f0f0f] text-white" : "bg-[#f2f2f2] hover:bg-[#e5e5e5]"}`}>{l}</button>;
+          })}</div>
+        </div>
+        {voiceBoostSupported() && <div className="flex items-start justify-between gap-4">
+          <div><p className="text-sm font-semibold">Voice boost</p><p className="text-xs text-[#606060]">Clearer voices and steadier volume. Great for quiet readers and the car.</p></div>
+          <button role="switch" aria-checked={boost} aria-label="Voice boost" onClick={() => applyBoost(!boost)} className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${boost ? "bg-[#ff6a1f]" : "bg-[#d3d3d3]"}`}><span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${boost ? "translate-x-6" : "translate-x-1"}`} /></button>
+        </div>}
+        <div className="flex gap-2 md:hidden">
+          <button onClick={() => go(ch - 1)} disabled={ch === 0} className="h-10 flex-1 rounded-full bg-[#f2f2f2] text-sm font-semibold disabled:opacity-40">Previous chapter</button>
+          <button onClick={() => go(ch + 1)} disabled={ch >= book.chapters.length - 1} className="h-10 flex-1 rounded-full bg-[#f2f2f2] text-sm font-semibold disabled:opacity-40">Next chapter</button>
+        </div>
+        <button onClick={() => { setSheet(null); onStop(); }} className="h-10 w-full rounded-full border border-[#d3d3d3] text-sm font-semibold sm:hidden">Close the book</button>
+      </div>
+    </Sheet>}
+    {sheet === "read" && <ReadAlong api={api} reading={reading} time={time} onSeek={(t) => { const a = audio.current; if (a) { a.currentTime = t; if (a.paused) a.play().catch(() => {}); } }} onClose={() => setSheet(null)} />}
   </div>;
 }
