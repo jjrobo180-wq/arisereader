@@ -8,7 +8,7 @@ import {
 } from "@shared/earshot";
 import { ModeIcon } from "../client/src/components/family-hub/earshot/EarshotExtras";
 import { artIn } from "./art";
-import { ArrowUp, Ban, Bookmark, Check, ThumbsDown, ChevronLeft, Pencil, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowUp, Ban, Bookmark, Car, Check, ThumbsDown, ChevronLeft, Pencil, ChevronRight, RefreshCw, Loader2, Palette, Play, Plus, RotateCcw, Shuffle, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 
 type Update = (fn: (e: Earshot) => Earshot) => void;
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
@@ -18,7 +18,7 @@ const mins = (s: number) => { const m = Math.round(s / 60); return m >= 60 ? `${
 const newModeId = (name: string) => `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 16) || "mode"}-${Math.random().toString(36).slice(2, 6)}`;
 
 /** The row of Pod Modes on the home page. */
-export function ModesRow({ es, update, onOpen, onNew }: { es: Earshot; update: Update; onOpen: (m: PodMode) => void; onNew: () => void }) {
+export function ModesRow({ es, update, onOpen, onNew, onDrive }: { es: Earshot; update: Update; onOpen: (m: PodMode) => void; onNew: () => void; /** Opens Fit my drive (a built-in hub, always first). */ onDrive?: () => void }) {
   const [arranging, setArranging] = useState(false);
   const move = (id: string, d: number) => update((e) => {
     const list = e.modes.slice(); const i = list.findIndex((m) => m.id === id); const j = i + d;
@@ -35,6 +35,16 @@ export function ModesRow({ es, update, onOpen, onNew }: { es: Earshot; update: U
       </div>
     </div>
     <div className="-mx-1 mt-3 flex gap-5 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">
+      {onDrive && !arranging && <button onClick={onDrive} aria-label="Fit my drive: say how long the drive is and get episodes that end as you arrive" className="group flex shrink-0 flex-col items-center gap-2.5 active:scale-[.97] transition-transform" data-testid="hub-fit-drive">
+        <span className="relative block h-[104px] w-[104px] sm:h-[120px] sm:w-[120px]">
+          <span className="grid h-full w-full place-items-center rounded-full text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,.55)] transition-transform duration-500 group-hover:scale-[1.04]" style={{ background: "linear-gradient(135deg,#ff8a3d,#ff3b30)" }}><Car size={38} /></span>
+          <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-black/[.06]" />
+        </span>
+        <span className="flex w-[112px] flex-col items-center gap-0.5 sm:w-[128px]">
+          <span className="line-clamp-2 text-center text-[15px] font-semibold leading-tight">Fit my drive</span>
+          <span className="text-center text-xs text-[#606060]">Ends as you arrive</span>
+        </span>
+      </button>}
       {es.modes.map((m, idx) => {
         const th = hubTheme(m); const font = HUB_FONTS[th.font];
         const cover = m.episodes[0]?.art;

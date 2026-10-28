@@ -4,7 +4,7 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
-import { Bell, Car, Check, LogOut, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { Bell, Check, LogOut, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
 import { artIn } from "./art";
@@ -575,11 +575,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
       {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
-      {chip === "all" && <button onClick={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} className="mb-5 flex w-full items-center gap-3.5 rounded-2xl border border-[#e5e5e5] p-3.5 text-left hover:bg-[#f8f8f8]">
-        <span className="grid h-11 w-11 flex-none place-items-center rounded-full bg-[#0f0f0f] text-white"><Car size={20} /></span>
-        <span className="min-w-0"><b className="block text-[15px] font-semibold">Fit my drive</b><span className="block text-xs text-[#606060]">Say how long the drive is. Episodes are picked to end as you arrive.</span></span>
-      </button>}
-      {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} />}
+      {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} />}
 
 
       {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} top={tops[`t:${topic}`] || []} />
