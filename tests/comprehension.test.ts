@@ -275,7 +275,8 @@ test("a teacher gets an AI suggested score for their student, but it saves and s
   aiReply = "__credit__";
   const broke = await call("POST", `/api/comprehension/review/${row.id}/suggest`, 99, { again: true });
   assert.equal(broke.status, 503);
-  assert.match(broke.data.message, /out of credit/);
+  assert.match(broke.data.message, /aren.t available right now/);
+  assert.doesNotMatch(broke.data.message, /OpenAI|Groq|Perplexity|credit/);
   // The teacher can use it or give their own score.
   const saved = await call("POST", `/api/comprehension/review/${row.id}/grade`, 10, { points: 6, note: "Nice work" });
   assert.equal(saved.data.points, 6);

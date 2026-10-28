@@ -268,7 +268,7 @@ export function registerComprehensionRoutes(app: Express, authMiddleware: Reques
       try { reply = await askGrader(AI_GRADE_PROMPT, message); }
       catch (e: any) {
         const why = String(e?.message || "");
-        return res.status(503).json({ message: why === "off" ? "AI suggestions aren't turned on for this site." : why === "credit" ? (scope.role === "admin" ? "The site's OpenAI account is out of credit, so AI suggestions are off. Add credit at platform.openai.com (Settings › Billing), or grade it yourself." : "AI suggestions are off right now (the site's AI account needs more credit). You can still grade it yourself.") : why === "busy" ? "The AI is busy. Try again in a minute." : "The AI couldn't make a suggestion. Try again, or grade it yourself." });
+        return res.status(503).json({ message: why === "off" ? "AI suggestions aren't turned on for this site." : why === "credit" ? "AI suggestions aren't available right now. You can still grade it yourself." : why === "busy" ? "The AI is busy. Try again in a minute." : "The AI couldn't make a suggestion. Try again, or grade it yourself." });
       }
       const suggestion = cleanAiSuggestion(reply);
       if (!suggestion) return res.status(502).json({ message: "The AI's answer didn't make sense. Try again, or grade it yourself." });

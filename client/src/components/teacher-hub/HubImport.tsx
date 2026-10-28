@@ -249,7 +249,7 @@ export default function HubImport({ token, students, onAdd, onClose, start, prel
 
               {error && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</div>}
               <p className="text-xs leading-5 text-slate-500">
-                What you add here is sent to an AI service (OpenAI) to be read. A.R.I.S.E. does not keep the photo, file or text you send. Leave out anything you are not allowed to share. You can also copy a screenshot and paste it into the box.
+                What you add here is sent to an AI service to be read. A.R.I.S.E. does not keep the photo, file or text you send. Leave out anything you are not allowed to share. You can also copy a screenshot and paste it into the box.
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-4 py-3 sm:px-6">

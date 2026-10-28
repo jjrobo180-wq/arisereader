@@ -193,7 +193,7 @@ async function getPerplexityApiKey(): Promise<string> {
 async function generateQuizWithAI(bookTitle: string, author: string, ageGroup?: string, studentGrade?: string): Promise<{ questions: Array<{ question: string; options: string[]; correct: string; evidence?: string; source?: string }>; bookGradeLevel: string; pointsValue: number; sources: string[]; aiUnsure: boolean; audience?: string; contentWarning?: string } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
-    return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
+    return { error: "AI quizzes aren't available right now. Please try again later." };
   }
   try {
     // Load admin-configured quiz guidelines
@@ -693,7 +693,7 @@ async function qualityCheckQuiz(validQuestions: any[], allPics: boolean): Promis
 async function generateEyeGazeQuizWithAI(topic: string, description?: string, sourceLink?: string, level: number = 1, questionCount: number = 5, exactMode: boolean = false, allPics: boolean = true, customQuestions?: string): Promise<{ questions: Array<{ prompt: string; question_image: string | null; option_a_text: string; option_a_image: string | null; option_b_text: string; option_b_image: string | null; option_c_text: string; option_c_image: string | null; option_d_text: string; option_d_image: string | null; correct_answer: string }> } | { error: string }> {
   const apiKey = await getPerplexityApiKey();
   if (!apiKey) {
-    return { error: "AI quiz generation is not configured. An admin needs to set the Perplexity API key in the admin panel." };
+    return { error: "AI quizzes aren't available right now. Please try again later." };
   }
   try {
     let guidelines = "";
