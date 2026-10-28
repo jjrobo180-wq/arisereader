@@ -4,18 +4,19 @@
 // through the Arise server). Follows, likes and Listen later come from the swipe feed's saved state.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GENRE, GENRES, chooseEpisode, hiRes, isTeaser, pickNext, tasteOf, type Candidate, type PodMode, type Earshot, type PodEpisode, type PodShow, type PoolShow, type SavedEpisode, type Signal } from "@shared/earshot";
-import { Bell, Check, LogOut, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
+import { Bell, Check, LogOut, Zap, Moon, Sun, UserCircle, Clock, Heart, Home as HomeIcon, Library, Loader2, Menu, MessageCircle, Mic, MoreVertical, Radio as RadioIcon, Search, Sparkles, ThumbsUp, Users, X } from "lucide-react";
 import { RadioBar, RadioView, type Station } from "./Radio";
 import { PartyRoom } from "./Party";
 import { artIn } from "./art";
 import { SearchPage } from "./Search";
+import { Endless, NewsNow, genreMore, topicMore } from "./Endless";
 import { AddToMenu, ModePage, ModesRow, NewModeDialog, makeMode, toSaved } from "./Hubs";
 import { GoLiveSheet, LiveRoom, type LiveSummary } from "../client/src/components/family-hub/earshot/EarshotCreators";
 import { setTheme, useTheme } from "../client/src/components/family-hub/earshot/EarshotPlayer";
 import { HoursBackCard } from "../client/src/components/family-hub/earshot/EarshotListen";
 
 type Api = (path: string, init?: { method?: string; body?: unknown }) => Promise<any>;
-type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "watch"; showId: string; episodeId: string };
+type View = { kind: "home" } | { kind: "search"; q: string } | { kind: "liked" } | { kind: "later" } | { kind: "radio" } | { kind: "party"; id: string } | { kind: "mode"; id: string } | { kind: "live" } | { kind: "now" } | { kind: "watch"; showId: string; episodeId: string };
 
 const DEFAULT_GENRES = ["comedy", "news", "science", "tech", "truecrime", "history", "business", "culture"];
 const ACCENT = "#ff6a1f";
@@ -44,6 +45,7 @@ function parseHash(): View {
   if (a === "later") return { kind: "later" };
   if (a === "radio") return { kind: "radio" };
   if (a === "live") return { kind: "live" };
+  if (a === "now" || a === "news") return { kind: "now" };
   if (a === "party" && /^(new|[A-Za-z0-9_-]{6,20})$/.test(b || "")) return { kind: "party", id: b };
   if (a === "mode" && /^[a-z0-9-]{1,30}$/.test(b || "")) return { kind: "mode", id: b };
   return { kind: "home" };
@@ -317,10 +319,19 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
   // Any genre can be a chip, not just the ones picked: its shows load the first time it's tapped.
   const [extra, setExtra] = useState<Record<string, PodEpisode[] | "loading" | "error">>({});
   const [extraShows, setExtraShows] = useState<Record<string, PodShow[]>>({});
+  const [extraPools, setExtraPools] = useState<Record<string, PoolShow[]>>({});
+  // One endless loader per genre tab, kept while the page is open, so it remembers how far it got.
+  const moreFns = useRef(new Map<string, ReturnType<typeof genreMore>>());
+  const moreFor = (g: string, first: PoolShow[]) => {
+    const k = `${g}${ex}`;
+    let f = moreFns.current.get(k);
+    if (!f) { f = genreMore(api, g, ex, first); moreFns.current.set(k, f); }
+    return f;
+  };
   useEffect(() => {
     if (chip === "all" || chip.startsWith("t:") || genres.includes(chip) || extra[chip]) return;
     setExtra((x) => ({ ...x, [chip]: "loading" }));
-    api(`/api/earshot/feed?genres=${chip}${ex}`).then((b) => { const list: PoolShow[] = b.pools?.[chip] || []; setExtraShows((x) => ({ ...x, [chip]: byRank(list) })); setExtra((x) => ({ ...x, [chip]: cardsOf(chip, list) })); }).catch(() => setExtra((x) => ({ ...x, [chip]: "error" })));
+    api(`/api/earshot/feed?genres=${chip}${ex}`).then((b) => { const list: PoolShow[] = b.pools?.[chip] || []; setExtraPools((x) => ({ ...x, [chip]: list })); setExtraShows((x) => ({ ...x, [chip]: byRank(list) })); setExtra((x) => ({ ...x, [chip]: cardsOf(chip, list) })); }).catch(() => setExtra((x) => ({ ...x, [chip]: "error" })));
   }, [chip, genres, extra, api, ex, cardsOf]);
   // The round "Top shows" row: real popularity from the server (Apple's Top Podcasts charts for All
   // and each genre). Only this row is ranked by popularity; the grid below never is.
@@ -448,6 +459,7 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {navItem("Open Mic", <Mic size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "openmic"))}
       {navItem("Social", <MessageCircle size={22} strokeWidth={1.8} />, false, () => onOpenFeed(undefined, "social"))}
       {navItem("Radio", <RadioIcon size={22} strokeWidth={1.8} />, view.kind === "radio", () => go({ kind: "radio" }))}
+      {navItem("Up to the minute news", <Zap size={22} strokeWidth={1.8} />, view.kind === "now", () => go({ kind: "now" }))}
       {navItem("Listen together", <Users size={22} strokeWidth={1.8} />, view.kind === "party", () => go({ kind: "party", id: "new" }))}
       {navItem(live.length ? `Live · ${live.length}` : "Live", <span className="grid h-[22px] w-[22px] place-items-center"><span className={`h-2.5 w-2.5 rounded-full bg-[#ff3b30] ${live.length ? "motion-safe:animate-pulse" : "opacity-50"}`} /></span>, view.kind === "live", () => go({ kind: "live" }))}
       {navItem("Go live", <Mic size={22} strokeWidth={1.8} />, false, () => setGoLive(true))}
@@ -519,6 +531,8 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
           </div>
           : <p className="mt-1 text-sm text-[#606060]">No one's live right now. Audio only, so you can go live from anywhere, camera off.</p>}
       </section>;
+  } else if (view.kind === "now") {
+    content = <div className="min-w-0 flex-1 px-4 pb-16 sm:px-6"><NewsNow api={api} ex={ex} onOpen={openEp} onBack={() => go({ kind: "home" })} grid={(list) => <Grid list={list} onOpen={openEp} />} /></div>;
   } else if (view.kind === "radio") {
     content = <RadioView onPlay={setStation} current={station} />;
   } else if (view.kind === "liked" || view.kind === "later") {
@@ -575,14 +589,15 @@ export function Home({ es, update, api, say, onOpenFeed, onEditInterests, pro, o
       {!topic && chip !== "all" && <TopShows shows={topShows} onShow={openShowLatest} label={`Top in ${GENRE[chip]?.name ?? ""}`} note="Everything below stays unranked." />}
 
       {chip === "all" && es.settings.hoursBack && <div className="mb-5"><HoursBackCard light onHide={() => { update((e) => ({ ...e, settings: { ...e.settings, hoursBack: false } })); say("Hours back is hidden. Turn it on again in Settings."); }} /></div>}
-      {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} />}
+      {chip === "all" && <ModesRow es={es} update={update} onOpen={(m) => go({ kind: "mode", id: m.id })} onNew={() => setNewMode(true)} onDrive={() => onOpenFeed(undefined, undefined, { id: "__drive", index: 0 })} onNews={() => go({ kind: "now" })} />}
 
 
       {topic ? <TopicResults key={topic} topic={topic} api={api} ex={ex} onOpen={openEp} top={tops[`t:${topic}`] || []} />
         : err ? <div className="py-20 text-center"><p className="text-[#606060]">{err}</p><button onClick={load} className="mt-4 h-9 rounded-full bg-[#0f0f0f] px-4 text-sm font-semibold text-white">Try again</button></div>
         : !pools || more === "loading" ? <Skeleton />
         : more === "error" ? <p className="py-20 text-center text-[#606060]">Couldn't load {GENRE[chip]?.name}. Try again in a moment.</p>
-        : shown.length ? <><Grid list={shown} onOpen={openEp} />{chip === "all" && <div ref={moreRef} className="flex justify-center py-10" aria-hidden="true"><Loader2 className="animate-spin text-[#606060]" size={22} /></div>}</>
+        : chip === "all" && shown.length ? <><Grid list={shown} onOpen={openEp} /><div ref={moreRef} className="flex justify-center py-10" aria-hidden="true"><Loader2 className="animate-spin text-[#606060]" size={22} /></div></>
+        : shown.length ? <Endless key={chip} resetKey={chip} seed={shown} more={moreFor(chip, Array.isArray(more) ? (extraPools[chip] || []) : (pools?.[chip] || []))} grid={(list) => <Grid list={list} onOpen={openEp} />} />
         : <p className="py-20 text-center text-[#606060]">Nothing here yet. Try another topic.</p>}
     </div>;
   }
@@ -818,12 +833,13 @@ function TopicResults({ topic, api, ex, onOpen, top }: { topic: string; api: Api
     return () => { live = false; };
   }, [api, topic, ex]);
   const openShow = (s: PodShow) => api(`/api/earshot/show/${s.id}?x=1${ex}`).then((b) => { const e = (b.episodes || [])[0]; if (e) onOpen(e); }).catch((e) => setErr(e.message));
+  const moreFn = useMemo(() => topicMore(api, topic, ex), [api, topic, ex]);
   return <div className="pt-2">
     <h2 className="text-xl font-bold tracking-tight">{topic}</h2>
     <p className="mt-1 text-sm text-[#606060]">Every episode we can find that mentions it, newest first. Big show or brand new, same shelf.</p>
     {err ? <p className="py-16 text-center text-[#606060]">{err}</p> : !list ? <div className="mt-4"><Skeleton /></div> : <>
       <TopShows shows={top} onShow={openShow} label={`Top shows covering ${topic}`} note="Everything below stays unranked." />
-      {list.length ? <div className="mt-2"><p className="mb-1 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Every episode, newest first</p><Grid list={list} onOpen={onOpen} /></div> : <p className="py-16 text-center text-[#606060]">Nothing mentions “{topic}” yet. Try a different spelling.</p>}
+      {list.length ? <div className="mt-2"><p className="mb-1 text-[12px] font-semibold uppercase tracking-[.14em] text-[#767676]">Every episode, newest first</p><Endless resetKey={topic} seed={list} more={moreFn} grid={(l) => <Grid list={l} onOpen={onOpen} />} /></div> : <p className="py-16 text-center text-[#606060]">Nothing mentions “{topic}” yet. Try a different spelling.</p>}
     </>}
   </div>;
 }
