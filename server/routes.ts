@@ -70,6 +70,7 @@ import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
 import { startPrechecks as startPodcastPrechecks } from "./podcastPrecheck";
 import { groqSpeech, hasGroqVoice, voiceFor } from "./groqVoice";
+import { supabaseBlobs } from "./blobStore";
 import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
 import { startCopyDiagnostics } from "./podcastCopies";
@@ -9259,7 +9260,9 @@ Important:
   // One generated phrase can be reused across students until the service restarts.
   const ttsAudioCache = new Map<string, { audio: Buffer; lastUsed: number }>();
   const ttsAudioInFlight = new Map<string, Promise<Buffer>>();
-  const TTS_AUDIO_CACHE_LIMIT = 250;
+  const TTS_AUDIO_CACHE_LIMIT = 120;
+  // Every phrase made is also kept in storage (voice-cache), so it is made once, ever.
+  const ttsBlobs = supabaseBlobs(getAdminSupabase);
 
   function rememberTtsAudio(key: string, audio: Buffer) {
     if (ttsAudioCache.has(key)) ttsAudioCache.delete(key);
@@ -9267,7 +9270,7 @@ Important:
 
     // By size too: Groq's voice can come back as WAV (about ten times bigger than MP3).
     const bytes = () => { let n = 0; for (const e of ttsAudioCache.values()) n += e.audio.length; return n; };
-    while (ttsAudioCache.size > TTS_AUDIO_CACHE_LIMIT || (ttsAudioCache.size > 1 && bytes() > 40 * 1024 * 1024)) {
+    while (ttsAudioCache.size > TTS_AUDIO_CACHE_LIMIT || (ttsAudioCache.size > 1 && bytes() > 15 * 1024 * 1024)) {
       let oldestKey: string | null = null;
       let oldestTime = Infinity;
       for (const [candidateKey, entry] of ttsAudioCache.entries()) {
@@ -9338,7 +9341,11 @@ Important:
       const groqVoice = () => groqSpeech(text, voiceFor(style, calmMode, sleepVoice)).then((s) => s.audio);
 
       const cacheKey = `${style}|${style === "sleep" ? sleepVoice : calmMode ? "calm" : "normal"}|${text}`;
-      const cached = ttsAudioCache.get(cacheKey);
+      let cached = ttsAudioCache.get(cacheKey);
+      if (!cached) {
+        const stored = await ttsBlobs.get(`tts:${cacheKey}`);
+        if (stored) { rememberTtsAudio(cacheKey, stored.data); cached = ttsAudioCache.get(cacheKey); }
+      }
 
       if (cached) {
         cached.lastUsed = Date.now();
@@ -9368,6 +9375,7 @@ Important:
         }
       }
 
+      if (!ttsAudioCache.has(cacheKey)) void ttsBlobs.put(`tts:${cacheKey}`, audio, isWav(audio) ? "audio/wav" : "audio/mpeg");
       rememberTtsAudio(cacheKey, audio);
       res.setHeader("Content-Type", isWav(audio) ? "audio/wav" : "audio/mpeg");
       res.setHeader("Cache-Control", "private, max-age=3600");

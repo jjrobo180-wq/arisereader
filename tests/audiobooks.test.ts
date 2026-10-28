@@ -175,3 +175,24 @@ test("the book's text is found for well-known books even when the recording's na
   assert.equal(code, 200, JSON.stringify(out));
   assert.ok(asked.some((u) => u.includes("/epub/11/")), asked.join(" "));
 });
+
+test("what's found is kept in the database, so a restarted server doesn't look it up again", async () => {
+  const { memoryKV } = await import("../server/podcastDirectory");
+  const kv = memoryKV();
+  const meta = { metadata: { collection: ["librivoxaudio"], title: "Emma", creator: "Jane Austen" }, files: [{ name: "emma_01_64kb.mp3", format: "64Kbps MP3", track: "1", title: "Chapter 1", length: "600" }] };
+  const start = () => {
+    const routes: Record<string, Function> = {};
+    const app: any = { get: (p: string, ...h: any[]) => { routes[`GET ${p}`] = h[h.length - 1]; }, post: (p: string, ...h: any[]) => { routes[`POST ${p}`] = h[h.length - 1]; } };
+    let fetched = 0;
+    registerAudiobookRoutes(app, (_q: any, _s: any, n: any) => n(), { kv, fetchJson: async () => { fetched++; return meta; } });
+    const call = async () => { let out: any; const res: any = { set: () => res, json: (b: any) => { out = b; return res; }, status: () => res }; await routes["GET /api/podscroll/books/:id"]({ user: { id: "d" }, query: {}, params: { id: "emma_librivox" }, body: {}, headers: {} }, res); return out; };
+    return { call, fetched: () => fetched };
+  };
+  const a = start();
+  assert.equal((await a.call()).book.title, "Emma");
+  assert.equal(a.fetched(), 1);
+  await new Promise((r) => setTimeout(r, 10));
+  const b = start(); // a fresh server: nothing in memory
+  assert.equal((await b.call()).book.title, "Emma");
+  assert.equal(b.fetched(), 0, "read from the database instead");
+});

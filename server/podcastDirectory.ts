@@ -348,12 +348,12 @@ export function createDirectory(options: DirectoryOptions = {}) {
   // pieces (with word timings) are the biggest, then shows with their 25 newest episodes.
   const genreShows = layeredCache<PodShow[]>(kv, "g2:", 12 * 3600_000, 100);
   const genreEpisodes = layeredCache<PoolShow[]>(kv, "ge:", 12 * 3600_000, 100);
-  const shows = layeredCache<ShowLookup>(kv, "s2:", 6 * 3600_000, 1200);
+  const shows = layeredCache<ShowLookup>(kv, "s2:", 6 * 3600_000, 500);
   const searches = layeredCache<{ shows: PodShow[]; episodes: PodEpisode[] }>(kv, "q:", 3600_000, 500);
-  const extras = layeredCache<{ transcript: { url: string; type: string } | null; chapters: string }>(kv, "x:", 24 * 3600_000, 2000);
-  const tx = layeredCache<TranscriptChunk>(kv, "t:", 365 * 24 * 3600_000, 300);
-  const profiles = layeredCache<ShowProfile>(kv, "sp:", 365 * 24 * 3600_000, 2000);
-  const ctx = layeredCache<ContentChunk>(kv, "t3:", 365 * 24 * 3600_000, 400);
+  const extras = layeredCache<{ transcript: { url: string; type: string } | null; chapters: string }>(kv, "x:", 24 * 3600_000, 800);
+  const tx = layeredCache<TranscriptChunk>(kv, "t:", 365 * 24 * 3600_000, 120);
+  const profiles = layeredCache<ShowProfile>(kv, "sp:", 365 * 24 * 3600_000, 800);
+  const ctx = layeredCache<ContentChunk>(kv, "t3:", 365 * 24 * 3600_000, 150);
 
   // ---- Apple ----
   const loadGenreShows = (gid: string) => genreShows.get(gid, async () => {
@@ -803,7 +803,7 @@ export function createDirectory(options: DirectoryOptions = {}) {
   }
 
   // ---- Explore previews: each episode's best ~45 seconds ----
-  const moments = layeredCache<Moment>(kv, "m1:", 365 * 24 * 3600_000, 1500);
+  const moments = layeredCache<Moment>(kv, "m1:", 365 * 24 * 3600_000, 600);
   const MOMENT_WINDOW = 180, MOMENTS_PER_DAY = Number(process.env.EARSHOT_MOMENTS_PER_DAY) || 150;
   let momentDay = ""; let momentsToday = 0;
   /** Where an MP3 episode's audio starts and how many bytes a second takes (from the host's copy, as a bot). */

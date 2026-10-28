@@ -19,6 +19,8 @@ import { Readable } from "node:stream";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createAttemptLimiter, waitWords } from "./attemptLimiter";
 import { parseDefinition } from "../shared/lifePlugins";
+import type { KV } from "./podcastDirectory";
+import type { BlobStore } from "./blobStore";
 
 export type BookKind = "solo" | "group" | "dramatic";
 export type Book = { id: string; title: string; author: string; cover: string; downloads: number; rating: number; reviews: number; about: string; reader: string; kind: BookKind; added: string };
@@ -456,25 +458,49 @@ export function relayPassOk(key: Buffer, pass: string, at: number): boolean {
   return got.length === want.length && timingSafeEqual(got, want);
 }
 
-export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts: { fetchJson?: JsonFetcher; fetchText?: TextFetcher; ask?: AskJson; transcribe?: Transcriber; speak?: Speaker; minutesPerDay?: number; charsPerDay?: number; prefix?: string; now?: () => number; relayKey?: Buffer } = {}) {
+export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts: { fetchJson?: JsonFetcher; fetchText?: TextFetcher; ask?: AskJson; transcribe?: Transcriber; speak?: Speaker; kv?: KV; blobs?: BlobStore; minutesPerDay?: number; charsPerDay?: number; prefix?: string; now?: () => number; relayKey?: Buffer } = {}) {
   const prefix = opts.prefix ?? "/api/podscroll";
   const get = opts.fetchJson ?? defaultFetch;
   const getText = opts.fetchText ?? defaultText;
   const now = opts.now ?? Date.now;
   const cache = new Map<string, { at: number; ttl: number; value: unknown }>();
+  // Memory holds only the most recent; everything found is also kept in the database (opts.kv,
+  // the podcast_cache table), so it survives restarts and doesn't crowd the small server's memory.
+  const kv = opts.kv;
+  const remember = (key: string, value: unknown, ttl: number, at = now()) => {
+    cache.delete(key);
+    cache.set(key, { at, ttl, value });
+    if (cache.size > 250) { const oldest = [...cache.entries()].sort((a, b) => a[1].at - b[1].at).slice(0, 50); for (const [k] of oldest) cache.delete(k); }
+    // Whole book texts are big (up to a few MB each): only the few most recent stay in memory.
+    if (key.startsWith("text:")) {
+      const texts = [...cache.entries()].filter(([k]) => k.startsWith("text:")).sort((a, b) => a[1].at - b[1].at);
+      for (const [k] of texts.slice(0, Math.max(0, texts.length - 4))) cache.delete(k);
+    }
+  };
+  const saved = async (key: string, ttl: number): Promise<{ value: unknown; at: number } | null> => {
+    if (!kv) return null;
+    const d = await kv.get(`ab:${key}`).catch(() => null);
+    return d && d.value != null && now() - d.at < ttl ? d : null;
+  };
+  const making2 = new Map<string, Promise<unknown>>();
   const cached = async <T>(key: string, ttl: number, make: () => Promise<T>): Promise<T> => {
     const hit = cache.get(key);
     if (hit && now() - hit.at < hit.ttl) return hit.value as T;
-    const value = await make();
-    // A miss (nothing found, or a site that didn't answer) is tried again after 15 minutes.
-    cache.set(key, { at: now(), ttl: value === null ? Math.min(ttl, 15 * 60_000) : ttl, value });
-    if (cache.size > 800) { const oldest = [...cache.entries()].sort((a, b) => a[1].at - b[1].at).slice(0, 150); for (const [k] of oldest) cache.delete(k); }
-    // Whole book texts are big (up to a few MB each): only the dozen most recent stay in memory.
-    if (key.startsWith("text:")) {
-      const texts = [...cache.entries()].filter(([k]) => k.startsWith("text:")).sort((a, b) => a[1].at - b[1].at);
-      for (const [k] of texts.slice(0, Math.max(0, texts.length - 12))) cache.delete(k);
+    let job = making2.get(key) as Promise<T> | undefined;
+    if (!job) {
+      job = (async () => {
+        const d = await saved(key, ttl);
+        if (d) { remember(key, d.value, ttl, d.at); return d.value as T; }
+        const value = await make();
+        // A miss (nothing found, or a site that didn't answer) is tried again after 15 minutes, and isn't saved.
+        remember(key, value, value === null ? Math.min(ttl, 15 * 60_000) : ttl);
+        if (value !== null && value !== undefined && kv) void kv.set(`ab:${key}`, value).catch(() => {});
+        return value;
+      })();
+      making2.set(key, job);
+      job.finally(() => making2.delete(key)).catch(() => {});
     }
-    return value;
+    return job;
   };
   const DAY = 24 * 3600_000;
   // The same on every server and after every deploy (a random key made each pass stop working the
@@ -626,8 +652,8 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       if (!c || !range) return res.status(404).json({ message: "That chapter doesn't exist." });
       const key = `tx:${id}:${ch}:${piece}`;
       const more = !!c.secs && range.at + TX_PIECE_SECS < c.secs;
-      const hit = cache.get(key);
-      if (hit) return res.json({ lines: hit.value, more });
+      const hit = cache.get(key) ?? await saved(key, 30 * DAY);
+      if (hit) { if (!cache.has(key)) remember(key, hit.value, 30 * DAY); return res.json({ lines: hit.value, more }); }
       const who = String(req.user?.id || clientIp(req));
       const wait = txLimit.retryAfter(who);
       if (wait) return res.status(429).json({ message: `Too many transcripts at once. Try again in ${waitWords(wait)}.` });
@@ -649,7 +675,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
         job.finally(() => making.delete(key)).catch(() => {});
       }
       const lines = await job;
-      cache.set(key, { at: now(), ttl: 30 * DAY, value: lines });
+      if (!cache.has(key)) { remember(key, lines, 30 * DAY); if (kv) void kv.set(`ab:${key}`, lines).catch(() => {}); }
       res.json({ lines, more });
     } catch (e) { down(res, "transcript", e, "The transcript isn't ready right now. Try again in a moment."); }
   });
@@ -752,6 +778,7 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
       if (!p) return res.status(404).end();
       const key = `voice:${id}:${sec}:${part}:${voice}`;
       let wav = voices.get(key);
+      if (!wav && opts.blobs) { const b = await opts.blobs.get(key); if (b) { wav = b.data; voices.set(key, wav); while (voices.size > 4) voices.delete(voices.keys().next().value!); } }
       if (!wav) {
         let job = speaking.get(key);
         if (!job) {
@@ -770,9 +797,11 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
         }
         wav = await job;
         if (!wav.length) throw new Error("no sound");
-        // Sound is big (about 3 MB a minute): only the last few parts are kept in memory.
+        // Sound is big (about 3 MB a minute): only the last few parts stay in memory; every part
+        // made is kept in storage, so it's never paid for twice.
+        if (!voices.has(key) && opts.blobs) void opts.blobs.put(key, wav, "audio/wav");
         voices.delete(key); voices.set(key, wav);
-        while (voices.size > 16) voices.delete(voices.keys().next().value!);
+        while (voices.size > 4) voices.delete(voices.keys().next().value!);
       }
       res.set({ "Content-Type": "audio/wav", "Content-Length": String(wav.length), "Cache-Control": "public, max-age=604800", "Accept-Ranges": "none" }).send(wav);
     } catch (e: any) { console.error("[audiobooks] narrate:", e?.message || e); if (!res.headersSent) res.status(502).end(); }
