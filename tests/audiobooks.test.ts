@@ -156,3 +156,22 @@ test("chapter names from file names read the same as the rest", () => {
   assert.deepEqual(tidyChapter("Pride Prejudice Chap 3", "Pride and Prejudice"), { title: "Chapter 3", sub: "" });
   assert.deepEqual(tidyChapter("Book 2 Chapter 4", "War and Peace"), { title: "Book 2", sub: "Chapter 4" });
 });
+
+test("the book's text is found for well-known books even when the recording's name differs", async () => {
+  const { registerAudiobookRoutes } = await import("../server/audiobooks");
+  const routes = new Map<string, any>();
+  const app: any = { get: (p: string, ...h: any[]) => routes.set(p, h[h.length - 1]), post: () => {} };
+  const asked: string[] = [];
+  registerAudiobookRoutes(app, ((_r: any, _s: any, n: any) => n()) as any, {
+    fetchJson: async (u: string) => {
+      asked.push(u);
+      if (u.includes("/metadata/")) return { metadata: { collection: ["librivoxaudio"], title: "Alice's Adventures in Wonderland (version 7 Dramatic Reading)", creator: "Lewis Carroll" }, files: [{ name: "alice_01.mp3", format: "64Kbps MP3", title: "Chapter 1", length: "600" }] };
+      throw new Error("gutendex down");
+    },
+    fetchText: async (u: string) => { asked.push(u); return "*** START OF THE PROJECT GUTENBERG EBOOK ***\n\nCHAPTER I.\nDown the Rabbit-Hole\n\nAlice was beginning to get very tired of sitting by her sister on the bank.\n\nCHAPTER II.\nThe Pool of Tears\n\nCuriouser and curiouser!\n\n*** END OF THE PROJECT GUTENBERG EBOOK ***"; },
+  });
+  let out: any = null, code = 200;
+  await routes.get("/api/podscroll/books/:id/text")({ params: { id: "aliceinwonderland_drama_1310_librivox" } }, { status: (c: number) => { code = c; return { json: (b: any) => { out = b; } }; }, set: () => ({ json: (b: any) => { out = b; } }), json: (b: any) => { out = b; } });
+  assert.equal(code, 200, JSON.stringify(out));
+  assert.ok(asked.some((u) => u.includes("/epub/11/")), asked.join(" "));
+});

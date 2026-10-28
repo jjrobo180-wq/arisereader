@@ -947,6 +947,8 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
 
   // The next chapter starts loading in the last two minutes of this one, so it plays without a wait.
   const warmed = useRef("");
+  const relayRetried = useRef(false);
+  useEffect(() => { relayRetried.current = false; }, [ch, book.id]);
   const stuck = useRef<number | undefined>(undefined);
   const warmNext = (a: HTMLAudioElement) => {
     const next = book.chapters[ch + 1];
@@ -1016,7 +1018,18 @@ export function AudiobookBar({ api, pro, onJoin, reading, tap, onChange, onStop,
           if (sleepAt === "end") { setSleepAt(null); if (audio.current) setFade(audio.current, 1); setPlaying(false); saveSpot(book, Math.min(ch + 1, book.chapters.length - 1), 0); say("Sleep timer: stopped at the end of the chapter."); return; }
           if (ch < book.chapters.length - 1) go(ch + 1); else { saveSpot(book, ch, 0, true); setPlaying(false); say(`You finished ${book.title}.`); }
         }}
-        onError={() => { setPlaying(false); setLoading(false); if (audio.current?.getAttribute("src")) say("This chapter won't play right now. Try the next one."); }} />
+        onError={() => {
+          const a = audio.current;
+          // Through the sound settings, an old pass (from before the site updated) is refused: get a
+          // new one and carry on from the same spot, once.
+          if (a && a.crossOrigin === "anonymous" && !relayRetried.current) {
+            relayRetried.current = true; pass.current = null;
+            const t = a.currentTime;
+            getPass().then((k) => { a.src = relayUrl(chapter, k); a.addEventListener("loadedmetadata", () => { try { a.currentTime = t || reading.at; } catch { /* ignore */ } }, { once: true }); a.play().catch(() => {}); }).catch(() => { setPlaying(false); setLoading(false); say("This chapter won't play right now. Try the next one."); });
+            return;
+          }
+          setPlaying(false); setLoading(false); if (a?.getAttribute("src")) say("This chapter won't play right now. Try the next one.");
+        }} />
     </div>
 
     {sheet === "settings" && <Sheet title="Listening" onClose={() => setSheet(null)}>

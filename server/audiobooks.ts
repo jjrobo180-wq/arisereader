@@ -146,6 +146,20 @@ const capWord = (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCas
 const unshout = (s: string) => (/[a-z]/.test(s) || !/[A-Z]{3}/.test(s) ? s : s.toLowerCase().replace(/(^|[\s"“(—-])([a-z])/g, (_, a, b) => a + b.toUpperCase())
   .replace(/\b(Chapter|Book|Part|Stave|Letter|Section|Canto|Act|Lecture|Volume) ([ivxlcdm]+)\b/gi, (_, w, n) => `${w} ${n.toUpperCase()}`));
 const norm = (s: string) => String(s).toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+/** Project Gutenberg numbers of books people listen to most, for when the lookup site is slow or
+ *  the recording's name doesn't match the book's ("Alice in Wonderland (Dramatic Reading)"). */
+const GUTENBERG: [RegExp, number][] = [
+  [/alice.*wonderland/, 11], [/through the looking glass/, 12], [/art of war/, 132], [/pride and prejudice/, 1342], [/adventures of sherlock holmes/, 1661], [/hound of the baskervilles/, 2852],
+  [/frankenstein/, 84], [/dracula/, 345], [/moby dick/, 2701], [/tale of two cities/, 98], [/christmas carol/, 46], [/great expectations/, 1400], [/oliver twist/, 730],
+  [/wonderful wizard of oz/, 55], [/peter pan/, 16], [/treasure island/, 120], [/huckleberry finn/, 76], [/tom sawyer/, 74], [/jane eyre/, 1260], [/little women/, 514],
+  [/time machine/, 35], [/war of the worlds/, 36], [/metamorphosis/, 5200], [/picture of dorian gray/, 174], [/jungle book/, 236], [/secret garden/, 113],
+  [/anne of green gables/, 45], [/^emma\b/, 158], [/sense and sensibility/, 161], [/odyssey/, 1727], [/count of monte cristo/, 1184], [/wuthering heights/, 768],
+  [/^the prince\b|^prince\b/, 1232], [/meditations/, 2680], [/walden/, 205], [/scarlet letter/, 25344], [/call of the wild/, 215], [/heart of darkness/, 219],
+  [/strange case of dr jekyll|jekyll and hyde/, 43], [/war and peace/, 2600], [/crime and punishment/, 2554], [/the iliad|^iliad/, 6130], [/robinson crusoe/, 521],
+  [/gulliver/, 829], [/around the world in (80|eighty) days/, 103], [/twenty thousand leagues/, 164], [/black beauty/, 271], [/wind in the willows/, 289],
+  [/the raven/, 1065], [/importance of being earnest/, 844], [/sun also rises/, 67138], [/great gatsby/, 64317], [/beowulf/, 16328], [/romeo and juliet/, 1513], [/hamlet/, 1524], [/macbeth/, 1533],
+];
+const knownGutenberg = (title: string) => { const t = norm(baseTitle(title)); return GUTENBERG.find(([re]) => re.test(t))?.[1] ?? 0; };
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** One chapter's name, made uniform: { title: "Chapter 1", sub: "The Period" }. Names that aren't
@@ -452,12 +466,16 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
     const hit = cache.get(key);
     if (hit && now() - hit.at < hit.ttl) return hit.value as T;
     const value = await make();
-    cache.set(key, { at: now(), ttl, value });
+    // A miss (nothing found, or a site that didn't answer) is tried again after 15 minutes.
+    cache.set(key, { at: now(), ttl: value === null ? Math.min(ttl, 15 * 60_000) : ttl, value });
     if (cache.size > 800) { const oldest = [...cache.entries()].sort((a, b) => a[1].at - b[1].at).slice(0, 150); for (const [k] of oldest) cache.delete(k); }
     return value;
   };
   const DAY = 24 * 3600_000;
-  const relayKey = opts.relayKey ?? (process.env.SESSION_SECRET ? createHmac("sha256", process.env.SESSION_SECRET).update("pod+ book relay").digest() : randomBytes(32));
+  // The same on every server and after every deploy (a random key made each pass stop working the
+  // moment the site redeployed or another server answered: the sound-settings audio was refused).
+  const stableSecret = [process.env.SESSION_SECRET, process.env.JWT_SECRET, process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.DATABASE_URL, process.env.GROQ_API_KEY].find((v) => v && v.length >= 16);
+  const relayKey = opts.relayKey ?? (stableSecret ? createHmac("sha256", stableSecret).update("pod+ book relay").digest() : randomBytes(32));
   const bookOf = (id: string) => cached(`book2:${id}`, 7 * DAY, async () => bookFromMetadata(id, await get(`${ARCHIVE}/metadata/${encodeURIComponent(id)}`)));
   const down = (res: any, where: string, e: any, message: string) => { console.error(`[audiobooks] ${where}:`, e?.message || e); res.status(502).json({ message }); };
 
@@ -567,12 +585,17 @@ export function registerAudiobookRoutes(app: Express, gate: RequestHandler, opts
   // (the book's text, kept a week)
   function textOf(book: BookDetail): Promise<{ sections: TextSection[]; source: string } | null> {
     return cached(`text:${book.id}`, 7 * DAY, async () => {
-        let gid = book.gutenberg;
+        let gid = book.gutenberg || knownGutenberg(book.title);
         if (!gid) {
-          // Not linked from its page: look the book up by title and author.
-          const g = await get(`https://gutendex.com/books/?search=${encodeURIComponent(`${baseTitle(book.title)} ${book.author.split(" ").slice(-1)[0] || ""}`.trim())}`).catch(() => null);
-          const hit = (Array.isArray(g?.results) ? g.results : []).find((r: any) => baseTitle(String(r?.title || "")).toLowerCase().startsWith(baseTitle(book.title).toLowerCase().slice(0, 30)));
-          gid = Number(hit?.id) || 0;
+          // Not linked from its page: look the book up by title and author, then by title alone.
+          const want = norm(baseTitle(book.title)).split(" ").filter((w) => w.length > 2 && !/^(the|and|version|dramatic|reading|librivox)$/.test(w)).slice(0, 4);
+          const fits = (r: any) => { const t = norm(String(r?.title || "")); return want.length > 0 && want.every((w) => t.includes(w)); };
+          for (const q of [`${baseTitle(book.title)} ${book.author.split(" ").slice(-1)[0] || ""}`.trim(), baseTitle(book.title)]) {
+            const g = await get(`https://gutendex.com/books/?search=${encodeURIComponent(q)}`).catch(() => null);
+            const hit = (Array.isArray(g?.results) ? g.results : []).find(fits);
+            gid = Number(hit?.id) || 0;
+            if (gid) break;
+          }
         }
         if (!gid) return null;
         const sections = sectionsOf(await getText(`https://www.gutenberg.org/cache/epub/${gid}/pg${gid}.txt`));
