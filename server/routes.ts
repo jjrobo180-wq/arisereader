@@ -69,6 +69,7 @@ import { attachLivePods } from "./podcastLive";
 import { attachListenParties } from "./podcastParty";
 import { createDirectory as createPodcastDirectory, supabaseKV } from "./podcastDirectory";
 import { startPrechecks as startPodcastPrechecks } from "./podcastPrecheck";
+import { groqSpeech, hasGroqVoice, voiceFor } from "./groqVoice";
 import { GENRES as PODCAST_GENRES } from "../shared/earshot";
 import { supabaseAdStore } from "./podcastAds";
 import { startCopyDiagnostics } from "./podcastCopies";
@@ -9241,13 +9242,16 @@ Important:
     }
   });
 
-  console.log("[eye-gaze-tts] natural voice configured:", !!process.env.OPENAI_API_KEY);
+  const openAiVoiceOn = () => !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "routed-to-grok";
+  const isWav = (b: Buffer) => b.length > 4 && b.subarray(0, 4).toString("latin1") === "RIFF";
+  console.log("[eye-gaze-tts] natural voice configured:", openAiVoiceOn() || hasGroqVoice());
 
   app.get("/api/eye-gaze/tts/status", (_req, res) => {
+    const groq = !openAiVoiceOn() && hasGroqVoice();
     res.json({
-      configured: !!process.env.OPENAI_API_KEY,
-      provider: process.env.OPENAI_API_KEY ? "openai" : null,
-      model: process.env.OPENAI_API_KEY ? "gpt-4o-mini-tts" : null,
+      configured: openAiVoiceOn() || hasGroqVoice(),
+      provider: openAiVoiceOn() ? "openai" : groq ? "groq" : null,
+      model: openAiVoiceOn() ? "gpt-4o-mini-tts" : groq ? (process.env.BOOK_TTS_MODEL || "canopylabs/orpheus-v1-english") : null,
     });
   });
 
@@ -9261,7 +9265,9 @@ Important:
     if (ttsAudioCache.has(key)) ttsAudioCache.delete(key);
     ttsAudioCache.set(key, { audio, lastUsed: Date.now() });
 
-    while (ttsAudioCache.size > TTS_AUDIO_CACHE_LIMIT) {
+    // By size too: Groq's voice can come back as WAV (about ten times bigger than MP3).
+    const bytes = () => { let n = 0; for (const e of ttsAudioCache.values()) n += e.audio.length; return n; };
+    while (ttsAudioCache.size > TTS_AUDIO_CACHE_LIMIT || (ttsAudioCache.size > 1 && bytes() > 40 * 1024 * 1024)) {
       let oldestKey: string | null = null;
       let oldestTime = Infinity;
       for (const [candidateKey, entry] of ttsAudioCache.entries()) {
@@ -9322,17 +9328,21 @@ Important:
       if (!text) return res.status(400).json({ message: "Text is required." });
       if (text.length > 500) return res.status(400).json({ message: "Text is too long." });
 
+      // OpenAI's voice when it's really on (USE_OPENAI=1 with credit); otherwise, or if it fails,
+      // Groq's Orpheus voices (server/groqVoice.ts).
       const apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) {
+      const openAiOn = !!apiKey && apiKey !== "routed-to-grok";
+      if (!openAiOn && !hasGroqVoice()) {
         return res.status(503).json({ message: "AI voice is not configured." });
       }
+      const groqVoice = () => groqSpeech(text, voiceFor(style, calmMode, sleepVoice)).then((s) => s.audio);
 
       const cacheKey = `${style}|${style === "sleep" ? sleepVoice : calmMode ? "calm" : "normal"}|${text}`;
       const cached = ttsAudioCache.get(cacheKey);
 
       if (cached) {
         cached.lastUsed = Date.now();
-        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Content-Type", isWav(cached.audio) ? "audio/wav" : "audio/mpeg");
         res.setHeader("Cache-Control", "private, max-age=3600");
         res.setHeader("X-ARISE-TTS-Cache", "HIT");
         return res.send(cached.audio);
@@ -9340,7 +9350,9 @@ Important:
 
       let pending = ttsAudioInFlight.get(cacheKey);
       if (!pending) {
-        pending = generateTtsAudio(text, calmMode, apiKey, style, sleepVoice);
+        pending = openAiOn
+          ? generateTtsAudio(text, calmMode, apiKey!, style, sleepVoice).catch((e) => (hasGroqVoice() ? groqVoice() : Promise.reject(e)))
+          : groqVoice();
         ttsAudioInFlight.set(cacheKey, pending);
       }
 
@@ -9348,7 +9360,7 @@ Important:
       try {
         audio = await pending;
       } catch (error: any) {
-        console.error("[eye-gaze-tts] OpenAI speech failed:", error?.status || "", error?.detail || error?.message);
+        console.error("[eye-gaze-tts] speech failed:", error?.status || "", error?.detail || error?.message);
         return res.status(502).json({ message: "AI voice is temporarily unavailable." });
       } finally {
         if (ttsAudioInFlight.get(cacheKey) === pending) {
@@ -9357,7 +9369,7 @@ Important:
       }
 
       rememberTtsAudio(cacheKey, audio);
-      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Content-Type", isWav(audio) ? "audio/wav" : "audio/mpeg");
       res.setHeader("Cache-Control", "private, max-age=3600");
       res.setHeader("X-ARISE-TTS-Cache", "MISS");
       res.send(audio);
